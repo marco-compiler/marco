@@ -1,0 +1,30 @@
+dist: trusty
+sudo: false
+language: cpp
+compiler: gcc
+
+os: linux
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-trusty-6.0
+    packages:
+      - clang-6.0
+
+script:
+    - export CC=clang-6.0
+    - export CXX=clang++-6.0
+    - mkdir build-asan
+    - cd build-asan
+    - cmake .. -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer"
+    - cmake --build . -- -j2
+    - ctest -j2
+    - cd ..
+    - mkdir build-tsan
+    - cd build-tsan
+    - cmake .. -DCMAKE_CXX_FLAGS="-fsanitize=thread -O1"
+    - cmake --build . -- -j2
+    - ctest -j2
+
+
