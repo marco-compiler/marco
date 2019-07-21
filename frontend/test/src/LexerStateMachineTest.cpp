@@ -131,3 +131,113 @@ TEST(LexerStateMachineTest, floatEMustBeFollowedBySignOrNumber)
 	EXPECT_EQ(lexer.scan(), modelica::Token::Error);
 	EXPECT_EQ(lexer.scan(), modelica::Token::End);
 }
+
+TEST(LexerStateMachineTest, stringsShouldParse)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("\"asd\"  \"another\"");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::String);
+	EXPECT_EQ(lexer.getLastString(), "asd");
+	EXPECT_EQ(lexer.scan(), modelica::Token::String);
+	EXPECT_EQ(lexer.getLastString(), "another");
+	EXPECT_EQ(lexer.scan(), modelica::Token::End);
+}
+
+TEST(LexerStateMachineTest, specialCaractersShouldWork)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("\"\\\"\\n\\r\\t\\v\\?\"");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::String);
+	EXPECT_EQ(lexer.getLastString(), "\"\n\r\t\v?");
+	EXPECT_EQ(lexer.scan(), modelica::Token::End);
+}
+
+TEST(LexerStateMachineTest, malformedStringsShouldReturnError)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("\"");
+	Lex lexer(toParse);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Error);
+}
+
+TEST(LexerStateMachineTest, identifierShouldParse)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("Asd\nDsa");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::Ident);
+	EXPECT_EQ(lexer.getLastIdentifier(), "Asd");
+	EXPECT_EQ(lexer.scan(), modelica::Token::Ident);
+	EXPECT_EQ(lexer.getLastIdentifier(), "Dsa");
+	EXPECT_EQ(lexer.scan(), modelica::Token::End);
+}
+
+TEST(LexerStateMachineTest, keywordsShouldParse)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("Asd\nfinal");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::Ident);
+	EXPECT_EQ(lexer.getLastIdentifier(), "Asd");
+	EXPECT_EQ(lexer.scan(), modelica::Token::FinalKeyword);
+	EXPECT_EQ(lexer.scan(), modelica::Token::End);
+}
+
+TEST(LexerStateMachineTest, qIdentShouldParse)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("'Asd'");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::Ident);
+	EXPECT_EQ(lexer.getLastIdentifier(), "Asd");
+	EXPECT_EQ(lexer.scan(), modelica::Token::End);
+}
+
+TEST(LexerStateMachineTest, qIdentShouldParseWithEscapedChars)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("'Asd\\'\\n'");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::Ident);
+	EXPECT_EQ(lexer.getLastIdentifier(), "Asd'\n");
+	EXPECT_EQ(lexer.scan(), modelica::Token::End);
+}
+
+TEST(LexerStateMachineTest, symbolsShouldParse)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("*/ -");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::Multiply);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Division);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Minus);
+	EXPECT_EQ(lexer.scan(), modelica::Token::End);
+}
+
+TEST(LexerStateMachineTest, unexpectedSymbolShouldFail)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("^");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::Error);
+	EXPECT_EQ(lexer.scan(), modelica::Token::End);
+}

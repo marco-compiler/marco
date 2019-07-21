@@ -13,7 +13,85 @@ namespace modelica
 		Ident,
 		Integer,
 		FloatingPoint,
+		String,
 		Error,
+
+		AlgorithmKeyword,
+		AndKeyword,
+		AnnotationKeyword,
+		BlockKeyword,
+		BreakKeyword,
+		ClassKeyword,
+		ConnectKeyword,
+		ConnectorKeyword,
+		ConstantKeyword,
+		ConstraynedByKeyword,
+		DerKeyword,
+		DiscreteKeyword,
+		EachKeyword,
+		ElseKeyword,
+		ElseIfKeyword,
+		ElseWhenKeyword,
+		EncapsulatedKeyword,
+		EndKeyword,
+		EnumerationKeyword,
+		EquationKeyword,
+		ExpandableKeyword,
+		ExtendsKeyword,
+		ExternalKeyword,
+		FalseKeyword,
+		FinalKeyword,
+		FlowKeyword,
+		ForKeyword,
+		FunctionKeyword,
+		IfKeyword,
+		ImportKeyword,
+		ImpureKeyword,
+		InKeyword,
+		InitialKeyword,
+		InnerKeyword,
+		InputKeyword,
+		LoopKeyword,
+		ModelKeyword,
+		NotKeyword,
+		OperaptorKeyword,
+		OrKeyword,
+		OuterKeyword,
+		OutputKeyword,
+		PackageKeyword,
+		ParameterKeyword,
+		PartialKeyword,
+		ProtectedKeyword,
+		PublicKeyword,
+		PureKeyword,
+		RecordKeyword,
+		RedeclareKeyword,
+		ReplacableKeyword,
+		ReturnKeyword,
+		StremKeyword,
+		ThenKeyword,
+		TrueKeyword,
+		TypeKeyword,
+		WhenKeyword,
+		WhileKeyword,
+		WhithinKeyword,
+
+		Multiply,
+		Division,
+		Dot,
+		Plus,
+		Minus,
+		LessThan,
+		Equal,
+		GreaterThan,
+		Colons,
+		LPar,
+		RPar,
+		LSquare,
+		RSquare,
+		LCurly,
+		RCurly,
+
 		End
 	};
 
@@ -44,9 +122,9 @@ namespace modelica
 		enum State
 		{
 			Normal,
-			Error,
 			ParsingId,
 			ParsingQId,
+			ParsingIdBackSlash,
 			ParsingBackSlash,
 			ParsingNum,
 			ParsingFloat,
@@ -103,9 +181,14 @@ namespace modelica
 		[[nodiscard]] double getLastFloat() const { return lastNum.get(); }
 
 		/**
-		 * Retunrs the string associated to the last Error token found
+		 * Returns the string associated to the last Error token found
 		 */
 		[[nodiscard]] const std::string& getLastError() const { return error; }
+
+		/**
+		 * Returns the last bool found
+		 */
+		[[nodiscard]] bool getLastBool() const { return lastBool; }
 
 		protected:
 		/**
@@ -143,6 +226,7 @@ namespace modelica
 		std::string lastIdentifier;
 		FloatLexer<defaultBase> lastNum;
 		std::string lastString;
+		bool lastBool;
 
 		int lineNumber;
 		int columnNumber;
