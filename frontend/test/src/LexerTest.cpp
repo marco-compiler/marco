@@ -3,7 +3,7 @@
 
 #include "modelica/Lexer.hpp"
 
-enum TestToken
+enum class TestToken
 {
 	Begin,
 	Ok,

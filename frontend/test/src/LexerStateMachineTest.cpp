@@ -235,9 +235,27 @@ TEST(LexerStateMachineTest, unexpectedSymbolShouldFail)
 {
 	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
 
-	std::string toParse("^");
+	std::string toParse("$");
 	Lex lexer(toParse);
 
 	EXPECT_EQ(lexer.scan(), modelica::Token::Error);
+	EXPECT_EQ(lexer.scan(), modelica::Token::End);
+}
+
+TEST(LexerStateMachineTest, multicharTokenShouldParse)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("== <= >= <> ./ .+ .- .*");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::OperatorEqual);
+	EXPECT_EQ(lexer.scan(), modelica::Token::LessEqual);
+	EXPECT_EQ(lexer.scan(), modelica::Token::GreaterEqual);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Different);
+	EXPECT_EQ(lexer.scan(), modelica::Token::ElementWiseDivision);
+	EXPECT_EQ(lexer.scan(), modelica::Token::ElementWiseSum);
+	EXPECT_EQ(lexer.scan(), modelica::Token::ElementWiseMinus);
+	EXPECT_EQ(lexer.scan(), modelica::Token::ElementWiseMultilpy);
 	EXPECT_EQ(lexer.scan(), modelica::Token::End);
 }

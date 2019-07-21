@@ -1,4 +1,6 @@
 #pragma once
+#include <llvm/ADT/StringMap.h>
+#include <map>
 #include <optional>
 #include <string>
 
@@ -6,7 +8,7 @@
 
 namespace modelica
 {
-	enum Token
+	enum class Token
 	{
 		None,
 		Begin,
@@ -81,16 +83,26 @@ namespace modelica
 		Dot,
 		Plus,
 		Minus,
+		ElementWiseMinus,
+		ElementWiseSum,
+		ElementWiseMultilpy,
+		ElementWiseDivision,
+		OperatorEqual,
 		LessThan,
+		LessEqual,
 		Equal,
 		GreaterThan,
+		GreaterEqual,
+		Different,
 		Colons,
+		Semicolons,
 		LPar,
 		RPar,
 		LSquare,
 		RSquare,
 		LCurly,
 		RCurly,
+		Exponential,
 
 		End
 	};
@@ -104,22 +116,12 @@ namespace modelica
 		public:
 		using Token = modelica::Token;
 
-		ModelicaStateMachine(char first)
-				: state(Normal),
-					current('\0'),
-					next(first),
-					currentToken(Token::Begin),
-					lastIdentifier(""),
-					lastString(""),
-					lineNumber(1),
-					columnNumber(0)
-		{
-		}
+		ModelicaStateMachine(char first);
 
 		/**
 		 * The possibles state of the machine.
 		 */
-		enum State
+		enum class State
 		{
 			Normal,
 			ParsingId,
@@ -134,6 +136,7 @@ namespace modelica
 			EndOfComment,
 			ParsingLineComment,
 			ParsingString,
+			IgnoreNextChar,
 			End
 		};
 
@@ -185,11 +188,6 @@ namespace modelica
 		 */
 		[[nodiscard]] const std::string& getLastError() const { return error; }
 
-		/**
-		 * Returns the last bool found
-		 */
-		[[nodiscard]] bool getLastBool() const { return lastBool; }
-
 		protected:
 		/**
 		 * Feeds a character to the state machine, returns None if
@@ -215,9 +213,12 @@ namespace modelica
 				lineNumber++;
 			}
 		}
+		[[nodiscard]] Token stringToToken(const std::string& lookUp) const;
+		[[nodiscard]] Token charToToken(char c) const;
 
 		template<State s>
 		Token scan();
+		Token tryScanSymbol();
 
 		State state;
 		char current;
@@ -226,11 +227,12 @@ namespace modelica
 		std::string lastIdentifier;
 		FloatLexer<defaultBase> lastNum;
 		std::string lastString;
-		bool lastBool;
 
 		int lineNumber;
 		int columnNumber;
 
 		std::string error;
+		llvm::StringMap<Token> keywordMap;
+		std::map<char, Token> symbols;
 	};
 }	// namespace modelica

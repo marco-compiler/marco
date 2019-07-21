@@ -1,9 +1,5 @@
 #include "modelica/LexerStateMachine.hpp"
 
-#include <llvm/ADT/StringMap.h>
-#include <map>
-#include <tuple>
-
 using namespace modelica;
 using State = ModelicaStateMachine::State;
 
@@ -40,108 +36,109 @@ static char escapedChar(char c)
 
 static bool isDigit(char c) { return ('0' <= c && c <= '9'); }
 
-static Token scanSymbol(char c)
+Token ModelicaStateMachine::charToToken(char c) const
 {
-	static const std::map<char, Token> symbols = []() {
-		std::map<char, Token> symbols;
-
-		symbols['*'] = Token::Multiply;
-		symbols['-'] = Token::Minus;
-		symbols['+'] = Token::Plus;
-		symbols['/'] = Token::Division;
-		symbols['.'] = Token::Dot;
-		symbols['['] = Token::LSquare;
-		symbols[']'] = Token::RSquare;
-		symbols['{'] = Token::LCurly;
-		symbols['}'] = Token::RCurly;
-		symbols['('] = Token::LPar;
-		symbols[')'] = Token::RPar;
-		symbols['='] = Token::Equal;
-		symbols['<'] = Token::LessThan;
-		symbols['>'] = Token::GreaterThan;
-		symbols[':'] = Token::Colons;
-
-		return symbols;
-	}();
-
 	if (auto iter = symbols.find(c); iter != symbols.end())
 		return iter->second;
 
 	return Token::Error;
 }
 
-static Token stringToToken(const std::string& lookUp)
+Token ModelicaStateMachine::stringToToken(const std::string& lookUp) const
 {
-	static const llvm::StringMap<Token> keywords = []() {
-		llvm::StringMap<Token> keywordMap;
-
-		keywordMap["algorithm"] = Token::AlgorithmKeyword;
-		keywordMap["and"] = Token::AndKeyword;
-		keywordMap["annotation"] = Token::AnnotationKeyword;
-		keywordMap["block"] = Token::BlockKeyword;
-		keywordMap["break"] = Token::BreakKeyword;
-		keywordMap["class"] = Token::ClassKeyword;
-		keywordMap["connect"] = Token::ConnectKeyword;
-		keywordMap["connector"] = Token::ConnectorKeyword;
-		keywordMap["constant"] = Token::ConstantKeyword;
-		keywordMap["constraynedby"] = Token::ConstraynedByKeyword;
-		keywordMap["der"] = Token::DerKeyword;
-		keywordMap["discrete"] = Token::DiscreteKeyword;
-		keywordMap["each"] = Token::EachKeyword;
-		keywordMap["else"] = Token::ElseKeyword;
-		keywordMap["elseif"] = Token::ElseIfKeyword;
-		keywordMap["elsewhen"] = Token::ElseWhenKeyword;
-		keywordMap["encapsulated"] = Token::EncapsulatedKeyword;
-		keywordMap["end"] = Token::EndKeyword;
-		keywordMap["enumeration"] = Token::EnumerationKeyword;
-		keywordMap["equation"] = Token::EquationKeyword;
-		keywordMap["expandable"] = Token::ExpandableKeyword;
-		keywordMap["extends"] = Token::ExtendsKeyword;
-		keywordMap["external"] = Token::ExternalKeyword;
-		keywordMap["false"] = Token::FalseKeyword;
-		keywordMap["final"] = Token::FinalKeyword;
-		keywordMap["flow"] = Token::FlowKeyword;
-		keywordMap["for"] = Token::ForKeyword;
-		keywordMap["function"] = Token::FunctionKeyword;
-		keywordMap["if"] = Token::IfKeyword;
-		keywordMap["import"] = Token::ImportKeyword;
-		keywordMap["impure"] = Token::ImpureKeyword;
-		keywordMap["in"] = Token::InKeyword;
-		keywordMap["initial"] = Token::InitialKeyword;
-		keywordMap["inner"] = Token::InnerKeyword;
-		keywordMap["input"] = Token::InputKeyword;
-		keywordMap["loop"] = Token::LoopKeyword;
-		keywordMap["model"] = Token::ModelKeyword;
-		keywordMap["not"] = Token::NotKeyword;
-		keywordMap["operaptor"] = Token::OperaptorKeyword;
-		keywordMap["or"] = Token::OrKeyword;
-		keywordMap["outer"] = Token::OuterKeyword;
-		keywordMap["output"] = Token::OutputKeyword;
-		keywordMap["package"] = Token::PackageKeyword;
-		keywordMap["parameter"] = Token::ParameterKeyword;
-		keywordMap["partial"] = Token::PartialKeyword;
-		keywordMap["protected"] = Token::ProtectedKeyword;
-		keywordMap["public"] = Token::PublicKeyword;
-		keywordMap["pure"] = Token::PureKeyword;
-		keywordMap["record"] = Token::RecordKeyword;
-		keywordMap["redeclare"] = Token::RedeclareKeyword;
-		keywordMap["replacable"] = Token::ReplacableKeyword;
-		keywordMap["return"] = Token::ReturnKeyword;
-		keywordMap["strem"] = Token::StremKeyword;
-		keywordMap["then"] = Token::ThenKeyword;
-		keywordMap["true"] = Token::TrueKeyword;
-		keywordMap["type"] = Token::TypeKeyword;
-		keywordMap["when"] = Token::WhenKeyword;
-		keywordMap["while"] = Token::WhileKeyword;
-		keywordMap["whithin"] = Token::WhithinKeyword;
-
-		return keywordMap;
-	}();
-
-	if (auto iter = keywords.find(lookUp); iter != keywords.end())
+	if (auto iter = keywordMap.find(lookUp); iter != keywordMap.end())
 		return iter->getValue();
 
 	return Token::Ident;
+}
+
+ModelicaStateMachine::ModelicaStateMachine(char first)
+		: state(State::Normal),
+			current('\0'),
+			next(first),
+			currentToken(Token::Begin),
+			lastIdentifier(""),
+			lastString(""),
+			lineNumber(1),
+			columnNumber(0)
+{
+	keywordMap["algorithm"] = Token::AlgorithmKeyword;
+	keywordMap["and"] = Token::AndKeyword;
+	keywordMap["annotation"] = Token::AnnotationKeyword;
+	keywordMap["block"] = Token::BlockKeyword;
+	keywordMap["break"] = Token::BreakKeyword;
+	keywordMap["class"] = Token::ClassKeyword;
+	keywordMap["connect"] = Token::ConnectKeyword;
+	keywordMap["connector"] = Token::ConnectorKeyword;
+	keywordMap["constant"] = Token::ConstantKeyword;
+	keywordMap["constraynedby"] = Token::ConstraynedByKeyword;
+	keywordMap["der"] = Token::DerKeyword;
+	keywordMap["discrete"] = Token::DiscreteKeyword;
+	keywordMap["each"] = Token::EachKeyword;
+	keywordMap["else"] = Token::ElseKeyword;
+	keywordMap["elseif"] = Token::ElseIfKeyword;
+	keywordMap["elsewhen"] = Token::ElseWhenKeyword;
+	keywordMap["encapsulated"] = Token::EncapsulatedKeyword;
+	keywordMap["end"] = Token::EndKeyword;
+	keywordMap["enumeration"] = Token::EnumerationKeyword;
+	keywordMap["equation"] = Token::EquationKeyword;
+	keywordMap["expandable"] = Token::ExpandableKeyword;
+	keywordMap["extends"] = Token::ExtendsKeyword;
+	keywordMap["external"] = Token::ExternalKeyword;
+	keywordMap["false"] = Token::FalseKeyword;
+	keywordMap["final"] = Token::FinalKeyword;
+	keywordMap["flow"] = Token::FlowKeyword;
+	keywordMap["for"] = Token::ForKeyword;
+	keywordMap["function"] = Token::FunctionKeyword;
+	keywordMap["if"] = Token::IfKeyword;
+	keywordMap["import"] = Token::ImportKeyword;
+	keywordMap["impure"] = Token::ImpureKeyword;
+	keywordMap["in"] = Token::InKeyword;
+	keywordMap["initial"] = Token::InitialKeyword;
+	keywordMap["inner"] = Token::InnerKeyword;
+	keywordMap["input"] = Token::InputKeyword;
+	keywordMap["loop"] = Token::LoopKeyword;
+	keywordMap["model"] = Token::ModelKeyword;
+	keywordMap["not"] = Token::NotKeyword;
+	keywordMap["operaptor"] = Token::OperaptorKeyword;
+	keywordMap["or"] = Token::OrKeyword;
+	keywordMap["outer"] = Token::OuterKeyword;
+	keywordMap["output"] = Token::OutputKeyword;
+	keywordMap["package"] = Token::PackageKeyword;
+	keywordMap["parameter"] = Token::ParameterKeyword;
+	keywordMap["partial"] = Token::PartialKeyword;
+	keywordMap["protected"] = Token::ProtectedKeyword;
+	keywordMap["public"] = Token::PublicKeyword;
+	keywordMap["pure"] = Token::PureKeyword;
+	keywordMap["record"] = Token::RecordKeyword;
+	keywordMap["redeclare"] = Token::RedeclareKeyword;
+	keywordMap["replacable"] = Token::ReplacableKeyword;
+	keywordMap["return"] = Token::ReturnKeyword;
+	keywordMap["strem"] = Token::StremKeyword;
+	keywordMap["then"] = Token::ThenKeyword;
+	keywordMap["true"] = Token::TrueKeyword;
+	keywordMap["type"] = Token::TypeKeyword;
+	keywordMap["when"] = Token::WhenKeyword;
+	keywordMap["while"] = Token::WhileKeyword;
+	keywordMap["whithin"] = Token::WhithinKeyword;
+
+	symbols['*'] = Token::Multiply;
+	symbols['-'] = Token::Minus;
+	symbols['+'] = Token::Plus;
+	symbols['/'] = Token::Division;
+	symbols['.'] = Token::Dot;
+	symbols['['] = Token::LSquare;
+	symbols[']'] = Token::RSquare;
+	symbols['{'] = Token::LCurly;
+	symbols['}'] = Token::RCurly;
+	symbols['('] = Token::LPar;
+	symbols[')'] = Token::RPar;
+	symbols['='] = Token::Equal;
+	symbols['<'] = Token::LessThan;
+	symbols['>'] = Token::GreaterThan;
+	symbols[':'] = Token::Colons;
+	symbols[';'] = Token::Semicolons;
+	symbols['^'] = Token::Exponential;
 }
 
 template<>
@@ -172,6 +169,24 @@ Token ModelicaStateMachine::scan<State::ParsingLineComment>()
 	if (current == '\n')
 		state = State::Normal;
 
+	return Token::None;
+}
+
+static Token elementWise(char current, char next)
+{
+	if (current != '.')
+		return Token::None;
+	switch (next)
+	{
+		case ('/'):
+			return Token::ElementWiseDivision;
+		case ('*'):
+			return Token::ElementWiseMultilpy;
+		case ('-'):
+			return Token::ElementWiseMinus;
+		case ('+'):
+			return Token::ElementWiseSum;
+	}
 	return Token::None;
 }
 
@@ -320,7 +335,29 @@ Token ModelicaStateMachine::scan<State::Normal>()
 		return Token::End;
 	}
 
-	Token token = scanSymbol(current);
+	return tryScanSymbol();
+}
+
+Token ModelicaStateMachine::tryScanSymbol()
+{
+	state = State::IgnoreNextChar;
+	if (current == '<' && next == '>')
+		return Token::Different;
+
+	if (current == '<' && next == '=')
+		return Token::LessEqual;
+
+	if (current == '>' && next == '=')
+		return Token::GreaterEqual;
+
+	if (next == '=' && current == '=')
+		return Token::OperatorEqual;
+
+	if (Token token = elementWise(current, next); token != Token::None)
+		return token;
+
+	state = State::Normal;
+	Token token = charToToken(current);
 	if (token == Token::Error)
 	{
 		error = "Unexpeted character ";
@@ -417,34 +454,37 @@ Token ModelicaStateMachine::step(char c)
 	advance(c);
 	switch (state)
 	{
-		case (Normal):
-			return scan<Normal>();
-		case (ParsingComment):
-			return scan<ParsingComment>();
-		case (ParsingLineComment):
-			return scan<ParsingLineComment>();
-		case (EndOfComment):
-			return scan<EndOfComment>();
-		case (ParsingNum):
-			return scan<ParsingNum>();
-		case (ParsingFloat):
-			return scan<ParsingFloat>();
-		case (ParsingFloatExponentialSign):
-			return scan<ParsingFloatExponentialSign>();
-		case (ParsingFloatExponent):
-			return scan<ParsingFloatExponent>();
-		case (ParsingString):
-			return scan<ParsingString>();
-		case (ParsingBackSlash):
-			return scan<ParsingBackSlash>();
-		case (ParsingId):
-			return scan<ParsingId>();
-		case (ParsingQId):
-			return scan<ParsingQId>();
-		case (ParsingIdBackSlash):
-			return scan<ParsingIdBackSlash>();
-		case (End):
+		case (State::Normal):
+			return scan<State::Normal>();
+		case (State::ParsingComment):
+			return scan<State::ParsingComment>();
+		case (State::ParsingLineComment):
+			return scan<State::ParsingLineComment>();
+		case (State::EndOfComment):
+			return scan<State::EndOfComment>();
+		case (State::ParsingNum):
+			return scan<State::ParsingNum>();
+		case (State::ParsingFloat):
+			return scan<State::ParsingFloat>();
+		case (State::ParsingFloatExponentialSign):
+			return scan<State::ParsingFloatExponentialSign>();
+		case (State::ParsingFloatExponent):
+			return scan<State::ParsingFloatExponent>();
+		case (State::ParsingString):
+			return scan<State::ParsingString>();
+		case (State::ParsingBackSlash):
+			return scan<State::ParsingBackSlash>();
+		case (State::ParsingId):
+			return scan<State::ParsingId>();
+		case (State::ParsingQId):
+			return scan<State::ParsingQId>();
+		case (State::ParsingIdBackSlash):
+			return scan<State::ParsingIdBackSlash>();
+		case (State::End):
 			return Token::End;
+		case (State::IgnoreNextChar):
+			state = State::Normal;
+			return Token::None;
 	}
 
 	error = "Unandled Lexer State";
