@@ -353,6 +353,9 @@ Token ModelicaStateMachine::tryScanSymbol()
 	if (next == '=' && current == '=')
 		return Token::OperatorEqual;
 
+	if (current == ':' && next == '=')
+		return Token::Assignment;
+
 	if (Token token = elementWise(current, next); token != Token::None)
 		return token;
 

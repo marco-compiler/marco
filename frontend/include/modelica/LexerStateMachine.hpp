@@ -103,6 +103,7 @@ namespace modelica
 		LCurly,
 		RCurly,
 		Exponential,
+		Assignment,
 
 		End
 	};

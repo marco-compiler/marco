@@ -246,7 +246,7 @@ TEST(LexerStateMachineTest, multicharTokenShouldParse)
 {
 	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
 
-	std::string toParse("== <= >= <> ./ .+ .- .*");
+	std::string toParse("== <= >= <> ./ .+ .- .* :=");
 	Lex lexer(toParse);
 
 	EXPECT_EQ(lexer.scan(), modelica::Token::OperatorEqual);
@@ -257,5 +257,6 @@ TEST(LexerStateMachineTest, multicharTokenShouldParse)
 	EXPECT_EQ(lexer.scan(), modelica::Token::ElementWiseSum);
 	EXPECT_EQ(lexer.scan(), modelica::Token::ElementWiseMinus);
 	EXPECT_EQ(lexer.scan(), modelica::Token::ElementWiseMultilpy);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Assignment);
 	EXPECT_EQ(lexer.scan(), modelica::Token::End);
 }
