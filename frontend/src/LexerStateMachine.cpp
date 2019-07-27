@@ -138,6 +138,7 @@ ModelicaStateMachine::ModelicaStateMachine(char first)
 	symbols['>'] = Token::GreaterThan;
 	symbols[':'] = Token::Colons;
 	symbols[';'] = Token::Semicolons;
+	symbols[','] = Token::Comma;
 	symbols['^'] = Token::Exponential;
 }
 
@@ -186,6 +187,8 @@ static Token elementWise(char current, char next)
 			return Token::ElementWiseMinus;
 		case ('+'):
 			return Token::ElementWiseSum;
+		case ('^'):
+			return Token::ElementWiseExponential;
 	}
 	return Token::None;
 }
@@ -212,11 +215,13 @@ Token ModelicaStateMachine::scan<State::ParsingNum>()
 		return isDigit(c) || c == '.' || c == 'e' || c == 'E';
 	};
 
-	if (isAccetable(next))
-		return Token::None;
+	if (!isAccetable(next))
+	{
+		state = State::Normal;
+		return Token::Integer;
+	}
 
-	state = State::Normal;
-	return Token::Integer;
+	return Token::None;
 }
 
 template<>
@@ -281,6 +286,20 @@ Token ModelicaStateMachine::scan<State::ParsingFloat>()
 }
 
 template<>
+Token ModelicaStateMachine::scan<State::ParsingId>()
+{
+	lastIdentifier.push_back(current);
+
+	if (!isDigit(next) && !isNonDigit(next))
+	{
+		state = State::Normal;
+		return stringToToken(lastIdentifier);
+	}
+
+	return Token::None;
+}
+
+template<>
 Token ModelicaStateMachine::scan<State::Normal>()
 {
 	if (std::isspace(current) != 0)
@@ -290,9 +309,8 @@ Token ModelicaStateMachine::scan<State::Normal>()
 	{
 		state = State::ParsingId;
 		lastIdentifier = "";
-		lastIdentifier.push_back(current);
 
-		return Token::None;
+		return scan<State::ParsingId>();
 	}
 
 	if (current == '\'')
@@ -306,8 +324,7 @@ Token ModelicaStateMachine::scan<State::Normal>()
 	{
 		state = State::ParsingNum;
 		lastNum = FloatLexer<defaultBase>();
-		lastNum.addUpper(current - '0');
-		return Token::None;
+		return scan<State::ParsingNum>();
 	}
 
 	if (current == '/' && next == '/')
@@ -393,20 +410,6 @@ Token ModelicaStateMachine::scan<State::ParsingString>()
 	}
 
 	lastString.push_back(current);
-	return Token::None;
-}
-
-template<>
-Token ModelicaStateMachine::scan<State::ParsingId>()
-{
-	lastIdentifier.push_back(current);
-
-	if (!isDigit(next) && !isNonDigit(next))
-	{
-		state = State::Normal;
-		return stringToToken(lastIdentifier);
-	}
-
 	return Token::None;
 }
 

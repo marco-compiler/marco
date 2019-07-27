@@ -1,4 +1,4 @@
-ADD_LIBRARY(frontend SHARED src/Lexer.cpp src/LexerStateMachine.cpp)
+ADD_LIBRARY(frontend SHARED src/Lexer.cpp src/LexerStateMachine.cpp src/Parser.cpp src/ParserErrors.cpp src/Expr.cpp)
 ADD_LIBRARY(modelica::frontend ALIAS frontend)
 TARGET_INCLUDE_DIRECTORIES(frontend 
 	PRIVATE 
@@ -11,7 +11,7 @@ TARGET_INCLUDE_DIRECTORIES(frontend
 TARGET_COMPILE_FEATURES(frontend PUBLIC cxx_std_17)
 
 llvm_map_components_to_libnames(llvm_frontend_libs core Support ${LLVM_TARGETS_TO_BUILD})
-TARGET_LINK_LIBRARIES(frontend PUBLIC ${llvm_frontend_libs})
+TARGET_LINK_LIBRARIES(frontend PUBLIC ${llvm_frontend_libs} modelica::utils)
 
 include(GNUInstallDirs)
 INSTALL(TARGETS frontend EXPORT frontendTargets

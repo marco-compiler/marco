@@ -206,6 +206,18 @@ TEST(LexerStateMachineTest, qIdentShouldParse)
 	EXPECT_EQ(lexer.scan(), modelica::Token::End);
 }
 
+TEST(LexerStateMachineTest, singleCharIdentifierShouldParse)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("A");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::Ident);
+	EXPECT_EQ(lexer.getLastIdentifier(), "A");
+	EXPECT_EQ(lexer.scan(), modelica::Token::End);
+}
+
 TEST(LexerStateMachineTest, qIdentShouldParseWithEscapedChars)
 {
 	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
@@ -229,6 +241,24 @@ TEST(LexerStateMachineTest, symbolsShouldParse)
 	EXPECT_EQ(lexer.scan(), modelica::Token::Division);
 	EXPECT_EQ(lexer.scan(), modelica::Token::Minus);
 	EXPECT_EQ(lexer.scan(), modelica::Token::End);
+}
+
+TEST(LexerStateMachineTest, integerFollowedByTokens)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("[1, 2; 3, 4]");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::LSquare);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Integer);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Comma);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Integer);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Semicolons);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Integer);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Comma);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Integer);
+	EXPECT_EQ(lexer.scan(), modelica::Token::RSquare);
 }
 
 TEST(LexerStateMachineTest, unexpectedSymbolShouldFail)
@@ -259,4 +289,34 @@ TEST(LexerStateMachineTest, multicharTokenShouldParse)
 	EXPECT_EQ(lexer.scan(), modelica::Token::ElementWiseMultilpy);
 	EXPECT_EQ(lexer.scan(), modelica::Token::Assignment);
 	EXPECT_EQ(lexer.scan(), modelica::Token::End);
+}
+
+TEST(LexerStateMachineTest, singleDigitNumbers)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("7 8");
+	Lex lexer(toParse);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Integer);
+	EXPECT_EQ(lexer.getLastInt(), 7);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Integer);
+	EXPECT_EQ(lexer.getLastInt(), 8);
+}
+TEST(LexerStateMachineTest, ifElseKeywords)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("if true then 1 elseif false then 2 else 3");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::IfKeyword);
+	EXPECT_EQ(lexer.scan(), modelica::Token::TrueKeyword);
+	EXPECT_EQ(lexer.scan(), modelica::Token::ThenKeyword);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Integer);
+	EXPECT_EQ(lexer.scan(), modelica::Token::ElseIfKeyword);
+	EXPECT_EQ(lexer.scan(), modelica::Token::FalseKeyword);
+	EXPECT_EQ(lexer.scan(), modelica::Token::ThenKeyword);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Integer);
+	EXPECT_EQ(lexer.scan(), modelica::Token::ElseKeyword);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Integer);
 }

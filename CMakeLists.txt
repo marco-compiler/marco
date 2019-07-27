@@ -28,7 +28,7 @@ set(CMAKE_DEBUG_POSTFIX "-d")
 ##############################
 ###        Globals         ###
 ##############################
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Werror -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti -Wall -Werror -Wextra")
 set_tests_properties(${noArgsTests}   PROPERTIES TIMEOUT 10)
 find_package(LLVM REQUIRED 8.0.0)
 

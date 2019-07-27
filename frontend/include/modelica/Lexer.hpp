@@ -133,6 +133,16 @@ namespace modelica
 		{
 		}
 
+		Lexer(const char* str)
+				: StateMachine(*str),
+					getNext([iter = str]() mutable -> char {
+						iter++;
+						return *iter;
+					}),
+					lastChar(*str)
+		{
+		}
+
 		/**
 		 * Advances the reading of the state machine by one character until the
 		 * state machine provides a token.
