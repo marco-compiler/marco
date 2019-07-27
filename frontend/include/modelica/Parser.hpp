@@ -46,9 +46,37 @@ namespace modelica
 		[[nodiscard]] ExpectedUnique<Expr> arithmeticExpression();
 		[[nodiscard]] ExpectedUnique<Expr> term();
 		[[nodiscard]] ExpectedUnique<Expr> factor();
+		[[nodiscard]] ExpectedUnique<Expr> componentReference();
+		[[nodiscard]] llvm::Expected<vectorUnique<Expr>> functionArguments();
 		[[nodiscard]] ExpectedUnique<ExprList> expressionList();
 		[[nodiscard]] ExpectedUnique<ArrayConstructorExpr> arrayArguments();
+		[[nodiscard]] llvm::Expected<vectorUnique<Expr>> arraySubscript();
+		[[nodiscard]] ExpectedUnique<Expr> subScript();
 		[[nodiscard]] llvm::Expected<std::pair<std::string, UniqueExpr>> forIndex();
+
+		template<Token token, typename T>
+		[[nodiscard]] std::optional<ExpectedUnique<Expr>> functionCall()
+		{
+			SourcePosition currentPos = getPosition();
+			if (accept<token>())
+			{
+				if (!expect(Token::LPar))
+					return llvm::make_error<UnexpectedToken>(current);
+
+				if (accept<Token::RPar>())
+					return makeNode<T>(currentPos, vectorUnique<Expr>());
+
+				auto arguments = functionArguments();
+				if (!arguments)
+					return arguments.takeError();
+
+				if (!expect(Token::RPar))
+					return llvm::make_error<UnexpectedToken>(current);
+
+				return makeNode<T>(currentPos, move(*arguments));
+			}
+			return std::nullopt;
+		}
 
 		[[nodiscard]] SourcePosition getPosition() const
 		{

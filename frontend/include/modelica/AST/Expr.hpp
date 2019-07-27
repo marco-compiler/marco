@@ -24,7 +24,9 @@ namespace modelica
 			IntLiteralExpr,
 			StringLiteralExpr,
 			FloatLiteralExpr,
+			AcceptAllExpression,
 			ExpressionList,
+			NamedArgumentExpression,
 			BinaryExpr,
 			LastBinaryExpr,
 			UnaryExpr,
@@ -33,9 +35,19 @@ namespace modelica
 			ArrayConcatExpression,
 			RangeExpression,
 			ArrayConstructorExpression,
+			ArraySubscriptionExpression,
 			DirectArrayConstructorExpression,
 			ForInArrayConstructorExpression,
 			LastArrayConstructorExpression,
+			FunctionCallExpression,
+			DerFunctionCallExpression,
+			InitialFunctionCallExpression,
+			PureFunctionCallExpression,
+			ComponentFunctionCallExpression,
+			LastComponentFunctionCallExpression,
+			PartialFunctionCallExpression,
+			LastFunctionCallExpression,
+			ComponentReferenceExpression,
 			LastExpressionList
 
 		};
@@ -334,6 +346,104 @@ namespace modelica
 		}
 	};
 
+	class ArraySubscriptionExpr: public ExprList
+	{
+		public:
+		ArraySubscriptionExpr(
+				SourceRange loc,
+				UniqueExpr sourceArray,
+				vectorUnique<Expr> dimensionalSubscription)
+				: ExprList(
+							loc,
+							Type(BuiltinType::Unknown),
+							ExprKind::ArraySubscriptionExpression,
+							std::move(dimensionalSubscription))
+		{
+			getExpressions().emplace_back(std::move(sourceArray));
+		}
+		~ArraySubscriptionExpr() final = default;
+
+		static bool classof(const Expr* e)
+		{
+			return e->getKind() == ExprKind::ArraySubscriptionExpression;
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		[[nodiscard]] const Expr* getSourceExpr() const
+		{
+			return getExpressions().back().get();
+		}
+		[[nodiscard]] int subscriptedDimensionsCount() const { return size() - 1; }
+		[[nodiscard]] const Expr* getSubscriptionExpr(int index) const
+		{
+			return at(index);
+		}
+	};
+
+	class AcceptAllExpr: public Expr
+	{
+		public:
+		AcceptAllExpr(SourceRange loc)
+				: Expr(loc, Type(BuiltinType::None), ExprKind::AcceptAllExpression)
+		{
+		}
+		~AcceptAllExpr() final = default;
+		static bool classof(const Expr* e)
+		{
+			return e->getKind() == ExprKind::AcceptAllExpression;
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+	};
+
+	class ComponentReferenceExpr: public ExprList
+	{
+		public:
+		ComponentReferenceExpr(
+				SourceRange loc,
+				std::string name,
+				UniqueExpr prevLookUp,
+				bool hasGlobalLookUp)
+				: ExprList(
+							loc,
+							Type(BuiltinType::Unknown),
+							ExprKind::ComponentReferenceExpression),
+					globalLookUp(hasGlobalLookUp),
+					name(std::move(name))
+
+		{
+			if (prevLookUp.get() != nullptr)
+				getExpressions().emplace_back(std::move(prevLookUp));
+		}
+		~ComponentReferenceExpr() final = default;
+		[[nodiscard]] const std::string& getName() const { return name; }
+
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		static bool classof(const Expr* e)
+		{
+			return e->getKind() == ExprKind::ComponentReferenceExpression;
+		}
+		[[nodiscard]] bool hasGlobalLookup() const { return globalLookUp; }
+		[[nodiscard]] bool isBase() const { return size() == 0; }
+		[[nodiscard]] const Expr* getPreviousLookUp() const
+		{
+			if (isBase())
+				return nullptr;
+			return at(0);
+		}
+
+		private:
+		bool globalLookUp;
+		std::string name;
+	};
+
 	template<typename RappresentationType, BuiltinType T, Expr::ExprKind Kind>
 	class LiteralExpr: public Expr
 	{
@@ -353,6 +463,32 @@ namespace modelica
 
 		private:
 		RappresentationType value;
+	};
+
+	class NamedArgumentExpression: public ExprList
+	{
+		public:
+		NamedArgumentExpression(SourceRange loc, std::string name, UniqueExpr child)
+				: ExprList(
+							loc, Type(BuiltinType::None), ExprKind::NamedArgumentExpression),
+					reference(std::move(name))
+		{
+			getExpressions().emplace_back(std::move(child));
+		}
+		~NamedArgumentExpression() final = default;
+
+		static bool classof(const Expr* e)
+		{
+			return e->getKind() >= ExprKind::NamedArgumentExpression;
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		[[nodiscard]] const std::string& getName() const { return reference; }
+
+		private:
+		std::string reference;
 	};
 
 	class IfElseExpr: public ExprList
@@ -444,5 +580,90 @@ namespace modelica
 			Expr::ExprKind::StringLiteralExpr>;
 	using FloatLiteralExpr =
 			LiteralExpr<double, BuiltinType::Float, Expr::ExprKind::FloatLiteralExpr>;
+
+	class FunctionCallExpr: public ExprList
+	{
+		public:
+		FunctionCallExpr(SourceRange loc, vectorUnique<Expr> params, ExprKind kind)
+				: ExprList(loc, Type(BuiltinType::Unknown), kind, std::move(params))
+		{
+		}
+		~FunctionCallExpr() override = default;
+		static bool classof(const Expr* e)
+		{
+			return e->getKind() >= ExprKind::FunctionCallExpression &&
+						 e->getKind() < ExprKind::LastFunctionCallExpression;
+		}
+	};
+
+	template<Expr::ExprKind knd>
+	class SpecialFunctionCallExpr: public FunctionCallExpr
+	{
+		public:
+		SpecialFunctionCallExpr(SourceRange loc, vectorUnique<Expr> params)
+				: FunctionCallExpr(loc, std::move(params), knd)
+		{
+		}
+		~SpecialFunctionCallExpr() override = default;
+		static bool classof(const Expr* e) { return e->getKind() == knd; }
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+	};
+
+	using DerFunctionCallExpr =
+			SpecialFunctionCallExpr<Expr::ExprKind::DerFunctionCallExpression>;
+	using InitialFunctionCallExpr =
+			SpecialFunctionCallExpr<Expr::ExprKind::InitialFunctionCallExpression>;
+	using PureFunctionCallExpr =
+			SpecialFunctionCallExpr<Expr::ExprKind::PureFunctionCallExpression>;
+
+	class ComponentFunctionCallExpr: public FunctionCallExpr
+	{
+		public:
+		ComponentFunctionCallExpr(
+				SourceRange loc,
+				vectorUnique<Expr> params,
+				UniqueExpr component,
+				ExprKind kind = ComponentFunctionCallExpression)
+				: FunctionCallExpr(loc, std::move(params), kind)
+		{
+			getExpressions().emplace_back(std::move(component));
+		}
+		~ComponentFunctionCallExpr() override = default;
+		static bool classof(const Expr* e)
+		{
+			return e->getKind() >= ExprKind::ComponentFunctionCallExpression &&
+						 e->getKind() < ExprKind::LastFunctionCallExpression;
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+	};
+
+	class PartialFunctioCallExpr: public FunctionCallExpr
+	{
+		PartialFunctioCallExpr(
+				SourceRange loc, vectorUnique<Expr> params, std::string name)
+				: FunctionCallExpr(
+							loc, std::move(params), ExprKind::PartialFunctionCallExpression),
+					name(std::move(name))
+		{
+		}
+		~PartialFunctioCallExpr() final = default;
+		static bool classof(const Expr* e)
+		{
+			return e->getKind() == ExprKind::PartialFunctionCallExpression;
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+
+		private:
+		std::string name;
+	};
 
 }	// namespace modelica

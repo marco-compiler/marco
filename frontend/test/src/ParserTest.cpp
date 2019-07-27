@@ -321,3 +321,113 @@ TEST(ParserTest, exprCanBeMultiType)
 	EXPECT_EQ(true, llvm::isa<BoolLiteralExpr>(casted->at(1)));
 	EXPECT_EQ(true, llvm::isa<IntLiteralExpr>(casted->at(2)));
 }
+
+TEST(ParserTest, simpleComponentReference)
+{
+	auto parser = Parser("component");
+	auto list = parser.primary();
+
+	if (!list)
+		FAIL();
+
+	auto ptr = list.get().get();
+	EXPECT_EQ(true, llvm::isa<ComponentReferenceExpr>(ptr));
+	auto casted = llvm::cast<ComponentReferenceExpr>(ptr);
+
+	EXPECT_EQ("component", casted->getName());
+	EXPECT_EQ(false, casted->hasGlobalLookup());
+}
+
+TEST(ParserTest, globalComponentReference)
+{
+	auto parser = Parser(".component");
+	auto list = parser.primary();
+
+	if (!list)
+		FAIL();
+
+	auto ptr = list.get().get();
+	EXPECT_EQ(true, llvm::isa<ComponentReferenceExpr>(ptr));
+	auto casted = llvm::cast<ComponentReferenceExpr>(ptr);
+
+	EXPECT_EQ("component", casted->getName());
+	EXPECT_EQ(true, casted->hasGlobalLookup());
+}
+TEST(ParserTest, compositeComponentReference)
+{
+	auto parser = Parser("component.second");
+	auto list = parser.primary();
+
+	if (!list)
+		FAIL();
+
+	auto ptr = list.get().get();
+	EXPECT_EQ(true, llvm::isa<ComponentReferenceExpr>(ptr));
+	auto casted = llvm::cast<ComponentReferenceExpr>(ptr);
+
+	EXPECT_EQ("second", casted->getName());
+	EXPECT_EQ(true, casted->getPreviousLookUp() != nullptr);
+	EXPECT_EQ(
+			true, llvm::isa<ComponentReferenceExpr>(casted->getPreviousLookUp()));
+	auto secondPtr =
+			llvm::cast<ComponentReferenceExpr>(casted->getPreviousLookUp());
+	EXPECT_EQ("component", secondPtr->getName());
+	EXPECT_EQ(false, casted->hasGlobalLookup());
+}
+
+TEST(ParserTest, arraySubscriptedReference)
+{
+	auto parser = Parser("component[1]");
+	auto list = parser.primary();
+
+	if (!list)
+		FAIL();
+
+	auto ptr = list.get().get();
+	EXPECT_EQ(true, llvm::isa<ArraySubscriptionExpr>(ptr));
+	auto casted = llvm::cast<ArraySubscriptionExpr>(ptr);
+
+	EXPECT_EQ(true, llvm::isa<IntLiteralExpr>(casted->getSubscriptionExpr(0)));
+	EXPECT_EQ(1, casted->subscriptedDimensionsCount());
+	EXPECT_EQ(true, llvm::isa<ComponentReferenceExpr>(casted->getSourceExpr()));
+}
+
+TEST(ParserTest, multiDimensArraySubscriptedReference)
+{
+	auto parser = Parser("component[1,2]");
+	auto list = parser.primary();
+
+	if (!list)
+		FAIL();
+
+	auto ptr = list.get().get();
+	EXPECT_EQ(true, llvm::isa<ArraySubscriptionExpr>(ptr));
+	auto casted = llvm::cast<ArraySubscriptionExpr>(ptr);
+
+	EXPECT_EQ(true, llvm::isa<IntLiteralExpr>(casted->getSubscriptionExpr(0)));
+	EXPECT_EQ(2, casted->subscriptedDimensionsCount());
+	EXPECT_EQ(true, llvm::isa<ComponentReferenceExpr>(casted->getSourceExpr()));
+}
+
+TEST(ParserTest, composedArraySubscriptedReference)
+{
+	auto parser = Parser("component[:].next[2]");
+	auto list = parser.primary();
+
+	if (!list)
+		FAIL();
+
+	auto ptr = list.get().get();
+	EXPECT_EQ(true, llvm::isa<ArraySubscriptionExpr>(ptr));
+	auto casted = llvm::cast<ArraySubscriptionExpr>(ptr);
+
+	EXPECT_EQ(true, llvm::isa<IntLiteralExpr>(casted->getSubscriptionExpr(0)));
+	EXPECT_EQ(1, casted->subscriptedDimensionsCount());
+	EXPECT_EQ(true, llvm::isa<ComponentReferenceExpr>(casted->getSourceExpr()));
+	auto casted2 = llvm::cast<ComponentReferenceExpr>(casted->getSourceExpr());
+	EXPECT_EQ(
+			true, llvm::isa<ArraySubscriptionExpr>(casted2->getPreviousLookUp()));
+	auto casted3 =
+			llvm::cast<ArraySubscriptionExpr>(casted2->getPreviousLookUp());
+	EXPECT_EQ(true, llvm::isa<AcceptAllExpr>(casted3->getSubscriptionExpr(0)));
+}

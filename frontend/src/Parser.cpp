@@ -14,7 +14,6 @@ llvm::Expected<bool> Parser::expect(Token t)
 	return make_error<UnexpectedToken>(current);
 }
 
-static void notImplemented() { assert(false); }
 llvm::Expected<pair<string, UniqueExpr>> Parser::forIndex()
 {
 	std::string name = lexer.getLastIdentifier();
@@ -74,16 +73,85 @@ ExpectedUnique<ArrayConstructorExpr> Parser::arrayArguments()
 	return makeNode<DirectArrayConstructorExpr>(currentPos, move(vector));
 }
 
-ExpectedUnique<Expr> functionCallArgs()
+Expected<vectorUnique<Expr>> Parser::functionArguments()
 {
-	notImplemented();
-	return make_error<NotImplemented>("function call args was not implemented");
+	// SourcePosition currentPos = getPosition();
+
+	// if (accept<Token::FunctionKeyword>())
+	//{
+	// auto nm = name();
+	// if (!nm)
+	// return nm;
+	//}
+	return llvm::make_error<NotImplemented>("not implemented");
 }
 
-ExpectedUnique<Expr> componentReference()
+ExpectedUnique<Expr> Parser::componentReference()
 {
-	notImplemented();
-	return make_error<NotImplemented>("component reference was not implemented");
+	SourcePosition currentPos = getPosition();
+	bool hasDot = accept<Token::Dot>();
+	UniqueExpr toReturn;
+
+	auto id = lexer.getLastIdentifier();
+	if (auto parseId = expect(Token::Ident); !parseId)
+		return parseId.takeError();
+
+	auto node =
+			makeNode<ComponentReferenceExpr>(currentPos, move(id), nullptr, hasDot);
+	if (!node)
+		return node;
+
+	toReturn = move(*node);
+
+	if (accept<Token::LSquare>())
+	{
+		auto subScriptVector = arraySubscript();
+		if (!subScriptVector)
+			return subScriptVector.takeError();
+
+		auto newNode = makeNode<ArraySubscriptionExpr>(
+				currentPos, move(toReturn), move(*subScriptVector));
+		if (!newNode)
+			return newNode.takeError();
+
+		toReturn = move(*newNode);
+
+		if (!expect(Token::RSquare))
+			return llvm::make_error<UnexpectedToken>(current);
+	}
+
+	while (accept<Token::Dot>())
+	{
+		auto id = lexer.getLastIdentifier();
+		if (auto parsedId = expect(Token::Ident); !parsedId)
+			return parsedId.takeError();
+
+		node = makeNode<ComponentReferenceExpr>(
+				currentPos, move(id), move(toReturn), false);
+		if (!node)
+			return node;
+
+		toReturn = move(*node);
+
+		if (accept<Token::LSquare>())
+		{
+			auto subScriptVector = arraySubscript();
+			if (!subScriptVector)
+				return subScriptVector.takeError();
+
+			auto newNode = makeNode<ArraySubscriptionExpr>(
+					currentPos, move(toReturn), move(*subScriptVector));
+			if (!newNode)
+				return newNode.takeError();
+
+			toReturn = move(*newNode);
+
+			if (!expect(Token::RSquare))
+				return llvm::make_error<UnexpectedToken>(current);
+		}
+	}
+
+	return move(toReturn);
 }
 
 ExpectedUnique<Expr> Parser::expression()
@@ -384,6 +452,35 @@ ExpectedUnique<ExprList> Parser::expressionList()
 	return makeNode<ExprList>(currentPos, move(vector));
 }
 
+ExpectedUnique<Expr> Parser::subScript()
+{
+	SourcePosition currentPos = getPosition();
+	if (accept<Token::Colons>())
+		return makeNode<AcceptAllExpr>(currentPos);
+
+	return expression();
+}
+
+Expected<vectorUnique<Expr>> Parser::arraySubscript()
+{
+	auto subscript = subScript();
+	if (!subscript)
+		return subscript.takeError();
+
+	vectorUnique<Expr> vector;
+	vector.emplace_back(move(*subscript));
+	while (accept<Token::Comma>())
+	{
+		subscript = subScript();
+		if (!subscript)
+			return subscript.takeError();
+
+		vector.emplace_back(move(*subscript));
+	}
+
+	return move(vector);
+}
+
 ExpectedUnique<Expr> Parser::primary()
 {
 	SourcePosition currentPos = getPosition();
@@ -423,6 +520,7 @@ ExpectedUnique<Expr> Parser::primary()
 	{
 		if (accept<Token::RSquare>())
 			return llvm::make_error<EmptyList>();
+
 		auto firstList = expressionList();
 		if (!firstList)
 			return firstList;
@@ -459,24 +557,39 @@ ExpectedUnique<Expr> Parser::primary()
 		return args;
 	}
 
-	if (accept<Token::DerKeyword>())
-		return functionCallArgs();
+	if (auto derCall = functionCall<Token::DerKeyword, DerFunctionCallExpr>();
+			derCall.has_value())
+		return move(derCall.value());
 
-	if (accept<Token::InitialKeyword>())
-		return functionCallArgs();
+	if (auto initCall =
+					functionCall<Token::InitialKeyword, InitialFunctionCallExpr>();
+			initCall.has_value())
+		return move(initCall.value());
 
-	if (accept<Token::PureKeyword>())
-		return functionCallArgs();
+	if (auto pureCall = functionCall<Token::PureKeyword, PureFunctionCallExpr>();
+			pureCall.has_value())
+		return move(pureCall.value());
 
-	if (current != Token::Dot)
-		return make_error<UnexpectedToken>(current);
+	auto exprOrErr = componentReference();
+	if (!exprOrErr)
+		return exprOrErr;
 
-	if (auto exprOrErr = componentReference())
+	if (accept<Token::LPar>())
 	{
-		if (current == Token::LPar)
-			return functionCallArgs();
-		return exprOrErr;
+		auto arguments = functionArguments();
+		if (accept<Token::RPar>())
+			return makeNode<ComponentFunctionCallExpr>(
+					currentPos, vectorUnique<Expr>(), move(*exprOrErr));
+
+		if (!arguments)
+			return arguments.takeError();
+
+		if (!expect(Token::RPar))
+			return llvm::make_error<UnexpectedToken>(current);
+
+		return makeNode<ComponentFunctionCallExpr>(
+				currentPos, move(*arguments), move(*exprOrErr));
 	}
-	else
-		return exprOrErr;
+
+	return exprOrErr;
 }
