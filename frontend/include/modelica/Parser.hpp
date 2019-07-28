@@ -2,6 +2,7 @@
 #include <memory>
 
 #include "llvm/Support/Allocator.h"
+#include "modelica/AST/Equation.hpp"
 #include "modelica/AST/Expr.hpp"
 #include "modelica/Lexer.hpp"
 #include "modelica/LexerStateMachine.hpp"
@@ -23,7 +24,9 @@ namespace modelica
 				const SourcePosition& initPoint, Args&&... args)
 		{
 			static_assert(
-					std::is_base_of<Expr, Type>::value, "Type was not part of AST");
+					std::is_base_of<Expr, Type>::value ||
+							std::is_base_of<Equation, Type>::value,
+					"Type was not part of AST");
 			auto ptr = std::make_unique<Type>(
 					SourceRange(initPoint, getPosition()), std::forward<Args>(args)...);
 
@@ -59,6 +62,12 @@ namespace modelica
 		[[nodiscard]] llvm::Expected<std::vector<std::string>> name();
 		[[nodiscard]] ExpectedUnique<Expr> partialCall();
 		[[nodiscard]] ExpectedUnique<Expr> functionArgument();
+		[[nodiscard]] ExpectedUnique<Equation> equation();
+		[[nodiscard]] ExpectedUnique<Equation> ifEquation();
+		[[nodiscard]] ExpectedUnique<Equation> forEquation();
+		[[nodiscard]] llvm::Expected<vectorUnique<Equation>> equationList(
+				const std::vector<Token>& stopTokens);
+		[[nodiscard]] llvm::Expected<std::pair<UniqueEq, UniqueExpr>> ifBrach();
 		[[nodiscard]] llvm::Expected<std::pair<std::string, UniqueExpr>> forIndex();
 
 		template<Token token, typename T>

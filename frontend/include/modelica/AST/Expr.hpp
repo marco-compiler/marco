@@ -69,10 +69,6 @@ namespace modelica
 		const Type type;
 	};
 
-	using UniqueExpr = std::unique_ptr<Expr>;
-	using ExprIterator = vectorUnique<Expr>::iterator;
-	using ConstExprIterator = vectorUnique<Expr>::const_iterator;
-
 	enum class BinaryExprOp
 	{
 		Sum,
@@ -90,9 +86,13 @@ namespace modelica
 		Different
 	};
 
+	using UniqueExpr = std::unique_ptr<Expr>;
+
 	class ExprList: public Expr
 	{
 		public:
+		using ExprIterator = vectorUnique<Expr>::iterator;
+		using ConstExprIterator = vectorUnique<Expr>::const_iterator;
 		ExprList(
 				SourceRange location,
 				Type type = Type(BuiltinType::None),

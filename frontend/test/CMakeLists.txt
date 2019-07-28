@@ -1,6 +1,6 @@
 include(GoogleTest)
 
-ADD_EXECUTABLE(frontendTest src/LexerTest.cpp src/NumbersLexerTest.cpp src/LexerStateMachineTest.cpp src/ParserTest.cpp src/ParserErrorsTest.cpp)
+ADD_EXECUTABLE(frontendTest src/LexerTest.cpp src/NumbersLexerTest.cpp src/LexerStateMachineTest.cpp src/ParserTest.cpp src/ParserErrorsTest.cpp src/ParserEquationTest.cpp)
 ADD_EXECUTABLE(modelica::frontendTest ALIAS frontendTest) 
 TARGET_LINK_LIBRARIES(frontendTest PRIVATE gtest gtest_main modelica::frontend)
 TARGET_INCLUDE_DIRECTORIES(frontendTest PUBLIC include PRIVATE src)

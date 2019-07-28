@@ -1,4 +1,4 @@
-ADD_LIBRARY(frontend SHARED src/Lexer.cpp src/LexerStateMachine.cpp src/Parser.cpp src/ParserErrors.cpp src/Expr.cpp)
+ADD_LIBRARY(frontend SHARED src/Lexer.cpp src/LexerStateMachine.cpp src/Parser.cpp src/ParserEquation.cpp src/ParserErrors.cpp src/Expr.cpp src/Equation.cpp)
 ADD_LIBRARY(modelica::frontend ALIAS frontend)
 TARGET_INCLUDE_DIRECTORIES(frontend 
 	PRIVATE 
