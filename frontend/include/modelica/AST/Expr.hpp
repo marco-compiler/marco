@@ -27,6 +27,7 @@ namespace modelica
 			AcceptAllExpression,
 			ExpressionList,
 			NamedArgumentExpression,
+			EndExpression,
 			BinaryExpr,
 			LastBinaryExpr,
 			UnaryExpr,
@@ -152,6 +153,25 @@ namespace modelica
 
 		private:
 		vectorUnique<Expr> expressions;
+	};
+
+	class EndExr: public Expr
+	{
+		public:
+		EndExr(SourceRange loc)
+				: Expr(loc, Type(BuiltinType::None), ExprKind::EndExpression)
+		{
+		}
+		~EndExr() {}
+		static bool classof(const Expr* e)
+		{
+			return e->getKind() == ExprKind::EndExpression;
+		}
+
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
 	};
 
 	class BinaryExpr: public ExprList
@@ -465,17 +485,17 @@ namespace modelica
 		RappresentationType value;
 	};
 
-	class NamedArgumentExpression: public ExprList
+	class NamedArgumentExpr: public ExprList
 	{
 		public:
-		NamedArgumentExpression(SourceRange loc, std::string name, UniqueExpr child)
+		NamedArgumentExpr(SourceRange loc, std::string name, UniqueExpr child)
 				: ExprList(
 							loc, Type(BuiltinType::None), ExprKind::NamedArgumentExpression),
 					reference(std::move(name))
 		{
 			getExpressions().emplace_back(std::move(child));
 		}
-		~NamedArgumentExpression() final = default;
+		~NamedArgumentExpr() final = default;
 
 		static bool classof(const Expr* e)
 		{
@@ -610,6 +630,7 @@ namespace modelica
 		{
 			return llvm::Error::success();
 		}
+		[[nodiscard]] int argumentsCount() const { return size(); }
 	};
 
 	using DerFunctionCallExpr =
@@ -641,12 +662,26 @@ namespace modelica
 		{
 			return llvm::Error::success();
 		}
+		[[nodiscard]] const Expr* getComponent() const
+		{
+			return getExpressions().back().get();
+		}
+		[[nodiscard]] int argumentsCount() const { return size() - 1; }
+		[[nodiscard]] const Expr* getArgument(int index) const
+		{
+			if (index >= argumentsCount())
+				return nullptr;
+			return at(index);
+		}
 	};
 
 	class PartialFunctioCallExpr: public FunctionCallExpr
 	{
+		public:
 		PartialFunctioCallExpr(
-				SourceRange loc, vectorUnique<Expr> params, std::string name)
+				SourceRange loc,
+				vectorUnique<Expr> params,
+				std::vector<std::string> name)
 				: FunctionCallExpr(
 							loc, std::move(params), ExprKind::PartialFunctionCallExpression),
 					name(std::move(name))
@@ -663,7 +698,7 @@ namespace modelica
 		}
 
 		private:
-		std::string name;
+		std::vector<std::string> name;
 	};
 
 }	// namespace modelica

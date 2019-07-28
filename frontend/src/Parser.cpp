@@ -1,7 +1,5 @@
 #include "modelica/Parser.hpp"
 
-#include <cassert>
-
 using namespace modelica;
 using namespace llvm;
 using namespace std;
@@ -75,15 +73,181 @@ ExpectedUnique<ArrayConstructorExpr> Parser::arrayArguments()
 
 Expected<vectorUnique<Expr>> Parser::functionArguments()
 {
-	// SourcePosition currentPos = getPosition();
+	SourcePosition currentPos = getPosition();
+	vectorUnique<Expr> arguments;
 
-	// if (accept<Token::FunctionKeyword>())
-	//{
-	// auto nm = name();
-	// if (!nm)
-	// return nm;
-	//}
-	return llvm::make_error<NotImplemented>("not implemented");
+	if (current == Token::FunctionKeyword)
+	{
+		auto call = partialCall();
+		if (!call)
+			return call.takeError();
+
+		arguments.emplace_back(move(*call));
+		if (!accept<Token::Comma>())
+			return move(arguments);
+
+		auto otherArgs = functionArgumentsNonFirst();
+		if (!otherArgs)
+			return otherArgs.takeError();
+
+		move(otherArgs->begin(), otherArgs->end(), back_inserter(arguments));
+		return move(arguments);
+	}
+	if (current == Token::Ident)
+		return namedArguments();
+
+	auto firstExp = expression();
+	if (!firstExp)
+		return firstExp.takeError();
+
+	if (accept<Token::Comma>())
+	{
+		arguments.emplace_back(move(*firstExp));
+		auto otherArgs = functionArgumentsNonFirst();
+		if (!otherArgs)
+			return otherArgs;
+
+		move(otherArgs->begin(), otherArgs->end(), back_inserter(arguments));
+		return move(arguments);
+	}
+
+	if (accept<Token::ForKeyword>())
+	{
+		auto expression = vector<UniqueExpr>();
+		auto names = vector<string>();
+
+		do
+		{
+			auto pair = forIndex();
+			if (!pair)
+				return pair.takeError();
+
+			names.emplace_back(move(pair->first));
+			expression.emplace_back(move(pair->second));
+		} while (accept<Token::Comma>());
+
+		auto node = makeNode<ForInArrayConstructorExpr>(
+				currentPos, move(*firstExp), move(expression), move(names));
+		if (!node)
+			return node.takeError();
+
+		arguments.emplace_back(move(*node));
+		return move(arguments);
+	}
+	return make_error<UnexpectedToken>(current);
+}
+
+Expected<vectorUnique<Expr>> Parser::functionArgumentsNonFirst()
+{
+	vectorUnique<Expr> toReturn;
+
+	if (current == Token::Ident)
+		return namedArguments();
+
+	auto arg1 = functionArgument();
+	if (!arg1)
+		return arg1.takeError();
+
+	toReturn.emplace_back(move(*arg1));
+
+	if (accept<Token::Comma>())
+	{
+		auto nextArgs = (current != Token::Ident) ? functionArgumentsNonFirst()
+																							: namedArguments();
+		if (!nextArgs)
+			return nextArgs;
+
+		move(nextArgs->begin(), nextArgs->end(), back_inserter(toReturn));
+	}
+
+	return move(toReturn);
+}
+
+Expected<vectorUnique<Expr>> Parser::namedArguments()
+{
+	auto first = namedArgument();
+	if (!first)
+		return first.takeError();
+
+	vectorUnique<Expr> toReturn;
+	toReturn.emplace_back(move(*first));
+
+	while (accept<Token::Comma>())
+	{
+		auto next = namedArgument();
+		if (!next)
+			return next.takeError();
+
+		toReturn.emplace_back(move(*next));
+	}
+
+	return move(toReturn);
+}
+
+ExpectedUnique<NamedArgumentExpr> Parser::namedArgument()
+{
+	SourcePosition currentPos = getPosition();
+	string name = lexer.getLastIdentifier();
+	if (auto e = expect(Token::Ident); !e)
+		return e.takeError();
+	if (auto e = expect(Token::Equal); !e)
+		return e.takeError();
+
+	auto exp = functionArgument();
+	if (!exp)
+		return exp.takeError();
+
+	return makeNode<NamedArgumentExpr>(currentPos, move(name), move(*exp));
+}
+
+Expected<vector<string>> Parser::name()
+{
+	vector<string> toReturn;
+	toReturn.push_back(lexer.getLastIdentifier());
+	if (!expect(Token::Ident))
+		return llvm::make_error<UnexpectedToken>(current);
+
+	while (accept<Token::Dot>())
+	{
+		toReturn.push_back(lexer.getLastIdentifier());
+		if (!expect(Token::Ident))
+			return llvm::make_error<UnexpectedToken>(current);
+	}
+
+	return move(toReturn);
+}
+
+ExpectedUnique<Expr> Parser::partialCall()
+{
+	SourcePosition currentPos = getPosition();
+	if (accept<Token::FunctionKeyword>())
+	{
+		auto nm = name();
+		if (!nm)
+			return nm.takeError();
+
+		if (!expect(Token::LPar))
+			return llvm::make_error<UnexpectedToken>(current);
+
+		if (accept(Token::RPar))
+			return makeNode<PartialFunctioCallExpr>(
+					currentPos, vectorUnique<Expr>(), move(*nm));
+
+		auto args = namedArguments();
+		if (!args)
+			return args.takeError();
+
+		if (!expect(Token::RPar))
+			return llvm::make_error<UnexpectedToken>(current);
+
+		return makeNode<PartialFunctioCallExpr>(currentPos, move(*args), move(*nm));
+	}
+	return make_error<UnexpectedToken>(current);
+}
+
+ExpectedUnique<Expr> Parser::functionArgument()
+{
+	return (current == Token::FunctionKeyword) ? partialCall() : expression();
 }
 
 ExpectedUnique<Expr> Parser::componentReference()
@@ -516,6 +680,9 @@ ExpectedUnique<Expr> Parser::primary()
 		return expList;
 	}
 
+	if (accept<Token::EndKeyword>())
+		return makeNode<EndExr>(currentPos);
+
 	if (accept<Token::LSquare>())
 	{
 		if (accept<Token::RSquare>())
@@ -576,11 +743,11 @@ ExpectedUnique<Expr> Parser::primary()
 
 	if (accept<Token::LPar>())
 	{
-		auto arguments = functionArguments();
 		if (accept<Token::RPar>())
 			return makeNode<ComponentFunctionCallExpr>(
 					currentPos, vectorUnique<Expr>(), move(*exprOrErr));
 
+		auto arguments = functionArguments();
 		if (!arguments)
 			return arguments.takeError();
 

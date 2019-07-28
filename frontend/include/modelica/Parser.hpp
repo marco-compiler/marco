@@ -47,11 +47,18 @@ namespace modelica
 		[[nodiscard]] ExpectedUnique<Expr> term();
 		[[nodiscard]] ExpectedUnique<Expr> factor();
 		[[nodiscard]] ExpectedUnique<Expr> componentReference();
+		[[nodiscard]] ExpectedUnique<NamedArgumentExpr> namedArgument();
+		[[nodiscard]] llvm::Expected<vectorUnique<Expr>> namedArguments();
 		[[nodiscard]] llvm::Expected<vectorUnique<Expr>> functionArguments();
+		[[nodiscard]] llvm::Expected<vectorUnique<Expr>>
+		functionArgumentsNonFirst();
 		[[nodiscard]] ExpectedUnique<ExprList> expressionList();
 		[[nodiscard]] ExpectedUnique<ArrayConstructorExpr> arrayArguments();
 		[[nodiscard]] llvm::Expected<vectorUnique<Expr>> arraySubscript();
 		[[nodiscard]] ExpectedUnique<Expr> subScript();
+		[[nodiscard]] llvm::Expected<std::vector<std::string>> name();
+		[[nodiscard]] ExpectedUnique<Expr> partialCall();
+		[[nodiscard]] ExpectedUnique<Expr> functionArgument();
 		[[nodiscard]] llvm::Expected<std::pair<std::string, UniqueExpr>> forIndex();
 
 		template<Token token, typename T>

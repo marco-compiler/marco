@@ -561,9 +561,11 @@ TEST(ParserTest, endExpr)
 	auto parser = Parser("end");
 	auto list = parser.primary();
 
+
 	if (!list)
 		FAIL();
 
 	auto ptr = list.get().get();
 	EXPECT_EQ(true, llvm::isa<EndExr>(ptr));
+
 }
