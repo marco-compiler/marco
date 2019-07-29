@@ -459,6 +459,20 @@ TEST(ParserTest, emptyFunctionCall)
 	EXPECT_EQ(0, casted->argumentsCount());
 }
 
+TEST(ParserTest, singleArgumentFunctionCall)
+{
+	auto parser = Parser("next(1)");
+	auto list = parser.primary();
+
+	if (!list)
+		FAIL();
+
+	auto ptr = list.get().get();
+	EXPECT_EQ(true, llvm::isa<ComponentFunctionCallExpr>(ptr));
+	auto casted = llvm::cast<ComponentFunctionCallExpr>(ptr);
+	EXPECT_EQ(1, casted->argumentsCount());
+}
+
 TEST(ParserTest, argumentedSpecialCall)
 {
 	auto parser = Parser("der(1, 2)");
@@ -475,7 +489,7 @@ TEST(ParserTest, argumentedSpecialCall)
 
 TEST(ParserTest, argumentedCall)
 {
-	auto parser = Parser("next(1, 2)");
+	auto parser = Parser("next(a, 2)");
 	auto list = parser.primary();
 
 	if (!list)

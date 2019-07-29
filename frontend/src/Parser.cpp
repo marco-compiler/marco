@@ -94,7 +94,11 @@ Expected<vectorUnique<Expr>> Parser::functionArguments()
 		return move(arguments);
 	}
 	if (current == Token::Ident)
-		return namedArguments();
+	{
+		auto args = namedArguments();
+		if (args)
+			return args;
+	}
 
 	auto firstExp = expression();
 	if (!firstExp)
@@ -134,7 +138,8 @@ Expected<vectorUnique<Expr>> Parser::functionArguments()
 		arguments.emplace_back(move(*node));
 		return move(arguments);
 	}
-	return make_error<UnexpectedToken>(current);
+	arguments.emplace_back(move(*firstExp));
+	return move(arguments);
 }
 
 Expected<vectorUnique<Expr>> Parser::functionArgumentsNonFirst()
@@ -142,7 +147,11 @@ Expected<vectorUnique<Expr>> Parser::functionArgumentsNonFirst()
 	vectorUnique<Expr> toReturn;
 
 	if (current == Token::Ident)
-		return namedArguments();
+	{
+		auto args = namedArguments();
+		if (args)
+			return args;
+	}
 
 	auto arg1 = functionArgument();
 	if (!arg1)
@@ -150,16 +159,22 @@ Expected<vectorUnique<Expr>> Parser::functionArgumentsNonFirst()
 
 	toReturn.emplace_back(move(*arg1));
 
-	if (accept<Token::Comma>())
+	if (!accept<Token::Comma>())
+		return move(toReturn);
+
+	Expected<vectorUnique<Expr>> nextArgs = vectorUnique<Expr>();
+	if (current == Token::Ident)
 	{
-		auto nextArgs = (current != Token::Ident) ? functionArgumentsNonFirst()
-																							: namedArguments();
+		nextArgs = namedArguments();
 		if (!nextArgs)
-			return nextArgs;
-
-		move(nextArgs->begin(), nextArgs->end(), back_inserter(toReturn));
+			nextArgs = functionArgumentsNonFirst();
 	}
+	else
+		nextArgs = functionArgumentsNonFirst();
+	if (!nextArgs)
+		return nextArgs;
 
+	move(nextArgs->begin(), nextArgs->end(), back_inserter(toReturn));
 	return move(toReturn);
 }
 
@@ -191,7 +206,10 @@ ExpectedUnique<NamedArgumentExpr> Parser::namedArgument()
 	if (auto e = expect(Token::Ident); !e)
 		return e.takeError();
 	if (auto e = expect(Token::Equal); !e)
+	{
+		undoScan(Token::Ident);
 		return e.takeError();
+	}
 
 	auto exp = functionArgument();
 	if (!exp)

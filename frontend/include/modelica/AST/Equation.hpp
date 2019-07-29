@@ -18,12 +18,11 @@ namespace modelica
 		enum EquationKind
 		{
 			SimpleEquation,
-			TerminateEquation,
-			AssertEquation,
+			ConnectClause,
+			CallEquation,
 			CompositeEquation,
 			IfEquation,
 			ForEquation,
-			ConnectClause,
 			WhenEquation,
 			LastCompositeEquation,
 			LastEquation
@@ -162,6 +161,46 @@ namespace modelica
 		}
 	};
 
+	class WhenEquation: public CompositeEquation
+	{
+		public:
+		WhenEquation(
+				SourceRange loc, vectorUnique<Expr> exprs, vectorUnique<Equation> equs)
+				: CompositeEquation(
+							loc,
+							EquationKind::WhenEquation,
+							std::move(equs),
+							std::move(exprs))
+		{
+		}
+
+		~WhenEquation() override = default;
+		static bool classof(const Equation* e)
+		{
+			return e->getKind() == EquationKind::WhenEquation;
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		[[nodiscard]] unsigned branchesSize() const
+		{
+			return getEquations().size();
+		}
+		[[nodiscard]] const Expr* getCondition(unsigned index)
+		{
+			if (index >= getExpressions().size())
+				return nullptr;
+			return getExpressions()[index].get();
+		}
+		[[nodiscard]] const Equation* getEquation(unsigned index)
+		{
+			if (index >= getEquations().size())
+				return nullptr;
+			return getEquations()[index].get();
+		}
+	};
+
 	class ForEquation: public CompositeEquation
 	{
 		public:
@@ -239,6 +278,60 @@ namespace modelica
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
+		}
+	};
+
+	class CallEquation: public Equation
+	{
+		public:
+		CallEquation(SourceRange loc, std::unique_ptr<Expr> callExpression)
+				: Equation(loc, EquationKind::CallEquation)
+		{
+			getExpressions().emplace_back(std::move(callExpression));
+		}
+		~CallEquation() override = default;
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		static bool classof(const Equation* e)
+		{
+			return e->getKind() == EquationKind::CallEquation;
+		}
+		[[nodiscard]] const Expr* getCallExpr() const
+		{
+			return getExpressions()[0].get();
+		}
+	};
+
+	class ConnectClause: public Equation
+	{
+		public:
+		ConnectClause(
+				SourceRange loc,
+				std::unique_ptr<Expr> firstParam,
+				std::unique_ptr<Expr> secondParam)
+				: Equation(loc, EquationKind::ConnectClause)
+		{
+			getExpressions().emplace_back(std::move(firstParam));
+			getExpressions().emplace_back(std::move(secondParam));
+		}
+		~ConnectClause() override = default;
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		static bool classof(const Equation* e)
+		{
+			return e->getKind() == EquationKind::ConnectClause;
+		}
+		[[nodiscard]] const Expr* getFirstParam() const
+		{
+			return getExpressions()[0].get();
+		}
+		[[nodiscard]] const Expr* getSecondParam() const
+		{
+			return getExpressions()[1].get();
 		}
 	};
 

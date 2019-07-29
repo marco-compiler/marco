@@ -15,9 +15,15 @@ namespace modelica
 	class Parser
 	{
 		public:
-		Parser(const std::string& source): lexer(source), current(lexer.scan()) {}
+		Parser(const std::string& source)
+				: lexer(source), current(lexer.scan()), undo(Token::End)
+		{
+		}
 
-		Parser(const char* source): lexer(source), current(lexer.scan()) {}
+		Parser(const char* source)
+				: lexer(source), current(lexer.scan()), undo(Token::End)
+		{
+		}
 
 		template<typename Type, typename... Args>
 		[[nodiscard]] ExpectedUnique<Type> makeNode(
@@ -65,9 +71,11 @@ namespace modelica
 		[[nodiscard]] ExpectedUnique<Equation> equation();
 		[[nodiscard]] ExpectedUnique<Equation> ifEquation();
 		[[nodiscard]] ExpectedUnique<Equation> forEquation();
+		[[nodiscard]] ExpectedUnique<Equation> whenEquation();
 		[[nodiscard]] llvm::Expected<vectorUnique<Equation>> equationList(
 				const std::vector<Token>& stopTokens);
-		[[nodiscard]] llvm::Expected<std::pair<UniqueEq, UniqueExpr>> ifBrach();
+		[[nodiscard]] llvm::Expected<std::pair<UniqueEq, UniqueExpr>> ifBrach(
+				const std::vector<Token>& stopTokens);
 		[[nodiscard]] llvm::Expected<std::pair<std::string, UniqueExpr>> forIndex();
 
 		template<Token token, typename T>
@@ -127,9 +135,25 @@ namespace modelica
 			return false;
 		}
 		llvm::Expected<bool> expect(Token t);
-		void next() { current = lexer.scan(); }
+		void next()
+		{
+			if (undo != Token::End)
+			{
+				current = undo;
+				undo = Token::End;
+				return;
+			}
+
+			current = lexer.scan();
+		}
+		void undoScan(Token t)
+		{
+			undo = current;
+			current = t;
+		}
 		Lexer<ModelicaStateMachine> lexer;
 		Token current;
+		Token undo;
 	};
 
 }	// namespace modelica

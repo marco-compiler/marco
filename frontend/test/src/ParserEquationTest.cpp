@@ -99,3 +99,58 @@ TEST(ParserTest, forEquation)
 	EXPECT_EQ(
 			true, llvm::isa<DirectArrayConstructorExpr>(casted->getForExpression(0)));
 }
+
+TEST(ParserTest, whenEquation)
+{
+	auto parser =
+			Parser("when true then 1 = 1; elsewhen false then 2 = 2; end when");
+
+	auto eq = parser.equation();
+	if (!eq)
+	{
+		llvm::outs() << eq.takeError();
+		FAIL();
+	}
+
+	auto ptr = eq.get().get();
+	EXPECT_EQ(true, llvm::isa<WhenEquation>(ptr));
+	auto casted = llvm::cast<WhenEquation>(ptr);
+	EXPECT_EQ(true, llvm::isa<CompositeEquation>(casted->getEquation(0)));
+	EXPECT_EQ(true, llvm::isa<BoolLiteralExpr>(casted->getCondition(0)));
+	EXPECT_EQ(2, casted->branchesSize());
+}
+
+TEST(ParserTest, connectClause)
+{
+	auto parser = Parser("connect(a, b)");
+
+	auto eq = parser.equation();
+	if (!eq)
+	{
+		llvm::outs() << eq.takeError();
+		FAIL();
+	}
+
+	auto ptr = eq.get().get();
+	EXPECT_EQ(true, llvm::isa<ConnectClause>(ptr));
+	auto casted = llvm::cast<ConnectClause>(ptr);
+	EXPECT_EQ(true, llvm::isa<ComponentReferenceExpr>(casted->getFirstParam()));
+	EXPECT_EQ(true, llvm::isa<ComponentReferenceExpr>(casted->getSecondParam()));
+}
+
+TEST(ParserTest, callEquation)
+{
+	auto parser = Parser("assert(a, 5)");
+
+	auto eq = parser.equation();
+	if (!eq)
+	{
+		llvm::outs() << eq.takeError();
+		FAIL();
+	}
+
+	auto ptr = eq.get().get();
+	EXPECT_EQ(true, llvm::isa<CallEquation>(ptr));
+	auto casted = llvm::cast<CallEquation>(ptr);
+	EXPECT_EQ(true, llvm::isa<ComponentFunctionCallExpr>(casted->getCallExpr()));
+}

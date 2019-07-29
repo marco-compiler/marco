@@ -23,7 +23,8 @@ Expected<vectorUnique<Equation>> Parser::equationList(
 	return move(equations);
 }
 
-Expected<std::pair<UniqueEq, UniqueExpr>> Parser::ifBrach()
+Expected<std::pair<UniqueEq, UniqueExpr>> Parser::ifBrach(
+		const std::vector<Token>& stopTokes)
 {
 	SourcePosition currentPos = getPosition();
 	auto expr = expression();
@@ -33,8 +34,7 @@ Expected<std::pair<UniqueEq, UniqueExpr>> Parser::ifBrach()
 	if (!expect(Token::ThenKeyword))
 		return make_error<UnexpectedToken>(current);
 
-	auto ifElseBranchEqus = equationList(
-			{ Token::ElseKeyword, Token::ElseIfKeyword, Token::EndKeyword });
+	auto ifElseBranchEqus = equationList(stopTokes);
 	if (!ifElseBranchEqus)
 		return ifElseBranchEqus.takeError();
 	auto equations =
@@ -47,51 +47,51 @@ Expected<std::pair<UniqueEq, UniqueExpr>> Parser::ifBrach()
 ExpectedUnique<Equation> Parser::ifEquation()
 {
 	SourcePosition currentPos = getPosition();
-	if (accept<Token::IfKeyword>())
-	{
-		vectorUnique<Expr> expressions;
-		vectorUnique<Equation> equations;
+	if (!accept<Token::IfKeyword>())
+		return make_error<UnexpectedToken>(current);
 
-		auto branch = ifBrach();
+	vectorUnique<Expr> expressions;
+	vectorUnique<Equation> equations;
+
+	auto branch =
+			ifBrach({ Token::EndKeyword, Token::ElseKeyword, Token::ElseIfKeyword });
+	if (!branch)
+		return branch.takeError();
+
+	expressions.push_back(move(branch->second));
+	equations.push_back(move(branch->first));
+
+	while (accept<Token::ElseIfKeyword>())
+	{
+		auto branch = ifBrach(
+				{ Token::EndKeyword, Token::ElseKeyword, Token::ElseIfKeyword });
 		if (!branch)
 			return branch.takeError();
 
 		expressions.push_back(move(branch->second));
 		equations.push_back(move(branch->first));
-
-		while (accept<Token::ElseIfKeyword>())
-		{
-			auto branch = ifBrach();
-			if (!branch)
-				return branch.takeError();
-
-			expressions.push_back(move(branch->second));
-			equations.push_back(move(branch->first));
-		}
-
-		if (accept<Token::ElseKeyword>())
-		{
-			auto elseBranchEqus = equationList({ Token::EndKeyword });
-			if (!elseBranchEqus)
-				return elseBranchEqus.takeError();
-
-			auto compositeEquation =
-					makeNode<CompositeEquation>(currentPos, move(*elseBranchEqus));
-			if (!compositeEquation)
-				return compositeEquation.takeError();
-
-			equations.push_back(move(*compositeEquation));
-		}
-
-		if (!expect(Token::EndKeyword))
-			return make_error<UnexpectedToken>(current);
-		if (!expect(Token::IfKeyword))
-			return make_error<UnexpectedToken>(current);
-
-		return makeNode<IfEquation>(currentPos, move(expressions), move(equations));
 	}
 
-	return make_error<UnexpectedToken>(current);
+	if (accept<Token::ElseKeyword>())
+	{
+		auto elseBranchEqus = equationList({ Token::EndKeyword });
+		if (!elseBranchEqus)
+			return elseBranchEqus.takeError();
+
+		auto compositeEquation =
+				makeNode<CompositeEquation>(currentPos, move(*elseBranchEqus));
+		if (!compositeEquation)
+			return compositeEquation.takeError();
+
+		equations.push_back(move(*compositeEquation));
+	}
+
+	if (!expect(Token::EndKeyword))
+		return make_error<UnexpectedToken>(current);
+	if (!expect(Token::IfKeyword))
+		return make_error<UnexpectedToken>(current);
+
+	return makeNode<IfEquation>(currentPos, move(expressions), move(equations));
 }
 
 ExpectedUnique<Equation> Parser::forEquation()
@@ -130,6 +130,40 @@ ExpectedUnique<Equation> Parser::forEquation()
 			currentPos, move(expression), move(*list), move(names));
 }
 
+ExpectedUnique<Equation> Parser::whenEquation()
+{
+	SourcePosition currentPos = getPosition();
+	if (!accept<Token::WhenKeyword>())
+		return make_error<UnexpectedToken>(current);
+
+	vectorUnique<Expr> expressions;
+	vectorUnique<Equation> equations;
+
+	auto branch = ifBrach({ Token::EndKeyword, Token::ElseWhenKeyword });
+	if (!branch)
+		return branch.takeError();
+
+	expressions.push_back(move(branch->second));
+	equations.push_back(move(branch->first));
+
+	if (accept<Token::ElseWhenKeyword>())
+	{
+		auto elseBranch = ifBrach({ Token::EndKeyword });
+		if (!elseBranch)
+			return elseBranch.takeError();
+
+		expressions.push_back(move(elseBranch->second));
+		equations.push_back(move(elseBranch->first));
+	}
+
+	if (!expect(Token::EndKeyword))
+		return make_error<UnexpectedToken>(current);
+	if (!expect(Token::WhenKeyword))
+		return make_error<UnexpectedToken>(current);
+
+	return makeNode<WhenEquation>(currentPos, move(expressions), move(equations));
+}
+
 ExpectedUnique<Equation> Parser::equation()
 {
 	SourcePosition currentPos = getPosition();
@@ -139,19 +173,46 @@ ExpectedUnique<Equation> Parser::equation()
 	if (current == Token::ForKeyword)
 		return forEquation();
 
-	if (accept<Token::ConnectKeyword>())
-		return make_error<NotImplemented>("not implemented");
+	if (current == Token::WhenKeyword)
+		return whenEquation();
 
-	if (accept<Token::WhenKeyword>())
-		return make_error<NotImplemented>("not implemented");
+	if (accept<Token::ConnectKeyword>())
+	{
+		if (!expect(Token::LPar))
+			return make_error<UnexpectedToken>(current);
+
+		auto firstParam = componentReference();
+		if (!firstParam)
+			return firstParam.takeError();
+
+		if (!expect(Token::Comma))
+			return make_error<UnexpectedToken>(current);
+
+		auto secondParam = componentReference();
+		if (!secondParam)
+			return secondParam.takeError();
+
+		if (!expect(Token::RPar))
+			return make_error<UnexpectedToken>(current);
+
+		return makeNode<ConnectClause>(
+				currentPos, move(*firstParam), move(*secondParam));
+	}
 
 	if (current == Token::Ident)
 	{
-		if (lexer.getLastIdentifier() == "terminate")
-			return make_error<NotImplemented>("not NotImplemented");
+		if (lexer.getLastIdentifier() == "assert" ||
+				lexer.getLastIdentifier() == "terminate")
+		{
+			auto functionCall = primary();
+			if (!functionCall)
+				return functionCall.takeError();
 
-		if (lexer.getLastIdentifier() == "assert")
-			return make_error<NotImplemented>("NotImplemented");
+			if (!llvm::isa<ComponentFunctionCallExpr>(functionCall->get()))
+				return make_error<UnexpectedToken>(current);
+
+			return makeNode<CallEquation>(currentPos, move(*functionCall));
+		}
 	}
 
 	auto exp1 = simpleExpression();
