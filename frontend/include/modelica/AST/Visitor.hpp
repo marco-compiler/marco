@@ -5,7 +5,7 @@
 
 namespace modelica
 {
-	struct Visitor
+	struct BaseVisitor
 	{
 		template<typename T>
 		std::unique_ptr<T> visit(std::unique_ptr<T> ptr)
