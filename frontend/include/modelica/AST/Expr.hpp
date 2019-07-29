@@ -140,6 +140,10 @@ namespace modelica
 		{
 			return llvm::make_range(cbegin(), cend());
 		}
+		void removeNulls()
+		{
+			expressions.erase(std::remove(begin(), end(), nullptr), end());
+		}
 
 		void emplace(UniqueExpr expr) { expressions.emplace_back(std::move(expr)); }
 		~ExprList() override = default;
@@ -155,14 +159,14 @@ namespace modelica
 		vectorUnique<Expr> expressions;
 	};
 
-	class EndExr: public Expr
+	class EndExpr: public Expr
 	{
 		public:
-		EndExr(SourceRange loc)
+		EndExpr(SourceRange loc)
 				: Expr(loc, Type(BuiltinType::None), ExprKind::EndExpression)
 		{
 		}
-		~EndExr() {}
+		~EndExpr() {}
 		static bool classof(const Expr* e)
 		{
 			return e->getKind() == ExprKind::EndExpression;
@@ -478,7 +482,7 @@ namespace modelica
 		}
 		~LiteralExpr() final = default;
 
-		static bool classof(const Expr* e) { return e->getKind() >= Kind; }
+		static bool classof(const Expr* e) { return e->getKind() == Kind; }
 		[[nodiscard]] const RappresentationType& getValue() const { return value; }
 
 		private:

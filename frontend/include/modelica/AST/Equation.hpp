@@ -49,6 +49,11 @@ namespace modelica
 		{
 			return expressions.cend();
 		}
+		void removeNullExpr()
+		{
+			expressions.erase(
+					std::remove(exprBegin(), exprEnd(), nullptr), exprEnd());
+		}
 
 		protected:
 		[[nodiscard]] const vectorUnique<Expr>& getExpressions() const
@@ -102,6 +107,10 @@ namespace modelica
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
+		}
+		void removeNullEq()
+		{
+			equations.erase(std::remove(eqBegin(), eqEnd(), nullptr), eqEnd());
 		}
 
 		protected:

@@ -699,7 +699,7 @@ ExpectedUnique<Expr> Parser::primary()
 	}
 
 	if (accept<Token::EndKeyword>())
-		return makeNode<EndExr>(currentPos);
+		return makeNode<EndExpr>(currentPos);
 
 	if (accept<Token::LSquare>())
 	{

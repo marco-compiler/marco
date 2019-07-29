@@ -254,7 +254,6 @@ TEST(Parser, directoArrayConstructor)
 		FAIL();
 
 	auto ptr = exp.get().get();
-	EXPECT_EQ(true, llvm::isa<IntLiteralExpr>(ptr));
 	EXPECT_EQ(true, llvm::isa<DirectArrayConstructorExpr>(ptr));
 	auto casted = llvm::cast<DirectArrayConstructorExpr>(ptr);
 
@@ -579,5 +578,5 @@ TEST(ParserTest, endExpr)
 		FAIL();
 
 	auto ptr = list.get().get();
-	EXPECT_EQ(true, llvm::isa<EndExr>(ptr));
+	EXPECT_EQ(true, llvm::isa<EndExpr>(ptr));
 }
