@@ -106,3 +106,25 @@ TEST(VisitorTest, equationVisitor)
 	EXPECT_EQ(true, vis.whenVisited);
 	EXPECT_EQ(true, vis.simpleVisited);
 }
+
+TEST(VisitorTest, bottomUpVisit)
+{
+	SourceRange r(1, 1, 1, 1);
+	auto exp1 = std::make_unique<IntLiteralExpr>(r, 3);
+	auto exp2 = std::make_unique<IntLiteralExpr>(r, 3);
+	auto exp3 = std::make_unique<IntLiteralExpr>(r, 3);
+	auto eq1 = std::make_unique<SimpleEquation>(r, move(exp2), move(exp3));
+	vectorUnique<Equation> eq;
+	vectorUnique<Expr> exp;
+	eq.push_back(move(eq1));
+	exp.push_back(move(exp1));
+	auto eq2 = std::make_unique<WhenEquation>(r, move(exp), move(eq));
+	Visitor vis;
+	auto ptr = bottomUpVisit(move(eq2), vis);
+	EXPECT_EQ(vis.numOfCalls, 3);
+	EXPECT_EQ(vis.content, 9);
+	EXPECT_EQ(vis.listVisited, false);
+	EXPECT_EQ(false, vis.failed);
+	EXPECT_EQ(true, vis.whenVisited);
+	EXPECT_EQ(true, vis.simpleVisited);
+}
