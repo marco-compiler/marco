@@ -107,7 +107,8 @@ namespace modelica
 			RangeExpr,
 			ArrayConstructorExpr,
 			FunctionCallExpr,
-			ComponentReferenceExpr>;
+			ComponentReferenceExpr,
+			ArraySubscriptionExpr>;
 
 	class TopDownDirection
 	{
@@ -145,6 +146,8 @@ namespace modelica
 						return visit(std::move(node), visitor);
 					});
 			old->removeNullExpr();
+
+			visitor.afterChildrenVisit(old);
 
 			return toReturn;
 		}
@@ -209,6 +212,7 @@ namespace modelica
 						return visit(std::move(node), visitor);
 					});
 			casted->removeNulls();
+			visitor.afterChildrenVisit(casted.get());
 
 			return casted;
 		}

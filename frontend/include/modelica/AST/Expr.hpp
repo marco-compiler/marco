@@ -35,8 +35,8 @@ namespace modelica
 			IfElseExpr,
 			ArrayConcatExpression,
 			RangeExpression,
-			ArrayConstructorExpression,
 			ArraySubscriptionExpression,
+			ArrayConstructorExpression,
 			DirectArrayConstructorExpression,
 			ForInArrayConstructorExpression,
 			LastArrayConstructorExpression,
@@ -67,23 +67,6 @@ namespace modelica
 		const SourceRange location;
 		const ExprKind kind;
 		const Type type;
-	};
-
-	enum class BinaryExprOp
-	{
-		Sum,
-		Subtraction,
-		Multiply,
-		Division,
-		PowerOf,
-		LogicalOr,
-		LogicalAnd,
-		Less,
-		LessEqual,
-		Greater,
-		GreatureEqual,
-		Equal,
-		Different
 	};
 
 	using UniqueExpr = std::unique_ptr<Expr>;
@@ -176,6 +159,23 @@ namespace modelica
 		{
 			return llvm::Error::success();
 		}
+	};
+
+	enum class BinaryExprOp
+	{
+		Sum,
+		Subtraction,
+		Multiply,
+		Division,
+		PowerOf,
+		LogicalOr,
+		LogicalAnd,
+		Less,
+		LessEqual,
+		Greater,
+		GreatureEqual,
+		Equal,
+		Different
 	};
 
 	class BinaryExpr: public ExprList
@@ -330,6 +330,7 @@ namespace modelica
 		{
 			return e->getKind() == ExprKind::ForInArrayConstructorExpression;
 		}
+		[[nodiscard]] unsigned forInCount() const { return names.size(); }
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
@@ -503,7 +504,7 @@ namespace modelica
 
 		static bool classof(const Expr* e)
 		{
-			return e->getKind() >= ExprKind::NamedArgumentExpression;
+			return e->getKind() == ExprKind::NamedArgumentExpression;
 		}
 		[[nodiscard]] llvm::Error isConsistent() const
 		{

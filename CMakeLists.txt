@@ -37,6 +37,7 @@ find_package(LLVM REQUIRED 8.0.0)
 ##############################
 add_subdirectory(frontend)
 add_subdirectory(utils)
+add_subdirectory(tool)
 
 ##############################
 ###        DOXYGEN         ###

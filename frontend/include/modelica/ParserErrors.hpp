@@ -58,7 +58,7 @@ namespace modelica
 		UnexpectedToken(Token token): token(token) {}
 
 		[[nodiscard]] Token getToken() const { return token; }
-		void log(llvm::raw_ostream& OS) const override { OS << "UnexpectedToken"; }
+		void log(llvm::raw_ostream& OS) const override { OS << "Unexpected Token"; }
 
 		[[nodiscard]] std::error_code convertToErrorCode() const override
 		{

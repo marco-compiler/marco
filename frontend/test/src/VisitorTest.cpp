@@ -41,6 +41,11 @@ struct Visitor
 		return expr;
 	}
 
+	template<typename T>
+	void afterChildrenVisit(T*)
+	{
+	}
+
 	int numOfCalls{ 0 };
 	int content{ 0 };
 	bool failed{ false };
