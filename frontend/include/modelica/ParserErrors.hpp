@@ -23,6 +23,10 @@ namespace modelica
 
 namespace std
 {
+	/**
+	 * This class is required to specity that ParserErrorCode is a enum that is
+	 * used to rappresent errors.
+	 */
 	template<>
 	struct is_error_condition_enum<modelica::ParserErrorCode>: public true_type
 	{
@@ -31,6 +35,14 @@ namespace std
 
 namespace modelica
 {
+	/**
+	 * A category is required to be compatible with std::error.
+	 * All this standard and has to be done this way, look for a
+	 * guide regarding how to make error category if you need to change this.
+	 *
+	 * When you add a new error kind you must add that choise to message in the
+	 * cpp file.
+	 */
 	class ParserErrorCategory: public std::error_category
 	{
 		public:
@@ -107,6 +119,9 @@ namespace modelica
 		}
 	};
 
+	/**
+	 * A list was recived empty when was expected not to be
+	 */
 	class EmptyList: public llvm::ErrorInfo<EmptyList>
 	{
 		public:
@@ -125,6 +140,9 @@ namespace modelica
 		}
 	};
 
+	/**
+	 * Branches do not have the same types.
+	 */
 	class BranchesTypeDoNotMatch: public llvm::ErrorInfo<BranchesTypeDoNotMatch>
 	{
 		public:
@@ -143,6 +161,10 @@ namespace modelica
 		}
 	};
 
+	/**
+	 * Incompatible type is used to signal that subexpressions are
+	 * not acceptable due to their types.
+	 */
 	class IncompatibleType: public llvm::ErrorInfo<IncompatibleType>
 	{
 		public:

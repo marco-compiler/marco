@@ -17,11 +17,11 @@ llvm::Expected<pair<string, UniqueExpr>> Parser::forIndex()
 	std::string name = lexer.getLastIdentifier();
 	auto id = expect(Token::Ident);
 	if (!id)
-		return llvm::make_error<UnexpectedToken>(current);
+		return id.takeError();
 
 	auto in = expect(Token::InKeyword);
 	if (!in)
-		return llvm::make_error<UnexpectedToken>(current);
+		return in.takeError();
 
 	auto exp = expression();
 	if (!exp)

@@ -15,6 +15,10 @@ std::error_condition modelica::make_error_condition(ParserErrorCode errc)
 			static_cast<int>(errc), ParserErrorCategory::category);
 }
 
+/**
+ * This is required by std::error, just add a line every time you need to
+ * create a new error type.
+ */
 [[nodiscard]] std::error_condition ParserErrorCategory::default_error_condition(
 		int ev) const noexcept
 {
@@ -45,6 +49,12 @@ std::error_condition modelica::make_error_condition(ParserErrorCode errc)
 	return equal;
 }
 
+/**
+ * Decides the messaged based upon the type.
+ * This is done for compatibilty with std::error, but when writing
+ * tools code you should report error with ExitOnError and that will use
+ * the string provided by the class extending ErrorInfo.
+ */
 [[nodiscard]] std::string ParserErrorCategory::message(int ev) const noexcept
 {
 	switch (ev)

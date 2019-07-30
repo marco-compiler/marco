@@ -9,6 +9,18 @@
 
 namespace modelica
 {
+	/**
+	 * Read the llvm programmer manual in the section regarding how to build a
+	 * hierarchy This is built exactly in that wasy, except we have virtual
+	 * desctructors because we are not just allocating everything in a custom
+	 * allocator and never destryoing them.
+	 *
+	 * Forgetting to add a virtual destructor will cause undefined behaviour and
+	 * probaly memory leaks.
+	 *
+	 * Remember to add a custo isChoerent to every class so that we can
+	 * perform integirty checks after every visit.
+	 */
 	class Equation
 	{
 		public:
@@ -38,6 +50,10 @@ namespace modelica
 		[[nodiscard]] EquationKind getKind() const { return kind; }
 		[[nodiscard]] const SourceRange& getRange() const { return loc; }
 
+		/**
+		 * Return the number of subexpressions directly child of the
+		 * current equation.
+		 */
 		[[nodiscard]] int exprSize() const { return expressions.size(); }
 		[[nodiscard]] ExprIterator exprBegin() { return expressions.begin(); }
 		[[nodiscard]] ExprIterator exprEnd() { return expressions.end(); }
@@ -49,6 +65,10 @@ namespace modelica
 		{
 			return expressions.cend();
 		}
+
+		/**
+		 * just a wrapper around the erase remove idiom
+		 */
 		void removeNullExpr()
 		{
 			expressions.erase(
@@ -70,6 +90,10 @@ namespace modelica
 
 	using UniqueEq = std::unique_ptr<Equation>;
 
+	/**
+	 * Rappresents a euqation that is composed by multiples sub equations, such as
+	 * a when equation.
+	 */
 	class CompositeEquation: public Equation
 	{
 		using EqIterator = vectorUnique<Equation>::iterator;

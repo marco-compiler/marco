@@ -12,9 +12,25 @@
 
 namespace modelica
 {
+	/**
+	 * just an alias around std::vector<std::unique_ptr<T>> to be a bit
+	 * less verbose
+	 */
 	template<typename T>
 	using vectorUnique = std::vector<std::unique_ptr<T>>;
 
+	/**
+	 * Read the llvm programmer manual in the section regarding how to build a
+	 * hierarchy This is built exactly in that wasy, except we have virtual
+	 * desctructors because we are not just allocating everything in a custom
+	 * allocator and never destryoing them.
+	 *
+	 * Forgetting to add a virtual destructor will cause undefined behaviour and
+	 * probaly memory leaks.
+	 *
+	 * Remember to add a custo isChoerent to every class so that we can
+	 * perform integirty checks after every visit.
+	 */
 	class Expr
 	{
 		public:
@@ -71,6 +87,10 @@ namespace modelica
 
 	using UniqueExpr = std::unique_ptr<Expr>;
 
+	/**
+	 * This rappresent a expression that is composed by sub equations, such
+	 * as a binary expression.
+	 */
 	class ExprList: public Expr
 	{
 		public:
@@ -142,6 +162,11 @@ namespace modelica
 		vectorUnique<Expr> expressions;
 	};
 
+	/**
+	 * Modelica allows to indicies vector like v[1:end].
+	 * End expression is a place older that should be removed when
+	 * types are know and can be sustitued by a costant
+	 */
 	class EndExpr: public Expr
 	{
 		public:
@@ -248,6 +273,10 @@ namespace modelica
 		UnaryExprOp operation;
 	};
 
+	/**
+	 * Range expressions are way to generate a array like
+	 * [1:3:7].
+	 */
 	class RangeExpr: public ExprList
 	{
 		public:
@@ -284,6 +313,11 @@ namespace modelica
 		}
 		~RangeExpr() final = default;
 	};
+
+	/**
+	 * There are a couple of way to generate a array, this is a subclass to
+	 * keep track of them
+	 */
 	class ArrayConstructorExpr: public ExprList
 	{
 		public:
@@ -300,6 +334,9 @@ namespace modelica
 		~ArrayConstructorExpr() override = default;
 	};
 
+	/**
+	 * An expression in the form i*i for i in array
+	 */
 	class ForInArrayConstructorExpr: public ArrayConstructorExpr
 	{
 		public:
@@ -341,6 +378,9 @@ namespace modelica
 		std::vector<std::string> names;
 	};
 
+	/**
+	 * A array derived from a {a, b, ..., z} declaraion
+	 */
 	class DirectArrayConstructorExpr: public ArrayConstructorExpr
 	{
 		public:
@@ -407,6 +447,11 @@ namespace modelica
 		}
 	};
 
+	/**
+	 * When subscripting an array you can use this notation
+	 * v[1,:,2] to specify that all the elements a particular
+	 * dimension should be kept
+	 */
 	class AcceptAllExpr: public Expr
 	{
 		public:
@@ -425,6 +470,10 @@ namespace modelica
 		}
 	};
 
+	/**
+	 * a refernce to a component, due to the way the grammar is built
+	 * it is easier to extract it recursively
+	 */
 	class ComponentReferenceExpr: public ExprList
 	{
 		public:
@@ -490,6 +539,10 @@ namespace modelica
 		RappresentationType value;
 	};
 
+	/**
+	 * modelica allows specify the target argument like pyton
+	 * a(1, argument = x, argument2 = y)
+	 */
 	class NamedArgumentExpr: public ExprList
 	{
 		public:

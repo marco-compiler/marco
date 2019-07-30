@@ -10,8 +10,26 @@
 
 namespace modelica
 {
+	/**
+	 * Just an alias to avoid aving to write Expected<std::unique_ptr<...>> all
+	 * the time
+	 *
+	 * The parser follow this idiom provided by the expected class
+	 * auto var = parseSomething();
+	 * if (!var) return var.takeError();
+	 *
+	 * This is used to try to perform an action, if it fails you return the
+	 * failure to the caller, else you carry on with your actions.
+	 */
 	template<typename T>
 	using ExpectedUnique = llvm::Expected<std::unique_ptr<T>>;
+
+	/**
+	 * The parser encapsulates the lexer but not he memory where string we are
+	 * reading is held. It expones all the grammatical rules that are avialable
+	 * in the grammar (can be found at page ~ 265 of the 3.4 doc).
+	 *
+	 */
 	class Parser
 	{
 		public:
@@ -25,6 +43,14 @@ namespace modelica
 		{
 		}
 
+		/**
+		 * This called every time a rule wishes to create a AST member,
+		 * it is placed here because we may wish one day to move to
+		 * version where we are controlling the memory with a allocator.
+		 *
+		 * After it has been created it will perform a check that the
+		 * node is consistent.
+		 */
 		template<typename Type, typename... Args>
 		[[nodiscard]] ExpectedUnique<Type> makeNode(
 				const SourcePosition& initPoint, Args&&... args)
@@ -102,19 +128,19 @@ namespace modelica
 			return std::nullopt;
 		}
 
+		/**
+		 * Return the current position in the source stream
+		 */
 		[[nodiscard]] SourcePosition getPosition() const
 		{
 			return SourcePosition(lexer.getCurrentLine(), lexer.getCurrentColumn());
 		}
 
 		private:
-		template<typename T>
-		bool isError(const ExpectedUnique<T>& t)
-		{
-			return t;
-		}
-
-		bool isError(const llvm::Error& t);
+		/**
+		 * regular accept, if the current token it then the next one will be read
+		 * and true will be returned, else false.
+		 */
 		bool accept(Token t)
 		{
 			if (current == t)
@@ -124,6 +150,11 @@ namespace modelica
 			}
 			return false;
 		}
+
+		/**
+		 * fancy overloads if you know at compile time
+		 * which token you want.
+		 */
 		template<Token t>
 		bool accept()
 		{
@@ -134,7 +165,27 @@ namespace modelica
 			}
 			return false;
 		}
+
+		/**
+		 * return a error if was token was not accepted.
+		 * Notice that since errors are returned instead of
+		 * being thrown this mean that there is no really difference
+		 * between accept and expect. It is used here to signal that if
+		 * an expect fail then the function will terminate immediatly,
+		 * a accept is allowed to continue instead so that
+		 * it is less confusing to people that are used to the accept expect
+		 * notation.
+		 *
+		 * expect returns an Expected bool instead of a llvm::Error
+		 * beacause to check for errors in a expected you do if (!expected)
+		 * and in a llvm::Error you do if (error), this would be so confusing
+		 * that this decision was better.
+		 */
 		llvm::Expected<bool> expect(Token t);
+
+		/**
+		 * reads the next token
+		 */
 		void next()
 		{
 			if (undo != Token::End)
@@ -146,6 +197,17 @@ namespace modelica
 
 			current = lexer.scan();
 		}
+
+		/**
+		 * Unfortunately the grammar in the
+		 * spec is written in such a way that
+		 * there is a single point where you need a two lookhaed
+		 * to tell the difference between a component reference and a
+		 * named argument. Istead of adding a real two lookhaed
+		 * or to compleatly change factor the grammar we can provide the ability
+		 * to undo the last accept. it is used only to tell apart that particular
+		 * case.
+		 */
 		void undoScan(Token t)
 		{
 			undo = current;
