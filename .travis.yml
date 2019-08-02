@@ -13,7 +13,7 @@ addons:
       - clang-8
       - llvm-8-dev
       - llvm-8
-      - libllvm-8-ocaml
+      - libllvm-8-ocaml-dev
       - libllvm8
       - llvm-8-runtime
 
