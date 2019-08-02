@@ -8,13 +8,13 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-xenial-7
+      - llvm-toolchain-xenial-8
     packages:
       - clang-7
 
 script:
-    - export CC=clang-7
-    - export CXX=clang++-7
+    - export CC=clang-8
+    - export CXX=clang++-8
     - mkdir build-asan
     - cd build-asan
     - cmake .. -DCMAKE_CXX_FLAGS="-fsanitize=address -fno-omit-frame-pointer"
