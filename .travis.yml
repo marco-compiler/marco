@@ -11,6 +11,7 @@ addons:
       - llvm-toolchain-xenial-8
     packages:
       - clang-8
+      - llvm-8-dev
 
 script:
     - export CC=clang-8
