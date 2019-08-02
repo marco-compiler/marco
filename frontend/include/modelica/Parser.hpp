@@ -4,6 +4,7 @@
 #include "llvm/Support/Allocator.h"
 #include "modelica/AST/Equation.hpp"
 #include "modelica/AST/Expr.hpp"
+#include "modelica/AST/Statement.hpp"
 #include "modelica/Lexer.hpp"
 #include "modelica/LexerStateMachine.hpp"
 #include "modelica/ParserErrors.hpp"
@@ -18,8 +19,8 @@ namespace modelica
 	 * auto var = parseSomething();
 	 * if (!var) return var.takeError();
 	 *
-	 * This is used to try to perform an action, if it fails you return the
-	 * failure to the caller, else you carry on with your actions.
+	 * This is used to try to perform an action, if it fails it returns the
+	 * failure to the caller, else it returns the ast node.
 	 */
 	template<typename T>
 	using ExpectedUnique = llvm::Expected<std::unique_ptr<T>>;
@@ -57,7 +58,8 @@ namespace modelica
 		{
 			static_assert(
 					std::is_base_of<Expr, Type>::value ||
-							std::is_base_of<Equation, Type>::value,
+							std::is_base_of<Equation, Type>::value ||
+							std::is_base_of<Statement, Type>::value,
 					"Type was not part of AST");
 			auto ptr = std::make_unique<Type>(
 					SourceRange(initPoint, getPosition()), std::forward<Args>(args)...);
@@ -103,6 +105,16 @@ namespace modelica
 		[[nodiscard]] llvm::Expected<std::pair<UniqueEq, UniqueExpr>> ifBrach(
 				const std::vector<Token>& stopTokens);
 		[[nodiscard]] llvm::Expected<std::pair<std::string, UniqueExpr>> forIndex();
+
+		[[nodiscard]] ExpectedUnique<Statement> whenStatement();
+		[[nodiscard]] ExpectedUnique<Statement> forStatement();
+		[[nodiscard]] ExpectedUnique<Statement> ifStatement();
+		[[nodiscard]] ExpectedUnique<Statement> whileStatement();
+		[[nodiscard]] ExpectedUnique<Statement> statement();
+		[[nodiscard]] llvm::Expected<vectorUnique<Statement>> statementList(
+				const std::vector<Token>& stopTokens);
+		[[nodiscard]] llvm::Expected<std::pair<UniqueStmt, UniqueExpr>> ifStmtBrach(
+				const std::vector<Token>& stopTokes);
 
 		template<Token token, typename T>
 		[[nodiscard]] std::optional<ExpectedUnique<Expr>> functionCall()

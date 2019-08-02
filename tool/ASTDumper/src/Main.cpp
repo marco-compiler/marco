@@ -122,11 +122,29 @@ class DumperVisitor
 		return expr;
 	}
 
+	auto visit(unique_ptr<IfStatement> expr)
+	{
+		indent();
+		OS.changeColor(mainColor);
+		OS << "If Statement:\n";
+		indentations++;
+		return expr;
+	}
+
 	auto visit(unique_ptr<CompositeEquation> expr)
 	{
 		indent();
 		OS.changeColor(mainColor);
 		OS << "Composite Equation:\n";
+		indentations++;
+		return expr;
+	}
+
+	auto visit(unique_ptr<CompositeStatement> expr)
+	{
+		indent();
+		OS.changeColor(mainColor);
+		OS << "Composite Statement:\n";
 		indentations++;
 		return expr;
 	}
@@ -140,6 +158,24 @@ class DumperVisitor
 		return expr;
 	}
 
+	auto visit(unique_ptr<WhenStatement> expr)
+	{
+		indent();
+		OS.changeColor(mainColor);
+		OS << "When Statement:\n";
+		indentations++;
+		return expr;
+	}
+
+	auto visit(unique_ptr<WhileStatement> expr)
+	{
+		indent();
+		OS.changeColor(mainColor);
+		OS << "While Statement:\n";
+		indentations++;
+		return expr;
+	}
+
 	auto visit(unique_ptr<ForEquation> expr)
 	{
 		indent();
@@ -149,11 +185,38 @@ class DumperVisitor
 		return expr;
 	}
 
+	auto visit(unique_ptr<ForStatement> expr)
+	{
+		indent();
+		OS.changeColor(mainColor);
+		OS << "For Statement:\n";
+		indentations++;
+		return expr;
+	}
+
 	auto visit(unique_ptr<CallEquation> expr)
 	{
 		indent();
 		OS.changeColor(mainColor);
 		OS << "Call Equation:\n";
+		indentations++;
+		return expr;
+	}
+
+	auto visit(unique_ptr<CallStatement> expr)
+	{
+		indent();
+		OS.changeColor(mainColor);
+		OS << "Call Equation:\n";
+		indentations++;
+		return expr;
+	}
+
+	auto visit(unique_ptr<AssignStatement> expr)
+	{
+		indent();
+		OS.changeColor(mainColor);
+		OS << "Assign Equation:\n";
 		indentations++;
 		return expr;
 	}
