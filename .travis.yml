@@ -12,6 +12,10 @@ addons:
     packages:
       - clang-8
       - llvm-8-dev
+      - llvm-8
+      - libllvm-8-ocaml
+      - libllvm8
+      - llvm-8-runtime
 
 script:
     - export CC=clang-8
