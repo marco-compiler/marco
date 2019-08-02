@@ -86,6 +86,25 @@ namespace modelica
 	};
 
 	using UniqueExpr = std::unique_ptr<Expr>;
+	/**
+	 * This is the template used by every ast leaf member as an alias
+	 * to implement classof, which is used by llvm::cast
+	 */
+	template<Expr::ExprKind kind>
+	constexpr bool leafClassOf(const Expr* e)
+	{
+		return e->getKind() == kind;
+	}
+
+	/**
+	 * This is the template used by every ast non leaf member as an alias
+	 * to implement classof, which is used by llvm::cast
+	 */
+	template<Expr::ExprKind kind, Expr::ExprKind lastKind>
+	constexpr bool nonLeafClassOf(const Expr* e)
+	{
+		return e->getKind() >= kind && e->getKind() < lastKind;
+	}
 
 	/**
 	 * This rappresent a expression that is composed by sub equations, such
@@ -112,11 +131,8 @@ namespace modelica
 					expressions(std::move(exprs))
 		{
 		}
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() >= ExprKind::ExpressionList &&
-						 e->getKind() < ExprKind::LastExpressionList;
-		}
+		static constexpr auto classof =
+				nonLeafClassOf<ExprKind::ExpressionList, ExprKind::LastExpressionList>;
 		[[nodiscard]] llvm::Error isConsistent() const;
 		[[nodiscard]] int size() const { return expressions.size(); }
 		[[nodiscard]] ExprIterator begin() { return expressions.begin(); }
@@ -175,10 +191,7 @@ namespace modelica
 		{
 		}
 		~EndExpr() {}
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() == ExprKind::EndExpression;
-		}
+		static constexpr auto classof = leafClassOf<ExprKind::EndExpression>;
 
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
@@ -221,11 +234,8 @@ namespace modelica
 		[[nodiscard]] const Expr* getLeftHand() const { return at(0); }
 		[[nodiscard]] const Expr* getRightHand() const { return at(1); }
 
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() >= ExprKind::BinaryExpr &&
-						 e->getKind() < ExprKind::LastBinaryExpr;
-		}
+		static constexpr auto classof =
+				nonLeafClassOf<ExprKind::BinaryExpr, ExprKind::LastBinaryExpr>;
 		[[nodiscard]] BinaryExprOp getOpCode() const { return operation; }
 		void setOpCode(BinaryExprOp op) { operation = op; }
 
@@ -257,11 +267,8 @@ namespace modelica
 			getExpressions().emplace_back(std::move(oprnd));
 		}
 
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() >= ExprKind::UnaryExpr &&
-						 e->getKind() < ExprKind::LastUnaryExpr;
-		}
+		static constexpr auto classof =
+				nonLeafClassOf<ExprKind::UnaryExpr, ExprKind::LastUnaryExpr>;
 		[[nodiscard]] UnaryExprOp getOpCode() const { return operation; }
 		void setOpCode(UnaryExprOp op) { operation = op; }
 		[[nodiscard]] const Expr* getOperand() const { return at(0); }
@@ -292,11 +299,7 @@ namespace modelica
 			if (step.get() != nullptr)
 				getExpressions().emplace_back(move(step));
 		}
-
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() == ExprKind::RangeExpression;
-		}
+		static constexpr auto classof = leafClassOf<ExprKind::RangeExpression>;
 
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
@@ -326,11 +329,9 @@ namespace modelica
 				: ExprList(loc, Type(BuiltinType::Unknown), kind, std::move(children))
 		{
 		}
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() >= ExprKind::ArrayConstructorExpression &&
-						 e->getKind() < ExprKind::LastArrayConstructorExpression;
-		}
+		static constexpr auto classof = nonLeafClassOf<
+				ExprKind::ArrayConstructorExpression,
+				ExprKind::LastArrayConstructorExpression>;
 		~ArrayConstructorExpr() override = default;
 	};
 
@@ -363,10 +364,8 @@ namespace modelica
 			return names[index];
 		}
 
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() == ExprKind::ForInArrayConstructorExpression;
-		}
+		static constexpr auto classof =
+				leafClassOf<ExprKind::ForInArrayConstructorExpression>;
 		[[nodiscard]] unsigned forInCount() const { return names.size(); }
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
@@ -401,10 +400,8 @@ namespace modelica
 		}
 		~DirectArrayConstructorExpr() final = default;
 
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() == ExprKind::DirectArrayConstructorExpression;
-		}
+		static constexpr auto classof =
+				leafClassOf<ExprKind::DirectArrayConstructorExpression>;
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
@@ -428,10 +425,8 @@ namespace modelica
 		}
 		~ArraySubscriptionExpr() final = default;
 
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() == ExprKind::ArraySubscriptionExpression;
-		}
+		static constexpr auto classof =
+				leafClassOf<ExprKind::ArraySubscriptionExpression>;
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
@@ -460,10 +455,7 @@ namespace modelica
 		{
 		}
 		~AcceptAllExpr() final = default;
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() == ExprKind::AcceptAllExpression;
-		}
+		static constexpr auto classof = leafClassOf<ExprKind::AcceptAllExpression>;
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
@@ -500,10 +492,8 @@ namespace modelica
 		{
 			return llvm::Error::success();
 		}
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() == ExprKind::ComponentReferenceExpression;
-		}
+		static constexpr auto classof =
+				leafClassOf<ExprKind::ComponentReferenceExpression>;
 		[[nodiscard]] bool hasGlobalLookup() const { return globalLookUp; }
 		[[nodiscard]] bool isBase() const { return size() == 0; }
 		[[nodiscard]] const Expr* getPreviousLookUp() const
@@ -532,7 +522,7 @@ namespace modelica
 		}
 		~LiteralExpr() final = default;
 
-		static bool classof(const Expr* e) { return e->getKind() == Kind; }
+		static constexpr auto classof = leafClassOf<Kind>;
 		[[nodiscard]] const RappresentationType& getValue() const { return value; }
 
 		private:
@@ -555,10 +545,8 @@ namespace modelica
 		}
 		~NamedArgumentExpr() final = default;
 
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() == ExprKind::NamedArgumentExpression;
-		}
+		static constexpr auto classof =
+				leafClassOf<ExprKind::NamedArgumentExpression>;
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
@@ -601,10 +589,7 @@ namespace modelica
 
 		~IfElseExpr() final = default;
 
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() == ExprKind::IfElseExpr;
-		}
+		static constexpr auto classof = leafClassOf<ExprKind::IfElseExpr>;
 		[[nodiscard]] const Expr* getFinalElse() const
 		{
 			if (!hasFinalElse())
@@ -636,10 +621,8 @@ namespace modelica
 				getExpressions().emplace_back(std::move(expr));
 		}
 
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() == ExprKind::ArrayConcatExpression;
-		}
+		static constexpr auto classof =
+				leafClassOf<ExprKind::ArrayConcatExpression>;
 		~ArrayConcatExpr() final = default;
 
 		[[nodiscard]] llvm::Error isConsistent() const
@@ -666,12 +649,10 @@ namespace modelica
 				: ExprList(loc, Type(BuiltinType::Unknown), kind, std::move(params))
 		{
 		}
+		static constexpr auto classof = nonLeafClassOf<
+				ExprKind::FunctionCallExpression,
+				ExprList::LastFunctionCallExpression>;
 		~FunctionCallExpr() override = default;
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() >= ExprKind::FunctionCallExpression &&
-						 e->getKind() < ExprKind::LastFunctionCallExpression;
-		}
 	};
 
 	template<Expr::ExprKind knd>
@@ -683,7 +664,8 @@ namespace modelica
 		{
 		}
 		~SpecialFunctionCallExpr() override = default;
-		static bool classof(const Expr* e) { return e->getKind() == knd; }
+
+		static constexpr auto classof = leafClassOf<knd>;
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
@@ -711,11 +693,9 @@ namespace modelica
 			getExpressions().emplace_back(std::move(component));
 		}
 		~ComponentFunctionCallExpr() override = default;
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() >= ExprKind::ComponentFunctionCallExpression &&
-						 e->getKind() < ExprKind::LastFunctionCallExpression;
-		}
+		static constexpr auto classof = nonLeafClassOf<
+				ExprKind::ComponentFunctionCallExpression,
+				ExprKind::LastComponentFunctionCallExpression>;
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
@@ -745,11 +725,9 @@ namespace modelica
 					name(std::move(name))
 		{
 		}
+		static constexpr auto classof =
+				leafClassOf<ExprKind::PartialFunctionCallExpression>;
 		~PartialFunctioCallExpr() final = default;
-		static bool classof(const Expr* e)
-		{
-			return e->getKind() == ExprKind::PartialFunctionCallExpression;
-		}
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();

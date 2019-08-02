@@ -88,6 +88,25 @@ namespace modelica
 		vectorUnique<Expr> expressions;
 	};
 
+	/**
+	 * This is the template used by every ast leaf member as an alias
+	 * to implement classof, which is used by llvm::cast
+	 */
+	template<Equation::EquationKind kind>
+	constexpr bool leafClassOf(const Equation* e)
+	{
+		return e->getKind() == kind;
+	}
+
+	/**
+	 * This is the template used by every ast non leaf member as an alias
+	 * to implement classof, which is used by llvm::cast
+	 */
+	template<Equation::EquationKind kind, Equation::EquationKind lastKind>
+	constexpr bool nonLeafClassOf(const Equation* e)
+	{
+		return e->getKind() >= kind && e->getKind() < lastKind;
+	}
 	using UniqueEq = std::unique_ptr<Equation>;
 
 	/**
@@ -123,11 +142,10 @@ namespace modelica
 		}
 		[[nodiscard]] ConstEqIterator eqCend() const { return equations.cend(); }
 
-		static bool classof(const Equation* e)
-		{
-			return e->getKind() >= EquationKind::CompositeEquation &&
-						 e->getKind() < EquationKind::LastCompositeEquation;
-		}
+		static constexpr auto classof = nonLeafClassOf<
+				EquationKind::CompositeEquation,
+				EquationKind::LastCompositeEquation>;
+
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
@@ -184,10 +202,9 @@ namespace modelica
 				return nullptr;
 			return getExpressions().back().get();
 		}
-		static bool classof(const Equation* e)
-		{
-			return e->getKind() == EquationKind::IfEquation;
-		}
+
+		static constexpr auto classof = leafClassOf<EquationKind::IfEquation>;
+
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
@@ -208,10 +225,9 @@ namespace modelica
 		}
 
 		~WhenEquation() override = default;
-		static bool classof(const Equation* e)
-		{
-			return e->getKind() == EquationKind::WhenEquation;
-		}
+
+		static constexpr auto classof = leafClassOf<EquationKind::WhenEquation>;
+
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
@@ -248,10 +264,8 @@ namespace modelica
 		{
 		}
 		~ForEquation() override = default;
-		static bool classof(const Equation* e)
-		{
-			return e->getKind() == EquationKind::ForEquation;
-		}
+		static constexpr auto classof = leafClassOf<EquationKind::ForEquation>;
+
 		[[nodiscard]] unsigned equationsCount() const
 		{
 			return getEquations().size();
@@ -295,10 +309,7 @@ namespace modelica
 			getExpressions().emplace_back(std::move(rightHand));
 		}
 		~SimpleEquation() override = default;
-		static bool classof(const Equation* e)
-		{
-			return e->getKind() == EquationKind::SimpleEquation;
-		}
+		static constexpr auto classof = leafClassOf<EquationKind::SimpleEquation>;
 
 		[[nodiscard]] const Expr* getLeftHand() const
 		{
@@ -327,10 +338,9 @@ namespace modelica
 		{
 			return llvm::Error::success();
 		}
-		static bool classof(const Equation* e)
-		{
-			return e->getKind() == EquationKind::CallEquation;
-		}
+
+		static constexpr auto classof = leafClassOf<EquationKind::CallEquation>;
+
 		[[nodiscard]] const Expr* getCallExpr() const
 		{
 			return getExpressions()[0].get();
@@ -354,10 +364,9 @@ namespace modelica
 		{
 			return llvm::Error::success();
 		}
-		static bool classof(const Equation* e)
-		{
-			return e->getKind() == EquationKind::ConnectClause;
-		}
+
+		static constexpr auto classof = leafClassOf<EquationKind::ConnectClause>;
+
 		[[nodiscard]] const Expr* getFirstParam() const
 		{
 			return getExpressions()[0].get();
