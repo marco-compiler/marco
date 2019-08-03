@@ -124,13 +124,16 @@ namespace modelica
 		}
 		~CompositeStatement() override = default;
 		[[nodiscard]] int eqSize() const { return equations.size(); }
-		[[nodiscard]] StmtIterator eqBegin() { return equations.begin(); }
-		[[nodiscard]] StmtIterator eqEnd() { return equations.end(); }
-		[[nodiscard]] ConstStmtIterator eqCbegin() const
+		[[nodiscard]] StmtIterator stmtBegin() { return equations.begin(); }
+		[[nodiscard]] StmtIterator stmtEnd() { return equations.end(); }
+		[[nodiscard]] ConstStmtIterator stmtCbegin() const
 		{
 			return equations.cbegin();
 		}
-		[[nodiscard]] ConstStmtIterator eqCend() const { return equations.cend(); }
+		[[nodiscard]] ConstStmtIterator stmtCend() const
+		{
+			return equations.cend();
+		}
 
 		static constexpr auto classof = nonLeafClassOf<
 				StatemenKind::CompositeStatement,
@@ -142,7 +145,7 @@ namespace modelica
 		}
 		void removeNullEq()
 		{
-			equations.erase(std::remove(eqBegin(), eqEnd(), nullptr), eqEnd());
+			equations.erase(std::remove(stmtBegin(), stmtEnd(), nullptr), stmtEnd());
 		}
 
 		protected:

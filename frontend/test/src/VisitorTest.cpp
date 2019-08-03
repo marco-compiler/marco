@@ -41,6 +41,22 @@ struct Visitor
 		return expr;
 	}
 
+	auto visit(std::unique_ptr<AssignStatement> expr)
+	{
+		assignVisited = true;
+
+		return expr;
+	}
+
+	auto visit(std::unique_ptr<WhenStatement> expr)
+	{
+		whenStatementVisited = true;
+
+		return expr;
+	}
+
+	auto visit(std::unique_ptr<ComponentReferenceExpr> expr) { return expr; }
+
 	template<typename T>
 	void afterChildrenVisit(T*)
 	{
@@ -51,6 +67,8 @@ struct Visitor
 	bool failed{ false };
 	bool listVisited{ false };
 	bool whenVisited{ false };
+	bool assignVisited{ false };
+	bool whenStatementVisited{ false };
 	bool simpleVisited{ false };
 };
 TEST(VisitorTest, simpleVisitation)
@@ -110,6 +128,29 @@ TEST(VisitorTest, equationVisitor)
 	EXPECT_EQ(false, vis.failed);
 	EXPECT_EQ(true, vis.whenVisited);
 	EXPECT_EQ(true, vis.simpleVisited);
+}
+
+TEST(VisitorTest, statementVisitor)
+{
+	SourceRange r(1, 1, 1, 1);
+	auto exp1 = std::make_unique<IntLiteralExpr>(r, 3);
+	auto exp2 =
+			std::make_unique<ComponentReferenceExpr>(r, "name", nullptr, false);
+	auto exp3 = std::make_unique<IntLiteralExpr>(r, 3);
+	auto eq1 = std::make_unique<AssignStatement>(r, move(exp2), move(exp3));
+	vectorUnique<Statement> eq;
+	vectorUnique<Expr> exp;
+	eq.push_back(move(eq1));
+	exp.push_back(move(exp1));
+	auto eq2 = std::make_unique<WhenStatement>(r, move(exp), move(eq));
+	Visitor vis;
+	auto ptr = topDownVisit(move(eq2), vis);
+	EXPECT_EQ(vis.numOfCalls, 2);
+	EXPECT_EQ(vis.content, 6);
+	EXPECT_EQ(vis.listVisited, false);
+	EXPECT_EQ(false, vis.failed);
+	EXPECT_EQ(true, vis.whenStatementVisited);
+	EXPECT_EQ(true, vis.assignVisited);
 }
 
 TEST(VisitorTest, bottomUpVisit)
