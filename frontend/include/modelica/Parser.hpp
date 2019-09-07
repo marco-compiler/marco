@@ -2,6 +2,7 @@
 #include <memory>
 
 #include "llvm/Support/Allocator.h"
+#include "modelica/AST/Class.hpp"
 #include "modelica/AST/Equation.hpp"
 #include "modelica/AST/Expr.hpp"
 #include "modelica/AST/Statement.hpp"
@@ -59,7 +60,8 @@ namespace modelica
 			static_assert(
 					std::is_base_of<Expr, Type>::value ||
 							std::is_base_of<Equation, Type>::value ||
-							std::is_base_of<Statement, Type>::value,
+							std::is_base_of<Statement, Type>::value ||
+							std::is_base_of<Declaration, Type>::value,
 					"Type was not part of AST");
 			auto ptr = std::make_unique<Type>(
 					SourceRange(initPoint, getPosition()), std::forward<Args>(args)...);
@@ -106,11 +108,48 @@ namespace modelica
 				const std::vector<Token>& stopTokens);
 		[[nodiscard]] llvm::Expected<std::pair<std::string, UniqueExpr>> forIndex();
 
+		[[nodiscard]] ExpectedUnique<ClassDecl> classDefinition();
+		[[nodiscard]] ExpectedUnique<ClassDecl> classSpecifier();
+		[[nodiscard]] ExpectedUnique<ClassDecl> selectClassSpecifier();
+		[[nodiscard]] ExpectedUnique<ClassDecl> longClassSpecifier();
+		[[nodiscard]] ExpectedUnique<ImportClause> importClause();
+		[[nodiscard]] llvm::Expected<std::string> stringComment();
+		[[nodiscard]] llvm::Expected<TypeSpecifier> typeSpecifier();
+		[[nodiscard]] llvm::Expected<DeclarationName> declaration();
+
+		/**
+		 * First bool of tuple is partiality,
+		 * second bool is purity
+		 */
+		[[nodiscard]] llvm::Expected<std::tuple<bool, bool, ClassDecl::SubType>>
+		classPrefixes();
+
 		[[nodiscard]] ExpectedUnique<Statement> whenStatement();
 		[[nodiscard]] ExpectedUnique<Statement> forStatement();
 		[[nodiscard]] ExpectedUnique<Statement> ifStatement();
 		[[nodiscard]] ExpectedUnique<Statement> whileStatement();
 		[[nodiscard]] ExpectedUnique<Statement> statement();
+		[[nodiscard]] ExpectedUnique<Declaration> componentClause1();
+		[[nodiscard]] ExpectedUnique<Declaration> componentClause();
+		[[nodiscard]] ExpectedUnique<Declaration> componentDeclaration1();
+		[[nodiscard]] ExpectedUnique<Declaration> componentDeclaration();
+		[[nodiscard]] ExpectedUnique<Declaration> conditionAttribute();
+		[[nodiscard]] llvm::Expected<vectorUnique<Declaration>> componentList();
+		[[nodiscard]] ExpectedUnique<Declaration> comment();
+		[[nodiscard]] ExpectedUnique<Declaration> classModification();
+		[[nodiscard]] ExpectedUnique<Declaration> modification();
+		[[nodiscard]] llvm::Expected<ComponentClause::Prefix> typePrefix();
+		[[nodiscard]] ExpectedUnique<Declaration> elementReplaceable(
+				bool each, bool fnl);
+		[[nodiscard]] ExpectedUnique<Declaration> constrainingClause();
+		[[nodiscard]] ExpectedUnique<Declaration> extendClause();
+		[[nodiscard]] ExpectedUnique<Declaration> annotation();
+
+		[[nodiscard]] ExpectedUnique<Declaration> elementRedeclaration();
+		[[nodiscard]] ExpectedUnique<Declaration> argument();
+		[[nodiscard]] ExpectedUnique<Declaration> elementModification(
+				bool each, bool fnl);
+
 		[[nodiscard]] llvm::Expected<vectorUnique<Statement>> statementList(
 				const std::vector<Token>& stopTokens);
 		[[nodiscard]] llvm::Expected<std::pair<UniqueStmt, UniqueExpr>> ifStmtBrach(
