@@ -112,6 +112,12 @@ namespace modelica
 		[[nodiscard]] ExpectedUnique<ClassDecl> classSpecifier();
 		[[nodiscard]] ExpectedUnique<ClassDecl> selectClassSpecifier();
 		[[nodiscard]] ExpectedUnique<ClassDecl> longClassSpecifier();
+		[[nodiscard]] ExpectedUnique<ClassDecl> extendLongClassSpecifier();
+		[[nodiscard]] ExpectedUnique<ClassDecl> derClassSpecifier();
+		[[nodiscard]] ExpectedUnique<ClassDecl> shortClassSpecifier();
+		[[nodiscard]] ExpectedUnique<ClassDecl> shortClassDefinition();
+		[[nodiscard]] ExpectedUnique<ClassDecl> enumerationClassSpecifier();
+		[[nodiscard]] ExpectedUnique<Declaration> enumerationLiteral();
 		[[nodiscard]] ExpectedUnique<ImportClause> importClause();
 		[[nodiscard]] llvm::Expected<std::string> stringComment();
 		[[nodiscard]] llvm::Expected<TypeSpecifier> typeSpecifier();
@@ -143,10 +149,22 @@ namespace modelica
 				bool each, bool fnl);
 		[[nodiscard]] ExpectedUnique<Declaration> constrainingClause();
 		[[nodiscard]] ExpectedUnique<Declaration> extendClause();
+		[[nodiscard]] llvm::Expected<std::vector<std::string>> importList();
 		[[nodiscard]] ExpectedUnique<Declaration> annotation();
 
 		[[nodiscard]] ExpectedUnique<Declaration> elementRedeclaration();
 		[[nodiscard]] ExpectedUnique<Declaration> argument();
+		[[nodiscard]] ExpectedUnique<Declaration> externalFunctionCall();
+		[[nodiscard]] ExpectedUnique<Declaration> composition();
+		[[nodiscard]] ExpectedUnique<Declaration> equationSection(
+				const std::vector<Token>& stopTokens, bool initial);
+		[[nodiscard]] ExpectedUnique<Declaration> algorithmSection(
+				const std::vector<Token>& stopTokens, bool initial);
+		[[nodiscard]] ExpectedUnique<Declaration> equationSection();
+		[[nodiscard]] llvm::Expected<std::string> languageSpecification();
+		[[nodiscard]] llvm::Expected<vectorUnique<Declaration>> elementList(
+				const std::vector<Token>& stopTokens);
+		[[nodiscard]] ExpectedUnique<Declaration> element();
 		[[nodiscard]] ExpectedUnique<Declaration> elementModification(
 				bool each, bool fnl);
 

@@ -222,14 +222,14 @@ Expected<vector<string>> Parser::name()
 {
 	vector<string> toReturn;
 	toReturn.push_back(lexer.getLastIdentifier());
-	if (!expect(Token::Ident))
-		return llvm::make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::Ident); !e)
+		return e.takeError();
 
 	while (accept<Token::Dot>())
 	{
 		toReturn.push_back(lexer.getLastIdentifier());
-		if (!expect(Token::Ident))
-			return llvm::make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::Ident); !e)
+			return e.takeError();
 	}
 
 	return move(toReturn);

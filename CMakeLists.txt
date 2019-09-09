@@ -101,6 +101,7 @@ if (${CMAKE_CXX_FLAGS} MATCHES ".*--coverage.*")
 
 	add_custom_target(coverage COMMAND rm test.info filtered.info base.info total.info)
 	add_dependencies(coverage genCoverage)
+	add_dependencies(coverage test)
 elseif(TRUE)
 	add_custom_target(coverage
 		COMMAND echo could not calculate coverage run cmake with -DCMAKE_CXX_FLAGS=--coverage

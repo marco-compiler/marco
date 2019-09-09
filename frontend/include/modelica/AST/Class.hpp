@@ -1,5 +1,7 @@
 #pragma once
+#include "modelica/AST/Equation.hpp"
 #include "modelica/AST/Expr.hpp"
+#include "modelica/AST/Statement.hpp"
 
 namespace modelica
 {
@@ -16,8 +18,19 @@ namespace modelica
 			Decl,
 			CompositeDecl,
 			ClassModification,
+			Composition,
 			ExtendClause,
+			EnumerationLiteral,
+			Element,
+			ClassDecl,
+			EnumerationClassDecl,
+			LongClassDecl,
+			ShortClassDecl,
+			DerClassDecl,
+			LastClassDecl,
+			CompositionSection,
 			OverridingClassModification,
+			ImportClause,
 			ComponentDeclaration,
 			Annotation,
 			ComponentClause,
@@ -28,14 +41,17 @@ namespace modelica
 			LastCompositeDecl,
 			ExprCompositeDecl,
 			ConditionAttribute,
+			ExternalFunctionCall,
 			SimpleModification,
 			ArraySubscriptionDecl,
 			LastExprCompositeDecl,
-			ClassDecl,
-			LongClassDecl,
-			LastClassDecl,
+			EqCompositeDecl,
+			EquationSection,
+			LastEqCompositeDecl,
+			StatementCompositeDecl,
+			AlgorithmSection,
+			LastStatementCompositeDecl,
 			ElementList,
-			ImportClause,
 			LastDecl
 		};
 
@@ -75,54 +91,6 @@ namespace modelica
 	{
 		return e->getKind() >= kind && e->getKind() < lastKind;
 	}
-
-	class ClassDecl: public Declaration
-	{
-		public:
-		enum class SubType
-		{
-			Class,
-			Model,
-			Operator,
-			Record,
-			OperatorRecord,
-			Block,
-			Connector,
-			ExpandableConnector,
-			Type,
-			Package,
-			Function,
-			OperatorFunction
-		};
-
-		static constexpr auto classof = nonLeafClassOf<
-				DeclarationKind::ClassDecl,
-				DeclarationKind::LastClassDecl>;
-
-		ClassDecl(
-				SourceRange range, DeclarationKind kind = DeclarationKind::ClassDecl)
-				: Declaration(range, kind)
-		{
-		}
-		~ClassDecl() override = default;
-
-		void setType(SubType type) { subtype = type; }
-		void setPartial(bool part) { partial = part; }
-		void setEncapsulated(bool enc) { encapsulated = enc; }
-		void setPure(bool p) { pure = p; }
-		void setName(std::string newName) { name = std::move(newName); }
-		[[nodiscard]] llvm::Error isConsistent() const
-		{
-			return llvm::Error::success();
-		}
-
-		private:
-		bool partial{ false };
-		bool encapsulated{ false };
-		bool pure{ true };
-		std::string name;
-		SubType subtype{ SubType::Class };
-	};
 
 	template<
 			typename Children,
@@ -201,6 +169,66 @@ namespace modelica
 			Declaration::ExprCompositeDecl,
 			Declaration::LastExprCompositeDecl>;
 
+	using EqCompositeDecl = NonLeafDeclaration<
+			Equation,
+			Declaration::EqCompositeDecl,
+			Declaration::LastEqCompositeDecl>;
+
+	using StatementCompositeDecl = NonLeafDeclaration<
+			Statement,
+			Declaration::StatementCompositeDecl,
+			Declaration::LastStatementCompositeDecl>;
+
+	class ClassDecl: public CompositeDecl
+	{
+		public:
+		enum class SubType
+		{
+			Class,
+			Model,
+			Operator,
+			Record,
+			OperatorRecord,
+			Block,
+			Connector,
+			ExpandableConnector,
+			Type,
+			Package,
+			Function,
+			OperatorFunction
+		};
+
+		static constexpr auto classof = nonLeafClassOf<
+				DeclarationKind::ClassDecl,
+				DeclarationKind::LastClassDecl>;
+
+		ClassDecl(
+				SourceRange range,
+				DeclarationKind kind = DeclarationKind::ClassDecl,
+				vectorUnique<Declaration> childs = {})
+				: NonLeafDeclaration(range, kind, move(childs))
+		{
+		}
+		~ClassDecl() override = default;
+
+		void setType(SubType type) { subtype = type; }
+		void setPartial(bool part) { partial = part; }
+		void setEncapsulated(bool enc) { encapsulated = enc; }
+		void setPure(bool p) { pure = p; }
+		void setName(std::string newName) { name = std::move(newName); }
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+
+		private:
+		bool partial{ false };
+		bool encapsulated{ false };
+		bool pure{ true };
+		std::string name;
+		SubType subtype{ SubType::Class };
+	};
+
 	class SimpleModification: public ExprCompositeDecl
 	{
 		public:
@@ -271,6 +299,22 @@ namespace modelica
 		{
 			return getVector()[1].get();
 		}
+	};
+	class CompositionSection: public CompositeDecl
+	{
+		public:
+		CompositionSection(SourceRange range, vectorUnique<Declaration> decls)
+				: NonLeafDeclaration(
+							range, DeclarationKind::CompositionSection, std::move(decls))
+		{
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		~CompositionSection() override = default;
+		static constexpr auto classof =
+				leafClassOf<DeclarationKind::CompositionSection>;
 	};
 
 	class ClassModification: public CompositeDecl
@@ -447,7 +491,8 @@ namespace modelica
 				UniqueDecl child,
 				bool each,
 				bool fnl,
-				UniqueDecl constrainingClause = nullptr)
+				UniqueDecl constrainingClause = nullptr,
+				UniqueDecl annotation = nullptr)
 				: NonLeafDeclaration(range, DeclarationKind::ReplecableModification),
 					each(each),
 					finl(fnl)
@@ -455,6 +500,8 @@ namespace modelica
 			getVector().push_back(std::move(child));
 			if (constrainingClause != nullptr)
 				getVector().push_back(std::move(constrainingClause));
+			if (annotation != nullptr)
+				getVector().push_back(std::move(annotation));
 		}
 
 		[[nodiscard]] llvm::Error isConsistent() const
@@ -473,6 +520,33 @@ namespace modelica
 		private:
 		bool each;
 		bool finl;
+	};
+
+	class Element: public CompositeDecl
+	{
+		public:
+		Element(SourceRange range, UniqueDecl child, bool inner, bool outer)
+				: NonLeafDeclaration(range, DeclarationKind::Element),
+					inner(inner),
+					outer(outer)
+		{
+			getVector().push_back(std::move(child));
+		}
+
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		~Element() override = default;
+		static constexpr auto classof = leafClassOf<DeclarationKind::Element>;
+
+		[[nodiscard]] bool hasConstraingClause() const { return size() >= 2; }
+		[[nodiscard]] bool isInner() const { return inner; }
+		[[nodiscard]] bool isOuter() const { return outer; }
+
+		private:
+		bool inner;
+		bool outer;
 	};
 
 	class Redeclaration: public CompositeDecl
@@ -528,6 +602,38 @@ namespace modelica
 		TypeSpecifier specifier;
 	};
 
+	class EnumerationLiteral: public CompositeDecl
+	{
+		public:
+		EnumerationLiteral(
+				SourceRange range,
+				std::string enumerationName,
+				UniqueDecl annotation = nullptr)
+				: NonLeafDeclaration(range, DeclarationKind::EnumerationLiteral),
+					name(move(enumerationName))
+		{
+			if (annotation != nullptr)
+				getVector().push_back(std::move(annotation));
+		}
+
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		[[nodiscard]] const Declaration* getAnnotation() const
+		{
+			return getVector()[0].get();
+		}
+		~EnumerationLiteral() override = default;
+		static constexpr auto classof =
+				leafClassOf<DeclarationKind::EnumerationLiteral>;
+
+		[[nodiscard]] const std::string& getName() const { return name; }
+
+		private:
+		std::string name;
+	};
+
 	class ExtendClause: public CompositeDecl
 	{
 		public:
@@ -558,6 +664,74 @@ namespace modelica
 		TypeSpecifier specifier;
 	};
 
+	class Composition: public CompositeDecl
+	{
+		public:
+		Composition(
+				SourceRange range,
+				UniqueDecl privateDecl,
+				UniqueDecl publicDecl,
+				UniqueDecl protectedDecl,
+				vectorUnique<Declaration> equationSection,
+				vectorUnique<Declaration> algSection,
+				UniqueDecl externalFunctionCall = nullptr,
+				UniqueDecl externalCallAnn = nullptr,
+				UniqueDecl annotation = nullptr,
+				std::string externalLanguageSpec = "")
+				: NonLeafDeclaration(range, DeclarationKind::Composition),
+					languageSpec(move(externalLanguageSpec))
+		{
+			getVector().push_back(move(privateDecl));
+			getVector().push_back(move(publicDecl));
+			getVector().push_back(move(protectedDecl));
+			getVector().push_back(move(externalFunctionCall));
+			getVector().push_back(move(externalCallAnn));
+			getVector().push_back(move(annotation));
+			for (auto& p : equationSection)
+				getVector().push_back(move(p));
+			for (auto& p : algSection)
+				getVector().push_back(move(p));
+		}
+		[[nodiscard]] const Declaration* getPrivateSection() const
+		{
+			return getVector()[0].get();
+		}
+		[[nodiscard]] const Declaration* getPublicSection() const
+		{
+			return getVector()[1].get();
+		}
+		[[nodiscard]] const Declaration* getProtectedSection() const
+		{
+			return getVector()[2].get();
+		}
+		[[nodiscard]] const Declaration* getExternalFunctionCall() const
+		{
+			return getVector()[3].get();
+		}
+		[[nodiscard]] const Declaration* getExternalCallAnnotation() const
+		{
+			return getVector()[4].get();
+		}
+		[[nodiscard]] const Declaration* getAnnotation() const
+		{
+			return getVector()[5].get();
+		}
+		[[nodiscard]] const std::string& getLanguageSpec() const
+		{
+			return languageSpec;
+		}
+
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		~Composition() override = default;
+		static constexpr auto classof = leafClassOf<DeclarationKind::Composition>;
+
+		private:
+		std::string languageSpec;
+	};
+
 	class ArraySubscriptionDecl: public ExprCompositeDecl
 	{
 		public:
@@ -580,6 +754,40 @@ namespace modelica
 		}
 	};
 
+	class ExternalFunctionCall: public ExprCompositeDecl
+	{
+		public:
+		ExternalFunctionCall(
+				SourceRange range,
+				std::string name,
+				UniqueExpr args,
+				UniqueExpr componentRef = nullptr)
+				: NonLeafDeclaration(range, DeclarationKind::ExternalFunctionCall),
+					name(std::move(name))
+		{
+			getVector().push_back(move(args));
+			if (componentRef != nullptr)
+				getVector().push_back(move(componentRef));
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		~ExternalFunctionCall() override = default;
+		static constexpr auto classof =
+				leafClassOf<DeclarationKind::ExternalFunctionCall>;
+
+		[[nodiscard]] const Expr* getArguments() const
+		{
+			return getVector()[0].get();
+		}
+
+		[[nodiscard]] const std::string& getName() const { return name; }
+
+		private:
+		std::string name;
+	};
+
 	class ConditionAttribute: public ExprCompositeDecl
 	{
 		public:
@@ -599,12 +807,129 @@ namespace modelica
 		[[nodiscard]] const Expr* getExpr() const { return getVector()[0].get(); }
 	};
 
+	class EquationSection: public EqCompositeDecl
+	{
+		public:
+		EquationSection(
+				SourceRange range, vectorUnique<Equation> equs, bool initial = false)
+				: NonLeafDeclaration(
+							range, DeclarationKind::EquationSection, move(equs)),
+					initial(initial)
+		{
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		~EquationSection() override = default;
+		static constexpr auto classof =
+				leafClassOf<DeclarationKind::EquationSection>;
+
+		[[nodiscard]] const Equation* getEquation(int index) const
+		{
+			return getVector()[index].get();
+		}
+		[[nodiscard]] bool isInitial() const { return initial; }
+		void setInitial(bool init) { initial = init; }
+
+		private:
+		bool initial;
+	};
+
+	class AlgorithmSection: public StatementCompositeDecl
+	{
+		public:
+		AlgorithmSection(
+				SourceRange range, vectorUnique<Statement> equs, bool initial = false)
+				: NonLeafDeclaration(
+							range, DeclarationKind::AlgorithmSection, move(equs)),
+					initial(initial)
+		{
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		~AlgorithmSection() override = default;
+		static constexpr auto classof =
+				leafClassOf<DeclarationKind::AlgorithmSection>;
+
+		[[nodiscard]] const Statement* getEquation(int index) const
+		{
+			return getVector()[index].get();
+		}
+		[[nodiscard]] bool isInitial() const { return initial; }
+		void setInitial(bool init) { initial = init; }
+
+		private:
+		bool initial;
+	};
+
+	class DerClassDecl: public ClassDecl
+	{
+		public:
+		DerClassDecl(
+				SourceRange range,
+				std::vector<std::string> idents,
+				TypeSpecifier spec,
+				UniqueDecl commnt)
+				: ClassDecl(range, DeclarationKind::DerClassDecl),
+					idents(move(idents)),
+					typeSpec(move(spec))
+		{
+			getVector().push_back(move(commnt));
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		~DerClassDecl() override = default;
+		static constexpr auto classof = leafClassOf<DeclarationKind::DerClassDecl>;
+
+		private:
+		std::vector<std::string> idents;
+		TypeSpecifier typeSpec;
+	};
+
+	class EnumerationClass: public ClassDecl
+	{
+		public:
+		EnumerationClass(
+				SourceRange range,
+				bool colons,
+				vectorUnique<Declaration> enums,
+				UniqueDecl annotation = nullptr)
+				: ClassDecl(range, DeclarationKind::EnumerationClassDecl, move(enums)),
+					colons(colons)
+		{
+			getVector().push_back(move(annotation));
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		~EnumerationClass() override = default;
+		static constexpr auto classof =
+				leafClassOf<DeclarationKind::EnumerationClassDecl>;
+
+		[[nodiscard]] bool hasColons() const { return colons; }
+
+		private:
+		bool colons;
+	};
+
 	class LongClassDecl: public ClassDecl
 	{
 		public:
-		LongClassDecl(SourceRange range)
-				: ClassDecl(range, DeclarationKind::LastClassDecl)
+		LongClassDecl(
+				SourceRange range,
+				UniqueDecl comp,
+				UniqueDecl modification = nullptr,
+				bool extends = false)
+				: ClassDecl(range, DeclarationKind::LongClassDecl), extends(extends)
 		{
+			getVector().push_back(move(comp));
+			getVector().push_back(move(modification));
 		}
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
@@ -612,6 +937,57 @@ namespace modelica
 		}
 		~LongClassDecl() override = default;
 		static constexpr auto classof = leafClassOf<DeclarationKind::LongClassDecl>;
+
+		[[nodiscard]] const Declaration* getComposition() const
+		{
+			return getVector()[0].get();
+		}
+		[[nodiscard]] const Declaration* getModification() const
+		{
+			return getVector()[1].get();
+		}
+
+		[[nodiscard]] bool isExtend() const { return extends; }
+
+		private:
+		bool extends;
+	};
+
+	class ShortClassDecl: public ClassDecl
+	{
+		public:
+		ShortClassDecl(
+				SourceRange range,
+				bool input,
+				bool output,
+				TypeSpecifier sp,
+				UniqueDecl arraySub = nullptr,
+				UniqueDecl modification = nullptr,
+				UniqueDecl ann = nullptr)
+				: ClassDecl(range, DeclarationKind::ShortClassDecl),
+					input(input),
+					output(output),
+					typeSpec(std::move(sp))
+		{
+			getVector().push_back(std::move(arraySub));
+			getVector().push_back(std::move(modification));
+			getVector().push_back(std::move(ann));
+		}
+		[[nodiscard]] llvm::Error isConsistent() const
+		{
+			return llvm::Error::success();
+		}
+		~ShortClassDecl() override = default;
+		static constexpr auto classof =
+				leafClassOf<DeclarationKind::ShortClassDecl>;
+
+		[[nodiscard]] bool isInput() const { return input; }
+		[[nodiscard]] bool isOutput() const { return output; }
+
+		private:
+		bool input;
+		bool output;
+		TypeSpecifier typeSpec;
 	};
 
 	class ElementList: public Declaration
@@ -637,24 +1013,25 @@ namespace modelica
 		bool proected;
 	};
 
-	class ImportClause: public Declaration
+	class ImportClause: public CompositeDecl
 	{
 		public:
 		ImportClause(
 				SourceRange range,
 				std::vector<std::string> baseName,
 				std::string newName = "",
+				UniqueDecl comment = nullptr,
 				bool importAll = false,
-				std::vector<std::string> toImportNames = {},
-				std::string comment = "")
-				: Declaration(range, DeclarationKind::ImportClause),
-					comment(std::move(comment)),
+				std::vector<std::string> toImportNames = {})
+				: NonLeafDeclaration(range, DeclarationKind::ImportClause),
 					newName(std::move(newName)),
 					importAll(importAll),
 					baseName(std::move(baseName)),
 					toImportNames(std::move(toImportNames))
 
 		{
+			if (comment != nullptr)
+				getVector().emplace_back(std::move(comment));
 		}
 		~ImportClause() override = default;
 		[[nodiscard]] bool importAllNamespace() const { return importAll; }
@@ -665,7 +1042,6 @@ namespace modelica
 		static constexpr auto classof = leafClassOf<DeclarationKind::ImportClause>;
 
 		private:
-		std::string comment;
 		std::string newName;
 		bool importAll;
 		std::vector<std::string> baseName;
