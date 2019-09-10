@@ -56,7 +56,7 @@ namespace modelica
 		LoopKeyword,
 		ModelKeyword,
 		NotKeyword,
-		OperaptorKeyword,
+		OperatorKeyword,
 		OrKeyword,
 		OuterKeyword,
 		OutputKeyword,

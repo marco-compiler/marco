@@ -30,7 +30,10 @@ Expected<tuple<bool, bool, ClassDecl::SubType>> Parser::classPrefixes()
 	if (accept<Token::FunctionKeyword>())
 		return make_tuple(partial, true, ClassDecl::SubType::Function);
 
-	if (accept<Token::OperaptorKeyword>())
+	if (accept<Token::RecordKeyword>())
+		return make_tuple(partial, true, ClassDecl::SubType::Record);
+
+	if (accept<Token::OperatorKeyword>())
 	{
 		if (accept<Token::RecordKeyword>())
 			return make_tuple(partial, true, ClassDecl::SubType::OperatorRecord);
@@ -49,6 +52,7 @@ Expected<tuple<bool, bool, ClassDecl::SubType>> Parser::classPrefixes()
 		return make_tuple(partial, true, ClassDecl::SubType::ExpandableConnector);
 	}
 
+	// purity is by default
 	bool pure = true;
 	if (accept<Token::ImpureKeyword>())
 		pure = false;
@@ -56,7 +60,7 @@ Expected<tuple<bool, bool, ClassDecl::SubType>> Parser::classPrefixes()
 	if (accept<Token::PureKeyword>() && !pure)
 		return make_error<UnexpectedToken>(current);
 
-	if (accept<Token::OperaptorKeyword>())
+	if (accept<Token::OperatorKeyword>())
 	{
 		if (auto e = expect(Token::FunctionKeyword); !e)
 			return e.takeError();
@@ -165,7 +169,7 @@ ExpectedUnique<ClassDecl> Parser::shortClassSpecifier()
 {
 	SourcePosition currentPos = getPosition();
 	bool input = accept<Token::InputKeyword>();
-	bool output = accept<Token::OuterKeyword>();
+	bool output = accept<Token::OutputKeyword>();
 
 	auto tp = typeSpecifier();
 	if (!tp)
@@ -208,11 +212,11 @@ ExpectedUnique<ClassDecl> Parser::shortClassSpecifier()
 			currentPos, input, output, move(*tp), move(*s), move(mod), move(*ann));
 }
 
+// The Ident = der part of the rule must be handled by the caller, since it's
+// used to tell apart the kind of declarations
 ExpectedUnique<ClassDecl> Parser::derClassSpecifier()
 {
 	SourcePosition currentPos = getPosition();
-	if (auto e = expect(Token::DerKeyword); !e)
-		return e.takeError();
 
 	if (auto e = expect(Token::LPar); !e)
 		return e.takeError();
@@ -232,7 +236,7 @@ ExpectedUnique<ClassDecl> Parser::derClassSpecifier()
 		if (auto e = expect(Token::Ident); !e)
 			return e.takeError();
 
-	} while (accept<Token::Ident>());
+	} while (accept<Token::Comma>());
 
 	if (auto e = expect(Token::RPar); !e)
 		return e.takeError();
@@ -260,12 +264,11 @@ ExpectedUnique<Declaration> Parser::enumerationLiteral()
 	return makeNode<EnumerationLiteral>(currentPos, move(name), move(*ann));
 }
 
+// the IDENT = enumeration part of the rule is handled in
+// the caller, since it's needed to tell apart the two cases
 ExpectedUnique<ClassDecl> Parser::enumerationClassSpecifier()
 {
 	SourcePosition currentPos = getPosition();
-	if (auto e = expect(Token::EnumerationKeyword); !e)
-		return e.takeError();
-
 	if (auto e = expect(Token::LPar); !e)
 		return e.takeError();
 
@@ -281,7 +284,7 @@ ExpectedUnique<ClassDecl> Parser::enumerationClassSpecifier()
 				return lit.takeError();
 
 			literals.push_back(move(*lit));
-		} while (accept<Token::Colons>());
+		} while (accept<Token::Comma>());
 	}
 
 	auto ann = comment();
@@ -296,7 +299,7 @@ ExpectedUnique<ClassDecl> Parser::enumerationClassSpecifier()
 // definitions that start with IDENT =
 ExpectedUnique<ClassDecl> Parser::selectClassSpecifier()
 {
-	if (!accept<Token::Assignment>())
+	if (!accept<Token::Equal>())
 		return longClassSpecifier();
 
 	if (accept<Token::DerKeyword>())
@@ -316,7 +319,7 @@ ExpectedUnique<ClassDecl> Parser::shortClassDefinition()
 
 	auto [partial, pure, subType] = *classPref;
 
-	string name = lexer.getLastString();
+	string name = lexer.getLastIdentifier();
 	if (auto e = expect(Token::Ident); !e)
 		return e.takeError();
 
@@ -324,7 +327,7 @@ ExpectedUnique<ClassDecl> Parser::shortClassDefinition()
 		return e.takeError();
 
 	unique_ptr<ClassDecl> decl = nullptr;
-	if (current == Token::EnumerationKeyword)
+	if (accept<Token::EnumerationKeyword>())
 	{
 		auto d = enumerationClassSpecifier();
 		if (!d)
@@ -431,7 +434,7 @@ ExpectedUnique<Declaration> Parser::equationSection(
 
 	vectorUnique<Equation> equs;
 
-	while (find(stopTokens.begin(), stopTokens.end(), current) !=
+	while (find(stopTokens.begin(), stopTokens.end(), current) ==
 				 stopTokens.end())
 	{
 		auto eq = equation();
@@ -459,7 +462,7 @@ ExpectedUnique<Declaration> Parser::algorithmSection(
 
 	vectorUnique<Statement> equs;
 
-	while (find(stopTokens.begin(), stopTokens.end(), current) !=
+	while (find(stopTokens.begin(), stopTokens.end(), current) ==
 				 stopTokens.end())
 	{
 		auto eq = statement();
@@ -482,13 +485,13 @@ ExpectedUnique<Declaration> Parser::algorithmSection(
 ExpectedUnique<Declaration> Parser::composition()
 {
 	SourcePosition currentPos = getPosition();
-	const vector<Token> stopTokens = { Token::PublicKeyword,
-																		 Token::ProtectedKeyword,
-																		 Token::EquationKeyword,
-																		 Token::AlgorithmKeyword,
-																		 Token::ExternalKeyword,
-																		 Token::AnnotationKeyword,
-																		 Token::End };
+	const vector<Token> stopTokens = {
+		Token::PublicKeyword,		Token::ProtectedKeyword,
+		Token::EquationKeyword, Token::AlgorithmKeyword,
+		Token::ExternalKeyword, Token::AnnotationKeyword,
+		Token::EndKeyword,			Token::End,
+		Token::InitialKeyword
+	};
 
 	vectorUnique<Declaration> privates;
 	vectorUnique<Declaration> publics;
@@ -511,12 +514,14 @@ ExpectedUnique<Declaration> Parser::composition()
 	// while we are not seeing a token that signal the next parts or the end of
 	// the rule we keep reading sections
 	while (current != Token::AnnotationKeyword &&
-				 current != Token::ExternalKeyword && current != Token::EndKeyword)
+				 current != Token::ExternalKeyword && current != Token::EndKeyword &&
+				 current != Token::End)
 	{
 		switch (current)
 		{
 			case Token::PublicKeyword:
 			{
+				accept<Token::PublicKeyword>();
 				auto firstList = elementList(stopTokens);
 				if (!firstList)
 					return firstList.takeError();
@@ -528,6 +533,7 @@ ExpectedUnique<Declaration> Parser::composition()
 			}
 			case Token::ProtectedKeyword:
 			{
+				accept<Token::ProtectedKeyword>();
 				auto firstList = elementList(stopTokens);
 				if (!firstList)
 					return firstList.takeError();
@@ -663,7 +669,8 @@ ExpectedUnique<ImportClause> Parser::importClause()
 		return e.takeError();
 
 	string ident = lexer.getLastIdentifier();
-	accept<Token::Ident>();
+	if (auto e = expect(Token::Ident); !e)
+		return e.takeError();
 
 	if (accept<Token::Equal>())
 	{
@@ -829,7 +836,7 @@ ExpectedUnique<Declaration> Parser::annotation()
 ExpectedUnique<Declaration> Parser::extendClause()
 {
 	SourcePosition currentPos = getPosition();
-	if (auto e = expect(Token::ExtendsKeyword))
+	if (auto e = expect(Token::ExtendsKeyword); !e)
 		return e.takeError();
 
 	auto tpSpec = typeSpecifier();
@@ -877,6 +884,9 @@ ExpectedUnique<Declaration> Parser::classModification()
 		return e.takeError();
 
 	vectorUnique<Declaration> arguments;
+
+	if (accept<Token::RPar>())
+		return makeNode<ClassModification>(currentPos, move(arguments));
 
 	auto arg = argument();
 	if (!arg)
@@ -938,7 +948,7 @@ Expected<vectorUnique<Declaration>> Parser::elementList(
 		const vector<Token>& stopTokens)
 {
 	vectorUnique<Declaration> toReturn;
-	while (find(stopTokens.begin(), stopTokens.end(), current) !=
+	while (find(stopTokens.begin(), stopTokens.end(), current) ==
 				 stopTokens.end())
 	{
 		auto elem = element();
@@ -950,15 +960,6 @@ Expected<vectorUnique<Declaration>> Parser::elementList(
 		if (auto e = expect(Token::Semicolons); !e)
 			return e.takeError();
 	}
-	return move(toReturn);
-}
-
-Expected<string> Parser::languageSpecification()
-{
-	string toReturn = lexer.getLastString();
-	if (auto e = expect(Token::String); !e)
-		return e.takeError();
-
 	return move(toReturn);
 }
 
@@ -985,7 +986,7 @@ ExpectedUnique<Declaration> Parser::element()
 	// we look the current token to tell if it's a component clause or
 	// a class definition, in both cases we store the node in child, so that we
 	// can use it later.
-	if (!isCompClauseNext(current))
+	if (isCompClauseNext(current))
 	{
 		auto compClause = componentClause();
 		if (!compClause)
@@ -1064,7 +1065,7 @@ ExpectedUnique<Declaration> Parser::elementRedeclaration()
 
 	ExpectedUnique<Declaration> child = nullptr;
 
-	if (current == Token::RedeclareKeyword)
+	if (current == Token::ReplacableKeyword)
 		child = elementReplaceable(each, fnal);
 	else
 		child = componentClause1();
@@ -1285,7 +1286,7 @@ ExpectedUnique<Declaration> Parser::componentDeclaration()
 {
 	SourcePosition currentPos = getPosition();
 	auto decl = declaration();
-	if (decl)
+	if (!decl)
 		return decl.takeError();
 
 	UniqueDecl expr = nullptr;
@@ -1315,7 +1316,7 @@ ExpectedUnique<Declaration> Parser::componentDeclaration1()
 {
 	SourcePosition currentPos = getPosition();
 	auto decl = declaration();
-	if (decl)
+	if (!decl)
 		return decl.takeError();
 
 	auto cmnt = comment();

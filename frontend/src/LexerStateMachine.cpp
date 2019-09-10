@@ -100,7 +100,7 @@ ModelicaStateMachine::ModelicaStateMachine(char first)
 	keywordMap["loop"] = Token::LoopKeyword;
 	keywordMap["model"] = Token::ModelKeyword;
 	keywordMap["not"] = Token::NotKeyword;
-	keywordMap["operaptor"] = Token::OperaptorKeyword;
+	keywordMap["operator"] = Token::OperatorKeyword;
 	keywordMap["or"] = Token::OrKeyword;
 	keywordMap["outer"] = Token::OuterKeyword;
 	keywordMap["output"] = Token::OutputKeyword;
@@ -112,7 +112,7 @@ ModelicaStateMachine::ModelicaStateMachine(char first)
 	keywordMap["pure"] = Token::PureKeyword;
 	keywordMap["record"] = Token::RecordKeyword;
 	keywordMap["redeclare"] = Token::RedeclareKeyword;
-	keywordMap["replacable"] = Token::ReplacableKeyword;
+	keywordMap["replaceable"] = Token::ReplacableKeyword;
 	keywordMap["return"] = Token::ReturnKeyword;
 	keywordMap["strem"] = Token::StremKeyword;
 	keywordMap["then"] = Token::ThenKeyword;

@@ -161,7 +161,6 @@ namespace modelica
 		[[nodiscard]] ExpectedUnique<Declaration> algorithmSection(
 				const std::vector<Token>& stopTokens, bool initial);
 		[[nodiscard]] ExpectedUnique<Declaration> equationSection();
-		[[nodiscard]] llvm::Expected<std::string> languageSpecification();
 		[[nodiscard]] llvm::Expected<vectorUnique<Declaration>> elementList(
 				const std::vector<Token>& stopTokens);
 		[[nodiscard]] ExpectedUnique<Declaration> element();

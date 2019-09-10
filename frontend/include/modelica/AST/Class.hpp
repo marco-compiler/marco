@@ -62,6 +62,7 @@ namespace modelica
 		}
 		virtual ~Declaration() = default;
 		void setComment(std::string com) { comment = std::move(com); }
+		[[nodiscard]] const std::string& getComment() const { return comment; }
 
 		private:
 		SourceRange location;
@@ -220,6 +221,11 @@ namespace modelica
 		{
 			return llvm::Error::success();
 		}
+
+		[[nodiscard]] bool isEncapsulated() const { return encapsulated; }
+		[[nodiscard]] bool isPure() const { return pure; }
+		[[nodiscard]] bool isPartial() const { return partial; }
+		[[nodiscard]] SubType subType() const { return subtype; }
 
 		private:
 		bool partial{ false };
@@ -439,6 +445,14 @@ namespace modelica
 
 		[[nodiscard]] bool hasGlobalLookup() const { return globalLookUp; }
 		[[nodiscard]] const Prefix& getPrefix() const { return prefix; }
+		[[nodiscard]] const std::vector<std::string>& getNme() const
+		{
+			return name;
+		}
+		[[nodiscard]] const Declaration* getComponent(int index) const
+		{
+			return getVector().at(index).get();
+		}
 
 		private:
 		Prefix prefix;
@@ -885,6 +899,14 @@ namespace modelica
 		}
 		~DerClassDecl() override = default;
 		static constexpr auto classof = leafClassOf<DeclarationKind::DerClassDecl>;
+		[[nodiscard]] const TypeSpecifier& getTypeSpecifier() const
+		{
+			return typeSpec;
+		}
+		[[nodiscard]] const std::vector<std::string>& getIdents() const
+		{
+			return idents;
+		}
 
 		private:
 		std::vector<std::string> idents;
@@ -913,6 +935,11 @@ namespace modelica
 				leafClassOf<DeclarationKind::EnumerationClassDecl>;
 
 		[[nodiscard]] bool hasColons() const { return colons; }
+		[[nodiscard]] int enumsCount() const { return getVector().size() - 1; }
+		[[nodiscard]] const Declaration* getEnumLiteratl(int index) const
+		{
+			return getVector().at(index).get();
+		}
 
 		private:
 		bool colons;
