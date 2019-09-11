@@ -1,5 +1,6 @@
 #pragma once
 
+#include "modelica/AST/Class.hpp"
 #include "modelica/AST/Equation.hpp"
 #include "modelica/AST/Expr.hpp"
 #include "modelica/AST/Statement.hpp"
@@ -62,6 +63,8 @@ namespace modelica
 	auto selectDescendant(std::unique_ptr<ASTNode> node, Visitor& visitor)
 			-> decltype(visitor.visit(std::move(node)))
 	{
+		if (node == nullptr)
+			return node;
 		if (llvm::isa<CurrentDescendant>(node))
 		{
 			std::unique_ptr<CurrentDescendant> casted =
@@ -211,6 +214,106 @@ namespace modelica
 			FunctionCallExpr,
 			ComponentReferenceExpr,
 			ArraySubscriptionExpr>;
+
+	/**
+	 * This is the list of direct descendant of an decl provided as an
+	 * overload of selectDescendant, a Direction typetrait can use this function
+	 * to resolve the kind of a node and invoke the appropriate method inside the
+	 * Direction typetrait itself.
+	 */
+	template<typename Direction, typename Visitor>
+	const auto DeclDescendant = selectDescendant<
+			Direction,
+			Declaration,
+			Visitor,
+			CompositeDecl,
+			ExprCompositeDecl,
+			EqCompositeDecl,
+			StatementCompositeDecl,
+			ElementList>;
+
+	/**
+	 * This is the list of direct descendant of an compositeDecl provided as an
+	 * overload of selectDescendant, a Direction typetrait can use this function
+	 * to resolve the kind of a node and invoke the appropriate method inside the
+	 * Direction typetrait itself.
+	 */
+	template<typename Direction, typename Visitor>
+	const auto CompositeDeclDescendant = selectDescendant<
+			Direction,
+			CompositeDecl,
+			Visitor,
+			ClassModification,
+			Composition,
+			ExtendClause,
+			EnumerationLiteral,
+			Element,
+			ClassDecl,
+			CompositionSection,
+			OverridingClassModification,
+			ImportClause,
+			ComponentDeclaration,
+			Annotation,
+			ComponentClause,
+			Redeclaration,
+			ReplecableModification,
+			ConstrainingClause,
+			ElementModification>;
+
+	/**
+	 * This is the list of direct descendant of an ClassDecl provided as an
+	 * overload of selectDescendant, a Direction typetrait can use this function
+	 * to resolve the kind of a node and invoke the appropriate method inside the
+	 * Direction typetrait itself.
+	 */
+	template<typename Direction, typename Visitor>
+	const auto ClassDeclDescendant = selectDescendant<
+			Direction,
+			ClassDecl,
+			Visitor,
+			EnumerationClass,
+			LongClassDecl,
+			ShortClassDecl,
+			DerClassDecl>;
+
+	/**
+	 * This is the list of direct descendant of an ExprCompositeDecl provided as
+	 * an overload of selectDescendant, a Direction typetrait can use this
+	 * function to resolve the kind of a node and invoke the appropriate method
+	 * inside the Direction typetrait itself.
+	 */
+	template<typename Direction, typename Visitor>
+	const auto ExprCompositeDeclDescendant = selectDescendant<
+			Direction,
+			ExprCompositeDecl,
+			Visitor,
+			ConditionAttribute,
+			ExternalFunctionCall,
+			SimpleModification,
+			ArraySubscriptionDecl>;
+
+	/**
+	 * This is the list of direct descendant of an EqCompositeDecl provided as
+	 * an overload of selectDescendant, a Direction typetrait can use this
+	 * function to resolve the kind of a node and invoke the appropriate method
+	 * inside the Direction typetrait itself.
+	 */
+	template<typename Direction, typename Visitor>
+	const auto EqCompositeDeclDescendant =
+			selectDescendant<Direction, EqCompositeDecl, Visitor, EquationSection>;
+
+	/**
+	 * This is the list of direct descendant of an StatementCompositeDecl provided
+	 * as an overload of selectDescendant, a Direction typetrait can use this
+	 * function to resolve the kind of a node and invoke the appropriate method
+	 * inside the Direction typetrait itself.
+	 */
+	template<typename Direction, typename Visitor>
+	const auto StatementCompositeDeclDescendant = selectDescendant<
+			Direction,
+			StatementCompositeDecl,
+			Visitor,
+			AlgorithmSection>;
 
 	/**
 	 * This is the typetrait that is invoked when trying to visit a AST
@@ -394,6 +497,123 @@ namespace modelica
 
 			return casted;
 		}
+
+		template<typename Visitor>
+		static auto visit(std::unique_ptr<Declaration> node, Visitor& visitor)
+				-> decltype(visitor.visit(std::move(node)))
+		{
+			return DeclDescendant<TopDownDirection, Visitor>(
+					std::move(node), visitor);
+		}
+
+		template<typename Visitor>
+		static auto visit(std::unique_ptr<ClassDecl> node, Visitor& visitor)
+				-> decltype(visitor.visit(std::move(node)))
+		{
+			return ClassDeclDescendant<TopDownDirection, Visitor>(
+					std::move(node), visitor);
+		}
+
+		template<typename Visitor>
+		static auto visit(std::unique_ptr<CompositeDecl> node, Visitor& visitor)
+				-> decltype(visitor.visit(std::move(node)))
+		{
+			auto old = node.get();
+			auto toReturn = CompositeDeclDescendant<TopDownDirection, Visitor>(
+					std::move(node), visitor);
+
+			if (old != toReturn.get())
+				return std::move(toReturn);
+
+			auto casted = llvm::cast<CompositeDecl>(move(toReturn));
+			std::transform(
+					casted->begin(),
+					casted->end(),
+					casted->begin(),
+					[&visitor](std::unique_ptr<Declaration>& node) {
+						return visit(std::move(node), visitor);
+					});
+			casted->removeNulls();
+			visitor.afterChildrenVisit(casted.get());
+
+			return casted;
+		}
+
+		template<typename Visitor>
+		static auto visit(std::unique_ptr<EqCompositeDecl> node, Visitor& visitor)
+				-> decltype(visitor.visit(std::move(node)))
+		{
+			auto old = node.get();
+			auto toReturn = EqCompositeDeclDescendant<TopDownDirection, Visitor>(
+					std::move(node), visitor);
+
+			if (old != toReturn.get())
+				return std::move(toReturn);
+
+			auto casted = llvm::cast<EqCompositeDecl>(move(toReturn));
+			std::transform(
+					casted->begin(),
+					casted->end(),
+					casted->begin(),
+					[&visitor](std::unique_ptr<Equation>& node) {
+						return visit(std::move(node), visitor);
+					});
+			casted->removeNulls();
+			visitor.afterChildrenVisit(casted.get());
+
+			return casted;
+		}
+
+		template<typename Visitor>
+		static auto visit(
+				std::unique_ptr<StatementCompositeDecl> node, Visitor& visitor)
+				-> decltype(visitor.visit(std::move(node)))
+		{
+			auto old = node.get();
+			auto toReturn =
+					StatementCompositeDeclDescendant<TopDownDirection, Visitor>(
+							std::move(node), visitor);
+
+			if (old != toReturn.get())
+				return std::move(toReturn);
+
+			auto casted = llvm::cast<StatementCompositeDecl>(move(toReturn));
+			std::transform(
+					casted->begin(),
+					casted->end(),
+					casted->begin(),
+					[&visitor](std::unique_ptr<Statement>& node) {
+						return visit(std::move(node), visitor);
+					});
+			casted->removeNulls();
+			visitor.afterChildrenVisit(casted.get());
+
+			return casted;
+		}
+		template<typename Visitor>
+		static auto visit(std::unique_ptr<ExprCompositeDecl> node, Visitor& visitor)
+				-> decltype(visitor.visit(std::move(node)))
+		{
+			auto old = node.get();
+			auto toReturn = ExprCompositeDeclDescendant<TopDownDirection, Visitor>(
+					std::move(node), visitor);
+
+			if (old != toReturn.get())
+				return std::move(toReturn);
+
+			auto casted = llvm::cast<ExprCompositeDecl>(move(toReturn));
+			std::transform(
+					casted->begin(),
+					casted->end(),
+					casted->begin(),
+					[&visitor](std::unique_ptr<Expr>& node) {
+						return visit(std::move(node), visitor);
+					});
+			casted->removeNulls();
+			visitor.afterChildrenVisit(casted.get());
+
+			return casted;
+		}
 	};
 
 	/**
@@ -523,6 +743,91 @@ namespace modelica
 			return ExprListDescendant<BottomUpDirection, Visitor>(
 					std::move(node), visitor);
 		}
+
+		template<typename Visitor>
+		static auto visit(std::unique_ptr<Declaration> node, Visitor& visitor)
+				-> decltype(visitor.visit(std::move(node)))
+		{
+			return DeclDescendant<BottomUpDirection, Visitor>(
+					std::move(node), visitor);
+		}
+
+		template<typename Visitor>
+		static auto visit(std::unique_ptr<ClassDecl> node, Visitor& visitor)
+				-> decltype(visitor.visit(std::move(node)))
+		{
+			return ClassDeclDescendant<BottomUpDirection, Visitor>(
+					std::move(node), visitor);
+		}
+
+		template<typename Visitor>
+		static auto visit(std::unique_ptr<CompositeDecl> node, Visitor& visitor)
+				-> decltype(visitor.visit(std::move(node)))
+		{
+			std::transform(
+					node->begin(),
+					node->end(),
+					node->begin(),
+					[&visitor](std::unique_ptr<Declaration>& node) {
+						return visit(std::move(node), visitor);
+					});
+			node->removeNulls();
+
+			return CompositeDeclDescendant<BottomUpDirection, Visitor>(
+					std::move(node), visitor);
+		}
+
+		template<typename Visitor>
+		static auto visit(std::unique_ptr<EqCompositeDecl> node, Visitor& visitor)
+				-> decltype(visitor.visit(std::move(node)))
+		{
+			std::transform(
+					node->begin(),
+					node->end(),
+					node->begin(),
+					[&visitor](std::unique_ptr<Equation>& node) {
+						return visit(std::move(node), visitor);
+					});
+			node->removeNulls();
+
+			return EqCompositeDeclDescendant<BottomUpDirection, Visitor>(
+					std::move(node), visitor);
+		}
+
+		template<typename Visitor>
+		static auto visit(
+				std::unique_ptr<StatementCompositeDecl> node, Visitor& visitor)
+				-> decltype(visitor.visit(std::move(node)))
+		{
+			std::transform(
+					node->begin(),
+					node->end(),
+					node->begin(),
+					[&visitor](std::unique_ptr<Statement>& node) {
+						return visit(std::move(node), visitor);
+					});
+			node->removeNulls();
+
+			return EqCompositeDeclDescendant<BottomUpDirection, Visitor>(
+					std::move(node), visitor);
+		}
+
+		template<typename Visitor>
+		static auto visit(std::unique_ptr<ExprCompositeDecl> node, Visitor& visitor)
+				-> decltype(visitor.visit(std::move(node)))
+		{
+			std::transform(
+					node->begin(),
+					node->end(),
+					node->begin(),
+					[&visitor](std::unique_ptr<Expr>& node) {
+						return visit(std::move(node), visitor);
+					});
+			node->removeNulls();
+
+			return ExprCompositeDeclDescendant<BottomUpDirection, Visitor>(
+					std::move(node), visitor);
+		}
 	};
 
 	template<typename Visitor>
@@ -546,6 +851,12 @@ namespace modelica
 	}
 
 	template<typename Visitor>
+	std::unique_ptr<Declaration> topDownVisit(
+			std::unique_ptr<Declaration> expr, Visitor& visitor)
+	{
+		return TopDownDirection::visit(std::move(expr), visitor);
+	}
+	template<typename Visitor>
 	std::unique_ptr<Expr> bottomUpVisit(
 			std::unique_ptr<Expr> expr, Visitor& visitor)
 	{
@@ -560,6 +871,12 @@ namespace modelica
 	template<typename Visitor>
 	std::unique_ptr<Statement> bottomUpVisit(
 			std::unique_ptr<Statement> expr, Visitor& visitor)
+	{
+		return BottomUpDirection::visit(std::move(expr), visitor);
+	}
+	template<typename Visitor>
+	std::unique_ptr<Declaration> bottomUpVisit(
+			std::unique_ptr<Declaration> expr, Visitor& visitor)
 	{
 		return BottomUpDirection::visit(std::move(expr), visitor);
 	}

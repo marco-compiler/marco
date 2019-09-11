@@ -50,6 +50,38 @@ string toString(BinaryExprOp op)
 	return "UNKOWN OP";
 }
 
+string toString(ClassDecl::SubType subType)
+{
+	switch (subType)
+	{
+		case (ClassDecl::SubType::Class):
+			return "Class";
+		case (ClassDecl::SubType::Model):
+			return "Model";
+		case (ClassDecl::SubType::Record):
+			return "Record";
+		case (ClassDecl::SubType::OperatorRecord):
+			return "Operator Record";
+		case (ClassDecl::SubType::Block):
+			return "Block";
+		case (ClassDecl::SubType::Operator):
+			return "Operator";
+		case (ClassDecl::SubType::Connector):
+			return "Connector";
+		case (ClassDecl::SubType::ExpandableConnector):
+			return "ExpandableConnector";
+		case (ClassDecl::SubType::Type):
+			return "Type";
+		case (ClassDecl::SubType::Package):
+			return "Package";
+		case (ClassDecl::SubType::Function):
+			return "Function";
+		case (ClassDecl::SubType::OperatorFunction):
+			return "Operator Function";
+	};
+	return "UNKOWN SUBTYPE";
+}
+
 string toString(UnaryExprOp op)
 {
 	switch (op)
@@ -430,6 +462,83 @@ class DumperVisitor
 		return expr;
 	}
 
+	auto visit(unique_ptr<Declaration> decl)
+	{
+		indent();
+
+		OS.changeColor(mainColor);
+		OS << "Decl comment" << decl->getComment() << "\n";
+
+		return decl;
+	}
+
+	auto visit(unique_ptr<CompositeDecl> decl)
+	{
+		indent();
+
+		OS.changeColor(mainColor);
+		OS << "Composite Decl\n";
+
+		indentations++;
+		return decl;
+	}
+
+	auto visit(unique_ptr<ExprCompositeDecl> decl)
+	{
+		indent();
+
+		OS.changeColor(mainColor);
+		OS << "Expr Composite Decl\n";
+
+		indentations++;
+		return decl;
+	}
+
+	auto visit(unique_ptr<EqCompositeDecl> decl)
+	{
+		indent();
+
+		OS.changeColor(mainColor);
+		OS << "Eq Composite Decl\n";
+
+		indentations++;
+		return decl;
+	}
+
+	auto visit(unique_ptr<StatementCompositeDecl> decl)
+	{
+		indent();
+
+		OS.changeColor(mainColor);
+		OS << "Statement Composite Decl\n";
+
+		indentations++;
+		return decl;
+	}
+
+	auto visit(unique_ptr<ClassDecl> decl)
+	{
+		indent();
+
+		OS.changeColor(mainColor);
+		OS << "Class Decl ";
+		OS.changeColor(secondaryColor);
+		OS << decl->getName() << " ";
+		if (decl->isPure())
+			OS << "pure ";
+		if (decl->isPartial())
+			OS << "partial ";
+		if (decl->isEncapsulated())
+			OS << "encapsulated\n";
+		OS.changeColor(mainColor);
+		OS << "Subtype: ";
+		OS.changeColor(secondaryColor);
+		OS << toString(decl->subType());
+
+		indentations++;
+		return decl;
+	}
+
 	void indent()
 	{
 		for (int a = 0; a < indentations; a++)
@@ -447,7 +556,7 @@ int main(int argc, char* argv[])
 	auto errorOrBuffer = MemoryBuffer::getFileOrSTDIN(InputFileName);
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	Parser parser(buffer->getBufferStart());
-	auto ast = exitOnErr(parser.equation());
+	UniqueDecl ast = exitOnErr(parser.classDefinition());
 	DumperVisitor visitor(outs());
 	ast = topDownVisit(move(ast), visitor);
 

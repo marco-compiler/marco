@@ -226,6 +226,7 @@ namespace modelica
 		[[nodiscard]] bool isPure() const { return pure; }
 		[[nodiscard]] bool isPartial() const { return partial; }
 		[[nodiscard]] SubType subType() const { return subtype; }
+		[[nodiscard]] const std::string& getName() const { return name; }
 
 		private:
 		bool partial{ false };
