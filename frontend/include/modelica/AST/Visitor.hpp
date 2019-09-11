@@ -229,8 +229,7 @@ namespace modelica
 			CompositeDecl,
 			ExprCompositeDecl,
 			EqCompositeDecl,
-			StatementCompositeDecl,
-			ElementList>;
+			StatementCompositeDecl>;
 
 	/**
 	 * This is the list of direct descendant of an compositeDecl provided as an
@@ -246,6 +245,7 @@ namespace modelica
 			ClassModification,
 			Composition,
 			ExtendClause,
+			ElementList,
 			EnumerationLiteral,
 			Element,
 			ClassDecl,

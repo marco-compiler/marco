@@ -18,6 +18,7 @@ namespace modelica
 			Decl,
 			CompositeDecl,
 			ClassModification,
+			ElementList,
 			Composition,
 			ExtendClause,
 			EnumerationLiteral,
@@ -51,7 +52,6 @@ namespace modelica
 			StatementCompositeDecl,
 			AlgorithmSection,
 			LastStatementCompositeDecl,
-			ElementList,
 			LastDecl
 		};
 
@@ -370,6 +370,8 @@ namespace modelica
 		static constexpr auto classof =
 				leafClassOf<DeclarationKind::ComponentDeclaration>;
 
+		[[nodiscard]] const std::string& getIdent() const { return ident; }
+
 		private:
 		std::string ident;
 	};
@@ -446,7 +448,7 @@ namespace modelica
 
 		[[nodiscard]] bool hasGlobalLookup() const { return globalLookUp; }
 		[[nodiscard]] const Prefix& getPrefix() const { return prefix; }
-		[[nodiscard]] const std::vector<std::string>& getNme() const
+		[[nodiscard]] const std::vector<std::string>& getName() const
 		{
 			return name;
 		}
@@ -612,6 +614,10 @@ namespace modelica
 				leafClassOf<DeclarationKind::ConstrainingClause>;
 
 		[[nodiscard]] bool hasModification() const { return size() >= 1; }
+		[[nodiscard]] const TypeSpecifier& getTypeSpecifier() const
+		{
+			return specifier;
+		}
 
 		private:
 		TypeSpecifier specifier;
@@ -674,6 +680,10 @@ namespace modelica
 		static constexpr auto classof = leafClassOf<DeclarationKind::ExtendClause>;
 
 		[[nodiscard]] bool hasModification() const { return size() >= 1; }
+		[[nodiscard]] const TypeSpecifier& getTypeSpecifier() const
+		{
+			return specifier;
+		}
 
 		private:
 		TypeSpecifier specifier;
@@ -1012,18 +1022,23 @@ namespace modelica
 		[[nodiscard]] bool isInput() const { return input; }
 		[[nodiscard]] bool isOutput() const { return output; }
 
+		[[nodiscard]] const TypeSpecifier& getTypeSpecifier() const
+		{
+			return typeSpec;
+		}
+
 		private:
 		bool input;
 		bool output;
 		TypeSpecifier typeSpec;
 	};
 
-	class ElementList: public Declaration
+	class ElementList: public CompositeDecl
 	{
 		public:
 		ElementList(SourceRange range, vectorUnique<Declaration> declarations = {})
-				: Declaration(range, DeclarationKind::ElementList),
-					decls(std::move(declarations)),
+				: NonLeafDeclaration(
+							range, DeclarationKind::ElementList, move(declarations)),
 					proected(false)
 		{
 		}
@@ -1037,7 +1052,6 @@ namespace modelica
 		static constexpr auto classof = leafClassOf<DeclarationKind::ElementList>;
 
 		private:
-		vectorUnique<Declaration> decls;
 		bool proected;
 	};
 
@@ -1063,6 +1077,16 @@ namespace modelica
 		}
 		~ImportClause() override = default;
 		[[nodiscard]] bool importAllNamespace() const { return importAll; }
+		[[nodiscard]] const std::string& getNewName() const { return newName; }
+		[[nodiscard]] const std::vector<std::string>& namesToImport()
+		{
+			return toImportNames;
+		}
+		[[nodiscard]] const std::vector<std::string>& getBaseName()
+		{
+			return baseName;
+		}
+
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
