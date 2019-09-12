@@ -41,8 +41,8 @@ Expected<vectorUnique<Statement>> Parser::statementList(
 		if (!eq)
 			return eq.takeError();
 
-		if (!expect(Token::Semicolons))
-			return make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::Semicolons); !e)
+			return e.takeError();
 
 		equations.push_back(move(*eq));
 	}
@@ -57,8 +57,8 @@ Expected<std::pair<UniqueStmt, UniqueExpr>> Parser::ifStmtBrach(
 	if (!expr)
 		return expr.takeError();
 
-	if (!expect(Token::ThenKeyword))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::ThenKeyword); !e)
+		return e.takeError();
 
 	auto ifElseBranchEqus = statementList(stopTokes);
 	if (!ifElseBranchEqus)
@@ -73,8 +73,9 @@ Expected<std::pair<UniqueStmt, UniqueExpr>> Parser::ifStmtBrach(
 ExpectedUnique<Statement> Parser::ifStatement()
 {
 	SourcePosition currentPos = getPosition();
-	if (!accept<Token::IfKeyword>())
-		return make_error<UnexpectedToken>(current);
+
+	if (auto e = expect(Token::IfKeyword); !e)
+		return e.takeError();
 
 	vectorUnique<Expr> expressions;
 	vectorUnique<Statement> equations;
@@ -112,10 +113,10 @@ ExpectedUnique<Statement> Parser::ifStatement()
 		equations.push_back(move(*compositeEquation));
 	}
 
-	if (!expect(Token::EndKeyword))
-		return make_error<UnexpectedToken>(current);
-	if (!expect(Token::IfKeyword))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::EndKeyword); !e)
+		return e.takeError();
+	if (auto e = expect(Token::IfKeyword); !e)
+		return e.takeError();
 
 	return makeNode<IfStatement>(currentPos, move(expressions), move(equations));
 }
@@ -123,8 +124,8 @@ ExpectedUnique<Statement> Parser::ifStatement()
 ExpectedUnique<Statement> Parser::forStatement()
 {
 	SourcePosition currentPos = getPosition();
-	if (!accept<Token::ForKeyword>())
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::ForKeyword); !e)
+		return e.takeError();
 
 	auto expression = vector<UniqueExpr>();
 	auto names = vector<string>();
@@ -139,18 +140,18 @@ ExpectedUnique<Statement> Parser::forStatement()
 		expression.emplace_back(move(pair->second));
 	} while (accept<Token::Comma>());
 
-	if (!expect(Token::LoopKeyword))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::LoopKeyword); !e)
+		return e.takeError();
 
 	auto list = statementList({ Token::EndKeyword });
 	if (!list)
 		return list.takeError();
 
-	if (!expect(Token::EndKeyword))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::EndKeyword); !e)
+		return e.takeError();
 
-	if (!expect(Token::ForKeyword))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::ForKeyword); !e)
+		return e.takeError();
 
 	return makeNode<ForStatement>(
 			currentPos, move(expression), move(*list), move(names));
@@ -159,8 +160,8 @@ ExpectedUnique<Statement> Parser::forStatement()
 ExpectedUnique<Statement> Parser::whenStatement()
 {
 	SourcePosition currentPos = getPosition();
-	if (!accept<Token::WhenKeyword>())
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::WhenKeyword); !e)
+		return e.takeError();
 
 	vectorUnique<Expr> expressions;
 	vectorUnique<Statement> equations;
@@ -182,10 +183,10 @@ ExpectedUnique<Statement> Parser::whenStatement()
 		equations.push_back(move(elseBranch->first));
 	}
 
-	if (!expect(Token::EndKeyword))
-		return make_error<UnexpectedToken>(current);
-	if (!expect(Token::WhenKeyword))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::EndKeyword); !e)
+		return e.takeError();
+	if (auto e = expect(Token::WhenKeyword); !e)
+		return e.takeError();
 
 	return makeNode<WhenStatement>(
 			currentPos, move(expressions), move(equations));
@@ -255,8 +256,8 @@ ExpectedUnique<Statement> Parser::statement()
 	if (!arguments)
 		return arguments.takeError();
 
-	if (!expect(Token::RPar))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::RPar); !e)
+		return e.takeError();
 
 	auto callExpr = makeNode<ComponentFunctionCallExpr>(
 			currentPos, vectorUnique<Expr>(), move(*ref));

@@ -110,6 +110,8 @@ namespace modelica
 		End
 	};
 
+	std::string tokenToString(Token token);
+
 	/**
 	 * State machine is the state machine of the modelica language.
 	 * It implements the interface required by lexer.

@@ -58,7 +58,7 @@ Expected<tuple<bool, bool, ClassDecl::SubType>> Parser::classPrefixes()
 		pure = false;
 
 	if (accept<Token::PureKeyword>() && !pure)
-		return make_error<UnexpectedToken>(current);
+		return make_error<UnexpectedToken>(Token::InputKeyword, Token::PureKeyword);
 
 	if (accept<Token::OperatorKeyword>())
 	{
@@ -71,7 +71,7 @@ Expected<tuple<bool, bool, ClassDecl::SubType>> Parser::classPrefixes()
 	if (accept<Token::FunctionKeyword>())
 		return make_tuple(partial, pure, ClassDecl::SubType::Function);
 
-	return make_error<UnexpectedToken>(current);
+	return make_error<UnexpectedToken>(current, Token::ClassKeyword);
 }
 
 Expected<string> Parser::stringComment()
@@ -384,16 +384,16 @@ ExpectedUnique<Declaration> Parser::externalFunctionCall()
 	{
 		compRefFound = false;
 		if (!isa<ComponentReferenceExpr>(compRef.get().get()))
-			return make_error<UnexpectedToken>(Token::LSquare);
+			return make_error<UnexpectedToken>(current, Token::LSquare);
 
 		auto ref = dyn_cast<ComponentReferenceExpr>(compRef.get().get());
 
 		// make sure that there was not a dot at the start of the ident
 		if (ref->hasGlobalLookup())
-			return make_error<UnexpectedToken>(Token::Dot);
+			return make_error<UnexpectedToken>(Token::Dot, Token::Ident);
 
 		if (ref->getPreviousLookUp() != nullptr)
-			return make_error<UnexpectedToken>(Token::Dot);
+			return make_error<UnexpectedToken>(Token::Dot, Token::Ident);
 
 		ident = ref->getName();
 	}
@@ -573,7 +573,7 @@ ExpectedUnique<Declaration> Parser::composition()
 				continue;
 			}
 			default:
-				return make_error<UnexpectedToken>(current);
+				return make_error<UnexpectedToken>(current, Token::PublicKeyword);
 		}
 	}
 
@@ -1229,8 +1229,8 @@ ExpectedUnique<Declaration> Parser::componentClause()
 
 		subScript = move(*newNode);
 
-		if (!expect(Token::RSquare))
-			return llvm::make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::RSquare); !e)
+			return e.takeError();
 	}
 
 	auto s = makeNode<ArraySubscriptionDecl>(currentPos, move(subScript));
@@ -1352,8 +1352,8 @@ Expected<DeclarationName> Parser::declaration()
 
 		subScript = move(*newNode);
 
-		if (!expect(Token::RSquare))
-			return llvm::make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::RSquare); !e)
+			return e.takeError();
 	}
 
 	auto s = makeNode<ArraySubscriptionDecl>(currentPos, move(subScript));

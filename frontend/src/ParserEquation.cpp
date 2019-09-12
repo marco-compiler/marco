@@ -15,8 +15,8 @@ Expected<vectorUnique<Equation>> Parser::equationList(
 		if (!eq)
 			return eq.takeError();
 
-		if (!expect(Token::Semicolons))
-			return make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::Semicolons); !e)
+			return e.takeError();
 
 		equations.push_back(move(*eq));
 	}
@@ -31,8 +31,8 @@ Expected<std::pair<UniqueEq, UniqueExpr>> Parser::ifBrach(
 	if (!expr)
 		return expr.takeError();
 
-	if (!expect(Token::ThenKeyword))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::ThenKeyword); !e)
+		return e.takeError();
 
 	auto ifElseBranchEqus = equationList(stopTokes);
 	if (!ifElseBranchEqus)
@@ -47,8 +47,9 @@ Expected<std::pair<UniqueEq, UniqueExpr>> Parser::ifBrach(
 ExpectedUnique<Equation> Parser::ifEquation()
 {
 	SourcePosition currentPos = getPosition();
-	if (!accept<Token::IfKeyword>())
-		return make_error<UnexpectedToken>(current);
+
+	if (auto e = expect(Token::IfKeyword); !e)
+		return e.takeError();
 
 	vectorUnique<Expr> expressions;
 	vectorUnique<Equation> equations;
@@ -86,10 +87,10 @@ ExpectedUnique<Equation> Parser::ifEquation()
 		equations.push_back(move(*compositeEquation));
 	}
 
-	if (!expect(Token::EndKeyword))
-		return make_error<UnexpectedToken>(current);
-	if (!expect(Token::IfKeyword))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::EndKeyword); !e)
+		return e.takeError();
+	if (auto e = expect(Token::IfKeyword); !e)
+		return e.takeError();
 
 	return makeNode<IfEquation>(currentPos, move(expressions), move(equations));
 }
@@ -97,8 +98,9 @@ ExpectedUnique<Equation> Parser::ifEquation()
 ExpectedUnique<Equation> Parser::forEquation()
 {
 	SourcePosition currentPos = getPosition();
-	if (!accept<Token::ForKeyword>())
-		return make_error<UnexpectedToken>(current);
+
+	if (auto e = expect(Token::ForKeyword); !e)
+		return e.takeError();
 
 	auto expression = vector<UniqueExpr>();
 	auto names = vector<string>();
@@ -113,18 +115,18 @@ ExpectedUnique<Equation> Parser::forEquation()
 		expression.emplace_back(move(pair->second));
 	} while (accept<Token::Comma>());
 
-	if (!expect(Token::LoopKeyword))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::LoopKeyword); !e)
+		return e.takeError();
 
 	auto list = equationList({ Token::EndKeyword });
 	if (!list)
 		return list.takeError();
 
-	if (!expect(Token::EndKeyword))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::EndKeyword); !e)
+		return e.takeError();
 
-	if (!expect(Token::ForKeyword))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::ForKeyword); !e)
+		return e.takeError();
 
 	return makeNode<ForEquation>(
 			currentPos, move(expression), move(*list), move(names));
@@ -133,8 +135,9 @@ ExpectedUnique<Equation> Parser::forEquation()
 ExpectedUnique<Equation> Parser::whenEquation()
 {
 	SourcePosition currentPos = getPosition();
-	if (!accept<Token::WhenKeyword>())
-		return make_error<UnexpectedToken>(current);
+
+	if (auto e = expect(Token::WhenKeyword); !e)
+		return e.takeError();
 
 	vectorUnique<Expr> expressions;
 	vectorUnique<Equation> equations;
@@ -156,10 +159,10 @@ ExpectedUnique<Equation> Parser::whenEquation()
 		equations.push_back(move(elseBranch->first));
 	}
 
-	if (!expect(Token::EndKeyword))
-		return make_error<UnexpectedToken>(current);
-	if (!expect(Token::WhenKeyword))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::EndKeyword); !e)
+		return e.takeError();
+	if (auto e = expect(Token::WhenKeyword); !e)
+		return e.takeError();
 
 	return makeNode<WhenEquation>(currentPos, move(expressions), move(equations));
 }
@@ -178,22 +181,22 @@ ExpectedUnique<Equation> Parser::equation()
 
 	if (accept<Token::ConnectKeyword>())
 	{
-		if (!expect(Token::LPar))
-			return make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::LPar); !e)
+			return e.takeError();
 
 		auto firstParam = componentReference();
 		if (!firstParam)
 			return firstParam.takeError();
 
-		if (!expect(Token::Comma))
-			return make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::Comma); !e)
+			return e.takeError();
 
 		auto secondParam = componentReference();
 		if (!secondParam)
 			return secondParam.takeError();
 
-		if (!expect(Token::RPar))
-			return make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::RPar); !e)
+			return e.takeError();
 
 		return makeNode<ConnectClause>(
 				currentPos, move(*firstParam), move(*secondParam));
@@ -209,7 +212,7 @@ ExpectedUnique<Equation> Parser::equation()
 				return functionCall.takeError();
 
 			if (!llvm::isa<ComponentFunctionCallExpr>(functionCall->get()))
-				return make_error<UnexpectedToken>(current);
+				return make_error<UnexpectedToken>(current, Token::None);
 
 			return makeNode<CallEquation>(currentPos, move(*functionCall));
 		}
@@ -219,8 +222,8 @@ ExpectedUnique<Equation> Parser::equation()
 	if (!exp1)
 		return exp1.takeError();
 
-	if (!expect(Token::Equal))
-		return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::Equal); !e)
+		return e.takeError();
 
 	auto exp2 = expression();
 	if (!exp2)

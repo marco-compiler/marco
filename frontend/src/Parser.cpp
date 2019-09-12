@@ -9,7 +9,7 @@ llvm::Expected<bool> Parser::expect(Token t)
 	if (accept(t))
 		return true;
 
-	return make_error<UnexpectedToken>(current);
+	return make_error<UnexpectedToken>(current, t);
 }
 
 llvm::Expected<pair<string, UniqueExpr>> Parser::forIndex()
@@ -238,29 +238,28 @@ Expected<vector<string>> Parser::name()
 ExpectedUnique<Expr> Parser::partialCall()
 {
 	SourcePosition currentPos = getPosition();
-	if (accept<Token::FunctionKeyword>())
-	{
-		auto nm = name();
-		if (!nm)
-			return nm.takeError();
+	if (auto e = expect(Token::FunctionKeyword); !e)
+		return e.takeError();
 
-		if (!expect(Token::LPar))
-			return llvm::make_error<UnexpectedToken>(current);
+	auto nm = name();
+	if (!nm)
+		return nm.takeError();
 
-		if (accept(Token::RPar))
-			return makeNode<PartialFunctioCallExpr>(
-					currentPos, vectorUnique<Expr>(), move(*nm));
+	if (auto e = expect(Token::LPar); !e)
+		return e.takeError();
 
-		auto args = namedArguments();
-		if (!args)
-			return args.takeError();
+	if (accept(Token::RPar))
+		return makeNode<PartialFunctioCallExpr>(
+				currentPos, vectorUnique<Expr>(), move(*nm));
 
-		if (!expect(Token::RPar))
-			return llvm::make_error<UnexpectedToken>(current);
+	auto args = namedArguments();
+	if (!args)
+		return args.takeError();
 
-		return makeNode<PartialFunctioCallExpr>(currentPos, move(*args), move(*nm));
-	}
-	return make_error<UnexpectedToken>(current);
+	if (auto e = expect(Token::RPar); !e)
+		return e.takeError();
+
+	return makeNode<PartialFunctioCallExpr>(currentPos, move(*args), move(*nm));
 }
 
 ExpectedUnique<Expr> Parser::functionArgument()
@@ -298,8 +297,8 @@ ExpectedUnique<Expr> Parser::componentReference()
 
 		toReturn = move(*newNode);
 
-		if (!expect(Token::RSquare))
-			return llvm::make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::RSquare); !e)
+			return e.takeError();
 	}
 
 	while (accept<Token::Dot>())
@@ -328,8 +327,8 @@ ExpectedUnique<Expr> Parser::componentReference()
 
 			toReturn = move(*newNode);
 
-			if (!expect(Token::RSquare))
-				return llvm::make_error<UnexpectedToken>(current);
+			if (auto e = expect(Token::RSquare); !e)
+				return e.takeError();
 		}
 	}
 
@@ -691,9 +690,8 @@ ExpectedUnique<Expr> Parser::primary()
 		if (!expList)
 			return expList;
 
-		auto closedPar = expect(Token::RPar);
-		if (!closedPar)
-			return make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::RPar); !e)
+			return e.takeError();
 
 		return expList;
 	}
@@ -721,9 +719,8 @@ ExpectedUnique<Expr> Parser::primary()
 			vector.emplace_back(move(*list));
 		}
 
-		auto closedPar = expect(Token::RSquare);
-		if (!closedPar)
-			return llvm::make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::RSquare); !e)
+			return e.takeError();
 
 		return makeNode<ArrayConcatExpr>(currentPos, move(vector));
 	}
@@ -735,9 +732,8 @@ ExpectedUnique<Expr> Parser::primary()
 		if (!args)
 			return args;
 
-		auto closedPar = expect(Token::RCurly);
-		if (!closedPar)
-			return llvm::make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::RCurly); !e)
+			return e.takeError();
 
 		return args;
 	}
@@ -769,8 +765,8 @@ ExpectedUnique<Expr> Parser::primary()
 		if (!arguments)
 			return arguments.takeError();
 
-		if (!expect(Token::RPar))
-			return llvm::make_error<UnexpectedToken>(current);
+		if (auto e = expect(Token::RPar); !e)
+			return e.takeError();
 
 		return makeNode<ComponentFunctionCallExpr>(
 				currentPos, move(*arguments), move(*exprOrErr));

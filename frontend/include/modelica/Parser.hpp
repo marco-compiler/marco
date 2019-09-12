@@ -178,8 +178,8 @@ namespace modelica
 			SourcePosition currentPos = getPosition();
 			if (accept<token>())
 			{
-				if (!expect(Token::LPar))
-					return llvm::make_error<UnexpectedToken>(current);
+				if (auto e = expect(Token::LPar); !e)
+					return e.takeError();
 
 				if (accept<Token::RPar>())
 					return makeNode<T>(currentPos, vectorUnique<Expr>());
@@ -188,8 +188,8 @@ namespace modelica
 				if (!arguments)
 					return arguments.takeError();
 
-				if (!expect(Token::RPar))
-					return llvm::make_error<UnexpectedToken>(current);
+				if (auto e = expect(Token::RPar); !e)
+					return e.takeError();
 
 				return makeNode<T>(currentPos, move(*arguments));
 			}

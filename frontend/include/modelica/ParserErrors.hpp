@@ -67,10 +67,17 @@ namespace modelica
 	{
 		public:
 		static char ID;
-		UnexpectedToken(Token token): token(token) {}
+		UnexpectedToken(Token received, Token expected)
+				: token(received), expected(expected)
+		{
+		}
 
 		[[nodiscard]] Token getToken() const { return token; }
-		void log(llvm::raw_ostream& OS) const override { OS << "Unexpected Token"; }
+		void log(llvm::raw_ostream& OS) const override
+		{
+			OS << "Unexpected Token: " << tokenToString(token)
+				 << ", expected: " << tokenToString(expected);
+		}
 
 		[[nodiscard]] std::error_code convertToErrorCode() const override
 		{
@@ -81,6 +88,7 @@ namespace modelica
 
 		private:
 		Token token;
+		Token expected;
 	};
 
 	class NotImplemented: public llvm::ErrorInfo<NotImplemented>
