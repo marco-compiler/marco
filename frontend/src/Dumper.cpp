@@ -590,6 +590,17 @@ class DumperVisitor
 		return modification;
 	}
 
+	auto visit(unique_ptr<ClassModification> modification)
+	{
+		indent();
+
+		OS.changeColor(mainColor);
+		OS << "Class Modification\n";
+
+		indentations++;
+		return modification;
+	}
+
 	auto visit(unique_ptr<Annotation> modification)
 	{
 		indent();
@@ -654,9 +665,10 @@ class DumperVisitor
 
 		OS << "Flowstream: " << toString(declaration->getPrefix().getFlowStream());
 
-		OS << "IO: " << toString(declaration->getPrefix().getIOType());
-		OS << "Type: " << toString(declaration->getPrefix().getType());
+		OS << " IO: " << toString(declaration->getPrefix().getIOType());
+		OS << " Type: " << toString(declaration->getPrefix().getType());
 
+		OS << "\n";
 		indentations++;
 		return declaration;
 	}

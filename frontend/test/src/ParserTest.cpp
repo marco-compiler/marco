@@ -66,6 +66,18 @@ TEST(ParserTest, ifElseShouldNotFail)
 	EXPECT_EQ(1, casted->getValue());
 }
 
+TEST(ParserTest, symbolicExpression)
+{
+	auto parser = Parser("Gx*(upper.T  - T)");
+
+	auto exp = parser.expression();
+	if (!exp)
+		FAIL();
+
+	auto pointer = exp.get().get();
+	EXPECT_EQ(true, llvm::isa<BinaryExpr>(pointer));
+}
+
 TEST(ParserTest, ifElseFailures)
 {
 	auto parser = Parser("if true true");

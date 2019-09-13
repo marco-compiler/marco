@@ -17,19 +17,19 @@ using namespace modelica;
 		if (at(i + 1)->getType() != getType())
 			return llvm::make_error<BranchesTypeDoNotMatch>();
 		if (at(i)->getType() != Type(BuiltinType::Boolean))
-			return llvm::make_error<IncompatibleType>();
+			return llvm::make_error<IncompatibleType>(getRange().getBegin());
 	}
 	if (getType() == Type(BuiltinType::None))
-		return llvm::make_error<IncompatibleType>();
+		return llvm::make_error<IncompatibleType>(getRange().getBegin());
 	return llvm::Error::success();
 }
 
 [[nodiscard]] llvm::Error BinaryExpr::isConsistent() const
 {
 	if (getLeftHand()->getType() == Type(BuiltinType::None))
-		return llvm::make_error<IncompatibleType>();
+		return llvm::make_error<IncompatibleType>(getRange().getBegin());
 	if (getRightHand()->getType() == Type(BuiltinType::None))
-		return llvm::make_error<IncompatibleType>();
+		return llvm::make_error<IncompatibleType>(getRange().getBegin());
 
 	return llvm::Error::success();
 }
@@ -37,7 +37,7 @@ using namespace modelica;
 [[nodiscard]] llvm::Error UnaryExpr::isConsistent() const
 {
 	if (getOperand()->getType() == Type(BuiltinType::None))
-		return llvm::make_error<IncompatibleType>();
+		return llvm::make_error<IncompatibleType>(getRange().getEnd());
 	return llvm::Error::success();
 }
 

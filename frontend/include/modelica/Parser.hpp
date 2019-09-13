@@ -91,7 +91,7 @@ namespace modelica
 		[[nodiscard]] llvm::Expected<vectorUnique<Expr>> functionArguments();
 		[[nodiscard]] llvm::Expected<vectorUnique<Expr>>
 		functionArgumentsNonFirst();
-		[[nodiscard]] ExpectedUnique<ExprList> expressionList();
+		[[nodiscard]] llvm::Expected<vectorUnique<Expr>> expressionList();
 		[[nodiscard]] ExpectedUnique<ArrayConstructorExpr> arrayArguments();
 		[[nodiscard]] llvm::Expected<vectorUnique<Expr>> arraySubscript();
 		[[nodiscard]] ExpectedUnique<Expr> subScript();
@@ -203,6 +203,8 @@ namespace modelica
 		{
 			return SourcePosition(lexer.getCurrentLine(), lexer.getCurrentColumn());
 		}
+
+		[[nodiscard]] Token getCurrentToken() const { return current; }
 
 		private:
 		/**

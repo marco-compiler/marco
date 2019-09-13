@@ -342,3 +342,51 @@ TEST(ParserTest, emptyComposition)
 	EXPECT_EQ(nullptr, casted->getExternalCallAnnotation());
 	EXPECT_EQ("", casted->getLanguageSpec());
 }
+
+TEST(ParserTest, compositionWithString)
+{
+	auto parser = Parser("lambda = 148 \"Thermal "
+											 "conductivity of silicon\" annotation(Evaluate = true)");
+
+	auto decl = parser.componentDeclaration();
+	if (!decl)
+		FAIL();
+
+	EXPECT_EQ(Token::End, parser.getCurrentToken());
+
+	// auto ptr = decl.get().get();
+}
+
+TEST(ParserTest, equationSectionWithComments)
+{
+	auto parser =
+			Parser("equation der(T[1,1,1]) = 1/C*(Gx*((-T[1,1,1]) + T[2,1,1]) + "
+						 "Gy*((-T[1,1,1]) + T[1,2,1]) + Gz*(2*Tt-3*T[1,1,1] + T[1,1,2])) "
+						 "\"Upper left top corner\";");
+
+	auto decl = parser.composition();
+	if (!decl)
+		FAIL();
+	EXPECT_EQ(Token::End, parser.getCurrentToken());
+}
+
+TEST(ParserTest, connectorClass)
+{
+	auto parser = Parser("connector HeatPort Types.Temperature T; flow "
+											 "Types.Power Q; end HeatPort;");
+
+	auto decl = parser.classDefinition();
+	if (!decl)
+		FAIL();
+
+	auto ptr = decl.get().get();
+	EXPECT_EQ(true, llvm::isa<LongClassDecl>(ptr));
+	auto casted = llvm::cast<LongClassDecl>(ptr);
+
+	auto comp = llvm::cast<Composition>(casted->getComposition());
+	EXPECT_EQ(true, llvm::isa<CompositionSection>(comp->getPrivateSection()));
+	auto publicSection =
+			llvm::cast<CompositionSection>(comp->getPrivateSection());
+	EXPECT_EQ(2, publicSection->size());
+	EXPECT_EQ(true, llvm::isa<Element>(publicSection->getChild(0)));
+}

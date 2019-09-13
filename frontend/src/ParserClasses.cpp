@@ -33,6 +33,9 @@ Expected<tuple<bool, bool, ClassDecl::SubType>> Parser::classPrefixes()
 	if (accept<Token::RecordKeyword>())
 		return make_tuple(partial, true, ClassDecl::SubType::Record);
 
+	if (accept<Token::ConnectorKeyword>())
+		return make_tuple(partial, true, ClassDecl::SubType::Connector);
+
 	if (accept<Token::OperatorKeyword>())
 	{
 		if (accept<Token::RecordKeyword>())
@@ -58,7 +61,8 @@ Expected<tuple<bool, bool, ClassDecl::SubType>> Parser::classPrefixes()
 		pure = false;
 
 	if (accept<Token::PureKeyword>() && !pure)
-		return make_error<UnexpectedToken>(Token::InputKeyword, Token::PureKeyword);
+		return make_error<UnexpectedToken>(
+				Token::InputKeyword, Token::PureKeyword, getPosition());
 
 	if (accept<Token::OperatorKeyword>())
 	{
@@ -71,7 +75,8 @@ Expected<tuple<bool, bool, ClassDecl::SubType>> Parser::classPrefixes()
 	if (accept<Token::FunctionKeyword>())
 		return make_tuple(partial, pure, ClassDecl::SubType::Function);
 
-	return make_error<UnexpectedToken>(current, Token::ClassKeyword);
+	return make_error<UnexpectedToken>(
+			current, Token::ClassKeyword, getPosition());
 }
 
 Expected<string> Parser::stringComment()
@@ -384,16 +389,19 @@ ExpectedUnique<Declaration> Parser::externalFunctionCall()
 	{
 		compRefFound = false;
 		if (!isa<ComponentReferenceExpr>(compRef.get().get()))
-			return make_error<UnexpectedToken>(current, Token::LSquare);
+			return make_error<UnexpectedToken>(
+					current, Token::LSquare, getPosition());
 
 		auto ref = dyn_cast<ComponentReferenceExpr>(compRef.get().get());
 
 		// make sure that there was not a dot at the start of the ident
 		if (ref->hasGlobalLookup())
-			return make_error<UnexpectedToken>(Token::Dot, Token::Ident);
+			return make_error<UnexpectedToken>(
+					Token::Dot, Token::Ident, getPosition());
 
 		if (ref->getPreviousLookUp() != nullptr)
-			return make_error<UnexpectedToken>(Token::Dot, Token::Ident);
+			return make_error<UnexpectedToken>(
+					Token::Dot, Token::Ident, getPosition());
 
 		ident = ref->getName();
 	}
@@ -409,7 +417,11 @@ ExpectedUnique<Declaration> Parser::externalFunctionCall()
 		if (!ls)
 			return ls.takeError();
 
-		args = move(*ls);
+		auto l = makeNode<ExprList>(currentPos, move(*ls));
+		if (!l)
+			return l.takeError();
+
+		args = move(*l);
 	}
 
 	if (auto e = expect(Token::RPar); e)
@@ -573,7 +585,8 @@ ExpectedUnique<Declaration> Parser::composition()
 				continue;
 			}
 			default:
-				return make_error<UnexpectedToken>(current, Token::PublicKeyword);
+				return make_error<UnexpectedToken>(
+						current, Token::PublicKeyword, getPosition());
 		}
 	}
 
@@ -791,9 +804,8 @@ ExpectedUnique<Declaration> Parser::comment()
 		return strCmnt.takeError();
 
 	ExpectedUnique<Declaration> mod = nullptr;
-	if (current == Token::Equal || current == Token::Colons ||
-			current == Token::LPar)
-		mod = modification();
+	if (accept<Token::AnnotationKeyword>())
+		mod = classModification();
 
 	if (!mod)
 		return mod;
@@ -1361,8 +1373,8 @@ Expected<DeclarationName> Parser::declaration()
 		return s.takeError();
 
 	ExpectedUnique<Declaration> dec = nullptr;
-	if (current == Token::LPar || current == Token::Assignment ||
-			current == Token::Colons)
+	if (current == Token::LPar || current == Token::Equal ||
+			current == Token::Assignment)
 		dec = modification();
 
 	if (!dec)

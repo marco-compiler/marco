@@ -219,7 +219,12 @@ ExpectedUnique<Statement> Parser::statement()
 	{
 		if (accept<Token::RPar>())
 			return llvm::make_error<EmptyList>();
-		ref = expressionList();
+		auto vec = expressionList();
+		if (!vec)
+			return vec.takeError();
+
+		ref = makeNode<ExprList>(currentPos, move(*vec));
+
 		if (auto e = expect(Token::RPar); !e)
 			return e.takeError();
 	}

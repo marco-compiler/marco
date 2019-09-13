@@ -322,6 +322,13 @@ namespace modelica
 		~CompositionSection() override = default;
 		static constexpr auto classof =
 				leafClassOf<DeclarationKind::CompositionSection>;
+
+		[[nodiscard]] const Declaration* getChild(int index) const
+		{
+			return getVector().at(index).get();
+		}
+
+		[[nodiscard]] int size() const { return getVector().size(); }
 	};
 
 	class ClassModification: public CompositeDecl

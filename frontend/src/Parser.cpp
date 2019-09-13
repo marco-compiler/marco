@@ -9,7 +9,7 @@ llvm::Expected<bool> Parser::expect(Token t)
 	if (accept(t))
 		return true;
 
-	return make_error<UnexpectedToken>(current, t);
+	return make_error<UnexpectedToken>(current, t, getPosition());
 }
 
 llvm::Expected<pair<string, UniqueExpr>> Parser::forIndex()
@@ -43,8 +43,12 @@ ExpectedUnique<ArrayConstructorExpr> Parser::arrayArguments()
 		if (!argsList)
 			return argsList.takeError();
 
-		(*argsList)->emplace(move(*firstExp));
-		return makeNode<DirectArrayConstructorExpr>(currentPos, move(*argsList));
+		auto ls = makeNode<ExprList>(currentPos, move(*argsList));
+		if (!ls)
+			return ls.takeError();
+
+		(*ls)->emplace(move(*firstExp));
+		return makeNode<DirectArrayConstructorExpr>(currentPos, move(*ls));
 	}
 
 	if (accept<Token::ForKeyword>())
@@ -611,10 +615,8 @@ optional<BinaryExprOp> Parser::relationalOperator()
 	return nullopt;
 }
 
-ExpectedUnique<ExprList> Parser::expressionList()
+Expected<vectorUnique<Expr>> Parser::expressionList()
 {
-	SourcePosition currentPos = getPosition();
-
 	vector<unique_ptr<Expr>> vector;
 	auto exp1 = expression();
 
@@ -630,7 +632,7 @@ ExpectedUnique<ExprList> Parser::expressionList()
 
 		vector.emplace_back(move(*exp));
 	}
-	return makeNode<ExprList>(currentPos, move(vector));
+	return move(vector);
 }
 
 ExpectedUnique<Expr> Parser::subScript()
@@ -688,12 +690,18 @@ ExpectedUnique<Expr> Parser::primary()
 
 		auto expList = expressionList();
 		if (!expList)
-			return expList;
+			return expList.takeError();
 
 		if (auto e = expect(Token::RPar); !e)
 			return e.takeError();
 
-		return expList;
+		// if there is only one element it means that
+		// it was parantesys put there for clarity and
+		// we return the content instead of the vector
+		if (expList->size() == 1)
+			return move(expList->at(0));
+
+		return makeNode<ExprList>(currentPos, move(*expList));
 	}
 
 	if (accept<Token::EndKeyword>())
@@ -706,17 +714,25 @@ ExpectedUnique<Expr> Parser::primary()
 
 		auto firstList = expressionList();
 		if (!firstList)
-			return firstList;
+			return firstList.takeError();
+
+		auto ls = makeNode<ExprList>(currentPos, move(*firstList));
+		if (!ls)
+			return ls;
 
 		vectorUnique<ExprList> vector;
-		vector.emplace_back(move(*firstList));
+		vector.emplace_back(move(*ls));
 		while (accept<Token::Semicolons>())
 		{
 			auto list = expressionList();
 			if (!list)
-				return list;
+				return list.takeError();
 
-			vector.emplace_back(move(*list));
+			auto ls = makeNode<ExprList>(currentPos, move(*list));
+			if (!ls)
+				return ls;
+
+			vector.emplace_back(move(*ls));
 		}
 
 		if (auto e = expect(Token::RSquare); !e)

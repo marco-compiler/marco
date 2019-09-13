@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <string>
 
 namespace modelica
 {
@@ -10,6 +11,10 @@ namespace modelica
 		SourcePosition(unsigned l, unsigned c): line(l), column(c) {}
 		[[nodiscard]] unsigned getLine() const { return line; }
 		[[nodiscard]] unsigned getColumn() const { return column; }
+		[[nodiscard]] std::string toString() const
+		{
+			return std::to_string(line) + ":" + std::to_string(column);
+		}
 
 		private:
 		unsigned line;

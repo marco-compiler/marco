@@ -202,6 +202,7 @@ ExpectedUnique<Equation> Parser::equation()
 				currentPos, move(*firstParam), move(*secondParam));
 	}
 
+	SourcePosition posForError = getPosition();
 	if (current == Token::Ident)
 	{
 		if (lexer.getLastIdentifier() == "assert" ||
@@ -212,7 +213,7 @@ ExpectedUnique<Equation> Parser::equation()
 				return functionCall.takeError();
 
 			if (!llvm::isa<ComponentFunctionCallExpr>(functionCall->get()))
-				return make_error<UnexpectedToken>(current, Token::None);
+				return make_error<UnexpectedToken>(current, Token::None, posForError);
 
 			return makeNode<CallEquation>(currentPos, move(*functionCall));
 		}

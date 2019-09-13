@@ -5,6 +5,7 @@
 
 #include "llvm/Support/Error.h"
 #include "modelica/LexerStateMachine.hpp"
+#include "modelica/utils/SourceRange.hpp"
 
 namespace modelica
 {
@@ -67,15 +68,16 @@ namespace modelica
 	{
 		public:
 		static char ID;
-		UnexpectedToken(Token received, Token expected)
-				: token(received), expected(expected)
+		UnexpectedToken(Token received, Token expected, SourcePosition pos)
+				: token(received), expected(expected), pos(pos)
 		{
 		}
 
 		[[nodiscard]] Token getToken() const { return token; }
 		void log(llvm::raw_ostream& OS) const override
 		{
-			OS << "Unexpected Token: " << tokenToString(token)
+			OS << "[" << pos.toString() << "] "
+				 << "Unexpected Token: " << tokenToString(token)
 				 << ", expected: " << tokenToString(expected);
 		}
 
@@ -89,6 +91,7 @@ namespace modelica
 		private:
 		Token token;
 		Token expected;
+		SourcePosition pos;
 	};
 
 	class NotImplemented: public llvm::ErrorInfo<NotImplemented>
@@ -177,10 +180,12 @@ namespace modelica
 	{
 		public:
 		static char ID;
+		IncompatibleType(SourcePosition pos): pos(pos) {}
 
 		void log(llvm::raw_ostream& OS) const override
 		{
-			OS << "Expression has wrong type";
+			OS << "[" << pos.toString() << "] "
+				 << "Expression has wrong type";
 		}
 
 		[[nodiscard]] std::error_code convertToErrorCode() const override
@@ -189,5 +194,8 @@ namespace modelica
 					static_cast<int>(ParserErrorCode::incompatible_type),
 					ParserErrorCategory::category);
 		}
+
+		private:
+		SourcePosition pos;
 	};
 }	// namespace modelica
