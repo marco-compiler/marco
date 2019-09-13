@@ -41,8 +41,14 @@ namespace modelica
 		};
 
 		Equation(
-				SourceRange location, EquationKind kind, vectorUnique<Expr> exprs = {})
-				: kind(kind), loc(location), expressions(std::move(exprs))
+				SourceRange location,
+				EquationKind kind,
+				vectorUnique<Expr> exprs = {},
+				std::string cmnt = "")
+				: kind(kind),
+					loc(location),
+					expressions(std::move(exprs)),
+					comment(std::move(cmnt))
 		{
 		}
 		virtual ~Equation() = default;
@@ -75,6 +81,9 @@ namespace modelica
 					std::remove(exprBegin(), exprEnd(), nullptr), exprEnd());
 		}
 
+		[[nodiscard]] const std::string& getComment() const { return comment; }
+		void setComment(std::string newComment) { comment = std::move(newComment); }
+
 		protected:
 		[[nodiscard]] const vectorUnique<Expr>& getExpressions() const
 		{
@@ -86,6 +95,7 @@ namespace modelica
 		EquationKind kind;
 		SourceRange loc;
 		vectorUnique<Expr> expressions;
+		std::string comment;
 	};
 
 	/**

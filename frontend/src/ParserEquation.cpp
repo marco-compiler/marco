@@ -167,9 +167,10 @@ ExpectedUnique<Equation> Parser::whenEquation()
 	return makeNode<WhenEquation>(currentPos, move(expressions), move(equations));
 }
 
-ExpectedUnique<Equation> Parser::equation()
+ExpectedUnique<Equation> Parser::nonCommentedEquation()
 {
 	SourcePosition currentPos = getPosition();
+
 	if (current == Token::IfKeyword)
 		return ifEquation();
 
@@ -231,4 +232,18 @@ ExpectedUnique<Equation> Parser::equation()
 		return exp2.takeError();
 
 	return makeNode<SimpleEquation>(currentPos, move(*exp1), move(*exp2));
+}
+
+ExpectedUnique<Equation> Parser::equation()
+{
+	auto eq = nonCommentedEquation();
+	if (!eq)
+		return eq;
+
+	auto cmnt = stringComment();
+	if (!cmnt)
+		return cmnt.takeError();
+
+	eq.get()->setComment(move(*cmnt));
+	return eq;
 }

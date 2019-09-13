@@ -5,3 +5,5 @@ target_compile_features(ASTDumper PUBLIC cxx_std_17)
 
 include(GNUInstallDirs)
 INSTALL(TARGETS ASTDumper RUNTIME DESTINATION bin)
+
+add_subdirectory(test)

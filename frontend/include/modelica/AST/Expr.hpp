@@ -41,9 +41,9 @@ namespace modelica
 			StringLiteralExpr,
 			FloatLiteralExpr,
 			AcceptAllExpression,
+			EndExpression,
 			ExpressionList,
 			NamedArgumentExpression,
-			EndExpression,
 			BinaryExpr,
 			LastBinaryExpr,
 			UnaryExpr,
@@ -122,6 +122,8 @@ namespace modelica
 				std::vector<UniqueExpr> exprs = {})
 				: Expr(std::move(location), type, kind), expressions(std::move(exprs))
 		{
+			for (const auto& child : expressions)
+				assert(child.get() != nullptr);
 		}
 		ExprList(SourceRange location, std::vector<UniqueExpr> exprs)
 				: Expr(
@@ -130,6 +132,8 @@ namespace modelica
 							ExprKind::ExpressionList),
 					expressions(std::move(exprs))
 		{
+			for (const auto& child : expressions)
+				assert(child.get() != nullptr);
 		}
 		static constexpr auto classof =
 				nonLeafClassOf<ExprKind::ExpressionList, ExprKind::LastExpressionList>;
@@ -227,6 +231,8 @@ namespace modelica
 				ExprKind kind = ExprKind::BinaryExpr)
 				: ExprList(location, Type(BuiltinType::Unknown), kind), operation(op)
 		{
+			assert(lhs != nullptr);
+			assert(rhs != nullptr);
 			getExpressions().emplace_back(std::move(lhs));
 			getExpressions().emplace_back(std::move(rhs));
 		}
@@ -264,6 +270,7 @@ namespace modelica
 				: ExprList(std::move(location), Type(BuiltinType::Unknown), kind),
 					operation(op)
 		{
+			assert(oprnd != nullptr);
 			getExpressions().emplace_back(std::move(oprnd));
 		}
 
@@ -294,6 +301,8 @@ namespace modelica
 				UniqueExpr step = nullptr)
 				: ExprList(loc, Type(BuiltinType::Unknown), ExprKind::RangeExpression)
 		{
+			assert(start != nullptr);
+			assert(stop != nullptr);
 			getExpressions().emplace_back(std::move(start));
 			getExpressions().emplace_back(std::move(stop));
 			if (step.get() != nullptr)

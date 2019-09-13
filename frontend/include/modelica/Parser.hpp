@@ -99,6 +99,7 @@ namespace modelica
 		[[nodiscard]] ExpectedUnique<Expr> partialCall();
 		[[nodiscard]] ExpectedUnique<Expr> functionArgument();
 		[[nodiscard]] ExpectedUnique<Equation> equation();
+		[[nodiscard]] ExpectedUnique<Equation> nonCommentedEquation();
 		[[nodiscard]] ExpectedUnique<Equation> ifEquation();
 		[[nodiscard]] ExpectedUnique<Equation> forEquation();
 		[[nodiscard]] ExpectedUnique<Equation> whenEquation();
