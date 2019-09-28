@@ -36,6 +36,7 @@ find_package(LLVM REQUIRED 8.0.0)
 ###       Subfolders       ###
 ##############################
 add_subdirectory(frontend)
+add_subdirectory(lowerer)
 add_subdirectory(utils)
 add_subdirectory(tool)
 
