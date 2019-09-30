@@ -184,13 +184,14 @@ namespace modelica
 			std::unique_ptr<Expression> condition;
 		};
 
-		Expression(std::string ref, Type returnType)
-				: content(std::move(ref)), returnType(std::move(returnType))
+		template<typename... T>
+		Expression(std::string ref, BultinTypes type, T... dimensions)
+				: content(std::move(ref)), returnType(type, dimensions...)
 		{
 		}
 
 		template<typename C>
-		Expression(Constant<C> constant, Type returnType)
+		Expression(Constant<C> constant, Type returnType = Type(typeToBuiltin<C>()))
 				: content(std::move(constant)), returnType(std::move(returnType))
 		{
 		}
@@ -411,42 +412,23 @@ namespace modelica
 	};
 
 	template<typename Expression, typename Visitor>
-	void topDownVisit(Expression& exp, Visitor& visitor)
+	void visit(Expression& exp, Visitor& visitor)
 	{
 		const auto visitChildren = [](Expression& exp, Visitor& visitor) {
 			if (!exp.isOperation())
 				return;
-			topDownVisit(exp.getLeftHand(), visitor);
+			visit(exp.getLeftHand(), visitor);
 
 			if (exp.isBinary() || exp.isTernary())
-				topDownVisit(exp.getRightHand(), visitor);
+				visit(exp.getRightHand(), visitor);
 
 			if (exp.isTernary())
-				topDownVisit(exp.getCondition(), visitor);
+				visit(exp.getCondition(), visitor);
 		};
 
 		visitor.visit(exp);
 		visitChildren(exp, visitor);
 		visitor.afterVisit(exp);
-	}
-
-	template<typename Expression, typename Visitor>
-	void bottomUpVisit(Expression& exp, Visitor& visitor)
-	{
-		const auto visitChildren = [](Expression& exp, Visitor& visitor) {
-			if (!exp.isOperation())
-				return;
-			bottomUpVisit(exp.getLeftHand(), visitor);
-
-			if (exp.isBinary() || exp.isTernary())
-				bottomUpVisit(exp.getRightHand(), visitor);
-
-			if (exp.isTernary())
-				bottomUpVisit(exp.getCondition(), visitor);
-		};
-
-		visitChildren(exp, visitor);
-		visitor.visit(exp);
 	}
 
 }	// namespace modelica

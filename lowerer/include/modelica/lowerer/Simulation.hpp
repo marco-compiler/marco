@@ -14,16 +14,21 @@ namespace modelica
 				llvm::LLVMContext& context,
 				llvm::StringMap<Expression> vars,
 				llvm::StringMap<Expression> updates,
-				std::string name = "Modelica Module")
+				std::string name = "Modelica Module",
+				unsigned stopTime = 10)
 				: context(context),
 					module(std::move(name), context),
 					variables(std::move(vars)),
-					updates(std::move(updates))
+					updates(std::move(updates)),
+					stopTime(stopTime)
 		{
 		}
 
-		Simulation(llvm::LLVMContext& context, std::string name = "Modelica Module")
-				: context(context), module(std::move(name), context)
+		Simulation(
+				llvm::LLVMContext& context,
+				std::string name = "Modelica Module",
+				unsigned stopTime = 10)
+				: context(context), module(std::move(name), context), stopTime(stopTime)
 		{
 		}
 
@@ -45,12 +50,15 @@ namespace modelica
 
 		void lower();
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
+		void dumpBC(llvm::raw_ostream& OS) const;
+		[[nodiscard]] unsigned getStopTime() const { return stopTime; }
 
 		private:
+		llvm::Function* makePrivateFunction(llvm::StringRef name);
 		llvm::LLVMContext& context;
 		llvm::Module module;
 		llvm::StringMap<Expression> variables;
 		llvm::StringMap<Expression> updates;
-		llvm::SmallVector<llvm::Function, 0> functions;
+		unsigned stopTime;
 	};
 }	// namespace modelica

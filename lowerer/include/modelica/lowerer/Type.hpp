@@ -1,4 +1,6 @@
 #pragma once
+#include <numeric>
+
 #include "llvm/ADT/SmallVector.h"
 
 namespace modelica
@@ -30,10 +32,6 @@ namespace modelica
 		Type(BultinTypes t, T... args): builtinType(t), dimensions({ args... })
 		{
 		}
-		template<BultinTypes t, typename... T>
-		Type(T... args): builtinType(t), dimensions({ args... })
-		{
-		}
 
 		[[nodiscard]] BultinTypes getBuiltin() const { return builtinType; }
 
@@ -56,6 +54,15 @@ namespace modelica
 			return dimensions == other.dimensions;
 		}
 		bool operator!=(const Type& other) const { return !(*this == other); }
+
+		[[nodiscard]] size_t flatSize() const
+		{
+			return std::accumulate(
+					dimensions.begin(),
+					dimensions.end(),
+					1,
+					[](size_t first, size_t second) { return first * second; });
+		}
 
 		private:
 		BultinTypes builtinType;

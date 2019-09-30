@@ -94,5 +94,5 @@ class ExpressionDumper
 void Expression::dump(llvm::raw_ostream& OS) const
 {
 	ExpressionDumper dumper(OS);
-	topDownVisit(*this, dumper);
+	visit(*this, dumper);
 }

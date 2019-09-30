@@ -18,7 +18,7 @@ TEST(ConstantTest, construtorTest)	// NOLINT
 
 TEST(ExpressionTest, constantExpression)	// NOLINT
 {
-	Expression exp(Constant(1), Type(BultinTypes::INT));
+	Expression exp(Constant(1));
 	EXPECT_TRUE(exp.isConstant<int>());
 	EXPECT_TRUE(exp.isConstant());
 	EXPECT_EQ(exp.getConstant<int>().get(0), 1);
@@ -26,7 +26,7 @@ TEST(ExpressionTest, constantExpression)	// NOLINT
 
 TEST(ExpressionTest, negateExpression)	// NOLINT
 {
-	Expression exp(Constant(1), Type(BultinTypes::INT));
+	Expression exp(Constant(1));
 	auto exp4 = exp;
 	EXPECT_TRUE(exp == exp4);
 	auto exp2 = Expression::negate(std::move(exp));
