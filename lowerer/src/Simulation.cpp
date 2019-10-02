@@ -39,11 +39,13 @@ static llvm::Type* typeToLLVMType(llvm::LLVMContext& context, const Type& type)
 static void createGlobal(
 		llvm::Module& module, llvm::StringRef name, const Expression& initValue)
 {
-	auto varDecl = module.getOrInsertGlobal(
-			name, typeToLLVMType(module.getContext(), initValue.getType()));
+	auto type = typeToLLVMType(module.getContext(), initValue.getType());
+	auto varDecl = module.getOrInsertGlobal(name, type);
 
 	auto global = llvm::dyn_cast<llvm::GlobalVariable>(varDecl);
 	global->setLinkage(internalLinkage);
+	auto constant = llvm::ConstantInt::get(type, 0);
+	global->setInitializer(constant);
 }
 
 static llvm::FunctionType* getVoidType(llvm::LLVMContext& context)
@@ -239,6 +241,7 @@ static void populateMain(
 		llvm::Function* main,
 		llvm::Function* init,
 		llvm::Function* update,
+		llvm::Function* printValues,
 		unsigned simulationStop)
 {
 	// Creates the 3 basic blocks
@@ -273,6 +276,7 @@ static void populateMain(
 	// invoke update
 	builder.SetInsertPoint(loopBody);
 	builder.CreateCall(update);
+	builder.CreateCall(printValues);
 
 	// load, reduce and store the counter
 	value = builder.CreateLoad(unsignedInt, iterationCounter);
@@ -285,31 +289,45 @@ static void populateMain(
 	builder.CreateRet(nullptr);
 }
 
+static void insertGlobal(
+		llvm::Module& module, llvm::StringRef name, const Expression& exp)
+{
+	createGlobal(module, name, exp);
+	createGlobal(module, name.str() + "_old", exp);
+
+	std::string varName = name.str() + "_str";
+	auto str = llvm::ConstantDataArray::getString(module.getContext(), name);
+	auto type = llvm::ArrayType::get(
+			llvm::IntegerType::getInt8Ty(module.getContext()), name.size() + 1);
+	auto global = module.getOrInsertGlobal(varName, type);
+	llvm::dyn_cast<llvm::GlobalVariable>(global)->setInitializer(str);
+}
+
 void Simulation::lower()
 {
 	auto initFunction = makePrivateFunction("init");
 	auto updateFunction = makePrivateFunction("update");
 	auto mainFunction = makePrivateFunction("main");
+	auto printFunction = makePrivateFunction("print");
+	mainFunction->setLinkage(llvm::GlobalValue::LinkageTypes::ExternalLinkage);
 
 	auto& module = this->module;
 	std::for_each(
 			variables.begin(), variables.end(), [&module](const auto& pair) {
-				createGlobal(module, pair.first(), pair.second);
-				createGlobal(module, pair.first().str() + "_old", pair.second);
+				insertGlobal(module, pair.first(), pair.second);
 			});
 
-	llvm::IRBuilder builderInit(&initFunction->getEntryBlock());
+	llvm::IRBuilder builder(&initFunction->getEntryBlock());
 	std::for_each(
 			variables.begin(),
 			variables.end(),
-			[&builderInit, &module](const auto& pair) {
-				auto val = lowerExp(builderInit, pair.second);
-				builderInit.CreateStore(
-						val, module.getGlobalVariable(pair.first(), true));
+			[&builder, &module](const auto& pair) {
+				auto val = lowerExp(builder, pair.second);
+				builder.CreateStore(val, module.getGlobalVariable(pair.first(), true));
 			});
-	builderInit.CreateRet(nullptr);
+	builder.CreateRet(nullptr);
+	builder.SetInsertPoint(&updateFunction->getEntryBlock());
 
-	llvm::IRBuilder builder(&updateFunction->getEntryBlock());
 	std::for_each(
 			updates.begin(), updates.end(), [&builder, &module](const auto& pair) {
 				auto val = lowerExp(builder, pair.second);
@@ -326,7 +344,36 @@ void Simulation::lower()
 
 	builder.CreateRet(nullptr);
 
-	populateMain(mainFunction, initFunction, updateFunction, stopTime);
+	populateMain(
+			mainFunction, initFunction, updateFunction, printFunction, stopTime);
+
+	builder.SetInsertPoint(&printFunction->getEntryBlock());
+
+	auto charType = llvm::IntegerType::getInt8Ty(module.getContext());
+	auto floatType = llvm::IntegerType::getFloatTy(module.getContext());
+	auto charPtrType = llvm::PointerType::get(charType, 0);
+	llvm::SmallVector<llvm::Type*, 2> args({ charPtrType, floatType });
+	auto printType = llvm::FunctionType::get(
+			llvm::Type::getVoidTy(module.getContext()), args, false);
+	auto externalPrint = llvm::dyn_cast<llvm::Function>(
+			module.getOrInsertFunction("modelicaPrint", printType));
+
+	std::for_each(
+			variables.begin(),
+			variables.end(),
+			[&builder, &module, externalPrint, floatType, charPtrType](
+					const auto& pair) {
+				auto strName = module.getGlobalVariable(pair.first().str() + "_str");
+				auto charStar = builder.CreateBitCast(strName, charPtrType);
+
+				auto value =
+						builder.CreateLoad(module.getGlobalVariable(pair.first(), true));
+				auto casted =
+						builder.CreateCast(llvm::Instruction::SIToFP, value, floatType);
+				llvm::SmallVector<llvm::Value*, 2> args({ charStar, casted });
+				builder.CreateCall(externalPrint, args);
+			});
+	builder.CreateRet(nullptr);
 }
 
 llvm::Function* Simulation::makePrivateFunction(llvm::StringRef name)
