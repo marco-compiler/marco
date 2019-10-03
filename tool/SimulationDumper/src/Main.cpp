@@ -6,21 +6,21 @@
 
 using namespace modelica;
 using namespace std;
+using namespace llvm;
 
-llvm::cl::opt<string> InputFileName(
-		llvm::cl::Positional, llvm::cl::desc("<input-file>"), llvm::cl::init("-"));
+cl::opt<string> InputFileName(
+		cl::Positional, cl::desc("<input-file>"), cl::init("-"));
 
-llvm::cl::opt<string> outputFile(
-		"bc", llvm::cl::desc("<output-file>"), llvm::cl::init("-"));
+cl::opt<string> outputFile("bc", cl::desc("<output-file>"), cl::init("-"));
 
-llvm::ExitOnError exitOnErr;
+ExitOnError exitOnErr;
 int main(int argc, char* argv[])
 {
-	llvm::cl::ParseCommandLineOptions(argc, argv);
-	// auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(InputFileName);
-	// auto buffer = exitOnErr(llvm::errorOrToExpected(move(errorOrBuffer)));
+	cl::ParseCommandLineOptions(argc, argv);
+	// auto errorOrBuffer = MemoryBuffer::getFileOrSTDIN(InputFileName);
+	// auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 
-	llvm::LLVMContext context;
+	LLVMContext context;
 	Simulation sim(context);
 
 	if (!sim.addVar("x", SimExp(SimConst(3))))
@@ -37,11 +37,11 @@ int main(int argc, char* argv[])
 	if (outputFile == "-")
 		return 0;
 
-	std::error_code error;
-	llvm::raw_fd_ostream OS(outputFile, error, llvm::sys::fs::F_None);
+	error_code error;
+	raw_fd_ostream OS(outputFile, error, sys::fs::F_None);
 	if (error)
 	{
-		llvm::errs() << error.message();
+		errs() << error.message();
 		return -1;
 	}
 	sim.dumpBC(OS);

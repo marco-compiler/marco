@@ -36,13 +36,16 @@ static Type* typeToLLVMType(LLVMContext& context, const SimType& type)
 }
 
 static void createGlobal(
-		Module& module, StringRef name, const SimExp& initValue)
+		Module& module,
+		StringRef name,
+		const SimExp& initValue,
+		GlobalValue::LinkageTypes linkage)
 {
 	auto type = typeToLLVMType(module.getContext(), initValue.getSimType());
 	auto varDecl = module.getOrInsertGlobal(name, type);
 
 	auto global = dyn_cast<GlobalVariable>(varDecl);
-	global->setLinkage(internalLinkage);
+	global->setLinkage(linkage);
 	auto constant = ConstantInt::get(type, 0);
 	global->setInitializer(constant);
 }
@@ -278,10 +281,14 @@ static void populateMain(
 	builder.CreateRet(nullptr);
 }
 
-static void insertGlobal(Module& module, StringRef name, const SimExp& exp)
+static void insertGlobal(
+		Module& module,
+		StringRef name,
+		const SimExp& exp,
+		GlobalValue::LinkageTypes linkage)
 {
-	createGlobal(module, name, exp);
-	createGlobal(module, name.str() + "_old", exp);
+	createGlobal(module, name, exp, linkage);
+	createGlobal(module, name.str() + "_old", exp, linkage);
 
 	std::string varName = name.str() + "_str";
 	auto str = ConstantDataArray::getString(module.getContext(), name);
@@ -295,14 +302,16 @@ void Simulation::lower()
 {
 	auto initFunction = makePrivateFunction("init");
 	auto updateFunction = makePrivateFunction("update");
-	auto mainFunction = makePrivateFunction("main");
+	auto mainFunction = makePrivateFunction(entryPointName);
 	auto printFunction = makePrivateFunction("print");
 	mainFunction->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
 
 	auto& module = this->module;
 	std::for_each(
-			variables.begin(), variables.end(), [&module](const auto& pair) {
-				insertGlobal(module, pair.first(), pair.second);
+			variables.begin(),
+			variables.end(),
+			[&module, linkage = getVarLinkage()](const auto& pair) {
+				insertGlobal(module, pair.first(), pair.second, linkage);
 			});
 
 	IRBuilder builder(&initFunction->getEntryBlock());
@@ -312,6 +321,8 @@ void Simulation::lower()
 			[&builder, &module](const auto& pair) {
 				auto val = lowerExp(builder, pair.second);
 				builder.CreateStore(val, module.getGlobalVariable(pair.first(), true));
+				builder.CreateStore(
+						val, module.getGlobalVariable(pair.first().str() + "_old", true));
 			});
 	builder.CreateRet(nullptr);
 	builder.SetInsertPoint(&updateFunction->getEntryBlock());

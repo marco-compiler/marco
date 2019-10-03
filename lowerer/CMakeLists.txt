@@ -34,4 +34,4 @@ INSTALL(FILES lowererConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/lowererConfigVersi
 
 install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-ADD_SUBDIRECTORY(test)
+add_subdirectory(test)

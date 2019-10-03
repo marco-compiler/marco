@@ -7,6 +7,7 @@
 
 namespace modelica
 {
+	constexpr int defaultSimulationIterations = 10;
 	class Simulation
 	{
 		public:
@@ -15,20 +16,28 @@ namespace modelica
 				llvm::StringMap<SimExp> vars,
 				llvm::StringMap<SimExp> updates,
 				std::string name = "Modelica Module",
-				unsigned stopTime = 10)
+				std::string entryPointName = "main",
+				unsigned stopTime = defaultSimulationIterations)
 				: context(context),
 					module(std::move(name), context),
 					variables(std::move(vars)),
 					updates(std::move(updates)),
-					stopTime(stopTime)
+					stopTime(stopTime),
+					entryPointName(std::move(entryPointName)),
+					varsLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage)
 		{
 		}
 
 		Simulation(
 				llvm::LLVMContext& context,
 				std::string name = "Modelica Module",
-				unsigned stopTime = 10)
-				: context(context), module(std::move(name), context), stopTime(stopTime)
+				std::string entryPointName = "main",
+				unsigned stopTime = defaultSimulationIterations)
+				: context(context),
+					module(std::move(name), context),
+					stopTime(stopTime),
+					entryPointName(std::move(entryPointName)),
+					varsLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage)
 		{
 		}
 
@@ -52,6 +61,15 @@ namespace modelica
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		void dumpBC(llvm::raw_ostream& OS) const;
 		[[nodiscard]] unsigned getStopTime() const { return stopTime; }
+		[[nodiscard]] llvm::GlobalValue::LinkageTypes getVarLinkage() const
+		{
+			return varsLinkage;
+		}
+
+		void setVarsLinkage(llvm::GlobalValue::LinkageTypes newLinkage)
+		{
+			varsLinkage = newLinkage;
+		}
 
 		private:
 		llvm::Function* makePrivateFunction(llvm::StringRef name);
@@ -60,5 +78,8 @@ namespace modelica
 		llvm::StringMap<SimExp> variables;
 		llvm::StringMap<SimExp> updates;
 		unsigned stopTime;
+
+		std::string entryPointName;
+		llvm::GlobalValue::LinkageTypes varsLinkage;
 	};
 }	// namespace modelica

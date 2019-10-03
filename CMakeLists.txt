@@ -39,6 +39,7 @@ add_subdirectory(frontend)
 add_subdirectory(lowerer)
 add_subdirectory(utils)
 add_subdirectory(tool)
+add_subdirectory(runtime)
 
 ##############################
 ###        DOXYGEN         ###
