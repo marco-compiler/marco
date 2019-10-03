@@ -1,59 +1,59 @@
-#include "modelica/lowerer/Expression.hpp"
+#include "modelica/lowerer/SimExp.hpp"
 
 using namespace modelica;
 
-static std::string exprKindToString(ExpressionKind kind)
+static std::string exprKindToString(SimExpKind kind)
 {
 	switch (kind)
 	{
-		case (ExpressionKind::zero):
+		case (SimExpKind::zero):
 			return "0";
-		case (ExpressionKind::negate):
+		case (SimExpKind::negate):
 			return "-";
-		case (ExpressionKind::add):
+		case (SimExpKind::add):
 			return "+";
-		case (ExpressionKind::sub):
+		case (SimExpKind::sub):
 			return "-";
-		case (ExpressionKind::mult):
+		case (SimExpKind::mult):
 			return "*";
-		case (ExpressionKind::divide):
+		case (SimExpKind::divide):
 			return "/";
-		case (ExpressionKind::greaterThan):
+		case (SimExpKind::greaterThan):
 			return ">";
-		case (ExpressionKind::greaterEqual):
+		case (SimExpKind::greaterEqual):
 			return ">=";
-		case (ExpressionKind::equal):
+		case (SimExpKind::equal):
 			return "==";
-		case (ExpressionKind::different):
+		case (SimExpKind::different):
 			return "!=";
-		case (ExpressionKind::less):
+		case (SimExpKind::less):
 			return "<";
-		case (ExpressionKind::lessEqual):
+		case (SimExpKind::lessEqual):
 			return "<=";
-		case (ExpressionKind::elevation):
+		case (SimExpKind::elevation):
 			return "^";
-		case (ExpressionKind::module):
+		case (SimExpKind::module):
 			return "%";
-		case (ExpressionKind::conditional):
+		case (SimExpKind::conditional):
 			return "?";
 	}
 	assert(false);	// NOLINT
 	return "UNREACHABLE";
 }
 
-static void dumpOperation(const Expression& exp, llvm::raw_ostream& OS)
+static void dumpOperation(const SimExp& exp, llvm::raw_ostream& OS)
 {
 	OS << "(";
 	OS << exprKindToString(exp.getKind());
 	OS << " ";
 }
 
-class ExpressionDumper
+class SimExpDumper
 {
 	public:
-	ExpressionDumper(llvm::raw_ostream& OS): OS(OS) {}
+	SimExpDumper(llvm::raw_ostream& OS): OS(OS) {}
 
-	void visit(const Expression& exp)
+	void visit(const SimExp& exp)
 	{
 		if (exp.isConstant<int>())
 		{
@@ -79,7 +79,7 @@ class ExpressionDumper
 		dumpOperation(exp, OS);
 	}
 
-	void afterVisit(const Expression& exp)
+	void afterVisit(const SimExp& exp)
 	{
 		if (exp.isOperation())
 			OS << ")";
@@ -91,8 +91,8 @@ class ExpressionDumper
 	llvm::raw_ostream& OS;
 };
 
-void Expression::dump(llvm::raw_ostream& OS) const
+void SimExp::dump(llvm::raw_ostream& OS) const
 {
-	ExpressionDumper dumper(OS);
+	SimExpDumper dumper(OS);
 	visit(*this, dumper);
 }

@@ -1,15 +1,15 @@
 #include "gtest/gtest.h"
 
-#include "modelica/lowerer/Expression.hpp"
+#include "modelica/lowerer/SimExp.hpp"
 
 using namespace modelica;
 using namespace std;
 
 TEST(ConstantTest, construtorTest)	// NOLINT
 {
-	IntConstant constant(1);
-	FloatConstant constant2(1.0F);
-	BoolConstant constant3(false);
+	IntSimConst constant(1);
+	FloatSimConst constant2(1.0F);
+	BoolSimConst constant3(false);
 
 	EXPECT_EQ(constant.get(0), 1);
 	EXPECT_EQ(constant2.get(0), 1.0F);
@@ -18,7 +18,7 @@ TEST(ConstantTest, construtorTest)	// NOLINT
 
 TEST(ExpressionTest, constantExpression)	// NOLINT
 {
-	Expression exp(Constant(1));
+	SimExp exp(SimConst(1));
 	EXPECT_TRUE(exp.isConstant<int>());
 	EXPECT_TRUE(exp.isConstant());
 	EXPECT_EQ(exp.getConstant<int>().get(0), 1);
@@ -26,27 +26,27 @@ TEST(ExpressionTest, constantExpression)	// NOLINT
 
 TEST(ExpressionTest, negateExpression)	// NOLINT
 {
-	Expression exp(Constant(1));
+	SimExp exp(SimConst(1));
 	auto exp4 = exp;
 	EXPECT_TRUE(exp == exp4);
-	auto exp2 = Expression::negate(std::move(exp));
+	auto exp2 = SimExp::negate(std::move(exp));
 
 	EXPECT_TRUE(exp2.isOperation());
-	EXPECT_EQ(exp2.getKind(), ExpressionKind::negate);
+	EXPECT_EQ(exp2.getKind(), SimExpKind::negate);
 	EXPECT_TRUE(exp2.getLeftHand().isConstant());
 
 	auto exp3 = !exp2;
 	EXPECT_TRUE(exp3.isOperation());
-	EXPECT_EQ(exp3.getKind(), ExpressionKind::negate);
+	EXPECT_EQ(exp3.getKind(), SimExpKind::negate);
 	EXPECT_FALSE(exp3.getLeftHand().isConstant());
 	EXPECT_TRUE(exp3.getLeftHand().getLeftHand().isConstant());
 }
 
 TEST(ConstantTest, dumpConstant)	// NOLINT
 {
-	IntConstant constant(1);
-	FloatConstant constant2(1.0F);
-	BoolConstant constant3(false);
+	IntSimConst constant(1);
+	FloatSimConst constant2(1.0F);
+	BoolSimConst constant3(false);
 
 	std::string intString;
 	llvm::raw_string_ostream intStream(intString);

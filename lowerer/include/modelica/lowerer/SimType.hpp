@@ -5,7 +5,7 @@
 
 namespace modelica
 {
-	enum class BultinTypes
+	enum class BultinSimTypes
 	{
 		BOOL,
 		INT,
@@ -13,27 +13,28 @@ namespace modelica
 	};
 
 	template<typename T>
-	constexpr BultinTypes typeToBuiltin()
+	constexpr BultinSimTypes typeToBuiltin()
 	{
 		if constexpr (std::is_same<int, T>())
-			return BultinTypes::INT;
+			return BultinSimTypes::INT;
 		else if constexpr (std::is_same<bool, T>())
-			return BultinTypes::BOOL;
+			return BultinSimTypes::BOOL;
 		else if constexpr (std::is_same<float, T>())
-			return BultinTypes::FLOAT;
+			return BultinSimTypes::FLOAT;
 		else
 			assert(false);
 	}
 
-	class Type
+	class SimType
 	{
 		public:
 		template<typename... T>
-		Type(BultinTypes t, T... args): builtinType(t), dimensions({ args... })
+		SimType(BultinSimTypes t, T... args)
+				: builtinSimType(t), dimensions({ args... })
 		{
 		}
 
-		[[nodiscard]] BultinTypes getBuiltin() const { return builtinType; }
+		[[nodiscard]] BultinSimTypes getBuiltin() const { return builtinSimType; }
 
 		[[nodiscard]] size_t getDimensionsCount() const
 		{
@@ -46,14 +47,14 @@ namespace modelica
 			return dimensions[index];
 		}
 
-		bool operator==(const Type& other) const
+		bool operator==(const SimType& other) const
 		{
-			if (builtinType != other.builtinType)
+			if (builtinSimType != other.builtinSimType)
 				return false;
 
 			return dimensions == other.dimensions;
 		}
-		bool operator!=(const Type& other) const { return !(*this == other); }
+		bool operator!=(const SimType& other) const { return !(*this == other); }
 
 		[[nodiscard]] size_t flatSize() const
 		{
@@ -65,7 +66,7 @@ namespace modelica
 		}
 
 		private:
-		BultinTypes builtinType;
+		BultinSimTypes builtinSimType;
 		llvm::SmallVector<size_t, 3> dimensions;
 	};
 }	// namespace modelica

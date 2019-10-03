@@ -8,13 +8,13 @@
 namespace modelica
 {
 	template<typename C>
-	class Constant
+	class SimConst
 	{
 		public:
-		Constant(C val): content({ val }) {}
+		SimConst(C val): content({ val }) {}
 
 		template<typename... T2>
-		Constant(C val, T2... args): content({ val, args... })
+		SimConst(C val, T2... args): content({ val, args... })
 		{
 		}
 
@@ -26,11 +26,11 @@ namespace modelica
 
 		[[nodiscard]] size_t size() const { return content.size(); }
 
-		bool operator==(const Constant& other) const
+		bool operator==(const SimConst& other) const
 		{
 			return other.content == content;
 		}
-		bool operator!=(const Constant& other) const { return !(*this == other); }
+		bool operator!=(const SimConst& other) const { return !(*this == other); }
 
 		private:
 		llvm::SmallVector<C, 3> content;
@@ -56,7 +56,7 @@ namespace modelica
 	struct is_instance<U<T>, U>: public std::true_type
 	{
 	};
-	using IntConstant = Constant<int>;
-	using FloatConstant = Constant<float>;
-	using BoolConstant = Constant<bool>;
+	using IntSimConst = SimConst<int>;
+	using FloatSimConst = SimConst<float>;
+	using BoolSimConst = SimConst<bool>;
 }	// namespace modelica

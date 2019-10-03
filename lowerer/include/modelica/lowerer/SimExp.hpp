@@ -6,12 +6,12 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/lowerer/Constant.hpp"
-#include "modelica/lowerer/Type.hpp"
+#include "modelica/lowerer/SimConst.hpp"
+#include "modelica/lowerer/SimType.hpp"
 
 namespace modelica
 {
-	enum class ExpressionKind
+	enum class SimExpKind
 	{
 		zero,
 		negate,
@@ -32,17 +32,17 @@ namespace modelica
 		conditional
 	};
 
-	class Expression
+	class SimExp
 	{
 		public:
 		class Operation
 		{
 			public:
 			Operation(
-					ExpressionKind kind,
-					std::unique_ptr<Expression> lhs,
-					std::unique_ptr<Expression> rhs = nullptr,
-					std::unique_ptr<Expression> cond = nullptr)
+					SimExpKind kind,
+					std::unique_ptr<SimExp> lhs,
+					std::unique_ptr<SimExp> rhs = nullptr,
+					std::unique_ptr<SimExp> cond = nullptr)
 					: kind(kind),
 						leftHandExpression(std::move(lhs)),
 						rightHandExpression(std::move(rhs)),
@@ -52,57 +52,57 @@ namespace modelica
 
 			[[nodiscard]] bool isUnary() const
 			{
-				return kind >= ExpressionKind::negate && kind <= ExpressionKind::negate;
+				return kind >= SimExpKind::negate && kind <= SimExpKind::negate;
 			}
 
 			[[nodiscard]] bool isBinary() const
 			{
-				return kind >= ExpressionKind::add && kind <= ExpressionKind::module;
+				return kind >= SimExpKind::add && kind <= SimExpKind::module;
 			}
 
 			[[nodiscard]] bool isTernary() const
 			{
-				return kind >= ExpressionKind::conditional &&
-							 kind <= ExpressionKind::conditional;
+				return kind >= SimExpKind::conditional &&
+							 kind <= SimExpKind::conditional;
 			}
 
-			[[nodiscard]] const Expression& getLeftHand() const
+			[[nodiscard]] const SimExp& getLeftHand() const
 			{
 				assert(isUnary() || isBinary() || isTernary());	// NOLINT
 				return *leftHandExpression;
 			}
 
-			[[nodiscard]] Expression& getLeftHand()
+			[[nodiscard]] SimExp& getLeftHand()
 			{
 				assert(isUnary() || isBinary() || isTernary());	// NOLINT
 				return *leftHandExpression;
 			}
 
-			[[nodiscard]] const Expression& getRightHand() const
+			[[nodiscard]] const SimExp& getRightHand() const
 			{
 				assert(isBinary() || isTernary());	// NOLINT
 				return *rightHandExpression;
 			}
 
-			[[nodiscard]] Expression& getRightHand()
+			[[nodiscard]] SimExp& getRightHand()
 			{
 				assert(isBinary() || isTernary());	// NOLINT
 				return *rightHandExpression;
 			}
 
-			[[nodiscard]] Expression& getCondition()
+			[[nodiscard]] SimExp& getCondition()
 			{
 				assert(isTernary());	// NOLINT
 				return *condition;
 			}
 
-			[[nodiscard]] const Expression& getCondition() const
+			[[nodiscard]] const SimExp& getCondition() const
 			{
 				assert(isTernary());	// NOLINT
 				return *condition;
 			}
 
-			[[nodiscard]] ExpressionKind getKind() const { return kind; }
+			[[nodiscard]] SimExpKind getKind() const { return kind; }
 
 			Operation& operator=(Operation&& other)
 			{
@@ -120,13 +120,13 @@ namespace modelica
 			{
 				if (other.leftHandExpression != nullptr)
 					leftHandExpression =
-							std::make_unique<Expression>(*(other.leftHandExpression));
+							std::make_unique<SimExp>(*(other.leftHandExpression));
 				if (other.rightHandExpression != nullptr)
 					rightHandExpression =
-							std::make_unique<Expression>(*(other.rightHandExpression));
+							std::make_unique<SimExp>(*(other.rightHandExpression));
 
 				if (other.condition != nullptr)
-					condition = std::make_unique<Expression>(*(other.condition));
+					condition = std::make_unique<SimExp>(*(other.condition));
 			}
 
 			Operation& operator=(const Operation& other)
@@ -134,13 +134,13 @@ namespace modelica
 				kind = other.kind;
 				if (other.leftHandExpression != nullptr)
 					leftHandExpression =
-							std::make_unique<Expression>(*(other.leftHandExpression));
+							std::make_unique<SimExp>(*(other.leftHandExpression));
 				if (other.rightHandExpression != nullptr)
 					rightHandExpression =
-							std::make_unique<Expression>(*(other.rightHandExpression));
+							std::make_unique<SimExp>(*(other.rightHandExpression));
 
 				if (other.condition != nullptr)
-					condition = std::make_unique<Expression>(*(other.condition));
+					condition = std::make_unique<SimExp>(*(other.condition));
 				return *this;
 			}
 
@@ -168,7 +168,7 @@ namespace modelica
 			}
 
 			private:
-			bool deepEqual(Expression* first, Expression* second) const
+			bool deepEqual(SimExp* first, SimExp* second) const
 			{
 				if (first == nullptr && second != nullptr)
 					return false;
@@ -178,81 +178,83 @@ namespace modelica
 					return true;
 				return *first == *second;
 			}
-			ExpressionKind kind{ ExpressionKind::zero };
-			std::unique_ptr<Expression> leftHandExpression;
-			std::unique_ptr<Expression> rightHandExpression;
-			std::unique_ptr<Expression> condition;
+			SimExpKind kind{ SimExpKind::zero };
+			std::unique_ptr<SimExp> leftHandExpression;
+			std::unique_ptr<SimExp> rightHandExpression;
+			std::unique_ptr<SimExp> condition;
 		};
 
 		template<typename... T>
-		Expression(std::string ref, BultinTypes type, T... dimensions)
-				: content(std::move(ref)), returnType(type, dimensions...)
+		SimExp(std::string ref, BultinSimTypes type, T... dimensions)
+				: content(std::move(ref)), returnSimType(type, dimensions...)
 		{
 		}
 
 		template<typename C>
-		Expression(Constant<C> constant, Type returnType = Type(typeToBuiltin<C>()))
-				: content(std::move(constant)), returnType(std::move(returnType))
+		SimExp(
+				SimConst<C> constant,
+				SimType returnSimType = SimType(typeToBuiltin<C>()))
+				: content(std::move(constant)), returnSimType(std::move(returnSimType))
 		{
 		}
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
-		[[nodiscard]] static Expression negate(Expression exp)
+		[[nodiscard]] static SimExp negate(SimExp exp)
 		{
-			return Expression(
-					ExpressionKind::negate, std::make_unique<Expression>(std::move(exp)));
+			return SimExp(
+					SimExpKind::negate, std::make_unique<SimExp>(std::move(exp)));
 		}
 
-		[[nodiscard]] static Expression add(Expression lhs, Expression rhs)
+		[[nodiscard]] static SimExp add(SimExp lhs, SimExp rhs)
 		{
-			return Expression(
-					ExpressionKind::add,
-					std::make_unique<Expression>(std::move(lhs)),
-					std::make_unique<Expression>(std::move(rhs)));
+			return SimExp(
+					SimExpKind::add,
+					std::make_unique<SimExp>(std::move(lhs)),
+					std::make_unique<SimExp>(std::move(rhs)));
 		}
 
-		[[nodiscard]] static Expression subtract(Expression lhs, Expression rhs)
+		[[nodiscard]] static SimExp subtract(SimExp lhs, SimExp rhs)
 		{
-			return Expression(
-					ExpressionKind::sub,
-					std::make_unique<Expression>(std::move(lhs)),
-					std::make_unique<Expression>(std::move(rhs)));
+			return SimExp(
+					SimExpKind::sub,
+					std::make_unique<SimExp>(std::move(lhs)),
+					std::make_unique<SimExp>(std::move(rhs)));
 		}
 
-		[[nodiscard]] static Expression multiply(Expression lhs, Expression rhs)
+		[[nodiscard]] static SimExp multiply(SimExp lhs, SimExp rhs)
 		{
-			return Expression(
-					ExpressionKind::mult,
-					std::make_unique<Expression>(std::move(lhs)),
-					std::make_unique<Expression>(std::move(rhs)));
+			return SimExp(
+					SimExpKind::mult,
+					std::make_unique<SimExp>(std::move(lhs)),
+					std::make_unique<SimExp>(std::move(rhs)));
 		}
 
-		[[nodiscard]] static Expression divide(Expression lhs, Expression rhs)
+		[[nodiscard]] static SimExp divide(SimExp lhs, SimExp rhs)
 		{
-			return Expression(
-					ExpressionKind::divide,
-					std::make_unique<Expression>(std::move(lhs)),
-					std::make_unique<Expression>(std::move(rhs)));
+			return SimExp(
+					SimExpKind::divide,
+					std::make_unique<SimExp>(std::move(lhs)),
+					std::make_unique<SimExp>(std::move(rhs)));
 		}
 
-		[[nodiscard]] Expression operator!()
+		[[nodiscard]] SimExp operator!()
 		{
-			return Expression::negate(std::move(*this));
+			return SimExp::negate(std::move(*this));
 		}
 
-		[[nodiscard]] Expression operator+(const Expression& other)
+		[[nodiscard]] SimExp operator+(const SimExp& other)
 		{
-			return Expression::add(std::move(*this), std::move(other));
+			return SimExp::add(std::move(*this), std::move(other));
 		}
 
-		[[nodiscard]] Expression operator-(const Expression& other)
+		[[nodiscard]] SimExp operator-(const SimExp& other)
 		{
-			return Expression::subtract(std::move(*this), std::move(other));
+			return SimExp::subtract(std::move(*this), std::move(other));
 		}
 
-		[[nodiscard]] Expression operator/(const Expression& other)
+		[[nodiscard]] SimExp operator/(const SimExp& other)
 		{
-			return Expression::divide(std::move(*this), std::move(other));
+			return SimExp::divide(std::move(*this), std::move(other));
 		}
 
 		[[nodiscard]] bool isConstant() const
@@ -263,7 +265,7 @@ namespace modelica
 		template<typename C>
 		[[nodiscard]] bool isConstant() const
 		{
-			return std::holds_alternative<Constant<C>>(content);
+			return std::holds_alternative<SimConst<C>>(content);
 		}
 
 		[[nodiscard]] bool isOperation() const
@@ -272,17 +274,17 @@ namespace modelica
 		}
 
 		template<typename C>
-		[[nodiscard]] const Constant<C>& getConstant() const
+		[[nodiscard]] const SimConst<C>& getConstant() const
 		{
 			assert(isConstant<C>());	// NOLINT
-			return std::get<Constant<C>>(content);
+			return std::get<SimConst<C>>(content);
 		}
 
 		template<typename C>
-		[[nodiscard]] Constant<C>& getConstant()
+		[[nodiscard]] SimConst<C>& getConstant()
 		{
 			assert(isConstant<C>());	// NOLINT
-			return std::get<Constant<C>>(content);
+			return std::get<SimConst<C>>(content);
 		}
 
 		[[nodiscard]] bool isUnary() const
@@ -303,57 +305,57 @@ namespace modelica
 			return getOperation().isTernary();
 		}
 
-		[[nodiscard]] const Expression& getLeftHand() const
+		[[nodiscard]] const SimExp& getLeftHand() const
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getLeftHand();
 		}
 
-		[[nodiscard]] Expression& getLeftHand()
+		[[nodiscard]] SimExp& getLeftHand()
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getLeftHand();
 		}
 
-		[[nodiscard]] const Expression& getRightHand() const
+		[[nodiscard]] const SimExp& getRightHand() const
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getRightHand();
 		}
 
-		[[nodiscard]] Expression& getRightHand()
+		[[nodiscard]] SimExp& getRightHand()
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getRightHand();
 		}
 
-		[[nodiscard]] Expression& getCondition()
+		[[nodiscard]] SimExp& getCondition()
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getCondition();
 		}
 
-		[[nodiscard]] const Expression& getCondition() const
+		[[nodiscard]] const SimExp& getCondition() const
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getCondition();
 		}
 
-		[[nodiscard]] ExpressionKind getKind() const
+		[[nodiscard]] SimExpKind getKind() const
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getKind();
 		}
 
-		bool operator==(const Expression& other) const
+		bool operator==(const SimExp& other) const
 		{
 			if (content != other.content)
 				return false;
-			return returnType == other.returnType;
+			return returnSimType == other.returnSimType;
 		}
-		bool operator!=(const Expression& other) const { return !(*this == other); }
+		bool operator!=(const SimExp& other) const { return !(*this == other); }
 
-		[[nodiscard]] const Type& getType() const { return returnType; }
+		[[nodiscard]] const SimType& getSimType() const { return returnSimType; }
 
 		[[nodiscard]] bool isReference() const
 		{
@@ -367,25 +369,25 @@ namespace modelica
 		}
 
 		private:
-		Expression(
-				ExpressionKind kind,
-				Type retType,
-				std::unique_ptr<Expression> lhs,
-				std::unique_ptr<Expression> rhs = nullptr,
-				std::unique_ptr<Expression> cond = nullptr)
+		SimExp(
+				SimExpKind kind,
+				SimType retSimType,
+				std::unique_ptr<SimExp> lhs,
+				std::unique_ptr<SimExp> rhs = nullptr,
+				std::unique_ptr<SimExp> cond = nullptr)
 				: content(
 							Operation(kind, std::move(lhs), std::move(rhs), std::move(cond))),
-					returnType(std::move(retType))
+					returnSimType(std::move(retSimType))
 		{
 		}
-		Expression(
-				ExpressionKind kind,
-				std::unique_ptr<Expression> lhs,
-				std::unique_ptr<Expression> rhs = nullptr,
-				std::unique_ptr<Expression> cond = nullptr)
+		SimExp(
+				SimExpKind kind,
+				std::unique_ptr<SimExp> lhs,
+				std::unique_ptr<SimExp> rhs = nullptr,
+				std::unique_ptr<SimExp> cond = nullptr)
 				: content(
 							Operation(kind, std::move(lhs), std::move(rhs), std::move(cond))),
-					returnType(getLeftHand().getType())
+					returnSimType(getLeftHand().getSimType())
 		{
 		}
 
@@ -403,18 +405,18 @@ namespace modelica
 
 		std::variant<
 				Operation,
-				IntConstant,
-				BoolConstant,
-				FloatConstant,
+				IntSimConst,
+				BoolSimConst,
+				FloatSimConst,
 				std::string>
 				content;
-		Type returnType;
+		SimType returnSimType;
 	};
 
-	template<typename Expression, typename Visitor>
-	void visit(Expression& exp, Visitor& visitor)
+	template<typename SimExp, typename Visitor>
+	void visit(SimExp& exp, Visitor& visitor)
 	{
-		const auto visitChildren = [](Expression& exp, Visitor& visitor) {
+		const auto visitChildren = [](SimExp& exp, Visitor& visitor) {
 			if (!exp.isOperation())
 				return;
 			visit(exp.getLeftHand(), visitor);

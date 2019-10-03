@@ -3,7 +3,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "modelica/lowerer/Expression.hpp"
+#include "modelica/lowerer/SimExp.hpp"
 
 namespace modelica
 {
@@ -12,8 +12,8 @@ namespace modelica
 		public:
 		Simulation(
 				llvm::LLVMContext& context,
-				llvm::StringMap<Expression> vars,
-				llvm::StringMap<Expression> updates,
+				llvm::StringMap<SimExp> vars,
+				llvm::StringMap<SimExp> updates,
 				std::string name = "Modelica Module",
 				unsigned stopTime = 10)
 				: context(context),
@@ -32,7 +32,7 @@ namespace modelica
 		{
 		}
 
-		[[nodiscard]] bool addVar(std::string name, Expression exp)
+		[[nodiscard]] bool addVar(std::string name, SimExp exp)
 		{
 			if (variables.find(name) != variables.end())
 				return false;
@@ -40,7 +40,7 @@ namespace modelica
 			return true;
 		}
 
-		[[nodiscard]] bool addUpdate(std::string name, Expression exp)
+		[[nodiscard]] bool addUpdate(std::string name, SimExp exp)
 		{
 			if (updates.find(name) != updates.end())
 				return false;
@@ -57,8 +57,8 @@ namespace modelica
 		llvm::Function* makePrivateFunction(llvm::StringRef name);
 		llvm::LLVMContext& context;
 		llvm::Module module;
-		llvm::StringMap<Expression> variables;
-		llvm::StringMap<Expression> updates;
+		llvm::StringMap<SimExp> variables;
+		llvm::StringMap<SimExp> updates;
 		unsigned stopTime;
 	};
 }	// namespace modelica

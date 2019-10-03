@@ -23,12 +23,12 @@ int main(int argc, char* argv[])
 	llvm::LLVMContext context;
 	Simulation sim(context);
 
-	if (!sim.addVar("x", Expression(Constant(3))))
+	if (!sim.addVar("x", SimExp(SimConst(3))))
 		return 1;
-	if (!sim.addVar("Y", Expression(Constant(6))))
+	if (!sim.addVar("Y", SimExp(SimConst(6))))
 		return 1;
 	if (!sim.addUpdate(
-					"x", Expression(Constant(3)) + Expression("Y", BultinTypes::INT)))
+					"x", SimExp(SimConst(3)) + SimExp("Y", BultinSimTypes::INT)))
 		return 1;
 
 	sim.dump();
