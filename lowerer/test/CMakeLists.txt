@@ -12,36 +12,53 @@ gtest_add_tests(TARGET      lowererTest
                 TEST_LIST   noArgsTests
 )
 
+###
+### Produces the simulation test
+### First argument is the base name
+### Second argument is the cpp file that will produce the simulation.
+### Is the test, the test must define it's own extern declaration that will
+### be resolved during linking.
+macro(addLowererSimulationTest simulationName generatorSrc testSrc)
 
-add_executable(intTestGenerator src/IntTestGenerator.cpp)
-add_executable(modelica::intTestGenerator ALIAS intTestGenerator)
-target_link_libraries(intTestGenerator PRIVATE modelica::testingSimulationGenerator)
-target_compile_features(intTestGenerator PUBLIC cxx_std_17)
+	### Creates the executable that will generate the simulation
+	### Object file.
+	add_executable(${simulationName}Generator ${generatorSrc})
+	add_executable(modelica::${simulationName}Generator ALIAS ${simulationName}Generator)
+	target_link_libraries(${simulationName}Generator PRIVATE modelica::testingSimulationGenerator)
+	target_compile_features(${simulationName}Generator PUBLIC cxx_std_17)
 
-add_custom_command(OUTPUT intSimulation.bc
-					COMMAND modelica::intTestGenerator -bc=intSimulation.bc
-					COMMENT "generates int simulation bc file"
-					DEPENDS modelica::intTestGenerator 
-					VERBATIM)
+	### Creates the command that will run the simulator generator and will produce the bc file
+	add_custom_command(OUTPUT ${simulationName}.bc
+						COMMAND modelica::${simulationName}Generator -bc=${simulationName}.bc
+						COMMENT "generates int simulation bc file"
+						DEPENDS modelica::${simulationName}Generator
+						VERBATIM)
 
 
-add_custom_command(OUTPUT intSimulation.o
-	COMMAND clang -o intSimulation.o -fPIC -c intSimulation.bc
-					COMMENT "generates int simulation object file"
-					DEPENDS intSimulation.bc
-					VERBATIM)
+	### Creates the command that will run clang to generate the Obj file.
+	add_custom_command(OUTPUT ${simulationName}.o
+		COMMAND clang -o ${simulationName}.o -fPIC -c ${simulationName}.bc
+						COMMENT "generates int simulation object file"
+						DEPENDS ${simulationName}.bc
+						VERBATIM)
 
-add_custom_target(genIntSim ALL DEPENDS intSimulation.o)
+	### Creates a target so that other targets can depend on this one to make sure
+	### the obj file is up to date
+	add_custom_target(gen${simulationName} ALL DEPENDS ${simulationName}.o)
 
-add_executable(intSimulationTest src/IntSimulationTest.cpp)
-add_executable(modelica::intSimulationTest ALIAS intSimulationTest) 
-target_link_libraries(intSimulationTest PRIVATE gtest gtest_main ${CMAKE_CURRENT_BINARY_DIR}/intSimulation.o modelica::runtime)
-target_include_directories(intSimulationTest PUBLIC include PRIVATE src)
-target_compile_features(intSimulationTest PUBLIC cxx_std_17)
-add_dependencies(intSimulationTest genIntSim)
+	### Creates the actual test 
+	add_executable(${simulationName}Test ${testSrc})
+	add_executable(modelica::${simulationName}Test ALIAS ${simulationName}Test) 
+	target_link_libraries(${simulationName}Test PRIVATE gtest gtest_main ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.o modelica::runtime)
+	target_include_directories(${simulationName}Test PUBLIC include PRIVATE src)
+	target_compile_features(${simulationName}Test PUBLIC cxx_std_17)
+	add_dependencies(${simulationName}Test gen${simulationName})
 
-gtest_add_tests(TARGET      intSimulationTest
-                TEST_SUFFIX .noArgs
-                TEST_LIST   noArgsTests
-)
+	gtest_add_tests(TARGET		${simulationName}Test
+					TEST_SUFFIX .noArgs
+					TEST_LIST   noArgsTests
+	)
+endmacro(addLowererSimulationTest)
+
+addLowererSimulationTest(intSimulation src/IntTestGenerator.cpp src/IntSimulationTest.cpp)
 

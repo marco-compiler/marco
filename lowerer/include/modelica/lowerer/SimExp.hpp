@@ -32,6 +32,19 @@ namespace modelica
 		conditional
 	};
 
+	/**
+	 * This is a compile time polimorfic class that can be any kind of expression
+	 * costants, references, calls...
+	 *
+	 * There is no need to perform manual dynamic cast, all the informations
+	 * can be queried with the getter such as isConstant, there are no derived.
+	 *
+	 * SimExp is standard type and can be copied, moved and compared, but it's
+	 * large enough that it's not cheap to copy, and if copied instead of moved
+	 * all the sub elements will be copied as well. So try to move and copy it
+	 * as little as possible and pass it as reference.
+	 *
+	 */
 	class SimExp
 	{
 		public:
