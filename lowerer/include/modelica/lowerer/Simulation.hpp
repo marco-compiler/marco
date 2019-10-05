@@ -134,7 +134,6 @@ namespace modelica
 		}
 
 		private:
-		llvm::Function* makePrivateFunction(llvm::StringRef name);
 		llvm::LLVMContext& context;
 		llvm::Module module;
 		llvm::StringMap<SimExp> variables;

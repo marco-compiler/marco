@@ -9,6 +9,20 @@ using namespace llvm;
 
 constexpr auto internalLinkage = GlobalValue::LinkageTypes::InternalLinkage;
 
+static FunctionType* getVoidType(LLVMContext& context)
+{
+	return FunctionType::get(Type::getVoidTy(context), false);
+}
+
+static Function* makePrivateFunction(StringRef name, Module& m)
+{
+	auto function = m.getOrInsertFunction(name, getVoidType(m.getContext()));
+	auto f = dyn_cast<Function>(function);
+	BasicBlock::Create(function->getContext(), "entry", f);
+	f->setLinkage(internalLinkage);
+	return f;
+}
+
 static Type* builtInToLLVMType(LLVMContext& context, BultinSimTypes type)
 {
 	switch (type)
@@ -50,20 +64,15 @@ static void createGlobal(
 	global->setInitializer(constant);
 }
 
-static FunctionType* getVoidType(LLVMContext& context)
-{
-	return FunctionType::get(Type::getVoidTy(context), false);
-}
-
 template<typename T>
 static Value* makeStore(
 		IRBuilder<>& builder, T value, Type* llvmType, Value* location)
 {
-	if constexpr (std::is_same<T, int>::value)
+	if constexpr (is_same<T, int>::value)
 		return builder.CreateStore(ConstantInt::get(llvmType, value), location);
-	else if constexpr (std::is_same<T, bool>::value)
+	else if constexpr (is_same<T, bool>::value)
 		return builder.CreateStore(ConstantInt::get(llvmType, value), location);
-	else if constexpr (std::is_same<T, float>::value)
+	else if constexpr (is_same<T, float>::value)
 		return builder.CreateStore(ConstantFP::get(llvmType, value), location);
 
 	assert(false);	// NOLINT
@@ -203,7 +212,7 @@ static Value* lowerExpression(
 		{
 			assert(subExp.size() == 3);	// NOLINT
 			// TODO
-			assert(false && "powerof unsupported");	// NOLINT
+			assert(false && "conditional unsupported");	// NOLINT
 			return nullptr;
 		}
 	}
@@ -231,13 +240,17 @@ static Value* lowerExp(IRBuilder<>& builder, const SimExp& exp)
 	return lowerExpression(builder, exp, values);
 }
 
-static void populateMain(
-		Function* main,
+static Function* populateMain(
+		Module& m,
+		StringRef entryPointName,
 		Function* init,
 		Function* update,
 		Function* printValues,
 		unsigned simulationStop)
 {
+	auto main = makePrivateFunction(entryPointName, m);
+	main->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
+
 	// Creates the 3 basic blocks
 	auto condition = BasicBlock::Create(main->getContext(), "condition", main);
 	auto loopBody = BasicBlock::Create(main->getContext(), "loopBody", main);
@@ -279,6 +292,16 @@ static void populateMain(
 
 	builder.SetInsertPoint(exit);
 	builder.CreateRet(nullptr);
+	return main;
+}
+
+static void insertGlobalString(Module& m, StringRef name, StringRef content)
+{
+	auto str = ConstantDataArray::getString(m.getContext(), content);
+	auto type = ArrayType::get(
+			IntegerType::getInt8Ty(m.getContext()), content.size() + 1);
+	auto global = m.getOrInsertGlobal(name, type);
+	dyn_cast<GlobalVariable>(global)->setInitializer(str);
 }
 
 static void insertGlobal(
@@ -290,97 +313,95 @@ static void insertGlobal(
 	createGlobal(module, name, exp, linkage);
 	createGlobal(module, name.str() + "_old", exp, linkage);
 
-	std::string varName = name.str() + "_str";
-	auto str = ConstantDataArray::getString(module.getContext(), name);
-	auto type = ArrayType::get(
-			IntegerType::getInt8Ty(module.getContext()), name.size() + 1);
-	auto global = module.getOrInsertGlobal(varName, type);
-	dyn_cast<GlobalVariable>(global)->setInitializer(str);
+	insertGlobalString(module, name.str() + "_str", name);
+}
+
+static void createAllGlobals(
+		Module& m, StringMap<SimExp> vars, GlobalValue::LinkageTypes linkType)
+{
+	for_each(begin(vars), end(vars), [&m, linkType](const auto& pair) {
+		insertGlobal(m, pair.first(), pair.second, linkType);
+	});
+}
+
+static Function* initializeGlobals(Module& m, StringMap<SimExp> vars)
+{
+	auto initFunction = makePrivateFunction("init", m);
+	IRBuilder builder(&initFunction->getEntryBlock());
+	for_each(begin(vars), end(vars), [&builder, &m](const auto& pair) {
+		auto val = lowerExp(builder, pair.second);
+		builder.CreateStore(val, m.getGlobalVariable(pair.first(), true));
+		builder.CreateStore(
+				val, m.getGlobalVariable(pair.first().str() + "_old", true));
+	});
+	builder.CreateRet(nullptr);
+	return initFunction;
+}
+
+static Function* createUpdates(Module& m, StringMap<SimExp> upds)
+{
+	auto updateFunction = makePrivateFunction("update", m);
+	IRBuilder bld(&updateFunction->getEntryBlock());
+
+	for_each(begin(upds), end(upds), [&bld, &m](const auto& pair) {
+		auto val = lowerExp(bld, pair.second);
+		bld.CreateStore(val, m.getGlobalVariable(pair.first(), true));
+	});
+	for_each(begin(upds), end(upds), [&bld, &m](const auto& pair) {
+		auto globalVal = m.getGlobalVariable(pair.first(), true);
+		auto val = bld.CreateLoad(globalVal);
+
+		bld.CreateStore(
+				val, m.getGlobalVariable(pair.first().str() + "_old", true));
+	});
+
+	bld.CreateRet(nullptr);
+	return updateFunction;
+}
+
+static Function* populatePrint(Module& m, StringMap<SimExp> vars)
+{
+	auto printFunction = makePrivateFunction("print", m);
+	IRBuilder bld(&printFunction->getEntryBlock());
+
+	auto charType = IntegerType::getInt8Ty(m.getContext());
+	auto floatType = IntegerType::getFloatTy(m.getContext());
+	auto charPtrType = PointerType::get(charType, 0);
+	SmallVector<Type*, 2> args({ charPtrType, floatType });
+	auto printType =
+			FunctionType::get(Type::getVoidTy(m.getContext()), args, false);
+	auto externalPrint =
+			dyn_cast<Function>(m.getOrInsertFunction("modelicaPrint", printType));
+
+	for_each(
+			begin(vars),
+			end(vars),
+			[&bld, &m, externalPrint, floatType, charPtrType](const auto& pair) {
+				auto strName = m.getGlobalVariable(pair.first().str() + "_str");
+				auto charStar = bld.CreateBitCast(strName, charPtrType);
+
+				auto value = bld.CreateLoad(m.getGlobalVariable(pair.first(), true));
+				auto casted = bld.CreateCast(Instruction::SIToFP, value, floatType);
+				SmallVector<Value*, 2> args({ charStar, casted });
+				bld.CreateCall(externalPrint, args);
+			});
+	bld.CreateRet(nullptr);
+	return printFunction;
 }
 
 void Simulation::lower()
 {
-	auto initFunction = makePrivateFunction("init");
-	auto updateFunction = makePrivateFunction("update");
-	auto mainFunction = makePrivateFunction(entryPointName);
-	auto printFunction = makePrivateFunction("print");
-	mainFunction->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
-
-	auto& module = this->module;
-	std::for_each(
-			variables.begin(),
-			variables.end(),
-			[&module, linkage = getVarLinkage()](const auto& pair) {
-				insertGlobal(module, pair.first(), pair.second, linkage);
-			});
-
-	IRBuilder builder(&initFunction->getEntryBlock());
-	std::for_each(
-			variables.begin(),
-			variables.end(),
-			[&builder, &module](const auto& pair) {
-				auto val = lowerExp(builder, pair.second);
-				builder.CreateStore(val, module.getGlobalVariable(pair.first(), true));
-				builder.CreateStore(
-						val, module.getGlobalVariable(pair.first().str() + "_old", true));
-			});
-	builder.CreateRet(nullptr);
-	builder.SetInsertPoint(&updateFunction->getEntryBlock());
-
-	std::for_each(
-			updates.begin(), updates.end(), [&builder, &module](const auto& pair) {
-				auto val = lowerExp(builder, pair.second);
-				builder.CreateStore(val, module.getGlobalVariable(pair.first(), true));
-			});
-	std::for_each(
-			updates.begin(), updates.end(), [&builder, &module](const auto& pair) {
-				auto globalVal = module.getGlobalVariable(pair.first(), true);
-				auto val = builder.CreateLoad(globalVal);
-
-				builder.CreateStore(
-						val, module.getGlobalVariable(pair.first().str() + "_old", true));
-			});
-
-	builder.CreateRet(nullptr);
-
+	createAllGlobals(module, variables, getVarLinkage());
+	auto initFunction = initializeGlobals(module, variables);
+	auto updateFunction = createUpdates(module, updates);
+	auto printFunction = populatePrint(module, variables);
 	populateMain(
-			mainFunction, initFunction, updateFunction, printFunction, stopTime);
-
-	builder.SetInsertPoint(&printFunction->getEntryBlock());
-
-	auto charType = IntegerType::getInt8Ty(module.getContext());
-	auto floatType = IntegerType::getFloatTy(module.getContext());
-	auto charPtrType = PointerType::get(charType, 0);
-	SmallVector<Type*, 2> args({ charPtrType, floatType });
-	auto printType =
-			FunctionType::get(Type::getVoidTy(module.getContext()), args, false);
-	auto externalPrint = dyn_cast<Function>(
-			module.getOrInsertFunction("modelicaPrint", printType));
-
-	std::for_each(
-			variables.begin(),
-			variables.end(),
-			[&builder, &module, externalPrint, floatType, charPtrType](
-					const auto& pair) {
-				auto strName = module.getGlobalVariable(pair.first().str() + "_str");
-				auto charStar = builder.CreateBitCast(strName, charPtrType);
-
-				auto value =
-						builder.CreateLoad(module.getGlobalVariable(pair.first(), true));
-				auto casted = builder.CreateCast(Instruction::SIToFP, value, floatType);
-				SmallVector<Value*, 2> args({ charStar, casted });
-				builder.CreateCall(externalPrint, args);
-			});
-	builder.CreateRet(nullptr);
-}
-
-Function* Simulation::makePrivateFunction(StringRef name)
-{
-	auto function = module.getOrInsertFunction(name, getVoidType(context));
-	auto f = dyn_cast<Function>(function);
-	BasicBlock::Create(function->getContext(), "entry", f);
-	f->setLinkage(internalLinkage);
-	return f;
+			module,
+			entryPointName,
+			initFunction,
+			updateFunction,
+			printFunction,
+			stopTime);
 }
 
 void Simulation::dump(raw_ostream& OS) const
@@ -393,10 +414,10 @@ void Simulation::dump(raw_ostream& OS) const
 	};
 
 	OS << "Init:\n";
-	std::for_each(variables.begin(), variables.end(), dumpEquation);
+	for_each(begin(variables), end(variables), dumpEquation);
 
 	OS << "Update:\n";
-	std::for_each(updates.begin(), updates.end(), dumpEquation);
+	for_each(begin(updates), end(updates), dumpEquation);
 }
 
 void Simulation::dumpBC(raw_ostream& OS) const
