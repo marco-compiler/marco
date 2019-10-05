@@ -36,9 +36,9 @@ namespace modelica
 		}
 
 		/**
-		 * requires index < size()
+		 * \require index < size()
 		 *
-		 * returns the element at the indexth position.
+		 * \return the element at the indexth position.
 		 */
 		[[nodiscard]] C get(size_t index) const
 		{
@@ -49,14 +49,14 @@ namespace modelica
 		[[nodiscard]] size_t size() const { return content.size(); }
 
 		/**
-		 * Return true iff every element is equal and have the same size
+		 * \return true iff every element is equal and have the same size
 		 */
 		bool operator==(const SimConst& other) const
 		{
 			return other.content == content;
 		}
 		/**
-		 * Negation of operator ==
+		 * \return Negation of operator ==
 		 */
 		bool operator!=(const SimConst& other) const { return !(*this == other); }
 

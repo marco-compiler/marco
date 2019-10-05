@@ -60,12 +60,12 @@ namespace modelica
 		}
 
 		/**
-		 * Returns the bultin type.
+		 * \return the bultin type.
 		 */
 		[[nodiscard]] BultinSimTypes getBuiltin() const { return builtinSimType; }
 
 		/**
-		 * Return the number of dimensions of this vector.
+		 * \return the number of dimensions of this vector.
 		 *
 		 * Example: int x[10][10] has two dimensions.
 		 */
@@ -75,9 +75,9 @@ namespace modelica
 		}
 
 		/**
-		 * Return the size of a particular dimension
+		 * \return the size of a particular dimension
 		 *
-		 * Predocondition: index < getDimensionCount()
+		 * \require index < getDimensionCount()
 		 *
 		 * Example: int x[10][5] x.getDimension(1) = 5
 		 *
@@ -89,7 +89,7 @@ namespace modelica
 		}
 
 		/**
-		 * Deep check for equality. Two types are equal iff
+		 * \return Deep check for equality. Two types are equal iff
 		 * the builtin type is equal and every dimension is equal and
 		 * the number of dimensions is the same
 		 */
@@ -102,12 +102,12 @@ namespace modelica
 		}
 
 		/**
-		 * Inverse of operator ==
+		 * \return Inverse of operator ==
 		 */
 		bool operator!=(const SimType& other) const { return !(*this == other); }
 
 		/**
-		 * Return the total element count of the array
+		 * \return the total element count of the array
 		 *
 		 * Example: int x[10][20] x.flatSize() = 200
 		 */

@@ -14,9 +14,10 @@ namespace modelica
 	enum class SimExpKind
 	{
 		zero,
-		negate,
 
-		add,
+		negate,	// unary expressions
+
+		add,	// binary expressions
 		sub,
 		mult,
 		divide,
@@ -29,7 +30,7 @@ namespace modelica
 		elevation,
 		module,
 
-		conditional
+		conditional	// thernary expressions
 	};
 
 	/**
@@ -48,6 +49,10 @@ namespace modelica
 	class SimExp
 	{
 		public:
+		/**
+		 * An operation is a class that holds all the informations regarding how to
+		 * calculate the value of an expression that cointains subexpressions.
+		 */
 		class Operation
 		{
 			public:
@@ -63,22 +68,36 @@ namespace modelica
 			{
 			}
 
+			/**
+			 * \return true if the operation only require one parameter.
+			 */
 			[[nodiscard]] bool isUnary() const
 			{
 				return kind >= SimExpKind::negate && kind <= SimExpKind::negate;
 			}
 
+			/**
+			 * \return true if the operation require exactly two parameters.
+			 */
 			[[nodiscard]] bool isBinary() const
 			{
 				return kind >= SimExpKind::add && kind <= SimExpKind::module;
 			}
 
+			/**
+			 * \return true if the operation requires exactly three parameters.
+			 */
 			[[nodiscard]] bool isTernary() const
 			{
 				return kind >= SimExpKind::conditional &&
 							 kind <= SimExpKind::conditional;
 			}
 
+			/**
+			 * \return the first sub expression, that is the only
+			 * expression of a unary expression and the left argument
+			 * of binary and thernary operations.
+			 */
 			[[nodiscard]] const SimExp& getLeftHand() const
 			{
 				assert(isUnary() || isBinary() || isTernary());	// NOLINT
@@ -91,6 +110,11 @@ namespace modelica
 				return *leftHandExpression;
 			}
 
+			/**
+			 * \require isBinary() || isTernary()
+			 *
+			 * \return the second second element of the expression.
+			 */
 			[[nodiscard]] const SimExp& getRightHand() const
 			{
 				assert(isBinary() || isTernary());	// NOLINT
@@ -103,6 +127,11 @@ namespace modelica
 				return *rightHandExpression;
 			}
 
+			/**
+			 * \require isTernay()
+			 *
+			 * \return the conditional expression in a if esle expression
+			 */
 			[[nodiscard]] SimExp& getCondition()
 			{
 				assert(isTernary());	// NOLINT
@@ -117,18 +146,14 @@ namespace modelica
 
 			[[nodiscard]] SimExpKind getKind() const { return kind; }
 
-			Operation& operator=(Operation&& other)
-			{
-				kind = other.kind;
-				leftHandExpression = std::move(other.leftHandExpression);
-				rightHandExpression = std::move(other.rightHandExpression);
-				condition = std::move(other.condition);
-				return *this;
-			}
+			Operation& operator=(Operation&& other) = default;
 
 			Operation(Operation&& other) = default;
 			~Operation() = default;
 
+			/**
+			 * Copy Constructor, copies the whole content of the other operation
+			 */
 			Operation(const Operation& other): kind(other.kind)
 			{
 				if (other.leftHandExpression != nullptr)
@@ -142,6 +167,9 @@ namespace modelica
 					condition = std::make_unique<SimExp>(*(other.condition));
 			}
 
+			/**
+			 * Move assigment operator
+			 */
 			Operation& operator=(const Operation& other)
 			{
 				kind = other.kind;
@@ -157,6 +185,10 @@ namespace modelica
 				return *this;
 			}
 
+			/**
+			 * \return deep equality, check the two expressions are equivalent, that
+			 * is every subelement is equal
+			 */
 			bool operator==(const Operation& other) const
 			{
 				if (other.kind != kind)
@@ -175,6 +207,10 @@ namespace modelica
 
 				return true;
 			}
+
+			/**
+			 * \return the inverse of operator ==
+			 */
 			bool operator!=(const Operation& other) const
 			{
 				return !(*this == other);
@@ -197,12 +233,21 @@ namespace modelica
 			std::unique_ptr<SimExp> condition;
 		};
 
+		/**
+		 * Builds a reference expression based on the provided name
+		 * of a var, and the type in which the values of that var will be casted.
+		 */
 		template<typename... T>
 		SimExp(std::string ref, BultinSimTypes type, T... dimensions)
 				: content(std::move(ref)), returnSimType(type, dimensions...)
 		{
 		}
 
+		/**
+		 * Builds a constant expression with the provided constant and the
+		 * specified type in which the constant will be casted into. By default the
+		 * type is deduced from the constant
+		 */
 		template<typename C>
 		SimExp(
 				SimConst<C> constant,
@@ -210,14 +255,29 @@ namespace modelica
 				: content(std::move(constant)), returnSimType(std::move(returnSimType))
 		{
 		}
+
+		/**
+		 * \brief Dumps the expression value into a human readable from to the
+		 * provided raw_ostream by default it's standard out
+		 */
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
+		/**
+		 * \brief Builds a expression that is the negation of the provided one.
+		 * \warning Remember to move the expression instead of copying them each
+		 * time.
+		 */
 		[[nodiscard]] static SimExp negate(SimExp exp)
 		{
 			return SimExp(
 					SimExpKind::negate, std::make_unique<SimExp>(std::move(exp)));
 		}
 
+		/**
+		 * \brief Creates a add expression based on two values.
+		 * \warning Remember to move the two expression instead of copying them each
+		 * time.
+		 */
 		[[nodiscard]] static SimExp add(SimExp lhs, SimExp rhs)
 		{
 			return SimExp(
@@ -226,6 +286,11 @@ namespace modelica
 					std::make_unique<SimExp>(std::move(rhs)));
 		}
 
+		/**
+		 * \brief Creates a minus expression based on two values.
+		 * \warning Remember to move the two expression instead of copying them each
+		 * time.
+		 */
 		[[nodiscard]] static SimExp subtract(SimExp lhs, SimExp rhs)
 		{
 			return SimExp(
@@ -234,6 +299,11 @@ namespace modelica
 					std::make_unique<SimExp>(std::move(rhs)));
 		}
 
+		/**
+		 * \brief Creates a multiply expression based on two values.
+		 * \warning Remember to move the two expression instead of copying them each
+		 * time.
+		 */
 		[[nodiscard]] static SimExp multiply(SimExp lhs, SimExp rhs)
 		{
 			return SimExp(
@@ -242,6 +312,11 @@ namespace modelica
 					std::make_unique<SimExp>(std::move(rhs)));
 		}
 
+		/**
+		 * \brief Creates a divions expression based on two values.
+		 * \warning Remember to move the two expression instead of copying them each
+		 * time.
+		 */
 		[[nodiscard]] static SimExp divide(SimExp lhs, SimExp rhs)
 		{
 			return SimExp(
@@ -250,42 +325,90 @@ namespace modelica
 					std::make_unique<SimExp>(std::move(rhs)));
 		}
 
+		/**
+		 * \brief Short hand for SimExp::negate
+		 *
+		 * \warning Notice that using the short hand will move the content no matter
+		 * what
+		 */
 		[[nodiscard]] SimExp operator!()
 		{
 			return SimExp::negate(std::move(*this));
 		}
 
+		/**
+		 * \brief Short hand for SimExp::add
+		 *
+		 * \warning Notice that using the short hand will move the content no matter
+		 * what.
+		 */
 		[[nodiscard]] SimExp operator+(const SimExp& other)
 		{
 			return SimExp::add(std::move(*this), std::move(other));
 		}
 
+		/**
+		 * \brief Short hand for SimExp::subtract
+		 *
+		 * \warning Notice that using the short hand will move the content no matter
+		 * what.
+		 */
 		[[nodiscard]] SimExp operator-(const SimExp& other)
 		{
 			return SimExp::subtract(std::move(*this), std::move(other));
 		}
 
+		/**
+		 * \brief Short hand for SimExp::divide
+		 *
+		 * \warning Notice that using the short hand will move the content no matter
+		 * what.
+		 */
 		[[nodiscard]] SimExp operator/(const SimExp& other)
 		{
 			return SimExp::divide(std::move(*this), std::move(other));
 		}
 
+		/**
+		 * \brief Short hand for SimExp::multiply
+		 *
+		 * \warning Notice that using the short hand will move the content no matter
+		 * what.
+		 */
+		[[nodiscard]] SimExp operator*(const SimExp& other)
+		{
+			return SimExp::multiply(std::move(*this), std::move(other));
+		}
+
+		/**
+		 * \return true if the expression is a holding any kind of constant
+		 */
 		[[nodiscard]] bool isConstant() const
 		{
 			return !isOperation() && !isReference();
 		}
 
+		/**
+		 * \return true if the expression is holding the expression of type C
+		 */
 		template<typename C>
 		[[nodiscard]] bool isConstant() const
 		{
 			return std::holds_alternative<SimConst<C>>(content);
 		}
 
+		/**
+		 * \return true if the expression is holding an operation
+		 */
 		[[nodiscard]] bool isOperation() const
 		{
 			return std::holds_alternative<Operation>(content);
 		}
 
+		/**
+		 * \pre isConstant<C>()
+		 * \return the constant holded by this expression.
+		 */
 		template<typename C>
 		[[nodiscard]] const SimConst<C>& getConstant() const
 		{
@@ -293,6 +416,10 @@ namespace modelica
 			return std::get<SimConst<C>>(content);
 		}
 
+		/**
+		 * \pre isConstant<C>()
+		 * \return the constant holded by this expression.
+		 */
 		template<typename C>
 		[[nodiscard]] SimConst<C>& getConstant()
 		{
@@ -300,81 +427,140 @@ namespace modelica
 			return std::get<SimConst<C>>(content);
 		}
 
+		/**
+		 * \pre isOperation()
+		 * \return true if the operation is unary
+		 */
 		[[nodiscard]] bool isUnary() const
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().isUnary();
 		}
 
+		/**
+		 * \pre isOperation()
+		 * \return true if the operation is binary
+		 */
 		[[nodiscard]] bool isBinary() const
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().isBinary();
 		}
 
+		/**
+		 * \pre isOperation()
+		 * \return true if the operation is ternary
+		 */
 		[[nodiscard]] bool isTernary() const
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().isTernary();
 		}
 
+		/**
+		 * \pre isOperation()
+		 * \return the left hand expression, or the only subexpression
+		 * if it's a unary expression
+		 */
 		[[nodiscard]] const SimExp& getLeftHand() const
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getLeftHand();
 		}
 
+		/**
+		 * \pre isOperation()
+		 * \return the left hand expression, or the only subexpression
+		 * if it's a unary expression
+		 */
 		[[nodiscard]] SimExp& getLeftHand()
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getLeftHand();
 		}
 
+		/**
+		 * \pre isOperation()
+		 * \return the right hand expression
+		 */
 		[[nodiscard]] const SimExp& getRightHand() const
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getRightHand();
 		}
 
+		/**
+		 * \pre isOperation()
+		 * \return the right hand expression
+		 */
 		[[nodiscard]] SimExp& getRightHand()
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getRightHand();
 		}
 
+		/**
+		 * \pre isOperation()
+		 * \return the condition of a conditional expression
+		 */
 		[[nodiscard]] SimExp& getCondition()
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getCondition();
 		}
 
+		/**
+		 * \pre isOperation()
+		 * \return the condition of a conditional expression
+		 */
 		[[nodiscard]] const SimExp& getCondition() const
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getCondition();
 		}
 
+		/**
+		 * \pre isOperation()
+		 * \return The kind of the expression
+		 */
 		[[nodiscard]] SimExpKind getKind() const
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().getKind();
 		}
 
+		/**
+		 * \return True iff the two expression are deeply equal, that is if every
+		 * sub expression is equal to the other subexpressions.
+		 */
 		bool operator==(const SimExp& other) const
 		{
 			if (content != other.content)
 				return false;
 			return returnSimType == other.returnSimType;
 		}
+
+		/**
+		 * \return The inverse of operator ==
+		 */
 		bool operator!=(const SimExp& other) const { return !(*this == other); }
 
+		/**
+		 * \return The type in which this expression will be casted into.
+		 */
 		[[nodiscard]] const SimType& getSimType() const { return returnSimType; }
 
+		/**
+		 * \return True if it's a reference to a variable
+		 */
 		[[nodiscard]] bool isReference() const
 		{
 			return std::holds_alternative<std::string>(content);
 		}
 
+		/**
+		 * \return True if it's a reference to a variable
+		 */
 		[[nodiscard]] const std::string& getReference() const
 		{
 			assert(isReference());	// NOLINT
@@ -426,6 +612,15 @@ namespace modelica
 		SimType returnSimType;
 	};
 
+	/**
+	 * Visitor is class that must implement void visit(SimExp&) and
+	 * void afterVisit(SimExp&). visit will be called for every sub expression of
+	 * exp (exp included) if top down order. AfterVisit will be invoked after each
+	 * children has been visited.
+	 *
+	 * You can implement a empty afterVisit to obtain a topDown visitor and not
+	 * implement visit to get a bottomUpVisitor.
+	 */
 	template<typename SimExp, typename Visitor>
 	void visit(SimExp& exp, Visitor& visitor)
 	{
