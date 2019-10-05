@@ -10,6 +10,7 @@ using namespace cl;
 
 opt<string> outputFile("bc", cl::desc("<output-file>"), cl::init("-"));
 
+ExitOnError exitOnErr;
 int main(int argc, char* argv[])
 {
 	ParseCommandLineOptions(argc, argv);
@@ -27,7 +28,7 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 	sim.dump(outs());
-	sim.lower();
+	exitOnErr(sim.lower());
 	sim.dumpBC(OS);
 
 	return 0;

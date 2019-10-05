@@ -3,6 +3,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "modelica/lowerer/SimErrors.hpp"
 #include "modelica/lowerer/SimExp.hpp"
 
 namespace modelica
@@ -92,7 +93,7 @@ namespace modelica
 		 * \return a error if there were missing references or if a type missmatch
 		 * was encountered.
 		 */
-		void lower();
+		llvm::Error lower();
 
 		/**
 		 * dumpds a human readable rappresentation of the simulation to OS, standard
