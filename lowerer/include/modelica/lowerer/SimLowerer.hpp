@@ -9,9 +9,11 @@ namespace modelica
 	 * \brief create a function with internal linkage in the provided module and
 	 * provided name.
 	 *
-	 * \return the created function
+	 * \return the created function, FunctionAlreadyExists if the function already
+	 * existed
 	 */
-	llvm::Function* makePrivateFunction(llvm::StringRef name, llvm::Module& m);
+	llvm::Expected<llvm::Function*> makePrivateFunction(
+			llvm::StringRef name, llvm::Module& m);
 
 	/**
 	 * creates a type from a SimType
@@ -70,6 +72,22 @@ namespace modelica
 	 *
 	 * \return the loadInst
 	 */
-	llvm::Value* lowerReference(llvm::IRBuilder<>& builder, llvm::StringRef exp);
+	llvm::Expected<llvm::Value*> lowerReference(
+			llvm::IRBuilder<>& builder, llvm::StringRef exp);
+
+	/**
+	 * Creates a for cycle that last interationsCount iterations
+	 * that will be inserted as next last instruction in the entry block
+	 * The caller will provide whileContent that will produce the actual body of
+	 * the loop.
+	 *
+	 * \return the exit point of the loop, that is the basick block that will
+	 * always be executed at some point.
+	 */
+	llvm::BasicBlock* createForCycle(
+			llvm::Function& function,
+			llvm::BasicBlock& entryBlock,
+			size_t iterationCount,
+			std::function<void(llvm::IRBuilder<>&)> whileContent);
 
 }	// namespace modelica

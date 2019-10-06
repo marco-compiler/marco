@@ -257,6 +257,24 @@ namespace modelica
 		}
 
 		/**
+		 * \return true if it's not an operation or if every subexpression is
+		 * compatible
+		 */
+		[[nodiscard]] bool areSubExpressionCompatibles() const
+		{
+			if (!isOperation())
+				return true;
+
+			auto compatible =
+					getLeftHand().getSimType().canBeCastedInto(getSimType());
+
+			if (!isBinary())
+				return compatible;
+			return compatible &&
+						 getRightHand().getSimType().canBeCastedInto(getSimType());
+		}
+
+		/**
 		 * \brief Dumps the expression value into a human readable from to the
 		 * provided raw_ostream by default it's standard out
 		 */

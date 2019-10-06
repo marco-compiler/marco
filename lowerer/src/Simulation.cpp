@@ -9,29 +9,32 @@ using namespace modelica;
 using namespace llvm;
 
 template<typename T>
-static Value* lowerConstant(
+static Expected<AllocaInst*> lowerConstant(
 		IRBuilder<> builder, const SimConst<T>& constant, const SimType& type)
 {
+	if (constant.size() != type.flatSize())
+		return make_error<TypeConstantSizeMissMatch>(constant, type);
+
 	auto llvmType = typeToLLVMType(builder.getContext(), type);
 	auto alloca = builder.CreateAlloca(llvmType);
-	if (type.getDimensionsCount() == 0)
-	{
-		makeConstantStore<T>(builder, constant.get(0), llvmType, alloca);
-		return builder.CreateLoad(alloca);
-	}
-
 	auto intType = Type::getInt32Ty(builder.getContext());
+
 	for (size_t i = 0; i < constant.size(); i++)
 	{
 		auto index = ConstantInt::get(intType, i);
 		auto element = builder.CreateGEP(alloca, index);
 
-		makeConstantStore<T>(builder, constant.get(i), llvmType, element);
+		auto ptrToElem = builder.CreateBitCast(
+				element, llvmType->getContainedType(0)->getPointerTo(0));
+
+		makeConstantStore<T>(
+				builder, constant.get(i), llvmType->getContainedType(0), ptrToElem);
 	}
 	return alloca;
 }
 
-static Value* lowerConstant(IRBuilder<>& builder, const SimExp& exp)
+static Expected<AllocaInst*> lowerConstant(
+		IRBuilder<>& builder, const SimExp& exp)
 {
 	if (exp.isConstant<int>())
 		return lowerConstant<int>(
@@ -43,92 +46,128 @@ static Value* lowerConstant(IRBuilder<>& builder, const SimExp& exp)
 		return lowerConstant<bool>(
 				builder, exp.getConstant<bool>(), exp.getSimType());
 
+	assert(false && "unreachable");	// NOLINT
 	return nullptr;
 }
 
-static Value* lowerExpression(
-		IRBuilder<>& builder, const SimExp& exp, SmallVector<Value*, 0>& subExp)
+template<int argumentsSize>
+static AllocaInst* elementWiseOperation(
+		IRBuilder<>& builder,
+		array<Value*, argumentsSize> args,
+		std::function<Value*(IRBuilder<>&, array<Value*, argumentsSize>&)>
+				operation)
 {
+	auto ptrType = dyn_cast<PointerType>(args.at(0)->getType());
+	auto arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
+	auto fondamentalType = arrayType->getContainedType(0);
+	auto ptrToFoundamental = fondamentalType->getPointerTo(0);
+
+	auto alloca = builder.CreateAlloca(arrayType);
+	auto intType = Type::getInt32Ty(builder.getContext());
+
+	for (size_t a = 0; a < arrayType->getNumElements(); a++)
+	{
+		auto index = ConstantInt::get(intType, a);
+
+		array<Value*, argumentsSize> arguments;
+		for (int i = 0; i < argumentsSize; i++)
+		{
+			auto ptr = builder.CreateGEP(args.at(i), index);
+			auto ptrToSingle = builder.CreateBitCast(ptr, ptrToFoundamental);
+			arguments.at(i) = builder.CreateLoad(ptrToSingle);
+		}
+
+		auto outVal = operation(builder, arguments);
+		auto outPtr = builder.CreateGEP(alloca, index);
+		auto outPtrSingle = builder.CreateBitCast(outPtr, ptrToFoundamental);
+		builder.CreateStore(outVal, outPtrSingle);
+	}
+	return alloca;
+}
+
+static Expected<AllocaInst*> lowerOperation(
+		IRBuilder<>& builder, const SimExp& exp, SmallVector<Value*, 3>& subExp)
+{
+	const auto unaryOp = [type = exp.getKind()](
+													 IRBuilder<>& builder,
+													 array<Value*, 1> args) -> Value* {
+		switch (type)
+		{
+			case SimExpKind::negate:
+				return builder.CreateNeg(args[0]);
+			default:
+				assert(false && "unreachable");	// NOLINT
+				return nullptr;
+		}
+	};
+	const auto binaryOp = [type = exp.getKind()](
+														IRBuilder<>& builder,
+														array<Value*, 2> args) -> Value* {
+		switch (type)
+		{
+			case SimExpKind::add:
+				return builder.CreateAdd(args[0], args[1]);
+			case SimExpKind::sub:
+				return builder.CreateSub(args[0], args[1]);
+			case SimExpKind::mult:
+				return builder.CreateMul(args[0], args[1]);
+			case SimExpKind::divide:
+			{
+				if (!args[0]->getType()->isFloatTy())
+					return builder.CreateSDiv(args[0], args[1]);
+				return builder.CreateFDiv(args[0], args[1]);
+			}
+			case SimExpKind::equal:
+				return builder.CreateICmpEQ(args[0], args[1]);
+			case SimExpKind::different:
+				return builder.CreateICmpNE(args[0], args[1]);
+			case SimExpKind::greaterEqual:
+				return builder.CreateICmpSGE(args[0], args[1]);
+			case SimExpKind::greaterThan:
+				return builder.CreateICmpSGT(args[0], args[1]);
+			case SimExpKind::lessEqual:
+				return builder.CreateICmpSLE(args[0], args[1]);
+			case SimExpKind::less:
+				return builder.CreateICmpSLT(args[0], args[1]);
+			case SimExpKind::module:
+			{
+				// TODO
+				assert(false && "module unsupported");	// NOLINT
+				return nullptr;
+			}
+			case SimExpKind::elevation:
+			{
+				// TODO
+				assert(false && "powerof unsupported");	// NOLINT
+				return nullptr;
+			}
+			default:
+				assert(false && "unreachable");	// NOLINT
+				return nullptr;
+		}
+	};
+
+	if (exp.isUnary())
+	{
+		assert(subExp.size() == 1);	// NOLINT
+		array<Value*, 1> args = { subExp[0] };
+		return elementWiseOperation<1>(builder, args, unaryOp);
+	}
+
+	if (exp.isBinary())
+	{
+		assert(subExp.size() == 2);	// NOLINT
+		array<Value*, 2> args = { subExp[0], subExp[1] };
+		return elementWiseOperation<2>(builder, args, binaryOp);
+	}
+
 	switch (exp.getKind())
 	{
 		case SimExpKind::zero:
 		{
-			assert(subExp.size() == 0);	// NOLINT
-			auto intType = Type::getInt32Ty(builder.getContext());
-			auto loc = builder.CreateAlloca(intType);
-			makeConstantStore<int>(builder, 0, intType, loc);
-			return builder.CreateLoad(intType, loc);
-		}
-		case SimExpKind::negate:
-		{
-			assert(subExp.size() == 1);	// NOLINT
-			return builder.CreateNeg(subExp[0]);
-		}
-		case SimExpKind::add:
-		{
-			assert(subExp.size() == 2);	// NOLINT
-			return builder.CreateAdd(subExp[0], subExp[1]);
-		}
-		case SimExpKind::sub:
-		{
-			assert(subExp.size() == 2);	// NOLINT
-			return builder.CreateSub(subExp[0], subExp[1]);
-		}
-		case SimExpKind::mult:
-		{
-			assert(subExp.size() == 2);	// NOLINT
-			return builder.CreateMul(subExp[0], subExp[1]);
-		}
-		case SimExpKind::divide:
-		{
-			assert(subExp.size() == 2);	// NOLINT
-			if (exp.getLeftHand().getSimType().getBuiltin() != BultinSimTypes::FLOAT)
-				return builder.CreateSDiv(subExp[0], subExp[1]);
-			return builder.CreateFDiv(subExp[0], subExp[1]);
-		}
-		case SimExpKind::equal:
-		{
-			assert(subExp.size() == 2);	// NOLINT
-			return builder.CreateICmpEQ(subExp[0], subExp[1]);
-		}
-		case SimExpKind::different:
-		{
-			assert(subExp.size() == 2);	// NOLINT
-			return builder.CreateICmpNE(subExp[0], subExp[1]);
-		}
-		case SimExpKind::greaterEqual:
-		{
-			assert(subExp.size() == 2);	// NOLINT
-			return builder.CreateICmpSGE(subExp[0], subExp[1]);
-		}
-		case SimExpKind::greaterThan:
-		{
-			assert(subExp.size() == 2);	// NOLINT
-			return builder.CreateICmpSGT(subExp[0], subExp[1]);
-		}
-		case SimExpKind::lessEqual:
-		{
-			assert(subExp.size() == 2);	// NOLINT
-			return builder.CreateICmpSLE(subExp[0], subExp[1]);
-		}
-		case SimExpKind::less:
-		{
-			assert(subExp.size() == 2);	// NOLINT
-			return builder.CreateICmpSLT(subExp[0], subExp[1]);
-		}
-		case SimExpKind::module:
-		{
-			assert(subExp.size() == 2);	// NOLINT
-			// TODO
-			assert(false && "module unsupported");	// NOLINT
-			return nullptr;
-		}
-		case SimExpKind::elevation:
-		{
-			assert(subExp.size() == 2);	// NOLINT
-			// TODO
-			assert(false && "powerof unsupported");	// NOLINT
-			return nullptr;
+			SimType type(BultinSimTypes::INT);
+			IntSimConst constant(0);
+			return lowerConstant(builder, constant, type);
 		}
 		case SimExpKind::conditional:
 		{
@@ -137,14 +176,20 @@ static Value* lowerExpression(
 			assert(false && "conditional unsupported");	// NOLINT
 			return nullptr;
 		}
+		default:
+			assert(false && "unreachable");	// NOLINT
+			return nullptr;
 	}
 	assert(false && "unreachable");	// NOLINT
 	return nullptr;
 }
 
-static Value* lowerExp(IRBuilder<>& builder, const SimExp& exp)
+static Expected<Value*> lowerExp(IRBuilder<>& builder, const SimExp& exp)
 {
-	SmallVector<Value*, 0> values;
+	SmallVector<Value*, 3> values;
+
+	if (!exp.areSubExpressionCompatibles())
+		return make_error<TypeMissMatch>(exp);
 
 	if (exp.isConstant())
 		return lowerConstant(builder, exp);
@@ -153,16 +198,31 @@ static Value* lowerExp(IRBuilder<>& builder, const SimExp& exp)
 		return lowerReference(builder, exp.getReference());
 
 	if (exp.isUnary() || exp.isBinary() || exp.isTernary())
-		values.push_back(lowerExp(builder, exp.getLeftHand()));
+	{
+		auto subexp = lowerExp(builder, exp.getLeftHand());
+		if (!subexp)
+			return subexp;
+		values.push_back(move(*subexp));
+	}
 	if (exp.isBinary() || exp.isTernary())
-		values.push_back(lowerExp(builder, exp.getRightHand()));
+	{
+		auto subexp = lowerExp(builder, exp.getRightHand());
+		if (!subexp)
+			return subexp;
+		values.push_back(move(*subexp));
+	}
 	if (exp.isTernary())
-		values.push_back(lowerExp(builder, exp.getCondition()));
+	{
+		auto subexp = lowerExp(builder, exp.getCondition());
+		if (!subexp)
+			return subexp;
+		values.push_back(move(*subexp));
+	}
 
-	return lowerExpression(builder, exp, values);
+	return lowerOperation(builder, exp, values);
 }
 
-static Function* populateMain(
+static Expected<Function*> populateMain(
 		Module& m,
 		StringRef entryPointName,
 		Function* init,
@@ -170,50 +230,32 @@ static Function* populateMain(
 		Function* printValues,
 		unsigned simulationStop)
 {
-	auto main = makePrivateFunction(entryPointName, m);
+	assert(init != nullptr);				 // NOLINT
+	assert(update != nullptr);			 // NOLINT
+	assert(printValues != nullptr);	// NOLINT
+
+	auto expectedMain = makePrivateFunction(entryPointName, m);
+	if (!expectedMain)
+		return expectedMain;
+	auto main = expectedMain.get();
 	main->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
 
-	// Creates the 3 basic blocks
-	auto condition = BasicBlock::Create(main->getContext(), "condition", main);
-	auto loopBody = BasicBlock::Create(main->getContext(), "loopBody", main);
-	auto exit = BasicBlock::Create(main->getContext(), "exit", main);
-
-	IRBuilder builder(&main->getEntryBlock());
-	auto unsignedInt = Type::getInt32Ty(builder.getContext());
-
+	IRBuilder<> builder(&main->getEntryBlock());
 	// call init
 	builder.CreateCall(init);
 
-	// allocate and initialize counter
-	auto iterationCounter = builder.CreateAlloca(unsignedInt);
-	makeConstantStore<int>(
-			builder, simulationStop, unsignedInt, iterationCounter);
+	const auto forBody = [update, printValues](IRBuilder<>& builder) {
+		builder.CreateCall(update);
+		builder.CreateCall(printValues);
+	};
 
-	// jump to condition bb
-	builder.CreateBr(condition);
+	// creates a for with simulationStop iterations what invokes
+	// update and print values each time
+	auto loopExit =
+			createForCycle(*main, main->getEntryBlock(), simulationStop, forBody);
 
-	// load counter
-	builder.SetInsertPoint(condition);
-	auto value = builder.CreateLoad(unsignedInt, iterationCounter);
-	auto iterCmp =
-			builder.CreateICmpEQ(value, Constant::getNullValue(unsignedInt));
-
-	// brach if equal to zero
-	builder.CreateCondBr(iterCmp, exit, loopBody);
-
-	// invoke update
-	builder.SetInsertPoint(loopBody);
-	builder.CreateCall(update);
-	builder.CreateCall(printValues);
-
-	// load, reduce and store the counter
-	value = builder.CreateLoad(unsignedInt, iterationCounter);
-	auto reducedCounter =
-			builder.CreateSub(value, ConstantInt::get(unsignedInt, 1));
-	builder.CreateStore(reducedCounter, iterationCounter);
-	builder.CreateBr(condition);
-
-	builder.SetInsertPoint(exit);
+	// returns right after the loop
+	builder.SetInsertPoint(loopExit);
 	builder.CreateRet(nullptr);
 	return main;
 }
@@ -254,31 +296,43 @@ static Error createAllGlobals(
 	return Error::success();
 }
 
-static Function* initializeGlobals(Module& m, StringMap<SimExp> vars)
+static Expected<Function*> initializeGlobals(Module& m, StringMap<SimExp> vars)
 {
-	auto initFunction = makePrivateFunction("init", m);
+	auto initFunctionExpected = makePrivateFunction("init", m);
+	if (!initFunctionExpected)
+		return initFunctionExpected;
+	auto initFunction = initFunctionExpected.get();
 	IRBuilder builder(&initFunction->getEntryBlock());
 
 	for (const auto& pair : vars)
 	{
 		auto val = lowerExp(builder, pair.second);
-		builder.CreateStore(val, m.getGlobalVariable(pair.first(), true));
+		if (!val)
+			return val.takeError();
+		auto loaded = builder.CreateLoad(*val);
+		builder.CreateStore(loaded, m.getGlobalVariable(pair.first(), true));
 		builder.CreateStore(
-				val, m.getGlobalVariable(pair.first().str() + "_old", true));
+				loaded, m.getGlobalVariable(pair.first().str() + "_old", true));
 	}
 	builder.CreateRet(nullptr);
 	return initFunction;
 }
 
-static Function* createUpdates(Module& m, StringMap<SimExp> upds)
+static Expected<Function*> createUpdates(Module& m, StringMap<SimExp> upds)
 {
-	auto updateFunction = makePrivateFunction("update", m);
+	auto updateFunctionExpected = makePrivateFunction("update", m);
+	if (!updateFunctionExpected)
+		return updateFunctionExpected;
+	auto updateFunction = updateFunctionExpected.get();
 	IRBuilder bld(&updateFunction->getEntryBlock());
 
 	for (const auto& pair : upds)
 	{
 		auto val = lowerExp(bld, pair.second);
-		bld.CreateStore(val, m.getGlobalVariable(pair.first(), true));
+		if (!val)
+			return val.takeError();
+		auto loaded = bld.CreateLoad(*val);
+		bld.CreateStore(loaded, m.getGlobalVariable(pair.first(), true));
 	}
 	for (const auto& pair : upds)
 	{
@@ -293,11 +347,15 @@ static Function* createUpdates(Module& m, StringMap<SimExp> upds)
 	return updateFunction;
 }
 
-static Function* populatePrint(Module& m, StringMap<SimExp> vars)
+static Expected<Function*> populatePrint(Module& m, StringMap<SimExp> vars)
 {
-	auto printFunction = makePrivateFunction("print", m);
+	auto printFunctionExpected = makePrivateFunction("print", m);
+	if (!printFunctionExpected)
+		return printFunctionExpected;
+	auto printFunction = printFunctionExpected.get();
 	IRBuilder bld(&printFunction->getEntryBlock());
 
+	auto intType = IntegerType::getInt32Ty(m.getContext());
 	auto charType = IntegerType::getInt8Ty(m.getContext());
 	auto floatType = IntegerType::getFloatTy(m.getContext());
 	auto charPtrType = PointerType::get(charType, 0);
@@ -311,11 +369,21 @@ static Function* populatePrint(Module& m, StringMap<SimExp> vars)
 	{
 		auto strName = m.getGlobalVariable(pair.first().str() + "_str");
 		auto charStar = bld.CreateBitCast(strName, charPtrType);
+		auto variable = m.getGlobalVariable(pair.first(), true);
 
-		auto value = bld.CreateLoad(m.getGlobalVariable(pair.first(), true));
-		auto casted = bld.CreateCast(Instruction::SIToFP, value, floatType);
-		SmallVector<Value*, 2> args({ charStar, casted });
-		bld.CreateCall(externalPrint, args);
+		for (size_t a = 0; a < pair.second.getSimType().flatSize(); a++)
+		{
+			auto index = ConstantInt::get(intType, a);
+			auto ptr = bld.CreateGEP(variable, index);
+			auto foundamentalVarType =
+					ptr->getType()->getContainedType(0)->getContainedType(0);
+			auto singleElementPtr =
+					bld.CreateBitCast(ptr, foundamentalVarType->getPointerTo(0));
+			auto value = bld.CreateLoad(singleElementPtr);
+			auto casted = bld.CreateCast(Instruction::SIToFP, value, floatType);
+			SmallVector<Value*, 2> args({ charStar, casted });
+			bld.CreateCall(externalPrint, args);
+		}
 	}
 	bld.CreateRet(nullptr);
 	return printFunction;
@@ -325,16 +393,29 @@ Error Simulation::lower()
 {
 	if (auto e = createAllGlobals(module, variables, getVarLinkage()); e)
 		return e;
+
 	auto initFunction = initializeGlobals(module, variables);
+	if (!initFunction)
+		return initFunction.takeError();
+
 	auto updateFunction = createUpdates(module, updates);
+	if (!updateFunction)
+		return updateFunction.takeError();
+
 	auto printFunction = populatePrint(module, variables);
-	populateMain(
+	if (!printFunction)
+		return printFunction.takeError();
+
+	auto e = populateMain(
 			module,
 			entryPointName,
-			initFunction,
-			updateFunction,
-			printFunction,
+			*initFunction,
+			*updateFunction,
+			*printFunction,
 			stopTime);
+	if (!e)
+		return e.takeError();
+
 	return Error::success();
 }
 

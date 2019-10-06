@@ -4,7 +4,9 @@ using namespace modelica;
 LowererErrorCategory LowererErrorCategory::category;
 char TypeMissMatch::ID;
 char UnkownVariable::ID;
+char FunctionAlreadyExists::ID;
 char GlobalVariableCreationFailure::ID;
+char TypeConstantSizeMissMatch::ID;
 
 std::error_condition modelica::make_error_condition(LowererErrorCode errc)
 {
@@ -23,9 +25,15 @@ LowererErrorCategory::default_error_condition(int ev) const noexcept
 		return std::error_condition(LowererErrorCode::success);
 	if (ev == 1)
 		return std::error_condition(LowererErrorCode::typeMisMatch);
-	if (ev == 2)
+	if (ev == 3)
+		return std::error_condition(LowererErrorCode::unkownVariable);
+	if (ev == 3)
 		return std::error_condition(
 				LowererErrorCode::globalVariableCreationFailure);
+	if (ev == 4)
+		return std::error_condition(LowererErrorCode::functionAlreadyExists);
+	if (ev == 5)
+		return std::error_condition(LowererErrorCode::typeConstantSizeMissMatch);
 
 	return std::error_condition(LowererErrorCode::unkownVariable);
 }
@@ -57,6 +65,10 @@ LowererErrorCategory::default_error_condition(int ev) const noexcept
 			return "Unkown Variable";
 		case 3:
 			return "Global Variable Creation Failure";
+		case 4:
+			return "Function Already Exists";
+		case 5:
+			return "Type Constant Size Missmatch";
 
 		default:
 			return "Unkown Error";

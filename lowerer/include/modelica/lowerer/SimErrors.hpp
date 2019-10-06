@@ -2,6 +2,7 @@
 
 #include <string>
 #include <system_error>
+#include <variant>
 
 #include "llvm/Support/Error.h"
 #include "modelica/lowerer/SimExp.hpp"
@@ -14,7 +15,9 @@ namespace modelica
 		success = 0,
 		typeMisMatch,
 		unkownVariable,
-		globalVariableCreationFailure
+		globalVariableCreationFailure,
+		functionAlreadyExists,
+		typeConstantSizeMissMatch
 	};
 }
 
@@ -64,17 +67,12 @@ namespace modelica
 	{
 		public:
 		static char ID;
-		TypeMissMatch(SimExp leftHand, SimExp rightHand)
-				: leftHand(std::move(leftHand)), rightHand(std::move(rightHand))
-		{
-		}
+		TypeMissMatch(SimExp leftHand): leftHand(std::move(leftHand)) {}
 
 		void log(llvm::raw_ostream& OS) const override
 		{
-			OS << "Type Miss Match Between:\n\t";
+			OS << "Type Miss Match In:\n\t";
 			leftHand.dump(OS);
-			OS << "\n and \n\t";
-			rightHand.dump(OS);
 			OS << '\n';
 		}
 
@@ -85,12 +83,10 @@ namespace modelica
 					LowererErrorCategory::category);
 		}
 
-		[[nodiscard]] const SimExp& getLeftHand() const { return leftHand; }
-		[[nodiscard]] const SimExp& getRightHand() const { return rightHand; }
+		[[nodiscard]] const SimExp& getExp() const { return leftHand; }
 
 		private:
 		SimExp leftHand;
-		SimExp rightHand;
 	};
 
 	class UnkownVariable: public llvm::ErrorInfo<UnkownVariable>
@@ -143,5 +139,69 @@ namespace modelica
 
 		private:
 		std::string varName;
+	};
+
+	class FunctionAlreadyExists: public llvm::ErrorInfo<FunctionAlreadyExists>
+	{
+		public:
+		static char ID;
+		FunctionAlreadyExists(std::string name): varName(std::move(name)) {}
+
+		void log(llvm::raw_ostream& OS) const override
+		{
+			OS << "Could Not Create Already Existing Function: " << varName;
+		}
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(LowererErrorCode::functionAlreadyExists),
+					LowererErrorCategory::category);
+		}
+
+		[[nodiscard]] llvm::StringRef getFunctionName() const { return varName; }
+
+		private:
+		std::string varName;
+	};
+	class TypeConstantSizeMissMatch
+			: public llvm::ErrorInfo<TypeConstantSizeMissMatch>
+	{
+		public:
+		using AnyConstant =
+				std::variant<SimConst<int>, SimConst<float>, SimConst<bool>>;
+		static char ID;
+		TypeConstantSizeMissMatch(AnyConstant cnst, SimType type)
+				: constant(std::move(cnst)), type(std::move(type))
+		{
+		}
+
+		void log(llvm::raw_ostream& OS) const override
+		{
+			OS << "Size missmatch between type:\n\t";
+			type.dump(OS);
+			OS << "\nand\n\t";
+
+			if (std::holds_alternative<IntSimConst>(constant))
+				dumpConstant(std::get<IntSimConst>(constant), OS);
+			else if (std::holds_alternative<FloatSimConst>(constant))
+				dumpConstant(std::get<FloatSimConst>(constant), OS);
+			else if (std::holds_alternative<BoolSimConst>(constant))
+				dumpConstant(std::get<BoolSimConst>(constant), OS);
+		}
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(LowererErrorCode::functionAlreadyExists),
+					LowererErrorCategory::category);
+		}
+
+		[[nodiscard]] const AnyConstant& getConstant() const { return constant; }
+		[[nodiscard]] const SimType& getType() const { return type; }
+
+		private:
+		AnyConstant constant;
+		SimType type;
 	};
 }	// namespace modelica

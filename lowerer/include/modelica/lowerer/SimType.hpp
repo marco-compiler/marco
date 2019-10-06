@@ -2,6 +2,7 @@
 #include <numeric>
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace modelica
 {
@@ -49,6 +50,7 @@ namespace modelica
 	class SimType
 	{
 		public:
+		SimType(BultinSimTypes t): builtinSimType(t), dimensions({ 1 }) {}
 		/**
 		 * Overload that allows to pass an arbitrary number of integer to specify
 		 * the dimensions of a vector.
@@ -119,6 +121,17 @@ namespace modelica
 					1,
 					[](size_t first, size_t second) { return first * second; });
 		}
+
+		/**
+		 * A type is said to be castable into another type if the dimensionalites
+		 * are matching. \return true if the two types can be casted to each other.
+		 */
+		[[nodiscard]] bool canBeCastedInto(const SimType& other) const
+		{
+			return dimensions == other.dimensions;
+		}
+
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
 		private:
 		BultinSimTypes builtinSimType;
