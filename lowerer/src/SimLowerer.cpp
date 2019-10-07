@@ -95,8 +95,7 @@ namespace modelica
 
 		// alocates iteration counter
 		auto iterationCounter = builder.CreateAlloca(unsignedInt);
-		makeConstantStore<int>(
-				builder, iterationCount, unsignedInt, iterationCounter);
+		makeConstantStore<int>(builder, iterationCount, iterationCounter);
 
 		// jump to condition bb
 		builder.CreateBr(condition);

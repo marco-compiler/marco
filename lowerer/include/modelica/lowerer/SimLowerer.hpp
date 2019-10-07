@@ -48,23 +48,13 @@ namespace modelica
 	 */
 	template<typename T>
 	llvm::Value* makeConstantStore(
-			llvm::IRBuilder<>& builder,
-			T value,
-			llvm::Type* llvmType,
-			llvm::Value* location)
+			llvm::IRBuilder<>& builder, T value, llvm::Value* location)
 	{
-		if constexpr (std::is_same<T, int>::value)
-			return builder.CreateStore(
-					llvm::ConstantInt::get(llvmType, value), location);
-		else if constexpr (std::is_same<T, bool>::value)
-			return builder.CreateStore(
-					llvm::ConstantInt::get(llvmType, value), location);
-		else if constexpr (std::is_same<T, float>::value)
-			return builder.CreateStore(
-					llvm::ConstantFP::get(llvmType, value), location);
+		auto ptrType = llvm::dyn_cast<llvm::PointerType>(location->getType());
+		auto underlyingType = ptrType->getContainedType(0);
 
-		assert(false);	// NOLINT
-		return nullptr;
+		return builder.CreateStore(
+				llvm::ConstantInt::get(underlyingType, value), location);
 	}
 
 	/**

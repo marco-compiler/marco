@@ -8,6 +8,44 @@ using namespace std;
 using namespace modelica;
 using namespace llvm;
 
+static Value* getArrayElementPtr(
+		IRBuilder<>& bld, Value* arrayPtr, size_t index)
+{
+	auto ptrType = dyn_cast<PointerType>(arrayPtr->getType());
+	auto arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
+	assert(index <= arrayType->getNumElements());	// NOLINT
+	auto baseType = arrayType->getContainedType(0);
+	auto ptrToBaseType = baseType->getPointerTo(0);
+
+	auto intType = Type::getInt32Ty(bld.getContext());
+	auto i = ConstantInt::get(intType, index);
+	auto element = bld.CreateGEP(arrayPtr, i);
+
+	return bld.CreateBitCast(element, ptrToBaseType);
+}
+
+static void storeToArrayElement(
+		IRBuilder<>& bld, Value* value, Value* arrayPtr, size_t index)
+{
+	auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
+	bld.CreateStore(value, ptrToElem);
+}
+
+template<typename T>
+void storeConstantToArrayElement(
+		IRBuilder<>& bld, T value, Value* arrayPtr, size_t index)
+{
+	auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
+	makeConstantStore<T>(bld, value, ptrToElem);
+}
+
+static Value* loadToArrayElement(
+		IRBuilder<>& bld, Value* arrayPtr, size_t index)
+{
+	auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
+	return bld.CreateLoad(ptrToElem);
+}
+
 template<typename T>
 static Expected<AllocaInst*> lowerConstant(
 		IRBuilder<> builder, const SimConst<T>& constant, const SimType& type)
@@ -17,19 +55,9 @@ static Expected<AllocaInst*> lowerConstant(
 
 	auto llvmType = typeToLLVMType(builder.getContext(), type);
 	auto alloca = builder.CreateAlloca(llvmType);
-	auto intType = Type::getInt32Ty(builder.getContext());
 
 	for (size_t i = 0; i < constant.size(); i++)
-	{
-		auto index = ConstantInt::get(intType, i);
-		auto element = builder.CreateGEP(alloca, index);
-
-		auto ptrToElem = builder.CreateBitCast(
-				element, llvmType->getContainedType(0)->getPointerTo(0));
-
-		makeConstantStore<T>(
-				builder, constant.get(i), llvmType->getContainedType(0), ptrToElem);
-	}
+		storeConstantToArrayElement<T>(builder, constant.get(i), alloca, i);
 	return alloca;
 }
 
@@ -53,113 +81,122 @@ static Expected<AllocaInst*> lowerConstant(
 template<int argumentsSize>
 static AllocaInst* elementWiseOperation(
 		IRBuilder<>& builder,
-		array<Value*, argumentsSize> args,
-		std::function<Value*(IRBuilder<>&, array<Value*, argumentsSize>&)>
-				operation)
+		ArrayRef<Value*>& args,
+		std::function<Value*(IRBuilder<>&, ArrayRef<Value*>)> operation)
 {
-	auto ptrType = dyn_cast<PointerType>(args.at(0)->getType());
+	auto ptrType = dyn_cast<PointerType>(args[0]->getType());
 	auto arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
-	auto fondamentalType = arrayType->getContainedType(0);
-	auto ptrToFoundamental = fondamentalType->getPointerTo(0);
 
 	auto alloca = builder.CreateAlloca(arrayType);
-	auto intType = Type::getInt32Ty(builder.getContext());
 
 	for (size_t a = 0; a < arrayType->getNumElements(); a++)
 	{
-		auto index = ConstantInt::get(intType, a);
+		SmallVector<Value*, argumentsSize> arguments;
 
-		array<Value*, argumentsSize> arguments;
 		for (int i = 0; i < argumentsSize; i++)
-		{
-			auto ptr = builder.CreateGEP(args.at(i), index);
-			auto ptrToSingle = builder.CreateBitCast(ptr, ptrToFoundamental);
-			arguments.at(i) = builder.CreateLoad(ptrToSingle);
-		}
+			arguments.push_back(loadToArrayElement(builder, args[i], a));
 
 		auto outVal = operation(builder, arguments);
-		auto outPtr = builder.CreateGEP(alloca, index);
-		auto outPtrSingle = builder.CreateBitCast(outPtr, ptrToFoundamental);
-		builder.CreateStore(outVal, outPtrSingle);
+
+		storeToArrayElement(builder, outVal, alloca, a);
 	}
 	return alloca;
 }
 
-static Expected<AllocaInst*> lowerOperation(
-		IRBuilder<>& builder, const SimExp& exp, SmallVector<Value*, 3>& subExp)
+static Value* createSingleBynaryOP(
+		IRBuilder<>& builder, ArrayRef<Value*> args, SimExpKind kind)
 {
-	const auto unaryOp = [type = exp.getKind()](
-													 IRBuilder<>& builder,
-													 array<Value*, 1> args) -> Value* {
-		switch (type)
+	switch (kind)
+	{
+		case SimExpKind::add:
+			return builder.CreateAdd(args[0], args[1]);
+		case SimExpKind::sub:
+			return builder.CreateSub(args[0], args[1]);
+		case SimExpKind::mult:
+			return builder.CreateMul(args[0], args[1]);
+		case SimExpKind::divide:
 		{
-			case SimExpKind::negate:
-				return builder.CreateNeg(args[0]);
-			default:
-				assert(false && "unreachable");	// NOLINT
-				return nullptr;
+			if (!args[0]->getType()->isFloatTy())
+				return builder.CreateSDiv(args[0], args[1]);
+			return builder.CreateFDiv(args[0], args[1]);
 		}
-	};
-	const auto binaryOp = [type = exp.getKind()](
-														IRBuilder<>& builder,
-														array<Value*, 2> args) -> Value* {
-		switch (type)
+		case SimExpKind::equal:
+			return builder.CreateICmpEQ(args[0], args[1]);
+		case SimExpKind::different:
+			return builder.CreateICmpNE(args[0], args[1]);
+		case SimExpKind::greaterEqual:
+			return builder.CreateICmpSGE(args[0], args[1]);
+		case SimExpKind::greaterThan:
+			return builder.CreateICmpSGT(args[0], args[1]);
+		case SimExpKind::lessEqual:
+			return builder.CreateICmpSLE(args[0], args[1]);
+		case SimExpKind::less:
+			return builder.CreateICmpSLT(args[0], args[1]);
+		case SimExpKind::module:
 		{
-			case SimExpKind::add:
-				return builder.CreateAdd(args[0], args[1]);
-			case SimExpKind::sub:
-				return builder.CreateSub(args[0], args[1]);
-			case SimExpKind::mult:
-				return builder.CreateMul(args[0], args[1]);
-			case SimExpKind::divide:
-			{
-				if (!args[0]->getType()->isFloatTy())
-					return builder.CreateSDiv(args[0], args[1]);
-				return builder.CreateFDiv(args[0], args[1]);
-			}
-			case SimExpKind::equal:
-				return builder.CreateICmpEQ(args[0], args[1]);
-			case SimExpKind::different:
-				return builder.CreateICmpNE(args[0], args[1]);
-			case SimExpKind::greaterEqual:
-				return builder.CreateICmpSGE(args[0], args[1]);
-			case SimExpKind::greaterThan:
-				return builder.CreateICmpSGT(args[0], args[1]);
-			case SimExpKind::lessEqual:
-				return builder.CreateICmpSLE(args[0], args[1]);
-			case SimExpKind::less:
-				return builder.CreateICmpSLT(args[0], args[1]);
-			case SimExpKind::module:
-			{
-				// TODO
-				assert(false && "module unsupported");	// NOLINT
-				return nullptr;
-			}
-			case SimExpKind::elevation:
-			{
-				// TODO
-				assert(false && "powerof unsupported");	// NOLINT
-				return nullptr;
-			}
-			default:
-				assert(false && "unreachable");	// NOLINT
-				return nullptr;
+			// TODO
+			assert(false && "module unsupported");	// NOLINT
+			return nullptr;
 		}
+		case SimExpKind::elevation:
+		{
+			// TODO
+			assert(false && "powerof unsupported");	// NOLINT
+			return nullptr;
+		}
+		default:
+			assert(false && "unreachable");	// NOLINT
+			return nullptr;
+	}
+	assert(false && "unreachable");	// NOLINT
+	return nullptr;
+}
+
+static Value* createSingleUnaryOp(
+		IRBuilder<>& builder, ArrayRef<Value*> args, SimExpKind kind)
+{
+	switch (kind)
+	{
+		case SimExpKind::negate:
+			return builder.CreateNeg(args[0]);
+		default:
+			assert(false && "unreachable");	// NOLINT
+			return nullptr;
+	}
+	assert(false && "unreachable");	// NOLINT
+	return nullptr;
+}
+
+static Expected<AllocaInst*> lowerBinOp(
+		IRBuilder<>& builder, const SimExp& exp, ArrayRef<Value*> subExp)
+{
+	assert(exp.isBinary());			 // NOLINT
+	assert(subExp.size() == 2);	// NOLINT
+	const auto binaryOp = [type = exp.getKind()](auto& builder, auto args) {
+		return createSingleBynaryOP(builder, args, type);
 	};
 
-	if (exp.isUnary())
-	{
-		assert(subExp.size() == 1);	// NOLINT
-		array<Value*, 1> args = { subExp[0] };
-		return elementWiseOperation<1>(builder, args, unaryOp);
-	}
+	return elementWiseOperation<2>(builder, subExp, binaryOp);
+}
 
-	if (exp.isBinary())
-	{
-		assert(subExp.size() == 2);	// NOLINT
-		array<Value*, 2> args = { subExp[0], subExp[1] };
-		return elementWiseOperation<2>(builder, args, binaryOp);
-	}
+static Expected<AllocaInst*> lowerUnOp(
+		IRBuilder<>& builder, const SimExp& exp, ArrayRef<Value*> subExp)
+{
+	assert(exp.isUnary());			 // NOLINT
+	assert(subExp.size() == 1);	// NOLINT
+
+	const auto unaryOp = [type = exp.getKind()](auto& builder, auto args) {
+		return createSingleUnaryOp(builder, args, type);
+	};
+
+	return elementWiseOperation<1>(builder, subExp, unaryOp);
+}
+
+static Expected<AllocaInst*> lowerTernOp(
+		IRBuilder<>& builder, const SimExp& exp, ArrayRef<Value*> subExp)
+{
+	assert(exp.isTernary());		 // NOLINT
+	assert(subExp.size() == 3);	// NOLINT
 
 	switch (exp.getKind())
 	{
@@ -182,6 +219,19 @@ static Expected<AllocaInst*> lowerOperation(
 	}
 	assert(false && "unreachable");	// NOLINT
 	return nullptr;
+}
+
+static Expected<AllocaInst*> lowerOperation(
+		IRBuilder<>& builder, const SimExp& exp, ArrayRef<Value*> subExp)
+{
+	assert(exp.isOperation());	// NOLINT
+	if (exp.isUnary())
+		return lowerUnOp(builder, exp, subExp);
+
+	if (exp.isBinary())
+		return lowerBinOp(builder, exp, subExp);
+
+	return lowerTernOp(builder, exp, subExp);
 }
 
 static Expected<Value*> lowerExp(IRBuilder<>& builder, const SimExp& exp)
@@ -355,7 +405,6 @@ static Expected<Function*> populatePrint(Module& m, StringMap<SimExp> vars)
 	auto printFunction = printFunctionExpected.get();
 	IRBuilder bld(&printFunction->getEntryBlock());
 
-	auto intType = IntegerType::getInt32Ty(m.getContext());
 	auto charType = IntegerType::getInt8Ty(m.getContext());
 	auto floatType = IntegerType::getFloatTy(m.getContext());
 	auto charPtrType = PointerType::get(charType, 0);
@@ -373,13 +422,7 @@ static Expected<Function*> populatePrint(Module& m, StringMap<SimExp> vars)
 
 		for (size_t a = 0; a < pair.second.getSimType().flatSize(); a++)
 		{
-			auto index = ConstantInt::get(intType, a);
-			auto ptr = bld.CreateGEP(variable, index);
-			auto foundamentalVarType =
-					ptr->getType()->getContainedType(0)->getContainedType(0);
-			auto singleElementPtr =
-					bld.CreateBitCast(ptr, foundamentalVarType->getPointerTo(0));
-			auto value = bld.CreateLoad(singleElementPtr);
+			auto value = loadToArrayElement(bld, variable, a);
 			auto casted = bld.CreateCast(Instruction::SIToFP, value, floatType);
 			SmallVector<Value*, 2> args({ charStar, casted });
 			bld.CreateCall(externalPrint, args);
