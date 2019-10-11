@@ -5,5 +5,5 @@
 TEST(CondSimulation, outputTest)	// NOLINT
 {
 	runSimulation();
-	EXPECT_EQ(res[0], 1);
+	EXPECT_EQ(res[0], 9);
 }

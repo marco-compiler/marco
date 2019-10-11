@@ -1,4 +1,4 @@
-add_library(simulationGenerator STATIC src/Generator.cpp)
+add_library(simulationGenerator SHARED src/Generator.cpp)
 add_library(modelica::simulationGenerator  ALIAS simulationGenerator) 
 target_link_libraries(simulationGenerator PUBLIC modelica::lowerer)
 target_include_directories(simulationGenerator PRIVATE src 

@@ -1,4 +1,4 @@
-ADD_LIBRARY(lowerer STATIC src/SimExp.cpp src/Simulation.cpp src/SimLowerer.cpp src/SimErrors.cpp src/SimType.cpp) 
+ADD_LIBRARY(lowerer SHARED src/SimExp.cpp src/Simulation.cpp src/SimLowerer.cpp src/SimErrors.cpp src/SimType.cpp) 
 ADD_LIBRARY(modelica::lowerer ALIAS lowerer)
 TARGET_INCLUDE_DIRECTORIES(lowerer 
 	PRIVATE 

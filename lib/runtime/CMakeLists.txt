@@ -1,4 +1,4 @@
-ADD_LIBRARY(runtime STATIC src/PrintFunctions.cpp) 
+ADD_LIBRARY(runtime SHARED src/PrintFunctions.cpp) 
 ADD_LIBRARY(modelica::runtime ALIAS runtime)
 TARGET_INCLUDE_DIRECTORIES(runtime 
 	PRIVATE 
