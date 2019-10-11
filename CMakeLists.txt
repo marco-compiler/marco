@@ -14,6 +14,18 @@ SET(gtest_disable_pthreads OFF CACHE INTERNAL "")
 SET(gtest_hide_internal_symbols OFF CACHE INTERNAL "")
 SET(gtest_force_shared_crt OFF CACHE INTERNAL "")
 
+add_subdirectory(googletest)
+
+##############################
+###        Project         ###
+##############################
+
+project(modelica VERSION 1.0 LANGUAGES CXX)
+enable_testing()
+include("CPack")
+include(CTest)
+set(CMAKE_DEBUG_POSTFIX "-d")
+
 set(default_build_type "Debug")
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -27,22 +39,11 @@ endif()
 
 if (CMAKE_BUILD_TYPE MATCHES Debug)
 	message(STATUS "Enabling abi breaking checks.")
-	SET(LLVM_ENABLE_ABI_BREAKING_CHECKS ON "Enable this if you are using a llvm built in debug mode, turn it off for release")
+	SET(LLVM_ENABLE_ABI_BREAKING_CHECKS ON CACHE BOOL "Enable this if you are using a llvm built in debug mode, turn it off for release")
 else(CMAKE_BUILD_TYPE MATCHES Debug)
 	message(STATUS "Disabling abi breaking checks.")
-	SET(LLVM_ENABLE_ABI_BREAKING_CHECKS OFF "Enable this if you are using a llvm built in debug mode, turn it off for release")
+	SET(LLVM_ENABLE_ABI_BREAKING_CHECKS OFF CACHE BOOL "Enable this if you are using a llvm built in debug mode, turn it off for release")
 endif(CMAKE_BUILD_TYPE MATCHES Debug)
-add_subdirectory(googletest)
-
-##############################
-###        Project         ###
-##############################
-
-project(modelica VERSION 1.0 LANGUAGES CXX)
-enable_testing()
-include("CPack")
-include(CTest)
-set(CMAKE_DEBUG_POSTFIX "-d")
 
 ##############################
 ###        Globals         ###
@@ -88,12 +89,8 @@ endmacro(modelicaInstall)
 ##############################
 ###       Subfolders       ###
 ##############################
-add_subdirectory(frontend)
-add_subdirectory(lowerer)
-add_subdirectory(utils)
 add_subdirectory(tool)
-add_subdirectory(runtime)
-add_subdirectory(simulationGenerator)
+add_subdirectory(lib)
 
 ##############################
 ###        DOXYGEN         ###

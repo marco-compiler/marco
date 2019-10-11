@@ -1,0 +1,5 @@
+add_subdirectory(frontend)
+add_subdirectory(lowerer)
+add_subdirectory(utils)
+add_subdirectory(runtime)
+add_subdirectory(simulationGenerator)
