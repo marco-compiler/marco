@@ -9,22 +9,38 @@ using namespace modelica;
 using namespace llvm;
 
 static Value* getArrayElementPtr(
+		IRBuilder<>& bld, Value* arrayPtr, Value* index)
+{
+	auto intType = Type::getInt32Ty(bld.getContext());
+
+	auto zero = ConstantInt::get(intType, 0);
+	SmallVector<Value*, 2> args = { zero, index };
+	return bld.CreateGEP(arrayPtr, args);
+}
+
+static Value* getArrayElementPtr(
 		IRBuilder<>& bld, Value* arrayPtr, size_t index)
 {
 	auto ptrType = dyn_cast<PointerType>(arrayPtr->getType());
 	auto arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
-	assert(index <= arrayType->getNumElements());	// NOLINT
+	assert(index <= arrayType->getNumElements());	 // NOLINT
 
 	auto intType = Type::getInt32Ty(bld.getContext());
 
 	auto zero = ConstantInt::get(intType, 0);
 	auto i = ConstantInt::get(intType, index);
-	SmallVector<Value*, 2> args = { zero, i };
-	return bld.CreateGEP(arrayPtr, args);
+	return getArrayElementPtr(bld, arrayPtr, i);
 }
 
 static void storeToArrayElement(
 		IRBuilder<>& bld, Value* value, Value* arrayPtr, size_t index)
+{
+	auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
+	bld.CreateStore(value, ptrToElem);
+}
+
+static void storeToArrayElement(
+		IRBuilder<>& bld, Value* value, Value* arrayPtr, Value* index)
 {
 	auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
 	bld.CreateStore(value, ptrToElem);
@@ -40,6 +56,13 @@ void storeConstantToArrayElement(
 
 static Value* loadToArrayElement(
 		IRBuilder<>& bld, Value* arrayPtr, size_t index)
+{
+	auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
+	return bld.CreateLoad(ptrToElem);
+}
+
+static Value* loadToArrayElement(
+		IRBuilder<>& bld, Value* arrayPtr, Value* index)
 {
 	auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
 	return bld.CreateLoad(ptrToElem);
@@ -78,13 +101,14 @@ static Expected<AllocaInst*> lowerConstant(
 		return lowerConstant<bool>(
 				builder, exp.getConstant<bool>(), exp.getSimType());
 
-	assert(false && "unreachable");	// NOLINT
+	assert(false && "unreachable");	 // NOLINT
 	return nullptr;
 }
 
 template<int argumentsSize>
 static AllocaInst* elementWiseOperation(
 		IRBuilder<>& builder,
+		Function* fun,
 		ArrayRef<Value*>& args,
 		std::function<Value*(IRBuilder<>&, ArrayRef<Value*>)> operation)
 {
@@ -93,17 +117,19 @@ static AllocaInst* elementWiseOperation(
 
 	auto alloca = builder.CreateAlloca(arrayType);
 
-	for (size_t a = 0; a < arrayType->getNumElements(); a++)
-	{
+	const auto performOp = [alloca, &operation, &args](
+														 IRBuilder<>& builder, Value* index) {
 		SmallVector<Value*, argumentsSize> arguments;
 
 		for (int i = 0; i < argumentsSize; i++)
-			arguments.push_back(loadToArrayElement(builder, args[i], a));
-
+			arguments.push_back(loadToArrayElement(builder, args[i], index));
 		auto outVal = operation(builder, arguments);
 
-		storeToArrayElement(builder, outVal, alloca, a);
-	}
+		storeToArrayElement(builder, outVal, alloca, index);
+	};
+
+	createForCycle(fun, builder, arrayType->getNumElements(), performOp);
+
 	return alloca;
 }
 
@@ -141,23 +167,21 @@ static Value* createSingleBynaryOP(
 			return builder.CreateICmpSLE(args[0], args[1]);
 		case SimExpKind::less:
 			return builder.CreateICmpSLT(args[0], args[1]);
-		case SimExpKind::module:
-		{
+		case SimExpKind::module: {
 			// TODO
 			assert(false && "module unsupported");	// NOLINT
 			return nullptr;
 		}
-		case SimExpKind::elevation:
-		{
+		case SimExpKind::elevation: {
 			// TODO
-			assert(false && "powerof unsupported");	// NOLINT
+			assert(false && "powerof unsupported");	 // NOLINT
 			return nullptr;
 		}
 		default:
-			assert(false && "unreachable");	// NOLINT
+			assert(false && "unreachable");	 // NOLINT
 			return nullptr;
 	}
-	assert(false && "unreachable");	// NOLINT
+	assert(false && "unreachable");	 // NOLINT
 	return nullptr;
 }
 
@@ -179,86 +203,94 @@ static Value* createSingleUnaryOp(
 			if (args[0]->getType() == boolType)
 				return builder.CreateICmpEQ(args[0], zero);
 
-			assert(false && "unreachable");	// NOLINT
+			assert(false && "unreachable");	 // NOLINT
 		default:
-			assert(false && "unreachable");	// NOLINT
+			assert(false && "unreachable");	 // NOLINT
 			return nullptr;
 	}
-	assert(false && "unreachable");	// NOLINT
+	assert(false && "unreachable");	 // NOLINT
 	return nullptr;
 }
 
 static Expected<AllocaInst*> lowerBinOp(
-		IRBuilder<>& builder, const SimExp& exp, ArrayRef<Value*> subExp)
+		IRBuilder<>& builder,
+		Function* fun,
+		const SimExp& exp,
+		ArrayRef<Value*> subExp)
 {
 	assert(exp.isBinary());			 // NOLINT
-	assert(subExp.size() == 2);	// NOLINT
+	assert(subExp.size() == 2);	 // NOLINT
 	const auto binaryOp = [type = exp.getKind()](auto& builder, auto args) {
 		return createSingleBynaryOP(builder, args, type);
 	};
 
-	return elementWiseOperation<2>(builder, subExp, binaryOp);
+	return elementWiseOperation<2>(builder, fun, subExp, binaryOp);
 }
 
 static Expected<AllocaInst*> lowerUnOp(
-		IRBuilder<>& builder, const SimExp& exp, ArrayRef<Value*> subExp)
+		IRBuilder<>& builder,
+		Function* fun,
+		const SimExp& exp,
+		ArrayRef<Value*> subExp)
 {
 	assert(exp.isUnary());			 // NOLINT
-	assert(subExp.size() == 1);	// NOLINT
+	assert(subExp.size() == 1);	 // NOLINT
 
 	const auto unaryOp = [type = exp.getKind()](auto& builder, auto args) {
 		return createSingleUnaryOp(builder, args, type);
 	};
 
-	return elementWiseOperation<1>(builder, subExp, unaryOp);
+	return elementWiseOperation<1>(builder, fun, subExp, unaryOp);
 }
 
 static Expected<AllocaInst*> lowerTernOp(
 		IRBuilder<>& builder, const SimExp& exp, ArrayRef<Value*> subExp)
 {
 	assert(exp.isTernary());		 // NOLINT
-	assert(subExp.size() == 3);	// NOLINT
+	assert(subExp.size() == 3);	 // NOLINT
 
 	switch (exp.getKind())
 	{
-		case SimExpKind::zero:
-		{
+		case SimExpKind::zero: {
 			SimType type(BultinSimTypes::INT);
 			IntSimConst constant(0);
 			return lowerConstant(builder, constant, type);
 		}
-		case SimExpKind::conditional:
-		{
-			assert(subExp.size() == 3);	// NOLINT
+		case SimExpKind::conditional: {
+			assert(subExp.size() == 3);	 // NOLINT
 			// TODO
-			assert(false && "conditional unsupported");	// NOLINT
+			assert(false && "conditional unsupported");	 // NOLINT
 			return nullptr;
 		}
 		default:
-			assert(false && "unreachable");	// NOLINT
+			assert(false && "unreachable");	 // NOLINT
 			return nullptr;
 	}
-	assert(false && "unreachable");	// NOLINT
+	assert(false && "unreachable");	 // NOLINT
 	return nullptr;
 }
 
 static Expected<AllocaInst*> lowerOperation(
-		IRBuilder<>& builder, const SimExp& exp, ArrayRef<Value*> subExp)
+		IRBuilder<>& builder,
+		Function* fun,
+		const SimExp& exp,
+		ArrayRef<Value*> subExp)
 {
 	assert(exp.isOperation());	// NOLINT
 	if (exp.isUnary())
-		return lowerUnOp(builder, exp, subExp);
+		return lowerUnOp(builder, fun, exp, subExp);
 
 	if (exp.isBinary())
-		return lowerBinOp(builder, exp, subExp);
+		return lowerBinOp(builder, fun, exp, subExp);
 
 	return lowerTernOp(builder, exp, subExp);
 }
 
-static Expected<Value*> lowerExp(IRBuilder<>& builder, const SimExp& exp);
+static Expected<Value*> lowerExp(
+		IRBuilder<>& builder, Function* fun, const SimExp& exp);
 
 static Expected<Value*> uncastedLowerExp(
-		IRBuilder<>& builder, const SimExp& exp)
+		IRBuilder<>& builder, Function* fun, const SimExp& exp)
 {
 	SmallVector<Value*, 3> values;
 
@@ -273,27 +305,27 @@ static Expected<Value*> uncastedLowerExp(
 
 	if (exp.isUnary() || exp.isBinary() || exp.isTernary())
 	{
-		auto subexp = lowerExp(builder, exp.getLeftHand());
+		auto subexp = lowerExp(builder, fun, exp.getLeftHand());
 		if (!subexp)
 			return subexp;
 		values.push_back(move(*subexp));
 	}
 	if (exp.isBinary() || exp.isTernary())
 	{
-		auto subexp = lowerExp(builder, exp.getRightHand());
+		auto subexp = lowerExp(builder, fun, exp.getRightHand());
 		if (!subexp)
 			return subexp;
 		values.push_back(move(*subexp));
 	}
 	if (exp.isTernary())
 	{
-		auto subexp = lowerExp(builder, exp.getCondition());
+		auto subexp = lowerExp(builder, fun, exp.getCondition());
 		if (!subexp)
 			return subexp;
 		values.push_back(move(*subexp));
 	}
 
-	return lowerOperation(builder, exp, values);
+	return lowerOperation(builder, fun, exp, values);
 }
 
 static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
@@ -326,7 +358,7 @@ static Expected<Value*> castReturnValue(
 	auto ptrArrayType = dyn_cast<PointerType>(val->getType());
 	auto arrayType = dyn_cast<ArrayType>(ptrArrayType->getContainedType(0));
 
-	assert(arrayType->getNumElements() == type.flatSize());	// NOLINT
+	assert(arrayType->getNumElements() == type.flatSize());	 // NOLINT
 
 	auto destType = typeToLLVMType(builder.getContext(), type);
 	auto singleDestType = destType->getContainedType(0);
@@ -347,9 +379,10 @@ static Expected<Value*> castReturnValue(
 	return alloca;
 }
 
-static Expected<Value*> lowerExp(IRBuilder<>& builder, const SimExp& exp)
+static Expected<Value*> lowerExp(
+		IRBuilder<>& builder, Function* fun, const SimExp& exp)
 {
-	auto retVal = uncastedLowerExp(builder, exp);
+	auto retVal = uncastedLowerExp(builder, fun, exp);
 	if (!retVal)
 		return retVal;
 
@@ -366,7 +399,7 @@ static Expected<Function*> populateMain(
 {
 	assert(init != nullptr);				 // NOLINT
 	assert(update != nullptr);			 // NOLINT
-	assert(printValues != nullptr);	// NOLINT
+	assert(printValues != nullptr);	 // NOLINT
 
 	auto expectedMain = makePrivateFunction(entryPointName, m);
 	if (!expectedMain)
@@ -378,15 +411,14 @@ static Expected<Function*> populateMain(
 	// call init
 	builder.CreateCall(init);
 
-	const auto forBody = [update, printValues](IRBuilder<>& builder) {
+	const auto forBody = [update, printValues](IRBuilder<>& builder, auto) {
 		builder.CreateCall(update);
 		builder.CreateCall(printValues);
 	};
 
 	// creates a for with simulationStop iterations what invokes
 	// update and print values each time
-	auto loopExit =
-			createForCycle(*main, main->getEntryBlock(), simulationStop, forBody);
+	auto loopExit = createForCycle(main, builder, simulationStop, forBody);
 
 	// returns right after the loop
 	builder.SetInsertPoint(loopExit);
@@ -440,7 +472,7 @@ static Expected<Function*> initializeGlobals(Module& m, StringMap<SimExp> vars)
 
 	for (const auto& pair : vars)
 	{
-		auto val = lowerExp(builder, pair.second);
+		auto val = lowerExp(builder, initFunction, pair.second);
 		if (!val)
 			return val.takeError();
 		auto loaded = builder.CreateLoad(*val);
@@ -462,11 +494,22 @@ static Expected<Function*> createUpdates(Module& m, StringMap<SimExp> upds)
 
 	for (const auto& pair : upds)
 	{
-		auto val = lowerExp(bld, pair.second);
+		auto expFun = makePrivateFunction("update" + pair.first().str(), m);
+		if (!expFun)
+			return expFun;
+
+		auto fun = expFun.get();
+		bld.SetInsertPoint(&fun->getEntryBlock());
+
+		auto val = lowerExp(bld, fun, pair.second);
 		if (!val)
 			return val.takeError();
 		auto loaded = bld.CreateLoad(*val);
 		bld.CreateStore(loaded, m.getGlobalVariable(pair.first(), true));
+		bld.CreateRet(nullptr);
+
+		bld.SetInsertPoint(&updateFunction->getEntryBlock());
+		bld.CreateCall(fun);
 	}
 	for (const auto& pair : upds)
 	{
@@ -487,8 +530,9 @@ static void createPrintOfVar(
 		GlobalValue* varString,
 		GlobalValue* ptrToVar)
 {
-	auto ptrToFirstElem = getArrayElementPtr(builder, ptrToVar, 0);
-	auto ptrToStrName = getArrayElementPtr(builder, varString, 0);
+	size_t index = 0;
+	auto ptrToFirstElem = getArrayElementPtr(builder, ptrToVar, index);
+	auto ptrToStrName = getArrayElementPtr(builder, varString, index);
 
 	auto ptrType = ptrToVar->getType();
 	auto arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));

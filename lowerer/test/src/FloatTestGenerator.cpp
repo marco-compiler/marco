@@ -4,23 +4,21 @@ using namespace modelica;
 using namespace llvm;
 
 using E = SimExp;
-using B = BultinSimTypes;
-using T = SimType;
+using T = BultinSimTypes;
 
 template<typename T>
 using C = modelica::SimConst<T>;
 
 bool makeSimulation(Simulation& sim)
 {
-	if (!sim.addVar("intVector", E(C<int>(1, 2, 3), T(B::INT, 3))))
+	if (!sim.addVar("FloatConstant", E(C<float>(3.0F))))
 		return false;
-	if (!sim.addVar("intVectorConstant", E(C<int>(-1, -2, -3), T(B::INT, 3))))
+	if (!sim.addVar("FloatModifiable", E(C<float>(3.0F))))
 		return false;
 
 	if (!sim.addUpdate(
-					"intVector",
-					E(C<int>(3, 3, 3), T(B::INT, 3)) + E("intVector", B::INT, 3)))
+					"FloatModifiable",
+					E("FloatModifiable", T::FLOAT) + E(C<float>(1.0F))))
 		return false;
-
 	return true;
 }

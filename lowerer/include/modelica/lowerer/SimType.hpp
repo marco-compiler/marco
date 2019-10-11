@@ -36,7 +36,7 @@ namespace modelica
 		else if constexpr (std::is_same<float, T>())
 			return BultinSimTypes::FLOAT;
 		else
-			assert(false && "Unreachable");	// NOLINT
+			assert(false && "Unreachable");	 // NOLINT
 	}
 
 	/**
@@ -57,7 +57,7 @@ namespace modelica
 		 */
 		template<typename... T>
 		SimType(BultinSimTypes t, T... args)
-				: builtinSimType(t), dimensions({ args... })
+				: builtinSimType(t), dimensions({ static_cast<size_t>(args)... })
 		{
 		}
 
@@ -86,7 +86,7 @@ namespace modelica
 		 */
 		[[nodiscard]] size_t getDimension(size_t index) const
 		{
-			assert(getDimensionsCount() > index);	// NOLINT
+			assert(getDimensionsCount() > index);	 // NOLINT
 			return dimensions[index];
 		}
 
@@ -139,4 +139,4 @@ namespace modelica
 		BultinSimTypes builtinSimType;
 		llvm::SmallVector<size_t, 3> dimensions;
 	};
-}	// namespace modelica
+}	 // namespace modelica

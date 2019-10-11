@@ -17,18 +17,10 @@ bool makeSimulation(Simulation& sim)
 		return false;
 	if (!sim.addVar("BoolConstant", E(C<bool>(0))))
 		return false;
-	if (!sim.addVar("FloatConstant", E(C<float>(3.0F))))
-		return false;
-	if (!sim.addVar("FloatModifiable", E(C<float>(3.0F))))
-		return false;
 
 	if (!sim.addUpdate("IntModifiable", E(C<int>(3)) + E("IntConstant", T::INT)))
 		return false;
 	if (!sim.addUpdate("BoolConstant", !E("IntModifiable", T::BOOL)))
-		return false;
-	if (!sim.addUpdate(
-					"FloatModifiable",
-					E("FloatModifiable", T::FLOAT) + E(C<float>(1.0F))))
 		return false;
 
 	return true;

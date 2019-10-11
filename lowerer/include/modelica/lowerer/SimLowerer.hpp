@@ -71,17 +71,18 @@ namespace modelica
 
 	/**
 	 * Creates a for cycle that last interationsCount iterations
-	 * that will be inserted as closing instruction in the entryBlock
+	 * that will be inserted in the provided builder
 	 * The caller has to provide whileContent which is function that will
 	 * produce the actual body of the loop.
 	 *
 	 * \return the exit point of the loop, that is the basic block that will
-	 * always be executed at some point.
+	 * always be executed at some point. The builder will look at that basic
+	 * block.
 	 */
 	llvm::BasicBlock* createForCycle(
-			llvm::Function& function,
-			llvm::BasicBlock& entryBlock,
+			llvm::Function* function,
+			llvm::IRBuilder<>& builder,
 			size_t iterationCount,
-			std::function<void(llvm::IRBuilder<>&)> whileContent);
+			std::function<void(llvm::IRBuilder<>&, llvm::Value*)> whileContent);
 
-}	// namespace modelica
+}	 // namespace modelica

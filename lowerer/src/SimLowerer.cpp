@@ -40,7 +40,7 @@ namespace modelica
 				return Type::getFloatTy(context);
 		}
 
-		assert(false && "Unreachable");	// NOLINT
+		assert(false && "Unreachable");	 // NOLINT
 		return nullptr;
 	}
 
@@ -78,23 +78,21 @@ namespace modelica
 	}
 
 	BasicBlock* createForCycle(
-			Function& function,
-			BasicBlock& entryBlock,
+			Function* function,
+			IRBuilder<>& builder,
 			size_t iterationCount,
-			std::function<void(IRBuilder<>&)> whileContent)
+			std::function<void(IRBuilder<>&, llvm::Value*)> whileContent)
 	{
-		auto& context = entryBlock.getContext();
-		auto condition = BasicBlock::Create(context, "condition", &function);
-		auto loopBody = BasicBlock::Create(context, "loopBody", &function);
-		auto exit = BasicBlock::Create(context, "exit", &function);
-
-		IRBuilder builder(&entryBlock);
+		auto& context = builder.getContext();
+		auto condition = BasicBlock::Create(context, "condition", function);
+		auto loopBody = BasicBlock::Create(context, "loopBody", function);
+		auto exit = BasicBlock::Create(context, "exit", function);
 
 		auto unsignedInt = Type::getInt32Ty(context);
 
 		// alocates iteration counter
 		auto iterationCounter = builder.CreateAlloca(unsignedInt);
-		makeConstantStore<int>(builder, iterationCount, iterationCounter);
+		makeConstantStore<int>(builder, 0, iterationCounter);
 
 		// jump to condition bb
 		builder.CreateBr(condition);
@@ -102,8 +100,8 @@ namespace modelica
 		// load counter
 		builder.SetInsertPoint(condition);
 		auto value = builder.CreateLoad(unsignedInt, iterationCounter);
-		auto iterCmp =
-				builder.CreateICmpEQ(value, Constant::getNullValue(unsignedInt));
+		auto iterCmp = builder.CreateICmpEQ(
+				value, ConstantInt::get(unsignedInt, iterationCount));
 
 		// brach if equal to zero
 		builder.CreateCondBr(iterCmp, exit, loopBody);
@@ -111,12 +109,12 @@ namespace modelica
 		builder.SetInsertPoint(loopBody);
 
 		// populate body of the loop
-		whileContent(builder);
+		whileContent(builder, value);
 
 		// load, reduce and store the counter
 		value = builder.CreateLoad(unsignedInt, iterationCounter);
 		auto reducedCounter =
-				builder.CreateSub(value, ConstantInt::get(unsignedInt, 1));
+				builder.CreateAdd(value, ConstantInt::get(unsignedInt, 1));
 		builder.CreateStore(reducedCounter, iterationCounter);
 		builder.CreateBr(condition);
 
@@ -124,4 +122,4 @@ namespace modelica
 
 		return exit;
 	}
-}	// namespace modelica
+}	 // namespace modelica
