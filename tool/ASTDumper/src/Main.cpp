@@ -8,8 +8,12 @@ using namespace modelica;
 using namespace llvm;
 using namespace std;
 
+cl::OptionCategory astDumperCategory("ASTDumper options");
 cl::opt<string> InputFileName(
-		cl::Positional, cl::desc("<input-file>"), cl::init("-"));
+		cl::Positional,
+		cl::desc("<input-file>"),
+		cl::init("-"),
+		cl::cat(astDumperCategory));
 
 ExitOnError exitOnErr;
 int main(int argc, char* argv[])

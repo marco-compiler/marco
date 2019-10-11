@@ -4,7 +4,7 @@ using namespace std;
 using namespace modelica;
 using namespace llvm;
 
-void SimType::dump(llvm::raw_ostream& OS) const
+void SimType::dump(raw_ostream& OS) const
 {
 	switch (builtinSimType)
 	{
@@ -27,4 +27,23 @@ void SimType::dump(llvm::raw_ostream& OS) const
 			OS << " ,";
 	}
 	OS << ']';
+}
+
+void SimType::dumpCSyntax(StringRef name, raw_ostream& OS) const
+{
+	switch (builtinSimType)
+	{
+		case BultinSimTypes::INT:
+			OS << "int";
+			break;
+		case BultinSimTypes::BOOL:
+			OS << "bool";
+			break;
+		case BultinSimTypes::FLOAT:
+			OS << "float";
+			break;
+	}
+	OS << " " << name;
+	for (auto dim : dimensions)
+		OS << '[' << dim << ']';
 }

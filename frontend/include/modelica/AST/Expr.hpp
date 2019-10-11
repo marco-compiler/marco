@@ -119,22 +119,9 @@ namespace modelica
 				SourceRange location,
 				Type type = Type(BuiltinType::None),
 				ExprKind kind = ExprKind::ExpressionList,
-				std::vector<UniqueExpr> exprs = {})
-				: Expr(std::move(location), type, kind), expressions(std::move(exprs))
-		{
-			for (const auto& child : expressions)
-				assert(child.get() != nullptr);
-		}
-		ExprList(SourceRange location, std::vector<UniqueExpr> exprs)
-				: Expr(
-							std::move(location),
-							Type(BuiltinType::None),
-							ExprKind::ExpressionList),
-					expressions(std::move(exprs))
-		{
-			for (const auto& child : expressions)
-				assert(child.get() != nullptr);
-		}
+				std::vector<UniqueExpr> exprs = {});
+
+		ExprList(SourceRange location, std::vector<UniqueExpr> exprs);
 		static constexpr auto classof =
 				nonLeafClassOf<ExprKind::ExpressionList, ExprKind::LastExpressionList>;
 		[[nodiscard]] llvm::Error isConsistent() const;

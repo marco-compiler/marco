@@ -53,6 +53,10 @@ namespace modelica
 		auto ptrType = llvm::dyn_cast<llvm::PointerType>(location->getType());
 		auto underlyingType = ptrType->getContainedType(0);
 
+		if (underlyingType == llvm::Type::getFloatTy(builder.getContext()))
+
+			return builder.CreateStore(
+					llvm::ConstantFP::get(underlyingType, value), location);
 		return builder.CreateStore(
 				llvm::ConstantInt::get(underlyingType, value), location);
 	}
@@ -67,11 +71,11 @@ namespace modelica
 
 	/**
 	 * Creates a for cycle that last interationsCount iterations
-	 * that will be inserted as next last instruction in the entry block
-	 * The caller will provide whileContent that will produce the actual body of
-	 * the loop.
+	 * that will be inserted as closing instruction in the entryBlock
+	 * The caller has to provide whileContent which is function that will
+	 * produce the actual body of the loop.
 	 *
-	 * \return the exit point of the loop, that is the basick block that will
+	 * \return the exit point of the loop, that is the basic block that will
 	 * always be executed at some point.
 	 */
 	llvm::BasicBlock* createForCycle(

@@ -1,8 +1,11 @@
 #include "modelica/AST/Expr.hpp"
 
+#include <numeric>
+
 #include "modelica/ParserErrors.hpp"
 
 using namespace modelica;
+using namespace std;
 
 [[nodiscard]] llvm::Error IfElseExpr::isConsistent() const
 {
@@ -44,4 +47,32 @@ using namespace modelica;
 [[nodiscard]] llvm::Error ExprList::isConsistent() const
 {
 	return llvm::Error::success();
+}
+
+ExprList::ExprList(
+		SourceRange location,
+		Type type,
+		ExprKind kind,
+		std::vector<UniqueExpr> exprs)
+		: Expr(std::move(location), type, kind), expressions(std::move(exprs))
+{
+	assert(std::accumulate(	// NOLINT
+			std::begin(expressions),
+			std::end(expressions),
+			true,
+			[](bool val, const auto& next) { return val && next != nullptr; }));
+}
+
+ExprList::ExprList(SourceRange location, std::vector<UniqueExpr> exprs)
+		: Expr(
+					std::move(location),
+					Type(BuiltinType::None),
+					ExprKind::ExpressionList),
+			expressions(std::move(exprs))
+{
+	assert(std::accumulate(	// NOLINT
+			std::begin(expressions),
+			std::end(expressions),
+			true,
+			[](bool val, const auto& next) { return val && next != nullptr; }));
 }

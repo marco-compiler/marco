@@ -22,8 +22,8 @@ namespace modelica
 			return make_error<FunctionAlreadyExists>(name);
 
 		auto function = m.getOrInsertFunction(name, getVoidType(m.getContext()));
-		auto f = dyn_cast<Function>(function);
-		BasicBlock::Create(function->getContext(), "entry", f);
+		auto f = dyn_cast<llvm::Function>(function.getCallee());
+		BasicBlock::Create(m.getContext(), "entry", f);
 		f->setLinkage(internalLinkage);
 		return f;
 	}
@@ -64,8 +64,7 @@ namespace modelica
 		auto global = dyn_cast<GlobalVariable>(varDecl);
 		global->setLinkage(linkage);
 
-		global->setInitializer(
-				ConstantAggregateZero::get(type->getContainedType(0)));
+		global->setInitializer(ConstantAggregateZero::get(type));
 		return Error::success();
 	}
 

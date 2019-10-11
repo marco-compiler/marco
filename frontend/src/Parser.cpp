@@ -102,6 +102,8 @@ Expected<vectorUnique<Expr>> Parser::functionArguments()
 		auto args = namedArguments();
 		if (args)
 			return args;
+		if (auto e = handleErrors(args.takeError(), [](const UnexpectedToken&) {}))
+			return move(e);
 	}
 
 	auto firstExp = expression();
@@ -155,6 +157,9 @@ Expected<vectorUnique<Expr>> Parser::functionArgumentsNonFirst()
 		auto args = namedArguments();
 		if (args)
 			return args;
+		else if (
+				auto e = handleErrors(args.takeError(), [](const UnexpectedToken&) {}))
+			return move(e);
 	}
 
 	auto arg1 = functionArgument();
@@ -166,19 +171,33 @@ Expected<vectorUnique<Expr>> Parser::functionArgumentsNonFirst()
 	if (!accept<Token::Comma>())
 		return move(toReturn);
 
-	Expected<vectorUnique<Expr>> nextArgs = vectorUnique<Expr>();
+	auto nextArgs = vectorUnique<Expr>();
 	if (current == Token::Ident)
 	{
-		nextArgs = namedArguments();
-		if (!nextArgs)
-			nextArgs = functionArgumentsNonFirst();
+		if (auto expNextArgs = namedArguments())
+		{
+			nextArgs = move(*expNextArgs);
+		}
+		else
+		{
+			if (auto error = handleErrors(
+							expNextArgs.takeError(), [](const UnexpectedToken&) {}))
+				return move(error);
+			if (auto expNextArgs = functionArgumentsNonFirst())
+				nextArgs = move(*expNextArgs);
+			else
+				return expNextArgs;
+		}
 	}
 	else
-		nextArgs = functionArgumentsNonFirst();
-	if (!nextArgs)
-		return nextArgs;
+	{
+		auto expNextArgs = functionArgumentsNonFirst();
+		if (!expNextArgs)
+			return expNextArgs;
+		nextArgs = move(*expNextArgs);
+	}
 
-	move(nextArgs->begin(), nextArgs->end(), back_inserter(toReturn));
+	move(nextArgs.begin(), nextArgs.end(), back_inserter(toReturn));
 	return move(toReturn);
 }
 
@@ -503,6 +522,8 @@ ExpectedUnique<Expr> Parser::term()
 
 		leftValue = makeNode<BinaryExpr>(
 				currentPos, mulOp.value(), move(*leftValue), move(*rightValue));
+		if (!leftValue)
+			return leftValue;
 	}
 
 	return leftValue;
@@ -511,6 +532,8 @@ ExpectedUnique<Expr> Parser::factor()
 {
 	SourcePosition currentPos = getPosition();
 	auto left = primary();
+	if (!left)
+		return left;
 	bool exp =
 			accept<Token::Exponential>() || accept<Token::ElementWiseExponential>();
 

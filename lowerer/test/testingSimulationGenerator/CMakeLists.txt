@@ -1,7 +1,0 @@
-add_library(testingSimulationGenerator SHARED src/Generator.cpp)
-add_library(modelica::testingSimulationGenerator  ALIAS testingSimulationGenerator) 
-target_link_libraries(testingSimulationGenerator PUBLIC modelica::lowerer)
-target_include_directories(testingSimulationGenerator PUBLIC include PRIVATE src)
-target_compile_features(testingSimulationGenerator PUBLIC cxx_std_17)
-
-

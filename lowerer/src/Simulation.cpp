@@ -14,14 +14,13 @@ static Value* getArrayElementPtr(
 	auto ptrType = dyn_cast<PointerType>(arrayPtr->getType());
 	auto arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
 	assert(index <= arrayType->getNumElements());	// NOLINT
-	auto baseType = arrayType->getContainedType(0);
-	auto ptrToBaseType = baseType->getPointerTo(0);
 
 	auto intType = Type::getInt32Ty(bld.getContext());
-	auto i = ConstantInt::get(intType, index);
-	auto element = bld.CreateGEP(arrayPtr, i);
 
-	return bld.CreateBitCast(element, ptrToBaseType);
+	auto zero = ConstantInt::get(intType, 0);
+	auto i = ConstantInt::get(intType, index);
+	SmallVector<Value*, 2> args = { zero, i };
+	return bld.CreateGEP(arrayPtr, args);
 }
 
 static void storeToArrayElement(
@@ -46,6 +45,12 @@ static Value* loadToArrayElement(
 	return bld.CreateLoad(ptrToElem);
 }
 
+static AllocaInst* allocaSimType(IRBuilder<>& bld, const SimType& type)
+{
+	auto llvmType = typeToLLVMType(bld.getContext(), type);
+	return bld.CreateAlloca(llvmType);
+}
+
 template<typename T>
 static Expected<AllocaInst*> lowerConstant(
 		IRBuilder<> builder, const SimConst<T>& constant, const SimType& type)
@@ -53,8 +58,7 @@ static Expected<AllocaInst*> lowerConstant(
 	if (constant.size() != type.flatSize())
 		return make_error<TypeConstantSizeMissMatch>(constant, type);
 
-	auto llvmType = typeToLLVMType(builder.getContext(), type);
-	auto alloca = builder.CreateAlloca(llvmType);
+	auto alloca = allocaSimType(builder, type);
 
 	for (size_t i = 0; i < constant.size(); i++)
 		storeConstantToArrayElement<T>(builder, constant.get(i), alloca, i);
@@ -106,20 +110,25 @@ static AllocaInst* elementWiseOperation(
 static Value* createSingleBynaryOP(
 		IRBuilder<>& builder, ArrayRef<Value*> args, SimExpKind kind)
 {
+	bool leftHandIsFloat = args[0]->getType()->isFloatTy();
 	switch (kind)
 	{
 		case SimExpKind::add:
+			if (leftHandIsFloat)
+				return builder.CreateFAdd(args[0], args[1]);
 			return builder.CreateAdd(args[0], args[1]);
 		case SimExpKind::sub:
+			if (leftHandIsFloat)
+				return builder.CreateFSub(args[0], args[1]);
 			return builder.CreateSub(args[0], args[1]);
 		case SimExpKind::mult:
+			if (leftHandIsFloat)
+				return builder.CreateFMul(args[0], args[1]);
 			return builder.CreateMul(args[0], args[1]);
 		case SimExpKind::divide:
-		{
-			if (!args[0]->getType()->isFloatTy())
-				return builder.CreateSDiv(args[0], args[1]);
-			return builder.CreateFDiv(args[0], args[1]);
-		}
+			if (leftHandIsFloat)
+				return builder.CreateFDiv(args[0], args[1]);
+			return builder.CreateSDiv(args[0], args[1]);
 		case SimExpKind::equal:
 			return builder.CreateICmpEQ(args[0], args[1]);
 		case SimExpKind::different:
@@ -155,10 +164,22 @@ static Value* createSingleBynaryOP(
 static Value* createSingleUnaryOp(
 		IRBuilder<>& builder, ArrayRef<Value*> args, SimExpKind kind)
 {
+	auto intType = IntegerType::getInt32Ty(builder.getContext());
+	auto boolType = IntegerType::getInt1Ty(builder.getContext());
+	auto zero = ConstantInt::get(boolType, 0);
 	switch (kind)
 	{
 		case SimExpKind::negate:
-			return builder.CreateNeg(args[0]);
+			if (args[0]->getType()->isFloatTy())
+				return builder.CreateFNeg(args[0]);
+
+			if (args[0]->getType() == intType)
+				return builder.CreateNeg(args[0]);
+
+			if (args[0]->getType() == boolType)
+				return builder.CreateICmpEQ(args[0], zero);
+
+			assert(false && "unreachable");	// NOLINT
 		default:
 			assert(false && "unreachable");	// NOLINT
 			return nullptr;
@@ -234,7 +255,10 @@ static Expected<AllocaInst*> lowerOperation(
 	return lowerTernOp(builder, exp, subExp);
 }
 
-static Expected<Value*> lowerExp(IRBuilder<>& builder, const SimExp& exp)
+static Expected<Value*> lowerExp(IRBuilder<>& builder, const SimExp& exp);
+
+static Expected<Value*> uncastedLowerExp(
+		IRBuilder<>& builder, const SimExp& exp)
 {
 	SmallVector<Value*, 3> values;
 
@@ -270,6 +294,66 @@ static Expected<Value*> lowerExp(IRBuilder<>& builder, const SimExp& exp)
 	}
 
 	return lowerOperation(builder, exp, values);
+}
+
+static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
+{
+	auto floatType = Type::getFloatTy(builder.getContext());
+	auto intType = Type::getInt32Ty(builder.getContext());
+	auto boolType = Type::getInt1Ty(builder.getContext());
+
+	auto constantZero = ConstantInt::get(intType, 0);
+
+	if (type == floatType)
+		return builder.CreateSIToFP(val, floatType);
+	else if (type == intType)
+	{
+		if (val->getType() == floatType)
+			return builder.CreateFPToSI(val, intType);
+
+		return builder.CreateIntCast(val, intType, true);
+	}
+
+	if (val->getType() == floatType)
+		return builder.CreateFPToSI(val, boolType);
+
+	return builder.CreateICmpNE(val, constantZero);
+}
+
+static Expected<Value*> castReturnValue(
+		IRBuilder<>& builder, Value* val, const SimType& type)
+{
+	auto ptrArrayType = dyn_cast<PointerType>(val->getType());
+	auto arrayType = dyn_cast<ArrayType>(ptrArrayType->getContainedType(0));
+
+	assert(arrayType->getNumElements() == type.flatSize());	// NOLINT
+
+	auto destType = typeToLLVMType(builder.getContext(), type);
+	auto singleDestType = destType->getContainedType(0);
+
+	if (destType == arrayType)
+		return val;
+
+	auto alloca = allocaSimType(builder, type);
+
+	for (size_t a = 0; a < arrayType->getNumElements(); a++)
+	{
+		auto loadedElem = loadToArrayElement(builder, val, a);
+
+		Value* casted = castSingleElem(builder, loadedElem, singleDestType);
+		storeToArrayElement(builder, casted, alloca, a);
+	}
+
+	return alloca;
+}
+
+static Expected<Value*> lowerExp(IRBuilder<>& builder, const SimExp& exp)
+{
+	auto retVal = uncastedLowerExp(builder, exp);
+	if (!retVal)
+		return retVal;
+
+	return castReturnValue(builder, *retVal, exp.getSimType());
 }
 
 static Expected<Function*> populateMain(
@@ -397,6 +481,44 @@ static Expected<Function*> createUpdates(Module& m, StringMap<SimExp> upds)
 	return updateFunction;
 }
 
+static void createPrintOfVar(
+		Module& m,
+		IRBuilder<>& builder,
+		GlobalValue* varString,
+		GlobalValue* ptrToVar)
+{
+	auto ptrToFirstElem = getArrayElementPtr(builder, ptrToVar, 0);
+	auto ptrToStrName = getArrayElementPtr(builder, varString, 0);
+
+	auto ptrType = ptrToVar->getType();
+	auto arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
+	auto ptrToBaseType = ptrToFirstElem->getType();
+	auto baseType = ptrToBaseType->getContainedType(0);
+
+	auto charPtrType = ptrToStrName->getType();
+	auto intType = IntegerType::getInt32Ty(builder.getContext());
+
+	SmallVector<Type*, 3> args({ charPtrType, ptrToBaseType, intType });
+	auto printType =
+			FunctionType::get(Type::getVoidTy(m.getContext()), args, false);
+
+	const auto selectPrintName = [intType](Type* t) {
+		if (t->isFloatTy())
+			return "modelicaPrintFVector";
+		if (t == intType)
+			return "modelicaPrintIVector";
+
+		return "modelicaPrintBVector";
+	};
+
+	auto callee = m.getOrInsertFunction(selectPrintName(baseType), printType);
+	auto externalPrint = dyn_cast<Function>(callee.getCallee());
+
+	auto numElements = ConstantInt::get(intType, arrayType->getNumElements());
+	SmallVector<Value*, 3> argsVal({ ptrToStrName, ptrToFirstElem, numElements });
+	builder.CreateCall(externalPrint, argsVal);
+}
+
 static Expected<Function*> populatePrint(Module& m, StringMap<SimExp> vars)
 {
 	auto printFunctionExpected = makePrivateFunction("print", m);
@@ -405,28 +527,11 @@ static Expected<Function*> populatePrint(Module& m, StringMap<SimExp> vars)
 	auto printFunction = printFunctionExpected.get();
 	IRBuilder bld(&printFunction->getEntryBlock());
 
-	auto charType = IntegerType::getInt8Ty(m.getContext());
-	auto floatType = IntegerType::getFloatTy(m.getContext());
-	auto charPtrType = PointerType::get(charType, 0);
-	SmallVector<Type*, 2> args({ charPtrType, floatType });
-	auto printType =
-			FunctionType::get(Type::getVoidTy(m.getContext()), args, false);
-	auto externalPrint =
-			dyn_cast<Function>(m.getOrInsertFunction("modelicaPrint", printType));
-
 	for (const auto& pair : vars)
 	{
-		auto strName = m.getGlobalVariable(pair.first().str() + "_str");
-		auto charStar = bld.CreateBitCast(strName, charPtrType);
-		auto variable = m.getGlobalVariable(pair.first(), true);
-
-		for (size_t a = 0; a < pair.second.getSimType().flatSize(); a++)
-		{
-			auto value = loadToArrayElement(bld, variable, a);
-			auto casted = bld.CreateCast(Instruction::SIToFP, value, floatType);
-			SmallVector<Value*, 2> args({ charStar, casted });
-			bld.CreateCall(externalPrint, args);
-		}
+		auto varString = m.getGlobalVariable(pair.first().str() + "_str");
+		auto ptrToVar = m.getGlobalVariable(pair.first());
+		createPrintOfVar(m, bld, varString, ptrToVar);
 	}
 	bld.CreateRet(nullptr);
 	return printFunction;
@@ -481,4 +586,23 @@ void Simulation::dump(raw_ostream& OS) const
 void Simulation::dumpBC(raw_ostream& OS) const
 {
 	WriteBitcodeToFile(module, OS);
+}
+
+void Simulation::dumpHeader(raw_ostream& OS) const
+{
+	OS << "#pragma once\n\n";
+
+	for (const auto& var : variables)
+	{
+		const auto& type = var.second.getSimType();
+
+		OS << "extern ";
+		type.dumpCSyntax(var.first(), OS);
+
+		OS << ";\n";
+	}
+
+	OS << "extern \"C\"{";
+	OS << "void " << entryPointName << "();";
+	OS << "}";
 }

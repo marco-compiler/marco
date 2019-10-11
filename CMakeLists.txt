@@ -13,6 +13,25 @@ SET(gtest_build_tests OFF CACHE INTERNAL "")
 SET(gtest_disable_pthreads OFF CACHE INTERNAL "")
 SET(gtest_hide_internal_symbols OFF CACHE INTERNAL "")
 SET(gtest_force_shared_crt OFF CACHE INTERNAL "")
+
+set(default_build_type "Debug")
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
+  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
+      STRING "Choose the type of build." FORCE)
+  # Set the possible values of build type for cmake-gui
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
+    "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
+if (CMAKE_BUILD_TYPE MATCHES Debug)
+	message(STATUS "Enabling abi breaking checks.")
+	SET(LLVM_ENABLE_ABI_BREAKING_CHECKS ON "Enable this if you are using a llvm built in debug mode, turn it off for release")
+else(CMAKE_BUILD_TYPE MATCHES Debug)
+	message(STATUS "Disabling abi breaking checks.")
+	SET(LLVM_ENABLE_ABI_BREAKING_CHECKS OFF "Enable this if you are using a llvm built in debug mode, turn it off for release")
+endif(CMAKE_BUILD_TYPE MATCHES Debug)
 add_subdirectory(googletest)
 
 ##############################
@@ -28,9 +47,43 @@ set(CMAKE_DEBUG_POSTFIX "-d")
 ##############################
 ###        Globals         ###
 ##############################
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti -Wall -Werror -Wextra")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti -Wall -Werror -Wextra -Wno-unused-variable -Wno-unused-parameter")
 set_tests_properties(${noArgsTests}   PROPERTIES TIMEOUT 10)
-find_package(LLVM REQUIRED 8.0.0)
+find_package(LLVM REQUIRED 9.0.0)
+link_directories(${LLVM_PATH}/lib)
+include_directories(${LLVM_PATH}/include)
+
+if (LLVM_ENABLE_ABI_BREAKING_CHECKS)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLLVM_ENABLE_ABI_BREAKING_CHECKS=1")
+endif(LLVM_ENABLE_ABI_BREAKING_CHECKS)
+
+##############################
+###       InstallMacro     ###
+##############################
+macro(modelicaInstall target)
+
+include(GNUInstallDirs)
+INSTALL(TARGETS ${target} EXPORT ${target}Targets
+	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	RUNTIME DESTINATION bin
+	INCLUDES DESTINATION include)
+
+INSTALL(EXPORT ${target}Targets DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME}
+	FILE ${target}Targets.cmake
+	NAMESPACE modelica::)
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(${target}ConfigVersion.cmake
+	VERSION ${example_VERSION}
+	COMPATIBILITY SameMajorVersion)
+
+INSTALL(FILES ${target}Config.cmake ${CMAKE_CURRENT_BINARY_DIR}/${target}ConfigVersion.cmake
+	DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME})
+
+install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+endmacro(modelicaInstall)
 
 ##############################
 ###       Subfolders       ###
@@ -40,6 +93,7 @@ add_subdirectory(lowerer)
 add_subdirectory(utils)
 add_subdirectory(tool)
 add_subdirectory(runtime)
+add_subdirectory(simulationGenerator)
 
 ##############################
 ###        DOXYGEN         ###

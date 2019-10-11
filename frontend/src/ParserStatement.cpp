@@ -215,6 +215,8 @@ ExpectedUnique<Statement> Parser::statement()
 		return whileStatement();
 
 	ExpectedUnique<Expr> ref = nullptr;
+	if (!ref)
+		return ref.takeError();
 	if (accept<Token::LPar>())
 	{
 		if (accept<Token::RPar>())

@@ -23,7 +23,6 @@ TEST(ParserErrorsTest, llvmExpectedShouldBeCompatible)
 		FAIL();
 	else
 	{
-		EXPECT_EQ(f.errorIsA<UnexpectedToken>(), false);
-		EXPECT_EQ(f.errorIsA<NotImplemented>(), true);
+		llvm::handleAllErrors(f.takeError(), [](const NotImplemented&) {});
 	}
 }

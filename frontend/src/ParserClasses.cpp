@@ -422,10 +422,9 @@ ExpectedUnique<Declaration> Parser::externalFunctionCall()
 			return l.takeError();
 
 		args = move(*l);
+		if (auto e = expect(Token::RPar); !e)
+			return e.takeError();
 	}
-
-	if (auto e = expect(Token::RPar); e)
-		return e.takeError();
 
 	return makeNode<ExternalFunctionCall>(
 			currentPos,
@@ -804,6 +803,8 @@ ExpectedUnique<Declaration> Parser::comment()
 		return strCmnt.takeError();
 
 	ExpectedUnique<Declaration> mod = nullptr;
+	if (!mod)
+		return mod;
 	if (accept<Token::AnnotationKeyword>())
 		mod = classModification();
 
@@ -820,21 +821,25 @@ ExpectedUnique<Declaration> Parser::comment()
 ExpectedUnique<Declaration> Parser::constrainingClause()
 {
 	SourcePosition currentPos = getPosition();
-	if (auto e = expect(Token::ConstraynedByKeyword))
+	if (auto e = expect(Token::ConstraynedByKeyword); !e)
 		return e.takeError();
 
 	auto tpSpec = typeSpecifier();
 	if (!tpSpec)
 		return tpSpec.takeError();
 
-	ExpectedUnique<Declaration> mod = nullptr;
+	UniqueDecl mod = nullptr;
 	if (current == Token::LPar)
-		mod = classModification();
+	{
+		auto modification = classModification();
 
-	if (!mod)
-		return mod;
+		if (!modification)
+			return modification;
 
-	return makeNode<ConstrainingClause>(currentPos, move(*tpSpec), move(*mod));
+		mod = move(*modification);
+	}
+
+	return makeNode<ConstrainingClause>(currentPos, move(*tpSpec), move(mod));
 }
 
 ExpectedUnique<Declaration> Parser::annotation()
@@ -855,24 +860,28 @@ ExpectedUnique<Declaration> Parser::extendClause()
 	if (!tpSpec)
 		return tpSpec.takeError();
 
-	ExpectedUnique<Declaration> mod = nullptr;
+	UniqueDecl mod = nullptr;
 	if (current == Token::LPar)
-		mod = classModification();
+	{
+		auto expMod = classModification();
 
-	if (!mod)
-		return mod;
+		if (!expMod)
+			return expMod;
+		mod = move(*expMod);
+	}
 
-	ExpectedUnique<Declaration> ann = nullptr;
+	UniqueDecl ann = nullptr;
 
 	if (current == Token::AnnotationKeyword)
 	{
-		ann = annotation();
-		if (!ann)
-			return ann.takeError();
+		auto expAnn = annotation();
+		if (!expAnn)
+			return expAnn;
+		ann = move(*expAnn);
 	}
 
 	return makeNode<ExtendClause>(
-			currentPos, move(*tpSpec), move(*mod), move(*ann));
+			currentPos, move(*tpSpec), move(mod), move(ann));
 }
 
 ExpectedUnique<Declaration> Parser::argument()
@@ -1076,6 +1085,8 @@ ExpectedUnique<Declaration> Parser::elementRedeclaration()
 	bool fnal = accept<Token::FinalKeyword>();
 
 	ExpectedUnique<Declaration> child = nullptr;
+	if (!child)
+		return child;
 
 	if (current == Token::ReplacableKeyword)
 		child = elementReplaceable(each, fnal);
@@ -1099,13 +1110,15 @@ ExpectedUnique<Declaration> Parser::elementModification(bool each, bool finl)
 	if (!nm)
 		return nm.takeError();
 
-	ExpectedUnique<Declaration> decl = nullptr;
+	UniqueDecl decl = nullptr;
 	if (current == Token::LPar || current == Token::Colons ||
 			current == Token::Equal)
 	{
-		decl = modification();
-		if (!decl)
-			return decl.takeError();
+		auto expDecl = modification();
+		if (!expDecl)
+			return expDecl.takeError();
+
+		decl = move(*expDecl);
 	}
 
 	auto commnt = stringComment();
@@ -1113,7 +1126,7 @@ ExpectedUnique<Declaration> Parser::elementModification(bool each, bool finl)
 		return commnt.takeError();
 
 	auto node = makeNode<ElementModification>(
-			currentPos, move(*decl), move(*nm), each, finl);
+			currentPos, move(decl), move(*nm), each, finl);
 	if (!node)
 		return node;
 
@@ -1130,20 +1143,27 @@ ExpectedUnique<Declaration> Parser::elementReplaceable(bool each, bool fnl)
 	auto clause = componentClause1();
 	if (!clause)
 	{
+		if (auto e =
+						handleErrors(clause.takeError(), [](const UnexpectedToken&) {}))
+			return move(e);
 		clause = shortClassDefinition();
 
 		if (!clause)
 			return clause;
 	}
 
-	ExpectedUnique<Declaration> constrClause = nullptr;
+	UniqueDecl constrClause = nullptr;
 	if (current == Token::ConstraynedByKeyword)
-		constrClause = constrainingClause();
-	if (!constrClause)
-		return constrClause;
+	{
+		auto expConstrClause = constrainingClause();
+		if (expConstrClause)
+			return expConstrClause;
+
+		constrClause = move(*expConstrClause);
+	}
 
 	return makeNode<ReplecableModification>(
-			currentPos, move(*clause), each, fnl, move(*constrClause));
+			currentPos, move(*clause), each, fnl, move(constrClause));
 }
 
 ExpectedUnique<Declaration> Parser::modification()
@@ -1373,6 +1393,8 @@ Expected<DeclarationName> Parser::declaration()
 		return s.takeError();
 
 	ExpectedUnique<Declaration> dec = nullptr;
+	if (!dec)
+		return dec.takeError();
 	if (current == Token::LPar || current == Token::Equal ||
 			current == Token::Assignment)
 		dec = modification();

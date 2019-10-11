@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 
+#include "llvm/Support/Error.h"
 #include "modelica/Parser.hpp"
 
 using namespace modelica;
@@ -85,8 +86,8 @@ TEST(ParserTest, ifElseFailures)
 	auto exp = parser.expression();
 	if (exp)
 		FAIL();
-
-	EXPECT_EQ(true, exp.errorIsA<UnexpectedToken>());
+	auto error = exp.takeError();
+	llvm::handleAllErrors(std::move(error), [](const UnexpectedToken&) {});
 }
 
 TEST(ParserTest, logicalExpCanHave2Terms)

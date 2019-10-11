@@ -132,6 +132,8 @@ namespace modelica
 		}
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
+		void dumpCSyntax(
+				llvm::StringRef name, llvm::raw_ostream& OS = llvm::outs()) const;
 
 		private:
 		BultinSimTypes builtinSimType;

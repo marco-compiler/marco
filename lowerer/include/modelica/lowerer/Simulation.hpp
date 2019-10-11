@@ -33,8 +33,7 @@ namespace modelica
 				std::string name = "Modelica Module",
 				std::string entryPointName = "main",
 				unsigned stopTime = defaultSimulationIterations)
-				: context(context),
-					module(std::move(name), context),
+				: module(std::move(name), context),
 					variables(std::move(vars)),
 					updates(std::move(updates)),
 					stopTime(stopTime),
@@ -48,8 +47,7 @@ namespace modelica
 				std::string name = "Modelica Module",
 				std::string entryPointName = "main",
 				unsigned stopTime = defaultSimulationIterations)
-				: context(context),
-					module(std::move(name), context),
+				: module(std::move(name), context),
 					stopTime(stopTime),
 					entryPointName(std::move(entryPointName)),
 					varsLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage)
@@ -108,6 +106,11 @@ namespace modelica
 		void dumpBC(llvm::raw_ostream& OS) const;
 
 		/**
+		 * generates the header for this particular simulation
+		 */
+		void dumpHeader(llvm::raw_ostream& OS) const;
+
+		/**
 		 * \return the number of updates of the simulation
 		 */
 		[[nodiscard]] unsigned getStopTime() const { return stopTime; }
@@ -135,7 +138,6 @@ namespace modelica
 		}
 
 		private:
-		llvm::LLVMContext& context;
 		llvm::Module module;
 		llvm::StringMap<SimExp> variables;
 		llvm::StringMap<SimExp> updates;

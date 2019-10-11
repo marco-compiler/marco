@@ -272,7 +272,7 @@ ModelicaStateMachine::ModelicaStateMachine(char first)
 	keywordMap["connect"] = Token::ConnectKeyword;
 	keywordMap["connector"] = Token::ConnectorKeyword;
 	keywordMap["constant"] = Token::ConstantKeyword;
-	keywordMap["constraynedby"] = Token::ConstraynedByKeyword;
+	keywordMap["constrainedby"] = Token::ConstraynedByKeyword;
 	keywordMap["der"] = Token::DerKeyword;
 	keywordMap["discrete"] = Token::DiscreteKeyword;
 	keywordMap["each"] = Token::EachKeyword;
