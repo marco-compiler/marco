@@ -1,6 +1,7 @@
 #pragma once
 #include <numeric>
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -61,6 +62,11 @@ namespace modelica
 		{
 		}
 
+		SimType(BultinSimTypes builtin, llvm::SmallVector<size_t, 3> dim)
+				: builtinSimType(builtin), dimensions(std::move(dim))
+		{
+		}
+
 		/**
 		 * \return the bultin type.
 		 */
@@ -74,6 +80,14 @@ namespace modelica
 		[[nodiscard]] size_t getDimensionsCount() const
 		{
 			return dimensions.size();
+		}
+
+		/**
+		 *\return a new type with the same dimensions but different builtin type
+		 */
+		[[nodiscard]] SimType as(BultinSimTypes newBuiltint) const
+		{
+			return SimType(newBuiltint, dimensions);
 		}
 
 		/**

@@ -15,7 +15,7 @@ namespace modelica
 	{
 		zero,
 
-		negate,	// unary expressions
+		negate,	 // unary expressions
 
 		add,	// binary expressions
 		sub,
@@ -30,7 +30,7 @@ namespace modelica
 		elevation,
 		module,
 
-		conditional	// thernary expressions
+		conditional	 // thernary expressions
 	};
 
 	/**
@@ -100,13 +100,13 @@ namespace modelica
 			 */
 			[[nodiscard]] const SimExp& getLeftHand() const
 			{
-				assert(isUnary() || isBinary() || isTernary());	// NOLINT
+				assert(isUnary() || isBinary() || isTernary());	 // NOLINT
 				return *leftHandExpression;
 			}
 
 			[[nodiscard]] SimExp& getLeftHand()
 			{
-				assert(isUnary() || isBinary() || isTernary());	// NOLINT
+				assert(isUnary() || isBinary() || isTernary());	 // NOLINT
 				return *leftHandExpression;
 			}
 
@@ -172,6 +172,8 @@ namespace modelica
 			 */
 			Operation& operator=(const Operation& other)
 			{
+				if (this == &other)
+					return *this;
 				kind = other.kind;
 				if (other.leftHandExpression != nullptr)
 					leftHandExpression =
@@ -217,7 +219,7 @@ namespace modelica
 			}
 
 			private:
-			bool deepEqual(SimExp* first, SimExp* second) const
+			static bool deepEqual(SimExp* first, SimExp* second)
 			{
 				if (first == nullptr && second != nullptr)
 					return false;
@@ -331,7 +333,7 @@ namespace modelica
 		}
 
 		/**
-		 * \brief Creates a divions expression based on two values.
+		 * \brief Creates a divisions expression based on two values.
 		 * \warning Remember to move the two expression instead of copying them each
 		 * time.
 		 */
@@ -341,6 +343,145 @@ namespace modelica
 					SimExpKind::divide,
 					std::make_unique<SimExp>(std::move(lhs)),
 					std::make_unique<SimExp>(std::move(rhs)));
+		}
+
+		/**
+		 * \brief Creates a powerOf expression based on two values.
+		 * \warning Remember to move the two expression instead of copying them each
+		 * time.
+		 */
+		[[nodiscard]] static SimExp elevate(SimExp lhs, SimExp rhs)
+		{
+			return SimExp(
+					SimExpKind::elevation,
+					std::make_unique<SimExp>(std::move(lhs)),
+					std::make_unique<SimExp>(std::move(rhs)));
+		}
+
+		/**
+		 * \brief Creates a modulo expression based on two values.
+		 * \warning Remember to move the two expression instead of copying them each
+		 * time.
+		 */
+		[[nodiscard]] static SimExp modulo(SimExp lhs, SimExp rhs)
+		{
+			return SimExp(
+					SimExpKind::module,
+					std::make_unique<SimExp>(std::move(lhs)),
+					std::make_unique<SimExp>(std::move(rhs)));
+		}
+
+		/**
+		 * \brief Creates a modulo expression based on two values.
+		 * \warning Remember to move the two expression instead of copying them each
+		 * time.
+		 */
+		[[nodiscard]] static SimExp cond(SimExp cond, SimExp lhs, SimExp rhs)
+		{
+			return SimExp(
+					SimExpKind::conditional,
+					std::make_unique<SimExp>(std::move(lhs)),
+					std::make_unique<SimExp>(std::move(rhs)),
+					std::make_unique<SimExp>(std::move(cond)));
+		}
+
+		/**
+		 * Creates a greather than expression, the return type has the same
+		 * dimensions as left hand value but of bools
+		 */
+		[[nodiscard]] static SimExp greaterThan(SimExp lhs, SimExp rhs)
+		{
+			auto type = lhs.getSimType().as(BultinSimTypes::BOOL);
+			return SimExp(
+					SimExpKind::greaterThan,
+					std::move(type),
+					std::make_unique<SimExp>(std::move(lhs)),
+					std::make_unique<SimExp>(std::move(rhs)));
+		}
+
+		/**
+		 * Creates a greather equal expression, the return type has the same
+		 * dimensions as left hand value but of bools
+		 */
+		[[nodiscard]] static SimExp greaterEqual(SimExp lhs, SimExp rhs)
+		{
+			auto type = lhs.getSimType().as(BultinSimTypes::BOOL);
+			return SimExp(
+					SimExpKind::greaterEqual,
+					std::move(type),
+					std::make_unique<SimExp>(std::move(lhs)),
+					std::make_unique<SimExp>(std::move(rhs)));
+		}
+
+		/**
+		 * Creates a less equal expression, the return type has the same
+		 * dimensions as left hand value but of bools
+		 */
+		[[nodiscard]] static SimExp lessEqual(SimExp lhs, SimExp rhs)
+		{
+			auto type = lhs.getSimType().as(BultinSimTypes::BOOL);
+			return SimExp(
+					SimExpKind::lessEqual,
+					std::move(type),
+					std::make_unique<SimExp>(std::move(lhs)),
+					std::make_unique<SimExp>(std::move(rhs)));
+		}
+		/**
+		 * Creates a less expression, the return type has the same
+		 * dimensions as left hand value but of bools
+		 */
+		[[nodiscard]] static SimExp lessThan(SimExp lhs, SimExp rhs)
+		{
+			auto type = lhs.getSimType().as(BultinSimTypes::BOOL);
+			return SimExp(
+					SimExpKind::less,
+					std::move(type),
+					std::make_unique<SimExp>(std::move(lhs)),
+					std::make_unique<SimExp>(std::move(rhs)));
+		}
+
+		/**
+		 * \brief Short hand for SimExp::greaterEqual
+		 *
+		 * \warning Notice that using the short hand will move the content no matter
+		 * what
+		 */
+		[[nodiscard]] SimExp operator>=(const SimExp& other)
+		{
+			return SimExp::greaterThan(std::move(*this), std::move(other));
+		}
+
+		/**
+		 * \brief Short hand for SimExp::greaterThan
+		 *
+		 * \warning Notice that using the short hand will move the content no matter
+		 * what
+		 */
+		[[nodiscard]] SimExp operator>(const SimExp& other)
+		{
+			return SimExp::greaterThan(std::move(*this), std::move(other));
+		}
+
+		/**
+		 * \brief Short hand for SimExp::lessThan
+		 *
+		 * \warning Notice that using the short hand will move the content no matter
+		 * what
+		 */
+		[[nodiscard]] SimExp operator<(const SimExp& other)
+		{
+			return SimExp::lessThan(std::move(*this), std::move(other));
+		}
+
+		/**
+		 * \brief Short hand for SimExp::lessEqual
+		 *
+		 * \warning Notice that using the short hand will move the content no matter
+		 * what
+		 */
+		[[nodiscard]] SimExp operator<=(const SimExp& other)
+		{
+			return SimExp::lessEqual(std::move(*this), std::move(other));
 		}
 
 		/**
@@ -596,6 +737,7 @@ namespace modelica
 							Operation(kind, std::move(lhs), std::move(rhs), std::move(cond))),
 					returnSimType(std::move(retSimType))
 		{
+			assert(!isOperation() || areSubExpressionCompatibles());	// NOLINT
 		}
 		SimExp(
 				SimExpKind kind,
@@ -606,6 +748,7 @@ namespace modelica
 							Operation(kind, std::move(lhs), std::move(rhs), std::move(cond))),
 					returnSimType(getLeftHand().getSimType())
 		{
+			assert(!isOperation() || areSubExpressionCompatibles());	// NOLINT
 		}
 
 		[[nodiscard]] const Operation& getOperation() const
@@ -659,4 +802,4 @@ namespace modelica
 		visitor.afterVisit(exp);
 	}
 
-}	// namespace modelica
+}	 // namespace modelica

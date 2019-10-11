@@ -105,17 +105,50 @@ static Expected<AllocaInst*> lowerConstant(
 	return nullptr;
 }
 
+static Type* typeFromOperation(
+		LLVMContext& context, SimExpKind op, Type* leftHand)
+{
+	assert(leftHand->isArrayTy());	// NOLINT
+	auto t = dyn_cast<ArrayType>(leftHand);
+	auto boolType = IntegerType::getInt1Ty(context);
+	auto boolVector = ArrayType::get(boolType, t->getNumElements());
+	switch (op)
+	{
+		case (SimExpKind::negate):
+		case (SimExpKind::add):
+		case (SimExpKind::sub):
+		case (SimExpKind::mult):
+		case (SimExpKind::divide):
+		case (SimExpKind::elevation):
+		case (SimExpKind::module):
+		case (SimExpKind::conditional):
+			return leftHand;
+		case (SimExpKind::greaterThan):
+		case (SimExpKind::greaterEqual):
+		case (SimExpKind::equal):
+		case (SimExpKind::different):
+		case (SimExpKind::less):
+		case (SimExpKind::lessEqual):
+			return boolVector;
+		default:
+			assert(false && "unreachable");	 // NOLINT
+			return nullptr;
+	}
+}
+
 template<int argumentsSize>
 static AllocaInst* elementWiseOperation(
 		IRBuilder<>& builder,
 		Function* fun,
 		ArrayRef<Value*>& args,
+		SimExpKind opKind,
 		std::function<Value*(IRBuilder<>&, ArrayRef<Value*>)> operation)
 {
 	auto ptrType = dyn_cast<PointerType>(args[0]->getType());
 	auto arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
 
-	auto alloca = builder.CreateAlloca(arrayType);
+	auto alloca = builder.CreateAlloca(
+			typeFromOperation(builder.getContext(), opKind, arrayType));
 
 	const auto performOp = [alloca, &operation, &args](
 														 IRBuilder<>& builder, Value* index) {
@@ -224,7 +257,7 @@ static Expected<AllocaInst*> lowerBinOp(
 		return createSingleBynaryOP(builder, args, type);
 	};
 
-	return elementWiseOperation<2>(builder, fun, subExp, binaryOp);
+	return elementWiseOperation<2>(builder, fun, subExp, exp.getKind(), binaryOp);
 }
 
 static Expected<AllocaInst*> lowerUnOp(
@@ -240,60 +273,94 @@ static Expected<AllocaInst*> lowerUnOp(
 		return createSingleUnaryOp(builder, args, type);
 	};
 
-	return elementWiseOperation<1>(builder, fun, subExp, unaryOp);
-}
-
-static Expected<AllocaInst*> lowerTernOp(
-		IRBuilder<>& builder, const SimExp& exp, ArrayRef<Value*> subExp)
-{
-	assert(exp.isTernary());		 // NOLINT
-	assert(subExp.size() == 3);	 // NOLINT
-
-	switch (exp.getKind())
-	{
-		case SimExpKind::zero: {
-			SimType type(BultinSimTypes::INT);
-			IntSimConst constant(0);
-			return lowerConstant(builder, constant, type);
-		}
-		case SimExpKind::conditional: {
-			assert(subExp.size() == 3);	 // NOLINT
-			// TODO
-			assert(false && "conditional unsupported");	 // NOLINT
-			return nullptr;
-		}
-		default:
-			assert(false && "unreachable");	 // NOLINT
-			return nullptr;
-	}
-	assert(false && "unreachable");	 // NOLINT
-	return nullptr;
-}
-
-static Expected<AllocaInst*> lowerOperation(
-		IRBuilder<>& builder,
-		Function* fun,
-		const SimExp& exp,
-		ArrayRef<Value*> subExp)
-{
-	assert(exp.isOperation());	// NOLINT
-	if (exp.isUnary())
-		return lowerUnOp(builder, fun, exp, subExp);
-
-	if (exp.isBinary())
-		return lowerBinOp(builder, fun, exp, subExp);
-
-	return lowerTernOp(builder, exp, subExp);
+	return elementWiseOperation<1>(builder, fun, subExp, exp.getKind(), unaryOp);
 }
 
 static Expected<Value*> lowerExp(
 		IRBuilder<>& builder, Function* fun, const SimExp& exp);
 
+static Expected<Value*> lowerTernary(
+		IRBuilder<>& builder, Function* fun, const SimExp& exp)
+{
+	assert(exp.isTernary());	// NOLINT
+	const auto leftHandLowerer = [&exp, fun](IRBuilder<>& builder) {
+		return lowerExp(builder, fun, exp.getLeftHand());
+	};
+	const auto rightHandLowerer = [&exp, fun](IRBuilder<>& builder) {
+		return lowerExp(builder, fun, exp.getRightHand());
+	};
+	const auto conditionLowerer =
+			[&exp, fun](IRBuilder<>& builder) -> Expected<Value*> {
+		auto& condition = exp.getCondition();
+		assert(condition.getSimType() == SimType(BultinSimTypes::BOOL));	// NOLINT
+		auto ptrToCond = lowerExp(builder, fun, condition);
+		if (!ptrToCond)
+			return ptrToCond;
+
+		size_t zero = 0;
+		return loadToArrayElement(builder, *ptrToCond, zero);
+	};
+
+	auto type = exp.getLeftHand().getSimType();
+	auto llvmType = typeToLLVMType(builder.getContext(), type)->getPointerTo(0);
+
+	return createTernaryOp(
+			fun,
+			builder,
+			llvmType,
+			conditionLowerer,
+			leftHandLowerer,
+			rightHandLowerer);
+}
+
+static Expected<Value*> lowerOperation(
+		IRBuilder<>& builder, Function* fun, const SimExp& exp)
+{
+	assert(exp.isOperation());	// NOLINT
+
+	if (SimExpKind::zero == exp.getKind())
+	{
+		SimType type(BultinSimTypes::INT);
+		IntSimConst constant(0);
+		return lowerConstant(builder, constant, type);
+	}
+
+	if (exp.isTernary())
+		return lowerTernary(builder, fun, exp);
+
+	if (exp.isUnary())
+	{
+		SmallVector<Value*, 2> values;
+		auto subexp = lowerExp(builder, fun, exp.getLeftHand());
+		if (!subexp)
+			return subexp.takeError();
+		values.push_back(move(*subexp));
+
+		return lowerUnOp(builder, fun, exp, values);
+	}
+
+	if (exp.isBinary())
+	{
+		SmallVector<Value*, 2> values;
+		auto leftHand = lowerExp(builder, fun, exp.getLeftHand());
+		if (!leftHand)
+			return leftHand.takeError();
+		values.push_back(move(*leftHand));
+
+		auto rightHand = lowerExp(builder, fun, exp.getRightHand());
+		if (!rightHand)
+			return rightHand.takeError();
+		values.push_back(move(*rightHand));
+
+		return lowerBinOp(builder, fun, exp, values);
+	}
+	assert(false && "Unreachable");
+	return nullptr;
+}
+
 static Expected<Value*> uncastedLowerExp(
 		IRBuilder<>& builder, Function* fun, const SimExp& exp)
 {
-	SmallVector<Value*, 3> values;
-
 	if (!exp.areSubExpressionCompatibles())
 		return make_error<TypeMissMatch>(exp);
 
@@ -303,29 +370,7 @@ static Expected<Value*> uncastedLowerExp(
 	if (exp.isReference())
 		return lowerReference(builder, exp.getReference());
 
-	if (exp.isUnary() || exp.isBinary() || exp.isTernary())
-	{
-		auto subexp = lowerExp(builder, fun, exp.getLeftHand());
-		if (!subexp)
-			return subexp;
-		values.push_back(move(*subexp));
-	}
-	if (exp.isBinary() || exp.isTernary())
-	{
-		auto subexp = lowerExp(builder, fun, exp.getRightHand());
-		if (!subexp)
-			return subexp;
-		values.push_back(move(*subexp));
-	}
-	if (exp.isTernary())
-	{
-		auto subexp = lowerExp(builder, fun, exp.getCondition());
-		if (!subexp)
-			return subexp;
-		values.push_back(move(*subexp));
-	}
-
-	return lowerOperation(builder, fun, exp, values);
+	return lowerOperation(builder, fun, exp);
 }
 
 static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
@@ -338,7 +383,8 @@ static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
 
 	if (type == floatType)
 		return builder.CreateSIToFP(val, floatType);
-	else if (type == intType)
+
+	if (type == intType)
 	{
 		if (val->getType() == floatType)
 			return builder.CreateFPToSI(val, intType);
@@ -349,7 +395,7 @@ static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
 	if (val->getType() == floatType)
 		return builder.CreateFPToSI(val, boolType);
 
-	return builder.CreateICmpNE(val, constantZero);
+	return builder.CreateTrunc(val, boolType);
 }
 
 static Expected<Value*> castReturnValue(

@@ -84,5 +84,13 @@ namespace modelica
 			llvm::IRBuilder<>& builder,
 			size_t iterationCount,
 			std::function<void(llvm::IRBuilder<>&, llvm::Value*)> whileContent);
-
+	using TernaryOpFunction =
+			std::function<llvm::Expected<llvm::Value*>(llvm::IRBuilder<>&)>;
+	llvm::Expected<llvm::Value*> createTernaryOp(
+			llvm::Function* function,
+			llvm::IRBuilder<>& builder,
+			llvm::Type* outType,
+			TernaryOpFunction condition,
+			TernaryOpFunction trueBlock,
+			TernaryOpFunction falseBlock);
 }	 // namespace modelica

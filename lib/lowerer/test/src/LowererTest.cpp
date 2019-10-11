@@ -73,3 +73,22 @@ TEST(ConstantTest, dumpConstant)	// NOLINT
 
 	EXPECT_EQ(boolString, "0");
 }
+
+TEST(ExpressionTest, operatorGreaterShouldReturnBool)	 // NOLINT
+{
+	auto exp = SimExp(SimConst<int>(3)) > SimExp(SimConst<int>(4));
+	EXPECT_EQ(exp.getSimType(), SimType(BultinSimTypes::BOOL));
+}
+
+TEST(ExpressionTest, ternaryExp)	// NOLINT
+{
+	auto cond = SimExp::cond(
+			SimExp("leftHand", BultinSimTypes::INT) >
+					SimExp("rightHand", BultinSimTypes::INT),
+			SimExp(SimConst<int>(1)),
+			SimExp(SimConst<int>(9)));
+
+	EXPECT_EQ(cond.isTernary(), true);
+	EXPECT_EQ(cond.getCondition().getSimType(), SimType(BultinSimTypes::BOOL));
+	EXPECT_EQ(cond.getCondition().isOperation(), true);
+}

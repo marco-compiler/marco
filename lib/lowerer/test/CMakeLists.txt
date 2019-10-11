@@ -71,4 +71,5 @@ endmacro(addLowererSimulationTest)
 addLowererSimulationTest(typeSimulation src/TypeTestGenerator.cpp src/TypeSimulationTest.cpp)
 addLowererSimulationTest(arraySimulation src/ArrayTestGenerator.cpp src/ArraySimulationTest.cpp)
 addLowererSimulationTest(floatSimulation src/FloatTestGenerator.cpp src/FloatSimulationTest.cpp)
+addLowererSimulationTest(condSimulation src/CondTestGenerator.cpp src/CondSimulationTest.cpp)
 
