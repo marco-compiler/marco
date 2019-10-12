@@ -14,18 +14,18 @@ namespace modelica
 	constexpr int defaultSimulationIterations = 10;
 
 	/**
-	 * A simulation is the main container of the library. A simulation can be
-	 * lowered and dumped into a bc file to be later compiled.
+	 * A Lowerer is the main container of the library. It lowers
+	 * a simulation and dumps into a bc file to be later compiled.
 	 *
-	 * A simulation is made of a inizialization section and of an update section.
+	 * A Lowerer is made of a inizialization section and of an update section.
 	 * The generated file will invoke the initialization values once and then
 	 * update a certain number of time and will print the values of the vars at
 	 * each update.
 	 */
-	class Simulation
+	class Lowerer
 	{
 		public:
-		Simulation(
+		Lowerer(
 				llvm::LLVMContext& context,
 				llvm::StringMap<SimExp> vars,
 				llvm::StringMap<SimExp> updates,
@@ -41,7 +41,7 @@ namespace modelica
 		{
 		}
 
-		Simulation(
+		Lowerer(
 				llvm::LLVMContext& context,
 				std::string name = "Modelica Module",
 				std::string entryPointName = "main",

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "modelica/lowerer/SimLowerer.hpp"
+#include "LowererUtils.hpp"
 
 namespace modelica
 {

@@ -9,7 +9,7 @@ using T = BultinSimTypes;
 template<typename T>
 using C = modelica::SimConst<T>;
 
-bool makeSimulation(Simulation& sim)
+bool makeSimulation(Lowerer& sim)
 {
 	if (!sim.addVar("IntModifiable", E(C<int>(3))))
 		return false;

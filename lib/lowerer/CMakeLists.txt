@@ -1,4 +1,4 @@
-add_library(lowerer SHARED src/Simulation.cpp src/SimLowerer.cpp src/ExpLowerer.cpp) 
+add_library(lowerer SHARED src/Lowerer.cpp src/LowererUtils.cpp src/ExpLowerer.cpp) 
 add_library(modelica::lowerer ALIAS lowerer)
 target_include_directories(lowerer 
 	PRIVATE 

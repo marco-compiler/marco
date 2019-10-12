@@ -1,9 +1,9 @@
-#include "modelica/lowerer/Simulation.hpp"
+#include "modelica/lowerer/Lowerer.hpp"
 
+#include "ExpLowerer.hpp"
+#include "LowererUtils.hpp"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/IRBuilder.h"
-#include "modelica/lowerer/ExpLowerer.hpp"
-#include "modelica/lowerer/SimLowerer.hpp"
 #include "modelica/simulation/SimErrors.hpp"
 
 using namespace std;
@@ -202,7 +202,7 @@ static Expected<Function*> populatePrint(Module& m, StringMap<SimExp> vars)
 	return printFunction;
 }
 
-Error Simulation::lower()
+Error Lowerer::lower()
 {
 	if (auto e = createAllGlobals(module, variables, getVarLinkage()); e)
 		return e;
@@ -232,7 +232,7 @@ Error Simulation::lower()
 	return Error::success();
 }
 
-void Simulation::dump(raw_ostream& OS) const
+void Lowerer::dump(raw_ostream& OS) const
 {
 	auto const dumpEquation = [&OS](const auto& couple) {
 		OS << couple.first().data();
@@ -248,12 +248,9 @@ void Simulation::dump(raw_ostream& OS) const
 	for_each(begin(updates), end(updates), dumpEquation);
 }
 
-void Simulation::dumpBC(raw_ostream& OS) const
-{
-	WriteBitcodeToFile(module, OS);
-}
+void Lowerer::dumpBC(raw_ostream& OS) const { WriteBitcodeToFile(module, OS); }
 
-void Simulation::dumpHeader(raw_ostream& OS) const
+void Lowerer::dumpHeader(raw_ostream& OS) const
 {
 	OS << "#pragma once\n\n";
 

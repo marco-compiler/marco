@@ -16,7 +16,7 @@ int main(int argc, char* argv[])
 {
 	ParseCommandLineOptions(argc, argv);
 	LLVMContext context;
-	Simulation sim(context, "Int Test Simulation", "runSimulation");
+	Lowerer sim(context, "Int Test Simulation", "runSimulation");
 	sim.setVarsLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
 	if (!makeSimulation(sim))
 		return -1;

@@ -9,7 +9,7 @@ using T = BultinSimTypes;
 template<typename T>
 using C = modelica::SimConst<T>;
 
-bool makeSimulation(Simulation& sim)
+bool makeSimulation(Lowerer& sim)
 {
 	if (!sim.addVar("FloatConstant", E(C<float>(3.0F))))
 		return false;

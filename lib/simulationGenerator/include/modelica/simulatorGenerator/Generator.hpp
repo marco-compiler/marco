@@ -1,5 +1,5 @@
 #pragma once
 
-#include "modelica/lowerer/Simulation.hpp"
+#include "modelica/lowerer/Lowerer.hpp"
 
-bool makeSimulation(modelica::Simulation& sim);
+bool makeSimulation(modelica::Lowerer& sim);

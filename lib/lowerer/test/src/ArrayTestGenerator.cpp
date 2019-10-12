@@ -10,7 +10,7 @@ using T = SimType;
 template<typename T>
 using C = modelica::SimConst<T>;
 
-bool makeSimulation(Simulation& sim)
+bool makeSimulation(Lowerer& sim)
 {
 	if (!sim.addVar("intVector", E(C<int>(1, 2, 3), T(B::INT, 3))))
 		return false;

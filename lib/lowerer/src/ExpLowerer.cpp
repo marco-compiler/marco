@@ -1,4 +1,4 @@
-#include "modelica/lowerer/ExpLowerer.hpp"
+#include "ExpLowerer.hpp"
 
 #include "modelica/simulation/SimErrors.hpp"
 

@@ -2,7 +2,7 @@
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/Error.h"
-#include "modelica/lowerer/Simulation.hpp"
+#include "modelica/lowerer/Lowerer.hpp"
 
 namespace modelica
 {

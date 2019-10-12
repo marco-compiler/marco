@@ -1,7 +1,7 @@
-#include "modelica/lowerer/SimLowerer.hpp"
+#include "LowererUtils.hpp"
 
 #include "llvm/IR/IRBuilder.h"
-#include "modelica/lowerer/Simulation.hpp"
+#include "modelica/lowerer/Lowerer.hpp"
 #include "modelica/simulation/SimConst.hpp"
 #include "modelica/simulation/SimErrors.hpp"
 
