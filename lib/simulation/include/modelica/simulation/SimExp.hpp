@@ -6,6 +6,7 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
+#include "modelica/simulation/SimCall.hpp"
 #include "modelica/simulation/SimConst.hpp"
 #include "modelica/simulation/SimType.hpp"
 
@@ -270,6 +271,11 @@ namespace modelica
 				SimConst<C> constant,
 				SimType returnSimType = SimType(typeToBuiltin<C>()))
 				: content(std::move(constant)), returnSimType(std::move(returnSimType))
+		{
+		}
+
+		SimExp(SimCall call, SimType returnType)
+				: content(std::move(call)), returnSimType(std::move(returnType))
 		{
 		}
 
@@ -559,7 +565,16 @@ namespace modelica
 		 */
 		[[nodiscard]] bool isConstant() const
 		{
-			return !isOperation() && !isReference();
+			return !isOperation() && !isReference() && !isCall();
+		}
+
+		/**
+		 * \return true if the expression is holding a call
+		 *
+		 */
+		[[nodiscard]] bool isCall() const
+		{
+			return std::holds_alternative<SimCall>(content);
 		}
 
 		/**
@@ -762,6 +777,13 @@ namespace modelica
 			return getOperation().getArity();
 		}
 
+		[[nodiscard]] const SimCall& getCall() const
+		{
+			assert(isCall());	 // NOLINT
+
+			return std::get<SimCall>(content);
+		}
+
 		private:
 		SimExp(
 				SimExpKind kind,
@@ -804,7 +826,8 @@ namespace modelica
 				IntSimConst,
 				BoolSimConst,
 				FloatSimConst,
-				std::string>
+				std::string,
+				SimCall>
 				content;
 		SimType returnSimType;
 	};
@@ -822,6 +845,12 @@ namespace modelica
 	void visit(SimExp& exp, Visitor& visitor)
 	{
 		const auto visitChildren = [](SimExp& exp, Visitor& visitor) {
+			if (exp.isCall())
+			{
+				visitCall(exp.getCall(), visitor);
+				return;
+			}
+
 			if (!exp.isOperation())
 				return;
 			visit(exp.getLeftHand(), visitor);

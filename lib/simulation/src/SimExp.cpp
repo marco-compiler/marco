@@ -103,7 +103,17 @@ class SimExpDumper
 			return;
 		}
 
-		dumpOperation(exp, OS);
+		if (exp.isOperation())
+		{
+			dumpOperation(exp, OS);
+			return;
+		}
+		if (exp.isCall())
+		{
+			exp.getCall().dump(OS);
+			return;
+		}
+		assert(false && "Unrechable");
 	}
 
 	void afterVisit(const SimExp& exp)

@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 
+#include "modelica/simulation/SimCall.hpp"
 #include "modelica/simulation/SimExp.hpp"
 
 using namespace modelica;
@@ -91,4 +92,26 @@ TEST(ExpressionTest, ternaryExp)	// NOLINT
 	EXPECT_EQ(cond.isTernary(), true);
 	EXPECT_EQ(cond.getCondition().getSimType(), SimType(BultinSimTypes::BOOL));
 	EXPECT_EQ(cond.getCondition().isOperation(), true);
+}
+
+TEST(SimCallTest, testDeepEquality)	 // NOLINT
+{
+	SimExp ref("ref", BultinSimTypes::BOOL);
+	SimCall call("hey", { ref, ref });
+
+	auto copy = call;
+
+	EXPECT_EQ(call, copy);
+}
+
+TEST(ExpressionTest, callExpression)	// NOLINT
+{
+	SimExp ref("ref", BultinSimTypes::BOOL);
+	SimExp exp(SimCall("Hey", { ref, ref }), BultinSimTypes::INT);
+
+	EXPECT_EQ(exp.isCall(), true);
+	EXPECT_EQ(exp.getCall().getName(), "Hey");
+	EXPECT_EQ(exp.getSimType(), SimType(BultinSimTypes::INT));
+	EXPECT_EQ(exp.getCall().argsSize(), 2);
+	EXPECT_EQ(exp.getCall().at(0), ref);
 }
