@@ -3,8 +3,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "modelica/lowerer/SimErrors.hpp"
-#include "modelica/lowerer/SimExp.hpp"
+#include "modelica/simulation/SimExp.hpp"
 
 namespace modelica
 {
@@ -146,4 +145,4 @@ namespace modelica
 		std::string entryPointName;
 		llvm::GlobalValue::LinkageTypes varsLinkage;
 	};
-}	// namespace modelica
+}	 // namespace modelica

@@ -1,4 +1,4 @@
-#include "modelica/lowerer/SimErrors.hpp"
+#include "modelica/simulation/SimErrors.hpp"
 using namespace modelica;
 
 LowererErrorCategory LowererErrorCategory::category;

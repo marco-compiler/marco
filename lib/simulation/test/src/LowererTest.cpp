@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "modelica/lowerer/SimExp.hpp"
+#include "modelica/simulation/SimExp.hpp"
 
 using namespace modelica;
 using namespace std;

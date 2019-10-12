@@ -1,8 +1,9 @@
 #include "modelica/lowerer/SimLowerer.hpp"
 
 #include "llvm/IR/IRBuilder.h"
-#include "modelica/lowerer/SimConst.hpp"
 #include "modelica/lowerer/Simulation.hpp"
+#include "modelica/simulation/SimConst.hpp"
+#include "modelica/simulation/SimErrors.hpp"
 
 using namespace llvm;
 using namespace std;
@@ -10,6 +11,59 @@ using namespace std;
 namespace modelica
 {
 	constexpr auto internalLinkage = GlobalValue::LinkageTypes::InternalLinkage;
+
+	Value* getArrayElementPtr(IRBuilder<>& bld, Value* arrayPtr, size_t index)
+	{
+		auto ptrType = dyn_cast<PointerType>(arrayPtr->getType());
+		auto arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
+		assert(index <= arrayType->getNumElements());	 // NOLINT
+
+		auto intType = Type::getInt32Ty(bld.getContext());
+
+		auto zero = ConstantInt::get(intType, 0);
+		auto i = ConstantInt::get(intType, index);
+		return getArrayElementPtr(bld, arrayPtr, i);
+	}
+
+	Value* getArrayElementPtr(IRBuilder<>& bld, Value* arrayPtr, Value* index)
+	{
+		auto intType = Type::getInt32Ty(bld.getContext());
+
+		auto zero = ConstantInt::get(intType, 0);
+		SmallVector<Value*, 2> args = { zero, index };
+		return bld.CreateGEP(arrayPtr, args);
+	}
+
+	void storeToArrayElement(
+			IRBuilder<>& bld, Value* value, Value* arrayPtr, Value* index)
+	{
+		auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
+		bld.CreateStore(value, ptrToElem);
+	}
+
+	Value* loadArrayElement(IRBuilder<>& bld, Value* arrayPtr, size_t index)
+	{
+		auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
+		return bld.CreateLoad(ptrToElem);
+	}
+
+	Value* loadArrayElement(IRBuilder<>& bld, Value* arrayPtr, Value* index)
+	{
+		auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
+		return bld.CreateLoad(ptrToElem);
+	}
+	AllocaInst* allocaSimType(IRBuilder<>& bld, const SimType& type)
+	{
+		auto llvmType = typeToLLVMType(bld.getContext(), type);
+		return bld.CreateAlloca(llvmType);
+	}
+
+	void storeToArrayElement(
+			IRBuilder<>& bld, Value* value, Value* arrayPtr, size_t index)
+	{
+		auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
+		bld.CreateStore(value, ptrToElem);
+	}
 
 	static FunctionType* getVoidType(LLVMContext& context)
 	{

@@ -1,4 +1,4 @@
-#include "modelica/lowerer/SimType.hpp"
+#include "modelica/simulation/SimType.hpp"
 
 using namespace std;
 using namespace modelica;

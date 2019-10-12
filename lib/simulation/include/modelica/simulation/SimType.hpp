@@ -149,6 +149,14 @@ namespace modelica
 		void dumpCSyntax(
 				llvm::StringRef name, llvm::raw_ostream& OS = llvm::outs()) const;
 
+		/**
+		 * \return the array containing the dimensions of this objects
+		 */
+		[[nodiscard]] const llvm::SmallVector<size_t, 3>& getDimensions() const
+		{
+			return dimensions;
+		}
+
 		private:
 		BultinSimTypes builtinSimType;
 		llvm::SmallVector<size_t, 3> dimensions;

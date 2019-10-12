@@ -1,6 +1,7 @@
 #pragma once
 
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/Support/Error.h"
 #include "modelica/lowerer/Simulation.hpp"
 
 namespace modelica
@@ -15,6 +16,51 @@ namespace modelica
 	llvm::Expected<llvm::Function*> makePrivateFunction(
 			llvm::StringRef name, llvm::Module& m);
 
+	/**
+	 * \return the pointer to the index element inside the array pointed by
+	 * arrayPtr
+	 */
+	llvm::Value* getArrayElementPtr(
+			llvm::IRBuilder<>& bld, llvm::Value* arrayPtr, llvm::Value* index);
+
+	/**
+	 * \return the pointer to the index element inside the array pointed by
+	 * arrayPtr
+	 * \pre index in bounds
+	 */
+	llvm::Value* getArrayElementPtr(
+			llvm::IRBuilder<>& bld, llvm::Value* arrayPtr, size_t index);
+
+	/**
+	 * arrayPtr[index] = value;
+	 */
+	void storeToArrayElement(
+			llvm::IRBuilder<>& bld,
+			llvm::Value* value,
+			llvm::Value* arrayPtr,
+			llvm::Value* index);
+
+	/**
+	 * arrayPtr[index] = value;
+	 *
+	 */
+	void storeToArrayElement(
+			llvm::IRBuilder<>& bld,
+			llvm::Value* value,
+			llvm::Value* arrayPtr,
+			size_t index);
+
+	/**
+	 * \return arrayPtr[index]
+	 */
+	llvm::Value* loadArrayElement(
+			llvm::IRBuilder<>& bld, llvm::Value* arrayPtr, size_t index);
+
+	/**
+	 * \return arrayPtr[index]
+	 */
+	llvm::Value* loadArrayElement(
+			llvm::IRBuilder<>& bld, llvm::Value* arrayPtr, llvm::Value* index);
 	/**
 	 * creates a type from a SimType
 	 * \return the created type
@@ -62,12 +108,29 @@ namespace modelica
 	}
 
 	/**
+	 * arrayPtr[index] = value
+	 */
+	template<typename T>
+	void storeConstantToArrayElement(
+			llvm::IRBuilder<>& bld, T value, llvm::Value* arrayPtr, size_t index)
+	{
+		auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
+		makeConstantStore<T>(bld, value, ptrToElem);
+	}
+
+	/**
 	 * creates a load instruction to load the old value of a particular var.
 	 *
 	 * \return the loadInst
 	 */
 	llvm::Expected<llvm::Value*> lowerReference(
 			llvm::IRBuilder<>& builder, llvm::StringRef exp);
+
+	/**
+	 * \return a llvm::type rappresenting the array of types of the provided
+	 * SimType.
+	 */
+	llvm::AllocaInst* allocaSimType(llvm::IRBuilder<>& bld, const SimType& type);
 
 	/**
 	 * Creates a for cycle that last interationsCount iterations
@@ -84,8 +147,19 @@ namespace modelica
 			llvm::IRBuilder<>& builder,
 			size_t iterationCount,
 			std::function<void(llvm::IRBuilder<>&, llvm::Value*)> whileContent);
+
 	using TernaryOpFunction =
 			std::function<llvm::Expected<llvm::Value*>(llvm::IRBuilder<>&)>;
+
+	/**
+	 * Creates a if else branch based on the result value of condition()
+	 * \pre the returned llvm::type of trueBlock() must be equal to the returned
+	 * llvm::type of falseBlock() and to outType, the returned llvm::type of
+	 * condition() bust be int1.
+	 * \return the phi instruction that contains the result of the brach taken.
+	 *
+	 * builder will now point at the exit BB.
+	 */
 	llvm::Expected<llvm::Value*> createTernaryOp(
 			llvm::Function* function,
 			llvm::IRBuilder<>& builder,

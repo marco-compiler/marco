@@ -6,8 +6,8 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/lowerer/SimConst.hpp"
-#include "modelica/lowerer/SimType.hpp"
+#include "modelica/simulation/SimConst.hpp"
+#include "modelica/simulation/SimType.hpp"
 
 namespace modelica
 {

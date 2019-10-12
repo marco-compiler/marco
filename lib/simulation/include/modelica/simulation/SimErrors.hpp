@@ -5,8 +5,7 @@
 #include <variant>
 
 #include "llvm/Support/Error.h"
-#include "modelica/lowerer/SimExp.hpp"
-#include "modelica/lowerer/Simulation.hpp"
+#include "modelica/simulation/SimExp.hpp"
 
 namespace modelica
 {
@@ -204,4 +203,4 @@ namespace modelica
 		AnyConstant constant;
 		SimType type;
 	};
-}	// namespace modelica
+}	 // namespace modelica
