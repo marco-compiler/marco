@@ -1,6 +1,6 @@
-ADD_LIBRARY(lowerer SHARED src/SimExp.cpp src/Simulation.cpp src/SimLowerer.cpp src/SimErrors.cpp src/SimType.cpp) 
-ADD_LIBRARY(modelica::lowerer ALIAS lowerer)
-TARGET_INCLUDE_DIRECTORIES(lowerer 
+add_library(lowerer SHARED src/SimExp.cpp src/Simulation.cpp src/SimLowerer.cpp src/SimErrors.cpp src/SimType.cpp) 
+add_library(modelica::lowerer ALIAS lowerer)
+target_include_directories(lowerer 
 	PRIVATE 
 		src 
 	PUBLIC 
@@ -8,10 +8,10 @@ TARGET_INCLUDE_DIRECTORIES(lowerer
 	$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 	$<INSTALL_INTERFACE:include>
 		)
-TARGET_COMPILE_FEATURES(lowerer PUBLIC cxx_std_17)
+target_compile_features(lowerer PUBLIC cxx_std_17)
 
 llvm_map_components_to_libnames(llvm_lowerer_libs core Support ${LLVM_TARGETS_TO_BUILD})
-TARGET_LINK_LIBRARIES(lowerer PUBLIC ${llvm_lowerer_libs} modelica::utils)
+target_link_libraries(lowerer PUBLIC ${llvm_lowerer_libs} modelica::utils)
 
 modelicaInstall(lowerer)
 

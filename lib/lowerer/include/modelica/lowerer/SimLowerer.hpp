@@ -19,7 +19,7 @@ namespace modelica
 	 * creates a type from a SimType
 	 * \return the created type
 	 */
-	[[nodiscard]] llvm::Type* typeToLLVMType(
+	[[nodiscard]] llvm::ArrayType* typeToLLVMType(
 			llvm::LLVMContext& context, const SimType& type);
 
 	/**

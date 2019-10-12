@@ -67,31 +67,39 @@ namespace modelica
 						condition(std::move(cond))
 			{
 			}
+			/**
+			 * \return 1 if it's a unary op, 2 if it's binary op
+			 * 3 if it's ternary
+			 */
+			[[nodiscard]] size_t getArity() const { return arityOfOp(kind); }
+
+			static size_t arityOfOp(SimExpKind kind)
+			{
+				if (kind >= SimExpKind::negate && kind <= SimExpKind::negate)
+					return 1;
+				if (kind >= SimExpKind::add && kind <= SimExpKind::module)
+					return 2;
+				if (kind >= SimExpKind::conditional && kind <= SimExpKind::conditional)
+					return 3;
+
+				assert(false && "Unreachable");	 // NOLINT
+				return 0;
+			}
 
 			/**
 			 * \return true if the operation only require one parameter.
 			 */
-			[[nodiscard]] bool isUnary() const
-			{
-				return kind >= SimExpKind::negate && kind <= SimExpKind::negate;
-			}
+			[[nodiscard]] bool isUnary() const { return arityOfOp(kind) == 1; }
 
 			/**
 			 * \return true if the operation require exactly two parameters.
 			 */
-			[[nodiscard]] bool isBinary() const
-			{
-				return kind >= SimExpKind::add && kind <= SimExpKind::module;
-			}
+			[[nodiscard]] bool isBinary() const { return arityOfOp(kind) == 2; }
 
 			/**
 			 * \return true if the operation requires exactly three parameters.
 			 */
-			[[nodiscard]] bool isTernary() const
-			{
-				return kind >= SimExpKind::conditional &&
-							 kind <= SimExpKind::conditional;
-			}
+			[[nodiscard]] bool isTernary() const { return arityOfOp(kind) == 3; }
 
 			/**
 			 * \return the first sub expression, that is the only
@@ -145,6 +153,13 @@ namespace modelica
 			}
 
 			[[nodiscard]] SimExpKind getKind() const { return kind; }
+
+			/**
+			 * \return the return type of the operation before being casted into the
+			 * return type of the expression. As an example operation greaterThan may
+			 * be casted into a float but the operation is resulting into a bool
+			 */
+			[[nodiscard]] SimType getOperationReturnType() const;
 
 			Operation& operator=(Operation&& other) = default;
 
@@ -618,6 +633,18 @@ namespace modelica
 
 		/**
 		 * \pre isOperation()
+		 *
+		 * \return the type of the expression before being casted
+		 * into the return type
+		 */
+		[[nodiscard]] SimType getOperationReturnType() const
+		{
+			assert(isOperation());	// NOLINT
+			return getOperation().getOperationReturnType();
+		}
+
+		/**
+		 * \pre isOperation()
 		 * \return the left hand expression, or the only subexpression
 		 * if it's a unary expression
 		 */
@@ -724,6 +751,15 @@ namespace modelica
 		{
 			assert(isReference());	// NOLINT
 			return std::get<std::string>(content);
+		}
+
+		/**
+		 * \return the arity of the operation
+		 */
+		[[nodiscard]] size_t getArity() const
+		{
+			assert(isOperation());	// NOLINT
+			return getOperation().getArity();
 		}
 
 		private:

@@ -54,15 +54,13 @@ void storeConstantToArrayElement(
 	makeConstantStore<T>(bld, value, ptrToElem);
 }
 
-static Value* loadToArrayElement(
-		IRBuilder<>& bld, Value* arrayPtr, size_t index)
+static Value* loadArrayElement(IRBuilder<>& bld, Value* arrayPtr, size_t index)
 {
 	auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
 	return bld.CreateLoad(ptrToElem);
 }
 
-static Value* loadToArrayElement(
-		IRBuilder<>& bld, Value* arrayPtr, Value* index)
+static Value* loadArrayElement(IRBuilder<>& bld, Value* arrayPtr, Value* index)
 {
 	auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
 	return bld.CreateLoad(ptrToElem);
@@ -105,88 +103,94 @@ static Expected<AllocaInst*> lowerConstant(
 	return nullptr;
 }
 
-static Type* typeFromOperation(
-		LLVMContext& context, SimExpKind op, Type* leftHand)
-{
-	assert(leftHand->isArrayTy());	// NOLINT
-	auto t = dyn_cast<ArrayType>(leftHand);
-	auto boolType = IntegerType::getInt1Ty(context);
-	auto boolVector = ArrayType::get(boolType, t->getNumElements());
-	switch (op)
-	{
-		case (SimExpKind::negate):
-		case (SimExpKind::add):
-		case (SimExpKind::sub):
-		case (SimExpKind::mult):
-		case (SimExpKind::divide):
-		case (SimExpKind::elevation):
-		case (SimExpKind::module):
-		case (SimExpKind::conditional):
-			return leftHand;
-		case (SimExpKind::greaterThan):
-		case (SimExpKind::greaterEqual):
-		case (SimExpKind::equal):
-		case (SimExpKind::different):
-		case (SimExpKind::less):
-		case (SimExpKind::lessEqual):
-			return boolVector;
-		default:
-			assert(false && "unreachable");	 // NOLINT
-			return nullptr;
-	}
-}
-
 template<int argumentsSize>
 static AllocaInst* elementWiseOperation(
 		IRBuilder<>& builder,
 		Function* fun,
 		ArrayRef<Value*>& args,
-		SimExpKind opKind,
+		const SimType& operationOutType,
 		std::function<Value*(IRBuilder<>&, ArrayRef<Value*>)> operation)
 {
-	auto ptrType = dyn_cast<PointerType>(args[0]->getType());
-	auto arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
+	auto alloca = allocaSimType(builder, operationOutType);
 
-	auto alloca = builder.CreateAlloca(
-			typeFromOperation(builder.getContext(), opKind, arrayType));
-
-	const auto performOp = [alloca, &operation, &args](
-														 IRBuilder<>& builder, Value* index) {
+	const auto forBody = [alloca, &operation, &args](
+													 IRBuilder<>& bld, Value* index) {
 		SmallVector<Value*, argumentsSize> arguments;
 
-		for (int i = 0; i < argumentsSize; i++)
-			arguments.push_back(loadToArrayElement(builder, args[i], index));
-		auto outVal = operation(builder, arguments);
+		for (auto arg : args)
+			arguments.push_back(loadArrayElement(bld, arg, index));
 
-		storeToArrayElement(builder, outVal, alloca, index);
+		auto outVal = operation(bld, arguments);
+
+		storeToArrayElement(bld, outVal, alloca, index);
 	};
 
-	createForCycle(fun, builder, arrayType->getNumElements(), performOp);
+	createForCycle(fun, builder, operationOutType.flatSize(), forBody);
 
 	return alloca;
 }
 
-static Value* createSingleBynaryOP(
+static Value* createFloatSingleBynaryOp(
 		IRBuilder<>& builder, ArrayRef<Value*> args, SimExpKind kind)
 {
-	bool leftHandIsFloat = args[0]->getType()->isFloatTy();
+	assert(args[0]->getType()->isFloatTy());					// NOLINT
+	assert(SimExp::Operation::arityOfOp(kind) == 2);	// NOLINT
 	switch (kind)
 	{
 		case SimExpKind::add:
-			if (leftHandIsFloat)
-				return builder.CreateFAdd(args[0], args[1]);
+			return builder.CreateFAdd(args[0], args[1]);
+		case SimExpKind::sub:
+			return builder.CreateFSub(args[0], args[1]);
+		case SimExpKind::mult:
+			return builder.CreateFMul(args[0], args[1]);
+		case SimExpKind::divide:
+			return builder.CreateFDiv(args[0], args[1]);
+		case SimExpKind::equal:
+			return builder.CreateFCmpOEQ(args[0], args[1]);
+		case SimExpKind::different:
+			return builder.CreateFCmpONE(args[0], args[1]);
+		case SimExpKind::greaterEqual:
+			return builder.CreateFCmpOGE(args[0], args[1]);
+		case SimExpKind::greaterThan:
+			return builder.CreateFCmpOGT(args[0], args[1]);
+		case SimExpKind::lessEqual:
+			return builder.CreateFCmpOLE(args[0], args[1]);
+		case SimExpKind::less:
+			return builder.CreateFCmpOLT(args[0], args[1]);
+		case SimExpKind::module: {
+			// TODO
+			assert(false && "module unsupported");	// NOLINT
+			return nullptr;
+		}
+		case SimExpKind::elevation: {
+			// TODO
+			assert(false && "powerof unsupported");	 // NOLINT
+			return nullptr;
+		}
+		case SimExpKind::zero:
+		case SimExpKind::negate:
+		case SimExpKind::conditional:
+			assert(false && "unreachable");	 // NOLINT
+			return nullptr;
+	}
+	assert(false && "unreachable");	 // NOLINT
+	return nullptr;
+}
+
+static Value* createIntSingleBynaryOp(
+		IRBuilder<>& builder, ArrayRef<Value*> args, SimExpKind kind)
+{
+	assert(args[0]->getType()->isIntegerTy());				// NOLINT
+	assert(SimExp::Operation::arityOfOp(kind) == 2);	// NOLINT
+	switch (kind)
+	{
+		case SimExpKind::add:
 			return builder.CreateAdd(args[0], args[1]);
 		case SimExpKind::sub:
-			if (leftHandIsFloat)
-				return builder.CreateFSub(args[0], args[1]);
 			return builder.CreateSub(args[0], args[1]);
 		case SimExpKind::mult:
-			if (leftHandIsFloat)
-				return builder.CreateFMul(args[0], args[1]);
 			return builder.CreateMul(args[0], args[1]);
 		case SimExpKind::divide:
-			if (leftHandIsFloat)
-				return builder.CreateFDiv(args[0], args[1]);
 			return builder.CreateSDiv(args[0], args[1]);
 		case SimExpKind::equal:
 			return builder.CreateICmpEQ(args[0], args[1]);
@@ -210,10 +214,26 @@ static Value* createSingleBynaryOP(
 			assert(false && "powerof unsupported");	 // NOLINT
 			return nullptr;
 		}
-		default:
+		case SimExpKind::zero:
+		case SimExpKind::negate:
+		case SimExpKind::conditional:
 			assert(false && "unreachable");	 // NOLINT
 			return nullptr;
 	}
+	assert(false && "unreachable");	 // NOLINT
+	return nullptr;
+}
+
+static Value* createSingleBynaryOP(
+		IRBuilder<>& builder, ArrayRef<Value*> args, SimExpKind kind)
+{
+	assert(SimExp::Operation::arityOfOp(kind) == 2);	// NOLINT
+	auto type = args[0]->getType();
+	if (type->isIntegerTy())
+		return createIntSingleBynaryOp(builder, args, kind);
+	if (type->isFloatTy())
+		return createFloatSingleBynaryOp(builder, args, kind);
+
 	assert(false && "unreachable");	 // NOLINT
 	return nullptr;
 }
@@ -245,35 +265,25 @@ static Value* createSingleUnaryOp(
 	return nullptr;
 }
 
-static Expected<AllocaInst*> lowerBinOp(
+template<size_t arity>
+static Expected<AllocaInst*> lowerUnOrBinOp(
 		IRBuilder<>& builder,
 		Function* fun,
 		const SimExp& exp,
 		ArrayRef<Value*> subExp)
 {
-	assert(exp.isBinary());			 // NOLINT
-	assert(subExp.size() == 2);	 // NOLINT
+	static_assert(arity < 3 && arity > 0, "cannot lower op with this arity");
+	assert(exp.getArity() == arity);	// NOLINT;
+	assert(subExp.size() == arity);		// NOLINT
 	const auto binaryOp = [type = exp.getKind()](auto& builder, auto args) {
-		return createSingleBynaryOP(builder, args, type);
+		if constexpr (arity == 1)
+			return createSingleUnaryOp(builder, args, type);
+		else
+			return createSingleBynaryOP(builder, args, type);
 	};
 
-	return elementWiseOperation<2>(builder, fun, subExp, exp.getKind(), binaryOp);
-}
-
-static Expected<AllocaInst*> lowerUnOp(
-		IRBuilder<>& builder,
-		Function* fun,
-		const SimExp& exp,
-		ArrayRef<Value*> subExp)
-{
-	assert(exp.isUnary());			 // NOLINT
-	assert(subExp.size() == 1);	 // NOLINT
-
-	const auto unaryOp = [type = exp.getKind()](auto& builder, auto args) {
-		return createSingleUnaryOp(builder, args, type);
-	};
-
-	return elementWiseOperation<1>(builder, fun, subExp, exp.getKind(), unaryOp);
+	auto opType = exp.getOperationReturnType();
+	return elementWiseOperation<arity>(builder, fun, subExp, opType, binaryOp);
 }
 
 static Expected<Value*> lowerExp(
@@ -298,7 +308,7 @@ static Expected<Value*> lowerTernary(
 			return ptrToCond;
 
 		size_t zero = 0;
-		return loadToArrayElement(builder, *ptrToCond, zero);
+		return loadArrayElement(builder, *ptrToCond, zero);
 	};
 
 	auto type = exp.getLeftHand().getSimType();
@@ -330,13 +340,13 @@ static Expected<Value*> lowerOperation(
 
 	if (exp.isUnary())
 	{
-		SmallVector<Value*, 2> values;
+		SmallVector<Value*, 1> values;
 		auto subexp = lowerExp(builder, fun, exp.getLeftHand());
 		if (!subexp)
 			return subexp.takeError();
 		values.push_back(move(*subexp));
 
-		return lowerUnOp(builder, fun, exp, values);
+		return lowerUnOrBinOp<1>(builder, fun, exp, values);
 	}
 
 	if (exp.isBinary())
@@ -352,9 +362,9 @@ static Expected<Value*> lowerOperation(
 			return rightHand.takeError();
 		values.push_back(move(*rightHand));
 
-		return lowerBinOp(builder, fun, exp, values);
+		return lowerUnOrBinOp<2>(builder, fun, exp, values);
 	}
-	assert(false && "Unreachable");
+	assert(false && "Unreachable");	 // NOLINT
 	return nullptr;
 }
 
@@ -416,7 +426,7 @@ static Expected<Value*> castReturnValue(
 
 	for (size_t a = 0; a < arrayType->getNumElements(); a++)
 	{
-		auto loadedElem = loadToArrayElement(builder, val, a);
+		auto loadedElem = loadArrayElement(builder, val, a);
 
 		Value* casted = castSingleElem(builder, loadedElem, singleDestType);
 		storeToArrayElement(builder, casted, alloca, a);
@@ -457,7 +467,7 @@ static Expected<Function*> populateMain(
 	// call init
 	builder.CreateCall(init);
 
-	const auto forBody = [update, printValues](IRBuilder<>& builder, auto) {
+	const auto forBody = [update, printValues](IRBuilder<>& builder, auto index) {
 		builder.CreateCall(update);
 		builder.CreateCall(printValues);
 	};

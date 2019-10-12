@@ -41,6 +41,33 @@ static std::string exprKindToString(SimExpKind kind)
 	return "UNREACHABLE";
 }
 
+SimType SimExp::Operation::getOperationReturnType() const
+{
+	switch (kind)
+	{
+		case SimExpKind::zero:
+			return SimType(BultinSimTypes::BOOL);
+		case SimExpKind::negate:
+		case SimExpKind::add:
+		case SimExpKind::sub:
+		case SimExpKind::mult:
+		case SimExpKind::divide:
+		case SimExpKind::elevation:
+		case SimExpKind::module:
+		case SimExpKind::conditional:
+			return leftHandExpression->getSimType();
+		case SimExpKind::greaterThan:
+		case SimExpKind::greaterEqual:
+		case SimExpKind::equal:
+		case SimExpKind::different:
+		case SimExpKind::less:
+		case SimExpKind::lessEqual:
+			return leftHandExpression->getSimType().as(BultinSimTypes::BOOL);
+	}
+	assert(false && "Unreachable");	 // NOLINT
+	return SimType(BultinSimTypes::BOOL);
+}
+
 static void dumpOperation(const SimExp& exp, llvm::raw_ostream& OS)
 {
 	OS << "(";

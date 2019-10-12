@@ -44,7 +44,7 @@ namespace modelica
 		return nullptr;
 	}
 
-	Type* typeToLLVMType(LLVMContext& context, const SimType& type)
+	ArrayType* typeToLLVMType(LLVMContext& context, const SimType& type)
 	{
 		auto baseType = builtInToLLVMType(context, type.getBuiltin());
 		return ArrayType::get(baseType, type.flatSize());
