@@ -60,4 +60,5 @@ addLowererSimulationTest(typeSimulation src/TypeTestGenerator.cpp src/TypeSimula
 addLowererSimulationTest(arraySimulation src/ArrayTestGenerator.cpp src/ArraySimulationTest.cpp)
 addLowererSimulationTest(floatSimulation src/FloatTestGenerator.cpp src/FloatSimulationTest.cpp)
 addLowererSimulationTest(condSimulation src/CondTestGenerator.cpp src/CondSimulationTest.cpp)
+addLowererSimulationTest(callSimulation src/CallTestGenerator.cpp src/CallSimulationTest.cpp)
 

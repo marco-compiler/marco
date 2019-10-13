@@ -93,7 +93,7 @@ static Expected<Function*> initializeGlobals(Module& m, StringMap<SimExp> vars)
 
 	for (const auto& pair : vars)
 	{
-		auto val = lowerExp(builder, initFunction, pair.second);
+		auto val = lowerExp(builder, m, initFunction, pair.second);
 		if (!val)
 			return val.takeError();
 		auto loaded = builder.CreateLoad(*val);
@@ -122,7 +122,7 @@ static Expected<Function*> createUpdates(Module& m, StringMap<SimExp> upds)
 		auto fun = expFun.get();
 		bld.SetInsertPoint(&fun->getEntryBlock());
 
-		auto val = lowerExp(bld, fun, pair.second);
+		auto val = lowerExp(bld, m, fun, pair.second);
 		if (!val)
 			return val.takeError();
 		auto loaded = bld.CreateLoad(*val);

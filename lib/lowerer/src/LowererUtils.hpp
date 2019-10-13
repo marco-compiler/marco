@@ -32,6 +32,13 @@ namespace modelica
 			llvm::IRBuilder<>& bld, llvm::Value* arrayPtr, size_t index);
 
 	/**
+	 * \return a alloca instr that contains a zero terminated array of all
+	 * dimensions of the type
+	 */
+	llvm::AllocaInst* getTypeDimensionsArray(
+			llvm::IRBuilder<>& bld, const SimType& type);
+
+	/**
 	 * arrayPtr[index] = value;
 	 */
 	void storeToArrayElement(
@@ -153,10 +160,10 @@ namespace modelica
 
 	/**
 	 * Creates a if else branch based on the result value of condition()
-	 * \pre the returned llvm::type of trueBlock() must be equal to the returned
-	 * llvm::type of falseBlock() and to outType, the returned llvm::type of
-	 * condition() bust be int1.
-	 * \return the phi instruction that contains the result of the brach taken.
+	 * \pre the returned llvm::type of trueBlock() must be equal to the
+	 * returned llvm::type of falseBlock() and to outType, the returned
+	 * llvm::type of condition() bust be int1. \return the phi instruction
+	 * that contains the result of the brach taken.
 	 *
 	 * builder will now point at the exit BB.
 	 */

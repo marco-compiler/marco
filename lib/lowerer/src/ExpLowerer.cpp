@@ -1,5 +1,6 @@
 #include "ExpLowerer.hpp"
 
+#include "CallLowerer.hpp"
 #include "modelica/simulation/SimErrors.hpp"
 
 using namespace std;
@@ -204,20 +205,20 @@ static Expected<AllocaInst*> lowerUnOrBinOp(
 }
 
 static Expected<Value*> lowerTernary(
-		IRBuilder<>& builder, Function* fun, const SimExp& exp)
+		IRBuilder<>& builder, Module& module, Function* fun, const SimExp& exp)
 {
 	assert(exp.isTernary());	// NOLINT
-	const auto leftHandLowerer = [&exp, fun](IRBuilder<>& builder) {
-		return lowerExp(builder, fun, exp.getLeftHand());
+	const auto leftHandLowerer = [&exp, fun, &module](IRBuilder<>& builder) {
+		return lowerExp(builder, module, fun, exp.getLeftHand());
 	};
-	const auto rightHandLowerer = [&exp, fun](IRBuilder<>& builder) {
-		return lowerExp(builder, fun, exp.getRightHand());
+	const auto rightHandLowerer = [&exp, fun, &module](IRBuilder<>& builder) {
+		return lowerExp(builder, module, fun, exp.getRightHand());
 	};
 	const auto conditionLowerer =
-			[&exp, fun](IRBuilder<>& builder) -> Expected<Value*> {
+			[&exp, fun, &module](IRBuilder<>& builder) -> Expected<Value*> {
 		auto& condition = exp.getCondition();
 		assert(condition.getSimType() == SimType(BultinSimTypes::BOOL));	// NOLINT
-		auto ptrToCond = lowerExp(builder, fun, condition);
+		auto ptrToCond = lowerExp(builder, module, fun, condition);
 		if (!ptrToCond)
 			return ptrToCond;
 
@@ -238,7 +239,7 @@ static Expected<Value*> lowerTernary(
 }
 
 static Expected<Value*> lowerOperation(
-		IRBuilder<>& builder, Function* fun, const SimExp& exp)
+		IRBuilder<>& builder, Module& m, Function* fun, const SimExp& exp)
 {
 	assert(exp.isOperation());	// NOLINT
 
@@ -250,12 +251,12 @@ static Expected<Value*> lowerOperation(
 	}
 
 	if (exp.isTernary())
-		return lowerTernary(builder, fun, exp);
+		return lowerTernary(builder, m, fun, exp);
 
 	if (exp.isUnary())
 	{
 		SmallVector<Value*, 1> values;
-		auto subexp = lowerExp(builder, fun, exp.getLeftHand());
+		auto subexp = lowerExp(builder, m, fun, exp.getLeftHand());
 		if (!subexp)
 			return subexp.takeError();
 		values.push_back(move(*subexp));
@@ -266,12 +267,12 @@ static Expected<Value*> lowerOperation(
 	if (exp.isBinary())
 	{
 		SmallVector<Value*, 2> values;
-		auto leftHand = lowerExp(builder, fun, exp.getLeftHand());
+		auto leftHand = lowerExp(builder, m, fun, exp.getLeftHand());
 		if (!leftHand)
 			return leftHand.takeError();
 		values.push_back(move(*leftHand));
 
-		auto rightHand = lowerExp(builder, fun, exp.getRightHand());
+		auto rightHand = lowerExp(builder, m, fun, exp.getRightHand());
 		if (!rightHand)
 			return rightHand.takeError();
 		values.push_back(move(*rightHand));
@@ -283,7 +284,7 @@ static Expected<Value*> lowerOperation(
 }
 
 static Expected<Value*> uncastedLowerExp(
-		IRBuilder<>& builder, Function* fun, const SimExp& exp)
+		IRBuilder<>& builder, Module& mod, Function* fun, const SimExp& exp)
 {
 	if (!exp.areSubExpressionCompatibles())
 		return make_error<TypeMissMatch>(exp);
@@ -294,7 +295,10 @@ static Expected<Value*> uncastedLowerExp(
 	if (exp.isReference())
 		return lowerReference(builder, exp.getReference());
 
-	return lowerOperation(builder, fun, exp);
+	if (exp.isCall())
+		return lowerCall(builder, mod, fun, exp.getCall());
+
+	return lowerOperation(builder, mod, fun, exp);
 }
 
 static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
@@ -368,9 +372,9 @@ namespace modelica
 	}
 
 	Expected<Value*> lowerExp(
-			IRBuilder<>& builder, Function* fun, const SimExp& exp)
+			IRBuilder<>& builder, Module& module, Function* fun, const SimExp& exp)
 	{
-		auto retVal = uncastedLowerExp(builder, fun, exp);
+		auto retVal = uncastedLowerExp(builder, module, fun, exp);
 		if (!retVal)
 			return retVal;
 

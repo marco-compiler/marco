@@ -175,6 +175,26 @@ namespace modelica
 		return phi;
 	}
 
+	AllocaInst* getTypeDimensionsArray(IRBuilder<>& bld, const SimType& type)
+	{
+		auto allocaDim = type.getDimensionsCount() + 1;
+		auto longType = IntegerType::getInt64Ty(bld.getContext());
+		auto arrayType = ArrayType::get(longType, allocaDim);
+
+		auto alloca = bld.CreateAlloca(arrayType);
+
+		for (size_t a = 0; a < type.getDimensionsCount(); a++)
+		{
+			auto constant = ConstantInt::get(longType, type.getDimension(a));
+			storeToArrayElement(bld, constant, alloca, a);
+		}
+
+		auto zero = ConstantInt::get(longType, 0);
+		storeToArrayElement(bld, zero, alloca, allocaDim - 1);
+
+		return alloca;
+	}
+
 	BasicBlock* createForCycle(
 			Function* function,
 			IRBuilder<>& builder,
