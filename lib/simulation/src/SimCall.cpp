@@ -23,14 +23,14 @@ bool SimCall::operator==(const SimCall& other) const
 			[](const auto& left, const auto& right) { return *left == *right; });
 }
 
-SimCall::SimCall(string name, initializer_list<SimExp> arguments)
-		: name(move(name))
+SimCall::SimCall(string name, initializer_list<SimExp> arguments, SimType type)
+		: name(move(name)), type(std::move(type))
 {
 	for (const auto& arg : arguments)
 		args.push_back(std::make_unique<SimExp>(move(arg)));
 }
 
-SimCall::SimCall(const SimCall& other): name(other.name)
+SimCall::SimCall(const SimCall& other): name(other.name), type(other.type)
 {
 	for (const auto& arg : other.args)
 		args.push_back(std::make_unique<SimExp>(*arg));

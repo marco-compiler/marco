@@ -5,6 +5,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
+#include "modelica/simulation/SimType.hpp"
 
 namespace modelica
 {
@@ -13,12 +14,15 @@ namespace modelica
 	{
 		public:
 		using ArgsVec = llvm::SmallVector<std::unique_ptr<SimExp>, 3>;
-		SimCall(std::string name, ArgsVec args)
-				: name(std::move(name)), args(std::move(args))
+		SimCall(std::string name, ArgsVec args, SimType type)
+				: name(std::move(name)), args(std::move(args)), type(std::move(type))
 		{
 		}
 
-		SimCall(std::string name, std::initializer_list<SimExp> arguments);
+		SimCall(
+				std::string name,
+				std::initializer_list<SimExp> arguments,
+				SimType type);
 
 		SimCall(const SimCall& other);
 
@@ -47,9 +51,12 @@ namespace modelica
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
+		[[nodiscard]] const SimType& getType() const { return type; }
+
 		private:
 		std::string name;
 		ArgsVec args;
+		SimType type;
 	};
 
 	template<typename SimCall, typename Visitor>

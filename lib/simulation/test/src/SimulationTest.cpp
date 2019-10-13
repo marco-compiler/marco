@@ -97,7 +97,7 @@ TEST(ExpressionTest, ternaryExp)	// NOLINT
 TEST(SimCallTest, testDeepEquality)	 // NOLINT
 {
 	SimExp ref("ref", BultinSimTypes::BOOL);
-	SimCall call("hey", { ref, ref });
+	SimCall call("hey", { ref, ref }, SimType(BultinSimTypes::BOOL));
 
 	auto copy = call;
 
@@ -107,7 +107,7 @@ TEST(SimCallTest, testDeepEquality)	 // NOLINT
 TEST(ExpressionTest, callExpression)	// NOLINT
 {
 	SimExp ref("ref", BultinSimTypes::BOOL);
-	SimExp exp(SimCall("Hey", { ref, ref }), BultinSimTypes::INT);
+	SimExp exp(SimCall("Hey", { ref, ref }, BultinSimTypes::INT));
 
 	EXPECT_EQ(exp.isCall(), true);
 	EXPECT_EQ(exp.getCall().getName(), "Hey");

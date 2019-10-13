@@ -113,7 +113,7 @@ class SimExpDumper
 			exp.getCall().dump(OS);
 			return;
 		}
-		assert(false && "Unrechable");
+		assert(false && "Unrechable");	// NOLINT
 	}
 
 	void afterVisit(const SimExp& exp)

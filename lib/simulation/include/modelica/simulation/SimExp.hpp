@@ -274,9 +274,22 @@ namespace modelica
 		{
 		}
 
+		/**
+		 * Creates a call expression and it's result will be casted into the
+		 * provided type
+		 *
+		 */
 		SimExp(SimCall call, SimType returnType)
 				: content(std::move(call)), returnSimType(std::move(returnType))
 		{
+		}
+
+		/**
+		 * Creates a call expression
+		 */
+		SimExp(SimCall c): content(std::move(c)), returnSimType(getCall().getType())
+		{
+			assert(getCall().getType().canBeCastedInto(returnSimType));	 // NOLINT
 		}
 
 		/**
@@ -777,6 +790,10 @@ namespace modelica
 			return getOperation().getArity();
 		}
 
+		/**
+		 * \req isCall()
+		 * \return the call
+		 */
 		[[nodiscard]] const SimCall& getCall() const
 		{
 			assert(isCall());	 // NOLINT
