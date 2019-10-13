@@ -42,7 +42,7 @@ namespace modelica
 		 */
 		[[nodiscard]] C get(size_t index) const
 		{
-			assert(index < content.size());	// NOLINT
+			assert(index < content.size());	 // NOLINT
 			return content[index];
 		}
 
@@ -76,12 +76,14 @@ namespace modelica
 	template<typename T>
 	void dumpConstant(const T& constant, llvm::raw_ostream& OS = llvm::outs())
 	{
+		OS << '{';
 		for (size_t a = 0; a < constant.size(); a++)
 		{
 			OS << constant.get(a);
 			if (a != constant.size() - 1)
 				OS << ", ";
 		}
+		OS << '}';
 	}
 
 	/**
@@ -104,4 +106,4 @@ namespace modelica
 	using IntSimConst = SimConst<int>;
 	using FloatSimConst = SimConst<float>;
 	using BoolSimConst = SimConst<bool>;
-}	// namespace modelica
+}	 // namespace modelica

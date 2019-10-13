@@ -52,13 +52,7 @@ void SimCall::dump(raw_ostream& OS) const
 {
 	OS << "call ";
 	OS << name;
+	OS << ' ';
+	type.dump(OS);
 	OS << '(';
-	for (size_t a = 0; a < argsSize(); a++)
-	{
-		at(a).dump(OS);
-
-		if (a != argsSize() - 1)
-			OS << ',';
-	}
-	OS << ')';
 }

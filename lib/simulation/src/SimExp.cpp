@@ -118,7 +118,7 @@ class SimExpDumper
 
 	void afterVisit(const SimExp& exp)
 	{
-		if (exp.isOperation())
+		if (exp.isOperation() || exp.isCall())
 			OS << ")";
 		else
 			OS << " ";

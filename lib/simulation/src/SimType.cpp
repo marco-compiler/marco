@@ -23,7 +23,7 @@ void SimType::dump(raw_ostream& OS) const
 	for (auto iter = begin(dimensions); iter != end(dimensions); iter++)
 	{
 		OS << *iter;
-		if (iter != end(dimensions))
+		if (next(iter) != end(dimensions))
 			OS << " ,";
 	}
 	OS << ']';

@@ -10,15 +10,36 @@
 namespace modelica
 {
 	class SimExp;
+
+	/**
+	 *
+	 * A SimCall is a rappresentation of a call of a external function,
+	 * the external function will accept the following parameters:
+	 * -> a ptr to the base tipe of the return type of this call
+	 * -> a ptr to a zero terminated const array of size_t that contains the
+	 * dimensions of the return type.
+	 *
+	 * for each parameter
+	 * -> a ptr to the base type of the evalutaed expression
+	 * -> a ptr to a const array of size_t to the dimensions of the type passed as
+	 * argument
+	 */
 	class SimCall
 	{
 		public:
 		using ArgsVec = llvm::SmallVector<std::unique_ptr<SimExp>, 3>;
+
+		/**
+		 * Buils a function call with the provided name, type and args
+		 */
 		SimCall(std::string name, ArgsVec args, SimType type)
 				: name(std::move(name)), args(std::move(args)), type(std::move(type))
 		{
 		}
 
+		/**
+		 * Overload to allow inizializers lists
+		 */
 		SimCall(
 				std::string name,
 				std::initializer_list<SimExp> arguments,
@@ -30,6 +51,9 @@ namespace modelica
 
 		SimCall& operator=(const SimCall& other);
 
+		/**
+		 * \return true if the two calls are deeply equal.
+		 */
 		[[nodiscard]] bool operator==(const SimCall& other) const;
 		[[nodiscard]] bool operator!=(const SimCall& other) const
 		{
