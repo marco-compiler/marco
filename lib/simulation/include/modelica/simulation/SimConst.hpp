@@ -2,6 +2,7 @@
 
 #include <variant>
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -34,6 +35,8 @@ namespace modelica
 		SimConst(C val, T2... args): content({ val, args... })
 		{
 		}
+
+		SimConst(llvm::SmallVector<C, 3> args): content(std::move(args)) {}
 
 		/**
 		 * \require index < size()

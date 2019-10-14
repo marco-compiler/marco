@@ -6,9 +6,9 @@
 #include "modelica/AST/Equation.hpp"
 #include "modelica/AST/Expr.hpp"
 #include "modelica/AST/Statement.hpp"
-#include "modelica/Lexer.hpp"
 #include "modelica/LexerStateMachine.hpp"
 #include "modelica/ParserErrors.hpp"
+#include "modelica/utils/Lexer.hpp"
 
 namespace modelica
 {
@@ -289,4 +289,4 @@ namespace modelica
 		Token undo;
 	};
 
-}	// namespace modelica
+}	 // namespace modelica

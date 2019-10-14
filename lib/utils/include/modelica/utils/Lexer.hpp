@@ -4,8 +4,6 @@
 #include <functional>
 #include <iterator>
 
-//#include "modelica/LexerStateMachine.hpp"
-
 namespace modelica
 {
 	/**

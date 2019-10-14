@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "modelica/NumbersLexer.hpp"
+#include "modelica/utils/NumbersLexer.hpp"
 
 TEST(IntegerLexerTest, defaultShouldBeZero)
 {

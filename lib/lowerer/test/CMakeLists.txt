@@ -6,24 +6,20 @@ include(GoogleTest)
 ### Second argument is the cpp file that will produce the simulation.
 ### Is the test, the test must define it's own extern declaration that will
 ### be resolved during linking.
-macro(addLowererSimulationTest simulationName generatorSrc testSrc)
+macro(addLowererSimulationTest simulationName sourceSrc testSrc)
 
 	### Creates the include directory in the build tree
 	file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include)
 
-	### Creates the executable that will generate the simulation
-	### Object file.
-	add_executable(${simulationName}Generator ${generatorSrc})
-	add_executable(modelica::${simulationName}Generator ALIAS ${simulationName}Generator)
-	target_link_libraries(${simulationName}Generator PRIVATE modelica::simulationGenerator)
-	target_compile_features(${simulationName}Generator PUBLIC cxx_std_17)
+	### Copy test file
+	configure_file(${sourceSrc} ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm COPYONLY)
 
 	### Creates the command that will run the simulator generator and will produce the bc file
 	add_custom_command(OUTPUT ${simulationName}.bc include/${simulationName}.hpp
-						COMMAND modelica::${simulationName}Generator -bc=${simulationName}.bc -header=include/${simulationName}.hpp
-						COMMENT "generates ${simulationName} simulation bc file"
-						DEPENDS modelica::${simulationName}Generator
-						VERBATIM)
+		COMMAND modelica::simc --entry=runSimulation --publicSymbols=true --simTime=10 --dumpSim=true -bc=${simulationName}.bc -header=include/${simulationName}.hpp ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm
+		DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm
+		COMMENT "generates ${simulationName} simulation bc file"
+		VERBATIM)
 
 
 	### Creates the command that will run clang to generate the Obj file.
@@ -56,9 +52,9 @@ macro(addLowererSimulationTest simulationName generatorSrc testSrc)
 	)
 endmacro(addLowererSimulationTest)
 
-addLowererSimulationTest(typeSimulation src/TypeTestGenerator.cpp src/TypeSimulationTest.cpp)
-addLowererSimulationTest(arraySimulation src/ArrayTestGenerator.cpp src/ArraySimulationTest.cpp)
-addLowererSimulationTest(floatSimulation src/FloatTestGenerator.cpp src/FloatSimulationTest.cpp)
-addLowererSimulationTest(condSimulation src/CondTestGenerator.cpp src/CondSimulationTest.cpp)
-addLowererSimulationTest(callSimulation src/CallTestGenerator.cpp src/CallSimulationTest.cpp)
+addLowererSimulationTest(typeSimulation ${CMAKE_CURRENT_SOURCE_DIR}/src/TypeTest.sm src/TypeSimulationTest.cpp)
+addLowererSimulationTest(arraySimulation ${CMAKE_CURRENT_SOURCE_DIR}/src/ArrayTest.sm src/ArraySimulationTest.cpp)
+addLowererSimulationTest(floatSimulation ${CMAKE_CURRENT_SOURCE_DIR}/src/FloatTest.sm src/FloatSimulationTest.cpp)
+addLowererSimulationTest(condSimulation ${CMAKE_CURRENT_SOURCE_DIR}/src/CondTest.sm src/CondSimulationTest.cpp)
+addLowererSimulationTest(callSimulation ${CMAKE_CURRENT_SOURCE_DIR}/src/CallTest.sm src/CallSimulationTest.cpp)
 

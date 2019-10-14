@@ -1,0 +1,9 @@
+init
+
+intVector = INT[3] {1, 2, 3}
+intVectorConstant = INT[3] {-1, -2, -3}
+
+update
+intVector = INT[3] (+ INT[3] {3, 3, 3}, INT[3] intVector)
+
+

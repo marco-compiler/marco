@@ -6,6 +6,8 @@
 
 #include "llvm/Support/Error.h"
 #include "modelica/simulation/SimExp.hpp"
+#include "modelica/simulation/SimLexerStateMachine.hpp"
+#include "modelica/utils/SourceRange.hpp"
 
 namespace modelica
 {
@@ -16,7 +18,9 @@ namespace modelica
 		unkownVariable,
 		globalVariableCreationFailure,
 		functionAlreadyExists,
-		typeConstantSizeMissMatch
+		typeConstantSizeMissMatch,
+		unexpectedSimToken
+
 	};
 }
 
@@ -202,5 +206,35 @@ namespace modelica
 		private:
 		AnyConstant constant;
 		SimType type;
+	};
+
+	class UnexpectedSimToken: public llvm::ErrorInfo<UnexpectedSimToken>
+	{
+		public:
+		static char ID;
+		UnexpectedSimToken(SimToken expected, SimToken received, SourcePosition pos)
+				: expected(expected), received(received), pos(pos)
+		{
+		}
+
+		void log(llvm::raw_ostream& OS) const override
+		{
+			OS << '[' << pos.toString() << "] ";
+			OS << "unexpected token: ";
+			OS << tokenToString(received);
+			OS << " expected " << tokenToString(expected);
+		}
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(LowererErrorCode::unexpectedSimToken),
+					LowererErrorCategory::category);
+		}
+
+		private:
+		SimToken expected;
+		SimToken received;
+		SourcePosition pos;
 	};
 }	 // namespace modelica

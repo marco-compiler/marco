@@ -50,6 +50,7 @@ namespace modelica
 	class SimExp
 	{
 		public:
+		friend class SimParser;
 		/**
 		 * An operation is a class that holds all the informations regarding how to
 		 * calculate the value of an expression that cointains subexpressions.
@@ -67,6 +68,20 @@ namespace modelica
 						rightHandExpression(std::move(rhs)),
 						condition(std::move(cond))
 			{
+			}
+
+			Operation(
+					SimExpKind kind, llvm::SmallVector<std::unique_ptr<SimExp>, 3> exps)
+					: kind(kind)
+			{
+				assert(exps.size() == arityOfOp(kind));	 // NOLINT
+
+				if (arityOfOp(kind) > 0)
+					leftHandExpression = move(exps[0]);
+				if (arityOfOp(kind) > 1)
+					rightHandExpression = move(exps[1]);
+				if (arityOfOp(kind) > 2)
+					condition = move(exps[2]);
 			}
 			/**
 			 * \return 1 if it's a unary op, 2 if it's binary op
@@ -258,6 +273,11 @@ namespace modelica
 		template<typename... T>
 		SimExp(std::string ref, BultinSimTypes type, T... dimensions)
 				: content(std::move(ref)), returnSimType(type, dimensions...)
+		{
+		}
+
+		SimExp(std::string ref, SimType type)
+				: content(std::move(ref)), returnSimType(std::move(type))
 		{
 		}
 
@@ -826,6 +846,15 @@ namespace modelica
 			assert(!isOperation() || areSubExpressionCompatibles());	// NOLINT
 		}
 
+		SimExp(
+				SimExpKind kind,
+				llvm::SmallVector<std::unique_ptr<SimExp>, 3> subExp,
+				SimType type)
+				: content(Operation(kind, std::move(subExp))),
+					returnSimType(std::move(type))
+		{
+			assert(!isOperation() || areSubExpressionCompatibles());	// NOLINT
+		}
 		[[nodiscard]] const Operation& getOperation() const
 		{
 			assert(isOperation());	// NOLINT

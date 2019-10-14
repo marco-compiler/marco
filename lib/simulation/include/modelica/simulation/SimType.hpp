@@ -67,6 +67,13 @@ namespace modelica
 		{
 		}
 
+		SimType(BultinSimTypes builtin, std::vector<size_t> dims)
+				: builtinSimType(builtin)
+		{
+			for (auto dim : dims)
+				dimensions.push_back(dim);
+		}
+
 		/**
 		 * \return the bultin type.
 		 */

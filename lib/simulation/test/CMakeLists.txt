@@ -1,8 +1,8 @@
 include(GoogleTest)
 
-add_executable(simulationTest src/SimulationTest.cpp)
+add_executable(simulationTest src/SimulationTest.cpp src/SimLexerStateMachineTest.cpp src/SimParserTest.cpp)
 add_executable(modelica::simulationTest ALIAS simulationTest) 
-target_link_libraries(simulationTest PRIVATE gtest gtest_main modelica::lowerer)
+target_link_libraries(simulationTest PRIVATE gtest gtest_main modelica::simulation)
 target_include_directories(simulationTest PUBLIC include PRIVATE src)
 target_compile_features(simulationTest PUBLIC cxx_std_17)
 

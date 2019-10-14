@@ -1,138 +1,67 @@
 #pragma once
-#include <llvm/ADT/StringMap.h>
+
 #include <map>
-#include <optional>
 #include <string>
 
+#include "llvm/ADT/StringMap.h"
 #include "modelica/utils/NumbersLexer.hpp"
 
 namespace modelica
 {
-	enum class Token
+	enum class SimToken
 	{
 		None,
 		Begin,
 		Ident,
+		Float,
+		Bool,
 		Integer,
-		FloatingPoint,
-		String,
 		Error,
+		CallKeyword,
+		InitKeyword,
+		UpdateKeyword,
+		BoolKeyword,
+		IntKeyword,
+		FloatKeyword,
 
-		AlgorithmKeyword,
-		AndKeyword,
-		AnnotationKeyword,
-		BlockKeyword,
-		BreakKeyword,
-		ClassKeyword,
-		ConnectKeyword,
-		ConnectorKeyword,
-		ConstantKeyword,
-		ConstraynedByKeyword,
-		DerKeyword,
-		DiscreteKeyword,
-		EachKeyword,
-		ElseKeyword,
-		ElseIfKeyword,
-		ElseWhenKeyword,
-		EncapsulatedKeyword,
-		EndKeyword,
-		EnumerationKeyword,
-		EquationKeyword,
-		ExpandableKeyword,
-		ExtendsKeyword,
-		ExternalKeyword,
-		FalseKeyword,
-		FinalKeyword,
-		FlowKeyword,
-		ForKeyword,
-		FunctionKeyword,
-		IfKeyword,
-		ImportKeyword,
-		ImpureKeyword,
-		InKeyword,
-		InitialKeyword,
-		InnerKeyword,
-		InputKeyword,
-		LoopKeyword,
-		ModelKeyword,
-		NotKeyword,
-		OperatorKeyword,
-		OrKeyword,
-		OuterKeyword,
-		OutputKeyword,
-		PackageKeyword,
-		ParameterKeyword,
-		PartialKeyword,
-		ProtectedKeyword,
-		PublicKeyword,
-		PureKeyword,
-		RecordKeyword,
-		RedeclareKeyword,
-		ReplacableKeyword,
-		ReturnKeyword,
-		StremKeyword,
-		ThenKeyword,
-		TrueKeyword,
-		TypeKeyword,
-		WhenKeyword,
-		WhileKeyword,
-		WhithinKeyword,
-
-		Multiply,
-		Division,
-		Dot,
-		Plus,
-		Minus,
-		ElementWiseMinus,
-		ElementWiseSum,
-		ElementWiseMultilpy,
-		ElementWiseDivision,
-		ElementWiseExponential,
-		OperatorEqual,
-		LessThan,
-		LessEqual,
-		Equal,
-		GreaterThan,
-		GreaterEqual,
-		Different,
-		Colons,
-		Semicolons,
-		Comma,
 		LPar,
+		Comma,
 		RPar,
 		LSquare,
 		RSquare,
 		LCurly,
 		RCurly,
+
+		Multiply,
+		Division,
+		Plus,
+		Minus,
+		OperatorEqual,
+		LessThan,
+		LessEqual,
+		GreaterThan,
+		GreaterEqual,
+		Modulo,
 		Exponential,
-		Assignment,
+		Assign,
+		Ternary,
+		Not,
 
 		End
 	};
 
-	std::string tokenToString(Token token);
+	std::string tokenToString(SimToken token);
 
-	/**
-	 * State machine is the state machine of the modelica language.
-	 * It implements the interface required by lexer.
-	 */
-	class ModelicaStateMachine
+	class SimLexerStateMachine
 	{
 		public:
-		using Token = modelica::Token;
+		using Token = modelica::SimToken;
+		SimLexerStateMachine(char first);
 
-		ModelicaStateMachine(char first);
-
-		/**
-		 * The possibles state of the machine.
-		 */
 		enum class State
 		{
 			Normal,
 			ParsingId,
-			ParsingQId,
-			ParsingIdBackSlash,
-			ParsingBackSlash,
 			ParsingNum,
 			ParsingFloat,
 			ParsingFloatExponentialSign,
@@ -140,7 +69,6 @@ namespace modelica
 			ParsingComment,
 			EndOfComment,
 			ParsingLineComment,
-			ParsingString,
 			IgnoreNextChar,
 			End
 		};
@@ -148,10 +76,9 @@ namespace modelica
 		/**
 		 * Returns the last seen token. Begin if none was seen.
 		 */
-		[[nodiscard]] Token getCurrent() const { return currentToken; }
+		[[nodiscard]] SimToken getCurrent() const { return currentToken; }
 		[[nodiscard]] int getCurrentLine() const { return lineNumber; }
 		[[nodiscard]] int getCurrentColumn() const { return columnNumber; }
-
 		/**
 		 * Returns the last identifier seen, or the one being built if the machine
 		 * is in the process of recognizing one.
@@ -159,15 +86,6 @@ namespace modelica
 		[[nodiscard]] const std::string& getLastIdentifier() const
 		{
 			return lastIdentifier;
-		}
-
-		/**
-		 * Returns the last string seen, or the one being built if the machine is in
-		 * the process of recognizing one.
-		 */
-		[[nodiscard]] const std::string& getLastString() const
-		{
-			return lastString;
 		}
 
 		/**
@@ -231,7 +149,6 @@ namespace modelica
 		Token currentToken;
 		std::string lastIdentifier;
 		FloatLexer<defaultBase> lastNum;
-		std::string lastString;
 
 		int lineNumber;
 		int columnNumber;

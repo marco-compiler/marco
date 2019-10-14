@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include <algorithm>
 
-#include "modelica/Lexer.hpp"
+#include "modelica/utils/Lexer.hpp"
 
 enum class TestToken
 {

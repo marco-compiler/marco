@@ -1,4 +1,4 @@
-add_library(simulation SHARED src/SimExp.cpp src/SimErrors.cpp src/SimType.cpp src/SimCall.cpp) 
+add_library(simulation SHARED src/SimExp.cpp src/SimErrors.cpp src/SimType.cpp src/SimCall.cpp src/SimLexerStateMachine.cpp src/SimParser.cpp) 
 add_library(modelica::simulation ALIAS simulation)
 target_include_directories(simulation 
 	PRIVATE 

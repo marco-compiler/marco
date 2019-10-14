@@ -55,16 +55,7 @@ TEST(ConstantTest, dumpConstant)	// NOLINT
 	dumpConstant(constant, intStream);
 	intStream.str();
 
-	EXPECT_EQ(intString, "1");
-
-	std::string floatString;
-	llvm::raw_string_ostream floatStream(floatString);
-
-	dumpConstant(constant2, floatStream);
-	floatStream.str();
-
-	float val = std::stof(floatString);
-	EXPECT_NEAR(val, 1.0F, 0.1F);
+	EXPECT_EQ(intString, "{1}");
 
 	std::string boolString;
 	llvm::raw_string_ostream boolStream(boolString);
@@ -72,7 +63,7 @@ TEST(ConstantTest, dumpConstant)	// NOLINT
 	dumpConstant(constant3, boolStream);
 	boolStream.str();
 
-	EXPECT_EQ(boolString, "0");
+	EXPECT_EQ(boolString, "{0}");
 }
 
 TEST(ExpressionTest, operatorGreaterShouldReturnBool)	 // NOLINT

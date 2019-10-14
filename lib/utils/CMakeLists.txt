@@ -1,4 +1,4 @@
-ADD_LIBRARY(utils SHARED src/Utils.cpp)
+ADD_LIBRARY(utils SHARED src/Utils.cpp src/Lexer.cpp)
 ADD_LIBRARY(modelica::utils ALIAS utils)
 TARGET_INCLUDE_DIRECTORIES(utils 
 	PRIVATE 

@@ -9,7 +9,7 @@ static std::string exprKindToString(SimExpKind kind)
 		case (SimExpKind::zero):
 			return "0";
 		case (SimExpKind::negate):
-			return "-";
+			return "!";
 		case (SimExpKind::add):
 			return "+";
 		case (SimExpKind::sub):

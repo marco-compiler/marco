@@ -88,7 +88,7 @@ namespace modelica
 		[[nodiscard]] double get() const
 		{
 			int mantissaNormalizer = 1;
-			while (mantissaNormalizer < lowerPart.get())
+			while (mantissaNormalizer <= lowerPart.get())
 				mantissaNormalizer *= base;
 
 			double toReturn = upperPart.get();
@@ -111,4 +111,4 @@ namespace modelica
 		IntegerLexer<base> exponential;
 		bool expSign{ true };
 	};
-}	// namespace modelica
+}	 // namespace modelica
