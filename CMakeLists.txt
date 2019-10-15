@@ -26,7 +26,7 @@ include("CPack")
 include(CTest)
 set(CMAKE_DEBUG_POSTFIX "-d")
 
-set(default_build_type "Debug")
+set(default_build_type "Release")
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
@@ -48,11 +48,17 @@ endif(CMAKE_BUILD_TYPE MATCHES Debug)
 ##############################
 ###        Globals         ###
 ##############################
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti -Wall -Werror -Wextra -Wno-unused-variable -Wno-unused-parameter")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable -Wno-unused-parameter")
+
 set_tests_properties(${noArgsTests}   PROPERTIES TIMEOUT 10)
-find_package(LLVM REQUIRED 9.0.0)
-link_directories(${LLVM_PATH}/lib)
-include_directories(${LLVM_PATH}/include)
+find_package(LLVM REQUIRED CONFIG)
+add_definitions(${LLVM_DEFINITIONS})
+list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
+include(AddLLVM)
+include_directories(${LLVM_INCLUDE_DIRS})
 
 if (LLVM_ENABLE_ABI_BREAKING_CHECKS)
 	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLLVM_ENABLE_ABI_BREAKING_CHECKS=1")

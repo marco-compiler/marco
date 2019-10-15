@@ -24,7 +24,7 @@ macro(addLowererSimulationTest simulationName sourceSrc testSrc)
 
 	### Creates the command that will run clang to generate the Obj file.
 	add_custom_command(OUTPUT ${simulationName}.o
-		COMMAND clang -o ${simulationName}.o -fPIC -c ${simulationName}.bc
+		COMMAND clang-9 -o ${simulationName}.o -fPIC -c ${simulationName}.bc
 						COMMENT "generates ${simulationName} simulation object file"
 						DEPENDS ${simulationName}.bc
 						VERBATIM)
