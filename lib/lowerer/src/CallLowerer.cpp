@@ -27,11 +27,11 @@ namespace modelica
 	}
 
 	Expected<Value*> lowerCall(
-			IRBuilder<>& builder, Module& module, Function* fun, const SimCall& call)
+			IRBuilder<>& builder, Module& module, Function* fun, const ModCall& call)
 	{
 		SmallVector<Value*, 3> argsValue;
 
-		auto alloca = allocaSimType(builder, call.getType());
+		auto alloca = allocaModType(builder, call.getType());
 		argsValue.push_back(alloca);
 		argsValue.push_back(getTypeDimensionsArray(builder, call.getType()));
 
@@ -43,7 +43,7 @@ namespace modelica
 
 			argsValue.push_back(*arg);
 			argsValue.push_back(
-					getTypeDimensionsArray(builder, call.at(a).getSimType()));
+					getTypeDimensionsArray(builder, call.at(a).getModType()));
 		}
 
 		if (auto e = invoke(builder, module, fun, call.getName(), argsValue))

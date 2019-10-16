@@ -2,8 +2,8 @@
 
 #include "llvm/IR/IRBuilder.h"
 #include "modelica/lowerer/Lowerer.hpp"
-#include "modelica/simulation/SimConst.hpp"
-#include "modelica/simulation/SimErrors.hpp"
+#include "modelica/model/ModConst.hpp"
+#include "modelica/model/ModErrors.hpp"
 
 using namespace llvm;
 using namespace std;
@@ -52,7 +52,7 @@ namespace modelica
 		auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
 		return bld.CreateLoad(ptrToElem);
 	}
-	AllocaInst* allocaSimType(IRBuilder<>& bld, const SimType& type)
+	AllocaInst* allocaModType(IRBuilder<>& bld, const ModType& type)
 	{
 		auto llvmType = typeToLLVMType(bld.getContext(), type);
 		return bld.CreateAlloca(llvmType);
@@ -82,15 +82,15 @@ namespace modelica
 		return f;
 	}
 
-	Type* builtInToLLVMType(LLVMContext& context, BultinSimTypes type)
+	Type* builtInToLLVMType(LLVMContext& context, BultinModTypes type)
 	{
 		switch (type)
 		{
-			case BultinSimTypes::INT:
+			case BultinModTypes::INT:
 				return Type::getInt32Ty(context);
-			case BultinSimTypes::BOOL:
+			case BultinModTypes::BOOL:
 				return Type::getInt1Ty(context);
-			case BultinSimTypes::FLOAT:
+			case BultinModTypes::FLOAT:
 				return Type::getFloatTy(context);
 		}
 
@@ -98,7 +98,7 @@ namespace modelica
 		return nullptr;
 	}
 
-	ArrayType* typeToLLVMType(LLVMContext& context, const SimType& type)
+	ArrayType* typeToLLVMType(LLVMContext& context, const ModType& type)
 	{
 		auto baseType = builtInToLLVMType(context, type.getBuiltin());
 		return ArrayType::get(baseType, type.flatSize());
@@ -107,7 +107,7 @@ namespace modelica
 	Error simExpToGlobalVar(
 			Module& module,
 			StringRef name,
-			const SimType& simType,
+			const ModType& simType,
 			GlobalValue::LinkageTypes linkage)
 	{
 		auto type = typeToLLVMType(module.getContext(), simType);
@@ -175,7 +175,7 @@ namespace modelica
 		return phi;
 	}
 
-	AllocaInst* getTypeDimensionsArray(IRBuilder<>& bld, const SimType& type)
+	AllocaInst* getTypeDimensionsArray(IRBuilder<>& bld, const ModType& type)
 	{
 		auto allocaDim = type.getDimensionsCount() + 1;
 		auto longType = IntegerType::getInt64Ty(bld.getContext());

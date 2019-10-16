@@ -4,7 +4,7 @@
 #include "LowererUtils.hpp"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/IRBuilder.h"
-#include "modelica/simulation/SimErrors.hpp"
+#include "modelica/model/ModErrors.hpp"
 
 using namespace std;
 using namespace modelica;
@@ -59,10 +59,10 @@ static void insertGlobalString(Module& m, StringRef name, StringRef content)
 static Error insertGlobal(
 		Module& module,
 		StringRef name,
-		const SimExp& exp,
+		const ModExp& exp,
 		GlobalValue::LinkageTypes linkage)
 {
-	const auto& type = exp.getSimType();
+	const auto& type = exp.getModType();
 	const string oldName = name.str() + "_old";
 
 	if (auto e = simExpToGlobalVar(module, name, type, linkage); e)
@@ -74,7 +74,7 @@ static Error insertGlobal(
 }
 
 static Error createAllGlobals(
-		Module& m, StringMap<SimExp> vars, GlobalValue::LinkageTypes linkType)
+		Module& m, StringMap<ModExp> vars, GlobalValue::LinkageTypes linkType)
 {
 	for (const auto& pair : vars)
 		if (auto e = insertGlobal(m, pair.first(), pair.second, linkType); e)
@@ -83,7 +83,7 @@ static Error createAllGlobals(
 	return Error::success();
 }
 
-static Expected<Function*> initializeGlobals(Module& m, StringMap<SimExp> vars)
+static Expected<Function*> initializeGlobals(Module& m, StringMap<ModExp> vars)
 {
 	auto initFunctionExpected = makePrivateFunction("init", m);
 	if (!initFunctionExpected)
@@ -105,7 +105,7 @@ static Expected<Function*> initializeGlobals(Module& m, StringMap<SimExp> vars)
 	return initFunction;
 }
 
-static Expected<Function*> createUpdates(Module& m, StringMap<SimExp> upds)
+static Expected<Function*> createUpdates(Module& m, StringMap<ModExp> upds)
 {
 	auto updateFunctionExpected = makePrivateFunction("update", m);
 	if (!updateFunctionExpected)
@@ -184,7 +184,7 @@ static void createPrintOfVar(
 	builder.CreateCall(externalPrint, argsVal);
 }
 
-static Expected<Function*> populatePrint(Module& m, StringMap<SimExp> vars)
+static Expected<Function*> populatePrint(Module& m, StringMap<ModExp> vars)
 {
 	auto printFunctionExpected = makePrivateFunction("print", m);
 	if (!printFunctionExpected)
@@ -256,7 +256,7 @@ void Lowerer::dumpHeader(raw_ostream& OS) const
 
 	for (const auto& var : variables)
 	{
-		const auto& type = var.second.getSimType();
+		const auto& type = var.second.getModType();
 
 		OS << "extern ";
 		type.dumpCSyntax(var.first(), OS);

@@ -1,3 +1,3 @@
 add_subdirectory(ASTDumper)
-add_subdirectory(SimC)
+add_subdirectory(ModC)
 

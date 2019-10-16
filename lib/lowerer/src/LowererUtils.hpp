@@ -36,7 +36,7 @@ namespace modelica
 	 * dimensions of the type
 	 */
 	llvm::AllocaInst* getTypeDimensionsArray(
-			llvm::IRBuilder<>& bld, const SimType& type);
+			llvm::IRBuilder<>& bld, const ModType& type);
 
 	/**
 	 * arrayPtr[index] = value;
@@ -69,18 +69,18 @@ namespace modelica
 	llvm::Value* loadArrayElement(
 			llvm::IRBuilder<>& bld, llvm::Value* arrayPtr, llvm::Value* index);
 	/**
-	 * creates a type from a SimType
+	 * creates a type from a ModType
 	 * \return the created type
 	 */
 	[[nodiscard]] llvm::ArrayType* typeToLLVMType(
-			llvm::LLVMContext& context, const SimType& type);
+			llvm::LLVMContext& context, const ModType& type);
 
 	/**
 	 * creates a type from a builtin type
 	 * \return the created type.
 	 */
 	[[nodiscard]] llvm::Type* builtInToLLVMType(
-			llvm::LLVMContext& context, BultinSimTypes type);
+			llvm::LLVMContext& context, BultinModTypes type);
 
 	/**
 	 * allocates the global var into the module
@@ -92,7 +92,7 @@ namespace modelica
 	llvm::Error simExpToGlobalVar(
 			llvm::Module& module,
 			llvm::StringRef name,
-			const SimType& type,
+			const ModType& type,
 			llvm::GlobalValue::LinkageTypes linkage);
 
 	/**
@@ -135,9 +135,9 @@ namespace modelica
 
 	/**
 	 * \return a llvm::type rappresenting the array of types of the provided
-	 * SimType.
+	 * ModType.
 	 */
-	llvm::AllocaInst* allocaSimType(llvm::IRBuilder<>& bld, const SimType& type);
+	llvm::AllocaInst* allocaModType(llvm::IRBuilder<>& bld, const ModType& type);
 
 	/**
 	 * Creates a for cycle that last interationsCount iterations

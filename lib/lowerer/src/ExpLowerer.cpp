@@ -1,7 +1,7 @@
 #include "ExpLowerer.hpp"
 
 #include "CallLowerer.hpp"
-#include "modelica/simulation/SimErrors.hpp"
+#include "modelica/model/ModErrors.hpp"
 
 using namespace std;
 using namespace llvm;
@@ -9,12 +9,12 @@ using namespace modelica;
 
 template<typename T>
 Expected<AllocaInst*> lowerConstantTyped(
-		IRBuilder<> builder, const SimConst<T>& constant, const SimType& type)
+		IRBuilder<> builder, const ModConst<T>& constant, const ModType& type)
 {
 	if (constant.size() != type.flatSize())
 		return make_error<TypeConstantSizeMissMatch>(constant, type);
 
-	auto alloca = allocaSimType(builder, type);
+	auto alloca = allocaModType(builder, type);
 
 	for (size_t i = 0; i < constant.size(); i++)
 		storeConstantToArrayElement<T>(builder, constant.get(i), alloca, i);
@@ -26,10 +26,10 @@ static AllocaInst* elementWiseOperation(
 		IRBuilder<>& builder,
 		Function* fun,
 		ArrayRef<Value*>& args,
-		const SimType& operationOutType,
+		const ModType& operationOutType,
 		std::function<Value*(IRBuilder<>&, ArrayRef<Value*>)> operation)
 {
-	auto alloca = allocaSimType(builder, operationOutType);
+	auto alloca = allocaModType(builder, operationOutType);
 
 	const auto forBody = [alloca, &operation, &args](
 													 IRBuilder<>& bld, Value* index) {
@@ -49,45 +49,45 @@ static AllocaInst* elementWiseOperation(
 }
 
 static Value* createFloatSingleBynaryOp(
-		IRBuilder<>& builder, ArrayRef<Value*> args, SimExpKind kind)
+		IRBuilder<>& builder, ArrayRef<Value*> args, ModExpKind kind)
 {
 	assert(args[0]->getType()->isFloatTy());					// NOLINT
-	assert(SimExp::Operation::arityOfOp(kind) == 2);	// NOLINT
+	assert(ModExp::Operation::arityOfOp(kind) == 2);	// NOLINT
 	switch (kind)
 	{
-		case SimExpKind::add:
+		case ModExpKind::add:
 			return builder.CreateFAdd(args[0], args[1]);
-		case SimExpKind::sub:
+		case ModExpKind::sub:
 			return builder.CreateFSub(args[0], args[1]);
-		case SimExpKind::mult:
+		case ModExpKind::mult:
 			return builder.CreateFMul(args[0], args[1]);
-		case SimExpKind::divide:
+		case ModExpKind::divide:
 			return builder.CreateFDiv(args[0], args[1]);
-		case SimExpKind::equal:
+		case ModExpKind::equal:
 			return builder.CreateFCmpOEQ(args[0], args[1]);
-		case SimExpKind::different:
+		case ModExpKind::different:
 			return builder.CreateFCmpONE(args[0], args[1]);
-		case SimExpKind::greaterEqual:
+		case ModExpKind::greaterEqual:
 			return builder.CreateFCmpOGE(args[0], args[1]);
-		case SimExpKind::greaterThan:
+		case ModExpKind::greaterThan:
 			return builder.CreateFCmpOGT(args[0], args[1]);
-		case SimExpKind::lessEqual:
+		case ModExpKind::lessEqual:
 			return builder.CreateFCmpOLE(args[0], args[1]);
-		case SimExpKind::less:
+		case ModExpKind::less:
 			return builder.CreateFCmpOLT(args[0], args[1]);
-		case SimExpKind::module: {
+		case ModExpKind::module: {
 			// TODO
 			assert(false && "module unsupported");	// NOLINT
 			return nullptr;
 		}
-		case SimExpKind::elevation: {
+		case ModExpKind::elevation: {
 			// TODO
 			assert(false && "powerof unsupported");	 // NOLINT
 			return nullptr;
 		}
-		case SimExpKind::zero:
-		case SimExpKind::negate:
-		case SimExpKind::conditional:
+		case ModExpKind::zero:
+		case ModExpKind::negate:
+		case ModExpKind::conditional:
 			assert(false && "unreachable");	 // NOLINT
 			return nullptr;
 	}
@@ -96,45 +96,45 @@ static Value* createFloatSingleBynaryOp(
 }
 
 static Value* createIntSingleBynaryOp(
-		IRBuilder<>& builder, ArrayRef<Value*> args, SimExpKind kind)
+		IRBuilder<>& builder, ArrayRef<Value*> args, ModExpKind kind)
 {
 	assert(args[0]->getType()->isIntegerTy());				// NOLINT
-	assert(SimExp::Operation::arityOfOp(kind) == 2);	// NOLINT
+	assert(ModExp::Operation::arityOfOp(kind) == 2);	// NOLINT
 	switch (kind)
 	{
-		case SimExpKind::add:
+		case ModExpKind::add:
 			return builder.CreateAdd(args[0], args[1]);
-		case SimExpKind::sub:
+		case ModExpKind::sub:
 			return builder.CreateSub(args[0], args[1]);
-		case SimExpKind::mult:
+		case ModExpKind::mult:
 			return builder.CreateMul(args[0], args[1]);
-		case SimExpKind::divide:
+		case ModExpKind::divide:
 			return builder.CreateSDiv(args[0], args[1]);
-		case SimExpKind::equal:
+		case ModExpKind::equal:
 			return builder.CreateICmpEQ(args[0], args[1]);
-		case SimExpKind::different:
+		case ModExpKind::different:
 			return builder.CreateICmpNE(args[0], args[1]);
-		case SimExpKind::greaterEqual:
+		case ModExpKind::greaterEqual:
 			return builder.CreateICmpSGE(args[0], args[1]);
-		case SimExpKind::greaterThan:
+		case ModExpKind::greaterThan:
 			return builder.CreateICmpSGT(args[0], args[1]);
-		case SimExpKind::lessEqual:
+		case ModExpKind::lessEqual:
 			return builder.CreateICmpSLE(args[0], args[1]);
-		case SimExpKind::less:
+		case ModExpKind::less:
 			return builder.CreateICmpSLT(args[0], args[1]);
-		case SimExpKind::module: {
+		case ModExpKind::module: {
 			// TODO
 			assert(false && "module unsupported");	// NOLINT
 			return nullptr;
 		}
-		case SimExpKind::elevation: {
+		case ModExpKind::elevation: {
 			// TODO
 			assert(false && "powerof unsupported");	 // NOLINT
 			return nullptr;
 		}
-		case SimExpKind::zero:
-		case SimExpKind::negate:
-		case SimExpKind::conditional:
+		case ModExpKind::zero:
+		case ModExpKind::negate:
+		case ModExpKind::conditional:
 			assert(false && "unreachable");	 // NOLINT
 			return nullptr;
 	}
@@ -143,9 +143,9 @@ static Value* createIntSingleBynaryOp(
 }
 
 static Value* createSingleBynaryOP(
-		IRBuilder<>& builder, ArrayRef<Value*> args, SimExpKind kind)
+		IRBuilder<>& builder, ArrayRef<Value*> args, ModExpKind kind)
 {
-	assert(SimExp::Operation::arityOfOp(kind) == 2);	// NOLINT
+	assert(ModExp::Operation::arityOfOp(kind) == 2);	// NOLINT
 	auto type = args[0]->getType();
 	if (type->isIntegerTy())
 		return createIntSingleBynaryOp(builder, args, kind);
@@ -157,14 +157,14 @@ static Value* createSingleBynaryOP(
 }
 
 static Value* createSingleUnaryOp(
-		IRBuilder<>& builder, ArrayRef<Value*> args, SimExpKind kind)
+		IRBuilder<>& builder, ArrayRef<Value*> args, ModExpKind kind)
 {
 	auto intType = IntegerType::getInt32Ty(builder.getContext());
 	auto boolType = IntegerType::getInt1Ty(builder.getContext());
 	auto zero = ConstantInt::get(boolType, 0);
 	switch (kind)
 	{
-		case SimExpKind::negate:
+		case ModExpKind::negate:
 			if (args[0]->getType()->isFloatTy())
 				return builder.CreateFNeg(args[0]);
 
@@ -187,7 +187,7 @@ template<size_t arity>
 static Expected<AllocaInst*> lowerUnOrBinOp(
 		IRBuilder<>& builder,
 		Function* fun,
-		const SimExp& exp,
+		const ModExp& exp,
 		ArrayRef<Value*> subExp)
 {
 	static_assert(arity < 3 && arity > 0, "cannot lower op with this arity");
@@ -205,7 +205,7 @@ static Expected<AllocaInst*> lowerUnOrBinOp(
 }
 
 static Expected<Value*> lowerTernary(
-		IRBuilder<>& builder, Module& module, Function* fun, const SimExp& exp)
+		IRBuilder<>& builder, Module& module, Function* fun, const ModExp& exp)
 {
 	assert(exp.isTernary());	// NOLINT
 	const auto leftHandLowerer = [&exp, fun, &module](IRBuilder<>& builder) {
@@ -217,7 +217,7 @@ static Expected<Value*> lowerTernary(
 	const auto conditionLowerer =
 			[&exp, fun, &module](IRBuilder<>& builder) -> Expected<Value*> {
 		auto& condition = exp.getCondition();
-		assert(condition.getSimType() == SimType(BultinSimTypes::BOOL));	// NOLINT
+		assert(condition.getModType() == ModType(BultinModTypes::BOOL));	// NOLINT
 		auto ptrToCond = lowerExp(builder, module, fun, condition);
 		if (!ptrToCond)
 			return ptrToCond;
@@ -226,7 +226,7 @@ static Expected<Value*> lowerTernary(
 		return loadArrayElement(builder, *ptrToCond, zero);
 	};
 
-	auto type = exp.getLeftHand().getSimType();
+	auto type = exp.getLeftHand().getModType();
 	auto llvmType = typeToLLVMType(builder.getContext(), type)->getPointerTo(0);
 
 	return createTernaryOp(
@@ -239,14 +239,14 @@ static Expected<Value*> lowerTernary(
 }
 
 static Expected<Value*> lowerOperation(
-		IRBuilder<>& builder, Module& m, Function* fun, const SimExp& exp)
+		IRBuilder<>& builder, Module& m, Function* fun, const ModExp& exp)
 {
 	assert(exp.isOperation());	// NOLINT
 
-	if (SimExpKind::zero == exp.getKind())
+	if (ModExpKind::zero == exp.getKind())
 	{
-		SimType type(BultinSimTypes::INT);
-		IntSimConst constant(0);
+		ModType type(BultinModTypes::INT);
+		IntModConst constant(0);
 		return lowerConstantTyped(builder, constant, type);
 	}
 
@@ -284,7 +284,7 @@ static Expected<Value*> lowerOperation(
 }
 
 static Expected<Value*> uncastedLowerExp(
-		IRBuilder<>& builder, Module& mod, Function* fun, const SimExp& exp)
+		IRBuilder<>& builder, Module& mod, Function* fun, const ModExp& exp)
 {
 	if (!exp.areSubExpressionCompatibles())
 		return make_error<TypeMissMatch>(exp);
@@ -327,7 +327,7 @@ static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
 }
 
 static Expected<Value*> castReturnValue(
-		IRBuilder<>& builder, Value* val, const SimType& type)
+		IRBuilder<>& builder, Value* val, const ModType& type)
 {
 	auto ptrArrayType = dyn_cast<PointerType>(val->getType());
 	auto arrayType = dyn_cast<ArrayType>(ptrArrayType->getContainedType(0));
@@ -340,7 +340,7 @@ static Expected<Value*> castReturnValue(
 	if (destType == arrayType)
 		return val;
 
-	auto alloca = allocaSimType(builder, type);
+	auto alloca = allocaModType(builder, type);
 
 	for (size_t a = 0; a < arrayType->getNumElements(); a++)
 	{
@@ -355,29 +355,29 @@ static Expected<Value*> castReturnValue(
 
 namespace modelica
 {
-	Expected<AllocaInst*> lowerConstant(IRBuilder<>& builder, const SimExp& exp)
+	Expected<AllocaInst*> lowerConstant(IRBuilder<>& builder, const ModExp& exp)
 	{
 		if (exp.isConstant<int>())
 			return lowerConstantTyped<int>(
-					builder, exp.getConstant<int>(), exp.getSimType());
+					builder, exp.getConstant<int>(), exp.getModType());
 		if (exp.isConstant<float>())
 			return lowerConstantTyped<float>(
-					builder, exp.getConstant<float>(), exp.getSimType());
+					builder, exp.getConstant<float>(), exp.getModType());
 		if (exp.isConstant<bool>())
 			return lowerConstantTyped<bool>(
-					builder, exp.getConstant<bool>(), exp.getSimType());
+					builder, exp.getConstant<bool>(), exp.getModType());
 
 		assert(false && "unreachable");	 // NOLINT
 		return nullptr;
 	}
 
 	Expected<Value*> lowerExp(
-			IRBuilder<>& builder, Module& module, Function* fun, const SimExp& exp)
+			IRBuilder<>& builder, Module& module, Function* fun, const ModExp& exp)
 	{
 		auto retVal = uncastedLowerExp(builder, module, fun, exp);
 		if (!retVal)
 			return retVal;
 
-		return castReturnValue(builder, *retVal, exp.getSimType());
+		return castReturnValue(builder, *retVal, exp.getModType());
 	}
 }	 // namespace modelica

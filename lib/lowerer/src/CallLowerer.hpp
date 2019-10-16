@@ -5,7 +5,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Error.h"
-#include "modelica/simulation/SimCall.hpp"
+#include "modelica/model/ModCall.hpp"
 
 namespace modelica
 {
@@ -13,5 +13,5 @@ namespace modelica
 			llvm::IRBuilder<>& builder,
 			llvm::Module& module,
 			llvm::Function* fun,
-			const SimCall& call);
+			const ModCall& call);
 }

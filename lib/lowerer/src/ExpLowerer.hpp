@@ -8,8 +8,8 @@ namespace modelica
 			llvm::IRBuilder<>& builder,
 			llvm::Module& mod,
 			llvm::Function* fun,
-			const SimExp& exp);
+			const ModExp& exp);
 
 	llvm::Expected<llvm::AllocaInst*> lowerConstant(
-			llvm::IRBuilder<>& builder, const SimExp& exp);
+			llvm::IRBuilder<>& builder, const ModExp& exp);
 }	 // namespace modelica

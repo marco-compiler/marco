@@ -3,7 +3,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
-#include "modelica/simulation/SimExp.hpp"
+#include "modelica/model/ModExp.hpp"
 
 namespace modelica
 {
@@ -11,7 +11,7 @@ namespace modelica
 	 * The default number of iterations to be performed.
 	 * Totaly arbitrary number.
 	 */
-	constexpr int defaultSimulationIterations = 10;
+	constexpr int defaultModulationIterations = 10;
 
 	/**
 	 * A Lowerer is the main container of the library. It lowers
@@ -27,11 +27,11 @@ namespace modelica
 		public:
 		Lowerer(
 				llvm::LLVMContext& context,
-				llvm::StringMap<SimExp> vars,
-				llvm::StringMap<SimExp> updates,
+				llvm::StringMap<ModExp> vars,
+				llvm::StringMap<ModExp> updates,
 				std::string name = "Modelica Module",
 				std::string entryPointName = "main",
-				unsigned stopTime = defaultSimulationIterations)
+				unsigned stopTime = defaultModulationIterations)
 				: module(std::move(name), context),
 					variables(std::move(vars)),
 					updates(std::move(updates)),
@@ -45,7 +45,7 @@ namespace modelica
 				llvm::LLVMContext& context,
 				std::string name = "Modelica Module",
 				std::string entryPointName = "main",
-				unsigned stopTime = defaultSimulationIterations)
+				unsigned stopTime = defaultModulationIterations)
 				: module(std::move(name), context),
 					stopTime(stopTime),
 					entryPointName(std::move(entryPointName)),
@@ -60,7 +60,7 @@ namespace modelica
 		 *
 		 * \return true if there were no other vars with the same name already.
 		 */
-		[[nodiscard]] bool addVar(std::string name, SimExp exp)
+		[[nodiscard]] bool addVar(std::string name, ModExp exp)
 		{
 			if (variables.find(name) != variables.end())
 				return false;
@@ -75,7 +75,7 @@ namespace modelica
 		 *
 		 * \return  true if there were no other updates referring to the same var.
 		 */
-		[[nodiscard]] bool addUpdate(std::string name, SimExp exp)
+		[[nodiscard]] bool addUpdate(std::string name, ModExp exp)
 		{
 			if (updates.find(name) != updates.end())
 				return false;
@@ -138,8 +138,8 @@ namespace modelica
 
 		private:
 		llvm::Module module;
-		llvm::StringMap<SimExp> variables;
-		llvm::StringMap<SimExp> updates;
+		llvm::StringMap<ModExp> variables;
+		llvm::StringMap<ModExp> updates;
 		unsigned stopTime;
 
 		std::string entryPointName;
