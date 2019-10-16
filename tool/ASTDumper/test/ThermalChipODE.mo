@@ -275,6 +275,8 @@ package ThermalChipODE
     end ThermalChipSimpleBoundary;
   end Models;
 
+	Models.ThermalChipSimpleBoundary  a;
+
   package Benchmarks
   end Benchmarks;
 end ThermalChipODE;

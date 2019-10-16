@@ -1,4 +1,4 @@
-add_library(solver SHARED src/SolvedSet.cpp) 
+add_library(solver SHARED src/SolvedSet.cpp src/ModelJacobian.cpp src/Model.cpp src/SimEqu.cpp src/SimVar.cpp src/DependencyGraph.cpp) 
 add_library(modelica::solver ALIAS solver)
 target_include_directories(solver 
 	PRIVATE 
