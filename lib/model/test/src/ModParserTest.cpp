@@ -152,6 +152,24 @@ TEST(ModParserTest, statement)
 	EXPECT_EQ(ModExpKind::add, exp.getKind());
 }
 
+TEST(ModParserTest, forUpdateStatement)
+{
+	auto parser =
+			ModParser("for [1,3][1,4]id = FLOAT[1] (+ INT[1]{1}, INT[1]{2})");
+
+	auto vec = parser.updateStatement();
+	if (!vec)
+		FAIL();
+
+	EXPECT_EQ("id", vec->getVarName());
+	EXPECT_TRUE(vec->getExpression().isOperation());
+	EXPECT_EQ(ModExpKind::add, vec->getExpression().getKind());
+	EXPECT_EQ(vec->getInductionVar(0).begin(), 1);
+	EXPECT_EQ(vec->getInductionVar(0).end(), 3);
+	EXPECT_EQ(vec->getInductionVar(1).begin(), 1);
+	EXPECT_EQ(vec->getInductionVar(1).end(), 4);
+}
+
 TEST(ModParserTest, sectionStatement)
 {
 	auto parser = ModParser("init id = FLOAT[1] (+ INT[1]{1}, INT[1]{2})");
@@ -171,7 +189,7 @@ TEST(ModParserTest, updateSection)
 	if (!vec)
 		FAIL();
 
-	EXPECT_TRUE(vec->find("id") != vec->end());
+	EXPECT_TRUE(vec.get()[0].getVarName() == "id");
 }
 
 TEST(ModParserTest, simulation)
@@ -186,6 +204,6 @@ TEST(ModParserTest, simulation)
 	auto [init, update] = move(*vec);
 
 	EXPECT_TRUE(init.find("id") != init.end());
-	EXPECT_TRUE(update.find("id") != update.end());
-	EXPECT_TRUE(init.find("id")->second == update.find("id")->second);
+	EXPECT_TRUE(update[0].getVarName() == "id");
+	EXPECT_TRUE(init.find("id")->second == update[0].getExpression());
 }

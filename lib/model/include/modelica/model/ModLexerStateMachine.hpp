@@ -23,6 +23,7 @@ namespace modelica
 		BoolKeyword,
 		IntKeyword,
 		FloatKeyword,
+		ForKeyword,
 
 		LPar,
 		Comma,

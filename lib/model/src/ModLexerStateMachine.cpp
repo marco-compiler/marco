@@ -78,6 +78,8 @@ std::string modelica::tokenToString(ModToken token)
 			return "Ternary";
 		case ModToken::Not:
 			return "Not";
+		case ModToken::ForKeyword:
+			return "For";
 
 		case ModToken::End:
 			return "End";
@@ -101,6 +103,7 @@ ModLexerStateMachine::ModLexerStateMachine(char first)
 	keywordMap["BOOL"] = ModToken::BoolKeyword;
 	keywordMap["FLOAT"] = ModToken::FloatKeyword;
 	keywordMap["INT"] = ModToken::IntKeyword;
+	keywordMap["for"] = ModToken::ForKeyword;
 
 	symbols['*'] = Token::Multiply;
 	symbols[','] = Token::Comma;

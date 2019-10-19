@@ -880,4 +880,4 @@ namespace modelica
 	{
 		return BottomUpDirection::visit(std::move(expr), visitor);
 	}
-}	// namespace modelica
+}	 // namespace modelica

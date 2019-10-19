@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 
+#include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModLexerStateMachine.hpp"
 #include "modelica/utils/Lexer.hpp"
@@ -44,10 +45,14 @@ namespace modelica
 		[[nodiscard]] llvm::Expected<llvm::StringMap<ModExp>> initSection();
 		[[nodiscard]] llvm::Expected<float> floatingPoint();
 		[[nodiscard]] llvm::Expected<int> integer();
-		[[nodiscard]] llvm::Expected<llvm::StringMap<ModExp>> updateSection();
+		[[nodiscard]] llvm::Expected<llvm::SmallVector<Assigment, 0>>
+		updateSection();
 		[[nodiscard]] llvm::Expected<
-				std::tuple<llvm::StringMap<ModExp>, llvm::StringMap<ModExp>>>
+				std::tuple<llvm::StringMap<ModExp>, llvm::SmallVector<Assigment, 0>>>
 		simulation();
+		[[nodiscard]] llvm::Expected<InductionVar> singleInduction();
+		[[nodiscard]] llvm::Expected<std::vector<InductionVar>> inductions();
+		[[nodiscard]] llvm::Expected<Assigment> updateStatement();
 
 		[[nodiscard]] ModToken getCurrentModToken() const { return current; }
 

@@ -6,6 +6,13 @@
 
 namespace modelica
 {
+	struct LoweringInfo
+	{
+		llvm::IRBuilder<>& builder;
+		llvm::Module& module;
+		llvm::Function* function;
+		llvm::Value* inductionsVars{ nullptr };
+	};
 	/**
 	 * \brief create a function with internal linkage in the provided module and
 	 * provided name.
@@ -152,7 +159,15 @@ namespace modelica
 	llvm::BasicBlock* createForCycle(
 			llvm::Function* function,
 			llvm::IRBuilder<>& builder,
-			size_t iterationCount,
+			size_t iterationCountBegin,
+			size_t iterationCountEnd,
+			std::function<void(llvm::IRBuilder<>&, llvm::Value*)> whileContent);
+
+	llvm::BasicBlock* createdNestedForCycle(
+			llvm::Function* function,
+			llvm::IRBuilder<>& builder,
+			llvm::ArrayRef<size_t> iterationsCountBegin,
+			llvm::ArrayRef<size_t> iterationsCountEnd,
 			std::function<void(llvm::IRBuilder<>&, llvm::Value*)> whileContent);
 
 	using TernaryOpFunction =

@@ -119,8 +119,8 @@ namespace modelica
 		[[nodiscard]] int size() const { return childs.size(); }
 		[[nodiscard]] Iterator begin() { return childs.begin(); }
 		[[nodiscard]] Iterator end() { return childs.end(); }
-		[[nodiscard]] ConstIterator cbegin() const { return childs.cbegin(); }
-		[[nodiscard]] ConstIterator cend() const { return childs.cend(); }
+		[[nodiscard]] ConstIterator begin() const { return childs.cbegin(); }
+		[[nodiscard]] ConstIterator end() const { return childs.cend(); }
 		[[nodiscard]] Children* at(int index) { return childs.at(index).get(); }
 		[[nodiscard]] const Children* at(int index) const
 		{
@@ -136,7 +136,7 @@ namespace modelica
 		}
 		[[nodiscard]] llvm::iterator_range<ConstIterator> children() const
 		{
-			return llvm::make_range(cbegin(), cend());
+			return llvm::make_range(begin(), end());
 		}
 		void removeNulls()
 		{
@@ -724,9 +724,9 @@ namespace modelica
 			for (auto& p : algSection)
 				getVector().push_back(move(p));
 		}
-		[[nodiscard]] const Declaration* getPrivateSection() const
+		[[nodiscard]] const class CompositionSection* getPrivateSection() const
 		{
-			return getVector()[0].get();
+			return llvm::dyn_cast<class CompositionSection>(getVector()[0].get());
 		}
 		[[nodiscard]] const Declaration* getPublicSection() const
 		{
@@ -983,9 +983,9 @@ namespace modelica
 		~LongClassDecl() override = default;
 		static constexpr auto classof = leafClassOf<DeclarationKind::LongClassDecl>;
 
-		[[nodiscard]] const Declaration* getComposition() const
+		[[nodiscard]] const class Composition* getComposition() const
 		{
-			return getVector()[0].get();
+			return llvm::dyn_cast<class Composition>(getVector()[0].get());
 		}
 		[[nodiscard]] const Declaration* getModification() const
 		{
@@ -1106,4 +1106,4 @@ namespace modelica
 		std::vector<std::string> baseName;
 		std::vector<std::string> toImportNames;
 	};
-}	// namespace modelica
+}	 // namespace modelica

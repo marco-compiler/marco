@@ -37,6 +37,11 @@ namespace modelica
 		}
 
 		ModConst(llvm::SmallVector<C, 3> args): content(std::move(args)) {}
+		ModConst(llvm::ArrayRef<C> args)
+		{
+			for (auto arg : args)
+				content.push_back(arg);
+		}
 
 		/**
 		 * \require index < size()

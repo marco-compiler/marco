@@ -36,6 +36,8 @@ static std::string exprKindToString(ModExpKind kind)
 			return "%";
 		case (ModExpKind::conditional):
 			return "?";
+		case (ModExpKind::induction):
+			return "ind";
 	}
 	assert(false);	// NOLINT
 	return "UNREACHABLE";
@@ -47,6 +49,8 @@ ModType ModExp::Operation::getOperationReturnType() const
 	{
 		case ModExpKind::zero:
 			return ModType(BultinModTypes::BOOL);
+		case ModExpKind::induction:
+			return ModType(BultinModTypes::INT);
 		case ModExpKind::negate:
 		case ModExpKind::add:
 		case ModExpKind::sub:

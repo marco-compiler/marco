@@ -7,46 +7,40 @@ using namespace std;
 
 namespace modelica
 {
-	static Error invoke(
-			IRBuilder<>& builder,
-			Module& module,
-			Function* fun,
-			StringRef name,
-			ArrayRef<Value*> args)
+	static Error invoke(LoweringInfo& info, StringRef name, ArrayRef<Value*> args)
 	{
-		auto voidType = Type::getVoidTy(builder.getContext());
+		auto voidType = Type::getVoidTy(info.builder.getContext());
 		SmallVector<Type*, 3> argsTypes;
 		for (auto val : args)
 			argsTypes.push_back(val->getType());
 
 		auto functionType = FunctionType::get(voidType, argsTypes, false);
-		auto externalFun = module.getOrInsertFunction(name, functionType);
+		auto externalFun = info.module.getOrInsertFunction(name, functionType);
 
-		builder.CreateCall(externalFun, args);
+		info.builder.CreateCall(externalFun, args);
 		return Error::success();
 	}
 
-	Expected<Value*> lowerCall(
-			IRBuilder<>& builder, Module& module, Function* fun, const ModCall& call)
+	Expected<Value*> lowerCall(LoweringInfo& info, const ModCall& call)
 	{
 		SmallVector<Value*, 3> argsValue;
 
-		auto alloca = allocaModType(builder, call.getType());
+		auto alloca = allocaModType(info.builder, call.getType());
 		argsValue.push_back(alloca);
-		argsValue.push_back(getTypeDimensionsArray(builder, call.getType()));
+		argsValue.push_back(getTypeDimensionsArray(info.builder, call.getType()));
 
 		for (size_t a = 0; a < call.argsSize(); a++)
 		{
-			auto arg = lowerExp(builder, module, fun, call.at(a));
+			auto arg = lowerExp(info, call.at(a));
 			if (!arg)
 				return arg;
 
 			argsValue.push_back(*arg);
 			argsValue.push_back(
-					getTypeDimensionsArray(builder, call.at(a).getModType()));
+					getTypeDimensionsArray(info.builder, call.at(a).getModType()));
 		}
 
-		if (auto e = invoke(builder, module, fun, call.getName(), argsValue))
+		if (auto e = invoke(info, call.getName(), argsValue))
 			return move(e);
 
 		return alloca;

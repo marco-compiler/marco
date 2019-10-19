@@ -1,0 +1,9 @@
+init
+
+
+IntModifiable = INT[2, 2]{1, 2, 3, 4}
+
+update
+
+for [0,2][0,2]
+IntModifiable = INT[1]{3}

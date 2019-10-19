@@ -39,7 +39,7 @@ static Expected<Function*> populateMain(
 
 	// creates a for with simulationStop iterations what invokes
 	// update and print values each time
-	auto loopExit = createForCycle(main, builder, simulationStop, forBody);
+	auto loopExit = createForCycle(main, builder, 0, simulationStop, forBody);
 
 	// returns right after the loop
 	builder.SetInsertPoint(loopExit);
@@ -83,7 +83,8 @@ static Error createAllGlobals(
 	return Error::success();
 }
 
-static Expected<Function*> initializeGlobals(Module& m, StringMap<ModExp> vars)
+static Expected<Function*> initializeGlobals(
+		Module& m, const StringMap<ModExp>& vars)
 {
 	auto initFunctionExpected = makePrivateFunction("init", m);
 	if (!initFunctionExpected)
@@ -93,7 +94,8 @@ static Expected<Function*> initializeGlobals(Module& m, StringMap<ModExp> vars)
 
 	for (const auto& pair : vars)
 	{
-		auto val = lowerExp(builder, m, initFunction, pair.second);
+		LoweringInfo info = { builder, m, initFunction };
+		auto val = lowerExp(info, pair.second);
 		if (!val)
 			return val.takeError();
 		auto loaded = builder.CreateLoad(*val);
@@ -105,7 +107,59 @@ static Expected<Function*> initializeGlobals(Module& m, StringMap<ModExp> vars)
 	return initFunction;
 }
 
-static Expected<Function*> createUpdates(Module& m, StringMap<ModExp> upds)
+static Error createNormalAssigment(
+		LoweringInfo& info, const Assigment& assigment, GlobalVariable* var)
+{
+	auto val = lowerExp(info, assigment.getExpression());
+	if (!val)
+		return val.takeError();
+	auto loaded = info.builder.CreateLoad(*val);
+	info.builder.CreateStore(loaded, var);
+	return Error::success();
+}
+
+static Error createForAssigment(
+		LoweringInfo info, const Assigment& assigment, GlobalVariable* var)
+{
+	SmallVector<size_t, 3> inductionsBegin;
+	SmallVector<size_t, 3> inductionsEnd;
+	for (const auto& ind : assigment)
+		inductionsBegin.push_back(ind.begin());
+	for (const auto& ind : assigment)
+		inductionsEnd.push_back(ind.end());
+	Error err = Error::success();
+
+	auto lowerBody = [&](auto& bld, auto inductionVars) {
+		info.inductionsVars = inductionVars;
+		auto ptrToSingle = getArrayElementPtr(bld, var, inductionVars);
+
+		auto expVal = lowerExp(info, assigment.getExpression());
+		if (!expVal)
+		{
+			err = expVal.takeError();
+			return;
+		}
+		auto casted = bld.CreatePointerCast(*expVal, ptrToSingle->getType());
+		auto loaded = bld.CreateLoad(casted);
+		bld.CreateStore(loaded, ptrToSingle);
+	};
+
+	createdNestedForCycle(
+			info.function, info.builder, inductionsBegin, inductionsEnd, lowerBody);
+	return err;
+}
+
+static Error createAssigment(
+		LoweringInfo& info, const Assigment& assigment, GlobalVariable* var)
+{
+	if (assigment.size() == 0)
+		return createNormalAssigment(info, assigment, var);
+
+	return createForAssigment(info, assigment, var);
+}
+
+static Expected<Function*> createUpdates(
+		Module& m, const SmallVector<Assigment, 0>& upds)
 {
 	auto updateFunctionExpected = makePrivateFunction("update", m);
 	if (!updateFunctionExpected)
@@ -115,18 +169,21 @@ static Expected<Function*> createUpdates(Module& m, StringMap<ModExp> upds)
 
 	for (const auto& pair : upds)
 	{
-		auto expFun = makePrivateFunction("update" + pair.first().str(), m);
+		auto globalVar = m.getGlobalVariable(pair.getVarName(), true);
+		if (globalVar == nullptr)
+			return make_error<UnkownVariable>(pair.getVarName());
+		auto expFun = makePrivateFunction("update" + pair.getVarName(), m);
 		if (!expFun)
 			return expFun;
 
 		auto fun = expFun.get();
 		bld.SetInsertPoint(&fun->getEntryBlock());
 
-		auto val = lowerExp(bld, m, fun, pair.second);
-		if (!val)
-			return val.takeError();
-		auto loaded = bld.CreateLoad(*val);
-		bld.CreateStore(loaded, m.getGlobalVariable(pair.first(), true));
+		LoweringInfo info = { bld, m, fun };
+		auto err = createAssigment(info, pair, globalVar);
+		if (err)
+			return move(err);
+
 		bld.CreateRet(nullptr);
 
 		bld.SetInsertPoint(&updateFunction->getEntryBlock());
@@ -134,15 +191,24 @@ static Expected<Function*> createUpdates(Module& m, StringMap<ModExp> upds)
 	}
 	for (const auto& pair : upds)
 	{
-		auto globalVal = m.getGlobalVariable(pair.first(), true);
+		auto globalVal = m.getGlobalVariable(pair.getVarName(), true);
 		auto val = bld.CreateLoad(globalVal);
 
-		bld.CreateStore(
-				val, m.getGlobalVariable(pair.first().str() + "_old", true));
+		bld.CreateStore(val, m.getGlobalVariable(pair.getVarName() + "_old", true));
 	}
 
 	bld.CreateRet(nullptr);
 	return updateFunction;
+}
+
+static Type* baseType(Type* tp)
+{
+	if (isa<PointerType>(tp))
+		tp = dyn_cast<PointerType>(tp)->getContainedType(0);
+
+	while (isa<ArrayType>(tp))
+		tp = dyn_cast<ArrayType>(tp)->getContainedType(0);
+	return tp;
 }
 
 static void createPrintOfVar(
@@ -152,13 +218,12 @@ static void createPrintOfVar(
 		GlobalValue* ptrToVar)
 {
 	size_t index = 0;
-	auto ptrToFirstElem = getArrayElementPtr(builder, ptrToVar, index);
 	auto ptrToStrName = getArrayElementPtr(builder, varString, index);
 
 	auto ptrType = ptrToVar->getType();
 	auto arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
-	auto ptrToBaseType = ptrToFirstElem->getType();
-	auto baseType = ptrToBaseType->getContainedType(0);
+	auto basType = baseType(ptrToVar->getType());
+	auto ptrToBaseType = basType->getPointerTo(0);
 
 	auto charPtrType = ptrToStrName->getType();
 	auto intType = IntegerType::getInt32Ty(builder.getContext());
@@ -176,11 +241,12 @@ static void createPrintOfVar(
 		return "modelicaPrintBVector";
 	};
 
-	auto callee = m.getOrInsertFunction(selectPrintName(baseType), printType);
+	auto callee = m.getOrInsertFunction(selectPrintName(basType), printType);
 	auto externalPrint = dyn_cast<Function>(callee.getCallee());
 
 	auto numElements = ConstantInt::get(intType, arrayType->getNumElements());
-	SmallVector<Value*, 3> argsVal({ ptrToStrName, ptrToFirstElem, numElements });
+	auto casted = builder.CreatePointerCast(ptrToVar, ptrToBaseType);
+	SmallVector<Value*, 3> argsVal({ ptrToStrName, casted, numElements });
 	builder.CreateCall(externalPrint, argsVal);
 }
 
@@ -234,6 +300,12 @@ Error Lowerer::lower()
 
 void Lowerer::dump(raw_ostream& OS) const
 {
+	auto const dumpAssigment = [&OS](const auto& couple) {
+		OS << couple.getVarName();
+		OS << " = ";
+		couple.getExpression().dump(OS);
+		OS << "\n";
+	};
 	auto const dumpEquation = [&OS](const auto& couple) {
 		OS << couple.first().data();
 		OS << " = ";
@@ -245,7 +317,7 @@ void Lowerer::dump(raw_ostream& OS) const
 	for_each(begin(variables), end(variables), dumpEquation);
 
 	OS << "Update:\n";
-	for_each(begin(updates), end(updates), dumpEquation);
+	for_each(begin(updates), end(updates), dumpAssigment);
 }
 
 void Lowerer::dumpBC(raw_ostream& OS) const { WriteBitcodeToFile(module, OS); }

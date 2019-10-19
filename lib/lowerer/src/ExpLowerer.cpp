@@ -7,29 +7,44 @@ using namespace std;
 using namespace llvm;
 using namespace modelica;
 
+Type* flatPtrType(PointerType* t)
+{
+	size_t flatSize = 1;
+	Type* arrayType = t->getContainedType(0);
+	while (isa<ArrayType>(arrayType))
+	{
+		auto t = dyn_cast<ArrayType>(arrayType);
+		flatSize *= t->getNumElements();
+		arrayType = t->getContainedType(0);
+	}
+
+	return ArrayType::get(arrayType, flatSize)->getPointerTo(0);
+}
+
 template<typename T>
 Expected<AllocaInst*> lowerConstantTyped(
-		IRBuilder<> builder, const ModConst<T>& constant, const ModType& type)
+		IRBuilder<>& builder, const ModConst<T>& constant, const ModType& type)
 {
 	if (constant.size() != type.flatSize())
 		return make_error<TypeConstantSizeMissMatch>(constant, type);
 
 	auto alloca = allocaModType(builder, type);
+	auto castedAlloca =
+			builder.CreatePointerCast(alloca, flatPtrType(alloca->getType()));
 
 	for (size_t i = 0; i < constant.size(); i++)
-		storeConstantToArrayElement<T>(builder, constant.get(i), alloca, i);
+		storeConstantToArrayElement<T>(builder, constant.get(i), castedAlloca, i);
 	return alloca;
 }
 
 template<int argumentsSize>
 static AllocaInst* elementWiseOperation(
-		IRBuilder<>& builder,
-		Function* fun,
+		LoweringInfo& info,
 		ArrayRef<Value*>& args,
 		const ModType& operationOutType,
 		std::function<Value*(IRBuilder<>&, ArrayRef<Value*>)> operation)
 {
-	auto alloca = allocaModType(builder, operationOutType);
+	auto alloca = allocaModType(info.builder, operationOutType);
 
 	const auto forBody = [alloca, &operation, &args](
 													 IRBuilder<>& bld, Value* index) {
@@ -43,16 +58,25 @@ static AllocaInst* elementWiseOperation(
 		storeToArrayElement(bld, outVal, alloca, index);
 	};
 
-	createForCycle(fun, builder, operationOutType.flatSize(), forBody);
+	SmallVector<size_t, 3> zeros;
+	for (auto& v : operationOutType.getDimensions())
+		zeros.push_back(0);
+	createdNestedForCycle(
+			info.function,
+			info.builder,
+			zeros,
+			operationOutType.getDimensions(),
+			forBody);
 
 	return alloca;
 }
 
 static Value* createFloatSingleBynaryOp(
-		IRBuilder<>& builder, ArrayRef<Value*> args, ModExpKind kind)
+		LoweringInfo& info, ArrayRef<Value*> args, ModExpKind kind)
 {
 	assert(args[0]->getType()->isFloatTy());					// NOLINT
 	assert(ModExp::Operation::arityOfOp(kind) == 2);	// NOLINT
+	IRBuilder<>& builder = info.builder;
 	switch (kind)
 	{
 		case ModExpKind::add:
@@ -88,6 +112,7 @@ static Value* createFloatSingleBynaryOp(
 		case ModExpKind::zero:
 		case ModExpKind::negate:
 		case ModExpKind::conditional:
+		case ModExpKind::induction:
 			assert(false && "unreachable");	 // NOLINT
 			return nullptr;
 	}
@@ -96,10 +121,11 @@ static Value* createFloatSingleBynaryOp(
 }
 
 static Value* createIntSingleBynaryOp(
-		IRBuilder<>& builder, ArrayRef<Value*> args, ModExpKind kind)
+		LoweringInfo& info, ArrayRef<Value*> args, ModExpKind kind)
 {
 	assert(args[0]->getType()->isIntegerTy());				// NOLINT
 	assert(ModExp::Operation::arityOfOp(kind) == 2);	// NOLINT
+	IRBuilder<>& builder = info.builder;
 	switch (kind)
 	{
 		case ModExpKind::add:
@@ -133,6 +159,7 @@ static Value* createIntSingleBynaryOp(
 			return nullptr;
 		}
 		case ModExpKind::zero:
+		case ModExpKind::induction:
 		case ModExpKind::negate:
 		case ModExpKind::conditional:
 			assert(false && "unreachable");	 // NOLINT
@@ -143,22 +170,23 @@ static Value* createIntSingleBynaryOp(
 }
 
 static Value* createSingleBynaryOP(
-		IRBuilder<>& builder, ArrayRef<Value*> args, ModExpKind kind)
+		LoweringInfo& info, ArrayRef<Value*> args, ModExpKind kind)
 {
 	assert(ModExp::Operation::arityOfOp(kind) == 2);	// NOLINT
 	auto type = args[0]->getType();
 	if (type->isIntegerTy())
-		return createIntSingleBynaryOp(builder, args, kind);
+		return createIntSingleBynaryOp(info, args, kind);
 	if (type->isFloatTy())
-		return createFloatSingleBynaryOp(builder, args, kind);
+		return createFloatSingleBynaryOp(info, args, kind);
 
 	assert(false && "unreachable");	 // NOLINT
 	return nullptr;
 }
 
 static Value* createSingleUnaryOp(
-		IRBuilder<>& builder, ArrayRef<Value*> args, ModExpKind kind)
+		LoweringInfo& info, ArrayRef<Value*> args, ModExpKind kind)
 {
+	IRBuilder<>& builder = info.builder;
 	auto intType = IntegerType::getInt32Ty(builder.getContext());
 	auto boolType = IntegerType::getInt1Ty(builder.getContext());
 	auto zero = ConstantInt::get(boolType, 0);
@@ -185,40 +213,41 @@ static Value* createSingleUnaryOp(
 
 template<size_t arity>
 static Expected<AllocaInst*> lowerUnOrBinOp(
-		IRBuilder<>& builder,
-		Function* fun,
-		const ModExp& exp,
-		ArrayRef<Value*> subExp)
+		LoweringInfo& info, const ModExp& exp, ArrayRef<Value*> subExp)
 {
 	static_assert(arity < 3 && arity > 0, "cannot lower op with this arity");
 	assert(exp.getArity() == arity);	// NOLINT;
 	assert(subExp.size() == arity);		// NOLINT
-	const auto binaryOp = [type = exp.getKind()](auto& builder, auto args) {
+	const auto binaryOp = [type = exp.getKind(), &info](
+														auto& builder, auto args) {
+		LoweringInfo newInfo = { builder, info.module, info.function };
 		if constexpr (arity == 1)
-			return createSingleUnaryOp(builder, args, type);
+			return createSingleUnaryOp(newInfo, args, type);
 		else
-			return createSingleBynaryOP(builder, args, type);
+			return createSingleBynaryOP(newInfo, args, type);
 	};
 
 	auto opType = exp.getOperationReturnType();
-	return elementWiseOperation<arity>(builder, fun, subExp, opType, binaryOp);
+	return elementWiseOperation<arity>(info, subExp, opType, binaryOp);
 }
 
-static Expected<Value*> lowerTernary(
-		IRBuilder<>& builder, Module& module, Function* fun, const ModExp& exp)
+static Expected<Value*> lowerTernary(LoweringInfo& info, const ModExp& exp)
 {
 	assert(exp.isTernary());	// NOLINT
-	const auto leftHandLowerer = [&exp, fun, &module](IRBuilder<>& builder) {
-		return lowerExp(builder, module, fun, exp.getLeftHand());
+	const auto leftHandLowerer = [&exp, &info](IRBuilder<>& builder) {
+		LoweringInfo newInfo = { builder, info.module, info.function };
+		return lowerExp(newInfo, exp.getLeftHand());
 	};
-	const auto rightHandLowerer = [&exp, fun, &module](IRBuilder<>& builder) {
-		return lowerExp(builder, module, fun, exp.getRightHand());
+	const auto rightHandLowerer = [&exp, &info](IRBuilder<>& builder) {
+		LoweringInfo newInfo = { builder, info.module, info.function };
+		return lowerExp(newInfo, exp.getRightHand());
 	};
 	const auto conditionLowerer =
-			[&exp, fun, &module](IRBuilder<>& builder) -> Expected<Value*> {
+			[&exp, &info](IRBuilder<>& builder) -> Expected<Value*> {
 		auto& condition = exp.getCondition();
 		assert(condition.getModType() == ModType(BultinModTypes::BOOL));	// NOLINT
-		auto ptrToCond = lowerExp(builder, module, fun, condition);
+		LoweringInfo newInfo = { builder, info.module, info.function };
+		auto ptrToCond = lowerExp(newInfo, condition);
 		if (!ptrToCond)
 			return ptrToCond;
 
@@ -227,19 +256,19 @@ static Expected<Value*> lowerTernary(
 	};
 
 	auto type = exp.getLeftHand().getModType();
-	auto llvmType = typeToLLVMType(builder.getContext(), type)->getPointerTo(0);
+	auto llvmType =
+			typeToLLVMType(info.builder.getContext(), type)->getPointerTo(0);
 
 	return createTernaryOp(
-			fun,
-			builder,
+			info.function,
+			info.builder,
 			llvmType,
 			conditionLowerer,
 			leftHandLowerer,
 			rightHandLowerer);
 }
 
-static Expected<Value*> lowerOperation(
-		IRBuilder<>& builder, Module& m, Function* fun, const ModExp& exp)
+static Expected<Value*> lowerOperation(LoweringInfo& info, const ModExp& exp)
 {
 	assert(exp.isOperation());	// NOLINT
 
@@ -247,58 +276,57 @@ static Expected<Value*> lowerOperation(
 	{
 		ModType type(BultinModTypes::INT);
 		IntModConst constant(0);
-		return lowerConstantTyped(builder, constant, type);
+		return lowerConstantTyped(info.builder, constant, type);
 	}
 
 	if (exp.isTernary())
-		return lowerTernary(builder, m, fun, exp);
+		return lowerTernary(info, exp);
 
 	if (exp.isUnary())
 	{
 		SmallVector<Value*, 1> values;
-		auto subexp = lowerExp(builder, m, fun, exp.getLeftHand());
+		auto subexp = lowerExp(info, exp.getLeftHand());
 		if (!subexp)
 			return subexp.takeError();
 		values.push_back(move(*subexp));
 
-		return lowerUnOrBinOp<1>(builder, fun, exp, values);
+		return lowerUnOrBinOp<1>(info, exp, values);
 	}
 
 	if (exp.isBinary())
 	{
 		SmallVector<Value*, 2> values;
-		auto leftHand = lowerExp(builder, m, fun, exp.getLeftHand());
+		auto leftHand = lowerExp(info, exp.getLeftHand());
 		if (!leftHand)
 			return leftHand.takeError();
 		values.push_back(move(*leftHand));
 
-		auto rightHand = lowerExp(builder, m, fun, exp.getRightHand());
+		auto rightHand = lowerExp(info, exp.getRightHand());
 		if (!rightHand)
 			return rightHand.takeError();
 		values.push_back(move(*rightHand));
 
-		return lowerUnOrBinOp<2>(builder, fun, exp, values);
+		return lowerUnOrBinOp<2>(info, exp, values);
 	}
 	assert(false && "Unreachable");	 // NOLINT
 	return nullptr;
 }
 
-static Expected<Value*> uncastedLowerExp(
-		IRBuilder<>& builder, Module& mod, Function* fun, const ModExp& exp)
+static Expected<Value*> uncastedLowerExp(LoweringInfo& info, const ModExp& exp)
 {
 	if (!exp.areSubExpressionCompatibles())
 		return make_error<TypeMissMatch>(exp);
 
 	if (exp.isConstant())
-		return lowerConstant(builder, exp);
+		return lowerConstant(info.builder, exp);
 
 	if (exp.isReference())
-		return lowerReference(builder, exp.getReference());
+		return lowerReference(info.builder, exp.getReference());
 
 	if (exp.isCall())
-		return lowerCall(builder, mod, fun, exp.getCall());
+		return lowerCall(info, exp.getCall());
 
-	return lowerOperation(builder, mod, fun, exp);
+	return lowerOperation(info, exp);
 }
 
 static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
@@ -326,16 +354,32 @@ static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
 	return builder.CreateTrunc(val, boolType);
 }
 
+static bool castable(ArrayType* type, const ModType& dest)
+{
+	SmallVector<size_t, 3> dims;
+	Type* t = type;
+	while (isa<ArrayType>(t))
+	{
+		auto tp = dyn_cast<ArrayType>(t);
+		dims.push_back(tp->getNumElements());
+		t = tp->getContainedType(0);
+	}
+
+	return dest.getDimensions() == dims;
+}
+
 static Expected<Value*> castReturnValue(
 		IRBuilder<>& builder, Value* val, const ModType& type)
 {
 	auto ptrArrayType = dyn_cast<PointerType>(val->getType());
 	auto arrayType = dyn_cast<ArrayType>(ptrArrayType->getContainedType(0));
 
-	assert(arrayType->getNumElements() == type.flatSize());	 // NOLINT
+	assert(castable(arrayType, type));	// NOLINT
 
 	auto destType = typeToLLVMType(builder.getContext(), type);
 	auto singleDestType = destType->getContainedType(0);
+	while (isa<ArrayType>(singleDestType))
+		singleDestType = singleDestType->getContainedType(0);
 
 	if (destType == arrayType)
 		return val;
@@ -371,13 +415,12 @@ namespace modelica
 		return nullptr;
 	}
 
-	Expected<Value*> lowerExp(
-			IRBuilder<>& builder, Module& module, Function* fun, const ModExp& exp)
+	Expected<Value*> lowerExp(LoweringInfo& info, const ModExp& exp)
 	{
-		auto retVal = uncastedLowerExp(builder, module, fun, exp);
+		auto retVal = uncastedLowerExp(info, exp);
 		if (!retVal)
 			return retVal;
 
-		return castReturnValue(builder, *retVal, exp.getModType());
+		return castReturnValue(info.builder, *retVal, exp.getModType());
 	}
 }	 // namespace modelica

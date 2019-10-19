@@ -17,6 +17,7 @@ namespace modelica
 		zero,
 
 		negate,	 // unary expressions
+		induction,
 
 		add,	// binary expressions
 		sub,
@@ -294,6 +295,13 @@ namespace modelica
 		{
 		}
 
+		template<typename T>
+		static ModExp constExp(
+				T constant, ModType returnModType = ModType(typeToBuiltin<T>()))
+		{
+			return ModExp(ModConst<T>(constant), returnModType);
+		}
+
 		/**
 		 * Creates a call expression and it's result will be casted into the
 		 * provided type
@@ -384,6 +392,12 @@ namespace modelica
 					ModExpKind::mult,
 					std::make_unique<ModExp>(std::move(lhs)),
 					std::make_unique<ModExp>(std::move(rhs)));
+		}
+
+		[[nodiscard]] static ModExp induction(ModExp lhs)
+		{
+			return ModExp(
+					ModExpKind::induction, std::make_unique<ModExp>(std::move(lhs)));
 		}
 
 		/**

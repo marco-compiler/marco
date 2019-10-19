@@ -299,29 +299,26 @@ Expected<StringMap<ModExp>> ModParser::initSection()
 	return map;
 }
 
-Expected<StringMap<ModExp>> ModParser::updateSection()
+Expected<SmallVector<Assigment, 0>> ModParser::updateSection()
 {
-	StringMap<ModExp> map;
+	SmallVector<Assigment, 0> map;
 	if (auto e = expect(ModToken::UpdateKeyword); !e)
 		return e.takeError();
 
 	while (current != ModToken::End)
 	{
-		auto stat = statement();
+		auto stat = updateStatement();
 		if (!stat)
 			return stat.takeError();
 
-		auto [name, exp] = move(*stat);
-		if (map.find(name) != map.end())
-			return make_error<UnexpectedModToken>(
-					ModToken::Ident, ModToken::Ident, getPosition());
-		map.try_emplace(move(name), move(exp));
+		map.push_back(move(*stat));
 	}
 
 	return map;
 }
 
-Expected<tuple<StringMap<ModExp>, StringMap<ModExp>>> ModParser::simulation()
+Expected<tuple<StringMap<ModExp>, SmallVector<Assigment, 0>>>
+ModParser::simulation()
 {
 	auto initSect = initSection();
 	if (!initSect)
@@ -348,6 +345,66 @@ Expected<tuple<string, ModExp>> ModParser::statement()
 		return exp.takeError();
 
 	return tuple(move(name), move(*exp));
+}
+Expected<InductionVar> ModParser::singleInduction()
+{
+	if (auto e = expect(ModToken::LSquare); !e)
+		return e.takeError();
+
+	size_t begin = lexer.getLastInt();
+
+	if (auto e = expect(ModToken::Integer); !e)
+		return e.takeError();
+
+	if (auto e = expect(ModToken::Comma); !e)
+		return e.takeError();
+	size_t end = lexer.getLastInt();
+
+	if (auto e = expect(ModToken::Integer); !e)
+		return e.takeError();
+
+	if (auto e = expect(ModToken::RSquare); !e)
+		return e.takeError();
+
+	return InductionVar(begin, end);
+}
+Expected<vector<InductionVar>> ModParser::inductions()
+{
+	vector<InductionVar> inductions;
+	if (!accept<ModToken::ForKeyword>())
+		return inductions;
+	while (current == ModToken::LSquare)
+	{
+		auto ind = singleInduction();
+		if (!ind)
+			return ind.takeError();
+		inductions.push_back(move(*ind));
+	}
+	return inductions;
+}
+
+Expected<Assigment> ModParser::updateStatement()
+{
+	vector<InductionVar> ind;
+
+	auto inductionsV = inductions();
+	if (!inductionsV)
+		return inductionsV.takeError();
+
+	ind = move(*inductionsV);
+
+	auto name = lexer.getLastIdentifier();
+	if (auto e = expect(ModToken::Ident); !e)
+		return e.takeError();
+
+	if (auto e = expect(ModToken::Assign); !e)
+		return e.takeError();
+
+	auto exp = expression();
+	if (!exp)
+		return exp.takeError();
+
+	return Assigment(move(name), move(*exp), move(ind));
 }
 
 Expected<ModExp> ModParser::expression()

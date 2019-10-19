@@ -3,6 +3,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModExp.hpp"
 
 namespace modelica
@@ -28,7 +29,7 @@ namespace modelica
 		Lowerer(
 				llvm::LLVMContext& context,
 				llvm::StringMap<ModExp> vars,
-				llvm::StringMap<ModExp> updates,
+				llvm::SmallVector<Assigment, 0> updates,
 				std::string name = "Modelica Module",
 				std::string entryPointName = "main",
 				unsigned stopTime = defaultModulationIterations)
@@ -73,14 +74,10 @@ namespace modelica
 		 * notice that if a expression is referring to a missing
 		 * variable then it's lower that will fail, not addUpdate
 		 *
-		 * \return  true if there were no other updates referring to the same var.
 		 */
-		[[nodiscard]] bool addUpdate(std::string name, ModExp exp)
+		void addUpdate(Assigment assigment)
 		{
-			if (updates.find(name) != updates.end())
-				return false;
-			updates.try_emplace(std::move(name), std::move(exp));
-			return true;
+			updates.push_back(std::move(assigment));
 		}
 
 		/**
@@ -139,7 +136,7 @@ namespace modelica
 		private:
 		llvm::Module module;
 		llvm::StringMap<ModExp> variables;
-		llvm::StringMap<ModExp> updates;
+		llvm::SmallVector<Assigment, 0> updates;
 		unsigned stopTime;
 
 		std::string entryPointName;

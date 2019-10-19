@@ -10,8 +10,7 @@ TARGET_INCLUDE_DIRECTORIES(frontend
 		)
 TARGET_COMPILE_FEATURES(frontend PUBLIC cxx_std_17)
 
-llvm_map_components_to_libnames(llvm_frontend_libs core support ${LLVM_TARGETS_TO_BUILD})
-TARGET_LINK_LIBRARIES(frontend PUBLIC ${llvm_frontend_libs} modelica::utils)
+TARGET_LINK_LIBRARIES(frontend PUBLIC modelica::model)
 
 modelicaInstall(frontend)
 

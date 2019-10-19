@@ -10,25 +10,10 @@ TARGET_INCLUDE_DIRECTORIES(utils
 		)
 TARGET_COMPILE_FEATURES(utils PUBLIC cxx_std_17)
 
-include(GNUInstallDirs)
-INSTALL(TARGETS utils EXPORT utilsTargets
-	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	RUNTIME DESTINATION bin
-	INCLUDES DESTINATION include)
+llvm_map_components_to_libnames(llvm_utils_libs Support)
 
-INSTALL(EXPORT utilsTargets DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME}
-	FILE utilsTargets.cmake
-	NAMESPACE modelica::)
+TARGET_LINK_LIBRARIES(utils PUBLIC ${llvm_utils_libs})
 
-include(CMakePackageConfigHelpers)
-write_basic_package_version_file("utilsConfigVersion.cmake"
-	VERSION ${example_VERSION}
-	COMPATIBILITY SameMajorVersion)
-
-INSTALL(FILES utilsConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/utilsConfigVersion.cmake
-	DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME})
-
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+modelicaInstall(utils)
 
 ADD_SUBDIRECTORY(test)

@@ -1,5 +1,7 @@
 include(GoogleTest)
 
+find_program(CLANGC NAMES clang clang-9)
+
 ###
 ### Produces the simulation test
 ### First argument is the base name
@@ -16,15 +18,15 @@ macro(addLowererSimulationTest simulationName sourceSrc testSrc)
 
 	### Creates the command that will run the simulator generator and will produce the bc file
 	add_custom_command(OUTPUT ${simulationName}.bc include/${simulationName}.hpp
-		COMMAND modelica::modc --entry=runSimulation --publicSymbols=true --simTime=10 --dumpModel=true -bc=${simulationName}.bc -header=include/${simulationName}.hpp ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm
-		DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm
+		COMMAND $<TARGET_FILE:modc> --entry=runSimulation --publicSymbols=true --simTime=10 --dumpModel=true -bc=${simulationName}.bc -header=include/${simulationName}.hpp ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm
+		DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm modelica::modc
 		COMMENT "generates ${simulationName} simulation bc file"
 		VERBATIM)
 
 
 	### Creates the command that will run clang to generate the Obj file.
 	add_custom_command(OUTPUT ${simulationName}.o
-		COMMAND clang-9 -o ${simulationName}.o -fPIC -c ${simulationName}.bc
+		COMMAND ${CLANGC} -o ${simulationName}.o -fPIC -c ${simulationName}.bc
 						COMMENT "generates ${simulationName} simulation object file"
 						DEPENDS ${simulationName}.bc
 						VERBATIM)
@@ -57,4 +59,5 @@ addLowererSimulationTest(arraySimulation ${CMAKE_CURRENT_SOURCE_DIR}/src/ArrayTe
 addLowererSimulationTest(floatSimulation ${CMAKE_CURRENT_SOURCE_DIR}/src/FloatTest.sm src/FloatSimulationTest.cpp)
 addLowererSimulationTest(condSimulation ${CMAKE_CURRENT_SOURCE_DIR}/src/CondTest.sm src/CondSimulationTest.cpp)
 addLowererSimulationTest(callSimulation ${CMAKE_CURRENT_SOURCE_DIR}/src/CallTest.sm src/CallSimulationTest.cpp)
+addLowererSimulationTest(forSimulation ${CMAKE_CURRENT_SOURCE_DIR}/src/ForTest.sm src/ForSimulationTest.cpp)
 

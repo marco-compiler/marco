@@ -1,5 +1,6 @@
 #pragma once
 
+#include "LowererUtils.hpp"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
@@ -10,8 +11,5 @@
 namespace modelica
 {
 	llvm::Expected<llvm::Value*> lowerCall(
-			llvm::IRBuilder<>& builder,
-			llvm::Module& module,
-			llvm::Function* fun,
-			const ModCall& call);
+			LoweringInfo& info, const ModCall& call);
 }

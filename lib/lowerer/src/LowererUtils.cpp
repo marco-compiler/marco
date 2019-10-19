@@ -28,10 +28,23 @@ namespace modelica
 	Value* getArrayElementPtr(IRBuilder<>& bld, Value* arrayPtr, Value* index)
 	{
 		auto intType = Type::getInt32Ty(bld.getContext());
-
 		auto zero = ConstantInt::get(intType, 0);
-		SmallVector<Value*, 2> args = { zero, index };
-		return bld.CreateGEP(arrayPtr, args);
+		if (index->getType()->isIntegerTy())
+		{
+			SmallVector<Value*, 2> args = { zero, index };
+			return bld.CreateGEP(arrayPtr, args);
+		}
+
+		auto ptrType = dyn_cast<PointerType>(index->getType());
+		auto type = dyn_cast<ArrayType>(ptrType->getContainedType(0));
+		Value* val = arrayPtr;
+		for (size_t a = 0; a < type->getNumElements(); a++)
+		{
+			auto partialIndex = loadArrayElement(bld, index, a);
+			SmallVector<Value*, 2> args = { zero, partialIndex };
+			val = bld.CreateGEP(val, args);
+		}
+		return val;
 	}
 
 	void storeToArrayElement(
@@ -101,7 +114,12 @@ namespace modelica
 	ArrayType* typeToLLVMType(LLVMContext& context, const ModType& type)
 	{
 		auto baseType = builtInToLLVMType(context, type.getBuiltin());
-		return ArrayType::get(baseType, type.flatSize());
+		Type* tp = baseType;
+		for (auto dim = type.getDimensions().rbegin();
+				 dim != type.getDimensions().rend();
+				 dim++)
+			tp = ArrayType::get(tp, *dim);
+		return dyn_cast<ArrayType>(tp);
 	}
 
 	Error simExpToGlobalVar(
@@ -198,19 +216,24 @@ namespace modelica
 	BasicBlock* createForCycle(
 			Function* function,
 			IRBuilder<>& builder,
-			size_t iterationCount,
+			size_t iterationCountBegin,
+			size_t iterationCountEnd,
 			std::function<void(IRBuilder<>&, Value*)> whileContent)
 	{
 		auto& context = builder.getContext();
-		auto condition = BasicBlock::Create(context, "condition", function);
-		auto loopBody = BasicBlock::Create(context, "loopBody", function);
-		auto exit = BasicBlock::Create(context, "exit", function);
+		auto condition = BasicBlock::Create(
+				context, "condition " + to_string(iterationCountEnd), function);
+
+		auto loopBody = BasicBlock::Create(
+				context, "loopBody " + to_string(iterationCountEnd), function);
+		auto exit = BasicBlock::Create(
+				context, "exit " + to_string(iterationCountEnd), function);
 
 		auto unsignedInt = Type::getInt32Ty(context);
 
 		// alocates iteration counter
 		auto iterationCounter = builder.CreateAlloca(unsignedInt);
-		makeConstantStore<int>(builder, 0, iterationCounter);
+		makeConstantStore<int>(builder, iterationCountBegin, iterationCounter);
 
 		// jump to condition bb
 		builder.CreateBr(condition);
@@ -219,7 +242,7 @@ namespace modelica
 		builder.SetInsertPoint(condition);
 		auto value = builder.CreateLoad(unsignedInt, iterationCounter);
 		auto iterCmp = builder.CreateICmpEQ(
-				value, ConstantInt::get(unsignedInt, iterationCount));
+				value, ConstantInt::get(unsignedInt, iterationCountEnd));
 
 		// brach if equal to zero
 		builder.CreateCondBr(iterCmp, exit, loopBody);
@@ -239,5 +262,85 @@ namespace modelica
 		builder.SetInsertPoint(exit);
 
 		return exit;
+	}
+
+	static Value* valueArrayFromArrayOfValues(
+			IRBuilder<>& bld, SmallVector<Value*, 3> vals)
+	{
+		if (vals.empty())
+			return nullptr;
+		assert(	 // NOLINT
+				accumulate(
+						begin(vals),
+						end(vals),
+						true,
+						[type = vals[0]->getType()](auto old, auto next) {
+							return old && next->getType() == type;
+						}) &&
+				"TYPE MISSMATCH IN VALS");
+
+		auto type = ArrayType::get(vals[0]->getType(), vals.size());
+		auto alloca = bld.CreateAlloca(type);
+
+		size_t slot = 0;
+		for (auto val : vals)
+		{
+			storeToArrayElement(bld, val, alloca, slot);
+			slot++;
+		}
+		return alloca;
+	}
+
+	static BasicBlock* createdNestedForCycleImp(
+			Function* function,
+			IRBuilder<>& builder,
+			ArrayRef<size_t> iterationsCountBegin,
+			ArrayRef<size_t> iterationsCountEnd,
+			std::function<void(IRBuilder<>&, Value*)> whileContent,
+			SmallVector<Value*, 3>& indexes)
+	{
+		std::function<void(IRBuilder<>&, Value*)> loopBody;
+
+		if (indexes.size() == iterationsCountBegin.size() - 1)
+			loopBody = [&](auto& bld, auto value) {
+				indexes.push_back(value);
+				auto iters = valueArrayFromArrayOfValues(bld, indexes);
+				whileContent(bld, iters);
+			};
+		else
+			loopBody = [&](auto& bld, auto value) {
+				indexes.push_back(value);
+				createdNestedForCycleImp(
+						function,
+						bld,
+						iterationsCountBegin,
+						iterationsCountEnd,
+						whileContent,
+						indexes);
+			};
+
+		return createForCycle(
+				function,
+				builder,
+				iterationsCountBegin[indexes.size()],
+				iterationsCountEnd[indexes.size()],
+				loopBody);
+	}
+
+	BasicBlock* createdNestedForCycle(
+			Function* function,
+			IRBuilder<>& builder,
+			ArrayRef<size_t> iterationsCountBegin,
+			ArrayRef<size_t> iterationsCountEnd,
+			std::function<void(IRBuilder<>&, Value*)> whileContent)
+	{
+		SmallVector<Value*, 3> indexes;
+		return createdNestedForCycleImp(
+				function,
+				builder,
+				iterationsCountBegin,
+				iterationsCountEnd,
+				whileContent,
+				indexes);
 	}
 }	 // namespace modelica

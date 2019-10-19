@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 
+#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModCall.hpp"
 #include "modelica/model/ModExp.hpp"
 
@@ -105,4 +106,18 @@ TEST(ExpressionTest, callExpression)	// NOLINT
 	EXPECT_EQ(exp.getModType(), ModType(BultinModTypes::INT));
 	EXPECT_EQ(exp.getCall().argsSize(), 2);
 	EXPECT_EQ(exp.getCall().at(0), ref);
+}
+
+TEST(ModelTest, entryModelIsIteratable)
+{
+	EntryModel model;
+
+	for (auto& e : model)
+		FAIL();
+
+	model.addEquation(
+			ModExp("Hey", BultinModTypes::INT), ModExp("Huy", BultinModTypes::INT));
+
+	for (auto& e : model)
+		EXPECT_TRUE(e.getLeft().isReference());
 }
