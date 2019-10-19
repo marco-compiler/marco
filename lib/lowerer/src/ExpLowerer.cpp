@@ -109,6 +109,7 @@ static Value* createFloatSingleBynaryOp(
 			assert(false && "powerof unsupported");	 // NOLINT
 			return nullptr;
 		}
+		case ModExpKind::at:
 		case ModExpKind::zero:
 		case ModExpKind::negate:
 		case ModExpKind::conditional:
@@ -158,6 +159,7 @@ static Value* createIntSingleBynaryOp(
 			assert(false && "powerof unsupported");	 // NOLINT
 			return nullptr;
 		}
+		case ModExpKind::at:
 		case ModExpKind::zero:
 		case ModExpKind::induction:
 		case ModExpKind::negate:
@@ -304,6 +306,23 @@ static Expected<Value*> lowerOperation(LoweringInfo& info, const ModExp& exp)
 		values.push_back(move(*subexp));
 
 		return lowerUnOrBinOp<1>(info, exp, values);
+	}
+	if (exp.getKind() == ModExpKind::at)
+	{
+		auto leftHand = lowerExp(info, exp.getLeftHand());
+		if (!leftHand)
+			return leftHand.takeError();
+
+		auto rightHand = lowerExp(info, exp.getRightHand());
+		if (!rightHand)
+			return rightHand.takeError();
+
+		auto casted = info.builder.CreatePointerCast(
+				*rightHand,
+				Type::getInt32Ty(info.builder.getContext())->getPointerTo(0));
+		auto index = info.builder.CreateLoad(casted);
+
+		return getArrayElementPtr(info.builder, *leftHand, index);
 	}
 
 	if (exp.isBinary())

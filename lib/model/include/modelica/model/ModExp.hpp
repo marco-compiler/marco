@@ -21,6 +21,7 @@ namespace modelica
 
 		add,	// binary expressions
 		sub,
+		at,
 		mult,
 		divide,
 		greaterThan,
@@ -194,7 +195,6 @@ namespace modelica
 				if (other.rightHandExpression != nullptr)
 					rightHandExpression =
 							std::make_unique<ModExp>(*(other.rightHandExpression));
-
 				if (other.condition != nullptr)
 					condition = std::make_unique<ModExp>(*(other.condition));
 			}
@@ -284,8 +284,8 @@ namespace modelica
 
 		/**
 		 * Builds a constant expression with the provided constant and the
-		 * specified type in which the constant will be casted into. By default the
-		 * type is deduced from the constant
+		 * specified type in which the constant will be casted into. By default
+		 * the type is deduced from the constant
 		 */
 		template<typename C>
 		ModExp(
@@ -329,6 +329,9 @@ namespace modelica
 			if (!isOperation())
 				return true;
 
+			if (getKind() == ModExpKind::at)
+				return true;
+
 			auto compatible =
 					getLeftHand().getModType().canBeCastedInto(getModType());
 
@@ -355,10 +358,17 @@ namespace modelica
 					ModExpKind::negate, std::make_unique<ModExp>(std::move(exp)));
 		}
 
+		[[nodiscard]] static ModExp index(ModExp exp)
+		{
+			assert(exp.getModType() == ModType(BultinModTypes::INT));	 // NOLINT
+			return ModExp(
+					ModExpKind::induction, std::make_unique<ModExp>(std::move(exp)));
+		}
+
 		/**
 		 * \brief Creates a add expression based on two values.
-		 * \warning Remember to move the two expression instead of copying them each
-		 * time.
+		 * \warning Remember to move the two expression instead of copying them
+		 * each time.
 		 */
 		[[nodiscard]] static ModExp add(ModExp lhs, ModExp rhs)
 		{
@@ -368,10 +378,20 @@ namespace modelica
 					std::make_unique<ModExp>(std::move(rhs)));
 		}
 
+		[[nodiscard]] static ModExp at(ModExp lhs, ModExp rhs)
+		{
+			assert(!lhs.getModType().isScalar());											 // NOLINT
+			assert(rhs.getModType() == ModType(BultinModTypes::INT));	 // NOLINT
+			return ModExp(
+					ModExpKind::at,
+					std::make_unique<ModExp>(std::move(lhs)),
+					std::make_unique<ModExp>(std::move(rhs)));
+		}
+
 		/**
 		 * \brief Creates a minus expression based on two values.
-		 * \warning Remember to move the two expression instead of copying them each
-		 * time.
+		 * \warning Remember to move the two expression instead of copying them
+		 * each time.
 		 */
 		[[nodiscard]] static ModExp subtract(ModExp lhs, ModExp rhs)
 		{
@@ -383,8 +403,8 @@ namespace modelica
 
 		/**
 		 * \brief Creates a multiply expression based on two values.
-		 * \warning Remember to move the two expression instead of copying them each
-		 * time.
+		 * \warning Remember to move the two expression instead of copying them
+		 * each time.
 		 */
 		[[nodiscard]] static ModExp multiply(ModExp lhs, ModExp rhs)
 		{
@@ -402,8 +422,8 @@ namespace modelica
 
 		/**
 		 * \brief Creates a divisions expression based on two values.
-		 * \warning Remember to move the two expression instead of copying them each
-		 * time.
+		 * \warning Remember to move the two expression instead of copying them
+		 * each time.
 		 */
 		[[nodiscard]] static ModExp divide(ModExp lhs, ModExp rhs)
 		{
@@ -415,8 +435,8 @@ namespace modelica
 
 		/**
 		 * \brief Creates a powerOf expression based on two values.
-		 * \warning Remember to move the two expression instead of copying them each
-		 * time.
+		 * \warning Remember to move the two expression instead of copying them
+		 * each time.
 		 */
 		[[nodiscard]] static ModExp elevate(ModExp lhs, ModExp rhs)
 		{
@@ -428,8 +448,8 @@ namespace modelica
 
 		/**
 		 * \brief Creates a modulo expression based on two values.
-		 * \warning Remember to move the two expression instead of copying them each
-		 * time.
+		 * \warning Remember to move the two expression instead of copying them
+		 * each time.
 		 */
 		[[nodiscard]] static ModExp modulo(ModExp lhs, ModExp rhs)
 		{
@@ -441,8 +461,8 @@ namespace modelica
 
 		/**
 		 * \brief Creates a modulo expression based on two values.
-		 * \warning Remember to move the two expression instead of copying them each
-		 * time.
+		 * \warning Remember to move the two expression instead of copying them
+		 * each time.
 		 */
 		[[nodiscard]] static ModExp cond(ModExp cond, ModExp lhs, ModExp rhs)
 		{
@@ -511,8 +531,8 @@ namespace modelica
 		/**
 		 * \brief Short hand for ModExp::greaterEqual
 		 *
-		 * \warning Notice that using the short hand will move the content no matter
-		 * what
+		 * \warning Notice that using the short hand will move the content no
+		 * matter what
 		 */
 		[[nodiscard]] ModExp operator>=(const ModExp& other)
 		{
@@ -522,8 +542,8 @@ namespace modelica
 		/**
 		 * \brief Short hand for ModExp::greaterThan
 		 *
-		 * \warning Notice that using the short hand will move the content no matter
-		 * what
+		 * \warning Notice that using the short hand will move the content no
+		 * matter what
 		 */
 		[[nodiscard]] ModExp operator>(const ModExp& other)
 		{
@@ -533,8 +553,8 @@ namespace modelica
 		/**
 		 * \brief Short hand for ModExp::lessThan
 		 *
-		 * \warning Notice that using the short hand will move the content no matter
-		 * what
+		 * \warning Notice that using the short hand will move the content no
+		 * matter what
 		 */
 		[[nodiscard]] ModExp operator<(const ModExp& other)
 		{
@@ -544,8 +564,8 @@ namespace modelica
 		/**
 		 * \brief Short hand for ModExp::lessEqual
 		 *
-		 * \warning Notice that using the short hand will move the content no matter
-		 * what
+		 * \warning Notice that using the short hand will move the content no
+		 * matter what
 		 */
 		[[nodiscard]] ModExp operator<=(const ModExp& other)
 		{
@@ -555,8 +575,8 @@ namespace modelica
 		/**
 		 * \brief Short hand for ModExp::negate
 		 *
-		 * \warning Notice that using the short hand will move the content no matter
-		 * what
+		 * \warning Notice that using the short hand will move the content no
+		 * matter what
 		 */
 		[[nodiscard]] ModExp operator!()
 		{
@@ -566,8 +586,8 @@ namespace modelica
 		/**
 		 * \brief Short hand for ModExp::add
 		 *
-		 * \warning Notice that using the short hand will move the content no matter
-		 * what.
+		 * \warning Notice that using the short hand will move the content no
+		 * matter what.
 		 */
 		[[nodiscard]] ModExp operator+(const ModExp& other)
 		{
@@ -577,8 +597,8 @@ namespace modelica
 		/**
 		 * \brief Short hand for ModExp::subtract
 		 *
-		 * \warning Notice that using the short hand will move the content no matter
-		 * what.
+		 * \warning Notice that using the short hand will move the content no
+		 * matter what.
 		 */
 		[[nodiscard]] ModExp operator-(const ModExp& other)
 		{
@@ -588,8 +608,8 @@ namespace modelica
 		/**
 		 * \brief Short hand for ModExp::divide
 		 *
-		 * \warning Notice that using the short hand will move the content no matter
-		 * what.
+		 * \warning Notice that using the short hand will move the content no
+		 * matter what.
 		 */
 		[[nodiscard]] ModExp operator/(const ModExp& other)
 		{
@@ -599,8 +619,8 @@ namespace modelica
 		/**
 		 * \brief Short hand for ModExp::multiply
 		 *
-		 * \warning Notice that using the short hand will move the content no matter
-		 * what.
+		 * \warning Notice that using the short hand will move the content no
+		 * matter what.
 		 */
 		[[nodiscard]] ModExp operator*(const ModExp& other)
 		{
@@ -890,13 +910,13 @@ namespace modelica
 				ModCall>
 				content;
 		ModType returnModType;
-	};
+	};	// namespace modelica
 
 	/**
 	 * Visitor is class that must implement void visit(ModExp&) and
-	 * void afterVisit(ModExp&). visit will be called for every sub expression of
-	 * exp (exp included) if top down order. AfterVisit will be invoked after each
-	 * children has been visited.
+	 * void afterVisit(ModExp&). visit will be called for every sub expression
+	 * of exp (exp included) if top down order. AfterVisit will be invoked after
+	 * each children has been visited.
 	 *
 	 * You can implement a empty afterVisit to obtain a topDown visitor and not
 	 * implement visit to get a bottomUpVisitor.

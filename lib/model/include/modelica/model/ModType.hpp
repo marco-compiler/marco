@@ -1,5 +1,6 @@
 #pragma once
 #include <numeric>
+#include <type_traits>
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
@@ -52,6 +53,12 @@ namespace modelica
 	{
 		public:
 		ModType(BultinModTypes t): builtinModType(t), dimensions({ 1 }) {}
+
+		ModType(BultinModTypes builtin, llvm::SmallVector<size_t, 3> dim)
+				: builtinModType(builtin), dimensions(std::move(dim))
+		{
+		}
+
 		/**
 		 * Overload that allows to pass an arbitrary number of integer to specify
 		 * the dimensions of a vector.
@@ -59,11 +66,6 @@ namespace modelica
 		template<typename... T>
 		ModType(BultinModTypes t, T... args)
 				: builtinModType(t), dimensions({ static_cast<size_t>(args)... })
-		{
-		}
-
-		ModType(BultinModTypes builtin, llvm::SmallVector<size_t, 3> dim)
-				: builtinModType(builtin), dimensions(std::move(dim))
 		{
 		}
 
@@ -122,6 +124,26 @@ namespace modelica
 				return false;
 
 			return dimensions == other.dimensions;
+		}
+
+		[[nodiscard]] bool isScalar() const
+		{
+			return dimensions.size() == 1 && dimensions[0] == 1;
+		}
+
+		[[nodiscard]] ModType sclidedType() const
+		{
+			assert(!isScalar());	// NOLINT
+			if (dimensions.size() == 1)
+				return ModType(getBuiltin());
+
+			llvm::SmallVector<size_t, 3> dim;
+			auto second = std::begin(dimensions);
+			second++;
+			for (auto i = second; i != std::end(dimensions); i++)
+				dim.push_back(*i);
+
+			return ModType(getBuiltin(), std::move(dim));
 		}
 
 		/**

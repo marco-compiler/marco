@@ -16,6 +16,8 @@ static std::string exprKindToString(ModExpKind kind)
 			return "-";
 		case (ModExpKind::mult):
 			return "*";
+		case (ModExpKind::at):
+			return "at";
 		case (ModExpKind::divide):
 			return "/";
 		case (ModExpKind::greaterThan):
@@ -51,6 +53,8 @@ ModType ModExp::Operation::getOperationReturnType() const
 			return ModType(BultinModTypes::BOOL);
 		case ModExpKind::induction:
 			return ModType(BultinModTypes::INT);
+		case ModExpKind::at:
+			return leftHandExpression->getModType().sclidedType();
 		case ModExpKind::negate:
 		case ModExpKind::add:
 		case ModExpKind::sub:

@@ -15,3 +15,9 @@ TEST(ArraySimulationTest, intConstantArrayTest)
 	for (int a = 0; a < 3; a++)
 		EXPECT_EQ(-(a + 1), intVectorConstant[a][0]);
 }
+
+TEST(ArraySimulationTest, single)
+{
+	runSimulation();
+	EXPECT_EQ(-2, single[0]);
+}

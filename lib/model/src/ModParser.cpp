@@ -184,6 +184,8 @@ Expected<tuple<ModExpKind, vector<ModExp>>> ModParser::operation()
 		kind = ModExpKind::induction;
 	else if (accept<ModToken::Not>())
 		kind = ModExpKind::negate;
+	else if (accept<ModToken::AtKeyword>())
+		kind = ModExpKind::at;
 	else if (auto e = expect(ModToken::Plus); !e)
 		return e.takeError();
 	else
