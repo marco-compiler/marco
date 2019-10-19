@@ -24,6 +24,7 @@ namespace modelica
 		IntKeyword,
 		FloatKeyword,
 		ForKeyword,
+		IndKeyword,
 
 		LPar,
 		Comma,

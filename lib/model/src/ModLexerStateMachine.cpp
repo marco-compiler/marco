@@ -80,6 +80,8 @@ std::string modelica::tokenToString(ModToken token)
 			return "Not";
 		case ModToken::ForKeyword:
 			return "For";
+		case ModToken::IndKeyword:
+			return "Ind";
 
 		case ModToken::End:
 			return "End";
@@ -104,6 +106,7 @@ ModLexerStateMachine::ModLexerStateMachine(char first)
 	keywordMap["FLOAT"] = ModToken::FloatKeyword;
 	keywordMap["INT"] = ModToken::IntKeyword;
 	keywordMap["for"] = ModToken::ForKeyword;
+	keywordMap["ind"] = ModToken::IndKeyword;
 
 	symbols['*'] = Token::Multiply;
 	symbols[','] = Token::Comma;

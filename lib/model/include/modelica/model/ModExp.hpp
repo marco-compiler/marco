@@ -92,7 +92,7 @@ namespace modelica
 
 			static size_t arityOfOp(ModExpKind kind)
 			{
-				if (kind >= ModExpKind::negate && kind <= ModExpKind::negate)
+				if (kind >= ModExpKind::negate && kind <= ModExpKind::induction)
 					return 1;
 				if (kind >= ModExpKind::add && kind <= ModExpKind::module)
 					return 2;

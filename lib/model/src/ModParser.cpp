@@ -180,6 +180,8 @@ Expected<tuple<ModExpKind, vector<ModExp>>> ModParser::operation()
 		kind = ModExpKind::elevation;
 	else if (accept<ModToken::Ternary>())
 		kind = ModExpKind::conditional;
+	else if (accept<ModToken::IndKeyword>())
+		kind = ModExpKind::induction;
 	else if (accept<ModToken::Not>())
 		kind = ModExpKind::negate;
 	else if (auto e = expect(ModToken::Plus); !e)

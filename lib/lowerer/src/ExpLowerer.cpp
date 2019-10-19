@@ -201,6 +201,11 @@ static Value* createSingleUnaryOp(
 
 			if (args[0]->getType() == boolType)
 				return builder.CreateICmpEQ(args[0], zero);
+			assert(false && "unreachable");	 // NOLINT
+			return nullptr;
+
+		case ModExpKind::induction:
+			return loadArrayElement(builder, info.inductionsVars, args[0]);
 
 			assert(false && "unreachable");	 // NOLINT
 		default:
@@ -220,7 +225,9 @@ static Expected<AllocaInst*> lowerUnOrBinOp(
 	assert(subExp.size() == arity);		// NOLINT
 	const auto binaryOp = [type = exp.getKind(), &info](
 														auto& builder, auto args) {
-		LoweringInfo newInfo = { builder, info.module, info.function };
+		LoweringInfo newInfo = {
+			builder, info.module, info.function, info.inductionsVars
+		};
 		if constexpr (arity == 1)
 			return createSingleUnaryOp(newInfo, args, type);
 		else
@@ -235,18 +242,24 @@ static Expected<Value*> lowerTernary(LoweringInfo& info, const ModExp& exp)
 {
 	assert(exp.isTernary());	// NOLINT
 	const auto leftHandLowerer = [&exp, &info](IRBuilder<>& builder) {
-		LoweringInfo newInfo = { builder, info.module, info.function };
+		LoweringInfo newInfo = {
+			builder, info.module, info.function, info.inductionsVars
+		};
 		return lowerExp(newInfo, exp.getLeftHand());
 	};
 	const auto rightHandLowerer = [&exp, &info](IRBuilder<>& builder) {
-		LoweringInfo newInfo = { builder, info.module, info.function };
+		LoweringInfo newInfo = {
+			builder, info.module, info.function, info.inductionsVars
+		};
 		return lowerExp(newInfo, exp.getRightHand());
 	};
 	const auto conditionLowerer =
 			[&exp, &info](IRBuilder<>& builder) -> Expected<Value*> {
 		auto& condition = exp.getCondition();
 		assert(condition.getModType() == ModType(BultinModTypes::BOOL));	// NOLINT
-		LoweringInfo newInfo = { builder, info.module, info.function };
+		LoweringInfo newInfo = {
+			builder, info.module, info.function, info.inductionsVars
+		};
 		auto ptrToCond = lowerExp(newInfo, condition);
 		if (!ptrToCond)
 			return ptrToCond;
