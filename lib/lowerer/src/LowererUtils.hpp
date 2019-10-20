@@ -138,7 +138,7 @@ namespace modelica
 	 * \return the loadInst
 	 */
 	llvm::Expected<llvm::Value*> lowerReference(
-			llvm::IRBuilder<>& builder, llvm::StringRef exp);
+			llvm::IRBuilder<>& builder, llvm::StringRef exp, bool loadold);
 
 	/**
 	 * \return a llvm::type rappresenting the array of types of the provided

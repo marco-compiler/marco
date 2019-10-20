@@ -13,5 +13,21 @@ namespace modelica
 		{
 		}
 		EntryModel() = default;
+
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const
+		{
+			OS << "vars\n";
+			for (auto i = varbegin(); i != varend(); i++)
+			{
+				OS << i->first() << " = ";
+				i->second.getInit().dump(OS);
+
+				OS << "\n";
+			}
+
+			OS << "equations\n";
+			for (const auto& update : *this)
+				update.dump(OS);
+		}
 	};
 }	 // namespace modelica

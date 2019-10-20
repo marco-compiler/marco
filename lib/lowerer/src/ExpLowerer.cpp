@@ -240,29 +240,30 @@ static Expected<AllocaInst*> lowerUnOrBinOp(
 	return elementWiseOperation<arity>(info, subExp, opType, binaryOp);
 }
 
-static Expected<Value*> lowerTernary(LoweringInfo& info, const ModExp& exp)
+static Expected<Value*> lowerTernary(
+		LoweringInfo& info, const ModExp& exp, bool loadOld)
 {
 	assert(exp.isTernary());	// NOLINT
-	const auto leftHandLowerer = [&exp, &info](IRBuilder<>& builder) {
+	const auto leftHandLowerer = [&exp, &info, loadOld](IRBuilder<>& builder) {
 		LoweringInfo newInfo = {
 			builder, info.module, info.function, info.inductionsVars
 		};
-		return lowerExp(newInfo, exp.getLeftHand());
+		return lowerExp(newInfo, exp.getLeftHand(), loadOld);
 	};
-	const auto rightHandLowerer = [&exp, &info](IRBuilder<>& builder) {
+	const auto rightHandLowerer = [&exp, &info, loadOld](IRBuilder<>& builder) {
 		LoweringInfo newInfo = {
 			builder, info.module, info.function, info.inductionsVars
 		};
-		return lowerExp(newInfo, exp.getRightHand());
+		return lowerExp(newInfo, exp.getRightHand(), loadOld);
 	};
 	const auto conditionLowerer =
-			[&exp, &info](IRBuilder<>& builder) -> Expected<Value*> {
+			[&exp, &info, loadOld](IRBuilder<>& builder) -> Expected<Value*> {
 		auto& condition = exp.getCondition();
 		assert(condition.getModType() == ModType(BultinModTypes::BOOL));	// NOLINT
 		LoweringInfo newInfo = {
 			builder, info.module, info.function, info.inductionsVars
 		};
-		auto ptrToCond = lowerExp(newInfo, condition);
+		auto ptrToCond = lowerExp(newInfo, condition, loadOld);
 		if (!ptrToCond)
 			return ptrToCond;
 
@@ -283,7 +284,8 @@ static Expected<Value*> lowerTernary(LoweringInfo& info, const ModExp& exp)
 			rightHandLowerer);
 }
 
-static Expected<Value*> lowerOperation(LoweringInfo& info, const ModExp& exp)
+static Expected<Value*> lowerOperation(
+		LoweringInfo& info, const ModExp& exp, bool loadOld)
 {
 	assert(exp.isOperation());	// NOLINT
 
@@ -295,12 +297,12 @@ static Expected<Value*> lowerOperation(LoweringInfo& info, const ModExp& exp)
 	}
 
 	if (exp.isTernary())
-		return lowerTernary(info, exp);
+		return lowerTernary(info, exp, loadOld);
 
 	if (exp.isUnary())
 	{
 		SmallVector<Value*, 1> values;
-		auto subexp = lowerExp(info, exp.getLeftHand());
+		auto subexp = lowerExp(info, exp.getLeftHand(), loadOld);
 		if (!subexp)
 			return subexp.takeError();
 		values.push_back(move(*subexp));
@@ -309,11 +311,11 @@ static Expected<Value*> lowerOperation(LoweringInfo& info, const ModExp& exp)
 	}
 	if (exp.getKind() == ModExpKind::at)
 	{
-		auto leftHand = lowerExp(info, exp.getLeftHand());
+		auto leftHand = lowerExp(info, exp.getLeftHand(), loadOld);
 		if (!leftHand)
 			return leftHand.takeError();
 
-		auto rightHand = lowerExp(info, exp.getRightHand());
+		auto rightHand = lowerExp(info, exp.getRightHand(), loadOld);
 		if (!rightHand)
 			return rightHand.takeError();
 
@@ -322,18 +324,25 @@ static Expected<Value*> lowerOperation(LoweringInfo& info, const ModExp& exp)
 				Type::getInt32Ty(info.builder.getContext())->getPointerTo(0));
 		auto index = info.builder.CreateLoad(casted);
 
-		return getArrayElementPtr(info.builder, *leftHand, index);
+		auto ret = getArrayElementPtr(info.builder, *leftHand, index);
+		auto ptrToRet = dyn_cast<PointerType>(ret->getType());
+		if (isa<ArrayType>(ptrToRet->getContainedType(0)))
+			return ret;
+
+		auto basic = ptrToRet->getContainedType(0);
+		auto arrayPtr = ArrayType::get(basic, 1);
+		return info.builder.CreatePointerCast(ret, arrayPtr->getPointerTo());
 	}
 
 	if (exp.isBinary())
 	{
 		SmallVector<Value*, 2> values;
-		auto leftHand = lowerExp(info, exp.getLeftHand());
+		auto leftHand = lowerExp(info, exp.getLeftHand(), loadOld);
 		if (!leftHand)
 			return leftHand.takeError();
 		values.push_back(move(*leftHand));
 
-		auto rightHand = lowerExp(info, exp.getRightHand());
+		auto rightHand = lowerExp(info, exp.getRightHand(), loadOld);
 		if (!rightHand)
 			return rightHand.takeError();
 		values.push_back(move(*rightHand));
@@ -344,7 +353,8 @@ static Expected<Value*> lowerOperation(LoweringInfo& info, const ModExp& exp)
 	return nullptr;
 }
 
-static Expected<Value*> uncastedLowerExp(LoweringInfo& info, const ModExp& exp)
+static Expected<Value*> uncastedLowerExp(
+		LoweringInfo& info, const ModExp& exp, bool loadOld)
 {
 	if (!exp.areSubExpressionCompatibles())
 		return make_error<TypeMissMatch>(exp);
@@ -353,12 +363,12 @@ static Expected<Value*> uncastedLowerExp(LoweringInfo& info, const ModExp& exp)
 		return lowerConstant(info.builder, exp);
 
 	if (exp.isReference())
-		return lowerReference(info.builder, exp.getReference());
+		return lowerReference(info.builder, exp.getReference(), loadOld);
 
 	if (exp.isCall())
-		return lowerCall(info, exp.getCall());
+		return lowerCall(info, exp.getCall(), loadOld);
 
-	return lowerOperation(info, exp);
+	return lowerOperation(info, exp, loadOld);
 }
 
 static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
@@ -405,7 +415,11 @@ static Expected<Value*> castReturnValue(
 {
 	auto ptrArrayType = dyn_cast<PointerType>(val->getType());
 	auto arrayType = dyn_cast<ArrayType>(ptrArrayType->getContainedType(0));
-
+	if (ptrArrayType->getContainedType(0)->isSingleValueType())
+	{
+		arrayType = ArrayType::get(ptrArrayType->getContainedType(0), 1);
+		builder.CreatePointerCast(val, arrayType->getPointerTo());
+	}
 	assert(castable(arrayType, type));	// NOLINT
 
 	auto destType = typeToLLVMType(builder.getContext(), type);
@@ -447,9 +461,9 @@ namespace modelica
 		return nullptr;
 	}
 
-	Expected<Value*> lowerExp(LoweringInfo& info, const ModExp& exp)
+	Expected<Value*> lowerExp(LoweringInfo& info, const ModExp& exp, bool loadOld)
 	{
-		auto retVal = uncastedLowerExp(info, exp);
+		auto retVal = uncastedLowerExp(info, exp, loadOld);
 		if (!retVal)
 			return retVal;
 

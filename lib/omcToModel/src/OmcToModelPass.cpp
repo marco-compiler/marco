@@ -1,14 +1,25 @@
 #include "modelica/omcToModel/OmcToModelPass.hpp"
 
 #include "modelica/Dumper/Dumper.hpp"
+#include "modelica/model/Assigment.hpp"
 
 using namespace modelica;
 using namespace std;
 using namespace llvm;
 
-ModExp modExpFromBinaryExp(const BinaryExpr* exp, const EntryModel& model);
+ModExp modExpFromBinaryExp(
+		const BinaryExpr* exp,
+		const EntryModel& model,
+		const StringMap<int>& inductionLookUpTable);
+ModExp modExpFromBinaryExp(
+		const UnaryExpr* exp,
+		const EntryModel& model,
+		const StringMap<int>& inductionLookUpTable);
 
-ModExp modExpFromASTExp(const Expr* ASTexp, const EntryModel& model)
+ModExp modExpFromASTExp(
+		const Expr* ASTexp,
+		const EntryModel& model,
+		const StringMap<int>& inductionLookUpTable)
 {
 	if (isa<BoolLiteralExpr>(ASTexp))
 	{
@@ -31,27 +42,85 @@ ModExp modExpFromASTExp(const Expr* ASTexp, const EntryModel& model)
 	if (isa<BinaryExpr>(ASTexp))
 	{
 		auto binaryExp = dyn_cast<BinaryExpr>(ASTexp);
-		return modExpFromBinaryExp(binaryExp, model);
+		return modExpFromBinaryExp(binaryExp, model, inductionLookUpTable);
+	}
+
+	if (isa<UnaryExpr>(ASTexp))
+	{
+		auto unaryExp = dyn_cast<UnaryExpr>(ASTexp);
+		return modExpFromBinaryExp(unaryExp, model, inductionLookUpTable);
 	}
 
 	if (isa<ComponentReferenceExpr>(ASTexp))
 	{
 		auto ref = dyn_cast<ComponentReferenceExpr>(ASTexp);
 		auto refName = ref->getName();
+		if (const auto& i = inductionLookUpTable.find(refName);
+				i != inductionLookUpTable.end())
+			return ModExp::induction(ModExp(ModConst<int>(i->second)));
 
 		auto type = model.getVar(refName).getInit().getModType();
 
 		return ModExp(refName, type);
 	}
 
+	if (isa<ArraySubscriptionExpr>(ASTexp))
+	{
+		auto subScript = dyn_cast<ArraySubscriptionExpr>(ASTexp);
+		auto sourceArr = subScript->getSourceExpr();
+
+		auto exp = modExpFromASTExp(sourceArr, model, inductionLookUpTable);
+
+		for (int a = 0; a < subScript->subscriptedDimensionsCount(); a++)
+		{
+			auto subScriptExp = modExpFromASTExp(
+					subScript->getSubscriptionExpr(a), model, inductionLookUpTable);
+			auto oneBasedSubscript = subScriptExp - ModExp::constExp<int>(1);
+
+			exp = ModExp::at(move(exp), move(oneBasedSubscript));
+		}
+		return exp;
+	}
+
+	if (isa<DerFunctionCallExpr>(ASTexp))
+	{
+		auto call = dyn_cast<DerFunctionCallExpr>(ASTexp);
+		auto par = modExpFromASTExp(call->at(0), model, inductionLookUpTable);
+
+		auto type = par.getModType();
+		return ModExp(ModCall("der", { move(par) }, move(type)));
+	}
+
 	assert(false && "Unandled expression");	 // NOLINT
 	return ModExp::constExp(0);
 }
-
-ModExp modExpFromBinaryExp(const BinaryExpr* exp, const EntryModel& model)
+ModExp modExpFromBinaryExp(
+		const UnaryExpr* exp,
+		const EntryModel& model,
+		const StringMap<int>& inductionLookUpTable)
 {
-	auto left = modExpFromASTExp(exp->getLeftHand(), model);
-	auto right = modExpFromASTExp(exp->getRightHand(), model);
+	auto left = modExpFromASTExp(exp->getOperand(), model, inductionLookUpTable);
+
+	switch (exp->getOpCode())
+	{
+		case UnaryExprOp::Minus:
+			return ModExp::negate(move(left));
+		default:
+			assert(false && "unandled bin op");	 // NOLINT
+			return left;
+	}
+	assert(false && "unreachable");	 // NOLINT
+	return left;
+}
+
+ModExp modExpFromBinaryExp(
+		const BinaryExpr* exp,
+		const EntryModel& model,
+		const StringMap<int>& inductionLookUpTable)
+{
+	auto left = modExpFromASTExp(exp->getLeftHand(), model, inductionLookUpTable);
+	auto right =
+			modExpFromASTExp(exp->getRightHand(), model, inductionLookUpTable);
 	switch (exp->getOpCode())
 	{
 		case BinaryExprOp::Sum:
@@ -88,7 +157,7 @@ vector<size_t> dimFromArraySubscription(
 	{
 		if (iter == nullptr)
 			continue;
-		assert(isa<IntLiteralExpr>(iter.get()));
+		assert(isa<IntLiteralExpr>(iter.get()));	// NOLINT
 		auto dim = dyn_cast<IntLiteralExpr>(iter.get());
 		toReturn.push_back(dim->getValue());
 	}
@@ -128,6 +197,74 @@ bool insertArray(
 				ModExp(ModCall("fill", { move(sourceExp), move(arg) }, outType)));
 	}
 	return false;
+}
+
+static InductionVar inductionFromEq(const ForEquation* eq)
+{
+	auto forExp = eq->getForExpression(0);
+	assert(isa<RangeExpr>(forExp));	 // NOLINT
+
+	auto rangeExp = dyn_cast<RangeExpr>(forExp);
+	assert(isa<IntLiteralExpr>(rangeExp->getStart()));	// NOLINT
+	assert(isa<IntLiteralExpr>(rangeExp->getStop()));		// NOLINT
+	auto begin = dyn_cast<IntLiteralExpr>(rangeExp->getStart());
+	auto end = dyn_cast<IntLiteralExpr>(rangeExp->getStop());
+
+	return InductionVar(begin->getValue(), end->getValue());
+}
+
+static ModEquation handleEq(
+		const SimpleEquation* eq,
+		const StringMap<int>& inductionLookUpTable,
+		const SmallVector<InductionVar, 3>& inds,
+		const EntryModel& model)
+{
+	auto left = modExpFromASTExp(eq->getLeftHand(), model, inductionLookUpTable);
+	auto right =
+			modExpFromASTExp(eq->getRightHand(), model, inductionLookUpTable);
+	return ModEquation(move(left), move(right), inds);
+}
+
+unique_ptr<SimpleEquation> OmcToModelPass::visit(
+		unique_ptr<SimpleEquation> decl)
+{
+	if (forEqNestingLevel != 0)
+		return decl;
+	StringMap<int> inductionLookUpTable;
+	SmallVector<InductionVar, 3> inds;
+	model.addEquation(handleEq(decl.get(), inductionLookUpTable, inds, model));
+	return decl;
+}
+
+unique_ptr<ForEquation> OmcToModelPass::visit(unique_ptr<ForEquation> eq)
+{
+	if (forEqNestingLevel++ != 0)
+		return eq;
+
+	SmallVector<InductionVar, 3> inds;
+	StringMap<int> inductionLookUpTable;
+	const Equation* nav = eq.get();
+	const ForEquation* previous = eq.get();
+	int indVars = 0;
+	while (isa<ForEquation>(nav))
+	{
+		auto ptr = dyn_cast<ForEquation>(nav);
+		inds.push_back(inductionFromEq(ptr));
+		inductionLookUpTable[ptr->getNames()[0]] = indVars;
+		indVars++;
+		previous = ptr;
+		nav = ptr->getEquation(0);
+	}
+
+	for (size_t a = 0; a < previous->equationsCount(); a++)
+	{
+		auto eq = previous->getEquation(a);
+		if (isa<SimpleEquation>(eq))
+			model.addEquation(handleEq(
+					dyn_cast<SimpleEquation>(eq), inductionLookUpTable, inds, model));
+	}
+
+	return eq;
 }
 
 unique_ptr<ComponentClause> OmcToModelPass::visit(
@@ -183,26 +320,13 @@ unique_ptr<ComponentClause> OmcToModelPass::visit(
 					return clause;
 				}
 			}
-			vector<int> intDim;
-			for (auto i : dimensions)
-				intDim.push_back(i);
-			ModConst<int> constDim(intDim);
-			ModExp arg(constDim, ModType(BultinModTypes::INT, intDim.size()));
 			ModExp sourceExp = ModExp::constExp<float>(0);
 
 			ModType outType(BultinModTypes::FLOAT, dimensions);
 			auto val = model.emplaceVar(
-					varName,
-					ModExp(ModCall("fill", { move(sourceExp), move(arg) }, outType)));
+					varName, ModExp(ModCall("fill", { move(sourceExp) }, outType)));
 			return clause;
 		}
-	}
-	outs() << varName << "\n";
-	for (auto i = model.varbegin(); i != model.varend(); i++)
-	{
-		outs() << i->first() << " = ";
-		i->second.getInit().dump();
-		outs() << "\n";
 	}
 
 	return clause;
@@ -211,6 +335,8 @@ unique_ptr<ComponentClause> OmcToModelPass::visit(
 bool OmcToModelPass::handleSimpleMod(
 		StringRef name, const SimpleModification& mod)
 {
+	StringMap<int> inductionLookUpTable;
 	return !model.emplaceVar(
-			name.str(), modExpFromASTExp(mod.getExpression(), model));
+			name.str(),
+			modExpFromASTExp(mod.getExpression(), model, inductionLookUpTable));
 }

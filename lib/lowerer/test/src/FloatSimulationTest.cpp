@@ -13,3 +13,9 @@ TEST(IntSimulationTest, floatModifiableOutPutTest)	// NOLINT
 	runSimulation();
 	EXPECT_NEAR(FloatModifiable[0], 13, 0.1F);
 }
+
+TEST(IntSimulationTest, floatNot)	 // NOLINT
+{
+	runSimulation();
+	EXPECT_NEAR(FloatNot[0], -3, 0.1F);
+}

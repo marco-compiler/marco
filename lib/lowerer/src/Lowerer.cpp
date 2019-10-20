@@ -95,7 +95,7 @@ static Expected<Function*> initializeGlobals(
 	for (const auto& pair : vars)
 	{
 		LoweringInfo info = { builder, m, initFunction };
-		auto val = lowerExp(info, pair.second);
+		auto val = lowerExp(info, pair.second, true);
 		if (!val)
 			return val.takeError();
 		auto loaded = builder.CreateLoad(*val);
@@ -108,18 +108,22 @@ static Expected<Function*> initializeGlobals(
 }
 
 static Error createNormalAssigment(
-		LoweringInfo& info, const Assigment& assigment, GlobalVariable* var)
+		LoweringInfo& info, const Assigment& assigment)
 {
-	auto val = lowerExp(info, assigment.getExpression());
+	auto left = lowerExp(info, assigment.getVarName(), false);
+	if (!left)
+		return left.takeError();
+
+	auto val = lowerExp(info, assigment.getExpression(), true);
 	if (!val)
 		return val.takeError();
+
 	auto loaded = info.builder.CreateLoad(*val);
-	info.builder.CreateStore(loaded, var);
+	info.builder.CreateStore(loaded, *left);
 	return Error::success();
 }
 
-static Error createForAssigment(
-		LoweringInfo info, const Assigment& assigment, GlobalVariable* var)
+static Error createForAssigment(LoweringInfo info, const Assigment& assigment)
 {
 	SmallVector<size_t, 3> inductionsBegin;
 	SmallVector<size_t, 3> inductionsEnd;
@@ -131,17 +135,22 @@ static Error createForAssigment(
 
 	auto lowerBody = [&](auto& bld, auto inductionVars) {
 		info.inductionsVars = inductionVars;
-		auto ptrToSingle = getArrayElementPtr(bld, var, inductionVars);
+		auto leftVal = lowerExp(info, assigment.getVarName(), false);
+		if (!leftVal)
+		{
+			err = leftVal.takeError();
+			return;
+		}
 
-		auto expVal = lowerExp(info, assigment.getExpression());
+		auto expVal = lowerExp(info, assigment.getExpression(), true);
 		if (!expVal)
 		{
 			err = expVal.takeError();
 			return;
 		}
-		auto casted = bld.CreatePointerCast(*expVal, ptrToSingle->getType());
+		auto casted = bld.CreatePointerCast(*expVal, leftVal.get()->getType());
 		auto loaded = bld.CreateLoad(casted);
-		bld.CreateStore(loaded, ptrToSingle);
+		bld.CreateStore(loaded, *leftVal);
 	};
 
 	createdNestedForCycle(
@@ -149,17 +158,18 @@ static Error createForAssigment(
 	return err;
 }
 
-static Error createAssigment(
-		LoweringInfo& info, const Assigment& assigment, GlobalVariable* var)
+static Error createAssigment(LoweringInfo& info, const Assigment& assigment)
 {
 	if (assigment.size() == 0)
-		return createNormalAssigment(info, assigment, var);
+		return createNormalAssigment(info, assigment);
 
-	return createForAssigment(info, assigment, var);
+	return createForAssigment(info, assigment);
 }
 
 static Expected<Function*> createUpdates(
-		Module& m, const SmallVector<Assigment, 0>& upds)
+		Module& m,
+		const SmallVector<Assigment, 0>& upds,
+		const StringMap<ModExp>& definitions)
 {
 	auto updateFunctionExpected = makePrivateFunction("update", m);
 	if (!updateFunctionExpected)
@@ -167,12 +177,10 @@ static Expected<Function*> createUpdates(
 	auto updateFunction = updateFunctionExpected.get();
 	IRBuilder bld(&updateFunction->getEntryBlock());
 
+	size_t counter = 0;
 	for (const auto& pair : upds)
 	{
-		auto globalVar = m.getGlobalVariable(pair.getVarName(), true);
-		if (globalVar == nullptr)
-			return make_error<UnkownVariable>(pair.getVarName());
-		auto expFun = makePrivateFunction("update" + pair.getVarName(), m);
+		auto expFun = makePrivateFunction("update" + to_string(counter), m);
 		if (!expFun)
 			return expFun;
 
@@ -180,7 +188,7 @@ static Expected<Function*> createUpdates(
 		bld.SetInsertPoint(&fun->getEntryBlock());
 
 		LoweringInfo info = { bld, m, fun };
-		auto err = createAssigment(info, pair, globalVar);
+		auto err = createAssigment(info, pair);
 		if (err)
 			return move(err);
 
@@ -188,13 +196,15 @@ static Expected<Function*> createUpdates(
 
 		bld.SetInsertPoint(&updateFunction->getEntryBlock());
 		bld.CreateCall(fun);
+		counter++;
 	}
-	for (const auto& pair : upds)
+	for (const auto& pair : definitions)
 	{
-		auto globalVal = m.getGlobalVariable(pair.getVarName(), true);
+		auto globalVal = m.getGlobalVariable(pair.first(), true);
 		auto val = bld.CreateLoad(globalVal);
 
-		bld.CreateStore(val, m.getGlobalVariable(pair.getVarName() + "_old", true));
+		bld.CreateStore(
+				val, m.getGlobalVariable(pair.first().str() + "_old", true));
 	}
 
 	bld.CreateRet(nullptr);
@@ -260,8 +270,8 @@ static Expected<Function*> populatePrint(Module& m, StringMap<ModExp> vars)
 
 	for (const auto& pair : vars)
 	{
-		auto varString = m.getGlobalVariable(pair.first().str() + "_str");
-		auto ptrToVar = m.getGlobalVariable(pair.first());
+		auto varString = m.getGlobalVariable(pair.first().str() + "_str", true);
+		auto ptrToVar = m.getGlobalVariable(pair.first(), true);
 		createPrintOfVar(m, bld, varString, ptrToVar);
 	}
 	bld.CreateRet(nullptr);
@@ -277,7 +287,7 @@ Error Lowerer::lower()
 	if (!initFunction)
 		return initFunction.takeError();
 
-	auto updateFunction = createUpdates(module, updates);
+	auto updateFunction = createUpdates(module, updates, variables);
 	if (!updateFunction)
 		return updateFunction.takeError();
 
@@ -301,7 +311,7 @@ Error Lowerer::lower()
 void Lowerer::dump(raw_ostream& OS) const
 {
 	auto const dumpAssigment = [&OS](const auto& couple) {
-		OS << couple.getVarName();
+		couple.getVarName().dump(OS);
 		OS << " = ";
 		couple.getExpression().dump(OS);
 		OS << "\n";

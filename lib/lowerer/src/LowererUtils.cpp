@@ -140,10 +140,12 @@ namespace modelica
 		return Error::success();
 	}
 
-	Expected<Value*> lowerReference(IRBuilder<>& builder, StringRef exp)
+	Expected<Value*> lowerReference(
+			IRBuilder<>& builder, StringRef exp, bool loadOld)
 	{
 		auto module = builder.GetInsertBlock()->getModule();
-		auto global = module->getGlobalVariable(exp.str() + "_old", true);
+		auto global =
+				module->getGlobalVariable(exp.str() + (loadOld ? "_old" : ""), true);
 		if (global == nullptr)
 			return make_error<UnkownVariable>(exp.str());
 		return global;

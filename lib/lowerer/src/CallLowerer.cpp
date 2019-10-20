@@ -21,7 +21,8 @@ namespace modelica
 		return Error::success();
 	}
 
-	Expected<Value*> lowerCall(LoweringInfo& info, const ModCall& call)
+	Expected<Value*> lowerCall(
+			LoweringInfo& info, const ModCall& call, bool loadOld)
 	{
 		SmallVector<Value*, 3> argsValue;
 
@@ -31,7 +32,7 @@ namespace modelica
 
 		for (size_t a = 0; a < call.argsSize(); a++)
 		{
-			auto arg = lowerExp(info, call.at(a));
+			auto arg = lowerExp(info, call.at(a), loadOld);
 			if (!arg)
 				return arg;
 

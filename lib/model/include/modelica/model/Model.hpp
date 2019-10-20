@@ -10,9 +10,18 @@ namespace modelica
 	class Model
 	{
 		public:
-		Model(std::vector<ModEquation> equations, llvm::StringMap<ModVariable> vars)
+		Model(
+				llvm::SmallVector<ModEquation, 3> equations,
+				llvm::StringMap<ModVariable> vars)
 				: equations(std::move(equations)), vars(std::move(vars))
 		{
+		}
+		Model(
+				std::vector<ModEquation> equationsV, llvm::StringMap<ModVariable> vars)
+				: vars(std::move(vars))
+		{
+			for (auto& m : equationsV)
+				equations.push_back(std::move(m));
 		}
 		Model() = default;
 		Model& operator=(Model&& other) = delete;
@@ -23,16 +32,16 @@ namespace modelica
 		auto begin() { return equations.begin(); }
 		auto end() { return equations.end(); };
 
-		[[nodiscard]] auto begin() const { return equations.cbegin(); }
-		[[nodiscard]] auto end() const { return equations.cend(); };
+		[[nodiscard]] auto begin() const { return equations.begin(); }
+		[[nodiscard]] auto end() const { return equations.end(); };
 
 		[[nodiscard]] ModEquation& getEquation(size_t index)
 		{
-			return equations.at(index);
+			return equations[index];
 		}
 		[[nodiscard]] const ModEquation& getEquation(size_t index) const
 		{
-			return equations.at(index);
+			return equations[index];
 		}
 
 		auto varbegin() { return vars.begin(); }
@@ -89,11 +98,22 @@ namespace modelica
 			return true;
 		}
 
+		[[nodiscard]] const llvm::StringMap<ModVariable>& getVars() const
+		{
+			return vars;
+		}
+
+		[[nodiscard]] llvm::StringMap<ModVariable>& getVars() { return vars; }
+
+		[[nodiscard]] auto& getEquations() { return equations; }
+
+		[[nodiscard]] const auto& getEquations() const { return equations; }
+
 		protected:
 		~Model() = default;
 
 		private:
-		std::vector<ModEquation> equations;
+		llvm::SmallVector<ModEquation, 3> equations;
 		llvm::StringMap<ModVariable> vars;
 	};
 

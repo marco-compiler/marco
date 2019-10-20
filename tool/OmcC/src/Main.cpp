@@ -2,18 +2,34 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "modelica/Parser.hpp"
+#include "modelica/lowerer/Lowerer.hpp"
+#include "modelica/model/AssignModel.hpp"
 #include "modelica/omcToModel/OmcToModelPass.hpp"
+#include "modelica/passes/SolveDerivatives.hpp"
 
 using namespace modelica;
 using namespace llvm;
 using namespace std;
+using namespace cl;
 
-cl::OptionCategory astDumperCategory("ASTDumper options");
+cl::OptionCategory omcCCat("OmcC options");
 cl::opt<string> InputFileName(
-		cl::Positional,
-		cl::desc("<input-file>"),
-		cl::init("-"),
-		cl::cat(astDumperCategory));
+		cl::Positional, cl::desc("<input-file>"), cl::init("-"), cl::cat(omcCCat));
+
+opt<int> simulationTime(
+		"simTime",
+		cl::desc("how many ticks the simulation must perform"),
+		cl::init(10),
+		cl::cat(omcCCat));
+
+opt<bool> dumpModel(
+		"dumpModel",
+		cl::desc("dump simulation on stdout while running"),
+		cl::init(false),
+		cl::cat(omcCCat));
+
+opt<string> outputFile(
+		"bc", cl::desc("<output-file>"), cl::init("-"), cl::cat(omcCCat));
 
 ExitOnError exitOnErr;
 int main(int argc, char* argv[])
@@ -26,6 +42,33 @@ int main(int argc, char* argv[])
 	EntryModel model;
 	OmcToModelPass pass(model);
 	ast = topDownVisit(move(ast), pass);
+
+	auto assModel = exitOnErr(solveDer(move(model)));
+	LLVMContext context;
+	Lowerer sim(
+			context,
+			move(assModel.getVars()),
+			move(assModel.getUpdates()),
+			"Modelica Model",
+			"main",
+			simulationTime);
+	if (!sim.addVar("deltaTime", ModExp::constExp<float>(0.1F)))
+	{
+		outs() << "DeltaTime was already defined\n";
+		return -1;
+	}
+
+	if (dumpModel)
+		sim.dump(outs());
+	exitOnErr(sim.lower());
+	error_code error;
+	raw_fd_ostream OS(outputFile, error, sys::fs::F_None);
+	if (error)
+	{
+		errs() << error.message();
+		return -1;
+	}
+	sim.dumpBC(OS);
 
 	return 0;
 }

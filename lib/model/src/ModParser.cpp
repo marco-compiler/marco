@@ -372,9 +372,9 @@ Expected<InductionVar> ModParser::singleInduction()
 
 	return InductionVar(begin, end);
 }
-Expected<vector<InductionVar>> ModParser::inductions()
+Expected<SmallVector<InductionVar, 3>> ModParser::inductions()
 {
-	vector<InductionVar> inductions;
+	SmallVector<InductionVar, 3> inductions;
 	if (!accept<ModToken::ForKeyword>())
 		return inductions;
 	while (current == ModToken::LSquare)
@@ -389,7 +389,7 @@ Expected<vector<InductionVar>> ModParser::inductions()
 
 Expected<Assigment> ModParser::updateStatement()
 {
-	vector<InductionVar> ind;
+	SmallVector<InductionVar, 3> ind;
 
 	auto inductionsV = inductions();
 	if (!inductionsV)
@@ -397,9 +397,24 @@ Expected<Assigment> ModParser::updateStatement()
 
 	ind = move(*inductionsV);
 
-	auto name = lexer.getLastIdentifier();
-	if (auto e = expect(ModToken::Ident); !e)
-		return e.takeError();
+	if (current == ModToken::Ident)
+	{
+		auto name = lexer.getLastIdentifier();
+		if (auto e = expect(ModToken::Ident); !e)
+			return e.takeError();
+
+		if (auto e = expect(ModToken::Assign); !e)
+			return e.takeError();
+
+		auto exp = expression();
+		if (!exp)
+			return exp.takeError();
+
+		return Assigment(move(name), move(*exp), move(ind));
+	}
+	auto leftHand = expression();
+	if (!leftHand)
+		return leftHand.takeError();
 
 	if (auto e = expect(ModToken::Assign); !e)
 		return e.takeError();
@@ -408,7 +423,7 @@ Expected<Assigment> ModParser::updateStatement()
 	if (!exp)
 		return exp.takeError();
 
-	return Assigment(move(name), move(*exp), move(ind));
+	return Assigment(move(*leftHand), move(*exp), move(ind));
 }
 
 Expected<ModExp> ModParser::expression()

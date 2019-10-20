@@ -15,6 +15,10 @@ namespace modelica
 
 		[[nodiscard]] size_t begin() const { return beginVal; }
 		[[nodiscard]] size_t end() const { return endVal; }
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const
+		{
+			OS << '[' << begin() << ',' << end() << "]";
+		}
 
 		private:
 		size_t beginVal;
@@ -25,13 +29,24 @@ namespace modelica
 	{
 		public:
 		Assigment(
-				std::string name, ModExp exp, std::vector<InductionVar> inducts = {})
-				: leftHand(std::move(name)),
+				ModExp left,
+				ModExp exp,
+				llvm::SmallVector<InductionVar, 3> inducts = {})
+				: leftHand(std::move(left)),
 					expression(std::move(exp)),
 					inductionVars(std::move(inducts))
 		{
 		}
-		[[nodiscard]] const std::string& getVarName() const { return leftHand; }
+		Assigment(
+				std::string left,
+				ModExp exp,
+				llvm::SmallVector<InductionVar, 3> inducts = {})
+				: leftHand(std::move(left), exp.getModType()),
+					expression(std::move(exp)),
+					inductionVars(std::move(inducts))
+		{
+		}
+		[[nodiscard]] const ModExp& getVarName() const { return leftHand; }
 
 		[[nodiscard]] const ModExp& getExpression() const { return expression; }
 
@@ -42,12 +57,27 @@ namespace modelica
 		[[nodiscard]] auto end() const { return inductionVars.end(); }
 		[[nodiscard]] const InductionVar& getInductionVar(size_t index) const
 		{
-			return inductionVars.at(index);
+			return inductionVars[index];
+		}
+
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const
+		{
+			if (!inductionVars.empty())
+				OS << "for ";
+
+			for (const auto& var : inductionVars)
+				var.dump(OS);
+
+			leftHand.dump(OS);
+			OS << " = ";
+			expression.dump(OS);
+
+			OS << '\n';
 		}
 
 		private:
-		std::string leftHand;
+		ModExp leftHand;
 		ModExp expression;
-		std::vector<InductionVar> inductionVars;
+		llvm::SmallVector<InductionVar, 3> inductionVars;
 	};
 }	 // namespace modelica

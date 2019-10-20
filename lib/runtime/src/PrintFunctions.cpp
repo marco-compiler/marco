@@ -32,4 +32,14 @@ extern "C"
 		for (int a = 0; a < count; a++)
 			printf("\t%d\n", value[a]);
 	}
+
+	void fill(float* out, int* outDim, float* filler, int* dim)
+	{
+		size_t flatSize = 1;
+		for (int a = 0; outDim[a] != 0; a++)
+			flatSize *= outDim[a];
+
+		for (size_t a = 0; a < flatSize; a++)
+			out[a] = filler[0];
+	}
 }

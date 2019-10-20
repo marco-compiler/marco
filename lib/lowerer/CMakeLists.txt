@@ -11,7 +11,7 @@ target_include_directories(lowerer
 target_compile_features(lowerer PUBLIC cxx_std_17)
 
 llvm_map_components_to_libnames(llvm_lowerer_libs core ${LLVM_TARGETS_TO_BUILD})
-target_link_libraries(lowerer PUBLIC ${llvm_lowerer_libs} modelica::utils modelica::model)
+target_link_libraries(lowerer PUBLIC ${llvm_lowerer_libs} modelica::utils modelica::passes)
 
 modelicaInstall(lowerer)
 

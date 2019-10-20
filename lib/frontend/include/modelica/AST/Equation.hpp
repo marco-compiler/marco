@@ -280,7 +280,7 @@ namespace modelica
 		{
 			return getEquations().size();
 		}
-		[[nodiscard]] const Equation* getEquation(unsigned index)
+		[[nodiscard]] const Equation* getEquation(unsigned index) const
 		{
 			if (index >= equationsCount())
 				return nullptr;
@@ -291,7 +291,7 @@ namespace modelica
 		{
 			return getExpressions().size();
 		}
-		[[nodiscard]] const Expr* getForExpression(unsigned index)
+		[[nodiscard]] const Expr* getForExpression(unsigned index) const
 		{
 			if (index >= forExpressionsCount())
 				return nullptr;
@@ -300,6 +300,11 @@ namespace modelica
 		[[nodiscard]] llvm::Error isConsistent() const
 		{
 			return llvm::Error::success();
+		}
+
+		[[nodiscard]] const std::vector<std::string>& getNames() const
+		{
+			return names;
 		}
 
 		private:
@@ -387,4 +392,4 @@ namespace modelica
 		}
 	};
 
-}	// namespace modelica
+}	 // namespace modelica

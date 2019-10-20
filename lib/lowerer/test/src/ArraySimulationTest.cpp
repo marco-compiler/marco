@@ -21,3 +21,9 @@ TEST(ArraySimulationTest, single)
 	runSimulation();
 	EXPECT_EQ(-2, single[0]);
 }
+
+TEST(ArraySimulationTest, negation)
+{
+	runSimulation();
+	EXPECT_EQ(-1, negation[0]);
+}

@@ -382,8 +382,10 @@ namespace modelica
 		{
 			assert(!lhs.getModType().isScalar());											 // NOLINT
 			assert(rhs.getModType() == ModType(BultinModTypes::INT));	 // NOLINT
+			auto type = lhs.getModType().sclidedType();
 			return ModExp(
 					ModExpKind::at,
+					std::move(type),
 					std::make_unique<ModExp>(std::move(lhs)),
 					std::make_unique<ModExp>(std::move(rhs)));
 		}

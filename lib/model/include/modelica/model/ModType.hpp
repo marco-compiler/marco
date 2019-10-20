@@ -138,9 +138,9 @@ namespace modelica
 				return ModType(getBuiltin());
 
 			llvm::SmallVector<size_t, 3> dim;
-			auto second = std::begin(dimensions);
-			second++;
-			for (auto i = second; i != std::end(dimensions); i++)
+			for (auto i = std::next(std::begin(dimensions));
+					 i != std::end(dimensions);
+					 i++)
 				dim.push_back(*i);
 
 			return ModType(getBuiltin(), std::move(dim));

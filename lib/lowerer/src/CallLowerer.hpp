@@ -11,5 +11,5 @@
 namespace modelica
 {
 	llvm::Expected<llvm::Value*> lowerCall(
-			LoweringInfo& info, const ModCall& call);
+			LoweringInfo& info, const ModCall& call, bool loadOld);
 }

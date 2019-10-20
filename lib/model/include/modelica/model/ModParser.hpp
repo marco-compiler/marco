@@ -51,7 +51,8 @@ namespace modelica
 				std::tuple<llvm::StringMap<ModExp>, llvm::SmallVector<Assigment, 0>>>
 		simulation();
 		[[nodiscard]] llvm::Expected<InductionVar> singleInduction();
-		[[nodiscard]] llvm::Expected<std::vector<InductionVar>> inductions();
+		[[nodiscard]] llvm::Expected<llvm::SmallVector<InductionVar, 3>>
+		inductions();
 		[[nodiscard]] llvm::Expected<Assigment> updateStatement();
 
 		[[nodiscard]] ModToken getCurrentModToken() const { return current; }

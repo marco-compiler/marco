@@ -161,7 +161,7 @@ TEST(ModParserTest, forUpdateStatement)
 	if (!vec)
 		FAIL();
 
-	EXPECT_EQ("id", vec->getVarName());
+	EXPECT_EQ("id", vec->getVarName().getReference());
 	EXPECT_TRUE(vec->getExpression().isOperation());
 	EXPECT_EQ(ModExpKind::add, vec->getExpression().getKind());
 	EXPECT_EQ(vec->getInductionVar(0).begin(), 1);
@@ -189,7 +189,7 @@ TEST(ModParserTest, updateSection)
 	if (!vec)
 		FAIL();
 
-	EXPECT_TRUE(vec.get()[0].getVarName() == "id");
+	EXPECT_TRUE(vec.get()[0].getVarName().getReference() == "id");
 }
 
 TEST(ModParserTest, simulation)
@@ -204,6 +204,6 @@ TEST(ModParserTest, simulation)
 	auto [init, update] = move(*vec);
 
 	EXPECT_TRUE(init.find("id") != init.end());
-	EXPECT_TRUE(update[0].getVarName() == "id");
+	EXPECT_TRUE(update[0].getVarName().getReference() == "id");
 	EXPECT_TRUE(init.find("id")->second == update[0].getExpression());
 }
