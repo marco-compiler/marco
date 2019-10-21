@@ -220,24 +220,20 @@ namespace modelica
 	BasicBlock* createForCycle(
 			Function* function,
 			IRBuilder<>& builder,
-			size_t iterationCountBegin,
-			size_t iterationCountEnd,
+			InductionVar var,
 			std::function<void(Value*)> whileContent)
 	{
 		auto& context = builder.getContext();
-		auto condition = BasicBlock::Create(
-				context, "condition " + to_string(iterationCountEnd), function);
+		auto condition = BasicBlock::Create(context, "condition ", function);
 
-		auto loopBody = BasicBlock::Create(
-				context, "loopBody " + to_string(iterationCountEnd), function);
-		auto exit = BasicBlock::Create(
-				context, "exit " + to_string(iterationCountEnd), function);
+		auto loopBody = BasicBlock::Create(context, "loopBody ", function);
+		auto exit = BasicBlock::Create(context, "exit ", function);
 
 		auto unsignedInt = Type::getInt32Ty(context);
 
 		// alocates iteration counter
 		auto iterationCounter = builder.CreateAlloca(unsignedInt);
-		makeConstantStore<int>(builder, iterationCountBegin, iterationCounter);
+		makeConstantStore<int>(builder, var.begin(), iterationCounter);
 
 		// jump to condition bb
 		builder.CreateBr(condition);
@@ -245,8 +241,8 @@ namespace modelica
 		// load counter
 		builder.SetInsertPoint(condition);
 		auto value = builder.CreateLoad(unsignedInt, iterationCounter);
-		auto iterCmp = builder.CreateICmpEQ(
-				value, ConstantInt::get(unsignedInt, iterationCountEnd));
+		auto iterCmp =
+				builder.CreateICmpEQ(value, ConstantInt::get(unsignedInt, var.end()));
 
 		// brach if equal to zero
 		builder.CreateCondBr(iterCmp, exit, loopBody);
@@ -289,51 +285,33 @@ namespace modelica
 	static BasicBlock* createdNestedForCycleImp(
 			Function* function,
 			IRBuilder<>& builder,
-			ArrayRef<size_t> iterationsCountBegin,
-			ArrayRef<size_t> iterationsCountEnd,
+			ArrayRef<InductionVar> iterationsCountBegin,
 			std::function<void(Value*)> whileContent,
 			SmallVector<Value*, 3>& indexes)
 	{
-		auto loopBody = [&](Value* value) {
-			indexes.push_back(value);
-			if (indexes.size() == iterationsCountBegin.size())
-			{
-				auto iters = valueArrayFromArrayOfValues(builder, indexes);
-				whileContent(iters);
-				return;
-			}
-			createdNestedForCycleImp(
-					function,
-					builder,
-					iterationsCountBegin,
-					iterationsCountEnd,
-					whileContent,
-					indexes);
-		};
-
 		return createForCycle(
 				function,
 				builder,
 				iterationsCountBegin[indexes.size()],
-				iterationsCountEnd[indexes.size()],
-				loopBody);
+				[&](Value* value) {
+					indexes.push_back(value);
+					if (indexes.size() != iterationsCountBegin.size())
+						createdNestedForCycleImp(
+								function, builder, iterationsCountBegin, whileContent, indexes);
+					else
+						whileContent(valueArrayFromArrayOfValues(builder, indexes));
+				});
 	}
 
 	BasicBlock* createdNestedForCycle(
 			Function* function,
 			IRBuilder<>& builder,
-			ArrayRef<size_t> iterationsCountBegin,
-			ArrayRef<size_t> iterationsCountEnd,
+			ArrayRef<InductionVar> iterationsCountBegin,
 			std::function<void(Value*)> whileContent)
 	{
 		SmallVector<Value*, 3> indexes;
 		return createdNestedForCycleImp(
-				function,
-				builder,
-				iterationsCountBegin,
-				iterationsCountEnd,
-				whileContent,
-				indexes);
+				function, builder, iterationsCountBegin, whileContent, indexes);
 	}
 
 	BasicBlock* createdNestedForCycle(
@@ -342,12 +320,11 @@ namespace modelica
 			ArrayRef<size_t> iterationsCountEnd,
 			std::function<void(Value*)> body)
 	{
-		SmallVector<size_t, 3> zeros;
+		SmallVector<InductionVar, 3> inducts;
 		for (auto& v : iterationsCountEnd)
-			zeros.push_back(0);
+			inducts.emplace_back(0, v);
 
-		return createdNestedForCycle(
-				function, builder, zeros, iterationsCountEnd, body);
+		return createdNestedForCycle(function, builder, inducts, body);
 	}
 
 	BasicBlock* createForArrayElement(

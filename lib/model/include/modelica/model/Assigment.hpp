@@ -55,6 +55,11 @@ namespace modelica
 		[[nodiscard]] auto begin() const { return inductionVars.begin(); }
 		[[nodiscard]] auto end() { return inductionVars.end(); }
 		[[nodiscard]] auto end() const { return inductionVars.end(); }
+		[[nodiscard]] const llvm::SmallVector<InductionVar, 3>& getInductionVars()
+				const
+		{
+			return inductionVars;
+		}
 		[[nodiscard]] const InductionVar& getInductionVar(size_t index) const
 		{
 			return inductionVars[index];

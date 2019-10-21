@@ -32,14 +32,13 @@ static Expected<Function*> populateMain(
 	// call init
 	builder.CreateCall(init);
 
-	const auto forBody = [&](Value* index) {
-		builder.CreateCall(update);
-		builder.CreateCall(printValues);
-	};
-
 	// creates a for with simulationStop iterations what invokes
 	// update and print values each time
-	auto loopExit = createForCycle(main, builder, 0, simulationStop, forBody);
+	auto loopExit = createForCycle(
+			main, builder, InductionVar(0, simulationStop), [&](Value* index) {
+				builder.CreateCall(update);
+				builder.CreateCall(printValues);
+			});
 
 	// returns right after the loop
 	builder.SetInsertPoint(loopExit);
@@ -94,7 +93,7 @@ static Expected<Function*> initializeGlobals(
 
 	for (const auto& pair : vars)
 	{
-		LoweringInfo info = { builder, m, initFunction };
+		LoweringInfo info = { builder, m, initFunction, nullptr };
 		auto val = lowerExp(info, pair.second, true);
 		if (!val)
 			return val.takeError();
@@ -133,17 +132,18 @@ static Error createForAssigment(LoweringInfo info, const Assigment& assigment)
 		inductionsEnd.push_back(ind.end());
 	Error err = Error::success();
 
-	auto lowerBody = [&](Value* inductionVars) {
-		info.inductionsVars = inductionVars;
-		auto error = createNormalAssigment(info, assigment);
-		if (error)
-			err = move(error);
-
-		info.inductionsVars = nullptr;
-	};
-
 	createdNestedForCycle(
-			info.function, info.builder, inductionsBegin, inductionsEnd, lowerBody);
+			info.function,
+			info.builder,
+			assigment.getInductionVars(),
+			[&](Value* inductionVars) {
+				info.inductionsVars = inductionVars;
+				auto error = createNormalAssigment(info, assigment);
+				if (error)
+					err = move(error);
+
+				info.inductionsVars = nullptr;
+			});
 	return err;
 }
 
@@ -176,7 +176,7 @@ static Expected<Function*> createUpdates(
 		auto fun = expFun.get();
 		bld.SetInsertPoint(&fun->getEntryBlock());
 
-		LoweringInfo info = { bld, m, fun };
+		LoweringInfo info = { bld, m, fun, nullptr };
 		auto err = createAssigment(info, pair);
 		if (err)
 			return move(err);

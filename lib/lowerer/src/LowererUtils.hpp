@@ -11,7 +11,7 @@ namespace modelica
 		llvm::IRBuilder<>& builder;
 		llvm::Module& module;
 		llvm::Function* function;
-		llvm::Value* inductionsVars{ nullptr };
+		llvm::Value* inductionsVars;
 	};
 	/**
 	 * \brief create a function with internal linkage in the provided module and
@@ -159,15 +159,13 @@ namespace modelica
 	llvm::BasicBlock* createForCycle(
 			llvm::Function* function,
 			llvm::IRBuilder<>& builder,
-			size_t iterationCountBegin,
-			size_t iterationCountEnd,
+			InductionVar induction,
 			std::function<void(llvm::Value*)> whileContent);
 
 	llvm::BasicBlock* createdNestedForCycle(
 			llvm::Function* function,
 			llvm::IRBuilder<>& builder,
-			llvm::ArrayRef<size_t> iterationsCountBegin,
-			llvm::ArrayRef<size_t> iterationsCountEnd,
+			llvm::ArrayRef<InductionVar> induction,
 			std::function<void(llvm::Value*)> whileContent);
 
 	llvm::BasicBlock* createForArrayElement(
