@@ -155,9 +155,9 @@ namespace modelica
 			Function* function,
 			IRBuilder<>& builder,
 			Type* outType,
-			std::function<Expected<Value*>(IRBuilder<>&)> condition,
-			std::function<Expected<Value*>(IRBuilder<>&)> trueBlock,
-			std::function<Expected<Value*>(IRBuilder<>&)> falseBlock)
+			std::function<Expected<Value*>()> condition,
+			std::function<Expected<Value*>()> trueBlock,
+			std::function<Expected<Value*>()> falseBlock)
 	{
 		auto& context = builder.getContext();
 		auto conditionBlock = BasicBlock::Create(context, "if-condition", function);
@@ -168,21 +168,23 @@ namespace modelica
 		builder.CreateBr(conditionBlock);
 		builder.SetInsertPoint(conditionBlock);
 
-		auto expConditionValue = condition(builder);
+		auto expConditionValue = condition();
 		if (!expConditionValue)
 			return expConditionValue;
-		auto conditionValue = *expConditionValue;
+		auto conditionPtr = *expConditionValue;
+		size_t zero = 0;
+		auto conditionValue = loadArrayElement(builder, conditionPtr, zero);
 		assert(conditionValue->getType()->isIntegerTy());	 // NOLINT
 		builder.CreateCondBr(conditionValue, trueBranch, falseBranch);
 
 		builder.SetInsertPoint(trueBranch);
-		auto truValue = trueBlock(builder);
+		auto truValue = trueBlock();
 		if (!truValue)
 			return truValue;
 		builder.CreateBr(exit);
 
 		builder.SetInsertPoint(falseBranch);
-		auto falseValue = falseBlock(builder);
+		auto falseValue = falseBlock();
 		if (!falseValue)
 			return falseValue;
 		builder.CreateBr(exit);
@@ -220,7 +222,7 @@ namespace modelica
 			IRBuilder<>& builder,
 			size_t iterationCountBegin,
 			size_t iterationCountEnd,
-			std::function<void(IRBuilder<>&, Value*)> whileContent)
+			std::function<void(Value*)> whileContent)
 	{
 		auto& context = builder.getContext();
 		auto condition = BasicBlock::Create(
@@ -252,7 +254,7 @@ namespace modelica
 		builder.SetInsertPoint(loopBody);
 
 		// populate body of the loop
-		whileContent(builder, value);
+		whileContent(value);
 
 		// load, reduce and store the counter
 		value = builder.CreateLoad(unsignedInt, iterationCounter);
@@ -271,15 +273,6 @@ namespace modelica
 	{
 		if (vals.empty())
 			return nullptr;
-		assert(	 // NOLINT
-				accumulate(
-						begin(vals),
-						end(vals),
-						true,
-						[type = vals[0]->getType()](auto old, auto next) {
-							return old && next->getType() == type;
-						}) &&
-				"TYPE MISSMATCH IN VALS");
 
 		auto type = ArrayType::get(vals[0]->getType(), vals.size());
 		auto alloca = bld.CreateAlloca(type);
@@ -298,28 +291,25 @@ namespace modelica
 			IRBuilder<>& builder,
 			ArrayRef<size_t> iterationsCountBegin,
 			ArrayRef<size_t> iterationsCountEnd,
-			std::function<void(IRBuilder<>&, Value*)> whileContent,
+			std::function<void(Value*)> whileContent,
 			SmallVector<Value*, 3>& indexes)
 	{
-		std::function<void(IRBuilder<>&, Value*)> loopBody;
-
-		if (indexes.size() == iterationsCountBegin.size() - 1)
-			loopBody = [&](auto& bld, auto value) {
-				indexes.push_back(value);
-				auto iters = valueArrayFromArrayOfValues(bld, indexes);
-				whileContent(bld, iters);
-			};
-		else
-			loopBody = [&](auto& bld, auto value) {
-				indexes.push_back(value);
-				createdNestedForCycleImp(
-						function,
-						bld,
-						iterationsCountBegin,
-						iterationsCountEnd,
-						whileContent,
-						indexes);
-			};
+		auto loopBody = [&](Value* value) {
+			indexes.push_back(value);
+			if (indexes.size() == iterationsCountBegin.size())
+			{
+				auto iters = valueArrayFromArrayOfValues(builder, indexes);
+				whileContent(iters);
+				return;
+			}
+			createdNestedForCycleImp(
+					function,
+					builder,
+					iterationsCountBegin,
+					iterationsCountEnd,
+					whileContent,
+					indexes);
+		};
 
 		return createForCycle(
 				function,
@@ -334,7 +324,7 @@ namespace modelica
 			IRBuilder<>& builder,
 			ArrayRef<size_t> iterationsCountBegin,
 			ArrayRef<size_t> iterationsCountEnd,
-			std::function<void(IRBuilder<>&, Value*)> whileContent)
+			std::function<void(Value*)> whileContent)
 	{
 		SmallVector<Value*, 3> indexes;
 		return createdNestedForCycleImp(
@@ -350,7 +340,7 @@ namespace modelica
 			Function* function,
 			IRBuilder<>& builder,
 			ArrayRef<size_t> iterationsCountEnd,
-			std::function<void(IRBuilder<>&, Value*)> body)
+			std::function<void(Value*)> body)
 	{
 		SmallVector<size_t, 3> zeros;
 		for (auto& v : iterationsCountEnd)
@@ -364,7 +354,7 @@ namespace modelica
 			Function* function,
 			IRBuilder<>& builder,
 			const ModType& type,
-			std::function<void(IRBuilder<>&, Value*)> body)
+			std::function<void(Value*)> body)
 	{
 		return createdNestedForCycle(function, builder, type.getDimensions(), body);
 	}

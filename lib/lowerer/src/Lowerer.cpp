@@ -32,7 +32,7 @@ static Expected<Function*> populateMain(
 	// call init
 	builder.CreateCall(init);
 
-	const auto forBody = [update, printValues](IRBuilder<>& builder, auto index) {
+	const auto forBody = [&](Value* index) {
 		builder.CreateCall(update);
 		builder.CreateCall(printValues);
 	};
@@ -133,7 +133,7 @@ static Error createForAssigment(LoweringInfo info, const Assigment& assigment)
 		inductionsEnd.push_back(ind.end());
 	Error err = Error::success();
 
-	auto lowerBody = [&](auto& bld, auto inductionVars) {
+	auto lowerBody = [&](Value* inductionVars) {
 		info.inductionsVars = inductionVars;
 		auto error = createNormalAssigment(info, assigment);
 		if (error)

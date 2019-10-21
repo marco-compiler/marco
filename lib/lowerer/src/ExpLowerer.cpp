@@ -40,7 +40,7 @@ Expected<Value*> lowerMemberWiseOp(
 			info.function,
 			info.builder,
 			exp.getLeftHand().getModType(),
-			[&left, &right, exitVal](auto& bld, Value* iterationIndexes) {
+			[&, &bld = info.builder](Value* iterationIndexes) {
 				auto leftEl = loadArrayElement(bld, *left, iterationIndexes);
 				auto rightEl = loadArrayElement(bld, *right, iterationIndexes);
 				auto calculated = op<kind>(bld, leftEl, rightEl);
@@ -70,33 +70,10 @@ static Expected<Value*> lowerTernary(
 		LoweringInfo& info, const ModExp& exp, bool loadOld)
 {
 	assert(exp.isTernary());	// NOLINT
-	const auto leftHandLowerer = [&exp, &info, loadOld](IRBuilder<>& builder) {
-		LoweringInfo newInfo = {
-			builder, info.module, info.function, info.inductionsVars
-		};
-		return lowerExp(newInfo, exp.getLeftHand(), loadOld);
-	};
-	const auto rightHandLowerer = [&exp, &info, loadOld](IRBuilder<>& builder) {
-		LoweringInfo newInfo = {
-			builder, info.module, info.function, info.inductionsVars
-		};
-		return lowerExp(newInfo, exp.getRightHand(), loadOld);
-	};
-	const auto conditionLowerer =
-			[&exp, &info, loadOld](IRBuilder<>& builder) -> Expected<Value*> {
-		auto& condition = exp.getCondition();
-		assert(condition.getModType() == ModType(BultinModTypes::BOOL));	// NOLINT
-		LoweringInfo newInfo = {
-			builder, info.module, info.function, info.inductionsVars
-		};
-		auto ptrToCond = lowerExp(newInfo, condition, loadOld);
-		if (!ptrToCond)
-			return ptrToCond;
 
-		size_t zero = 0;
-		return loadArrayElement(builder, *ptrToCond, zero);
-	};
-
+	assert(
+			exp.getCondition().getModType() ==
+			ModType(BultinModTypes::BOOL));	 // NOLINT
 	auto type = exp.getLeftHand().getModType();
 	auto llvmType =
 			typeToLLVMType(info.builder.getContext(), type)->getPointerTo(0);
@@ -105,9 +82,9 @@ static Expected<Value*> lowerTernary(
 			info.function,
 			info.builder,
 			llvmType,
-			conditionLowerer,
-			leftHandLowerer,
-			rightHandLowerer);
+			[&]() { return lowerExp(info, exp.getCondition(), loadOld); },
+			[&]() { return lowerExp(info, exp.getLeftHand(), loadOld); },
+			[&]() { return lowerExp(info, exp.getRightHand(), loadOld); });
 }
 
 static Expected<Value*> lowerBinaryOp(
@@ -271,15 +248,13 @@ static Expected<Value*> castReturnValue(
 	auto alloca = allocaModType(info.builder, type);
 
 	createForArrayElement(
-			info.function,
-			info.builder,
-			type,
-			[val, alloca, &type](auto& bld, Value* inductionsVar) {
-				auto loadedElem = loadArrayElement(bld, val, inductionsVar);
+			info.function, info.builder, type, [&](Value* inductionsVar) {
+				auto loadedElem = loadArrayElement(info.builder, val, inductionsVar);
 				auto singleDestType =
-						builtInToLLVMType(bld.getContext(), type.getBuiltin());
-				Value* casted = castSingleElem(bld, loadedElem, singleDestType);
-				storeToArrayElement(bld, casted, alloca, inductionsVar);
+						builtInToLLVMType(info.builder.getContext(), type.getBuiltin());
+				Value* casted =
+						castSingleElem(info.builder, loadedElem, singleDestType);
+				storeToArrayElement(info.builder, casted, alloca, inductionsVar);
 			});
 
 	return alloca;

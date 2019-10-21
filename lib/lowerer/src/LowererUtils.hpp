@@ -161,23 +161,22 @@ namespace modelica
 			llvm::IRBuilder<>& builder,
 			size_t iterationCountBegin,
 			size_t iterationCountEnd,
-			std::function<void(llvm::IRBuilder<>&, llvm::Value*)> whileContent);
+			std::function<void(llvm::Value*)> whileContent);
 
 	llvm::BasicBlock* createdNestedForCycle(
 			llvm::Function* function,
 			llvm::IRBuilder<>& builder,
 			llvm::ArrayRef<size_t> iterationsCountBegin,
 			llvm::ArrayRef<size_t> iterationsCountEnd,
-			std::function<void(llvm::IRBuilder<>&, llvm::Value*)> whileContent);
+			std::function<void(llvm::Value*)> whileContent);
 
 	llvm::BasicBlock* createForArrayElement(
 			llvm::Function* function,
 			llvm::IRBuilder<>& builder,
 			const ModType& type,
-			std::function<void(llvm::IRBuilder<>&, llvm::Value*)> whileContent);
+			std::function<void(llvm::Value*)> whileContent);
 
-	using TernaryOpFunction =
-			std::function<llvm::Expected<llvm::Value*>(llvm::IRBuilder<>&)>;
+	using TernaryOpFunction = std::function<llvm::Expected<llvm::Value*>()>;
 
 	/**
 	 * Creates a if else branch based on the result value of condition()

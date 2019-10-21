@@ -192,7 +192,7 @@ Expected<Value*> modelica::lowerNegate(
 			info.function,
 			info.builder,
 			arg1.getModType(),
-			[&lowered, exitVal](auto& bld, Value* iterationIndexes) {
+			[&, &bld = info.builder](Value* iterationIndexes) {
 				auto loaded = loadArrayElement(bld, *lowered, iterationIndexes);
 				auto calculated = op<ModExpKind::negate>(bld, loaded);
 				storeToArrayElement(bld, calculated, exitVal, iterationIndexes);
