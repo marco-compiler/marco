@@ -135,22 +135,11 @@ static Error createForAssigment(LoweringInfo info, const Assigment& assigment)
 
 	auto lowerBody = [&](auto& bld, auto inductionVars) {
 		info.inductionsVars = inductionVars;
-		auto leftVal = lowerExp(info, assigment.getVarName(), false);
-		if (!leftVal)
-		{
-			err = leftVal.takeError();
-			return;
-		}
+		auto error = createNormalAssigment(info, assigment);
+		if (error)
+			err = move(error);
 
-		auto expVal = lowerExp(info, assigment.getExpression(), true);
-		if (!expVal)
-		{
-			err = expVal.takeError();
-			return;
-		}
-		auto casted = bld.CreatePointerCast(*expVal, leftVal.get()->getType());
-		auto loaded = bld.CreateLoad(casted);
-		bld.CreateStore(loaded, *leftVal);
+		info.inductionsVars = nullptr;
 	};
 
 	createdNestedForCycle(

@@ -1,6 +1,7 @@
 #include "ExpLowerer.hpp"
 
 #include "CallLowerer.hpp"
+#include "OperationLowerer.hpp"
 #include "modelica/model/ModErrors.hpp"
 
 using namespace std;
@@ -21,6 +22,34 @@ Type* flatPtrType(PointerType* t)
 	return ArrayType::get(arrayType, flatSize)->getPointerTo(0);
 }
 
+template<ModExpKind kind>
+Expected<Value*> lowerMemberWiseOp(
+		LoweringInfo& info, const ModExp& exp, bool loadOld)
+{
+	assert(exp.getKind() == kind);	// NOLINT
+	auto left = lowerExp(info, exp.getLeftHand(), loadOld);
+	if (!left)
+		return left;
+
+	auto right = lowerExp(info, exp.getRightHand(), loadOld);
+	if (!right)
+		return right;
+
+	auto exitVal = allocaModType(info.builder, exp.getModType());
+	createForArrayElement(
+			info.function,
+			info.builder,
+			exp.getLeftHand().getModType(),
+			[&left, &right, exitVal](auto& bld, Value* iterationIndexes) {
+				auto leftEl = loadArrayElement(bld, *left, iterationIndexes);
+				auto rightEl = loadArrayElement(bld, *right, iterationIndexes);
+				auto calculated = op<kind>(bld, leftEl, rightEl);
+				storeToArrayElement(bld, calculated, exitVal, iterationIndexes);
+			});
+
+	return exitVal;
+}
+
 template<typename T>
 Expected<AllocaInst*> lowerConstantTyped(
 		IRBuilder<>& builder, const ModConst<T>& constant, const ModType& type)
@@ -35,209 +64,6 @@ Expected<AllocaInst*> lowerConstantTyped(
 	for (size_t i = 0; i < constant.size(); i++)
 		storeConstantToArrayElement<T>(builder, constant.get(i), castedAlloca, i);
 	return alloca;
-}
-
-template<int argumentsSize>
-static AllocaInst* elementWiseOperation(
-		LoweringInfo& info,
-		ArrayRef<Value*>& args,
-		const ModType& operationOutType,
-		std::function<Value*(IRBuilder<>&, ArrayRef<Value*>)> operation)
-{
-	auto alloca = allocaModType(info.builder, operationOutType);
-
-	const auto forBody = [alloca, &operation, &args](
-													 IRBuilder<>& bld, Value* index) {
-		SmallVector<Value*, argumentsSize> arguments;
-
-		for (auto arg : args)
-			arguments.push_back(loadArrayElement(bld, arg, index));
-
-		auto outVal = operation(bld, arguments);
-
-		storeToArrayElement(bld, outVal, alloca, index);
-	};
-
-	SmallVector<size_t, 3> zeros;
-	for (auto& v : operationOutType.getDimensions())
-		zeros.push_back(0);
-	createdNestedForCycle(
-			info.function,
-			info.builder,
-			zeros,
-			operationOutType.getDimensions(),
-			forBody);
-
-	return alloca;
-}
-
-static Value* createFloatSingleBynaryOp(
-		LoweringInfo& info, ArrayRef<Value*> args, ModExpKind kind)
-{
-	assert(args[0]->getType()->isFloatTy());					// NOLINT
-	assert(ModExp::Operation::arityOfOp(kind) == 2);	// NOLINT
-	IRBuilder<>& builder = info.builder;
-	switch (kind)
-	{
-		case ModExpKind::add:
-			return builder.CreateFAdd(args[0], args[1]);
-		case ModExpKind::sub:
-			return builder.CreateFSub(args[0], args[1]);
-		case ModExpKind::mult:
-			return builder.CreateFMul(args[0], args[1]);
-		case ModExpKind::divide:
-			return builder.CreateFDiv(args[0], args[1]);
-		case ModExpKind::equal:
-			return builder.CreateFCmpOEQ(args[0], args[1]);
-		case ModExpKind::different:
-			return builder.CreateFCmpONE(args[0], args[1]);
-		case ModExpKind::greaterEqual:
-			return builder.CreateFCmpOGE(args[0], args[1]);
-		case ModExpKind::greaterThan:
-			return builder.CreateFCmpOGT(args[0], args[1]);
-		case ModExpKind::lessEqual:
-			return builder.CreateFCmpOLE(args[0], args[1]);
-		case ModExpKind::less:
-			return builder.CreateFCmpOLT(args[0], args[1]);
-		case ModExpKind::module: {
-			// TODO
-			assert(false && "module unsupported");	// NOLINT
-			return nullptr;
-		}
-		case ModExpKind::elevation: {
-			// TODO
-			assert(false && "powerof unsupported");	 // NOLINT
-			return nullptr;
-		}
-		case ModExpKind::at:
-		case ModExpKind::zero:
-		case ModExpKind::negate:
-		case ModExpKind::conditional:
-		case ModExpKind::induction:
-			assert(false && "unreachable");	 // NOLINT
-			return nullptr;
-	}
-	assert(false && "unreachable");	 // NOLINT
-	return nullptr;
-}
-
-static Value* createIntSingleBynaryOp(
-		LoweringInfo& info, ArrayRef<Value*> args, ModExpKind kind)
-{
-	assert(args[0]->getType()->isIntegerTy());				// NOLINT
-	assert(ModExp::Operation::arityOfOp(kind) == 2);	// NOLINT
-	IRBuilder<>& builder = info.builder;
-	switch (kind)
-	{
-		case ModExpKind::add:
-			return builder.CreateAdd(args[0], args[1]);
-		case ModExpKind::sub:
-			return builder.CreateSub(args[0], args[1]);
-		case ModExpKind::mult:
-			return builder.CreateMul(args[0], args[1]);
-		case ModExpKind::divide:
-			return builder.CreateSDiv(args[0], args[1]);
-		case ModExpKind::equal:
-			return builder.CreateICmpEQ(args[0], args[1]);
-		case ModExpKind::different:
-			return builder.CreateICmpNE(args[0], args[1]);
-		case ModExpKind::greaterEqual:
-			return builder.CreateICmpSGE(args[0], args[1]);
-		case ModExpKind::greaterThan:
-			return builder.CreateICmpSGT(args[0], args[1]);
-		case ModExpKind::lessEqual:
-			return builder.CreateICmpSLE(args[0], args[1]);
-		case ModExpKind::less:
-			return builder.CreateICmpSLT(args[0], args[1]);
-		case ModExpKind::module: {
-			// TODO
-			assert(false && "module unsupported");	// NOLINT
-			return nullptr;
-		}
-		case ModExpKind::elevation: {
-			// TODO
-			assert(false && "powerof unsupported");	 // NOLINT
-			return nullptr;
-		}
-		case ModExpKind::at:
-		case ModExpKind::zero:
-		case ModExpKind::induction:
-		case ModExpKind::negate:
-		case ModExpKind::conditional:
-			assert(false && "unreachable");	 // NOLINT
-			return nullptr;
-	}
-	assert(false && "unreachable");	 // NOLINT
-	return nullptr;
-}
-
-static Value* createSingleBynaryOP(
-		LoweringInfo& info, ArrayRef<Value*> args, ModExpKind kind)
-{
-	assert(ModExp::Operation::arityOfOp(kind) == 2);	// NOLINT
-	auto type = args[0]->getType();
-	if (type->isIntegerTy())
-		return createIntSingleBynaryOp(info, args, kind);
-	if (type->isFloatTy())
-		return createFloatSingleBynaryOp(info, args, kind);
-
-	assert(false && "unreachable");	 // NOLINT
-	return nullptr;
-}
-
-static Value* createSingleUnaryOp(
-		LoweringInfo& info, ArrayRef<Value*> args, ModExpKind kind)
-{
-	IRBuilder<>& builder = info.builder;
-	auto intType = IntegerType::getInt32Ty(builder.getContext());
-	auto boolType = IntegerType::getInt1Ty(builder.getContext());
-	auto zero = ConstantInt::get(boolType, 0);
-	switch (kind)
-	{
-		case ModExpKind::negate:
-			if (args[0]->getType()->isFloatTy())
-				return builder.CreateFNeg(args[0]);
-
-			if (args[0]->getType() == intType)
-				return builder.CreateNeg(args[0]);
-
-			if (args[0]->getType() == boolType)
-				return builder.CreateICmpEQ(args[0], zero);
-			assert(false && "unreachable");	 // NOLINT
-			return nullptr;
-
-		case ModExpKind::induction:
-			return loadArrayElement(builder, info.inductionsVars, args[0]);
-
-			assert(false && "unreachable");	 // NOLINT
-		default:
-			assert(false && "unreachable");	 // NOLINT
-			return nullptr;
-	}
-	assert(false && "unreachable");	 // NOLINT
-	return nullptr;
-}
-
-template<size_t arity>
-static Expected<AllocaInst*> lowerUnOrBinOp(
-		LoweringInfo& info, const ModExp& exp, ArrayRef<Value*> subExp)
-{
-	static_assert(arity < 3 && arity > 0, "cannot lower op with this arity");
-	assert(exp.getArity() == arity);	// NOLINT;
-	assert(subExp.size() == arity);		// NOLINT
-	const auto binaryOp = [type = exp.getKind(), &info](
-														auto& builder, auto args) {
-		LoweringInfo newInfo = {
-			builder, info.module, info.function, info.inductionsVars
-		};
-		if constexpr (arity == 1)
-			return createSingleUnaryOp(newInfo, args, type);
-		else
-			return createSingleBynaryOP(newInfo, args, type);
-	};
-
-	auto opType = exp.getOperationReturnType();
-	return elementWiseOperation<arity>(info, subExp, opType, binaryOp);
 }
 
 static Expected<Value*> lowerTernary(
@@ -284,6 +110,53 @@ static Expected<Value*> lowerTernary(
 			rightHandLowerer);
 }
 
+static Expected<Value*> lowerBinaryOp(
+		LoweringInfo& info, const ModExp& exp, bool loadOld)
+{
+	assert(exp.isBinary());											// NOLINT
+	assert(exp.areSubExpressionCompatibles());	// NOLINT
+	const auto& left = exp.getLeftHand();
+	const auto& right = exp.getRightHand();
+	if (exp.getKind() == ModExpKind::add)
+		return lowerMemberWiseOp<ModExpKind::add>(info, exp, loadOld);
+	if (exp.getKind() == ModExpKind::sub)
+		return lowerMemberWiseOp<ModExpKind::sub>(info, exp, loadOld);
+	if (exp.getKind() == ModExpKind::mult)
+		return lowerMemberWiseOp<ModExpKind::mult>(info, exp, loadOld);
+	if (exp.getKind() == ModExpKind::divide)
+		return lowerMemberWiseOp<ModExpKind::divide>(info, exp, loadOld);
+	if (exp.getKind() == ModExpKind::greaterEqual)
+		return lowerMemberWiseOp<ModExpKind::greaterEqual>(info, exp, loadOld);
+	if (exp.getKind() == ModExpKind::greaterThan)
+		return lowerMemberWiseOp<ModExpKind::greaterThan>(info, exp, loadOld);
+	if (exp.getKind() == ModExpKind::lessEqual)
+		return lowerMemberWiseOp<ModExpKind::lessEqual>(info, exp, loadOld);
+	if (exp.getKind() == ModExpKind::less)
+		return lowerMemberWiseOp<ModExpKind::less>(info, exp, loadOld);
+	if (exp.getKind() == ModExpKind::equal)
+		return lowerMemberWiseOp<ModExpKind::equal>(info, exp, loadOld);
+	if (exp.getKind() == ModExpKind::different)
+		return lowerMemberWiseOp<ModExpKind::different>(info, exp, loadOld);
+	if (exp.getKind() == ModExpKind::at)
+		return lowerAtOperation(info, exp, loadOld);
+	assert(false && "unreachable");	 // NOLINT
+	return nullptr;
+}
+
+static Expected<Value*> lowerUnaryOp(
+		LoweringInfo& info, const ModExp& exp, bool loadOld)
+{
+	assert(exp.isUnary());	// NOLINT
+
+	if (exp.getKind() == ModExpKind::negate)
+		return lowerNegate(info, exp.getLeftHand(), loadOld);
+	if (exp.getKind() == ModExpKind::induction)
+		return lowerInduction(info, exp.getLeftHand(), loadOld);
+
+	assert(false && "unreachable");	 // NOLINT
+	return nullptr;
+}
+
 static Expected<Value*> lowerOperation(
 		LoweringInfo& info, const ModExp& exp, bool loadOld)
 {
@@ -300,55 +173,10 @@ static Expected<Value*> lowerOperation(
 		return lowerTernary(info, exp, loadOld);
 
 	if (exp.isUnary())
-	{
-		SmallVector<Value*, 1> values;
-		auto subexp = lowerExp(info, exp.getLeftHand(), loadOld);
-		if (!subexp)
-			return subexp.takeError();
-		values.push_back(move(*subexp));
-
-		return lowerUnOrBinOp<1>(info, exp, values);
-	}
-	if (exp.getKind() == ModExpKind::at)
-	{
-		auto leftHand = lowerExp(info, exp.getLeftHand(), loadOld);
-		if (!leftHand)
-			return leftHand.takeError();
-
-		auto rightHand = lowerExp(info, exp.getRightHand(), loadOld);
-		if (!rightHand)
-			return rightHand.takeError();
-
-		auto casted = info.builder.CreatePointerCast(
-				*rightHand,
-				Type::getInt32Ty(info.builder.getContext())->getPointerTo(0));
-		auto index = info.builder.CreateLoad(casted);
-
-		auto ret = getArrayElementPtr(info.builder, *leftHand, index);
-		auto ptrToRet = dyn_cast<PointerType>(ret->getType());
-		if (isa<ArrayType>(ptrToRet->getContainedType(0)))
-			return ret;
-
-		auto basic = ptrToRet->getContainedType(0);
-		auto arrayPtr = ArrayType::get(basic, 1);
-		return info.builder.CreatePointerCast(ret, arrayPtr->getPointerTo());
-	}
+		return lowerUnaryOp(info, exp, loadOld);
 
 	if (exp.isBinary())
-	{
-		SmallVector<Value*, 2> values;
-		auto leftHand = lowerExp(info, exp.getLeftHand(), loadOld);
-		if (!leftHand)
-			return leftHand.takeError();
-		values.push_back(move(*leftHand));
-
-		auto rightHand = lowerExp(info, exp.getRightHand(), loadOld);
-		if (!rightHand)
-			return rightHand.takeError();
-		values.push_back(move(*rightHand));
-
-		return lowerUnOrBinOp<2>(info, exp, values);
-	}
+		return lowerBinaryOp(info, exp, loadOld);
 	assert(false && "Unreachable");	 // NOLINT
 	return nullptr;
 }
@@ -368,7 +196,14 @@ static Expected<Value*> uncastedLowerExp(
 	if (exp.isCall())
 		return lowerCall(info, exp.getCall(), loadOld);
 
-	return lowerOperation(info, exp, loadOld);
+	auto opRes = lowerOperation(info, exp, loadOld);
+	if (!opRes)
+		return opRes;
+
+	Type* operationType =
+			typeToLLVMType(info.builder.getContext(), exp.getOperationReturnType());
+	operationType = operationType->getPointerTo();
+	return info.builder.CreatePointerCast(*opRes, operationType);
 }
 
 static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
@@ -396,7 +231,19 @@ static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
 	return builder.CreateTrunc(val, boolType);
 }
 
-static bool castable(ArrayType* type, const ModType& dest)
+static BultinModTypes builtinTypeFromLLVMType(Type* tp)
+{
+	if (tp->isIntegerTy(32))
+		return BultinModTypes::INT;
+	if (tp->isIntegerTy(1))
+		return BultinModTypes::BOOL;
+	if (tp->isFloatTy())
+		return BultinModTypes::FLOAT;
+	assert(false && "unreachable");
+	return BultinModTypes::INT;
+}
+
+static ModType modTypeFromLLVMType(ArrayType* type)
 {
 	SmallVector<size_t, 3> dims;
 	Type* t = type;
@@ -406,39 +253,34 @@ static bool castable(ArrayType* type, const ModType& dest)
 		dims.push_back(tp->getNumElements());
 		t = tp->getContainedType(0);
 	}
-
-	return dest.getDimensions() == dims;
+	return ModType(builtinTypeFromLLVMType(t), move(dims));
 }
 
 static Expected<Value*> castReturnValue(
-		IRBuilder<>& builder, Value* val, const ModType& type)
+		LoweringInfo& info, Value* val, const ModType& type)
 {
 	auto ptrArrayType = dyn_cast<PointerType>(val->getType());
 	auto arrayType = dyn_cast<ArrayType>(ptrArrayType->getContainedType(0));
-	if (ptrArrayType->getContainedType(0)->isSingleValueType())
-	{
-		arrayType = ArrayType::get(ptrArrayType->getContainedType(0), 1);
-		builder.CreatePointerCast(val, arrayType->getPointerTo());
-	}
-	assert(castable(arrayType, type));	// NOLINT
 
-	auto destType = typeToLLVMType(builder.getContext(), type);
-	auto singleDestType = destType->getContainedType(0);
-	while (isa<ArrayType>(singleDestType))
-		singleDestType = singleDestType->getContainedType(0);
+	auto srcType = modTypeFromLLVMType(arrayType);
+	assert(srcType.getDimensions() == type.getDimensions());	// NOLINT
 
-	if (destType == arrayType)
+	if (srcType.getBuiltin() == type.getBuiltin())
 		return val;
 
-	auto alloca = allocaModType(builder, type);
+	auto alloca = allocaModType(info.builder, type);
 
-	for (size_t a = 0; a < arrayType->getNumElements(); a++)
-	{
-		auto loadedElem = loadArrayElement(builder, val, a);
-
-		Value* casted = castSingleElem(builder, loadedElem, singleDestType);
-		storeToArrayElement(builder, casted, alloca, a);
-	}
+	createForArrayElement(
+			info.function,
+			info.builder,
+			type,
+			[val, alloca, &type](auto& bld, Value* inductionsVar) {
+				auto loadedElem = loadArrayElement(bld, val, inductionsVar);
+				auto singleDestType =
+						builtInToLLVMType(bld.getContext(), type.getBuiltin());
+				Value* casted = castSingleElem(bld, loadedElem, singleDestType);
+				storeToArrayElement(bld, casted, alloca, inductionsVar);
+			});
 
 	return alloca;
 }
@@ -467,6 +309,6 @@ namespace modelica
 		if (!retVal)
 			return retVal;
 
-		return castReturnValue(info.builder, *retVal, exp.getModType());
+		return castReturnValue(info, *retVal, exp.getModType());
 	}
 }	 // namespace modelica

@@ -345,4 +345,27 @@ namespace modelica
 				whileContent,
 				indexes);
 	}
+
+	BasicBlock* createdNestedForCycle(
+			Function* function,
+			IRBuilder<>& builder,
+			ArrayRef<size_t> iterationsCountEnd,
+			std::function<void(IRBuilder<>&, Value*)> body)
+	{
+		SmallVector<size_t, 3> zeros;
+		for (auto& v : iterationsCountEnd)
+			zeros.push_back(0);
+
+		return createdNestedForCycle(
+				function, builder, zeros, iterationsCountEnd, body);
+	}
+
+	BasicBlock* createForArrayElement(
+			Function* function,
+			IRBuilder<>& builder,
+			const ModType& type,
+			std::function<void(IRBuilder<>&, Value*)> body)
+	{
+		return createdNestedForCycle(function, builder, type.getDimensions(), body);
+	}
 }	 // namespace modelica
