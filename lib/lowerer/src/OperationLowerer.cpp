@@ -12,6 +12,7 @@ Value* modelica::op<ModExpKind::negate>(IRBuilder<>& builder, Value* arg1)
 	auto boolType = IntegerType::getInt1Ty(builder.getContext());
 	auto zero = ConstantInt::get(boolType, 0);
 	auto type = arg1->getType();
+
 	if (type->isFloatTy())
 		return builder.CreateFNeg(arg1);
 
@@ -162,7 +163,7 @@ Value* modelica::op<ModExpKind::divide>(
 }
 
 Expected<Value*> modelica::lowerAtOperation(
-		LoweringInfo& info, const ModExp& exp, bool loadOld)
+		LowererContext& info, const ModExp& exp, bool loadOld)
 {
 	assert(exp.getKind() == ModExpKind::at);	// NOLINT
 	auto leftHand = lowerExp(info, exp.getLeftHand(), loadOld);
@@ -173,45 +174,43 @@ Expected<Value*> modelica::lowerAtOperation(
 	if (!rightHand)
 		return rightHand.takeError();
 
-	auto casted = info.builder.CreatePointerCast(
-			*rightHand, Type::getInt32Ty(info.builder.getContext())->getPointerTo(0));
-	auto index = info.builder.CreateLoad(casted);
+	auto& builder = info.getBuilder();
+	auto casted = builder.CreatePointerCast(
+			*rightHand, Type::getInt32Ty(builder.getContext())->getPointerTo(0));
+	auto index = builder.CreateLoad(casted);
 
-	return getArrayElementPtr(info.builder, *leftHand, index);
+	return info.getArrayElementPtr(*leftHand, index);
 }
 
 Expected<Value*> modelica::lowerNegate(
-		LoweringInfo& info, const ModExp& arg1, bool loadOld)
+		LowererContext& info, const ModExp& arg1, bool loadOld)
 {
 	auto lowered = lowerExp(info, arg1, loadOld);
 	if (!lowered)
 		return lowered;
 
-	auto exitVal = allocaModType(info.builder, arg1.getModType());
-	createForArrayElement(
-			info.function,
-			info.builder,
-			arg1.getModType(),
-			[&, &bld = info.builder](Value* iterationIndexes) {
-				auto loaded = loadArrayElement(bld, *lowered, iterationIndexes);
-				auto calculated = op<ModExpKind::negate>(bld, loaded);
-				storeToArrayElement(bld, calculated, exitVal, iterationIndexes);
-			});
+	auto& builder = info.getBuilder();
+	auto exitVal = info.allocaModType(arg1.getModType());
+	info.createForArrayElement(arg1.getModType(), [&](Value* iterationIndexes) {
+		auto loaded = info.loadArrayElement(*lowered, iterationIndexes);
+		auto calculated = op<ModExpKind::negate>(builder, loaded);
+		info.storeToArrayElement(calculated, exitVal, iterationIndexes);
+	});
 
 	return exitVal;
 }
 
 Expected<Value*> modelica::lowerInduction(
-		LoweringInfo& info, const ModExp& arg1, bool loadOld)
+		LowererContext& info, const ModExp& arg1, bool loadOld)
 {
 	auto lowered = lowerExp(info, arg1, loadOld);
 	if (!lowered)
 		return lowered;
 	assert(
-			info.inductionsVars != nullptr &&
+			info.getInductionVars() != nullptr &&
 			"induction operation outside of for loop");
 
 	constexpr size_t zero = 0;
-	auto loaded = loadArrayElement(info.builder, *lowered, zero);
-	return getArrayElementPtr(info.builder, info.inductionsVars, loaded);
+	auto loaded = info.loadArrayElement(*lowered, zero);
+	return info.getArrayElementPtr(info.getInductionVars(), loaded);
 }

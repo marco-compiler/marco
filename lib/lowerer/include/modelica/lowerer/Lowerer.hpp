@@ -134,6 +134,22 @@ namespace modelica
 		}
 
 		private:
+		llvm::Error insertGlobal(
+				llvm::StringRef name,
+				const ModExp& exp,
+				llvm::GlobalValue::LinkageTypes linkage);
+		llvm::Error createAllGlobals(llvm::GlobalValue::LinkageTypes linkType);
+		/**
+		 * allocates the global var into the module
+		 * and initializes it with the provided value.
+		 * the variable must not have been already inserted
+		 *
+		 * \return an error if the allocation failed
+		 */
+		llvm::Error simExpToGlobalVar(
+				llvm::StringRef name,
+				const ModType& type,
+				llvm::GlobalValue::LinkageTypes linkage);
 		llvm::Module module;
 		llvm::StringMap<ModExp> variables;
 		llvm::SmallVector<Assigment, 0> updates;

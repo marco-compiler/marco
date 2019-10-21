@@ -6,75 +6,167 @@
 
 namespace modelica
 {
-	struct LoweringInfo
+	class LowererContext
 	{
+		private:
 		llvm::IRBuilder<>& builder;
 		llvm::Module& module;
 		llvm::Function* function;
 		llvm::Value* inductionsVars;
+
+		llvm::BasicBlock* createdNestedForCycleImp(
+				llvm::ArrayRef<InductionVar> iterationsCountBegin,
+				std::function<void(llvm::Value*)> whileContent,
+				llvm::SmallVector<llvm::Value*, 3>& indexes);
+
+		llvm::Value* valueArrayFromArrayOfValues(
+				llvm::SmallVector<llvm::Value*, 3> vals);
+
+		public:
+		LowererContext(llvm::IRBuilder<>& builder, llvm::Module& module)
+				: builder(builder),
+					module(module),
+					function(nullptr),
+					inductionsVars(nullptr)
+		{
+		}
+		[[nodiscard]] llvm::IRBuilder<>& getBuilder() { return builder; }
+		[[nodiscard]] llvm::Module& getModule() { return module; }
+		[[nodiscard]] llvm::Function* getFunction() { return function; }
+		[[nodiscard]] llvm::Value* getInductionVars() { return inductionsVars; }
+		[[nodiscard]] llvm::LLVMContext& getContext()
+		{
+			return builder.getContext();
+		}
+
+		void setFunction(llvm::Function* fun) { function = fun; }
+		void setInductions(llvm::Value* inds) { inductionsVars = inds; }
+		/**
+		 * \return the pointer to the index element inside the array pointed by
+		 * arrayPtr
+		 */
+		llvm::Value* getArrayElementPtr(llvm::Value* arrayPtr, llvm::Value* index);
+
+		/**
+		 * \return the pointer to the index element inside the array pointed by
+		 * arrayPtr
+		 * \pre index in bounds
+		 */
+		llvm::Value* getArrayElementPtr(llvm::Value* arrayPtr, size_t index);
+
+		/**
+		 * \return a alloca instr that contains a zero terminated array of all
+		 * dimensions of the type
+		 */
+		llvm::AllocaInst* getTypeDimensionsArray(const ModType& type);
+
+		/**
+		 * arrayPtr[index] = value;
+		 */
+		void storeToArrayElement(
+				llvm::Value* value, llvm::Value* arrayPtr, llvm::Value* index);
+
+		/**
+		 * arrayPtr[index] = value;
+		 *
+		 */
+		void storeToArrayElement(
+				llvm::Value* value, llvm::Value* arrayPtr, size_t index);
+
+		/**
+		 * \return arrayPtr[index]
+		 */
+		llvm::Value* loadArrayElement(llvm::Value* arrayPtr, size_t index);
+
+		/**
+		 * \return arrayPtr[index]
+		 */
+		llvm::Value* loadArrayElement(llvm::Value* arrayPtr, llvm::Value* index);
+
+		/**
+		 * creates a store of an single variable to the provided location.
+		 * \return the StoreInt
+		 */
+		template<typename T>
+		llvm::Value* makeConstantStore(T value, llvm::Value* location)
+		{
+			auto ptrType = llvm::dyn_cast<llvm::PointerType>(location->getType());
+			auto underlyingType = ptrType->getContainedType(0);
+
+			if (underlyingType == llvm::Type::getFloatTy(builder.getContext()))
+
+				return builder.CreateStore(
+						llvm::ConstantFP::get(underlyingType, value), location);
+			return builder.CreateStore(
+					llvm::ConstantInt::get(underlyingType, value), location);
+		}
+
+		/**
+		 * arrayPtr[index] = value
+		 */
+		template<typename T>
+		void storeConstantToArrayElement(
+				T value, llvm::Value* arrayPtr, size_t index)
+		{
+			auto ptrToElem = getArrayElementPtr(arrayPtr, index);
+			makeConstantStore<T>(value, ptrToElem);
+		}
+
+		/**
+		 * creates a load instruction to load the old value of a particular var.
+		 *
+		 * \return the loadInst
+		 */
+		llvm::Expected<llvm::Value*> lowerReference(
+				llvm::StringRef exp, bool loadold);
+
+		/**
+		 * \return a llvm::type rappresenting the array of types of the provided
+		 * ModType.
+		 */
+		llvm::AllocaInst* allocaModType(const ModType& type);
+
+		/**
+		 * Creates a for cycle that last interationsCount iterations
+		 * that will be inserted in the provided builder
+		 * The caller has to provide whileContent which is function that will
+		 * produce the actual body of the loop.
+		 *
+		 * \return the exit point of the loop, that is the basic block that will
+		 * always be executed at some point. The builder will look at that basic
+		 * block.
+		 */
+		llvm::BasicBlock* createForCycle(
+				InductionVar induction, std::function<void(llvm::Value*)> whileContent);
+
+		llvm::BasicBlock* createdNestedForCycle(
+				llvm::ArrayRef<InductionVar> induction,
+				std::function<void(llvm::Value*)> whileContent);
+
+		llvm::BasicBlock* createForArrayElement(
+				const ModType& type, std::function<void(llvm::Value*)> whileContent);
+
+		llvm::BasicBlock* createdNestedForCycle(
+				llvm::ArrayRef<size_t> iterationsCountEnd,
+				std::function<void(llvm::Value*)> body);
+
+		using TernaryOpFunction = std::function<llvm::Expected<llvm::Value*>()>;
+
+		/**
+		 * Creates a if else branch based on the result value of condition()
+		 * \pre the returned llvm::type of trueBlock() must be equal to the
+		 * returned llvm::type of falseBlock() and to outType, the returned
+		 * llvm::type of condition() bust be int1. \return the phi instruction
+		 * that contains the result of the brach taken.
+		 *
+		 * builder will now point at the exit BB.
+		 */
+		llvm::Expected<llvm::Value*> createTernaryOp(
+				llvm::Type* outType,
+				TernaryOpFunction condition,
+				TernaryOpFunction trueBlock,
+				TernaryOpFunction falseBlock);
 	};
-	/**
-	 * \brief create a function with internal linkage in the provided module and
-	 * provided name.
-	 *
-	 * \return the created function, FunctionAlreadyExists if the function already
-	 * existed
-	 */
-	llvm::Expected<llvm::Function*> makePrivateFunction(
-			llvm::StringRef name, llvm::Module& m);
-
-	/**
-	 * \return the pointer to the index element inside the array pointed by
-	 * arrayPtr
-	 */
-	llvm::Value* getArrayElementPtr(
-			llvm::IRBuilder<>& bld, llvm::Value* arrayPtr, llvm::Value* index);
-
-	/**
-	 * \return the pointer to the index element inside the array pointed by
-	 * arrayPtr
-	 * \pre index in bounds
-	 */
-	llvm::Value* getArrayElementPtr(
-			llvm::IRBuilder<>& bld, llvm::Value* arrayPtr, size_t index);
-
-	/**
-	 * \return a alloca instr that contains a zero terminated array of all
-	 * dimensions of the type
-	 */
-	llvm::AllocaInst* getTypeDimensionsArray(
-			llvm::IRBuilder<>& bld, const ModType& type);
-
-	/**
-	 * arrayPtr[index] = value;
-	 */
-	void storeToArrayElement(
-			llvm::IRBuilder<>& bld,
-			llvm::Value* value,
-			llvm::Value* arrayPtr,
-			llvm::Value* index);
-
-	/**
-	 * arrayPtr[index] = value;
-	 *
-	 */
-	void storeToArrayElement(
-			llvm::IRBuilder<>& bld,
-			llvm::Value* value,
-			llvm::Value* arrayPtr,
-			size_t index);
-
-	/**
-	 * \return arrayPtr[index]
-	 */
-	llvm::Value* loadArrayElement(
-			llvm::IRBuilder<>& bld, llvm::Value* arrayPtr, size_t index);
-
-	/**
-	 * \return arrayPtr[index]
-	 */
-	llvm::Value* loadArrayElement(
-			llvm::IRBuilder<>& bld, llvm::Value* arrayPtr, llvm::Value* index);
 	/**
 	 * creates a type from a ModType
 	 * \return the created type
@@ -88,108 +180,4 @@ namespace modelica
 	 */
 	[[nodiscard]] llvm::Type* builtInToLLVMType(
 			llvm::LLVMContext& context, BultinModTypes type);
-
-	/**
-	 * allocates the global var into the module
-	 * and initializes it with the provided value.
-	 * the variable must not have been already inserted
-	 *
-	 * \return an error if the allocation failed
-	 */
-	llvm::Error simExpToGlobalVar(
-			llvm::Module& module,
-			llvm::StringRef name,
-			const ModType& type,
-			llvm::GlobalValue::LinkageTypes linkage);
-
-	/**
-	 * creates a store of an single variable to the provided location.
-	 * \return the StoreInt
-	 */
-	template<typename T>
-	llvm::Value* makeConstantStore(
-			llvm::IRBuilder<>& builder, T value, llvm::Value* location)
-	{
-		auto ptrType = llvm::dyn_cast<llvm::PointerType>(location->getType());
-		auto underlyingType = ptrType->getContainedType(0);
-
-		if (underlyingType == llvm::Type::getFloatTy(builder.getContext()))
-
-			return builder.CreateStore(
-					llvm::ConstantFP::get(underlyingType, value), location);
-		return builder.CreateStore(
-				llvm::ConstantInt::get(underlyingType, value), location);
-	}
-
-	/**
-	 * arrayPtr[index] = value
-	 */
-	template<typename T>
-	void storeConstantToArrayElement(
-			llvm::IRBuilder<>& bld, T value, llvm::Value* arrayPtr, size_t index)
-	{
-		auto ptrToElem = getArrayElementPtr(bld, arrayPtr, index);
-		makeConstantStore<T>(bld, value, ptrToElem);
-	}
-
-	/**
-	 * creates a load instruction to load the old value of a particular var.
-	 *
-	 * \return the loadInst
-	 */
-	llvm::Expected<llvm::Value*> lowerReference(
-			llvm::IRBuilder<>& builder, llvm::StringRef exp, bool loadold);
-
-	/**
-	 * \return a llvm::type rappresenting the array of types of the provided
-	 * ModType.
-	 */
-	llvm::AllocaInst* allocaModType(llvm::IRBuilder<>& bld, const ModType& type);
-
-	/**
-	 * Creates a for cycle that last interationsCount iterations
-	 * that will be inserted in the provided builder
-	 * The caller has to provide whileContent which is function that will
-	 * produce the actual body of the loop.
-	 *
-	 * \return the exit point of the loop, that is the basic block that will
-	 * always be executed at some point. The builder will look at that basic
-	 * block.
-	 */
-	llvm::BasicBlock* createForCycle(
-			llvm::Function* function,
-			llvm::IRBuilder<>& builder,
-			InductionVar induction,
-			std::function<void(llvm::Value*)> whileContent);
-
-	llvm::BasicBlock* createdNestedForCycle(
-			llvm::Function* function,
-			llvm::IRBuilder<>& builder,
-			llvm::ArrayRef<InductionVar> induction,
-			std::function<void(llvm::Value*)> whileContent);
-
-	llvm::BasicBlock* createForArrayElement(
-			llvm::Function* function,
-			llvm::IRBuilder<>& builder,
-			const ModType& type,
-			std::function<void(llvm::Value*)> whileContent);
-
-	using TernaryOpFunction = std::function<llvm::Expected<llvm::Value*>()>;
-
-	/**
-	 * Creates a if else branch based on the result value of condition()
-	 * \pre the returned llvm::type of trueBlock() must be equal to the
-	 * returned llvm::type of falseBlock() and to outType, the returned
-	 * llvm::type of condition() bust be int1. \return the phi instruction
-	 * that contains the result of the brach taken.
-	 *
-	 * builder will now point at the exit BB.
-	 */
-	llvm::Expected<llvm::Value*> createTernaryOp(
-			llvm::Function* function,
-			llvm::IRBuilder<>& builder,
-			llvm::Type* outType,
-			TernaryOpFunction condition,
-			TernaryOpFunction trueBlock,
-			TernaryOpFunction falseBlock);
 }	 // namespace modelica

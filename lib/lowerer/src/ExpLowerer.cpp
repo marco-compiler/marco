@@ -24,7 +24,7 @@ Type* flatPtrType(PointerType* t)
 
 template<ModExpKind kind>
 Expected<Value*> lowerMemberWiseOp(
-		LoweringInfo& info, const ModExp& exp, bool loadOld)
+		LowererContext& info, const ModExp& exp, bool loadOld)
 {
 	assert(exp.getKind() == kind);	// NOLINT
 	auto left = lowerExp(info, exp.getLeftHand(), loadOld);
@@ -35,16 +35,13 @@ Expected<Value*> lowerMemberWiseOp(
 	if (!right)
 		return right;
 
-	auto exitVal = allocaModType(info.builder, exp.getModType());
-	createForArrayElement(
-			info.function,
-			info.builder,
-			exp.getLeftHand().getModType(),
-			[&, &bld = info.builder](Value* iterationIndexes) {
-				auto leftEl = loadArrayElement(bld, *left, iterationIndexes);
-				auto rightEl = loadArrayElement(bld, *right, iterationIndexes);
-				auto calculated = op<kind>(bld, leftEl, rightEl);
-				storeToArrayElement(bld, calculated, exitVal, iterationIndexes);
+	auto exitVal = info.allocaModType(exp.getModType());
+	info.createForArrayElement(
+			exp.getLeftHand().getModType(), [&](Value* iterationIndexes) {
+				auto leftEl = info.loadArrayElement(*left, iterationIndexes);
+				auto rightEl = info.loadArrayElement(*right, iterationIndexes);
+				auto calculated = op<kind>(info.getBuilder(), leftEl, rightEl);
+				info.storeToArrayElement(calculated, exitVal, iterationIndexes);
 			});
 
 	return exitVal;
@@ -52,22 +49,23 @@ Expected<Value*> lowerMemberWiseOp(
 
 template<typename T>
 Expected<AllocaInst*> lowerConstantTyped(
-		IRBuilder<>& builder, const ModConst<T>& constant, const ModType& type)
+		LowererContext& cont, const ModConst<T>& constant, const ModType& type)
 {
 	if (constant.size() != type.flatSize())
 		return make_error<TypeConstantSizeMissMatch>(constant, type);
 
-	auto alloca = allocaModType(builder, type);
+	auto& builder = cont.getBuilder();
+	auto alloca = cont.allocaModType(type);
 	auto castedAlloca =
 			builder.CreatePointerCast(alloca, flatPtrType(alloca->getType()));
 
 	for (size_t i = 0; i < constant.size(); i++)
-		storeConstantToArrayElement<T>(builder, constant.get(i), castedAlloca, i);
+		cont.storeConstantToArrayElement<T>(constant.get(i), castedAlloca, i);
 	return alloca;
 }
 
 static Expected<Value*> lowerTernary(
-		LoweringInfo& info, const ModExp& exp, bool loadOld)
+		LowererContext& info, const ModExp& exp, bool loadOld)
 {
 	assert(exp.isTernary());	// NOLINT
 
@@ -75,12 +73,9 @@ static Expected<Value*> lowerTernary(
 			exp.getCondition().getModType() ==
 			ModType(BultinModTypes::BOOL));	 // NOLINT
 	auto type = exp.getLeftHand().getModType();
-	auto llvmType =
-			typeToLLVMType(info.builder.getContext(), type)->getPointerTo(0);
+	auto llvmType = typeToLLVMType(info.getContext(), type)->getPointerTo();
 
-	return createTernaryOp(
-			info.function,
-			info.builder,
+	return info.createTernaryOp(
 			llvmType,
 			[&]() { return lowerExp(info, exp.getCondition(), loadOld); },
 			[&]() { return lowerExp(info, exp.getLeftHand(), loadOld); },
@@ -88,7 +83,7 @@ static Expected<Value*> lowerTernary(
 }
 
 static Expected<Value*> lowerBinaryOp(
-		LoweringInfo& info, const ModExp& exp, bool loadOld)
+		LowererContext& info, const ModExp& exp, bool loadOld)
 {
 	assert(exp.isBinary());											// NOLINT
 	assert(exp.areSubExpressionCompatibles());	// NOLINT
@@ -121,7 +116,7 @@ static Expected<Value*> lowerBinaryOp(
 }
 
 static Expected<Value*> lowerUnaryOp(
-		LoweringInfo& info, const ModExp& exp, bool loadOld)
+		LowererContext& info, const ModExp& exp, bool loadOld)
 {
 	assert(exp.isUnary());	// NOLINT
 
@@ -135,7 +130,7 @@ static Expected<Value*> lowerUnaryOp(
 }
 
 static Expected<Value*> lowerOperation(
-		LoweringInfo& info, const ModExp& exp, bool loadOld)
+		LowererContext& info, const ModExp& exp, bool loadOld)
 {
 	assert(exp.isOperation());	// NOLINT
 
@@ -143,7 +138,7 @@ static Expected<Value*> lowerOperation(
 	{
 		ModType type(BultinModTypes::INT);
 		IntModConst constant(0);
-		return lowerConstantTyped(info.builder, constant, type);
+		return lowerConstantTyped(info, constant, type);
 	}
 
 	if (exp.isTernary())
@@ -159,16 +154,16 @@ static Expected<Value*> lowerOperation(
 }
 
 static Expected<Value*> uncastedLowerExp(
-		LoweringInfo& info, const ModExp& exp, bool loadOld)
+		LowererContext& info, const ModExp& exp, bool loadOld)
 {
 	if (!exp.areSubExpressionCompatibles())
 		return make_error<TypeMissMatch>(exp);
 
 	if (exp.isConstant())
-		return lowerConstant(info.builder, exp);
+		return lowerConstant(info, exp);
 
 	if (exp.isReference())
-		return lowerReference(info.builder, exp.getReference(), loadOld);
+		return info.lowerReference(exp.getReference(), loadOld);
 
 	if (exp.isCall())
 		return lowerCall(info, exp.getCall(), loadOld);
@@ -178,9 +173,9 @@ static Expected<Value*> uncastedLowerExp(
 		return opRes;
 
 	Type* operationType =
-			typeToLLVMType(info.builder.getContext(), exp.getOperationReturnType());
+			typeToLLVMType(info.getContext(), exp.getOperationReturnType());
 	operationType = operationType->getPointerTo();
-	return info.builder.CreatePointerCast(*opRes, operationType);
+	return info.getBuilder().CreatePointerCast(*opRes, operationType);
 }
 
 static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
@@ -234,7 +229,7 @@ static ModType modTypeFromLLVMType(ArrayType* type)
 }
 
 static Expected<Value*> castReturnValue(
-		LoweringInfo& info, Value* val, const ModType& type)
+		LowererContext& info, Value* val, const ModType& type)
 {
 	auto ptrArrayType = dyn_cast<PointerType>(val->getType());
 	auto arrayType = dyn_cast<ArrayType>(ptrArrayType->getContainedType(0));
@@ -245,40 +240,41 @@ static Expected<Value*> castReturnValue(
 	if (srcType.getBuiltin() == type.getBuiltin())
 		return val;
 
-	auto alloca = allocaModType(info.builder, type);
+	auto alloca = info.allocaModType(type);
 
-	createForArrayElement(
-			info.function, info.builder, type, [&](Value* inductionsVar) {
-				auto loadedElem = loadArrayElement(info.builder, val, inductionsVar);
-				auto singleDestType =
-						builtInToLLVMType(info.builder.getContext(), type.getBuiltin());
-				Value* casted =
-						castSingleElem(info.builder, loadedElem, singleDestType);
-				storeToArrayElement(info.builder, casted, alloca, inductionsVar);
-			});
+	info.createForArrayElement(type, [&](Value* inductionsVar) {
+		auto loadedElem = info.loadArrayElement(val, inductionsVar);
+		auto singleDestType =
+				builtInToLLVMType(info.getContext(), type.getBuiltin());
+		Value* casted =
+				castSingleElem(info.getBuilder(), loadedElem, singleDestType);
+		info.storeToArrayElement(casted, alloca, inductionsVar);
+	});
 
 	return alloca;
 }
 
 namespace modelica
 {
-	Expected<AllocaInst*> lowerConstant(IRBuilder<>& builder, const ModExp& exp)
+	Expected<AllocaInst*> lowerConstant(
+			LowererContext& context, const ModExp& exp)
 	{
 		if (exp.isConstant<int>())
 			return lowerConstantTyped<int>(
-					builder, exp.getConstant<int>(), exp.getModType());
+					context, exp.getConstant<int>(), exp.getModType());
 		if (exp.isConstant<float>())
 			return lowerConstantTyped<float>(
-					builder, exp.getConstant<float>(), exp.getModType());
+					context, exp.getConstant<float>(), exp.getModType());
 		if (exp.isConstant<bool>())
 			return lowerConstantTyped<bool>(
-					builder, exp.getConstant<bool>(), exp.getModType());
+					context, exp.getConstant<bool>(), exp.getModType());
 
 		assert(false && "unreachable");	 // NOLINT
 		return nullptr;
 	}
 
-	Expected<Value*> lowerExp(LoweringInfo& info, const ModExp& exp, bool loadOld)
+	Expected<Value*> lowerExp(
+			LowererContext& info, const ModExp& exp, bool loadOld)
 	{
 		auto retVal = uncastedLowerExp(info, exp, loadOld);
 		if (!retVal)

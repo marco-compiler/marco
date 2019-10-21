@@ -11,10 +11,10 @@ namespace modelica
 	template<ModExpKind kind, typename... Values>
 	llvm::Value* op(llvm::IRBuilder<>& builder, Values... arg1);
 	llvm::Expected<llvm::Value*> lowerAtOperation(
-			LoweringInfo& info, const ModExp& exp, bool loadOld);
+			LowererContext& info, const ModExp& exp, bool loadOld);
 	llvm::Expected<llvm::Value*> lowerNegate(
-			LoweringInfo& info, const ModExp& arg1, bool loadOld);
+			LowererContext& info, const ModExp& arg1, bool loadOld);
 	llvm::Expected<llvm::Value*> lowerInduction(
-			LoweringInfo& info, const ModExp& arg1, bool loadOld);
+			LowererContext& info, const ModExp& arg1, bool loadOld);
 
 }	 // namespace modelica

@@ -5,8 +5,8 @@
 namespace modelica
 {
 	llvm::Expected<llvm::Value*> lowerExp(
-			LoweringInfo& info, const ModExp& exp, bool oldValues);
+			LowererContext& info, const ModExp& exp, bool oldValues);
 
 	llvm::Expected<llvm::AllocaInst*> lowerConstant(
-			llvm::IRBuilder<>& builder, const ModExp& exp);
+			LowererContext& context, const ModExp& exp);
 }	 // namespace modelica
