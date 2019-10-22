@@ -55,4 +55,7 @@ void ModCall::dump(raw_ostream& OS) const
 	OS << ' ';
 	type.dump(OS);
 	OS << '(';
+	for (size_t a = 0; a < args.size(); a++)
+		at(a).dump(OS);
+	OS << ')';
 }

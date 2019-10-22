@@ -33,7 +33,7 @@ extern "C"
 			printf("\t%d\n", value[a]);
 	}
 
-	void fill(float* out, int* outDim, float* filler, int* dim)
+	void fill(float* out, long* outDim, float* filler, long* dim)
 	{
 		size_t flatSize = 1;
 		for (int a = 0; outDim[a] != 0; a++)

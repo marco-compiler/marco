@@ -64,6 +64,7 @@ static Expected<Function*> populateMain(
 	lCont.setFunction(main);
 	// call init
 	builder.CreateCall(init);
+	builder.CreateCall(printValues);
 	// creates a for with simulationStop iterations what invokes
 	// update and print values each time
 	auto loopExit =
@@ -121,9 +122,10 @@ static Expected<Function*> initializeGlobals(
 	LowererContext cont(builder, m);
 
 	cont.setFunction(initFunction);
+	cont.setLoadOldValues(true);
 	for (const auto& pair : vars)
 	{
-		auto val = lowerExp(cont, pair.second, true);
+		auto val = lowerExp(cont, pair.second);
 		if (!val)
 			return val.takeError();
 		auto loaded = builder.CreateLoad(*val);
@@ -138,11 +140,13 @@ static Expected<Function*> initializeGlobals(
 static Error createNormalAssigment(
 		LowererContext& info, const Assigment& assigment)
 {
-	auto left = lowerExp(info, assigment.getVarName(), false);
+	info.setLoadOldValues(false);
+	auto left = lowerExp(info, assigment.getLeftHand());
 	if (!left)
 		return left.takeError();
 
-	auto val = lowerExp(info, assigment.getExpression(), true);
+	info.setLoadOldValues(true);
+	auto val = lowerExp(info, assigment.getExpression());
 	if (!val)
 		return val.takeError();
 
@@ -269,7 +273,8 @@ static void createPrintOfVar(
 			selectPrintName(basType), printType);
 	auto externalPrint = dyn_cast<Function>(callee.getCallee());
 
-	auto numElements = ConstantInt::get(intType, arrayType->getNumElements());
+	auto numElements =
+			ConstantInt::get(intType, modTypeFromLLVMType(arrayType).flatSize());
 	auto casted = context.getBuilder().CreatePointerCast(ptrToVar, ptrToBaseType);
 	SmallVector<Value*, 3> argsVal({ ptrToStrName, casted, numElements });
 	context.getBuilder().CreateCall(externalPrint, argsVal);
@@ -327,12 +332,6 @@ Error Lowerer::lower()
 
 void Lowerer::dump(raw_ostream& OS) const
 {
-	auto const dumpAssigment = [&OS](const auto& couple) {
-		couple.getVarName().dump(OS);
-		OS << " = ";
-		couple.getExpression().dump(OS);
-		OS << "\n";
-	};
 	auto const dumpEquation = [&OS](const auto& couple) {
 		OS << couple.first().data();
 		OS << " = ";
@@ -344,7 +343,8 @@ void Lowerer::dump(raw_ostream& OS) const
 	for_each(begin(variables), end(variables), dumpEquation);
 
 	OS << "Update:\n";
-	for_each(begin(updates), end(updates), dumpAssigment);
+	for (const auto& update : updates)
+		update.dump(OS);
 }
 
 void Lowerer::dumpBC(raw_ostream& OS) const { WriteBitcodeToFile(module, OS); }

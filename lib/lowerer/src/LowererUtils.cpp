@@ -104,11 +104,11 @@ ArrayType* modelica::typeToLLVMType(LLVMContext& context, const ModType& type)
 	return dyn_cast<ArrayType>(tp);
 }
 
-Expected<Value*> LowererContext::lowerReference(StringRef exp, bool loadOld)
+Expected<Value*> LowererContext::lowerReference(StringRef exp)
 {
 	auto module = builder.GetInsertBlock()->getModule();
 	auto global =
-			module->getGlobalVariable(exp.str() + (loadOld ? "_old" : ""), true);
+			module->getGlobalVariable(exp.str() + (loadOldValue ? "_old" : ""), true);
 	if (global == nullptr)
 		return make_error<UnkownVariable>(exp.str());
 	return global;
@@ -276,4 +276,29 @@ BasicBlock* LowererContext::createForArrayElement(
 		const ModType& type, std::function<void(Value*)> body)
 {
 	return createdNestedForCycle(type.getDimensions(), body);
+}
+
+BultinModTypes modelica::builtinTypeFromLLVMType(Type* tp)
+{
+	if (tp->isIntegerTy(32))
+		return BultinModTypes::INT;
+	if (tp->isIntegerTy(1))
+		return BultinModTypes::BOOL;
+	if (tp->isFloatTy())
+		return BultinModTypes::FLOAT;
+	assert(false && "unreachable");
+	return BultinModTypes::INT;
+}
+
+ModType modelica::modTypeFromLLVMType(ArrayType* type)
+{
+	SmallVector<size_t, 3> dims;
+	Type* t = type;
+	while (isa<ArrayType>(t))
+	{
+		auto tp = dyn_cast<ArrayType>(t);
+		dims.push_back(tp->getNumElements());
+		t = tp->getContainedType(0);
+	}
+	return ModType(builtinTypeFromLLVMType(t), move(dims));
 }

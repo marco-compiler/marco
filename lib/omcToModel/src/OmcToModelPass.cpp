@@ -177,24 +177,16 @@ bool insertArray(
 			continue;
 
 		auto simpleMod = dyn_cast<SimpleModification>(child.get());
-		if (!isa<ComponentReferenceExpr>(simpleMod->getExpression()))
+		if (!isa<FloatLiteralExpr>(simpleMod->getExpression()))
 			continue;
 
-		auto ref = dyn_cast<ComponentReferenceExpr>(simpleMod->getExpression());
+		auto ref = dyn_cast<FloatLiteralExpr>(simpleMod->getExpression());
 
-		auto intExp = model.getVar(ref->getName()).getInit();
+		ModExp sourceExp(ModConst<float>(ref->getValue()));
 
-		vector<int> intDim;
-		for (auto i : dimensions)
-			intDim.push_back(i);
-		ModConst<int> constDim(intDim);
-		ModExp arg(constDim, ModType(BultinModTypes::INT, intDim.size()));
-		ModExp sourceExp(ref->getName(), intExp.getModType());
-
-		ModType outType(intExp.getModType().getBuiltin(), dimensions);
+		ModType outType(sourceExp.getModType().getBuiltin(), dimensions);
 		return !model.emplaceVar(
-				varName.str(),
-				ModExp(ModCall("fill", { move(sourceExp), move(arg) }, outType)));
+				varName.str(), ModExp(ModCall("fill", { move(sourceExp) }, outType)));
 	}
 	return false;
 }
@@ -210,7 +202,7 @@ static InductionVar inductionFromEq(const ForEquation* eq)
 	auto begin = dyn_cast<IntLiteralExpr>(rangeExp->getStart());
 	auto end = dyn_cast<IntLiteralExpr>(rangeExp->getStop());
 
-	return InductionVar(begin->getValue(), end->getValue());
+	return InductionVar(begin->getValue(), end->getValue() + 1);
 }
 
 static ModEquation handleEq(

@@ -23,15 +23,14 @@ Type* flatPtrType(PointerType* t)
 }
 
 template<ModExpKind kind>
-Expected<Value*> lowerMemberWiseOp(
-		LowererContext& info, const ModExp& exp, bool loadOld)
+Expected<Value*> lowerMemberWiseOp(LowererContext& info, const ModExp& exp)
 {
 	assert(exp.getKind() == kind);	// NOLINT
-	auto left = lowerExp(info, exp.getLeftHand(), loadOld);
+	auto left = lowerExp(info, exp.getLeftHand());
 	if (!left)
 		return left;
 
-	auto right = lowerExp(info, exp.getRightHand(), loadOld);
+	auto right = lowerExp(info, exp.getRightHand());
 	if (!right)
 		return right;
 
@@ -64,8 +63,7 @@ Expected<AllocaInst*> lowerConstantTyped(
 	return alloca;
 }
 
-static Expected<Value*> lowerTernary(
-		LowererContext& info, const ModExp& exp, bool loadOld)
+static Expected<Value*> lowerTernary(LowererContext& info, const ModExp& exp)
 {
 	assert(exp.isTernary());	// NOLINT
 
@@ -77,60 +75,57 @@ static Expected<Value*> lowerTernary(
 
 	return info.createTernaryOp(
 			llvmType,
-			[&]() { return lowerExp(info, exp.getCondition(), loadOld); },
-			[&]() { return lowerExp(info, exp.getLeftHand(), loadOld); },
-			[&]() { return lowerExp(info, exp.getRightHand(), loadOld); });
+			[&]() { return lowerExp(info, exp.getCondition()); },
+			[&]() { return lowerExp(info, exp.getLeftHand()); },
+			[&]() { return lowerExp(info, exp.getRightHand()); });
 }
 
-static Expected<Value*> lowerBinaryOp(
-		LowererContext& info, const ModExp& exp, bool loadOld)
+static Expected<Value*> lowerBinaryOp(LowererContext& info, const ModExp& exp)
 {
 	assert(exp.isBinary());											// NOLINT
 	assert(exp.areSubExpressionCompatibles());	// NOLINT
 	const auto& left = exp.getLeftHand();
 	const auto& right = exp.getRightHand();
 	if (exp.getKind() == ModExpKind::add)
-		return lowerMemberWiseOp<ModExpKind::add>(info, exp, loadOld);
+		return lowerMemberWiseOp<ModExpKind::add>(info, exp);
 	if (exp.getKind() == ModExpKind::sub)
-		return lowerMemberWiseOp<ModExpKind::sub>(info, exp, loadOld);
+		return lowerMemberWiseOp<ModExpKind::sub>(info, exp);
 	if (exp.getKind() == ModExpKind::mult)
-		return lowerMemberWiseOp<ModExpKind::mult>(info, exp, loadOld);
+		return lowerMemberWiseOp<ModExpKind::mult>(info, exp);
 	if (exp.getKind() == ModExpKind::divide)
-		return lowerMemberWiseOp<ModExpKind::divide>(info, exp, loadOld);
+		return lowerMemberWiseOp<ModExpKind::divide>(info, exp);
 	if (exp.getKind() == ModExpKind::greaterEqual)
-		return lowerMemberWiseOp<ModExpKind::greaterEqual>(info, exp, loadOld);
+		return lowerMemberWiseOp<ModExpKind::greaterEqual>(info, exp);
 	if (exp.getKind() == ModExpKind::greaterThan)
-		return lowerMemberWiseOp<ModExpKind::greaterThan>(info, exp, loadOld);
+		return lowerMemberWiseOp<ModExpKind::greaterThan>(info, exp);
 	if (exp.getKind() == ModExpKind::lessEqual)
-		return lowerMemberWiseOp<ModExpKind::lessEqual>(info, exp, loadOld);
+		return lowerMemberWiseOp<ModExpKind::lessEqual>(info, exp);
 	if (exp.getKind() == ModExpKind::less)
-		return lowerMemberWiseOp<ModExpKind::less>(info, exp, loadOld);
+		return lowerMemberWiseOp<ModExpKind::less>(info, exp);
 	if (exp.getKind() == ModExpKind::equal)
-		return lowerMemberWiseOp<ModExpKind::equal>(info, exp, loadOld);
+		return lowerMemberWiseOp<ModExpKind::equal>(info, exp);
 	if (exp.getKind() == ModExpKind::different)
-		return lowerMemberWiseOp<ModExpKind::different>(info, exp, loadOld);
+		return lowerMemberWiseOp<ModExpKind::different>(info, exp);
 	if (exp.getKind() == ModExpKind::at)
-		return lowerAtOperation(info, exp, loadOld);
+		return lowerAtOperation(info, exp);
 	assert(false && "unreachable");	 // NOLINT
 	return nullptr;
 }
 
-static Expected<Value*> lowerUnaryOp(
-		LowererContext& info, const ModExp& exp, bool loadOld)
+static Expected<Value*> lowerUnaryOp(LowererContext& info, const ModExp& exp)
 {
 	assert(exp.isUnary());	// NOLINT
 
 	if (exp.getKind() == ModExpKind::negate)
-		return lowerNegate(info, exp.getLeftHand(), loadOld);
+		return lowerNegate(info, exp.getLeftHand());
 	if (exp.getKind() == ModExpKind::induction)
-		return lowerInduction(info, exp.getLeftHand(), loadOld);
+		return lowerInduction(info, exp.getLeftHand());
 
 	assert(false && "unreachable");	 // NOLINT
 	return nullptr;
 }
 
-static Expected<Value*> lowerOperation(
-		LowererContext& info, const ModExp& exp, bool loadOld)
+static Expected<Value*> lowerOperation(LowererContext& info, const ModExp& exp)
 {
 	assert(exp.isOperation());	// NOLINT
 
@@ -142,19 +137,19 @@ static Expected<Value*> lowerOperation(
 	}
 
 	if (exp.isTernary())
-		return lowerTernary(info, exp, loadOld);
+		return lowerTernary(info, exp);
 
 	if (exp.isUnary())
-		return lowerUnaryOp(info, exp, loadOld);
+		return lowerUnaryOp(info, exp);
 
 	if (exp.isBinary())
-		return lowerBinaryOp(info, exp, loadOld);
+		return lowerBinaryOp(info, exp);
 	assert(false && "Unreachable");	 // NOLINT
 	return nullptr;
 }
 
 static Expected<Value*> uncastedLowerExp(
-		LowererContext& info, const ModExp& exp, bool loadOld)
+		LowererContext& info, const ModExp& exp)
 {
 	if (!exp.areSubExpressionCompatibles())
 		return make_error<TypeMissMatch>(exp);
@@ -163,12 +158,12 @@ static Expected<Value*> uncastedLowerExp(
 		return lowerConstant(info, exp);
 
 	if (exp.isReference())
-		return info.lowerReference(exp.getReference(), loadOld);
+		return info.lowerReference(exp.getReference());
 
 	if (exp.isCall())
-		return lowerCall(info, exp.getCall(), loadOld);
+		return lowerCall(info, exp.getCall());
 
-	auto opRes = lowerOperation(info, exp, loadOld);
+	auto opRes = lowerOperation(info, exp);
 	if (!opRes)
 		return opRes;
 
@@ -201,31 +196,6 @@ static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
 		return builder.CreateFPToSI(val, boolType);
 
 	return builder.CreateTrunc(val, boolType);
-}
-
-static BultinModTypes builtinTypeFromLLVMType(Type* tp)
-{
-	if (tp->isIntegerTy(32))
-		return BultinModTypes::INT;
-	if (tp->isIntegerTy(1))
-		return BultinModTypes::BOOL;
-	if (tp->isFloatTy())
-		return BultinModTypes::FLOAT;
-	assert(false && "unreachable");
-	return BultinModTypes::INT;
-}
-
-static ModType modTypeFromLLVMType(ArrayType* type)
-{
-	SmallVector<size_t, 3> dims;
-	Type* t = type;
-	while (isa<ArrayType>(t))
-	{
-		auto tp = dyn_cast<ArrayType>(t);
-		dims.push_back(tp->getNumElements());
-		t = tp->getContainedType(0);
-	}
-	return ModType(builtinTypeFromLLVMType(t), move(dims));
 }
 
 static Expected<Value*> castReturnValue(
@@ -273,10 +243,9 @@ namespace modelica
 		return nullptr;
 	}
 
-	Expected<Value*> lowerExp(
-			LowererContext& info, const ModExp& exp, bool loadOld)
+	Expected<Value*> lowerExp(LowererContext& info, const ModExp& exp)
 	{
-		auto retVal = uncastedLowerExp(info, exp, loadOld);
+		auto retVal = uncastedLowerExp(info, exp);
 		if (!retVal)
 			return retVal;
 

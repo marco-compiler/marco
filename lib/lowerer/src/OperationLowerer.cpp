@@ -163,14 +163,14 @@ Value* modelica::op<ModExpKind::divide>(
 }
 
 Expected<Value*> modelica::lowerAtOperation(
-		LowererContext& info, const ModExp& exp, bool loadOld)
+		LowererContext& info, const ModExp& exp)
 {
 	assert(exp.getKind() == ModExpKind::at);	// NOLINT
-	auto leftHand = lowerExp(info, exp.getLeftHand(), loadOld);
+	auto leftHand = lowerExp(info, exp.getLeftHand());
 	if (!leftHand)
 		return leftHand.takeError();
 
-	auto rightHand = lowerExp(info, exp.getRightHand(), loadOld);
+	auto rightHand = lowerExp(info, exp.getRightHand());
 	if (!rightHand)
 		return rightHand.takeError();
 
@@ -182,10 +182,9 @@ Expected<Value*> modelica::lowerAtOperation(
 	return info.getArrayElementPtr(*leftHand, index);
 }
 
-Expected<Value*> modelica::lowerNegate(
-		LowererContext& info, const ModExp& arg1, bool loadOld)
+Expected<Value*> modelica::lowerNegate(LowererContext& info, const ModExp& arg1)
 {
-	auto lowered = lowerExp(info, arg1, loadOld);
+	auto lowered = lowerExp(info, arg1);
 	if (!lowered)
 		return lowered;
 
@@ -201,9 +200,9 @@ Expected<Value*> modelica::lowerNegate(
 }
 
 Expected<Value*> modelica::lowerInduction(
-		LowererContext& info, const ModExp& arg1, bool loadOld)
+		LowererContext& info, const ModExp& arg1)
 {
-	auto lowered = lowerExp(info, arg1, loadOld);
+	auto lowered = lowerExp(info, arg1);
 	if (!lowered)
 		return lowered;
 	assert(

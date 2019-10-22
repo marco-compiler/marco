@@ -13,6 +13,7 @@ namespace modelica
 		llvm::Module& module;
 		llvm::Function* function;
 		llvm::Value* inductionsVars;
+		bool loadOldValue;
 
 		llvm::BasicBlock* createdNestedForCycleImp(
 				llvm::ArrayRef<InductionVar> iterationsCountBegin,
@@ -27,7 +28,8 @@ namespace modelica
 				: builder(builder),
 					module(module),
 					function(nullptr),
-					inductionsVars(nullptr)
+					inductionsVars(nullptr),
+					loadOldValue(false)
 		{
 		}
 		[[nodiscard]] llvm::IRBuilder<>& getBuilder() { return builder; }
@@ -39,6 +41,7 @@ namespace modelica
 			return builder.getContext();
 		}
 
+		void setLoadOldValues(bool loadOld) { loadOldValue = loadOld; }
 		void setFunction(llvm::Function* fun) { function = fun; }
 		void setInductions(llvm::Value* inds) { inductionsVars = inds; }
 		/**
@@ -117,8 +120,7 @@ namespace modelica
 		 *
 		 * \return the loadInst
 		 */
-		llvm::Expected<llvm::Value*> lowerReference(
-				llvm::StringRef exp, bool loadold);
+		llvm::Expected<llvm::Value*> lowerReference(llvm::StringRef exp);
 
 		/**
 		 * \return a llvm::type rappresenting the array of types of the provided
@@ -180,4 +182,7 @@ namespace modelica
 	 */
 	[[nodiscard]] llvm::Type* builtInToLLVMType(
 			llvm::LLVMContext& context, BultinModTypes type);
+
+	[[nodiscard]] BultinModTypes builtinTypeFromLLVMType(llvm::Type* tp);
+	[[nodiscard]] ModType modTypeFromLLVMType(llvm::ArrayType* type);
 }	 // namespace modelica

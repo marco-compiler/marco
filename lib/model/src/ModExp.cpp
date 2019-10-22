@@ -78,66 +78,58 @@ ModType ModExp::Operation::getOperationReturnType() const
 
 static void dumpOperation(const ModExp& exp, llvm::raw_ostream& OS)
 {
-	OS << "(";
+	OS << '(';
 	OS << exprKindToString(exp.getKind());
-	OS << " ";
+	OS << ' ';
+
+	if (exp.getArity() >= 1)
+		exp.getLeftHand().dump(OS);
+	if (exp.getArity() >= 2)
+	{
+		OS << ", ";
+		exp.getRightHand().dump(OS);
+	}
+	if (exp.getArity() == 3)
+	{
+		exp.getCondition().dump(OS);
+		OS << ", ";
+	}
+	OS << ')';
 }
-
-class ModExpDumper
-{
-	public:
-	ModExpDumper(llvm::raw_ostream& OS): OS(OS) {}
-
-	void visit(const ModExp& exp)
-	{
-		if (exp.isConstant<int>())
-		{
-			dumpConstant(exp.getConstant<int>(), OS);
-			return;
-		}
-		if (exp.isConstant<float>())
-		{
-			dumpConstant(exp.getConstant<float>(), OS);
-			return;
-		}
-		if (exp.isConstant<bool>())
-		{
-			dumpConstant(exp.getConstant<bool>(), OS);
-			return;
-		}
-		if (exp.isReference())
-		{
-			OS << exp.getReference();
-			return;
-		}
-
-		if (exp.isOperation())
-		{
-			dumpOperation(exp, OS);
-			return;
-		}
-		if (exp.isCall())
-		{
-			exp.getCall().dump(OS);
-			return;
-		}
-		assert(false && "Unrechable");	// NOLINT
-	}
-
-	void afterVisit(const ModExp& exp)
-	{
-		if (exp.isOperation() || exp.isCall())
-			OS << ")";
-		else
-			OS << " ";
-	}
-
-	private:
-	llvm::raw_ostream& OS;
-};
 
 void ModExp::dump(llvm::raw_ostream& OS) const
 {
-	ModExpDumper dumper(OS);
-	visit(*this, dumper);
+	getModType().dump(OS);
+	if (isConstant<int>())
+	{
+		dumpConstant(getConstant<int>(), OS);
+		return;
+	}
+	if (isConstant<float>())
+	{
+		dumpConstant(getConstant<float>(), OS);
+		return;
+	}
+	if (isConstant<bool>())
+	{
+		dumpConstant(getConstant<bool>(), OS);
+		return;
+	}
+	if (isReference())
+	{
+		OS << getReference();
+		return;
+	}
+
+	if (isOperation())
+	{
+		dumpOperation(*this, OS);
+		return;
+	}
+	if (isCall())
+	{
+		getCall().dump(OS);
+		return;
+	}
+	assert(false && "Unrechable");	// NOLINT
 }

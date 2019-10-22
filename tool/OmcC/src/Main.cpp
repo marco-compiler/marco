@@ -22,6 +22,12 @@ opt<int> simulationTime(
 		cl::init(10),
 		cl::cat(omcCCat));
 
+opt<float> timeStep(
+		"timeStep",
+		cl::desc("how long in seconds a ticks in simulation lasts"),
+		cl::init(0.1f),
+		cl::cat(omcCCat));
+
 opt<bool> dumpModel(
 		"dumpModel",
 		cl::desc("dump simulation on stdout while running"),
@@ -52,7 +58,7 @@ int main(int argc, char* argv[])
 			"Modelica Model",
 			"main",
 			simulationTime);
-	if (!sim.addVar("deltaTime", ModExp::constExp<float>(0.1F)))
+	if (!sim.addVar("deltaTime", ModExp::constExp<float>(timeStep)))
 	{
 		outs() << "DeltaTime was already defined\n";
 		return -1;

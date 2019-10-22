@@ -46,7 +46,7 @@ namespace modelica
 					inductionVars(std::move(inducts))
 		{
 		}
-		[[nodiscard]] const ModExp& getVarName() const { return leftHand; }
+		[[nodiscard]] const ModExp& getLeftHand() const { return leftHand; }
 
 		[[nodiscard]] const ModExp& getExpression() const { return expression; }
 
