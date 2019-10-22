@@ -29,8 +29,11 @@ opt<float> timeStep(
 		cl::cat(omcCCat));
 
 opt<bool> dumpModel(
-		"dumpModel",
-		cl::desc("dump simulation on stdout while running"),
+		"d", cl::desc("dump model"), cl::init(false), cl::cat(omcCCat));
+
+opt<bool> dumpLowered(
+		"l",
+		cl::desc("dump lowered model and exit"),
 		cl::init(false),
 		cl::cat(omcCCat));
 
@@ -49,6 +52,12 @@ int main(int argc, char* argv[])
 	OmcToModelPass pass(model);
 	ast = topDownVisit(move(ast), pass);
 
+	if (dumpModel)
+	{
+		model.dump(outs());
+		return 0;
+	}
+
 	auto assModel = exitOnErr(solveDer(move(model)));
 	LLVMContext context;
 	Lowerer sim(
@@ -64,8 +73,11 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	if (dumpModel)
+	if (dumpLowered)
+	{
 		sim.dump(outs());
+		return 0;
+	}
 	exitOnErr(sim.lower());
 	error_code error;
 	raw_fd_ostream OS(outputFile, error, sys::fs::F_None);
