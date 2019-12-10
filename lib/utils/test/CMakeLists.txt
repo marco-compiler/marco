@@ -1,6 +1,6 @@
 include(GoogleTest)
 
-ADD_EXECUTABLE(utilsTest src/DefaultTest.cpp src/LexerTest.cpp src/NumbersLexerTest.cpp)
+ADD_EXECUTABLE(utilsTest src/DefaultTest.cpp src/LexerTest.cpp src/NumbersLexerTest.cpp src/IntervalTest.cpp)
 ADD_EXECUTABLE(modelica::utilsTest ALIAS utilsTest)
 
 TARGET_LINK_LIBRARIES(utilsTest PRIVATE gtest gtest_main modelica::utils)

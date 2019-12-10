@@ -25,7 +25,7 @@ opt<int> simulationTime(
 opt<float> timeStep(
 		"timeStep",
 		cl::desc("how long in seconds a ticks in simulation lasts"),
-		cl::init(0.1f),
+		cl::init(0.1F),
 		cl::cat(omcCCat));
 
 opt<bool> dumpModel(

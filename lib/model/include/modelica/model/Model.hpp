@@ -73,7 +73,7 @@ namespace modelica
 		}
 
 		template<typename... Args>
-		void addEquation(Args... args)
+		void addEquation(Args&&... args)
 		{
 			equations.emplace_back(std::forward<Args>(args)...);
 		}
@@ -89,7 +89,7 @@ namespace modelica
 		}
 
 		template<typename... Args>
-		[[nodiscard]] bool emplaceVar(std::string name, Args... args)
+		[[nodiscard]] bool emplaceVar(std::string name, Args&&... args)
 		{
 			if (vars.find(name) != vars.end())
 				return false;

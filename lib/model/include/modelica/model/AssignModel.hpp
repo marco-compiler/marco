@@ -42,7 +42,7 @@ namespace modelica
 		}
 
 		template<typename... T>
-		void emplaceUpdate(T... args)
+		void emplaceUpdate(T&&... args)
 		{
 			updates.emplace_back(std::forward<T>(args)...);
 		}
