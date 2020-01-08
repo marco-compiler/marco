@@ -3,6 +3,7 @@
 #include <cctype>
 #include <functional>
 #include <iterator>
+#include <string>
 
 namespace modelica
 {
@@ -121,13 +122,13 @@ namespace modelica
 		 *
 		 * DO NOT CHANGE THIS TO A llvm::stringRef, stringRef is not null terminated
 		 */
-		Lexer(const std::string& str)
-				: StateMachine(str[0]),
-					getNext([iter = str.begin()]() mutable -> char {
+		Lexer(const std::string& inputString)
+				: StateMachine(inputString[0]),
+					getNext([iter = inputString.begin()]() mutable -> char {
 						iter++;
 						return *iter;
 					}),
-					lastChar(str[0])
+					lastChar(inputString[0])
 		{
 		}
 
@@ -185,4 +186,4 @@ namespace modelica
 		char lastChar;
 	};
 
-}	// namespace modelica
+}	 // namespace modelica

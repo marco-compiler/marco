@@ -1,6 +1,8 @@
 #include "modelica/model/ModParser.hpp"
 
+#include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModErrors.hpp"
+#include "modelica/model/ModVariable.hpp"
 
 using namespace modelica;
 using namespace llvm;
@@ -281,9 +283,9 @@ Expected<ModCall> ModParser::call()
 	return ModCall(move(fname), move(vec), move(*t));
 }
 
-Expected<StringMap<ModExp>> ModParser::initSection()
+Expected<StringMap<ModVariable>> ModParser::initSection()
 {
-	StringMap<ModExp> map;
+	StringMap<ModVariable> map;
 	if (auto e = expect(ModToken::InitKeyword); !e)
 		return e.takeError();
 
@@ -294,18 +296,20 @@ Expected<StringMap<ModExp>> ModParser::initSection()
 			return stat.takeError();
 
 		auto [name, exp] = move(*stat);
-		if (map.find(name) != map.end())
+		ModVariable var(name, move(exp));
+
+		if (map.find(var.getName()) != map.end())
 			return make_error<UnexpectedModToken>(
 					ModToken::Ident, ModToken::Ident, getPosition());
-		map.try_emplace(move(name), move(exp));
+		map.try_emplace(name, move(var));
 	}
 
 	return map;
 }
 
-Expected<SmallVector<Assigment, 0>> ModParser::updateSection()
+Expected<SmallVector<ModEquation, 0>> ModParser::updateSection()
 {
-	SmallVector<Assigment, 0> map;
+	SmallVector<ModEquation, 0> map;
 	if (auto e = expect(ModToken::UpdateKeyword); !e)
 		return e.takeError();
 
@@ -321,7 +325,7 @@ Expected<SmallVector<Assigment, 0>> ModParser::updateSection()
 	return map;
 }
 
-Expected<tuple<StringMap<ModExp>, SmallVector<Assigment, 0>>>
+Expected<tuple<StringMap<ModVariable>, SmallVector<ModEquation, 0>>>
 ModParser::simulation()
 {
 	auto initSect = initSection();
@@ -387,7 +391,7 @@ Expected<SmallVector<InductionVar, 3>> ModParser::inductions()
 	return inductions;
 }
 
-Expected<Assigment> ModParser::updateStatement()
+Expected<ModEquation> ModParser::updateStatement()
 {
 	SmallVector<InductionVar, 3> ind;
 
@@ -409,8 +413,10 @@ Expected<Assigment> ModParser::updateStatement()
 		auto exp = expression();
 		if (!exp)
 			return exp.takeError();
+		auto tp = exp->getModType();
+		auto leftRef = ModExp(move(name), move(tp));
 
-		return Assigment(move(name), move(*exp), move(ind));
+		return ModEquation(leftRef, move(*exp), move(ind));
 	}
 	auto leftHand = expression();
 	if (!leftHand)
@@ -423,7 +429,7 @@ Expected<Assigment> ModParser::updateStatement()
 	if (!exp)
 		return exp.takeError();
 
-	return Assigment(move(*leftHand), move(*exp), move(ind));
+	return ModEquation(move(*leftHand), move(*exp), move(ind));
 }
 
 Expected<ModExp> ModParser::expression()

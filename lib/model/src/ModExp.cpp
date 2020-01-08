@@ -97,6 +97,17 @@ static void dumpOperation(const ModExp& exp, llvm::raw_ostream& OS)
 	OS << ')';
 }
 
+bool ModExp::isReferenceAccess() const
+{
+	if (isReference())
+		return true;
+
+	if (isOperation())
+		if (getOperation().getKind() == ModExpKind::at)
+			return getLeftHand().isReferenceAccess();
+	return false;
+}
+
 void ModExp::dump(llvm::raw_ostream& OS) const
 {
 	getModType().dump(OS);

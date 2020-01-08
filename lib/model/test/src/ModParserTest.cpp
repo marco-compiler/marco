@@ -161,13 +161,13 @@ TEST(ModParserTest, forUpdateStatement)
 	if (!vec)
 		FAIL();
 
-	EXPECT_EQ("id", vec->getLeftHand().getReference());
-	EXPECT_TRUE(vec->getExpression().isOperation());
-	EXPECT_EQ(ModExpKind::add, vec->getExpression().getKind());
-	EXPECT_EQ(vec->getInductionVar(0).begin(), 1);
-	EXPECT_EQ(vec->getInductionVar(0).end(), 3);
-	EXPECT_EQ(vec->getInductionVar(1).begin(), 1);
-	EXPECT_EQ(vec->getInductionVar(1).end(), 4);
+	EXPECT_EQ("id", vec->getLeft().getReference());
+	EXPECT_TRUE(vec->getRight().isOperation());
+	EXPECT_EQ(ModExpKind::add, vec->getRight().getKind());
+	EXPECT_EQ(vec->getInductions()[0].begin(), 1);
+	EXPECT_EQ(vec->getInductions()[0].end(), 3);
+	EXPECT_EQ(vec->getInductions()[1].begin(), 1);
+	EXPECT_EQ(vec->getInductions()[1].end(), 4);
 }
 
 TEST(ModParserTest, sectionStatement)
@@ -189,7 +189,7 @@ TEST(ModParserTest, updateSection)
 	if (!vec)
 		FAIL();
 
-	EXPECT_TRUE(vec.get()[0].getLeftHand().getReference() == "id");
+	EXPECT_TRUE(vec.get()[0].getLeft().getReference() == "id");
 }
 
 TEST(ModParserTest, simulation)
@@ -204,6 +204,6 @@ TEST(ModParserTest, simulation)
 	auto [init, update] = move(*vec);
 
 	EXPECT_TRUE(init.find("id") != init.end());
-	EXPECT_TRUE(update[0].getLeftHand().getReference() == "id");
-	EXPECT_TRUE(init.find("id")->second == update[0].getExpression());
+	EXPECT_TRUE(update[0].getLeft().getReference() == "id");
+	EXPECT_TRUE(init.find("id")->second.getInit() == update[0].getRight());
 }

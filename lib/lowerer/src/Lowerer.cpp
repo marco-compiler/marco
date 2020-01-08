@@ -5,6 +5,7 @@
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/IRBuilder.h"
 #include "modelica/model/ModErrors.hpp"
+#include "modelica/model/ModVariable.hpp"
 
 using namespace std;
 using namespace modelica;
@@ -105,14 +106,14 @@ Error Lowerer::insertGlobal(
 Error Lowerer::createAllGlobals(GlobalValue::LinkageTypes linkType)
 {
 	for (const auto& pair : variables)
-		if (auto e = insertGlobal(pair.first(), pair.second, linkType); e)
+		if (auto e = insertGlobal(pair.first(), pair.second.getInit(), linkType); e)
 			return e;
 
 	return Error::success();
 }
 
 static Expected<Function*> initializeGlobals(
-		Module& m, const StringMap<ModExp>& vars)
+		Module& m, const StringMap<ModVariable>& vars)
 {
 	auto initFunctionExpected = makePrivateFunction("init", m);
 	if (!initFunctionExpected)
@@ -125,7 +126,7 @@ static Expected<Function*> initializeGlobals(
 	cont.setLoadOldValues(true);
 	for (const auto& pair : vars)
 	{
-		auto val = lowerExp(cont, pair.second);
+		auto val = lowerExp(cont, pair.second.getInit());
 		if (!val)
 			return val.takeError();
 		auto loaded = builder.CreateLoad(*val);
@@ -189,7 +190,7 @@ static Error createAssigment(LowererContext& info, const Assigment& assigment)
 static Expected<Function*> createUpdates(
 		Module& m,
 		const SmallVector<Assigment, 0>& upds,
-		const StringMap<ModExp>& definitions)
+		const StringMap<ModVariable>& definitions)
 {
 	auto updateFunctionExpected = makePrivateFunction("update", m);
 	if (!updateFunctionExpected)
@@ -280,7 +281,7 @@ static void createPrintOfVar(
 	context.getBuilder().CreateCall(externalPrint, argsVal);
 }
 
-static Expected<Function*> populatePrint(Module& m, StringMap<ModExp> vars)
+static Expected<Function*> populatePrint(Module& m, StringMap<ModVariable> vars)
 {
 	auto printFunctionExpected = makePrivateFunction("print", m);
 	if (!printFunctionExpected)
@@ -335,7 +336,7 @@ void Lowerer::dump(raw_ostream& OS) const
 	auto const dumpEquation = [&OS](const auto& couple) {
 		OS << couple.first().data();
 		OS << " = ";
-		couple.second.dump(OS);
+		couple.second.getInit().dump(OS);
 		OS << "\n";
 	};
 
@@ -355,7 +356,7 @@ void Lowerer::dumpHeader(raw_ostream& OS) const
 
 	for (const auto& var : variables)
 	{
-		const auto& type = var.second.getModType();
+		const auto& type = var.second.getInit().getModType();
 
 		OS << "extern ";
 		type.dumpCSyntax(var.first(), OS);

@@ -1,8 +1,13 @@
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "modelica/lowerer/Lowerer.hpp"
+#include "modelica/model/Assigment.hpp"
+#include "modelica/model/EntryModel.hpp"
+#include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModParser.hpp"
+#include "modelica/passes/Matching.hpp"
 
 using namespace modelica;
 using namespace llvm;
@@ -44,7 +49,43 @@ opt<int> simulationTime(
 		cl::init(10),
 		cl::cat(simCCategory));
 
+opt<string> dumpMatchingGraph(
+		"dumpStartMatchGraph",
+		cl::desc("dump the starting matching graph exit"),
+		cl::init("-"),
+		cl::cat(simCCategory));
+
+SmallVector<Assigment, 2> toAssign(SmallVector<ModEquation, 2>&& equs)
+{
+	SmallVector<Assigment, 2> assign;
+
+	for (ModEquation& eq : equs)
+	{
+		assert(eq.getLeft().isReference() || eq.getLeft().isReferenceAccess());
+		assign.emplace_back(
+				move(eq.getLeft()), move(eq.getRight()), move(eq.getInductions()));
+	}
+
+	return assign;
+}
 ExitOnError exitOnErr;
+
+int dumpGraph(const Model& model)
+{
+	error_code error;
+	raw_fd_ostream OS(dumpMatchingGraph, error, sys::fs::F_None);
+	if (error)
+	{
+		errs() << error.message();
+		return -1;
+	}
+
+	MatchingGraph graph(model);
+	graph.dumpGraph(OS);
+
+	return 0;
+}
+
 int main(int argc, char* argv[])
 {
 	cl::ParseCommandLineOptions(argc, argv);
@@ -53,11 +94,15 @@ int main(int argc, char* argv[])
 	ModParser parser(buffer->getBufferStart());
 	auto [init, update] = exitOnErr(parser.simulation());
 
+	if (dumpMatchingGraph != "-")
+		return dumpGraph(EntryModel(move(update), move(init)));
+
+	auto assigments = toAssign(move(update));
 	LLVMContext context;
 	Lowerer sim(
 			context,
 			move(init),
-			move(update),
+			move(assigments),
 			"Modulation",
 			entryPointName,
 			simulationTime);

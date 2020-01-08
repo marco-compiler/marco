@@ -341,6 +341,8 @@ namespace modelica
 						 getRightHand().getModType().canBeCastedInto(getModType());
 		}
 
+		[[nodiscard]] bool isReferenceAccess() const;
+
 		/**
 		 * \brief Dumps the expression value into a human readable from to the
 		 * provided raw_ostream by default it's standard out

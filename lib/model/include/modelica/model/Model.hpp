@@ -2,7 +2,9 @@
 #include <vector>
 
 #include "llvm/ADT/StringMap.h"
+#include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModEquation.hpp"
+#include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModVariable.hpp"
 
 namespace modelica
@@ -72,13 +74,14 @@ namespace modelica
 			equations.push_back(std::move(equation));
 		}
 
-		template<typename... Args>
-		void addEquation(Args&&... args)
+		void emplaceEquation(
+				ModExp left, ModExp right, llvm::SmallVector<InductionVar, 2> vars = {})
 		{
-			equations.emplace_back(std::forward<Args>(args)...);
+			equations.emplace_back(
+					std::move(left), std::move(right), std::move(vars));
 		}
 
-		[[nodiscard]] bool addVar(ModVariable exp)
+		bool addVar(ModVariable exp)
 		{
 			auto name = exp.getName();
 			if (vars.find(name) != vars.end())
@@ -89,7 +92,7 @@ namespace modelica
 		}
 
 		template<typename... Args>
-		[[nodiscard]] bool emplaceVar(std::string name, Args&&... args)
+		bool emplaceVar(std::string name, Args&&... args)
 		{
 			if (vars.find(name) != vars.end())
 				return false;

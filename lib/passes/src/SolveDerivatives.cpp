@@ -1,5 +1,7 @@
 #include "modelica/passes/SolveDerivatives.hpp"
 
+#include "modelica/model/ModVariable.hpp"
+
 using namespace modelica;
 using namespace std;
 using namespace llvm;
@@ -12,7 +14,7 @@ Expected<AssignModel> modelica::solveDer(EntryModel&& model)
 	{
 		auto& name = var.second.getName();
 		auto& exp = var.second.getInit();
-		if (!out.addVar(move(name), move(exp)))
+		if (!out.addVar(ModVariable(move(name), move(exp))))
 			return make_error<GlobalVariableCreationFailure>(var.first().str());
 	}
 

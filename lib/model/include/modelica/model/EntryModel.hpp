@@ -1,5 +1,6 @@
 #pragma once
 
+#include "llvm/ADT/SmallVector.h"
 #include "modelica/model/Model.hpp"
 
 namespace modelica
@@ -8,7 +9,8 @@ namespace modelica
 	{
 		public:
 		EntryModel(
-				std::vector<ModEquation> equations, llvm::StringMap<ModVariable> vars)
+				llvm::SmallVector<ModEquation, 2> equations,
+				llvm::StringMap<ModVariable> vars)
 				: Model(std::move(equations), std::move(vars))
 		{
 		}

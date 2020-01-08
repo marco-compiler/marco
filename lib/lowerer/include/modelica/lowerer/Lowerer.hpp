@@ -5,6 +5,7 @@
 #include "llvm/IR/Module.h"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModExp.hpp"
+#include "modelica/model/ModVariable.hpp"
 
 namespace modelica
 {
@@ -28,8 +29,8 @@ namespace modelica
 		public:
 		Lowerer(
 				llvm::LLVMContext& context,
-				llvm::StringMap<ModExp> vars,
-				llvm::SmallVector<Assigment, 0> updates,
+				llvm::StringMap<ModVariable> vars,
+				llvm::SmallVector<Assigment, 2> updates,
 				std::string name = "Modelica Module",
 				std::string entryPointName = "main",
 				unsigned stopTime = defaultModulationIterations)
@@ -61,10 +62,11 @@ namespace modelica
 		 *
 		 * \return true if there were no other vars with the same name already.
 		 */
-		[[nodiscard]] bool addVar(std::string name, ModExp exp)
+		[[nodiscard]] bool addVar(ModVariable exp)
 		{
-			if (variables.find(name) != variables.end())
+			if (variables.find(exp.getName()) != variables.end())
 				return false;
+			auto name = exp.getName();
 			variables.try_emplace(std::move(name), std::move(exp));
 			return true;
 		}
@@ -151,7 +153,7 @@ namespace modelica
 				const ModType& type,
 				llvm::GlobalValue::LinkageTypes linkage);
 		llvm::Module module;
-		llvm::StringMap<ModExp> variables;
+		llvm::StringMap<ModVariable> variables;
 		llvm::SmallVector<Assigment, 0> updates;
 		unsigned stopTime;
 

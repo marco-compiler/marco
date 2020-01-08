@@ -4,6 +4,7 @@
 #include "modelica/Parser.hpp"
 #include "modelica/lowerer/Lowerer.hpp"
 #include "modelica/model/AssignModel.hpp"
+#include "modelica/model/ModVariable.hpp"
 #include "modelica/omcToModel/OmcToModelPass.hpp"
 #include "modelica/passes/SolveDerivatives.hpp"
 
@@ -40,6 +41,20 @@ opt<bool> dumpLowered(
 opt<string> outputFile(
 		"bc", cl::desc("<output-file>"), cl::init("-"), cl::cat(omcCCat));
 
+SmallVector<Assigment, 2> toAssign(SmallVector<ModEquation, 2>&& equs)
+{
+	SmallVector<Assigment, 2> assign;
+
+	for (ModEquation& eq : equs)
+	{
+		assert(eq.getLeft().isReference() || eq.getLeft().isReferenceAccess());
+		assign.emplace_back(
+				move(eq.getLeft()), move(eq.getRight()), move(eq.getInductions()));
+	}
+
+	return assign;
+}
+
 ExitOnError exitOnErr;
 int main(int argc, char* argv[])
 {
@@ -67,7 +82,7 @@ int main(int argc, char* argv[])
 			"Modelica Model",
 			"main",
 			simulationTime);
-	if (!sim.addVar("deltaTime", ModExp::constExp<float>(timeStep)))
+	if (!sim.addVar(ModVariable("deltaTime", ModExp::constExp<float>(timeStep))))
 	{
 		outs() << "DeltaTime was already defined\n";
 		return -1;

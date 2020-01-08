@@ -1,5 +1,6 @@
 #pragma once
 #include "modelica/model/Assigment.hpp"
+#include "modelica/model/ModVariable.hpp"
 
 namespace modelica
 {
@@ -7,8 +8,8 @@ namespace modelica
 	{
 		public:
 		AssignModel(
-				llvm::StringMap<ModExp> vars,
-				llvm::SmallVector<Assigment, 0> updates = {})
+				llvm::StringMap<ModVariable> vars,
+				llvm::SmallVector<Assigment, 2> updates = {})
 				: variables(std::move(vars)), updates(std::move(updates))
 		{
 		}
@@ -22,10 +23,11 @@ namespace modelica
 		 *
 		 * \return true if there were no other vars with the same name already.
 		 */
-		[[nodiscard]] bool addVar(std::string name, ModExp exp)
+		[[nodiscard]] bool addVar(ModVariable exp)
 		{
-			if (variables.find(name) != variables.end())
+			if (variables.find(exp.getName()) != variables.end())
 				return false;
+			auto name = exp.getName();
 			variables.try_emplace(std::move(name), std::move(exp));
 			return true;
 		}
@@ -52,7 +54,7 @@ namespace modelica
 			for (const auto& var : variables)
 			{
 				OS << var.first() << " = ";
-				var.second.dump(OS);
+				var.second.getInit().dump(OS);
 
 				OS << "\n";
 			}
@@ -68,7 +70,7 @@ namespace modelica
 		[[nodiscard]] const auto& getUpdates() const { return updates; }
 
 		private:
-		llvm::StringMap<ModExp> variables;
-		llvm::SmallVector<Assigment, 0> updates;
+		llvm::StringMap<ModVariable> variables;
+		llvm::SmallVector<Assigment, 2> updates;
 	};
 }	 // namespace modelica

@@ -1,5 +1,6 @@
 #pragma once
 #include "modelica/model/ModExp.hpp"
+#include "modelica/utils/IndexSet.hpp"
 
 namespace modelica
 {
@@ -14,6 +15,7 @@ namespace modelica
 		[[nodiscard]] const std::string& getName() const { return name; }
 		[[nodiscard]] const ModExp& getInit() const { return init; }
 		ModExp& getInit() { return init; }
+		[[nodiscard]] IndexSet toIndexSet() const;
 
 		private:
 		std::string name;

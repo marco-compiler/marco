@@ -2,8 +2,10 @@
 #include <memory>
 
 #include "modelica/model/Assigment.hpp"
+#include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModLexerStateMachine.hpp"
+#include "modelica/model/ModVariable.hpp"
 #include "modelica/utils/Lexer.hpp"
 #include "modelica/utils/SourceRange.hpp"
 
@@ -42,18 +44,19 @@ namespace modelica
 		[[nodiscard]] llvm::Expected<std::tuple<ModExpKind, std::vector<ModExp>>>
 		operation();
 		[[nodiscard]] llvm::Expected<std::tuple<std::string, ModExp>> statement();
-		[[nodiscard]] llvm::Expected<llvm::StringMap<ModExp>> initSection();
+		[[nodiscard]] llvm::Expected<llvm::StringMap<ModVariable>> initSection();
 		[[nodiscard]] llvm::Expected<float> floatingPoint();
 		[[nodiscard]] llvm::Expected<int> integer();
-		[[nodiscard]] llvm::Expected<llvm::SmallVector<Assigment, 0>>
+		[[nodiscard]] llvm::Expected<llvm::SmallVector<ModEquation, 0>>
 		updateSection();
-		[[nodiscard]] llvm::Expected<
-				std::tuple<llvm::StringMap<ModExp>, llvm::SmallVector<Assigment, 0>>>
+		[[nodiscard]] llvm::Expected<std::tuple<
+				llvm::StringMap<ModVariable>,
+				llvm::SmallVector<ModEquation, 0>>>
 		simulation();
 		[[nodiscard]] llvm::Expected<InductionVar> singleInduction();
 		[[nodiscard]] llvm::Expected<llvm::SmallVector<InductionVar, 3>>
 		inductions();
-		[[nodiscard]] llvm::Expected<Assigment> updateStatement();
+		[[nodiscard]] llvm::Expected<ModEquation> updateStatement();
 
 		[[nodiscard]] ModToken getCurrentModToken() const { return current; }
 

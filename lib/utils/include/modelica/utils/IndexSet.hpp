@@ -51,6 +51,13 @@ namespace modelica
 		{
 			return !(values == other.values);
 		}
+		[[nodiscard]] size_t size() const
+		{
+			size_t toReturn = 0;
+			for (const auto& el : values)
+				toReturn += el.size();
+			return toReturn;
+		}
 
 		private:
 		void compact();

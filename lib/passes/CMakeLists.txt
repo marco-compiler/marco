@@ -1,4 +1,4 @@
-add_library(passes SHARED src/PassManager.cpp src/SolveDerivatives.cpp) 
+add_library(passes SHARED src/PassManager.cpp src/SolveDerivatives.cpp src/Matching.cpp) 
 add_library(modelica::passes ALIAS passes)
 target_include_directories(passes 
 	PRIVATE 

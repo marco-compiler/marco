@@ -10,6 +10,7 @@ build
 release
 .vimrc
 .ycm_extra_conf.py
+.clangd
 
 # User-specific stuff
 .idea/**/workspace.xml

@@ -64,6 +64,7 @@ namespace modelica
 		{
 			return minVal <= other.minVal;
 		}
+		[[nodiscard]] size_t size() const { return maxVal - minVal; }
 
 		private:
 		size_t minVal;
@@ -131,6 +132,14 @@ namespace modelica
 		[[nodiscard]] bool operator<=(const MultiDimInterval& other) const
 		{
 			return confront(other) <= 0;
+		}
+		[[nodiscard]] size_t size() const
+		{
+			size_t size = 1;
+			for (const auto& el : intervals)
+				size *= el.size();
+
+			return size;
 		}
 
 		[[nodiscard]] MultiDimInterval replacedDimension(

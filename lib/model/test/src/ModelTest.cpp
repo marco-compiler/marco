@@ -115,7 +115,7 @@ TEST(ModelTest, entryModelIsIteratable)
 	for (auto& e : model)
 		FAIL();
 
-	model.addEquation(
+	model.emplaceEquation(
 			ModExp("Hey", BultinModTypes::INT), ModExp("Huy", BultinModTypes::INT));
 
 	for (auto& e : model)
