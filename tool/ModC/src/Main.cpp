@@ -55,6 +55,12 @@ opt<string> dumpMatchingGraph(
 		cl::init("-"),
 		cl::cat(simCCategory));
 
+opt<int> maxMatchingIterations(
+		"maxMatchingIterations",
+		cl::desc("maximum number of iterations of the matching algorithm"),
+		init(1000),
+		cat(simCCategory));
+
 SmallVector<Assigment, 2> toAssign(SmallVector<ModEquation, 2>&& equs)
 {
 	SmallVector<Assigment, 2> assign;
@@ -81,6 +87,7 @@ int dumpGraph(const Model& model)
 	}
 
 	MatchingGraph graph(model);
+	graph.match(maxMatchingIterations);
 	graph.dumpGraph(OS);
 
 	return 0;

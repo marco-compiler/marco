@@ -1,4 +1,5 @@
 #pragma once
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/utils/Interval.hpp"
 
 namespace modelica
@@ -58,6 +59,8 @@ namespace modelica
 				toReturn += el.size();
 			return toReturn;
 		}
+
+		void dump(llvm::raw_ostream& OS) const;
 
 		private:
 		void compact();

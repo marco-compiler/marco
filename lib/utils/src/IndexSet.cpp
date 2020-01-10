@@ -2,6 +2,9 @@
 
 #include <algorithm>
 
+#include "llvm/Support/raw_ostream.h"
+#include "modelica/utils/Interval.hpp"
+
 using namespace modelica;
 using namespace llvm;
 using namespace std;
@@ -109,12 +112,8 @@ void IndexSet::remove(const MultiDimInterval& other)
 
 void IndexSet::remove(const IndexSet& other)
 {
-	IndexSet newValues;
 	for (const auto& otherRange : other)
-		for (const auto& range : *this)
-			newValues.unite(modelica::remove(range, otherRange));
-
-	*this = move(newValues);
+		remove(otherRange);
 }
 
 void IndexSet::compact()
@@ -147,4 +146,16 @@ void IndexSet::unite(MultiDimInterval other)
 	assert(disjoint(other));	// NOLINT
 	values.emplace_back(std::move(other));
 	compact();
+}
+
+void IndexSet::dump(llvm::raw_ostream& OS) const
+{
+	OS << "{ ";
+	for (const auto& el : *this)
+	{
+		el.dump(OS);
+		OS << ",";
+	}
+
+	OS << " }";
 }

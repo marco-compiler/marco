@@ -1,6 +1,7 @@
 #pragma once
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace modelica
 {
@@ -150,6 +151,8 @@ namespace modelica
 			intervalsCopy[dimension] = Interval(newLeft, newRight);
 			return MultiDimInterval(std::move(intervalsCopy));
 		}
+
+		void dump(llvm::raw_ostream& OS) const;
 
 		[[nodiscard]] llvm::SmallVector<MultiDimInterval, 3> cutOnDimension(
 				size_t dimension, llvm::ArrayRef<size_t> cutLines) const;

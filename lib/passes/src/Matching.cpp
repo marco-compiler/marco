@@ -13,16 +13,18 @@ using namespace modelica;
 using namespace std;
 using namespace llvm;
 
+/***
+ * Creates a edge from a equation and a variable usage.
+ * The use can either be a direct reference access or a
+ * nested at operation terminating into a reference.
+ *
+ */
 static Optional<Edge> toEdge(
 		const Model& model,
 		const ModEquation& eq,
 		const ModExp& use,
 		size_t useIndex)
 {
-	assert(
-			!use.isReference() ||
-			model.getVar(use.getReference()).getInit().getModType().isScalar());
-
 	if (use.isReference())
 		return Edge(eq, model.getVar(use.getReference()), useIndex);
 
@@ -55,118 +57,6 @@ void MatchingGraph::addVariableUsage(
 	if (maybeEdge.hasValue())
 		emplace_edge(move(*maybeEdge));
 }
-
-class EdgeFlow
-{
-	public:
-	EdgeFlow(Edge& edge, IndexSet set, bool isForward)
-			: edge(&edge),
-				set(move(set)),
-				mappedFlow(edge.map(set)),
-				isForward(isForward)
-	{
-	}
-
-	EdgeFlow(Edge& edge, bool isForward): edge(&edge), isForward(isForward) {}
-
-	static EdgeFlow backedge(Edge& edge, IndexSet set)
-	{
-		return EdgeFlow(move(set), edge, false);
-	}
-	static EdgeFlow forwardedge(Edge& edge, IndexSet set)
-	{
-		return EdgeFlow(move(set), edge, true);
-	}
-
-	[[nodiscard]] const Edge& getEdge() const { return *edge; }
-	[[nodiscard]] const ModEquation& getEquation() const
-	{
-		return edge->getEquation();
-	}
-	[[nodiscard]] const IndexSet& getSet() const { return set; }
-	[[nodiscard]] const IndexSet& getMappedSet() const { return mappedFlow; }
-	[[nodiscard]] size_t size() const { return set.size(); }
-
-	[[nodiscard]] static bool compare(const EdgeFlow& l, const EdgeFlow& r)
-	{
-		return l.size() < r.size();
-	};
-	[[nodiscard]] bool isForwardEdge() const { return isForward; }
-	void addFLowAtEnd(IndexSet& set)
-	{
-		if (isForwardEdge())
-			edge->getSet().unite(set);
-		else
-			edge->getSet().remove(set);
-	}
-	[[nodiscard]] IndexSet inverseMap(const IndexSet& set) const
-	{
-		if (isForwardEdge())
-			return edge->map(set);
-		return edge->invertMap(set);
-	}
-
-	private:
-	EdgeFlow(IndexSet set, Edge& edge, bool isForward)
-			: edge(&edge),
-				set(edge.invertMap(set)),
-				mappedFlow(move(set)),
-				isForward(isForward)
-	{
-	}
-	Edge* edge;
-	IndexSet set;
-	IndexSet mappedFlow;
-	bool isForward;
-};
-
-static IndexSet getUnmatchedSet(
-		const MatchingGraph& graph, const ModEquation& equation)
-{
-	IndexSet matched;
-	const auto unite = [&matched](const auto& edge) {
-		matched.unite(edge.getSet());
-	};
-	graph.forAllConnected(equation, unite);
-
-	auto set = equation.toIndexSet();
-	set.remove(matched);
-	return set;
-}
-
-class FlowCandidates
-{
-	public:
-	[[nodiscard]] auto begin() const { return choises.begin(); }
-	[[nodiscard]] auto begin() { return choises.begin(); }
-	[[nodiscard]] auto end() const { return choises.end(); }
-	[[nodiscard]] auto end() { return choises.end(); }
-	FlowCandidates(SmallVector<EdgeFlow, 2> c)
-			: choises(move(c)), current(std::begin(choises))
-	{
-		sort();
-	}
-
-	void sort() { llvm::sort(begin(), end(), EdgeFlow::compare); }
-	[[nodiscard]] bool empty() const { return choises.empty(); }
-	[[nodiscard]] bool allVisited() const { return current == choises.end(); }
-	void next()
-	{
-		do
-			current++;
-		while (current < end() && current->getSet().empty());
-	}
-	[[nodiscard]] EdgeFlow& getCurrent() { return *current; }
-	[[nodiscard]] const EdgeFlow& getCurrent() const { return *current; }
-	[[nodiscard]] const ModVariable& getCurrentVariable() const
-	{
-		return current->getEdge().getVariable();
-	}
-
-	private:
-	SmallVector<EdgeFlow, 2> choises;
-	SmallVector<EdgeFlow, 2>::iterator current;
-};
 
 static FlowCandidates getInstantMatchable(
 		MatchingGraph& graph, const EdgeFlow& arrivingFlow)
@@ -203,19 +93,22 @@ static FlowCandidates getBackwardMatchable(
 	return undoingMatch;
 }
 
-static FlowCandidates selectStartingEdge(MatchingGraph& graph)
+FlowCandidates MatchingGraph::selectStartingEdge()
 {
-	SmallVector<EdgeFlow, 2> unmatchedEqus;
+	SmallVector<EdgeFlow, 2> possibleStarts;
 
-	for (const auto& eq : graph.getModel())
+	for (const auto& eq : getModel())
 	{
-		graph.forAllConnected(eq, [&](Edge& e) {
-			unmatchedEqus.emplace_back(
-					EdgeFlow::forwardedge(e, getUnmatchedSet(graph, eq)));
+		IndexSet eqUnmatched = getUnmatchedSet(eq);
+		if (eqUnmatched.empty())
+			continue;
+
+		forAllConnected(eq, [&](Edge& e) {
+			possibleStarts.emplace_back(EdgeFlow::forwardedge(e, eqUnmatched));
 		});
 	}
 
-	return unmatchedEqus;
+	return possibleStarts;
 }
 
 static FlowCandidates getBestCandidate(
@@ -231,26 +124,31 @@ static bool isAugmenthingPath(
 		const MatchingGraph& graph,
 		const SmallVector<FlowCandidates, 2>& candidates)
 {
+	if (candidates.empty())
+		return false;
 	if ((candidates.size() % 2) != 1)
 		return false;
 
 	auto& current = candidates.back();
-	auto set = graph.getMatchedSet(current.getCurrentVariable());
-	set.remove(current.getCurrent().getMappedSet());
+	auto set = current.getCurrent().getMappedSet();
+	set.remove(graph.getMatchedSet(current.getCurrentVariable()));
+
 	return !set.empty();
 }
 
-static SmallVector<EdgeFlow, 2> findAugmentingPath(MatchingGraph& graph)
+SmallVector<EdgeFlow, 2> MatchingGraph::findAugmentingPath()
 {
 	SmallVector<EdgeFlow, 2> path;
-	SmallVector<FlowCandidates, 2> candidates{ selectStartingEdge(graph) };
+	SmallVector<FlowCandidates, 2> candidates{ selectStartingEdge() };
+	if (candidates.front().allVisited())
+		return path;
 
-	while (!isAugmenthingPath(graph, candidates) && !candidates.empty())
+	while (!isAugmenthingPath(*this, candidates) && !candidates.empty())
 	{
 		auto& currentCandidates = candidates.back();
 		if (!currentCandidates.allVisited())
 		{
-			candidates.push_back(getBestCandidate(graph, currentCandidates));
+			candidates.push_back(getBestCandidate(*this, currentCandidates));
 			currentCandidates.next();
 		}
 
@@ -258,13 +156,13 @@ static SmallVector<EdgeFlow, 2> findAugmentingPath(MatchingGraph& graph)
 			candidates.erase(candidates.end() - 1);
 	}
 
-	for (const auto& cand : candidates)
+	for (auto& cand : candidates)
 		path.push_back(move(cand.getCurrent()));
 
 	return path;
 }
 
-static bool updatePath(MatchingGraph& graph, SmallVector<EdgeFlow, 2> flow)
+bool MatchingGraph::updatePath(SmallVector<EdgeFlow, 2> flow)
 {
 	if (flow.empty())
 		return false;
@@ -278,23 +176,30 @@ static bool updatePath(MatchingGraph& graph, SmallVector<EdgeFlow, 2> flow)
 	return true;
 }
 
-static bool tryExpand(MatchingGraph& graph)
+void MatchingGraph::match(int maxIterations)
 {
-	return updatePath(graph, findAugmentingPath(graph));
+	while (maxIterations-- != 0 && updatePath(findAugmentingPath()))
+		;
 }
 
-Matching modelica::match(const Model& model)
+Matching MatchingGraph::extractMatch()
 {
-	MatchingGraph graph(model);
-
-	while (tryExpand(graph))
-		;
-
 	Matching toReturn;
 
-	for (auto& edge : graph)
+	for (auto& edge : *this)
 		if (!edge.getSet().empty())
 			toReturn.push_back(move(edge.getMatchedEquation()));
+
+	return toReturn;
+}
+
+Matching MatchingGraph::toMatch() const
+{
+	Matching toReturn;
+
+	for (auto& edge : *this)
+		if (!edge.getSet().empty())
+			toReturn.push_back(edge.getMatchedEquation());
 
 	return toReturn;
 }
@@ -308,7 +213,10 @@ void MatchingGraph::dumpGraph(raw_ostream& OS) const
 	{
 		forAllConnected(eq, [&](const Edge& edge) {
 			OS << "Eq_" << equationIndex << " -> " << edge.getVariable().getName()
-				 << ";";
+				 << "[label=\"";
+			edge.getSet().dump(OS);
+			OS << "\"]"
+				 << ";\n";
 		});
 
 		equationIndex++;

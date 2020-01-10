@@ -6,7 +6,7 @@ using namespace modelica;
 using namespace std;
 using namespace llvm;
 
-Expected<AssignModel> modelica::solveDer(EntryModel&& model)
+Expected<AssignModel> modelica::solveDer(EntryModel&& model, float deltaTime)
 {
 	AssignModel out;
 
@@ -17,6 +17,10 @@ Expected<AssignModel> modelica::solveDer(EntryModel&& model)
 		if (!out.addVar(ModVariable(move(name), move(exp))))
 			return make_error<GlobalVariableCreationFailure>(var.first().str());
 	}
+
+	if (!out.addVar(ModVariable("deltaTime", ModExp(ModConst<float>(deltaTime)))))
+		return make_error<GlobalVariableCreationFailure>(
+				"delta time was already present when solving derivatives");
 
 	for (auto& update : model.getEquations())
 	{

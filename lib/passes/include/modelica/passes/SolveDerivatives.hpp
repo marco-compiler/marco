@@ -5,5 +5,5 @@
 
 namespace modelica
 {
-	llvm::Expected<AssignModel> solveDer(EntryModel&& model);
+	llvm::Expected<AssignModel> solveDer(EntryModel&& model, float deltaTime);
 }	 // namespace modelica

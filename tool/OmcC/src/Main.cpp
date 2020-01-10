@@ -32,6 +32,12 @@ opt<float> timeStep(
 opt<bool> dumpModel(
 		"d", cl::desc("dump model"), cl::init(false), cl::cat(omcCCat));
 
+opt<bool> dumpSolvedModel(
+		"ds",
+		cl::desc("dump solved derivatives model"),
+		cl::init(false),
+		cl::cat(omcCCat));
+
 opt<bool> dumpLowered(
 		"l",
 		cl::desc("dump lowered model and exit"),
@@ -73,7 +79,13 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	auto assModel = exitOnErr(solveDer(move(model)));
+	auto assModel = exitOnErr(solveDer(move(model), timeStep));
+
+	if (dumpSolvedModel)
+	{
+		assModel.dump(outs());
+		return 0;
+	}
 	LLVMContext context;
 	Lowerer sim(
 			context,
@@ -82,11 +94,6 @@ int main(int argc, char* argv[])
 			"Modelica Model",
 			"main",
 			simulationTime);
-	if (!sim.addVar(ModVariable("deltaTime", ModExp::constExp<float>(timeStep))))
-	{
-		outs() << "DeltaTime was already defined\n";
-		return -1;
-	}
 
 	if (dumpLowered)
 	{

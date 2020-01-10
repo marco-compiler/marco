@@ -1,5 +1,7 @@
 #include "modelica/utils/Interval.hpp"
 
+#include "llvm/Support/raw_ostream.h"
+
 using namespace llvm;
 using namespace modelica;
 using namespace std;
@@ -119,7 +121,7 @@ SmallVector<MultiDimInterval, 3> MultiDimInterval::cutOnDimension(
 	size_t right = cuttedDim.max();
 	for (size_t cutPoint : cutLines)
 	{
-		if (cutPoint < cuttedDim.min())
+		if (cutPoint <= cuttedDim.min())
 			continue;
 		if (cutPoint >= cuttedDim.max())
 			break;
@@ -140,4 +142,13 @@ bool MultiDimInterval::isFullyContained(const MultiDimInterval& other) const
 			return false;
 	}
 	return true;
+}
+
+void MultiDimInterval::dump(llvm::raw_ostream& OS) const
+{
+	OS << "[";
+	for (const auto& i : *this)
+		OS << i.min() << "," << i.max();
+
+	OS << "]";
 }

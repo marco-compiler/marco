@@ -277,3 +277,32 @@ TEST(IntervalTest, multiDimensionalRemove)
 				EXPECT_FALSE(cutted.contains(a, b));
 			}
 }
+
+TEST(IntervalTest, indexSetEmptyRemove)
+{
+	IndexSet set({ { 1, 3 }, { 2, 5 } });
+	IndexSet empty;
+
+	IndexSet copy = set;
+	set.remove(empty);
+
+	EXPECT_EQ(set, copy);
+}
+
+TEST(IntervalTest, fullRemoval)
+{
+	IndexSet set({ { 0, 5 } });
+	IndexSet set2({ { 0, 5 } });
+
+	set.remove(set2);
+	EXPECT_EQ(set, IndexSet());
+}
+
+TEST(IntervalTest, multiDimensionalfullRemoval)
+{
+	MultiDimInterval set1({ { 0, 5 } });
+	MultiDimInterval set2({ { 0, 5 } });
+
+	auto set = remove(set1, set2);
+	EXPECT_EQ(set, IndexSet());
+}

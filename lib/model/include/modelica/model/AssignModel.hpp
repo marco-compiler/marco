@@ -50,7 +50,7 @@ namespace modelica
 		}
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const
 		{
-			OS << "vars\n";
+			OS << "init\n";
 			for (const auto& var : variables)
 			{
 				OS << var.first() << " = ";
@@ -59,7 +59,7 @@ namespace modelica
 				OS << "\n";
 			}
 
-			OS << "equations\n";
+			OS << "update\n";
 			for (const auto& update : updates)
 				update.dump(OS);
 		}

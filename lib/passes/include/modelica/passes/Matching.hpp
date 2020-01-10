@@ -32,8 +32,6 @@ namespace modelica
 
 	using Matching = llvm::SmallVector<MatchedEquation, 0>;
 
-	[[nodiscard]] Matching match(const Model& model);
-
 	class Edge
 	{
 		public:
@@ -73,6 +71,10 @@ namespace modelica
 		}
 
 		[[nodiscard]] MatchedEquation& getMatchedEquation() { return matched; }
+		[[nodiscard]] const MatchedEquation& getMatchedEquation() const
+		{
+			return matched;
+		}
 		[[nodiscard]] IndexSet& getSet() { return matched.getSet(); }
 		[[nodiscard]] const IndexSet& getSet() const { return matched.getSet(); }
 		[[nodiscard]] const VectorAccess& getVectorAccess() const
@@ -94,6 +96,108 @@ namespace modelica
 		VectorAccess vectorAccess;
 		VectorAccess invertedAccess;
 		MatchedEquation matched;
+	};
+
+	class EdgeFlow
+	{
+		public:
+		EdgeFlow(Edge& edge, IndexSet set, bool isForward)
+				: edge(&edge),
+					set(std::move(set)),
+					mappedFlow(edge.map(set)),
+					isForward(isForward)
+		{
+		}
+
+		EdgeFlow(Edge& edge, bool isForward): edge(&edge), isForward(isForward) {}
+
+		static EdgeFlow backedge(Edge& edge, IndexSet set)
+		{
+			return EdgeFlow(std::move(set), edge, false);
+		}
+		static EdgeFlow forwardedge(Edge& edge, IndexSet set)
+		{
+			return EdgeFlow(std::move(set), edge, true);
+		}
+
+		[[nodiscard]] const Edge& getEdge() const { return *edge; }
+		[[nodiscard]] const ModEquation& getEquation() const
+		{
+			return edge->getEquation();
+		}
+		[[nodiscard]] const IndexSet& getSet() const { return set; }
+		[[nodiscard]] const IndexSet& getMappedSet() const { return mappedFlow; }
+		[[nodiscard]] size_t size() const { return set.size(); }
+
+		[[nodiscard]] static bool compare(const EdgeFlow& l, const EdgeFlow& r)
+		{
+			return l.size() < r.size();
+		};
+		[[nodiscard]] bool isForwardEdge() const { return isForward; }
+		void addFLowAtEnd(IndexSet& set)
+		{
+			if (isForwardEdge())
+				edge->getSet().unite(set);
+			else
+				edge->getSet().remove(set);
+		}
+		[[nodiscard]] IndexSet inverseMap(const IndexSet& set) const
+		{
+			if (isForwardEdge())
+				return edge->map(set);
+			return edge->invertMap(set);
+		}
+
+		private:
+		EdgeFlow(IndexSet set, Edge& edge, bool isForward)
+				: edge(&edge),
+					set(edge.invertMap(set)),
+					mappedFlow(std::move(set)),
+					isForward(isForward)
+		{
+		}
+		Edge* edge;
+		IndexSet set;
+		IndexSet mappedFlow;
+		bool isForward;
+	};
+
+	class FlowCandidates
+	{
+		public:
+		[[nodiscard]] auto begin() const { return choises.begin(); }
+		[[nodiscard]] auto begin() { return choises.begin(); }
+		[[nodiscard]] auto end() const { return choises.end(); }
+		[[nodiscard]] auto end() { return choises.end(); }
+		FlowCandidates(llvm::SmallVector<EdgeFlow, 2> c)
+				: choises(std::move(c)), current(0)
+		{
+			sort();
+		}
+
+		void sort() { llvm::sort(begin(), end(), EdgeFlow::compare); }
+		[[nodiscard]] bool empty() const { return choises.empty(); }
+		[[nodiscard]] bool allVisited() const { return current >= choises.size(); }
+		void next()
+		{
+			do
+				current++;
+			while (current < choises.size() && choises[current].getSet().empty());
+		}
+		[[nodiscard]] EdgeFlow& getCurrent() { return choises[current]; }
+		[[nodiscard]] const EdgeFlow& getCurrent() const
+		{
+			return choises[current];
+		}
+		[[nodiscard]] const ModVariable& getCurrentVariable() const
+		{
+			assert(current < choises.size());
+			return getCurrent().getEdge().getVariable();
+		}
+
+		private:
+		llvm::SmallVector<EdgeFlow, 2> choises;
+		size_t current;
 	};
 
 	class MatchingGraph
@@ -149,11 +253,29 @@ namespace modelica
 				begin++;
 			}
 		}
+		[[nodiscard]] FlowCandidates selectStartingEdge();
+		[[nodiscard]] llvm::SmallVector<EdgeFlow, 2> findAugmentingPath();
+		[[nodiscard]] bool updatePath(llvm::SmallVector<EdgeFlow, 2> flow);
 
 		[[nodiscard]] IndexSet getUnmatchedSet(const ModVariable& variable) const
 		{
 			auto set = variable.toIndexSet();
 			set.remove(getMatchedSet(variable));
+			return set;
+		}
+
+		[[nodiscard]] IndexSet getUnmatchedSet(const ModEquation& equation) const
+		{
+			IndexSet matched;
+			const auto unite = [&matched](const auto& edge) {
+				matched.unite(edge.getSet());
+			};
+			forAllConnected(equation, unite);
+
+			auto set = equation.toIndexSet();
+			set.dump(llvm::outs());
+			matched.dump(llvm::outs());
+			set.remove(matched);
 			return set;
 		}
 
@@ -183,6 +305,9 @@ namespace modelica
 		}
 		[[nodiscard]] size_t edgesCount() const { return edges.size(); }
 		void dumpGraph(llvm::raw_ostream& OS) const;
+		void match(int maxIterations);
+		[[nodiscard]] Matching toMatch() const;
+		[[nodiscard]] Matching extractMatch();
 
 		private:
 		void addEquation(const ModEquation& eq);
