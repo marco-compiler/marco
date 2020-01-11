@@ -61,6 +61,7 @@ namespace modelica
 		}
 
 		void dump(llvm::raw_ostream& OS) const;
+		[[nodiscard]] std::string toString() const;
 
 		private:
 		void compact();

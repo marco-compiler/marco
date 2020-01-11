@@ -1,4 +1,4 @@
-add_library(passes SHARED src/PassManager.cpp src/SolveDerivatives.cpp src/Matching.cpp) 
+add_library(passes SHARED src/PassManager.cpp src/SolveDerivatives.cpp) 
 add_library(modelica::passes ALIAS passes)
 target_include_directories(passes 
 	PRIVATE 
@@ -9,7 +9,7 @@ target_include_directories(passes
 	$<INSTALL_INTERFACE:include>
 		)
 target_compile_features(passes PUBLIC cxx_std_17)
-target_link_libraries(passes PUBLIC modelica::model)
+target_link_libraries(passes PUBLIC modelica::matching)
 
 modelicaInstall(passes)
 add_subdirectory(test)

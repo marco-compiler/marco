@@ -159,3 +159,13 @@ void IndexSet::dump(llvm::raw_ostream& OS) const
 
 	OS << " }";
 }
+
+string IndexSet::toString() const
+{
+	string str;
+	llvm::raw_string_ostream ss(str);
+
+	dump(ss);
+	ss.flush();
+	return str;
+}

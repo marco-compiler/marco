@@ -3,11 +3,11 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "modelica/lowerer/Lowerer.hpp"
+#include "modelica/matching/Matching.hpp"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModParser.hpp"
-#include "modelica/passes/Matching.hpp"
 
 using namespace modelica;
 using namespace llvm;

@@ -1,18 +1,25 @@
 #pragma once
+#include <limits>
+
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/utils/IndexSet.hpp"
 
 namespace modelica
 {
-	class Displacement
+	class SingleDimensionAccess
 	{
 		public:
-		Displacement(int64_t value, bool isAbs, size_t inductioVar = 0)
-				: value(value), inductionVar(inductioVar), isAbs(isAbs)
+		static SingleDimensionAccess absolute(int64_t absVal)
 		{
+			return SingleDimensionAccess(absVal, true);
 		}
-		Displacement() = default;
+		static SingleDimensionAccess relative(int64_t relativeVal, size_t indVar)
+		{
+			return SingleDimensionAccess(relativeVal, false, indVar);
+		}
+		SingleDimensionAccess() = default;
 
 		[[nodiscard]] size_t getInductionVar() const { return inductionVar; }
 		[[nodiscard]] int64_t getOffset() const { return value; }
@@ -30,25 +37,40 @@ namespace modelica
 
 		[[nodiscard]] bool isOffset() const { return !isAbs; }
 		[[nodiscard]] bool isDirecAccess() const { return isAbs; }
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
+
+		bool operator==(const SingleDimensionAccess& other) const
+		{
+			if (isAbs != other.isAbs)
+				return false;
+			if (isAbs)
+				return value == other.value;
+			return value == other.value && inductionVar == other.inductionVar;
+		}
 
 		private:
-		int64_t value;
-		size_t inductionVar;
-		bool isAbs;
+		SingleDimensionAccess(int64_t value, bool isAbs, size_t inductioVar = 0)
+				: value(value), inductionVar(inductioVar), isAbs(isAbs)
+		{
+		}
+		int64_t value{ 0 };
+		size_t inductionVar{ std::numeric_limits<size_t>::max() };
+		bool isAbs{ true };
 	};
 
 	class VectorAccess
 	{
 		public:
-		template<typename T>
-		VectorAccess(const std::string& referredVar, T vector)
+		VectorAccess(
+				const std::string& referredVar,
+				llvm::SmallVector<SingleDimensionAccess, 3> vector)
 				: vectorAccess(std::move(vector)), referredVar(referredVar)
 		{
 		}
 		VectorAccess(const std::string& referredVar): referredVar(referredVar) {}
 
-		[[nodiscard]] const llvm::SmallVector<Displacement, 3>& getMappingOffset()
-				const
+		[[nodiscard]] const llvm::SmallVector<SingleDimensionAccess, 3>&
+		getMappingOffset() const
 		{
 			return vectorAccess;
 		}
@@ -77,14 +99,28 @@ namespace modelica
 		}
 
 		[[nodiscard]] VectorAccess invert() const;
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
+		[[nodiscard]] std::string toString() const;
+
+		[[nodiscard]] bool operator==(const VectorAccess& other) const
+		{
+			return vectorAccess == other.vectorAccess &&
+						 referredVar == other.referredVar;
+		}
+		[[nodiscard]] bool operator!=(const VectorAccess& other) const
+		{
+			return !(*this == other);
+		}
 
 		private:
-		llvm::SmallVector<Displacement, 3> vectorAccess;
+		llvm::SmallVector<SingleDimensionAccess, 3> vectorAccess;
 		const std::string& referredVar;
 	};
 
-	llvm::Optional<Displacement> toDisplacement(const ModExp& expression);
+	bool isCanonicalSingleDimensionAccess(const ModExp& expresion);
+	bool isCanonicalVectorAccess(const ModExp& expression);
+	SingleDimensionAccess toSingleDimensionAccess(const ModExp& expression);
 
-	llvm::Optional<VectorAccess> toVectorAccess(const ModExp& expression);
+	VectorAccess toVectorAccess(const ModExp& expression);
 
 }	 // namespace modelica

@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 
+#include "modelica/matching/Matching.hpp"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModConst.hpp"
@@ -7,7 +8,7 @@
 #include "modelica/model/ModParser.hpp"
 #include "modelica/model/ModType.hpp"
 #include "modelica/model/Model.hpp"
-#include "modelica/passes/Matching.hpp"
+#include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/IndexSet.hpp"
 
 using namespace std;
@@ -23,7 +24,8 @@ const string s = "init "
 								 "INT[1] (at INT[10] varB, INT[1](ind INT[1]{0})), INT[1]{1}) "
 								 "for [0,5] "
 								 "INT[1] (at INT[10] varA, INT[1](ind INT[1]{0})) = INT[1] (+ "
-								 "INT[1] (at INT[10] varB, INT[1](ind INT[1]{0})), INT[1]{2}) ";
+								 "INT[1] (at INT[10] varB, INT[1](+ INT[1](ind INT[1]{0}), "
+								 "INT[1]{2})), INT[1]{2}) ";
 
 TEST(MatchingTest, graphInizializationTest)
 {
@@ -58,9 +60,11 @@ TEST(MatchingTest, singleMatch)
 	auto [vars, equs] = *model;
 	EntryModel m(move(equs), move(vars));
 	MatchingGraph graph(m);
+	EXPECT_EQ(graph.variableCount(), 2);
+	EXPECT_EQ(graph.equationCount(), 2);
+	EXPECT_EQ(graph.edgesCount(), 4);
 	graph.match(1);
-	auto results = graph.toMatch();
-	EXPECT_EQ(results.size(), 1);
+	EXPECT_EQ(graph.matchedEdgesCount(), 1);
 
 	EXPECT_EQ(graph.selectStartingEdge().getCurrent().getSet().size(), 5);
 }
@@ -80,8 +84,7 @@ TEST(MatchingTest, simpleMatch)
 	EntryModel m(move(equs), move(vars));
 	MatchingGraph graph(m);
 	graph.match(2);
-	auto results = graph.extractMatch();
-	EXPECT_EQ(results.size(), 2);
+	EXPECT_EQ(graph.matchedEdgesCount(), 2);
 }
 
 TEST(MatchingTest, overRunningMatch)
@@ -99,8 +102,7 @@ TEST(MatchingTest, overRunningMatch)
 	EntryModel m(move(equs), move(vars));
 	MatchingGraph graph(m);
 	graph.match(4);
-	auto results = graph.extractMatch();
-	EXPECT_EQ(results.size(), 2);
+	EXPECT_EQ(graph.matchedEdgesCount(), 2);
 }
 
 TEST(MatchingTest, firstMatchingSize)
@@ -140,4 +142,45 @@ TEST(MatchingTest, firstMatchingVectorConstruction)
 
 	SmallVector<FlowCandidates, 2> candidates{ graph.selectStartingEdge() };
 	EXPECT_EQ(candidates[0].getCurrent().getEdge().getSet(), IndexSet());
+}
+
+TEST(MatchingTest, vectorAccessTest)
+{
+	ModParser parser(s);
+
+	auto model = parser.simulation();
+	if (!model)
+	{
+		outs() << model.takeError();
+		FAIL();
+	}
+
+	auto [vars, equs] = *model;
+	EntryModel m(move(equs), move(vars));
+	MatchingGraph graph(m);
+
+	SmallVector<VectorAccess, 2> access;
+	for (const auto& edge : graph)
+		access.push_back(edge.getVectorAccess());
+
+	int count = 0;
+	const string s = "varB";
+
+	for (const auto& edge : graph)
+	{
+		VectorAccess acc = edge.getVectorAccess();
+		VectorAccess copy(s, { SingleDimensionAccess::relative(2, 0) });
+		if (acc == copy)
+			count++;
+	}
+
+	EXPECT_EQ(count, 1);
+}
+
+TEST(MatchingTest, emptyGraph)
+{
+	EntryModel m({}, {});
+	MatchingGraph graph(m);
+	graph.match(4);
+	EXPECT_EQ(graph.matchedEdgesCount(), 0);
 }
