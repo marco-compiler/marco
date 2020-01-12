@@ -1,6 +1,7 @@
 #pragma once
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/matching/Edge.hpp"
+#include "modelica/matching/Matching.hpp"
 #include "modelica/model/ModVariable.hpp"
 #include "modelica/utils/IndexSet.hpp"
 
@@ -54,10 +55,12 @@ namespace modelica
 		}
 		[[nodiscard]] IndexSet inverseMap(const IndexSet& set) const
 		{
-			if (isForwardEdge())
+			if (!isForwardEdge())
 				return edge->map(set);
 			return edge->invertMap(set);
 		}
+
+		[[nodiscard]] bool empty() const { return set.empty(); }
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
@@ -78,30 +81,29 @@ namespace modelica
 	class FlowCandidates
 	{
 		public:
-		[[nodiscard]] auto begin() const { return choises.begin(); }
-		[[nodiscard]] auto begin() { return choises.begin(); }
-		[[nodiscard]] auto end() const { return choises.end(); }
-		[[nodiscard]] auto end() { return choises.end(); }
-		FlowCandidates(llvm::SmallVector<Flow, 2> c)
-				: choises(std::move(c)), current(0)
-		{
-			sort();
-		}
+		FlowCandidates(llvm::SmallVector<Flow, 2> c);
 
-		void sort() { llvm::sort(begin(), end(), Flow::compare); }
 		[[nodiscard]] bool empty() const { return choises.empty(); }
-		[[nodiscard]] bool allVisited() const { return current >= choises.size(); }
-		void next()
+
+		void pop()
 		{
-			do
-				current++;
-			while (current < choises.size() && choises[current].getSet().empty());
+			assert(choises.begin() != choises.end());
+			auto last = choises.end();
+			last--;
+			choises.erase(last, choises.end());
 		}
-		[[nodiscard]] Flow& getCurrent() { return choises[current]; }
-		[[nodiscard]] const Flow& getCurrent() const { return choises[current]; }
+		[[nodiscard]] Flow& getCurrent()
+		{
+			assert(!choises.empty());
+			return choises.back();
+		}
+		[[nodiscard]] const Flow& getCurrent() const
+		{
+			assert(!choises.empty());
+			return choises.back();
+		}
 		[[nodiscard]] const ModVariable& getCurrentVariable() const
 		{
-			assert(current < choises.size());
 			return getCurrent().getEdge().getVariable();
 		}
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
@@ -109,6 +111,40 @@ namespace modelica
 
 		private:
 		llvm::SmallVector<Flow, 2> choises;
-		size_t current;
+	};
+
+	class AugmentingPath
+	{
+		public:
+		AugmentingPath(MatchingGraph& graph);
+		[[nodiscard]] bool valid() const;
+		[[nodiscard]] FlowCandidates getBestCandidate() const;
+		[[nodiscard]] const FlowCandidates& getCurrentCandidates() const
+		{
+			return frontier.back();
+		}
+		[[nodiscard]] FlowCandidates& getCurrentCandidates()
+		{
+			return frontier.back();
+		}
+		[[nodiscard]] Flow& getCurrentFlow()
+		{
+			return getCurrentCandidates().getCurrent();
+		}
+		[[nodiscard]] const Flow& getCurrentFlow() const
+		{
+			return getCurrentCandidates().getCurrent();
+		}
+		[[nodiscard]] FlowCandidates selectStartingEdge() const;
+		void apply();
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
+		[[nodiscard]] std::string toString() const;
+
+		private:
+		[[nodiscard]] FlowCandidates getBackwardMatchable() const;
+
+		[[nodiscard]] FlowCandidates getForwardMatchable() const;
+		llvm::SmallVector<FlowCandidates, 2> frontier;
+		MatchingGraph& graph;
 	};
 }	 // namespace modelica

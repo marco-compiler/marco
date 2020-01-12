@@ -21,6 +21,19 @@ namespace modelica
 					index(index)
 		{
 		}
+		Edge(
+				const Model& model,
+				const ModEquation& eq,
+				const ModExp& access,
+				size_t index)
+				: vectorAccess(VectorAccess::fromExp(access)),
+					invertedAccess(vectorAccess.invert()),
+					equation(&eq),
+					variable(&(model.getVar(vectorAccess.getName()))),
+					index(index)
+		{
+		}
+
 		[[nodiscard]] const ModEquation& getEquation() const { return *equation; }
 		[[nodiscard]] const ModVariable& getVariable() const { return *variable; }
 

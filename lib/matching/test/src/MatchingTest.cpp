@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 
+#include "modelica/matching/Flow.hpp"
 #include "modelica/matching/Matching.hpp"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/EntryModel.hpp"
@@ -66,7 +67,9 @@ TEST(MatchingTest, singleMatch)
 	graph.match(1);
 	EXPECT_EQ(graph.matchedEdgesCount(), 1);
 
-	EXPECT_EQ(graph.selectStartingEdge().getCurrent().getSet().size(), 5);
+	AugmentingPath path(graph);
+
+	EXPECT_EQ(path.selectStartingEdge().getCurrent().getSet().size(), 5);
 }
 
 TEST(MatchingTest, simpleMatch)
@@ -119,7 +122,8 @@ TEST(MatchingTest, firstMatchingSize)
 	auto [vars, equs] = *model;
 	EntryModel m(move(equs), move(vars));
 	MatchingGraph graph(m);
-	FlowCandidates res = graph.selectStartingEdge();
+	AugmentingPath path(graph);
+	FlowCandidates res = path.selectStartingEdge();
 	EXPECT_EQ(res.getCurrent().getSet().size(), 5);
 	EXPECT_EQ(res.getCurrent().getEdge().getSet(), IndexSet());
 	EXPECT_EQ(res.getCurrent().isForwardEdge(), true);
@@ -139,9 +143,10 @@ TEST(MatchingTest, firstMatchingVectorConstruction)
 	auto [vars, equs] = *model;
 	EntryModel m(move(equs), move(vars));
 	MatchingGraph graph(m);
+	AugmentingPath path(graph);
 
-	SmallVector<FlowCandidates, 2> candidates{ graph.selectStartingEdge() };
-	EXPECT_EQ(candidates[0].getCurrent().getEdge().getSet(), IndexSet());
+	auto candidates = path.selectStartingEdge();
+	EXPECT_EQ(candidates.getCurrent().getEdge().getSet(), IndexSet());
 }
 
 TEST(MatchingTest, vectorAccessTest)

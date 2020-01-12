@@ -7,7 +7,6 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/matching/Edge.hpp"
-#include "modelica/matching/Flow.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModVariable.hpp"
 #include "modelica/model/Model.hpp"
@@ -145,9 +144,6 @@ namespace modelica
 			for (const auto& eq : model)
 				addEquation(eq);
 		}
-
-		[[nodiscard]] FlowCandidates selectStartingEdge();
-		[[nodiscard]] llvm::SmallVector<FlowCandidates, 2> findAugmentingPath();
 
 		[[nodiscard]] IndexSet getUnmatchedSet(const ModVariable& variable) const
 		{

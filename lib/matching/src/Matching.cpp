@@ -17,25 +17,6 @@ using namespace modelica;
 using namespace std;
 using namespace llvm;
 
-/**
- * Creates a edge from a equation and a variable usage.
- * The use can either be a direct reference access or a
- * nested at operation terminating into a reference.
- *
- */
-static Edge toEdge(
-		const Model& model,
-		const ModEquation& eq,
-		const ModExp& use,
-		size_t useIndex)
-{
-	assert(VectorAccess::isCanonical(use));
-
-	auto access = VectorAccess::fromExp(use);
-	const auto& var = model.getVar(access.getName());
-	return Edge(eq, var, useIndex, move(access));
-}
-
 void MatchingGraph::addEquation(const ModEquation& eq)
 {
 	ReferenceMatcher matcher;
@@ -49,136 +30,30 @@ void MatchingGraph::addEquation(const ModEquation& eq)
 			continue;
 
 		size_t edgeIndex = edges.size();
-		edges.push_back(toEdge(model, eq, *use, useIndex++));
+		edges.emplace_back(model, eq, *use, useIndex++);
 		equationLookUp.insert({ &eq, edgeIndex });
 		auto var = &(edges.back().getVariable());
 		variableLookUp.insert({ var, edgeIndex });
 	}
 }
 
-static FlowCandidates getForwardMatchable(
-		MatchingGraph& graph, const Flow& arrivingFlow)
+void MatchingGraph::match(int iterations)
 {
-	assert(!arrivingFlow.isForwardEdge());
-	SmallVector<Flow, 2> directMatch;
-
-	for (Edge& edge : graph.arcsOf(arrivingFlow.getEquation()))
+	while (iterations-- > 0)
 	{
-		auto direct = arrivingFlow.getSet();
-		auto alreadyUsed = graph.getMatchedSet(edge.getEquation());
-		direct.remove(alreadyUsed);
-
-		if (!direct.empty())
-			directMatch.emplace_back(Flow::forwardedge(edge, move(direct)));
-	}
-
-	return directMatch;
-}
-
-static FlowCandidates getBackwardMatchable(
-		MatchingGraph& graph, const Flow& arrivingFlow)
-{
-	assert(arrivingFlow.isForwardEdge());
-	SmallVector<Flow, 2> undoingMatch;
-
-	for (Edge& edge : graph.arcsOf(arrivingFlow.getVariable()))
-	{
-		auto alreadyAssigned = edge.map(edge.getSet());
-		auto possibleFlow = arrivingFlow.getMappedSet();
-		alreadyAssigned.remove(possibleFlow);
-
-		if (!alreadyAssigned.empty())
-			undoingMatch.emplace_back(Flow::backedge(edge, move(alreadyAssigned)));
-	}
-
-	return undoingMatch;
-}
-
-FlowCandidates MatchingGraph::selectStartingEdge()
-{
-	SmallVector<Flow, 2> possibleStarts;
-
-	for (const auto& eq : getModel())
-	{
-		IndexSet eqUnmatched = getUnmatchedSet(eq);
-		if (eqUnmatched.empty())
-			continue;
-
-		for (Edge& e : arcsOf(eq))
-			possibleStarts.emplace_back(Flow::forwardedge(e, eqUnmatched));
-	}
-
-	return possibleStarts;
-}
-
-static FlowCandidates getBestCandidate(
-		MatchingGraph& graph, FlowCandidates& current)
-{
-	if (!current.getCurrent().isForwardEdge())
-		return getForwardMatchable(graph, current.getCurrent());
-
-	return getBackwardMatchable(graph, current.getCurrent());
-}
-
-static bool isAugmenthingPath(
-		const MatchingGraph& graph,
-		const SmallVector<FlowCandidates, 2>& candidates)
-{
-	if (candidates.empty())
-		return false;
-	if ((candidates.size() % 2) != 1)
-		return false;
-
-	auto& current = candidates.back();
-	auto set = current.getCurrent().getMappedSet();
-	set.remove(graph.getMatchedSet(current.getCurrentVariable()));
-
-	return !set.empty();
-}
-
-SmallVector<FlowCandidates, 2> MatchingGraph::findAugmentingPath()
-{
-	SmallVector<FlowCandidates, 2> candidates{ selectStartingEdge() };
-	while (!candidates.empty() && candidates.back().allVisited())
-		candidates.erase(candidates.end() - 1);
-
-	while (!isAugmenthingPath(*this, candidates) && !candidates.empty())
-	{
-		auto& currentCandidates = candidates.back();
-		if (!currentCandidates.allVisited())
-		{
-			candidates.push_back(getBestCandidate(*this, currentCandidates));
-			currentCandidates.next();
-		}
-
-		while (!candidates.empty() && candidates.back().allVisited())
-			candidates.erase(candidates.end() - 1);
-	}
-
-	return candidates;
-}
-
-void MatchingGraph::match(int maxIterations)
-{
-	while (maxIterations-- != 0)
-	{
-		auto flow = findAugmentingPath();
-		if (flow.empty())
+		AugmentingPath path(*this);
+		if (!path.valid())
 			return;
 
-		auto set = flow.back().getCurrent().getMappedSet();
-		for (auto edge = flow.rbegin(); edge != flow.rend(); edge++)
-		{
-			edge->getCurrent().addFLowAtEnd(set);
-			set = edge->getCurrent().inverseMap(set);
-		}
+		path.apply();
+		dump();
 	}
 }
 
 size_t MatchingGraph::matchedEdgesCount() const
 {
 	return count_if(
-			begin(), end(), [](const auto& edge) { return !edge.empty(); });
+			begin(), end(), [](const Edge& edge) { return !edge.empty(); });
 }
 
 void MatchingGraph::dumpGraph(raw_ostream& OS) const
@@ -207,55 +82,8 @@ void MatchingGraph::dumpGraph(raw_ostream& OS) const
 	OS << "}\n";
 }
 
-void Edge::dump(llvm::raw_ostream& OS) const
-{
-	OS << "EDGE: Eq_" << equation << " TO " << variable->getName();
-	OS << "\n";
-	OS << "\tForward Map: ";
-	vectorAccess.dump(OS);
-	OS << " -> Backward Map: ";
-	invertedAccess.dump(OS);
-	OS << "\n\tCurrent Flow: ";
-	set.dump(OS);
-	OS << "\n";
-}
-
-string Edge::toString() const
-{
-	string str;
-	raw_string_ostream ss(str);
-	dump(ss);
-	ss.flush();
-	return str;
-}
-
 void MatchingGraph::dump(llvm::raw_ostream& OS) const
 {
 	for (const auto& edge : *this)
 		edge.dump(OS);
-}
-
-void FlowCandidates::dump(llvm::raw_ostream& OS) const
-{
-	for (auto a = current; a < choises.size(); a++)
-		choises[a].dump(OS);
-}
-
-string FlowCandidates::toString() const
-{
-	string str;
-	raw_string_ostream ss(str);
-	dump(ss);
-	ss.flush();
-	return str;
-}
-
-void Flow::dump(llvm::raw_ostream& OS) const
-{
-	edge->dump(OS);
-	OS << "\t Forward=" << static_cast<int>(isForwardEdge()) << " Source Set:";
-	set.dump(OS);
-	OS << "-> Arriving Set:";
-	mappedFlow.dump(OS);
-	OS << "\n";
 }
