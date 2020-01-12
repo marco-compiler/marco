@@ -1,6 +1,7 @@
 #pragma once
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/matching/Edge.hpp"
+#include "modelica/model/ModVariable.hpp"
 #include "modelica/utils/IndexSet.hpp"
 
 namespace modelica
@@ -25,7 +26,11 @@ namespace modelica
 			IndexSet mapped = edge.map(set);
 			return Flow(std::move(set), std::move(mapped), edge, true);
 		}
-
+		[[nodiscard]] const ModVariable& getVariable() const
+		{
+			return getEdge().getVariable();
+		}
+		[[nodiscard]] Edge& getEdge() { return *edge; }
 		[[nodiscard]] const Edge& getEdge() const { return *edge; }
 		[[nodiscard]] const ModEquation& getEquation() const
 		{

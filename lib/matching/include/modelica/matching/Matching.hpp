@@ -1,6 +1,9 @@
 #pragma once
+#include <iterator>
 #include <map>
+#include <utility>
 
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/matching/Edge.hpp"
@@ -15,58 +18,132 @@ namespace modelica
 {
 	class MatchingGraph
 	{
+		template<typename MatchingGraph, typename Iterator, typename EdgeType>
+		class MatchingGraphIterator
+		{
+			public:
+			using iterator_category = typename Iterator::iterator_category;
+			using value_type = EdgeType&;
+			using difference_type = typename Iterator::difference_type;
+			using pointer = EdgeType*;
+			using reference = EdgeType&;
+
+			MatchingGraphIterator(MatchingGraph& graph, Iterator iter)
+					: graph(&graph), iter(iter)
+			{
+			}
+
+			[[nodiscard]] bool operator==(const MatchingGraphIterator& other) const
+			{
+				return iter == other.iter;
+			}
+			[[nodiscard]] bool operator!=(const MatchingGraphIterator& other) const
+			{
+				return iter != other.iter;
+			}
+			[[nodiscard]] reference operator*() const
+			{
+				return graph->edgeAt(iter->second);
+			}
+			[[nodiscard]] reference operator*()
+			{
+				return graph->edgeAt(iter->second);
+			}
+			[[nodiscard]] pointer operator->()
+			{
+				return &(graph->edgeAt(iter->second));
+			}
+			[[nodiscard]] pointer operator->() const
+			{
+				return &(graph->edgeAt(iter->second));
+			}
+			const MatchingGraphIterator operator++(int)	 // NOLINT
+			{
+				auto copy = *this;
+				++(*this);
+				return copy;
+			}
+			MatchingGraphIterator& operator++()
+			{
+				iter++;
+				return *this;
+			}
+			const MatchingGraphIterator operator--(int)	 // NOLINT
+			{
+				auto copy = *this;
+				--(*this);
+				return copy;
+			}
+			MatchingGraphIterator& operator--()
+			{
+				iter--;
+				return *this;
+			}
+
+			private:
+			MatchingGraph* graph;
+			Iterator iter;
+		};
+
 		public:
+		using EquationLookup = std::multimap<const ModEquation*, size_t>;
+		using VariableLookup = std::multimap<const ModVariable*, size_t>;
+
+		using eq_iterator = class MatchingGraphIterator<
+				MatchingGraph,
+				EquationLookup::iterator,
+				Edge>;
+		using const_eq_iterator = class MatchingGraphIterator<
+				const MatchingGraph,
+				EquationLookup::const_iterator,
+				const Edge>;
+		using var_iterator = class MatchingGraphIterator<
+				MatchingGraph,
+				VariableLookup::iterator,
+				Edge>;
+		using const_var_iterator = class MatchingGraphIterator<
+				const MatchingGraph,
+				VariableLookup::const_iterator,
+				const Edge>;
+
+		[[nodiscard]] llvm::iterator_range<eq_iterator> arcsOf(
+				const ModEquation& equation)
+		{
+			const ModEquation* eq = &equation;
+			auto [begin, end] = equationLookUp.equal_range(eq);
+			return llvm::make_range(
+					eq_iterator(*this, begin), eq_iterator(*this, end));
+		}
+
+		[[nodiscard]] llvm::iterator_range<const_eq_iterator> arcsOf(
+				const ModEquation& equation) const
+		{
+			const ModEquation* eq = &equation;
+			auto [begin, end] = equationLookUp.equal_range(eq);
+			return llvm::make_range(
+					const_eq_iterator(*this, begin), const_eq_iterator(*this, end));
+		}
+
+		[[nodiscard]] llvm::iterator_range<var_iterator> arcsOf(
+				const ModVariable& var)
+		{
+			auto [begin, end] = variableLookUp.equal_range(&var);
+			return llvm::make_range(
+					var_iterator(*this, begin), var_iterator(*this, end));
+		}
+
+		[[nodiscard]] llvm::iterator_range<const_var_iterator> arcsOf(
+				const ModVariable& var) const
+		{
+			auto [begin, end] = variableLookUp.equal_range(&var);
+			return llvm::make_range(
+					const_var_iterator(*this, begin), const_var_iterator(*this, end));
+		}
+
 		MatchingGraph(const Model& model): model(model)
 		{
 			for (const auto& eq : model)
 				addEquation(eq);
-		}
-
-		template<typename Callable>
-		void forAllConnected(const ModEquation& equation, Callable c)
-		{
-			const ModEquation* eq = &equation;
-			auto [begin, end] = equationLookUp.equal_range(eq);
-			while (begin != end)
-			{
-				c(edges[begin->second]);
-				begin++;
-			}
-		}
-
-		template<typename Callable>
-		void forAllConnected(const ModEquation& equation, Callable c) const
-		{
-			const ModEquation* eq = &equation;
-			auto [begin, end] = equationLookUp.equal_range(eq);
-			while (begin != end)
-			{
-				c(edges[begin->second]);
-				begin++;
-			}
-		}
-
-		template<typename Callable>
-		void forAllConnected(const ModVariable& var, Callable c)
-		{
-			const ModVariable* eq = &var;
-			auto [begin, end] = variableLookUp.equal_range(eq);
-			while (begin != end)
-			{
-				c(edges[begin->second]);
-				begin++;
-			}
-		}
-		template<typename Callable>
-		void forAllConnected(const ModVariable& var, Callable c) const
-		{
-			const ModVariable* eq = &var;
-			auto [begin, end] = variableLookUp.equal_range(eq);
-			while (begin != end)
-			{
-				c(edges[begin->second]);
-				begin++;
-			}
 		}
 
 		[[nodiscard]] FlowCandidates selectStartingEdge();
@@ -81,24 +158,17 @@ namespace modelica
 
 		[[nodiscard]] IndexSet getUnmatchedSet(const ModEquation& equation) const
 		{
-			IndexSet matched;
-			const auto unite = [&matched](const Edge& edge) {
-				matched.unite(edge.getSet());
-			};
-			forAllConnected(equation, unite);
-
 			auto set = equation.toIndexSet();
-			set.remove(matched);
+			set.remove(getMatchedSet(equation));
 			return set;
 		}
 
 		[[nodiscard]] IndexSet getMatchedSet(const ModVariable& variable) const
 		{
 			IndexSet matched;
-			const auto unite = [&matched](const auto& edge) {
+
+			for (const Edge& edge : arcsOf(variable))
 				matched.unite(edge.getSet());
-			};
-			forAllConnected(variable, unite);
 
 			return matched;
 		}
@@ -106,13 +176,17 @@ namespace modelica
 		[[nodiscard]] IndexSet getMatchedSet(const ModEquation& eq) const
 		{
 			IndexSet matched;
-			const auto unite = [&matched](const auto& edge) {
+			for (const Edge& edge : arcsOf(eq))
 				matched.unite(edge.getSet());
-			};
-			forAllConnected(eq, unite);
 
 			return matched;
 		}
+
+		[[nodiscard]] const Edge& edgeAt(size_t index) const
+		{
+			return edges[index];
+		}
+		[[nodiscard]] Edge& edgeAt(size_t index) { return edges[index]; }
 
 		[[nodiscard]] auto begin() const { return edges.begin(); }
 		[[nodiscard]] auto begin() { return edges.begin(); }
@@ -138,8 +212,8 @@ namespace modelica
 		void addEquation(const ModEquation& eq);
 
 		llvm::SmallVector<Edge, 0> edges;
-		std::multimap<const ModEquation*, size_t> equationLookUp;
-		std::multimap<const ModVariable*, size_t> variableLookUp;
+		EquationLookup equationLookUp;
+		VariableLookup variableLookUp;
 		const Model& model;
 	};
 

@@ -61,15 +61,17 @@ static FlowCandidates getForwardMatchable(
 {
 	assert(!arrivingFlow.isForwardEdge());
 	SmallVector<Flow, 2> directMatch;
-	const auto getAviableForwardFlow = [&](Edge& edge) {
+
+	for (Edge& edge : graph.arcsOf(arrivingFlow.getEquation()))
+	{
 		auto direct = arrivingFlow.getSet();
 		auto alreadyUsed = graph.getMatchedSet(edge.getEquation());
 		direct.remove(alreadyUsed);
 
 		if (!direct.empty())
 			directMatch.emplace_back(Flow::forwardedge(edge, move(direct)));
-	};
-	graph.forAllConnected(arrivingFlow.getEquation(), getAviableForwardFlow);
+	}
+
 	return directMatch;
 }
 
@@ -78,17 +80,17 @@ static FlowCandidates getBackwardMatchable(
 {
 	assert(arrivingFlow.isForwardEdge());
 	SmallVector<Flow, 2> undoingMatch;
-	const auto getAviableBackwardFlow = [&](Edge& edge) {
+
+	for (Edge& edge : graph.arcsOf(arrivingFlow.getVariable()))
+	{
 		auto alreadyAssigned = edge.map(edge.getSet());
 		auto possibleFlow = arrivingFlow.getMappedSet();
 		alreadyAssigned.remove(possibleFlow);
 
 		if (!alreadyAssigned.empty())
 			undoingMatch.emplace_back(Flow::backedge(edge, move(alreadyAssigned)));
-	};
+	}
 
-	graph.forAllConnected(
-			arrivingFlow.getEdge().getVariable(), getAviableBackwardFlow);
 	return undoingMatch;
 }
 
@@ -102,9 +104,8 @@ FlowCandidates MatchingGraph::selectStartingEdge()
 		if (eqUnmatched.empty())
 			continue;
 
-		forAllConnected(eq, [&](Edge& e) {
+		for (Edge& e : arcsOf(eq))
 			possibleStarts.emplace_back(Flow::forwardedge(e, eqUnmatched));
-		});
 	}
 
 	return possibleStarts;
@@ -187,7 +188,8 @@ void MatchingGraph::dumpGraph(raw_ostream& OS) const
 	int equationIndex = 1;
 	for (const ModEquation& eq : model)
 	{
-		forAllConnected(eq, [&](const Edge& edge) {
+		for (const Edge& edge : arcsOf(eq))
+		{
 			OS << "Eq_" << equationIndex << " -> " << edge.getVariable().getName();
 			OS << "[label=\"";
 			edge.getVectorAccess().dump(OS);
@@ -197,7 +199,7 @@ void MatchingGraph::dumpGraph(raw_ostream& OS) const
 			edge.getInvertedAccess().dump(OS);
 			OS << "\"]"
 				 << ";\n";
-		});
+		}
 
 		equationIndex++;
 	}
