@@ -1,5 +1,7 @@
 #include "modelica/matching/Flow.hpp"
 
+#include "llvm/ADT/iterator_range.h"
+#include "modelica/matching/Edge.hpp"
 #include "modelica/matching/Matching.hpp"
 #include "modelica/utils/IndexSet.hpp"
 
@@ -73,22 +75,40 @@ FlowCandidates AugmentingPath::selectStartingEdge() const
 
 	return possibleStarts;
 }
+static IndexSet possibleForwardFlow(
+		const Flow& backEdge, const Edge& forwadEdge, const MatchingGraph& graph)
+{
+	assert(!backEdge.isForwardEdge());
+	auto direct = backEdge.getSet();
+	auto alreadyUsed = graph.getMatchedSet(forwadEdge.getEquation());
+	direct.remove(alreadyUsed);
+	return direct;
+}
+
 FlowCandidates AugmentingPath::getForwardMatchable() const
 {
 	assert(!getCurrentFlow().isForwardEdge());
 	SmallVector<Flow, 2> directMatch;
 
-	for (Edge& edge : graph.arcsOf(getCurrentFlow().getEquation()))
+	auto connectedEdges = graph.arcsOf(getCurrentFlow().getEquation());
+	for (Edge& edge : connectedEdges)
 	{
-		auto direct = getCurrentFlow().getSet();
-		auto alreadyUsed = graph.getMatchedSet(edge.getEquation());
-		direct.remove(alreadyUsed);
-
-		if (!direct.empty())
-			directMatch.emplace_back(Flow::forwardedge(edge, move(direct)));
+		auto possibleFlow = possibleForwardFlow(getCurrentFlow(), edge, graph);
+		if (!possibleFlow.empty())
+			directMatch.emplace_back(Flow::forwardedge(edge, move(possibleFlow)));
 	}
 
 	return directMatch;
+}
+
+static IndexSet possibleBackwardFlow(
+		const Flow& forwardEdge, const Edge& backEdge)
+{
+	assert(forwardEdge.isForwardEdge());
+	auto alreadyAssigned = backEdge.map(backEdge.getSet());
+	auto possibleFlow = forwardEdge.getMappedSet();
+	alreadyAssigned.remove(possibleFlow);
+	return alreadyAssigned;
 }
 
 FlowCandidates AugmentingPath::getBackwardMatchable() const
@@ -96,14 +116,12 @@ FlowCandidates AugmentingPath::getBackwardMatchable() const
 	assert(getCurrentFlow().isForwardEdge());
 	SmallVector<Flow, 2> undoingMatch;
 
-	for (Edge& edge : graph.arcsOf(getCurrentFlow().getVariable()))
+	auto connectedEdges = graph.arcsOf(getCurrentFlow().getVariable());
+	for (Edge& edge : connectedEdges)
 	{
-		auto alreadyAssigned = edge.map(edge.getSet());
-		auto possibleFlow = getCurrentFlow().getMappedSet();
-		alreadyAssigned.remove(possibleFlow);
-
-		if (!alreadyAssigned.empty())
-			undoingMatch.emplace_back(Flow::backedge(edge, move(alreadyAssigned)));
+		auto backFlow = possibleBackwardFlow(getCurrentFlow(), edge);
+		if (!backFlow.empty())
+			undoingMatch.emplace_back(Flow::backedge(edge, move(backFlow)));
 	}
 
 	return undoingMatch;
@@ -117,25 +135,29 @@ FlowCandidates AugmentingPath::getBestCandidate() const
 	return getBackwardMatchable();
 }
 
-AugmentingPath::AugmentingPath(MatchingGraph& graph): frontier(), graph(graph)
+AugmentingPath::AugmentingPath(MatchingGraph& graph)
+		: graph(graph), frontier({ selectStartingEdge() })
 {
-	auto startingCandidates = selectStartingEdge();
-
-	if (startingCandidates.empty())
-		return;
-
-	frontier.push_back(move(startingCandidates));
-
-	while (!frontier.empty() && !valid())
+	while (!valid())
 	{
-		if (getCurrentCandidates().empty())
+		// while the current siblings are
+		// not empty keep exploring
+		if (!getCurrentCandidates().empty())
 		{
-			frontier.erase(frontier.end() - 1);
-			getCurrentCandidates().pop();
+			frontier.push_back(getBestCandidate());
 			continue;
 		}
 
-		frontier.push_back(getBestCandidate());
+		// if they are empty remove the last group
+		frontier.erase(frontier.end() - 1);
+
+		// if the frontier is now empty we are done
+		// there is no good path
+		if (frontier.empty())
+			return;
+
+		// else remove one of the siblings
+		getCurrentCandidates().pop();
 	}
 }
 
@@ -146,10 +168,13 @@ void AugmentingPath::apply()
 	auto alreadyMatchedVars = graph.getMatchedSet(getCurrentFlow().getVariable());
 	auto set = getCurrentFlow().getMappedSet();
 	set.remove(alreadyMatchedVars);
-	for (auto edge = frontier.rbegin(); edge != frontier.rend(); edge++)
+
+	auto reverseRange = make_range(rbegin(frontier), rend(frontier));
+	for (auto edge : reverseRange)
 	{
-		set = edge->getCurrent().inverseMap(set);
-		edge->getCurrent().addFLowAtEnd(set);
+		Flow& flow = edge.getCurrent();
+		set = flow.inverseMap(set);
+		flow.addFLowAtEnd(set);
 	}
 }
 

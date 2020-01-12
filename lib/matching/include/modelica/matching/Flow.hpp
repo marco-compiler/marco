@@ -144,7 +144,7 @@ namespace modelica
 		[[nodiscard]] FlowCandidates getBackwardMatchable() const;
 
 		[[nodiscard]] FlowCandidates getForwardMatchable() const;
-		llvm::SmallVector<FlowCandidates, 2> frontier;
 		MatchingGraph& graph;
+		llvm::SmallVector<FlowCandidates, 2> frontier;
 	};
 }	 // namespace modelica

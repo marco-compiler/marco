@@ -46,7 +46,6 @@ void MatchingGraph::match(int iterations)
 			return;
 
 		path.apply();
-		dump();
 	}
 }
 

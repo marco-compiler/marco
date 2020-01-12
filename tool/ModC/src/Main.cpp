@@ -49,12 +49,6 @@ opt<int> simulationTime(
 		cl::init(10),
 		cl::cat(simCCategory));
 
-opt<string> dumpMatchingGraph(
-		"dumpStartMatchGraph",
-		cl::desc("dump the starting matching graph exit"),
-		cl::init("-"),
-		cl::cat(simCCategory));
-
 opt<int> maxMatchingIterations(
 		"maxMatchingIterations",
 		cl::desc("maximum number of iterations of the matching algorithm"),
@@ -76,23 +70,6 @@ SmallVector<Assigment, 2> toAssign(SmallVector<ModEquation, 2>&& equs)
 }
 ExitOnError exitOnErr;
 
-int dumpGraph(const Model& model)
-{
-	error_code error;
-	raw_fd_ostream OS(dumpMatchingGraph, error, sys::fs::F_None);
-	if (error)
-	{
-		errs() << error.message();
-		return -1;
-	}
-
-	MatchingGraph graph(model);
-	graph.match(maxMatchingIterations);
-	graph.dumpGraph(OS);
-
-	return 0;
-}
-
 int main(int argc, char* argv[])
 {
 	cl::ParseCommandLineOptions(argc, argv);
@@ -100,9 +77,6 @@ int main(int argc, char* argv[])
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	ModParser parser(buffer->getBufferStart());
 	auto [init, update] = exitOnErr(parser.simulation());
-
-	if (dumpMatchingGraph != "-")
-		return dumpGraph(EntryModel(move(update), move(init)));
 
 	auto assigments = toAssign(move(update));
 	LLVMContext context;
