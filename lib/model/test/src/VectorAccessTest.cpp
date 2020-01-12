@@ -17,10 +17,10 @@ TEST(VectorAccessTest, directAccess)
 	if (!exp)
 		FAIL();
 
-	if (!isCanonicalVectorAccess(*exp))
+	if (!VectorAccess::isCanonical(*exp))
 		FAIL();
 
-	auto access = toVectorAccess(*exp);
+	auto access = VectorAccess::fromExp(*exp);
 	EXPECT_EQ(access.getName(), "intVector");
 	EXPECT_EQ(access.getMappingOffset().size(), 1);
 	EXPECT_EQ(access.getMappingOffset()[0].getInductionVar(), 4);
@@ -36,9 +36,9 @@ TEST(VectorAccessTest, multiDirectAccess)
 	if (!exp)
 		FAIL();
 
-	if (!isCanonicalVectorAccess(*exp))
+	if (!VectorAccess::isCanonical(*exp))
 		FAIL();
-	auto access = toVectorAccess(*exp);
+	auto access = VectorAccess::fromExp(*exp);
 	EXPECT_EQ(access.getName(), "intVector");
 	EXPECT_EQ(access.getMappingOffset().size(), 2);
 	EXPECT_EQ(access.getMappingOffset()[0].getInductionVar(), 4);
@@ -54,9 +54,9 @@ TEST(VectorAccessTest, singleOffset)
 			ModExp::add(
 					ModExp::induction(ModConst<int>(2)), ModExp(ModConst<int>(4))));
 
-	if (!isCanonicalVectorAccess(exp))
+	if (!VectorAccess::isCanonical(exp))
 		FAIL();
-	auto access = toVectorAccess(exp);
+	auto access = VectorAccess::fromExp(exp);
 	EXPECT_EQ(access.getName(), "referene");
 	EXPECT_EQ(access.getMappingOffset().size(), 1);
 	EXPECT_EQ(access.getMappingOffset()[0].getInductionVar(), 2);
@@ -100,9 +100,9 @@ TEST(VectorAccessTest, mapFromExp)
 
 	exp = ModExp::at(move(exp), ModExp(ModConst<int>(20)));
 
-	if (!isCanonicalVectorAccess(exp))
+	if (!VectorAccess::isCanonical(exp))
 		FAIL();
-	auto access = toVectorAccess(exp);
+	auto access = VectorAccess::fromExp(exp);
 	EXPECT_EQ(access.getName(), "referene");
 	EXPECT_EQ(access.getMappingOffset().size(), 3);
 	EXPECT_EQ(access.getMappingOffset()[0].getInductionVar(), 1);
@@ -138,9 +138,9 @@ TEST(VectorAccessTest, inverseMapFromExp)
 
 	exp = ModExp::at(move(exp), ModExp(ModConst<int>(20)));
 
-	if (!isCanonicalVectorAccess(exp))
+	if (!VectorAccess::isCanonical(exp))
 		FAIL();
-	auto access = toVectorAccess(exp);
+	auto access = VectorAccess::fromExp(exp);
 
 	EXPECT_EQ(2, access.mappableDimensions());
 
@@ -168,9 +168,9 @@ TEST(VectorAccessTest, inverteTest)
 
 	exp = ModExp::at(move(exp), ModExp(ModConst<int>(20)));
 
-	if (!isCanonicalVectorAccess(exp))
+	if (!VectorAccess::isCanonical(exp))
 		FAIL();
-	auto access = toVectorAccess(exp);
+	auto access = VectorAccess::fromExp(exp);
 
 	EXPECT_EQ(2, access.mappableDimensions());
 
@@ -191,9 +191,9 @@ TEST(VectorACcessTest, toStringTest)
 			ModExp("referene", ModType(typeToBuiltin<int>(), 2, 3, 3)),
 			ModExp::add(
 					ModExp::induction(ModConst<int>(1)), ModExp(ModConst<int>(4))));
-	if (!isCanonicalVectorAccess(exp))
+	if (!VectorAccess::isCanonical(exp))
 		FAIL();
-	auto access = toVectorAccess(exp);
+	auto access = VectorAccess::fromExp(exp);
 
 	EXPECT_EQ(access.toString(), "referene[I1 + 4]");
 }

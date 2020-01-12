@@ -17,7 +17,7 @@ using namespace modelica;
 using namespace std;
 using namespace llvm;
 
-/***
+/**
  * Creates a edge from a equation and a variable usage.
  * The use can either be a direct reference access or a
  * nested at operation terminating into a reference.
@@ -29,9 +29,9 @@ static Edge toEdge(
 		const ModExp& use,
 		size_t useIndex)
 {
-	assert(isCanonicalVectorAccess(use));
+	assert(VectorAccess::isCanonical(use));
 
-	auto access = toVectorAccess(use);
+	auto access = VectorAccess::fromExp(use);
 	const auto& var = model.getVar(access.getName());
 	return Edge(eq, var, useIndex, move(access));
 }
@@ -45,7 +45,7 @@ void MatchingGraph::addEquation(const ModEquation& eq)
 
 	for (const auto& use : matcher)
 	{
-		if (!isCanonicalVectorAccess(*use))
+		if (!VectorAccess::isCanonical(*use))
 			continue;
 
 		size_t edgeIndex = edges.size();

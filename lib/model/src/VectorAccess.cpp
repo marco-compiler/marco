@@ -30,7 +30,7 @@ MultiDimInterval VectorAccess::map(const MultiDimInterval& interval) const
 	return MultiDimInterval(std::move(intervals));
 }
 
-/***
+/**
  * \brief given a expression containing a ind operation return the
  * Single dimension vector access rappresenting it
  *
@@ -53,7 +53,7 @@ static SingleDimensionAccess inductionToSingleDimensionAccess(
 	return SingleDimensionAccess::relative(0, indVar);
 }
 
-/***
+/**
  * transform an expression in the form (+/- (ind n) K) to a relative
  * SingleDimensionAccess refering to the induction variable (ind n) and with
  * offset K
@@ -81,7 +81,7 @@ static SingleDimensionAccess operationToSingleDimensionAccess(
 
 	return SingleDimensionAccess::relative(offset, indVar);
 }
-/***
+/**
  * return true if the expression is a (+/- (ind I) K) where I, K is are constant
  * integer
  */
@@ -108,7 +108,7 @@ static bool isCanonicalSumInductionAccess(const ModExp& expression)
 	return true;
 }
 
-/***
+/**
  * return true if the expression is a (ind K) where K is a constant integer
  */
 static bool isCanonicalSingleInductionAccess(const ModExp& index)
@@ -118,17 +118,7 @@ static bool isCanonicalSingleInductionAccess(const ModExp& index)
 			index.getLeftHand().isConstant<int>());
 }
 
-/***
- *
- * single dimensions access can be built from expression in the form
- * (at V K), (at V (ind K)), and (at (+/- V (ind I) K)) where
- * V is the vector, K a constant and I the index of the induction variable
- *
- * that is either constant access, induction access, or sum of induction +
- * constant access
- *
- */
-bool modelica::isCanonicalSingleDimensionAccess(const ModExp& expression)
+bool SingleDimensionAccess::isCanonical(const ModExp& expression)
 {
 	if (expression.getKind() != ModExpKind::at)
 		return false;
@@ -144,15 +134,9 @@ bool modelica::isCanonicalSingleDimensionAccess(const ModExp& expression)
 	return isCanonicalSumInductionAccess(index);
 }
 
-/***
- * expression must be a at operator, therefore the left hand
- * is expression rappresenting a vector of some kind, while right must be either
- * a ind, a sum/subtraction of ind and a constant, or a single scalar
- */
-SingleDimensionAccess modelica::toSingleDimensionAccess(
-		const ModExp& expression)
+SingleDimensionAccess SingleDimensionAccess::fromExp(const ModExp& expression)
 {
-	assert(isCanonicalSingleDimensionAccess(expression));	 // NOLINT
+	assert(isCanonical(expression));	// NOLINT
 	const auto& index = expression.getRightHand();
 
 	// if the accessing expression is a constant we are in the case
@@ -170,14 +154,7 @@ SingleDimensionAccess modelica::toSingleDimensionAccess(
 	return operationToSingleDimensionAccess(index);
 }
 
-/***
- * a canonical vector access is either a reference
- * or a nested series of (at (at ...) access) operation all of which are
- * canonical single dimensions access. that is are all in the forms
- *  (at e (+/- (ind I) K)) | (at e (ind I)) | (at e K)
- *
- */
-bool modelica::isCanonicalVectorAccess(const ModExp& expression)
+bool VectorAccess::isCanonical(const ModExp& expression)
 {
 	if (expression.isReference())
 		return true;
@@ -185,15 +162,15 @@ bool modelica::isCanonicalVectorAccess(const ModExp& expression)
 	if (!expression.isOperation() || expression.getKind() != ModExpKind::at)
 		return false;
 
-	if (!isCanonicalSingleDimensionAccess(expression))
+	if (!SingleDimensionAccess::isCanonical(expression))
 		return false;
 
-	return isCanonicalVectorAccess(expression.getLeftHand());
+	return isCanonical(expression.getLeftHand());
 }
 
-VectorAccess modelica::toVectorAccess(const ModExp& expression)
+VectorAccess VectorAccess::fromExp(const ModExp& expression)
 {
-	assert(isCanonicalVectorAccess(expression));
+	assert(isCanonical(expression));
 
 	if (expression.isReference())
 		return VectorAccess(expression.getReference());
@@ -205,7 +182,7 @@ VectorAccess modelica::toVectorAccess(const ModExp& expression)
 	auto ptr = &expression;
 	while (ptr->isOperation() && ptr->getKind() == ModExpKind::at)
 	{
-		access.push_back(toSingleDimensionAccess(*ptr));
+		access.push_back(SingleDimensionAccess::fromExp(*ptr));
 		ptr = &ptr->getLeftHand();
 	}
 

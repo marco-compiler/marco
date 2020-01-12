@@ -19,6 +19,12 @@ namespace modelica
 		{
 			return SingleDimensionAccess(relativeVal, false, indVar);
 		}
+		/**
+		 * expression must be a at operator, therefore the left hand
+		 * is expression rappresenting a vector of some kind, while right must be
+		 * either a ind, a sum/subtraction of ind and a constant, or a single scalar
+		 */
+		static SingleDimensionAccess fromExp(const ModExp& expression);
 		SingleDimensionAccess() = default;
 
 		[[nodiscard]] size_t getInductionVar() const { return inductionVar; }
@@ -47,6 +53,17 @@ namespace modelica
 				return value == other.value;
 			return value == other.value && inductionVar == other.inductionVar;
 		}
+		/**
+		 *
+		 * single dimensions access can be built from expression in the form
+		 * (at V K), (at V (ind K)), and (at (+/- V (ind I) K)) where
+		 * V is the vector, K a constant and I the index of the induction variable
+		 *
+		 * that is either constant access, induction access, or sum of induction +
+		 * constant access
+		 *
+		 */
+		[[nodiscard]] static bool isCanonical(const ModExp& expression);
 
 		private:
 		SingleDimensionAccess(int64_t value, bool isAbs, size_t inductioVar = 0)
@@ -68,6 +85,7 @@ namespace modelica
 		{
 		}
 		VectorAccess(const std::string& referredVar): referredVar(referredVar) {}
+		static VectorAccess fromExp(const ModExp& expression);
 
 		[[nodiscard]] const llvm::SmallVector<SingleDimensionAccess, 3>&
 		getMappingOffset() const
@@ -111,16 +129,18 @@ namespace modelica
 		{
 			return !(*this == other);
 		}
+		/**
+		 * a canonical vector access is either a reference
+		 * or a nested series of (at (at ...) access) operation all of which are
+		 * canonical single dimensions access. that is are all in the forms
+		 *  (at e (+/- (ind I) K)) | (at e (ind I)) | (at e K)
+		 *
+		 */
+		[[nodiscard]] static bool isCanonical(const ModExp& expression);
 
 		private:
 		llvm::SmallVector<SingleDimensionAccess, 3> vectorAccess;
 		const std::string& referredVar;
 	};
-
-	bool isCanonicalSingleDimensionAccess(const ModExp& expresion);
-	bool isCanonicalVectorAccess(const ModExp& expression);
-	SingleDimensionAccess toSingleDimensionAccess(const ModExp& expression);
-
-	VectorAccess toVectorAccess(const ModExp& expression);
 
 }	 // namespace modelica
