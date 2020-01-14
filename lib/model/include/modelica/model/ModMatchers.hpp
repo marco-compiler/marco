@@ -13,7 +13,7 @@ namespace modelica
 			const ModExp* childs = &exp.getLeftHand();
 			toIgnore.insert(childs);
 
-			while (childs->isOperation() && childs->getKind() == ModExpKind::at)
+			while (childs->isOperation<ModExpKind::at>())
 			{
 				childs = &childs->getLeftHand();
 				toIgnore.insert(childs);
@@ -29,7 +29,7 @@ namespace modelica
 		{
 			if (toIgnore.find(&exp) != toIgnore.end())
 				return;
-			if (exp.isOperation() && exp.getKind() == ModExpKind::at)
+			if (exp.isOperation<ModExpKind::at>())
 			{
 				visitAt(exp);
 				return;

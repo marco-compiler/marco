@@ -666,6 +666,23 @@ namespace modelica
 		}
 
 		/**
+		 *\return true if the expression is a operation of a particular kind
+		 */
+		template<ModExpKind kind>
+		[[nodiscard]] bool isOperation() const
+		{
+			return isOperation() && getKind() == kind;
+		}
+
+		/**
+		 *\return true if the expression is a operation of a particular kind
+		 */
+		[[nodiscard]] bool isOperation(ModExpKind kind) const
+		{
+			return isOperation() && getKind() == kind;
+		}
+
+		/**
 		 * \pre isConstant<C>()
 		 * \return the constant holded by this expression.
 		 */

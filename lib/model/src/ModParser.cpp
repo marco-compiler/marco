@@ -2,7 +2,17 @@
 
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModErrors.hpp"
+#include "modelica/model/ModLexerStateMachine.hpp"
 #include "modelica/model/ModVariable.hpp"
+
+#define EXPECT(Token)                                                          \
+	if (auto e = expect(Token); !e)                                              \
+	return e.takeError()
+
+#define TRY(outVar, expression)                                                \
+	auto outVar = expression;                                                    \
+	if (!outVar)                                                                 \
+	return outVar.takeError()
 
 using namespace modelica;
 using namespace llvm;
@@ -19,8 +29,7 @@ llvm::Expected<bool> ModParser::expect(ModToken t)
 Expected<string> ModParser::reference()
 {
 	auto s = lexer.getLastIdentifier();
-	if (auto e = expect(ModToken::Ident); !e)
-		return e.takeError();
+	EXPECT(ModToken::Ident);
 	return s;
 }
 
@@ -29,8 +38,7 @@ Expected<int> ModParser::integer()
 	bool minus = accept<ModToken::Minus>();
 
 	int b = lexer.getLastInt();
-	if (auto e = expect(ModToken::Integer); !e)
-		return e.takeError();
+	EXPECT(ModToken::Integer);
 
 	return minus ? -b : b;
 }
@@ -40,8 +48,7 @@ Expected<float> ModParser::floatingPoint()
 	bool minus = accept<ModToken::Minus>();
 
 	float b = lexer.getLastFloat();
-	if (auto e = expect(ModToken::Float); !e)
-		return e.takeError();
+	EXPECT(ModToken::Float);
 
 	return minus ? -b : b;
 }
@@ -49,114 +56,82 @@ Expected<float> ModParser::floatingPoint()
 Expected<ModConst<int>> ModParser::intVector()
 {
 	SmallVector<int, 3> args;
-	if (auto e = expect(ModToken::LCurly); !e)
-		return e.takeError();
-
-	auto val = integer();
-	if (!val)
-		return val.takeError();
-
+	EXPECT(ModToken::LCurly);
+	TRY(val, integer());
 	args.push_back(*val);
 
 	while (accept(ModToken::Comma))
 	{
-		auto val = integer();
-		if (!val)
-			return val.takeError();
-
+		TRY(val, integer());
 		args.push_back(*val);
 	}
 
-	if (auto e = expect(ModToken::RCurly); !e)
-		return e.takeError();
-
+	EXPECT(ModToken::RCurly);
 	return ModConst<int>(move(args));
 }
 
 Expected<ModConst<float>> ModParser::floatVector()
 {
 	SmallVector<float, 3> args;
-	if (auto e = expect(ModToken::LCurly); !e)
-		return e.takeError();
-
-	auto val = floatingPoint();
-	if (!val)
-		return val.takeError();
-
+	EXPECT(ModToken::LCurly);
+	TRY(val, floatingPoint());
 	args.push_back(*val);
 
 	while (accept(ModToken::Comma))
 	{
-		auto val = floatingPoint();
-		if (!val)
-			return val.takeError();
-
+		TRY(val, floatingPoint());
 		args.push_back(*val);
 	}
 
-	if (auto e = expect(ModToken::RCurly); !e)
-		return e.takeError();
-
+	EXPECT(ModToken::RCurly);
 	return ModConst<float>(move(args));
 }
 
 Expected<ModConst<bool>> ModParser::boolVector()
 {
 	SmallVector<bool, 3> args;
-	if (auto e = expect(ModToken::LCurly); !e)
-		return e.takeError();
+	EXPECT(ModToken::LCurly);
 
 	bool b = static_cast<bool>(lexer.getLastInt());
 	args.push_back(b);
-
-	if (auto e = expect(ModToken::Integer); !e)
-		return e.takeError();
+	EXPECT(ModToken::Integer);
 
 	while (accept(ModToken::Comma))
 	{
 		bool b = static_cast<bool>(lexer.getLastInt());
 		args.push_back(b);
-
-		if (auto e = expect(ModToken::Integer); !e)
-			return e.takeError();
+		EXPECT(ModToken::Integer);
 	}
 
-	if (auto e = expect(ModToken::RCurly); !e)
-		return e.takeError();
-
+	EXPECT(ModToken::RCurly);
 	return ModConst<bool>(move(args));
 }
 
 Expected<vector<size_t>> ModParser::typeDimensions()
 {
 	vector<size_t> v;
-	if (auto e = expect(ModToken::LSquare); !e)
-		return e.takeError();
+	EXPECT(ModToken::LSquare);
 
 	if (accept<ModToken::RSquare>())
 		return v;
 
 	v.emplace_back(lexer.getLastInt());
-	if (auto e = expect(ModToken::Integer); !e)
-		return e.takeError();
+	EXPECT(ModToken::Integer);
 
 	while (accept(ModToken::Comma))
 	{
 		v.emplace_back(lexer.getLastInt());
-		if (auto e = expect(ModToken::Integer); !e)
-			return e.takeError();
+		EXPECT(ModToken::Integer);
 	}
 
-	if (auto e = expect(ModToken::RSquare); !e)
-		return e.takeError();
+	EXPECT(ModToken::RSquare);
 
 	return v;
 }
 
 Expected<tuple<ModExpKind, vector<ModExp>>> ModParser::operation()
 {
-	if (auto e = expect(ModToken::LPar); !e)
-		return e.takeError();
+	EXPECT(ModToken::LPar);
 
 	ModExpKind kind;
 
@@ -198,18 +173,13 @@ Expected<tuple<ModExpKind, vector<ModExp>>> ModParser::operation()
 	size_t arity = ModExp::Operation::arityOfOp(kind);
 	for (size_t a = 0; a < arity; a++)
 	{
-		auto arg = expression();
-		if (!arg)
-			return arg.takeError();
+		TRY(arg, expression());
 		args.emplace_back(move(*arg));
 		if (a != arity - 1)
-			if (auto e = expect(ModToken::Comma); !e)
-				return e.takeError();
+			EXPECT(ModToken::Comma);
 	}
 
-	if (auto e = expect(ModToken::RPar); !e)
-		return e.takeError();
-
+	EXPECT(ModToken::RPar);
 	return tuple(kind, move(args));
 }
 
@@ -225,56 +195,38 @@ Expected<ModType> ModParser::type()
 	else
 		return e.takeError();
 
-	auto dim = typeDimensions();
-	if (!dim)
-		return dim.takeError();
-
+	TRY(dim, typeDimensions());
 	return ModType(type, std::move(*dim));
 }
 
 Expected<vector<ModExp>> ModParser::args()
 {
 	vector<ModExp> args;
-	if (auto e = expect(ModToken::LPar); !e)
-		return e.takeError();
+	EXPECT(ModToken::LPar);
 	if (accept<ModToken::RPar>())
 		return args;
 
-	auto exp = expression();
-	if (!exp)
-		return exp.takeError();
+	TRY(exp, expression());
 	args.emplace_back(move(*exp));
 
 	while (accept(ModToken::Comma))
 	{
-		auto exp = expression();
-		if (!exp)
-			return exp.takeError();
+		TRY(exp, expression());
 		args.emplace_back(move(*exp));
 	}
 
-	if (auto e = expect(ModToken::RPar); !e)
-		return e.takeError();
-
+	EXPECT(ModToken::RPar);
 	return args;
 }
 
 Expected<ModCall> ModParser::call()
 {
-	if (auto e = expect(ModToken::CallKeyword); !e)
-		return e.takeError();
-
+	EXPECT(ModToken::CallKeyword);
 	auto fname = lexer.getLastIdentifier();
-	if (auto e = expect(ModToken::Ident); !e)
-		return e.takeError();
+	EXPECT(ModToken::Ident);
 
-	auto t = type();
-	if (!t)
-		return t.takeError();
-
-	auto argVec = args();
-	if (!argVec)
-		return argVec.takeError();
+	TRY(t, type());
+	TRY(argVec, args());
 
 	SmallVector<unique_ptr<ModExp>, 3> vec;
 	for (auto& exp : *argVec)
@@ -286,14 +238,11 @@ Expected<ModCall> ModParser::call()
 Expected<StringMap<ModVariable>> ModParser::initSection()
 {
 	StringMap<ModVariable> map;
-	if (auto e = expect(ModToken::InitKeyword); !e)
-		return e.takeError();
+	EXPECT(ModToken::InitKeyword);
 
 	while (current != ModToken::End && current != ModToken::UpdateKeyword)
 	{
-		auto stat = statement();
-		if (!stat)
-			return stat.takeError();
+		TRY(stat, statement());
 
 		auto [name, exp] = move(*stat);
 		ModVariable var(name, move(exp));
@@ -310,15 +259,11 @@ Expected<StringMap<ModVariable>> ModParser::initSection()
 Expected<SmallVector<ModEquation, 0>> ModParser::updateSection()
 {
 	SmallVector<ModEquation, 0> map;
-	if (auto e = expect(ModToken::UpdateKeyword); !e)
-		return e.takeError();
+	EXPECT(ModToken::UpdateKeyword);
 
 	while (current != ModToken::End)
 	{
-		auto stat = updateStatement();
-		if (!stat)
-			return stat.takeError();
-
+		TRY(stat, updateStatement());
 		map.push_back(move(*stat));
 	}
 
@@ -328,51 +273,31 @@ Expected<SmallVector<ModEquation, 0>> ModParser::updateSection()
 Expected<tuple<StringMap<ModVariable>, SmallVector<ModEquation, 0>>>
 ModParser::simulation()
 {
-	auto initSect = initSection();
-	if (!initSect)
-		return initSect.takeError();
-
-	auto updateSect = updateSection();
-	if (!updateSect)
-		return updateSect.takeError();
-
+	TRY(initSect, initSection());
+	TRY(updateSect, updateSection());
 	return tuple(move(*initSect), move(*updateSect));
 }
 
 Expected<tuple<string, ModExp>> ModParser::statement()
 {
 	auto name = lexer.getLastIdentifier();
-	if (auto e = expect(ModToken::Ident); !e)
-		return e.takeError();
-
-	if (auto e = expect(ModToken::Assign); !e)
-		return e.takeError();
-
-	auto exp = expression();
-	if (!exp)
-		return exp.takeError();
+	EXPECT(ModToken::Ident);
+	EXPECT(ModToken::Assign);
+	TRY(exp, expression());
 
 	return tuple(move(name), move(*exp));
 }
 Expected<InductionVar> ModParser::singleInduction()
 {
-	if (auto e = expect(ModToken::LSquare); !e)
-		return e.takeError();
+	EXPECT(ModToken::LSquare);
 
 	size_t begin = lexer.getLastInt();
 
-	if (auto e = expect(ModToken::Integer); !e)
-		return e.takeError();
-
-	if (auto e = expect(ModToken::Comma); !e)
-		return e.takeError();
+	EXPECT(ModToken::Integer);
+	EXPECT(ModToken::Comma);
 	size_t end = lexer.getLastInt();
-
-	if (auto e = expect(ModToken::Integer); !e)
-		return e.takeError();
-
-	if (auto e = expect(ModToken::RSquare); !e)
-		return e.takeError();
+	EXPECT(ModToken::Integer);
+	EXPECT(ModToken::RSquare);
 
 	return InductionVar(begin, end);
 }
@@ -383,9 +308,7 @@ Expected<SmallVector<InductionVar, 3>> ModParser::inductions()
 		return inductions;
 	while (current == ModToken::LSquare)
 	{
-		auto ind = singleInduction();
-		if (!ind)
-			return ind.takeError();
+		TRY(ind, singleInduction());
 		inductions.push_back(move(*ind));
 	}
 	return inductions;
@@ -395,54 +318,33 @@ Expected<ModEquation> ModParser::updateStatement()
 {
 	SmallVector<InductionVar, 3> ind;
 
-	auto inductionsV = inductions();
-	if (!inductionsV)
-		return inductionsV.takeError();
-
+	TRY(inductionsV, inductions());
 	ind = move(*inductionsV);
 
 	if (current == ModToken::Ident)
 	{
 		auto name = lexer.getLastIdentifier();
-		if (auto e = expect(ModToken::Ident); !e)
-			return e.takeError();
-
-		if (auto e = expect(ModToken::Assign); !e)
-			return e.takeError();
-
-		auto exp = expression();
-		if (!exp)
-			return exp.takeError();
+		EXPECT(ModToken::Ident);
+		EXPECT(ModToken::Assign);
+		TRY(exp, expression());
 		auto tp = exp->getModType();
 		auto leftRef = ModExp(move(name), move(tp));
 
 		return ModEquation(leftRef, move(*exp), move(ind));
 	}
-	auto leftHand = expression();
-	if (!leftHand)
-		return leftHand.takeError();
-
-	if (auto e = expect(ModToken::Assign); !e)
-		return e.takeError();
-
-	auto exp = expression();
-	if (!exp)
-		return exp.takeError();
+	TRY(leftHand, expression());
+	EXPECT(ModToken::Assign);
+	TRY(exp, expression());
 
 	return ModEquation(move(*leftHand), move(*exp), move(ind));
 }
 
 Expected<ModExp> ModParser::expression()
 {
-	auto tp = type();
-	if (!tp)
-		return tp.takeError();
+	TRY(tp, type());
 	if (current == ModToken::Ident)
 	{
-		auto ref = reference();
-		if (!ref)
-			return ref.takeError();
-
+		TRY(ref, reference());
 		return ModExp(move(*ref), move(*tp));
 	}
 
@@ -450,45 +352,30 @@ Expected<ModExp> ModParser::expression()
 	{
 		if (tp->getBuiltin() == BultinModTypes::BOOL)
 		{
-			auto cont = boolVector();
-			if (!cont)
-				return cont.takeError();
-
+			TRY(cont, boolVector());
 			return ModExp(move(*cont), move(*tp));
 		}
 		if (tp->getBuiltin() == BultinModTypes::INT)
 		{
-			auto cont = intVector();
-			if (!cont)
-				return cont.takeError();
-
+			TRY(cont, intVector());
 			return ModExp(move(*cont), move(*tp));
 		}
 		if (tp->getBuiltin() == BultinModTypes::FLOAT)
 		{
-			auto cont = floatVector();
-			if (!cont)
-				return cont.takeError();
-
+			TRY(cont, floatVector());
 			return ModExp(move(*cont), move(*tp));
 		}
 	}
 
 	if (current == ModToken::CallKeyword)
 	{
-		auto c = call();
-		if (!c)
-			return c;
-
+		TRY(c, call());
 		return ModExp(move(*c), move(*tp));
 	}
 
 	if (current == ModToken::LPar)
 	{
-		auto op = operation();
-		if (!op)
-			return op.takeError();
-
+		TRY(op, operation());
 		auto [kind, args] = move(*op);
 
 		SmallVector<unique_ptr<ModExp>, 3> vec;
