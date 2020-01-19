@@ -33,12 +33,12 @@ TEST(MatchingTest, graphInizializationTest)
 	EntryModel model;
 	model.emplaceVar(
 			"leftVar",
-			ModExp(ModConst<int>(0, 1, 2, 3), ModType(BultinModTypes::INT, 2, 2)));
+			ModExp(ModConst(0, 1, 2, 3), ModType(BultinModTypes::INT, 2, 2)));
 	model.emplaceEquation(
 			ModExp::at(
 					ModExp("leftVar", ModType(BultinModTypes::INT, 2, 2)),
-					ModExp::induction(ModConst<int>(0))),
-			ModConst<int>(3),
+					ModExp::induction(ModConst(0))),
+			ModConst(3),
 			{ InductionVar(1, 3) });
 
 	MatchingGraph graph(model);

@@ -9,13 +9,13 @@ using namespace std;
 
 TEST(ConstantTest, construtorTest)	// NOLINT
 {
-	IntModConst constant(1);
-	FloatModConst constant2(1.0F);
-	BoolModConst constant3(false);
+	ModConst constant(1);
+	ModConst constant2(1.0F);
+	ModConst constant3(false);
 
-	EXPECT_EQ(constant.get(0), 1);
-	EXPECT_EQ(constant2.get(0), 1.0F);
-	EXPECT_EQ(constant3.get(0), false);
+	EXPECT_EQ(constant.get<int>(0), 1);
+	EXPECT_EQ(constant2.get<float>(0), 1.0F);
+	EXPECT_EQ(constant3.get<bool>(0), false);
 }
 
 TEST(ExpressionTest, constantExpression)	// NOLINT
@@ -23,7 +23,7 @@ TEST(ExpressionTest, constantExpression)	// NOLINT
 	ModExp exp(ModConst(1));
 	EXPECT_TRUE(exp.isConstant<int>());
 	EXPECT_TRUE(exp.isConstant());
-	EXPECT_EQ(exp.getConstant<int>().get(0), 1);
+	EXPECT_EQ(exp.getConstant().get<int>(0), 1);
 }
 
 TEST(ExpressionTest, negateExpression)	// NOLINT
@@ -46,14 +46,14 @@ TEST(ExpressionTest, negateExpression)	// NOLINT
 
 TEST(ConstantTest, dumpConstant)	// NOLINT
 {
-	IntModConst constant(1);
-	FloatModConst constant2(1.0F);
-	BoolModConst constant3(false);
+	ModConst constant(1);
+	ModConst constant2(1.0F);
+	ModConst constant3(false);
 
 	std::string intString;
 	llvm::raw_string_ostream intStream(intString);
 
-	dumpConstant(constant, intStream);
+	constant.dump(intStream);
 	intStream.str();
 
 	EXPECT_EQ(intString, "{1}");
@@ -61,7 +61,7 @@ TEST(ConstantTest, dumpConstant)	// NOLINT
 	std::string boolString;
 	llvm::raw_string_ostream boolStream(boolString);
 
-	dumpConstant(constant3, boolStream);
+	constant3.dump(boolStream);
 	boolStream.str();
 
 	EXPECT_EQ(boolString, "{0}");
@@ -69,7 +69,7 @@ TEST(ConstantTest, dumpConstant)	// NOLINT
 
 TEST(ExpressionTest, operatorGreaterShouldReturnBool)	 // NOLINT
 {
-	auto exp = ModExp(ModConst<int>(3)) > ModExp(ModConst<int>(4));
+	auto exp = ModExp(ModConst(3)) > ModExp(ModConst(4));
 	EXPECT_EQ(exp.getModType(), ModType(BultinModTypes::BOOL));
 }
 
@@ -78,8 +78,8 @@ TEST(ExpressionTest, ternaryExp)	// NOLINT
 	auto cond = ModExp::cond(
 			ModExp("leftHand", BultinModTypes::INT) >
 					ModExp("rightHand", BultinModTypes::INT),
-			ModExp(ModConst<int>(1)),
-			ModExp(ModConst<int>(9)));
+			ModExp(ModConst(1)),
+			ModExp(ModConst(9)));
 
 	EXPECT_EQ(cond.isTernary(), true);
 	EXPECT_EQ(cond.getCondition().getModType(), ModType(BultinModTypes::BOOL));

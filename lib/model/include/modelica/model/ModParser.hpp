@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 
+#include "llvm/ADT/SmallVector.h"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModErrors.hpp"
@@ -33,13 +34,13 @@ namespace modelica
 		}
 
 		[[nodiscard]] llvm::Expected<ModExp> expression();
-		[[nodiscard]] llvm::Expected<ModConst<bool>> boolVector();
-		[[nodiscard]] llvm::Expected<ModConst<int>> intVector();
-		[[nodiscard]] llvm::Expected<ModConst<float>> floatVector();
+		[[nodiscard]] llvm::Expected<ModConst> boolVector();
+		[[nodiscard]] llvm::Expected<ModConst> intVector();
+		[[nodiscard]] llvm::Expected<ModConst> floatVector();
 		[[nodiscard]] llvm::Expected<std::string> reference();
 		[[nodiscard]] llvm::Expected<ModCall> call();
 		[[nodiscard]] llvm::Expected<ModType> type();
-		[[nodiscard]] llvm::Expected<std::vector<size_t>> typeDimensions();
+		[[nodiscard]] llvm::Expected<llvm::SmallVector<size_t, 3>> typeDimensions();
 		[[nodiscard]] llvm::Expected<std::vector<ModExp>> args();
 		[[nodiscard]] llvm::Expected<std::tuple<ModExpKind, std::vector<ModExp>>>
 		operation();

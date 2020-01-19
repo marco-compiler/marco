@@ -1,4 +1,5 @@
 #pragma once
+#include <initializer_list>
 #include <numeric>
 #include <type_traits>
 
@@ -52,7 +53,7 @@ namespace modelica
 	class ModType
 	{
 		public:
-		ModType(BultinModTypes t): builtinModType(t), dimensions({ 1 }) {}
+		explicit ModType(BultinModTypes t): builtinModType(t), dimensions({ 1 }) {}
 
 		ModType(BultinModTypes builtin, llvm::SmallVector<size_t, 3> dim)
 				: builtinModType(builtin), dimensions(std::move(dim))
@@ -63,17 +64,17 @@ namespace modelica
 		 * Overload that allows to pass an arbitrary number of integer to specify
 		 * the dimensions of a vector.
 		 */
-		template<typename... T>
-		ModType(BultinModTypes t, T... args)
-				: builtinModType(t), dimensions({ static_cast<size_t>(args)... })
+		template<typename First, typename... T>
+		ModType(BultinModTypes t, First first, T... args)
+				: builtinModType(t),
+					dimensions(
+							{ static_cast<size_t>(first), static_cast<size_t>(args)... })
 		{
 		}
 
-		ModType(BultinModTypes builtin, std::vector<size_t> dims)
-				: builtinModType(builtin)
+		ModType(BultinModTypes builtin, std::initializer_list<size_t> dims)
+				: builtinModType(builtin), dimensions(move(dims))
 		{
-			for (auto dim : dims)
-				dimensions.push_back(dim);
 		}
 
 		/**

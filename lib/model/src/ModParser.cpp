@@ -53,7 +53,7 @@ Expected<float> ModParser::floatingPoint()
 	return minus ? -b : b;
 }
 
-Expected<ModConst<int>> ModParser::intVector()
+Expected<ModConst> ModParser::intVector()
 {
 	SmallVector<int, 3> args;
 	EXPECT(ModToken::LCurly);
@@ -67,10 +67,10 @@ Expected<ModConst<int>> ModParser::intVector()
 	}
 
 	EXPECT(ModToken::RCurly);
-	return ModConst<int>(move(args));
+	return ModConst(move(args));
 }
 
-Expected<ModConst<float>> ModParser::floatVector()
+Expected<ModConst> ModParser::floatVector()
 {
 	SmallVector<float, 3> args;
 	EXPECT(ModToken::LCurly);
@@ -84,10 +84,10 @@ Expected<ModConst<float>> ModParser::floatVector()
 	}
 
 	EXPECT(ModToken::RCurly);
-	return ModConst<float>(move(args));
+	return ModConst(move(args));
 }
 
-Expected<ModConst<bool>> ModParser::boolVector()
+Expected<ModConst> ModParser::boolVector()
 {
 	SmallVector<bool, 3> args;
 	EXPECT(ModToken::LCurly);
@@ -104,12 +104,12 @@ Expected<ModConst<bool>> ModParser::boolVector()
 	}
 
 	EXPECT(ModToken::RCurly);
-	return ModConst<bool>(move(args));
+	return ModConst(move(args));
 }
 
-Expected<vector<size_t>> ModParser::typeDimensions()
+Expected<SmallVector<size_t, 3>> ModParser::typeDimensions()
 {
-	vector<size_t> v;
+	SmallVector<size_t, 3> v;
 	EXPECT(ModToken::LSquare);
 
 	if (accept<ModToken::RSquare>())

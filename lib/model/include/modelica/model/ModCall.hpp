@@ -38,12 +38,28 @@ namespace modelica
 		}
 
 		/**
+		 * Buils a function call with the provided name, type and args
+		 */
+		ModCall(std::string name, ArgsVec args, BultinModTypes type)
+				: name(std::move(name)), args(std::move(args)), type(ModType(type))
+		{
+		}
+
+		/**
 		 * Overload to allow inizializers lists
 		 */
 		ModCall(
 				std::string name,
 				std::initializer_list<ModExp> arguments,
 				ModType type);
+
+		/**
+		 * Overload to allow inizializers lists
+		 */
+		ModCall(
+				std::string name,
+				std::initializer_list<ModExp> arguments,
+				BultinModTypes type);
 
 		ModCall(const ModCall& other);
 

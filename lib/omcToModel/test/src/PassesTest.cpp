@@ -23,8 +23,8 @@ TEST(OmcToModelTest, singleDeclaration)	 // NOLINT
 
 	const auto& initialization = model.getVar("N").getInit();
 	EXPECT_TRUE(initialization.isConstant());
-	const auto& constant = initialization.getConstant<int>();
-	EXPECT_EQ(constant.get(0), 10);
+	const auto& constant = initialization.getConstant();
+	EXPECT_EQ(constant.get<int>(0), 10);
 }
 
 TEST(OmcToModelTest, uninitializedDeclaration)	// NOLINT

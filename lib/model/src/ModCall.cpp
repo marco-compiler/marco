@@ -3,6 +3,7 @@
 #include <algorithm>
 
 #include "modelica/model/ModExp.hpp"
+#include "modelica/model/ModType.hpp"
 
 using namespace modelica;
 using namespace std;
@@ -25,6 +26,14 @@ bool ModCall::operator==(const ModCall& other) const
 
 ModCall::ModCall(string name, initializer_list<ModExp> arguments, ModType type)
 		: name(move(name)), type(std::move(type))
+{
+	for (const auto& arg : arguments)
+		args.push_back(std::make_unique<ModExp>(move(arg)));
+}
+
+ModCall::ModCall(
+		string name, initializer_list<ModExp> arguments, BultinModTypes type)
+		: name(move(name)), type(ModType(type))
 {
 	for (const auto& arg : arguments)
 		args.push_back(std::make_unique<ModExp>(move(arg)));

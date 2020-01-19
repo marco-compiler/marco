@@ -5,6 +5,7 @@
 #include <variant>
 
 #include "llvm/Support/Error.h"
+#include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModLexerStateMachine.hpp"
 #include "modelica/utils/SourceRange.hpp"
@@ -171,10 +172,8 @@ namespace modelica
 			: public llvm::ErrorInfo<TypeConstantSizeMissMatch>
 	{
 		public:
-		using AnyConstant =
-				std::variant<ModConst<int>, ModConst<float>, ModConst<bool>>;
 		static char ID;
-		TypeConstantSizeMissMatch(AnyConstant cnst, ModType type)
+		TypeConstantSizeMissMatch(ModConst cnst, ModType type)
 				: constant(std::move(cnst)), type(std::move(type))
 		{
 		}
@@ -185,12 +184,7 @@ namespace modelica
 			type.dump(OS);
 			OS << "\nand\n\t";
 
-			if (std::holds_alternative<IntModConst>(constant))
-				dumpConstant(std::get<IntModConst>(constant), OS);
-			else if (std::holds_alternative<FloatModConst>(constant))
-				dumpConstant(std::get<FloatModConst>(constant), OS);
-			else if (std::holds_alternative<BoolModConst>(constant))
-				dumpConstant(std::get<BoolModConst>(constant), OS);
+			constant.dump(OS);
 		}
 
 		[[nodiscard]] std::error_code convertToErrorCode() const override
@@ -200,11 +194,11 @@ namespace modelica
 					LowererErrorCategory::category);
 		}
 
-		[[nodiscard]] const AnyConstant& getConstant() const { return constant; }
+		[[nodiscard]] const ModConst& getConstant() const { return constant; }
 		[[nodiscard]] const ModType& getType() const { return type; }
 
 		private:
-		AnyConstant constant;
+		ModConst constant;
 		ModType type;
 	};
 

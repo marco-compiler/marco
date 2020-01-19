@@ -271,9 +271,11 @@ namespace modelica
 		 * Builds a reference expression based on the provided name
 		 * of a var, and the type in which the values of that var will be casted.
 		 */
-		template<typename... T>
-		ModExp(std::string ref, BultinModTypes type, T... dimensions)
-				: content(std::move(ref)), returnModType(type, dimensions...)
+		ModExp(
+				std::string ref,
+				BultinModTypes type,
+				std::initializer_list<size_t> dimensions)
+				: content(std::move(ref)), returnModType(type, std::move(dimensions))
 		{
 		}
 
@@ -282,24 +284,39 @@ namespace modelica
 		{
 		}
 
+		ModExp(std::string ref, BultinModTypes type)
+				: content(std::move(ref)), returnModType(ModType(type))
+		{
+		}
+
 		/**
 		 * Builds a constant expression with the provided constant and the
 		 * specified type in which the constant will be casted into. By default
 		 * the type is deduced from the constant
 		 */
-		template<typename C>
-		ModExp(
-				ModConst<C> constant,
-				ModType returnModType = ModType(typeToBuiltin<C>()))
+		ModExp(ModConst constant, ModType returnModType)
 				: content(std::move(constant)), returnModType(std::move(returnModType))
+		{
+		}
+		ModExp(ModConst constant)
+				: content(std::move(constant)),
+					returnModType(getConstant().getModTypeOfLiteral())
 		{
 		}
 
 		template<typename T>
-		static ModExp constExp(
-				T constant, ModType returnModType = ModType(typeToBuiltin<T>()))
+		static ModExp constExp(T constant, ModType returnModType)
 		{
-			return ModExp(ModConst<T>(constant), returnModType);
+			auto c = ModConst(constant);
+			return ModExp(std::move(c), std::move(returnModType));
+		}
+
+		template<typename T>
+		static ModExp constExp(T constant)
+		{
+			auto c = ModConst(constant);
+			auto type = c.getModTypeOfLiteral();
+			return ModExp(std::move(c), std::move(type));
 		}
 
 		/**
@@ -654,7 +671,8 @@ namespace modelica
 		template<typename C>
 		[[nodiscard]] bool isConstant() const
 		{
-			return std::holds_alternative<ModConst<C>>(content);
+			return std::holds_alternative<ModConst>(content) &&
+						 getConstant().isA<C>();
 		}
 
 		/**
@@ -686,11 +704,10 @@ namespace modelica
 		 * \pre isConstant<C>()
 		 * \return the constant holded by this expression.
 		 */
-		template<typename C>
-		[[nodiscard]] const ModConst<C>& getConstant() const
+		[[nodiscard]] const ModConst& getConstant() const
 		{
-			assert(isConstant<C>());	// NOLINT
-			return std::get<ModConst<C>>(content);
+			assert(isConstant());	 // NOLINT
+			return std::get<ModConst>(content);
 		}
 
 		/**
@@ -698,10 +715,10 @@ namespace modelica
 		 * \return the constant holded by this expression.
 		 */
 		template<typename C>
-		[[nodiscard]] ModConst<C>& getConstant()
+		[[nodiscard]] ModConst& getConstant()
 		{
 			assert(isConstant<C>());	// NOLINT
-			return std::get<ModConst<C>>(content);
+			return std::get<ModConst>(content);
 		}
 
 		/**
@@ -876,6 +893,8 @@ namespace modelica
 			return std::get<ModCall>(content);
 		}
 
+		bool tryFoldConstant();
+
 		private:
 		ModExp(
 				ModExpKind kind,
@@ -922,14 +941,7 @@ namespace modelica
 			return std::get<Operation>(content);
 		}
 
-		std::variant<
-				Operation,
-				IntModConst,
-				BoolModConst,
-				FloatModConst,
-				std::string,
-				ModCall>
-				content;
+		std::variant<Operation, ModConst, std::string, ModCall> content;
 		ModType returnModType;
 	};	// namespace modelica
 

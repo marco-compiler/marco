@@ -17,9 +17,9 @@ TEST(ModParserTest, contIntVectorShouldParse)
 	auto constVector = *vec;
 
 	EXPECT_EQ(constVector.size(), 3);
-	EXPECT_EQ(constVector.get(0), 1);
-	EXPECT_EQ(constVector.get(1), 2);
-	EXPECT_EQ(constVector.get(2), 3);
+	EXPECT_EQ(constVector.get<int>(0), 1);
+	EXPECT_EQ(constVector.get<int>(1), 2);
+	EXPECT_EQ(constVector.get<int>(2), 3);
 }
 
 TEST(ModParserTest, contFloatVectorShouldParse)
@@ -33,9 +33,9 @@ TEST(ModParserTest, contFloatVectorShouldParse)
 	auto constVector = *vec;
 
 	EXPECT_EQ(constVector.size(), 3);
-	EXPECT_NEAR(constVector.get(0), 1.4f, 0.1f);
-	EXPECT_NEAR(constVector.get(1), 2.1f, 0.1f);
-	EXPECT_NEAR(constVector.get(2), 3.9f, 0.1f);
+	EXPECT_NEAR(constVector.get<float>(0), 1.4f, 0.1f);
+	EXPECT_NEAR(constVector.get<float>(1), 2.1f, 0.1f);
+	EXPECT_NEAR(constVector.get<float>(2), 3.9f, 0.1f);
 }
 
 TEST(ModParserTest, contBoolVectorShouldParse)
@@ -49,9 +49,9 @@ TEST(ModParserTest, contBoolVectorShouldParse)
 	auto constVector = *vec;
 
 	EXPECT_EQ(constVector.size(), 3);
-	EXPECT_EQ(constVector.get(0), true);
-	EXPECT_EQ(constVector.get(1), true);
-	EXPECT_EQ(constVector.get(2), false);
+	EXPECT_EQ(constVector.get<bool>(0), true);
+	EXPECT_EQ(constVector.get<bool>(1), true);
+	EXPECT_EQ(constVector.get<bool>(2), false);
 }
 
 TEST(ModParserTest, constExp)
@@ -68,9 +68,9 @@ TEST(ModParserTest, constExp)
 	auto& constant = exp.getConstant<int>();
 
 	EXPECT_EQ(constant.size(), 3);
-	EXPECT_EQ(constant.get(0), 4);
-	EXPECT_EQ(constant.get(1), 1);
-	EXPECT_EQ(constant.get(2), 9);
+	EXPECT_EQ(constant.get<int>(0), 4);
+	EXPECT_EQ(constant.get<int>(1), 1);
+	EXPECT_EQ(constant.get<int>(2), 9);
 }
 
 TEST(ModParserTest, simCall)

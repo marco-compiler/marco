@@ -12,8 +12,8 @@ using namespace std;
 
 TEST(ModelTest, ModEquationToIndexSet)
 {
-	ModExp left(ModConst<int>(0));
-	ModExp right(ModConst<int>(0));
+	ModExp left(ModConst(0));
+	ModExp right(ModConst(0));
 	InductionVar v0(1, 3);
 	InductionVar v1(7, 10);
 	SmallVector<InductionVar, 3> vars{ v0, v1 };
@@ -25,7 +25,7 @@ TEST(ModelTest, ModEquationToIndexSet)
 
 TEST(ModelTest, ModVariableToIndexSet)
 {
-	ModExp dim(ModConst<int>(0, 1, 2, 3), ModType(BultinModTypes::INT, 2, 2));
+	ModExp dim(ModConst(0, 1, 2, 3), ModType(BultinModTypes::INT, 2, 2));
 	ModVariable variable("var", dim);
 	auto res = variable.toIndexSet();
 	EXPECT_EQ(res, IndexSet({ { 1, 2 }, { 1, 2 } }));

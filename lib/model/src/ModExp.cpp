@@ -111,19 +111,9 @@ bool ModExp::isReferenceAccess() const
 void ModExp::dump(llvm::raw_ostream& OS) const
 {
 	getModType().dump(OS);
-	if (isConstant<int>())
+	if (isConstant())
 	{
-		dumpConstant(getConstant<int>(), OS);
-		return;
-	}
-	if (isConstant<float>())
-	{
-		dumpConstant(getConstant<float>(), OS);
-		return;
-	}
-	if (isConstant<bool>())
-	{
-		dumpConstant(getConstant<bool>(), OS);
+		getConstant().dump(OS);
 		return;
 	}
 	if (isReference())
@@ -143,4 +133,56 @@ void ModExp::dump(llvm::raw_ostream& OS) const
 		return;
 	}
 	assert(false && "Unrechable");	// NOLINT
+}
+
+bool ModExp::tryFoldConstant()
+{
+	if (!isOperation())
+		return false;
+
+	if (isUnary() && !getLeftHand().isConstant())
+		return false;
+
+	if (isBinary())
+	{
+		if (!getLeftHand().isConstant())
+			return false;
+		if (!getRightHand().isConstant())
+			return false;
+	}
+
+	if (isTernary())
+	{
+		if (!getLeftHand().isConstant())
+			return false;
+		if (!getRightHand().isConstant())
+			return false;
+		if (!getCondition().isConstant())
+			return false;
+	}
+
+	switch (getKind())
+	{
+		case ModExpKind::zero:
+		case ModExpKind::negate:
+		case ModExpKind::induction:
+		case ModExpKind::add:
+		case ModExpKind::sub:
+		case ModExpKind::at:
+		case ModExpKind::mult:
+		case ModExpKind::divide:
+		case ModExpKind::greaterThan:
+		case ModExpKind::greaterEqual:
+		case ModExpKind::equal:
+		case ModExpKind::different:
+		case ModExpKind::less:
+		case ModExpKind::lessEqual:
+		case ModExpKind::elevation:
+		case ModExpKind::module:
+		case ModExpKind::conditional:
+			return false;
+	}
+
+	assert(false && "unreachable");
+	return false;
 }

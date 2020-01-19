@@ -1,10 +1,12 @@
 #pragma once
 
+#include <utility>
 #include <variant>
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
+#include "modelica/model/ModType.hpp"
 
 namespace modelica
 {
@@ -19,28 +21,30 @@ namespace modelica
 	 * to have multiple dimensions, it's always just a vector and it's up to
 	 * the user to determin how the array best fits the type he need.
 	 */
-	template<typename C>
 	class ModConst
 	{
 		public:
+		template<typename T>
+		using Content = llvm::SmallVector<T, 3>;
 		/**
 		 * Builds a single value constant by providing that value.
 		 */
-		ModConst(C val): content({ val }) {}
-
-		/**
-		 * Builds a constant by specifiying every value.
-		 */
-		template<typename... T2>
-		ModConst(C val, T2... args): content({ val, args... })
+		template<typename T>
+		explicit ModConst(T val): content(Content<T>({ val }))
 		{
 		}
 
-		ModConst(llvm::SmallVector<C, 3> args): content(std::move(args)) {}
-		ModConst(llvm::ArrayRef<C> args)
+		template<typename T>
+		ModConst(Content<T> args): content(std::move(args))
 		{
-			for (auto arg : args)
-				content.push_back(arg);
+		}
+
+		ModConst(double d): content(Content<float>({ static_cast<float>(d) })) {}
+
+		template<typename First, typename... T>
+		explicit ModConst(First f, T&&... args)
+				: content(Content<First>({ f, std::forward<T>(args)... }))
+		{
 		}
 
 		/**
@@ -48,13 +52,55 @@ namespace modelica
 		 *
 		 * \return the element at the indexth position.
 		 */
-		[[nodiscard]] C get(size_t index) const
+		template<typename T>
+		[[nodiscard]] T get(size_t index) const
 		{
-			assert(index < content.size());	 // NOLINT
-			return content[index];
+			const auto& cont = std::get<Content<T>>(content);
+			assert(index < size());	 // NOLINT
+			return cont[index];
 		}
 
-		[[nodiscard]] size_t size() const { return content.size(); }
+		template<typename T>
+		[[nodiscard]] const Content<T>& getContent() const
+		{
+			assert(isA<T>());
+			return std::get<Content<T>>(content);
+		}
+
+		template<typename T>
+		[[nodiscard]] bool isA() const
+		{
+			return std::holds_alternative<Content<T>>(content);
+		}
+
+		[[nodiscard]] ModType getModTypeOfLiteral() const
+		{
+			return ModType(getBuiltinType(), size());
+		}
+
+		[[nodiscard]] BultinModTypes getBuiltinType() const
+		{
+			if (isA<int>())
+				return BultinModTypes::INT;
+			if (isA<bool>())
+				return BultinModTypes::BOOL;
+			if (isA<float>())
+				return BultinModTypes::FLOAT;
+			assert(false && "unreachable");
+			return BultinModTypes::INT;
+		}
+
+		[[nodiscard]] size_t size() const
+		{
+			if (isA<int>())
+				return getContent<int>().size();
+			if (isA<bool>())
+				return getContent<bool>().size();
+			if (isA<float>())
+				return getContent<float>().size();
+			assert(false && "unreachable");
+			return 0;
+		}
 
 		/**
 		 * \return true iff every element is equal and have the same size
@@ -68,31 +114,31 @@ namespace modelica
 		 */
 		bool operator!=(const ModConst& other) const { return !(*this == other); }
 
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const
+		{
+			OS << '{';
+			for (size_t a = 0; a < size(); a++)
+			{
+				if (isA<int>())
+					OS << get<int>(a);
+				if (isA<float>())
+					OS << get<float>(a);
+				if (isA<bool>())
+					OS << static_cast<int>(get<bool>(a));
+				if (a != size() - 1)
+					OS << ", ";
+			}
+			OS << '}';
+		}
+
 		private:
 		/**
 		 * The decision of selecting 3 in this small vector is totally arbitrary,
 		 * i just assumed that 3d vectors are more likelly than everything else.
 		 * May need profiling.
 		 */
-		llvm::SmallVector<C, 3> content;
+		std::variant<Content<int>, Content<float>, Content<bool>> content;
 	};
-
-	/**
-	 * Dumps a constant values onto the provided outputstream,
-	 * llvm::outs() by default
-	 */
-	template<typename T>
-	void dumpConstant(const T& constant, llvm::raw_ostream& OS = llvm::outs())
-	{
-		OS << '{';
-		for (size_t a = 0; a < constant.size(); a++)
-		{
-			OS << constant.get(a);
-			if (a != constant.size() - 1)
-				OS << ", ";
-		}
-		OS << '}';
-	}
 
 	/**
 	 * This template is used to check if
@@ -111,7 +157,4 @@ namespace modelica
 	{
 	};
 
-	using IntModConst = ModConst<int>;
-	using FloatModConst = ModConst<float>;
-	using BoolModConst = ModConst<bool>;
 }	 // namespace modelica

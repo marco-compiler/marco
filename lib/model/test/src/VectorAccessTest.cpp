@@ -50,9 +50,8 @@ TEST(VectorAccessTest, multiDirectAccess)
 TEST(VectorAccessTest, singleOffset)
 {
 	ModExp exp = ModExp::at(
-			ModExp("referene", ModType(typeToBuiltin<int>(), 2)),
-			ModExp::add(
-					ModExp::induction(ModConst<int>(2)), ModExp(ModConst<int>(4))));
+			ModExp("referene", ModType(typeToBuiltin<int>(), { 2 })),
+			ModExp::add(ModExp::induction(ModConst(2)), ModExp(ModConst(4))));
 
 	if (!VectorAccess::isCanonical(exp))
 		FAIL();
@@ -90,15 +89,13 @@ TEST(VectorAccessTest, mapFromExp)
 	// equivalent to reference[b + 4][a + 10][20];
 	ModExp exp = ModExp::at(
 			ModExp("referene", ModType(typeToBuiltin<int>(), 2, 3, 3)),
-			ModExp::add(
-					ModExp::induction(ModConst<int>(1)), ModExp(ModConst<int>(4))));
+			ModExp::add(ModExp::induction(ModConst(1)), ModExp(ModConst(4))));
 
 	exp = ModExp::at(
 			move(exp),
-			ModExp::add(
-					ModExp::induction(ModConst<int>(0)), ModExp(ModConst<int>(10))));
+			ModExp::add(ModExp::induction(ModConst(0)), ModExp(ModConst(10))));
 
-	exp = ModExp::at(move(exp), ModExp(ModConst<int>(20)));
+	exp = ModExp::at(move(exp), ModExp(ModConst(20)));
 
 	if (!VectorAccess::isCanonical(exp))
 		FAIL();
@@ -128,15 +125,13 @@ TEST(VectorAccessTest, inverseMapFromExp)
 	// equivalent to reference[b + 4][a + 10][20];
 	ModExp exp = ModExp::at(
 			ModExp("referene", ModType(typeToBuiltin<int>(), 2, 3, 3)),
-			ModExp::add(
-					ModExp::induction(ModConst<int>(1)), ModExp(ModConst<int>(4))));
+			ModExp::add(ModExp::induction(ModConst(1)), ModExp(ModConst(4))));
 
 	exp = ModExp::at(
 			move(exp),
-			ModExp::add(
-					ModExp::induction(ModConst<int>(0)), ModExp(ModConst<int>(10))));
+			ModExp::add(ModExp::induction(ModConst(0)), ModExp(ModConst(10))));
 
-	exp = ModExp::at(move(exp), ModExp(ModConst<int>(20)));
+	exp = ModExp::at(move(exp), ModExp(ModConst(20)));
 
 	if (!VectorAccess::isCanonical(exp))
 		FAIL();
@@ -158,15 +153,13 @@ TEST(VectorAccessTest, inverteTest)
 	// equivalent to reference[b + 4][a + 10][20];
 	ModExp exp = ModExp::at(
 			ModExp("referene", ModType(typeToBuiltin<int>(), 2, 3, 3)),
-			ModExp::add(
-					ModExp::induction(ModConst<int>(1)), ModExp(ModConst<int>(4))));
+			ModExp::add(ModExp::induction(ModConst(1)), ModExp(ModConst(4))));
 
 	exp = ModExp::at(
 			move(exp),
-			ModExp::add(
-					ModExp::induction(ModConst<int>(0)), ModExp(ModConst<int>(10))));
+			ModExp::add(ModExp::induction(ModConst(0)), ModExp(ModConst(10))));
 
-	exp = ModExp::at(move(exp), ModExp(ModConst<int>(20)));
+	exp = ModExp::at(move(exp), ModExp(ModConst(20)));
 
 	if (!VectorAccess::isCanonical(exp))
 		FAIL();
@@ -189,8 +182,7 @@ TEST(VectorACcessTest, toStringTest)
 {
 	ModExp exp = ModExp::at(
 			ModExp("referene", ModType(typeToBuiltin<int>(), 2, 3, 3)),
-			ModExp::add(
-					ModExp::induction(ModConst<int>(1)), ModExp(ModConst<int>(4))));
+			ModExp::add(ModExp::induction(ModConst(1)), ModExp(ModConst(4))));
 	if (!VectorAccess::isCanonical(exp))
 		FAIL();
 	auto access = VectorAccess::fromExp(exp);

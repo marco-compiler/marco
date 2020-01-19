@@ -57,7 +57,7 @@ ModExp modExpFromASTExp(
 		auto refName = ref->getName();
 		if (const auto& i = inductionLookUpTable.find(refName);
 				i != inductionLookUpTable.end())
-			return ModExp::induction(ModExp(ModConst<int>(i->second)));
+			return ModExp::induction(ModExp(ModConst(i->second)));
 
 		auto type = model.getVar(refName).getInit().getModType();
 
@@ -148,10 +148,10 @@ ModExp modExpFromBinaryExp(
 	return left;
 }
 
-vector<size_t> dimFromArraySubscription(
+SmallVector<size_t, 3> dimFromArraySubscription(
 		const ArraySubscriptionExpr* subscription)
 {
-	vector<size_t> toReturn;
+	SmallVector<size_t, 3> toReturn;
 
 	for (auto& iter : subscription->children())
 	{
@@ -167,7 +167,7 @@ vector<size_t> dimFromArraySubscription(
 
 bool insertArray(
 		StringRef varName,
-		vector<size_t> dimensions,
+		SmallVector<size_t, 3> dimensions,
 		const ElementModification* innerMod,
 		EntryModel& model)
 {
@@ -182,7 +182,7 @@ bool insertArray(
 
 		auto ref = dyn_cast<FloatLiteralExpr>(simpleMod->getExpression());
 
-		ModExp sourceExp(ModConst<float>(ref->getValue()));
+		ModExp sourceExp(ModConst(ref->getValue()));
 
 		ModType outType(sourceExp.getModType().getBuiltin(), dimensions);
 		return !model.emplaceVar(
@@ -265,7 +265,7 @@ unique_ptr<ComponentClause> OmcToModelPass::visit(
 	auto decl = dyn_cast<ComponentDeclaration>(clause->getComponent(0));
 	string varName = decl->getIdent();
 	auto type = decl->getIdent();
-	vector<size_t> dimensions = { 1 };
+	SmallVector<size_t, 3> dimensions = { 1 };
 
 	for (const auto& child : *clause)
 	{

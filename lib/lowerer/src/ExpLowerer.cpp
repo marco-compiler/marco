@@ -2,6 +2,8 @@
 
 #include "CallLowerer.hpp"
 #include "OperationLowerer.hpp"
+#include "llvm/IR/Instructions.h"
+#include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModErrors.hpp"
 
 using namespace std;
@@ -47,19 +49,32 @@ Expected<Value*> lowerMemberWiseOp(LowererContext& info, const ModExp& exp)
 }
 
 template<typename T>
+void storeConstArray(
+		LowererContext& cont, const ModConst& constant, AllocaInst* alloca)
+{
+	auto& builder = cont.getBuilder();
+	auto castedAlloca =
+			builder.CreatePointerCast(alloca, flatPtrType(alloca->getType()));
+	for (size_t i = 0; i < constant.size(); i++)
+		cont.storeConstantToArrayElement<T>(constant.get<T>(i), castedAlloca, i);
+}
+
 Expected<AllocaInst*> lowerConstantTyped(
-		LowererContext& cont, const ModConst<T>& constant, const ModType& type)
+		LowererContext& cont, const ModConst& constant, const ModType& type)
 {
 	if (constant.size() != type.flatSize())
 		return make_error<TypeConstantSizeMissMatch>(constant, type);
 
 	auto& builder = cont.getBuilder();
 	auto alloca = cont.allocaModType(type);
-	auto castedAlloca =
-			builder.CreatePointerCast(alloca, flatPtrType(alloca->getType()));
 
-	for (size_t i = 0; i < constant.size(); i++)
-		cont.storeConstantToArrayElement<T>(constant.get(i), castedAlloca, i);
+	if (constant.isA<int>())
+		storeConstArray<int>(cont, constant, alloca);
+	if (constant.isA<float>())
+		storeConstArray<float>(cont, constant, alloca);
+	if (constant.isA<bool>())
+		storeConstArray<bool>(cont, constant, alloca);
+
 	return alloca;
 }
 
@@ -132,7 +147,7 @@ static Expected<Value*> lowerOperation(LowererContext& info, const ModExp& exp)
 	if (ModExpKind::zero == exp.getKind())
 	{
 		ModType type(BultinModTypes::INT);
-		IntModConst constant(0);
+		ModConst constant(0);
 		return lowerConstantTyped(info, constant, type);
 	}
 
@@ -229,18 +244,7 @@ namespace modelica
 	Expected<AllocaInst*> lowerConstant(
 			LowererContext& context, const ModExp& exp)
 	{
-		if (exp.isConstant<int>())
-			return lowerConstantTyped<int>(
-					context, exp.getConstant<int>(), exp.getModType());
-		if (exp.isConstant<float>())
-			return lowerConstantTyped<float>(
-					context, exp.getConstant<float>(), exp.getModType());
-		if (exp.isConstant<bool>())
-			return lowerConstantTyped<bool>(
-					context, exp.getConstant<bool>(), exp.getModType());
-
-		assert(false && "unreachable");	 // NOLINT
-		return nullptr;
+		return lowerConstantTyped(context, exp.getConstant(), exp.getModType());
 	}
 
 	Expected<Value*> lowerExp(LowererContext& info, const ModExp& exp)

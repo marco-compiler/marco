@@ -49,7 +49,7 @@ static SingleDimensionAccess inductionToSingleDimensionAccess(
 			expression.getKind() == ModExpKind::induction);
 	const auto& inductionVar = expression.getLeftHand();
 	assert(inductionVar.isConstant<int>());
-	auto indVar = inductionVar.getConstant<int>().get(0);
+	auto indVar = inductionVar.getConstant().get<int>(0);
 	return SingleDimensionAccess::relative(0, indVar);
 }
 
@@ -76,8 +76,8 @@ static SingleDimensionAccess operationToSingleDimensionAccess(
 	assert(constantExp.isConstant<int>());
 
 	int multiplier = expression.getKind() == ModExpKind::sub ? -1 : 1;
-	int64_t offset = constantExp.getConstant<int>().get(0) * multiplier;
-	size_t indVar = inductionExp.getLeftHand().getConstant<int>().get(0);
+	int64_t offset = constantExp.getConstant().get<int>(0) * multiplier;
+	size_t indVar = inductionExp.getLeftHand().getConstant().get<int>(0);
 
 	return SingleDimensionAccess::relative(offset, indVar);
 }
@@ -142,7 +142,7 @@ SingleDimensionAccess SingleDimensionAccess::fromExp(const ModExp& expression)
 	// if the accessing expression is a constant we are in the case
 	// for x in a:b loop y[K]
 	if (index.isConstant<int>())
-		return SingleDimensionAccess::absolute(index.getConstant<int>().get(0));
+		return SingleDimensionAccess::absolute(index.getConstant().get<int>(0));
 
 	// if the accessing expression is a induction we are in the case
 	// for x in a:b loop y[x]
