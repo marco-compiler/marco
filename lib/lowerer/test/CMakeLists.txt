@@ -18,7 +18,7 @@ macro(addLowererSimulationTest simulationName sourceSrc testSrc)
 
 	### Creates the command that will run the simulator generator and will produce the bc file
 	add_custom_command(OUTPUT ${simulationName}.bc include/${simulationName}.hpp
-		COMMAND $<TARGET_FILE:modc> --entry=runSimulation --publicSymbols=true --simTime=10 --dumpModel=true -bc=${simulationName}.bc -header=include/${simulationName}.hpp ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm
+		COMMAND $<TARGET_FILE:modc> --entry=runSimulation --publicSymbols=true --simTime=10 --dumpModel=true --o=${simulationName}.bc -header=include/${simulationName}.hpp ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm
 		DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm modelica::modc
 		COMMENT "generates ${simulationName} simulation bc file"
 		VERBATIM)

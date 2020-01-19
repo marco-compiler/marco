@@ -45,7 +45,7 @@ opt<bool> dumpLowered(
 		cl::cat(omcCCat));
 
 opt<string> outputFile(
-		"bc", cl::desc("<output-file>"), cl::init("-"), cl::cat(omcCCat));
+		"o", cl::desc("<output-file>"), cl::init("-"), cl::cat(omcCCat));
 
 SmallVector<Assigment, 2> toAssign(SmallVector<ModEquation, 2>&& equs)
 {
@@ -66,6 +66,14 @@ int main(int argc, char* argv[])
 {
 	cl::ParseCommandLineOptions(argc, argv);
 	auto errorOrBuffer = MemoryBuffer::getFileOrSTDIN(InputFileName);
+	error_code error;
+	raw_fd_ostream OS(outputFile, error, sys::fs::F_None);
+	if (error)
+	{
+		errs() << error.message();
+		return -1;
+	}
+
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	Parser parser(buffer->getBufferStart());
 	UniqueDecl ast = exitOnErr(parser.classDefinition());
@@ -75,7 +83,7 @@ int main(int argc, char* argv[])
 
 	if (dumpModel)
 	{
-		model.dump(outs());
+		model.dump(OS);
 		return 0;
 	}
 
@@ -83,7 +91,7 @@ int main(int argc, char* argv[])
 
 	if (dumpSolvedModel)
 	{
-		assModel.dump(outs());
+		assModel.dump(OS);
 		return 0;
 	}
 	LLVMContext context;
@@ -97,17 +105,10 @@ int main(int argc, char* argv[])
 
 	if (dumpLowered)
 	{
-		sim.dump(outs());
+		sim.dump(OS);
 		return 0;
 	}
 	exitOnErr(sim.lower());
-	error_code error;
-	raw_fd_ostream OS(outputFile, error, sys::fs::F_None);
-	if (error)
-	{
-		errs() << error.message();
-		return -1;
-	}
 	sim.dumpBC(OS);
 
 	return 0;

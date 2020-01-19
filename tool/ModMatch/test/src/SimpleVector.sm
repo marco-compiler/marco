@@ -1,0 +1,4 @@
+init
+vector = FLOAT[10]call fill FLOAT[10](FLOAT[1]{1.000000e+01})
+update
+for [1,11]FLOAT[1](at FLOAT[10]vector, INT[1](- INT[1](ind INT[1]{0}), INT[1]{1})) = INT[1]{10}

@@ -39,6 +39,13 @@ opt<int> maxMatchingIterations(
 		init(1000),
 		cat(simCCategory));
 
+opt<size_t> expectedMatches(
+		"expectedMatches",
+		cl::desc("programs exits with -1 if the matched variables are different "
+						 "than this argument"),
+		init(0),
+		cat(simCCategory));
+
 ExitOnError exitOnErr;
 
 int main(int argc, char* argv[])
@@ -68,6 +75,10 @@ int main(int argc, char* argv[])
 
 		graph.dumpGraph(OS);
 	}
+
+	if (!expectedMatches.isDefaultOption() &&
+			expectedMatches != graph.matchedCount())
+		return -1;
 
 	return 0;
 }

@@ -197,6 +197,14 @@ namespace modelica
 		{
 			return model.getEquations().size();
 		}
+		[[nodiscard]] size_t matchedCount() const
+		{
+			size_t count = 0;
+			for (const auto& edge : *this)
+				count += edge.getSet().size();
+
+			return count;
+		}
 		[[nodiscard]] size_t edgesCount() const { return edges.size(); }
 		void dumpGraph(llvm::raw_ostream& OS) const;
 		void match(int maxIterations);

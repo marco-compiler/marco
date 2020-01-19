@@ -5,7 +5,7 @@ configure_file(FlattenedThermalChipODE.mo ${CMAKE_CURRENT_BINARY_DIR}/FlattenedT
 
 ### Creates the command that will run the simulator generator and will produce the bc file
 add_custom_command(OUTPUT FlattenedThermalChipODE.bc 
-	COMMAND $<TARGET_FILE:omcc> --simTime=10000 -bc=FlattenedThermalChipODE.bc ${CMAKE_CURRENT_BINARY_DIR}/FlattenedThermalChipODE.mo
+	COMMAND $<TARGET_FILE:omcc> --simTime=10000 -o=FlattenedThermalChipODE.bc ${CMAKE_CURRENT_BINARY_DIR}/FlattenedThermalChipODE.mo
 	DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/FlattenedThermalChipODE.mo modelica::omcc
 	COMMENT "generates flattenedThermalchp bc file"
 	VERBATIM)

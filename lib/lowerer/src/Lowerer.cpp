@@ -340,10 +340,10 @@ void Lowerer::dump(raw_ostream& OS) const
 		OS << "\n";
 	};
 
-	OS << "Init:\n";
+	OS << "init:\n";
 	for_each(begin(variables), end(variables), dumpEquation);
 
-	OS << "Update:\n";
+	OS << "update:\n";
 	for (const auto& update : updates)
 		update.dump(OS);
 }

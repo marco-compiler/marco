@@ -21,7 +21,7 @@ opt<string> InputFileName(
 		cl::init("-"),
 		cl::cat(simCCategory));
 opt<string> outputFile(
-		"bc", cl::desc("<output-file>"), cl::init("-"), cl::cat(simCCategory));
+		"o", cl::desc("<output-file>"), cl::init("-"), cl::cat(simCCategory));
 opt<string> headerFile(
 		"header", cl::desc("<header-file>"), cl::init("-"), cl::cat(simCCategory));
 
