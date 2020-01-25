@@ -12,6 +12,7 @@
 #include "modelica/model/ModMatchers.hpp"
 #include "modelica/model/ModVariable.hpp"
 #include "modelica/model/VectorAccess.hpp"
+#include "modelica/utils/IRange.hpp"
 
 using namespace modelica;
 using namespace std;
@@ -19,18 +20,15 @@ using namespace llvm;
 
 void MatchingGraph::addEquation(const ModEquation& eq)
 {
-	ReferenceMatcher matcher;
-	visit(eq.getLeft(), matcher);
-	visit(eq.getRight(), matcher);
-	size_t useIndex = 0;
-
-	for (const auto& use : matcher)
+	ReferenceMatcher matcher(eq);
+	for (size_t useIndex : irange<size_t>(0, matcher.size()))
 	{
-		if (!VectorAccess::isCanonical(*use))
+		const auto& use = matcher[useIndex];
+		if (!VectorAccess::isCanonical(use))
 			continue;
 
 		size_t edgeIndex = edges.size();
-		edges.emplace_back(model, eq, *use, useIndex++);
+		edges.emplace_back(model, eq, use, useIndex);
 		equationLookUp.insert({ &eq, edgeIndex });
 		auto var = &(edges.back().getVariable());
 		variableLookUp.insert({ var, edgeIndex });
@@ -39,7 +37,7 @@ void MatchingGraph::addEquation(const ModEquation& eq)
 
 void MatchingGraph::match(int iterations)
 {
-	while (iterations-- > 0)
+	for (auto _ : irange(0, iterations))
 	{
 		AugmentingPath path(*this);
 		if (!path.valid())

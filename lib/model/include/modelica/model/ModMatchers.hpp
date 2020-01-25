@@ -1,6 +1,7 @@
 #pragma once
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+#include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
 
 namespace modelica
@@ -8,6 +9,8 @@ namespace modelica
 	class ReferenceMatcher
 	{
 		public:
+		ReferenceMatcher() = default;
+		ReferenceMatcher(const ModEquation& eq) { visit(eq); }
 		void visitAt(const ModExp& exp)
 		{
 			const ModExp* childs = &exp.getLeftHand();
@@ -42,13 +45,22 @@ namespace modelica
 			}
 		}
 
+		void visit(const ModEquation& equation)
+		{
+			modelica::visit(equation.getLeft(), *this);
+			modelica::visit(equation.getRight(), *this);
+		}
+
 		[[nodiscard]] auto begin() const { return vars.begin(); }
 		[[nodiscard]] auto end() const { return vars.end(); }
 		[[nodiscard]] auto begin() { return vars.begin(); }
 		[[nodiscard]] auto end() { return vars.end(); }
 		[[nodiscard]] size_t size() const { return vars.size(); }
 		[[nodiscard]] const ModExp& at(size_t index) const { return *vars[index]; }
-		//[[nodiscard]] ModExp& at(size_t index) { return *vars[index]; }
+		[[nodiscard]] const ModExp& operator[](size_t index) const
+		{
+			return at(index);
+		}
 
 		private:
 		llvm::SmallPtrSet<const ModExp*, 4> toIgnore;
