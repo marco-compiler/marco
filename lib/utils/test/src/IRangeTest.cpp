@@ -22,3 +22,11 @@ TEST(IRangeTest, irangeCanBeUnsigned)
 
 	EXPECT_EQ(a, 5);
 }
+
+TEST(IRangeTest, irangeWithSingleArgument)
+{
+	int a = 0;
+	for (auto num : irange(5))
+		EXPECT_EQ(num, a++);
+	EXPECT_EQ(a, 5);
+}

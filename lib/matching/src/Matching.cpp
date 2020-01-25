@@ -21,7 +21,7 @@ using namespace llvm;
 void MatchingGraph::addEquation(const ModEquation& eq)
 {
 	ReferenceMatcher matcher(eq);
-	for (size_t useIndex : irange<size_t>(0, matcher.size()))
+	for (size_t useIndex : irange(matcher.size()))
 	{
 		const auto& use = matcher[useIndex];
 		if (!VectorAccess::isCanonical(use))

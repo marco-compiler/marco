@@ -49,4 +49,10 @@ namespace modelica
 	{
 		return llvm::make_range(IRangeIterator(begin), IRangeIterator(end));
 	}
+
+	template<typename IType>
+	llvm::iterator_range<IRangeIterator<IType>> irange(IType end)
+	{
+		return llvm::make_range(IRangeIterator<IType>(0), IRangeIterator(end));
+	}
 }	 // namespace modelica
