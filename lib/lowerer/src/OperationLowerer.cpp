@@ -21,7 +21,7 @@ Value* modelica::op<ModExpKind::negate>(IRBuilder<>& builder, Value* arg1)
 
 	if (type->isIntegerTy(1))
 		return builder.CreateICmpEQ(arg1, zero);
-	assert(false && "unreachable");	 // NOLINT
+	assert(false && "unreachable");
 	return nullptr;
 }
 

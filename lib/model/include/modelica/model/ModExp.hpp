@@ -714,10 +714,9 @@ namespace modelica
 		 * \pre isConstant<C>()
 		 * \return the constant holded by this expression.
 		 */
-		template<typename C>
 		[[nodiscard]] ModConst& getConstant()
 		{
-			assert(isConstant<C>());	// NOLINT
+			assert(isConstant());	 // NOLINT
 			return std::get<ModConst>(content);
 		}
 

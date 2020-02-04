@@ -1,5 +1,6 @@
 #pragma once
 
+#include <type_traits>
 #include <utility>
 #include <variant>
 
@@ -7,6 +8,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/model/ModType.hpp"
+#include "modelica/utils/IRange.hpp"
 
 namespace modelica
 {
@@ -34,6 +36,8 @@ namespace modelica
 		{
 		}
 
+		ModConst(): content(Content<bool>({ false })) {}
+
 		template<typename T>
 		ModConst(Content<T> args): content(std::move(args))
 		{
@@ -47,17 +51,83 @@ namespace modelica
 		{
 		}
 
+		template<typename Callable>
+		void visit(Callable&& c)
+		{
+			if (isA<int>())
+				c(getContent<int>());
+			else if (isA<float>())
+				c(getContent<float>());
+			else if (isA<bool>())
+				c(getContent<bool>());
+			else
+				assert(false && "unreachable");
+		}
+
+		template<typename Callable>
+		auto map(Callable&& c)
+		{
+			using ReturnType = decltype(c(Content<int>()));
+
+			ReturnType returnValue;
+			visit([&](const auto& content) { returnValue = c(content); });
+			return returnValue;
+		}
+
+		template<typename Callable>
+		[[nodiscard]] auto map(Callable&& c) const
+		{
+			using ReturnType = decltype(c(Content<int>()));
+
+			ReturnType returnValue;
+			visit([&](const auto& content) { returnValue = c(content); });
+			return returnValue;
+		}
+
+		template<typename Callable>
+		void visit(Callable&& c) const
+		{
+			if (isA<int>())
+				c(getContent<int>());
+			else if (isA<float>())
+				c(getContent<float>());
+			else if (isA<bool>())
+				c(getContent<bool>());
+			else
+				assert(false && "unreachable");
+		}
+
 		/**
 		 * \require index < size()
 		 *
 		 * \return the element at the indexth position.
 		 */
 		template<typename T>
-		[[nodiscard]] T get(size_t index) const
+		[[nodiscard]] const T& get(size_t index) const
 		{
 			const auto& cont = std::get<Content<T>>(content);
 			assert(index < size());	 // NOLINT
 			return cont[index];
+		}
+
+		/**
+		 * \require index < size()
+		 *
+		 * \return the element at the indexth position.
+		 */
+		template<typename T>
+		[[nodiscard]] T& get(size_t index)
+		{
+			auto& cont = std::get<Content<T>>(content);
+			assert(index < size());	 // NOLINT
+			return cont[index];
+		}
+
+		template<typename T>
+		[[nodiscard]] Content<T>& getContent()
+		{
+			assert(isA<T>());
+			return std::get<Content<T>>(content);
 		}
 
 		template<typename T>
@@ -65,6 +135,32 @@ namespace modelica
 		{
 			assert(isA<T>());
 			return std::get<Content<T>>(content);
+		}
+
+		template<typename T>
+		[[nodiscard]] ModConst as() const
+		{
+			const auto copyContent = [](const auto& currContent) {
+				Content<T> newContent;
+				for (auto e : currContent)
+					newContent.emplace_back(e);
+				return newContent;
+			};
+
+			return map(copyContent);
+		}
+
+		[[nodiscard]] ModConst as(BultinModTypes builtin) const
+		{
+			if (builtin == BultinModTypes::BOOL)
+				return as<bool>();
+			if (builtin == BultinModTypes::FLOAT)
+				return as<float>();
+			if (builtin == BultinModTypes::INT)
+				return as<int>();
+
+			assert(false && "unreachable");
+			return *this;
 		}
 
 		template<typename T>
@@ -78,28 +174,22 @@ namespace modelica
 			return ModType(getBuiltinType(), size());
 		}
 
-		[[nodiscard]] BultinModTypes getBuiltinType() const
-		{
-			if (isA<int>())
-				return BultinModTypes::INT;
-			if (isA<bool>())
-				return BultinModTypes::BOOL;
-			if (isA<float>())
-				return BultinModTypes::FLOAT;
-			assert(false && "unreachable");
-			return BultinModTypes::INT;
-		}
+		[[nodiscard]] BultinModTypes getBuiltinType() const;
 
 		[[nodiscard]] size_t size() const
 		{
-			if (isA<int>())
-				return getContent<int>().size();
-			if (isA<bool>())
-				return getContent<bool>().size();
-			if (isA<float>())
-				return getContent<float>().size();
-			assert(false && "unreachable");
-			return 0;
+			return map([](const auto& content) { return content.size(); });
+		}
+
+		void negateAll()
+		{
+			for (auto index : irange<size_t>(size()))
+				negate(index);
+		}
+
+		void negate(size_t index)
+		{
+			visit([index](auto& content) { content[index] = -content[index]; });
 		}
 
 		/**
@@ -117,19 +207,19 @@ namespace modelica
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const
 		{
 			OS << '{';
-			for (size_t a = 0; a < size(); a++)
-			{
-				if (isA<int>())
-					OS << get<int>(a);
-				if (isA<float>())
-					OS << get<float>(a);
-				if (isA<bool>())
-					OS << static_cast<int>(get<bool>(a));
-				if (a != size() - 1)
-					OS << ", ";
-			}
+
+			visit([&OS](const auto& content) {
+				for (auto a : irange(content.size()))
+				{
+					OS << content[a];
+					if (a != content.size() - 1)
+						OS << ", ";
+				}
+			});
 			OS << '}';
 		}
+
+		static ModConst sum(const ModConst& left, const ModConst& right);
 
 		private:
 		/**

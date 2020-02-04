@@ -2,6 +2,7 @@
 
 #include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModCall.hpp"
+#include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModExp.hpp"
 
 using namespace modelica;
@@ -106,6 +107,14 @@ TEST(ExpressionTest, callExpression)	// NOLINT
 	EXPECT_EQ(exp.getModType(), ModType(BultinModTypes::INT));
 	EXPECT_EQ(exp.getCall().argsSize(), 2);
 	EXPECT_EQ(exp.getCall().at(0), ref);
+}
+
+TEST(ModExpTest, sumCanBeFolded)
+{
+	auto sum = ModExp(ModConst(1)) + ModExp(ModConst(3));
+	EXPECT_TRUE(sum.tryFoldConstant());
+	EXPECT_TRUE(sum.isConstant<int>());
+	EXPECT_EQ(sum.getConstant().get<int>(0), 4);
 }
 
 TEST(ModelTest, entryModelIsIteratable)

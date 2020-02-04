@@ -65,7 +65,7 @@ TEST(ModParserTest, constExp)
 	auto exp = *vec;
 	EXPECT_TRUE(exp.isConstant<int>());
 
-	auto& constant = exp.getConstant<int>();
+	auto& constant = exp.getConstant();
 
 	EXPECT_EQ(constant.size(), 3);
 	EXPECT_EQ(constant.get<int>(0), 4);

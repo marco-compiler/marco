@@ -1,5 +1,7 @@
 #include "modelica/model/ModExp.hpp"
 
+#include "modelica/model/ModConst.hpp"
+
 using namespace modelica;
 
 static std::string exprKindToString(ModExpKind kind)
@@ -164,9 +166,16 @@ bool ModExp::tryFoldConstant()
 	switch (getKind())
 	{
 		case ModExpKind::zero:
+			return false;
 		case ModExpKind::negate:
+			getConstant().negateAll();
+			return true;
 		case ModExpKind::induction:
+			return false;
 		case ModExpKind::add:
+			*this = ModExp(ModConst::sum(
+					getLeftHand().getConstant(), getRightHand().getConstant()));
+			return true;
 		case ModExpKind::sub:
 		case ModExpKind::at:
 		case ModExpKind::mult:

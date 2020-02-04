@@ -1,6 +1,6 @@
 include(GoogleTest)
 
-add_executable(modelTest src/ModelTest.cpp src/ModLexerStateMachineTest.cpp src/ModParserTest.cpp src/ModMatchersTest.cpp src/VectorAccessTest.cpp src/ModEquationTest.cpp)
+add_executable(modelTest src/ModelTest.cpp src/ModLexerStateMachineTest.cpp src/ModParserTest.cpp src/ModMatchersTest.cpp src/VectorAccessTest.cpp src/ModEquationTest.cpp src/ModConstTest.cpp)
 add_executable(modelica::modelTest ALIAS modelTest) 
 target_link_libraries(modelTest PRIVATE gtest gtest_main modelica::model)
 target_include_directories(modelTest PUBLIC include PRIVATE src)
