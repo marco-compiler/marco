@@ -40,6 +40,83 @@ ModConst ModConst::sum(const ModConst& left, const ModConst& right)
 	return pairWiseOperation(left, right, [](auto l, auto r) { return l + r; });
 }
 
+ModConst ModConst::sub(const ModConst& left, const ModConst& right)
+{
+	assert(left.size() == right.size());
+	return pairWiseOperation(left, right, [](auto l, auto r) { return l - r; });
+}
+
+ModConst ModConst::mult(const ModConst& left, const ModConst& right)
+{
+	assert(left.size() == right.size());
+	return pairWiseOperation(left, right, [](auto l, auto r) { return l * r; });
+}
+
+ModConst ModConst::divide(const ModConst& left, const ModConst& right)
+{
+	assert(left.size() == right.size());
+	return pairWiseOperation(left, right, [](auto l, auto r) { return l / r; });
+}
+
+ModConst ModConst::greaterThan(const ModConst& left, const ModConst& right)
+{
+	assert(left.size() == right.size());
+	return pairWiseOperation(left, right, [](auto l, auto r) { return l > r; })
+			.as<bool>();
+}
+
+ModConst ModConst::greaterEqual(const ModConst& left, const ModConst& right)
+{
+	assert(left.size() == right.size());
+	return pairWiseOperation(left, right, [](auto l, auto r) { return l >= r; })
+			.as<bool>();
+}
+
+ModConst ModConst::equal(const ModConst& left, const ModConst& right)
+{
+	assert(left.size() == right.size());
+	return pairWiseOperation(left, right, [](auto l, auto r) { return l == r; })
+			.as<bool>();
+}
+ModConst ModConst::different(const ModConst& left, const ModConst& right)
+{
+	assert(left.size() == right.size());
+	return pairWiseOperation(left, right, [](auto l, auto r) { return l != r; })
+			.as<bool>();
+}
+
+ModConst ModConst::lessThan(const ModConst& left, const ModConst& right)
+{
+	assert(left.size() == right.size());
+	return pairWiseOperation(left, right, [](auto l, auto r) { return l < r; })
+			.as<bool>();
+}
+
+ModConst ModConst::lessEqual(const ModConst& left, const ModConst& right)
+{
+	assert(left.size() == right.size());
+	return pairWiseOperation(left, right, [](auto l, auto r) { return l <= r; })
+			.as<bool>();
+}
+
+ModConst ModConst::elevate(const ModConst& left, const ModConst& right)
+{
+	assert(left.size() == right.size());
+	return pairWiseOperation(
+			left, right, [](auto l, auto r) { return pow(l, r); });
+}
+
+ModConst ModConst::module(const ModConst& left, const ModConst& right)
+{
+	assert(left.size() == right.size());
+	assert(left.getBuiltinType() == BultinModTypes::INT);
+	assert(right.getBuiltinType() == BultinModTypes::INT);
+	return contentPairWiseOperation<int, int>(
+			left.getContent<int>(), right.getContent<int>(), [](int l, int r) {
+				return l % r;
+			});
+}
+
 template<typename T>
 BultinModTypes modTypeFromContentType(const ModConst::Content<T>& content)
 {

@@ -346,8 +346,13 @@ namespace modelica
 			if (!isOperation())
 				return true;
 
-			if (getKind() == ModExpKind::at)
+			if (isOperation<ModExpKind::at>())
 				return true;
+
+			if (isOperation<ModExpKind::module>() &&
+					(getLeftHand().getModType().getBuiltin() != BultinModTypes::INT ||
+					 getRightHand().getModType().getBuiltin() != BultinModTypes::INT))
+				return false;
 
 			auto compatible =
 					getLeftHand().getModType().canBeCastedInto(getModType());

@@ -3,6 +3,7 @@
 #include "modelica/model/ModConst.hpp"
 
 using namespace modelica;
+using namespace std;
 
 static std::string exprKindToString(ModExpKind kind)
 {
@@ -163,6 +164,9 @@ bool ModExp::tryFoldConstant()
 			return false;
 	}
 
+	const auto& lConst = getLeftHand().getConstant();
+	const auto& rConst = getRightHand().getConstant();
+
 	switch (getKind())
 	{
 		case ModExpKind::zero:
@@ -173,22 +177,54 @@ bool ModExp::tryFoldConstant()
 		case ModExpKind::induction:
 			return false;
 		case ModExpKind::add:
-			*this = ModExp(ModConst::sum(
-					getLeftHand().getConstant(), getRightHand().getConstant()));
+			*this = ModExp(ModConst::sum(lConst, rConst));
 			return true;
 		case ModExpKind::sub:
-		case ModExpKind::at:
+			*this = ModExp(ModConst::sub(lConst, rConst));
+			return true;
 		case ModExpKind::mult:
+			*this = ModExp(ModConst::mult(lConst, rConst));
+			return true;
 		case ModExpKind::divide:
+			*this = ModExp(ModConst::divide(lConst, rConst));
+			return true;
 		case ModExpKind::greaterThan:
+			*this = ModExp(ModConst::greaterThan(lConst, rConst));
+			return true;
 		case ModExpKind::greaterEqual:
+			*this = ModExp(ModConst::greaterEqual(lConst, rConst));
+			return true;
 		case ModExpKind::equal:
+			*this = ModExp(ModConst::equal(lConst, rConst));
+			return true;
 		case ModExpKind::different:
+			*this = ModExp(ModConst::different(lConst, rConst));
+			return true;
 		case ModExpKind::less:
+			*this = ModExp(ModConst::lessThan(lConst, rConst));
+			return true;
 		case ModExpKind::lessEqual:
+			*this = ModExp(ModConst::lessEqual(lConst, rConst));
+			return true;
 		case ModExpKind::elevation:
+			*this = ModExp(ModConst::elevate(lConst, rConst));
+			return true;
 		case ModExpKind::module:
+			*this = ModExp(ModConst::module(lConst, rConst));
+			return true;
 		case ModExpKind::conditional:
+			if (getCondition().getConstant().get<bool>(0))
+			{
+				auto newVal = move(getLeftHand());
+				*this = move(newVal);
+			}
+			else
+			{
+				auto newVal = move(getRightHand());
+				*this = move(newVal);
+			}
+			return true;
+		case ModExpKind::at:
 			return false;
 	}
 

@@ -117,6 +117,32 @@ TEST(ModExpTest, sumCanBeFolded)
 	EXPECT_EQ(sum.getConstant().get<int>(0), 4);
 }
 
+TEST(ModExpTest, operatorGreaterCanBeFolded)
+{
+	auto sum = ModExp(ModConst(1)) > ModExp(ModConst(3));
+	EXPECT_TRUE(sum.tryFoldConstant());
+	EXPECT_TRUE(sum.isConstant<bool>());
+	EXPECT_EQ(sum.getConstant().get<bool>(0), false);
+}
+
+TEST(ModExpTest, operatorLowerCanBeFolded)
+{
+	auto sum = ModExp(ModConst(1)) < ModExp(ModConst(3));
+	EXPECT_TRUE(sum.tryFoldConstant());
+	EXPECT_TRUE(sum.isConstant<bool>());
+	EXPECT_EQ(sum.getConstant().get<bool>(0), true);
+}
+
+TEST(ModExpTest, conditionalCanBeFolded)
+{
+	auto sum = ModExp::cond(
+			ModExp(ModConst(false)), ModExp(ModConst(1)), ModExp(ModConst(3)));
+	EXPECT_TRUE(sum.tryFoldConstant());
+	sum.dump();
+	EXPECT_TRUE(sum.isConstant<int>());
+	EXPECT_EQ(sum.getConstant().get<int>(0), 3);
+}
+
 TEST(ModelTest, entryModelIsIteratable)
 {
 	EntryModel model;

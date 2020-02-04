@@ -220,6 +220,17 @@ namespace modelica
 		}
 
 		static ModConst sum(const ModConst& left, const ModConst& right);
+		static ModConst sub(const ModConst& left, const ModConst& right);
+		static ModConst mult(const ModConst& left, const ModConst& right);
+		static ModConst divide(const ModConst& left, const ModConst& right);
+		static ModConst greaterThan(const ModConst& left, const ModConst& right);
+		static ModConst greaterEqual(const ModConst& left, const ModConst& right);
+		static ModConst equal(const ModConst& left, const ModConst& right);
+		static ModConst different(const ModConst& left, const ModConst& right);
+		static ModConst lessThan(const ModConst& left, const ModConst& right);
+		static ModConst lessEqual(const ModConst& left, const ModConst& right);
+		static ModConst elevate(const ModConst& left, const ModConst& right);
+		static ModConst module(const ModConst& left, const ModConst& right);
 
 		private:
 		/**
