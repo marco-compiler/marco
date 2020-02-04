@@ -154,15 +154,8 @@ bool ModExp::tryFoldConstant()
 			return false;
 	}
 
-	if (isTernary())
-	{
-		if (!getLeftHand().isConstant())
-			return false;
-		if (!getRightHand().isConstant())
-			return false;
-		if (!getCondition().isConstant())
-			return false;
-	}
+	if (isTernary() && !getCondition().isConstant())
+		return false;
 
 	const auto& lConst = getLeftHand().getConstant();
 	const auto& rConst = getRightHand().getConstant();
@@ -177,40 +170,40 @@ bool ModExp::tryFoldConstant()
 		case ModExpKind::induction:
 			return false;
 		case ModExpKind::add:
-			*this = ModExp(ModConst::sum(lConst, rConst));
+			*this = ModExp(ModConst::sum(lConst, rConst), getModType());
 			return true;
 		case ModExpKind::sub:
-			*this = ModExp(ModConst::sub(lConst, rConst));
+			*this = ModExp(ModConst::sub(lConst, rConst), getModType());
 			return true;
 		case ModExpKind::mult:
-			*this = ModExp(ModConst::mult(lConst, rConst));
+			*this = ModExp(ModConst::mult(lConst, rConst), getModType());
 			return true;
 		case ModExpKind::divide:
-			*this = ModExp(ModConst::divide(lConst, rConst));
+			*this = ModExp(ModConst::divide(lConst, rConst), getModType());
 			return true;
 		case ModExpKind::greaterThan:
-			*this = ModExp(ModConst::greaterThan(lConst, rConst));
+			*this = ModExp(ModConst::greaterThan(lConst, rConst), getModType());
 			return true;
 		case ModExpKind::greaterEqual:
-			*this = ModExp(ModConst::greaterEqual(lConst, rConst));
+			*this = ModExp(ModConst::greaterEqual(lConst, rConst), getModType());
 			return true;
 		case ModExpKind::equal:
-			*this = ModExp(ModConst::equal(lConst, rConst));
+			*this = ModExp(ModConst::equal(lConst, rConst), getModType());
 			return true;
 		case ModExpKind::different:
-			*this = ModExp(ModConst::different(lConst, rConst));
+			*this = ModExp(ModConst::different(lConst, rConst), getModType());
 			return true;
 		case ModExpKind::less:
-			*this = ModExp(ModConst::lessThan(lConst, rConst));
+			*this = ModExp(ModConst::lessThan(lConst, rConst), getModType());
 			return true;
 		case ModExpKind::lessEqual:
-			*this = ModExp(ModConst::lessEqual(lConst, rConst));
+			*this = ModExp(ModConst::lessEqual(lConst, rConst), getModType());
 			return true;
 		case ModExpKind::elevation:
-			*this = ModExp(ModConst::elevate(lConst, rConst));
+			*this = ModExp(ModConst::elevate(lConst, rConst), getModType());
 			return true;
 		case ModExpKind::module:
-			*this = ModExp(ModConst::module(lConst, rConst));
+			*this = ModExp(ModConst::module(lConst, rConst), getModType());
 			return true;
 		case ModExpKind::conditional:
 			if (getCondition().getConstant().get<bool>(0))

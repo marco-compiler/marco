@@ -1,7 +1,9 @@
 #include "gtest/gtest.h"
 
 #include "modelica/model/Assigment.hpp"
+#include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModEquation.hpp"
+#include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModType.hpp"
 #include "modelica/model/ModVariable.hpp"
 #include "modelica/utils/IndexSet.hpp"
@@ -29,4 +31,38 @@ TEST(ModelTest, ModVariableToIndexSet)
 	ModVariable variable("var", dim);
 	auto res = variable.toIndexSet();
 	EXPECT_EQ(res, IndexSet({ { 1, 2 }, { 1, 2 } }));
+}
+
+TEST(ModelTest, ModEquationConstantFolding)
+{
+	ModExp l(ModConst(2));
+	ModExp r(ModConst(5));
+
+	ModExp lRes(ModConst(4));
+	ModExp rRes(ModConst(10));
+	SmallVector<InductionVar, 3> vars{ { 0, 1 } };
+
+	ModEquation eq(ModExp::add(l, l), ModExp::add(r, r), vars);
+	eq.foldConstants();
+
+	EXPECT_EQ(eq.getLeft(), lRes);
+	EXPECT_EQ(eq.getRight(), rRes);
+}
+
+TEST(ModelTest, ModEquationConstantFoldingWithReferences)
+{
+	ModExp l(ModConst(2));
+	ModExp r(ModConst(5));
+	ModExp sum("Hey", ModType(BultinModTypes::INT, 1));
+
+	ModExp lRes(ModConst(4));
+	ModExp rRes(ModConst(10));
+	SmallVector<InductionVar, 3> vars{ { 0, 1 } };
+
+	ModExp inner = ModExp::add(l, sum);
+	ModEquation eq(l + inner, ModExp::add(r, r), vars);
+	eq.foldConstants();
+
+	EXPECT_EQ(eq.getLeft(), ModExp::add(sum, lRes));
+	EXPECT_EQ(eq.getRight(), rRes);
 }

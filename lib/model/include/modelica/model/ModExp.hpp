@@ -897,9 +897,15 @@ namespace modelica
 			return std::get<ModCall>(content);
 		}
 
+		[[nodiscard]] ModCall& getCall()
+		{
+			assert(isCall());	 // NOLINT
+
+			return std::get<ModCall>(content);
+		}
+
 		bool tryFoldConstant();
 
-		private:
 		ModExp(
 				ModExpKind kind,
 				ModType retModType,
@@ -933,6 +939,8 @@ namespace modelica
 		{
 			assert(!isOperation() || areSubExpressionCompatibles());	// NOLINT
 		}
+
+		private:
 		[[nodiscard]] const Operation& getOperation() const
 		{
 			assert(isOperation());	// NOLINT

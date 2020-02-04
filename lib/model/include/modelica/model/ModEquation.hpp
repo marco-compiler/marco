@@ -23,6 +23,7 @@ namespace modelica
 		[[nodiscard]] ModExp& getRight() { return rightHand; }
 		[[nodiscard]] const auto& getInductions() const { return inductions; }
 		[[nodiscard]] auto& getInductions() { return inductions; }
+		void foldConstants();
 
 		void dump(llvm::raw_ostream& OS) const
 		{
