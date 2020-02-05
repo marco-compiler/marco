@@ -906,6 +906,18 @@ namespace modelica
 
 		bool tryFoldConstant();
 
+		ModExp(ModExpKind kind, ModType returnType, ModExp l, ModExp r)
+				: content(Operation(
+							kind,
+							std::make_unique<ModExp>(std::move(l)),
+							std::make_unique<ModExp>(std::move(r)),
+							nullptr)),
+					returnModType(std::move(returnType))
+		{
+			assert(!isOperation() || areSubExpressionCompatibles());
+		}
+
+		private:
 		ModExp(
 				ModExpKind kind,
 				ModType retModType,
@@ -916,7 +928,7 @@ namespace modelica
 							Operation(kind, std::move(lhs), std::move(rhs), std::move(cond))),
 					returnModType(std::move(retModType))
 		{
-			assert(!isOperation() || areSubExpressionCompatibles());	// NOLINT
+			assert(!isOperation() || areSubExpressionCompatibles());
 		}
 		ModExp(
 				ModExpKind kind,
@@ -940,7 +952,6 @@ namespace modelica
 			assert(!isOperation() || areSubExpressionCompatibles());	// NOLINT
 		}
 
-		private:
 		[[nodiscard]] const Operation& getOperation() const
 		{
 			assert(isOperation());	// NOLINT

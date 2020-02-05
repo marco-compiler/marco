@@ -65,17 +65,9 @@ static ModExp reorder(
 				return !l.isConstant();
 			});
 
-	ModExp inner(
-			kind,
-			returnType,
-			llvm::make_unique<ModExp>(move(expressions[1])),
-			llvm::make_unique<ModExp>(move(expressions[2])));
+	ModExp inner(kind, returnType, move(expressions[1]), move(expressions[2]));
 
-	return ModExp(
-			kind,
-			returnType,
-			llvm::make_unique<ModExp>(move(expressions[0])),
-			llvm::make_unique<ModExp>(move(inner)));
+	return ModExp(kind, returnType, move(expressions[0]), move(inner));
 }
 
 static void removeSubtraction(ModExp& exp)
@@ -85,8 +77,8 @@ static void removeSubtraction(ModExp& exp)
 	exp = ModExp(
 			ModExpKind::add,
 			exp.getModType(),
-			llvm::make_unique<ModExp>(move(exp.getLeftHand())),
-			llvm::make_unique<ModExp>(ModExp::negate(move(exp.getRightHand()))));
+			move(exp.getLeftHand()),
+			ModExp::negate(move(exp.getRightHand())));
 }
 
 class ConstantFolderVisitor
