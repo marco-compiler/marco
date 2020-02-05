@@ -164,7 +164,7 @@ namespace modelica
 			IndexSet matched;
 
 			for (const Edge& edge : arcsOf(variable))
-				matched.unite(edge.getSet());
+				matched.unite(edge.getVectorAccess().map(edge.getSet()));
 
 			return matched;
 		}

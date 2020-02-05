@@ -3,6 +3,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "modelica/model/ModExp.hpp"
+#include "modelica/model/ModType.hpp"
 
 using namespace std;
 using namespace llvm;
@@ -49,7 +50,10 @@ static bool isAssComm(ModExpKind kind)
 }
 
 static ModExp reorder(
-		const ModExp& original, ModExp&& nonConstExp, ModExp&& constant)
+		ModExpKind kind,
+		const ModType& returnType,
+		ModExp&& nonConstExp,
+		ModExp&& constant)
 {
 	array<ModExp, 3> expressions = { move(nonConstExp.getLeftHand()),
 																	 move(nonConstExp.getRightHand()),
@@ -62,16 +66,27 @@ static ModExp reorder(
 			});
 
 	ModExp inner(
-			original.getKind(),
-			original.getModType(),
+			kind,
+			returnType,
 			llvm::make_unique<ModExp>(move(expressions[1])),
 			llvm::make_unique<ModExp>(move(expressions[2])));
 
 	return ModExp(
-			original.getKind(),
-			original.getModType(),
+			kind,
+			returnType,
 			llvm::make_unique<ModExp>(move(expressions[0])),
 			llvm::make_unique<ModExp>(move(inner)));
+}
+
+static void removeSubtraction(ModExp& exp)
+{
+	assert(exp.isOperation<ModExpKind::sub>());
+
+	exp = ModExp(
+			ModExpKind::add,
+			exp.getModType(),
+			llvm::make_unique<ModExp>(move(exp.getLeftHand())),
+			llvm::make_unique<ModExp>(ModExp::negate(move(exp.getRightHand()))));
 }
 
 class ConstantFolderVisitor
@@ -90,6 +105,9 @@ class ConstantFolderVisitor
 				expression.getRightHand().isConstant())
 			return;
 
+		if (expression.isOperation<ModExpKind::sub>())
+			removeSubtraction(expression);
+
 		if (!isAssComm(expression.getKind()))
 			return;
 
@@ -102,10 +120,15 @@ class ConstantFolderVisitor
 		// the operation constant torward the deeper expressions so that it can be
 		// folded there.
 		//
+
+		expression.getRightHand().tryFoldConstant();
+		expression.getLeftHand().tryFoldConstant();
+
 		if (expression.getRightHand().isOperation(expression.getKind()))
 		{
 			expression = reorder(
-					expression,
+					expression.getKind(),
+					expression.getModType(),
 					move(expression.getRightHand()),
 					move(expression.getLeftHand()));
 			return;
@@ -114,7 +137,8 @@ class ConstantFolderVisitor
 		if (expression.getLeftHand().isOperation(expression.getKind()))
 		{
 			expression = reorder(
-					expression,
+					expression.getKind(),
+					expression.getModType(),
 					move(expression.getLeftHand()),
 					move(expression.getRightHand()));
 			return;

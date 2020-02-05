@@ -1,9 +1,14 @@
 #include "gtest/gtest.h"
 
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModCall.hpp"
 #include "modelica/model/ModConst.hpp"
+#include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
+#include "modelica/model/ModLexerStateMachine.hpp"
+#include "modelica/model/ModParser.hpp"
+#include "modelica/model/ModType.hpp"
 
 using namespace modelica;
 using namespace std;
@@ -163,4 +168,41 @@ TEST(ModelTest, negationCanBeFolded)
 	EXPECT_TRUE(sum.tryFoldConstant());
 	EXPECT_TRUE(sum.isConstant<int>());
 	EXPECT_EQ(sum.getConstant().get<int>(0), -3);
+}
+
+TEST(ModelTest, subtractionCanBeTransformedInAddition)
+{
+	ModExp ref("ref", ModType(BultinModTypes::INT, 1));
+
+	auto refSub = ref - ModExp(ModConst(1));
+	ModEquation eq(move(refSub), ModExp(ModConst(0)));
+	eq.foldConstants();
+
+	EXPECT_TRUE(eq.getLeft().isOperation<ModExpKind::add>());
+	EXPECT_TRUE(eq.getLeft().getLeftHand().isReference());
+	EXPECT_TRUE(eq.getLeft().getRightHand().isConstant<int>());
+	EXPECT_EQ(eq.getLeft().getRightHand().getConstant().get<int>(0), -1);
+}
+
+TEST(ModelTest, inductionShouldNotBeFoldable)
+{
+	ModParser parser("INT[1](- INT[1](ind INT[1]{0}), INT[1]{1})");
+	auto exp = parser.expression();
+	if (!exp)
+		FAIL();
+
+	EXPECT_FALSE(exp->tryFoldConstant());
+}
+
+TEST(ModelTest, inductionInEquationsShouldNotBeFouldable)
+{
+	ModParser parser(
+			"for [1,6] INT[1](- INT[1](ind INT[1]{0}), INT[1]{1}) = INT[1]{10}");
+
+	auto eq = parser.updateStatement();
+	if (!eq)
+		FAIL();
+
+	eq->foldConstants();
+	EXPECT_TRUE(eq->getLeft().isOperation<ModExpKind::add>());
 }

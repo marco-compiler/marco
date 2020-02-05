@@ -105,7 +105,7 @@ TEST(MatchingTest, overRunningMatch)
 	EntryModel m(move(equs), move(vars));
 	MatchingGraph graph(m);
 	graph.match(4);
-	EXPECT_EQ(graph.matchedEdgesCount(), 2);
+	EXPECT_EQ(graph.matchedCount(), 10);
 }
 
 TEST(MatchingTest, firstMatchingSize)

@@ -30,3 +30,5 @@ macro(addMatchingTest sourceModel expectedMatchedEqs maxIterations)
 endmacro(addMatchingTest)
 
 addMatchingTest(SimpleVector 10 1)
+addMatchingTest(TwoEquationSimpleVector 10 2)
+addMatchingTest(OverlappedEquationSimpleVector 7 5)

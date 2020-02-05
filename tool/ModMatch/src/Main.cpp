@@ -8,6 +8,7 @@
 #include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModParser.hpp"
+#include "modelica/passes/ConstantFold.hpp"
 
 using namespace modelica;
 using namespace llvm;
@@ -56,11 +57,12 @@ int main(int argc, char* argv[])
 	ModParser parser(buffer->getBufferStart());
 	auto [init, update] = exitOnErr(parser.simulation());
 	auto model = EntryModel(move(update), move(init));
+	auto constantFoldedModel = exitOnErr(constantFold(move(model)));
 
 	if (dumpModel)
-		model.dump();
+		constantFoldedModel.dump();
 
-	MatchingGraph graph(model);
+	MatchingGraph graph(constantFoldedModel);
 	graph.match(maxMatchingIterations);
 
 	if (dumpMatchingGraph != "-")

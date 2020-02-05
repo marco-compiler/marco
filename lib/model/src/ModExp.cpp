@@ -145,7 +145,7 @@ bool ModExp::tryFoldConstant()
 
 	if (isUnary())
 	{
-		if (!getLeftHand().isConstant())
+		if (!getLeftHand().isConstant() || !isOperation<ModExpKind::negate>())
 			return false;
 
 		getLeftHand().getConstant().negateAll();
