@@ -143,8 +143,15 @@ bool ModExp::tryFoldConstant()
 	if (!isOperation())
 		return false;
 
-	if (isUnary() && !getLeftHand().isConstant())
-		return false;
+	if (isUnary())
+	{
+		if (!getLeftHand().isConstant())
+			return false;
+
+		getLeftHand().getConstant().negateAll();
+		*this = ModExp(move(getLeftHand().getConstant()), getModType());
+		return true;
+	}
 
 	if (isBinary())
 	{
@@ -163,10 +170,7 @@ bool ModExp::tryFoldConstant()
 	switch (getKind())
 	{
 		case ModExpKind::zero:
-			return false;
 		case ModExpKind::negate:
-			getConstant().negateAll();
-			return true;
 		case ModExpKind::induction:
 			return false;
 		case ModExpKind::add:

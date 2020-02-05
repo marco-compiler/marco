@@ -156,3 +156,11 @@ TEST(ModelTest, entryModelIsIteratable)
 	for (auto& e : model)
 		EXPECT_TRUE(e.getLeft().isReference());
 }
+
+TEST(ModelTest, negationCanBeFolded)
+{
+	auto sum = ModExp::negate(ModExp(ModConst(3)));
+	EXPECT_TRUE(sum.tryFoldConstant());
+	EXPECT_TRUE(sum.isConstant<int>());
+	EXPECT_EQ(sum.getConstant().get<int>(0), -3);
+}

@@ -6,6 +6,7 @@
 #include "modelica/model/AssignModel.hpp"
 #include "modelica/model/ModVariable.hpp"
 #include "modelica/omcToModel/OmcToModelPass.hpp"
+#include "modelica/passes/ConstantFold.hpp"
 #include "modelica/passes/SolveDerivatives.hpp"
 
 using namespace modelica;
@@ -87,7 +88,8 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	auto assModel = exitOnErr(solveDer(move(model), timeStep));
+	auto foldedModel = exitOnErr(constantFold(move(model)));
+	auto assModel = exitOnErr(solveDer(move(foldedModel), timeStep));
 
 	if (dumpSolvedModel)
 	{
