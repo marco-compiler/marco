@@ -1,21 +1,21 @@
 #pragma once
 
+#include <cstddef>
+
 #include "llvm/ADT/SmallVector.h"
 #include "modelica/model/ModEquation.hpp"
+#include "modelica/model/ModExp.hpp"
 namespace modelica
 {
 	class ModExpPath
 	{
 		public:
-		ModExpPath(
-				const ModEquation& eq,
-				llvm::SmallVector<unsigned short, 3> path,
-				bool left)
-				: path(std::move(path)), equation(&eq), left(left)
+		ModExpPath(const ModExp& exp, llvm::SmallVector<size_t, 3> path, bool left)
+				: path(std::move(path)), exp(&exp), left(left)
 		{
 		}
 
-		[[nodiscard]] const ModEquation& getEquation() const { return *equation; }
+		[[nodiscard]] const ModExp& getExp() const { return *exp; }
 		[[nodiscard]] bool isOnEquationLeftHand() const { return left; }
 		[[nodiscard]] size_t depth() const { return path.size(); }
 
@@ -23,8 +23,8 @@ namespace modelica
 		[[nodiscard]] auto end() const { return path.begin(); }
 
 		private:
-		llvm::SmallVector<unsigned short, 3> path;
-		const ModEquation* equation;
+		llvm::SmallVector<size_t, 3> path;
+		const ModExp* exp;
 		bool left;
 	};
 }	 // namespace modelica

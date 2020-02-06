@@ -81,68 +81,70 @@ static void removeSubtraction(ModExp& exp)
 			ModExp::negate(move(exp.getRightHand())));
 }
 
-class ConstantFolderVisitor
+static void foldExp(ModExp& expression)
 {
-	public:
-	void visit(ModExp& expression)
+	if (!expression.isOperation() || !expression.isBinary())
+		return;
+
+	if (!expression.getLeftHand().isConstant() &&
+			!expression.getRightHand().isConstant())
+		return;
+
+	if (expression.getLeftHand().isConstant() &&
+			expression.getRightHand().isConstant())
+		return;
+
+	if (expression.isOperation<ModExpKind::sub>())
+		removeSubtraction(expression);
+
+	if (!isAssComm(expression.getKind()))
+		return;
+
+	// here expression is a binary operation and
+	// either left or right is a constant, but not both.
+	//
+	//
+	// if the operation of the expression is the same as the non constant
+	// children, and the operation is commutative and associative we can push
+	// the operation constant torward the deeper expressions so that it can be
+	// folded there.
+	//
+	if (expression.getRightHand().isOperation(expression.getKind()))
 	{
-		if (!expression.isOperation() || !expression.isBinary())
-			return;
-
-		if (!expression.getLeftHand().isConstant() &&
-				!expression.getRightHand().isConstant())
-			return;
-
-		if (expression.getLeftHand().isConstant() &&
-				expression.getRightHand().isConstant())
-			return;
-
-		if (expression.isOperation<ModExpKind::sub>())
-			removeSubtraction(expression);
-
-		if (!isAssComm(expression.getKind()))
-			return;
-
-		// here expression is a binary operation and
-		// either left or right is a constant, but not both.
-		//
-		//
-		// if the operation of the expression is the same as the non constant
-		// children, and the operation is commutative and associative we can push
-		// the operation constant torward the deeper expressions so that it can be
-		// folded there.
-		//
-
-		expression.getRightHand().tryFoldConstant();
-		expression.getLeftHand().tryFoldConstant();
-
-		if (expression.getRightHand().isOperation(expression.getKind()))
-		{
-			expression = reorder(
-					expression.getKind(),
-					expression.getModType(),
-					move(expression.getRightHand()),
-					move(expression.getLeftHand()));
-			return;
-		}
-
-		if (expression.getLeftHand().isOperation(expression.getKind()))
-		{
-			expression = reorder(
-					expression.getKind(),
-					expression.getModType(),
-					move(expression.getLeftHand()),
-					move(expression.getRightHand()));
-			return;
-		}
+		expression = reorder(
+				expression.getKind(),
+				expression.getModType(),
+				move(expression.getRightHand()),
+				move(expression.getLeftHand()));
+		return;
 	}
 
-	void afterVisit(ModExp& expression) { expression.tryFoldConstant(); }
-};
+	if (expression.getLeftHand().isOperation(expression.getKind()))
+	{
+		expression = reorder(
+				expression.getKind(),
+				expression.getModType(),
+				move(expression.getLeftHand()),
+				move(expression.getRightHand()));
+		return;
+	}
+}
+
+static void recursiveFold(ModExp& expression)
+{
+	for (auto& child : expression)
+		recursiveFold(child);
+
+	foldExp(expression);
+
+	for (auto& child : expression)
+		recursiveFold(child);
+
+	expression.tryFoldConstant();
+}
 
 void ModEquation::foldConstants()
 {
-	ConstantFolderVisitor visitor;
-	visit(getLeft(), visitor);
-	visit(getRight(), visitor);
+	recursiveFold(getLeft());
+	recursiveFold(getRight());
 }

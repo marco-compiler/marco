@@ -1,5 +1,8 @@
 #include "modelica/model/ModExp.hpp"
 
+#include <functional>
+
+#include "llvm/ADT/STLExtras.h"
 #include "modelica/model/ModConst.hpp"
 
 using namespace modelica;
@@ -154,12 +157,8 @@ bool ModExp::tryFoldConstant()
 	}
 
 	if (isBinary())
-	{
-		if (!getLeftHand().isConstant())
+		if (!all_of(range(), [](const auto& exp) { return exp.isConstant(); }))
 			return false;
-		if (!getRightHand().isConstant())
-			return false;
-	}
 
 	if (isTernary() && !getCondition().isConstant())
 		return false;
@@ -172,6 +171,7 @@ bool ModExp::tryFoldConstant()
 		case ModExpKind::zero:
 		case ModExpKind::negate:
 		case ModExpKind::induction:
+		case ModExpKind::at:
 			return false;
 		case ModExpKind::add:
 			*this = ModExp(ModConst::sum(lConst, rConst), getModType());
@@ -221,8 +221,6 @@ bool ModExp::tryFoldConstant()
 				*this = move(newVal);
 			}
 			return true;
-		case ModExpKind::at:
-			return false;
 	}
 
 	assert(false && "unreachable");

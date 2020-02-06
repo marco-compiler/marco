@@ -21,10 +21,10 @@ TEST(ModMatchersTest, scalarRefVariableCollectorTest)	 // NOLINT
 	visitor.visit(*assigment);
 
 	EXPECT_EQ(2, visitor.size());
-	EXPECT_TRUE(visitor.at(0).isReference());
-	EXPECT_TRUE(visitor.at(1).isReference());
-	EXPECT_EQ(visitor.at(1).getReference(), "intVector");
-	EXPECT_EQ(visitor.at(0).getReference(), "intVector");
+	EXPECT_TRUE(visitor.getExp(0).isReference());
+	EXPECT_TRUE(visitor.getExp(1).isReference());
+	EXPECT_EQ(visitor.getExp(1).getReference(), "intVector");
+	EXPECT_EQ(visitor.getExp(0).getReference(), "intVector");
 }
 
 TEST(ModMatchersTest, arrayRefVariableCollectorTest)	// NOLINT
@@ -41,8 +41,8 @@ TEST(ModMatchersTest, arrayRefVariableCollectorTest)	// NOLINT
 	visitor.visit(*assigment);
 
 	EXPECT_EQ(2, visitor.size());
-	EXPECT_TRUE(visitor.at(0).isReference());
-	EXPECT_TRUE(visitor.at(1).isOperation());
-	EXPECT_TRUE(visitor.at(1).getLeftHand().isOperation());
-	EXPECT_TRUE(visitor.at(1).getLeftHand().getLeftHand().isReference());
+	EXPECT_TRUE(visitor.getExp(0).isReference());
+	EXPECT_TRUE(visitor.getExp(1).isOperation());
+	EXPECT_TRUE(visitor.getExp(1).getLeftHand().isOperation());
+	EXPECT_TRUE(visitor.getExp(1).getLeftHand().getLeftHand().isReference());
 }

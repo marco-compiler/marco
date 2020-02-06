@@ -11,7 +11,7 @@ macro(addMatchingTest sourceModel expectedMatchedEqs maxIterations)
 	add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/simulations/${sourceModel}.sm
 		COMMAND $<TARGET_FILE:omcc> -d -o=${CMAKE_CURRENT_BINARY_DIR}/simulations/${sourceModel}.sm ${CMAKE_CURRENT_SOURCE_DIR}/src/${sourceModel}.mo
 		DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/${sourceModel}.mo modelica::modc
-		COMMENT "generating " ${sourceModel} ".sm file"
+		COMMENT "generating ${sourceModel} .sm file"
 		VERBATIM
 		)
 

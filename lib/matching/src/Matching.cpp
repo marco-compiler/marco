@@ -24,11 +24,11 @@ void MatchingGraph::addEquation(const ModEquation& eq)
 	for (size_t useIndex : irange(matcher.size()))
 	{
 		const auto& use = matcher[useIndex];
-		if (!VectorAccess::isCanonical(use))
+		if (!VectorAccess::isCanonical(use.getExp()))
 			continue;
 
 		size_t edgeIndex = edges.size();
-		edges.emplace_back(model, eq, use, useIndex);
+		edges.emplace_back(model, eq, use.getExp(), useIndex);
 		equationLookUp.insert({ &eq, edgeIndex });
 		auto var = &(edges.back().getVariable());
 		variableLookUp.insert({ var, edgeIndex });
