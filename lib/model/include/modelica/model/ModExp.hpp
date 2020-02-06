@@ -5,8 +5,10 @@
 #include <variant>
 
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/model/ModCall.hpp"
+#include "modelica/model/ModChildrenIterator.hpp"
 #include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModType.hpp"
 
@@ -335,6 +337,24 @@ namespace modelica
 		ModExp(ModCall c): content(std::move(c)), returnModType(getCall().getType())
 		{
 			assert(getCall().getType().canBeCastedInto(returnModType));	 // NOLINT
+		}
+
+		using iterator = ModChildrenIterator<ModExp>;
+		using const_iterator = ModChildrenIterator<const ModExp>;
+		[[nodiscard]] const_iterator begin() const { return const_iterator(*this); }
+		[[nodiscard]] const_iterator end() const
+		{
+			return const_iterator(*this, childCount());
+		}
+		[[nodiscard]] iterator begin() { return iterator(*this); }
+		[[nodiscard]] iterator end() { return iterator(*this, childCount()); }
+		[[nodiscard]] llvm::iterator_range<iterator> range()
+		{
+			return llvm::make_range(begin(), end());
+		}
+		[[nodiscard]] llvm::iterator_range<const_iterator> range() const
+		{
+			return llvm::make_range(begin(), end());
 		}
 
 		/**
@@ -755,6 +775,59 @@ namespace modelica
 			return getOperation().isTernary();
 		}
 
+		[[nodiscard]] size_t childCount() const
+		{
+			if (isOperation())
+				return getArity();
+			if (isCall())
+				return getCall().argsSize();
+			return 0;
+		}
+
+		[[nodiscard]] ModExp& getChild(size_t index)
+		{
+			assert(index <= childCount());
+			if (isCall())
+				return getCall().at(index);
+			if (isOperation())
+			{
+				switch (index)
+				{
+					case 0:
+						return getLeftHand();
+					case 1:
+						return getRightHand();
+					case 2:
+						return getCondition();
+				}
+			}
+
+			assert(false && "unreachable");
+			return *this;
+		}
+
+		[[nodiscard]] const ModExp& getChild(size_t index) const
+		{
+			assert(index <= childCount());
+			if (isCall())
+				return getCall().at(index);
+			if (isOperation())
+			{
+				switch (index)
+				{
+					case 0:
+						return getLeftHand();
+					case 1:
+						return getRightHand();
+					case 2:
+						return getCondition();
+				}
+			}
+
+			assert(false && "unreachable");
+			return *this;
+		}
+
 		/**
 		 * \pre isOperation()
 		 *
@@ -980,26 +1053,9 @@ namespace modelica
 	template<typename ModExp, typename Visitor>
 	void visit(ModExp& exp, Visitor& visitor)
 	{
-		const auto visitChildren = [](ModExp& exp, Visitor& visitor) {
-			if (exp.isCall())
-			{
-				visitCall(exp.getCall(), visitor);
-				return;
-			}
-
-			if (!exp.isOperation())
-				return;
-			visit(exp.getLeftHand(), visitor);
-
-			if (exp.isBinary() || exp.isTernary())
-				visit(exp.getRightHand(), visitor);
-
-			if (exp.isTernary())
-				visit(exp.getCondition(), visitor);
-		};
-
 		visitor.visit(exp);
-		visitChildren(exp, visitor);
+		for (ModExp& child : exp)
+			visit(child, visitor);
 		visitor.afterVisit(exp);
 	}
 

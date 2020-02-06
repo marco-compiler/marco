@@ -18,8 +18,7 @@ TEST(ModMatchersTest, scalarRefVariableCollectorTest)	 // NOLINT
 
 	ReferenceMatcher visitor;
 
-	visit(assigment->getLeft(), visitor);
-	visit(assigment->getRight(), visitor);
+	visitor.visit(*assigment);
 
 	EXPECT_EQ(2, visitor.size());
 	EXPECT_TRUE(visitor.at(0).isReference());
@@ -39,8 +38,7 @@ TEST(ModMatchersTest, arrayRefVariableCollectorTest)	// NOLINT
 
 	ReferenceMatcher visitor;
 
-	visit(assigment->getLeft(), visitor);
-	visit(assigment->getRight(), visitor);
+	visitor.visit(*assigment);
 
 	EXPECT_EQ(2, visitor.size());
 	EXPECT_TRUE(visitor.at(0).isReference());

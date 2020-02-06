@@ -1,8 +1,12 @@
 #pragma once
+#include <functional>
+
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
+#include "modelica/utils/ScopeGuard.hpp"
 
 namespace modelica
 {
@@ -11,44 +15,25 @@ namespace modelica
 		public:
 		ReferenceMatcher() = default;
 		ReferenceMatcher(const ModEquation& eq) { visit(eq); }
-		void visitAt(const ModExp& exp)
+
+		void visit(const ModExp& exp, bool isLeft)
 		{
-			const ModExp* childs = &exp.getLeftHand();
-			toIgnore.insert(childs);
+			currentPath.push_back(&exp);
+			auto g = makeGuard(std::bind(&ReferenceMatcher::removeBack, this));
 
-			while (childs->isOperation<ModExpKind::at>())
+			if (exp.isReferenceAccess())
 			{
-				childs = &childs->getLeftHand();
-				toIgnore.insert(childs);
-			}
-
-			if (childs->isReference())
 				vars.emplace_back(&exp);
-		}
-
-		void afterVisit(const ModExp&) {}
-
-		void visit(const ModExp& exp)
-		{
-			if (toIgnore.find(&exp) != toIgnore.end())
-				return;
-			if (exp.isOperation<ModExpKind::at>())
-			{
-				visitAt(exp);
 				return;
 			}
-
-			if (exp.isReference())
-			{
-				toIgnore.insert(&exp);
-				vars.emplace_back(&exp);
-			}
+			for (const ModExp& child : exp)
+				visit(child, isLeft);
 		}
 
 		void visit(const ModEquation& equation)
 		{
-			modelica::visit(equation.getLeft(), *this);
-			modelica::visit(equation.getRight(), *this);
+			visit(equation.getLeft(), true);
+			visit(equation.getRight(), false);
 		}
 
 		[[nodiscard]] auto begin() const { return vars.begin(); }
@@ -63,7 +48,11 @@ namespace modelica
 		}
 
 		private:
-		llvm::SmallPtrSet<const ModExp*, 4> toIgnore;
+		void removeBack()
+		{
+			currentPath.erase(currentPath.end() - 1, currentPath.end());
+		}
+		llvm::SmallVector<const ModExp*, 3> currentPath;
 		llvm::SmallVector<const ModExp*, 3> vars;
 	};
 

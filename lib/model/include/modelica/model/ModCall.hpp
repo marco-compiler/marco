@@ -99,10 +99,10 @@ namespace modelica
 		ModType type;
 	};
 
-	template<typename ModCall, typename Visitor>
-	void visitCall(ModCall& call, Visitor& visitor)
+	template<typename ModCall, typename Callable>
+	void forEachArgument(ModCall& call, Callable&& callable)
 	{
 		for (size_t a = 0; a < call.argsSize(); a++)
-			visit(call.at(a), visitor);
+			callable(call.at(a));
 	}
 }	 // namespace modelica
