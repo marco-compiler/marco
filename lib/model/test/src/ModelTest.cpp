@@ -206,3 +206,10 @@ TEST(ModelTest, inductionInEquationsShouldNotBeFouldable)
 	eq->foldConstants();
 	EXPECT_TRUE(eq->getLeft().isOperation<ModExpKind::add>());
 }
+
+TEST(ModelTest, expShouldBeAssignableFromContent)
+{
+	ModExp exp = ModExp::negate(ModExp(ModConst(5)));
+	exp = move(exp.getChild(0));
+	EXPECT_EQ(exp, ModExp(ModConst(5)));
+}

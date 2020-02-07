@@ -33,7 +33,7 @@ TEST(ModelTest, ModVariableToIndexSet)
 	EXPECT_EQ(res, IndexSet({ { 1, 2 }, { 1, 2 } }));
 }
 
-TEST(ModelTest, ModEquationConstantFolding)
+TEST(ModEquationTest, ModEquationConstantFolding)
 {
 	ModExp l(ModConst(2));
 	ModExp r(ModConst(5));
@@ -49,7 +49,7 @@ TEST(ModelTest, ModEquationConstantFolding)
 	EXPECT_EQ(eq.getRight(), rRes);
 }
 
-TEST(ModelTest, ModEquationConstantFoldingWithReferences)
+TEST(ModEquationTest, ModEquationConstantFoldingWithReferences)
 {
 	ModExp l(ModConst(2));
 	ModExp r(ModConst(5));
@@ -65,4 +65,66 @@ TEST(ModelTest, ModEquationConstantFoldingWithReferences)
 
 	EXPECT_EQ(eq.getLeft(), ModExp::add(sum, lRes));
 	EXPECT_EQ(eq.getRight(), rRes);
+}
+
+TEST(ModEquationTest, negateShouldBeInvertible)
+{
+	ModEquation eq(ModExp::negate(ModExp(ModConst(5))), ModExp(ModConst(4)));
+	EXPECT_FALSE(eq.explicitate(0, true));
+	EXPECT_EQ(eq.getLeft(), ModExp(ModConst(5)));
+	EXPECT_EQ(eq.getRight(), ModExp::negate(ModExp(ModConst(4))));
+}
+
+TEST(ModEquationTest, addShouldBeInvertible)
+{
+	ModEquation eq(
+			ModExp(ModConst(5)) + ModExp(ModConst(4)), ModExp(ModConst(4)));
+	EXPECT_FALSE(eq.explicitate(0, true));
+	EXPECT_EQ(eq.getLeft(), ModExp(ModConst(5)));
+	EXPECT_EQ(eq.getRight(), ModExp(ModConst(4)) - ModExp(ModConst(4)));
+}
+
+TEST(ModEquationTest, multShouldBeInvertible)
+{
+	ModEquation eq(
+			ModExp(ModConst(5)) * ModExp(ModConst(4)), ModExp(ModConst(4)));
+	EXPECT_FALSE(eq.explicitate(0, true));
+	EXPECT_EQ(eq.getLeft(), ModExp(ModConst(5)));
+	EXPECT_EQ(eq.getRight(), ModExp(ModConst(4)) / ModExp(ModConst(4)));
+}
+
+TEST(ModEquationTest, minusFirstArgShouldBeInvertible)
+{
+	ModEquation eq(
+			ModExp(ModConst(5)) - ModExp(ModConst(4)), ModExp(ModConst(4)));
+	EXPECT_FALSE(eq.explicitate(0, true));
+	EXPECT_EQ(eq.getLeft(), ModExp(ModConst(5)));
+	EXPECT_EQ(eq.getRight(), ModExp(ModConst(4)) + ModExp(ModConst(4)));
+}
+
+TEST(ModEquationTest, minusSecondArgShouldBeInvertible)
+{
+	ModEquation eq(
+			ModExp(ModConst(5)) - ModExp(ModConst(6)), ModExp(ModConst(4)));
+	EXPECT_FALSE(eq.explicitate(1, true));
+	EXPECT_EQ(eq.getLeft(), ModExp(ModConst(6)));
+	EXPECT_EQ(eq.getRight(), ModExp(ModConst(5)) - ModExp(ModConst(4)));
+}
+
+TEST(ModEquationTest, divideSecondArgShouldBeInvertible)
+{
+	ModEquation eq(
+			ModExp(ModConst(5)) / ModExp(ModConst(6)), ModExp(ModConst(4)));
+	EXPECT_FALSE(eq.explicitate(1, true));
+	EXPECT_EQ(eq.getLeft(), ModExp(ModConst(6)));
+	EXPECT_EQ(eq.getRight(), ModExp(ModConst(5)) / ModExp(ModConst(4)));
+}
+
+TEST(ModEquationTest, divideFirstArgShouldBeInvertible)
+{
+	ModEquation eq(
+			ModExp(ModConst(5)) / ModExp(ModConst(4)), ModExp(ModConst(4)));
+	EXPECT_FALSE(eq.explicitate(0, true));
+	EXPECT_EQ(eq.getLeft(), ModExp(ModConst(5)));
+	EXPECT_EQ(eq.getRight(), ModExp(ModConst(4)) * ModExp(ModConst(4)));
 }

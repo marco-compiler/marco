@@ -212,12 +212,19 @@ namespace modelica
 				if (other.leftHandExpression != nullptr)
 					leftHandExpression =
 							std::make_unique<ModExp>(*(other.leftHandExpression));
+				else
+					leftHandExpression = nullptr;
+
 				if (other.rightHandExpression != nullptr)
 					rightHandExpression =
 							std::make_unique<ModExp>(*(other.rightHandExpression));
+				else
+					rightHandExpression = nullptr;
 
 				if (other.condition != nullptr)
 					condition = std::make_unique<ModExp>(*(other.condition));
+				else
+					condition = nullptr;
 				return *this;
 			}
 
@@ -338,6 +345,31 @@ namespace modelica
 		{
 			assert(getCall().getType().canBeCastedInto(returnModType));	 // NOLINT
 		}
+
+		ModExp& operator=(const ModExp& other) = default;
+		/**
+		 *We cannot default the move assigment operator because
+		 * we might want to assign a node to the moved value of one of its own
+		 *subexpressions. like exp = move(exp.getLeftHand()). If we default the
+		 *operator exp would be deleated before the content of the children will be
+		 *moved, therefore we must ensure we move out the content of the child
+		 *before destorying the old value.
+		 */
+		ModExp& operator=(ModExp&& other)
+		{
+			if (this == &other)
+				return *this;
+
+			auto tempContent = std::move(other.content);
+			auto tempModType = std::move(other.getModType());
+
+			content = std::move(tempContent);
+			returnModType = std::move(tempModType);
+			return *this;
+		}
+
+		ModExp(const ModExp& other) = default;
+		ModExp(ModExp&& other) = default;
 
 		using iterator = ModChildrenIterator<ModExp>;
 		using const_iterator = ModChildrenIterator<const ModExp>;

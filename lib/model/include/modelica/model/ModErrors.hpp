@@ -20,7 +20,8 @@ namespace modelica
 		globalVariableCreationFailure,
 		functionAlreadyExists,
 		typeConstantSizeMissMatch,
-		unexpectedModToken
+		unexpectedModToken,
+		failedExplicitation
 
 	};
 }
@@ -206,7 +207,7 @@ namespace modelica
 	{
 		public:
 		static char ID;
-		UnexpectedModToken(ModToken expected, ModToken received, SourcePosition pos)
+		UnexpectedModToken(ModToken received, ModToken expected, SourcePosition pos)
 				: expected(expected), received(received), pos(pos)
 		{
 		}
@@ -230,5 +231,34 @@ namespace modelica
 		ModToken expected;
 		ModToken received;
 		SourcePosition pos;
+	};
+
+	class FailedExplicitation: public llvm::ErrorInfo<FailedExplicitation>
+	{
+		public:
+		static char ID;
+		FailedExplicitation(ModExp toExplicitate, size_t argumentIndex)
+				: toExplicitate(std::move(toExplicitate)), argumentIndex(argumentIndex)
+		{
+		}
+
+		void log(llvm::raw_ostream& OS) const override
+		{
+			OS << "Could not explicitate argument n: ";
+			OS << argumentIndex;
+			OS << " of expression: ";
+			toExplicitate.dump(OS);
+		}
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(LowererErrorCode::failedExplicitation),
+					LowererErrorCategory::category);
+		}
+
+		private:
+		ModExp toExplicitate;
+		size_t argumentIndex;
 	};
 }	 // namespace modelica

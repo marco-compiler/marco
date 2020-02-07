@@ -1,7 +1,9 @@
 #pragma once
 
+#include "llvm/Support/Error.h"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModExp.hpp"
+#include "modelica/model/ModExpPath.hpp"
 #include "modelica/utils/IndexSet.hpp"
 
 namespace modelica
@@ -38,6 +40,8 @@ namespace modelica
 		}
 
 		[[nodiscard]] IndexSet toIndexSet() const;
+		llvm::Error explicitate(size_t argumentIndex, bool left);
+		llvm::Error explicitate(const ModExpPath& path);
 
 		private:
 		ModExp leftHand;

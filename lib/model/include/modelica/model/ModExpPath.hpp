@@ -3,7 +3,6 @@
 #include <cstddef>
 
 #include "llvm/ADT/SmallVector.h"
-#include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
 namespace modelica
 {

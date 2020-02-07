@@ -2,7 +2,10 @@
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Error.h"
+#include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModExp.hpp"
+#include "modelica/model/ModExpPath.hpp"
 #include "modelica/model/ModType.hpp"
 
 using namespace std;
@@ -147,4 +150,138 @@ void ModEquation::foldConstants()
 {
 	recursiveFold(getLeft());
 	recursiveFold(getRight());
+}
+
+template<ModExpKind kind>
+static Error explicitateOp(ModExp& toExp, size_t argumentIndex, ModExp& toNest)
+{
+	return make_error<FailedExplicitation>(toExp, argumentIndex);
+}
+
+template<>
+Error explicitateOp<ModExpKind::negate>(
+		ModExp& toExp, size_t argumentIndex, ModExp& toNest)
+{
+	toExp = move(toExp.getChild(argumentIndex));
+	toNest = ModExp::negate(move(toNest));
+	return Error::success();
+}
+
+template<>
+Error explicitateOp<ModExpKind::mult>(
+		ModExp& toExp, size_t argumentIndex, ModExp& toNest)
+{
+	auto& toMove =
+			argumentIndex == 1 ? toExp.getLeftHand() : toExp.getRightHand();
+	toNest = ModExp::divide(move(toNest), move(toMove));
+	toExp = move(toExp.getChild(argumentIndex));
+	return Error::success();
+}
+
+template<>
+Error explicitateOp<ModExpKind::add>(
+		ModExp& toExp, size_t argumentIndex, ModExp& toNest)
+{
+	auto& toMove =
+			argumentIndex == 1 ? toExp.getLeftHand() : toExp.getRightHand();
+	toNest = ModExp::subtract(move(toNest), move(toMove));
+	toExp = move(toExp.getChild(argumentIndex));
+	return Error::success();
+}
+
+template<>
+Error explicitateOp<ModExpKind::sub>(
+		ModExp& toExp, size_t argumentIndex, ModExp& toNest)
+{
+	if (argumentIndex == 0)
+		toNest = ModExp::add(move(toNest), move(toExp.getChild(1)));
+	else
+		toNest = ModExp::subtract(move(toExp.getChild(0)), move(toNest));
+
+	toExp = move(toExp.getChild(argumentIndex));
+
+	return Error::success();
+}
+
+template<>
+Error explicitateOp<ModExpKind::divide>(
+		ModExp& toExp, size_t argumentIndex, ModExp& toNest)
+{
+	if (argumentIndex == 0)
+		toNest = ModExp::multiply(move(toNest), move(toExp.getChild(1)));
+	else
+		toNest = ModExp::divide(move(toExp.getChild(0)), move(toNest));
+
+	toExp = move(toExp.getChild(argumentIndex));
+
+	return Error::success();
+}
+
+static Error explicitateExp(ModExp& toExp, size_t argumentIndex, ModExp& toNest)
+{
+	switch (toExp.getKind())
+	{
+		case ModExpKind::negate:
+			return explicitateOp<ModExpKind::negate>(toExp, argumentIndex, toNest);
+		case ModExpKind::add:
+			return explicitateOp<ModExpKind::add>(toExp, argumentIndex, toNest);
+		case ModExpKind::sub:
+			return explicitateOp<ModExpKind::sub>(toExp, argumentIndex, toNest);
+		case ModExpKind::at:
+			return explicitateOp<ModExpKind::at>(toExp, argumentIndex, toNest);
+		case ModExpKind::conditional:
+			return explicitateOp<ModExpKind::conditional>(
+					toExp, argumentIndex, toNest);
+		case ModExpKind::different:
+			return explicitateOp<ModExpKind::different>(toExp, argumentIndex, toNest);
+		case ModExpKind::divide:
+			return explicitateOp<ModExpKind::divide>(toExp, argumentIndex, toNest);
+		case ModExpKind::greaterEqual:
+			return explicitateOp<ModExpKind::greaterEqual>(
+					toExp, argumentIndex, toNest);
+		case ModExpKind::greaterThan:
+			return explicitateOp<ModExpKind::greaterThan>(
+					toExp, argumentIndex, toNest);
+		case ModExpKind::induction:
+			return explicitateOp<ModExpKind::induction>(toExp, argumentIndex, toNest);
+		case ModExpKind::elevation:
+			return explicitateOp<ModExpKind::elevation>(toExp, argumentIndex, toNest);
+		case ModExpKind::mult:
+			return explicitateOp<ModExpKind::mult>(toExp, argumentIndex, toNest);
+		case ModExpKind::zero:
+			return explicitateOp<ModExpKind::zero>(toExp, argumentIndex, toNest);
+		case ModExpKind::less:
+			return explicitateOp<ModExpKind::less>(toExp, argumentIndex, toNest);
+		case ModExpKind::lessEqual:
+			return explicitateOp<ModExpKind::lessEqual>(toExp, argumentIndex, toNest);
+		case ModExpKind::equal:
+			return explicitateOp<ModExpKind::equal>(toExp, argumentIndex, toNest);
+		case ModExpKind::module:
+			return explicitateOp<ModExpKind::module>(toExp, argumentIndex, toNest);
+	}
+
+	assert(false && "unreachable");
+	return Error::success();
+}
+
+Error ModEquation::explicitate(size_t argumentIndex, bool left)
+{
+	auto& toExplicitate = left ? getLeft() : getRight();
+	auto& otherExp = !left ? getLeft() : getRight();
+
+	assert(toExplicitate.isOperation());
+	assert(argumentIndex < toExplicitate.childCount());
+
+	return explicitateExp(toExplicitate, argumentIndex, otherExp);
+}
+
+Error ModEquation::explicitate(const ModExpPath& path)
+{
+	for (auto index : path)
+	{
+		auto error = explicitate(index, path.isOnEquationLeftHand());
+		if (error)
+			return error;
+	}
+	return Error::success();
 }

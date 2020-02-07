@@ -8,6 +8,7 @@ char FunctionAlreadyExists::ID;
 char GlobalVariableCreationFailure::ID;
 char UnexpectedModToken::ID;
 char TypeConstantSizeMissMatch::ID;
+char FailedExplicitation::ID;
 
 std::error_condition modelica::make_error_condition(LowererErrorCode errc)
 {
@@ -37,6 +38,8 @@ LowererErrorCategory::default_error_condition(int ev) const noexcept
 		return std::error_condition(LowererErrorCode::typeConstantSizeMissMatch);
 	if (ev == 6)
 		return std::error_condition(LowererErrorCode::unexpectedModToken);
+	if (ev == 7)
+		return std::error_condition(LowererErrorCode::failedExplicitation);
 
 	return std::error_condition(LowererErrorCode::unkownVariable);
 }
@@ -74,6 +77,8 @@ LowererErrorCategory::default_error_condition(int ev) const noexcept
 			return "Type Constant Size Missmatch";
 		case 6:
 			return "Unexpected sim token";
+		case 7:
+			return "Failed Explicitation";
 
 		default:
 			return "Unkown Error";

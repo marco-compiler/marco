@@ -102,3 +102,10 @@ TEST(ModConstTest, constantVectorAddedAreCasted)
 
 	EXPECT_NEAR(sum.get<float>(0), 8.0f, 0.1);
 }
+
+TEST(ModConstTest, constantShouldBeMoveAsssignable)
+{
+	ModConst c(4);
+	c = ModConst(3);
+	EXPECT_EQ(c.get<int>(0), 3);
+}
