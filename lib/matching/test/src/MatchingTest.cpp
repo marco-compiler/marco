@@ -238,3 +238,58 @@ TEST(MatchingTest, succesfullMatchingTest)
 	auto res = match(m, 1000);
 	EXPECT_TRUE(!!res);
 }
+
+TEST(MatchingTest, unsuccesfullMatchingTestShouldBeSo)
+{
+	const string s =
+			"init "
+			"varA = INT[10] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0} "
+			"update "
+			"for [0,5] "
+			"INT[1] (at INT[10] varA, INT[1](ind INT[1]{0})) = INT[1]{0}"
+			"for [4,9] "
+			"INT[1] (at INT[10] varA, INT[1](ind INT[1]{0})) = INT[1]{0}";
+
+	ModParser parser(s);
+
+	auto model = parser.simulation();
+	if (!model)
+	{
+		outs() << model.takeError();
+		FAIL();
+	}
+	auto [vars, equs] = *model;
+	EntryModel m(move(equs), move(vars));
+	auto res = match(m, 1000);
+	EXPECT_TRUE(!res);
+
+	EXPECT_TRUE(res.errorIsA<FailedMatching>());
+
+	handleAllErrors(res.takeError(), [](const FailedMatching& err) {
+
+	});
+}
+
+TEST(MatchingTest, scalarMatchingTest)
+{
+	const string s = "init "
+									 "varA = INT[10] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0} "
+									 "update "
+									 "INT[1] (at INT[10] varA, INT[1]{0}) = INT[1]{0}";
+
+	ModParser parser(s);
+
+	auto model = parser.simulation();
+	if (!model)
+	{
+		outs() << model.takeError();
+		FAIL();
+	}
+	auto [vars, equs] = *model;
+	EntryModel m(move(equs), move(vars));
+
+	MatchingGraph graph(m);
+	graph.match(4);
+	EXPECT_EQ(graph.matchedEdgesCount(), 1);
+	EXPECT_EQ(graph.matchedCount(), 1);
+}
