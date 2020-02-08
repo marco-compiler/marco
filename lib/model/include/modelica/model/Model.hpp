@@ -111,6 +111,23 @@ namespace modelica
 		[[nodiscard]] auto& getEquations() { return equations; }
 
 		[[nodiscard]] const auto& getEquations() const { return equations; }
+		[[nodiscard]] size_t equationsCount() const
+		{
+			size_t count = 0;
+			for (const auto& eq : equations)
+				count += eq.toIndexSet().size();
+
+			return count;
+		}
+
+		[[nodiscard]] size_t stateCount() const
+		{
+			size_t count = 0;
+			for (const auto& var : vars)
+				if (var.second.isState())
+					count += var.second.toIndexSet().size();
+			return count;
+		}
 
 		protected:
 		~Model() = default;

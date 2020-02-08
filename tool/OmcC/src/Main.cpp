@@ -3,6 +3,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "modelica/Parser.hpp"
 #include "modelica/lowerer/Lowerer.hpp"
+#include "modelica/matching/Matching.hpp"
 #include "modelica/model/AssignModel.hpp"
 #include "modelica/model/ModVariable.hpp"
 #include "modelica/omcToModel/OmcToModelPass.hpp"
@@ -89,6 +90,7 @@ int main(int argc, char* argv[])
 	}
 
 	auto foldedModel = exitOnErr(constantFold(move(model)));
+	// auto matchedModel = exitOnErr(match(move(foldedModel), 1000));
 	auto assModel = exitOnErr(solveDer(move(foldedModel), timeStep));
 
 	if (dumpSolvedModel)

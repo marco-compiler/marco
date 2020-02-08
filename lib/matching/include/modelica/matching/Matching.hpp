@@ -7,7 +7,9 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/matching/Edge.hpp"
+#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
+#include "modelica/model/ModExpPath.hpp"
 #include "modelica/model/ModVariable.hpp"
 #include "modelica/model/Model.hpp"
 #include "modelica/model/VectorAccess.hpp"
@@ -206,7 +208,11 @@ namespace modelica
 			return count;
 		}
 		[[nodiscard]] size_t edgesCount() const { return edges.size(); }
-		void dumpGraph(llvm::raw_ostream& OS) const;
+		void dumpGraph(
+				llvm::raw_ostream& OS,
+				bool displayEmptyEdges = true,
+				bool displayMappings = true,
+				bool displayOnlyMatchedCount = true) const;
 		void match(int maxIterations);
 
 		[[nodiscard]] size_t matchedEdgesCount() const;
@@ -214,11 +220,14 @@ namespace modelica
 
 		private:
 		void addEquation(const ModEquation& eq);
+		void emplaceEdge(const ModEquation& eq, ModExpPath path, size_t index);
 
 		llvm::SmallVector<Edge, 0> edges;
 		EquationLookup equationLookUp;
 		VariableLookup variableLookUp;
 		const Model& model;
 	};
+
+	llvm::Expected<EntryModel> match(EntryModel entryModel, size_t maxIterations);
 
 }	 // namespace modelica

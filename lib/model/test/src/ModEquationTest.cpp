@@ -30,7 +30,7 @@ TEST(ModelTest, ModVariableToIndexSet)
 	ModExp dim(ModConst(0, 1, 2, 3), ModType(BultinModTypes::INT, 2, 2));
 	ModVariable variable("var", dim);
 	auto res = variable.toIndexSet();
-	EXPECT_EQ(res, IndexSet({ { 1, 2 }, { 1, 2 } }));
+	EXPECT_EQ(res, IndexSet({ { 0, 2 }, { 0, 2 } }));
 }
 
 TEST(ModEquationTest, ModEquationConstantFolding)

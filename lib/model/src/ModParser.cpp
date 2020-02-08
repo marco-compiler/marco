@@ -242,10 +242,11 @@ Expected<StringMap<ModVariable>> ModParser::initSection()
 
 	while (current != ModToken::End && current != ModToken::UpdateKeyword)
 	{
+		bool constant = accept<ModToken::ConstantKeyword>();
 		TRY(stat, statement());
 
 		auto [name, exp] = move(*stat);
-		ModVariable var(name, move(exp));
+		ModVariable var(name, move(exp), !constant);
 
 		if (map.find(var.getName()) != map.end())
 			return make_error<UnexpectedModToken>(

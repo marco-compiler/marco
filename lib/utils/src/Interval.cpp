@@ -146,9 +146,9 @@ bool MultiDimInterval::isFullyContained(const MultiDimInterval& other) const
 
 void MultiDimInterval::dump(llvm::raw_ostream& OS) const
 {
-	OS << "[";
+	OS << "[_";
 	for (const auto& i : *this)
-		OS << i.min() << "," << i.max();
+		OS << i.min() << " to " << i.max() << "_";
 
 	OS << "]";
 }

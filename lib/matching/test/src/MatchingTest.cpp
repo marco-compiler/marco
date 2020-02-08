@@ -1,10 +1,13 @@
 #include "gtest/gtest.h"
 
+#include "llvm/Support/Error.h"
 #include "modelica/matching/Flow.hpp"
 #include "modelica/matching/Matching.hpp"
+#include "modelica/matching/MatchingErrors.hpp"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModConst.hpp"
+#include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModParser.hpp"
 #include "modelica/model/ModType.hpp"
@@ -61,6 +64,7 @@ TEST(MatchingTest, singleMatch)
 	auto [vars, equs] = *model;
 	EntryModel m(move(equs), move(vars));
 	MatchingGraph graph(m);
+	graph.dump(llvm::outs());
 	EXPECT_EQ(graph.variableCount(), 2);
 	EXPECT_EQ(graph.equationCount(), 2);
 	EXPECT_EQ(graph.edgesCount(), 4);
@@ -174,7 +178,7 @@ TEST(MatchingTest, vectorAccessTest)
 	for (const auto& edge : graph)
 	{
 		VectorAccess acc = edge.getVectorAccess();
-		VectorAccess copy(s, { SingleDimensionAccess::relative(2, 0) });
+		VectorAccess copy({ SingleDimensionAccess::relative(2, 0) });
 		if (acc == copy)
 			count++;
 	}
@@ -188,4 +192,49 @@ TEST(MatchingTest, emptyGraph)
 	MatchingGraph graph(m);
 	graph.match(4);
 	EXPECT_EQ(graph.matchedEdgesCount(), 0);
+}
+
+TEST(MatchingTest, testMatchingFailure)
+{
+	ModParser parser(s);
+
+	auto model = parser.simulation();
+	if (!model)
+	{
+		outs() << model.takeError();
+		FAIL();
+	}
+	auto [vars, equs] = *model;
+	EntryModel m(move(equs), move(vars));
+	auto res = match(m, 1000);
+
+	EXPECT_FALSE(res);
+	EXPECT_TRUE(res.errorIsA<EquationAndStateMissmatch>());
+
+	handleAllErrors(res.takeError(), [](const EquationAndStateMissmatch& err) {
+
+	});
+}
+
+TEST(MatchingTest, succesfullMatchingTest)
+{
+	const string s =
+			"init "
+			"varA = INT[10] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0} "
+			"update "
+			"for [0,10] "
+			"INT[1] (at INT[10] varA, INT[1](ind INT[1]{0})) = INT[1]{0}";
+
+	ModParser parser(s);
+
+	auto model = parser.simulation();
+	if (!model)
+	{
+		outs() << model.takeError();
+		FAIL();
+	}
+	auto [vars, equs] = *model;
+	EntryModel m(move(equs), move(vars));
+	auto res = match(m, 1000);
+	EXPECT_TRUE(!!res);
 }

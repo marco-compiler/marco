@@ -7,6 +7,8 @@
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModExpPath.hpp"
 #include "modelica/model/ModType.hpp"
+#include "modelica/utils/IndexSet.hpp"
+#include "modelica/utils/Interval.hpp"
 
 using namespace std;
 using namespace llvm;
@@ -14,6 +16,9 @@ using namespace modelica;
 
 IndexSet ModEquation::toIndexSet() const
 {
+	if (!isForEquation())
+		return MultiDimInterval({ { 0, 1 } });
+
 	SmallVector<Interval, 2> intervals;
 
 	for (const auto& induction : getInductions())

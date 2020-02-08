@@ -330,5 +330,6 @@ bool OmcToModelPass::handleSimpleMod(
 	StringMap<int> inductionLookUpTable;
 	return !model.emplaceVar(
 			name.str(),
-			modExpFromASTExp(mod.getExpression(), model, inductionLookUpTable));
+			modExpFromASTExp(mod.getExpression(), model, inductionLookUpTable),
+			false);
 }

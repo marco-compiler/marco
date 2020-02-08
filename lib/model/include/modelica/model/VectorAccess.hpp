@@ -79,13 +79,11 @@ namespace modelica
 	{
 		public:
 		VectorAccess(
-				const std::string& referredVar,
-				llvm::SmallVector<SingleDimensionAccess, 3> vector)
-				: vectorAccess(std::move(vector)), referredVar(referredVar)
+				llvm::SmallVector<SingleDimensionAccess, 3>
+						vector = { SingleDimensionAccess::absolute(0) })
+				: vectorAccess(std::move(vector))
 		{
 		}
-		VectorAccess(const std::string& referredVar): referredVar(referredVar) {}
-		static VectorAccess fromExp(const ModExp& expression);
 
 		[[nodiscard]] const llvm::SmallVector<SingleDimensionAccess, 3>&
 		getMappingOffset() const
@@ -104,7 +102,6 @@ namespace modelica
 		}
 
 		[[nodiscard]] MultiDimInterval map(const MultiDimInterval& interval) const;
-		[[nodiscard]] const std::string& getName() const { return referredVar; }
 
 		[[nodiscard]] size_t mappableDimensions() const
 		{
@@ -122,8 +119,7 @@ namespace modelica
 
 		[[nodiscard]] bool operator==(const VectorAccess& other) const
 		{
-			return vectorAccess == other.vectorAccess &&
-						 referredVar == other.referredVar;
+			return vectorAccess == other.vectorAccess;
 		}
 		[[nodiscard]] bool operator!=(const VectorAccess& other) const
 		{
@@ -140,7 +136,25 @@ namespace modelica
 
 		private:
 		llvm::SmallVector<SingleDimensionAccess, 3> vectorAccess;
-		const std::string& referredVar;
+	};
+
+	class AccessToVar
+	{
+		public:
+		AccessToVar(VectorAccess acc, const std::string& ref)
+				: access(std::move(acc)), reference(ref)
+		{
+		}
+
+		static AccessToVar fromExp(const ModExp& expression);
+
+		[[nodiscard]] const VectorAccess& getAccess() const { return access; }
+		[[nodiscard]] VectorAccess& getAccess() { return access; }
+		[[nodiscard]] const std::string& getVarName() const { return reference; }
+
+		private:
+		VectorAccess access;
+		const std::string& reference;
 	};
 
 }	 // namespace modelica

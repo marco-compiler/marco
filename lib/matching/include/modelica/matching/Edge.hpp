@@ -1,5 +1,7 @@
 #pragma once
 #include "llvm/Support/raw_ostream.h"
+#include "modelica/model/ModExpPath.hpp"
+#include "modelica/model/ModVariable.hpp"
 #include "modelica/model/Model.hpp"
 #include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/IndexSet.hpp"
@@ -12,26 +14,17 @@ namespace modelica
 		Edge(
 				const ModEquation& eq,
 				const ModVariable& var,
-				size_t index,
-				VectorAccess acc)
-				: vectorAccess(std::move(acc)),
-					invertedAccess(vectorAccess.invert()),
+				VectorAccess vAccess,
+				ModExpPath access,
+				size_t index)
+				: vectorAccess(std::move(vAccess)),
 					equation(&eq),
 					variable(&var),
+					pathToExp(std::move(access)),
 					index(index)
 		{
-		}
-		Edge(
-				const Model& model,
-				const ModEquation& eq,
-				const ModExp& access,
-				size_t index)
-				: vectorAccess(VectorAccess::fromExp(access)),
-					invertedAccess(vectorAccess.invert()),
-					equation(&eq),
-					variable(&(model.getVar(vectorAccess.getName()))),
-					index(index)
-		{
+			if (eq.isForEquation())
+				invertedAccess = vectorAccess.invert();
 		}
 
 		[[nodiscard]] const ModEquation& getEquation() const { return *equation; }
@@ -61,13 +54,16 @@ namespace modelica
 		[[nodiscard]] bool empty() const { return set.empty(); }
 		void dump(llvm::raw_ostream& OS) const;
 		[[nodiscard]] std::string toString() const;
+		[[nodiscard]] const ModExpPath& getPath() const { return pathToExp; }
+		[[nodiscard]] ModExpPath& getPath() { return pathToExp; }
 
 		private:
 		VectorAccess vectorAccess;
-		VectorAccess invertedAccess;
 		const ModEquation* equation;
 		IndexSet set;
 		const ModVariable* variable;
+		ModExpPath pathToExp;
 		size_t index;
+		VectorAccess invertedAccess;
 	};
 }	 // namespace modelica

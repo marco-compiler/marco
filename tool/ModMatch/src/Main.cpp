@@ -28,6 +28,24 @@ opt<bool> dumpModel(
 		cl::init(false),
 		cl::cat(simCCategory));
 
+opt<bool> showEmptyEdges(
+		"showEmptyEdges",
+		cl::desc("show empty edges in dumped graph"),
+		cl::init(false),
+		cl::cat(simCCategory));
+
+opt<bool> showMapping(
+		"showMappings",
+		cl::desc("show mappings in dumped graph"),
+		cl::init(false),
+		cl::cat(simCCategory));
+
+opt<bool> showMatchedCount(
+		"showMatchedCount",
+		cl::desc("show mappings in dumped graph"),
+		cl::init(false),
+		cl::cat(simCCategory));
+
 opt<string> dumpMatchingGraph(
 		"dumpGraph",
 		cl::desc("dump the starting matching graph exit"),
@@ -75,7 +93,7 @@ int main(int argc, char* argv[])
 			return -1;
 		}
 
-		graph.dumpGraph(OS);
+		graph.dumpGraph(OS, showEmptyEdges, showMapping, showMatchedCount);
 	}
 
 	if (!expectedMatches.isDefaultOption() &&

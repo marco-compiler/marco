@@ -19,13 +19,8 @@ namespace modelica
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const
 		{
 			OS << "init\n";
-			for (auto i = varbegin(); i != varend(); i++)
-			{
-				OS << i->first() << " = ";
-				i->second.getInit().dump(OS);
-
-				OS << "\n";
-			}
+			for (const auto& var : getVars())
+				var.second.dump(OS);
 
 			OS << "update\n";
 			for (const auto& update : *this)

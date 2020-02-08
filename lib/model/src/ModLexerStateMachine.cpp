@@ -39,6 +39,8 @@ std::string modelica::tokenToString(ModToken token)
 			return "Update";
 		case ModToken::AtKeyword:
 			return "At";
+		case ModToken::ConstantKeyword:
+			return "const";
 
 		case ModToken::Modulo:
 			return "module";
@@ -110,6 +112,7 @@ ModLexerStateMachine::ModLexerStateMachine(char first)
 	keywordMap["for"] = ModToken::ForKeyword;
 	keywordMap["ind"] = ModToken::IndKeyword;
 	keywordMap["at"] = ModToken::AtKeyword;
+	keywordMap["const"] = ModToken::ConstantKeyword;
 
 	symbols['*'] = Token::Multiply;
 	symbols[','] = Token::Comma;

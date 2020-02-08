@@ -1,10 +1,12 @@
 #pragma once
 
 #include "llvm/Support/Error.h"
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModExpPath.hpp"
 #include "modelica/utils/IndexSet.hpp"
+#include "modelica/utils/Interval.hpp"
 
 namespace modelica
 {
@@ -31,17 +33,34 @@ namespace modelica
 		{
 			if (!inductions.empty())
 				OS << "for ";
-			for (const auto& ind : inductions)
-				ind.dump(OS);
+			dumpInductions(OS);
 			leftHand.dump(OS);
 			OS << " = ";
 			rightHand.dump(OS);
 			OS << "\n";
 		}
 
+		void dumpInductions(llvm::raw_ostream& OS) const
+		{
+			for (const auto& ind : inductions)
+				ind.dump(OS);
+		}
+
+		[[nodiscard]] bool isForEquation() const { return !inductions.empty(); }
+
 		[[nodiscard]] IndexSet toIndexSet() const;
 		llvm::Error explicitate(size_t argumentIndex, bool left);
 		llvm::Error explicitate(const ModExpPath& path);
+		void setInductionVars(llvm::SmallVector<InductionVar, 3> inds)
+		{
+			inductions = std::move(inds);
+		}
+		void setInductionVars(const MultiDimInterval& inds)
+		{
+			inductions = {};
+			for (const auto& dim : inds)
+				inductions.emplace_back(dim.min(), dim.max());
+		}
 
 		private:
 		ModExp leftHand;

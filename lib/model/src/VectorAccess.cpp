@@ -1,5 +1,7 @@
 #include "modelica/model/VectorAccess.hpp"
 
+#include <string>
+
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/model/ModExp.hpp"
 
@@ -16,7 +18,7 @@ VectorAccess VectorAccess::invert() const
 			intervals[vectorAccess[a].getInductionVar()] =
 					SingleDimensionAccess::relative(-vectorAccess[a].getOffset(), a);
 
-	return VectorAccess(referredVar, move(intervals));
+	return VectorAccess(move(intervals));
 }
 
 MultiDimInterval VectorAccess::map(const MultiDimInterval& interval) const
@@ -168,12 +170,12 @@ bool VectorAccess::isCanonical(const ModExp& expression)
 	return isCanonical(expression.getLeftHand());
 }
 
-VectorAccess VectorAccess::fromExp(const ModExp& expression)
+AccessToVar AccessToVar::fromExp(const ModExp& expression)
 {
-	assert(isCanonical(expression));
+	assert(VectorAccess::isCanonical(expression));
 
 	if (expression.isReference())
-		return VectorAccess(expression.getReference());
+		return AccessToVar(VectorAccess(), expression.getReference());
 
 	// while the expression is composed by nested access into each
 	// other build a access displacement by each of them. then return them and
@@ -186,13 +188,13 @@ VectorAccess VectorAccess::fromExp(const ModExp& expression)
 		ptr = &ptr->getLeftHand();
 	}
 
+	assert(ptr->isReference());
 	reverse(begin(access), end(access));
-	return VectorAccess(ptr->getReference(), move(access));
+	return AccessToVar(VectorAccess(move(access)), ptr->getReference());
 }
 
 void VectorAccess::dump(raw_ostream& OS) const
 {
-	OS << referredVar;
 	for (const auto& acc : vectorAccess)
 		acc.dump(OS);
 }

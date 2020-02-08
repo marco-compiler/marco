@@ -5,9 +5,12 @@
 
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/matching/Edge.hpp"
 #include "modelica/matching/Flow.hpp"
+#include "modelica/matching/MatchingErrors.hpp"
+#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModMatchers.hpp"
 #include "modelica/model/ModVariable.hpp"
@@ -24,15 +27,29 @@ void MatchingGraph::addEquation(const ModEquation& eq)
 	for (size_t useIndex : irange(matcher.size()))
 	{
 		const auto& use = matcher[useIndex];
-		if (!VectorAccess::isCanonical(use.getExp()))
-			continue;
-
-		size_t edgeIndex = edges.size();
-		edges.emplace_back(model, eq, use.getExp(), useIndex);
-		equationLookUp.insert({ &eq, edgeIndex });
-		auto var = &(edges.back().getVariable());
-		variableLookUp.insert({ var, edgeIndex });
+		emplaceEdge(eq, move(use), useIndex);
 	}
+}
+
+void MatchingGraph::emplaceEdge(
+		const ModEquation& eq, ModExpPath path, size_t useIndex)
+{
+	if (!VectorAccess::isCanonical(path.getExp()))
+		return;
+
+	auto access = AccessToVar::fromExp(path.getExp());
+	const auto& var = model.getVar(access.getVarName());
+
+	if (!var.isState())
+		return;
+
+	if (access.getAccess().mappableDimensions() < eq.getInductions().size())
+		return;
+
+	size_t edgeIndex = edges.size();
+	edges.emplace_back(eq, var, move(access.getAccess()), move(path), useIndex);
+	equationLookUp.insert({ &eq, edgeIndex });
+	variableLookUp.insert({ &var, edgeIndex });
 }
 
 void MatchingGraph::match(int iterations)
@@ -53,27 +70,91 @@ size_t MatchingGraph::matchedEdgesCount() const
 			begin(), end(), [](const Edge& edge) { return !edge.empty(); });
 }
 
-void MatchingGraph::dumpGraph(raw_ostream& OS) const
+static void dumpArcs(
+		raw_ostream& OS,
+		bool displayEmptyEdges,
+		bool displayMappings,
+		bool showMatchedCount,
+		const Edge& edge,
+		size_t equationIndex)
+{
+	if (!displayEmptyEdges && edge.empty())
+		return;
+
+	OS << "Eq_" << equationIndex << " -> " << edge.getVariable().getName();
+	OS << "[";
+	if (displayMappings)
+	{
+		OS << "headlabel=\"";
+		edge.getInvertedAccess().dump(OS);
+		OS << '\"';
+	}
+
+	OS << " label=\"";
+	if (showMatchedCount)
+		OS << edge.getSet().size();
+	else
+		edge.getSet().dump(OS);
+	OS << "\"";
+
+	if (displayMappings)
+	{
+		OS << " taillabel=\"";
+		edge.getVectorAccess().dump(OS);
+		OS << "\"";
+	}
+	OS << "];\n";
+}
+
+void MatchingGraph::dumpGraph(
+		raw_ostream& OS,
+		bool displayEmptyEdges,
+		bool displayMappings,
+		bool displayOnlyMatchedCount) const
 {
 	OS << "digraph {\n";
 
-	int equationIndex = 1;
+	size_t equationIndex = 1;
 	for (const ModEquation& eq : model)
 	{
 		for (const Edge& edge : arcsOf(eq))
-		{
-			OS << "Eq_" << equationIndex << " -> " << edge.getVariable().getName();
-			OS << "[label=\"";
-			edge.getVectorAccess().dump(OS);
-			OS << " ";
-			edge.getSet().dump(OS);
-			OS << " ";
-			edge.getInvertedAccess().dump(OS);
-			OS << "\"]"
-				 << ";\n";
-		}
+			dumpArcs(
+					OS,
+					displayEmptyEdges,
+					displayMappings,
+					displayOnlyMatchedCount,
+					edge,
+					equationIndex);
+		equationIndex++;
+	}
+
+	equationIndex = 1;
+	for (const ModEquation& eq : model)
+	{
+		OS << "Eq_" << equationIndex
+			 << "[color=\"blue\" label=\"EQ: " << equationIndex << '\n';
+		if (displayOnlyMatchedCount)
+			OS << "matched: " << getMatchedSet(eq).size() << "/"
+				 << eq.toIndexSet().size();
+		else
+			eq.dumpInductions(OS);
+		OS << "\"];\n";
 
 		equationIndex++;
+	}
+
+	for (const auto& var : variableLookUp)
+	{
+		OS << var.first->getName() << "[color=\"red\"";
+
+		OS << " label=\"";
+		OS << var.first->getName();
+		OS << "\nmatched: ";
+		OS << getMatchedSet(*var.first).size() << "/"
+			 << var.first->toIndexSet().size();
+		OS << "\"";
+
+		OS << "];\n";
 	}
 
 	OS << "}\n";
@@ -83,4 +164,56 @@ void MatchingGraph::dump(llvm::raw_ostream& OS) const
 {
 	for (const auto& edge : *this)
 		edge.dump(OS);
+}
+
+static Error insertEq(
+		Edge& edge, const MultiDimInterval& inductionVars, EntryModel& outModel)
+{
+	outModel.addEquation(edge.getEquation());
+	auto& justInserted = outModel.getEquations().back();
+	justInserted.setInductionVars(inductionVars);
+	return justInserted.explicitate(edge.getPath());
+}
+
+static Error insertAllEq(Edge& edge, EntryModel& outModel)
+{
+	for (const auto& inductionVars : edge.getSet())
+	{
+		auto error = insertEq(edge, inductionVars, outModel);
+		if (error)
+			return error;
+	}
+	return Error::success();
+}
+
+static Expected<EntryModel> explicitateModel(
+		EntryModel& model, MatchingGraph& graph)
+{
+	EntryModel toReturn({}, move(model.getVars()));
+
+	for (auto& edge : graph)
+	{
+		if (!edge.empty())
+			continue;
+
+		auto error = insertAllEq(edge, toReturn);
+		if (error)
+			return move(error);
+	}
+
+	return toReturn;
+}
+
+Expected<EntryModel> modelica::match(
+		EntryModel entryModel, size_t maxIterations)
+{
+	if (entryModel.equationsCount() != entryModel.stateCount())
+		return make_error<EquationAndStateMissmatch>(move(entryModel));
+	MatchingGraph graph(entryModel);
+	graph.match(maxIterations);
+
+	if (graph.matchedCount() != entryModel.equationsCount())
+		return make_error<FailedMatching>(move(entryModel), graph.matchedCount());
+
+	return explicitateModel(entryModel, graph);
 }
