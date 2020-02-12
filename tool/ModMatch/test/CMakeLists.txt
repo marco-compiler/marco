@@ -17,7 +17,7 @@ macro(addMatchingTest sourceModel expectedMatchedEqs maxIterations)
 
 	### promotes the simulation name to target so that it's possible to depend on it.
 	add_custom_target(generated${sourceModel}
-		DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/simulations/${sourceModel}.sm)
+		ALL DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/simulations/${sourceModel}.sm)
 
 	### creates a test that tries to theck if the number is correct
 	add_test(NAME matching${sourceModel}Test
@@ -32,3 +32,8 @@ endmacro(addMatchingTest)
 addMatchingTest(SimpleVector 10 1)
 addMatchingTest(TwoEquationSimpleVector 10 2)
 addMatchingTest(OverlappedEquationSimpleVector 7 5)
+addMatchingTest(AdvectionReaction 10 5)
+addMatchingTest(HarmonicOscillator 8 5)
+addMatchingTest(TransmissionLineEquations 7 5)
+#addMatchingTest(SimpleAdvection 8 10)
+

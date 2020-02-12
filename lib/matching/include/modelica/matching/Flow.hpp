@@ -55,9 +55,21 @@ namespace modelica
 		}
 		[[nodiscard]] IndexSet inverseMap(const IndexSet& set) const
 		{
+			if (isForwardEdge())
+				return edge->invertMap(set);
+			return edge->map(set);
+		}
+
+		[[nodiscard]] IndexSet applyAndInvert(IndexSet set)
+		{
+			if (isForwardEdge())
+				set = inverseMap(set);
+
+			addFLowAtEnd(set);
+
 			if (!isForwardEdge())
-				return edge->map(set);
-			return edge->invertMap(set);
+				set = inverseMap(set);
+			return set;
 		}
 
 		[[nodiscard]] bool empty() const { return set.empty(); }

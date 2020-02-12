@@ -12,7 +12,7 @@ using namespace llvm;
 void FlowCandidates::dump(llvm::raw_ostream& OS) const
 {
 	OS << "CURRENT:";
-	for (const auto& c : choises)
+	for (const auto& c : make_range(rbegin(choises), rend(choises)))
 		c.dump(OS);
 }
 
@@ -80,8 +80,7 @@ static IndexSet possibleForwardFlow(
 {
 	assert(!backEdge.isForwardEdge());
 	auto direct = backEdge.getSet();
-	auto alreadyUsed = graph.getMatchedSet(forwadEdge.getEquation());
-	direct.remove(alreadyUsed);
+	direct.intersecate(forwadEdge.getEquation().toIndexSet());
 	return direct;
 }
 
@@ -93,6 +92,8 @@ FlowCandidates AugmentingPath::getForwardMatchable() const
 	auto connectedEdges = graph.arcsOf(getCurrentFlow().getEquation());
 	for (Edge& edge : connectedEdges)
 	{
+		if (&edge == &getCurrentFlow().getEdge())
+			continue;
 		auto possibleFlow = possibleForwardFlow(getCurrentFlow(), edge, graph);
 		if (!possibleFlow.empty())
 			directMatch.emplace_back(Flow::forwardedge(edge, move(possibleFlow)));
@@ -107,7 +108,7 @@ static IndexSet possibleBackwardFlow(
 	assert(forwardEdge.isForwardEdge());
 	auto alreadyAssigned = backEdge.map(backEdge.getSet());
 	auto possibleFlow = forwardEdge.getMappedSet();
-	alreadyAssigned.remove(possibleFlow);
+	alreadyAssigned.intersecate(possibleFlow);
 	return alreadyAssigned;
 }
 
@@ -119,6 +120,8 @@ FlowCandidates AugmentingPath::getBackwardMatchable() const
 	auto connectedEdges = graph.arcsOf(getCurrentFlow().getVariable());
 	for (Edge& edge : connectedEdges)
 	{
+		if (&edge == &getCurrentFlow().getEdge())
+			continue;
 		auto backFlow = possibleBackwardFlow(getCurrentFlow(), edge);
 		if (!backFlow.empty())
 			undoingMatch.emplace_back(Flow::backedge(edge, move(backFlow)));
@@ -170,11 +173,10 @@ void AugmentingPath::apply()
 	set.remove(alreadyMatchedVars);
 
 	auto reverseRange = make_range(rbegin(frontier), rend(frontier));
-	for (auto edge : reverseRange)
+	for (auto& edge : reverseRange)
 	{
 		Flow& flow = edge.getCurrent();
-		set = flow.inverseMap(set);
-		flow.addFLowAtEnd(set);
+		set = flow.applyAndInvert(set);
 	}
 }
 

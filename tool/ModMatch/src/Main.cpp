@@ -96,8 +96,7 @@ int main(int argc, char* argv[])
 		graph.dumpGraph(OS, showEmptyEdges, showMapping, showMatchedCount);
 	}
 
-	if (!expectedMatches.isDefaultOption() &&
-			expectedMatches != graph.matchedCount())
+	if (expectedMatches != 0 && expectedMatches != graph.matchedCount())
 		return -1;
 
 	return 0;

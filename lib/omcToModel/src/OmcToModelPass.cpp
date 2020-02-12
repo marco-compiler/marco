@@ -2,6 +2,7 @@
 
 #include "modelica/Dumper/Dumper.hpp"
 #include "modelica/model/Assigment.hpp"
+#include "modelica/model/ModExp.hpp"
 
 using namespace modelica;
 using namespace std;
@@ -139,6 +140,8 @@ ModExp modExpFromBinaryExp(
 			return left <= right;
 		case BinaryExprOp::Less:
 			return left < right;
+		case BinaryExprOp::PowerOf:
+			return ModExp::elevate(left, right);
 
 		default:
 			assert(false && "unandled bin op");	 // NOLINT
