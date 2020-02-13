@@ -1,4 +1,6 @@
 #pragma once
+#include <limits>
+
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/matching/Edge.hpp"
 #include "modelica/matching/Matching.hpp"
@@ -120,6 +122,8 @@ namespace modelica
 		}
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		[[nodiscard]] std::string toString() const;
+		[[nodiscard]] auto begin() const { return choises.begin(); }
+		[[nodiscard]] auto end() const { return choises.end(); }
 
 		private:
 		llvm::SmallVector<Flow, 2> choises;
@@ -128,7 +132,9 @@ namespace modelica
 	class AugmentingPath
 	{
 		public:
-		AugmentingPath(MatchingGraph& graph);
+		AugmentingPath(
+				MatchingGraph& graph,
+				size_t maxDepth = std::numeric_limits<size_t>::max());
 		[[nodiscard]] bool valid() const;
 		[[nodiscard]] FlowCandidates getBestCandidate() const;
 		[[nodiscard]] const FlowCandidates& getCurrentCandidates() const
@@ -150,7 +156,14 @@ namespace modelica
 		[[nodiscard]] FlowCandidates selectStartingEdge() const;
 		void apply();
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
+		void dumpGraph(
+				llvm::raw_ostream& OS,
+				bool displayEmptyEdges,
+				bool displayMappings,
+				bool displayOnlyMatchedCount,
+				bool displayOtherOptions) const;
 		[[nodiscard]] std::string toString() const;
+		[[nodiscard]] size_t size() const { return frontier.size(); }
 
 		private:
 		[[nodiscard]] FlowCandidates getBackwardMatchable() const;

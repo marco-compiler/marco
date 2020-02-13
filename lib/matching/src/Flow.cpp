@@ -40,7 +40,7 @@ FlowCandidates::FlowCandidates(SmallVector<Flow, 2> c): choises(std::move(c))
 	assert(find_if(choises.begin(), choises.end(), [](const Flow& flow) {
 					 return flow.empty();
 				 }) == choises.end());
-	std::sort(begin(choises), end(choises), Flow::compare);
+	sort(choises, Flow::compare);
 }
 
 bool AugmentingPath::valid() const
@@ -138,10 +138,10 @@ FlowCandidates AugmentingPath::getBestCandidate() const
 	return getBackwardMatchable();
 }
 
-AugmentingPath::AugmentingPath(MatchingGraph& graph)
+AugmentingPath::AugmentingPath(MatchingGraph& graph, size_t maxDepth)
 		: graph(graph), frontier({ selectStartingEdge() })
 {
-	while (!valid())
+	while (!valid() && frontier.size() < maxDepth)
 	{
 		// while the current siblings are
 		// not empty keep exploring
@@ -194,4 +194,44 @@ string AugmentingPath::toString() const
 	dump(ss);
 	ss.flush();
 	return str;
+}
+void AugmentingPath::dumpGraph(
+		raw_ostream& OS,
+		bool displayEmptyEdges,
+		bool displayMappings,
+		bool displayOnlyMatchedCount,
+		bool displayOtherOptions) const
+{
+	graph.dumpGraph(
+			OS, displayEmptyEdges, displayMappings, displayOnlyMatchedCount, false);
+
+	size_t candidateCount = 0;
+	for (const auto& candidate : frontier)
+	{
+		size_t edgeIndex = 0;
+		for (const auto& edge : candidate)
+		{
+			if (!displayOtherOptions && &edge != &candidate.getCurrent())
+				continue;
+
+			if (edge.isForwardEdge())
+			{
+				OS << "Eq_" << graph.indexOfEquation(edge.getEquation());
+				OS << " -> " << edge.getVariable().getName();
+			}
+			else
+			{
+				OS << edge.getVariable().getName() << "->";
+				OS << "Eq_" << graph.indexOfEquation(edge.getEquation());
+			}
+			OS << " [color=";
+			OS << (&edge == &candidate.getCurrent() ? "gold" : "green");
+			OS << ", label=" << candidateCount;
+			OS << "];\n";
+			edgeIndex++;
+		}
+		candidateCount++;
+	}
+
+	OS << "}\n";
 }

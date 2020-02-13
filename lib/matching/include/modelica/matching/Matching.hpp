@@ -208,11 +208,13 @@ namespace modelica
 			return count;
 		}
 		[[nodiscard]] size_t edgesCount() const { return edges.size(); }
+		[[nodiscard]] size_t indexOfEquation(const ModEquation& eq) const;
 		void dumpGraph(
 				llvm::raw_ostream& OS,
 				bool displayEmptyEdges = true,
 				bool displayMappings = true,
-				bool displayOnlyMatchedCount = true) const;
+				bool displayOnlyMatchedCount = true,
+				bool closeGraph = true) const;
 		void match(int maxIterations);
 
 		[[nodiscard]] size_t matchedEdgesCount() const;

@@ -1,14 +1,18 @@
+#include <limits>
+
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "modelica/lowerer/Lowerer.hpp"
+#include "modelica/matching/Flow.hpp"
 #include "modelica/matching/Matching.hpp"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModParser.hpp"
 #include "modelica/passes/ConstantFold.hpp"
+#include "modelica/utils/IRange.hpp"
 
 using namespace modelica;
 using namespace llvm;
@@ -46,6 +50,18 @@ opt<bool> showMatchedCount(
 		cl::init(false),
 		cl::cat(simCCategory));
 
+opt<bool> showAlternatives(
+		"showAugmentingPathAlternatives",
+		cl::desc("show the possible alternatives in the augmenting path"),
+		cl::init(false),
+		cl::cat(simCCategory));
+
+opt<string> dumpAugmentingPathOnFailure(
+		"dumpGraphFailure",
+		cl::desc("dump the augumenting graph if a path cannot be found"),
+		cl::init("-"),
+		cl::cat(simCCategory));
+
 opt<string> dumpMatchingGraph(
 		"dumpGraph",
 		cl::desc("dump the starting matching graph exit"),
@@ -58,6 +74,12 @@ opt<int> maxMatchingIterations(
 		init(1000),
 		cat(simCCategory));
 
+opt<size_t> maxSearchDepth(
+		"maxDepth",
+		cl::desc("maximun depth of search when looking for an augmenting path"),
+		init(numeric_limits<size_t>::max()),
+		cat(simCCategory));
+
 opt<size_t> expectedMatches(
 		"expectedMatches",
 		cl::desc("programs exits with -1 if the matched variables are different "
@@ -66,6 +88,35 @@ opt<size_t> expectedMatches(
 		cat(simCCategory));
 
 ExitOnError exitOnErr;
+
+static int dumpGraph(const MatchingGraph& graph)
+{
+	error_code error;
+	raw_fd_ostream OS(dumpMatchingGraph, error, sys::fs::F_None);
+	if (error)
+	{
+		errs() << error.message();
+		return -1;
+	}
+
+	graph.dumpGraph(OS, showEmptyEdges, showMapping, showMatchedCount);
+	return 0;
+}
+
+static int dumpAugmentingPath(const AugmentingPath& path)
+{
+	error_code error;
+	raw_fd_ostream OS(dumpMatchingGraph, error, sys::fs::F_None);
+	if (error)
+	{
+		errs() << error.message();
+		return -1;
+	}
+
+	path.dumpGraph(
+			OS, showEmptyEdges, showMapping, showMatchedCount, showAlternatives);
+	return 0;
+}
 
 int main(int argc, char* argv[])
 {
@@ -81,20 +132,24 @@ int main(int argc, char* argv[])
 		constantFoldedModel.dump();
 
 	MatchingGraph graph(constantFoldedModel);
-	graph.match(maxMatchingIterations);
 
-	if (dumpMatchingGraph != "-")
+	for (auto i : irange<size_t>(maxMatchingIterations))
 	{
-		error_code error;
-		raw_fd_ostream OS(dumpMatchingGraph, error, sys::fs::F_None);
-		if (error)
+		AugmentingPath augmentingPath(graph, maxSearchDepth);
+		if (!augmentingPath.valid())
 		{
-			errs() << error.message();
-			return -1;
+			if (dumpAugmentingPathOnFailure != "-" &&
+					augmentingPath.size() == maxSearchDepth)
+				return dumpAugmentingPath(augmentingPath);
+			break;
 		}
 
-		graph.dumpGraph(OS, showEmptyEdges, showMapping, showMatchedCount);
+		augmentingPath.apply();
 	}
+
+	if (dumpMatchingGraph != "-")
+		if (auto error = dumpGraph(graph); error != 0)
+			return error;
 
 	if (expectedMatches != 0 && expectedMatches != graph.matchedCount())
 		return -1;

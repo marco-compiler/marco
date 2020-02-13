@@ -1,9 +1,11 @@
 #include "modelica/matching/Matching.hpp"
 
 #include <functional>
+#include <iterator>
 #include <type_traits>
 
 #include "llvm/ADT/Optional.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
@@ -110,11 +112,12 @@ void MatchingGraph::dumpGraph(
 		raw_ostream& OS,
 		bool displayEmptyEdges,
 		bool displayMappings,
-		bool displayOnlyMatchedCount) const
+		bool displayOnlyMatchedCount,
+		bool closeGraph) const
 {
 	OS << "digraph {\n";
 
-	size_t equationIndex = 1;
+	size_t equationIndex = 0;
 	for (const ModEquation& eq : model)
 	{
 		for (const Edge& edge : arcsOf(eq))
@@ -128,7 +131,7 @@ void MatchingGraph::dumpGraph(
 		equationIndex++;
 	}
 
-	equationIndex = 1;
+	equationIndex = 0;
 	for (const ModEquation& eq : model)
 	{
 		OS << "Eq_" << equationIndex
@@ -157,7 +160,8 @@ void MatchingGraph::dumpGraph(
 		OS << "];\n";
 	}
 
-	OS << "}\n";
+	if (closeGraph)
+		OS << "}\n";
 }
 
 void MatchingGraph::dump(llvm::raw_ostream& OS) const
@@ -216,4 +220,11 @@ Expected<EntryModel> modelica::match(
 		return make_error<FailedMatching>(move(entryModel), graph.matchedCount());
 
 	return explicitateModel(entryModel, graph);
+}
+
+size_t MatchingGraph::indexOfEquation(const ModEquation& eq) const
+{
+	auto edgeIterator = find_if(
+			model.getEquations(), [&](const auto& edge) { return &edge == &eq; });
+	return distance(model.getEquations().begin(), edgeIterator);
 }
