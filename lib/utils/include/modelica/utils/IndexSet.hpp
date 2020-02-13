@@ -21,6 +21,7 @@ namespace modelica
 		[[nodiscard]] bool contains(llvm::ArrayRef<size_t> point) const;
 		void unite(IndexSet other)
 		{
+			assert(disjoint(other));
 			for (auto& range : other)
 				unite(std::move(range));
 		}

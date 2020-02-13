@@ -121,6 +121,8 @@ void IndexSet::compact()
 	assert(!empty());	 // NOLINT
 	auto last = values.end() - 1;
 
+	erase_if(values, [](const MultiDimInterval& e) { return e.size() == 0; });
+
 	const auto isExpansion = [&last](const auto& l) {
 		return last->isExpansionOf(l).first;
 	};
@@ -135,15 +137,15 @@ void IndexSet::compact()
 		expandable = find_if(values.begin(), last, isExpansion);
 	}
 
-	const auto confront = [](const auto& l, const auto& r) {
-		return l.confront(r);
-	};
-	std::sort(values.begin(), values.end(), confront);
+	sort(reverse(values));
 }
 
 void IndexSet::unite(MultiDimInterval other)
 {
 	assert(disjoint(other));	// NOLINT
+	if (other.dimensions() == 0)
+		return;
+	assert(size() == 0 || other.dimensions() == values[0].dimensions());
 	values.emplace_back(std::move(other));
 	compact();
 }

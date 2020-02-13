@@ -1,5 +1,7 @@
 #include "modelica/matching/Flow.hpp"
 
+#include <fcntl.h>
+
 #include "llvm/ADT/iterator_range.h"
 #include "modelica/matching/Edge.hpp"
 #include "modelica/matching/Matching.hpp"
@@ -102,13 +104,25 @@ FlowCandidates AugmentingPath::getForwardMatchable() const
 	return directMatch;
 }
 
-static IndexSet possibleBackwardFlow(
-		const Flow& forwardEdge, const Edge& backEdge)
+IndexSet AugmentingPath::possibleBackwardFlow(const Edge& backEdge) const
 {
+	const Flow& forwardEdge = getCurrentFlow();
 	assert(forwardEdge.isForwardEdge());
 	auto alreadyAssigned = backEdge.map(backEdge.getSet());
 	auto possibleFlow = forwardEdge.getMappedSet();
 	alreadyAssigned.intersecate(possibleFlow);
+
+	for (const auto& siblingSet : frontier)
+	{
+		const auto currentEdge = siblingSet.getCurrent();
+		if (&currentEdge.getEdge() != &backEdge)
+			continue;
+		if (currentEdge.isForwardEdge())
+			continue;
+
+		alreadyAssigned.remove(currentEdge.getMappedSet());
+	}
+
 	return alreadyAssigned;
 }
 
@@ -122,7 +136,7 @@ FlowCandidates AugmentingPath::getBackwardMatchable() const
 	{
 		if (&edge == &getCurrentFlow().getEdge())
 			continue;
-		auto backFlow = possibleBackwardFlow(getCurrentFlow(), edge);
+		auto backFlow = possibleBackwardFlow(edge);
 		if (!backFlow.empty())
 			undoingMatch.emplace_back(Flow::backedge(edge, move(backFlow)));
 	}
@@ -151,7 +165,7 @@ AugmentingPath::AugmentingPath(MatchingGraph& graph, size_t maxDepth)
 			continue;
 		}
 
-		// if they are empty remove the last group
+		// if they are empty remove the last siblings group
 		frontier.erase(frontier.end() - 1);
 
 		// if the frontier is now empty we are done

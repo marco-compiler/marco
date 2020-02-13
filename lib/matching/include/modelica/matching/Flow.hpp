@@ -164,6 +164,7 @@ namespace modelica
 				bool displayOtherOptions) const;
 		[[nodiscard]] std::string toString() const;
 		[[nodiscard]] size_t size() const { return frontier.size(); }
+		[[nodiscard]] IndexSet possibleBackwardFlow(const Edge& backEdge) const;
 
 		private:
 		[[nodiscard]] FlowCandidates getBackwardMatchable() const;
