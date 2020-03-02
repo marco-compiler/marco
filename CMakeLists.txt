@@ -37,13 +37,9 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-if (CMAKE_BUILD_TYPE MATCHES Debug)
-	message(STATUS "Enabling abi breaking checks.")
-	SET(LLVM_ENABLE_ABI_BREAKING_CHECKS ON CACHE BOOL "Enable this if you are using a llvm built in debug mode, turn it off for release")
-else(CMAKE_BUILD_TYPE MATCHES Debug)
-	message(STATUS "Disabling abi breaking checks.")
-	SET(LLVM_ENABLE_ABI_BREAKING_CHECKS OFF CACHE BOOL "Enable this if you are using a llvm built in debug mode, turn it off for release")
-endif(CMAKE_BUILD_TYPE MATCHES Debug)
+message(STATUS "Disabling abi breaking checks.")
+SET(LLVM_ENABLE_ABI_BREAKING_CHECKS OFF CACHE BOOL "Enable this if you are using a llvm built in debug mode, turn it off for release")
+
 
 ##############################
 ###        Globals         ###
@@ -168,4 +164,13 @@ elseif(TRUE)
 		COMMENT "Coverage not aviable"
 		VERBATIM)
 endif()
+
+##############################
+###       BOOSTGRAPH       ###
+##############################
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+find_package(Boost 1.45.0 COMPONENTS graph)
+include_directories(${Boost_INCLUDE_DIRS})
 
