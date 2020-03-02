@@ -1,10 +1,14 @@
 #pragma once
 
+#include <utility>
+
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModExpPath.hpp"
+#include "modelica/model/ModVariable.hpp"
+#include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/IndexSet.hpp"
 #include "modelica/utils/Interval.hpp"
 
@@ -61,6 +65,8 @@ namespace modelica
 			for (const auto& dim : inds)
 				inductions.emplace_back(dim.min(), dim.max());
 		}
+
+		[[nodiscard]] AccessToVar getDeterminedVariable() const;
 
 		private:
 		ModExp leftHand;

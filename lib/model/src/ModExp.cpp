@@ -226,3 +226,17 @@ bool ModExp::tryFoldConstant()
 	assert(false && "unreachable");
 	return false;
 }
+
+const string& ModExp::getReferredVectorAccesss() const
+{
+	assert(isReferenceAccess());
+	if (isReference())
+		return getReference();
+
+	const auto* exp = this;
+
+	while (exp->isOperation<ModExpKind::at>())
+		exp = &exp->getLeftHand();
+
+	return exp->getReference();
+}

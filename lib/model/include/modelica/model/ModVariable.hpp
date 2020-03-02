@@ -21,6 +21,7 @@ namespace modelica
 		[[nodiscard]] IndexSet toIndexSet() const;
 		[[nodiscard]] bool isState() const { return contribuitesToState; }
 		void dump(llvm::raw_ostream& OS) const;
+		[[nodiscard]] size_t size() const { return init.getModType().flatSize(); }
 
 		private:
 		std::string name;

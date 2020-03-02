@@ -1,5 +1,5 @@
-add_library(matching SHARED src/Matching.cpp src/Edge.cpp src/Flow.cpp src/MatchingErrors.cpp) 
-add_library(modelica::matching ALIAS matching)
+add_library(matching SHARED src/Matching.cpp src/Edge.cpp src/Flow.cpp src/MatchingErrors.cpp src/SCCFinder.cpp) 
+add_library(modelica::matching ALIAS matching )
 target_include_directories(matching 
 	PRIVATE 
 		src 
@@ -9,7 +9,7 @@ target_include_directories(matching
 	$<INSTALL_INTERFACE:include>
 		)
 target_compile_features(matching PUBLIC cxx_std_17)
-target_link_libraries(matching PUBLIC modelica::model)
+target_link_libraries(matching PUBLIC modelica::model ${Boost_LIBRARIES})
 
 modelicaInstall(matching)
 add_subdirectory(test)

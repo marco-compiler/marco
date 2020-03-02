@@ -1,7 +1,9 @@
 #pragma once
+#include <numeric>
 #include <vector>
 
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/iterator_range.h"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
@@ -107,6 +109,17 @@ namespace modelica
 		}
 
 		[[nodiscard]] llvm::StringMap<ModVariable>& getVars() { return vars; }
+		[[nodiscard]] size_t startingIndex(const std::string& varName) const
+		{
+			auto varIterator = vars.find(varName);
+			assert(varIterator != vars.end());
+
+			size_t count = 0;
+			for (const auto& var : llvm::make_range(vars.begin(), varIterator))
+				count += var.second.size();
+
+			return count;
+		}
 
 		[[nodiscard]] auto& getEquations() { return equations; }
 

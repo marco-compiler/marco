@@ -416,6 +416,7 @@ namespace modelica
 		}
 
 		[[nodiscard]] bool isReferenceAccess() const;
+		[[nodiscard]] const std::string& getReferredVectorAccesss() const;
 
 		/**
 		 * \brief Dumps the expression value into a human readable from to the

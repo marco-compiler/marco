@@ -306,3 +306,29 @@ TEST(IntervalTest, multiDimensionalfullRemoval)
 	auto set = remove(set1, set2);
 	EXPECT_EQ(set, IndexSet());
 }
+
+TEST(IntervalTest, interavalRageTest)
+{
+	size_t current = 0;
+	MultiDimInterval set1({ { 0, 5 } });
+
+	for (auto val : set1.contentRange())
+	{
+		EXPECT_EQ(val.size(), 1);
+		EXPECT_EQ(current++, val[0]);
+	}
+	EXPECT_EQ(current, 5);
+}
+
+TEST(IntervalTest, interavalRageTestMultiDim)
+{
+	size_t current = 0;
+	MultiDimInterval set1({ { 0, 5 }, { 0, 2 } });
+
+	for (auto val : set1.contentRange())
+	{
+		EXPECT_EQ(val.size(), 2);
+		EXPECT_EQ(current++, (val[0] * 3) + val[1]);
+	}
+	EXPECT_EQ(current, 17);
+}

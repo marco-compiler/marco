@@ -39,6 +39,16 @@ namespace modelica
 			visit(equation.getRight(), false, 0);
 		}
 
+		void visitLeft(const ModEquation& equation)
+		{
+			visit(equation.getLeft(), true, 0);
+		}
+
+		void visitRight(const ModEquation& equation)
+		{
+			visit(equation.getRight(), false, 0);
+		}
+
 		[[nodiscard]] auto begin() const { return vars.begin(); }
 		[[nodiscard]] auto end() const { return vars.end(); }
 		[[nodiscard]] auto begin() { return vars.begin(); }

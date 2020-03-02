@@ -1,6 +1,8 @@
 #include "modelica/utils/Interval.hpp"
 
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
+#include "modelica/utils/MultiDimensionalIterator.hpp"
 
 using namespace llvm;
 using namespace modelica;
@@ -151,4 +153,19 @@ void MultiDimInterval::dump(llvm::raw_ostream& OS) const
 		OS << i.min() << " to " << i.max() << "_";
 
 	OS << "]";
+}
+
+iterator_range<MultiDimensionalIterator> MultiDimInterval::contentRange() const
+{
+	MultiDimensionalIterator::Content start;
+	MultiDimensionalIterator::Content end;
+	for (const auto& dim : *this)
+	{
+		start.emplace_back(dim.min());
+		end.emplace_back(dim.max());
+	}
+
+	MultiDimensionalIterator b(start, end);
+	MultiDimensionalIterator e(end, end);
+	return make_range(b, e);
 }

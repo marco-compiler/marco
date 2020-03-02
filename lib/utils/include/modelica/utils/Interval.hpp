@@ -1,7 +1,9 @@
 #pragma once
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
+#include "modelica/utils/MultiDimensionalIterator.hpp"
 
 namespace modelica
 {
@@ -102,6 +104,9 @@ namespace modelica
 		[[nodiscard]] auto end() const { return intervals.end(); }
 		[[nodiscard]] auto begin() { return intervals.begin(); }
 		[[nodiscard]] auto end() { return intervals.end(); }
+
+		[[nodiscard]] llvm::iterator_range<MultiDimensionalIterator> contentRange()
+				const;
 
 		[[nodiscard]] bool operator==(const MultiDimInterval& other) const
 		{

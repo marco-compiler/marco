@@ -6,7 +6,10 @@
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModExpPath.hpp"
+#include "modelica/model/ModMatchers.hpp"
 #include "modelica/model/ModType.hpp"
+#include "modelica/model/ModVariable.hpp"
+#include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/IndexSet.hpp"
 #include "modelica/utils/Interval.hpp"
 
@@ -289,4 +292,13 @@ Error ModEquation::explicitate(const ModExpPath& path)
 			return error;
 	}
 	return Error::success();
+}
+
+AccessToVar ModEquation::getDeterminedVariable() const
+{
+	ReferenceMatcher leftHandMatcher;
+	leftHandMatcher.visitLeft(*this);
+	const auto& fromVariable = leftHandMatcher.at(0);
+	assert(VectorAccess::isCanonical(fromVariable.getExp()));
+	return AccessToVar::fromExp(fromVariable.getExp());
 }
