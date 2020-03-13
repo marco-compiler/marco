@@ -7,6 +7,11 @@
 
 namespace modelica
 {
+	/**
+	 * Given a causalized equation, that is a equation with only a variable on it
+	 * left hand, IndexOfEquation is a helper class that extracts the pointer to
+	 * the causalized equation as well as the indexes of the variable.
+	 */
 	class IndexesOfEquation
 	{
 		public:
@@ -28,6 +33,11 @@ namespace modelica
 		const ModEquation* equation;
 	};
 
+	/**
+	 * Matched equation lookup is helper class that given a model, that behaves as
+	 * a multimap from variables to IndexesOfEquations that are causalizing that
+	 * variable.
+	 */
 	class MatchedEquationLookup
 	{
 		using Map = std::multimap<const ModVariable*, IndexesOfEquation>;

@@ -1,8 +1,10 @@
-#include "SCCFinder.hpp"
+#include "modelica/matching/VVarDependencyGraph.hpp"
 
 #include <algorithm>
 #include <boost/graph/detail/adjacency_list.hpp>
+#include <boost/range/iterator_range_core.hpp>
 #include <map>
+#include <sstream>
 #include <utility>
 
 #include "llvm/ADT/SmallVector.h"
@@ -24,14 +26,13 @@ using namespace std;
 using namespace llvm;
 using namespace boost;
 
-void SCCFinder::populateEdge(
-		const MatchedEquationLookup& lookup,
-		const IndexesOfEquation& equation,
-		const AccessToVar& toVariable)
+void VVarDependencyGraph::populateEdge(
+		const IndexesOfEquation& equation, const AccessToVar& toVariable)
 {
 	const auto& variable = model.getVar(toVariable.getVarName());
-	const auto usedIndexes = toVariable.getAccess().map(equation.getIndexSet());
-	for (const auto& var : lookup.eqsDeterminingVar(variable))
+	const auto usedIndexes =
+			toVariable.getAccess().map(equation.getEquation().toIndexSet());
+	for (const auto& var : lookUp.eqsDeterminingVar(variable))
 	{
 		const auto& setOfVar = var.getIndexSet();
 		if (setOfVar.disjoint(usedIndexes))
@@ -40,12 +41,12 @@ void SCCFinder::populateEdge(
 		add_edge(
 				nodesLookup[&equation.getEquation()],
 				nodesLookup[&var.getEquation()],
+				toVariable.getAccess(),
 				graph);
 	}
 }
 
-void SCCFinder::populateEq(
-		MatchedEquationLookup& lookup, const IndexesOfEquation& equation)
+void VVarDependencyGraph::populateEq(const IndexesOfEquation& equation)
 {
 	ReferenceMatcher rightHandMatcher;
 	rightHandMatcher.visitRight(equation.getEquation());
@@ -53,16 +54,37 @@ void SCCFinder::populateEq(
 	{
 		assert(VectorAccess::isCanonical(toVariable.getExp()));
 		auto toAccess = AccessToVar::fromExp(toVariable.getExp());
-		populateEdge(lookup, equation, toAccess);
+		populateEdge(equation, toAccess);
 	}
 }
 
-SCCFinder::SCCFinder(const EntryModel& m): model(m)
+VVarDependencyGraph::VVarDependencyGraph(const EntryModel& m)
+		: model(m), lookUp(m)
 {
-	MatchedEquationLookup lookUp(m);
 	for (const auto& eq : lookUp)
-		nodesLookup[&eq.getEquation()] = add_vertex(eq.getEquation(), graph);
+		nodesLookup[&eq.getEquation()] = add_vertex(&eq, graph);
 
 	for (const auto& eq : lookUp)
-		populateEq(lookUp, eq);
+		populateEq(eq);
+}
+
+void VVarDependencyGraph::dump(llvm::raw_ostream& OS) const
+{
+	OS << "digraph G {";
+	for (auto vertex : make_iterator_range(vertices(graph)))
+	{
+		OS << vertex << "[label=\"" << vertex << "\"]";
+	}
+
+	for (auto edge : make_iterator_range(edges(graph)))
+	{
+		auto from = source(edge, graph);
+		auto to = target(edge, graph);
+
+		OS << from << "->" << to << "[label=\"";
+		graph[edge].dump(OS);
+		OS << "\"];\n";
+	}
+
+	OS << "}";
 }
