@@ -174,3 +174,9 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost 1.45.0 COMPONENTS graph)
 include_directories(${Boost_INCLUDE_DIRS})
 
+
+#add_library(graph SHARED ${Boost_LIBRARIES})
+#target_include_directories(graph PUBLIC ${Boost_INCLUDE_DIRS})
+#target_compile_definitions(graph PUBLIC -DBOOST_NO_EXCEPTIONS)
+#target_compile_features(graph PUBLIC cxx_std_17)
+

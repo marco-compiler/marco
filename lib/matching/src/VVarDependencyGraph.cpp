@@ -2,7 +2,10 @@
 
 #include <algorithm>
 #include <boost/graph/detail/adjacency_list.hpp>
+#include <boost/graph/strong_components.hpp>
+#include <boost/property_map/property_map.hpp>
 #include <boost/range/iterator_range_core.hpp>
+#include <exception>
 #include <map>
 #include <sstream>
 #include <utility>
@@ -87,4 +90,21 @@ void VVarDependencyGraph::dump(llvm::raw_ostream& OS) const
 	}
 
 	OS << "}";
+}
+
+void boost::throw_exception(const std::exception& e)
+{
+	errs() << e.what();
+	assert(false);
+}
+
+VVarSCC VVarDependencyGraph::getSCC() const
+{
+	SCCVector components(count());
+
+	auto componentsCount = strong_components(
+			graph,
+			make_iterator_property_map(components.begin(), get(vertex_index, graph)));
+
+	return VVarSCC(*this, std::move(components), componentsCount);
 }

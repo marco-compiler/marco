@@ -9,7 +9,8 @@ target_include_directories(matching
 	$<INSTALL_INTERFACE:include>
 		)
 target_compile_features(matching PUBLIC cxx_std_17)
-target_link_libraries(matching PUBLIC modelica::model ${Boost_LIBRARIES})
+target_link_libraries(matching PUBLIC modelica::model )
+target_compile_definitions(matching PUBLIC -DBOOST_NO_EXCEPTIONS)
 
 modelicaInstall(matching)
 add_subdirectory(test)
