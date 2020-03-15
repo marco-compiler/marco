@@ -23,7 +23,7 @@ TEST(VVarDependency, countTest)
 	EXPECT_EQ(graph.count(), 1);
 }
 
-TEST(VVarDependency, paritionTest)
+static auto makeModel()
 {
 	EntryModel model;
 	model.emplaceVar(
@@ -45,8 +45,27 @@ TEST(VVarDependency, paritionTest)
 					ModExp("leftVar", ModType(BultinModTypes::INT, 2, 2)),
 					ModExp::induction(ModConst(0))),
 			{ InductionVar(0, 2) });
+	return model;
+}
 
+TEST(VVarDependency, paritionTest)
+{
+	auto model = makeModel();
 	VVarDependencyGraph graph(model);
 	auto scc = graph.getSCC();
 	EXPECT_EQ(scc.count(), 2);
+}
+
+TEST(VVarDependencyGraph, graphIteratorTest)
+{
+	auto model = makeModel();
+	VVarDependencyGraph graph(model);
+	auto sccContent = graph.getSCC();
+
+	int visitedNodes = 0;
+	for (auto& scc : sccContent)
+		for (auto& vertex : scc.range(graph))
+			visitedNodes++;
+
+	EXPECT_EQ(visitedNodes, graph.count());
 }

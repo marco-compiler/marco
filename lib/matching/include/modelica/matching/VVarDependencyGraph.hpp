@@ -9,6 +9,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/matching/MatchedEquationLookup.hpp"
+#include "modelica/matching/SccLookup.hpp"
 #include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModVariable.hpp"
@@ -23,35 +24,10 @@ namespace modelica
 			const IndexesOfEquation*,
 			VectorAccess>;
 
-	using SCCVector = llvm::SmallVector<
-			boost::property_map<VVarGraph, boost::vertex_index_t>::type::value_type,
-			3>;
+	using VertexIndex =
+			boost::property_map<VVarGraph, boost::vertex_index_t>::type::value_type;
 
 	using VVarVertexDesc = boost::graph_traits<VVarGraph>::vertex_descriptor;
-
-	class VVarDependencyGraph;
-
-	class VVarSCC
-	{
-		public:
-		VVarSCC(
-				const VVarDependencyGraph& graph,
-				SCCVector vector,
-				size_t componentsCount)
-				: graph(graph),
-					components(std::move(vector)),
-					componentsCount(componentsCount)
-		{
-		}
-
-		[[nodiscard]] const VVarDependencyGraph& getGraph() const { return graph; }
-		[[nodiscard]] size_t count() const { return componentsCount; }
-
-		private:
-		const VVarDependencyGraph& graph;
-		SCCVector components;
-		size_t componentsCount;
-	};
 
 	class VVarDependencyGraph
 	{
@@ -59,7 +35,12 @@ namespace modelica
 		VVarDependencyGraph(const EntryModel& model);
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		[[nodiscard]] size_t count() const { return graph.m_vertices.size(); }
-		[[nodiscard]] VVarSCC getSCC() const;
+		[[nodiscard]] SccLookup<VertexIndex> getSCC() const;
+
+		[[nodiscard]] const IndexesOfEquation& operator[](VertexIndex index) const
+		{
+			return *graph[index];
+		}
 
 		private:
 		void populateEdge(

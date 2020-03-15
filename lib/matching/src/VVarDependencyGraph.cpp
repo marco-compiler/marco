@@ -13,6 +13,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
 #include "modelica/matching/MatchedEquationLookup.hpp"
+#include "modelica/matching/SccLookup.hpp"
 #include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
@@ -98,13 +99,13 @@ void boost::throw_exception(const std::exception& e)
 	assert(false);
 }
 
-VVarSCC VVarDependencyGraph::getSCC() const
+SccLookup<VertexIndex> VVarDependencyGraph::getSCC() const
 {
-	SCCVector components(count());
+	SccLookup<VertexIndex>::InputVector components(count());
 
 	auto componentsCount = strong_components(
 			graph,
 			make_iterator_property_map(components.begin(), get(vertex_index, graph)));
 
-	return VVarSCC(*this, std::move(components), componentsCount);
+	return SccLookup<VertexIndex>(components, componentsCount);
 }
