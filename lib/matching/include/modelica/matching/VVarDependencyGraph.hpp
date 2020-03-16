@@ -17,21 +17,21 @@
 
 namespace modelica
 {
-	using VVarGraph = boost::adjacency_list<
-			boost::vecS,
-			boost::vecS,
-			boost::directedS,
-			const IndexesOfEquation*,
-			VectorAccess>;
-
-	using VertexIndex =
-			boost::property_map<VVarGraph, boost::vertex_index_t>::type::value_type;
-
-	using VVarVertexDesc = boost::graph_traits<VVarGraph>::vertex_descriptor;
-
 	class VVarDependencyGraph
 	{
 		public:
+		using VVarGraph = boost::adjacency_list<
+				boost::vecS,
+				boost::vecS,
+				boost::directedS,
+				const IndexesOfEquation*,
+				VectorAccess>;
+
+		using VertexIndex =
+				boost::property_map<VVarGraph, boost::vertex_index_t>::type::value_type;
+
+		using VVarVertexDesc = boost::graph_traits<VVarGraph>::vertex_descriptor;
+
 		VVarDependencyGraph(const EntryModel& model);
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		[[nodiscard]] size_t count() const { return graph.m_vertices.size(); }

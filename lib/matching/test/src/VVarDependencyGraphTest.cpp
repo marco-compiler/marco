@@ -1,12 +1,13 @@
 #include "gtest/gtest.h"
 
+#include "modelica/matching/SVarDependencyGraph.hpp"
 #include "modelica/matching/VVarDependencyGraph.hpp"
 
 using namespace std;
 using namespace llvm;
 using namespace modelica;
 
-TEST(VVarDependency, countTest)
+TEST(VVarDependencyGraphTest, countTest)
 {
 	EntryModel model;
 	model.emplaceVar(
@@ -48,7 +49,7 @@ static auto makeModel()
 	return model;
 }
 
-TEST(VVarDependency, paritionTest)
+TEST(VVarDependencyGraphTest, paritionTest)
 {
 	auto model = makeModel();
 	VVarDependencyGraph graph(model);
@@ -56,7 +57,7 @@ TEST(VVarDependency, paritionTest)
 	EXPECT_EQ(scc.count(), 2);
 }
 
-TEST(VVarDependencyGraph, graphIteratorTest)
+TEST(VVarDependencyGraphTest, graphIteratorTest)
 {
 	auto model = makeModel();
 	VVarDependencyGraph graph(model);
@@ -68,4 +69,19 @@ TEST(VVarDependencyGraph, graphIteratorTest)
 			visitedNodes++;
 
 	EXPECT_EQ(visitedNodes, graph.count());
+}
+
+TEST(VVarDependencyGraphTest, scalarGraph)
+{
+	auto model = makeModel();
+	VVarDependencyGraph graph(model);
+	auto sccContent = graph.getSCC();
+
+	int visitedNodes = 0;
+	for (const auto& scc : sccContent)
+	{
+		SVarDepencyGraph scalarGraph(graph, scc);
+		visitedNodes += scalarGraph.count();
+	}
+	EXPECT_EQ(visitedNodes, 4);
 }

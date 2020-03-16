@@ -53,6 +53,7 @@ namespace modelica
 		[[nodiscard]] bool isForEquation() const { return !inductions.empty(); }
 
 		[[nodiscard]] IndexSet toIndexSet() const;
+		[[nodiscard]] MultiDimInterval toInterval() const;
 		llvm::Error explicitate(size_t argumentIndex, bool left);
 		llvm::Error explicitate(const ModExpPath& path);
 		void setInductionVars(llvm::SmallVector<InductionVar, 3> inds)

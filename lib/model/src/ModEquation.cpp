@@ -17,7 +17,9 @@ using namespace std;
 using namespace llvm;
 using namespace modelica;
 
-IndexSet ModEquation::toIndexSet() const
+IndexSet ModEquation::toIndexSet() const { return IndexSet(toInterval()); }
+
+MultiDimInterval ModEquation::toInterval() const
 {
 	if (!isForEquation())
 		return MultiDimInterval({ { 0, 1 } });
@@ -27,7 +29,7 @@ IndexSet ModEquation::toIndexSet() const
 	for (const auto& induction : getInductions())
 		intervals.emplace_back(induction.begin(), induction.end());
 
-	return IndexSet({ MultiDimInterval(move(intervals)) });
+	return MultiDimInterval(move(intervals));
 }
 
 /***

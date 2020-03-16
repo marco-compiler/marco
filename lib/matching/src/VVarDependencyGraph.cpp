@@ -35,11 +35,11 @@ void VVarDependencyGraph::populateEdge(
 {
 	const auto& variable = model.getVar(toVariable.getVarName());
 	const auto usedIndexes =
-			toVariable.getAccess().map(equation.getEquation().toIndexSet());
+			toVariable.getAccess().map(equation.getEquation().toInterval());
 	for (const auto& var : lookUp.eqsDeterminingVar(variable))
 	{
-		const auto& setOfVar = var.getIndexSet();
-		if (setOfVar.disjoint(usedIndexes))
+		const auto& setOfVar = var.getInterval();
+		if (areDisjoint(usedIndexes, setOfVar))
 			continue;
 
 		add_edge(
@@ -99,7 +99,7 @@ void boost::throw_exception(const std::exception& e)
 	assert(false);
 }
 
-SccLookup<VertexIndex> VVarDependencyGraph::getSCC() const
+SccLookup<VVarDependencyGraph::VertexIndex> VVarDependencyGraph::getSCC() const
 {
 	SccLookup<VertexIndex>::InputVector components(count());
 
