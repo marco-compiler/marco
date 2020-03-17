@@ -32,28 +32,39 @@ namespace modelica
 	class SVarDepencyGraph
 	{
 		public:
-		using SVarGraph = boost::adjacency_list<
+		using GraphImp = boost::adjacency_list<
 				boost::vecS,
 				boost::vecS,
 				boost::directedS,
 				SingleEquationReference>;
 
 		using VertexIndex =
-				boost::property_map<SVarGraph, boost::vertex_index_t>::type::value_type;
+				boost::property_map<GraphImp, boost::vertex_index_t>::type::value_type;
 
-		using VVarVertexDesc = boost::graph_traits<SVarGraph>::vertex_descriptor;
+		using VertexDesc = boost::graph_traits<GraphImp>::vertex_descriptor;
 
-		using VVarScc = Scc<VVarDependencyGraph::VVarVertexDesc>;
+		using VVarScc = Scc<VVarDependencyGraph::VertexDesc>;
+
+		using LookUp =
+				std::map<const IndexesOfEquation*, llvm::SmallVector<size_t, 3>>;
 
 		SVarDepencyGraph(
 				const VVarDependencyGraph& collapsedGraph, const VVarScc& scc);
 
 		[[nodiscard]] const VVarScc& getScc() const { return scc; }
 		[[nodiscard]] size_t count() const { return boost::num_vertices(graph); }
+		[[nodiscard]] const VVarDependencyGraph::GraphImp& collImpl() const
+		{
+			return collapsedGraph.getImpl();
+		}
 
 		private:
+		void insertEdge(
+				const LookUp& lookup, const VVarDependencyGraph::EdgeDesc& edge);
+		void insertNode(LookUp& lookUp, size_t vertexIndex);
+		void insertEdges(const LookUp& lookup, size_t vertex);
 		const VVarScc& scc;
 		const VVarDependencyGraph& collapsedGraph;
-		SVarGraph graph;
+		GraphImp graph;
 	};
 }	 // namespace modelica

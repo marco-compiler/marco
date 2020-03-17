@@ -98,6 +98,11 @@ namespace modelica
 			return llvm::make_range<Iterator>(begin, end);
 		}
 
+		[[nodiscard]] auto begin() const { return indexes.begin(); }
+		[[nodiscard]] auto begin() { return indexes.begin(); }
+		[[nodiscard]] auto end() const { return indexes.end(); }
+		[[nodiscard]] auto end() { return indexes.end(); }
+
 		private:
 		Vector indexes;
 	};

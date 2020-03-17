@@ -1,12 +1,12 @@
 #pragma once
 
-#include <boost/graph/graph_selectors.hpp>
 #include <boost/graph/properties.hpp>
 #include <map>
 
 #include "boost/graph/adjacency_list.hpp"
 #include "boost/graph/graph_traits.hpp"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/matching/MatchedEquationLookup.hpp"
 #include "modelica/matching/SccLookup.hpp"
@@ -20,7 +20,7 @@ namespace modelica
 	class VVarDependencyGraph
 	{
 		public:
-		using VVarGraph = boost::adjacency_list<
+		using GraphImp = boost::adjacency_list<
 				boost::vecS,
 				boost::vecS,
 				boost::directedS,
@@ -28,15 +28,18 @@ namespace modelica
 				VectorAccess>;
 
 		using VertexIndex =
-				boost::property_map<VVarGraph, boost::vertex_index_t>::type::value_type;
+				boost::property_map<GraphImp, boost::vertex_index_t>::type::value_type;
 
-		using VVarVertexDesc = boost::graph_traits<VVarGraph>::vertex_descriptor;
+		using VertexDesc = boost::graph_traits<GraphImp>::vertex_descriptor;
+
+		using EdgeDesc = boost::graph_traits<GraphImp>::edge_descriptor;
 
 		VVarDependencyGraph(const EntryModel& model);
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		[[nodiscard]] size_t count() const { return graph.m_vertices.size(); }
 		[[nodiscard]] SccLookup<VertexIndex> getSCC() const;
-
+		[[nodiscard]] const GraphImp& getImpl() const { return graph; }
+		[[nodiscard]] GraphImp& getImpl() { return graph; }
 		[[nodiscard]] const IndexesOfEquation& operator[](VertexIndex index) const
 		{
 			return *graph[index];
@@ -48,9 +51,15 @@ namespace modelica
 		void populateEq(const IndexesOfEquation& eq);
 
 		const EntryModel& model;
-		VVarGraph graph;
-		std::map<const ModEquation*, VVarVertexDesc> nodesLookup;
+		GraphImp graph;
+		std::map<const ModEquation*, VertexDesc> nodesLookup;
 		MatchedEquationLookup lookUp;
 	};
+
+	template<typename Graph, typename Vertex>
+	auto outEdgesRange(Vertex& vertex, Graph& graph)
+	{
+		return llvm::make_range(boost::out_edges(vertex, graph));
+	}
 
 }	 // namespace modelica
