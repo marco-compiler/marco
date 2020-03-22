@@ -3,6 +3,7 @@
 
 #include "llvm/ADT/iterator_range.h"
 #include "modelica/model/Model.hpp"
+#include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/Interval.hpp"
 #include "modelica/utils/MapIterator.hpp"
 
@@ -17,11 +18,13 @@ namespace modelica
 	{
 		public:
 		IndexesOfEquation(const Model& model, const ModEquation& equation)
-				: indexSet({ { 0, 0 } }), equation(&equation)
+				: access(equation.getDeterminedVariable()),
+					invertedAccess(access.getAccess().invert()),
+					indexSet(access.getAccess().map(equation.toInterval())),
+
+					variable(&model.getVar(access.getVarName())),
+					equation(&equation)
 		{
-			auto access = equation.getDeterminedVariable();
-			indexSet = access.getAccess().map(equation.toInterval());
-			variable = &model.getVar(access.getVarName());
 		}
 
 		[[nodiscard]] const MultiDimInterval& getInterval() const
@@ -30,8 +33,18 @@ namespace modelica
 		}
 		[[nodiscard]] const ModVariable& getVariable() const { return *variable; }
 		[[nodiscard]] const ModEquation& getEquation() const { return *equation; }
+		[[nodiscard]] const VectorAccess& getEqToVar() const
+		{
+			return access.getAccess();
+		}
+		[[nodiscard]] const VectorAccess& getVarToEq() const
+		{
+			return invertedAccess;
+		}
 
 		private:
+		AccessToVar access;
+		VectorAccess invertedAccess;
 		MultiDimInterval indexSet;
 		const ModVariable* variable;
 		const ModEquation* equation;

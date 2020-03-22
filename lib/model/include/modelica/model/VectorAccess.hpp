@@ -1,6 +1,7 @@
 #pragma once
 #include <limits>
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/model/ModExp.hpp"
@@ -39,6 +40,13 @@ namespace modelica
 				return Interval(interval.min() + value, interval.max() + value);
 
 			return Interval(value, value + 1);
+		}
+		[[nodiscard]] size_t map(llvm::ArrayRef<size_t> interval) const
+		{
+			if (isOffset())
+				return interval[inductionVar] + value;
+
+			return value;
 		}
 
 		[[nodiscard]] bool isOffset() const { return !isAbs; }
@@ -102,6 +110,8 @@ namespace modelica
 		}
 
 		[[nodiscard]] MultiDimInterval map(const MultiDimInterval& interval) const;
+		[[nodiscard]] llvm::SmallVector<size_t, 3> map(
+				llvm::ArrayRef<size_t> interval) const;
 
 		[[nodiscard]] size_t mappableDimensions() const
 		{
@@ -114,6 +124,17 @@ namespace modelica
 		}
 
 		[[nodiscard]] VectorAccess invert() const;
+		[[nodiscard]] VectorAccess combine(const VectorAccess& other) const;
+		[[nodiscard]] VectorAccess operator*(const VectorAccess& other) const
+		{
+			return combine(other);
+		}
+		[[nodiscard]] IndexSet operator*(const IndexSet& other) const
+		{
+			return map(other);
+		}
+		[[nodiscard]] SingleDimensionAccess combine(
+				const SingleDimensionAccess& other) const;
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		[[nodiscard]] std::string toString() const;
 

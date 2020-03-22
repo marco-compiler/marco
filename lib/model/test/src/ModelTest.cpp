@@ -9,6 +9,7 @@
 #include "modelica/model/ModLexerStateMachine.hpp"
 #include "modelica/model/ModParser.hpp"
 #include "modelica/model/ModType.hpp"
+#include "modelica/model/ModVariable.hpp"
 
 using namespace modelica;
 using namespace std;
@@ -212,4 +213,16 @@ TEST(ModelTest, expShouldBeAssignableFromContent)
 	ModExp exp = ModExp::negate(ModExp(ModConst(5)));
 	exp = move(exp.getChild(0));
 	EXPECT_EQ(exp, ModExp(ModConst(5)));
+}
+
+TEST(ModVariable, modVariableIndex)
+{
+	ModVariable v(
+			"hei",
+			ModExp(ModConst(0, 0, 0, 0), ModType(BultinModTypes::INT, { 2, 2 })));
+
+	EXPECT_EQ(v.indexOfElement({ 1, 1 }), 3);
+	EXPECT_EQ(v.indexOfElement({ 1, 0 }), 2);
+	EXPECT_EQ(v.indexOfElement({ 0, 0 }), 0);
+	EXPECT_EQ(v.indexOfElement({ 0, 1 }), 1);
 }

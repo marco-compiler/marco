@@ -2,6 +2,7 @@
 
 #include <string>
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/model/ModExp.hpp"
 
@@ -21,6 +22,26 @@ VectorAccess VectorAccess::invert() const
 	return VectorAccess(move(intervals));
 }
 
+VectorAccess VectorAccess::combine(const VectorAccess& other) const
+{
+	SmallVector<SingleDimensionAccess, 2> intervals;
+	for (const auto& singleAccess : other.vectorAccess)
+		intervals.push_back(combine(singleAccess));
+
+	return VectorAccess(move(intervals));
+}
+
+SingleDimensionAccess VectorAccess::combine(
+		const SingleDimensionAccess& other) const
+{
+	if (other.isDirecAccess())
+		return other;
+	assert(other.getInductionVar() <= vectorAccess.size());
+	const auto& mapped = vectorAccess[other.getInductionVar()];
+	return SingleDimensionAccess::relative(
+			mapped.getOffset() + other.getOffset(), mapped.getInductionVar());
+}
+
 MultiDimInterval VectorAccess::map(const MultiDimInterval& interval) const
 {
 	assert(interval.dimensions() >= mappableDimensions());	// NOLINT
@@ -30,6 +51,16 @@ MultiDimInterval VectorAccess::map(const MultiDimInterval& interval) const
 		intervals.push_back(displacement.map(interval));
 
 	return MultiDimInterval(std::move(intervals));
+}
+
+SmallVector<size_t, 3> VectorAccess::map(llvm::ArrayRef<size_t> interval) const
+{
+	SmallVector<size_t, 3> intervals;
+
+	for (const auto& displacement : vectorAccess)
+		intervals.push_back(displacement.map(interval));
+
+	return intervals;
 }
 
 /**

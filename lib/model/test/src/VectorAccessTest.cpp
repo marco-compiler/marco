@@ -178,7 +178,7 @@ TEST(VectorAccessTest, inverteTest)
 	EXPECT_EQ(inverted.getMappingOffset()[1].getOffset(), -4);
 }
 
-TEST(VectorACcessTest, toStringTest)
+TEST(VectorAccessTest, toStringTest)
 {
 	ModExp exp = ModExp::at(
 			ModExp("referene", ModType(typeToBuiltin<int>(), 2, 3, 3)),
@@ -188,4 +188,27 @@ TEST(VectorACcessTest, toStringTest)
 	auto access = AccessToVar::fromExp(exp);
 
 	EXPECT_EQ(access.getAccess().toString(), "[I1 + 4]");
+}
+
+TEST(VectorAccessTest, testCombineAbsoluteVectorAccess)
+{
+	VectorAccess v1({ SingleDimensionAccess::absolute(5) });
+	VectorAccess v2({ SingleDimensionAccess::absolute(10) });
+	auto result = v1.combine(v2);
+	EXPECT_TRUE(result.getMappingOffset()[0].isDirecAccess());
+	EXPECT_EQ(result.getMappingOffset()[0].getOffset(), 10);
+}
+
+TEST(VectorAccessTest, testCombineRelativeVectorAccess)
+{
+	VectorAccess v1({ SingleDimensionAccess::relative(10, 0),
+										SingleDimensionAccess::relative(20, 1) });
+	VectorAccess v2({ SingleDimensionAccess::relative(10, 1),
+										SingleDimensionAccess::relative(10, 0) });
+	auto result = v1.combine(v2);
+	EXPECT_TRUE(result.getMappingOffset()[0].isOffset());
+	EXPECT_EQ(result.getMappingOffset()[0].getOffset(), 30);
+	EXPECT_EQ(result.getMappingOffset()[0].getInductionVar(), 1);
+	EXPECT_EQ(result.getMappingOffset()[1].getOffset(), 20);
+	EXPECT_EQ(result.getMappingOffset()[1].getInductionVar(), 0);
 }
