@@ -1,10 +1,12 @@
 #include <limits>
+#include <string>
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "modelica/matching/Flow.hpp"
+#include "modelica/matching/SVarDependencyGraph.hpp"
 #include "modelica/matching/VVarDependencyGraph.hpp"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/EntryModel.hpp"
@@ -18,27 +20,23 @@ using namespace llvm;
 using namespace std;
 using namespace cl;
 
-OptionCategory simCCategory("ModMatch options");
+OptionCategory mSchedCat("ModMatch options");
 opt<string> InputFileName(
-		cl::Positional,
-		cl::desc("<input-file>"),
-		cl::init("-"),
-		cl::cat(simCCategory));
+		Positional, desc("<input-file>"), init("-"), cat(mSchedCat));
 
 opt<bool> dumpModel(
 		"dumpModel",
-		cl::desc("dump simulation on stdout while running"),
-		cl::init(false),
-		cl::cat(simCCategory));
+		desc("dump simulation on stdout while running"),
+		init(false),
+		cat(mSchedCat));
 
 opt<bool> dumpGraph(
-		"dumpGraph",
-		cl::desc("dump dependency graph"),
-		cl::init(false),
-		cl::cat(simCCategory));
+		"dumpGraph", desc("dump dependency graph"), init(false), cat(mSchedCat));
 
-opt<string> outputFile(
-		"o", cl::desc("<output-file>"), cl::init("-"), cl::cat(simCCategory));
+opt<bool> dumpScc(
+		"dumpScc", desc("dump each scc graph"), init(false), cat(mSchedCat));
+
+opt<string> outputFile("o", desc("<output-file>"), init("-"), cat(mSchedCat));
 
 ExitOnError exitOnErr;
 
@@ -67,5 +65,25 @@ int main(int argc, char* argv[])
 
 	if (dumpGraph)
 		graph.dump(OS);
+
+	auto sccs = graph.getSCC();
+
+	if (dumpScc)
+	{
+		size_t i = 0;
+		for (const auto& scc : sccs)
+		{
+			string fileName = to_string(i) + "_" + outputFile;
+			SVarDepencyGraph scalarGraph(graph, scc);
+			raw_fd_ostream OS(outputFile, error, sys::fs::F_None);
+			if (error)
+			{
+				errs() << error.message();
+				return -1;
+			}
+			scalarGraph.dumpGraph(OS);
+		}
+	}
+
 	return 0;
 }

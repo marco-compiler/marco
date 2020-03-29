@@ -2,6 +2,7 @@
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/detail/adjacency_list.hpp>
+#include <boost/range/iterator_range_core.hpp>
 #include <cstddef>
 #include <map>
 
@@ -21,12 +22,14 @@ using namespace std;
 void SVarDepencyGraph::insertNode(LookUp& LookUp, size_t vertexIndex)
 {
 	const IndexesOfEquation& vertex = collapsedGraph[vertexIndex];
-	const auto& interval = vertex.getInterval();
-	for (auto indicies : interval.contentRange())
+	const auto& interval = vertex.getEquation().toInterval();
+	for (auto eqInds : interval.contentRange())
 	{
+		auto indicies = vertex.getEqToVar().map(eqInds);
 		auto vertexIndex =
 				add_vertex(SingleEquationReference(vertex, indicies), graph);
-		LookUp[&vertex].push_back(vertexIndex);
+		LookUp[&vertex][vertex.getVariable().indexOfElement(indicies)] =
+				vertexIndex;
 	}
 }
 
@@ -35,7 +38,7 @@ static size_t indexOfScalarVar(
 		const IndexesOfEquation& var,
 		const SVarDepencyGraph::LookUp& lookUp)
 {
-	return lookUp.at(&var)[var.getVariable().indexOfElement(access)];
+	return lookUp.at(&var).at(var.getVariable().indexOfElement(access));
 }
 
 void SVarDepencyGraph::insertEdge(
@@ -77,4 +80,43 @@ SVarDepencyGraph::SVarDepencyGraph(
 
 	for (size_t vertex : scc)
 		insertEdges(vertexesLookUp, vertex);
+}
+
+void SingleEquationReference::dump(llvm::raw_ostream& OS) const
+{
+	OS << vertex->getVariable().getName();
+	OS << "[";
+	for (size_t index : indexes)
+		OS << index << ",";
+
+	OS << "]";
+}
+
+void SVarDepencyGraph::dumpGraph(llvm::raw_ostream& OS) const
+{
+	OS << "digraph {";
+
+	const auto& verts = make_iterator_range(vertices(graph));
+	for (auto vertex : verts)
+	{
+		const auto& eqRef = graph[vertex];
+		eqRef.dump(OS);
+		OS << "[label=\"";
+		eqRef.dump(OS);
+		OS << "\"];\n";
+	}
+
+	const auto& edgs = make_iterator_range(edges(graph));
+	for (const auto& edge : edgs)
+	{
+		const auto& sourceVertex = graph[source(edge, graph)];
+		const auto& targetVertex = graph[target(edge, graph)];
+
+		sourceVertex.dump(OS);
+		OS << " -> ";
+		targetVertex.dump(OS);
+		OS << "\n";
+	}
+
+	OS << "};";
 }

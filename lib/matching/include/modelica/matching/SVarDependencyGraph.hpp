@@ -3,6 +3,8 @@
 #include <boost/graph/adjacency_list.hpp>
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/raw_ostream.h"
+#include "modelica/matching/KhanAdjacentAlgorithm.hpp"
 #include "modelica/matching/MatchedEquationLookup.hpp"
 #include "modelica/matching/SccLookup.hpp"
 #include "modelica/matching/VVarDependencyGraph.hpp"
@@ -19,13 +21,17 @@ namespace modelica
 
 		SingleEquationReference() = default;
 
-		[[nodiscard]] const auto& getCollapsedVertex()
+		[[nodiscard]] const auto& getCollapsedVertex() const
 		{
 			return vertex->getEquation();
 		}
 
+		[[nodiscard]] auto getIndexes() const { return indexes; }
+
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
+
 		private:
-		const IndexesOfEquation* vertex;
+		const IndexesOfEquation* vertex{ nullptr };
 		llvm::SmallVector<size_t, 3> indexes;
 	};
 
@@ -45,8 +51,7 @@ namespace modelica
 
 		using VVarScc = Scc<VVarDependencyGraph::VertexDesc>;
 
-		using LookUp =
-				std::map<const IndexesOfEquation*, llvm::SmallVector<size_t, 3>>;
+		using LookUp = std::map<const IndexesOfEquation*, std::map<size_t, size_t>>;
 
 		SVarDepencyGraph(
 				const VVarDependencyGraph& collapsedGraph, const VVarScc& scc);
@@ -57,6 +62,14 @@ namespace modelica
 		{
 			return collapsedGraph.getImpl();
 		}
+		void dumpGraph(llvm::raw_ostream& OS) const;
+		template<typename Iter>
+		void topoOrder(Iter iter) const
+		{
+			khanAdjacentAlgorithm(graph, iter);
+		}
+
+		[[nodiscard]] auto operator[](size_t index) const { return graph[index]; }
 
 		private:
 		void insertEdge(

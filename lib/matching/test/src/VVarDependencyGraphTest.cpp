@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
+#include <iterator>
 
 #include "modelica/matching/SVarDependencyGraph.hpp"
+#include "modelica/matching/Schedule.hpp"
 #include "modelica/matching/VVarDependencyGraph.hpp"
 
 using namespace std;
@@ -84,4 +86,30 @@ TEST(VVarDependencyGraphTest, scalarGraph)
 		visitedNodes += scalarGraph.count();
 	}
 	EXPECT_EQ(visitedNodes, 4);
+}
+
+TEST(VVarDependencyGraphTest, testOder)
+{
+	auto model = makeModel();
+	VVarDependencyGraph graph(model);
+	auto sccContent = graph.getSCC();
+	SmallVector<SVarDepencyGraph, 0> sccs;
+	SmallVector<size_t, 0> execOrder;
+
+	for (const auto& scc : sccContent)
+	{
+		sccs.emplace_back(graph, scc);
+		sccs.back().topoOrder(back_inserter(execOrder));
+	}
+
+	EXPECT_EQ(execOrder.size(), 4);
+}
+
+TEST(VVarDependencyGraphTest, scheduleTest)
+{
+	auto model = makeModel();
+	VVarDependencyGraph graph(model);
+	auto sccContent = graph.getSCC();
+	modelica::schedule(model);
+	EXPECT_EQ(1, 1);
 }

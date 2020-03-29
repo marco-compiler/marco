@@ -115,12 +115,12 @@ namespace modelica
 		using Vector = llvm::SmallVector<SCC, 3>;
 		using InputVector = llvm::SmallVector<VertexIndex, 3>;
 
-		SccLookup(const InputVector& vector, size_t componentsCount)
-				: components(componentsCount)
+		SccLookup(InputVector vector, size_t componentsCount)
+				: components(componentsCount), directLookup(std::move(vector))
 		{
-			for (auto i : irange(vector.size()))
+			for (auto i : irange(directLookup.size()))
 			{
-				const auto scc = vector[i];
+				const auto scc = directLookup[i];
 				components[scc].push_back(i);
 			}
 		}
@@ -131,8 +131,17 @@ namespace modelica
 		[[nodiscard]] auto end() const { return components.end(); }
 		[[nodiscard]] auto begin() { return components.begin(); }
 		[[nodiscard]] auto end() { return components.end(); }
+		[[nodiscard]] const SCC& sccOf(size_t vertexIndex) const
+		{
+			return components[directLookup[vertexIndex]];
+		}
+		[[nodiscard]] const SCC& operator[](size_t index) const
+		{
+			return components[index];
+		}
 
 		private:
 		Vector components;
+		InputVector directLookup;
 	};
 }	 // namespace modelica

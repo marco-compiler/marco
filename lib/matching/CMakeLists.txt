@@ -1,4 +1,4 @@
-add_library(matching SHARED src/Matching.cpp src/Edge.cpp src/Flow.cpp src/MatchingErrors.cpp src/VVarDependencyGraph.cpp src/SVarDependencyGraph.cpp) 
+add_library(matching SHARED src/Matching.cpp src/Edge.cpp src/Flow.cpp src/MatchingErrors.cpp src/VVarDependencyGraph.cpp src/SVarDependencyGraph.cpp src/SCCDependencyGraph.cpp src/Schedule.cpp) 
 add_library(modelica::matching ALIAS matching )
 target_include_directories(matching 
 	PRIVATE 
