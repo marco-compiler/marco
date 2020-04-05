@@ -3,6 +3,7 @@
 #include "modelica/Dumper/Dumper.hpp"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModExp.hpp"
+#include "modelica/utils/Interval.hpp"
 
 using namespace modelica;
 using namespace std;
@@ -194,7 +195,7 @@ bool insertArray(
 	return false;
 }
 
-static InductionVar inductionFromEq(const ForEquation* eq)
+static Interval inductionFromEq(const ForEquation* eq)
 {
 	auto forExp = eq->getForExpression(0);
 	assert(isa<RangeExpr>(forExp));	 // NOLINT
@@ -205,13 +206,13 @@ static InductionVar inductionFromEq(const ForEquation* eq)
 	auto begin = dyn_cast<IntLiteralExpr>(rangeExp->getStart());
 	auto end = dyn_cast<IntLiteralExpr>(rangeExp->getStop());
 
-	return InductionVar(begin->getValue(), end->getValue() + 1);
+	return Interval(begin->getValue(), end->getValue() + 1);
 }
 
 static ModEquation handleEq(
 		const SimpleEquation* eq,
 		const StringMap<int>& inductionLookUpTable,
-		const SmallVector<InductionVar, 3>& inds,
+		const MultiDimInterval& inds,
 		const EntryModel& model)
 {
 	auto left = modExpFromASTExp(eq->getLeftHand(), model, inductionLookUpTable);
@@ -226,7 +227,7 @@ unique_ptr<SimpleEquation> OmcToModelPass::visit(
 	if (forEqNestingLevel != 0)
 		return decl;
 	StringMap<int> inductionLookUpTable;
-	SmallVector<InductionVar, 3> inds;
+	MultiDimInterval inds{};
 	model.addEquation(handleEq(decl.get(), inductionLookUpTable, inds, model));
 	return decl;
 }
@@ -236,7 +237,7 @@ unique_ptr<ForEquation> OmcToModelPass::visit(unique_ptr<ForEquation> eq)
 	if (forEqNestingLevel++ != 0)
 		return eq;
 
-	SmallVector<InductionVar, 3> inds;
+	SmallVector<Interval, 2> inds;
 	StringMap<int> inductionLookUpTable;
 	const Equation* nav = eq.get();
 	const ForEquation* previous = eq.get();

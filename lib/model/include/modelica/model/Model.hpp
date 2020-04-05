@@ -76,8 +76,7 @@ namespace modelica
 			equations.push_back(std::move(equation));
 		}
 
-		void emplaceEquation(
-				ModExp left, ModExp right, llvm::SmallVector<InductionVar, 2> vars = {})
+		void emplaceEquation(ModExp left, ModExp right, MultiDimInterval vars = {})
 		{
 			equations.emplace_back(
 					std::move(left), std::move(right), std::move(vars));
@@ -128,7 +127,7 @@ namespace modelica
 		{
 			size_t count = 0;
 			for (const auto& eq : equations)
-				count += eq.toIndexSet().size();
+				count += eq.getInductions().size();
 
 			return count;
 		}

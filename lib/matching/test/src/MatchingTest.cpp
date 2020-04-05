@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include <iterator>
 
 #include "llvm/Support/Error.h"
 #include "modelica/matching/Flow.hpp"
@@ -42,7 +43,7 @@ TEST(MatchingTest, graphInizializationTest)
 					ModExp("leftVar", ModType(BultinModTypes::INT, 2, 2)),
 					ModExp::induction(ModConst(0))),
 			ModConst(3),
-			{ InductionVar(1, 3) });
+			{ { 1, 3 } });
 
 	MatchingGraph graph(model);
 	EXPECT_EQ(graph.variableCount(), 1);
@@ -270,6 +271,32 @@ TEST(MatchingTest, unsuccesfullMatchingTestShouldBeSo)
 	});
 }
 
+TEST(MatchingTest, baseGraphScalarDependencies)
+{
+	const string s = "init "
+									 "varA = INT[10] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0} "
+									 "update "
+									 "INT[1] (at INT[10] varA, INT[1]{0}) = INT[1]{0}";
+
+	ModParser parser(s);
+
+	auto model = parser.simulation();
+	if (!model)
+	{
+		outs() << model.takeError();
+		FAIL();
+	}
+	auto [vars, equs] = *model;
+	EntryModel m(move(equs), move(vars));
+
+	m.dump();
+	MatchingGraph graph(m);
+	auto range = graph.arcsOf(m.getEquation(0));
+	EXPECT_EQ(1, graph.equationCount());
+	EXPECT_EQ(1, graph.variableCount());
+	EXPECT_EQ(distance(range.begin(), range.end()), 1);
+}
+
 TEST(MatchingTest, scalarMatchingTest)
 {
 	const string s = "init "
@@ -288,6 +315,7 @@ TEST(MatchingTest, scalarMatchingTest)
 	auto [vars, equs] = *model;
 	EntryModel m(move(equs), move(vars));
 
+	m.dump();
 	MatchingGraph graph(m);
 	graph.match(4);
 	EXPECT_EQ(graph.matchedEdgesCount(), 1);

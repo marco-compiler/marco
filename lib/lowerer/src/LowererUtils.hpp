@@ -3,6 +3,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/Error.h"
 #include "modelica/lowerer/Lowerer.hpp"
+#include "modelica/utils/Interval.hpp"
 
 namespace modelica
 {
@@ -16,7 +17,7 @@ namespace modelica
 		bool loadOldValue;
 
 		llvm::BasicBlock* createdNestedForCycleImp(
-				llvm::ArrayRef<InductionVar> iterationsCountBegin,
+				const MultiDimInterval& iterationsCountBegin,
 				std::function<void(llvm::Value*)> whileContent,
 				llvm::SmallVector<llvm::Value*, 3>& indexes);
 
@@ -139,10 +140,10 @@ namespace modelica
 		 * block.
 		 */
 		llvm::BasicBlock* createForCycle(
-				InductionVar induction, std::function<void(llvm::Value*)> whileContent);
+				Interval induction, std::function<void(llvm::Value*)> whileContent);
 
 		llvm::BasicBlock* createdNestedForCycle(
-				llvm::ArrayRef<InductionVar> induction,
+				const MultiDimInterval& induction,
 				std::function<void(llvm::Value*)> whileContent);
 
 		llvm::BasicBlock* createForArrayElement(

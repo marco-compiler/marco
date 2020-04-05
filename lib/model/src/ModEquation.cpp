@@ -17,21 +17,6 @@ using namespace std;
 using namespace llvm;
 using namespace modelica;
 
-IndexSet ModEquation::toIndexSet() const { return IndexSet(toInterval()); }
-
-MultiDimInterval ModEquation::toInterval() const
-{
-	if (!isForEquation())
-		return MultiDimInterval({ { 0, 1 } });
-
-	SmallVector<Interval, 2> intervals;
-
-	for (const auto& induction : getInductions())
-		intervals.emplace_back(induction.begin(), induction.end());
-
-	return MultiDimInterval(move(intervals));
-}
-
 /***
  * \return true if kind is associative and commutative
  */

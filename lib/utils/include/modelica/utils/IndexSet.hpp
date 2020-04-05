@@ -1,4 +1,5 @@
 #pragma once
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/utils/Interval.hpp"
 
@@ -42,7 +43,7 @@ namespace modelica
 			return true;
 		}
 		[[nodiscard]] bool disjoint(const MultiDimInterval& other) const;
-		[[nodiscard]] bool empty() const { return values.empty(); }
+		[[nodiscard]] bool empty() const { return size() == 0; }
 		[[nodiscard]] size_t partitionsCount() const { return values.size(); }
 
 		[[nodiscard]] bool operator==(const IndexSet& other) const
@@ -59,6 +60,11 @@ namespace modelica
 			for (const auto& el : values)
 				toReturn += el.size();
 			return toReturn;
+		}
+
+		void insert(llvm::ArrayRef<size_t> point)
+		{
+			unite(MultiDimInterval(point));
 		}
 
 		void dump(llvm::raw_ostream& OS) const;

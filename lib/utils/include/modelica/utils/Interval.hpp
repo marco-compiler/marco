@@ -10,7 +10,7 @@ namespace modelica
 	class Interval
 	{
 		public:
-		Interval(size_t min, size_t max): minVal(min), maxVal(max)
+		explicit Interval(size_t min, size_t max): minVal(min), maxVal(max)
 		{
 			assert(min < max);	// NOLINT
 		}
@@ -87,6 +87,12 @@ namespace modelica
 		{
 		}
 
+		MultiDimInterval(llvm::ArrayRef<size_t> point)
+		{
+			for (size_t p : point)
+				intervals.emplace_back(p, p + 1);
+		}
+
 		[[nodiscard]] size_t dimensions() const { return intervals.size(); }
 		[[nodiscard]] bool contains(llvm::ArrayRef<size_t> point) const;
 
@@ -141,12 +147,17 @@ namespace modelica
 		}
 		[[nodiscard]] size_t size() const
 		{
+			if (intervals.empty())
+				return 0;
+
 			size_t size = 1;
 			for (const auto& el : intervals)
 				size *= el.size();
 
 			return size;
 		}
+
+		[[nodiscard]] bool empty() const { return size() == 0; }
 
 		[[nodiscard]] MultiDimInterval replacedDimension(
 				size_t dimension, size_t newLeft, size_t newRight) const

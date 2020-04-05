@@ -82,7 +82,7 @@ static IndexSet possibleForwardFlow(
 {
 	assert(!backEdge.isForwardEdge());
 	auto direct = backEdge.getSet();
-	direct.intersecate(forwadEdge.getEquation().toIndexSet());
+	direct.intersecate(forwadEdge.getEquation().getInductions());
 	return direct;
 }
 

@@ -20,7 +20,7 @@ namespace modelica
 		IndexesOfEquation(const Model& model, const ModEquation& equation)
 				: access(equation.getDeterminedVariable()),
 					invertedAccess(access.getAccess().invert()),
-					indexSet(access.getAccess().map(equation.toInterval())),
+					indexSet(access.getAccess().map(equation.getInductions())),
 
 					variable(&model.getVar(access.getVarName())),
 					equation(&equation)

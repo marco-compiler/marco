@@ -17,61 +17,64 @@ namespace modelica
 	class ModEquation
 	{
 		public:
-		ModEquation(
-				ModExp left, ModExp right, llvm::SmallVector<InductionVar, 3> inds = {})
+		ModEquation(ModExp left, ModExp right, MultiDimInterval inds = {})
 				: leftHand(std::move(left)),
 					rightHand(std::move(right)),
-					inductions(std::move(inds))
+					inductions(std::move(inds)),
+					isForCycle(!inductions.empty())
 		{
+			if (!isForCycle)
+				inductions = { { 0, 1 } };
 		}
 
 		[[nodiscard]] const ModExp& getLeft() const { return leftHand; }
 		[[nodiscard]] const ModExp& getRight() const { return rightHand; }
 		[[nodiscard]] ModExp& getLeft() { return leftHand; }
 		[[nodiscard]] ModExp& getRight() { return rightHand; }
-		[[nodiscard]] const auto& getInductions() const { return inductions; }
-		[[nodiscard]] auto& getInductions() { return inductions; }
+		[[nodiscard]] const MultiDimInterval& getInductions() const
+		{
+			return inductions;
+		}
 		void foldConstants();
 
 		void dump(llvm::raw_ostream& OS) const
 		{
-			if (!inductions.empty())
+			if (isForCycle)
+			{
 				OS << "for ";
-			dumpInductions(OS);
+				dumpInductions(OS);
+			}
 			leftHand.dump(OS);
 			OS << " = ";
 			rightHand.dump(OS);
 			OS << "\n";
 		}
 
-		void dumpInductions(llvm::raw_ostream& OS) const
-		{
-			for (const auto& ind : inductions)
-				ind.dump(OS);
-		}
+		void dumpInductions(llvm::raw_ostream& OS) const { inductions.dump(OS); }
 
-		[[nodiscard]] bool isForEquation() const { return !inductions.empty(); }
+		[[nodiscard]] bool isForEquation() const { return isForCycle; }
 
-		[[nodiscard]] IndexSet toIndexSet() const;
-		[[nodiscard]] MultiDimInterval toInterval() const;
 		llvm::Error explicitate(size_t argumentIndex, bool left);
 		llvm::Error explicitate(const ModExpPath& path);
-		void setInductionVars(llvm::SmallVector<InductionVar, 3> inds)
+		void setInductionVars(MultiDimInterval inds)
 		{
-			inductions = std::move(inds);
-		}
-		void setInductionVars(const MultiDimInterval& inds)
-		{
-			inductions = {};
-			for (const auto& dim : inds)
-				inductions.emplace_back(dim.min(), dim.max());
+			isForCycle = inds.empty();
+			if (isForCycle)
+				inductions = std::move(inds);
+			else
+				inds = { { 0, 1 } };
 		}
 
 		[[nodiscard]] AccessToVar getDeterminedVariable() const;
+		[[nodiscard]] size_t dimensions() const
+		{
+			return isForCycle ? inductions.dimensions() : 0;
+		}
 
 		private:
 		ModExp leftHand;
 		ModExp rightHand;
-		llvm::SmallVector<InductionVar, 3> inductions;
+		MultiDimInterval inductions;
+		bool isForCycle;
 	};
 }	 // namespace modelica

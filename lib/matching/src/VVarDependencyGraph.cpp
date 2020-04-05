@@ -35,7 +35,7 @@ void VVarDependencyGraph::populateEdge(
 {
 	const auto& variable = model.getVar(toVariable.getVarName());
 	const auto usedIndexes =
-			toVariable.getAccess().map(equation.getEquation().toInterval());
+			toVariable.getAccess().map(equation.getEquation().getInductions());
 	for (const auto& var : lookUp.eqsDeterminingVar(variable))
 	{
 		const auto& setOfVar = var.getInterval();

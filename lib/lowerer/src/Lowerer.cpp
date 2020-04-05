@@ -4,8 +4,12 @@
 #include "LowererUtils.hpp"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/Support/Error.h"
+#include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModErrors.hpp"
+#include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModVariable.hpp"
+#include "modelica/utils/Interval.hpp"
 
 using namespace std;
 using namespace modelica;
@@ -69,7 +73,7 @@ static Expected<Function*> populateMain(
 	// creates a for with simulationStop iterations what invokes
 	// update and print values each time
 	auto loopExit =
-			lCont.createForCycle(InductionVar(0, simulationStop), [&](Value* index) {
+			lCont.createForCycle(Interval(0, simulationStop), [&](Value* index) {
 				builder.CreateCall(update);
 				builder.CreateCall(printValues);
 			});
@@ -159,12 +163,6 @@ static Error createNormalAssigment(
 static Error createForAssigment(
 		LowererContext& info, const Assigment& assigment)
 {
-	SmallVector<size_t, 3> inductionsBegin;
-	SmallVector<size_t, 3> inductionsEnd;
-	for (const auto& ind : assigment)
-		inductionsBegin.push_back(ind.begin());
-	for (const auto& ind : assigment)
-		inductionsEnd.push_back(ind.end());
 	Error err = Error::success();
 
 	info.createdNestedForCycle(
@@ -177,6 +175,8 @@ static Error createForAssigment(
 				info.setInductions(nullptr);
 			});
 	return err;
+
+	return Error::success();
 }
 
 static Error createAssigment(LowererContext& info, const Assigment& assigment)

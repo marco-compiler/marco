@@ -7,6 +7,7 @@
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModLexerStateMachine.hpp"
 #include "modelica/model/ModVariable.hpp"
+#include "modelica/utils/Interval.hpp"
 #include "modelica/utils/Lexer.hpp"
 #include "modelica/utils/SourceRange.hpp"
 
@@ -54,9 +55,8 @@ namespace modelica
 				llvm::StringMap<ModVariable>,
 				llvm::SmallVector<ModEquation, 0>>>
 		simulation();
-		[[nodiscard]] llvm::Expected<InductionVar> singleInduction();
-		[[nodiscard]] llvm::Expected<llvm::SmallVector<InductionVar, 3>>
-		inductions();
+		[[nodiscard]] llvm::Expected<Interval> singleInduction();
+		[[nodiscard]] llvm::Expected<MultiDimInterval> inductions();
 		[[nodiscard]] llvm::Expected<ModEquation> updateStatement();
 
 		[[nodiscard]] ModToken getCurrentModToken() const { return current; }

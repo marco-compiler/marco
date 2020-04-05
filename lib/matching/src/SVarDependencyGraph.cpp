@@ -22,7 +22,7 @@ using namespace std;
 void SVarDepencyGraph::insertNode(LookUp& LookUp, size_t vertexIndex)
 {
 	const IndexesOfEquation& vertex = collapsedGraph[vertexIndex];
-	const auto& interval = vertex.getEquation().toInterval();
+	const auto& interval = vertex.getEquation().getInductions();
 	for (auto eqInds : interval.contentRange())
 	{
 		auto indicies = vertex.getEqToVar().map(eqInds);

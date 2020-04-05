@@ -148,11 +148,8 @@ bool MultiDimInterval::isFullyContained(const MultiDimInterval& other) const
 
 void MultiDimInterval::dump(llvm::raw_ostream& OS) const
 {
-	OS << "[_";
 	for (const auto& i : *this)
-		OS << i.min() << " to " << i.max() << "_";
-
-	OS << "]";
+		OS << "[" << i.min() << "," << i.max() << "]";
 }
 
 iterator_range<MultiDimensionalIterator> MultiDimInterval::contentRange() const

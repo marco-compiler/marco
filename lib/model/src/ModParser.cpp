@@ -4,6 +4,7 @@
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModLexerStateMachine.hpp"
 #include "modelica/model/ModVariable.hpp"
+#include "modelica/utils/Interval.hpp"
 
 #define EXPECT(Token)                                                          \
 	if (auto e = expect(Token); !e)                                              \
@@ -288,7 +289,7 @@ Expected<tuple<string, ModExp>> ModParser::statement()
 
 	return tuple(move(name), move(*exp));
 }
-Expected<InductionVar> ModParser::singleInduction()
+Expected<Interval> ModParser::singleInduction()
 {
 	EXPECT(ModToken::LSquare);
 
@@ -300,11 +301,11 @@ Expected<InductionVar> ModParser::singleInduction()
 	EXPECT(ModToken::Integer);
 	EXPECT(ModToken::RSquare);
 
-	return InductionVar(begin, end);
+	return Interval(begin, end);
 }
-Expected<SmallVector<InductionVar, 3>> ModParser::inductions()
+Expected<MultiDimInterval> ModParser::inductions()
 {
-	SmallVector<InductionVar, 3> inductions;
+	SmallVector<Interval, 2> inductions;
 	if (!accept<ModToken::ForKeyword>())
 		return inductions;
 	while (current == ModToken::LSquare)
@@ -317,10 +318,8 @@ Expected<SmallVector<InductionVar, 3>> ModParser::inductions()
 
 Expected<ModEquation> ModParser::updateStatement()
 {
-	SmallVector<InductionVar, 3> ind;
-
 	TRY(inductionsV, inductions());
-	ind = move(*inductionsV);
+	MultiDimInterval ind = move(*inductionsV);
 
 	if (current == ModToken::Ident)
 	{

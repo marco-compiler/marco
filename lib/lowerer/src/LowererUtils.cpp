@@ -1,9 +1,11 @@
 #include "LowererUtils.hpp"
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/IR/IRBuilder.h"
 #include "modelica/lowerer/Lowerer.hpp"
 #include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModErrors.hpp"
+#include "modelica/utils/Interval.hpp"
 
 using namespace llvm;
 using namespace std;
@@ -179,7 +181,7 @@ AllocaInst* LowererContext::getTypeDimensionsArray(const ModType& type)
 }
 
 BasicBlock* LowererContext::createForCycle(
-		InductionVar var, std::function<void(Value*)> whileContent)
+		Interval var, std::function<void(Value*)> whileContent)
 {
 	auto& context = builder.getContext();
 	auto condition = BasicBlock::Create(context, "condition ", function);
@@ -191,7 +193,7 @@ BasicBlock* LowererContext::createForCycle(
 
 	// alocates iteration counter
 	auto iterationCounter = builder.CreateAlloca(unsignedInt);
-	makeConstantStore<int>(var.begin(), iterationCounter);
+	makeConstantStore<int>(var.min(), iterationCounter);
 
 	// jump to condition bb
 	builder.CreateBr(condition);
@@ -200,7 +202,7 @@ BasicBlock* LowererContext::createForCycle(
 	builder.SetInsertPoint(condition);
 	auto value = builder.CreateLoad(unsignedInt, iterationCounter);
 	auto iterCmp =
-			builder.CreateICmpEQ(value, ConstantInt::get(unsignedInt, var.end()));
+			builder.CreateICmpEQ(value, ConstantInt::get(unsignedInt, var.max()));
 
 	// brach if equal to zero
 	builder.CreateCondBr(iterCmp, exit, loopBody);
@@ -240,14 +242,14 @@ Value* LowererContext::valueArrayFromArrayOfValues(SmallVector<Value*, 3> vals)
 }
 
 BasicBlock* LowererContext::createdNestedForCycleImp(
-		ArrayRef<InductionVar> iterationsCountBegin,
+		const MultiDimInterval& iterationsCountBegin,
 		std::function<void(Value*)> whileContent,
 		SmallVector<Value*, 3>& indexes)
 {
 	return createForCycle(
-			iterationsCountBegin[indexes.size()], [&](Value* value) {
+			iterationsCountBegin.at(indexes.size()), [&](Value* value) {
 				indexes.push_back(value);
-				if (indexes.size() != iterationsCountBegin.size())
+				if (indexes.size() != iterationsCountBegin.dimensions())
 					createdNestedForCycleImp(iterationsCountBegin, whileContent, indexes);
 				else
 					whileContent(valueArrayFromArrayOfValues(indexes));
@@ -255,7 +257,7 @@ BasicBlock* LowererContext::createdNestedForCycleImp(
 }
 
 BasicBlock* LowererContext::createdNestedForCycle(
-		ArrayRef<InductionVar> iterationsCountBegin,
+		const MultiDimInterval& iterationsCountBegin,
 		std::function<void(Value*)> whileContent)
 {
 	SmallVector<Value*, 3> indexes;
@@ -265,11 +267,12 @@ BasicBlock* LowererContext::createdNestedForCycle(
 BasicBlock* LowererContext::createdNestedForCycle(
 		ArrayRef<size_t> iterationsCountEnd, std::function<void(Value*)> body)
 {
-	SmallVector<InductionVar, 3> inducts;
+	SmallVector<Interval, 2> inducts;
 	for (auto& v : iterationsCountEnd)
 		inducts.emplace_back(0, v);
 
-	return createdNestedForCycle(inducts, body);
+	MultiDimInterval interval(inducts);
+	return createdNestedForCycle(interval, body);
 }
 
 BasicBlock* LowererContext::createForArrayElement(

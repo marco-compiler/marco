@@ -156,7 +156,7 @@ namespace modelica
 
 		[[nodiscard]] IndexSet getUnmatchedSet(const ModEquation& equation) const
 		{
-			auto set = equation.toIndexSet();
+			IndexSet set(equation.getInductions());
 			set.remove(getMatchedSet(equation));
 			return set;
 		}

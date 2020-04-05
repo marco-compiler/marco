@@ -2,6 +2,7 @@
 #include <limits>
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/model/ModExp.hpp"
@@ -115,12 +116,8 @@ namespace modelica
 
 		[[nodiscard]] size_t mappableDimensions() const
 		{
-			size_t count = 0;
-			for (const auto& acc : vectorAccess)
-				if (acc.isOffset())
-					count++;
-
-			return count;
+			return llvm::count_if(
+					vectorAccess, [](const auto& acc) { return acc.isOffset(); });
 		}
 
 		[[nodiscard]] VectorAccess invert() const;

@@ -20,7 +20,7 @@ TEST(VVarDependencyGraphTest, countTest)
 					ModExp("leftVar", ModType(BultinModTypes::INT, 2, 2)),
 					ModExp::induction(ModConst(0))),
 			ModConst(3),
-			{ InductionVar(1, 3) });
+			{ { 1, 3 } });
 
 	VVarDependencyGraph graph(model);
 	EXPECT_EQ(graph.count(), 1);
@@ -38,7 +38,7 @@ static auto makeModel()
 					ModExp("leftVar", ModType(BultinModTypes::INT, 2, 2)),
 					ModExp::induction(ModConst(0))),
 			ModConst(3),
-			{ InductionVar(0, 2) });
+			{ { 0, 2 } });
 
 	model.emplaceEquation(
 			ModExp::at(
@@ -47,7 +47,7 @@ static auto makeModel()
 			ModExp::at(
 					ModExp("leftVar", ModType(BultinModTypes::INT, 2, 2)),
 					ModExp::induction(ModConst(0))),
-			{ InductionVar(0, 2) });
+			{ { 0, 2 } });
 	return model;
 }
 

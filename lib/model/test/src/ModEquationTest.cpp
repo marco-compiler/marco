@@ -7,6 +7,7 @@
 #include "modelica/model/ModType.hpp"
 #include "modelica/model/ModVariable.hpp"
 #include "modelica/utils/IndexSet.hpp"
+#include "modelica/utils/Interval.hpp"
 
 using namespace modelica;
 using namespace llvm;
@@ -16,13 +17,23 @@ TEST(ModelTest, ModEquationToIndexSet)
 {
 	ModExp left(ModConst(0));
 	ModExp right(ModConst(0));
-	InductionVar v0(1, 3);
-	InductionVar v1(7, 10);
-	SmallVector<InductionVar, 3> vars{ v0, v1 };
+	Interval v0(1, 3);
+	Interval v1(7, 10);
+	MultiDimInterval vars{ v0, v1 };
 	ModEquation eq(left, right, vars);
 
-	auto res = eq.toIndexSet();
-	EXPECT_EQ(res, IndexSet({ { 1, 3 }, { 7, 10 } }));
+	auto res = eq.getInductions();
+	EXPECT_EQ(res, MultiDimInterval({ { 1, 3 }, { 7, 10 } }));
+}
+
+TEST(ModelTest, ModEquationWithNoInductions)
+{
+	ModExp left(ModConst(0));
+	ModExp right(ModConst(0));
+	ModEquation eq(left, right);
+
+	auto res = eq.getInductions();
+	EXPECT_EQ(res, MultiDimInterval({ { 0, 1 } }));
 }
 
 TEST(ModelTest, ModVariableToIndexSet)
@@ -40,7 +51,7 @@ TEST(ModEquationTest, ModEquationConstantFolding)
 
 	ModExp lRes(ModConst(4));
 	ModExp rRes(ModConst(10));
-	SmallVector<InductionVar, 3> vars{ { 0, 1 } };
+	MultiDimInterval vars{ { 0, 1 } };
 
 	ModEquation eq(ModExp::add(l, l), ModExp::add(r, r), vars);
 	eq.foldConstants();
@@ -57,7 +68,7 @@ TEST(ModEquationTest, ModEquationConstantFoldingWithReferences)
 
 	ModExp lRes(ModConst(4));
 	ModExp rRes(ModConst(10));
-	SmallVector<InductionVar, 3> vars{ { 0, 1 } };
+	MultiDimInterval vars{ { 0, 1 } };
 
 	ModExp inner = ModExp::add(l, sum);
 	ModEquation eq(l + inner, ModExp::add(r, r), vars);

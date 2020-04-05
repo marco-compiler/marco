@@ -164,10 +164,10 @@ TEST(ModParserTest, forUpdateStatement)
 	EXPECT_EQ("id", vec->getLeft().getReference());
 	EXPECT_TRUE(vec->getRight().isOperation());
 	EXPECT_EQ(ModExpKind::add, vec->getRight().getKind());
-	EXPECT_EQ(vec->getInductions()[0].begin(), 1);
-	EXPECT_EQ(vec->getInductions()[0].end(), 3);
-	EXPECT_EQ(vec->getInductions()[1].begin(), 1);
-	EXPECT_EQ(vec->getInductions()[1].end(), 4);
+	EXPECT_EQ(vec->getInductions().at(0).min(), 1);
+	EXPECT_EQ(vec->getInductions().at(0).max(), 3);
+	EXPECT_EQ(vec->getInductions().at(1).min(), 1);
+	EXPECT_EQ(vec->getInductions().at(1).max(), 4);
 }
 
 TEST(ModParserTest, sectionStatement)

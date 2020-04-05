@@ -45,7 +45,7 @@ void MatchingGraph::emplaceEdge(
 	if (!var.isState())
 		return;
 
-	if (access.getAccess().mappableDimensions() < eq.getInductions().size())
+	if (access.getAccess().mappableDimensions() < eq.dimensions())
 		return;
 
 	size_t edgeIndex = edges.size();
@@ -138,7 +138,7 @@ void MatchingGraph::dumpGraph(
 			 << "[color=\"blue\" label=\"EQ: " << equationIndex << '\n';
 		if (displayOnlyMatchedCount)
 			OS << "matched: " << getMatchedSet(eq).size() << "/"
-				 << eq.toIndexSet().size();
+				 << eq.getInductions().size();
 		else
 			eq.dumpInductions(OS);
 		OS << "\"];\n";
