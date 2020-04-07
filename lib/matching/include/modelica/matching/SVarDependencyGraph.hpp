@@ -63,10 +63,10 @@ namespace modelica
 			return collapsedGraph.getImpl();
 		}
 		void dumpGraph(llvm::raw_ostream& OS) const;
-		template<typename Iter>
-		void topoOrder(Iter iter) const
+		template<typename OnSched, typename OnGroupDone>
+		void topoOrder(OnSched onSched, OnGroupDone onGroupDOne) const
 		{
-			khanAdjacentAlgorithm(graph, iter);
+			khanAdjacentAlgorithm(graph, std::move(onSched), std::move(onGroupDOne));
 		}
 
 		[[nodiscard]] auto operator[](size_t index) const { return graph[index]; }

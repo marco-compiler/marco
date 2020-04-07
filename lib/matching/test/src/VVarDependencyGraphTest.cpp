@@ -95,14 +95,18 @@ TEST(VVarDependencyGraphTest, testOder)
 	auto sccContent = graph.getSCC();
 	SmallVector<SVarDepencyGraph, 0> sccs;
 	SmallVector<size_t, 0> execOrder;
+	int cutCount = 0;
 
 	for (const auto& scc : sccContent)
 	{
 		sccs.emplace_back(graph, scc);
-		sccs.back().topoOrder(back_inserter(execOrder));
+		sccs.back().topoOrder(
+				[&](size_t order) { execOrder.emplace_back(order); },
+				[&](size_t order) { cutCount++; });
 	}
 
 	EXPECT_EQ(execOrder.size(), 4);
+	EXPECT_EQ(cutCount, 2);
 }
 
 TEST(VVarDependencyGraphTest, scheduleTest)

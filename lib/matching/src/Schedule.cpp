@@ -21,29 +21,28 @@ using namespace llvm;
 std::mutex printerLock;
 
 static SmallVector<Assigment, 3> collapseEquations(
-		const SVarDepencyGraph& originalGraph, ArrayRef<size_t> schedule)
+		const SVarDepencyGraph& originalGraph)
 {
 	SmallVector<Assigment, 3> out;
 
-	const ModEquation* lastEquation = nullptr;
 	IndexSet currentSet;
 
-	for (size_t node : schedule)
-	{
+	const auto onSched = [&](size_t node) {
 		const auto& currentNode = originalGraph[node];
 		const auto& eq = currentNode.getCollapsedVertex();
-
-		if (lastEquation != &eq && lastEquation != nullptr)
-		{
-			for (const auto& set : currentSet)
-				out.emplace_back(eq.getLeft(), eq.getRight(), set);
-
-			currentSet = IndexSet();
-		}
-
 		currentSet.insert(currentNode.getIndexes());
-		lastEquation = &eq;
-	}
+	};
+
+	const auto onGrupEnd = [&](size_t node) {
+		const auto& currentNode = originalGraph[node];
+		const auto& eq = currentNode.getCollapsedVertex();
+		for (const auto& set : currentSet)
+			out.emplace_back(eq.getLeft(), eq.getRight(), set);
+
+		currentSet = IndexSet();
+	};
+
+	originalGraph.topoOrder(onSched, onGrupEnd);
 
 	return out;
 }
@@ -52,14 +51,12 @@ static void sched(
 		const Scc<size_t>& scc, const VVarDependencyGraph& originalGraph)
 {
 	SVarDepencyGraph scalarGraph(originalGraph, scc);
-	SmallVector<size_t, 0> out(scalarGraph.count());
-	scalarGraph.topoOrder(out.rbegin());
 
-	SmallVector<Assigment, 3> equations(collapseEquations(scalarGraph, out));
+	SmallVector<Assigment, 3> equations(collapseEquations(scalarGraph));
 
 	std::lock_guard guard(printerLock);
-	for (size_t vertex : out)
-		scalarGraph[vertex].dump();
+	for (const auto& eq : equations)
+		eq.dump();
 }
 
 void modelica::schedule(const EntryModel& model)

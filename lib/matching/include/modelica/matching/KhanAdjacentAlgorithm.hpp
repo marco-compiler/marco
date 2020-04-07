@@ -19,129 +19,143 @@ namespace modelica
 		bothPreferred,
 		backwardPreferred
 	};
+
 	template<typename Graph>
-	void initKhanAlgorithm(
-			Graph& graph,
-			llvm::SmallVector<size_t, 0>& requisitesCount,
-			std::set<size_t>& schedulableSet)
+	class KhanData
 	{
-		using namespace boost;
-		using namespace std;
-		using namespace llvm;
-		auto verts = make_iterator_range(vertices(graph));
-		for (size_t vertex : verts)
+		public:
+		KhanData(const Graph& graph)
+				: graph(graph), requisitesCount(boost::num_vertices(graph), 0)
+		{
+			countDependencies();
+			collectSchedulableNodes();
+		}
+
+		void countDependency(size_t vertex)
 		{
 			auto outEdges = make_iterator_range(out_edges(vertex, graph));
 			for (const auto& outEdge : outEdges)
+				requisitesCount[target(outEdge, graph)]++;
+		}
+
+		void countDependencies()
+		{
+			auto verts = boost::make_iterator_range(vertices(graph));
+			for (size_t vertex : verts)
+				countDependency(vertex);
+		}
+
+		void collectSchedulableNodes()
+		{
+			for (size_t i : irange<size_t>(requisitesCount.size()))
+				if (requisitesCount[i] == 0)
+					schedulableSet.insert(i);
+		}
+
+		void markAsScheduled(size_t node)
+		{
+			schedulableSet.erase(node);
+			auto outEdges = make_iterator_range(out_edges(node, graph));
+			for (const auto& outEdge : outEdges)
 			{
 				auto tVert = target(outEdge, graph);
-				requisitesCount[tVert]++;
+				requisitesCount[tVert]--;
+				if (requisitesCount[tVert] == 0)
+					schedulableSet.insert(tVert);
 			}
 		}
 
-		for (size_t i : irange<size_t>(requisitesCount.size()))
-			if (requisitesCount[i] == 0)
-				schedulableSet.insert(i);
-	}
+		[[nodiscard]] size_t getLastScheduled() const { return lastScheduled; }
 
-	template<typename Graph, typename Iterator>
-	void khanUpdate(
-			Graph& graph,
-			Iterator& iterator,
-			llvm::SmallVector<size_t, 0>& requisitesCount,
-			std::set<size_t>& schedulableSet,
-			size_t toSchedule)
-	{
-		schedulableSet.erase(toSchedule);
-		auto outEdges = make_iterator_range(out_edges(toSchedule, graph));
-		for (const auto& outEdge : outEdges)
+		template<typename OnElementScheduled, typename OnGroupFinished>
+		void khanUpdate(
+				OnElementScheduled& onElementScheduled,
+				OnGroupFinished& onGroupFinish,
+				size_t toSchedule)
 		{
-			auto tVert = target(outEdge, graph);
-			requisitesCount[tVert]--;
-			if (requisitesCount[tVert] == 0)
-				schedulableSet.insert(tVert);
+			markAsScheduled(toSchedule);
+			onElementScheduled(toSchedule);
+
+			if (groupFinished)
+				onGroupFinish(lastScheduled);
+
+			lastScheduled = toSchedule;
 		}
-		*(iterator++) = toSchedule;
-	}
 
-	template<typename Graph>
-	size_t khanSelectBest(
-			Graph& graph,
-			llvm::ArrayRef<size_t> requisitesCount,
-			std::set<size_t>& schedulableSet,
-			khanNextPreferred& schedDir,
-			size_t lastSched)
-	{
-		// the starting node is selected at random
-		if (schedDir == khanNextPreferred::cannotBeOptimized)
+		[[nodiscard]] bool canSchedule() const { return !schedulableSet.empty(); }
+
+		size_t khanSelectBest()
 		{
-			schedDir = khanNextPreferred::bothPreferred;
+			if (!canSchedule())
+				assert(false && "graph was not a dag");
+			groupFinished = false;
+			// the starting node is selected at random
+			if (schedulingDirection == khanNextPreferred::cannotBeOptimized)
+			{
+				schedulingDirection = khanNextPreferred::bothPreferred;
+				return *schedulableSet.begin();
+			}
+
+			// if we already scheduled two nodes from the
+			// same variable backward, or we scheduled one,
+			// then we must try schedule the next backward
+			if (schedulingDirection == khanNextPreferred::bothPreferred ||
+					schedulingDirection == khanNextPreferred::backwardPreferred)
+			{
+				size_t previous = lastScheduled - 1;
+				if (lastScheduled != 0 && requisitesCount[previous] == 0)
+				{
+					schedulingDirection = khanNextPreferred::backwardPreferred;
+					return previous;
+				}
+			}
+
+			// if we already scheduled two nodes from the
+			// same variable forward, or we scheduled one,
+			// then we must try schedule the next forward
+			if (schedulingDirection == khanNextPreferred::bothPreferred ||
+					schedulingDirection == khanNextPreferred::forwardPreferred)
+			{
+				size_t next = lastScheduled + 1;
+				if (next != requisitesCount.size() && requisitesCount[next] == 0)
+				{
+					schedulingDirection = khanNextPreferred::forwardPreferred;
+					return next;
+				}
+			}
+
+			// schedule one at random,break the group and begin a new group
+			schedulingDirection = khanNextPreferred::bothPreferred;
+			groupFinished = true;
 			return *schedulableSet.begin();
 		}
 
-		// if we already scheduled two nodes from the
-		// same variable backward, or we scheduled one,
-		// then we must try schedule the next backward
-		if (schedDir == khanNextPreferred::bothPreferred ||
-				schedDir == khanNextPreferred::backwardPreferred)
-		{
-			size_t previous = lastSched - 1;
-			if (lastSched != 0 && requisitesCount[previous] == 0)
-			{
-				schedDir = khanNextPreferred::backwardPreferred;
-				return previous;
-			}
-		}
+		private:
+		khanNextPreferred schedulingDirection{
+			khanNextPreferred::cannotBeOptimized
+		};
+		size_t lastScheduled{ std::numeric_limits<size_t>::max() };
+		const Graph& graph;
 
-		// if we already scheduled two nodes from the
-		// same variable forward, or we scheduled one,
-		// then we must try schedule the next forward
-		if (schedDir == khanNextPreferred::bothPreferred ||
-				schedDir == khanNextPreferred::forwardPreferred)
-		{
-			size_t next = lastSched + 1;
-			if (next != requisitesCount.size() && requisitesCount[next] == 0)
-			{
-				schedDir = khanNextPreferred::forwardPreferred;
-				return next;
-			}
-		}
+		llvm::SmallVector<size_t, 0> requisitesCount;
+		std::set<size_t> schedulableSet;
+		bool groupFinished{ false };
+	};
 
-		// schedule one at random
-		schedDir = khanNextPreferred::bothPreferred;
-		return *schedulableSet.begin();
-	}
-
-	template<typename Graph, typename OIterator>
-	void khanAdjacentAlgorithm(Graph& graph, OIterator iterator)
+	template<typename Graph, typename OnElementScheduled, typename OnGroupFinish>
+	void khanAdjacentAlgorithm(
+			Graph& graph,
+			OnElementScheduled onElementScheduled,
+			OnGroupFinish onGroupFinish)
 	{
-		using namespace boost;
-		using namespace std;
-		using namespace llvm;
-
-		const size_t vertexCount = num_vertices(graph);
+		const size_t vertexCount = boost::num_vertices(graph);
 		if (vertexCount == 0)
 			return;
 
-		SmallVector<size_t, 0> requisitesCount(vertexCount, 0);
-		set<size_t> schedulableSet;
-		initKhanAlgorithm(graph, requisitesCount, schedulableSet);
-		size_t lastScheduled = numeric_limits<size_t>::max();
-		khanNextPreferred schedulingDirection(khanNextPreferred::cannotBeOptimized);
+		KhanData<Graph> s(graph);
 
-		if (schedulableSet.empty())
-			assert(false && "graph was not a dag");
-
-		while (!schedulableSet.empty())
-		{
-			lastScheduled = khanSelectBest(
-					graph,
-					requisitesCount,
-					schedulableSet,
-					schedulingDirection,
-					lastScheduled);
-			khanUpdate(
-					graph, iterator, requisitesCount, schedulableSet, lastScheduled);
-		}
+		while (s.canSchedule())
+			s.khanUpdate(onElementScheduled, onGroupFinish, s.khanSelectBest());
+		onGroupFinish(s.getLastScheduled());
 	}
 }	 // namespace modelica
