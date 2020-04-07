@@ -114,6 +114,6 @@ TEST(VVarDependencyGraphTest, scheduleTest)
 	auto model = makeModel();
 	VVarDependencyGraph graph(model);
 	auto sccContent = graph.getSCC();
-	modelica::schedule(model);
-	EXPECT_EQ(1, 1);
+	auto scheduledModel = modelica::schedule(std::move(model));
+	EXPECT_EQ(scheduledModel.getUpdates().size(), 2);
 }

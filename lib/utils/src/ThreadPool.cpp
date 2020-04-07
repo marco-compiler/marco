@@ -7,6 +7,6 @@ using namespace modelica;
 
 void Thread::run()
 {
-	while (!pool->isDone())
-		pool->getTask()();
+	while (!pool.isDone())
+		pool.getTask()();
 }

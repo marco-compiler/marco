@@ -1,7 +1,5 @@
 #include "modelica/matching/Schedule.hpp"
 
-#include <mutex>
-
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
@@ -10,6 +8,7 @@
 #include "modelica/matching/SccLookup.hpp"
 #include "modelica/matching/VVarDependencyGraph.hpp"
 #include "modelica/model/Assigment.hpp"
+#include "modelica/model/AssignModel.hpp"
 #include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/utils/IndexSet.hpp"
@@ -17,8 +16,6 @@
 
 using namespace modelica;
 using namespace llvm;
-
-std::mutex printerLock;
 
 static SmallVector<Assigment, 3> collapseEquations(
 		const SVarDepencyGraph& originalGraph)
@@ -47,29 +44,48 @@ static SmallVector<Assigment, 3> collapseEquations(
 	return out;
 }
 
-static void sched(
+static SmallVector<Assigment, 3> sched(
 		const Scc<size_t>& scc, const VVarDependencyGraph& originalGraph)
 {
 	SVarDepencyGraph scalarGraph(originalGraph, scc);
 
-	SmallVector<Assigment, 3> equations(collapseEquations(scalarGraph));
-
-	std::lock_guard guard(printerLock);
-	for (const auto& eq : equations)
-		eq.dump();
+	return collapseEquations(scalarGraph);
 }
 
-void modelica::schedule(const EntryModel& model)
+using ResultVector = SmallVector<SmallVector<Assigment, 3>, 0>;
+using SortedScc = SmallVector<const Scc<size_t>*, 0>;
+
+static ResultVector parallelMap(
+		const VVarDependencyGraph& vectorGraph, const SortedScc& sortedScc)
+{
+	ResultVector results(sortedScc.size(), {});
+
+	ThreadPool pool;
+	llvm::outs() << "avialable scc " << sortedScc.size() << "\n";
+	for (size_t i : irange(sortedScc.size()))
+		pool.addTask([i, &sortedScc, &vectorGraph, &results]() {
+			results[i] = sched(*sortedScc[i], vectorGraph);
+			llvm::outs() << "i: " << i << "\n";
+		});
+
+	return results;
+}
+
+AssignModel modelica::schedule(const EntryModel& model)
 {
 	VVarDependencyGraph vectorGraph(model);
 	auto sccs = vectorGraph.getSCC();
 	SCCDependencyGraph sccDependency(sccs, vectorGraph);
 
-	auto sortedScc = sccDependency.topologicalSort();
+	SortedScc sortedScc = sccDependency.topologicalSort();
 
-	{
-		ThreadPool pool;
-		for (auto scc : sortedScc)
-			pool.addTask([scc, &vectorGraph]() { sched(*scc, vectorGraph); });
-	}
+	auto results = parallelMap(vectorGraph, sortedScc);
+	llvm::outs() << results.size() << "asd \n";
+
+	AssignModel scheduledModel(std::move(model.getVars()));
+	for (const auto& res : results)
+		for (const auto& eq : res)
+			scheduledModel.addUpdate(std::move(eq));
+
+	return scheduledModel;
 }

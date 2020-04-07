@@ -2,6 +2,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <functional>
+#include <list>
 #include <llvm/ADT/SmallVector.h>
 #include <memory>
 #include <mutex>
@@ -15,25 +16,20 @@ namespace modelica
 	class Thread
 	{
 		public:
-		Thread(ThreadPool& tPool)
-				: pool(&tPool),
-					th(std::make_unique<std::thread>([this]() { this->run(); }))
-		{
-		}
-		Thread(Thread&& other): pool(other.pool), th(std::move(other.th)) {}
-
+		Thread(ThreadPool& tPool): pool(tPool), th([this]() { this->run(); }) {}
+		Thread(Thread&& other) = delete;
 		Thread(const Thread& other) = delete;
 		Thread& operator=(Thread&& other) = delete;
 		Thread& operator=(const Thread& other) = delete;
 		~Thread() = default;
 
-		void join() { th->join(); }
+		void join() { th.join(); }
 
 		private:
 		std::function<void()> getTask();
 		void run();
-		ThreadPool* pool;
-		std::unique_ptr<std::thread> th;
+		ThreadPool& pool;
+		std::thread th;
 	};
 
 	class ThreadPool
@@ -41,7 +37,7 @@ namespace modelica
 		public:
 		explicit ThreadPool(
 				size_t threadCount = std::thread::hardware_concurrency())
-				: creatorId(std::this_thread::get_id()), threads(), done(false)
+				: creatorId(std::this_thread::get_id()), done(false)
 		{
 			for (auto i : irange(threadCount))
 				threads.emplace_back(std::make_unique<Thread>(*this));
@@ -56,7 +52,6 @@ namespace modelica
 			done.store(true, std::memory_order_relaxed);
 			for (auto& t : threads)
 				addTask([]() {});
-			waitingVar.notify_all();
 			for (auto& t : threads)
 				t->join();
 		}
@@ -74,7 +69,9 @@ namespace modelica
 		{
 			std::unique_lock<std::mutex> guard(lock);
 			waitingVar.wait(guard, [this]() { return !jobs.empty(); });
-			return jobs.pop_back_val();
+			auto job = jobs.front();
+			jobs.pop_front();
+			return job;
 		}
 
 		[[nodiscard]] bool empty() { return size() == 0; }
@@ -92,10 +89,11 @@ namespace modelica
 
 		private:
 		std::thread::id creatorId;
-		llvm::SmallVector<std::unique_ptr<Thread>, 4> threads;
-		llvm::SmallVector<std::function<void()>, 0> jobs;
 		std::mutex lock;
 		std::atomic<bool> done;
 		std::condition_variable waitingVar;
+
+		llvm::SmallVector<std::unique_ptr<Thread>, 4> threads;
+		std::list<std::function<void()>> jobs;
 	};
 }	 // namespace modelica

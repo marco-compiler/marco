@@ -6,42 +6,76 @@
 
 namespace modelica
 {
+	class OrderedMultiDimInterval
+	{
+		public:
+		explicit OrderedMultiDimInterval(
+				MultiDimInterval interval = {}, bool isForward = true)
+				: interval(std::move(interval)), forward(isForward)
+		{
+		}
+		[[nodiscard]] bool isForward() const { return forward; }
+		[[nodiscard]] bool isBackward() const { return !forward; }
+		[[nodiscard]] MultiDimInterval& getInterval() { return interval; }
+		[[nodiscard]] const MultiDimInterval& getInterval() const
+		{
+			return interval;
+		}
+
+		private:
+		MultiDimInterval interval;
+		bool forward;
+	};
+
 	class Assigment
 	{
 		public:
-		Assigment(ModExp left, ModExp exp, MultiDimInterval inducts = {})
+		Assigment(
+				ModExp left,
+				ModExp exp,
+				MultiDimInterval inducts = {},
+				bool forward = true)
 				: leftHand(std::move(left)),
 					expression(std::move(exp)),
-					inductionVars(std::move(inducts))
+					inductionVars(std::move(inducts), forward)
 		{
 		}
-		Assigment(std::string left, ModExp exp, MultiDimInterval inducts = {})
+		Assigment(
+				std::string left,
+				ModExp exp,
+				MultiDimInterval inducts = {},
+				bool forward = true)
 				: leftHand(std::move(left), exp.getModType()),
 					expression(std::move(exp)),
-					inductionVars(std::move(inducts))
+					inductionVars(std::move(inducts), forward)
 		{
 		}
 		[[nodiscard]] const ModExp& getLeftHand() const { return leftHand; }
 
 		[[nodiscard]] const ModExp& getExpression() const { return expression; }
 
-		[[nodiscard]] size_t size() const { return inductionVars.size(); }
-		[[nodiscard]] auto begin() { return inductionVars.begin(); }
-		[[nodiscard]] auto begin() const { return inductionVars.begin(); }
-		[[nodiscard]] auto end() { return inductionVars.end(); }
-		[[nodiscard]] auto end() const { return inductionVars.end(); }
+		[[nodiscard]] size_t size() const { return getInductionVars().size(); }
+		[[nodiscard]] auto begin() { return getInductionVars().begin(); }
+		[[nodiscard]] auto begin() const { return getInductionVars().begin(); }
+		[[nodiscard]] auto end() { return getInductionVars().end(); }
+		[[nodiscard]] auto end() const { return getInductionVars().end(); }
 		[[nodiscard]] const MultiDimInterval& getInductionVars() const
 		{
-			return inductionVars;
+			return inductionVars.getInterval();
 		}
-		[[nodiscard]] MultiDimInterval& getInductionVars() { return inductionVars; }
+		[[nodiscard]] MultiDimInterval& getInductionVars()
+		{
+			return inductionVars.getInterval();
+		}
+		[[nodiscard]] bool isForward() const { return inductionVars.isForward(); }
+		[[nodiscard]] bool isBackward() const { return inductionVars.isBackward(); }
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const
 		{
-			if (!inductionVars.empty())
+			if (!getInductionVars().empty())
 				OS << "for ";
 
-			inductionVars.dump(OS);
+			getInductionVars().dump(OS);
 
 			leftHand.dump(OS);
 			OS << " = ";
@@ -53,6 +87,6 @@ namespace modelica
 		private:
 		ModExp leftHand;
 		ModExp expression;
-		MultiDimInterval inductionVars;
+		OrderedMultiDimInterval inductionVars;
 	};
 }	 // namespace modelica
