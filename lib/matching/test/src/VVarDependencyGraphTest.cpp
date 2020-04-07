@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 #include <iterator>
 
+#include "llvm/InitializePasses.h"
+#include "modelica/matching/KhanAdjacentAlgorithm.hpp"
 #include "modelica/matching/SVarDependencyGraph.hpp"
 #include "modelica/matching/Schedule.hpp"
 #include "modelica/matching/VVarDependencyGraph.hpp"
@@ -102,7 +104,7 @@ TEST(VVarDependencyGraphTest, testOder)
 		sccs.emplace_back(graph, scc);
 		sccs.back().topoOrder(
 				[&](size_t order) { execOrder.emplace_back(order); },
-				[&](size_t order) { cutCount++; });
+				[&](size_t order, khanNextPreferred _) { cutCount++; });
 	}
 
 	EXPECT_EQ(execOrder.size(), 4);
@@ -116,4 +118,6 @@ TEST(VVarDependencyGraphTest, scheduleTest)
 	auto sccContent = graph.getSCC();
 	auto scheduledModel = modelica::schedule(std::move(model));
 	EXPECT_EQ(scheduledModel.getUpdates().size(), 2);
+	for (const auto& ass : scheduledModel.getUpdates())
+		EXPECT_EQ(ass.isForward(), true);
 }

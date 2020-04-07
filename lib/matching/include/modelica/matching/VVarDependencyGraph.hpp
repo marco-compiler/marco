@@ -1,10 +1,8 @@
 #pragma once
 
-#include <boost/graph/properties.hpp>
 #include <map>
 
 #include "boost/graph/adjacency_list.hpp"
-#include "boost/graph/graph_traits.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"

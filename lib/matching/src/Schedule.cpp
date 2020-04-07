@@ -30,11 +30,16 @@ static SmallVector<Assigment, 3> collapseEquations(
 		currentSet.insert(currentNode.getIndexes());
 	};
 
-	const auto onGrupEnd = [&](size_t node) {
+	const auto onGrupEnd = [&](size_t node,
+														 khanNextPreferred schedulingDirection) {
+		assert(schedulingDirection != khanNextPreferred::cannotBeOptimized);
+
+		const bool backward =
+				schedulingDirection == khanNextPreferred::backwardPreferred;
 		const auto& currentNode = originalGraph[node];
 		const auto& eq = currentNode.getCollapsedVertex();
 		for (const auto& set : currentSet)
-			out.emplace_back(eq.getLeft(), eq.getRight(), set);
+			out.emplace_back(eq.getLeft(), eq.getRight(), set, !backward);
 
 		currentSet = IndexSet();
 	};
@@ -61,11 +66,9 @@ static ResultVector parallelMap(
 	ResultVector results(sortedScc.size(), {});
 
 	ThreadPool pool;
-	llvm::outs() << "avialable scc " << sortedScc.size() << "\n";
 	for (size_t i : irange(sortedScc.size()))
 		pool.addTask([i, &sortedScc, &vectorGraph, &results]() {
 			results[i] = sched(*sortedScc[i], vectorGraph);
-			llvm::outs() << "i: " << i << "\n";
 		});
 
 	return results;
@@ -80,7 +83,6 @@ AssignModel modelica::schedule(const EntryModel& model)
 	SortedScc sortedScc = sccDependency.topologicalSort();
 
 	auto results = parallelMap(vectorGraph, sortedScc);
-	llvm::outs() << results.size() << "asd \n";
 
 	AssignModel scheduledModel(std::move(model.getVars()));
 	for (const auto& res : results)

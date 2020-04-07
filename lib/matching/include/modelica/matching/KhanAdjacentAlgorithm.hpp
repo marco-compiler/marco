@@ -1,8 +1,9 @@
 #pragma once
 
+#include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_concepts.hpp>
-#include <boost/graph/reverse_graph.hpp>
-#include <boost/range/iterator_range_core.hpp>
+#include <boost/graph/graph_traits.hpp>
+#include <boost/range/iterator_range.hpp>
 #include <cstddef>
 #include <limits>
 #include <set>
@@ -33,7 +34,8 @@ namespace modelica
 
 		void countDependency(size_t vertex)
 		{
-			auto outEdges = make_iterator_range(out_edges(vertex, graph));
+			auto outEdges = boost::make_iterator_range(out_edges(vertex, graph));
+
 			for (const auto& outEdge : outEdges)
 				requisitesCount[target(outEdge, graph)]++;
 		}
@@ -77,7 +79,7 @@ namespace modelica
 			onElementScheduled(toSchedule);
 
 			if (groupFinished)
-				onGroupFinish(lastScheduled);
+				onGroupFinish(lastScheduled, lastDirection);
 
 			lastScheduled = toSchedule;
 		}
@@ -125,15 +127,23 @@ namespace modelica
 			}
 
 			// schedule one at random,break the group and begin a new group
-			schedulingDirection = khanNextPreferred::bothPreferred;
+
+			lastDirection = schedulingDirection;
 			groupFinished = true;
+			schedulingDirection = khanNextPreferred::bothPreferred;
 			return *schedulableSet.begin();
+		}
+
+		[[nodiscard]] khanNextPreferred getLastDirection() const
+		{
+			return lastDirection;
 		}
 
 		private:
 		khanNextPreferred schedulingDirection{
 			khanNextPreferred::cannotBeOptimized
 		};
+		khanNextPreferred lastDirection{ khanNextPreferred::cannotBeOptimized };
 		size_t lastScheduled{ std::numeric_limits<size_t>::max() };
 		const Graph& graph;
 
@@ -152,10 +162,10 @@ namespace modelica
 		if (vertexCount == 0)
 			return;
 
-		KhanData<Graph> s(graph);
+		KhanData s(graph);
 
 		while (s.canSchedule())
 			s.khanUpdate(onElementScheduled, onGroupFinish, s.khanSelectBest());
-		onGroupFinish(s.getLastScheduled());
+		onGroupFinish(s.getLastScheduled(), s.getLastDirection());
 	}
 }	 // namespace modelica
