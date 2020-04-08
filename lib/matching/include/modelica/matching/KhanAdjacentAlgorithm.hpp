@@ -73,30 +73,31 @@ namespace modelica
 		void khanUpdate(
 				OnElementScheduled& onElementScheduled,
 				OnGroupFinished& onGroupFinish,
+				khanNextPreferred newDirection,
 				size_t toSchedule)
 		{
 			markAsScheduled(toSchedule);
 			onElementScheduled(toSchedule);
 
-			if (groupFinished)
-				onGroupFinish(lastScheduled, lastDirection);
+			if (schedulingDirection != khanNextPreferred::cannotBeOptimized &&
+					newDirection == khanNextPreferred::bothPreferred)
+				onGroupFinish(lastScheduled, schedulingDirection);
 
+			schedulingDirection = newDirection;
 			lastScheduled = toSchedule;
 		}
 
 		[[nodiscard]] bool canSchedule() const { return !schedulableSet.empty(); }
 
-		size_t khanSelectBest()
+		[[nodiscard]] std::pair<size_t, khanNextPreferred> khanSelectBest() const
 		{
+			using namespace std;
 			if (!canSchedule())
 				assert(false && "graph was not a dag");
-			groupFinished = false;
 			// the starting node is selected at random
 			if (schedulingDirection == khanNextPreferred::cannotBeOptimized)
-			{
-				schedulingDirection = khanNextPreferred::bothPreferred;
-				return *schedulableSet.begin();
-			}
+				return make_pair(
+						*schedulableSet.begin(), khanNextPreferred::bothPreferred);
 
 			// if we already scheduled two nodes from the
 			// same variable backward, or we scheduled one,
@@ -106,10 +107,7 @@ namespace modelica
 			{
 				size_t previous = lastScheduled - 1;
 				if (lastScheduled != 0 && requisitesCount[previous] == 0)
-				{
-					schedulingDirection = khanNextPreferred::backwardPreferred;
-					return previous;
-				}
+					return make_pair(previous, khanNextPreferred::backwardPreferred);
 			}
 
 			// if we already scheduled two nodes from the
@@ -120,36 +118,28 @@ namespace modelica
 			{
 				size_t next = lastScheduled + 1;
 				if (next != requisitesCount.size() && requisitesCount[next] == 0)
-				{
-					schedulingDirection = khanNextPreferred::forwardPreferred;
-					return next;
-				}
+					return make_pair(next, khanNextPreferred::forwardPreferred);
 			}
 
 			// schedule one at random,break the group and begin a new group
 
-			lastDirection = schedulingDirection;
-			groupFinished = true;
-			schedulingDirection = khanNextPreferred::bothPreferred;
-			return *schedulableSet.begin();
+			return make_pair(
+					*schedulableSet.begin(), khanNextPreferred::bothPreferred);
 		}
-
-		[[nodiscard]] khanNextPreferred getLastDirection() const
+		[[nodiscard]] khanNextPreferred getDirection() const
 		{
-			return lastDirection;
+			return schedulingDirection;
 		}
 
 		private:
 		khanNextPreferred schedulingDirection{
 			khanNextPreferred::cannotBeOptimized
 		};
-		khanNextPreferred lastDirection{ khanNextPreferred::cannotBeOptimized };
 		size_t lastScheduled{ std::numeric_limits<size_t>::max() };
 		const Graph& graph;
 
 		llvm::SmallVector<size_t, 0> requisitesCount;
 		std::set<size_t> schedulableSet;
-		bool groupFinished{ false };
 	};
 
 	template<typename Graph, typename OnElementScheduled, typename OnGroupFinish>
@@ -163,9 +153,14 @@ namespace modelica
 			return;
 
 		KhanData s(graph);
+		assert(s.canSchedule());
 
 		while (s.canSchedule())
-			s.khanUpdate(onElementScheduled, onGroupFinish, s.khanSelectBest());
-		onGroupFinish(s.getLastScheduled(), s.getLastDirection());
+		{
+			auto [node, direction] = s.khanSelectBest();
+			s.khanUpdate(onElementScheduled, onGroupFinish, direction, node);
+		}
+		if (s.getDirection() != khanNextPreferred::cannotBeOptimized)
+			onGroupFinish(s.getLastScheduled(), s.getDirection());
 	}
 }	 // namespace modelica

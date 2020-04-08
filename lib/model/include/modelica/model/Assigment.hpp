@@ -17,9 +17,14 @@ namespace modelica
 		[[nodiscard]] bool isForward() const { return forward; }
 		[[nodiscard]] bool isBackward() const { return !forward; }
 		[[nodiscard]] MultiDimInterval& getInterval() { return interval; }
+		[[nodiscard]] size_t dimensions() const { return interval.dimensions(); }
 		[[nodiscard]] const MultiDimInterval& getInterval() const
 		{
 			return interval;
+		}
+		[[nodiscard]] Interval operator[](size_t index) const
+		{
+			return interval.at(index);
 		}
 
 		private:
@@ -63,6 +68,11 @@ namespace modelica
 		{
 			return inductionVars.getInterval();
 		}
+		[[nodiscard]] const OrderedMultiDimInterval& getOrderedInductionsVar() const
+		{
+			return inductionVars;
+		}
+
 		[[nodiscard]] MultiDimInterval& getInductionVars()
 		{
 			return inductionVars.getInterval();

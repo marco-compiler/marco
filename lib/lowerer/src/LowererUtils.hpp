@@ -3,6 +3,7 @@
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/Error.h"
 #include "modelica/lowerer/Lowerer.hpp"
+#include "modelica/model/Assigment.hpp"
 #include "modelica/utils/Interval.hpp"
 
 namespace modelica
@@ -17,7 +18,7 @@ namespace modelica
 		bool loadOldValue;
 
 		llvm::BasicBlock* createdNestedForCycleImp(
-				const MultiDimInterval& iterationsCountBegin,
+				const OrderedMultiDimInterval& iterationsCountBegin,
 				std::function<void(llvm::Value*)> whileContent,
 				llvm::SmallVector<llvm::Value*, 3>& indexes);
 
@@ -135,15 +136,20 @@ namespace modelica
 		 * The caller has to provide whileContent which is function that will
 		 * produce the actual body of the loop.
 		 *
+		 * if inverse range is true it will create a range going from max to min
+		 * rather than min to max
+		 *
 		 * \return the exit point of the loop, that is the basic block that will
 		 * always be executed at some point. The builder will look at that basic
 		 * block.
 		 */
 		llvm::BasicBlock* createForCycle(
-				Interval induction, std::function<void(llvm::Value*)> whileContent);
+				Interval induction,
+				std::function<void(llvm::Value*)> whileContent,
+				bool inverseRange);
 
 		llvm::BasicBlock* createdNestedForCycle(
-				const MultiDimInterval& induction,
+				const OrderedMultiDimInterval& induction,
 				std::function<void(llvm::Value*)> whileContent);
 
 		llvm::BasicBlock* createForArrayElement(

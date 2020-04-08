@@ -72,11 +72,14 @@ static Expected<Function*> populateMain(
 	builder.CreateCall(printValues);
 	// creates a for with simulationStop iterations what invokes
 	// update and print values each time
-	auto loopExit =
-			lCont.createForCycle(Interval(0, simulationStop), [&](Value* index) {
-				builder.CreateCall(update);
-				builder.CreateCall(printValues);
-			});
+	//
+	//
+	const auto& loopBody = [&](Value* index) {
+		builder.CreateCall(update);
+		builder.CreateCall(printValues);
+	};
+	const auto loopRange = Interval(0, simulationStop);
+	auto loopExit = lCont.createForCycle(loopRange, loopBody, true);
 
 	// returns right after the loop
 	builder.SetInsertPoint(loopExit);
@@ -165,18 +168,17 @@ static Error createForAssigment(
 {
 	Error err = Error::success();
 
-	info.createdNestedForCycle(
-			assigment.getInductionVars(), [&](Value* inductionVars) {
-				info.setInductions(inductionVars);
-				auto error = createNormalAssigment(info, assigment);
-				if (error)
-					err = move(error);
+	const auto forLoopBody = [&](Value* inductionVars) {
+		info.setInductions(inductionVars);
+		auto error = createNormalAssigment(info, assigment);
+		if (error)
+			err = move(error);
 
-				info.setInductions(nullptr);
-			});
+		info.setInductions(nullptr);
+	};
+
+	info.createdNestedForCycle(assigment.getOrderedInductionsVar(), forLoopBody);
 	return err;
-
-	return Error::success();
 }
 
 static Error createAssigment(LowererContext& info, const Assigment& assigment)
