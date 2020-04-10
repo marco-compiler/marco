@@ -7,6 +7,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "modelica/matching/Flow.hpp"
 #include "modelica/matching/SVarDependencyGraph.hpp"
+#include "modelica/matching/Schedule.hpp"
 #include "modelica/matching/VVarDependencyGraph.hpp"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/EntryModel.hpp"
@@ -59,6 +60,13 @@ int main(int argc, char* argv[])
 	{
 		errs() << error.message();
 		return -1;
+	}
+
+	if (!dumpModel && !dumpScc)
+	{
+		auto assigment = schedule(constantFoldedModel);
+		assigment.dump(OS);
+		return 0;
 	}
 
 	VVarDependencyGraph graph(constantFoldedModel);

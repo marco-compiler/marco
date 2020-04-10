@@ -49,11 +49,17 @@ namespace modelica
 		ThreadPool& operator=(ThreadPool&& other) = delete;
 		~ThreadPool()
 		{
+			waitUntilQueueEmpty();
 			done.store(true, std::memory_order_relaxed);
 			for (auto& t : threads)
 				addTask([]() {});
 			for (auto& t : threads)
 				t->join();
+		}
+		void waitUntilQueueEmpty()
+		{
+			std::unique_lock<std::mutex> guard(lock);
+			queueEmpty.wait(guard, [this]() { return jobs.empty(); });
 		}
 		std::mutex& getMutex() { return lock; }
 		void addTask(std::function<void()> task)
@@ -71,6 +77,7 @@ namespace modelica
 			waitingVar.wait(guard, [this]() { return !jobs.empty(); });
 			auto job = jobs.front();
 			jobs.pop_front();
+			queueEmpty.notify_all();
 			return job;
 		}
 
@@ -92,6 +99,7 @@ namespace modelica
 		std::mutex lock;
 		std::atomic<bool> done;
 		std::condition_variable waitingVar;
+		std::condition_variable queueEmpty;
 
 		llvm::SmallVector<std::unique_ptr<Thread>, 4> threads;
 		std::list<std::function<void()>> jobs;

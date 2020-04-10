@@ -1,0 +1,10 @@
+init
+intVector = INT[3] {1, 2, 3}
+increase = INT[3] {4, 4, 4}
+
+update
+for [0,3] INT[1](at INT[3,1] intVector, INT[1](ind INT[1]{0})) = INT[1](at INT[3,1] increase, INT[1](ind INT[1]{0}))
+for [0,3] INT[1](at INT[3,1] intVector, INT[1](ind INT[1]{0})) = INT[1]{7}
+
+
+
