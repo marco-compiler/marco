@@ -48,10 +48,11 @@ void MatchingGraph::emplaceEdge(
 	if (access.getAccess().mappableDimensions() < eq.dimensions())
 		return;
 
-	size_t edgeIndex = edges.size();
-	edges.emplace_back(eq, var, move(access.getAccess()), move(path), useIndex);
-	equationLookUp.insert({ &eq, edgeIndex });
-	variableLookUp.insert({ &var, edgeIndex });
+	auto eqDesc = getDesc(eq);
+	auto varDesc = getDesc(var);
+
+	Edge e(eq, var, move(access.getAccess()), move(path), useIndex);
+	boost::add_edge(eqDesc, varDesc, std::move(e), graph);
 }
 
 void MatchingGraph::match(int iterations)

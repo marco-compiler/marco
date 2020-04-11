@@ -1,8 +1,12 @@
 #pragma once
+
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graph_selectors.hpp>
 #include <iterator>
 #include <map>
 #include <utility>
 
+#include "boost/graph/adjacency_list.hpp"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
@@ -42,22 +46,10 @@ namespace modelica
 			{
 				return iter != other.iter;
 			}
-			[[nodiscard]] reference operator*() const
-			{
-				return graph->edgeAt(iter->second);
-			}
-			[[nodiscard]] reference operator*()
-			{
-				return graph->edgeAt(iter->second);
-			}
-			[[nodiscard]] pointer operator->()
-			{
-				return &(graph->edgeAt(iter->second));
-			}
-			[[nodiscard]] pointer operator->() const
-			{
-				return &(graph->edgeAt(iter->second));
-			}
+			[[nodiscard]] reference operator*() const { return (*graph)[*iter]; }
+			[[nodiscard]] reference operator*() { return (*graph)[*iter]; }
+			[[nodiscard]] pointer operator->() { return &(*graph)[*iter]; }
+			[[nodiscard]] pointer operator->() const { return &(*graph)[*iter]; }
 			const MatchingGraphIterator operator++(int)	 // NOLINT
 			{
 				auto copy = *this;
@@ -87,58 +79,81 @@ namespace modelica
 		};
 
 		public:
-		using EquationLookup = std::multimap<const ModEquation*, size_t>;
-		using VariableLookup = std::multimap<const ModVariable*, size_t>;
-
-		using eq_iterator = class MatchingGraphIterator<
-				MatchingGraph,
-				EquationLookup::iterator,
+		using GraphImp = boost::adjacency_list<
+				boost::vecS,
+				boost::vecS,
+				boost::undirectedS,
+				boost::no_property,
 				Edge>;
-		using const_eq_iterator = class MatchingGraphIterator<
+
+		using EdgeDesc = boost::graph_traits<GraphImp>::edge_descriptor;
+
+		using VertexDesc = boost::graph_traits<GraphImp>::vertex_descriptor;
+
+		using OutEdgeIter = boost::graph_traits<GraphImp>::out_edge_iterator;
+
+		using EdgeIter = boost::graph_traits<GraphImp>::edge_iterator;
+
+		using ConstEdgeIter = boost::graph_traits<const GraphImp>::edge_iterator;
+
+		using ConstOutEdgeIter =
+				boost::graph_traits<const GraphImp>::out_edge_iterator;
+
+		using EquationLookup = std::map<const ModEquation*, VertexDesc>;
+		using VariableLookup = std::map<const ModVariable*, VertexDesc>;
+
+		using out_iterator =
+				class MatchingGraphIterator<MatchingGraph, OutEdgeIter, Edge>;
+		using const_out_iterator = class MatchingGraphIterator<
 				const MatchingGraph,
-				EquationLookup::const_iterator,
-				const Edge>;
-		using var_iterator = class MatchingGraphIterator<
-				MatchingGraph,
-				VariableLookup::iterator,
-				Edge>;
-		using const_var_iterator = class MatchingGraphIterator<
-				const MatchingGraph,
-				VariableLookup::const_iterator,
+				ConstOutEdgeIter,
 				const Edge>;
 
-		[[nodiscard]] llvm::iterator_range<eq_iterator> arcsOf(
+		using edge_iterator =
+				class MatchingGraphIterator<MatchingGraph, EdgeIter, Edge>;
+		using const_edge_iterator = class MatchingGraphIterator<
+				const MatchingGraph,
+				ConstEdgeIter,
+				const Edge>;
+
+		[[nodiscard]] llvm::iterator_range<out_iterator> arcsOf(
 				const ModEquation& equation)
 		{
-			const ModEquation* eq = &equation;
-			auto [begin, end] = equationLookUp.equal_range(eq);
+			const auto iter = equationLookUp.find(&equation);
+			assert(equationLookUp.end() != iter);
+			auto [begin, end] = boost::out_edges(iter->second, graph);
 			return llvm::make_range(
-					eq_iterator(*this, begin), eq_iterator(*this, end));
+					out_iterator(*this, begin), out_iterator(*this, end));
 		}
 
-		[[nodiscard]] llvm::iterator_range<const_eq_iterator> arcsOf(
+		[[nodiscard]] llvm::iterator_range<const_out_iterator> arcsOf(
 				const ModEquation& equation) const
 		{
-			const ModEquation* eq = &equation;
-			auto [begin, end] = equationLookUp.equal_range(eq);
+			const auto iter = equationLookUp.find(&equation);
+			assert(equationLookUp.end() != iter);
+			auto [begin, end] = boost::out_edges(iter->second, graph);
 			return llvm::make_range(
-					const_eq_iterator(*this, begin), const_eq_iterator(*this, end));
+					const_out_iterator(*this, begin), const_out_iterator(*this, end));
 		}
 
-		[[nodiscard]] llvm::iterator_range<var_iterator> arcsOf(
+		[[nodiscard]] llvm::iterator_range<out_iterator> arcsOf(
 				const ModVariable& var)
 		{
-			auto [begin, end] = variableLookUp.equal_range(&var);
+			const auto iter = variableLookUp.find(&var);
+			assert(variableLookUp.end() != iter);
+			auto [begin, end] = boost::out_edges(iter->second, graph);
 			return llvm::make_range(
-					var_iterator(*this, begin), var_iterator(*this, end));
+					out_iterator(*this, begin), out_iterator(*this, end));
 		}
 
-		[[nodiscard]] llvm::iterator_range<const_var_iterator> arcsOf(
+		[[nodiscard]] llvm::iterator_range<const_out_iterator> arcsOf(
 				const ModVariable& var) const
 		{
-			auto [begin, end] = variableLookUp.equal_range(&var);
+			const auto iter = variableLookUp.find(&var);
+			assert(variableLookUp.end() != iter);
+			auto [begin, end] = boost::out_edges(iter->second, graph);
 			return llvm::make_range(
-					const_var_iterator(*this, begin), const_var_iterator(*this, end));
+					const_out_iterator(*this, begin), const_out_iterator(*this, end));
 		}
 
 		MatchingGraph(const Model& model): model(model)
@@ -180,16 +195,29 @@ namespace modelica
 			return matched;
 		}
 
-		[[nodiscard]] const Edge& edgeAt(size_t index) const
+		[[nodiscard]] const_edge_iterator begin() const
 		{
-			return edges[index];
+			return const_edge_iterator(*this, boost::edges(graph).first);
 		}
-		[[nodiscard]] Edge& edgeAt(size_t index) { return edges[index]; }
+		[[nodiscard]] edge_iterator begin()
+		{
+			return edge_iterator(*this, boost::edges(graph).first);
+		}
 
-		[[nodiscard]] auto begin() const { return edges.begin(); }
-		[[nodiscard]] auto begin() { return edges.begin(); }
-		[[nodiscard]] auto end() { return edges.end(); }
-		[[nodiscard]] auto end() const { return edges.end(); }
+		[[nodiscard]] edge_iterator end()
+		{
+			return edge_iterator(*this, boost::edges(graph).second);
+		}
+		[[nodiscard]] const_edge_iterator end() const
+		{
+			return const_edge_iterator(*this, boost::edges(graph).second);
+		}
+
+		[[nodiscard]] const Edge& operator[](EdgeDesc desc) const
+		{
+			return graph[desc];
+		}
+		[[nodiscard]] Edge& operator[](EdgeDesc desc) { return graph[desc]; }
 		[[nodiscard]] const Model& getModel() const { return model; }
 		[[nodiscard]] size_t variableCount() const
 		{
@@ -207,7 +235,11 @@ namespace modelica
 
 			return count;
 		}
-		[[nodiscard]] size_t edgesCount() const { return edges.size(); }
+		[[nodiscard]] size_t edgesCount() const
+		{
+			auto [b, e] = boost::edges(graph);
+			return std::distance(b, e);
+		}
 		[[nodiscard]] size_t indexOfEquation(const ModEquation& eq) const;
 		void dumpGraph(
 				llvm::raw_ostream& OS,
@@ -223,8 +255,25 @@ namespace modelica
 		private:
 		void addEquation(const ModEquation& eq);
 		void emplaceEdge(const ModEquation& eq, ModExpPath path, size_t index);
+		VertexDesc getDesc(const ModEquation& eq)
+		{
+			if (equationLookUp.find(&eq) != equationLookUp.end())
+				return equationLookUp[&eq];
+			auto dec = boost::add_vertex(graph);
+			equationLookUp[&eq] = dec;
+			return dec;
+		}
 
-		llvm::SmallVector<Edge, 0> edges;
+		VertexDesc getDesc(const ModVariable& var)
+		{
+			if (variableLookUp.find(&var) != variableLookUp.end())
+				return variableLookUp[&var];
+			auto dec = boost::add_vertex(graph);
+			variableLookUp[&var] = dec;
+			return dec;
+		}
+
+		GraphImp graph;
 		EquationLookup equationLookUp;
 		VariableLookup variableLookUp;
 		const Model& model;
