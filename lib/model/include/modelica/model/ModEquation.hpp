@@ -17,11 +17,16 @@ namespace modelica
 	class ModEquation
 	{
 		public:
-		ModEquation(ModExp left, ModExp right, MultiDimInterval inds = {})
+		ModEquation(
+				ModExp left,
+				ModExp right,
+				MultiDimInterval inds = {},
+				bool isForward = true)
 				: leftHand(std::move(left)),
 					rightHand(std::move(right)),
 					inductions(std::move(inds)),
-					isForCycle(!inductions.empty())
+					isForCycle(!inductions.empty()),
+					isForwardDirection(isForward)
 		{
 			if (!isForCycle)
 				inductions = { { 0, 1 } };
@@ -31,6 +36,7 @@ namespace modelica
 		[[nodiscard]] const ModExp& getRight() const { return rightHand; }
 		[[nodiscard]] ModExp& getLeft() { return leftHand; }
 		[[nodiscard]] ModExp& getRight() { return rightHand; }
+		[[nodiscard]] bool isForward() const { return isForwardDirection; }
 		[[nodiscard]] const MultiDimInterval& getInductions() const
 		{
 			return inductions;
@@ -39,6 +45,8 @@ namespace modelica
 
 		void dump(llvm::raw_ostream& OS) const
 		{
+			if (!isForward())
+				OS << "backward ";
 			if (isForCycle)
 			{
 				OS << "for ";
@@ -76,5 +84,6 @@ namespace modelica
 		ModExp rightHand;
 		MultiDimInterval inductions;
 		bool isForCycle;
+		bool isForwardDirection;
 	};
 }	 // namespace modelica

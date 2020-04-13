@@ -192,6 +192,18 @@ TEST(ModParserTest, updateSection)
 	EXPECT_TRUE(vec.get()[0].getLeft().getReference() == "id");
 }
 
+TEST(ModParserTest, backwardUpdate)
+{
+	auto parser = ModParser("backward id = FLOAT[1] (+ INT[1]{1}, INT[1]{2})");
+
+	auto vec = parser.updateStatement();
+	if (!vec)
+		FAIL();
+
+	EXPECT_TRUE(vec.get().getLeft().getReference() == "id");
+	EXPECT_FALSE(vec.get().isForward());
+}
+
 TEST(ModParserTest, simulation)
 {
 	auto parser = ModParser("init id = FLOAT[1] (+ INT[1]{1}, INT[1]{2}) update "

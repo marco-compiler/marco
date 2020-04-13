@@ -82,6 +82,8 @@ namespace modelica
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const
 		{
+			if (inductionVars.isBackward())
+				OS << "backward ";
 			if (!getInductionVars().empty())
 				OS << "for ";
 

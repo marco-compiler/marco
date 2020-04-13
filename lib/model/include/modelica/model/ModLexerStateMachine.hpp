@@ -27,6 +27,7 @@ namespace modelica
 		IndKeyword,
 		AtKeyword,
 		ConstantKeyword,
+		BackwardKeyword,
 
 		LPar,
 		Comma,

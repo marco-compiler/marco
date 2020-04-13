@@ -318,6 +318,7 @@ Expected<MultiDimInterval> ModParser::inductions()
 
 Expected<ModEquation> ModParser::updateStatement()
 {
+	bool backward = accept<ModToken::BackwardKeyword>();
 	TRY(inductionsV, inductions());
 	MultiDimInterval ind = move(*inductionsV);
 
@@ -330,13 +331,13 @@ Expected<ModEquation> ModParser::updateStatement()
 		auto tp = exp->getModType();
 		auto leftRef = ModExp(move(name), move(tp));
 
-		return ModEquation(leftRef, move(*exp), move(ind));
+		return ModEquation(leftRef, move(*exp), move(ind), !backward);
 	}
 	TRY(leftHand, expression());
 	EXPECT(ModToken::Assign);
 	TRY(exp, expression());
 
-	return ModEquation(move(*leftHand), move(*exp), move(ind));
+	return ModEquation(move(*leftHand), move(*exp), move(ind), !backward);
 }
 
 Expected<ModExp> ModParser::expression()

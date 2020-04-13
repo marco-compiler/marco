@@ -238,6 +238,15 @@ TEST(LexerStateMachineTest, singleDigitNumbers)
 	EXPECT_EQ(lexer.getLastInt(), 8);
 }
 
+TEST(LexerStateMachineTest, backwardTest)
+{
+	using Lex = modelica::Lexer<ModLexerStateMachine>;
+
+	std::string toParse("backward");
+	Lex lexer(toParse);
+	EXPECT_EQ(lexer.scan(), ModToken::BackwardKeyword);
+}
+
 TEST(LexerStateMachineTest, constVectorTest)
 {
 	using Lex = modelica::Lexer<ModLexerStateMachine>;
