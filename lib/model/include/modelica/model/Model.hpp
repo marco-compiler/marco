@@ -1,10 +1,12 @@
 #pragma once
+#include <map>
 #include <numeric>
 #include <vector>
 
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/iterator_range.h"
 #include "modelica/model/Assigment.hpp"
+#include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModVariable.hpp"
@@ -15,18 +17,10 @@ namespace modelica
 	{
 		public:
 		Model(
-				llvm::SmallVector<ModEquation, 3> equations,
-				llvm::StringMap<ModVariable> vars)
-				: equations(std::move(equations)), vars(std::move(vars))
-		{
-		}
+				llvm::SmallVector<ModEquation, 3> equs,
+				llvm::StringMap<ModVariable> vars);
 		Model(
-				std::vector<ModEquation> equationsV, llvm::StringMap<ModVariable> vars)
-				: vars(std::move(vars))
-		{
-			for (auto& m : equationsV)
-				equations.push_back(std::move(m));
-		}
+				std::vector<ModEquation> equationsV, llvm::StringMap<ModVariable> vars);
 		Model() = default;
 		Model& operator=(Model&& other) = delete;
 		Model& operator=(const Model& other) = delete;
@@ -74,23 +68,17 @@ namespace modelica
 		void addEquation(ModEquation equation)
 		{
 			equations.push_back(std::move(equation));
+			addTemplate(equations.back());
 		}
 
 		void emplaceEquation(ModExp left, ModExp right, MultiDimInterval vars = {})
 		{
 			equations.emplace_back(
 					std::move(left), std::move(right), std::move(vars));
+			addTemplate(equations.back());
 		}
 
-		bool addVar(ModVariable exp)
-		{
-			auto name = exp.getName();
-			if (vars.find(name) != vars.end())
-				return false;
-
-			vars.try_emplace(move(name), std::move(exp));
-			return true;
-		}
+		bool addVar(ModVariable exp);
 
 		template<typename... Args>
 		bool emplaceVar(std::string name, Args&&... args)
@@ -108,17 +96,7 @@ namespace modelica
 		}
 
 		[[nodiscard]] llvm::StringMap<ModVariable>& getVars() { return vars; }
-		[[nodiscard]] size_t startingIndex(const std::string& varName) const
-		{
-			auto varIterator = vars.find(varName);
-			assert(varIterator != vars.end());
-
-			size_t count = 0;
-			for (const auto& var : llvm::make_range(vars.begin(), varIterator))
-				count += var.second.size();
-
-			return count;
-		}
+		[[nodiscard]] size_t startingIndex(const std::string& varName) const;
 
 		[[nodiscard]] auto& getEquations() { return equations; }
 
@@ -145,8 +123,10 @@ namespace modelica
 		~Model() = default;
 
 		private:
+		void addTemplate(const ModEquation& eq);
 		llvm::SmallVector<ModEquation, 3> equations;
 		llvm::StringMap<ModVariable> vars;
+		std::map<std::shared_ptr<ModEqTemplate>, std::string> templates;
 	};
 
 }	 // namespace modelica

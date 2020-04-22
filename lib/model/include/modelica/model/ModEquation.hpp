@@ -1,10 +1,12 @@
 #pragma once
 
+#include <memory>
 #include <utility>
 
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/model/Assigment.hpp"
+#include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModExpPath.hpp"
 #include "modelica/model/ModVariable.hpp"
@@ -21,21 +23,12 @@ namespace modelica
 				ModExp left,
 				ModExp right,
 				MultiDimInterval inds = {},
-				bool isForward = true)
-				: leftHand(std::move(left)),
-					rightHand(std::move(right)),
-					inductions(std::move(inds)),
-					isForCycle(!inductions.empty()),
-					isForwardDirection(isForward)
-		{
-			if (!isForCycle)
-				inductions = { { 0, 1 } };
-		}
+				bool isForward = true);
 
-		[[nodiscard]] const ModExp& getLeft() const { return leftHand; }
-		[[nodiscard]] const ModExp& getRight() const { return rightHand; }
-		[[nodiscard]] ModExp& getLeft() { return leftHand; }
-		[[nodiscard]] ModExp& getRight() { return rightHand; }
+		[[nodiscard]] const ModExp& getLeft() const { return body->getLeft(); }
+		[[nodiscard]] const ModExp& getRight() const { return body->getRight(); }
+		[[nodiscard]] ModExp& getLeft() { return body->getLeft(); }
+		[[nodiscard]] ModExp& getRight() { return body->getRight(); }
 		[[nodiscard]] bool isForward() const { return isForwardDirection; }
 		[[nodiscard]] const MultiDimInterval& getInductions() const
 		{
@@ -43,20 +36,7 @@ namespace modelica
 		}
 		void foldConstants();
 
-		void dump(llvm::raw_ostream& OS) const
-		{
-			if (!isForward())
-				OS << "backward ";
-			if (isForCycle)
-			{
-				OS << "for ";
-				dumpInductions(OS);
-			}
-			leftHand.dump(OS);
-			OS << " = ";
-			rightHand.dump(OS);
-			OS << "\n";
-		}
+		void dump(llvm::raw_ostream& OS) const;
 
 		void dumpInductions(llvm::raw_ostream& OS) const { inductions.dump(OS); }
 
@@ -64,14 +44,7 @@ namespace modelica
 
 		llvm::Error explicitate(size_t argumentIndex, bool left);
 		llvm::Error explicitate(const ModExpPath& path);
-		void setInductionVars(MultiDimInterval inds)
-		{
-			isForCycle = inds.empty();
-			if (isForCycle)
-				inductions = std::move(inds);
-			else
-				inds = { { 0, 1 } };
-		}
+		void setInductionVars(MultiDimInterval inds);
 
 		[[nodiscard]] AccessToVar getDeterminedVariable() const;
 		[[nodiscard]] size_t dimensions() const
@@ -79,9 +52,20 @@ namespace modelica
 			return isForCycle ? inductions.dimensions() : 0;
 		}
 
+		[[nodiscard]] ModEquation clone() const
+		{
+			ModEquation clone = *this;
+			clone.body = std::make_shared<ModEqTemplate>(*body);
+			return clone;
+		}
+
+		[[nodiscard]] const std::shared_ptr<ModEqTemplate>& getTemplate() const
+		{
+			return body;
+		}
+
 		private:
-		ModExp leftHand;
-		ModExp rightHand;
+		std::shared_ptr<ModEqTemplate> body;
 		MultiDimInterval inductions;
 		bool isForCycle;
 		bool isForwardDirection;

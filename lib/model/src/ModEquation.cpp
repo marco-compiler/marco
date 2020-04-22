@@ -1,5 +1,7 @@
 #include "modelica/model/ModEquation.hpp"
 
+#include <memory>
+
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
@@ -288,4 +290,39 @@ AccessToVar ModEquation::getDeterminedVariable() const
 	const auto& fromVariable = leftHandMatcher.at(0);
 	assert(VectorAccess::isCanonical(fromVariable.getExp()));
 	return AccessToVar::fromExp(fromVariable.getExp());
+}
+
+void ModEquation::dump(llvm::raw_ostream& OS) const
+{
+	if (!isForward())
+		OS << "backward ";
+	if (isForCycle)
+	{
+		OS << "for ";
+		dumpInductions(OS);
+	}
+	getLeft().dump(OS);
+	OS << " = ";
+	getRight().dump(OS);
+	OS << "\n";
+}
+
+ModEquation::ModEquation(
+		ModExp left, ModExp right, MultiDimInterval inds, bool isForward)
+		: body(make_shared<ModEqTemplate>(move(left), move(right))),
+			inductions(move(inds)),
+			isForCycle(!inductions.empty()),
+			isForwardDirection(isForward)
+{
+	if (!isForCycle)
+		inductions = { { 0, 1 } };
+}
+
+void ModEquation::setInductionVars(MultiDimInterval inds)
+{
+	isForCycle = inds.empty();
+	if (isForCycle)
+		inductions = std::move(inds);
+	else
+		inds = { { 0, 1 } };
 }
