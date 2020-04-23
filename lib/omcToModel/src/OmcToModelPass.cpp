@@ -218,7 +218,7 @@ static ModEquation handleEq(
 	auto left = modExpFromASTExp(eq->getLeftHand(), model, inductionLookUpTable);
 	auto right =
 			modExpFromASTExp(eq->getRightHand(), model, inductionLookUpTable);
-	return ModEquation(move(left), move(right), inds);
+	return ModEquation(move(left), move(right), "", inds);
 }
 
 unique_ptr<SimpleEquation> OmcToModelPass::visit(

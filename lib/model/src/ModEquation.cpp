@@ -301,15 +301,29 @@ void ModEquation::dump(llvm::raw_ostream& OS) const
 		OS << "for ";
 		dumpInductions(OS);
 	}
-	getLeft().dump(OS);
-	OS << " = ";
-	getRight().dump(OS);
+	if (getTemplate()->getName().empty())
+	{
+		getLeft().dump(OS);
+		OS << " = ";
+		getRight().dump(OS);
+	}
+	else
+	{
+		OS << "template ";
+		OS << getTemplate()->getName();
+	}
+
 	OS << "\n";
 }
 
 ModEquation::ModEquation(
-		ModExp left, ModExp right, MultiDimInterval inds, bool isForward)
-		: body(make_shared<ModEqTemplate>(move(left), move(right))),
+		ModExp left,
+		ModExp right,
+		std::string templateName,
+		MultiDimInterval inds,
+		bool isForward)
+		: body(make_shared<ModEqTemplate>(
+					move(left), move(right), move(templateName))),
 			inductions(move(inds)),
 			isForCycle(!inductions.empty()),
 			isForwardDirection(isForward)

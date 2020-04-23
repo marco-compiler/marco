@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 
 #include "llvm/Support/Error.h"
+#include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModParser.hpp"
 
 using namespace modelica;
@@ -157,7 +158,7 @@ TEST(ModParserTest, forUpdateStatement)
 	auto parser =
 			ModParser("for [1,3][1,4]id = FLOAT[1] (+ INT[1]{1}, INT[1]{2})");
 
-	auto vec = parser.updateStatement();
+	auto vec = parser.updateStatement({});
 	if (!vec)
 		FAIL();
 
@@ -196,12 +197,40 @@ TEST(ModParserTest, backwardUpdate)
 {
 	auto parser = ModParser("backward id = FLOAT[1] (+ INT[1]{1}, INT[1]{2})");
 
-	auto vec = parser.updateStatement();
+	auto vec = parser.updateStatement({});
 	if (!vec)
 		FAIL();
 
 	EXPECT_TRUE(vec.get().getLeft().getReference() == "id");
 	EXPECT_FALSE(vec.get().isForward());
+}
+
+TEST(ModParserTest, templateSection)
+{
+	auto parser =
+			ModParser("template t1 INT[1] id = FLOAT[1] (+ INT[1]{1}, INT[1]{2})");
+
+	auto vec = parser.templates();
+	if (!vec)
+		FAIL();
+
+	EXPECT_EQ((*vec.get().find("t1")).second->getLeft().getReference(), "id");
+}
+
+TEST(ModParserTest, templatedEquation)
+{
+	auto parser = ModParser("template t1 INT[1] id = FLOAT[1] (+ INT[1]{1}, "
+													"INT[1]{2}) update template t1");
+
+	auto vec = parser.templates();
+	if (!vec)
+		FAIL();
+
+	auto updates = parser.updateSection(*vec);
+	if (!updates)
+		FAIL();
+
+	EXPECT_EQ(updates.get()[0].getLeft().getReference(), "id");
 }
 
 TEST(ModParserTest, simulation)
@@ -213,9 +242,9 @@ TEST(ModParserTest, simulation)
 	if (!vec)
 		FAIL();
 
-	auto [init, update] = move(*vec);
+	auto model = move(*vec);
 
-	EXPECT_TRUE(init.find("id") != init.end());
-	EXPECT_TRUE(update[0].getLeft().getReference() == "id");
-	EXPECT_TRUE(init.find("id")->second.getInit() == update[0].getRight());
+	EXPECT_TRUE(model.getVars().find("id") != model.getVars().end());
+	EXPECT_TRUE(model.getEquation(0).getLeft().getReference() == "id");
+	EXPECT_TRUE(model.getVar("id").getInit() == model.getEquation(0).getRight());
 }

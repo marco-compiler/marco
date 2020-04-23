@@ -1,9 +1,16 @@
 #include "modelica/model/ModParser.hpp"
 
+#include <memory>
+#include <utility>
+
+#include "llvm/ADT/STLExtras.h"
+#include "modelica/model/EntryModel.hpp"
+#include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModLexerStateMachine.hpp"
 #include "modelica/model/ModVariable.hpp"
+#include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/Interval.hpp"
 
 #define EXPECT(Token)                                                          \
@@ -241,7 +248,8 @@ Expected<StringMap<ModVariable>> ModParser::initSection()
 	StringMap<ModVariable> map;
 	EXPECT(ModToken::InitKeyword);
 
-	while (current != ModToken::End && current != ModToken::UpdateKeyword)
+	while (current != ModToken::End && current != ModToken::UpdateKeyword &&
+				 current != ModToken::TemplateKeyword)
 	{
 		bool constant = accept<ModToken::ConstantKeyword>();
 		TRY(stat, statement());
@@ -258,26 +266,54 @@ Expected<StringMap<ModVariable>> ModParser::initSection()
 	return map;
 }
 
-Expected<SmallVector<ModEquation, 0>> ModParser::updateSection()
+Expected<ModEqTemplate> ModParser::singleTemplate()
+{
+	auto name = lexer.getLastIdentifier();
+	EXPECT(ModToken::Ident);
+	TRY(leftHand, expression());
+	EXPECT(ModToken::Assign);
+	TRY(rightHand, expression());
+
+	return ModEqTemplate(move(*leftHand), move(*rightHand), move(name));
+}
+
+Expected<ModParser::TemplatesMap> ModParser::templates()
+{
+	TemplatesMap toReturn;
+
+	if (!accept<ModToken::TemplateKeyword>())
+		return toReturn;
+	while (current != ModToken::UpdateKeyword && current != ModToken::End)
+	{
+		TRY(temp, singleTemplate());
+		toReturn.try_emplace(temp->getName(), make_shared<ModEqTemplate>(*temp));
+	}
+
+	return toReturn;
+}
+
+Expected<SmallVector<ModEquation, 0>> ModParser::updateSection(
+		const TemplatesMap& templs)
 {
 	SmallVector<ModEquation, 0> map;
 	EXPECT(ModToken::UpdateKeyword);
 
 	while (current != ModToken::End)
 	{
-		TRY(stat, updateStatement());
+		TRY(stat, updateStatement(templs));
 		map.push_back(move(*stat));
 	}
 
 	return map;
 }
 
-Expected<tuple<StringMap<ModVariable>, SmallVector<ModEquation, 0>>>
-ModParser::simulation()
+Expected<EntryModel> ModParser::simulation()
 {
 	TRY(initSect, initSection());
-	TRY(updateSect, updateSection());
-	return tuple(move(*initSect), move(*updateSect));
+	TRY(templ, templates());
+	TRY(updateSect, updateSection(*templ));
+	EntryModel model(move(*updateSect), move(*initSect));
+	return model;
 }
 
 Expected<tuple<string, ModExp>> ModParser::statement()
@@ -316,11 +352,20 @@ Expected<MultiDimInterval> ModParser::inductions()
 	return inductions;
 }
 
-Expected<ModEquation> ModParser::updateStatement()
+Expected<ModEquation> ModParser::updateStatement(const TemplatesMap& map)
 {
 	bool backward = accept<ModToken::BackwardKeyword>();
 	TRY(inductionsV, inductions());
 	MultiDimInterval ind = move(*inductionsV);
+
+	if (accept<ModToken::TemplateKeyword>())
+	{
+		auto templateName = lexer.getLastIdentifier();
+		EXPECT(ModToken::Ident);
+		assert(map.find(templateName) != map.end());
+		auto templ = map.find(templateName)->second;
+		return ModEquation(std::move(templ), std::move(ind), !backward);
+	}
 
 	if (current == ModToken::Ident)
 	{
@@ -331,13 +376,13 @@ Expected<ModEquation> ModParser::updateStatement()
 		auto tp = exp->getModType();
 		auto leftRef = ModExp(move(name), move(tp));
 
-		return ModEquation(leftRef, move(*exp), move(ind), !backward);
+		return ModEquation(leftRef, move(*exp), "", move(ind), !backward);
 	}
 	TRY(leftHand, expression());
 	EXPECT(ModToken::Assign);
 	TRY(exp, expression());
 
-	return ModEquation(move(*leftHand), move(*exp), move(ind), !backward);
+	return ModEquation(move(*leftHand), move(*exp), "", move(ind), !backward);
 }
 
 Expected<ModExp> ModParser::expression()

@@ -43,6 +43,7 @@ TEST(MatchingTest, graphInizializationTest)
 					ModExp("leftVar", ModType(BultinModTypes::INT, 2, 2)),
 					ModExp::induction(ModConst(0))),
 			ModConst(3),
+			"",
 			{ { 1, 3 } });
 
 	MatchingGraph graph(model);
@@ -62,8 +63,7 @@ TEST(MatchingTest, singleMatch)
 		FAIL();
 	}
 
-	auto [vars, equs] = *model;
-	EntryModel m(move(equs), move(vars));
+	EntryModel m(move(*model));
 	MatchingGraph graph(m);
 	graph.dump(llvm::outs());
 	EXPECT_EQ(graph.variableCount(), 2);
@@ -88,8 +88,7 @@ TEST(MatchingTest, simpleMatch)
 		FAIL();
 	}
 
-	auto [vars, equs] = *model;
-	EntryModel m(move(equs), move(vars));
+	EntryModel m(move(*model));
 	MatchingGraph graph(m);
 	graph.match(2);
 	EXPECT_EQ(graph.matchedEdgesCount(), 2);
@@ -106,8 +105,7 @@ TEST(MatchingTest, overRunningMatch)
 		FAIL();
 	}
 
-	auto [vars, equs] = *model;
-	EntryModel m(move(equs), move(vars));
+	EntryModel m(move(*model));
 	MatchingGraph graph(m);
 	graph.match(4);
 	EXPECT_EQ(graph.matchedCount(), 10);
@@ -124,8 +122,7 @@ TEST(MatchingTest, firstMatchingSize)
 		FAIL();
 	}
 
-	auto [vars, equs] = *model;
-	EntryModel m(move(equs), move(vars));
+	EntryModel m(move(*model));
 	MatchingGraph graph(m);
 	AugmentingPath path(graph);
 	FlowCandidates res = path.selectStartingEdge();
@@ -145,8 +142,7 @@ TEST(MatchingTest, firstMatchingVectorConstruction)
 		FAIL();
 	}
 
-	auto [vars, equs] = *model;
-	EntryModel m(move(equs), move(vars));
+	EntryModel m(move(*model));
 	MatchingGraph graph(m);
 	AugmentingPath path(graph);
 
@@ -165,8 +161,7 @@ TEST(MatchingTest, vectorAccessTest)
 		FAIL();
 	}
 
-	auto [vars, equs] = *model;
-	EntryModel m(move(equs), move(vars));
+	EntryModel m(move(*model));
 	MatchingGraph graph(m);
 
 	SmallVector<VectorAccess, 2> access;
@@ -205,8 +200,7 @@ TEST(MatchingTest, testMatchingFailure)
 		outs() << model.takeError();
 		FAIL();
 	}
-	auto [vars, equs] = *model;
-	EntryModel m(move(equs), move(vars));
+	EntryModel m(move(*model));
 	auto res = match(m, 1000);
 
 	EXPECT_FALSE(res);
@@ -234,8 +228,7 @@ TEST(MatchingTest, succesfullMatchingTest)
 		outs() << model.takeError();
 		FAIL();
 	}
-	auto [vars, equs] = *model;
-	EntryModel m(move(equs), move(vars));
+	EntryModel m(move(*model));
 	auto res = match(m, 1000);
 	EXPECT_TRUE(!!res);
 }
@@ -259,8 +252,7 @@ TEST(MatchingTest, unsuccesfullMatchingTestShouldBeSo)
 		outs() << model.takeError();
 		FAIL();
 	}
-	auto [vars, equs] = *model;
-	EntryModel m(move(equs), move(vars));
+	EntryModel m(move(*model));
 	auto res = match(m, 1000);
 	EXPECT_TRUE(!res);
 
@@ -286,8 +278,7 @@ TEST(MatchingTest, baseGraphScalarDependencies)
 		outs() << model.takeError();
 		FAIL();
 	}
-	auto [vars, equs] = *model;
-	EntryModel m(move(equs), move(vars));
+	EntryModel m(move(*model));
 
 	m.dump();
 	MatchingGraph graph(m);
@@ -312,8 +303,7 @@ TEST(MatchingTest, scalarMatchingTest)
 		outs() << model.takeError();
 		FAIL();
 	}
-	auto [vars, equs] = *model;
-	EntryModel m(move(equs), move(vars));
+	EntryModel m(move(*model));
 
 	m.dump();
 	MatchingGraph graph(m);

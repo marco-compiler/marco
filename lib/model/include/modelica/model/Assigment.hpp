@@ -1,5 +1,8 @@
 #pragma once
 
+#include <memory>
+
+#include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/utils/IndexSet.hpp"
 #include "modelica/utils/Interval.hpp"
@@ -36,28 +39,45 @@ namespace modelica
 	{
 		public:
 		Assigment(
-				ModExp left,
-				ModExp exp,
+				std::shared_ptr<ModEqTemplate> eq,
 				MultiDimInterval inducts = {},
 				bool forward = true)
-				: leftHand(std::move(left)),
-					expression(std::move(exp)),
+				: body(std::move(eq)),
+
+					inductionVars(std::move(inducts), forward)
+		{
+		}
+
+		Assigment(
+				ModExp left,
+				ModExp exp,
+				std::string name = "",
+				MultiDimInterval inducts = {},
+				bool forward = true)
+				: body(std::make_unique<ModEqTemplate>(
+							std::move(left), std::move(exp), std::move(name))),
 					inductionVars(std::move(inducts), forward)
 		{
 		}
 		Assigment(
 				std::string left,
 				ModExp exp,
+				std::string name = "",
 				MultiDimInterval inducts = {},
 				bool forward = true)
-				: leftHand(std::move(left), exp.getModType()),
-					expression(std::move(exp)),
+				: body(std::make_shared<ModEqTemplate>(
+							ModExp(std::move(left), exp.getModType()),
+							std::move(exp),
+							std::move(name))),
 					inductionVars(std::move(inducts), forward)
 		{
 		}
-		[[nodiscard]] const ModExp& getLeftHand() const { return leftHand; }
+		[[nodiscard]] const ModExp& getLeftHand() const { return body->getLeft(); }
 
-		[[nodiscard]] const ModExp& getExpression() const { return expression; }
+		[[nodiscard]] const ModExp& getExpression() const
+		{
+			return body->getRight();
+		}
 
 		[[nodiscard]] size_t size() const { return getInductionVars().size(); }
 		[[nodiscard]] auto begin() { return getInductionVars().begin(); }
@@ -89,16 +109,26 @@ namespace modelica
 
 			getInductionVars().dump(OS);
 
-			leftHand.dump(OS);
-			OS << " = ";
-			expression.dump(OS);
+			if (body->getName().empty())
+			{
+				getLeftHand().dump(OS);
+				OS << " = ";
+				getExpression().dump(OS);
+			}
+			else
+			{
+				OS << "template ";
+				OS << body->getName();
+			}
 
 			OS << '\n';
 		}
 
+		[[nodiscard]] auto& getTemplate() { return body; }
+		[[nodiscard]] const auto& getTemplate() const { return body; }
+
 		private:
-		ModExp leftHand;
-		ModExp expression;
+		std::shared_ptr<ModEqTemplate> body;
 		OrderedMultiDimInterval inductionVars;
 	};
 }	 // namespace modelica

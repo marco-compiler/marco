@@ -39,7 +39,7 @@ static SmallVector<Assigment, 3> collapseEquations(
 		const auto& currentNode = originalGraph[node];
 		const auto& eq = currentNode.getCollapsedVertex();
 		for (const auto& set : currentSet)
-			out.emplace_back(eq.getLeft(), eq.getRight(), set, !backward);
+			out.emplace_back(eq.getTemplate(), set, !backward);
 
 		currentSet = IndexSet();
 	};

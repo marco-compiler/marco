@@ -12,7 +12,7 @@ TEST(ModMatchersTest, scalarRefVariableCollectorTest)	 // NOLINT
 	ModParser parser(
 			"intVector = INT[3,1] (+ INT[3,1] {3, 3, 3}, INT[3,1] intVector)");
 
-	auto assigment = parser.updateStatement();
+	auto assigment = parser.updateStatement({});
 	if (!assigment)
 		FAIL();
 
@@ -32,7 +32,7 @@ TEST(ModMatchersTest, arrayRefVariableCollectorTest)	// NOLINT
 	ModParser parser("negation = INT[1](! INT[1](at INT[2] (at INT[2,2] "
 									 "int2Vector, INT[1]{0}), INT[1]{0}))");
 
-	auto assigment = parser.updateStatement();
+	auto assigment = parser.updateStatement({});
 	if (!assigment)
 		FAIL();
 

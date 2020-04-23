@@ -1,8 +1,12 @@
 #pragma once
 #include <memory>
+#include <utility>
 
+#include "Model.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include "modelica/model/Assigment.hpp"
+#include "modelica/model/EntryModel.hpp"
+#include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModLexerStateMachine.hpp"
@@ -49,15 +53,19 @@ namespace modelica
 		[[nodiscard]] llvm::Expected<llvm::StringMap<ModVariable>> initSection();
 		[[nodiscard]] llvm::Expected<float> floatingPoint();
 		[[nodiscard]] llvm::Expected<int> integer();
+
+		using TemplatesMap = std::map<std::string, std::shared_ptr<ModEqTemplate>>;
 		[[nodiscard]] llvm::Expected<llvm::SmallVector<ModEquation, 0>>
-		updateSection();
-		[[nodiscard]] llvm::Expected<std::tuple<
-				llvm::StringMap<ModVariable>,
-				llvm::SmallVector<ModEquation, 0>>>
-		simulation();
+		updateSection(const TemplatesMap& templatesMap = {});
+
+		[[nodiscard]] llvm::Expected<TemplatesMap> templates();
+
+		[[nodiscard]] llvm::Expected<ModEqTemplate> singleTemplate();
+		[[nodiscard]] llvm::Expected<EntryModel> simulation();
 		[[nodiscard]] llvm::Expected<Interval> singleInduction();
 		[[nodiscard]] llvm::Expected<MultiDimInterval> inductions();
-		[[nodiscard]] llvm::Expected<ModEquation> updateStatement();
+		[[nodiscard]] llvm::Expected<ModEquation> updateStatement(
+				const TemplatesMap& map);
 
 		[[nodiscard]] ModToken getCurrentModToken() const { return current; }
 

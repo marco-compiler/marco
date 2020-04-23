@@ -25,9 +25,9 @@ Model::Model(SmallVector<ModEquation, 3> equs, StringMap<ModVariable> vars)
 
 void Model::addTemplate(const ModEquation& eq)
 {
-	if (templates.find(eq.getTemplate()) != templates.end())
-		templates.try_emplace(
-				eq.getTemplate(), "eq" + std::to_string(templates.size()));
+	if (!eq.getTemplate()->getName().empty())
+		if (templates.find(eq.getTemplate()) == templates.end())
+			templates.emplace(eq.getTemplate());
 }
 
 bool Model::addVar(ModVariable exp)

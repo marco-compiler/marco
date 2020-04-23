@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <iterator>
+#include <string>
 #include <type_traits>
 
 #include "llvm/ADT/Optional.h"
@@ -174,7 +175,11 @@ void MatchingGraph::dump(llvm::raw_ostream& OS) const
 static Error insertEq(
 		Edge& edge, const MultiDimInterval& inductionVars, EntryModel& outModel)
 {
-	outModel.addEquation(edge.getEquation());
+	const auto& eq = edge.getEquation();
+	const auto& templ = eq.getTemplate();
+	auto newName =
+			templ->getName() + std::to_string(outModel.getTemplates().size());
+	outModel.addEquation(eq.clone(std::move(newName)));
 	auto& justInserted = outModel.getEquations().back();
 	justInserted.setInductionVars(inductionVars);
 	return justInserted.explicitate(edge.getPath());

@@ -22,6 +22,11 @@ namespace modelica
 			for (const auto& var : getVars())
 				var.second.dump(OS);
 
+			if (!getTemplates().empty())
+				OS << "templates\n";
+			for (const auto& temp : getTemplates())
+				temp->dump(true, OS);
+
 			OS << "update\n";
 			for (const auto& update : *this)
 				update.dump(OS);

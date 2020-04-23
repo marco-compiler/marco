@@ -72,6 +72,9 @@ namespace modelica
 						rightHandExpression(std::move(rhs)),
 						condition(std::move(cond))
 			{
+				assert(leftHandExpression != nullptr);
+				assert(!(getArity() == 2) || rightHandExpression != nullptr);
+				assert(!(getArity() == 3) || condition != nullptr);
 			}
 
 			Operation(

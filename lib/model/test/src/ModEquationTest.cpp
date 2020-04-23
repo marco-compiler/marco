@@ -20,7 +20,7 @@ TEST(ModelTest, ModEquationToIndexSet)
 	Interval v0(1, 3);
 	Interval v1(7, 10);
 	MultiDimInterval vars{ v0, v1 };
-	ModEquation eq(left, right, vars);
+	ModEquation eq(left, right, "", vars);
 
 	auto res = eq.getInductions();
 	EXPECT_EQ(res, MultiDimInterval({ { 1, 3 }, { 7, 10 } }));
@@ -53,7 +53,7 @@ TEST(ModEquationTest, ModEquationConstantFolding)
 	ModExp rRes(ModConst(10));
 	MultiDimInterval vars{ { 0, 1 } };
 
-	ModEquation eq(ModExp::add(l, l), ModExp::add(r, r), vars);
+	ModEquation eq(ModExp::add(l, l), ModExp::add(r, r), "", vars);
 	eq.foldConstants();
 
 	EXPECT_EQ(eq.getLeft(), lRes);
@@ -71,7 +71,7 @@ TEST(ModEquationTest, ModEquationConstantFoldingWithReferences)
 	MultiDimInterval vars{ { 0, 1 } };
 
 	ModExp inner = ModExp::add(l, sum);
-	ModEquation eq(l + inner, ModExp::add(r, r), vars);
+	ModEquation eq(l + inner, ModExp::add(r, r), "", vars);
 	eq.foldConstants();
 
 	EXPECT_EQ(eq.getLeft(), ModExp::add(sum, lRes));
@@ -138,4 +138,20 @@ TEST(ModEquationTest, divideFirstArgShouldBeInvertible)
 	EXPECT_FALSE(eq.explicitate(0, true));
 	EXPECT_EQ(eq.getLeft(), ModExp(ModConst(5)));
 	EXPECT_EQ(eq.getRight(), ModExp(ModConst(4)) * ModExp(ModConst(4)));
+}
+
+TEST(ModEquationTest, copiedEquationShouldHaveSameTemplate)
+{
+	ModEquation eq(
+			ModExp(ModConst(5)) / ModExp(ModConst(4)), ModExp(ModConst(4)));
+	auto copy = eq;
+	EXPECT_EQ(eq.getTemplate(), copy.getTemplate());
+}
+
+TEST(ModEquationTest, clonedEquationShouldNotHaveSameTemplate)
+{
+	ModEquation eq(
+			ModExp(ModConst(5)) / ModExp(ModConst(4)), ModExp(ModConst(4)));
+	auto copy = eq.clone("newName");
+	EXPECT_NE(eq.getTemplate(), copy.getTemplate());
 }

@@ -1,6 +1,6 @@
 #pragma once
-#include <map>
 #include <numeric>
+#include <set>
 #include <vector>
 
 #include "llvm/ADT/StringMap.h"
@@ -71,10 +71,17 @@ namespace modelica
 			addTemplate(equations.back());
 		}
 
-		void emplaceEquation(ModExp left, ModExp right, MultiDimInterval vars = {})
+		void emplaceEquation(
+				ModExp left,
+				ModExp right,
+				std::string templateName,
+				MultiDimInterval vars)
 		{
 			equations.emplace_back(
-					std::move(left), std::move(right), std::move(vars));
+					std::move(left),
+					std::move(right),
+					std::move(templateName),
+					std::move(vars));
 			addTemplate(equations.back());
 		}
 
@@ -119,6 +126,12 @@ namespace modelica
 			return count;
 		}
 
+		using TemplateMap = std::set<std::shared_ptr<ModEqTemplate>>;
+
+		[[nodiscard]] TemplateMap& getTemplates() { return templates; }
+
+		[[nodiscard]] const TemplateMap& getTemplates() const { return templates; }
+
 		protected:
 		~Model() = default;
 
@@ -126,7 +139,7 @@ namespace modelica
 		void addTemplate(const ModEquation& eq);
 		llvm::SmallVector<ModEquation, 3> equations;
 		llvm::StringMap<ModVariable> vars;
-		std::map<std::shared_ptr<ModEqTemplate>, std::string> templates;
+		TemplateMap templates;
 	};
 
 }	 // namespace modelica

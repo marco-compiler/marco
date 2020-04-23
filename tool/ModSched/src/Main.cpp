@@ -47,8 +47,7 @@ int main(int argc, char* argv[])
 	auto errorOrBuffer = MemoryBuffer::getFileOrSTDIN(InputFileName);
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	ModParser parser(buffer->getBufferStart());
-	auto [init, update] = exitOnErr(parser.simulation());
-	auto model = EntryModel(move(update), move(init));
+	EntryModel model = exitOnErr(parser.simulation());
 	auto constantFoldedModel = exitOnErr(constantFold(move(model)));
 
 	if (dumpModel)

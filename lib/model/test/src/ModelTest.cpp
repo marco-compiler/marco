@@ -157,7 +157,10 @@ TEST(ModelTest, entryModelIsIteratable)
 		FAIL();
 
 	model.emplaceEquation(
-			ModExp("Hey", BultinModTypes::INT), ModExp("Huy", BultinModTypes::INT));
+			ModExp("Hey", BultinModTypes::INT),
+			ModExp("Huy", BultinModTypes::INT),
+			"",
+			{});
 
 	for (auto& e : model)
 		EXPECT_TRUE(e.getLeft().isReference());
@@ -200,7 +203,7 @@ TEST(ModelTest, inductionInEquationsShouldNotBeFouldable)
 	ModParser parser(
 			"for [1,6] INT[1](- INT[1](ind INT[1]{0}), INT[1]{1}) = INT[1]{10}");
 
-	auto eq = parser.updateStatement();
+	auto eq = parser.updateStatement({});
 	if (!eq)
 		FAIL();
 

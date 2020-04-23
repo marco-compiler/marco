@@ -24,18 +24,25 @@ Expected<AssignModel> modelica::solveDer(EntryModel&& model, float deltaTime)
 
 	for (auto& update : model.getEquations())
 	{
-		auto left = move(update.getLeft());
-		auto right = move(update.getRight());
+		auto left = update.getLeft();
+		auto right = update.getRight();
 		if (left.isCall() && left.getCall().getName() == "der")
 		{
 			auto leftInner = move(left.getCall().at(0));
 			right = right * ModExp("deltaTime", BultinModTypes::FLOAT);
 			right = ModExp::add(move(right), leftInner);
 			out.emplaceUpdate(
-					move(leftInner), move(right), move(update.getInductions()));
+					move(leftInner),
+					move(right),
+					update.getTemplate()->getName(),
+					move(update.getInductions()),
+					update.isForward());
 		}
 		else
-			out.emplaceUpdate(move(left), move(right), move(update.getInductions()));
+			out.emplaceUpdate(
+					update.getTemplate(),
+					move(update.getInductions()),
+					update.isForward());
 	}
 
 	return out;

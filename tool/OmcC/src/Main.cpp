@@ -57,7 +57,7 @@ SmallVector<Assigment, 2> toAssign(SmallVector<ModEquation, 2>&& equs)
 	{
 		assert(eq.getLeft().isReference() || eq.getLeft().isReferenceAccess());
 		assign.emplace_back(
-				move(eq.getLeft()), move(eq.getRight()), move(eq.getInductions()));
+				eq.getTemplate(), move(eq.getInductions()), eq.isForward());
 	}
 
 	return assign;

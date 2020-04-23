@@ -63,7 +63,7 @@ SmallVector<Assigment, 2> toAssign(SmallVector<ModEquation, 2>&& equs)
 	{
 		assert(eq.getLeft().isReference() || eq.getLeft().isReferenceAccess());
 		assign.emplace_back(
-				move(eq.getLeft()), move(eq.getRight()), move(eq.getInductions()));
+				eq.getTemplate(), move(eq.getInductions()), eq.isForward());
 	}
 
 	return assign;
@@ -76,9 +76,10 @@ int main(int argc, char* argv[])
 	auto errorOrBuffer = MemoryBuffer::getFileOrSTDIN(InputFileName);
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	ModParser parser(buffer->getBufferStart());
-	auto [init, update] = exitOnErr(parser.simulation());
+	EntryModel model = exitOnErr(parser.simulation());
 
-	auto assigments = toAssign(move(update));
+	auto assigments = toAssign(move(model.getEquations()));
+	auto init = std::move(model.getVars());
 	LLVMContext context;
 	Lowerer sim(
 			context,

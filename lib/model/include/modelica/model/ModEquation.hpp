@@ -22,8 +22,21 @@ namespace modelica
 		ModEquation(
 				ModExp left,
 				ModExp right,
+				std::string templateName = "",
 				MultiDimInterval inds = {},
 				bool isForward = true);
+
+		ModEquation(
+				std::shared_ptr<ModEqTemplate> templ,
+				MultiDimInterval interval,
+				bool isForward)
+				: body(std::move(templ)),
+					inductions(std::move(interval)),
+					isForwardDirection(isForward)
+		{
+			if (!isForCycle)
+				inductions = { { 0, 1 } };
+		}
 
 		[[nodiscard]] const ModExp& getLeft() const { return body->getLeft(); }
 		[[nodiscard]] const ModExp& getRight() const { return body->getRight(); }
@@ -52,10 +65,11 @@ namespace modelica
 			return isForCycle ? inductions.dimensions() : 0;
 		}
 
-		[[nodiscard]] ModEquation clone() const
+		[[nodiscard]] ModEquation clone(std::string newName) const
 		{
 			ModEquation clone = *this;
 			clone.body = std::make_shared<ModEqTemplate>(*body);
+			clone.getTemplate()->setName(std::move(newName));
 			return clone;
 		}
 
@@ -63,6 +77,8 @@ namespace modelica
 		{
 			return body;
 		}
+
+		[[nodiscard]] std::shared_ptr<ModEqTemplate>& getTemplate() { return body; }
 
 		private:
 		std::shared_ptr<ModEqTemplate> body;

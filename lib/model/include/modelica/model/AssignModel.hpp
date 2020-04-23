@@ -1,4 +1,6 @@
 #pragma once
+#include <set>
+
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModVariable.hpp"
 
@@ -9,9 +11,11 @@ namespace modelica
 		public:
 		AssignModel(
 				llvm::StringMap<ModVariable> vars,
-				llvm::SmallVector<Assigment, 2> updates = {})
-				: variables(std::move(vars)), updates(std::move(updates))
+				llvm::SmallVector<Assigment, 2> ups = {})
+				: variables(std::move(vars)), updates(std::move(ups))
 		{
+			for (const auto& update : updates)
+				addTemplate(update);
 		}
 
 		AssignModel() = default;
@@ -41,12 +45,14 @@ namespace modelica
 		void addUpdate(Assigment assigment)
 		{
 			updates.push_back(std::move(assigment));
+			addTemplate(updates.back());
 		}
 
 		template<typename... T>
 		void emplaceUpdate(T&&... args)
 		{
 			updates.emplace_back(std::forward<T>(args)...);
+			addTemplate(updates.back());
 		}
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const
 		{
@@ -59,6 +65,11 @@ namespace modelica
 				OS << "\n";
 			}
 
+			if (!templates.empty())
+				OS << "templates\n";
+			for (const auto& pair : templates)
+				pair->dump(true, OS);
+
 			OS << "update\n";
 			for (const auto& update : updates)
 				update.dump(OS);
@@ -70,7 +81,15 @@ namespace modelica
 		[[nodiscard]] const auto& getUpdates() const { return updates; }
 
 		private:
+		void addTemplate(const Assigment& assigment)
+		{
+			if (!assigment.getTemplate()->getName().empty())
+				if (templates.find(assigment.getTemplate()) == templates.end())
+					templates.emplace(assigment.getTemplate());
+		}
+
 		llvm::StringMap<ModVariable> variables;
 		llvm::SmallVector<Assigment, 2> updates;
+		std::set<std::shared_ptr<ModEqTemplate>> templates;
 	};
 }	 // namespace modelica
