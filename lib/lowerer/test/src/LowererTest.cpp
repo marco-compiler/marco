@@ -28,7 +28,7 @@ TEST(lowererTest, backwardLoopTest)
 					ModExp("leftVar", ModType(BultinModTypes::INT, 4)),
 					ModExp::induction(ModConst(0))),
 			ModConst(3),
-			" ",
+			"",
 			{ { 0, 3 } },
 			false));
 

@@ -3,7 +3,9 @@
 #include "ExpLowerer.hpp"
 #include "LowererUtils.hpp"
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Error.h"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModErrors.hpp"
@@ -145,7 +147,7 @@ static Expected<Function*> initializeGlobals(
 	return initFunction;
 }
 
-static Error createNormalAssigment(
+static Error createAssigmentBody(
 		LowererContext& info, const Assigment& assigment)
 {
 	info.setLoadOldValues(false);
@@ -160,6 +162,50 @@ static Error createNormalAssigment(
 
 	auto loaded = info.getBuilder().CreateLoad(*val);
 	info.getBuilder().CreateStore(loaded, *left);
+	return Error::success();
+}
+
+static Expected<Function*> createFunctionAssigment(
+		LowererContext& ctx, const Assigment& assigment)
+{
+	IRBuilder<>& bld = ctx.getBuilder();
+	auto oldBlock = ctx.getBuilder().GetInsertBlock();
+
+	auto maybeFunction =
+			makePrivateFunction(assigment.getTemplateName(), ctx.getModule());
+
+	if (!maybeFunction)
+		return maybeFunction.takeError();
+
+	Function* fun = maybeFunction.get();
+	bld.SetInsertPoint(&fun->getEntryBlock());
+	auto error = createAssigmentBody(ctx, assigment);
+	if (error)
+		return move(error);
+
+	bld.SetInsertPoint(oldBlock);
+
+	return fun;
+}
+
+static Error createNormalAssigment(
+		LowererContext& info, const Assigment& assigment)
+{
+	const auto& templName = assigment.getTemplateName();
+	if (templName.empty())
+		return createAssigmentBody(info, assigment);
+
+	auto templFun = info.getModule().getFunction(templName);
+	if (templFun == nullptr)
+	{
+		auto maybFun = createFunctionAssigment(info, assigment);
+		if (!maybFun)
+			return maybFun.takeError();
+
+		templFun = *maybFun;
+	}
+
+	info.getBuilder().CreateCall(templFun);
 	return Error::success();
 }
 
@@ -189,6 +235,28 @@ static Error createAssigment(LowererContext& info, const Assigment& assigment)
 	return createForAssigment(info, assigment);
 }
 
+static Expected<Function*> createUpdate(
+		LowererContext& cont, const Assigment& assigment, size_t functionIndex)
+{
+	IRBuilder<>& bld = cont.getBuilder();
+
+	auto expFun = makePrivateFunction(
+			"update" + to_string(functionIndex), cont.getModule());
+	if (!expFun)
+		return expFun.takeError();
+
+	auto fun = expFun.get();
+	bld.SetInsertPoint(&fun->getEntryBlock());
+
+	cont.setFunction(fun);
+	auto err = createAssigment(cont, assigment);
+	if (err)
+		return move(err);
+
+	bld.CreateRet(nullptr);
+	return expFun;
+}
+
 static Expected<Function*> createUpdates(
 		Module& m,
 		const SmallVector<Assigment, 0>& upds,
@@ -202,25 +270,13 @@ static Expected<Function*> createUpdates(
 	LowererContext cont(bld, m);
 
 	size_t counter = 0;
-	for (const auto& pair : upds)
+	for (const auto& assigment : upds)
 	{
-		auto expFun = makePrivateFunction("update" + to_string(counter), m);
-		if (!expFun)
-			return expFun;
-
-		auto fun = expFun.get();
-		bld.SetInsertPoint(&fun->getEntryBlock());
-
-		cont.setFunction(fun);
-		auto err = createAssigment(cont, pair);
-		if (err)
-			return move(err);
-
-		bld.CreateRet(nullptr);
-
+		auto fun = createUpdate(cont, assigment, counter++);
+		if (!fun)
+			return fun.takeError();
 		bld.SetInsertPoint(&updateFunction->getEntryBlock());
-		bld.CreateCall(fun);
-		counter++;
+		bld.CreateCall(*fun);
 	}
 	for (const auto& pair : definitions)
 	{

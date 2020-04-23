@@ -84,6 +84,11 @@ namespace modelica
 		[[nodiscard]] auto begin() const { return getInductionVars().begin(); }
 		[[nodiscard]] auto end() { return getInductionVars().end(); }
 		[[nodiscard]] auto end() const { return getInductionVars().end(); }
+		[[nodiscard]] const std::string& getTemplateName() const
+		{
+			return body->getName();
+		}
+
 		[[nodiscard]] const MultiDimInterval& getInductionVars() const
 		{
 			return inductionVars.getInterval();
