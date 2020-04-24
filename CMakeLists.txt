@@ -61,109 +61,13 @@ if (LLVM_ENABLE_ABI_BREAKING_CHECKS)
 endif(LLVM_ENABLE_ABI_BREAKING_CHECKS)
 
 ##############################
-###       InstallMacro     ###
-##############################
-macro(modelicaInstall target)
-
-include(GNUInstallDirs)
-INSTALL(TARGETS ${target} EXPORT ${target}Targets
-	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	RUNTIME DESTINATION bin
-	INCLUDES DESTINATION include)
-
-INSTALL(EXPORT ${target}Targets DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME}
-	FILE ${target}Targets.cmake
-	NAMESPACE modelica::)
-
-include(CMakePackageConfigHelpers)
-write_basic_package_version_file(${target}ConfigVersion.cmake
-	VERSION ${example_VERSION}
-	COMPATIBILITY SameMajorVersion)
-
-INSTALL(FILES ${target}Config.cmake ${CMAKE_CURRENT_BINARY_DIR}/${target}ConfigVersion.cmake
-	DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME})
-
-install(DIRECTORY include/ DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-endmacro(modelicaInstall)
-
-##############################
 ###       Subfolders       ###
 ##############################
+include(modelicaMacros.cmake)
+include(extra.cmake)
 add_subdirectory(tool)
 add_subdirectory(lib)
 
-##############################
-###        DOXYGEN         ###
-##############################
-find_package(Doxygen)
-if (DOXYGEN_FOUND)
-    # set input and output files
-    set(DOXYGEN_IN ${CMAKE_CURRENT_SOURCE_DIR}/docs/Doxyfile)
-    set(DOXYGEN_OUT ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile)
-
-    # request to configure the file
-    configure_file(${DOXYGEN_IN} ${DOXYGEN_OUT} @ONLY)
-
-    # note the option ALL which allows to build the docs together with the application
-    add_custom_target(doc 
-        COMMAND ${DOXYGEN_EXECUTABLE} ${DOXYGEN_OUT}
-        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-        COMMENT "Generating API documentation with Doxygen"
-        VERBATIM )
-else (DOXYGEN_FOUND)
-  message("Doxygen need to be installed to generate the doxygen documentation")
-endif (DOXYGEN_FOUND)
-
-##############################
-###        COVERAGE        ###
-##############################
-if (${CMAKE_CXX_FLAGS} MATCHES ".*--coverage.*")
-	find_program(LCOV NAMES lcov)
-	find_program(GENHTML NAMES genhtml)
-
-	add_custom_command(
-		OUTPUT base.info
-		COMMAND ${LCOV} --capture --initial --directory . --output-file ./base.info
-		VERBATIM
-		)
-
-	add_custom_command(
-		OUTPUT filtered.info 
-		COMMAND ${LCOV} --remove ./total.info "/usr/*" "*/googletest/*" "*/build/*" --output-file ./filtered.info
-		DEPENDS total.info
-		VERBATIM)
-
-	add_custom_command(
-		OUTPUT total.info 
-		COMMAND ${LCOV} --add-tracefile ./base.info --add-tracefile ./test.info --output-file ./total.info
-		DEPENDS test.info base.info
-		VERBATIM)
-
-	add_custom_command(
-		OUTPUT test.info 
-		COMMAND ${LCOV} --capture --directory . --output-file ./test.info
-		VERBATIM)
-
-	add_custom_target(genCoverage
-		COMMAND ${GENHTML} ./filtered.info --output-directory ./Coverage
-		DEPENDS filtered.info
-		BYPRODUCTS ./Coverage
-		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-		COMMENT "Generate coverage"
-		VERBATIM )
-
-	add_custom_target(coverage COMMAND rm test.info filtered.info base.info total.info)
-	add_dependencies(coverage genCoverage)
-	add_dependencies(coverage test)
-elseif(TRUE)
-	add_custom_target(coverage
-		COMMAND echo could not calculate coverage run cmake with -DCMAKE_CXX_FLAGS=--coverage
-		WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-		COMMENT "Coverage not aviable"
-		VERBATIM)
-endif()
 
 ##############################
 ###       BOOSTGRAPH       ###
@@ -172,11 +76,20 @@ set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost 1.45.0 COMPONENTS graph)
-include_directories(${Boost_INCLUDE_DIRS})
 
 
-#add_library(graph SHARED ${Boost_LIBRARIES})
-#target_include_directories(graph PUBLIC ${Boost_INCLUDE_DIRS})
-#target_compile_definitions(graph PUBLIC -DBOOST_NO_EXCEPTIONS)
-#target_compile_features(graph PUBLIC cxx_std_17)
+add_library(graph INTERFACE)
+target_include_directories(graph INTERFACE ${Boost_INCLUDE_DIRS})
+target_compile_definitions(graph INTERFACE -DBOOST_NO_EXCEPTIONS)
+target_compile_features(graph INTERFACE cxx_std_17)
 
+install(TARGETS graph EXPORT GraphTargets
+	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	RUNTIME DESTINATION bin
+	INCLUDES DESTINATION include)
+
+
+INSTALL(EXPORT GraphTargets DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME}
+	FILE graphTargets.cmake
+	NAMESPACE modelica::)

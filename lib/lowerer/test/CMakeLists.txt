@@ -1,17 +1,4 @@
-include(GoogleTest)
-
-include(GoogleTest)
-
-add_executable(lowererTest src/LowererTest.cpp)
-add_executable(modelica::lowererTest ALIAS lowererTest) 
-target_link_libraries(lowererTest PRIVATE gtest gtest_main modelica::lowerer)
-target_include_directories(lowererTest PUBLIC include PRIVATE src)
-target_compile_features(lowererTest PUBLIC cxx_std_17)
-
-gtest_add_tests(TARGET      lowererTest
-                TEST_SUFFIX .noArgs
-                TEST_LIST   noArgsTests
-)
+modelicaAddTest(lowerer src/LowererTest.cpp)
 
 
 find_program(CLANGC NAMES clang clang-9)
