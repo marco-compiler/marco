@@ -4,7 +4,7 @@
 
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/Error.h"
-#include "modelica/AST/Expr.hpp"
+#include "modelica/frontend/Expr.hpp"
 #include "modelica/utils/SourceRange.hpp"
 
 namespace modelica

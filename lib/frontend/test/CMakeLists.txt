@@ -3,8 +3,6 @@ modelicaAddTest(
    	src/LexerStateMachineTest.cpp
    	src/ParserTest.cpp
    	src/ParserErrorsTest.cpp
+	src/ExpressionTest.cpp
    	src/ParserEquationTest.cpp
-   	src/VisitorTest.cpp
-   	src/ParserStatementTest.cpp
-   	src/ParserClassTest.cpp
-   	src/DumperTest.cpp)
+   	src/ParserClassTest.cpp)	

@@ -4,7 +4,7 @@
 #include <system_error>
 
 #include "llvm/Support/Error.h"
-#include "modelica/LexerStateMachine.hpp"
+#include "modelica/frontend/LexerStateMachine.hpp"
 #include "modelica/utils/SourceRange.hpp"
 
 namespace modelica
@@ -198,4 +198,4 @@ namespace modelica
 		private:
 		SourcePosition pos;
 	};
-}	// namespace modelica
+}	 // namespace modelica

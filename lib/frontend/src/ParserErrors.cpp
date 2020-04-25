@@ -1,4 +1,4 @@
-#include "modelica/ParserErrors.hpp"
+#include "modelica/frontend/ParserErrors.hpp"
 using namespace modelica;
 
 ParserErrorCategory ParserErrorCategory::category;

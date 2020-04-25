@@ -1,4 +1,4 @@
-#include "modelica/LexerStateMachine.hpp"
+#include "modelica/frontend/LexerStateMachine.hpp"
 
 using namespace modelica;
 using State = ModelicaStateMachine::State;

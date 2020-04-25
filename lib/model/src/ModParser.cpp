@@ -13,15 +13,6 @@
 #include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/Interval.hpp"
 
-#define EXPECT(Token)                                                          \
-	if (auto e = expect(Token); !e)                                              \
-	return e.takeError()
-
-#define TRY(outVar, expression)                                                \
-	auto outVar = expression;                                                    \
-	if (!outVar)                                                                 \
-	return outVar.takeError()
-
 using namespace modelica;
 using namespace llvm;
 using namespace std;
@@ -33,6 +24,8 @@ llvm::Expected<bool> ModParser::expect(ModToken t)
 
 	return make_error<UnexpectedModToken>(current, t, getPosition());
 }
+
+#include "modelica/utils/ParserUtils.hpp"
 
 Expected<string> ModParser::reference()
 {
