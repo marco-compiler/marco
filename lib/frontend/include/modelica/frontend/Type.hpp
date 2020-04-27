@@ -75,6 +75,8 @@ namespace modelica
 			return !(*this == other);
 		}
 
+		[[nodiscard]] static Type unkown() { return Type(BuiltinType::Unknown); }
+
 		private:
 		llvm::SmallVector<size_t, 3> dimensions;
 		BuiltinType type;

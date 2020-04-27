@@ -15,3 +15,14 @@ bool Expression::Operation::operator==(const Operation& other) const
 
 	return arguments == other.arguments;
 }
+
+[[nodiscard]] Expression modelica::makeCall(
+		Expression fun, SmallVector<Expression, 3> exps)
+{
+	SmallVector<Call::UniqueExpr, 3> args;
+	for (auto& arg : exps)
+		args.emplace_back(make_unique<Expression>(arg));
+
+	return Expression(
+			Type::unkown(), Call(make_unique<Expression>(move(fun)), move(args)));
+}

@@ -2,6 +2,7 @@ modelicaAddLibrary(
 	frontend SHARED 
 	src/LexerStateMachine.cpp 
 	src/Parser.cpp
+	src/Call.cpp
 	src/Expression.cpp
    	src/ParserErrors.cpp)
    	

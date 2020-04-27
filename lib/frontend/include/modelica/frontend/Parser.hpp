@@ -1,18 +1,20 @@
 #pragma once
 #include <memory>
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
 #include "modelica/frontend/Expression.hpp"
 #include "modelica/frontend/LexerStateMachine.hpp"
 #include "modelica/frontend/ParserErrors.hpp"
+#include "modelica/frontend/ReferenceAccess.hpp"
 #include "modelica/utils/Lexer.hpp"
 
 namespace modelica
 {
 	/**
 	 * The parser encapsulates the lexer but not he memory where string we are
-	 * reading is held. It expones all the grammatical rules that are avialable
-	 * in the grammar (can be found at page ~ 265 of the 3.4 doc).
+	 * reading is held. It expones parts of the grammatical rules that are
+	 * avialable in the grammar (can be found at page ~ 265 of the 3.4 doc).
 	 *
 	 */
 	class Parser
@@ -37,6 +39,22 @@ namespace modelica
 		}
 
 		[[nodiscard]] Token getCurrentToken() const { return current; }
+
+		llvm::Expected<Expression> primary();
+		llvm::Expected<Expression> factor();
+		llvm::Expected<Expression> term();
+		llvm::Expected<Expression> arithmeticExpression();
+		std::optional<OperationKind> relationalOperator();
+
+		llvm::Expected<Expression> logicalTerm();
+		llvm::Expected<Expression> logicalExpression();
+
+		llvm::Expected<Expression> expression();
+		llvm::Expected<Expression> logicalFactor();
+		llvm::Expected<Expression> relation();
+		llvm::Expected<Expression> componentReference();
+		llvm::Expected<llvm::SmallVector<Expression, 3>> functionCallArguments();
+		llvm::Expected<std::vector<Expression>> arraySubscript();
 
 		private:
 		/**

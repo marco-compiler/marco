@@ -11,6 +11,7 @@ namespace modelica
 		explicit Constant(int val): content(val) {}
 		explicit Constant(char val): content(val) {}
 		explicit Constant(float val): content(val) {}
+		explicit Constant(double val): content(static_cast<float>(val)) {}
 		explicit Constant(std::string val): content(std::move(val)) {}
 
 		template<typename T>
