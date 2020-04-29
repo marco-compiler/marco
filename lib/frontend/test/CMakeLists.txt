@@ -1,8 +1,10 @@
 modelicaAddTest(
 	frontend
    	src/LexerStateMachineTest.cpp
+	src/ConstantFolderTest.cpp
    	src/ParserTest.cpp
    	src/ParserErrorsTest.cpp
 	src/ExpressionTest.cpp
+	src/TypeCheckerTest.cpp
    	src/ParserEquationTest.cpp
    	src/ParserClassTest.cpp)	

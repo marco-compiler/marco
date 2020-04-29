@@ -272,6 +272,28 @@ TEST(LexerStateMachineTest, unexpectedSymbolShouldFail)
 	EXPECT_EQ(lexer.scan(), modelica::Token::End);
 }
 
+TEST(LexerStateMachineTest, floatSubstractionShouldParse)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("4.0 - 5.0");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::FloatingPoint);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Minus);
+	EXPECT_EQ(lexer.scan(), modelica::Token::FloatingPoint);
+}
+
+TEST(LexerStateMachineTest, minusShouldParse)
+{
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+
+	std::string toParse("-");
+	Lex lexer(toParse);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::Minus);
+}
+
 TEST(LexerStateMachineTest, multicharTokenShouldParse)
 {
 	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;

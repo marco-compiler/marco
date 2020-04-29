@@ -10,6 +10,7 @@
 #include <variant>
 #include <vector>
 
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/frontend/ReferenceAccess.hpp"
 
 namespace modelica
@@ -66,11 +67,23 @@ namespace modelica
 			}
 			void setKind(OperationKind k) { kind = k; }
 
+			[[nodiscard]] size_t argumentsCount() const { return arguments.size(); }
+
 			[[nodiscard]] bool operator==(const Operation& other) const;
 			[[nodiscard]] bool operator!=(const Operation& other) const
 			{
 				return !(*this == other);
 			}
+
+			void dump(
+					llvm::raw_ostream& OS = llvm::outs(), size_t nestLevel = 0) const;
+
+			[[nodiscard]] auto begin() const { return arguments.begin(); }
+			[[nodiscard]] auto begin() { return arguments.begin(); }
+			[[nodiscard]] auto end() const { return arguments.end(); }
+			[[nodiscard]] auto end() { return arguments.end(); }
+			[[nodiscard]] const Container& getArguments() const { return arguments; }
+			[[nodiscard]] Container& getArguments() { return arguments; }
 
 			private:
 			Container arguments;
@@ -196,6 +209,9 @@ namespace modelica
 		{
 			return Expression(std::move(tp), o, std::move(args));
 		}
+
+		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t nestLevel = 0) const;
+		void setType(Type tp) { type = std::move(tp); }
 
 		private:
 		std::variant<Operation, Constant, ReferenceAccess, Call> content;

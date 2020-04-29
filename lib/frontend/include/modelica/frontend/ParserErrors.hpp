@@ -2,6 +2,7 @@
 
 #include <string>
 #include <system_error>
+#include <utility>
 
 #include "llvm/Support/Error.h"
 #include "modelica/frontend/LexerStateMachine.hpp"
@@ -180,13 +181,9 @@ namespace modelica
 	{
 		public:
 		static char ID;
-		IncompatibleType(SourcePosition pos): pos(pos) {}
+		IncompatibleType(std::string message): mess(std::move(message)) {}
 
-		void log(llvm::raw_ostream& OS) const override
-		{
-			OS << "[" << pos.toString() << "] "
-				 << "Expression has wrong type";
-		}
+		void log(llvm::raw_ostream& OS) const override { OS << mess; }
 
 		[[nodiscard]] std::error_code convertToErrorCode() const override
 		{
@@ -196,6 +193,6 @@ namespace modelica
 		}
 
 		private:
-		SourcePosition pos;
+		std::string mess;
 	};
 }	 // namespace modelica

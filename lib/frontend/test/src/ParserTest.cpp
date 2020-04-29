@@ -36,7 +36,111 @@ TEST(ParserTest, expressionTest)
 	if (!exp)
 		FAIL();
 
+	EXPECT_TRUE(exp->isA<Constant>());
+	EXPECT_TRUE(exp->getConstant().isA<float>());
+}
+
+TEST(ParserTest, sumTest)
+{
+	Parser parser("4.0 + 5.0");
+	auto exp = parser.arithmeticExpression();
+	if (!exp)
+		FAIL();
+
 	EXPECT_TRUE(exp->isOperation());
+	EXPECT_EQ(exp->getOperation().getKind(), OperationKind::add);
 	EXPECT_TRUE(exp->getOperation()[0].isA<Constant>());
 	EXPECT_TRUE(exp->getOperation()[0].getConstant().isA<float>());
+
+	EXPECT_TRUE(exp->getOperation()[1].isA<Constant>());
+	EXPECT_TRUE(exp->getOperation()[1].getConstant().isA<float>());
+}
+
+TEST(ParserTest, subTest)
+{
+	Parser parser("4.0 - 5.0");
+	auto exp = parser.expression();
+	if (!exp)
+		FAIL();
+
+	EXPECT_TRUE(exp->isOperation());
+	EXPECT_EQ(exp->getOperation().getKind(), OperationKind::add);
+	EXPECT_TRUE(exp->getOperation()[0].isA<Constant>());
+	EXPECT_TRUE(exp->getOperation()[0].getConstant().isA<float>());
+
+	EXPECT_EQ(exp->getOperation().argumentsCount(), 2);
+	EXPECT_TRUE(exp->getOperation()[1].isOperation());
+	EXPECT_EQ(
+			exp->getOperation()[1].getOperation().getKind(), OperationKind::negate);
+}
+
+TEST(ParserTest, andTest)
+{
+	Parser parser("true and false");
+	auto exp = parser.expression();
+	if (!exp)
+		FAIL();
+
+	EXPECT_TRUE(exp->isOperation());
+	EXPECT_EQ(exp->getOperation().getKind(), OperationKind::land);
+	EXPECT_TRUE(exp->getOperation()[0].isA<Constant>());
+	EXPECT_TRUE(exp->getOperation()[0].getConstant().isA<bool>());
+
+	EXPECT_TRUE(exp->getOperation()[1].isA<Constant>());
+	EXPECT_TRUE(exp->getOperation()[1].getConstant().isA<bool>());
+}
+
+TEST(ParserTest, orTest)
+{
+	Parser parser("true or false");
+	auto exp = parser.expression();
+	if (!exp)
+		FAIL();
+
+	EXPECT_TRUE(exp->isOperation());
+	EXPECT_EQ(exp->getOperation().getKind(), OperationKind::lor);
+	EXPECT_TRUE(exp->getOperation()[0].isA<Constant>());
+	EXPECT_TRUE(exp->getOperation()[0].getConstant().isA<bool>());
+
+	EXPECT_TRUE(exp->getOperation()[1].isA<Constant>());
+	EXPECT_TRUE(exp->getOperation()[1].getConstant().isA<bool>());
+}
+
+TEST(ParserTest, division)
+{
+	Parser parser("4.0 / 5.0");
+	auto exp = parser.expression();
+	if (!exp)
+		FAIL();
+
+	EXPECT_TRUE(exp->isOperation());
+	EXPECT_EQ(exp->getOperation().getKind(), OperationKind::multiply);
+	EXPECT_TRUE(exp->getOperation()[0].isA<Constant>());
+	EXPECT_TRUE(exp->getOperation()[0].getConstant().isA<float>());
+
+	EXPECT_EQ(exp->getOperation().argumentsCount(), 2);
+	EXPECT_TRUE(exp->getOperation()[1].isOperation());
+	EXPECT_EQ(
+			exp->getOperation()[1].getOperation().getKind(), OperationKind::divide);
+}
+
+TEST(ParserTest, equation)
+{
+	Parser parser("4.0 / 5.0 = b * a");
+	auto exp = parser.equation();
+	if (!exp)
+		FAIL();
+
+	EXPECT_TRUE(exp->getLeftHand().isOperation());
+	EXPECT_TRUE(exp->getRightHand().isOperation());
+}
+
+TEST(ParserTest, classTest)
+{
+	Parser parser("model example end example;");
+	auto exp = parser.classDefinition();
+	if (!exp)
+		FAIL();
+
+	EXPECT_EQ(exp->getName(), "example");
 }

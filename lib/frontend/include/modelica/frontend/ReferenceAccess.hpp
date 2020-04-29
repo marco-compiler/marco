@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+
+#include "llvm/Support/raw_ostream.h"
 namespace modelica
 {
 	class ReferenceAccess
@@ -23,6 +25,12 @@ namespace modelica
 		[[nodiscard]] bool operator!=(const ReferenceAccess& other) const
 		{
 			return !(*this == other);
+		}
+		void dump(
+				llvm::raw_ostream& OS = llvm::outs(), size_t indentLevel = 0) const
+		{
+			OS.indent(indentLevel);
+			OS << "reference access " << (globalLookup ? "." : "") << referencedName;
 		}
 
 		private:

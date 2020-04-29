@@ -3,10 +3,14 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
+#include "modelica/frontend/Class.hpp"
+#include "modelica/frontend/Equation.hpp"
 #include "modelica/frontend/Expression.hpp"
 #include "modelica/frontend/LexerStateMachine.hpp"
+#include "modelica/frontend/Member.hpp"
 #include "modelica/frontend/ParserErrors.hpp"
 #include "modelica/frontend/ReferenceAccess.hpp"
+#include "modelica/frontend/Type.hpp"
 #include "modelica/utils/Lexer.hpp"
 
 namespace modelica
@@ -40,15 +44,25 @@ namespace modelica
 
 		[[nodiscard]] Token getCurrentToken() const { return current; }
 
+		llvm::Expected<Class> classDefinition();
 		llvm::Expected<Expression> primary();
 		llvm::Expected<Expression> factor();
 		llvm::Expected<Expression> term();
+		llvm::Expected<Type> typeSpecifier();
 		llvm::Expected<Expression> arithmeticExpression();
+
+		llvm::Expected<llvm::SmallVector<size_t, 3>> arrayDimensions();
+		llvm::Expected<llvm::SmallVector<Member, 3>> elementList();
+
+		llvm::Expected<Member> element();
 		std::optional<OperationKind> relationalOperator();
 
 		llvm::Expected<Expression> logicalTerm();
 		llvm::Expected<Expression> logicalExpression();
 
+		llvm::Expected<Equation> equation();
+
+		llvm::Expected<llvm::SmallVector<Equation, 3>> equationSection();
 		llvm::Expected<Expression> expression();
 		llvm::Expected<Expression> logicalFactor();
 		llvm::Expected<Expression> relation();

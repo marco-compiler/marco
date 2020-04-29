@@ -4,9 +4,13 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
+#include "modelica/frontend/Class.hpp"
 #include "modelica/frontend/Constant.hpp"
+#include "modelica/frontend/Equation.hpp"
 #include "modelica/frontend/Expression.hpp"
 #include "modelica/frontend/LexerStateMachine.hpp"
+#include "modelica/frontend/Member.hpp"
+#include "modelica/frontend/ParserErrors.hpp"
 #include "modelica/frontend/ReferenceAccess.hpp"
 #include "modelica/frontend/Type.hpp"
 
@@ -23,6 +27,102 @@ Expected<bool> Parser::expect(Token t)
 }
 
 #include "modelica/utils/ParserUtils.hpp"
+
+Expected<Class> Parser::classDefinition()
+{
+	EXPECT(Token::ModelKeyword);
+	auto name = lexer.getLastIdentifier();
+	EXPECT(Token::Ident);
+
+	SmallVector<Equation, 3> equs;
+	SmallVector<Member, 3> members;
+
+	while (current != Token::EndKeyword)
+	{
+		if (current == Token::EquationKeyword)
+		{
+			TRY(eq, equationSection());
+			for (auto& e : *eq)
+				equs.emplace_back(move(e));
+		}
+		TRY(mem, elementList());
+		for (auto& m : *mem)
+			members.emplace_back(move(m));
+	}
+
+	EXPECT(Token::EndKeyword);
+	EXPECT(Token::Ident);
+	return Class(move(name), move(members), move(equs));
+}
+
+Expected<SmallVector<size_t, 3>> Parser::arrayDimensions()
+{
+	SmallVector<size_t, 3> toReturn;
+	EXPECT(Token::LPar);
+	do
+	{
+		toReturn.push_back(lexer.getLastInt());
+		EXPECT(Token::Integer);
+	} while (accept<Token::Comma>());
+
+	EXPECT(Token::RPar);
+	return toReturn;
+}
+
+static Expected<BuiltinType> nameToBuiltin(const std::string& name)
+{
+	if (name == "int")
+		return BuiltinType::Integer;
+	if (name == "string")
+		return BuiltinType::String;
+	if (name == "real")
+		return BuiltinType::Float;
+	if (name == "bool")
+		return BuiltinType::Boolean;
+
+	return make_error<NotImplemented>(
+			"only builtin types are supported not " + name);
+}
+
+Expected<Type> Parser::typeSpecifier()
+{
+	std::string name = lexer.getLastIdentifier();
+	EXPECT(Token::Ident);
+	TRY(builtint, nameToBuiltin(name));
+	if (current != Token::Ident)
+		return Type(*builtint);
+
+	TRY(sub, arrayDimensions());
+	return Type(*builtint, move(*sub));
+}
+
+Expected<Member> Parser::element()
+{
+	bool parameter = accept<Token::ParameterKeyword>();
+	TRY(tp, typeSpecifier());
+	auto name = lexer.getLastIdentifier();
+	EXPECT(Token::Ident);
+	if (accept<Token::Equal>())
+	{
+		TRY(init, expression());
+		return Member(move(name), move(*tp), move(*init), parameter);
+	}
+
+	return Member(move(name), move(*tp), parameter);
+}
+
+Expected<SmallVector<Member, 3>> Parser::elementList()
+{
+	SmallVector<Member, 3> members;
+
+	while (current != Token::EquationKeyword && current != Token::End)
+	{
+		TRY(memb, element());
+		EXPECT(Token::Semicolons);
+		members.emplace_back(move(*memb));
+	}
+	return members;
+}
 
 Expected<vector<Expression>> Parser::arraySubscript()
 {
@@ -52,6 +152,7 @@ Expected<Expression> Parser::componentReference()
 	if (current == Token::LSquare)
 	{
 		TRY(access, arraySubscript());
+		access->insert(access->begin(), move(exp));
 		exp = Expression::op<OperationKind::subscription>(
 				Type::unkown(), move(*access));
 	}
@@ -74,6 +175,52 @@ Expected<Expression> Parser::componentReference()
 	return exp;
 }
 
+Expected<Equation> Parser::equation()
+{
+	TRY(l, expression());
+	EXPECT(Token::Equal);
+	TRY(r, expression());
+	return Equation(move(*l), move(*r));
+}
+
+static bool sectionTerminator(Token current)
+{
+	if (current == Token::AlgorithmKeyword)
+		return true;
+
+	if (current == Token::EquationKeyword)
+		return true;
+
+	if (current == Token::PublicKeyword)
+		return true;
+
+	if (current == Token::EndKeyword)
+		return true;
+
+	if (current == Token::LPar)
+		return true;
+
+	if (current == Token::End)
+		return true;
+	return false;
+}
+
+Expected<SmallVector<Equation, 3>> Parser::equationSection()
+{
+	EXPECT(Token::EquationKeyword);
+
+	SmallVector<Equation, 3> equations;
+
+	while (!sectionTerminator(current))
+	{
+		TRY(eq, equation());
+		equations.emplace_back(move(*eq));
+		EXPECT(Token::Semicolons);
+	}
+
+	return equations;
+}
+
 optional<OperationKind> Parser::relationalOperator()
 {
 	if (accept<Token::GreaterEqual>())
@@ -84,7 +231,7 @@ optional<OperationKind> Parser::relationalOperator()
 		return OperationKind::lessEqual;
 	if (accept<Token::LessThan>())
 		return OperationKind::less;
-	if (accept<Token::Equal>())
+	if (accept<Token::OperatorEqual>())
 		return OperationKind::equal;
 	if (accept<Token::Different>())
 		return OperationKind::different;
@@ -100,14 +247,14 @@ Expected<Expression> Parser::expression()
 Expected<Expression> Parser::logicalExpression()
 {
 	vector<Expression> factors;
-	TRY(l, logicalFactor());
+	TRY(l, logicalTerm());
 	if (current != Token::OrKeyword)
 		return move(*l);
 
 	factors.push_back(move(*l));
 	while (accept<Token::OrKeyword>())
 	{
-		TRY(arg, logicalFactor());
+		TRY(arg, logicalTerm());
 		factors.emplace_back(move(*arg));
 	}
 	return Expression::op<OperationKind::lor>(Type::unkown(), move(factors));
@@ -166,8 +313,9 @@ Expected<Expression> Parser::arithmeticExpression()
 		return first;
 
 	vector<Expression> args;
+	args.push_back(move(first));
 
-	while (current == Token::Minus || current != Token::Plus)
+	while (current == Token::Minus || current == Token::Plus)
 	{
 		if (accept<Token::Plus>())
 		{
@@ -190,7 +338,7 @@ Expected<Expression> Parser::term()
 {
 	vector<Expression> argumets;
 	TRY(toReturn, factor());
-	if (current == Token::Multiply || current == Token::Division)
+	if (current != Token::Multiply && current != Token::Division)
 		return *toReturn;
 
 	argumets.emplace_back(move(*toReturn));

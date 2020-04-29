@@ -24,10 +24,10 @@ using namespace std;
 }
 
 Call::Call(const Call& other)
-		: function(make_unique<Expression>(*other.function))
+		: function(std::make_unique<Expression>(*other.function))
 {
 	for (const auto& exp : other.args)
-		args.emplace_back(make_unique<Expression>(*exp));
+		args.emplace_back(std::make_unique<Expression>(*exp));
 }
 
 Call& Call::operator=(const Call& other)
@@ -35,9 +35,22 @@ Call& Call::operator=(const Call& other)
 	if (this == &other)
 		return *this;
 
-	function = make_unique<Expression>(*other.function);
+	function = std::make_unique<Expression>(*other.function);
 	args.clear();
 	for (const auto& exp : other.args)
-		args.emplace_back(make_unique<Expression>(*exp));
+		args.emplace_back(std::make_unique<Expression>(*exp));
 	return *this;
+}
+
+void Call::dump(llvm::raw_ostream& OS, size_t indentLevel) const
+{
+	OS.indent(indentLevel);
+	OS << "call:\n";
+	function->dump(OS, indentLevel + 1);
+	OS << '\n';
+	for (const auto& exp : args)
+	{
+		exp->dump(OS, indentLevel + 1);
+		OS << '\n';
+	}
 }

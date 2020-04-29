@@ -77,6 +77,14 @@ namespace modelica
 
 		[[nodiscard]] static Type unkown() { return Type(BuiltinType::Unknown); }
 
+		[[nodiscard]] Type subscript(size_t times) const
+		{
+			return Type(
+					type,
+					llvm::SmallVector<size_t, 3>(
+							dimensions.begin() + times, dimensions.end()));
+		}
+
 		private:
 		llvm::SmallVector<size_t, 3> dimensions;
 		BuiltinType type;
