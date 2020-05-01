@@ -28,6 +28,21 @@ Error ConstantFolder::fold(Equation& eq, const SymbolTable& table)
 	return Error::success();
 }
 
+Error ConstantFolder::fold(ForEquation& eq, const SymbolTable& table)
+{
+	for (auto& ind : eq.getInductions())
+	{
+		if (auto error = fold(ind.getBegin(), table); error)
+			return error;
+		if (auto error = fold(ind.getEnd(), table); error)
+			return error;
+	}
+	if (auto error = fold(eq.getEquation(), table); error)
+		return error;
+
+	return Error::success();
+}
+
 Error ConstantFolder::fold(Call& call, const SymbolTable& table)
 {
 	for (auto index : irange(call.argumentsCount()))
@@ -53,6 +68,10 @@ Error ConstantFolder::fold(Class& cl, const SymbolTable& table)
 			return error;
 
 	for (auto& eq : cl.getEquations())
+		if (auto error = fold(eq, t); !error)
+			return error;
+
+	for (auto& eq : cl.getForEquations())
 		if (auto error = fold(eq, t); !error)
 			return error;
 

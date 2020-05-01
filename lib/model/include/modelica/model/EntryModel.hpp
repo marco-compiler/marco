@@ -25,7 +25,10 @@ namespace modelica
 			if (!getTemplates().empty())
 				OS << "templates\n";
 			for (const auto& temp : getTemplates())
+			{
 				temp->dump(true, OS);
+				OS << "\n";
+			}
 
 			OS << "update\n";
 			for (const auto& update : *this)

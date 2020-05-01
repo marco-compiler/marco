@@ -1,8 +1,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "modelica/Dumper/Dumper.hpp"
-#include "modelica/Parser.hpp"
+#include "modelica/frontend/Parser.hpp"
 
 using namespace modelica;
 using namespace llvm;
@@ -22,8 +21,8 @@ int main(int argc, char* argv[])
 	auto errorOrBuffer = MemoryBuffer::getFileOrSTDIN(InputFileName);
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	Parser parser(buffer->getBufferStart());
-	UniqueDecl ast = exitOnErr(parser.classDefinition());
-	ast = dump(move(ast), outs());
+	auto ast = exitOnErr(parser.classDefinition());
+	ast.dump();
 
 	return 0;
 }

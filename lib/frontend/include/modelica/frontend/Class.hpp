@@ -3,7 +3,9 @@
 #include <string>
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/frontend/Equation.hpp"
+#include "modelica/frontend/ForEquation.hpp"
 #include "modelica/frontend/Member.hpp"
 
 namespace modelica
@@ -14,10 +16,12 @@ namespace modelica
 		Class(
 				std::string name,
 				llvm::SmallVector<Member, 3> memb,
-				llvm::SmallVector<Equation, 3> equs)
+				llvm::SmallVector<Equation, 3> equs,
+				llvm::SmallVector<ForEquation, 3> forEqus = {})
 				: name(std::move(name)),
 					members(std::move(memb)),
-					equations(std::move(equs))
+					equations(std::move(equs)),
+					forEquations(std::move(forEqus))
 		{
 		}
 		[[nodiscard]] const std::string& getName() const { return name; }
@@ -26,6 +30,9 @@ namespace modelica
 		[[nodiscard]] auto& getMembers() { return members; }
 		[[nodiscard]] size_t membersCount() const { return members.size(); }
 		[[nodiscard]] const auto& getEquations() const { return equations; }
+		[[nodiscard]] const auto& getForEquations() const { return forEquations; }
+
+		[[nodiscard]] auto& getForEquations() { return forEquations; }
 
 		[[nodiscard]] auto& getEquations() { return equations; }
 		void addMember(Member newMember)
@@ -45,9 +52,33 @@ namespace modelica
 			members.erase(members.begin() + memberIndex);
 		}
 
+		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0)
+		{
+			OS.indent(indents);
+			OS << "class " << name << "\n";
+			for (auto& mem : members)
+			{
+				mem.dump(OS, indents + 1);
+				OS << "\n";
+			}
+
+			for (auto& eq : equations)
+			{
+				eq.dump(OS, indents + 1);
+				OS << "\n";
+			}
+
+			for (auto& eq : forEquations)
+			{
+				eq.dump(OS, indents + 1);
+				OS << "\n";
+			}
+		}
+
 		private:
 		std::string name;
 		llvm::SmallVector<Member, 3> members;
 		llvm::SmallVector<Equation, 3> equations;
+		llvm::SmallVector<ForEquation, 3> forEquations;
 	};
 }	 // namespace modelica

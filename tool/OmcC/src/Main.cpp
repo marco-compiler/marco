@@ -1,7 +1,10 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "modelica/Parser.hpp"
+#include "modelica/frontend/ConstantFolder.hpp"
+#include "modelica/frontend/Parser.hpp"
+#include "modelica/frontend/SymbolTable.hpp"
+#include "modelica/frontend/TypeChecker.hpp"
 #include "modelica/lowerer/Lowerer.hpp"
 #include "modelica/matching/Matching.hpp"
 #include "modelica/model/AssignModel.hpp"
@@ -78,10 +81,15 @@ int main(int argc, char* argv[])
 
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	Parser parser(buffer->getBufferStart());
-	UniqueDecl ast = exitOnErr(parser.classDefinition());
+	auto ast = exitOnErr(parser.classDefinition());
+	TypeChecker checker;
+	exitOnErr(checker.checkType(ast, SymbolTable()));
+
+	ConstantFolder folder;
+	exitOnErr(folder.fold(ast, SymbolTable()));
 	EntryModel model;
 	OmcToModelPass pass(model);
-	ast = topDownVisit(move(ast), pass);
+	exitOnErr(pass.lower(ast, SymbolTable()));
 
 	if (dumpModel)
 	{

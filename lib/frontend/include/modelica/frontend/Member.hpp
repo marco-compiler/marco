@@ -5,6 +5,8 @@
 #include <optional>
 #include <string>
 
+#include "modelica/frontend/Constant.hpp"
+
 namespace modelica
 {
 	class Member
@@ -14,19 +16,26 @@ namespace modelica
 				std::string name,
 				Type tp,
 				Expression initializer,
-				bool isParameter = false)
+				bool isParameter = false,
+				std::optional<Constant> startOverload = std::nullopt)
 				: name(std::move(name)),
 					type(std::move(tp)),
 					initializer(std::move(initializer)),
-					isParam(isParameter)
+					isParam(isParameter),
+					startOverload(std::move(startOverload))
 		{
 		}
 
-		Member(std::string name, Type tp, bool isParameter = false)
+		Member(
+				std::string name,
+				Type tp,
+				bool isParameter = false,
+				std::optional<Constant> startOverload = std::nullopt)
 				: name(std::move(name)),
 					type(std::move(tp)),
 					initializer(std::nullopt),
-					isParam(isParameter)
+					isParam(isParameter),
+					startOverload(std::move(startOverload))
 		{
 		}
 
@@ -51,6 +60,23 @@ namespace modelica
 			return *initializer;
 		}
 
+		[[nodiscard]] bool hasStartOverload() const
+		{
+			return startOverload.has_value();
+		}
+
+		[[nodiscard]] const Constant& getStartOverload() const
+		{
+			assert(hasStartOverload());
+			return startOverload.value();
+		}
+
+		[[nodiscard]] Constant& getStartOverload()
+		{
+			assert(hasStartOverload());
+			return startOverload.value();
+		}
+
 		[[nodiscard]] bool operator==(const Member& other) const
 		{
 			return name == other.name && type == other.type &&
@@ -63,11 +89,38 @@ namespace modelica
 		}
 		[[nodiscard]] bool isParameter() const { return isParam; }
 
+		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0)
+		{
+			OS.indent(indents);
+			OS << "member " << name << " type : ";
+			type.dump(OS);
+			OS << (isParam ? "param" : "");
+			OS << "\n";
+
+			if (hasInitializer())
+			{
+				OS.indent(indents);
+				OS << "initializer: \n";
+				initializer->dump(OS, indents + 1);
+				OS << "\n";
+			}
+
+			if (hasStartOverload())
+			{
+				OS.indent(indents);
+				OS << "start overload: ";
+				startOverload->dump(OS);
+				OS << "\n";
+			}
+		}
+
 		private:
 		std::string name;
 		Type type;
 		std::optional<Expression> initializer;
 		bool isParam;
+
+		std::optional<Constant> startOverload;
 	};
 
 }	 // namespace modelica

@@ -611,6 +611,34 @@ namespace modelica
 		}
 
 		/**
+		 * Creates a equal expression, the return type has the same
+		 * dimensions as left hand value but of bools
+		 */
+		[[nodiscard]] static ModExp equal(ModExp lhs, ModExp rhs)
+		{
+			auto type = lhs.getModType().as(BultinModTypes::BOOL);
+			return ModExp(
+					ModExpKind::equal,
+					std::move(type),
+					std::make_unique<ModExp>(std::move(lhs)),
+					std::make_unique<ModExp>(std::move(rhs)));
+		}
+
+		/**
+		 * Creates a different expression, the return type has the same
+		 * dimensions as left hand value but of bools
+		 */
+		[[nodiscard]] static ModExp different(ModExp lhs, ModExp rhs)
+		{
+			auto type = lhs.getModType().as(BultinModTypes::BOOL);
+			return ModExp(
+					ModExpKind::different,
+					std::move(type),
+					std::make_unique<ModExp>(std::move(lhs)),
+					std::make_unique<ModExp>(std::move(rhs)));
+		}
+
+		/**
 		 * \brief Short hand for ModExp::greaterEqual
 		 *
 		 * \warning Notice that using the short hand will move the content no

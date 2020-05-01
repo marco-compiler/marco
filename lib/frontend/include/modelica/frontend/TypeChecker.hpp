@@ -19,6 +19,7 @@ namespace modelica
 		llvm::Error checkType(Expression& exp, const SymbolTable& table);
 		llvm::Error checkType(Member& mem, const SymbolTable& table);
 		llvm::Error checkType(Equation& eq, const SymbolTable& table);
+		llvm::Error checkType(ForEquation& eq, const SymbolTable& table);
 		llvm::Error checkCall(Expression& call, const SymbolTable& table);
 		llvm::Error checkOperation(Expression& call, const SymbolTable& table);
 	};

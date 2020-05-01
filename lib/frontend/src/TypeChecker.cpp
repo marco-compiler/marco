@@ -7,6 +7,7 @@
 #include "modelica/frontend/Constant.hpp"
 #include "modelica/frontend/Equation.hpp"
 #include "modelica/frontend/Expression.hpp"
+#include "modelica/frontend/ForEquation.hpp"
 #include "modelica/frontend/Member.hpp"
 #include "modelica/frontend/ParserErrors.hpp"
 #include "modelica/frontend/ReferenceAccess.hpp"
@@ -21,16 +22,15 @@ Error TypeChecker::checkType(Class& cl, const SymbolTable& table)
 {
 	SymbolTable t(cl, &table);
 	for (auto& m : cl.getMembers())
-	{
 		if (auto error = checkType(m, t); error)
 			return error;
-	}
 
 	for (auto& eq : cl.getEquations())
-	{
 		if (auto error = checkType(eq, t); error)
 			return error;
-	}
+	for (auto& eq : cl.getForEquations())
+		if (auto error = checkType(eq, t); error)
+			return error;
 	return Error::success();
 }
 
@@ -41,10 +41,23 @@ Error TypeChecker::checkType(Member& mem, const SymbolTable& table)
 	if (auto error = checkType(mem.getInitializer(), table); error)
 		return error;
 
-	if (mem.getInitializer().getType() != mem.getType())
-		return make_error<IncompatibleType>(
-				"type of " + mem.getName() +
-				" initializer does not match the variable type");
+	return Error::success();
+}
+
+Error TypeChecker::checkType(ForEquation& eq, const SymbolTable& table)
+{
+	SymbolTable t(&table);
+	for (auto& ind : eq.getInductions())
+		t.addSymbol(ind);
+	if (auto error = checkType(eq.getEquation(), t); error)
+		return error;
+	for (auto& ind : eq.getInductions())
+	{
+		if (auto error = checkType(ind.getBegin(), table); error)
+			return error;
+		if (auto error = checkType(ind.getEnd(), table); error)
+			return error;
+	}
 
 	return Error::success();
 }
@@ -56,8 +69,6 @@ Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 	if (auto error = checkType(eq.getRightHand(), table); error)
 		return error;
 
-	if (eq.getLeftHand().getType() != eq.getRightHand().getType())
-		return make_error<IncompatibleType>("type missmatch in equation");
 	return Error::success();
 }
 
@@ -159,6 +170,23 @@ Error TypeChecker::checkOperation(Expression& exp, const SymbolTable& table)
 	return make_error<NotImplemented>("op was not any supported kind");
 }
 
+static Expected<Type> typeFromSymbol(
+		const ReferenceAccess& acc, const SymbolTable& table)
+{
+	const auto& name = acc.getName();
+	if (!table.hasSymbol(name))
+		return make_error<NotImplemented>("no known variable named " + name);
+
+	const auto& symbol = table[name];
+	if (symbol.isA<Member>())
+		return symbol.get<Member>().getType();
+
+	if (symbol.isA<Induction>())
+		return makeType<int>();
+
+	return make_error<NotImplemented>("no known variable named " + name);
+}
+
 Error TypeChecker::checkType(Expression& exp, const SymbolTable& table)
 {
 	if (exp.isA<Constant>())
@@ -167,15 +195,10 @@ Error TypeChecker::checkType(Expression& exp, const SymbolTable& table)
 		return checkCall(exp, table);
 	if (exp.isA<ReferenceAccess>())
 	{
-		const auto& name = exp.get<ReferenceAccess>().getName();
-		if (!table.hasSymbol(exp.get<ReferenceAccess>().getName()))
-			return make_error<NotImplemented>("no known variable named " + name);
-
-		const auto& symbol = table[name];
-		if (!symbol.isA<Member>())
-			return make_error<NotImplemented>("no known variable named " + name);
-
-		exp.setType(symbol.get<Member>().getType());
+		auto tp = typeFromSymbol(exp.get<ReferenceAccess>(), table);
+		if (!tp)
+			return tp.takeError();
+		exp.setType(move(*tp));
 		return Error::success();
 	}
 	if (exp.isOperation())

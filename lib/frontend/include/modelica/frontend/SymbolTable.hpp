@@ -5,6 +5,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "modelica/frontend/Class.hpp"
+#include "modelica/frontend/ForEquation.hpp"
 #include "modelica/frontend/Member.hpp"
 namespace modelica
 {
@@ -13,6 +14,7 @@ namespace modelica
 		public:
 		explicit Symbol(Class& clas): content(&clas) {}
 		explicit Symbol(Member& mem): content(&mem) {}
+		explicit Symbol(Induction& mem): content(&mem) {}
 
 		template<typename T>
 		[[nodiscard]] bool isA() const
@@ -26,7 +28,7 @@ namespace modelica
 		}
 
 		private:
-		std::variant<Class*, Member*> content;
+		std::variant<Class*, Member*, Induction*> content;
 	};
 
 	class SymbolTable

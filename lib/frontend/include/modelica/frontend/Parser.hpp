@@ -4,8 +4,10 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
 #include "modelica/frontend/Class.hpp"
+#include "modelica/frontend/Constant.hpp"
 #include "modelica/frontend/Equation.hpp"
 #include "modelica/frontend/Expression.hpp"
+#include "modelica/frontend/ForEquation.hpp"
 #include "modelica/frontend/LexerStateMachine.hpp"
 #include "modelica/frontend/Member.hpp"
 #include "modelica/frontend/ParserErrors.hpp"
@@ -47,8 +49,11 @@ namespace modelica
 		llvm::Expected<Class> classDefinition();
 		llvm::Expected<Expression> primary();
 		llvm::Expected<Expression> factor();
+		llvm::Expected<Constant> modification();
 		llvm::Expected<Expression> term();
 		llvm::Expected<Type> typeSpecifier();
+		llvm::Expected<llvm::SmallVector<ForEquation, 3>> forEquationBody(
+				Induction ind);
 		llvm::Expected<Expression> arithmeticExpression();
 
 		llvm::Expected<llvm::SmallVector<size_t, 3>> arrayDimensions();
@@ -61,8 +66,9 @@ namespace modelica
 		llvm::Expected<Expression> logicalExpression();
 
 		llvm::Expected<Equation> equation();
+		llvm::Expected<llvm::SmallVector<ForEquation, 3>> forEquation();
 
-		llvm::Expected<llvm::SmallVector<Equation, 3>> equationSection();
+		llvm::Expected<bool> equationSection(Class& cls);
 		llvm::Expected<Expression> expression();
 		llvm::Expected<Expression> logicalFactor();
 		llvm::Expected<Expression> relation();

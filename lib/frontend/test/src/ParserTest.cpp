@@ -4,6 +4,7 @@
 #include "modelica/frontend/Constant.hpp"
 #include "modelica/frontend/Expression.hpp"
 #include "modelica/frontend/Parser.hpp"
+#include "modelica/frontend/Type.hpp"
 
 using namespace modelica;
 
@@ -143,4 +144,17 @@ TEST(ParserTest, classTest)
 		FAIL();
 
 	EXPECT_EQ(exp->getName(), "example");
+}
+
+TEST(ParserTest, memberTest)
+{
+	Parser parser("Real[10, 10] Qb(unit = \"W\")");
+	auto exp = parser.element();
+	if (!exp)
+		FAIL();
+
+	EXPECT_FALSE(exp->hasInitializer());
+	EXPECT_FALSE(exp->hasStartOverload());
+	EXPECT_EQ(exp->getName(), "Qb");
+	EXPECT_EQ(exp->getType(), makeType<float>(10, 10));
 }

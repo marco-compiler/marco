@@ -4,6 +4,8 @@
 #include <string>
 #include <type_traits>
 
+#include "llvm/Support/raw_ostream.h"
+
 namespace modelica
 {
 	enum class BuiltinType
@@ -15,6 +17,26 @@ namespace modelica
 		Boolean,
 		Unknown
 	};
+
+	inline std::string builtinToString(BuiltinType type)
+	{
+		switch (type)
+		{
+			case BuiltinType::None:
+				return "None";
+			case BuiltinType::Integer:
+				return "Integer";
+			case BuiltinType::Float:
+				return "Float";
+			case BuiltinType::String:
+				return "String";
+			case BuiltinType::Boolean:
+				return "Boolean";
+			case BuiltinType::Unknown:
+				return "Unknown";
+		}
+		assert(false && "unrechable");
+	}
 
 	template<typename T>
 	[[nodiscard]] constexpr BuiltinType typeToBuiltin()
@@ -41,12 +63,14 @@ namespace modelica
 		explicit Type(BuiltinType type, llvm::SmallVector<size_t, 3> dim = { 1 })
 				: dimensions(std::move(dim)), type(type)
 		{
+			assert(!dimensions.empty());
 		}
 
 		template<typename T>
 		explicit Type(llvm::SmallVector<size_t, 3> dim = { 1 })
 				: dimensions(std::move(dim)), type(typeToBuiltin<T>())
 		{
+			assert(!dimensions.empty());
 		}
 
 		[[nodiscard]] size_t dimensionsCount() const { return dimensions.size(); }
@@ -79,10 +103,32 @@ namespace modelica
 
 		[[nodiscard]] Type subscript(size_t times) const
 		{
+			assert(!isScalar());
+			if (dimensions.size() == times)
+				return Type(type);
+
+			assert(times > dimensions.size());
 			return Type(
 					type,
 					llvm::SmallVector<size_t, 3>(
 							dimensions.begin() + times, dimensions.end()));
+		}
+		[[nodiscard]] auto& getDimensions() { return dimensions; }
+		[[nodiscard]] const auto& getDimensions() const { return dimensions; }
+		[[nodiscard]] bool isScalar() const
+		{
+			return dimensions.size() == 1 && dimensions[0] == 1;
+		}
+
+		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0)
+		{
+			OS << builtinToString(type);
+			if (!isScalar())
+				for (size_t dim : dimensions)
+				{
+					OS << dim;
+					OS << " ";
+				}
 		}
 
 		private:
@@ -93,6 +139,8 @@ namespace modelica
 	template<typename T, typename... Args>
 	[[nodiscard]] Type makeType(Args... args)
 	{
-		return Type(typeToBuiltin<T>(), args...);
+		if constexpr (sizeof...(Args) == 0)
+			return Type(typeToBuiltin<T>());
+		return Type(typeToBuiltin<T>(), { static_cast<size_t>(args)... });
 	}
 }	 // namespace modelica

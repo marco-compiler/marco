@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 
-#include "modelica/Parser.hpp"
+#include "modelica/frontend/Parser.hpp"
+#include "modelica/frontend/SymbolTable.hpp"
 #include "modelica/omcToModel/OmcToModelPass.hpp"
 
 using namespace llvm;
@@ -9,17 +10,19 @@ using namespace modelica;
 
 TEST(OmcToModelTest, singleDeclaration)	 // NOLINT
 {
-	Parser parser("class C final parameter Integer N = 10; end C;");
+	Parser parser("model C final parameter Integer N = 10; end C;");
 
 	auto expectedAST = parser.classDefinition();
 	if (!expectedAST)
 		FAIL();
 
-	UniqueDecl ast = move(*expectedAST);
+	auto ast = move(*expectedAST);
 
 	EntryModel model;
 	OmcToModelPass pass(model);
-	ast = topDownVisit(move(ast), pass);
+	auto error = pass.lower(ast, SymbolTable());
+	if (error)
+		FAIL();
 
 	const auto& initialization = model.getVar("N").getInit();
 	EXPECT_TRUE(initialization.isConstant());
@@ -30,17 +33,19 @@ TEST(OmcToModelTest, singleDeclaration)	 // NOLINT
 TEST(OmcToModelTest, uninitializedDeclaration)	// NOLINT
 {
 	Parser parser(
-			"class C final parameter Real[10, 10] Qb(unit = \"W\"); end C;");
+			"model C final parameter Real[10, 10] Qb(unit = \"W\"); end C;");
 
 	auto expectedAST = parser.classDefinition();
 	if (!expectedAST)
 		FAIL();
 
-	UniqueDecl ast = move(*expectedAST);
+	auto ast = move(*expectedAST);
 
 	EntryModel model;
 	OmcToModelPass pass(model);
-	ast = topDownVisit(move(ast), pass);
+	auto error = pass.lower(ast, SymbolTable());
+	if (error)
+		FAIL();
 
 	const auto& var = model.getVar("Qb");
 	const auto& initialization = var.getInit();
@@ -51,17 +56,19 @@ TEST(OmcToModelTest, uninitializedDeclaration)	// NOLINT
 
 TEST(OmcToModelTest, startDeclaration)	// NOLINT
 {
-	Parser parser("class C Real[10, 10, 4] T(start = 313.15); end C;");
+	Parser parser("model C Real[10, 10, 4] T(start = 313.15); end C;");
 
 	auto expectedAST = parser.classDefinition();
 	if (!expectedAST)
 		FAIL();
 
-	UniqueDecl ast = move(*expectedAST);
+	auto ast = move(*expectedAST);
 
 	EntryModel model;
 	OmcToModelPass pass(model);
-	ast = topDownVisit(move(ast), pass);
+	auto error = pass.lower(ast, SymbolTable());
+	if (error)
+		FAIL();
 
 	const auto& var = model.getVar("T");
 	const auto& initialization = var.getInit();

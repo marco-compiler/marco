@@ -1,7 +1,15 @@
 #pragma once
 
-#include "modelica/AST/Visitor.hpp"
+#include "llvm/Support/Error.h"
+#include "modelica/frontend/Class.hpp"
+#include "modelica/frontend/Equation.hpp"
+#include "modelica/frontend/Expression.hpp"
+#include "modelica/frontend/ForEquation.hpp"
+#include "modelica/frontend/SymbolTable.hpp"
 #include "modelica/model/EntryModel.hpp"
+#include "modelica/model/ModCall.hpp"
+#include "modelica/model/ModExp.hpp"
+#include "modelica/model/ModType.hpp"
 
 namespace modelica
 {
@@ -10,32 +18,32 @@ namespace modelica
 		public:
 		OmcToModelPass(EntryModel& toPopulate): model(toPopulate) {}
 
-		std::unique_ptr<ComponentClause> visit(
-				std::unique_ptr<ComponentClause> decl);
+		[[nodiscard]] llvm::Error lower(Class& cl, const SymbolTable& table);
+		[[nodiscard]] llvm::Expected<ModEquation> lower(
+				Equation& eq, const SymbolTable& table);
+		[[nodiscard]] llvm::Expected<ModEquation> lower(
+				ForEquation& eq, const SymbolTable& table);
+		[[nodiscard]] llvm::Expected<ModExp> lower(
+				Expression& exp, const SymbolTable& table);
+		[[nodiscard]] llvm::Expected<ModCall> lowerCall(
+				Expression& call, const SymbolTable& table);
 
-		std::unique_ptr<ForEquation> visit(std::unique_ptr<ForEquation> decl);
-		std::unique_ptr<SimpleEquation> visit(std::unique_ptr<SimpleEquation> decl);
+		[[nodiscard]] llvm::Expected<ModExp> lowerOperation(
+				Expression& op, const SymbolTable& table);
+		[[nodiscard]] llvm::Error lower(Member& member, const SymbolTable& table);
+		[[nodiscard]] llvm::Expected<ModType> lower(
+				const Type& tp, const SymbolTable& table);
 
-		template<typename T>
-		std::unique_ptr<T> visit(std::unique_ptr<T> decl)
-		{
-			return decl;
-		}
+		[[nodiscard]] llvm::Expected<ModExp> lowerReference(
+				Expression& ref, const SymbolTable& table);
 
-		void afterChildrenVisit(Equation* eq)
-		{
-			if (llvm::isa<ForEquation>(eq))
-				forEqNestingLevel--;
-		}
+		[[nodiscard]] llvm::Expected<ModExp> initializer(
+				Member& member, const SymbolTable& table);
 
-		template<typename T>
-		void afterChildrenVisit(T*)
-		{
-		}
+		[[nodiscard]] llvm::Expected<ModExp> lowerStart(
+				Member& member, const SymbolTable& table);
 
 		private:
-		bool handleSimpleMod(llvm::StringRef name, const SimpleModification& mod);
 		EntryModel& model;
-		size_t forEqNestingLevel{ 0 };
 	};
 }	 // namespace modelica
