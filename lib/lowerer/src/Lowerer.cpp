@@ -3,31 +3,41 @@
 #include "ExpLowerer.hpp"
 #include "LowererUtils.hpp"
 #include "llvm/Bitcode/BitcodeWriter.h"
+#include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Verifier.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModVariable.hpp"
+#include "modelica/passes/PassManager.hpp"
 #include "modelica/utils/Interval.hpp"
 
 using namespace std;
 using namespace modelica;
 using namespace llvm;
 constexpr auto internalLinkage = GlobalValue::LinkageTypes::InternalLinkage;
-static FunctionType* getVoidType(LLVMContext& context)
+
+template<typename... T>
+static FunctionType* getVoidType(LLVMContext& context, T... argTypes)
 {
-	return FunctionType::get(Type::getVoidTy(context), false);
+	return FunctionType::get(Type::getVoidTy(context), { argTypes... }, false);
 }
-static Expected<Function*> makePrivateFunction(StringRef name, Module& module)
+template<typename... T>
+Expected<Function*> makePrivateFunction(
+		const std::string& name, Module& module, T... argsTypes)
 {
 	if (module.getFunction(name) != nullptr)
 		return make_error<FunctionAlreadyExists>(name);
 
-	auto function =
-			module.getOrInsertFunction(name, getVoidType(module.getContext()));
+	auto v = getVoidType(module.getContext(), argsTypes...);
+	auto function = module.getOrInsertFunction(name, v);
 	auto f = dyn_cast<llvm::Function>(function.getCallee());
 	BasicBlock::Create(module.getContext(), "entry", f);
 	f->setLinkage(internalLinkage);
@@ -121,6 +131,8 @@ Error Lowerer::createAllGlobals(GlobalValue::LinkageTypes linkType)
 	return Error::success();
 }
 
+void Lowerer::verify() { llvm::verifyModule(module, &llvm::outs()); }
+
 static Expected<Function*> initializeGlobals(
 		Module& m, const StringMap<ModVariable>& vars)
 {
@@ -160,6 +172,10 @@ static Error createAssigmentBody(
 	if (!val)
 		return val.takeError();
 
+	val = castReturnValue(info, *val, assigment.getLeftHand().getModType());
+	if (!val)
+		return val.takeError();
+
 	auto loaded = info.getBuilder().CreateLoad(*val);
 	info.getBuilder().CreateStore(loaded, *left);
 	return Error::success();
@@ -169,21 +185,28 @@ static Expected<Function*> createFunctionAssigment(
 		LowererContext& ctx, const Assigment& assigment)
 {
 	IRBuilder<>& bld = ctx.getBuilder();
+	auto oldFunction = ctx.getFunction();
 	auto oldBlock = ctx.getBuilder().GetInsertBlock();
+	auto oldInduction = ctx.getInductionVars();
 
-	auto maybeFunction =
-			makePrivateFunction(assigment.getTemplateName(), ctx.getModule());
+	auto maybeFunction = makePrivateFunction(
+			assigment.getTemplateName(), ctx.getModule(), oldInduction->getType());
 
 	if (!maybeFunction)
 		return maybeFunction.takeError();
 
 	Function* fun = maybeFunction.get();
 	bld.SetInsertPoint(&fun->getEntryBlock());
+	ctx.setFunction(fun);
+	ctx.setInductions(fun->arg_begin());
 	auto error = createAssigmentBody(ctx, assigment);
 	if (error)
 		return move(error);
 
+	bld.CreateRet(nullptr);
 	bld.SetInsertPoint(oldBlock);
+	ctx.setFunction(oldFunction);
+	ctx.setInductions(oldInduction);
 
 	return fun;
 }
@@ -205,7 +228,7 @@ static Error createNormalAssigment(
 		templFun = *maybFun;
 	}
 
-	info.getBuilder().CreateCall(templFun);
+	info.getBuilder().CreateCall(templFun, { info.getInductionVars() });
 	return Error::success();
 }
 
@@ -247,8 +270,8 @@ static Expected<Function*> createUpdate(
 
 	auto fun = expFun.get();
 	bld.SetInsertPoint(&fun->getEntryBlock());
-
 	cont.setFunction(fun);
+
 	auto err = createAssigment(cont, assigment);
 	if (err)
 		return move(err);
@@ -268,6 +291,7 @@ static Expected<Function*> createUpdates(
 	auto updateFunction = updateFunctionExpected.get();
 	IRBuilder bld(&updateFunction->getEntryBlock());
 	LowererContext cont(bld, m);
+	cont.setFunction(updateFunction);
 
 	size_t counter = 0;
 	for (const auto& assigment : upds)
@@ -276,6 +300,7 @@ static Expected<Function*> createUpdates(
 		if (!fun)
 			return fun.takeError();
 		bld.SetInsertPoint(&updateFunction->getEntryBlock());
+		cont.setFunction(updateFunction);
 		bld.CreateCall(*fun);
 	}
 	for (const auto& pair : definitions)

@@ -43,6 +43,9 @@ namespace modelica
 		[[nodiscard]] llvm::Expected<ModExp> lowerStart(
 				Member& member, const SymbolTable& table);
 
+		[[nodiscard]] llvm::Expected<ModExp> defaultInitializer(
+				const Member& mem, const SymbolTable& table);
+
 		private:
 		EntryModel& model;
 	};

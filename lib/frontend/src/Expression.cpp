@@ -33,6 +33,9 @@ bool Expression::Operation::operator==(const Operation& other) const
 
 void Expression::dump(llvm::raw_ostream& OS, size_t nestNevel) const
 {
+	OS.indent(nestNevel);
+	OS << "type: ";
+	getType().dump(OS);
 	if (isA<Operation>())
 	{
 		get<Operation>().dump(OS, nestNevel);

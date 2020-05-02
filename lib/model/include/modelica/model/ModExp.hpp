@@ -870,6 +870,13 @@ namespace modelica
 			return *this;
 		}
 
+		void setType(ModType tp)
+		{
+			if (isConstant())
+				content = getConstant().as(tp.getBuiltin());
+			returnModType = tp;
+		}
+
 		[[nodiscard]] const ModExp& getChild(size_t index) const
 		{
 			assert(index <= childCount());

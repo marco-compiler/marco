@@ -218,16 +218,6 @@ namespace modelica
 		Type type;
 	};
 
-	template<typename... Args>
-	[[nodiscard]] Expression makeCall(Expression fun, Args... arguments)
-	{
-		return Expression(
-				Type::unkown(),
-				Call(
-						std::make_unique<Expression>(std::move(fun)),
-						{ std::make_unique<Expression>(std::move(arguments))... }));
-	}
-
 	[[nodiscard]] Expression makeCall(
 			Expression fun, llvm::SmallVector<Expression, 3> exps);
 

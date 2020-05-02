@@ -14,6 +14,8 @@ namespace modelica
 		explicit Call(UniqueExpr fun, llvm::SmallVector<UniqueExpr, 3> args = {})
 				: function(std::move(fun)), args(std::move(args))
 		{
+			assert(function != nullptr);
+			assert(find(args, nullptr) == args.end());
 		}
 
 		Call(const Call& other);

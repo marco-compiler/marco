@@ -105,7 +105,7 @@ Expected<Member> Parser::element()
 {
 	accept<Token::FinalKeyword>();
 	bool parameter = accept<Token::ParameterKeyword>();
-	accept<Token::ConstantKeyword>();
+	parameter |= accept<Token::ConstantKeyword>();
 	TRY(tp, typeSpecifier());
 	auto name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
@@ -133,7 +133,7 @@ Expected<SmallVector<Member, 3>> Parser::elementList()
 {
 	SmallVector<Member, 3> members;
 
-	while (current != Token::EquationKeyword && current != Token::End)
+	while (current != Token::EquationKeyword && current != Token::EndKeyword)
 	{
 		TRY(memb, element());
 		EXPECT(Token::Semicolons);
@@ -151,6 +151,8 @@ Expected<vector<Expression>> Parser::arraySubscript()
 	do
 	{
 		TRY(exp, expression());
+		*exp = Expression::op<OperationKind::add>(
+				makeType<int>(), move(*exp), Expression(makeType<int>(), -1));
 		expressions.emplace_back(move(*exp));
 	} while (accept<Token::Comma>());
 
@@ -425,7 +427,7 @@ Expected<Expression> Parser::arithmeticExpression()
 		accept<Token::Plus>();
 
 	TRY(left, term());
-	Expression first = negative ? Expression::op<OperationKind::negate>(
+	Expression first = negative ? Expression::op<OperationKind::subtract>(
 																		Type::unkown(), move(*left))
 															: move(*left);
 	if (current != Token::Minus && current != Token::Plus)
@@ -446,7 +448,7 @@ Expected<Expression> Parser::arithmeticExpression()
 		EXPECT(Token::Minus);
 		TRY(arg, term());
 		auto exp =
-				Expression::op<OperationKind::negate>(Type::unkown(), move(*arg));
+				Expression::op<OperationKind::subtract>(Type::unkown(), move(*arg));
 		args.emplace_back(move(exp));
 	}
 
@@ -472,8 +474,10 @@ Expected<Expression> Parser::term()
 		}
 		EXPECT(Token::Division);
 		TRY(arg, factor());
-		auto exp = Expression::op<OperationKind::divide>(
-				Type::unkown(), Expression(makeType<int>(), 1), move(*arg));
+
+		auto one = Expression(makeType<float>(), 1.0);
+		auto exp =
+				Expression::op<OperationKind::divide>(Type::unkown(), one, move(*arg));
 		argumets.emplace_back(move(exp));
 	}
 

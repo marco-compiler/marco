@@ -1,7 +1,7 @@
 package AdvectionReaction
   parameter Real mu = 1000;
   constant Real alpha = 0.5;
-  Real u_in = 1;
+  parameter Real u_in = 1;
   Real[10] u(start = 0.0);
 equation
   der(u[1]) = ((-u[1]) + 1)*10 - mu*u[1]*(u[1] - alpha)*(u[1] - 1);

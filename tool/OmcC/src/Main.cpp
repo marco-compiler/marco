@@ -37,9 +37,18 @@ opt<float> timeStep(
 opt<bool> dumpModel(
 		"d", cl::desc("dump model"), cl::init(false), cl::cat(omcCCat));
 
+opt<bool> dumpFolded(
+		"df", cl::desc("dump constant folded"), cl::init(false), cl::cat(omcCCat));
+
 opt<bool> dumpSolvedModel(
 		"ds",
 		cl::desc("dump solved derivatives model"),
+		cl::init(false),
+		cl::cat(omcCCat));
+
+opt<bool> dumpTypeChecked(
+		"dc",
+		cl::desc("dump type checked model"),
 		cl::init(false),
 		cl::cat(omcCCat));
 
@@ -85,8 +94,20 @@ int main(int argc, char* argv[])
 	TypeChecker checker;
 	exitOnErr(checker.checkType(ast, SymbolTable()));
 
+	if (dumpTypeChecked)
+	{
+		ast.dump(OS);
+		return 0;
+	}
+
 	ConstantFolder folder;
 	exitOnErr(folder.fold(ast, SymbolTable()));
+
+	if (dumpFolded)
+	{
+		ast.dump(OS);
+		return 0;
+	}
 	EntryModel model;
 	OmcToModelPass pass(model);
 	exitOnErr(pass.lower(ast, SymbolTable()));
@@ -121,6 +142,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 	exitOnErr(sim.lower());
+	sim.verify();
 	sim.dumpBC(OS);
 
 	return 0;

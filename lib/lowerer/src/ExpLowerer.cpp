@@ -36,7 +36,7 @@ Expected<Value*> lowerMemberWiseOp(LowererContext& info, const ModExp& exp)
 	if (!right)
 		return right;
 
-	auto exitVal = info.allocaModType(exp.getModType());
+	auto exitVal = info.allocaModType(exp.getOperationReturnType());
 	info.createForArrayElement(
 			exp.getLeftHand().getModType(), [&](Value* iterationIndexes) {
 				auto leftEl = info.loadArrayElement(*left, iterationIndexes);
@@ -213,7 +213,7 @@ static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
 	return builder.CreateTrunc(val, boolType);
 }
 
-static Expected<Value*> castReturnValue(
+Expected<Value*> modelica::castReturnValue(
 		LowererContext& info, Value* val, const ModType& type)
 {
 	auto ptrArrayType = dyn_cast<PointerType>(val->getType());

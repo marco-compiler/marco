@@ -39,6 +39,7 @@ namespace modelica
 		}
 
 		[[nodiscard]] llvm::Expected<ModExp> expression();
+
 		[[nodiscard]] llvm::Expected<ModConst> boolVector();
 		[[nodiscard]] llvm::Expected<ModConst> intVector();
 		[[nodiscard]] llvm::Expected<ModConst> floatVector();

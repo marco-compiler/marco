@@ -13,6 +13,7 @@
 #include "modelica/frontend/ReferenceAccess.hpp"
 #include "modelica/frontend/SymbolTable.hpp"
 #include "modelica/frontend/Type.hpp"
+#include "modelica/utils/IRange.hpp"
 
 using namespace modelica;
 using namespace llvm;
@@ -75,7 +76,15 @@ Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 Error TypeChecker::checkCall(Expression& callExp, const SymbolTable& table)
 {
 	assert(callExp.isA<Call>());
+
 	auto& call = callExp.get<Call>();
+	for (size_t t : irange(call.argumentsCount()))
+		if (auto error = checkType(call[t], table); error)
+			return error;
+
+	if (auto error = checkType(call.getFunction(), table); error)
+		return error;
+
 	if (!call.getFunction().isA<ReferenceAccess>())
 		return make_error<NotImplemented>("only der function is implemented");
 
@@ -171,9 +180,13 @@ Error TypeChecker::checkOperation(Expression& exp, const SymbolTable& table)
 }
 
 static Expected<Type> typeFromSymbol(
-		const ReferenceAccess& acc, const SymbolTable& table)
+		const Expression& exp, const SymbolTable& table)
 {
+	assert(exp.isA<ReferenceAccess>());
+	ReferenceAccess acc = exp.get<ReferenceAccess>();
 	const auto& name = acc.getName();
+	if (name == "der")
+		return Type::unkown();
 	if (!table.hasSymbol(name))
 		return make_error<NotImplemented>("no known variable named " + name);
 
@@ -195,7 +208,7 @@ Error TypeChecker::checkType(Expression& exp, const SymbolTable& table)
 		return checkCall(exp, table);
 	if (exp.isA<ReferenceAccess>())
 	{
-		auto tp = typeFromSymbol(exp.get<ReferenceAccess>(), table);
+		auto tp = typeFromSymbol(exp, table);
 		if (!tp)
 			return tp.takeError();
 		exp.setType(move(*tp));

@@ -3,6 +3,7 @@
 #include <numeric>
 
 #include "llvm/Support/Error.h"
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/frontend/Call.hpp"
 #include "modelica/frontend/Constant.hpp"
 #include "modelica/frontend/Expression.hpp"
@@ -94,21 +95,27 @@ static Expected<ModConst> lowerConstant(const Constant& constant)
 	return ModConst(0);
 }
 
-static Expected<ModExp> defaultInitializer(const Member& mem)
+Expected<ModExp> OmcToModelPass::defaultInitializer(
+		const Member& mem, const SymbolTable& table)
 {
 	const auto& type = mem.getType();
 
-	if (type.getBuiltIn() == BuiltinType::Boolean)
-		return ModExp(ModConst(false));
+	if (type.isScalar())
+	{
+		if (type.getBuiltIn() == BuiltinType::Boolean)
+			return ModExp(ModConst(false));
 
-	if (type.getBuiltIn() == BuiltinType::Integer)
-		return ModExp(ModConst(0));
+		if (type.getBuiltIn() == BuiltinType::Integer)
+			return ModExp(ModConst(0));
 
-	if (type.getBuiltIn() == BuiltinType::Float)
-		return ModExp(ModConst(0.0F));
+		if (type.getBuiltIn() == BuiltinType::Float)
+			return ModExp(ModConst(0.0F));
+	}
 
-	return make_error<NotImplemented>(
-			"could not deduce dafault initializer for type");
+	auto tp = lower(type, table);
+	if (!tp)
+		return tp.takeError();
+	return ModExp(ModCall("fill", { ModExp(ModConst(0)) }, *tp));
 }
 
 Expected<ModCall> OmcToModelPass::lowerCall(
@@ -150,8 +157,7 @@ Expected<ModEquation> OmcToModelPass::lower(
 	return ModEquation(
 			move(*left),
 			move(*right),
-			"eq_" + to_string(model.getEquations().size()),
-			MultiDimInterval({ 0, 1 }));
+			"eq_" + to_string(model.getEquations().size()));
 }
 
 Expected<ModEquation> OmcToModelPass::lower(
@@ -176,8 +182,8 @@ Expected<ModEquation> OmcToModelPass::lower(
 			return make_error<NotImplemented>("induction var must be constant int");
 
 		interval.emplace_back(
-				ind.getBegin().get<Constant>().get<int>() - 1,
-				ind.getEnd().get<Constant>().get<int>() - 1);
+				ind.getBegin().get<Constant>().get<int>(),
+				ind.getEnd().get<Constant>().get<int>() + 1);
 	}
 
 	modEq->setInductionVars(MultiDimInterval(move(interval)));
@@ -189,10 +195,10 @@ static Expected<ModExp> lowerConstant(Expression& c, const SymbolTable table)
 	assert(c.isA<Constant>());
 
 	if (c.getConstant().isA<int>())
-		return ModExp(ModConst(c.getConstant().get<int>()));
+		return ModExp(ModConst(c.getConstant().as<int>()));
 
 	if (c.getConstant().isA<float>())
-		return ModExp(ModConst(c.getConstant().get<float>()));
+		return ModExp(ModConst(c.getConstant().as<float>()));
 
 	return make_error<NotImplemented>("unlowerable constant");
 }
@@ -221,28 +227,45 @@ Expected<ModExp> OmcToModelPass::lowerReference(
 static Expected<ModExp> lowerNegate(
 		ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	for (auto& arg : arguments)
+		arg.setType(tp);
 	return ModExp::negate(move(arguments[0]));
 }
 static Expected<ModExp> lowerAdd(ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	for (auto& arg : arguments)
+		arg.setType(tp);
 	return accumulate(
-			arguments.rbegin() + 1,
-			arguments.rend(),
-			arguments.back(),
+			arguments.begin() + 1,
+			arguments.end(),
+			arguments.front(),
 			[](ModExp& left, ModExp& right) { return ModExp::add(left, right); });
 }
 static Expected<ModExp> lowerSubtract(
 		ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	for (auto& arg : arguments)
+		arg.setType(tp);
+
+	if (arguments.size() == 1)
+	{
+		auto exp = tp.getBuiltin() == BultinModTypes::FLOAT
+									 ? ModExp(ModConst(-1.0F), tp)
+									 : ModExp(ModConst(-1), tp);
+		return ModExp::multiply(arguments[0], exp);
+	}
+
 	return ModExp::subtract(arguments[0], arguments[1]);
 }
 static Expected<ModExp> lowerMultiply(
 		ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	for (auto& arg : arguments)
+		arg.setType(tp);
 	return accumulate(
-			arguments.rbegin() + 1,
-			arguments.rend(),
-			move(arguments.back()),
+			arguments.begin() + 1,
+			arguments.end(),
+			move(arguments.front()),
 			[](ModExp& left, ModExp& right) {
 				return ModExp::multiply(move(left), move(right));
 			});
@@ -250,40 +273,55 @@ static Expected<ModExp> lowerMultiply(
 static Expected<ModExp> lowerDivide(
 		ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	for (auto& arg : arguments)
+		arg.setType(tp);
 	return ModExp::divide(move(arguments[0]), move(arguments[1]));
 }
 static Expected<ModExp> lowerIfelse(
 		ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	arguments[1].setType(tp);
 	return ModExp::cond(
 			move(arguments[0]), move(arguments[1]), move(arguments[2]));
 }
 static Expected<ModExp> lowerGreater(
 		ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	for (auto& arg : arguments)
+		arg.setType(tp);
 	return ModExp::greaterThan(move(arguments[0]), move(arguments[1]));
 }
 static Expected<ModExp> lowerGreaterEqual(
 		ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	for (auto& arg : arguments)
+		arg.setType(tp);
 	return ModExp::greaterEqual(move(arguments[0]), move(arguments[1]));
 }
 static Expected<ModExp> lowerEqual(ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	for (auto& arg : arguments)
+		arg.setType(tp);
 	return ModExp::equal(move(arguments[0]), move(arguments[1]));
 }
 static Expected<ModExp> lowerDifferent(
 		ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	for (auto& arg : arguments)
+		arg.setType(tp);
 	return ModExp::different(move(arguments[0]), move(arguments[1]));
 }
 static Expected<ModExp> lowerLessEqual(
 		ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	for (auto& arg : arguments)
+		arg.setType(tp);
 	return ModExp::lessEqual(move(arguments[0]), move(arguments[1]));
 }
 static Expected<ModExp> lowerLess(ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	for (auto& arg : arguments)
+		arg.setType(tp);
 	return ModExp::lessThan(move(arguments[0]), move(arguments[1]));
 }
 static Expected<ModExp> lowerLand(ModType tp, SmallVector<ModExp, 3> arguments)
@@ -317,6 +355,8 @@ static Expected<ModExp> lowerMemberLookup(
 static Expected<ModExp> lowerPowerOf(
 		ModType tp, SmallVector<ModExp, 3> arguments)
 {
+	for (auto& arg : arguments)
+		arg.setType(tp);
 	return ModExp::elevate(move(arguments[0]), move(arguments[1]));
 }
 
@@ -400,7 +440,7 @@ Expected<ModExp> OmcToModelPass::lowerStart(
 		Member& member, const SymbolTable& table)
 {
 	if (!member.hasStartOverload())
-		return defaultInitializer(member);
+		return defaultInitializer(member, table);
 
 	auto cst = lowerConstant(member.getStartOverload());
 	if (!cst)

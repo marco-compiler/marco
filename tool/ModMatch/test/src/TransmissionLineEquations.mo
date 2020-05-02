@@ -1,17 +1,17 @@
 model TransmissionLineEquations
-  parameter Real L = 10"length of the transmission line";
+  parameter Real L = 10.0"length of the transmission line";
   final parameter Real l = L / 3 "length of the each segment";
-  parameter Real res = 4"resistance per meter";
-  parameter Real cap = 2"capacitance per meter";
-  parameter Real induttance  = 3"induttanceuctance per meter";
+  parameter Real res = 4.0"resistance per meter";
+  parameter Real cap = 2.0"capacitance per meter";
+  parameter Real induttance  = 3.0"induttanceuctance per meter";
   final parameter Real RL = (induttance / cap) ^ (1 / 2)
 	"load resistance";
-  parameter Real w = 3;
+  parameter Real w = 3.0;
   final parameter Real v = 1 / (induttance * cap) ^ (1 / 2)
 	"velocity of the signal";
   final parameter Real TD = L / v
 	"time delay of the transmission line";
-  parameter Real Vstep = 1 "input step voltage";
+  parameter Real Vstep = 1.0 "input step voltage";
   Real[3] cur(start = 0.0)
 	"current values at the nodes of the transmission line";
   Real[3] vol(start = 0.0)

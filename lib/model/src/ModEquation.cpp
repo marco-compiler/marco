@@ -334,7 +334,7 @@ ModEquation::ModEquation(
 
 void ModEquation::setInductionVars(MultiDimInterval inds)
 {
-	isForCycle = inds.empty();
+	isForCycle = !inds.empty();
 	if (isForCycle)
 		inductions = std::move(inds);
 	else

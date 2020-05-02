@@ -32,6 +32,7 @@ namespace modelica
 				bool isForward)
 				: body(std::move(templ)),
 					inductions(std::move(interval)),
+					isForCycle(!inductions.empty()),
 					isForwardDirection(isForward)
 		{
 			if (!isForCycle)

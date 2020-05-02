@@ -43,11 +43,11 @@ namespace modelica
 			if (isA<int>())
 				return static_cast<T>(get<int>());
 			if (isA<float>())
-				return static_cast<T>(get<int>());
+				return static_cast<T>(get<float>());
 			if (isA<bool>())
-				return static_cast<T>(get<int>());
+				return static_cast<T>(get<bool>());
 			if (isA<char>())
-				return static_cast<T>(get<int>());
+				return static_cast<T>(get<char>());
 
 			assert(false && "unrechable");
 			return {};

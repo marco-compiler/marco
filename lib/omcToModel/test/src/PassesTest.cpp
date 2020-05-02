@@ -10,7 +10,7 @@ using namespace modelica;
 
 TEST(OmcToModelTest, singleDeclaration)	 // NOLINT
 {
-	Parser parser("model C final parameter Integer N = 10; end C;");
+	Parser parser("model C parameter Integer N = 10; end C;");
 
 	auto expectedAST = parser.classDefinition();
 	if (!expectedAST)

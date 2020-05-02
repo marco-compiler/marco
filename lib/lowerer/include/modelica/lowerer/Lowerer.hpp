@@ -135,6 +135,8 @@ namespace modelica
 			varsLinkage = newLinkage;
 		}
 
+		void verify();
+
 		private:
 		llvm::Error insertGlobal(
 				llvm::StringRef name,

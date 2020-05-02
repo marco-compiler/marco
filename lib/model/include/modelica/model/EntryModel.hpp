@@ -23,7 +23,7 @@ namespace modelica
 				var.second.dump(OS);
 
 			if (!getTemplates().empty())
-				OS << "templates\n";
+				OS << "template\n";
 			for (const auto& temp : getTemplates())
 			{
 				temp->dump(true, OS);

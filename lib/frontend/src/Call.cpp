@@ -26,12 +26,16 @@ using namespace std;
 Call::Call(const Call& other)
 		: function(std::make_unique<Expression>(*other.function))
 {
+	assert(other.function != nullptr);
+	assert(find(other.args, nullptr) == other.args.end());
 	for (const auto& exp : other.args)
 		args.emplace_back(std::make_unique<Expression>(*exp));
 }
 
 Call& Call::operator=(const Call& other)
 {
+	assert(other.function != nullptr);
+	assert(find(other.args, nullptr) == other.args.end());
 	if (this == &other)
 		return *this;
 

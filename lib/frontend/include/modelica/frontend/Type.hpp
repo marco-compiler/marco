@@ -120,7 +120,7 @@ namespace modelica
 			return dimensions.size() == 1 && dimensions[0] == 1;
 		}
 
-		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0)
+		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0) const
 		{
 			OS << builtinToString(type);
 			if (!isScalar())

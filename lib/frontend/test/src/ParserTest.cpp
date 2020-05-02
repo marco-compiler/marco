@@ -72,7 +72,7 @@ TEST(ParserTest, subTest)
 	EXPECT_EQ(exp->getOperation().argumentsCount(), 2);
 	EXPECT_TRUE(exp->getOperation()[1].isOperation());
 	EXPECT_EQ(
-			exp->getOperation()[1].getOperation().getKind(), OperationKind::negate);
+			exp->getOperation()[1].getOperation().getKind(), OperationKind::subtract);
 }
 
 TEST(ParserTest, andTest)
