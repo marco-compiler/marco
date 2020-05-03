@@ -1,5 +1,7 @@
 #include "modelica/frontend/ConstantFolder.hpp"
 
+#include <limits>
+
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
@@ -105,9 +107,33 @@ Error ConstantFolder::foldReference(Expression& exp, const SymbolTable& table)
 
 using Vector = Expression::Operation::Container;
 
+void flatten(Expression& exp, OperationKind kind)
+{
+	Vector& arguments = exp.getOperation().getArguments();
+	SmallVector<Expression, 3> toAdd;
+	for (size_t a = arguments.size() - 1; a != numeric_limits<size_t>::max(); a--)
+	{
+		if (!arguments[a].isOperation())
+			continue;
+
+		auto& op = arguments[a].getOperation();
+		if (op.getKind() != kind)
+			continue;
+
+		for (auto& arg : op.getArguments())
+			toAdd.emplace_back(move(arg));
+
+		arguments.erase(arguments.begin() + a);
+	}
+
+	for (auto& ex : toAdd)
+		arguments.emplace_back(move(ex));
+}
+
 template<typename Type>
 static Expected<Expression> foldOpSum(Expression& exp)
 {
+	flatten(exp, OperationKind::add);
 	Vector& arguments = exp.getOperation().getArguments();
 	Vector newArgs;
 
@@ -133,6 +159,7 @@ static Expected<Expression> foldOpSum(Expression& exp)
 template<typename Type>
 static Expected<Expression> foldOpMult(Expression& exp)
 {
+	flatten(exp, OperationKind::multiply);
 	Vector& arguments = exp.getOperation().getArguments();
 	Vector newArgs;
 

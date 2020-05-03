@@ -126,6 +126,15 @@ namespace modelica
 			return count;
 		}
 
+		[[nodiscard]] size_t nonStateNonConstCount() const
+		{
+			size_t count = 0;
+			for (const auto& var : vars)
+				if (!var.second.isState() && !var.second.isConstant())
+					count += var.second.toIndexSet().size();
+			return count;
+		}
+
 		using TemplateMap = std::set<std::shared_ptr<ModEqTemplate>>;
 
 		[[nodiscard]] TemplateMap& getTemplates() { return templates; }

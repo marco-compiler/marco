@@ -110,8 +110,7 @@ ArrayType* modelica::typeToLLVMType(LLVMContext& context, const ModType& type)
 Expected<Value*> LowererContext::lowerReference(StringRef exp)
 {
 	auto module = builder.GetInsertBlock()->getModule();
-	auto global =
-			module->getGlobalVariable(exp.str() + (loadOldValue ? "_old" : ""), true);
+	auto global = module->getGlobalVariable(exp.str(), true);
 	if (global == nullptr)
 		return make_error<UnkownVariable>(exp.str());
 	return global;

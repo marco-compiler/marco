@@ -475,6 +475,7 @@ Error OmcToModelPass::lower(Member& member, const SymbolTable& table)
 	if (!initExp)
 		return initExp.takeError();
 
-	model.emplaceVar(member.getName(), move(*initExp), !member.isParameter());
+	model.emplaceVar(
+			member.getName(), move(*initExp), false, member.isParameter());
 	return Error::success();
 }

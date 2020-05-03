@@ -229,14 +229,32 @@ bool ModExp::tryFoldConstant()
 
 const string& ModExp::getReferredVectorAccesss() const
 {
+	return getReferredVectorAccessExp().getReference();
+}
+
+ModExp& ModExp::getReferredVectorAccessExp()
+{
 	assert(isReferenceAccess());
 	if (isReference())
-		return getReference();
+		return *this;
 
-	const auto* exp = this;
+	auto* exp = this;
 
 	while (exp->isOperation<ModExpKind::at>())
 		exp = &exp->getLeftHand();
 
-	return exp->getReference();
+	return *exp;
+}
+const ModExp& ModExp::getReferredVectorAccessExp() const
+{
+	assert(isReferenceAccess());
+	if (isReference())
+		return *this;
+
+	auto* exp = this;
+
+	while (exp->isOperation<ModExpKind::at>())
+		exp = &exp->getLeftHand();
+
+	return *exp;
 }

@@ -420,6 +420,8 @@ namespace modelica
 
 		[[nodiscard]] bool isReferenceAccess() const;
 		[[nodiscard]] const std::string& getReferredVectorAccesss() const;
+		[[nodiscard]] ModExp& getReferredVectorAccessExp();
+		[[nodiscard]] const ModExp& getReferredVectorAccessExp() const;
 
 		/**
 		 * \brief Dumps the expression value into a human readable from to the
@@ -817,6 +819,12 @@ namespace modelica
 		{
 			assert(isOperation());	// NOLINT
 			return getOperation().isUnary();
+		}
+
+		void setReference(std::string name)
+		{
+			assert(isReference());
+			content = std::move(name);
 		}
 
 		/**

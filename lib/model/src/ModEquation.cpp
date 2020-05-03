@@ -137,9 +137,6 @@ static void recursiveFold(ModExp& expression)
 
 	foldExp(expression);
 
-	for (auto& child : expression)
-		recursiveFold(child);
-
 	expression.tryFoldConstant();
 }
 

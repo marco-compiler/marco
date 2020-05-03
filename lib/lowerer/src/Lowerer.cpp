@@ -112,12 +112,10 @@ Error Lowerer::insertGlobal(
 		StringRef name, const ModExp& exp, GlobalValue::LinkageTypes linkage)
 {
 	const auto& type = exp.getModType();
-	const string oldName = name.str() + "_old";
 
 	if (auto e = simExpToGlobalVar(name, type, linkage); e)
 		return e;
-	if (auto e = simExpToGlobalVar(oldName, type, linkage); e)
-		return e;
+
 	insertGlobalString(module, name.str() + "_str", name);
 	return Error::success();
 }
@@ -144,7 +142,6 @@ static Expected<Function*> initializeGlobals(
 	LowererContext cont(builder, m);
 
 	cont.setFunction(initFunction);
-	cont.setLoadOldValues(true);
 	for (const auto& pair : vars)
 	{
 		auto val = lowerExp(cont, pair.second.getInit());
@@ -152,8 +149,6 @@ static Expected<Function*> initializeGlobals(
 			return val.takeError();
 		auto loaded = builder.CreateLoad(*val);
 		builder.CreateStore(loaded, m.getGlobalVariable(pair.first(), true));
-		builder.CreateStore(
-				loaded, m.getGlobalVariable(pair.first().str() + "_old", true));
 	}
 	builder.CreateRet(nullptr);
 	return initFunction;
@@ -162,12 +157,10 @@ static Expected<Function*> initializeGlobals(
 static Error createAssigmentBody(
 		LowererContext& info, const Assigment& assigment)
 {
-	info.setLoadOldValues(false);
 	auto left = lowerExp(info, assigment.getLeftHand());
 	if (!left)
 		return left.takeError();
 
-	info.setLoadOldValues(true);
 	auto val = lowerExp(info, assigment.getExpression());
 	if (!val)
 		return val.takeError();
@@ -302,14 +295,6 @@ static Expected<Function*> createUpdates(
 		bld.SetInsertPoint(&updateFunction->getEntryBlock());
 		cont.setFunction(updateFunction);
 		bld.CreateCall(*fun);
-	}
-	for (const auto& pair : definitions)
-	{
-		auto globalVal = m.getGlobalVariable(pair.first(), true);
-		auto val = bld.CreateLoad(globalVal);
-
-		bld.CreateStore(
-				val, m.getGlobalVariable(pair.first().str() + "_old", true));
 	}
 
 	bld.CreateRet(nullptr);

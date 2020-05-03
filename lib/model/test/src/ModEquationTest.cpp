@@ -60,24 +60,6 @@ TEST(ModEquationTest, ModEquationConstantFolding)
 	EXPECT_EQ(eq.getRight(), rRes);
 }
 
-TEST(ModEquationTest, ModEquationConstantFoldingWithReferences)
-{
-	ModExp l(ModConst(2));
-	ModExp r(ModConst(5));
-	ModExp sum("Hey", ModType(BultinModTypes::INT, 1));
-
-	ModExp lRes(ModConst(4));
-	ModExp rRes(ModConst(10));
-	MultiDimInterval vars{ { 0, 1 } };
-
-	ModExp inner = ModExp::add(l, sum);
-	ModEquation eq(l + inner, ModExp::add(r, r), "", vars);
-	eq.foldConstants();
-
-	EXPECT_EQ(eq.getLeft(), ModExp::add(sum, lRes));
-	EXPECT_EQ(eq.getRight(), rRes);
-}
-
 TEST(ModEquationTest, negateShouldBeInvertible)
 {
 	ModEquation eq(ModExp::negate(ModExp(ModConst(5))), ModExp(ModConst(4)));

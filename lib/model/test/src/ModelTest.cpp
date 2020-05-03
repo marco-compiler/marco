@@ -174,20 +174,6 @@ TEST(ModelTest, negationCanBeFolded)
 	EXPECT_EQ(sum.getConstant().get<int>(0), -3);
 }
 
-TEST(ModelTest, subtractionCanBeTransformedInAddition)
-{
-	ModExp ref("ref", ModType(BultinModTypes::INT, 1));
-
-	auto refSub = ref - ModExp(ModConst(1));
-	ModEquation eq(move(refSub), ModExp(ModConst(0)));
-	eq.foldConstants();
-
-	EXPECT_TRUE(eq.getLeft().isOperation<ModExpKind::add>());
-	EXPECT_TRUE(eq.getLeft().getLeftHand().isReference());
-	EXPECT_TRUE(eq.getLeft().getRightHand().isConstant<int>());
-	EXPECT_EQ(eq.getLeft().getRightHand().getConstant().get<int>(0), -1);
-}
-
 TEST(ModelTest, inductionShouldNotBeFoldable)
 {
 	ModParser parser("INT[1](- INT[1](ind INT[1]{0}), INT[1]{1})");

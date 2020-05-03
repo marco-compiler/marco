@@ -15,7 +15,6 @@ namespace modelica
 		llvm::Module& module;
 		llvm::Function* function;
 		llvm::Value* inductionsVars;
-		bool loadOldValue;
 
 		llvm::BasicBlock* createdNestedForCycleImp(
 				const OrderedMultiDimInterval& iterationsCountBegin,
@@ -30,8 +29,7 @@ namespace modelica
 				: builder(builder),
 					module(module),
 					function(nullptr),
-					inductionsVars(nullptr),
-					loadOldValue(false)
+					inductionsVars(nullptr)
 		{
 		}
 		[[nodiscard]] llvm::IRBuilder<>& getBuilder() { return builder; }
@@ -43,7 +41,6 @@ namespace modelica
 			return builder.getContext();
 		}
 
-		void setLoadOldValues(bool loadOld) { loadOldValue = loadOld; }
 		void setFunction(llvm::Function* fun) { function = fun; }
 		void setInductions(llvm::Value* inds) { inductionsVars = inds; }
 		/**

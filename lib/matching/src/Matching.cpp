@@ -43,7 +43,7 @@ void MatchingGraph::emplaceEdge(
 	auto access = AccessToVar::fromExp(path.getExp());
 	const auto& var = model.getVar(access.getVarName());
 
-	if (!var.isState())
+	if (var.isState() || var.isConstant())
 		return;
 
 	if (access.getAccess().mappableDimensions() < eq.dimensions())
@@ -217,7 +217,7 @@ static Expected<EntryModel> explicitateModel(
 Expected<EntryModel> modelica::match(
 		EntryModel entryModel, size_t maxIterations)
 {
-	if (entryModel.equationsCount() != entryModel.stateCount())
+	if (entryModel.equationsCount() != entryModel.nonStateNonConstCount())
 		return make_error<EquationAndStateMissmatch>(move(entryModel));
 	MatchingGraph graph(entryModel);
 	graph.match(maxIterations);

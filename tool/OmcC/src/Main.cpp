@@ -119,8 +119,10 @@ int main(int argc, char* argv[])
 	}
 
 	auto foldedModel = exitOnErr(constantFold(move(model)));
+	exitOnErr(solveDer(foldedModel));
+	auto assModel = exitOnErr(addAproximation(move(foldedModel), timeStep));
+
 	// auto matchedModel = exitOnErr(match(move(foldedModel), 1000));
-	auto assModel = exitOnErr(solveDer(move(foldedModel), timeStep));
 
 	if (dumpSolvedModel)
 	{

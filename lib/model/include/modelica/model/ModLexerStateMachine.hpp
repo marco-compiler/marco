@@ -29,6 +29,7 @@ namespace modelica
 		ConstantKeyword,
 		BackwardKeyword,
 		TemplateKeyword,
+		StateKeyword,
 
 		LPar,
 		Comma,
