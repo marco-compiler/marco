@@ -178,7 +178,7 @@ static Error insertEq(
 	const auto& eq = edge.getEquation();
 	const auto& templ = eq.getTemplate();
 	auto newName =
-			templ->getName() + std::to_string(outModel.getTemplates().size());
+			templ->getName() + "m" + std::to_string(outModel.getTemplates().size());
 	outModel.addEquation(eq.clone(std::move(newName)));
 	auto& justInserted = outModel.getEquations().back();
 	justInserted.setInductionVars(inductionVars);
@@ -203,7 +203,7 @@ static Expected<EntryModel> explicitateModel(
 
 	for (auto& edge : graph)
 	{
-		if (!edge.empty())
+		if (edge.empty())
 			continue;
 
 		auto error = insertAllEq(edge, toReturn);

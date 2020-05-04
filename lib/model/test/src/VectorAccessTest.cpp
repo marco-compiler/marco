@@ -199,6 +199,14 @@ TEST(VectorAccessTest, testCombineAbsoluteVectorAccess)
 	EXPECT_EQ(result.getMappingOffset()[0].getOffset(), 10);
 }
 
+TEST(VectorAccessTest, testMapMultiDimAbsolute)
+{
+	auto singleAcces = SingleDimensionAccess::absolute(5);
+	auto result = singleAcces.map({ { 0, 1 }, { 3, 6 } });
+	EXPECT_EQ(result.min(), 5);
+	EXPECT_EQ(result.max(), 6);
+}
+
 TEST(VectorAccessTest, testCombineRelativeVectorAccess)
 {
 	VectorAccess v1({ SingleDimensionAccess::relative(10, 0),

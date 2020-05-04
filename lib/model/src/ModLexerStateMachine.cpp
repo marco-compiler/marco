@@ -121,7 +121,7 @@ ModLexerStateMachine::ModLexerStateMachine(char first)
 	keywordMap["const"] = ModToken::ConstantKeyword;
 	keywordMap["backward"] = ModToken::BackwardKeyword;
 	keywordMap["template"] = ModToken::TemplateKeyword;
-	keywordMap["state"] = ModToken::TemplateKeyword;
+	keywordMap["state"] = ModToken::StateKeyword;
 
 	symbols['*'] = Token::Multiply;
 	symbols[','] = Token::Comma;

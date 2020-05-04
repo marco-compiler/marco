@@ -132,7 +132,7 @@ int main(int argc, char* argv[])
 
 	MatchingGraph graph(constantFoldedModel);
 
-	for (auto i : irange<size_t>(maxMatchingIterations))
+	for (auto i : irange<int>(maxMatchingIterations.getValue()))
 	{
 		AugmentingPath augmentingPath(graph, maxSearchDepth);
 		if (!augmentingPath.valid())

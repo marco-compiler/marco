@@ -53,7 +53,7 @@ namespace modelica
 		llvm::Expected<Expression> term();
 		llvm::Expected<Type> typeSpecifier();
 		llvm::Expected<llvm::SmallVector<ForEquation, 3>> forEquationBody(
-				Induction ind);
+				int nestingLevel);
 		llvm::Expected<Expression> arithmeticExpression();
 
 		llvm::Expected<llvm::SmallVector<size_t, 3>> arrayDimensions();
@@ -66,7 +66,8 @@ namespace modelica
 		llvm::Expected<Expression> logicalExpression();
 
 		llvm::Expected<Equation> equation();
-		llvm::Expected<llvm::SmallVector<ForEquation, 3>> forEquation();
+		llvm::Expected<llvm::SmallVector<ForEquation, 3>> forEquation(
+				int nestingLevel);
 
 		llvm::Expected<bool> equationSection(Class& cls);
 		llvm::Expected<Expression> expression();

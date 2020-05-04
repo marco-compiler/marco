@@ -33,6 +33,8 @@ namespace modelica
 		[[nodiscard]] int64_t getOffset() const { return value; }
 		[[nodiscard]] Interval map(const MultiDimInterval& multDim) const
 		{
+			if (isDirecAccess())
+				return Interval(value, value + 1);
 			return map(multDim.at(inductionVar));
 		}
 		[[nodiscard]] Interval map(const Interval& interval) const

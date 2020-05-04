@@ -61,7 +61,7 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	if (!dumpModel && !dumpScc)
+	if (dumpModel)
 	{
 		auto assigment = schedule(constantFoldedModel);
 		assigment.dump(OS);

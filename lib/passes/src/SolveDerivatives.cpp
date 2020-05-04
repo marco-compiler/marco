@@ -18,7 +18,7 @@ using namespace llvm;
 static Error replaceDer(ModExp& call, EntryModel& model)
 {
 	auto firstArg = move(call.getCall().at(0));
-	auto access = firstArg.getReferredVectorAccessExp();
+	auto& access = firstArg.getReferredVectorAccessExp();
 	if (!access.isReferenceAccess())
 		return make_error<UnkownVariable>(
 				" cannot use der operator on a not reference access");

@@ -194,28 +194,27 @@ Expected<Expression> Parser::componentReference()
 
 	return exp;
 }
-Expected<SmallVector<ForEquation, 3>> Parser::forEquationBody(Induction ind)
+Expected<SmallVector<ForEquation, 3>> Parser::forEquationBody(int nestingLevel)
 {
 	SmallVector<ForEquation, 3> toReturn;
 	if (current != Token::ForKeyword)
 	{
 		TRY(innerEq, equation());
-		toReturn.push_back(ForEquation({ move(ind) }, move(*innerEq)));
+		toReturn.push_back(ForEquation({}, move(*innerEq)));
 		return toReturn;
 	}
 
-	TRY(innerEq, forEquation());
+	TRY(innerEq, forEquation(nestingLevel));
 
 	for (auto& eq : *innerEq)
 	{
 		auto& inductions = eq.getInductions();
-		inductions.insert(inductions.begin(), ind);
 		toReturn.push_back(move(eq));
 	}
 	return toReturn;
 }
 
-Expected<SmallVector<ForEquation, 3>> Parser::forEquation()
+Expected<SmallVector<ForEquation, 3>> Parser::forEquation(int nestingLevel)
 {
 	SmallVector<ForEquation, 3> toReturn;
 	EXPECT(Token::ForKeyword);
@@ -228,12 +227,17 @@ Expected<SmallVector<ForEquation, 3>> Parser::forEquation()
 	EXPECT(Token::LoopKeyword);
 
 	Induction ind(move(name), move(*begin), move(*end));
+	ind.setInductionIndex(nestingLevel);
 
 	while (!accept<Token::EndKeyword>())
 	{
-		TRY(inner, forEquationBody(ind));
+		TRY(inner, forEquationBody(nestingLevel + 1));
 		for (auto& eq : *inner)
+		{
+			auto& inds = eq.getInductions();
+			inds.insert(inds.begin(), ind);
 			toReturn.push_back(eq);
+		}
 		EXPECT(Token::Semicolons);
 	}
 
@@ -280,7 +284,7 @@ Expected<bool> Parser::equationSection(Class& cls)
 	{
 		if (current == Token::ForKeyword)
 		{
-			TRY(equs, forEquation());
+			TRY(equs, forEquation(0));
 			for (auto& eq : *equs)
 				cls.getForEquations().push_back(move(eq));
 		}

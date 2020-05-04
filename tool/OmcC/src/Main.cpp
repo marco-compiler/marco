@@ -7,6 +7,7 @@
 #include "modelica/frontend/TypeChecker.hpp"
 #include "modelica/lowerer/Lowerer.hpp"
 #include "modelica/matching/Matching.hpp"
+#include "modelica/matching/Schedule.hpp"
 #include "modelica/model/AssignModel.hpp"
 #include "modelica/model/ModVariable.hpp"
 #include "modelica/omcToModel/OmcToModelPass.hpp"
@@ -41,8 +42,23 @@ opt<bool> dumpFolded(
 		"df", cl::desc("dump constant folded"), cl::init(false), cl::cat(omcCCat));
 
 opt<bool> dumpSolvedModel(
-		"ds",
-		cl::desc("dump solved derivatives model"),
+		"db",
+		cl::desc("dump before lowering to ir model"),
+		cl::init(false),
+		cl::cat(omcCCat));
+
+opt<bool> dumpSolvedDerModel(
+		"dd",
+		cl::desc("dump after having removed the derivitives"),
+		cl::init(false),
+		cl::cat(omcCCat));
+
+opt<bool> dumpMatched(
+		"dm", cl::desc("dump matched model"), cl::init(false), cl::cat(omcCCat));
+
+opt<bool> dumpScheduled(
+		"dsched",
+		cl::desc("dump scheduled model"),
 		cl::init(false),
 		cl::cat(omcCCat));
 
@@ -120,9 +136,28 @@ int main(int argc, char* argv[])
 
 	auto foldedModel = exitOnErr(constantFold(move(model)));
 	exitOnErr(solveDer(foldedModel));
-	auto assModel = exitOnErr(addAproximation(move(foldedModel), timeStep));
 
-	// auto matchedModel = exitOnErr(match(move(foldedModel), 1000));
+	if (dumpSolvedDerModel)
+	{
+		foldedModel.dump(OS);
+		return 0;
+	}
+
+	auto matchedModel = exitOnErr(match(move(foldedModel), 1000));
+	if (dumpMatched)
+	{
+		matchedModel.dump(OS);
+		return 0;
+	}
+
+	auto scheduled = schedule(matchedModel);
+	if (dumpScheduled)
+	{
+		scheduled.dump(OS);
+		return 0;
+	}
+
+	auto assModel = exitOnErr(addAproximation(move(scheduled), timeStep));
 
 	if (dumpSolvedModel)
 	{

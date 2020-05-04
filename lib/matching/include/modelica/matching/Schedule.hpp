@@ -4,5 +4,5 @@
 #include "modelica/model/EntryModel.hpp"
 namespace modelica
 {
-	[[nodiscard]] AssignModel schedule(const EntryModel& model);
+	[[nodiscard]] EntryModel schedule(const EntryModel& model);
 }

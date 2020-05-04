@@ -17,10 +17,10 @@
 using namespace modelica;
 using namespace llvm;
 
-static SmallVector<Assigment, 3> collapseEquations(
+static SmallVector<ModEquation, 3> collapseEquations(
 		const SVarDepencyGraph& originalGraph)
 {
-	SmallVector<Assigment, 3> out;
+	SmallVector<ModEquation, 3> out;
 
 	IndexSet currentSet;
 
@@ -49,7 +49,7 @@ static SmallVector<Assigment, 3> collapseEquations(
 	return out;
 }
 
-static SmallVector<Assigment, 3> sched(
+static SmallVector<ModEquation, 3> sched(
 		const Scc<size_t>& scc, const VVarDependencyGraph& originalGraph)
 {
 	SVarDepencyGraph scalarGraph(originalGraph, scc);
@@ -57,7 +57,7 @@ static SmallVector<Assigment, 3> sched(
 	return collapseEquations(scalarGraph);
 }
 
-using ResultVector = SmallVector<SmallVector<Assigment, 3>, 0>;
+using ResultVector = SmallVector<SmallVector<ModEquation, 3>, 0>;
 using SortedScc = SmallVector<const Scc<size_t>*, 0>;
 
 static ResultVector parallelMap(
@@ -74,7 +74,7 @@ static ResultVector parallelMap(
 	return results;
 }
 
-AssignModel modelica::schedule(const EntryModel& model)
+EntryModel modelica::schedule(const EntryModel& model)
 {
 	VVarDependencyGraph vectorGraph(model);
 	auto sccs = vectorGraph.getSCC();
@@ -84,10 +84,10 @@ AssignModel modelica::schedule(const EntryModel& model)
 
 	auto results = parallelMap(vectorGraph, sortedScc);
 
-	AssignModel scheduledModel(std::move(model.getVars()));
+	EntryModel scheduledModel({}, std::move(model.getVars()));
 	for (const auto& res : results)
 		for (const auto& eq : res)
-			scheduledModel.addUpdate(std::move(eq));
+			scheduledModel.addEquation(std::move(eq));
 
 	return scheduledModel;
 }
