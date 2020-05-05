@@ -28,10 +28,7 @@ void MatchingGraph::addEquation(const ModEquation& eq)
 {
 	ReferenceMatcher matcher(eq);
 	for (size_t useIndex : irange(matcher.size()))
-	{
-		const auto& use = matcher[useIndex];
-		emplaceEdge(eq, move(use), useIndex);
-	}
+		emplaceEdge(eq, move(matcher[useIndex]), useIndex);
 }
 
 void MatchingGraph::emplaceEdge(

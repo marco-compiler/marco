@@ -277,6 +277,8 @@ Error ModEquation::explicitate(const ModExpPath& path)
 		if (error)
 			return error;
 	}
+	if (!path.isOnEquationLeftHand())
+		getTemplate()->swapLeftRight();
 	return Error::success();
 }
 

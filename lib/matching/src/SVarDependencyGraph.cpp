@@ -5,8 +5,10 @@
 #include <boost/range/iterator_range_core.hpp>
 #include <cstddef>
 #include <map>
+#include <optional>
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/InitializePasses.h"
 #include "modelica/matching/MatchedEquationLookup.hpp"
@@ -33,12 +35,19 @@ void SVarDepencyGraph::insertNode(LookUp& LookUp, size_t vertexIndex)
 	}
 }
 
-static size_t indexOfScalarVar(
+static Optional<size_t> indexOfScalarVar(
 		ArrayRef<size_t> access,
 		const IndexesOfEquation& var,
 		const SVarDepencyGraph::LookUp& lookUp)
 {
-	return lookUp.at(&var).at(var.getVariable().indexOfElement(access));
+	auto v = lookUp.find(&var);
+	if (v == lookUp.end())
+		return {};
+
+	auto toReturn = v->second.find(var.getVariable().indexOfElement(access));
+	if (toReturn == v->second.end())
+		return {};
+	return toReturn->second;
 }
 
 void SVarDepencyGraph::insertEdge(
@@ -56,11 +65,14 @@ void SVarDepencyGraph::insertEdge(
 
 	for (const auto& indecies : targetNode.getInterval().contentRange())
 	{
-		size_t sourceIndex = indexOfScalarVar(indecies, sourceNode, lookUp);
-		size_t targetIndex =
-				indexOfScalarVar(dependencies.map(indecies), targetNode, lookUp);
+		auto sourceIndex = indexOfScalarVar(indecies, sourceNode, lookUp);
 
-		add_edge(sourceIndex, targetIndex, graph);
+		auto scalarVarInduction = dependencies.map(indecies);
+		auto targetIndex = indexOfScalarVar(scalarVarInduction, targetNode, lookUp);
+		if (!sourceIndex || !targetIndex)
+			continue;
+
+		add_edge(*sourceIndex, *targetIndex, graph);
 	}
 }
 

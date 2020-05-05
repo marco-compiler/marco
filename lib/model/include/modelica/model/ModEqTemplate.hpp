@@ -1,4 +1,5 @@
 #pragma once
+
 #include "ModExp.hpp"
 #include "llvm/Support/raw_ostream.h"
 
@@ -29,6 +30,8 @@ namespace modelica
 
 		[[nodiscard]] const std::string& getName() const { return templateName; }
 		void setName(std::string name) { templateName = name; }
+
+		void swapLeftRight() { std::swap(leftHand, rightHand); }
 
 		private:
 		ModExp leftHand;

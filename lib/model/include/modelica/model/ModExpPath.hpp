@@ -19,7 +19,7 @@ namespace modelica
 		[[nodiscard]] size_t depth() const { return path.size(); }
 
 		[[nodiscard]] auto begin() const { return path.begin(); }
-		[[nodiscard]] auto end() const { return path.begin(); }
+		[[nodiscard]] auto end() const { return path.end(); }
 
 		private:
 		llvm::SmallVector<size_t, 3> path;

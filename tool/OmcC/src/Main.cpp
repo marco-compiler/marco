@@ -107,9 +107,9 @@ int main(int argc, char* argv[])
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	Parser parser(buffer->getBufferStart());
 	auto ast = exitOnErr(parser.classDefinition());
+
 	TypeChecker checker;
 	exitOnErr(checker.checkType(ast, SymbolTable()));
-
 	if (dumpTypeChecked)
 	{
 		ast.dump(OS);
@@ -118,16 +118,15 @@ int main(int argc, char* argv[])
 
 	ConstantFolder folder;
 	exitOnErr(folder.fold(ast, SymbolTable()));
-
 	if (dumpFolded)
 	{
 		ast.dump(OS);
 		return 0;
 	}
+
 	EntryModel model;
 	OmcToModelPass pass(model);
 	exitOnErr(pass.lower(ast, SymbolTable()));
-
 	if (dumpModel)
 	{
 		model.dump(OS);
@@ -136,7 +135,6 @@ int main(int argc, char* argv[])
 
 	auto foldedModel = exitOnErr(constantFold(move(model)));
 	exitOnErr(solveDer(foldedModel));
-
 	if (dumpSolvedDerModel)
 	{
 		foldedModel.dump(OS);
@@ -158,12 +156,12 @@ int main(int argc, char* argv[])
 	}
 
 	auto assModel = exitOnErr(addAproximation(move(scheduled), timeStep));
-
 	if (dumpSolvedModel)
 	{
 		assModel.dump(OS);
 		return 0;
 	}
+
 	LLVMContext context;
 	Lowerer sim(
 			context,
@@ -179,6 +177,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 	exitOnErr(sim.lower());
+
 	sim.verify();
 	sim.dumpBC(OS);
 

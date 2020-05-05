@@ -20,9 +20,6 @@ namespace modelica
 
 		void visit(const ModExp& exp, bool isLeft, size_t index)
 		{
-			currentPath.push_back(index);
-			auto g = makeGuard(std::bind(&ReferenceMatcher::removeBack, this));
-
 			if (exp.isReferenceAccess())
 			{
 				vars.emplace_back(exp, currentPath, isLeft);
@@ -30,7 +27,11 @@ namespace modelica
 			}
 
 			for (auto index : irange(exp.childCount()))
+			{
+				currentPath.push_back(index);
+				auto g = makeGuard(std::bind(&ReferenceMatcher::removeBack, this));
 				visit(exp.getChild(index), isLeft, index);
+			}
 		}
 
 		void visit(const ModEquation& equation)
