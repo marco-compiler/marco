@@ -86,6 +86,13 @@ namespace modelica
 
 		void push_back(VertexIndex index) { indexes.push_back(index); }
 
+		[[nodiscard]] size_t size() const { return indexes.size(); }
+
+		[[nodiscard]] VertexIndex operator[](size_t index) const
+		{
+			return indexes[index];
+		}
+
 		template<typename Graph>
 		[[nodiscard]] auto range(Graph& toIterateOver)
 		{

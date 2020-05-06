@@ -43,6 +43,35 @@ namespace modelica
 			return *graph[index];
 		}
 
+		[[nodiscard]] auto outEdges(VertexDesc vertex)
+		{
+			return llvm::make_range(boost::out_edges(vertex, graph));
+		}
+
+		[[nodiscard]] auto outEdges(VertexDesc vertex) const
+		{
+			return llvm::make_range(boost::out_edges(vertex, graph));
+		}
+
+		[[nodiscard]] VectorAccess& operator[](EdgeDesc edge)
+		{
+			return graph[edge];
+		}
+		[[nodiscard]] const VectorAccess& operator[](EdgeDesc edge) const
+		{
+			return graph[edge];
+		}
+
+		[[nodiscard]] VertexDesc target(EdgeDesc edge) const
+		{
+			return boost::target(edge, graph);
+		}
+
+		[[nodiscard]] VertexDesc source(EdgeDesc edge) const
+		{
+			return boost::source(edge, graph);
+		}
+
 		private:
 		void populateEdge(
 				const IndexesOfEquation& equation, const AccessToVar& toVariable);

@@ -1,6 +1,7 @@
 #include "modelica/matching/Schedule.hpp"
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/matching/SCCDependencyGraph.hpp"
@@ -11,6 +12,7 @@
 #include "modelica/model/AssignModel.hpp"
 #include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
+#include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/IndexSet.hpp"
 #include "modelica/utils/ThreadPool.hpp"
 
@@ -49,9 +51,58 @@ static SmallVector<ModEquation, 3> collapseEquations(
 	return out;
 }
 
+static bool isForward(const VectorAccess* access)
+{
+	for (const auto& varAcc : *access)
+		if (varAcc.isOffset() && varAcc.getOffset() >= 0)
+			return false;
+
+	return true;
+}
+
+static bool isBacward(const VectorAccess* access)
+{
+	for (const auto& varAcc : *access)
+		if (varAcc.isOffset() && varAcc.getOffset() <= 0)
+			return false;
+
+	return true;
+}
+
+static SmallVector<ModEquation, 3> trivialScheduling(
+		const Scc<size_t>& scc, const VVarDependencyGraph& originalGraph)
+{
+	if (scc.size() != 1)
+		return {};
+
+	SmallVector<const VectorAccess*, 3> internalEdges;
+	for (const auto& edge : originalGraph.outEdges(scc[0]))
+		if (originalGraph.target(edge) == scc[0])
+			internalEdges.push_back(&originalGraph[edge]);
+
+	if (all_of(internalEdges, isForward))
+	{
+		auto eq = originalGraph[scc[0]].getEquation();
+		eq.setForward(true);
+		return { std::move(eq) };
+	}
+
+	if (all_of(internalEdges, isBacward))
+	{
+		auto eq = originalGraph[scc[0]].getEquation();
+		eq.setForward(false);
+		return { std::move(eq) };
+	}
+
+	return {};
+}
+
 static SmallVector<ModEquation, 3> sched(
 		const Scc<size_t>& scc, const VVarDependencyGraph& originalGraph)
 {
+	if (auto sched = trivialScheduling(scc, originalGraph); !sched.empty())
+		return sched;
+
 	SVarDepencyGraph scalarGraph(originalGraph, scc);
 
 	return collapseEquations(scalarGraph);

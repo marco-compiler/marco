@@ -81,6 +81,8 @@ namespace modelica
 
 		[[nodiscard]] std::shared_ptr<ModEqTemplate>& getTemplate() { return body; }
 
+		void setForward(bool isForward) { isForwardDirection = isForward; }
+
 		private:
 		std::shared_ptr<ModEqTemplate> body;
 		MultiDimInterval inductions;

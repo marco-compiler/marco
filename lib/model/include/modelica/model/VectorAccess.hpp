@@ -154,6 +154,11 @@ namespace modelica
 		 */
 		[[nodiscard]] static bool isCanonical(const ModExp& expression);
 
+		[[nodiscard]] auto begin() const { return vectorAccess.begin(); }
+		[[nodiscard]] auto begin() { return vectorAccess.begin(); }
+		[[nodiscard]] auto end() const { return vectorAccess.end(); }
+		[[nodiscard]] auto end() { return vectorAccess.end(); }
+
 		private:
 		llvm::SmallVector<SingleDimensionAccess, 3> vectorAccess;
 	};

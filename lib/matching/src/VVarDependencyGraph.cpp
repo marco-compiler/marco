@@ -82,8 +82,8 @@ void VVarDependencyGraph::dump(llvm::raw_ostream& OS) const
 
 	for (auto edge : make_iterator_range(edges(graph)))
 	{
-		auto from = source(edge, graph);
-		auto to = target(edge, graph);
+		auto from = source(edge);
+		auto to = target(edge);
 
 		OS << from << "->" << to << "[label=\"";
 		graph[edge].dump(OS);
