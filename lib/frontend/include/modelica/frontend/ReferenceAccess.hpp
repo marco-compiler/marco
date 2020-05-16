@@ -5,6 +5,9 @@
 #include "llvm/Support/raw_ostream.h"
 namespace modelica
 {
+	/**
+	 * A reference access is pretty much any use of a variable at the moment
+	 */
 	class ReferenceAccess
 	{
 		public:

@@ -86,8 +86,11 @@ namespace modelica
 		[[nodiscard]] auto end() { return dimensions.end(); }
 		[[nodiscard]] auto begin() const { return dimensions.begin(); }
 		[[nodiscard]] auto end() const { return dimensions.end(); }
-		[[nodiscard]] auto operator[](int index) { return dimensions[index]; }
-		[[nodiscard]] auto operator[](int index) const { return dimensions[index]; }
+		[[nodiscard]] size_t& operator[](int index) { return dimensions[index]; }
+		[[nodiscard]] size_t operator[](int index) const
+		{
+			return dimensions[index];
+		}
 
 		[[nodiscard]] bool operator==(const Type& other) const
 		{
@@ -130,6 +133,9 @@ namespace modelica
 					OS << " ";
 				}
 		}
+
+		static Type Int() { return Type(typeToBuiltin<int>()); }
+		static Type Float() { return Type(typeToBuiltin<float>()); }
 
 		private:
 		llvm::SmallVector<size_t, 3> dimensions;

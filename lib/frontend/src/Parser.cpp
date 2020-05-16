@@ -151,8 +151,8 @@ Expected<vector<Expression>> Parser::arraySubscript()
 	do
 	{
 		TRY(exp, expression());
-		*exp = Expression::op<OperationKind::add>(
-				makeType<int>(), move(*exp), Expression(makeType<int>(), -1));
+		*exp =
+				Expression::add(Type::Int(), move(*exp), Expression(Type::Int(), -1));
 		expressions.emplace_back(move(*exp));
 	} while (accept<Token::Comma>());
 
@@ -173,23 +173,20 @@ Expected<Expression> Parser::componentReference()
 	{
 		TRY(access, arraySubscript());
 		access->insert(access->begin(), move(exp));
-		exp = Expression::op<OperationKind::subscription>(
-				Type::unkown(), move(*access));
+		exp = Expression::subscription(Type::unkown(), move(*access));
 	}
 
 	while (accept<Token::Dot>())
 	{
 		Expression memberName(makeType<std::string>(), lexer.getLastString());
 		EXPECT(Token::String);
-		exp = Expression::op<OperationKind::memberLookup>(
-				Type::unkown(), move(exp), move(memberName));
+		exp = Expression::memberLookup(Type::unkown(), move(exp), move(memberName));
 
 		if (current != Token::LSquare)
 			continue;
 
 		TRY(access, arraySubscript());
-		exp = Expression::op<OperationKind::subscription>(
-				Type::unkown(), move(*access));
+		exp = Expression::subscription(Type::unkown(), move(*access));
 	}
 
 	return exp;
@@ -335,7 +332,7 @@ Expected<Expression> Parser::logicalExpression()
 		TRY(arg, logicalTerm());
 		factors.emplace_back(move(*arg));
 	}
-	return Expression::op<OperationKind::lor>(Type::unkown(), move(factors));
+	return Expression::lor(Type::unkown(), move(factors));
 }
 
 Expected<Constant> Parser::modification()
@@ -398,7 +395,7 @@ Expected<Expression> Parser::logicalTerm()
 		TRY(arg, logicalFactor());
 		factors.emplace_back(move(*arg));
 	}
-	return Expression::op<OperationKind::land>(Type::unkown(), move(factors));
+	return Expression::land(Type::unkown(), move(factors));
 }
 
 Expected<Expression> Parser::logicalFactor()
@@ -406,9 +403,7 @@ Expected<Expression> Parser::logicalFactor()
 	bool negated = accept<Token::NotKeyword>();
 
 	TRY(exp, relation());
-	return negated
-						 ? Expression::op<OperationKind::negate>(Type::unkown(), move(*exp))
-						 : move(*exp);
+	return negated ? Expression::negate(Type::unkown(), move(*exp)) : move(*exp);
 }
 
 Expected<Expression> Parser::relation()
@@ -431,9 +426,9 @@ Expected<Expression> Parser::arithmeticExpression()
 		accept<Token::Plus>();
 
 	TRY(left, term());
-	Expression first = negative ? Expression::op<OperationKind::subtract>(
-																		Type::unkown(), move(*left))
-															: move(*left);
+	Expression first = negative
+												 ? Expression::subtract(Type::unkown(), move(*left))
+												 : move(*left);
 	if (current != Token::Minus && current != Token::Plus)
 		return first;
 
@@ -451,8 +446,7 @@ Expected<Expression> Parser::arithmeticExpression()
 
 		EXPECT(Token::Minus);
 		TRY(arg, term());
-		auto exp =
-				Expression::op<OperationKind::subtract>(Type::unkown(), move(*arg));
+		auto exp = Expression::subtract(Type::unkown(), move(*arg));
 		args.emplace_back(move(exp));
 	}
 
@@ -461,40 +455,48 @@ Expected<Expression> Parser::arithmeticExpression()
 
 Expected<Expression> Parser::term()
 {
+	// we keep a list of arguments
 	vector<Expression> argumets;
 	TRY(toReturn, factor());
+
+	// if we se no multiply or division sign we return.
 	if (current != Token::Multiply && current != Token::Division)
 		return *toReturn;
 
+	// otherwise the first argument is placed with the others
 	argumets.emplace_back(move(*toReturn));
 
 	while (current == Token::Multiply || current == Token::Division)
 	{
+		// if see a multyply we add him with the others
 		if (accept<Token::Multiply>())
 		{
 			TRY(arg, factor());
 			argumets.emplace_back(move(*arg));
 			continue;
 		}
+		// otherwise we must see a division sign
 		EXPECT(Token::Division);
 		TRY(arg, factor());
 
+		// if the arguments are exactly one we collapse it in a single division
+		// example a / b * c = (a/b) * c
 		if (argumets.size() == 1)
 		{
-			argumets = { Expression::op<OperationKind::divide>(
+			argumets = { Expression::divide(
 					Type::unkown(), move(argumets[0]), move(*arg)) };
 			continue;
 		}
-		auto left =
-				Expression::op<OperationKind::multiply>(Type::unkown(), move(argumets));
-		argumets = { Expression::op<OperationKind::divide>(
-				Type::unkown(), move(left), move(*arg)) };
+
+		// otherwise we create a multyplay from the already seen arguments
+		// a * b / c * d = ((a*b)/c)*d
+		auto left = Expression::multiply(Type::unkown(), move(argumets));
+		argumets = { Expression::divide(Type::unkown(), move(left), move(*arg)) };
 	}
 	if (argumets.size() == 1)
 		return move(argumets[0]);
 
-	return Expression::op<OperationKind::multiply>(
-			Type::unkown(), move(argumets));
+	return Expression::multiply(Type::unkown(), move(argumets));
 }
 
 Expected<Expression> Parser::factor()
@@ -504,8 +506,7 @@ Expected<Expression> Parser::factor()
 		return *l;
 
 	TRY(r, primary());
-	return Expression::op<OperationKind::powerOf>(
-			Type::unkown(), move(*l), move(*r));
+	return Expression::powerOf(Type::unkown(), move(*l), move(*r));
 }
 
 Expected<SmallVector<Expression, 3>> Parser::functionCallArguments()

@@ -42,10 +42,13 @@ namespace modelica
 		{
 			if (isA<int>())
 				return static_cast<T>(get<int>());
+
 			if (isA<float>())
 				return static_cast<T>(get<float>());
+
 			if (isA<bool>())
 				return static_cast<T>(get<bool>());
+
 			if (isA<char>())
 				return static_cast<T>(get<char>());
 
@@ -64,20 +67,7 @@ namespace modelica
 		}
 
 		void dump(
-				llvm::raw_ostream& OS = llvm::outs(), size_t indentLevel = 0) const
-		{
-			OS.indent(indentLevel);
-			if (isA<int>())
-				OS << get<int>();
-			else if (isA<float>())
-				OS << get<float>();
-			else if (isA<bool>())
-				OS << (get<bool>() ? "true" : "false");
-			else if (isA<char>())
-				OS << get<char>();
-			else if (isA<std::string>())
-				OS << get<std::string>();
-		}
+				llvm::raw_ostream& OS = llvm::outs(), size_t indentLevel = 0) const;
 
 		private:
 		std::variant<int, float, std::string, char, bool> content;

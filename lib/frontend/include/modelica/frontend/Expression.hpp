@@ -154,6 +154,11 @@ namespace modelica
 
 		[[nodiscard]] Operation& getOperation() { return get<Operation>(); }
 
+		[[nodiscard]] OperationKind getOperationKind() const
+		{
+			return get<Operation>().getKind();
+		}
+
 		[[nodiscard]] const Operation& getOperation() const
 		{
 			return get<Operation>();
@@ -212,6 +217,76 @@ namespace modelica
 
 		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t nestLevel = 0) const;
 		void setType(Type tp) { type = std::move(tp); }
+
+		static Expression add(Type t, Operation::Container args)
+		{
+			return Expression::op<OperationKind::add>(std::move(t), std::move(args));
+		}
+
+		template<typename... Args>
+		static Expression add(Type t, Args&&... args)
+		{
+			return Expression::op<OperationKind::add>(
+					std::move(t), std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		static Expression subscription(Type t, Args&&... args)
+		{
+			return Expression::op<OperationKind::subscription>(
+					std::move(t), std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		static Expression negate(Type t, Args&&... args)
+		{
+			return Expression::op<OperationKind::negate>(
+					std::move(t), std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		static Expression subtract(Type t, Args&&... args)
+		{
+			return Expression::op<OperationKind::subtract>(
+					std::move(t), std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		static Expression divide(Type t, Args&&... args)
+		{
+			return Expression::op<OperationKind::divide>(
+					std::move(t), std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		static Expression powerOf(Type t, Args&&... args)
+		{
+			return Expression::op<OperationKind::powerOf>(
+					std::move(t), std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		static Expression memberLookup(Type t, Args&&... args)
+		{
+			return Expression::op<OperationKind::memberLookup>(
+					std::move(t), std::forward<Args>(args)...);
+		}
+
+		static Expression multiply(Type t, Operation::Container args)
+		{
+			return Expression::op<OperationKind::multiply>(
+					std::move(t), std::move(args));
+		}
+
+		static Expression lor(Type t, Operation::Container args)
+		{
+			return Expression::op<OperationKind::lor>(std::move(t), std::move(args));
+		}
+
+		static Expression land(Type t, Operation::Container args)
+		{
+			return Expression::op<OperationKind::land>(std::move(t), std::move(args));
+		}
 
 		private:
 		std::variant<Operation, Constant, ReferenceAccess, Call> content;

@@ -7,6 +7,14 @@
 
 namespace modelica
 {
+	/**
+	 * an induction is the in memory of a piece of code such as
+	 * for i in 0:20. and induction holds a name and the begin and end
+	 * expressions.
+	 *
+	 * Notice that for the compiler we made the assumption that all range will be
+	 * of step one.
+	 */
 	class Induction
 	{
 		public:
@@ -26,19 +34,7 @@ namespace modelica
 		[[nodiscard]] Expression& getBegin() { return begin; }
 		[[nodiscard]] Expression& getEnd() { return end; }
 
-		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0) const
-		{
-			OS.indent(indents);
-			OS << "induction var " << inductionVar << "\n";
-
-			OS.indent(indents);
-			OS << "from ";
-			begin.dump(OS, indents + 1);
-			OS << "\n";
-			OS.indent(indents);
-			OS << "to";
-			end.dump(OS, indents + 1);
-		}
+		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0) const;
 
 		[[nodiscard]] size_t getInductionIndex() const { return inductionIndex; }
 		void setInductionIndex(size_t index) { inductionIndex = index; }
@@ -50,15 +46,18 @@ namespace modelica
 		std::string inductionVar;
 	};
 
+	/**
+	 * For equations are different with respect to regular equations
+	 * because they introduce a set of inductions, and thus a new set of names
+	 * avialable withing the for cycle.
+	 *
+	 * Inductions are mapped to a set of indicies so that an from a name we can
+	 * deduce a index and from a index we can deduce a name
+	 */
 	class ForEquation
 	{
 		public:
-		ForEquation(llvm::SmallVector<Induction, 3> ind, Equation eq)
-				: induction(std::move(ind)), equation(std::move(eq))
-		{
-			for (size_t a = 0; a < induction.size(); a++)
-				induction[a].setInductionIndex(a);
-		}
+		ForEquation(llvm::SmallVector<Induction, 3> ind, Equation eq);
 
 		[[nodiscard]] const auto& getInductions() const { return induction; }
 		[[nodiscard]] size_t inductionsCount() const { return induction.size(); }
@@ -67,16 +66,7 @@ namespace modelica
 		[[nodiscard]] Equation& getEquation() { return equation; }
 		[[nodiscard]] const Equation& getEquation() const { return equation; }
 
-		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0) const
-		{
-			OS << "for equation\n";
-			for (const auto& ind : induction)
-			{
-				ind.dump(OS, indents + 1);
-				OS << "\n";
-			}
-			equation.dump(OS, indents + 1);
-		}
+		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0) const;
 
 		private:
 		llvm::SmallVector<Induction, 3> induction;

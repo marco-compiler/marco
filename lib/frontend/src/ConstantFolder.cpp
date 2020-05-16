@@ -1,5 +1,6 @@
 #include "modelica/frontend/ConstantFolder.hpp"
 
+#include <iterator>
 #include <limits>
 
 #include "llvm/ADT/ArrayRef.h"
@@ -82,6 +83,10 @@ Error ConstantFolder::fold(Class& cl, const SymbolTable& table)
 
 	return Error::success();
 }
+
+/**
+ * tries to fold references of known variable that have a initializer
+ */
 Error ConstantFolder::foldReference(Expression& exp, const SymbolTable& table)
 {
 	assert(exp.isA<ReferenceAccess>());
@@ -89,9 +94,11 @@ Error ConstantFolder::foldReference(Expression& exp, const SymbolTable& table)
 
 	if (!table.hasSymbol(ref.getName()))
 		return Error::success();
+
 	const auto& s = table[ref.getName()];
 	if (!s.isA<Member>())
 		return Error::success();
+
 	const auto simbol = s.get<Member>();
 
 	if (!simbol.hasInitializer())
@@ -104,27 +111,45 @@ Error ConstantFolder::foldReference(Expression& exp, const SymbolTable& table)
 
 using Vector = Expression::Operation::Container;
 
-void flatten(Expression& exp, OperationKind kind)
+template<typename IteratorFrom, typename IteratorTo>
+void moveRange(IteratorFrom b, IteratorFrom e, IteratorTo b2)
+{
+	move(make_move_iterator(b), make_move_iterator(e), b2);
+}
+
+/**
+ * given a associative opertion kind and a expression
+ * it brings all nested expressions to the top level.
+ *
+ * As an example a + (b+(2*c)) becomes a + b + (2*c)
+ */
+static void flatten(Expression& exp, OperationKind kind)
 {
 	Vector& arguments = exp.getOperation().getArguments();
-	SmallVector<Expression, 3> toAdd;
+	SmallVector<Expression, 3> newArguments;
 	for (size_t a = arguments.size() - 1; a != numeric_limits<size_t>::max(); a--)
 	{
+		// if a argument is not a operation we cannot do anything
 		if (!arguments[a].isOperation())
 			continue;
 
+		// if it is not the operation we are looking for we leave it there
 		auto& op = arguments[a].getOperation();
 		if (op.getKind() != kind)
 			continue;
 
-		for (auto& arg : op.getArguments())
-			toAdd.emplace_back(move(arg));
+		// otherwise we take all its arguments and we place them in the
+		moveRange(
+				op.getArguments().begin(),
+				op.getArguments().end(),
+				back_inserter(newArguments));
 
+		// finally we remove that argument from the list
 		arguments.erase(arguments.begin() + a);
 	}
 
-	for (auto& ex : toAdd)
-		arguments.emplace_back(move(ex));
+	// all new arguments must be added
+	moveRange(newArguments.begin(), newArguments.end(), back_inserter(arguments));
 }
 
 template<typename Type>
@@ -134,6 +159,8 @@ static Expected<Expression> foldOpSum(Expression& exp)
 	Vector& arguments = exp.getOperation().getArguments();
 	Vector newArgs;
 
+	// for each arugment, if it is a constant add it to to val, otherwise add it
+	// to the new arguments.
 	Type val = 0;
 	for (auto& arg : arguments)
 		if (arg.isA<Constant>())
@@ -141,21 +168,27 @@ static Expected<Expression> foldOpSum(Expression& exp)
 		else
 			newArgs.emplace_back(move(arg));
 
+	// if there are not args left transform it into a constant
 	if (newArgs.empty())
 		return Expression(makeType<Type>(), val);
 
+	// if the sum of constants is not zero insert a new constant argument
 	if (val != 0)
 		newArgs.push_back(Expression(makeType<Type>(), val));
 
+	// if the arguments are exactly one, remove the sum and return the argument
+	// itself
 	if (newArgs.size() == 1)
 		return newArgs[0];
 
-	return Expression::op<OperationKind::add>(exp.getType(), move(newArgs));
+	// other wise return the sum.
+	return Expression::add(exp.getType(), move(newArgs));
 }
 
 template<typename Type>
 static Expected<Expression> foldOpMult(Expression& exp)
 {
+	// works as the sum, read that one.
 	flatten(exp, OperationKind::multiply);
 	Vector& arguments = exp.getOperation().getArguments();
 	Vector newArgs;
@@ -176,7 +209,7 @@ static Expected<Expression> foldOpMult(Expression& exp)
 	if (newArgs.size() == 1)
 		return newArgs[0];
 
-	return Expression::op<OperationKind::multiply>(exp.getType(), move(newArgs));
+	return Expression::multiply(exp.getType(), move(newArgs));
 }
 
 template<typename Type>

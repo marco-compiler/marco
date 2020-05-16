@@ -131,8 +131,8 @@ namespace modelica
 		 * to tell the difference between a component reference and a
 		 * named argument. Istead of adding a real two lookhaed
 		 * or to compleatly change factor the grammar we can provide the ability
-		 * to undo the last accept. it is used only to tell apart that particular
-		 * case.
+		 * to undo the last accept. If you need to implement that particular case
+		 * use this.
 		 */
 		void undoScan(Token t)
 		{
