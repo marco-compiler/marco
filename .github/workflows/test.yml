@@ -10,7 +10,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: remove auto installed llvm stuff 
-      run: sudo apt-get purge libllvm9 llvm-9 llvm-9-dev llvm-9-runtime libclang-common-9-dev libclang1-9 clang-format-9 clangd-9
+      run: sudo apt purge libllvm9 llvm-9 llvm-9-dev llvm-9-runtime libclang-common-9-dev libclang1-9 clang-format-9 clangd-9
     - name: fetch libboost 
       run: sudo apt-get install libboost-all-dev 
     - name: fetch llvm key
