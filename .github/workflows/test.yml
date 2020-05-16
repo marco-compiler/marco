@@ -12,7 +12,7 @@ jobs:
     - name: fetch libboost 
       run: sudo apt-get install libboost-all-dev 
     - name: fetch llvm
-      wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh 9
+      run: wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh 9
     - name: collect-dependencies
       run: git submodule update --recursive --init 
     - name: build 
