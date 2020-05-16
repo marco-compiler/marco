@@ -1,8 +1,8 @@
 #pragma once
 
 #include "modelica/model/AssignModel.hpp"
-#include "modelica/model/EntryModel.hpp"
+#include "modelica/model/Model.hpp"
 namespace modelica
 {
-	[[nodiscard]] EntryModel schedule(const EntryModel& model);
+	[[nodiscard]] Model schedule(const Model& model);
 }

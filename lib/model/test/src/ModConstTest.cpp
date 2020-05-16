@@ -1,9 +1,9 @@
 #include "gtest/gtest.h"
 
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModCall.hpp"
 #include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModExp.hpp"
+#include "modelica/model/Model.hpp"
 
 using namespace modelica;
 using namespace std;

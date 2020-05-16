@@ -3,11 +3,11 @@
 #include <memory>
 
 #include "llvm/Support/Error.h"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModVariable.hpp"
+#include "modelica/model/Model.hpp"
 #include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/IRange.hpp"
 
@@ -15,7 +15,7 @@ using namespace modelica;
 using namespace std;
 using namespace llvm;
 
-static Error replaceDer(ModExp& call, EntryModel& model)
+static Error replaceDer(ModExp& call, Model& model)
 {
 	auto firstArg = move(call.getCall().at(0));
 	auto& access = firstArg.getReferredVectorAccessExp();
@@ -38,7 +38,7 @@ static Error replaceDer(ModExp& call, EntryModel& model)
 	return Error::success();
 }
 
-static Error solveDer(ModExp& exp, EntryModel& model)
+static Error solveDer(ModExp& exp, Model& model)
 {
 	if (exp.isCall() && exp.getCall().getName() == "der")
 		return replaceDer(exp, model);
@@ -50,7 +50,7 @@ static Error solveDer(ModExp& exp, EntryModel& model)
 	return Error::success();
 }
 
-static Error solveDer(ModEquation& eq, EntryModel& model)
+static Error solveDer(ModEquation& eq, Model& model)
 {
 	if (auto error = solveDer(eq.getLeft(), model); error)
 		return error;
@@ -59,7 +59,7 @@ static Error solveDer(ModEquation& eq, EntryModel& model)
 	return Error::success();
 }
 
-Error modelica::solveDer(EntryModel& model)
+Error modelica::solveDer(Model& model)
 {
 	for (auto& eq : model.getEquations())
 		if (auto error = ::solveDer(eq, model); error)
@@ -82,8 +82,7 @@ static ModExp varToExp(const ModVariable& var)
 	return access;
 }
 
-Expected<AssignModel> modelica::addAproximation(
-		EntryModel& model, float deltaTime)
+Expected<AssignModel> modelica::addAproximation(Model& model, float deltaTime)
 {
 	AssignModel out;
 

@@ -40,12 +40,21 @@ bool Model::addVar(ModVariable exp)
 	return true;
 }
 
-Model::Model(vector<ModEquation> equationsV, StringMap<ModVariable> vars)
-		: vars(move(vars))
+void Model::dump(llvm::raw_ostream& OS) const
 {
-	for (auto& m : equationsV)
-		equations.push_back(std::move(m));
+	OS << "init\n";
+	for (const auto& var : getVars())
+		var.second.dump(OS);
 
-	for (const auto& eq : equations)
-		addTemplate(eq);
+	if (!getTemplates().empty())
+		OS << "template\n";
+	for (const auto& temp : getTemplates())
+	{
+		temp->dump(true, OS);
+		OS << "\n";
+	}
+
+	OS << "update\n";
+	for (const auto& update : *this)
+		update.dump(OS);
 }

@@ -4,12 +4,12 @@
 #include <utility>
 
 #include "llvm/ADT/STLExtras.h"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModLexerStateMachine.hpp"
 #include "modelica/model/ModVariable.hpp"
+#include "modelica/model/Model.hpp"
 #include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/Interval.hpp"
 
@@ -301,13 +301,12 @@ Expected<SmallVector<ModEquation, 0>> ModParser::updateSection(
 	return map;
 }
 
-Expected<EntryModel> ModParser::simulation()
+Expected<Model> ModParser::simulation()
 {
 	TRY(initSect, initSection());
 	TRY(templ, templates());
 	TRY(updateSect, updateSection(*templ));
-	EntryModel model(move(*updateSect), move(*initSect));
-	return model;
+	return Model(move(*updateSect), move(*initSect));
 }
 
 Expected<tuple<string, ModExp>> ModParser::statement()

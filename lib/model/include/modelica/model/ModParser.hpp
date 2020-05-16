@@ -2,15 +2,14 @@
 #include <memory>
 #include <utility>
 
-#include "Model.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include "modelica/model/Assigment.hpp"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModLexerStateMachine.hpp"
 #include "modelica/model/ModVariable.hpp"
+#include "modelica/model/Model.hpp"
 #include "modelica/utils/Interval.hpp"
 #include "modelica/utils/Lexer.hpp"
 #include "modelica/utils/SourceRange.hpp"
@@ -62,7 +61,7 @@ namespace modelica
 		[[nodiscard]] llvm::Expected<TemplatesMap> templates();
 
 		[[nodiscard]] llvm::Expected<ModEqTemplate> singleTemplate();
-		[[nodiscard]] llvm::Expected<EntryModel> simulation();
+		[[nodiscard]] llvm::Expected<Model> simulation();
 		[[nodiscard]] llvm::Expected<Interval> singleInduction();
 		[[nodiscard]] llvm::Expected<MultiDimInterval> inductions();
 		[[nodiscard]] llvm::Expected<ModEquation> updateStatement(

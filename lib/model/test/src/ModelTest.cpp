@@ -1,7 +1,6 @@
 #include "gtest/gtest.h"
 
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModCall.hpp"
 #include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModEquation.hpp"
@@ -10,6 +9,7 @@
 #include "modelica/model/ModParser.hpp"
 #include "modelica/model/ModType.hpp"
 #include "modelica/model/ModVariable.hpp"
+#include "modelica/model/Model.hpp"
 
 using namespace modelica;
 using namespace std;
@@ -151,7 +151,7 @@ TEST(ModExpTest, conditionalCanBeFolded)
 
 TEST(ModelTest, entryModelIsIteratable)
 {
-	EntryModel model;
+	Model model;
 
 	for (auto& e : model)
 		FAIL();

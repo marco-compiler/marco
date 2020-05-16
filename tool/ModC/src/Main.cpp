@@ -5,9 +5,9 @@
 #include "modelica/lowerer/Lowerer.hpp"
 #include "modelica/matching/Matching.hpp"
 #include "modelica/model/Assigment.hpp"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModParser.hpp"
+#include "modelica/model/Model.hpp"
 
 using namespace modelica;
 using namespace llvm;
@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
 	auto errorOrBuffer = MemoryBuffer::getFileOrSTDIN(InputFileName);
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	ModParser parser(buffer->getBufferStart());
-	EntryModel model = exitOnErr(parser.simulation());
+	Model model = exitOnErr(parser.simulation());
 
 	auto assigments = toAssign(move(model.getEquations()));
 	auto init = std::move(model.getVars());

@@ -13,12 +13,12 @@
 #include "llvm/ADT/iterator_range.h"
 #include "modelica/matching/MatchedEquationLookup.hpp"
 #include "modelica/matching/SccLookup.hpp"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModExpPath.hpp"
 #include "modelica/model/ModMatchers.hpp"
 #include "modelica/model/ModVariable.hpp"
+#include "modelica/model/Model.hpp"
 #include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/IRange.hpp"
 #include "modelica/utils/IndexSet.hpp"
@@ -61,8 +61,7 @@ void VVarDependencyGraph::populateEq(const IndexesOfEquation& equation)
 	}
 }
 
-VVarDependencyGraph::VVarDependencyGraph(const EntryModel& m)
-		: model(m), lookUp(m)
+VVarDependencyGraph::VVarDependencyGraph(const Model& m): model(m), lookUp(m)
 {
 	for (const auto& eq : lookUp)
 		nodesLookup[&eq.getEquation()] = add_vertex(&eq, graph);

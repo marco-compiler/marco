@@ -8,9 +8,9 @@
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/matching/MatchedEquationLookup.hpp"
 #include "modelica/matching/SccLookup.hpp"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModVariable.hpp"
+#include "modelica/model/Model.hpp"
 #include "modelica/model/VectorAccess.hpp"
 
 namespace modelica
@@ -32,7 +32,7 @@ namespace modelica
 
 		using EdgeDesc = boost::graph_traits<GraphImp>::edge_descriptor;
 
-		VVarDependencyGraph(const EntryModel& model);
+		VVarDependencyGraph(const Model& model);
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		[[nodiscard]] size_t count() const { return graph.m_vertices.size(); }
 		[[nodiscard]] SccLookup<VertexIndex> getSCC() const;
@@ -77,7 +77,7 @@ namespace modelica
 				const IndexesOfEquation& equation, const AccessToVar& toVariable);
 		void populateEq(const IndexesOfEquation& eq);
 
-		const EntryModel& model;
+		const Model& model;
 		GraphImp graph;
 		std::map<const ModEquation*, VertexDesc> nodesLookup;
 		MatchedEquationLookup lookUp;

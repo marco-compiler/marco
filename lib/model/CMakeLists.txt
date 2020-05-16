@@ -7,12 +7,9 @@ modelicaAddLibrary(
    	src/ModCall.cpp
    	src/ModLexerStateMachine.cpp
    	src/ModParser.cpp
-   	src/SolvedSet.cpp
-   	src/ModelJacobian.cpp
    	src/Model.cpp
    	src/ModEquation.cpp
    	src/ModVariable.cpp
-   	src/DependencyGraph.cpp
    	src/VectorAccess.cpp
    	src/ModConst.cpp)
 

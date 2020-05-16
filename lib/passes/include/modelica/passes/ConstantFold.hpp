@@ -1,10 +1,10 @@
 #pragma once
 #include "llvm/Support/Error.h"
-#include "modelica/model/EntryModel.hpp"
+#include "modelica/model/Model.hpp"
 
 namespace modelica
 {
-	inline llvm::Expected<EntryModel> constantFold(EntryModel&& model)
+	inline llvm::Expected<Model> constantFold(Model&& model)
 	{
 		for (auto& eq : model)
 			eq.foldConstants();

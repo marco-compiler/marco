@@ -10,9 +10,9 @@
 #include "modelica/matching/Schedule.hpp"
 #include "modelica/matching/VVarDependencyGraph.hpp"
 #include "modelica/model/Assigment.hpp"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModParser.hpp"
+#include "modelica/model/Model.hpp"
 #include "modelica/passes/ConstantFold.hpp"
 #include "modelica/utils/IRange.hpp"
 
@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
 	auto errorOrBuffer = MemoryBuffer::getFileOrSTDIN(InputFileName);
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	ModParser parser(buffer->getBufferStart());
-	EntryModel model = exitOnErr(parser.simulation());
+	Model model = exitOnErr(parser.simulation());
 	auto constantFoldedModel = exitOnErr(constantFold(move(model)));
 
 	if (dumpModel)

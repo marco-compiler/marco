@@ -13,7 +13,7 @@ using namespace modelica;
 
 TEST(VVarDependencyGraphTest, countTest)
 {
-	EntryModel model;
+	Model model;
 	model.emplaceVar(
 			"leftVar",
 			ModExp(ModConst(0, 1, 2, 3), ModType(BultinModTypes::INT, 2, 2)));
@@ -31,7 +31,7 @@ TEST(VVarDependencyGraphTest, countTest)
 
 static auto makeModel()
 {
-	EntryModel model;
+	Model model;
 	model.emplaceVar(
 			"leftVar", ModExp(ModConst(0, 1), ModType(BultinModTypes::INT, 2)));
 	model.emplaceVar(

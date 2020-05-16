@@ -18,7 +18,7 @@ TEST(OmcToModelTest, singleDeclaration)	 // NOLINT
 
 	auto ast = move(*expectedAST);
 
-	EntryModel model;
+	Model model;
 	OmcToModelPass pass(model);
 	auto error = pass.lower(ast, SymbolTable());
 	if (error)
@@ -41,7 +41,7 @@ TEST(OmcToModelTest, uninitializedDeclaration)	// NOLINT
 
 	auto ast = move(*expectedAST);
 
-	EntryModel model;
+	Model model;
 	OmcToModelPass pass(model);
 	auto error = pass.lower(ast, SymbolTable());
 	if (error)
@@ -64,7 +64,7 @@ TEST(OmcToModelTest, startDeclaration)	// NOLINT
 
 	auto ast = move(*expectedAST);
 
-	EntryModel model;
+	Model model;
 	OmcToModelPass pass(model);
 	auto error = pass.lower(ast, SymbolTable());
 	if (error)

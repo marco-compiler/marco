@@ -13,10 +13,10 @@
 #include "modelica/matching/Edge.hpp"
 #include "modelica/matching/Flow.hpp"
 #include "modelica/matching/MatchingErrors.hpp"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModMatchers.hpp"
 #include "modelica/model/ModVariable.hpp"
+#include "modelica/model/Model.hpp"
 #include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/IRange.hpp"
 
@@ -170,7 +170,7 @@ void MatchingGraph::dump(llvm::raw_ostream& OS) const
 }
 
 static Error insertEq(
-		Edge& edge, const MultiDimInterval& inductionVars, EntryModel& outModel)
+		Edge& edge, const MultiDimInterval& inductionVars, Model& outModel)
 {
 	const auto& eq = edge.getEquation();
 	const auto& templ = eq.getTemplate();
@@ -182,7 +182,7 @@ static Error insertEq(
 	return justInserted.explicitate(edge.getPath());
 }
 
-static Error insertAllEq(Edge& edge, EntryModel& outModel)
+static Error insertAllEq(Edge& edge, Model& outModel)
 {
 	for (const auto& inductionVars : edge.getSet())
 	{
@@ -193,10 +193,9 @@ static Error insertAllEq(Edge& edge, EntryModel& outModel)
 	return Error::success();
 }
 
-static Expected<EntryModel> explicitateModel(
-		EntryModel& model, MatchingGraph& graph)
+static Expected<Model> explicitateModel(Model& model, MatchingGraph& graph)
 {
-	EntryModel toReturn({}, move(model.getVars()));
+	Model toReturn({}, move(model.getVars()));
 
 	for (auto& edge : graph)
 	{
@@ -211,8 +210,7 @@ static Expected<EntryModel> explicitateModel(
 	return toReturn;
 }
 
-Expected<EntryModel> modelica::match(
-		EntryModel entryModel, size_t maxIterations)
+Expected<Model> modelica::match(Model entryModel, size_t maxIterations)
 {
 	if (entryModel.equationsCount() != entryModel.nonStateNonConstCount())
 		return make_error<EquationAndStateMissmatch>(move(entryModel));

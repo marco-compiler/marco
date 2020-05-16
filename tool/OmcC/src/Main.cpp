@@ -124,7 +124,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	EntryModel model;
+	Model model;
 	OmcToModelPass pass(model);
 	exitOnErr(pass.lower(ast, SymbolTable()));
 	if (dumpModel)

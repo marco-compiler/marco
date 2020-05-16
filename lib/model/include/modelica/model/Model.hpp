@@ -19,13 +19,7 @@ namespace modelica
 		Model(
 				llvm::SmallVector<ModEquation, 3> equs,
 				llvm::StringMap<ModVariable> vars);
-		Model(
-				std::vector<ModEquation> equationsV, llvm::StringMap<ModVariable> vars);
 		Model() = default;
-		Model& operator=(Model&& other) = delete;
-		Model& operator=(const Model& other) = delete;
-		Model(Model&& other) = default;
-		Model(const Model& other) = default;
 
 		auto begin() { return equations.begin(); }
 		auto end() { return equations.end(); };
@@ -141,8 +135,7 @@ namespace modelica
 
 		[[nodiscard]] const TemplateMap& getTemplates() const { return templates; }
 
-		protected:
-		~Model() = default;
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
 		private:
 		void addTemplate(const ModEquation& eq);

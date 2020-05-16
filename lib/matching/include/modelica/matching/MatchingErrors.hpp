@@ -5,7 +5,7 @@
 
 #include "llvm/Support/Error.h"
 #include "modelica/matching/Matching.hpp"
-#include "modelica/model/EntryModel.hpp"
+#include "modelica/model/Model.hpp"
 
 namespace modelica
 {
@@ -64,7 +64,7 @@ namespace modelica
 	{
 		public:
 		static char ID;
-		FailedMatching(EntryModel model, size_t matchedCount)
+		FailedMatching(Model model, size_t matchedCount)
 				: model(std::move(model)), matchedCount(matchedCount)
 		{
 		}
@@ -84,7 +84,7 @@ namespace modelica
 		}
 
 		private:
-		EntryModel model;
+		Model model;
 		size_t matchedCount;
 	};
 
@@ -93,7 +93,7 @@ namespace modelica
 	{
 		public:
 		static char ID;
-		EquationAndStateMissmatch(EntryModel model): model(std::move(model)) {}
+		EquationAndStateMissmatch(Model model): model(std::move(model)) {}
 
 		void log(llvm::raw_ostream& OS) const override
 		{
@@ -111,7 +111,7 @@ namespace modelica
 		}
 
 		private:
-		EntryModel model;
+		Model model;
 	};
 
 }	 // namespace modelica

@@ -10,7 +10,6 @@
 #include "modelica/matching/VVarDependencyGraph.hpp"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/AssignModel.hpp"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/IndexSet.hpp"
@@ -125,7 +124,7 @@ static ResultVector parallelMap(
 	return results;
 }
 
-EntryModel modelica::schedule(const EntryModel& model)
+Model modelica::schedule(const Model& model)
 {
 	VVarDependencyGraph vectorGraph(model);
 	auto sccs = vectorGraph.getSCC();
@@ -135,7 +134,7 @@ EntryModel modelica::schedule(const EntryModel& model)
 
 	auto results = parallelMap(vectorGraph, sortedScc);
 
-	EntryModel scheduledModel({}, std::move(model.getVars()));
+	Model scheduledModel({}, std::move(model.getVars()));
 	for (const auto& res : results)
 		for (const auto& eq : res)
 			scheduledModel.addEquation(std::move(eq));

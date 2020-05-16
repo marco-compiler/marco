@@ -6,17 +6,17 @@
 #include "modelica/frontend/Expression.hpp"
 #include "modelica/frontend/ForEquation.hpp"
 #include "modelica/frontend/SymbolTable.hpp"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModCall.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModType.hpp"
+#include "modelica/model/Model.hpp"
 
 namespace modelica
 {
 	class OmcToModelPass
 	{
 		public:
-		OmcToModelPass(EntryModel& toPopulate): model(toPopulate) {}
+		OmcToModelPass(Model& toPopulate): model(toPopulate) {}
 
 		[[nodiscard]] llvm::Error lower(Class& cl, const SymbolTable& table);
 		[[nodiscard]] llvm::Expected<ModEquation> lower(
@@ -47,6 +47,6 @@ namespace modelica
 				const Member& mem, const SymbolTable& table);
 
 		private:
-		EntryModel& model;
+		Model& model;
 	};
 }	 // namespace modelica

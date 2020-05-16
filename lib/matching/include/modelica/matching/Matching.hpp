@@ -11,7 +11,6 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/matching/Edge.hpp"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExpPath.hpp"
 #include "modelica/model/ModVariable.hpp"
@@ -279,6 +278,6 @@ namespace modelica
 		const Model& model;
 	};
 
-	llvm::Expected<EntryModel> match(EntryModel entryModel, size_t maxIterations);
+	llvm::Expected<Model> match(Model entryModel, size_t maxIterations);
 
 }	 // namespace modelica

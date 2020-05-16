@@ -8,9 +8,9 @@
 #include "modelica/matching/Flow.hpp"
 #include "modelica/matching/Matching.hpp"
 #include "modelica/model/Assigment.hpp"
-#include "modelica/model/EntryModel.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModParser.hpp"
+#include "modelica/model/Model.hpp"
 #include "modelica/passes/ConstantFold.hpp"
 #include "modelica/utils/IRange.hpp"
 
