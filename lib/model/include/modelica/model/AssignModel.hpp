@@ -68,7 +68,10 @@ namespace modelica
 			if (!templates.empty())
 				OS << "templates\n";
 			for (const auto& pair : templates)
+			{
 				pair->dump(true, OS);
+				OS << "\n";
+			}
 
 			OS << "update\n";
 			for (const auto& update : updates)
@@ -83,9 +86,13 @@ namespace modelica
 		private:
 		void addTemplate(const Assigment& assigment)
 		{
-			if (!assigment.getTemplate()->getName().empty())
-				if (templates.find(assigment.getTemplate()) == templates.end())
-					templates.emplace(assigment.getTemplate());
+			if (assigment.getTemplate()->getName().empty())
+				return;
+
+			if (templates.find(assigment.getTemplate()) != templates.end())
+				return;
+
+			templates.emplace(assigment.getTemplate());
 		}
 
 		llvm::StringMap<ModVariable> variables;

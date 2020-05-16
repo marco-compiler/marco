@@ -83,7 +83,7 @@ static ModExp varToExp(const ModVariable& var)
 }
 
 Expected<AssignModel> modelica::addAproximation(
-		EntryModel&& model, float deltaTime)
+		EntryModel& model, float deltaTime)
 {
 	AssignModel out;
 
@@ -122,7 +122,7 @@ Expected<AssignModel> modelica::addAproximation(
 						(ModExp("deltaTime", BultinModTypes::FLOAT) * move(right));
 
 		auto templ = make_shared<ModEqTemplate>(
-				move(right), move(left), derName + "_update");
+				move(left), move(right), derName + "_update");
 		out.emplaceUpdate(templ, var.toMultiDimInterval());
 	}
 

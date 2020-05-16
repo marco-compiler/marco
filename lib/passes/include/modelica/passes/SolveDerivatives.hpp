@@ -6,7 +6,7 @@
 namespace modelica
 {
 	llvm::Expected<AssignModel> addAproximation(
-			EntryModel&& model, float deltaTime);
+			EntryModel& model, float deltaTime);
 
 	llvm::Error solveDer(EntryModel& model);
 }	 // namespace modelica

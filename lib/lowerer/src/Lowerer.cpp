@@ -1,5 +1,6 @@
 #include "modelica/lowerer/Lowerer.hpp"
 
+#include "CallLowerer.hpp"
 #include "ExpLowerer.hpp"
 #include "LowererUtils.hpp"
 #include "llvm/Bitcode/BitcodeWriter.h"
@@ -131,6 +132,50 @@ Error Lowerer::createAllGlobals(GlobalValue::LinkageTypes linkType)
 
 void Lowerer::verify() { llvm::verifyModule(module, &llvm::outs()); }
 
+static bool isZeroInitialized(const ModVariable& var)
+{
+	const auto& exp = var.getInit();
+	if (exp.isConstant() && exp.getConstant().as<float>() == 0.0F)
+		return true;
+
+	if (!exp.isCall())
+		return false;
+
+	const auto& call = exp.getCall();
+	if (call.getName() != "fill")
+		return false;
+
+	const auto& initExp = call.at(0);
+	return initExp.isConstant() && initExp.getConstant().as<float>() == 0.0F;
+}
+
+static Error shortCallInit(LowererContext& ctx, const ModVariable& var)
+{
+	auto loc = ctx.getModule().getGlobalVariable(var.getName(), true);
+	auto res = lowerCall(loc, ctx, var.getInit().getCall());
+	if (!res)
+		return res.takeError();
+	return Error::success();
+}
+
+static Error initGlobal(LowererContext& ctx, const ModVariable& var)
+{
+	auto& builder = ctx.getBuilder();
+	if (isZeroInitialized(var))
+		return Error::success();
+
+	if (var.getInit().isCall())
+		return shortCallInit(ctx, var);
+
+	auto val = lowerExp(ctx, var.getInit());
+	if (!val)
+		return val.takeError();
+	auto loaded = builder.CreateLoad(*val);
+	builder.CreateStore(
+			loaded, ctx.getModule().getGlobalVariable(var.getName(), true));
+	return Error::success();
+}
+
 static Expected<Function*> initializeGlobals(
 		Module& m, const StringMap<ModVariable>& vars)
 {
@@ -143,13 +188,9 @@ static Expected<Function*> initializeGlobals(
 
 	cont.setFunction(initFunction);
 	for (const auto& pair : vars)
-	{
-		auto val = lowerExp(cont, pair.second.getInit());
-		if (!val)
-			return val.takeError();
-		auto loaded = builder.CreateLoad(*val);
-		builder.CreateStore(loaded, m.getGlobalVariable(pair.first(), true));
-	}
+		if (auto error = initGlobal(cont, pair.second); error)
+			return move(error);
+
 	builder.CreateRet(nullptr);
 	return initFunction;
 }

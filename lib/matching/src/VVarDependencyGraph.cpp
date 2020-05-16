@@ -1,7 +1,6 @@
 #include "modelica/matching/VVarDependencyGraph.hpp"
 
 #include <algorithm>
-#include <boost/graph/detail/adjacency_list.hpp>
 #include <boost/graph/strong_components.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <boost/range/iterator_range_core.hpp>

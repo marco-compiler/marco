@@ -1,0 +1,20 @@
+name: CI
+
+on: [push]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: fetch libboost 
+      run: sudo apt-get install libboost-all-dev 
+    - name: fetch llvm
+      wget https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && sudo ./llvm.sh 9
+    - name: collect-dependencies
+      run: git submodule update --recursive --init 
+    - name: build 
+      run: mkdir build && cd build && cmake ../ && make all -j4 && make test
+

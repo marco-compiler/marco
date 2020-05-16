@@ -94,9 +94,6 @@ Error ConstantFolder::foldReference(Expression& exp, const SymbolTable& table)
 		return Error::success();
 	const auto simbol = s.get<Member>();
 
-	if (!simbol.isParameter())
-		return Error::success();
-
 	if (!simbol.hasInitializer())
 		return Error::success();
 
@@ -262,6 +259,30 @@ static Expected<Expression> foldOpMult(Expression& exp)
 	return exp;
 }
 
+template<typename T>
+static Expected<Expression> foldOpExp(Expression& exp)
+{
+	Vector& arguments = exp.getOperation().getArguments();
+	assert(arguments.size() == 2);
+	if (!arguments[0].isA<Constant>() || !arguments[1].isA<Constant>())
+		return exp;
+
+	T val = pow(
+			arguments[0].getConstant().as<T>(), arguments[1].getConstant().as<T>());
+
+	return Expression(makeType<T>(), val);
+}
+
+static Expected<Expression> foldOpExp(Expression& exp)
+{
+	Vector& arguments = exp.getOperation().getArguments();
+	if (arguments[0].getType() == makeType<int>())
+		return foldOpExp<int>(exp);
+	if (arguments[0].getType() == makeType<float>())
+		return foldOpExp<float>(exp);
+	return exp;
+}
+
 static Expected<Expression> foldOpNegate(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
@@ -296,6 +317,8 @@ Expected<Expression> ConstantFolder::foldExpression(
 			return foldOpMult(exp);
 		case OperationKind::divide:
 			return foldOpDivide(exp);
+		case OperationKind::powerOf:
+			return foldOpExp(exp);
 		case OperationKind::ifelse:
 		case OperationKind::greater:
 		case OperationKind::greaterEqual:
@@ -307,7 +330,6 @@ Expected<Expression> ConstantFolder::foldExpression(
 		case OperationKind::lor:
 		case OperationKind::subscription:
 		case OperationKind::memberLookup:
-		case OperationKind::powerOf:
 			return exp;
 	}
 

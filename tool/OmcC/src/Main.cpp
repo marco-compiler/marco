@@ -155,7 +155,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	auto assModel = exitOnErr(addAproximation(move(scheduled), timeStep));
+	auto assModel = exitOnErr(addAproximation(scheduled, timeStep));
 	if (dumpSolvedModel)
 	{
 		assModel.dump(OS);

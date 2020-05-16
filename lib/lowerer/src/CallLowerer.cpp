@@ -1,6 +1,7 @@
 #include "CallLowerer.hpp"
 
 #include "ExpLowerer.hpp"
+#include "llvm/IR/Value.h"
 
 using namespace llvm;
 using namespace std;
@@ -22,13 +23,11 @@ namespace modelica
 		return Error::success();
 	}
 
-	Expected<Value*> lowerCall(LowererContext& info, const ModCall& call)
+	Expected<Value*> lowerCall(
+			Value* outLocation, LowererContext& info, const ModCall& call)
 	{
 		SmallVector<Value*, 3> argsValue;
-
-		auto alloca = info.allocaModType(call.getType());
-		argsValue.push_back(alloca);
-		call.dump();
+		argsValue.push_back(outLocation);
 		argsValue.push_back(info.getTypeDimensionsArray(call.getType()));
 
 		for (size_t a = 0; a < call.argsSize(); a++)
@@ -44,6 +43,12 @@ namespace modelica
 		if (auto e = invoke(info, call.getName(), argsValue))
 			return move(e);
 
-		return alloca;
+		return outLocation;
+	}
+
+	Expected<Value*> lowerCall(LowererContext& info, const ModCall& call)
+	{
+		auto alloca = info.allocaModType(call.getType());
+		return lowerCall(alloca, info, call);
 	}
 }	 // namespace modelica

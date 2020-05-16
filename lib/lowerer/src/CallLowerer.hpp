@@ -12,4 +12,7 @@ namespace modelica
 {
 	llvm::Expected<llvm::Value*> lowerCall(
 			LowererContext& info, const ModCall& call);
-}
+
+	llvm::Expected<llvm::Value*> lowerCall(
+			llvm::Value* outLocation, LowererContext& info, const ModCall& call);
+}	 // namespace modelica

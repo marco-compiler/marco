@@ -1,7 +1,7 @@
 model SimpleAdvection 
-  parameter Real L = 10;
-  final parameter Real l = L/4;
-  Real[1] u(start = 1.0);
+  parameter Real L = 10.0;
+  final parameter Real l = L/4.0;
+  Real u(start = 1.0);
   parameter Real Tin = 300;
   Real[4] T(start = 0.0);
   Real[3] Ttilde(start = 300.0);

@@ -115,14 +115,12 @@ TEST(ParserTest, division)
 		FAIL();
 
 	EXPECT_TRUE(exp->isOperation());
-	EXPECT_EQ(exp->getOperation().getKind(), OperationKind::multiply);
+	EXPECT_EQ(exp->getOperation().getKind(), OperationKind::divide);
 	EXPECT_TRUE(exp->getOperation()[0].isA<Constant>());
 	EXPECT_TRUE(exp->getOperation()[0].getConstant().isA<float>());
 
 	EXPECT_EQ(exp->getOperation().argumentsCount(), 2);
-	EXPECT_TRUE(exp->getOperation()[1].isOperation());
-	EXPECT_EQ(
-			exp->getOperation()[1].getOperation().getKind(), OperationKind::divide);
+	EXPECT_TRUE(exp->getOperation()[1].isA<Constant>());
 }
 
 TEST(ParserTest, equation)

@@ -479,11 +479,19 @@ Expected<Expression> Parser::term()
 		EXPECT(Token::Division);
 		TRY(arg, factor());
 
-		auto one = Expression(makeType<float>(), 1.0);
-		auto exp =
-				Expression::op<OperationKind::divide>(Type::unkown(), one, move(*arg));
-		argumets.emplace_back(move(exp));
+		if (argumets.size() == 1)
+		{
+			argumets = { Expression::op<OperationKind::divide>(
+					Type::unkown(), move(argumets[0]), move(*arg)) };
+			continue;
+		}
+		auto left =
+				Expression::op<OperationKind::multiply>(Type::unkown(), move(argumets));
+		argumets = { Expression::op<OperationKind::divide>(
+				Type::unkown(), move(left), move(*arg)) };
 	}
+	if (argumets.size() == 1)
+		return move(argumets[0]);
 
 	return Expression::op<OperationKind::multiply>(
 			Type::unkown(), move(argumets));
