@@ -10,6 +10,11 @@
 #include "modelica/matching/VVarDependencyGraph.hpp"
 namespace modelica
 {
+	/**
+	 * A reference to a scalr equation, that is a reference to a scalar equation
+	 * and a set of indicies that indicate which scalar equation we are reffering
+	 * to
+	 */
 	class SingleEquationReference
 	{
 		public:
@@ -49,7 +54,7 @@ namespace modelica
 
 		using VertexDesc = boost::graph_traits<GraphImp>::vertex_descriptor;
 
-		using VVarScc = Scc<VVarDependencyGraph::VertexDesc>;
+		using VVarScc = Scc<VVarDependencyGraph>;
 
 		using LookUp = std::map<const IndexesOfEquation*, std::map<size_t, size_t>>;
 

@@ -1,17 +1,18 @@
 #include "modelica/matching/SCCDependencyGraph.hpp"
 
-#include <boost/graph/detail/adjacency_list.hpp>
 #include <boost/range/iterator_range_core.hpp>
+
+#include "modelica/matching/VVarDependencyGraph.hpp"
 
 using namespace boost;
 using namespace modelica;
 using namespace std;
 
 SCCDependencyGraph::SCCDependencyGraph(
-		SccLookup<size_t>& lookUp, VVarDependencyGraph& originalGraph)
+		SccLookup<VVarDependencyGraph>& lookUp, VVarDependencyGraph& originalGraph)
 		: sccLookup(lookUp), originalGraph(originalGraph)
 {
-	map<const Scc<size_t>*, size_t> insertedVertex;
+	map<const Scc*, size_t> insertedVertex;
 	for (const auto& scc : lookUp)
 		insertedVertex[&scc] = add_vertex(&scc, graph);
 

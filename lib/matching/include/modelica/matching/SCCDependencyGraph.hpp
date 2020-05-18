@@ -12,24 +12,23 @@ namespace modelica
 	class SCCDependencyGraph
 	{
 		public:
-		using GraphImp = boost::adjacency_list<
-				boost::vecS,
-				boost::vecS,
-				boost::directedS,
-				const Scc<size_t>*>;
+		using Scc = SccLookup<VVarDependencyGraph>::SCC;
 
-		SCCDependencyGraph(SccLookup<size_t>& lookUp, VVarDependencyGraph& graph);
+		using GraphImp = boost::
+				adjacency_list<boost::vecS, boost::vecS, boost::directedS, const Scc*>;
+
+		SCCDependencyGraph(
+				SccLookup<VVarDependencyGraph>& lookUp, VVarDependencyGraph& graph);
 
 		[[nodiscard]] const VVarDependencyGraph& getVectorVarGraph() const
 		{
 			return originalGraph;
 		}
 
-		[[nodiscard]] llvm::SmallVector<const Scc<size_t>*, 0> topologicalSort()
-				const
+		[[nodiscard]] llvm::SmallVector<const Scc*, 0> topologicalSort() const
 		{
 			llvm::SmallVector<size_t, 0> sorted(sccLookup.count(), 0);
-			llvm::SmallVector<const Scc<size_t>*, 0> out(sccLookup.count(), nullptr);
+			llvm::SmallVector<const Scc*, 0> out(sccLookup.count(), nullptr);
 			boost::topological_sort(graph, sorted.rbegin());
 
 			for (auto i : irange(sorted.size()))
@@ -40,7 +39,7 @@ namespace modelica
 
 		private:
 		GraphImp graph;
-		SccLookup<size_t>& sccLookup;
+		SccLookup<VVarDependencyGraph>& sccLookup;
 		VVarDependencyGraph& originalGraph;
 	};
 

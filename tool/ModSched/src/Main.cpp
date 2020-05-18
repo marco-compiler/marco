@@ -7,6 +7,7 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "modelica/matching/Flow.hpp"
 #include "modelica/matching/SVarDependencyGraph.hpp"
+#include "modelica/matching/SccLookup.hpp"
 #include "modelica/matching/Schedule.hpp"
 #include "modelica/matching/VVarDependencyGraph.hpp"
 #include "modelica/model/Assigment.hpp"
@@ -73,7 +74,7 @@ int main(int argc, char* argv[])
 	if (dumpGraph)
 		graph.dump(OS);
 
-	auto sccs = graph.getSCC();
+	SccLookup sccs(graph);
 
 	if (dumpScc)
 	{

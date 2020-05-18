@@ -1,78 +1,36 @@
 #pragma once
 
 #include <boost/graph/graph_traits.hpp>
+#include <boost/graph/strong_components.hpp>
+#include <boost/property_map/property_map.hpp>
+#include <boost/range/iterator_range_core.hpp>
 #include <cstddef>
 #include <iterator>
 #include <type_traits>
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
+#include "modelica/matching/VVarDependencyGraph.hpp"
+#include "modelica/utils/GraphIterator.hpp"
 namespace modelica
 {
-	template<typename Graph, typename Iterator, typename Value>
-	class GraphIterator
-	{
-		public:
-		using iterator_category = std::random_access_iterator_tag;
-		using value_type = Value;
-		using difference_type = std::ptrdiff_t;
-		using pointer = Value*;
-		using reference = Value&;
-
-		GraphIterator(Graph& graph, Iterator iter): graph(graph), iter(iter) {}
-
-		[[nodiscard]] bool operator==(const GraphIterator& other) const
-		{
-			return iter == other.iter;
-		}
-		[[nodiscard]] bool operator!=(const GraphIterator& other) const
-		{
-			return iter != other.iter;
-		}
-		[[nodiscard]] reference operator*() const { return graph[*iter]; }
-		[[nodiscard]] reference operator*() { return graph[*iter]; }
-		[[nodiscard]] pointer operator->() { return &graph[*iter]; }
-		[[nodiscard]] pointer operator->() const { return &graph[*iter]; }
-		const GraphIterator operator++(int)	 // NOLINT
-		{
-			auto copy = *this;
-			++(*this);
-			return copy;
-		}
-		GraphIterator& operator++()
-		{
-			iter++;
-			return *this;
-		}
-		const GraphIterator operator--(int)	 // NOLINT
-		{
-			auto copy = *this;
-			--(*this);
-			return copy;
-		}
-		GraphIterator& operator--()
-		{
-			iter--;
-			return *this;
-		}
-
-		private:
-		Graph& graph;
-		Iterator iter;
-	};
-
-	template<typename VertexIndex>
+	/**
+	 * a scc is a vector of vertex descriptors that are all reachable from each
+	 * other in the graph. It allows get a range to iterate over the vertex
+	 * properties of the indexes in this scc.
+	 */
+	template<typename Graph>
 	class Scc
 	{
 		public:
-		using Vector = llvm::SmallVector<VertexIndex, 3>;
+		using VertexDesc = typename Graph::VertexDesc;
+		using Vector = llvm::SmallVector<VertexDesc, 3>;
 		using Iter = typename Vector::iterator;
 		using ConstIter = typename Vector::const_iterator;
 
 		Scc(Vector indexes): indexes(std::move(indexes)) {}
 		Scc() = default;
 
-		template<typename Graph>
 		[[nodiscard]] auto range(const Graph& toIterateOver) const
 		{
 			using VertexDesc =
@@ -84,16 +42,15 @@ namespace modelica
 			return llvm::make_range<Iterator>(begin, end);
 		}
 
-		void push_back(VertexIndex index) { indexes.push_back(index); }
+		void push_back(VertexDesc index) { indexes.push_back(index); }
 
 		[[nodiscard]] size_t size() const { return indexes.size(); }
 
-		[[nodiscard]] VertexIndex operator[](size_t index) const
+		[[nodiscard]] VertexDesc operator[](size_t index) const
 		{
 			return indexes[index];
 		}
 
-		template<typename Graph>
 		[[nodiscard]] auto range(Graph& toIterateOver)
 		{
 			using VertexDesc =
@@ -114,41 +71,52 @@ namespace modelica
 		Vector indexes;
 	};
 
-	template<typename VertexIndex>
+	/**
+	 * A scc lookup is a map like object that given a vertex returns the scc it
+	 * belongs to or given a scc index returns the scc object at that index.
+	 */
+	template<typename Graph>
 	class SccLookup
 	{
 		public:
-		using SCC = Scc<VertexIndex>;
-		using Vector = llvm::SmallVector<SCC, 3>;
-		using InputVector = llvm::SmallVector<VertexIndex, 3>;
+		using VertDesc = typename Graph::VertexDesc;
+		using SCC = Scc<Graph>;
+		using SccVector = llvm::SmallVector<SCC, 3>;
+		using VertToSCC = llvm::SmallVector<size_t, 3>;
 
-		SccLookup(InputVector vector, size_t componentsCount)
-				: components(componentsCount), directLookup(std::move(vector))
+		SccLookup(const Graph& graph): allScc(0), vertToScc(graph.count())
 		{
-			for (auto i : irange(directLookup.size()))
+			auto componentsCount = boost::strong_components(
+					graph.getImpl(),
+					boost::make_iterator_property_map(
+							vertToScc.begin(),
+							boost::get(boost::vertex_index, graph.getImpl())));
+
+			allScc = SccVector(componentsCount);
+			for (auto i : irange(vertToScc.size()))
 			{
-				const auto scc = directLookup[i];
-				components[scc].push_back(i);
+				const auto scc = vertToScc[i];
+				allScc[scc].push_back(i);
 			}
 		}
 
-		[[nodiscard]] size_t count() const { return components.size(); }
+		[[nodiscard]] size_t count() const { return allScc.size(); }
 
-		[[nodiscard]] auto begin() const { return components.begin(); }
-		[[nodiscard]] auto end() const { return components.end(); }
-		[[nodiscard]] auto begin() { return components.begin(); }
-		[[nodiscard]] auto end() { return components.end(); }
-		[[nodiscard]] const SCC& sccOf(size_t vertexIndex) const
+		[[nodiscard]] auto begin() const { return allScc.begin(); }
+		[[nodiscard]] auto end() const { return allScc.end(); }
+		[[nodiscard]] auto begin() { return allScc.begin(); }
+		[[nodiscard]] auto end() { return allScc.end(); }
+		[[nodiscard]] const SCC& sccOf(VertDesc vertexIndex) const
 		{
-			return components[directLookup[vertexIndex]];
+			return allScc[vertToScc[vertexIndex]];
 		}
 		[[nodiscard]] const SCC& operator[](size_t index) const
 		{
-			return components[index];
+			return allScc[index];
 		}
 
 		private:
-		Vector components;
-		InputVector directLookup;
+		SccVector allScc;
+		VertToSCC vertToScc;
 	};
 }	 // namespace modelica

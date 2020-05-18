@@ -60,7 +60,7 @@ TEST(VVarDependencyGraphTest, paritionTest)
 {
 	auto model = makeModel();
 	VVarDependencyGraph graph(model);
-	auto scc = graph.getSCC();
+	SccLookup scc(graph);
 	EXPECT_EQ(scc.count(), 2);
 }
 
@@ -68,7 +68,7 @@ TEST(VVarDependencyGraphTest, graphIteratorTest)
 {
 	auto model = makeModel();
 	VVarDependencyGraph graph(model);
-	auto sccContent = graph.getSCC();
+	SccLookup sccContent(graph);
 
 	int visitedNodes = 0;
 	for (auto& scc : sccContent)
@@ -82,7 +82,7 @@ TEST(VVarDependencyGraphTest, scalarGraph)
 {
 	auto model = makeModel();
 	VVarDependencyGraph graph(model);
-	auto sccContent = graph.getSCC();
+	SccLookup sccContent(graph);
 
 	int visitedNodes = 0;
 	for (const auto& scc : sccContent)
@@ -97,7 +97,7 @@ TEST(VVarDependencyGraphTest, testOder)
 {
 	auto model = makeModel();
 	VVarDependencyGraph graph(model);
-	auto sccContent = graph.getSCC();
+	SccLookup sccContent(graph);
 	SmallVector<SVarDepencyGraph, 0> sccs;
 	SmallVector<size_t, 0> execOrder;
 	int cutCount = 0;
@@ -118,7 +118,7 @@ TEST(VVarDependencyGraphTest, scheduleTest)
 {
 	auto model = makeModel();
 	VVarDependencyGraph graph(model);
-	auto sccContent = graph.getSCC();
+	SccLookup sccContent(graph);
 	auto scheduledModel = modelica::schedule(std::move(model));
 	EXPECT_EQ(scheduledModel.getEquations().size(), 2);
 	for (const auto& ass : scheduledModel.getEquations())

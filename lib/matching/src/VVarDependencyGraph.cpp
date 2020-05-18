@@ -30,7 +30,9 @@ using namespace llvm;
 using namespace boost;
 
 void VVarDependencyGraph::populateEdge(
-		const IndexesOfEquation& equation, const AccessToVar& toVariable)
+		const IndexesOfEquation& equation,
+		const AccessToVar& toVariable,
+		EqToVert& eqToVert)
 {
 	const auto& variable = model.getVar(toVariable.getVarName());
 	const auto usedIndexes =
@@ -42,14 +44,15 @@ void VVarDependencyGraph::populateEdge(
 			continue;
 
 		add_edge(
-				nodesLookup[&equation.getEquation()],
-				nodesLookup[&var.getEquation()],
+				eqToVert[&equation.getEquation()],
+				eqToVert[&var.getEquation()],
 				toVariable.getAccess(),
 				graph);
 	}
 }
 
-void VVarDependencyGraph::populateEq(const IndexesOfEquation& equation)
+void VVarDependencyGraph::populateEq(
+		const IndexesOfEquation& equation, EqToVert& eqToVert)
 {
 	ReferenceMatcher rightHandMatcher;
 	rightHandMatcher.visitRight(equation.getEquation());
@@ -57,17 +60,19 @@ void VVarDependencyGraph::populateEq(const IndexesOfEquation& equation)
 	{
 		assert(VectorAccess::isCanonical(toVariable.getExp()));
 		auto toAccess = AccessToVar::fromExp(toVariable.getExp());
-		populateEdge(equation, toAccess);
+		populateEdge(equation, toAccess, eqToVert);
 	}
 }
 
 VVarDependencyGraph::VVarDependencyGraph(const Model& m): model(m), lookUp(m)
 {
-	for (const auto& eq : lookUp)
-		nodesLookup[&eq.getEquation()] = add_vertex(&eq, graph);
+	EqToVert eqToVert;
 
 	for (const auto& eq : lookUp)
-		populateEq(eq);
+		eqToVert[&eq.getEquation()] = add_vertex(&eq, graph);
+
+	for (const auto& eq : lookUp)
+		populateEq(eq, eqToVert);
 }
 
 void VVarDependencyGraph::dump(llvm::raw_ostream& OS) const
@@ -95,15 +100,4 @@ void boost::throw_exception(const std::exception& e)
 {
 	errs() << e.what();
 	assert(false);
-}
-
-SccLookup<VVarDependencyGraph::VertexIndex> VVarDependencyGraph::getSCC() const
-{
-	SccLookup<VertexIndex>::InputVector components(count());
-
-	auto componentsCount = strong_components(
-			graph,
-			make_iterator_property_map(components.begin(), get(vertex_index, graph)));
-
-	return SccLookup<VertexIndex>(components, componentsCount);
 }

@@ -69,7 +69,8 @@ static bool isBacward(const VectorAccess* access)
 }
 
 static SmallVector<ModEquation, 3> trivialScheduling(
-		const Scc<size_t>& scc, const VVarDependencyGraph& originalGraph)
+		const Scc<VVarDependencyGraph>& scc,
+		const VVarDependencyGraph& originalGraph)
 {
 	if (scc.size() != 1)
 		return {};
@@ -97,7 +98,8 @@ static SmallVector<ModEquation, 3> trivialScheduling(
 }
 
 static SmallVector<ModEquation, 3> sched(
-		const Scc<size_t>& scc, const VVarDependencyGraph& originalGraph)
+		const Scc<VVarDependencyGraph>& scc,
+		const VVarDependencyGraph& originalGraph)
 {
 	if (auto sched = trivialScheduling(scc, originalGraph); !sched.empty())
 		return sched;
@@ -108,7 +110,7 @@ static SmallVector<ModEquation, 3> sched(
 }
 
 using ResultVector = SmallVector<SmallVector<ModEquation, 3>, 0>;
-using SortedScc = SmallVector<const Scc<size_t>*, 0>;
+using SortedScc = SmallVector<const Scc<VVarDependencyGraph>*, 0>;
 
 static ResultVector parallelMap(
 		const VVarDependencyGraph& vectorGraph, const SortedScc& sortedScc)
@@ -127,7 +129,7 @@ static ResultVector parallelMap(
 Model modelica::schedule(const Model& model)
 {
 	VVarDependencyGraph vectorGraph(model);
-	auto sccs = vectorGraph.getSCC();
+	SccLookup sccs(vectorGraph);
 	SCCDependencyGraph sccDependency(sccs, vectorGraph);
 
 	SortedScc sortedScc = sccDependency.topologicalSort();
