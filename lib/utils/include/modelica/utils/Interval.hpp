@@ -3,6 +3,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
+#include "modelica/utils/IRange.hpp"
 #include "modelica/utils/MultiDimensionalIterator.hpp"
 
 namespace modelica
@@ -28,12 +29,9 @@ namespace modelica
 
 		[[nodiscard]] size_t min() const { return minVal; }
 		[[nodiscard]] size_t max() const { return maxVal; }
-		template<typename Callable>
-		void for_all(Callable&& c) const
-		{
-			for (size_t v = minVal; v < maxVal; v++)
-				c(v);
-		}
+
+		[[nodiscard]] auto begin() const { return IRangeIterator(minVal); }
+		[[nodiscard]] auto end() const { return IRangeIterator(maxVal); }
 
 		[[nodiscard]] bool isFullyContained(const Interval& other) const
 		{

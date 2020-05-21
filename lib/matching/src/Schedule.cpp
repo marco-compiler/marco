@@ -129,8 +129,7 @@ static ResultVector parallelMap(
 Model modelica::schedule(const Model& model)
 {
 	VVarDependencyGraph vectorGraph(model);
-	SccLookup sccs(vectorGraph);
-	SCCDependencyGraph sccDependency(sccs, vectorGraph);
+	SCCDependencyGraph sccDependency(vectorGraph);
 
 	SortedScc sortedScc = sccDependency.topologicalSort();
 

@@ -1,4 +1,5 @@
 #pragma once
+#include <boost/graph/graph_traits.hpp>
 #include <map>
 
 #include "boost/graph/adjacency_list.hpp"
@@ -17,29 +18,20 @@ namespace modelica
 		using GraphImp = boost::
 				adjacency_list<boost::vecS, boost::vecS, boost::directedS, const Scc*>;
 
-		SCCDependencyGraph(
-				SccLookup<VVarDependencyGraph>& lookUp, VVarDependencyGraph& graph);
+		using VertexDesc = boost::graph_traits<GraphImp>::vertex_descriptor;
+
+		SCCDependencyGraph(VVarDependencyGraph& graph);
 
 		[[nodiscard]] const VVarDependencyGraph& getVectorVarGraph() const
 		{
 			return originalGraph;
 		}
 
-		[[nodiscard]] llvm::SmallVector<const Scc*, 0> topologicalSort() const
-		{
-			llvm::SmallVector<size_t, 0> sorted(sccLookup.count(), 0);
-			llvm::SmallVector<const Scc*, 0> out(sccLookup.count(), nullptr);
-			boost::topological_sort(graph, sorted.rbegin());
-
-			for (auto i : irange(sorted.size()))
-				out[i] = &sccLookup[sorted[i]];
-
-			return out;
-		}
+		[[nodiscard]] llvm::SmallVector<const Scc*, 0> topologicalSort() const;
 
 		private:
 		GraphImp graph;
-		SccLookup<VVarDependencyGraph>& sccLookup;
+		SccLookup<VVarDependencyGraph> sccLookup;
 		VVarDependencyGraph& originalGraph;
 	};
 

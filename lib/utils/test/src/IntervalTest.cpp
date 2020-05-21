@@ -20,7 +20,8 @@ TEST(IntervalTest, forAllTest)
 	Interval interval(10, 20);
 
 	vector<size_t> vector;
-	interval.for_all([&vector](size_t el) { vector.push_back(el); });
+	for (auto el : interval)
+		vector.push_back(el);
 
 	EXPECT_EQ(vector.size(), 10);
 
