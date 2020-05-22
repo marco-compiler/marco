@@ -24,6 +24,7 @@ namespace modelica
 		template<typename T>
 		[[nodiscard]] const T& get() const
 		{
+			assert(isA<T>());
 			return *std::get<T*>(content);
 		}
 

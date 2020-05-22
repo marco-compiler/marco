@@ -67,7 +67,7 @@ namespace modelica
 		/**
 		 *
 		 * single dimensions access can be built from expression in the form
-		 * (at V K), (at V (ind K)), and (at (+/- V (ind I) K)) where
+		 * (at V K), (at V (ind K)), and (at V (+/- (ind I) K)) where
 		 * V is the vector, K a constant and I the index of the induction variable
 		 *
 		 * that is either constant access, induction access, or sum of induction +

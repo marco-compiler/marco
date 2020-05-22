@@ -13,11 +13,11 @@ namespace modelica
 		public:
 		explicit Interval(size_t min, size_t max): minVal(min), maxVal(max)
 		{
-			assert(min < max);	// NOLINT
+			assert(min < max);
 		}
 		Interval(std::initializer_list<size_t> list)
 		{
-			assert(list.size() == 2);	 // NOLINT
+			assert(list.size() == 2);
 			minVal = *list.begin();
 			maxVal = *(list.begin() + 1);
 		}
@@ -166,7 +166,7 @@ namespace modelica
 			return MultiDimInterval(std::move(intervalsCopy));
 		}
 
-		void dump(llvm::raw_ostream& OS) const;
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
 		[[nodiscard]] llvm::SmallVector<MultiDimInterval, 3> cutOnDimension(
 				size_t dimension, llvm::ArrayRef<size_t> cutLines) const;

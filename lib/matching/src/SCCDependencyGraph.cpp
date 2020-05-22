@@ -1,6 +1,7 @@
 #include "modelica/matching/SCCDependencyGraph.hpp"
 
 #include <boost/range/iterator_range_core.hpp>
+#include <iterator>
 
 #include "modelica/matching/VVarDependencyGraph.hpp"
 
@@ -37,7 +38,7 @@ SCCDependencyGraph::topologicalSort() const
 {
 	SmallVector<size_t, 0> sorted(sccLookup.count(), 0);
 	SmallVector<const Scc*, 0> out(sccLookup.count(), nullptr);
-	topological_sort(graph, sorted.rbegin());
+	topological_sort(graph, sorted.begin());
 
 	for (auto i : irange(sorted.size()))
 		out[i] = &sccLookup[sorted[i]];
