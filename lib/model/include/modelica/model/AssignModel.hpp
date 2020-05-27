@@ -1,5 +1,6 @@
 #pragma once
 #include <set>
+#include "llvm/ADT/StringMap.h"
 
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModVariable.hpp"
