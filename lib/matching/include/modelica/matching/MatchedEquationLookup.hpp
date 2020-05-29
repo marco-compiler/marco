@@ -1,7 +1,9 @@
 #pragma once
+#include <llvm/ADT/ArrayRef.h>
 #include <map>
 
 #include "llvm/ADT/iterator_range.h"
+#include "modelica/model/ModEquation.hpp"
 #include "modelica/model/Model.hpp"
 #include "modelica/model/VectorAccess.hpp"
 #include "modelica/utils/Interval.hpp"
@@ -68,11 +70,20 @@ namespace modelica
 		MatchedEquationLookup(const Model& model)
 		{
 			for (auto& equation : model)
-			{
-				IndexesOfEquation index(model, equation);
-				const ModVariable* var = &index.getVariable();
-				variables.emplace(var, std::move(index));
-			}
+				addEquation(equation, model);
+		}
+
+		MatchedEquationLookup(const Model& model, llvm::ArrayRef<ModEquation> equs)
+		{
+			for (auto& equation : equs)
+				addEquation(equation, model);
+		}
+
+		void addEquation(const ModEquation& equation, const Model& model)
+		{
+			IndexesOfEquation index(model, equation);
+			const ModVariable* var = &index.getVariable();
+			variables.emplace(var, std::move(index));
 		}
 
 		[[nodiscard]] const_iterator_range eqsDeterminingVar(

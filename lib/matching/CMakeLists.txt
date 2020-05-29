@@ -8,7 +8,8 @@ modelicaAddLibrary(
    	src/SVarDependencyGraph.cpp
    	src/SCCDependencyGraph.cpp
    	src/Schedule.cpp
-	src/SccLookup.cpp) 
+	src/SccLookup.cpp
+	src/SccCollapsing.cpp) 
 
 target_link_libraries(
 	matching PUBLIC 

@@ -5,6 +5,7 @@
 #include <boost/property_map/property_map.hpp>
 #include <boost/range/iterator_range_core.hpp>
 #include <exception>
+#include <llvm/ADT/ArrayRef.h>
 #include <map>
 #include <sstream>
 #include <utility>
@@ -64,7 +65,7 @@ void VVarDependencyGraph::populateEq(
 	}
 }
 
-VVarDependencyGraph::VVarDependencyGraph(const Model& m): model(m), lookUp(m)
+void VVarDependencyGraph::create(ArrayRef<ModEquation> equs)
 {
 	EqToVert eqToVert;
 
@@ -73,6 +74,18 @@ VVarDependencyGraph::VVarDependencyGraph(const Model& m): model(m), lookUp(m)
 
 	for (const auto& eq : lookUp)
 		populateEq(eq, eqToVert);
+}
+
+VVarDependencyGraph::VVarDependencyGraph(
+		const Model& m, ArrayRef<ModEquation> equs)
+		: model(m), lookUp(m, equs)
+{
+	create(equs);
+}
+
+VVarDependencyGraph::VVarDependencyGraph(const Model& m): model(m), lookUp(m)
+{
+	create(model.getEquations());
 }
 
 void VVarDependencyGraph::dump(llvm::raw_ostream& OS) const
