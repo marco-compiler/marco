@@ -250,3 +250,19 @@ std::string VectorAccess::toString() const
 	stream.flush();
 	return toReturn;
 }
+
+bool VectorAccess::isIdentity() const
+{
+	for (size_t a = 0; a < vectorAccess.size(); a++)
+	{
+		if (!vectorAccess[a].isOffset())
+			return false;
+
+		if (vectorAccess[a].getInductionVar() != a)
+			return false;
+
+		if (vectorAccess[a].getOffset() != 0)
+			return false;
+	}
+	return true;
+}

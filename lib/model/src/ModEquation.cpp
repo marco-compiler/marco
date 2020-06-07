@@ -1,10 +1,14 @@
 #include "modelica/model/ModEquation.hpp"
 
+#include <llvm/ADT/StringRef.h>
 #include <memory>
+#include <numeric>
+#include <utility>
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
+#include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModExpPath.hpp"
@@ -291,6 +295,8 @@ AccessToVar ModEquation::getDeterminedVariable() const
 	return AccessToVar::fromExp(fromVariable.getExp());
 }
 
+void ModEquation::dump() const { dump(outs()); }
+
 void ModEquation::dump(llvm::raw_ostream& OS) const
 {
 	if (!isForward())
@@ -338,4 +344,193 @@ void ModEquation::setInductionVars(MultiDimInterval inds)
 		inductions = std::move(inds);
 	else
 		inds = { { 0, 1 } };
+}
+
+static ModExp singleDimAccToExp(const SingleDimensionAccess& access, ModExp exp)
+{
+	if (access.isDirecAccess())
+		return ModExp::at(
+				move(exp), ModExp(ModConst(static_cast<int>(access.getOffset()))));
+
+	auto ind = ModExp::induction(
+			ModExp(ModConst(static_cast<int>(access.getInductionVar()))));
+	auto sum = move(ind) + ModExp(ModConst(static_cast<int>(access.getOffset())));
+
+	return ModExp::at(move(exp), move(sum));
+}
+
+static ModExp accessToExp(const VectorAccess& access, ModExp exp)
+{
+	for (const auto& singleDimAcc : access)
+		exp = singleDimAccToExp(singleDimAcc, move(exp));
+
+	return exp;
+}
+
+static void composeAccess(ModExp& exp, const VectorAccess& transformation)
+{
+	auto access = AccessToVar::fromExp(exp);
+	auto combinedAccess = transformation * access.getAccess();
+
+	auto newExps = exp.getReferredVectorAccessExp();
+
+	exp = accessToExp(combinedAccess, move(newExps));
+}
+
+ModEquation ModEquation::composeAccess(const VectorAccess& transformation) const
+{
+	auto toReturn = clone(getTemplate()->getName() + "composed");
+	auto inverted = transformation.invert();
+	toReturn.setInductionVars(inverted.map(getInductions()));
+
+	ReferenceMatcher matcher(toReturn);
+	for (auto& matchedExp : matcher)
+	{
+		auto& exp = toReturn.reachExp(matchedExp);
+		::composeAccess(exp, transformation);
+	}
+
+	return toReturn;
+}
+
+ModEquation ModEquation::normalized() const
+{
+	assert(getLeft().isReferenceAccess());
+	auto access = AccessToVar::fromExp(getLeft()).getAccess();
+	auto invertedAccess = access.invert();
+
+	return composeAccess(invertedAccess);
+}
+
+using Mult = SmallVector<pair<ModExp, bool>, 3>;
+using SumsOfMult = SmallVector<pair<Mult, bool>, 3>;
+
+static void toMult(const ModExp& exp, Mult& out, bool mul = true)
+{
+	if (exp.isOperation<ModExpKind::mult>())
+	{
+		for (auto& c : exp)
+			toMult(c, out, mul);
+		return;
+	}
+	if (exp.isOperation<ModExpKind::divide>())
+	{
+		for (auto& c : exp)
+			toMult(c, out, !mul);
+		return;
+	}
+
+	assert(exp.isReferenceAccess() or exp.isConstant());
+
+	out.emplace_back(make_pair(exp, mul));
+}
+
+static void toSumsOfMult(const ModExp& exp, SumsOfMult& out, bool sum = true)
+{
+	if (exp.isOperation<ModExpKind::add>())
+	{
+		for (auto& c : exp)
+			toSumsOfMult(c, out, sum);
+		return;
+	}
+	if (exp.isOperation<ModExpKind::sub>())
+	{
+		toSumsOfMult(exp.getLeftHand(), out, sum);
+		toSumsOfMult(exp.getRightHand(), out, !sum);
+		return;
+	}
+	if (exp.isOperation<ModExpKind::negate>())
+	{
+		for (auto& c : exp)
+			toSumsOfMult(c, out, !sum);
+		return;
+	}
+
+	out.emplace_back();
+	out.back().second = sum;
+	toMult(exp, out.back().first);
+}
+
+static bool usesMember(const Mult& exp, llvm::StringRef varName)
+{
+	const auto& isReferenceToVar = [&](const pair<ModExp, bool>& exp) {
+		if (!exp.first.isReferenceAccess())
+			return false;
+		return exp.first.getReferredVectorAccesss() == varName;
+	};
+
+	return llvm::find_if(exp, isReferenceToVar) != exp.end();
+}
+
+static void removeOneUseOfVar(Mult& exp, llvm::StringRef varName)
+{
+	const auto& isReferenceToVar = [&](const pair<ModExp, bool>& exp) {
+		if (!exp.first.isReferenceAccess())
+			return false;
+		return exp.first.getReferredVectorAccesss() == varName;
+	};
+
+	exp.erase(remove_if(exp, isReferenceToVar), exp.end());
+}
+
+static ModExp multToExp(Mult& mult)
+{
+	auto exp = move(mult[0].first);
+	if (!mult[0].second)
+		exp = ModExp(ModConst(1.0)) / move(exp);
+	for (auto& e : make_range(mult.begin() + 1, mult.end()))
+	{
+		if (e.second)
+			exp = move(exp) * move(e.first);
+		else
+			exp = move(exp) / move(e.first);
+	}
+
+	return exp;
+}
+
+static ModExp multToExp(pair<Mult, bool>& mult)
+{
+	auto exp = multToExp(mult.first);
+	if (mult.second)
+		return exp;
+
+	return ModExp(ModConst(-1.0)) * move(exp);
+}
+
+static ModExp sumOfMultToExp(ModExp& exp, pair<Mult, bool>& mult)
+{
+	return move(exp) + multToExp(mult);
+}
+
+ModEquation ModEquation::groupLeftHand() const
+{
+	auto copy = clone(getTemplate()->getName() + "grouped");
+	copy.getRight().distribuiteMultiplications();
+	auto acc = AccessToVar::fromExp(getLeft());
+
+	SumsOfMult sums;
+	toSumsOfMult(copy.getRight(), sums);
+
+	auto pos = partition(sums, [&](const auto& mult) {
+		return usesMember(mult.first, acc.getVarName());
+	});
+
+	if (pos == sums.begin())
+		return *this;
+
+	for (auto& use : make_range(sums.begin(), pos))
+	{
+		use.second = !use.second;
+		removeOneUseOfVar(use.first, acc.getVarName());
+	}
+
+	auto rightHand =
+			accumulate(pos + 1, sums.end(), multToExp(*pos), sumOfMultToExp);
+	auto leftAccumulated =
+			accumulate(sums.begin(), pos, ModExp(ModConst(1.0)), sumOfMultToExp);
+	rightHand = move(rightHand) / move(leftAccumulated);
+
+	copy.getRight() = std::move(rightHand);
+	return copy;
 }

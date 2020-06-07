@@ -215,3 +215,22 @@ TEST(ModVariable, modVariableIndex)
 	EXPECT_EQ(v.indexOfElement({ 0, 0 }), 0);
 	EXPECT_EQ(v.indexOfElement({ 0, 1 }), 1);
 }
+
+TEST(ModelTest, modExpShouldDistribuite)
+{
+	ModExp exp = ModExp(ModConst(5));
+	exp.distribuite(ModExp(ModConst(0.1)), true);
+	EXPECT_TRUE(exp.isOperation<ModExpKind::mult>());
+	EXPECT_NEAR(exp.getLeftHand().getConstant().get<float>(0), 0.1, 0.01);
+}
+
+TEST(ModelTest, modExpShouldDistribuiteMultiplication)
+{
+	ModExp exp = ModExp(ModConst(5));
+	exp = ModExp::add(exp, exp);
+	exp = ModExp::multiply(exp, exp);
+	exp.distribuiteMultiplications();
+	EXPECT_TRUE(exp.isOperation<ModExpKind::add>());
+	EXPECT_TRUE(exp.getLeftHand().isOperation<ModExpKind::add>());
+	EXPECT_TRUE(exp.getRightHand().isOperation<ModExpKind::add>());
+}
