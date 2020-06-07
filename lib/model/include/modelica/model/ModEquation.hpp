@@ -50,6 +50,7 @@ namespace modelica
 		}
 		void foldConstants();
 
+		void dump() const;
 		void dump(llvm::raw_ostream& OS) const;
 
 		void dumpInductions(llvm::raw_ostream& OS) const { inductions.dump(OS); }
@@ -82,6 +83,41 @@ namespace modelica
 		[[nodiscard]] std::shared_ptr<ModEqTemplate>& getTemplate() { return body; }
 
 		void setForward(bool isForward) { isForwardDirection = isForward; }
+
+		/**
+		 * return a copy of the equation so that the single variables access on the
+		 * left side of the equation becomes indentity vector access. Crea
+		 */
+		[[nodiscard]] ModEquation normalized() const;
+
+		/**
+		 * the induction range is multiplied by the transformation
+		 * the vector access are modified to be equivalent
+		 */
+		[[nodiscard]] ModEquation composeAccess(
+				const VectorAccess& transformation) const;
+
+		[[nodiscard]] ModExp& reachExp(ModExpPath& path)
+		{
+			return path.isOnEquationLeftHand() ? path.reach(getLeft())
+																				 : path.reach(getRight());
+		}
+
+		/**
+		 * given a mod exp path returns the expression pointed
+		 * by that path in this equation.
+		 */
+		[[nodiscard]] const ModExp& reachExp(const ModExpPath& path) const
+		{
+			return path.isOnEquationLeftHand() ? path.reach(getLeft())
+																				 : path.reach(getRight());
+		}
+
+		/**
+		 * Tries to bring all the usages of the variable in the left hand of the
+		 * equation to the left side of the equation.
+		 */
+		[[nodiscard]] ModEquation groupLeftHand() const;
 
 		private:
 		std::shared_ptr<ModEqTemplate> body;

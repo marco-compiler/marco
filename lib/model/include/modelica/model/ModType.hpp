@@ -75,6 +75,7 @@ namespace modelica
 		ModType(BultinModTypes builtin, std::initializer_list<size_t> dims)
 				: builtinModType(builtin), dimensions(move(dims))
 		{
+			assert(dimensions.size() != 0);
 		}
 
 		/**

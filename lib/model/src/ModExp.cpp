@@ -258,3 +258,61 @@ const ModExp& ModExp::getReferredVectorAccessExp() const
 
 	return *exp;
 }
+
+void ModExp::distribuite(ModExp exp, bool multiplication)
+{
+	if (isReferenceAccess() or isConstant())
+	{
+		if (multiplication)
+			*this = move(exp) * move(*this);
+		else
+			*this = move(exp) / move(*this);
+		return;
+	}
+
+	if (isOperation<ModExpKind::mult>() or isOperation<ModExpKind::divide>())
+	{
+		getLeftHand().distribuite(move(exp), multiplication);
+		return;
+	}
+
+	if (isOperation<ModExpKind::sub>() or isOperation<ModExpKind::add>() or
+			isOperation<ModExpKind::negate>())
+	{
+		for (auto& c : *this)
+			c.distribuite(exp, multiplication);
+		return;
+	}
+
+	assert(false && "unreachable");
+}
+
+void ModExp::distribuiteMultiplications()
+{
+	if (isReferenceAccess() or isConstant())
+		return;
+	if (isOperation<ModExpKind::add>() or isOperation<ModExpKind::sub>() or
+			isOperation<ModExpKind::negate>())
+	{
+		for (auto& c : *this)
+			c.distribuiteMultiplications();
+		return;
+	}
+
+	assert(isOperation<ModExpKind::mult>() or isOperation<ModExpKind::divide>());
+
+	bool isDivition = isOperation<ModExpKind::divide>();
+	if (getLeftHand().isReferenceAccess() or getLeftHand().isConstant())
+	{
+		getRightHand().distribuite(move(getLeftHand()), !isDivition);
+		*this = move(getRightHand());
+	}
+	else
+	{
+		getLeftHand().distribuite(move(getRightHand()), !isDivition);
+		*this = move(getLeftHand());
+	}
+
+	for (auto& c : *this)
+		c.distribuiteMultiplications();
+}

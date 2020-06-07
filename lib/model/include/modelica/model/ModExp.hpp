@@ -920,6 +920,17 @@ namespace modelica
 		}
 
 		/**
+		 * Every time a multiplication contains a add or a subtract as a member,
+		 * distribuite that multiplication to the members
+		 */
+		void distribuiteMultiplications();
+		/**
+		 * behaves as if it was (mult exp this) but tries to distribuite exp to all
+		 * sub expressions of this.
+		 */
+		void distribuite(ModExp exp, bool multiplication);
+
+		/**
 		 * \pre isOperation()
 		 * \return the left hand expression, or the only subexpression
 		 * if it's a unary expression

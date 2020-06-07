@@ -21,6 +21,23 @@ namespace modelica
 		[[nodiscard]] auto begin() const { return path.begin(); }
 		[[nodiscard]] auto end() const { return path.end(); }
 
+		[[nodiscard]] ModExp& reach(ModExp& exp) const
+		{
+			ModExp* e = &exp;
+			for (auto i : path)
+				e = &e->getChild(i);
+
+			return *e;
+		}
+		[[nodiscard]] const ModExp& reach(const ModExp& exp) const
+		{
+			const ModExp* e = &exp;
+			for (auto i : path)
+				e = &e->getChild(i);
+
+			return *e;
+		}
+
 		private:
 		llvm::SmallVector<size_t, 3> path;
 		const ModExp* exp;

@@ -158,6 +158,7 @@ namespace modelica
 		[[nodiscard]] auto begin() { return vectorAccess.begin(); }
 		[[nodiscard]] auto end() const { return vectorAccess.end(); }
 		[[nodiscard]] auto end() { return vectorAccess.end(); }
+		[[nodiscard]] bool isIdentity() const;
 
 		private:
 		llvm::SmallVector<SingleDimensionAccess, 3> vectorAccess;

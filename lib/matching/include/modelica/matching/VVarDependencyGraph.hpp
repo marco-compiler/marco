@@ -1,5 +1,6 @@
 #pragma once
 
+#include <llvm/ADT/ArrayRef.h>
 #include <map>
 
 #include "boost/graph/adjacency_list.hpp"
@@ -29,6 +30,7 @@ namespace modelica
 		using EdgeDesc = boost::graph_traits<GraphImp>::edge_descriptor;
 
 		VVarDependencyGraph(const Model& model);
+		VVarDependencyGraph(const Model& model, llvm::ArrayRef<ModEquation> equs);
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		[[nodiscard]] size_t count() const { return graph.m_vertices.size(); }
 		[[nodiscard]] const GraphImp& getImpl() const { return graph; }
@@ -76,6 +78,7 @@ namespace modelica
 				const AccessToVar& toVariable,
 				EqToVert& eqToVert);
 		void populateEq(const IndexesOfEquation& eq, EqToVert& eqToVert);
+		void create(llvm::ArrayRef<ModEquation> equs);
 
 		const Model& model;
 		GraphImp graph;
