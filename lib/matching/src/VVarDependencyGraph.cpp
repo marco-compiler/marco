@@ -56,7 +56,7 @@ void VVarDependencyGraph::populateEq(
 		const IndexesOfEquation& equation, EqToVert& eqToVert)
 {
 	ReferenceMatcher rightHandMatcher;
-	rightHandMatcher.visitRight(equation.getEquation());
+	rightHandMatcher.visit(equation.getEquation(), true);
 	for (const auto& toVariable : rightHandMatcher)
 	{
 		assert(VectorAccess::isCanonical(toVariable.getExp()));

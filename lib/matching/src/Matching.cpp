@@ -179,7 +179,8 @@ static Error insertEq(
 	outModel.addEquation(eq.clone(std::move(newName)));
 	auto& justInserted = outModel.getEquations().back();
 	justInserted.setInductionVars(inductionVars);
-	return justInserted.explicitate(edge.getPath());
+	justInserted.setMatchedExp(edge.getPath().getEqPath());
+	return Error::success();
 }
 
 static Error insertAllEq(Edge& edge, Model& outModel)

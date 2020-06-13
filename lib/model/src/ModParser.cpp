@@ -294,7 +294,7 @@ Expected<SmallVector<ModEquation, 0>> ModParser::updateSection(
 
 	while (current != ModToken::End)
 	{
-		TRY(stat, updateStatement(templs));
+		TRY(stat, matchedUpdateStatement(templs));
 		map.push_back(move(*stat));
 	}
 
@@ -343,6 +343,18 @@ Expected<MultiDimInterval> ModParser::inductions()
 		inductions.push_back(move(*ind));
 	}
 	return inductions;
+}
+
+Expected<ModEquation> ModParser::matchedUpdateStatement(const TemplatesMap& map)
+{
+	TRY(eq, updateStatement(map));
+	if (accept<ModToken::MatchedKeyword>())
+	{
+		TRY(e, matchingPath());
+		eq->setMatchedExp(move(*e));
+	}
+
+	return eq;
 }
 
 Expected<ModEquation> ModParser::updateStatement(const TemplatesMap& map)
@@ -425,4 +437,21 @@ Expected<ModExp> ModParser::expression()
 	}
 
 	return make_error<UnexpectedModToken>(current, ModToken::LPar, getPosition());
+}
+
+Expected<EquationPath> ModParser::matchingPath()
+{
+	EXPECT(ModToken::LSquare);
+	auto isLeft = lexer.getLastInt() == 0;
+	EXPECT(ModToken::Integer);
+	SmallVector<size_t, 3> pos;
+
+	if (accept<ModToken::Comma>())
+	{
+		pos.emplace_back(lexer.getLastInt());
+		EXPECT(ModToken::Integer);
+	}
+
+	EXPECT(ModToken::RSquare);
+	return EquationPath(move(pos), isLeft);
 }

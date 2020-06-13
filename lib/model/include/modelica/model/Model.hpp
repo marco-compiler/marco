@@ -1,5 +1,6 @@
 #pragma once
 #include <numeric>
+#include <optional>
 #include <set>
 #include <vector>
 
@@ -9,6 +10,7 @@
 #include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
+#include "modelica/model/ModExpPath.hpp"
 #include "modelica/model/ModVariable.hpp"
 
 namespace modelica
@@ -69,13 +71,16 @@ namespace modelica
 				ModExp left,
 				ModExp right,
 				std::string templateName,
-				MultiDimInterval vars)
+				MultiDimInterval vars,
+				std::optional<EquationPath> path = std::nullopt)
 		{
 			equations.emplace_back(
 					std::move(left),
 					std::move(right),
 					std::move(templateName),
-					std::move(vars));
+					std::move(vars),
+					true,
+					std::move(path));
 			addTemplate(equations.back());
 		}
 

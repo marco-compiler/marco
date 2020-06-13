@@ -6,6 +6,7 @@
 #include "modelica/matching/SVarDependencyGraph.hpp"
 #include "modelica/matching/Schedule.hpp"
 #include "modelica/matching/VVarDependencyGraph.hpp"
+#include "modelica/model/ModExpPath.hpp"
 
 using namespace std;
 using namespace llvm;
@@ -23,7 +24,8 @@ TEST(VVarDependencyGraphTest, countTest)
 					ModExp::induction(ModConst(0))),
 			ModConst(3),
 			"",
-			{ { 1, 3 } });
+			{ { 1, 3 } },
+			EquationPath({}, true));
 
 	VVarDependencyGraph graph(model);
 	EXPECT_EQ(graph.count(), 1);
@@ -42,7 +44,8 @@ static auto makeModel()
 					ModExp::induction(ModConst(0))),
 			ModConst(3),
 			"",
-			{ { 0, 2 } });
+			{ { 0, 2 } },
+			EquationPath({}, true));
 
 	model.emplaceEquation(
 			ModExp::at(
@@ -52,7 +55,9 @@ static auto makeModel()
 					ModExp("leftVar", ModType(BultinModTypes::INT, 2, 2)),
 					ModExp::induction(ModConst(0))),
 			"",
-			{ { 0, 2 } });
+			{ { 0, 2 } },
+			EquationPath({}, true));
+
 	return model;
 }
 

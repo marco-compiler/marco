@@ -286,15 +286,6 @@ Error ModEquation::explicitate(const ModExpPath& path)
 	return Error::success();
 }
 
-AccessToVar ModEquation::getDeterminedVariable() const
-{
-	ReferenceMatcher leftHandMatcher;
-	leftHandMatcher.visitLeft(*this);
-	const auto& fromVariable = leftHandMatcher.at(0);
-	assert(VectorAccess::isCanonical(fromVariable.getExp()));
-	return AccessToVar::fromExp(fromVariable.getExp());
-}
-
 void ModEquation::dump() const { dump(outs()); }
 
 void ModEquation::dump(llvm::raw_ostream& OS) const
@@ -318,6 +309,12 @@ void ModEquation::dump(llvm::raw_ostream& OS) const
 		OS << getTemplate()->getName();
 	}
 
+	if (isMatched())
+	{
+		OS << " matched ";
+		matchedExpPath->print(OS);
+	}
+
 	OS << "\n";
 }
 
@@ -326,12 +323,14 @@ ModEquation::ModEquation(
 		ModExp right,
 		std::string templateName,
 		MultiDimInterval inds,
-		bool isForward)
+		bool isForward,
+		optional<EquationPath> path)
 		: body(make_shared<ModEqTemplate>(
 					move(left), move(right), move(templateName))),
 			inductions(move(inds)),
 			isForCycle(!inductions.empty()),
-			isForwardDirection(isForward)
+			isForwardDirection(isForward),
+			matchedExpPath(std::move(path))
 {
 	if (!isForCycle)
 		inductions = { { 0, 1 } };
@@ -533,4 +532,10 @@ ModEquation ModEquation::groupLeftHand() const
 
 	copy.getRight() = std::move(rightHand);
 	return copy;
+}
+
+void ModEquation::setMatchedExp(EquationPath path)
+{
+	assert(reachExp(path).isReferenceAccess());
+	matchedExpPath = path;
 }

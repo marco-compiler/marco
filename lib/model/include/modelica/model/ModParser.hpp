@@ -7,6 +7,7 @@
 #include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModErrors.hpp"
+#include "modelica/model/ModExpPath.hpp"
 #include "modelica/model/ModLexerStateMachine.hpp"
 #include "modelica/model/ModVariable.hpp"
 #include "modelica/model/Model.hpp"
@@ -64,7 +65,10 @@ namespace modelica
 		[[nodiscard]] llvm::Expected<Model> simulation();
 		[[nodiscard]] llvm::Expected<Interval> singleInduction();
 		[[nodiscard]] llvm::Expected<MultiDimInterval> inductions();
+		[[nodiscard]] llvm::Expected<EquationPath> matchingPath();
 		[[nodiscard]] llvm::Expected<ModEquation> updateStatement(
+				const TemplatesMap& map);
+		[[nodiscard]] llvm::Expected<ModEquation> matchedUpdateStatement(
 				const TemplatesMap& map);
 
 		[[nodiscard]] ModToken getCurrentModToken() const { return current; }

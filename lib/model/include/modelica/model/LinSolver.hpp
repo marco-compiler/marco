@@ -27,14 +27,20 @@ namespace modelica
 		}
 	}
 
-	void linearySolve(
+	inline llvm::Error linearySolve(
 			llvm::SmallVectorImpl<ModEquation>& equs, const Model& model)
 	{
+		for (auto& eq : equs)
+			if (auto e = eq.explicitate(); e)
+				return e;
+
 		for (auto eq = equs.rbegin(); eq != equs.rend(); eq++)
 			for (auto eq2 = eq + 1; eq2 != equs.rend(); eq2++)
 				replaceUses(*eq, *eq2);
 
 		for (auto& eq : equs)
 			eq = eq.groupLeftHand();
+
+		return llvm::Error::success();
 	}
 }	 // namespace modelica

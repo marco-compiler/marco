@@ -11,7 +11,8 @@ modelicaAddLibrary(
    	src/ModEquation.cpp
    	src/ModVariable.cpp
    	src/VectorAccess.cpp
-   	src/ModConst.cpp)
+   	src/ModConst.cpp
+	src/ModMatchers.cpp)
 
 target_link_libraries(model PUBLIC  modelica::utils)
 

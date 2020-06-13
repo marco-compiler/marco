@@ -18,37 +18,9 @@ namespace modelica
 		ReferenceMatcher() = default;
 		ReferenceMatcher(const ModEquation& eq) { visit(eq); }
 
-		void visit(const ModExp& exp, bool isLeft, size_t index)
-		{
-			if (exp.isReferenceAccess())
-			{
-				vars.emplace_back(exp, currentPath, isLeft);
-				return;
-			}
+		void visit(const ModExp& exp, bool isLeft, size_t index);
 
-			for (auto index : irange(exp.childCount()))
-			{
-				currentPath.push_back(index);
-				auto g = makeGuard(std::bind(&ReferenceMatcher::removeBack, this));
-				visit(exp.getChild(index), isLeft, index);
-			}
-		}
-
-		void visit(const ModEquation& equation)
-		{
-			visit(equation.getLeft(), true, 0);
-			visit(equation.getRight(), false, 0);
-		}
-
-		void visitLeft(const ModEquation& equation)
-		{
-			visit(equation.getLeft(), true, 0);
-		}
-
-		void visitRight(const ModEquation& equation)
-		{
-			visit(equation.getRight(), false, 0);
-		}
+		void visit(const ModEquation& equation, bool ingnoreMatched = false);
 
 		[[nodiscard]] auto begin() const { return vars.begin(); }
 		[[nodiscard]] auto end() const { return vars.end(); }

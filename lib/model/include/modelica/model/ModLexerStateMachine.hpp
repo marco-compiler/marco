@@ -30,6 +30,7 @@ namespace modelica
 		BackwardKeyword,
 		TemplateKeyword,
 		StateKeyword,
+		MatchedKeyword,
 
 		LPar,
 		Comma,

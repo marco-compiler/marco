@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "llvm/Support/Error.h"
@@ -24,7 +25,8 @@ namespace modelica
 				ModExp right,
 				std::string templateName = "",
 				MultiDimInterval inds = {},
-				bool isForward = true);
+				bool isForward = true,
+				std::optional<EquationPath> path = std::nullopt);
 
 		ModEquation(
 				std::shared_ptr<ModEqTemplate> templ,
@@ -54,14 +56,40 @@ namespace modelica
 		void dump(llvm::raw_ostream& OS) const;
 
 		void dumpInductions(llvm::raw_ostream& OS) const { inductions.dump(OS); }
+		[[nodiscard]] bool isMatched() const { return matchedExpPath.has_value(); }
+		[[nodiscard]] ModExp& getMatchedExp()
+		{
+			assert(isMatched());
+			return reachExp(matchedExpPath.value());
+		}
+		[[nodiscard]] const ModExp& getMatchedExp() const
+		{
+			assert(isMatched());
+			return reachExp(matchedExpPath.value());
+		}
 
 		[[nodiscard]] bool isForEquation() const { return isForCycle; }
 
+		[[nodiscard]] ModExpPath getMatchedModExpPath() const
+		{
+			assert(isMatched());
+			return ModExpPath(getMatchedExp(), *matchedExpPath);
+		}
+
+		[[nodiscard]] AccessToVar getDeterminedVariable() const
+		{
+			assert(isMatched());
+			return AccessToVar::fromExp(getMatchedExp());
+		}
+
 		llvm::Error explicitate(size_t argumentIndex, bool left);
 		llvm::Error explicitate(const ModExpPath& path);
+		/**
+		 * explicitate matched expression.
+		 */
+		llvm::Error explicitate() { return explicitate(getMatchedModExpPath()); }
 		void setInductionVars(MultiDimInterval inds);
 
-		[[nodiscard]] AccessToVar getDeterminedVariable() const;
 		[[nodiscard]] size_t dimensions() const
 		{
 			return isForCycle ? inductions.dimensions() : 0;
@@ -97,17 +125,21 @@ namespace modelica
 		[[nodiscard]] ModEquation composeAccess(
 				const VectorAccess& transformation) const;
 
-		[[nodiscard]] ModExp& reachExp(ModExpPath& path)
+		template<typename Path>
+		[[nodiscard]] ModExp& reachExp(Path& path)
 		{
 			return path.isOnEquationLeftHand() ? path.reach(getLeft())
 																				 : path.reach(getRight());
 		}
 
+		void setMatchedExp(EquationPath path);
+
 		/**
 		 * given a mod exp path returns the expression pointed
 		 * by that path in this equation.
 		 */
-		[[nodiscard]] const ModExp& reachExp(const ModExpPath& path) const
+		template<typename Path>
+		[[nodiscard]] const ModExp& reachExp(const Path& path) const
 		{
 			return path.isOnEquationLeftHand() ? path.reach(getLeft())
 																				 : path.reach(getRight());
@@ -124,5 +156,6 @@ namespace modelica
 		MultiDimInterval inductions;
 		bool isForCycle;
 		bool isForwardDirection;
+		std::optional<EquationPath> matchedExpPath;
 	};
 }	 // namespace modelica

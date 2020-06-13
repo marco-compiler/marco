@@ -191,7 +191,10 @@ class CycleFuser
 						*equs, filtered, newEqus, cycle, *graph))
 			return;
 
-		linearySolve(filtered, *model);
+		auto e = linearySolve(filtered, *model);
+		assert(e && "could not explicitate equation");
+		if (!e)
+			return;
 		for (auto& eq : filtered)
 			newEqus.emplace_back(std::move(eq));
 
@@ -254,12 +257,3 @@ Expected<Model> modelica::solveScc(Model&& model)
 
 	return outModel;
 }
-
-// template<>
-// static void renumber_vertex_indices<const VVarDependencyGraph::GraphImp&>(
-// const VVarDependencyGraph::GraphImp& graph)
-//{
-// assert(
-// false && "YOU CANNOT USE THIS ALGORITHM BECAUSE RENUMBER_VERTEX_INDICIES "
-//"IS NOT SUPPORTED");
-//}

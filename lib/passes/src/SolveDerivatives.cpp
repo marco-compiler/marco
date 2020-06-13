@@ -98,6 +98,9 @@ Expected<AssignModel> modelica::addAproximation(Model& model, float deltaTime)
 
 	for (auto& update : model.getEquations())
 	{
+		auto u = update.clone(update.getTemplate()->getName() + "explicitated");
+		if (auto e = u.explicitate(); e)
+			return move(e);
 		auto& templ = update.getTemplate();
 		out.emplaceUpdate(templ, move(update.getInductions()), update.isForward());
 	}
