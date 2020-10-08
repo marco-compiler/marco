@@ -20,15 +20,11 @@ namespace modelica
 	class ModParser
 	{
 		public:
-		ModParser(const std::string& source)
-				: lexer(source), current(lexer.scan()), undo(ModToken::End)
+		ModParser(const std::string& source): lexer(source), current(lexer.scan())
 		{
 		}
 
-		ModParser(const char* source)
-				: lexer(source), current(lexer.scan()), undo(ModToken::End)
-		{
-		}
+		ModParser(const char* source): lexer(source), current(lexer.scan()) {}
 
 		/**
 		 * Return the current position in the source stream
@@ -127,7 +123,6 @@ namespace modelica
 
 		Lexer<ModLexerStateMachine> lexer;
 		ModToken current;
-		ModToken undo;
 	};
 
 }	 // namespace modelica

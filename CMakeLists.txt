@@ -26,39 +26,20 @@ include("CPack")
 include(CTest)
 set(CMAKE_DEBUG_POSTFIX "-d")
 
-set(default_build_type "Release")
-
-if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
-  set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
-      STRING "Choose the type of build." FORCE)
-  # Set the possible values of build type for cmake-gui
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
-    "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
-endif()
-
-message(STATUS "Disabling abi breaking checks.")
-SET(LLVM_ENABLE_ABI_BREAKING_CHECKS OFF CACHE BOOL "Enable this if you are using a llvm built in debug mode, turn it off for release")
-
-
 ##############################
 ###        Globals         ###
 ##############################
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-variable -Wno-unused-parameter")
 
 set_tests_properties(${noArgsTests}   PROPERTIES TIMEOUT 10)
 find_package(LLVM REQUIRED CONFIG)
-add_definitions(${LLVM_DEFINITIONS})
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
 include(AddLLVM)
 include_directories(${LLVM_INCLUDE_DIRS})
+add_definitions(${LLVM_DEFINITIONS})
 
-if (LLVM_ENABLE_ABI_BREAKING_CHECKS)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DLLVM_ENABLE_ABI_BREAKING_CHECKS=1")
-endif(LLVM_ENABLE_ABI_BREAKING_CHECKS)
+set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+
 
 ##############################
 ###       Subfolders       ###
