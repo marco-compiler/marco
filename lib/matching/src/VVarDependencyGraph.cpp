@@ -112,5 +112,5 @@ void VVarDependencyGraph::dump(llvm::raw_ostream& OS) const
 void boost::throw_exception(const std::exception& e)
 {
 	errs() << e.what();
-	assert(false);
+	abort();
 }

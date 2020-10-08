@@ -14,5 +14,6 @@ modelicaAddLibrary(
 target_link_libraries(
 	matching PUBLIC 
 	modelica::model 
+	pthread
 	graph)
 

@@ -29,7 +29,6 @@ void renumber_vertex_indices(const Graph& graph)
 using namespace std;
 using namespace modelica;
 using namespace llvm;
-using namespace boost;
 
 using EqVector = SmallVector<ModEquation, 3>;
 
@@ -73,10 +72,9 @@ static bool cycleHasIndentityDependency(
 		const DendenciesVector& dep)
 {
 	auto fin = std::accumulate(
-			dep.begin() + 1,
-			dep.end(),
-			dep[0],
-			[&graph](const auto& l, const auto& r) { return l * r; });
+			dep.begin() + 1, dep.end(), dep[0], [](const auto& l, const auto& r) {
+				return l * r;
+			});
 
 	return fin.isIdentity();
 }
@@ -86,7 +84,7 @@ static MultiDimInterval cyclicDependetSet(
 		const VVarDependencyGraph& graph,
 		const DendenciesVector& dep)
 {
-	auto& firstEq = graph[source(c[0], graph.getImpl())];
+	const auto& firstEq = graph[source(c[0], graph.getImpl())];
 	auto set = firstEq.getInterval();
 	for (auto i : irange(c.size()))
 	{
@@ -211,7 +209,7 @@ class CycleFuser
 
 static Error fuseEquations(EqVector& equs, const Model& sourceModel)
 {
-	bool atLeastOneCollapse;
+	bool atLeastOneCollapse = false;
 	do
 	{
 		atLeastOneCollapse = false;
@@ -248,7 +246,7 @@ Expected<Model> modelica::solveScc(Model&& model)
 
 	for (auto i : irange(sccs.count()))
 		if (auto error = fuseScc(sccs[i], vectorGraph, possibleEq[i]); error)
-			return std::move(error);
+			return move(error);
 
 	Model outModel({}, std::move(model.getVars()));
 	for (auto& eqList : possibleEq)

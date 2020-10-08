@@ -8,6 +8,7 @@ modelicaAddLibrary(
 
 llvm_map_components_to_libnames(llvm_lowerer_libs
    	core
+	bitwriter
    	${LLVM_TARGETS_TO_BUILD})
 
 target_link_libraries(

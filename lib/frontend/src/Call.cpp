@@ -2,8 +2,8 @@
 
 #include <memory>
 
-#include "modelica/frontend/Expression.hpp"
 #include "modelica/utils/IRange.hpp"
+#include "modelica/frontend/Expression.hpp"
 
 using namespace modelica;
 using namespace llvm;

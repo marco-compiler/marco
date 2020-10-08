@@ -12,7 +12,7 @@ static ModConst::Content<L> contentPairWiseOperation(
 {
 	ModConst::Content<L> out;
 	for (int num : irange(l.size()))
-		out.push_back(c(l[num], r[num]));
+		out.emplace_back(c(l[num], r[num]));
 
 	return out;
 }
