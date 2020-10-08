@@ -3,6 +3,7 @@
 #include "CallLowerer.hpp"
 #include "ExpLowerer.hpp"
 #include "LowererUtils.hpp"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/DerivedTypes.h"
 #include "llvm/IR/Function.h"
@@ -32,7 +33,7 @@ static FunctionType* getVoidType(LLVMContext& context, T... argTypes)
 }
 template<typename... T>
 Expected<Function*> makePrivateFunction(
-		const std::string& name, Module& module, T... argsTypes)
+		const StringRef& name, Module& module, T... argsTypes)
 {
 	if (module.getFunction(name) != nullptr)
 		return make_error<FunctionAlreadyExists>(name);

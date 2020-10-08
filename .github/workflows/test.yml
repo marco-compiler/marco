@@ -20,5 +20,5 @@ jobs:
     - name: collect-dependencies
       run: git submodule update --recursive --init 
     - name: build 
-      run: mkdir build && cd build && cmake ../ && make all -j4 && make test
+      run: mkdir build && cd build && cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang ../ && make all -j4 && make test
 
