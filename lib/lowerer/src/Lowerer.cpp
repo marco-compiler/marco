@@ -33,7 +33,7 @@ static FunctionType* getVoidType(LLVMContext& context, T... argTypes)
 }
 template<typename... T>
 Expected<Function*> makePrivateFunction(
-		const StringRef& name, Module& module, T... argsTypes)
+		StringRef name, Module& module, T... argsTypes)
 {
 	if (module.getFunction(name) != nullptr)
 		return make_error<FunctionAlreadyExists>(name);
