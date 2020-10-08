@@ -36,7 +36,7 @@ Expected<Function*> makePrivateFunction(
 		StringRef name, Module& module, T... argsTypes)
 {
 	if (module.getFunction(name) != nullptr)
-		return make_error<FunctionAlreadyExists>(name);
+		return make_error<FunctionAlreadyExists>(name.str());
 
 	auto v = getVoidType(module.getContext(), argsTypes...);
 	auto function = module.getOrInsertFunction(name, v);
