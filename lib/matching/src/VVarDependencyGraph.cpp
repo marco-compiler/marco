@@ -4,6 +4,9 @@
 #include <boost/graph/strong_components.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <boost/range/iterator_range_core.hpp>
+#if BOOST_VERSION >= 107300
+#include <boost/assert/source_location.hpp>
+#endif
 #include <exception>
 #include <llvm/ADT/ArrayRef.h>
 #include <map>
@@ -115,8 +118,12 @@ void boost::throw_exception(const std::exception& e)
 	abort();
 }
 
+#if BOOST_VERSION >= 107300 /* source_location only exists in boost >= 1.73 */
+
 void boost::throw_exception(const std::exception& e, const boost::source_location& loc)
 {
 	errs() << e.what();
 	abort();
 }
+
+#endif
