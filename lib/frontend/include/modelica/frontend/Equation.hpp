@@ -17,7 +17,7 @@ namespace modelica
 		[[nodiscard]] Expression& getLeftHand() { return leftHand; }
 		[[nodiscard]] Expression& getRightHand() { return rightHand; }
 
-		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0) const
+		void dump(llvm::raw_ostream& OS, size_t indents = 0) const
 		{
 			OS << "equation\n";
 			leftHand.dump(OS, indents + 1);

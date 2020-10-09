@@ -107,7 +107,8 @@ namespace modelica
 		Exponential,
 		Assignment,
 
-		End
+		End	 // Notice that keywordEnd is not the end of file token, end token is
+				 // end of file token
 	};
 
 	std::string tokenToString(Token token);
