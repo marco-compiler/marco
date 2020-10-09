@@ -114,3 +114,9 @@ void boost::throw_exception(const std::exception& e)
 	errs() << e.what();
 	abort();
 }
+
+void boost::throw_exception(const std::exception& e, const boost::source_location& loc)
+{
+	errs() << e.what();
+	abort();
+}
