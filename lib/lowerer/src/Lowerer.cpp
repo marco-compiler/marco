@@ -1,5 +1,7 @@
 #include "modelica/lowerer/Lowerer.hpp"
 
+#include <utility>
+
 #include "CallLowerer.hpp"
 #include "ExpLowerer.hpp"
 #include "LowererUtils.hpp"
@@ -31,9 +33,10 @@ static FunctionType* getVoidType(LLVMContext& context, T... argTypes)
 {
 	return FunctionType::get(Type::getVoidTy(context), { argTypes... }, false);
 }
+
 template<typename... T>
-Expected<Function*> makePrivateFunction(
-		StringRef name, Module& module, T... argsTypes)
+Expected<Function*> makePublicFunction(
+		StringRef name, Module& module, T&&... argsTypes)
 {
 	if (module.getFunction(name) != nullptr)
 		return make_error<FunctionAlreadyExists>(name.str());
@@ -42,8 +45,18 @@ Expected<Function*> makePrivateFunction(
 	auto function = module.getOrInsertFunction(name, v);
 	auto f = dyn_cast<llvm::Function>(function.getCallee());
 	BasicBlock::Create(module.getContext(), "entry", f);
-	f->setLinkage(internalLinkage);
 	return f;
+}
+
+template<typename... T>
+Expected<Function*> makePrivateFunction(
+		StringRef name, Module& module, T&&... argsTypes)
+{
+	auto F = makePublicFunction(name, module, std::forward<T>(argsTypes)...);
+	if (not F)
+		return F.takeError();
+	(**F).setLinkage(internalLinkage);
+	return F;
 }
 
 Error Lowerer::simExpToGlobalVar(
@@ -72,11 +85,10 @@ static Expected<Function*> populateMain(
 	assert(update != nullptr);			 // NOLINT
 	assert(printValues != nullptr);	 // NOLINT
 
-	auto expectedMain = makePrivateFunction(entryPointName, m);
+	auto expectedMain = makePublicFunction(entryPointName, m);
 	if (!expectedMain)
 		return expectedMain;
 	auto main = expectedMain.get();
-	main->setLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
 
 	IRBuilder<> builder(&main->getEntryBlock());
 	LowererContext lCont(builder, m);
@@ -180,7 +192,7 @@ static Error initGlobal(LowererContext& ctx, const ModVariable& var)
 static Expected<Function*> initializeGlobals(
 		Module& m, const StringMap<ModVariable>& vars)
 {
-	auto initFunctionExpected = makePrivateFunction("init", m);
+	auto initFunctionExpected = makePublicFunction("init", m);
 	if (!initFunctionExpected)
 		return initFunctionExpected;
 	auto initFunction = initFunctionExpected.get();
@@ -320,7 +332,7 @@ static Expected<Function*> createUpdates(
 		const SmallVector<Assigment, 0>& upds,
 		const StringMap<ModVariable>& definitions)
 {
-	auto updateFunctionExpected = makePrivateFunction("update", m);
+	auto updateFunctionExpected = makePublicFunction("update", m);
 	if (!updateFunctionExpected)
 		return updateFunctionExpected;
 	auto updateFunction = updateFunctionExpected.get();
