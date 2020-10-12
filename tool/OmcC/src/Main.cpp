@@ -23,6 +23,12 @@ cl::OptionCategory omcCCat("OmcC options");
 cl::opt<string> InputFileName(
 		cl::Positional, cl::desc("<input-file>"), cl::init("-"), cl::cat(omcCCat));
 
+opt<bool> externalLinkage(
+		"publicSymbols",
+		cl::desc("globals symbols are set as extenal linkage"),
+		cl::init(false),
+		cl::cat(omcCCat));
+
 opt<int> simulationTime(
 		"simTime",
 		cl::desc("how many ticks the simulation must perform"),
@@ -176,6 +182,9 @@ int main(int argc, char* argv[])
 			"Modelica Model",
 			entryPointName,
 			simulationTime);
+
+	if (externalLinkage)
+		sim.setVarsLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
 
 	if (dumpLowered)
 	{
