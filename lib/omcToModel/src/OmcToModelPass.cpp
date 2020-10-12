@@ -439,10 +439,15 @@ Expected<ModExp> OmcToModelPass::lower(
 Expected<ModExp> OmcToModelPass::lowerStart(
 		Member& member, const SymbolTable& table)
 {
-	if (!member.hasStartOverload())
+	if (not member.hasStartOverload())
 		return defaultInitializer(member, table);
 
-	auto cst = lowerConstant(member.getStartOverload());
+	if (not member.getStartOverload().isA<Constant>())
+		return make_error<NotImplemented>(
+				"Start overload of member " + member.getName() +
+				" was not folded into a constant");
+
+	auto cst = lowerConstant(member.getStartOverload().getConstant());
 	if (!cst)
 		return cst.takeError();
 

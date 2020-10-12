@@ -4,6 +4,7 @@
 #include "modelica/frontend/Constant.hpp"
 #include "modelica/frontend/Expression.hpp"
 #include "modelica/frontend/Parser.hpp"
+#include "modelica/frontend/ReferenceAccess.hpp"
 #include "modelica/frontend/Type.hpp"
 
 using namespace modelica;
@@ -155,4 +156,18 @@ TEST(ParserTest, memberTest)
 	EXPECT_FALSE(exp->hasStartOverload());
 	EXPECT_EQ(exp->getName(), "Qb");
 	EXPECT_EQ(exp->getType(), makeType<float>(10, 10));
+}
+
+TEST(ParserTest, memberStartOverloadTest)
+{
+	Parser parser("Real[10, 10] Qb(start = W)");
+	auto exp = parser.element();
+	if (!exp)
+		FAIL();
+
+	EXPECT_FALSE(exp->hasInitializer());
+	EXPECT_TRUE(exp->hasStartOverload());
+	EXPECT_EQ(exp->getName(), "Qb");
+	EXPECT_EQ(exp->getType(), makeType<float>(10, 10));
+	EXPECT_TRUE(exp->getStartOverload().isA<ReferenceAccess>());
 }

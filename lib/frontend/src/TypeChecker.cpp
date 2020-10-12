@@ -42,6 +42,12 @@ Error TypeChecker::checkType(Member& mem, const SymbolTable& table)
 	if (auto error = checkType(mem.getInitializer(), table); error)
 		return error;
 
+	if (not mem.hasStartOverload())
+		return Error::success();
+
+	if (auto error = checkType(mem.getStartOverload(), table); error)
+		return error;
+
 	return Error::success();
 }
 

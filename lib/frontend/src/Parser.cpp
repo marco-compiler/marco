@@ -110,12 +110,12 @@ Expected<Member> Parser::element()
 	auto name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
 
-	optional<Constant> startOverload = nullopt;
+	optional<Expression> startOverload = nullopt;
 	if (current == Token::LPar)
 	{
 		TRY(start, modification());
-		if (*start != Constant(0))
-			startOverload = *start;
+		if (start->has_value())
+			startOverload = move(**start);
 	}
 	if (accept<Token::Equal>())
 	{
@@ -335,11 +335,11 @@ Expected<Expression> Parser::logicalExpression()
 	return Expression::lor(Type::unkown(), move(factors));
 }
 
-Expected<Constant> Parser::modification()
+Expected<optional<Expression>> Parser::modification()
 {
 	EXPECT(Token::LPar);
 
-	Constant c(0);
+	optional<Expression> e = nullopt;
 	do
 	{
 		auto lastIndent = lexer.getLastIdentifier();
@@ -347,21 +347,8 @@ Expected<Constant> Parser::modification()
 		EXPECT(Token::Equal);
 		if (lastIndent == "start")
 		{
-			if (current == Token::FloatingPoint)
-			{
-				c = Constant(lexer.getLastFloat());
-				EXPECT(Token::FloatingPoint);
-				continue;
-			}
-
-			if (current == Token::Integer)
-			{
-				c = Constant(lexer.getLastInt());
-				EXPECT(Token::Integer);
-				continue;
-			}
-			return make_error<NotImplemented>(
-					"start modification must be float or integer");
+			TRY(exp, expression());
+			e = move(*exp);
 		}
 		if (accept<Token::FloatingPoint>())
 			continue;
@@ -379,7 +366,7 @@ Expected<Constant> Parser::modification()
 	} while (accept<Token::Comma>());
 
 	EXPECT(Token::RPar);
-	return c;
+	return e;
 }
 
 Expected<Expression> Parser::logicalTerm()

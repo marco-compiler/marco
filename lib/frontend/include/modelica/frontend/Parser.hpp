@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <optional>
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
@@ -49,7 +50,7 @@ namespace modelica
 		llvm::Expected<Class> classDefinition();
 		llvm::Expected<Expression> primary();
 		llvm::Expected<Expression> factor();
-		llvm::Expected<Constant> modification();
+		llvm::Expected<std::optional<Expression>> modification();
 		llvm::Expected<Expression> term();
 		llvm::Expected<Type> typeSpecifier();
 		llvm::Expected<llvm::SmallVector<ForEquation, 3>> forEquationBody(

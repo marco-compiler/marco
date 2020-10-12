@@ -17,7 +17,7 @@ namespace modelica
 				Type tp,
 				Expression initializer,
 				bool isParameter = false,
-				std::optional<Constant> startOverload = std::nullopt)
+				std::optional<Expression> startOverload = std::nullopt)
 				: name(std::move(name)),
 					type(std::move(tp)),
 					initializer(std::move(initializer)),
@@ -30,7 +30,7 @@ namespace modelica
 				std::string name,
 				Type tp,
 				bool isParameter = false,
-				std::optional<Constant> startOverload = std::nullopt)
+				std::optional<Expression> startOverload = std::nullopt)
 				: name(std::move(name)),
 					type(std::move(tp)),
 					initializer(std::nullopt),
@@ -65,13 +65,13 @@ namespace modelica
 			return startOverload.has_value();
 		}
 
-		[[nodiscard]] const Constant& getStartOverload() const
+		[[nodiscard]] const Expression& getStartOverload() const
 		{
 			assert(hasStartOverload());
 			return startOverload.value();
 		}
 
-		[[nodiscard]] Constant& getStartOverload()
+		[[nodiscard]] Expression& getStartOverload()
 		{
 			assert(hasStartOverload());
 			return startOverload.value();
@@ -97,7 +97,7 @@ namespace modelica
 		std::optional<Expression> initializer;
 		bool isParam;
 
-		std::optional<Constant> startOverload;
+		std::optional<Expression> startOverload;
 	};
 
 }	 // namespace modelica

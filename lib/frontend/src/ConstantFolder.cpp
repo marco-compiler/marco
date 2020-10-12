@@ -61,7 +61,12 @@ Error ConstantFolder::fold(Call& call, const SymbolTable& table)
 Error ConstantFolder::fold(Member& mem, const SymbolTable& table)
 {
 	if (mem.hasInitializer())
-		return fold(mem.getInitializer(), table);
+		if (auto error = fold(mem.getInitializer(), table); error)
+			return error;
+
+	if (mem.hasStartOverload())
+		return fold(mem.getStartOverload(), table);
+
 	return Error::success();
 }
 

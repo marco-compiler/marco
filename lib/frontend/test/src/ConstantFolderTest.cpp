@@ -4,6 +4,7 @@
 #include "modelica/frontend/ConstantFolder.hpp"
 #include "modelica/frontend/Expression.hpp"
 #include "modelica/frontend/Member.hpp"
+#include "modelica/frontend/Parser.hpp"
 #include "modelica/frontend/ReferenceAccess.hpp"
 #include "modelica/frontend/SymbolTable.hpp"
 #include "modelica/frontend/Type.hpp"
@@ -103,4 +104,23 @@ TEST(folderTest, sumInSubscriptionInDerShouldFold)
 	EXPECT_TRUE(arg.isOperation());
 	auto& accessIndex = arg.getOperation()[1];
 	EXPECT_EQ(accessIndex.getConstant().get<int>(), 2);
+}
+
+TEST(folderTest, startDeclarationWithReference)	 // NOLINT
+{
+	Parser parser("model C parameter Real A = 315.15; Real[10, 10, 4] T(start = "
+								"A); end C;");
+
+	auto expectedAST = parser.classDefinition();
+	if (!expectedAST)
+		FAIL();
+
+	auto ast = move(*expectedAST);
+
+	ConstantFolder folder;
+	if (folder.fold(ast, {}))
+		FAIL();
+
+	bool isConstant = ast.getMembers()[1].getStartOverload().isA<Constant>();
+	EXPECT_TRUE(isConstant);
 }
