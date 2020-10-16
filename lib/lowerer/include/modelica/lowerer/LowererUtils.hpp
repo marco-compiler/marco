@@ -2,12 +2,28 @@
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/Error.h"
-#include "modelica/lowerer/Lowerer.hpp"
 #include "modelica/model/Assigment.hpp"
+#include "modelica/model/ModType.hpp"
 #include "modelica/utils/Interval.hpp"
 
 namespace modelica
 {
+	/**
+	 * creates a type from a ModType
+	 * \return the created type
+	 */
+	[[nodiscard]] llvm::ArrayType* typeToLLVMType(
+			llvm::LLVMContext& context, const ModType& type, bool useDouble);
+
+	/**
+	 * creates a type from a builtin type
+	 * \return the created type.
+	 */
+	[[nodiscard]] llvm::Type* builtInToLLVMType(
+			llvm::LLVMContext& context, BultinModTypes type, bool useDouble);
+
+	[[nodiscard]] BultinModTypes builtinTypeFromLLVMType(llvm::Type* tp);
+	[[nodiscard]] ModType modTypeFromLLVMType(llvm::ArrayType* type);
 	class LowererContext
 	{
 		private:
@@ -24,12 +40,16 @@ namespace modelica
 		llvm::Value* valueArrayFromArrayOfValues(
 				llvm::SmallVector<llvm::Value*, 3> vals);
 
+		bool useDouble;
+
 		public:
-		LowererContext(llvm::IRBuilder<>& builder, llvm::Module& module)
+		LowererContext(
+				llvm::IRBuilder<>& builder, llvm::Module& module, bool useDouble)
 				: builder(builder),
 					module(module),
 					function(nullptr),
-					inductionsVars(nullptr)
+					inductionsVars(nullptr),
+					useDouble(useDouble)
 		{
 		}
 		[[nodiscard]] llvm::IRBuilder<>& getBuilder() { return builder; }
@@ -95,8 +115,8 @@ namespace modelica
 			auto ptrType = llvm::dyn_cast<llvm::PointerType>(location->getType());
 			auto underlyingType = ptrType->getContainedType(0);
 
-			if (underlyingType == llvm::Type::getFloatTy(builder.getContext()))
-
+			if (underlyingType ==
+					builtInToLLVMType(getContext(), BultinModTypes::FLOAT, useDouble))
 				return builder.CreateStore(
 						llvm::ConstantFP::get(underlyingType, value), location);
 			return builder.CreateStore(
@@ -172,21 +192,13 @@ namespace modelica
 				TernaryOpFunction condition,
 				TernaryOpFunction trueBlock,
 				TernaryOpFunction falseBlock);
+
+		/*
+		 *
+		 * \return true if float type is mapped to llvm double type or false if
+		 * float type is mapped to llvm float type
+		 *
+		 */
+		[[nodiscard]] bool useDoubles() const { return useDouble; }
 	};
-	/**
-	 * creates a type from a ModType
-	 * \return the created type
-	 */
-	[[nodiscard]] llvm::ArrayType* typeToLLVMType(
-			llvm::LLVMContext& context, const ModType& type);
-
-	/**
-	 * creates a type from a builtin type
-	 * \return the created type.
-	 */
-	[[nodiscard]] llvm::Type* builtInToLLVMType(
-			llvm::LLVMContext& context, BultinModTypes type);
-
-	[[nodiscard]] BultinModTypes builtinTypeFromLLVMType(llvm::Type* tp);
-	[[nodiscard]] ModType modTypeFromLLVMType(llvm::ArrayType* type);
 }	 // namespace modelica

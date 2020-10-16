@@ -4,7 +4,6 @@
 
 #include "CallLowerer.hpp"
 #include "ExpLowerer.hpp"
-#include "LowererUtils.hpp"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Bitcode/BitcodeWriter.h"
 #include "llvm/IR/DerivedTypes.h"
@@ -60,21 +59,24 @@ Expected<Function*> makePrivateFunction(
 }
 
 Error Lowerer::simExpToGlobalVar(
-		StringRef name, const ModType& simType, GlobalValue::LinkageTypes linkage)
+		LowererContext& info,
+		StringRef name,
+		const ModType& simType,
+		GlobalValue::LinkageTypes linkage)
 {
-	auto type = typeToLLVMType(module.getContext(), simType);
-	auto varDecl = module.getOrInsertGlobal(name, type);
+	auto* type = typeToLLVMType(module.getContext(), simType, info.useDoubles());
+	auto* varDecl = module.getOrInsertGlobal(name, type);
 	if (varDecl == nullptr)
 		return make_error<GlobalVariableCreationFailure>(name.str());
 
-	auto global = dyn_cast<GlobalVariable>(varDecl);
+	auto* global = dyn_cast<GlobalVariable>(varDecl);
 	global->setLinkage(linkage);
 
 	global->setInitializer(ConstantAggregateZero::get(type));
 	return Error::success();
 }
 static Expected<Function*> populateMain(
-		Module& m,
+		LowererContext& info,
 		StringRef entryPointName,
 		Function* init,
 		Function* update,
@@ -85,14 +87,14 @@ static Expected<Function*> populateMain(
 	assert(update != nullptr);			 // NOLINT
 	assert(printValues != nullptr);	 // NOLINT
 
-	auto expectedMain = makePublicFunction(entryPointName, m);
+	auto expectedMain = makePublicFunction(entryPointName, info.getModule());
 	if (!expectedMain)
 		return expectedMain;
-	auto main = expectedMain.get();
+	auto* main = expectedMain.get();
 
-	IRBuilder<> builder(&main->getEntryBlock());
-	LowererContext lCont(builder, m);
-	lCont.setFunction(main);
+	IRBuilder<>& builder = info.getBuilder();
+	builder.SetInsertPoint(&main->getEntryBlock());
+	info.setFunction(main);
 	// call init
 	builder.CreateCall(init);
 	builder.CreateCall(printValues);
@@ -105,7 +107,7 @@ static Expected<Function*> populateMain(
 		builder.CreateCall(printValues);
 	};
 	const auto loopRange = Interval(0, simulationStop);
-	auto loopExit = lCont.createForCycle(loopRange, loopBody, true);
+	auto* loopExit = info.createForCycle(loopRange, loopBody, true);
 
 	// returns right after the loop
 	builder.SetInsertPoint(loopExit);
@@ -115,29 +117,35 @@ static Expected<Function*> populateMain(
 
 static void insertGlobalString(Module& m, StringRef name, StringRef content)
 {
-	auto str = ConstantDataArray::getString(m.getContext(), content);
-	auto type = ArrayType::get(
+	auto* str = ConstantDataArray::getString(m.getContext(), content);
+	auto* type = ArrayType::get(
 			IntegerType::getInt8Ty(m.getContext()), content.size() + 1);
-	auto global = m.getOrInsertGlobal(name, type);
+	auto* global = m.getOrInsertGlobal(name, type);
 	dyn_cast<GlobalVariable>(global)->setInitializer(str);
 }
 
 Error Lowerer::insertGlobal(
-		StringRef name, const ModExp& exp, GlobalValue::LinkageTypes linkage)
+		LowererContext& info,
+		StringRef name,
+		const ModExp& exp,
+		GlobalValue::LinkageTypes linkage)
 {
 	const auto& type = exp.getModType();
 
-	if (auto e = simExpToGlobalVar(name, type, linkage); e)
+	if (auto e = simExpToGlobalVar(info, name, type, linkage); e)
 		return e;
 
 	insertGlobalString(module, name.str() + "_str", name);
 	return Error::success();
 }
 
-Error Lowerer::createAllGlobals(GlobalValue::LinkageTypes linkType)
+Error Lowerer::createAllGlobals(
+		LowererContext& info, GlobalValue::LinkageTypes linkType)
 {
 	for (const auto& pair : variables)
-		if (auto e = insertGlobal(pair.first(), pair.second.getInit(), linkType); e)
+		if (auto e =
+						insertGlobal(info, pair.first(), pair.second.getInit(), linkType);
+				e)
 			return e;
 
 	return Error::success();
@@ -164,7 +172,7 @@ static bool isZeroInitialized(const ModVariable& var)
 
 static Error shortCallInit(LowererContext& ctx, const ModVariable& var)
 {
-	auto loc = ctx.getModule().getGlobalVariable(var.getName(), true);
+	auto* loc = ctx.getModule().getGlobalVariable(var.getName(), true);
 	auto res = lowerCall(loc, ctx, var.getInit().getCall());
 	if (!res)
 		return res.takeError();
@@ -183,28 +191,27 @@ static Error initGlobal(LowererContext& ctx, const ModVariable& var)
 	auto val = lowerExp(ctx, var.getInit());
 	if (!val)
 		return val.takeError();
-	auto loaded = builder.CreateLoad(*val);
+	auto* loaded = builder.CreateLoad(*val);
 	builder.CreateStore(
 			loaded, ctx.getModule().getGlobalVariable(var.getName(), true));
 	return Error::success();
 }
 
 static Expected<Function*> initializeGlobals(
-		Module& m, const StringMap<ModVariable>& vars)
+		LowererContext& info, const StringMap<ModVariable>& vars)
 {
-	auto initFunctionExpected = makePublicFunction("init", m);
+	auto initFunctionExpected = makePublicFunction("init", info.getModule());
 	if (!initFunctionExpected)
 		return initFunctionExpected;
-	auto initFunction = initFunctionExpected.get();
-	IRBuilder builder(&initFunction->getEntryBlock());
-	LowererContext cont(builder, m);
+	auto* initFunction = initFunctionExpected.get();
 
-	cont.setFunction(initFunction);
+	info.getBuilder().SetInsertPoint(&initFunction->getEntryBlock());
+	info.setFunction(initFunction);
 	for (const auto& pair : vars)
-		if (auto error = initGlobal(cont, pair.second); error)
+		if (auto error = initGlobal(info, pair.second); error)
 			return move(error);
 
-	builder.CreateRet(nullptr);
+	info.getBuilder().CreateRet(nullptr);
 	return initFunction;
 }
 
@@ -328,26 +335,26 @@ static Expected<Function*> createUpdate(
 }
 
 static Expected<Function*> createUpdates(
-		Module& m,
+		LowererContext& info,
 		const SmallVector<Assigment, 0>& upds,
 		const StringMap<ModVariable>& definitions)
 {
-	auto updateFunctionExpected = makePublicFunction("update", m);
+	auto updateFunctionExpected = makePublicFunction("update", info.getModule());
 	if (!updateFunctionExpected)
 		return updateFunctionExpected;
-	auto updateFunction = updateFunctionExpected.get();
-	IRBuilder bld(&updateFunction->getEntryBlock());
-	LowererContext cont(bld, m);
-	cont.setFunction(updateFunction);
+	auto* updateFunction = updateFunctionExpected.get();
+	IRBuilder<>& bld = info.getBuilder();
+	bld.SetInsertPoint(&updateFunction->getEntryBlock());
+	info.setFunction(updateFunction);
 
 	size_t counter = 0;
 	for (const auto& assigment : upds)
 	{
-		auto fun = createUpdate(cont, assigment, counter++);
+		auto fun = createUpdate(info, assigment, counter++);
 		if (!fun)
 			return fun.takeError();
 		bld.SetInsertPoint(&updateFunction->getEntryBlock());
-		cont.setFunction(updateFunction);
+		info.setFunction(updateFunction);
 		bld.CreateCall(*fun);
 	}
 
@@ -388,36 +395,44 @@ static void createPrintOfVar(
 			return "modelicaPrintFVector";
 		if (t == intType)
 			return "modelicaPrintIVector";
+		if (t->isIntegerTy(1))
+			return "modelicaPrintBVector";
+		if (t->isDoubleTy())
+			return "modelicaPrintDVector";
 
-		return "modelicaPrintBVector";
+		assert(false && "unrechable");
+		return "UKNOWN TYPE";
 	};
 
 	auto callee = context.getModule().getOrInsertFunction(
 			selectPrintName(basType), printType);
-	auto externalPrint = dyn_cast<Function>(callee.getCallee());
+	auto* externalPrint = dyn_cast<Function>(callee.getCallee());
 
-	auto numElements =
+	auto* numElements =
 			ConstantInt::get(intType, modTypeFromLLVMType(arrayType).flatSize());
-	auto casted = context.getBuilder().CreatePointerCast(ptrToVar, ptrToBaseType);
+	auto* casted =
+			context.getBuilder().CreatePointerCast(ptrToVar, ptrToBaseType);
 	SmallVector<Value*, 3> argsVal({ ptrToStrName, casted, numElements });
 	context.getBuilder().CreateCall(externalPrint, argsVal);
 }
 
-static Expected<Function*> populatePrint(Module& m, StringMap<ModVariable> vars)
+static Expected<Function*> populatePrint(
+		LowererContext& info, StringMap<ModVariable> vars)
 {
+	Module& m = info.getModule();
 	auto printFunctionExpected = makePrivateFunction("print", m);
 	if (!printFunctionExpected)
 		return printFunctionExpected;
-	auto printFunction = printFunctionExpected.get();
-	IRBuilder bld(&printFunction->getEntryBlock());
-	LowererContext cont(bld, m);
-	cont.setFunction(printFunction);
+	auto* printFunction = printFunctionExpected.get();
+	IRBuilder<>& bld = info.getBuilder();
+	bld.SetInsertPoint(&printFunction->getEntryBlock());
+	info.setFunction(printFunction);
 
 	for (const auto& pair : vars)
 	{
-		auto varString = m.getGlobalVariable(pair.first().str() + "_str", true);
-		auto ptrToVar = m.getGlobalVariable(pair.first(), true);
-		createPrintOfVar(cont, varString, ptrToVar);
+		auto* varString = m.getGlobalVariable(pair.first().str() + "_str", true);
+		auto* ptrToVar = m.getGlobalVariable(pair.first(), true);
+		createPrintOfVar(info, varString, ptrToVar);
 	}
 	bld.CreateRet(nullptr);
 	return printFunction;
@@ -425,23 +440,25 @@ static Expected<Function*> populatePrint(Module& m, StringMap<ModVariable> vars)
 
 Error Lowerer::lower()
 {
-	if (auto e = createAllGlobals(getVarLinkage()); e)
+	IRBuilder<> builder(module.getContext());
+	LowererContext ctx(builder, module, useDoubles);
+	if (auto e = createAllGlobals(ctx, getVarLinkage()); e)
 		return e;
 
-	auto initFunction = initializeGlobals(module, variables);
+	auto initFunction = initializeGlobals(ctx, variables);
 	if (!initFunction)
 		return initFunction.takeError();
 
-	auto updateFunction = createUpdates(module, updates, variables);
+	auto updateFunction = createUpdates(ctx, updates, variables);
 	if (!updateFunction)
 		return updateFunction.takeError();
 
-	auto printFunction = populatePrint(module, variables);
+	auto printFunction = populatePrint(ctx, variables);
 	if (!printFunction)
 		return printFunction.takeError();
 
 	auto e = populateMain(
-			module,
+			ctx,
 			entryPointName,
 			*initFunction,
 			*updateFunction,
@@ -481,7 +498,7 @@ void Lowerer::dumpHeader(raw_ostream& OS) const
 		const auto& type = var.second.getInit().getModType();
 
 		OS << "extern ";
-		type.dumpCSyntax(var.first(), OS);
+		type.dumpCSyntax(var.first(), useDoubles, OS);
 
 		OS << ";\n";
 	}

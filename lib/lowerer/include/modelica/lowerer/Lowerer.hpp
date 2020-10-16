@@ -3,6 +3,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
+#include "modelica/lowerer/LowererUtils.hpp"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModVariable.hpp"
@@ -33,13 +34,15 @@ namespace modelica
 				llvm::SmallVector<Assigment, 2> updates,
 				std::string name = "Modelica Module",
 				std::string entryPointName = "main",
-				unsigned stopTime = defaultModulationIterations)
+				unsigned stopTime = defaultModulationIterations,
+				bool useDouble = true)
 				: module(std::move(name), context),
 					variables(std::move(vars)),
 					updates(std::move(updates)),
 					stopTime(stopTime),
 					entryPointName(std::move(entryPointName)),
-					varsLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage)
+					varsLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage),
+					useDoubles(useDouble)
 		{
 		}
 
@@ -47,11 +50,13 @@ namespace modelica
 				llvm::LLVMContext& context,
 				std::string name = "Modelica Module",
 				std::string entryPointName = "main",
-				unsigned stopTime = defaultModulationIterations)
+				unsigned stopTime = defaultModulationIterations,
+				bool useDouble = true)
 				: module(std::move(name), context),
 					stopTime(stopTime),
 					entryPointName(std::move(entryPointName)),
-					varsLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage)
+					varsLinkage(llvm::GlobalValue::LinkageTypes::InternalLinkage),
+					useDoubles(useDouble)
 		{
 		}
 
@@ -139,10 +144,12 @@ namespace modelica
 
 		private:
 		llvm::Error insertGlobal(
+				LowererContext& info,
 				llvm::StringRef name,
 				const ModExp& exp,
 				llvm::GlobalValue::LinkageTypes linkage);
-		llvm::Error createAllGlobals(llvm::GlobalValue::LinkageTypes linkType);
+		llvm::Error createAllGlobals(
+				LowererContext& info, llvm::GlobalValue::LinkageTypes linkType);
 		/**
 		 * allocates the global var into the module
 		 * and initializes it with the provided value.
@@ -151,6 +158,7 @@ namespace modelica
 		 * \return an error if the allocation failed
 		 */
 		llvm::Error simExpToGlobalVar(
+				LowererContext& info,
 				llvm::StringRef name,
 				const ModType& type,
 				llvm::GlobalValue::LinkageTypes linkage);
@@ -161,5 +169,7 @@ namespace modelica
 
 		std::string entryPointName;
 		llvm::GlobalValue::LinkageTypes varsLinkage;
+
+		bool useDoubles;
 	};
 }	 // namespace modelica

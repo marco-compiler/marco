@@ -1,4 +1,4 @@
-#include "LowererUtils.hpp"
+#include "modelica/lowerer/LowererUtils.hpp"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/IR/IRBuilder.h"
@@ -16,33 +16,33 @@ constexpr auto internalLinkage = GlobalValue::LinkageTypes::InternalLinkage;
 
 Value* LowererContext::getArrayElementPtr(Value* arrayPtr, size_t index)
 {
-	auto ptrType = dyn_cast<PointerType>(arrayPtr->getType());
-	auto arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
+	auto* ptrType = dyn_cast<PointerType>(arrayPtr->getType());
+	auto* arrayType = dyn_cast<ArrayType>(ptrType->getContainedType(0));
 	assert(index <= arrayType->getNumElements());	 // NOLINT
 
-	auto intType = Type::getInt32Ty(builder.getContext());
+	auto* intType = Type::getInt32Ty(builder.getContext());
 
-	auto zero = ConstantInt::get(intType, 0);
-	auto i = ConstantInt::get(intType, index);
+	auto* zero = ConstantInt::get(intType, 0);
+	auto* i = ConstantInt::get(intType, index);
 	return getArrayElementPtr(arrayPtr, i);
 }
 
 Value* LowererContext::getArrayElementPtr(Value* arrayPtr, Value* index)
 {
-	auto intType = Type::getInt32Ty(builder.getContext());
-	auto zero = ConstantInt::get(intType, 0);
+	auto* intType = Type::getInt32Ty(builder.getContext());
+	auto* zero = ConstantInt::get(intType, 0);
 	if (index->getType()->isIntegerTy())
 	{
 		SmallVector<Value*, 2> args = { zero, index };
 		return builder.CreateGEP(arrayPtr, args);
 	}
 
-	auto ptrType = dyn_cast<PointerType>(index->getType());
-	auto type = dyn_cast<ArrayType>(ptrType->getContainedType(0));
+	auto* ptrType = dyn_cast<PointerType>(index->getType());
+	auto* type = dyn_cast<ArrayType>(ptrType->getContainedType(0));
 	Value* val = arrayPtr;
 	for (size_t a = 0; a < type->getNumElements(); a++)
 	{
-		auto partialIndex = loadArrayElement(index, a);
+		auto* partialIndex = loadArrayElement(index, a);
 		SmallVector<Value*, 2> args = { zero, partialIndex };
 		val = builder.CreateGEP(val, args);
 	}
@@ -69,7 +69,7 @@ Value* LowererContext::loadArrayElement(Value* arrayPtr, Value* index)
 }
 AllocaInst* LowererContext::allocaModType(const ModType& type)
 {
-	auto llvmType = typeToLLVMType(getContext(), type);
+	auto llvmType = typeToLLVMType(getContext(), type, useDouble);
 	return builder.CreateAlloca(llvmType);
 }
 
@@ -80,7 +80,8 @@ void LowererContext::storeToArrayElement(
 	builder.CreateStore(value, ptrToElem);
 }
 
-Type* modelica::builtInToLLVMType(LLVMContext& context, BultinModTypes type)
+Type* modelica::builtInToLLVMType(
+		LLVMContext& context, BultinModTypes type, bool useDouble)
 {
 	switch (type)
 	{
@@ -89,16 +90,17 @@ Type* modelica::builtInToLLVMType(LLVMContext& context, BultinModTypes type)
 		case BultinModTypes::BOOL:
 			return Type::getInt1Ty(context);
 		case BultinModTypes::FLOAT:
-			return Type::getFloatTy(context);
+			return useDouble ? Type::getDoubleTy(context) : Type::getFloatTy(context);
 	}
 
 	assert(false && "Unreachable");	 // NOLINT
 	return nullptr;
 }
 
-ArrayType* modelica::typeToLLVMType(LLVMContext& context, const ModType& type)
+ArrayType* modelica::typeToLLVMType(
+		LLVMContext& context, const ModType& type, bool useDouble)
 {
-	auto baseType = builtInToLLVMType(context, type.getBuiltin());
+	auto* baseType = builtInToLLVMType(context, type.getBuiltin(), useDouble);
 	Type* tp = baseType;
 	for (auto dim = type.getDimensions().rbegin();
 			 dim != type.getDimensions().rend();
@@ -109,7 +111,7 @@ ArrayType* modelica::typeToLLVMType(LLVMContext& context, const ModType& type)
 
 Expected<Value*> LowererContext::lowerReference(StringRef exp)
 {
-	auto module = builder.GetInsertBlock()->getModule();
+	auto* module = builder.GetInsertBlock()->getModule();
 	auto global = module->getGlobalVariable(exp.str(), true);
 	if (global == nullptr)
 		return make_error<UnkownVariable>(exp.str());
@@ -154,7 +156,7 @@ Expected<Value*> LowererContext::createTernaryOp(
 
 	builder.SetInsertPoint(exit);
 
-	auto phi = builder.CreatePHI(outType, 2);
+	auto* phi = builder.CreatePHI(outType, 2);
 	phi->addIncoming(*truValue, trueBranch);
 	phi->addIncoming(*falseValue, falseBranch);
 	return phi;
@@ -163,18 +165,18 @@ Expected<Value*> LowererContext::createTernaryOp(
 AllocaInst* LowererContext::getTypeDimensionsArray(const ModType& type)
 {
 	auto allocaDim = type.getDimensionsCount() + 1;
-	auto longType = IntegerType::getInt64Ty(builder.getContext());
-	auto arrayType = ArrayType::get(longType, allocaDim);
+	auto* longType = IntegerType::getInt64Ty(builder.getContext());
+	auto* arrayType = ArrayType::get(longType, allocaDim);
 
-	auto alloca = builder.CreateAlloca(arrayType);
+	auto* alloca = builder.CreateAlloca(arrayType);
 
 	for (size_t a = 0; a < type.getDimensionsCount(); a++)
 	{
-		auto constant = ConstantInt::get(longType, type.getDimension(a));
+		auto* constant = ConstantInt::get(longType, type.getDimension(a));
 		storeToArrayElement(constant, alloca, a);
 	}
 
-	auto zero = ConstantInt::get(longType, 0);
+	auto* zero = ConstantInt::get(longType, 0);
 	storeToArrayElement(zero, alloca, allocaDim - 1);
 
 	return alloca;
@@ -292,7 +294,7 @@ BultinModTypes modelica::builtinTypeFromLLVMType(Type* tp)
 		return BultinModTypes::INT;
 	if (tp->isIntegerTy(1))
 		return BultinModTypes::BOOL;
-	if (tp->isFloatTy())
+	if (tp->isFloatTy() or tp->isDoubleTy())
 		return BultinModTypes::FLOAT;
 	assert(false && "unreachable");
 	return BultinModTypes::INT;

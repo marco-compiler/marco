@@ -1,11 +1,11 @@
 #pragma once
 
-#include "LowererUtils.hpp"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Error.h"
+#include "modelica/lowerer/LowererUtils.hpp"
 #include "modelica/model/ModCall.hpp"
 
 namespace modelica

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "LowererUtils.hpp"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Error.h"
+#include "modelica/lowerer/LowererUtils.hpp"
 #include "modelica/model/ModExp.hpp"
 
 namespace modelica

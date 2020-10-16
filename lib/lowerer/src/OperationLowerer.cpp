@@ -1,19 +1,25 @@
 #include "OperationLowerer.hpp"
 
 #include "ExpLowerer.hpp"
+#include "llvm/IR/Type.h"
 
 using namespace modelica;
 using namespace llvm;
 using namespace std;
 
+static bool isModelicaFloat(llvm::Type* t)
+{
+	return t->isFloatTy() or t->isDoubleTy();
+}
+
 template<>
 Value* modelica::op<ModExpKind::negate>(IRBuilder<>& builder, Value* arg1)
 {
-	auto boolType = IntegerType::getInt1Ty(builder.getContext());
-	auto zero = ConstantInt::get(boolType, 0);
-	auto type = arg1->getType();
+	auto* boolType = IntegerType::getInt1Ty(builder.getContext());
+	auto* zero = ConstantInt::get(boolType, 0);
+	auto* type = arg1->getType();
 
-	if (type->isFloatTy())
+	if (isModelicaFloat(type))
 		return builder.CreateFNeg(arg1);
 
 	if (type->isIntegerTy(32))
@@ -32,7 +38,7 @@ Value* modelica::op<ModExpKind::add>(
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateAdd(arg1, arg2);
 
-	if (arg1->getType()->isFloatTy())
+	if (isModelicaFloat(arg1->getType()))
 		return builder.CreateFAdd(arg1, arg2);
 
 	assert(false && "unreachable");
@@ -46,7 +52,7 @@ Value* modelica::op<ModExpKind::greaterThan>(
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateICmpSGT(arg1, arg2);
 
-	if (arg1->getType()->isFloatTy())
+	if (isModelicaFloat(arg1->getType()))
 		return builder.CreateFCmpOGT(arg1, arg2);
 
 	assert(false && "unreachable");
@@ -60,7 +66,7 @@ Value* modelica::op<ModExpKind::lessEqual>(
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateICmpSLE(arg1, arg2);
 
-	if (arg1->getType()->isFloatTy())
+	if (isModelicaFloat(arg1->getType()))
 		return builder.CreateFCmpOLE(arg1, arg2);
 
 	assert(false && "unreachable");
@@ -74,7 +80,7 @@ Value* modelica::op<ModExpKind::less>(
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateICmpSLT(arg1, arg2);
 
-	if (arg1->getType()->isFloatTy())
+	if (isModelicaFloat(arg1->getType()))
 		return builder.CreateFCmpOLT(arg1, arg2);
 
 	assert(false && "unreachable");
@@ -87,7 +93,7 @@ Value* modelica::op<ModExpKind::greaterEqual>(
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateICmpSGE(arg1, arg2);
 
-	if (arg1->getType()->isFloatTy())
+	if (isModelicaFloat(arg1->getType()))
 		return builder.CreateFCmpOGE(arg1, arg2);
 
 	assert(false && "unreachable");
@@ -101,7 +107,7 @@ Value* modelica::op<ModExpKind::equal>(
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateICmpEQ(arg1, arg2);
 
-	if (arg1->getType()->isFloatTy())
+	if (isModelicaFloat(arg1->getType()))
 		return builder.CreateFCmpOEQ(arg1, arg2);
 
 	assert(false && "unreachable");
@@ -114,7 +120,7 @@ Value* modelica::op<ModExpKind::different>(
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateICmpNE(arg1, arg2);
 
-	if (arg1->getType()->isFloatTy())
+	if (isModelicaFloat(arg1->getType()))
 		return builder.CreateFCmpONE(arg1, arg2);
 
 	assert(false && "unreachable");
@@ -127,7 +133,7 @@ Value* modelica::op<ModExpKind::sub>(
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateSub(arg1, arg2);
 
-	if (arg1->getType()->isFloatTy())
+	if (isModelicaFloat(arg1->getType()))
 		return builder.CreateFSub(arg1, arg2);
 
 	assert(false && "unreachable");
@@ -141,7 +147,7 @@ Value* modelica::op<ModExpKind::mult>(
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateMul(arg1, arg2);
 
-	if (arg1->getType()->isFloatTy())
+	if (isModelicaFloat(arg1->getType()))
 		return builder.CreateFMul(arg1, arg2);
 
 	assert(false && "unreachable");
@@ -155,7 +161,7 @@ Value* modelica::op<ModExpKind::divide>(
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateSDiv(arg1, arg2);
 
-	if (arg1->getType()->isFloatTy())
+	if (isModelicaFloat(arg1->getType()))
 		return builder.CreateFDiv(arg1, arg2);
 
 	assert(false && "unreachable");

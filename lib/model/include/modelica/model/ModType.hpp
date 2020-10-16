@@ -178,7 +178,9 @@ namespace modelica
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		void dumpCSyntax(
-				llvm::StringRef name, llvm::raw_ostream& OS = llvm::outs()) const;
+				llvm::StringRef name,
+				bool useDoubles = true,
+				llvm::raw_ostream& OS = llvm::outs()) const;
 
 		/**
 		 * \return the array containing the dimensions of this objects

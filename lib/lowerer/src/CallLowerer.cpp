@@ -1,7 +1,11 @@
 #include "CallLowerer.hpp"
 
+#include <cstdlib>
+#include <string>
+
 #include "ExpLowerer.hpp"
 #include "llvm/IR/Value.h"
+#include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
 using namespace std;
@@ -11,13 +15,19 @@ namespace modelica
 	static Error invoke(
 			LowererContext& info, StringRef name, ArrayRef<Value*> args)
 	{
-		auto voidType = Type::getVoidTy(info.getContext());
+		args[0]->getType()->dump();
+		std::string realName = name;
+		if (name == "fill" and info.useDoubles())
+			realName = "filld";
+
+		auto* voidType = Type::getVoidTy(info.getContext());
 		SmallVector<Type*, 3> argsTypes;
-		for (auto val : args)
+		for (auto* val : args)
 			argsTypes.push_back(val->getType());
 
-		auto functionType = FunctionType::get(voidType, argsTypes, false);
-		auto externalFun = info.getModule().getOrInsertFunction(name, functionType);
+		auto* functionType = FunctionType::get(voidType, argsTypes, false);
+		auto externalFun =
+				info.getModule().getOrInsertFunction(realName, functionType);
 
 		info.getBuilder().CreateCall(externalFun, args);
 		return Error::success();

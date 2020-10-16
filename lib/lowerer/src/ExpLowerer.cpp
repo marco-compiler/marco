@@ -86,7 +86,8 @@ static Expected<Value*> lowerTernary(LowererContext& info, const ModExp& exp)
 			exp.getCondition().getModType() ==
 			ModType(BultinModTypes::BOOL));	 // NOLINT
 	auto type = exp.getLeftHand().getModType();
-	auto llvmType = typeToLLVMType(info.getContext(), type)->getPointerTo();
+	auto llvmType = typeToLLVMType(info.getContext(), type, info.useDoubles())
+											->getPointerTo();
 
 	return info.createTernaryOp(
 			llvmType,
@@ -182,19 +183,21 @@ static Expected<Value*> uncastedLowerExp(
 	if (!opRes)
 		return opRes;
 
-	Type* operationType =
-			typeToLLVMType(info.getContext(), exp.getOperationReturnType());
+	Type* operationType = typeToLLVMType(
+			info.getContext(), exp.getOperationReturnType(), info.useDoubles());
 	operationType = operationType->getPointerTo();
 	return info.getBuilder().CreatePointerCast(*opRes, operationType);
 }
 
-static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
+static Value* castSingleElem(LowererContext& info, Value* val, Type* type)
 {
-	auto floatType = Type::getFloatTy(builder.getContext());
-	auto intType = Type::getInt32Ty(builder.getContext());
-	auto boolType = Type::getInt1Ty(builder.getContext());
+	IRBuilder<>& builder = info.getBuilder();
+	auto floatType = builtInToLLVMType(
+			builder.getContext(), BultinModTypes::FLOAT, info.useDoubles());
+	auto* intType = Type::getInt32Ty(builder.getContext());
+	auto* boolType = Type::getInt1Ty(builder.getContext());
 
-	auto constantZero = ConstantInt::get(intType, 0);
+	auto* constantZero = ConstantInt::get(intType, 0);
 
 	if (type == floatType)
 		return builder.CreateSIToFP(val, floatType);
@@ -216,8 +219,8 @@ static Value* castSingleElem(IRBuilder<>& builder, Value* val, Type* type)
 Expected<Value*> modelica::castReturnValue(
 		LowererContext& info, Value* val, const ModType& type)
 {
-	auto ptrArrayType = dyn_cast<PointerType>(val->getType());
-	auto arrayType = dyn_cast<ArrayType>(ptrArrayType->getContainedType(0));
+	auto* ptrArrayType = dyn_cast<PointerType>(val->getType());
+	auto* arrayType = dyn_cast<ArrayType>(ptrArrayType->getContainedType(0));
 
 	auto srcType = modTypeFromLLVMType(arrayType);
 	assert(srcType.getDimensions() == type.getDimensions());	// NOLINT
@@ -225,14 +228,13 @@ Expected<Value*> modelica::castReturnValue(
 	if (srcType.getBuiltin() == type.getBuiltin())
 		return val;
 
-	auto alloca = info.allocaModType(type);
+	auto* alloca = info.allocaModType(type);
 
 	info.createForArrayElement(type, [&](Value* inductionsVar) {
-		auto loadedElem = info.loadArrayElement(val, inductionsVar);
-		auto singleDestType =
-				builtInToLLVMType(info.getContext(), type.getBuiltin());
-		Value* casted =
-				castSingleElem(info.getBuilder(), loadedElem, singleDestType);
+		auto* loadedElem = info.loadArrayElement(val, inductionsVar);
+		auto singleDestType = builtInToLLVMType(
+				info.getContext(), type.getBuiltin(), info.useDoubles());
+		Value* casted = castSingleElem(info, loadedElem, singleDestType);
 		info.storeToArrayElement(casted, alloca, inductionsVar);
 	});
 

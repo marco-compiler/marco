@@ -128,7 +128,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	ConstantFolder folder;
+	modelica::ConstantFolder folder;
 	exitOnErr(folder.fold(ast, SymbolTable()));
 	if (dumpFolded)
 	{
@@ -181,7 +181,8 @@ int main(int argc, char* argv[])
 			move(assModel.getUpdates()),
 			"Modelica Model",
 			entryPointName,
-			simulationTime);
+			simulationTime,
+			true);
 
 	if (externalLinkage)
 		sim.setVarsLinkage(GlobalValue::LinkageTypes::ExternalLinkage);

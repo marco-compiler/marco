@@ -29,7 +29,8 @@ void ModType::dump(raw_ostream& OS) const
 	OS << ']';
 }
 
-void ModType::dumpCSyntax(StringRef name, raw_ostream& OS) const
+void ModType::dumpCSyntax(
+		StringRef name, bool useDoubles, raw_ostream& OS) const
 {
 	switch (builtinModType)
 	{
@@ -40,7 +41,7 @@ void ModType::dumpCSyntax(StringRef name, raw_ostream& OS) const
 			OS << "bool";
 			break;
 		case BultinModTypes::FLOAT:
-			OS << "float";
+			OS << (useDoubles ? "double" : "float");
 			break;
 	}
 	OS << " " << name;

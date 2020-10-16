@@ -87,7 +87,8 @@ int main(int argc, char* argv[])
 			move(assigments),
 			"Modulation",
 			entryPointName,
-			simulationTime);
+			simulationTime,
+			true);
 	if (externalLinkage)
 		sim.setVarsLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
 
