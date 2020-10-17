@@ -15,7 +15,6 @@ namespace modelica
 	static Error invoke(
 			LowererContext& info, StringRef name, ArrayRef<Value*> args)
 	{
-		args[0]->getType()->dump();
 		std::string realName = name;
 		if (name == "fill" and info.useDoubles())
 			realName = "filld";
