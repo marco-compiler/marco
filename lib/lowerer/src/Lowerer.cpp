@@ -156,7 +156,7 @@ void Lowerer::verify() { llvm::verifyModule(module, &llvm::outs()); }
 static bool isZeroInitialized(const ModVariable& var)
 {
 	const auto& exp = var.getInit();
-	if (exp.isConstant() && exp.getConstant().as<float>() == 0.0F)
+	if (exp.isConstant() && exp.getConstant().as<double>() == 0.0F)
 		return true;
 
 	if (!exp.isCall())
@@ -167,7 +167,7 @@ static bool isZeroInitialized(const ModVariable& var)
 		return false;
 
 	const auto& initExp = call.at(0);
-	return initExp.isConstant() && initExp.getConstant().as<float>() == 0.0F;
+	return initExp.isConstant() && initExp.getConstant().as<double>() == 0.0F;
 }
 
 static Error shortCallInit(LowererContext& ctx, const ModVariable& var)

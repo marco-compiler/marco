@@ -70,8 +70,8 @@ Expected<AllocaInst*> lowerConstantTyped(
 
 	if (constant.isA<int>())
 		storeConstArray<int>(cont, constant, alloca);
-	if (constant.isA<float>())
-		storeConstArray<float>(cont, constant, alloca);
+	if (constant.isA<double>())
+		storeConstArray<double>(cont, constant, alloca);
 	if (constant.isA<bool>())
 		storeConstArray<bool>(cont, constant, alloca);
 

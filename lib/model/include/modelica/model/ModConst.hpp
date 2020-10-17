@@ -43,7 +43,7 @@ namespace modelica
 		{
 		}
 
-		ModConst(double d): content(Content<float>({ static_cast<float>(d) })) {}
+		ModConst(float d): content(Content<double>({ static_cast<double>(d) })) {}
 
 		template<typename First, typename... T>
 		explicit ModConst(First f, T&&... args)
@@ -56,8 +56,8 @@ namespace modelica
 		{
 			if (isA<int>())
 				c(getContent<int>());
-			else if (isA<float>())
-				c(getContent<float>());
+			else if (isA<double>())
+				c(getContent<double>());
 			else if (isA<bool>())
 				c(getContent<bool>());
 			else
@@ -89,8 +89,8 @@ namespace modelica
 		{
 			if (isA<int>())
 				c(getContent<int>());
-			else if (isA<float>())
-				c(getContent<float>());
+			else if (isA<double>())
+				c(getContent<double>());
 			else if (isA<bool>())
 				c(getContent<bool>());
 			else
@@ -155,7 +155,7 @@ namespace modelica
 			if (builtin == BultinModTypes::BOOL)
 				return as<bool>();
 			if (builtin == BultinModTypes::FLOAT)
-				return as<float>();
+				return as<double>();
 			if (builtin == BultinModTypes::INT)
 				return as<int>();
 
@@ -233,12 +233,7 @@ namespace modelica
 		static ModConst module(const ModConst& left, const ModConst& right);
 
 		private:
-		/**
-		 * The decision of selecting 3 in this small vector is totally arbitrary,
-		 * i just assumed that 3d vectors are more likelly than everything else.
-		 * May need profiling.
-		 */
-		std::variant<Content<int>, Content<float>, Content<bool>> content;
+		std::variant<Content<int>, Content<double>, Content<bool>> content;
 	};
 
 	/**

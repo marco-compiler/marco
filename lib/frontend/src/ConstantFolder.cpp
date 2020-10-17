@@ -157,16 +157,18 @@ static void flatten(Expression& exp, OperationKind kind)
 	moveRange(newArguments.begin(), newArguments.end(), back_inserter(arguments));
 }
 
-template<typename Type>
+template<BuiltinType Type>
 static Expected<Expression> foldOpSum(Expression& exp)
 {
 	flatten(exp, OperationKind::add);
 	Vector& arguments = exp.getOperation().getArguments();
 	Vector newArgs;
 
+	using Tr = frontendTypeToType_v<Type>;
+
 	// for each arugment, if it is a constant add it to to val, otherwise add it
 	// to the new arguments.
-	Type val = 0;
+	Tr val = 0;
 	for (auto& arg : arguments)
 		if (arg.isA<Constant>())
 			val += arg.getConstant().as<Type>();
@@ -175,11 +177,11 @@ static Expected<Expression> foldOpSum(Expression& exp)
 
 	// if there are not args left transform it into a constant
 	if (newArgs.empty())
-		return Expression(makeType<Type>(), val);
+		return Expression(makeType<Tr>(), val);
 
 	// if the sum of constants is not zero insert a new constant argument
 	if (val != 0)
-		newArgs.push_back(Expression(makeType<Type>(), val));
+		newArgs.push_back(Expression(makeType<Tr>(), val));
 
 	// if the arguments are exactly one, remove the sum and return the argument
 	// itself
@@ -190,7 +192,7 @@ static Expected<Expression> foldOpSum(Expression& exp)
 	return Expression::add(exp.getType(), move(newArgs));
 }
 
-template<typename Type>
+template<BuiltinType Type>
 static Expected<Expression> foldOpMult(Expression& exp)
 {
 	// works as the sum, read that one.
@@ -198,7 +200,8 @@ static Expected<Expression> foldOpMult(Expression& exp)
 	Vector& arguments = exp.getOperation().getArguments();
 	Vector newArgs;
 
-	Type val = 1;
+	using Tr = frontendTypeToType_v<Type>;
+	Tr val = 1;
 	for (auto& arg : arguments)
 		if (arg.isA<Constant>())
 			val *= arg.getConstant().as<Type>();
@@ -206,10 +209,10 @@ static Expected<Expression> foldOpMult(Expression& exp)
 			newArgs.emplace_back(move(arg));
 
 	if (newArgs.empty())
-		return Expression(makeType<Type>(), val);
+		return Expression(makeType<Tr>(), val);
 
 	if (val != 1)
-		newArgs.push_back(Expression(makeType<Type>(), val));
+		newArgs.push_back(Expression(makeType<Tr>(), val));
 
 	if (newArgs.size() == 1)
 		return newArgs[0];
@@ -217,7 +220,7 @@ static Expected<Expression> foldOpMult(Expression& exp)
 	return Expression::multiply(exp.getType(), move(newArgs));
 }
 
-template<typename Type>
+template<BuiltinType Type>
 static Expected<Expression> foldOpNegate(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
@@ -227,7 +230,7 @@ static Expected<Expression> foldOpNegate(Expression& exp)
 	return exp;
 }
 
-template<typename Type>
+template<BuiltinType Type>
 static Expected<Expression> foldOpSubtract(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
@@ -244,7 +247,7 @@ static Expected<Expression> foldOpSubtract(Expression& exp)
 	return exp;
 }
 
-template<typename Type>
+template<BuiltinType Type>
 static Expected<Expression> foldOpDivide(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
@@ -260,9 +263,9 @@ static Expected<Expression> foldOpSum(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
 	if (arguments[0].getType() == makeType<int>())
-		return foldOpSum<int>(exp);
+		return foldOpSum<BuiltinType::Integer>(exp);
 	if (arguments[0].getType() == makeType<float>())
-		return foldOpSum<float>(exp);
+		return foldOpSum<BuiltinType::Float>(exp);
 	return exp;
 }
 
@@ -270,9 +273,9 @@ static Expected<Expression> foldOpSubtract(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
 	if (arguments[0].getType() == makeType<int>())
-		return foldOpSubtract<int>(exp);
-	if (arguments[0].getType() == makeType<int>())
-		return foldOpSubtract<float>(exp);
+		return foldOpSubtract<BuiltinType::Integer>(exp);
+	if (arguments[0].getType() == makeType<float>())
+		return foldOpSubtract<BuiltinType::Float>(exp);
 
 	return exp;
 }
@@ -281,9 +284,9 @@ static Expected<Expression> foldOpDivide(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
 	if (arguments[0].getType() == makeType<int>())
-		return foldOpDivide<int>(exp);
+		return foldOpDivide<BuiltinType::Integer>(exp);
 	if (arguments[0].getType() == makeType<float>())
-		return foldOpDivide<float>(exp);
+		return foldOpDivide<BuiltinType::Float>(exp);
 	return exp;
 }
 
@@ -291,13 +294,13 @@ static Expected<Expression> foldOpMult(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
 	if (arguments[0].getType() == makeType<int>())
-		return foldOpMult<int>(exp);
+		return foldOpMult<BuiltinType::Integer>(exp);
 	if (arguments[0].getType() == makeType<float>())
-		return foldOpMult<float>(exp);
+		return foldOpMult<BuiltinType::Float>(exp);
 	return exp;
 }
 
-template<typename T>
+template<BuiltinType T>
 static Expected<Expression> foldOpExp(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
@@ -305,19 +308,20 @@ static Expected<Expression> foldOpExp(Expression& exp)
 	if (!arguments[0].isA<Constant>() || !arguments[1].isA<Constant>())
 		return exp;
 
-	T val = pow(
+	using Tr = frontendTypeToType_v<T>;
+	Tr val = pow(
 			arguments[0].getConstant().as<T>(), arguments[1].getConstant().as<T>());
 
-	return Expression(makeType<T>(), val);
+	return Expression(makeType<Tr>(), val);
 }
 
 static Expected<Expression> foldOpExp(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
 	if (arguments[0].getType() == makeType<int>())
-		return foldOpExp<int>(exp);
+		return foldOpExp<BuiltinType::Integer>(exp);
 	if (arguments[0].getType() == makeType<float>())
-		return foldOpExp<float>(exp);
+		return foldOpExp<BuiltinType::Float>(exp);
 	return exp;
 }
 
@@ -325,11 +329,11 @@ static Expected<Expression> foldOpNegate(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
 	if (arguments[0].getType() == makeType<int>())
-		return foldOpNegate<int>(exp);
+		return foldOpNegate<BuiltinType::Integer>(exp);
 	if (arguments[0].getType() == makeType<float>())
-		return foldOpNegate<float>(exp);
+		return foldOpNegate<BuiltinType::Float>(exp);
 	if (arguments[0].getType() == makeType<bool>())
-		return foldOpNegate<bool>(exp);
+		return foldOpNegate<BuiltinType::Boolean>(exp);
 	assert(false && "unrechable");
 	return exp;
 }

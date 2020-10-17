@@ -82,7 +82,7 @@ static ModExp varToExp(const ModVariable& var)
 	return access;
 }
 
-Expected<AssignModel> modelica::addAproximation(Model& model, float deltaTime)
+Expected<AssignModel> modelica::addAproximation(Model& model, double deltaTime)
 {
 	AssignModel out;
 

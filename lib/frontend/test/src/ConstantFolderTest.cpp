@@ -23,7 +23,7 @@ TEST(folderTest, sumShouldFold)
 		FAIL();
 
 	EXPECT_TRUE(exp.isA<Constant>());
-	EXPECT_EQ(exp.getConstant().get<int>(), 7);
+	EXPECT_EQ(exp.getConstant().get<BuiltinType::Integer>(), 7);
 }
 
 TEST(folderTest, subShouldFold)
@@ -37,7 +37,7 @@ TEST(folderTest, subShouldFold)
 		FAIL();
 
 	EXPECT_TRUE(exp.isA<Constant>());
-	EXPECT_EQ(exp.getConstant().get<int>(), 1);
+	EXPECT_EQ(exp.getConstant().get<BuiltinType::Integer>(), 1);
 }
 
 TEST(folderTest, sumOfSubShouldFold)
@@ -51,7 +51,7 @@ TEST(folderTest, sumOfSubShouldFold)
 		FAIL();
 
 	EXPECT_TRUE(exp.isA<Constant>());
-	EXPECT_EQ(exp.getConstant().get<int>(), 2);
+	EXPECT_EQ(exp.getConstant().get<BuiltinType::Integer>(), 2);
 }
 
 TEST(folderTest, sumInSubscriptionShouldFold)
@@ -75,7 +75,7 @@ TEST(folderTest, sumInSubscriptionShouldFold)
 	EXPECT_TRUE(exp.isOperation());
 	auto& accessIndex = exp.getOperation()[1];
 	EXPECT_TRUE(accessIndex.isA<Constant>());
-	EXPECT_EQ(accessIndex.getConstant().get<int>(), 2);
+	EXPECT_EQ(accessIndex.getConstant().get<BuiltinType::Integer>(), 2);
 }
 
 TEST(folderTest, sumInSubscriptionInDerShouldFold)
@@ -103,7 +103,7 @@ TEST(folderTest, sumInSubscriptionInDerShouldFold)
 	auto& arg = call.get<Call>()[0];
 	EXPECT_TRUE(arg.isOperation());
 	auto& accessIndex = arg.getOperation()[1];
-	EXPECT_EQ(accessIndex.getConstant().get<int>(), 2);
+	EXPECT_EQ(accessIndex.getConstant().get<BuiltinType::Integer>(), 2);
 }
 
 TEST(folderTest, startDeclarationWithReference)	 // NOLINT

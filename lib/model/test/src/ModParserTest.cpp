@@ -34,9 +34,9 @@ TEST(ModParserTest, contFloatVectorShouldParse)
 	auto constVector = *vec;
 
 	EXPECT_EQ(constVector.size(), 3);
-	EXPECT_NEAR(constVector.get<float>(0), 1.4f, 0.1f);
-	EXPECT_NEAR(constVector.get<float>(1), 2.1f, 0.1f);
-	EXPECT_NEAR(constVector.get<float>(2), 3.9f, 0.1f);
+	EXPECT_NEAR(constVector.get<double>(0), 1.4f, 0.1f);
+	EXPECT_NEAR(constVector.get<double>(1), 2.1f, 0.1f);
+	EXPECT_NEAR(constVector.get<double>(2), 3.9f, 0.1f);
 }
 
 TEST(ModParserTest, contBoolVectorShouldParse)

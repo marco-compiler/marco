@@ -21,7 +21,7 @@ TEST(ConstantTest, construtorTest)	// NOLINT
 	ModConst constant3(false);
 
 	EXPECT_EQ(constant.get<int>(0), 1);
-	EXPECT_EQ(constant2.get<float>(0), 1.0F);
+	EXPECT_EQ(constant2.get<double>(0), 1.0F);
 	EXPECT_EQ(constant3.get<bool>(0), false);
 }
 
@@ -221,7 +221,7 @@ TEST(ModelTest, modExpShouldDistribuite)
 	ModExp exp = ModExp(ModConst(5));
 	exp.distribuite(ModExp(ModConst(0.1)), true);
 	EXPECT_TRUE(exp.isOperation<ModExpKind::mult>());
-	EXPECT_NEAR(exp.getLeftHand().getConstant().get<float>(0), 0.1, 0.01);
+	EXPECT_NEAR(exp.getLeftHand().getConstant().get<double>(0), 0.1, 0.01);
 }
 
 TEST(ModelTest, modExpShouldDistribuiteMultiplication)

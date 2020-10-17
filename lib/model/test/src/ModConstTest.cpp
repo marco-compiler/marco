@@ -94,13 +94,13 @@ TEST(ModConstTest, constantVectorModule)
 
 TEST(ModConstTest, constantVectorAddedAreCasted)
 {
-	ModConst l(3.0f, 4.0f, 5.0f);
+	ModConst l(3.0, 4.0, 5.0);
 	ModConst r(5, 4, 5);
 
 	auto sum = ModConst::sum(l, r);
-	EXPECT_TRUE(sum.isA<float>());
+	EXPECT_TRUE(sum.isA<double>());
 
-	EXPECT_NEAR(sum.get<float>(0), 8.0f, 0.1);
+	EXPECT_NEAR(sum.get<double>(0), 8.0f, 0.1);
 }
 
 TEST(ModConstTest, constantShouldBeMoveAsssignable)

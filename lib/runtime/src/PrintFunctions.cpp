@@ -18,7 +18,7 @@ extern "C"
 	{
 		printf("%s:\n", name);
 		for (int a = 0; a < count; a++)
-			printf("\t%f\n", value[a]);
+			printf("\t%12f\n", value[a]);
 	}
 
 	void modelicaPrintBVector(char* name, char* value, int count)

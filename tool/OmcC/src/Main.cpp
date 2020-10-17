@@ -35,7 +35,7 @@ opt<int> simulationTime(
 		cl::init(10),
 		cl::cat(omcCCat));
 
-opt<float> timeStep(
+opt<double> timeStep(
 		"timeStep",
 		cl::desc("how long in seconds a ticks in simulation lasts"),
 		cl::init(0.1F),
