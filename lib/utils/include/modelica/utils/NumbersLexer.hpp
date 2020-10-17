@@ -1,5 +1,7 @@
 #pragma once
 #include <cmath>
+#include <iterator>
+#include <math.h>
 
 namespace modelica
 {
@@ -56,7 +58,15 @@ namespace modelica
 		/**
 		 * Concatenate the number to the rational part.
 		 */
-		void addLower(int i) { lowerPart += i; }
+		void addLower(int i)
+		{
+			lowerPart += i;
+			if (i != 0)
+				leadingZero = false;
+
+			if (leadingZero)
+				fractionalsLeadingZeors++;
+		}
 
 		/**
 		 * Concatenate the number to the exponent part.
@@ -92,7 +102,8 @@ namespace modelica
 				mantissaNormalizer *= base;
 
 			double toReturn = upperPart.get();
-			toReturn += double(lowerPart.get()) / mantissaNormalizer;
+			toReturn += double(lowerPart.get()) /
+									(mantissaNormalizer * pow(10, fractionalsLeadingZeors));
 
 			int exp = exponential.get();
 			if (!expSign)
@@ -110,5 +121,7 @@ namespace modelica
 		bool hasExponential{ false };
 		IntegerLexer<base> exponential;
 		bool expSign{ true };
+		bool leadingZero{ true };
+		int fractionalsLeadingZeors{ 0 };
 	};
 }	 // namespace modelica

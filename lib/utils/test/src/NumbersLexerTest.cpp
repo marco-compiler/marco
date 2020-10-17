@@ -43,6 +43,18 @@ TEST(FloatLexerTest, withoutExponentialShouldWork)
 	EXPECT_NEAR(lex.get(), 9.53, 0.01);
 }
 
+TEST(FloatLexerTest, lessThanOneFloatsShoudlWork)
+{
+	modelica::FloatLexer<10> lex;
+	lex.addUpper(2);
+	lex.addLower(0);
+	lex.addLower(0);
+	lex.addLower(2);
+	EXPECT_NEAR(lex.get(), 2.002, 0.01);
+	lex.addExponential(1);
+	EXPECT_NEAR(lex.get(), 20.02, 0.01);
+}
+
 TEST(FloatLexerTest, positiveExponentialShouldWork)
 {
 	modelica::FloatLexer<10> lex;
