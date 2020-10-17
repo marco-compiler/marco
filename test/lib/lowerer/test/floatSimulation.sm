@@ -1,0 +1,10 @@
+init
+
+FloatConstant = FLOAT[1]{3.0}
+FloatModifiable = FLOAT[1]{3.0}
+FloatNot = FLOAT[1]{3.0}
+
+update
+
+FloatModifiable = FLOAT[1](+ FLOAT[1]FloatModifiable, FLOAT[1]{1.0})
+FloatNot = FLOAT[1](! FLOAT[1]FloatConstant)

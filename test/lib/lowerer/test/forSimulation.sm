@@ -1,0 +1,23 @@
+init
+
+
+IntModifiable = INT[2, 2]{1, 2, 3, 4}
+IntModifiable2 = INT[2, 2]{1, 2, 3, 4}
+IntModifiable3 = INT[2, 2]{1, 2, 3, 4}
+
+update
+
+for [0,2][0,2]
+INT[1](
+		at INT[2]
+					(at INT[2,2] IntModifiable, 
+					   INT[1](ind INT[1]{0})), 
+						INT[1](ind INT[1]{1}))
+
+= INT[1](ind INT[1]{1})
+
+for [0,2][0,2]
+INT[1](at INT[2](at INT[2,2]IntModifiable3, INT[1](ind INT[1]{0})), INT[1](ind INT[1]{1}))= INT[1](ind INT[1]{0})
+
+for [0,2][0,2]
+INT[1](at INT[2](at INT[2,2]IntModifiable2, INT[1](ind INT[1]{0})), INT[1](ind INT[1]{1})) = INT[1]{8}

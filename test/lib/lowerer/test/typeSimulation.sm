@@ -1,0 +1,10 @@
+init
+
+IntModifiable = INT[1]{3}
+IntConstant = INT[1]{6}
+BoolConstant = BOOL[1]{0}
+
+update
+
+IntModifiable = INT[1](+ INT[1]{3} , INT[1] IntConstant)
+BoolConstant = BOOL[1](! BOOL[1]IntModifiable)
