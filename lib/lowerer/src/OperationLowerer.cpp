@@ -1,7 +1,13 @@
 #include "OperationLowerer.hpp"
 
+#include "CallLowerer.hpp"
 #include "ExpLowerer.hpp"
+#include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Type.h"
+#include "llvm/IR/Value.h"
+#include "llvm/Support/Error.h"
+#include "modelica/lowerer/LowererUtils.hpp"
+#include "modelica/model/ModExp.hpp"
 
 using namespace modelica;
 using namespace llvm;
@@ -13,8 +19,10 @@ static bool isModelicaFloat(llvm::Type* t)
 }
 
 template<>
-Value* modelica::op<ModExpKind::negate>(IRBuilder<>& builder, Value* arg1)
+Expected<Value*> modelica::op<ModExpKind::negate>(
+		LowererContext& info, Value* arg1)
 {
+	auto& builder = info.getBuilder();
 	auto* boolType = IntegerType::getInt1Ty(builder.getContext());
 	auto* zero = ConstantInt::get(boolType, 0);
 	auto* type = arg1->getType();
@@ -32,9 +40,10 @@ Value* modelica::op<ModExpKind::negate>(IRBuilder<>& builder, Value* arg1)
 }
 
 template<>
-Value* modelica::op<ModExpKind::add>(
-		IRBuilder<>& builder, Value* arg1, Value* arg2)
+Expected<Value*> modelica::op<ModExpKind::add>(
+		LowererContext& info, Value* arg1, Value* arg2)
 {
+	auto& builder = info.getBuilder();
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateAdd(arg1, arg2);
 
@@ -46,9 +55,10 @@ Value* modelica::op<ModExpKind::add>(
 }
 
 template<>
-Value* modelica::op<ModExpKind::greaterThan>(
-		IRBuilder<>& builder, Value* arg1, Value* arg2)
+Expected<Value*> modelica::op<ModExpKind::greaterThan>(
+		LowererContext& info, Value* arg1, Value* arg2)
 {
+	auto& builder = info.getBuilder();
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateICmpSGT(arg1, arg2);
 
@@ -60,9 +70,10 @@ Value* modelica::op<ModExpKind::greaterThan>(
 }
 
 template<>
-Value* modelica::op<ModExpKind::lessEqual>(
-		IRBuilder<>& builder, Value* arg1, Value* arg2)
+Expected<Value*> modelica::op<ModExpKind::lessEqual>(
+		LowererContext& info, Value* arg1, Value* arg2)
 {
+	auto& builder = info.getBuilder();
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateICmpSLE(arg1, arg2);
 
@@ -74,9 +85,10 @@ Value* modelica::op<ModExpKind::lessEqual>(
 }
 
 template<>
-Value* modelica::op<ModExpKind::less>(
-		IRBuilder<>& builder, Value* arg1, Value* arg2)
+Expected<Value*> modelica::op<ModExpKind::less>(
+		LowererContext& info, Value* arg1, Value* arg2)
 {
+	auto& builder = info.getBuilder();
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateICmpSLT(arg1, arg2);
 
@@ -87,9 +99,10 @@ Value* modelica::op<ModExpKind::less>(
 	return nullptr;
 }
 template<>
-Value* modelica::op<ModExpKind::greaterEqual>(
-		IRBuilder<>& builder, Value* arg1, Value* arg2)
+Expected<Value*> modelica::op<ModExpKind::greaterEqual>(
+		LowererContext& info, Value* arg1, Value* arg2)
 {
+	auto& builder = info.getBuilder();
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateICmpSGE(arg1, arg2);
 
@@ -101,9 +114,10 @@ Value* modelica::op<ModExpKind::greaterEqual>(
 }
 
 template<>
-Value* modelica::op<ModExpKind::equal>(
-		IRBuilder<>& builder, Value* arg1, Value* arg2)
+Expected<Value*> modelica::op<ModExpKind::equal>(
+		LowererContext& info, Value* arg1, Value* arg2)
 {
+	auto& builder = info.getBuilder();
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateICmpEQ(arg1, arg2);
 
@@ -114,9 +128,10 @@ Value* modelica::op<ModExpKind::equal>(
 	return nullptr;
 }
 template<>
-Value* modelica::op<ModExpKind::different>(
-		IRBuilder<>& builder, Value* arg1, Value* arg2)
+Expected<Value*> modelica::op<ModExpKind::different>(
+		LowererContext& info, Value* arg1, Value* arg2)
 {
+	auto& builder = info.getBuilder();
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateICmpNE(arg1, arg2);
 
@@ -127,9 +142,10 @@ Value* modelica::op<ModExpKind::different>(
 	return nullptr;
 }
 template<>
-Value* modelica::op<ModExpKind::sub>(
-		IRBuilder<>& builder, Value* arg1, Value* arg2)
+Expected<Value*> modelica::op<ModExpKind::sub>(
+		LowererContext& info, Value* arg1, Value* arg2)
 {
+	auto& builder = info.getBuilder();
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateSub(arg1, arg2);
 
@@ -141,9 +157,10 @@ Value* modelica::op<ModExpKind::sub>(
 }
 
 template<>
-Value* modelica::op<ModExpKind::mult>(
-		IRBuilder<>& builder, Value* arg1, Value* arg2)
+Expected<Value*> modelica::op<ModExpKind::mult>(
+		LowererContext& info, Value* arg1, Value* arg2)
 {
+	auto& builder = info.getBuilder();
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateMul(arg1, arg2);
 
@@ -155,9 +172,28 @@ Value* modelica::op<ModExpKind::mult>(
 }
 
 template<>
-Value* modelica::op<ModExpKind::divide>(
-		IRBuilder<>& builder, Value* arg1, Value* arg2)
+Expected<Value*> modelica::op<ModExpKind::elevation>(
+		LowererContext& info, Value* arg1, Value* arg2)
 {
+	if (not isModelicaFloat(arg1->getType()) or
+			not isModelicaFloat(arg2->getType()))
+	{
+		return createStringError(
+				inconvertibleErrorCode(),
+				" Invoked Pow with non float/double operands");
+	}
+
+	if (info.useDoubles())
+		return invoke(info, "modelicaPowD", { arg1, arg2 }, arg1->getType());
+
+	return invoke(info, "modelicaPow", { arg1, arg2 }, arg1->getType());
+}
+
+template<>
+Expected<Value*> modelica::op<ModExpKind::divide>(
+		LowererContext& info, Value* arg1, Value* arg2)
+{
+	auto& builder = info.getBuilder();
 	if (arg1->getType()->isIntegerTy())
 		return builder.CreateSDiv(arg1, arg2);
 
@@ -181,9 +217,9 @@ Expected<Value*> modelica::lowerAtOperation(
 		return rightHand.takeError();
 
 	auto& builder = info.getBuilder();
-	auto casted = builder.CreatePointerCast(
+	auto* casted = builder.CreatePointerCast(
 			*rightHand, Type::getInt32Ty(builder.getContext())->getPointerTo(0));
-	auto index = builder.CreateLoad(casted);
+	auto* index = builder.CreateLoad(casted);
 
 	return info.getArrayElementPtr(*leftHand, index);
 }
@@ -195,12 +231,20 @@ Expected<Value*> modelica::lowerNegate(LowererContext& info, const ModExp& arg1)
 		return lowered;
 
 	auto& builder = info.getBuilder();
-	auto exitVal = info.allocaModType(arg1.getModType());
-	info.createForArrayElement(arg1.getModType(), [&](Value* iterationIndexes) {
-		auto loaded = info.loadArrayElement(*lowered, iterationIndexes);
-		auto calculated = op<ModExpKind::negate>(builder, loaded);
-		info.storeToArrayElement(calculated, exitVal, iterationIndexes);
-	});
+	Value* exitVal = info.allocaModType(arg1.getModType());
+
+	auto ExpectedBB = info.maybeCreateForArrayElement(
+			arg1.getModType(), [&](Value* iterationIndexes) -> Error {
+				auto* loaded = info.loadArrayElement(*lowered, iterationIndexes);
+				auto calculated = op<ModExpKind::negate>(info, loaded);
+				if (!calculated)
+					return calculated.takeError();
+				info.storeToArrayElement(*calculated, exitVal, iterationIndexes);
+				return Error::success();
+			});
+
+	if (!ExpectedBB)
+		return ExpectedBB.takeError();
 
 	return exitVal;
 }

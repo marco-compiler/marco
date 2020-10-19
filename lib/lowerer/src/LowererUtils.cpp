@@ -1,7 +1,9 @@
 #include "modelica/lowerer/LowererUtils.hpp"
 
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/Support/Error.h"
 #include "modelica/lowerer/Lowerer.hpp"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModConst.hpp"
@@ -182,22 +184,22 @@ AllocaInst* LowererContext::getTypeDimensionsArray(const ModType& type)
 	return alloca;
 }
 
-BasicBlock* LowererContext::createForCycle(
-		Interval var, std::function<void(Value*)> whileContent, bool inverseRange)
+Expected<BasicBlock*> LowererContext::maybeCreateForCycle(
+		Interval var, std::function<Error(Value*)> whileContent, bool inverseRange)
 {
 	const size_t start = inverseRange ? var.max() - 1 : var.min();
 	const size_t end = inverseRange ? var.min() - 1 : var.max();
 	const int increment = inverseRange ? -1 : 1;
 	auto& context = builder.getContext();
-	auto condition = BasicBlock::Create(context, "condition ", function);
+	auto* condition = BasicBlock::Create(context, "condition ", function);
 
-	auto loopBody = BasicBlock::Create(context, "loopBody ", function);
-	auto exit = BasicBlock::Create(context, "exit ", function);
+	auto* loopBody = BasicBlock::Create(context, "loopBody ", function);
+	auto* exit = BasicBlock::Create(context, "exit ", function);
 
-	auto unsignedInt = Type::getInt32Ty(context);
+	auto* unsignedInt = Type::getInt32Ty(context);
 
 	// alocates iteration counter
-	auto iterationCounter = builder.CreateAlloca(unsignedInt);
+	auto* iterationCounter = builder.CreateAlloca(unsignedInt);
 	makeConstantStore<int>(start, iterationCounter);
 
 	// jump to condition bb
@@ -205,8 +207,8 @@ BasicBlock* LowererContext::createForCycle(
 
 	// load counter
 	builder.SetInsertPoint(condition);
-	auto value = builder.CreateLoad(unsignedInt, iterationCounter);
-	auto iterCmp =
+	auto* value = builder.CreateLoad(unsignedInt, iterationCounter);
+	auto* iterCmp =
 			builder.CreateICmpEQ(value, ConstantInt::get(unsignedInt, end));
 
 	// brach if equal to zero
@@ -215,11 +217,12 @@ BasicBlock* LowererContext::createForCycle(
 	builder.SetInsertPoint(loopBody);
 
 	// populate body of the loop
-	whileContent(value);
+	if (auto e = whileContent(value); e)
+		return move(e);
 
 	// load, reduce and store the counter
 	value = builder.CreateLoad(unsignedInt, iterationCounter);
-	auto reducedCounter =
+	auto* reducedCounter =
 			builder.CreateAdd(value, ConstantInt::get(unsignedInt, increment));
 	builder.CreateStore(reducedCounter, iterationCounter);
 	builder.CreateBr(condition);
@@ -234,11 +237,11 @@ Value* LowererContext::valueArrayFromArrayOfValues(SmallVector<Value*, 3> vals)
 	if (vals.empty())
 		return nullptr;
 
-	auto type = ArrayType::get(vals[0]->getType(), vals.size());
-	auto alloca = builder.CreateAlloca(type);
+	auto* type = ArrayType::get(vals[0]->getType(), vals.size());
+	auto* alloca = builder.CreateAlloca(type);
 
 	size_t slot = 0;
-	for (auto val : vals)
+	for (auto* val : vals)
 	{
 		storeToArrayElement(val, alloca, slot);
 		slot++;
@@ -246,46 +249,49 @@ Value* LowererContext::valueArrayFromArrayOfValues(SmallVector<Value*, 3> vals)
 	return alloca;
 }
 
-BasicBlock* LowererContext::createdNestedForCycleImp(
+Expected<BasicBlock*> LowererContext::maybeCreatedNestedForCycleImp(
 		const OrderedMultiDimInterval& iterationsCountBegin,
-		std::function<void(Value*)> whileContent,
+		std::function<Error(Value*)> whileContent,
 		SmallVector<Value*, 3>& indexes)
 {
-	return createForCycle(
+	return maybeCreateForCycle(
 			iterationsCountBegin[indexes.size()],
-			[&](Value* value) {
+			[&](Value* value) -> Error {
 				indexes.push_back(value);
 				if (indexes.size() != iterationsCountBegin.dimensions())
-					createdNestedForCycleImp(iterationsCountBegin, whileContent, indexes);
-				else
-					whileContent(valueArrayFromArrayOfValues(indexes));
+					return maybeCreatedNestedForCycleImp(
+										 iterationsCountBegin, whileContent, indexes)
+							.takeError();
+
+				return whileContent(valueArrayFromArrayOfValues(indexes));
 			},
 			iterationsCountBegin.isBackward());
 }
 
-BasicBlock* LowererContext::createdNestedForCycle(
+Expected<BasicBlock*> LowererContext::maybeCreatedNestedForCycle(
 		const OrderedMultiDimInterval& iterationsCountBegin,
-		std::function<void(Value*)> whileContent)
+		std::function<Error(Value*)> whileContent)
 {
 	SmallVector<Value*, 3> indexes;
-	return createdNestedForCycleImp(iterationsCountBegin, whileContent, indexes);
+	return maybeCreatedNestedForCycleImp(
+			iterationsCountBegin, whileContent, indexes);
 }
 
-BasicBlock* LowererContext::createdNestedForCycle(
-		ArrayRef<size_t> iterationsCountEnd, std::function<void(Value*)> body)
+Expected<BasicBlock*> LowererContext::maybeCreatedNestedForCycle(
+		ArrayRef<size_t> iterationsCountEnd, std::function<Error(Value*)> body)
 {
 	SmallVector<Interval, 2> inducts;
-	for (auto& v : iterationsCountEnd)
+	for (const auto& v : iterationsCountEnd)
 		inducts.emplace_back(0, v);
 
 	OrderedMultiDimInterval interval(inducts);
-	return createdNestedForCycle(interval, body);
+	return maybeCreatedNestedForCycle(interval, body);
 }
 
-BasicBlock* LowererContext::createForArrayElement(
-		const ModType& type, std::function<void(Value*)> body)
+Expected<BasicBlock*> LowererContext::maybeCreateForArrayElement(
+		const ModType& type, std::function<Error(Value*)> body)
 {
-	return createdNestedForCycle(type.getDimensions(), body);
+	return maybeCreatedNestedForCycle(type.getDimensions(), body);
 }
 
 BultinModTypes modelica::builtinTypeFromLLVMType(Type* tp)

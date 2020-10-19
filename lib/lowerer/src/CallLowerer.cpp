@@ -12,24 +12,28 @@ using namespace std;
 
 namespace modelica
 {
-	static Error invoke(
-			LowererContext& info, StringRef name, ArrayRef<Value*> args)
+	Expected<Value*> invoke(
+			LowererContext& info,
+			StringRef name,
+			ArrayRef<Value*> args,
+			Type* returnType)
 	{
 		std::string realName = name.str();
 		if (name == "fill" and info.useDoubles())
 			realName = "filld";
 
-		auto* voidType = Type::getVoidTy(info.getContext());
 		SmallVector<Type*, 3> argsTypes;
 		for (auto* val : args)
 			argsTypes.push_back(val->getType());
 
-		auto* functionType = FunctionType::get(voidType, argsTypes, false);
+		if (not returnType)
+			returnType = Type::getVoidTy(info.getContext());
+
+		auto* functionType = FunctionType::get(returnType, argsTypes, false);
 		auto externalFun =
 				info.getModule().getOrInsertFunction(realName, functionType);
 
-		info.getBuilder().CreateCall(externalFun, args);
-		return Error::success();
+		return info.getBuilder().CreateCall(externalFun, args);
 	}
 
 	Expected<Value*> lowerCall(
@@ -49,15 +53,15 @@ namespace modelica
 			argsValue.push_back(info.getTypeDimensionsArray(call.at(a).getModType()));
 		}
 
-		if (auto e = invoke(info, call.getName(), argsValue))
-			return move(e);
+		if (auto e = invoke(info, call.getName(), argsValue); !e)
+			return e.takeError();
 
 		return outLocation;
 	}
 
 	Expected<Value*> lowerCall(LowererContext& info, const ModCall& call)
 	{
-		auto alloca = info.allocaModType(call.getType());
+		auto* alloca = info.allocaModType(call.getType());
 		return lowerCall(alloca, info, call);
 	}
 }	 // namespace modelica

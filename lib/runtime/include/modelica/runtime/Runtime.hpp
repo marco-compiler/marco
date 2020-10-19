@@ -11,4 +11,7 @@ extern "C"
 	void modelicaPrintIVector(char* name, int* value, int count);
 
 	void fill(float* out, long* outDim, float* filler, long* dim);
+
+	float modelicaPow(float b, float exp);
+	double modelicaPowD(double b, double exp);
 }

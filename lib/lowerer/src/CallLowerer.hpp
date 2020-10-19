@@ -15,4 +15,11 @@ namespace modelica
 
 	llvm::Expected<llvm::Value*> lowerCall(
 			llvm::Value* outLocation, LowererContext& info, const ModCall& call);
+
+	llvm::Expected<llvm::Value*> invoke(
+			LowererContext& info,
+			llvm::StringRef name,
+			llvm::ArrayRef<llvm::Value*> args,
+			llvm::Type* returnType = nullptr);
+
 }	 // namespace modelica

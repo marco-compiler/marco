@@ -9,7 +9,7 @@
 namespace modelica
 {
 	template<ModExpKind kind, typename... Values>
-	llvm::Value* op(llvm::IRBuilder<>& builder, Values... arg1);
+	llvm::Expected<llvm::Value*> op(LowererContext& info, Values... arg1);
 	llvm::Expected<llvm::Value*> lowerAtOperation(
 			LowererContext& info, const ModExp& exp);
 	llvm::Expected<llvm::Value*> lowerNegate(

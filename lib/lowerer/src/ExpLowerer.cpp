@@ -3,8 +3,10 @@
 #include "CallLowerer.hpp"
 #include "OperationLowerer.hpp"
 #include "llvm/IR/Instructions.h"
+#include "llvm/Support/Error.h"
 #include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModErrors.hpp"
+#include "modelica/model/ModExp.hpp"
 
 using namespace std;
 using namespace llvm;
@@ -36,14 +38,19 @@ Expected<Value*> lowerMemberWiseOp(LowererContext& info, const ModExp& exp)
 	if (!right)
 		return right;
 
-	auto exitVal = info.allocaModType(exp.getOperationReturnType());
-	info.createForArrayElement(
-			exp.getLeftHand().getModType(), [&](Value* iterationIndexes) {
-				auto leftEl = info.loadArrayElement(*left, iterationIndexes);
-				auto rightEl = info.loadArrayElement(*right, iterationIndexes);
-				auto calculated = op<kind>(info.getBuilder(), leftEl, rightEl);
-				info.storeToArrayElement(calculated, exitVal, iterationIndexes);
+	Value* exitVal = info.allocaModType(exp.getOperationReturnType());
+	auto e = info.maybeCreateForArrayElement(
+			exp.getLeftHand().getModType(), [&](Value* iterationIndexes) -> Error {
+				auto* leftEl = info.loadArrayElement(*left, iterationIndexes);
+				auto* rightEl = info.loadArrayElement(*right, iterationIndexes);
+				auto calculated = op<kind>(info, leftEl, rightEl);
+				if (!calculated)
+					return calculated.takeError();
+				info.storeToArrayElement(*calculated, exitVal, iterationIndexes);
+				return Error::success();
 			});
+	if (!e)
+		return e;
 
 	return exitVal;
 }
@@ -124,6 +131,8 @@ static Expected<Value*> lowerBinaryOp(LowererContext& info, const ModExp& exp)
 		return lowerMemberWiseOp<ModExpKind::different>(info, exp);
 	if (exp.getKind() == ModExpKind::at)
 		return lowerAtOperation(info, exp);
+	if (exp.getKind() == ModExpKind::elevation)
+		return lowerMemberWiseOp<ModExpKind::elevation>(info, exp);
 	assert(false && "unreachable");	 // NOLINT
 	return nullptr;
 }
@@ -232,7 +241,7 @@ Expected<Value*> modelica::castReturnValue(
 
 	info.createForArrayElement(type, [&](Value* inductionsVar) {
 		auto* loadedElem = info.loadArrayElement(val, inductionsVar);
-		auto singleDestType = builtInToLLVMType(
+		auto* singleDestType = builtInToLLVMType(
 				info.getContext(), type.getBuiltin(), info.useDoubles());
 		Value* casted = castSingleElem(info, loadedElem, singleDestType);
 		info.storeToArrayElement(casted, alloca, inductionsVar);

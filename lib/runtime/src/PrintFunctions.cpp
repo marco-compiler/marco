@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdio.h>
 
 extern "C"
@@ -59,4 +60,8 @@ extern "C"
 		for (size_t a = 0; a < flatSize; a++)
 			out[a] = filler[0];
 	}
+
+	float modelicaPow(float b, float exp) { return pow(b, exp); }
+
+	double modelicaPowD(double b, double exp) { return pow(b, exp); }
 }

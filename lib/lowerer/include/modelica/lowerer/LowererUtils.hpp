@@ -1,6 +1,7 @@
 #pragma once
 
 #include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Value.h"
 #include "llvm/Support/Error.h"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModType.hpp"
@@ -32,9 +33,9 @@ namespace modelica
 		llvm::Function* function;
 		llvm::Value* inductionsVars;
 
-		llvm::BasicBlock* createdNestedForCycleImp(
+		llvm::Expected<llvm::BasicBlock*> maybeCreatedNestedForCycleImp(
 				const OrderedMultiDimInterval& iterationsCountBegin,
-				std::function<void(llvm::Value*)> whileContent,
+				std::function<llvm::Error(llvm::Value*)> whileContent,
 				llvm::SmallVector<llvm::Value*, 3>& indexes);
 
 		llvm::Value* valueArrayFromArrayOfValues(
@@ -160,21 +161,68 @@ namespace modelica
 		 * always be executed at some point. The builder will look at that basic
 		 * block.
 		 */
+		llvm::Expected<llvm::BasicBlock*> maybeCreateForCycle(
+				Interval induction,
+				std::function<llvm::Error(llvm::Value*)> whileContent,
+				bool inverseRange);
+
+		llvm::Expected<llvm::BasicBlock*> maybeCreatedNestedForCycle(
+				const OrderedMultiDimInterval& induction,
+				std::function<llvm::Error(llvm::Value*)> whileContent);
+
+		llvm::Expected<llvm::BasicBlock*> maybeCreateForArrayElement(
+				const ModType& type,
+				std::function<llvm::Error(llvm::Value*)> whileContent);
+
+		llvm::Expected<llvm::BasicBlock*> maybeCreatedNestedForCycle(
+				llvm::ArrayRef<size_t> iterationsCountEnd,
+				std::function<llvm::Error(llvm::Value*)> body);
+
 		llvm::BasicBlock* createForCycle(
 				Interval induction,
 				std::function<void(llvm::Value*)> whileContent,
-				bool inverseRange);
+				bool inverseRange)
+		{
+			return llvm::cantFail(maybeCreateForCycle(
+					induction,
+					[&](llvm::Value* arg) -> llvm::Error {
+						whileContent(arg);
+						return llvm::Error::success();
+					},
+					inverseRange));
+		}
 
 		llvm::BasicBlock* createdNestedForCycle(
 				const OrderedMultiDimInterval& induction,
-				std::function<void(llvm::Value*)> whileContent);
+				std::function<void(llvm::Value*)> whileContent)
+		{
+			return llvm::cantFail(maybeCreatedNestedForCycle(
+					induction, [&](llvm::Value* arg) -> llvm::Error {
+						whileContent(arg);
+						return llvm::Error::success();
+					}));
+		}
 
 		llvm::BasicBlock* createForArrayElement(
-				const ModType& type, std::function<void(llvm::Value*)> whileContent);
+				const ModType& type, std::function<void(llvm::Value*)> whileContent)
+		{
+			return llvm::cantFail(maybeCreateForArrayElement(
+					type, [&](llvm::Value* arg) -> llvm::Error {
+						whileContent(arg);
+						return llvm::Error::success();
+					}));
+		}
 
 		llvm::BasicBlock* createdNestedForCycle(
 				llvm::ArrayRef<size_t> iterationsCountEnd,
-				std::function<void(llvm::Value*)> body);
+				std::function<void(llvm::Value*)> body)
+		{
+			return llvm::cantFail(maybeCreatedNestedForCycle(
+					iterationsCountEnd, [&](llvm::Value* arg) -> llvm::Error {
+						body(arg);
+						return llvm::Error::success();
+					}));
+		}
 
 		using TernaryOpFunction = std::function<llvm::Expected<llvm::Value*>()>;
 
