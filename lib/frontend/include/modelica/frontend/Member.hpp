@@ -71,25 +71,25 @@ namespace modelica
 			return startOverload.value();
 		}
 
+		[[nodiscard]] std::string& getName();
+		[[nodiscard]] Type& getType();
+		[[nodiscard]] Expression& getInitializer();
+		[[nodiscard]] Constant& getStartOverload();
 		[[nodiscard]] Expression& getStartOverload()
 		{
 			assert(hasStartOverload());
 			return startOverload.value();
 		}
 
-		[[nodiscard]] bool operator==(const Member& other) const
-		{
-			return name == other.name && type == other.type &&
-						 initializer == other.initializer;
-		}
-
-		[[nodiscard]] bool operator!=(const Member& other) const
-		{
-			return !(*this == other);
-		}
-		[[nodiscard]] bool isParameter() const { return isParam; }
-
-		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0);
+		[[nodiscard]] const std::string& getName() const;
+		[[nodiscard]] const Type& getType() const;
+		[[nodiscard]] bool hasInitializer() const;
+		[[nodiscard]] const Expression& getInitializer() const;
+		[[nodiscard]] bool hasStartOverload() const;
+		[[nodiscard]] const Constant& getStartOverload() const;
+		[[nodiscard]] bool operator==(const Member& other) const;
+		[[nodiscard]] bool operator!=(const Member& other) const;
+		[[nodiscard]] bool isParameter() const;
 
 		private:
 		std::string name;

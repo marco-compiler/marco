@@ -8,10 +8,9 @@
 namespace modelica
 {
 	/**
-	 * Iterator over lexer, the iterator is a input iterator
+	 * Iterator over lexer, the iterator is an input iterator
 	 * so if it is advanced it will modify the state of the lexer
 	 * by scanning for the next token.
-	 *
 	 */
 	template<typename Lexer>
 	class IteratorLexer
@@ -27,7 +26,7 @@ namespace modelica
 		 * Creates a new iterator operating on lex that has the starting value of
 		 * tok.
 		 *
-		 * IteratorLexer(lex, lex.getCurret()) is equal to lex.begin() the second
+		 * IteratorLexer(lex, lex.getCurrent()) is equal to lex.begin() the second
 		 * version is preferred.
 		 */
 		IteratorLexer(Lexer& lex, value_type tok): lexer(lex), token(tok) {}
@@ -42,7 +41,7 @@ namespace modelica
 		}
 
 		/**
-		 * Logical not of operator==
+		 * Logical not of operator ==
 		 */
 		bool operator!=(const IteratorLexer& other) const
 		{
@@ -50,14 +49,14 @@ namespace modelica
 		}
 
 		/**
-		 * Once a iterator has been constructed or adnvaced it will keep the same
-		 * value until it is adanved again.
+		 * Once a iterator has been constructed or advanced it will keep the same
+		 * value until it is advanced again.
 		 */
 		value_type operator*() const { return token; }
 
 		/**
-		 * When advanced the state of the underlaying lexer will be adanved as well,
-		 * by scanning for the next token. So it two different iterators are
+		 * When advanced the state of the underlying lexer will be advance as well,
+		 * by scanning for the next token. So if two different iterators are
 		 * operating on the same lexer they will have an effect on each other.
 		 *
 		 * It's fine two have multiple iterators if only one of them is ever
@@ -76,14 +75,13 @@ namespace modelica
 
 	/**
 	 * The lexer does NOT handle the life scope of the source string.
-	 * A lexer is a wrapper around a finite state machine that keeps
-	 * feeding the machine a character at the time util a token is
+	 * A lexer is a wrapper of a finite state machine that keeps
+	 * feeding the machine a character at the time until a token is
 	 * returned.
 	 *
-	 * Lexer extends the state machine so every public method there is
-	 * still accessible.
+	 * Lexer extends the state machine so every public method is still accessible.
 	 *
-	 * The second template argument is the iterator type from wich the
+	 * The second template argument is the iterator type from which the
 	 * lexer will read from.
 	 *
 	 * The state machine must implement a constructor that accepts a
@@ -101,8 +99,8 @@ namespace modelica
 		using Token = typename StateMachine::Token;
 
 		/**
-		 * Makes a lexer out of a iteratable type.
-		 * The iteratable type will be copied, so it's better if it is cheap to
+		 * Makes a lexer out of an iterable type.
+		 * The iterable type will be copied, so it's better if it is cheap to
 		 * copy.
 		 */
 		template<typename Iterator>
@@ -117,18 +115,19 @@ namespace modelica
 		}
 
 		/**
-		 * Makes a lexer out of a string taken by reference. the string is not
-		 * copied, it is just used to extract a iterator.
+		 * Makes a lexer out of a string taken by reference. The string is not
+		 * copied, but is just used to extract an iterator.
 		 *
-		 * DO NOT CHANGE THIS TO A llvm::stringRef, stringRef is not null terminated
+		 * DO NOT CHANGE THIS TO A llvm::stringRef, because stringRef is not
+		 * null terminated.
 		 */
-		Lexer(const std::string& inputString)
-				: StateMachine(inputString[0]),
-					getNext([iter = inputString.begin()]() mutable -> char {
+		Lexer(const std::string& str)
+				: StateMachine(str[0]),
+					getNext([iter = str.begin()]() mutable -> char {
 						iter++;
 						return *iter;
 					}),
-					lastChar(inputString[0])
+					lastChar(str[0])
 		{
 		}
 
@@ -152,16 +151,17 @@ namespace modelica
 		 */
 		Token scan()
 		{
-			auto tok = Token::None;
-			while (tok == Token::None)
+			auto token = Token::None;
+
+			while (token == Token::None)
 			{
 				if (lastChar != '\0')
 					lastChar = getNext();
 
-				tok = StateMachine::step(lastChar);
+				token = StateMachine::step(lastChar);
 			}
 
-			return tok;
+			return token;
 		}
 
 		/**
@@ -174,7 +174,7 @@ namespace modelica
 		}
 
 		/**
-		 * Retunts a iterator operating on this lexer loaded with Token::End.
+		 * Returns a iterator operating on this lexer loaded with Token::End.
 		 */
 		IteratorLexer<Lexer> end()
 		{

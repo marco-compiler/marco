@@ -8,5 +8,3 @@ modelicaAddLibrary(
 
 llvm_map_components_to_libnames(llvm_utils_libs Support)
 TARGET_LINK_LIBRARIES(utils PUBLIC ${llvm_utils_libs})
-
-

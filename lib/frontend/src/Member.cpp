@@ -4,7 +4,31 @@ using namespace llvm;
 using namespace std;
 using namespace modelica;
 
-void Member::dump(llvm::raw_ostream& OS, size_t indents)
+Member::Member(
+		string name,
+		Type tp,
+		Expression initializer,
+		bool isParameter,
+		optional<Constant> startOverload)
+		: name(move(name)),
+			type(move(tp)),
+			initializer(move(initializer)),
+			isParam(isParameter),
+			startOverload(move(startOverload))
+{
+}
+
+Member::Member(
+		string name, Type tp, bool isParameter, optional<Constant> startOverload)
+		: name(move(name)),
+			type(move(tp)),
+			initializer(nullopt),
+			isParam(isParameter),
+			startOverload(std::move(startOverload))
+{
+}
+
+void Member::dump(llvm::raw_ostream& OS, size_t indents) const
 {
 	OS.indent(indents);
 	OS << "member " << name << " type : ";
@@ -28,3 +52,49 @@ void Member::dump(llvm::raw_ostream& OS, size_t indents)
 		OS << "\n";
 	}
 }
+
+string& Member::getName() { return name; }
+
+const string& Member::getName() const { return name; }
+
+Type& Member::getType() { return type; }
+
+const Type& Member::getType() const { return type; }
+
+bool Member::hasInitializer() const { return initializer.has_value(); }
+
+const Expression& Member::getInitializer() const
+{
+	assert(hasInitializer());
+	return *initializer;
+}
+
+Expression& Member::getInitializer()
+{
+	assert(hasInitializer());
+	return *initializer;
+}
+
+bool Member::hasStartOverload() const { return startOverload.has_value(); }
+
+const Constant& Member::getStartOverload() const
+{
+	assert(hasStartOverload());
+	return startOverload.value();
+}
+
+Constant& Member::getStartOverload()
+{
+	assert(hasStartOverload());
+	return startOverload.value();
+}
+
+bool Member::operator==(const Member& other) const
+{
+	return name == other.name && type == other.type &&
+				 initializer == other.initializer;
+}
+
+bool Member::operator!=(const Member& other) const { return !(*this == other); }
+
+bool Member::isParameter() const { return isParam; }

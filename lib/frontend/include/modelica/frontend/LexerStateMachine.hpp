@@ -125,7 +125,7 @@ namespace modelica
 		ModelicaStateMachine(char first);
 
 		/**
-		 * The possibles state of the machine.
+		 * The possible states of the machine.
 		 */
 		enum class State
 		{
@@ -147,14 +147,15 @@ namespace modelica
 		};
 
 		/**
-		 * Returns the last seen token. Begin if none was seen.
+		 * Returns the last seen token, or 'Begin' if none was seen.
 		 */
 		[[nodiscard]] Token getCurrent() const { return currentToken; }
+
 		[[nodiscard]] int getCurrentLine() const { return lineNumber; }
 		[[nodiscard]] int getCurrentColumn() const { return columnNumber; }
 
 		/**
-		 * Returns the last identifier seen, or the one being built if the machine
+		 * Returns the last seen identifier, or the one being built if the machine
 		 * is in the process of recognizing one.
 		 */
 		[[nodiscard]] const std::string& getLastIdentifier() const
@@ -163,7 +164,7 @@ namespace modelica
 		}
 
 		/**
-		 * Returns the last string seen, or the one being built if the machine is in
+		 * Returns the last seen string, or the one being built if the machine is in
 		 * the process of recognizing one.
 		 */
 		[[nodiscard]] const std::string& getLastString() const
@@ -172,34 +173,34 @@ namespace modelica
 		}
 
 		/**
-		 * Returns the last int seen, or the one being built if the machine is in
-		 * the process of recognizing one.
+		 * Returns the last seen integer, or the one being built if the machine is
+		 * in the process of recognizing one.
 		 *
 		 * Notice that as soon as a new number is found this value is overridden,
-		 * even if it was a float and not a int
+		 * even if it was a float and not a int.
 		 */
 		[[nodiscard]] int getLastInt() const { return lastNum.getUpperPart(); }
+
 		/**
 		 * Returns the last float seen, or the one being built if the machine is in
 		 * the process of recognizing one.
 		 *
 		 * Notice that as soon as a new number is found this value is overridden,
-		 * even if it was a int and not a float
-		 *
+		 * even if it was a int and not a float.
 		 */
 		[[nodiscard]] double getLastFloat() const { return lastNum.get(); }
 
 		/**
-		 * Returns the string associated to the last Error token found
+		 * Returns the string associated to the last Error token found.
 		 */
 		[[nodiscard]] const std::string& getLastError() const { return error; }
 
 		protected:
 		/**
-		 * Feeds a character to the state machine, returns None if
+		 * Feeds a character to the state machine, returns 'None' if
 		 * the current token has not eaten all the possible character
-		 * Returns Error if the input was illformed.
-		 * Returns End if \0 was found.
+		 * Returns 'Error' if the input was malformed.
+		 * Returns 'End' if '\0' was found.
 		 */
 		Token step(char c);
 
@@ -219,6 +220,7 @@ namespace modelica
 				lineNumber++;
 			}
 		}
+
 		[[nodiscard]] Token stringToToken(const std::string& lookUp) const;
 		[[nodiscard]] Token charToToken(char c) const;
 

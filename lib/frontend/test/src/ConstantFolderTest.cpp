@@ -71,8 +71,9 @@ TEST(folderTest, sumInSubscriptionShouldFold)
 	t.addSymbol(m);
 	if (folder.fold(exp, t))
 		FAIL();
+	Call
 
-	EXPECT_TRUE(exp.isOperation());
+			EXPECT_TRUE(exp.isOperation());
 	auto& accessIndex = exp.getOperation()[1];
 	EXPECT_TRUE(accessIndex.isA<Constant>());
 	EXPECT_EQ(accessIndex.getConstant().get<BuiltinType::Integer>(), 2);

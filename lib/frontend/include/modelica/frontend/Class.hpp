@@ -1,12 +1,15 @@
 #pragma once
 
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/raw_ostream.h>
 #include <string>
 
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/raw_ostream.h"
-#include "modelica/frontend/Equation.hpp"
-#include "modelica/frontend/ForEquation.hpp"
-#include "modelica/frontend/Member.hpp"
+#include "Algorithm.hpp"
+#include "Equation.hpp"
+#include "ForEquation.hpp"
+#include "Func.hpp"
+#include "Member.hpp"
 
 namespace modelica
 {
@@ -15,43 +18,42 @@ namespace modelica
 		public:
 		Class(
 				std::string name,
-				llvm::SmallVector<Member, 3> memb,
-				llvm::SmallVector<Equation, 3> equs,
-				llvm::SmallVector<ForEquation, 3> forEqus = {});
-		[[nodiscard]] const std::string& getName() const { return name; }
-		[[nodiscard]] std::string& getName() { return name; }
-		[[nodiscard]] const auto& getMembers() const { return members; }
-		[[nodiscard]] auto& getMembers() { return members; }
+				llvm::ArrayRef<Member> members = {},
+				llvm::ArrayRef<Equation> equations = {},
+				llvm::ArrayRef<ForEquation> forEquations = {});
+
+		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
+
+		[[nodiscard]] std::string& getName();
+		[[nodiscard]] llvm::SmallVectorImpl<Member>& getMembers();
+		[[nodiscard]] llvm::SmallVectorImpl<Equation>& getEquations();
+		[[nodiscard]] llvm::SmallVectorImpl<ForEquation>& getForEquations();
+		[[nodiscard]] llvm::SmallVectorImpl<Algorithm>& getAlgorithms();
+		[[nodiscard]] llvm::SmallVectorImpl<Func>& getFunctions();
+
+		[[nodiscard]] const std::string& getName() const;
+		[[nodiscard]] const llvm::SmallVectorImpl<Member>& getMembers() const;
+		[[nodiscard]] const llvm::SmallVectorImpl<Equation>& getEquations() const;
+		[[nodiscard]] const llvm::SmallVectorImpl<ForEquation>& getForEquations()
+				const;
+		[[nodiscard]] const llvm::SmallVectorImpl<Algorithm>& getAlgorithms() const;
+		[[nodiscard]] const llvm::SmallVectorImpl<Func>& getFunctions() const;
+
 		[[nodiscard]] size_t membersCount() const { return members.size(); }
-		[[nodiscard]] const auto& getEquations() const { return equations; }
-		[[nodiscard]] const auto& getForEquations() const { return forEquations; }
 
-		[[nodiscard]] auto& getForEquations() { return forEquations; }
-
-		[[nodiscard]] auto& getEquations() { return equations; }
-		void addMember(Member newMember)
-		{
-			return members.push_back(std::move(newMember));
-		}
-
-		template<typename... Args>
-		void emplaceMember(Args&&... args)
-		{
-			members.emplace_back(std::forward<Args>(args)...);
-		}
-
-		void eraseMember(size_t memberIndex)
-		{
-			assert(memberIndex < members.size());
-			members.erase(members.begin() + memberIndex);
-		}
-
-		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0);
+		void addMember(Member newMember);
+		void eraseMember(size_t memberIndex);
+		void addEquation(Equation equation);
+		void addForEquation(ForEquation equation);
+		void addAlgorithm(Algorithm algorithm);
+		void addFunction(Func function);
 
 		private:
 		std::string name;
 		llvm::SmallVector<Member, 3> members;
 		llvm::SmallVector<Equation, 3> equations;
 		llvm::SmallVector<ForEquation, 3> forEquations;
+		llvm::SmallVector<Algorithm, 3> algorithms;
+		llvm::SmallVector<Func, 3> functions;
 	};
 }	 // namespace modelica

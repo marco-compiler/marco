@@ -1,10 +1,9 @@
 #pragma once
 
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/raw_ostream.h>
 #include <string>
 #include <type_traits>
-
-#include "llvm/Support/raw_ostream.h"
 
 namespace modelica
 {
@@ -18,38 +17,22 @@ namespace modelica
 		Unknown
 	};
 
-	inline std::string builtinToString(BuiltinType type)
-	{
-		switch (type)
-		{
-			case BuiltinType::None:
-				return "None";
-			case BuiltinType::Integer:
-				return "Integer";
-			case BuiltinType::Float:
-				return "Float";
-			case BuiltinType::String:
-				return "String";
-			case BuiltinType::Boolean:
-				return "Boolean";
-			case BuiltinType::Unknown:
-				return "Unknown";
-		}
-		assert(false && "unrechable");
-	}
-
 	template<typename T>
-	constexpr BuiltinType typeToFrontendType()
+	[[nodiscard]] constexpr BuiltinType typeToBuiltin()
 	{
-		if constexpr (std::is_same<T, double>::value)
-			return BuiltinType::Float;
-		if constexpr (std::is_same<T, int>::value)
+		if constexpr (std::is_same<T, int>())
 			return BuiltinType::Integer;
-		if constexpr (std::is_same<T, bool>::value)
-			return BuiltinType::Boolean;
-		if constexpr (std::is_same<std::string, T>::value)
+		if constexpr (std::is_same<T, long>())
+			return BuiltinType::Integer;
+		if constexpr (std::is_same<T, std::string>())
 			return BuiltinType::String;
-		assert(false && "unreachable");
+		if constexpr (std::is_same<T, bool>())
+			return BuiltinType::Boolean;
+		if constexpr (std::is_same<T, float>())
+			return BuiltinType::Float;
+		if constexpr (std::is_same<T, void>())
+			return BuiltinType::None;
+
 		return BuiltinType::Unknown;
 	}
 
@@ -95,6 +78,8 @@ namespace modelica
 		{
 			assert(!dimensions.empty());
 		}
+
+		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
 
 		[[nodiscard]] size_t dimensionsCount() const { return dimensions.size(); }
 		[[nodiscard]] size_t size() const
@@ -146,19 +131,8 @@ namespace modelica
 			return dimensions.size() == 1 && dimensions[0] == 1;
 		}
 
-		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0) const
-		{
-			OS << builtinToString(type);
-			if (!isScalar())
-				for (size_t dim : dimensions)
-				{
-					OS << dim;
-					OS << " ";
-				}
-		}
-
-		static Type Int() { return Type(BuiltinType::Integer); }
-		static Type Float() { return Type(BuiltinType::Float); }
+		static Type Int() { return Type(typeToBuiltin<int>()); }
+		static Type Float() { return Type(typeToBuiltin<float>()); }
 
 		private:
 		llvm::SmallVector<size_t, 3> dimensions;
@@ -168,7 +142,6 @@ namespace modelica
 	template<typename T, typename... Args>
 	[[nodiscard]] Type makeType(Args... args)
 	{
-		static_assert(typeToFrontendType<T>() != BuiltinType::Unknown);
 		if constexpr (sizeof...(Args) == 0)
 			return Type(typeToFrontendType<T>());
 		return Type(typeToFrontendType<T>(), { static_cast<size_t>(args)... });

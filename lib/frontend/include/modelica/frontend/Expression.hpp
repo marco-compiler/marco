@@ -17,6 +17,7 @@ namespace modelica
 {
 	enum class OperationKind
 	{
+		empty,
 		negate,
 		add,
 		subtract,

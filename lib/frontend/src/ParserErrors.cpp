@@ -3,6 +3,7 @@ using namespace modelica;
 
 ParserErrorCategory ParserErrorCategory::category;
 char UnexpectedToken::ID;
+char UnexpectedIdentifier::ID;
 char NotImplemented::ID;
 char ChoiseNotFound::ID;
 char IncompatibleType::ID;

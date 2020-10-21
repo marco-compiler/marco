@@ -201,19 +201,29 @@ std::string modelica::tokenToString(Token token)
 		case Token::End:
 			return "End";
 	}
+
 	return "Unkown Token";
 }
+
+static bool isDigit(char c) { return ('0' <= c && c <= '9'); }
 
 static bool isNonDigit(char c)
 {
 	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
 }
 
+/**
+ * Get the escaped version of a character, but ony if that escaped version has
+ * a special meaning in the ASCII table.
+ * For example, the escaped version of 'n' is a new line, but the escaped
+ * version of 'z' means nothing special and thus only 'z' would be returned.
+ */
 static char escapedChar(char c)
 {
 	constexpr int alert = 7;
 	constexpr int backspace = 8;
 	constexpr int fromFeed = 12;
+
 	switch (c)
 	{
 		case ('a'):
@@ -235,8 +245,6 @@ static char escapedChar(char c)
 	}
 }
 
-static bool isDigit(char c) { return ('0' <= c && c <= '9'); }
-
 Token ModelicaStateMachine::charToToken(char c) const
 {
 	if (auto iter = symbols.find(c); iter != symbols.end())
@@ -245,9 +253,9 @@ Token ModelicaStateMachine::charToToken(char c) const
 	return Token::Error;
 }
 
-Token ModelicaStateMachine::stringToToken(const std::string& lookUp) const
+Token ModelicaStateMachine::stringToToken(const std::string& str) const
 {
-	if (auto iter = keywordMap.find(lookUp); iter != keywordMap.end())
+	if (auto iter = keywordMap.find(str); iter != keywordMap.end())
 		return iter->getValue();
 
 	return Token::Ident;
@@ -378,6 +386,7 @@ static Token elementWise(char current, char next)
 {
 	if (current != '.')
 		return Token::None;
+
 	switch (next)
 	{
 		case ('/'):
@@ -391,6 +400,7 @@ static Token elementWise(char current, char next)
 		case ('^'):
 			return Token::ElementWiseExponential;
 	}
+
 	return Token::None;
 }
 
@@ -449,6 +459,7 @@ Token ModelicaStateMachine::scan<State::ParsingFloatExponentialSign>()
 			state = State::Normal;
 			return Token::Error;
 		}
+
 		state = State::ParsingFloatExponent;
 		lastNum.setSign(current == '+');
 		return Token::None;
@@ -497,6 +508,74 @@ Token ModelicaStateMachine::scan<State::ParsingId>()
 		return stringToToken(lastIdentifier);
 	}
 
+	return Token::None;
+}
+
+template<>
+Token ModelicaStateMachine::scan<State::ParsingString>()
+{
+	if (current == '"')
+	{
+		state = State::Normal;
+		return Token::String;
+	}
+
+	if (current == '\\')
+	{
+		state = State::ParsingBackSlash;
+		return Token::None;
+	}
+
+	if (current == '\0')
+	{
+		state = State::End;
+		error = "Reached end of string while parsing a string";
+		return Token::Error;
+	}
+
+	lastString.push_back(current);
+	return Token::None;
+}
+
+template<>
+Token ModelicaStateMachine::scan<State::ParsingQId>()
+{
+	if (current == '\\')
+	{
+		state = State::ParsingIdBackSlash;
+		return Token::None;
+	}
+
+	if (current == '\'')
+	{
+		state = State::Normal;
+		return Token::Ident;
+	}
+
+	if (next == '\0')
+	{
+		state = State::Normal;
+		error = "Unexpected end of string when parsing qidentifier";
+		return Token::Error;
+	}
+
+	lastIdentifier.push_back(current);
+	return Token::None;
+}
+
+template<>
+Token ModelicaStateMachine::scan<State::ParsingIdBackSlash>()
+{
+	lastIdentifier.push_back(escapedChar(current));
+	state = State::ParsingQId;
+	return Token::None;
+}
+
+template<>
+Token ModelicaStateMachine::scan<State::ParsingBackSlash>()
+{
+	lastString.push_back(escapedChar(current));
+	state = State::ParsingString;
 	return Token::None;
 }
 
@@ -556,9 +635,15 @@ Token ModelicaStateMachine::scan<State::Normal>()
 	return tryScanSymbol();
 }
 
+/**
+ * Try to scan the next symbol by taking into account both the current and the
+ * next characters. This avoids the need to define custom states to recognize
+ * simple symbols such as '==' or ':='
+ */
 Token ModelicaStateMachine::tryScanSymbol()
 {
 	state = State::IgnoreNextChar;
+
 	if (current == '<' && next == '>')
 		return Token::Different;
 
@@ -579,86 +664,20 @@ Token ModelicaStateMachine::tryScanSymbol()
 
 	state = State::Normal;
 	Token token = charToToken(current);
+
 	if (token == Token::Error)
 	{
-		error = "Unexpeted character ";
+		error = "Unexpected character ";
 		error.push_back(current);
 	}
 
 	return token;
 }
 
-template<>
-Token ModelicaStateMachine::scan<State::ParsingString>()
-{
-	if (current == '"')
-	{
-		state = State::Normal;
-		return Token::String;
-	}
-
-	if (current == '\\')
-	{
-		state = State::ParsingBackSlash;
-		return Token::None;
-	}
-
-	if (current == '\0')
-	{
-		state = State::End;
-		error = "Reached end of string while parsing a string";
-		return Token::Error;
-	}
-
-	lastString.push_back(current);
-	return Token::None;
-}
-
-template<>
-Token ModelicaStateMachine::scan<State::ParsingQId>()
-{
-	if (current == '\\')
-	{
-		state = State::ParsingIdBackSlash;
-		return Token::None;
-	}
-
-	if (current == '\'')
-	{
-		state = State::Normal;
-		return Token::Ident;
-	}
-
-	if (next == '\0')
-	{
-		state = State::Normal;
-		error = "unexpected end of string when parsing qidentifier";
-		return Token::Error;
-	}
-
-	lastIdentifier.push_back(current);
-	return Token::None;
-}
-
-template<>
-Token ModelicaStateMachine::scan<State::ParsingIdBackSlash>()
-{
-	lastIdentifier.push_back(escapedChar(current));
-	state = State::ParsingQId;
-	return Token::None;
-}
-
-template<>
-Token ModelicaStateMachine::scan<State::ParsingBackSlash>()
-{
-	lastString.push_back(escapedChar(current));
-	state = State::ParsingString;
-	return Token::None;
-}
-
 Token ModelicaStateMachine::step(char c)
 {
 	advance(c);
+
 	switch (state)
 	{
 		case (State::Normal):
@@ -694,6 +713,6 @@ Token ModelicaStateMachine::step(char c)
 			return Token::None;
 	}
 
-	error = "Unandled Lexer State";
+	error = "Unhandled Lexer State";
 	return Token::Error;
 }

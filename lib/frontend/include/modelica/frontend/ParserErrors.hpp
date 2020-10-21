@@ -15,7 +15,8 @@ namespace modelica
 		success = 0,
 		not_implemented,
 		unexpected_token,
-		unkown_error,
+		unexpected_identifier,
+		unknown_error,
 		choise_not_found,
 		incompatible_type,
 		branches_types_do_not_match,
@@ -92,6 +93,39 @@ namespace modelica
 		private:
 		Token token;
 		Token expected;
+		SourcePosition pos;
+	};
+
+	class UnexpectedIdentifier: public llvm::ErrorInfo<UnexpectedIdentifier>
+	{
+		public:
+		static char ID;
+
+		UnexpectedIdentifier(
+				std::string identifier, std::string expected, SourcePosition pos)
+				: identifier(std::move(identifier)),
+					expected(std::move(expected)),
+					pos(pos)
+		{
+		}
+
+		void log(llvm::raw_ostream& OS) const override
+		{
+			OS << "[" << pos.toString() << "] "
+				 << "Unexpected Identifier: " << identifier
+				 << ", expected: " << expected;
+		}
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(ParserErrorCode::unexpected_identifier),
+					ParserErrorCategory::category);
+		}
+
+		private:
+		std::string identifier;
+		std::string expected;
 		SourcePosition pos;
 	};
 

@@ -20,20 +20,22 @@ void Induction::dump(llvm::raw_ostream& OS, size_t indents) const
 	end.dump(OS, indents + 1);
 }
 
-void ForEquation::dump(llvm::raw_ostream& OS, size_t indents) const
-{
-	OS << "for equation\n";
-	for (const auto& ind : induction)
-	{
-		ind.dump(OS, indents + 1);
-		OS << "\n";
-	}
-	equation.dump(OS, indents + 1);
-}
-
 ForEquation::ForEquation(llvm::SmallVector<Induction, 3> ind, Equation eq)
 		: induction(std::move(ind)), equation(std::move(eq))
 {
 	for (auto a : irange(induction.size()))
 		induction[a].setInductionIndex(a);
+}
+
+void ForEquation::dump(llvm::raw_ostream& os, size_t indents) const
+{
+	os << "for equation\n";
+
+	for (const auto& ind : induction)
+	{
+		ind.dump(os, indents + 1);
+		os << "\n";
+	}
+
+	equation.dump(os, indents + 1);
 }
