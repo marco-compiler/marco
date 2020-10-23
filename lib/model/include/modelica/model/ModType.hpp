@@ -1,16 +1,16 @@
 #pragma once
+
 #include <initializer_list>
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/raw_ostream.h>
 #include <numeric>
 #include <type_traits>
-
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace modelica
 {
 	/**
-	 * The simulation can only accepts this 3 foundamental types.
+	 * The simulation can only accepts this 3 fundamental types.
 	 * Arrays are built from those too. This types directly map
 	 * into llvm int32, int1 and float
 	 */
@@ -46,7 +46,7 @@ namespace modelica
 	}
 
 	/**
-	 * A simulation type is used to rappresent all
+	 * A simulation type is used to represent all
 	 * the legal types of simulation variables and simulation expressions.
 	 *
 	 * ModType is regular types, and follow the rule of 5. They can be moved
@@ -58,8 +58,10 @@ namespace modelica
 		public:
 		explicit ModType(BultinModTypes t): builtinModType(t), dimensions({ 1 }) {}
 
-		ModType(BultinModTypes builtin, llvm::SmallVector<size_t, 3> dim)
-				: builtinModType(builtin), dimensions(std::move(dim))
+		ModType(BultinModTypes builtin, llvm::ArrayRef<size_t> dim)
+				: builtinModType(builtin),
+					dimensions(llvm::iterator_range<llvm::ArrayRef<size_t>::iterator>(
+							std::move(dim)))
 		{
 		}
 
@@ -101,7 +103,8 @@ namespace modelica
 		 */
 		[[nodiscard]] ModType as(BultinModTypes newBuiltint) const
 		{
-			return ModType(newBuiltint, dimensions);
+			return ModType(
+					newBuiltint, static_cast<llvm::ArrayRef<size_t>>(dimensions));
 		}
 
 		/**
@@ -143,12 +146,14 @@ namespace modelica
 				return ModType(getBuiltin());
 
 			llvm::SmallVector<size_t, 3> dim;
+
 			for (auto i = std::next(std::begin(dimensions));
 					 i != std::end(dimensions);
 					 i++)
 				dim.push_back(*i);
 
-			return ModType(getBuiltin(), std::move(dim));
+			return ModType(
+					getBuiltin(), static_cast<llvm::ArrayRef<size_t>>(std::move(dim)));
 		}
 
 		/**

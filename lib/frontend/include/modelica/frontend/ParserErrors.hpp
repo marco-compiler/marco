@@ -1,12 +1,12 @@
 #pragma once
 
+#include <llvm/Support/Error.h>
+#include <modelica/utils/SourceRange.hpp>
 #include <string>
 #include <system_error>
 #include <utility>
 
-#include "llvm/Support/Error.h"
-#include "modelica/frontend/LexerStateMachine.hpp"
-#include "modelica/utils/SourceRange.hpp"
+#include "LexerStateMachine.hpp"
 
 namespace modelica
 {
@@ -27,8 +27,8 @@ namespace modelica
 namespace std
 {
 	/**
-	 * This class is required to specity that ParserErrorCode is a enum that is
-	 * used to rappresent errors.
+	 * This class is required to specify that ParserErrorCode is a enum that is
+	 * used to represent errors.
 	 */
 	template<>
 	struct is_error_condition_enum<modelica::ParserErrorCode>: public true_type
@@ -79,8 +79,7 @@ namespace modelica
 		void log(llvm::raw_ostream& OS) const override
 		{
 			OS << "[" << pos.toString() << "] "
-				 << "Unexpected Token: " << tokenToString(token)
-				 << ", expected: " << tokenToString(expected);
+				 << "Unexpected Token: " << token << ", expected: " << expected;
 		}
 
 		[[nodiscard]] std::error_code convertToErrorCode() const override

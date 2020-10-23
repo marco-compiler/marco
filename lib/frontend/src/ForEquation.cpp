@@ -1,27 +1,49 @@
-#include "modelica/frontend/ForEquation.hpp"
-
-#include "modelica/utils/IRange.hpp"
+#include <modelica/frontend/ForEquation.hpp>
+#include <modelica/utils/IRange.hpp>
 
 using namespace llvm;
 using namespace std;
 using namespace modelica;
 
-void Induction::dump(llvm::raw_ostream& OS, size_t indents) const
+Induction::Induction(string indVar, Expression begin, Expression end)
+		: begin(move(begin)),
+			end(move(end)),
+			inductionIndex(0),
+			inductionVar(move(indVar))
 {
-	OS.indent(indents);
-	OS << "induction var " << inductionVar << "\n";
-
-	OS.indent(indents);
-	OS << "from ";
-	begin.dump(OS, indents + 1);
-	OS << "\n";
-	OS.indent(indents);
-	OS << "to";
-	end.dump(OS, indents + 1);
 }
 
-ForEquation::ForEquation(llvm::SmallVector<Induction, 3> ind, Equation eq)
-		: induction(std::move(ind)), equation(std::move(eq))
+void Induction::dump(raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "induction var " << inductionVar << "\n";
+
+	os.indent(indents);
+	os << "from ";
+	begin.dump(os, indents + 1);
+	os << "\n";
+	os.indent(indents);
+	os << "to";
+	end.dump(os, indents + 1);
+}
+
+const string& Induction::getName() const { return inductionVar; }
+
+Expression& Induction::getBegin() { return begin; }
+
+const Expression& Induction::getBegin() const { return begin; }
+
+Expression& Induction::getEnd() { return end; }
+
+const Expression& Induction::getEnd() const { return end; }
+
+size_t Induction::getInductionIndex() const { return inductionIndex; }
+
+void Induction::setInductionIndex(size_t index) { inductionIndex = index; }
+
+ForEquation::ForEquation(ArrayRef<Induction> ind, Equation eq)
+		: induction(iterator_range<ArrayRef<Induction>::iterator>(move(ind))),
+			equation(move(eq))
 {
 	for (auto a : irange(induction.size()))
 		induction[a].setInductionIndex(a);
@@ -39,3 +61,16 @@ void ForEquation::dump(llvm::raw_ostream& os, size_t indents) const
 
 	equation.dump(os, indents + 1);
 }
+
+SmallVectorImpl<Induction>& ForEquation::getInductions() { return induction; }
+
+const SmallVectorImpl<Induction>& ForEquation::getInductions() const
+{
+	return induction;
+}
+
+size_t ForEquation::inductionsCount() const { return induction.size(); }
+
+Equation& ForEquation::getEquation() { return equation; }
+
+const Equation& ForEquation::getEquation() const { return equation; }

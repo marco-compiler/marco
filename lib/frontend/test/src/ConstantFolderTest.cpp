@@ -71,9 +71,8 @@ TEST(folderTest, sumInSubscriptionShouldFold)
 	t.addSymbol(m);
 	if (folder.fold(exp, t))
 		FAIL();
-	Call
 
-			EXPECT_TRUE(exp.isOperation());
+	EXPECT_TRUE(exp.isOperation());
 	auto& accessIndex = exp.getOperation()[1];
 	EXPECT_TRUE(accessIndex.isA<Constant>());
 	EXPECT_EQ(accessIndex.getConstant().get<BuiltinType::Integer>(), 2);
@@ -90,7 +89,7 @@ TEST(folderTest, sumInSubscriptionInDerShouldFold)
 			Expression(makeType<int>(10), ReferenceAccess("name")),
 			exp);
 
-	auto refToDer = Expression(Type::unkown(), ReferenceAccess("der"));
+	auto refToDer = Expression(Type::unknown(), ReferenceAccess("der"));
 	auto call = makeCall(move(refToDer), { move(exp) });
 	ConstantFolder folder;
 

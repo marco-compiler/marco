@@ -53,6 +53,14 @@ void Member::dump(llvm::raw_ostream& OS, size_t indents) const
 	}
 }
 
+bool Member::operator==(const Member& other) const
+{
+	return name == other.name && type == other.type &&
+				 initializer == other.initializer;
+}
+
+bool Member::operator!=(const Member& other) const { return !(*this == other); }
+
 string& Member::getName() { return name; }
 
 const string& Member::getName() const { return name; }
@@ -88,13 +96,5 @@ Constant& Member::getStartOverload()
 	assert(hasStartOverload());
 	return startOverload.value();
 }
-
-bool Member::operator==(const Member& other) const
-{
-	return name == other.name && type == other.type &&
-				 initializer == other.initializer;
-}
-
-bool Member::operator!=(const Member& other) const { return !(*this == other); }
 
 bool Member::isParameter() const { return isParam; }

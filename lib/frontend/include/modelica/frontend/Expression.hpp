@@ -2,16 +2,16 @@
 
 #include <initializer_list>
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/raw_ostream.h>
 #include <memory>
-#include <modelica/frontend/Call.hpp>
-#include <modelica/frontend/Constant.hpp>
-#include <modelica/frontend/Type.hpp>
 #include <utility>
 #include <variant>
 #include <vector>
 
-#include "llvm/Support/raw_ostream.h"
-#include "modelica/frontend/ReferenceAccess.hpp"
+#include "Call.hpp"
+#include "Constant.hpp"
+#include "ReferenceAccess.hpp"
+#include "Type.hpp"
 
 namespace modelica
 {
@@ -46,45 +46,34 @@ namespace modelica
 			using Container = std::vector<Expression>;
 
 			template<typename... Args>
-			explicit Operation(OperationKind kind, Args... args)
+			Operation(OperationKind kind, Args... args)
 					: arguments({ std::forward<Args>(args)... }), kind(kind)
 			{
 			}
 
-			Operation(OperationKind kind, Container args)
-					: arguments(std::move(args)), kind(kind)
-			{
-			}
-
-			[[nodiscard]] OperationKind getKind() const { return kind; }
-			[[nodiscard]] const Expression& operator[](size_t index) const
-			{
-				return arguments[index];
-			}
-
-			[[nodiscard]] Expression& operator[](size_t index)
-			{
-				return arguments[index];
-			}
-			void setKind(OperationKind k) { kind = k; }
-
-			[[nodiscard]] size_t argumentsCount() const { return arguments.size(); }
+			Operation(OperationKind kind, Container args);
 
 			[[nodiscard]] bool operator==(const Operation& other) const;
-			[[nodiscard]] bool operator!=(const Operation& other) const
-			{
-				return !(*this == other);
-			}
+			[[nodiscard]] bool operator!=(const Operation& other) const;
+
+			[[nodiscard]] Expression& operator[](size_t index);
+			[[nodiscard]] const Expression& operator[](size_t index) const;
 
 			void dump(
 					llvm::raw_ostream& OS = llvm::outs(), size_t nestLevel = 0) const;
 
-			[[nodiscard]] auto begin() const { return arguments.begin(); }
-			[[nodiscard]] auto begin() { return arguments.begin(); }
-			[[nodiscard]] auto end() const { return arguments.end(); }
-			[[nodiscard]] auto end() { return arguments.end(); }
-			[[nodiscard]] const Container& getArguments() const { return arguments; }
-			[[nodiscard]] Container& getArguments() { return arguments; }
+			[[nodiscard]] OperationKind getKind() const;
+			void setKind(OperationKind k);
+
+			[[nodiscard]] Container& getArguments();
+			[[nodiscard]] const Container& getArguments() const;
+			[[nodiscard]] size_t argumentsCount() const;
+
+			[[nodiscard]] Container::iterator begin();
+			[[nodiscard]] Container::const_iterator begin() const;
+
+			[[nodiscard]] Container::iterator end();
+			[[nodiscard]] Container::const_iterator end() const;
 
 			private:
 			Container arguments;
@@ -98,97 +87,42 @@ namespace modelica
 		}
 
 		template<typename T>
-		explicit Expression(Type tp, T&& costnt)
-				: content(Constant(std::forward<T>(costnt))), type(std::move(tp))
+		Expression(Type type, T&& constant)
+				: content(Constant(std::forward<T>(constant))), type(std::move(type))
 		{
 		}
 
-		Expression(Type tp, Constant costnt)
-				: content(std::move(costnt)), type(std::move(tp))
-		{
-		}
-
-		Expression(Type tp, ReferenceAccess access)
-				: content(std::move(access)), type(std::move(tp))
-		{
-		}
-
-		Expression(Type tp, Call call)
-				: content(std::move(call)), type(std::move(tp))
-		{
-		}
+		Expression(Type tp, Constant costnt);
+		Expression(Type tp, ReferenceAccess access);
+		Expression(Type tp, Call call);
 
 		template<OperationKind op, typename... Args>
-		explicit Expression(Type tp, Args&&... args)
-				: content(makeOp<op>(std::forward<Args>(args)...)), type(std::move(tp))
+		Expression(Type type, Args&&... args)
+				: content(makeOp<op>(std::forward<Args>(args)...)),
+					type(std::move(type))
 		{
 		}
 
 		template<typename... Args>
-		Expression(Type tp, OperationKind kind, Args... args)
+		Expression(Type type, OperationKind kind, Args... args)
 				: content(Operation(kind, std::forward<Args>(args)...)),
-					type(std::move(tp))
+					type(std::move(type))
 		{
 		}
 
-		Expression(Type tp, OperationKind kind, Operation::Container args)
-				: content(Operation(kind, std::move(args))), type(std::move(tp))
-		{
-		}
+		Expression(Type tp, OperationKind kind, Operation::Container args);
 
 		~Expression() = default;
+
 		Expression(const Expression& other) = default;
 		Expression(Expression&& other) = default;
 		Expression& operator=(const Expression& other) = default;
 		Expression& operator=(Expression&& other) = default;
-		[[nodiscard]] bool operator==(const Expression& other) const
-		{
-			return type == other.type && content == other.content;
-		}
 
-		[[nodiscard]] bool operator!=(const Expression& other) const
-		{
-			return !(*this == other);
-		}
+		[[nodiscard]] bool operator==(const Expression& other) const;
+		[[nodiscard]] bool operator!=(const Expression& other) const;
 
-		[[nodiscard]] bool isOperation() const { return isA<Operation>(); }
-
-		[[nodiscard]] Operation& getOperation() { return get<Operation>(); }
-
-		[[nodiscard]] OperationKind getOperationKind() const
-		{
-			return get<Operation>().getKind();
-		}
-
-		[[nodiscard]] const Operation& getOperation() const
-		{
-			return get<Operation>();
-		}
-
-		[[nodiscard]] static Expression trueExp()
-		{
-			return Expression(makeType<bool>(), true);
-		}
-
-		[[nodiscard]] static Expression falseExp()
-		{
-			return Expression(makeType<bool>(), true);
-		}
-
-		template<typename T>
-		[[nodiscard]] bool isA() const
-		{
-			return std::holds_alternative<T>(content);
-		}
-
-		[[nodiscard]] Constant& getConstant() { return get<Constant>(); }
-		[[nodiscard]] const Constant& getConstant() const
-		{
-			return get<Constant>();
-		}
-
-		[[nodiscard]] const Type& getType() const { return type; }
-		[[nodiscard]] Type& getType() { return type; }
+		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
 
 		template<typename T>
 		[[nodiscard]] T& get()
@@ -204,6 +138,34 @@ namespace modelica
 			return std::get<T>(content);
 		}
 
+		template<typename T>
+		[[nodiscard]] bool isA() const
+		{
+			return std::holds_alternative<T>(content);
+		}
+
+		[[nodiscard]] bool isOperation() const;
+		[[nodiscard]] Operation& getOperation();
+		[[nodiscard]] const Operation& getOperation() const;
+		[[nodiscard]] OperationKind getOperationKind() const;
+
+		[[nodiscard]] Constant& getConstant();
+		[[nodiscard]] const Constant& getConstant() const;
+
+		[[nodiscard]] Type& getType();
+		[[nodiscard]] const Type& getType() const;
+		void setType(Type tp);
+
+		[[nodiscard]] static Expression trueExp()
+		{
+			return Expression(makeType<bool>(), true);
+		}
+
+		[[nodiscard]] static Expression falseExp()
+		{
+			return Expression(makeType<bool>(), false);
+		}
+
 		template<OperationKind o, typename... Args>
 		[[nodiscard]] static Expression op(Type tp, Args&&... args)
 		{
@@ -216,77 +178,72 @@ namespace modelica
 			return Expression(std::move(tp), o, std::move(args));
 		}
 
-		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t nestLevel = 0) const;
-		void setType(Type tp) { type = std::move(tp); }
-
-		static Expression add(Type t, Operation::Container args)
+		[[nodiscard]] static Expression add(Type t, Operation::Container args)
 		{
-			return Expression::op<OperationKind::add>(std::move(t), std::move(args));
+			return op<OperationKind::add>(std::move(t), std::move(args));
 		}
 
 		template<typename... Args>
-		static Expression add(Type t, Args&&... args)
+		[[nodiscard]] static Expression add(Type t, Args&&... args)
 		{
-			return Expression::op<OperationKind::add>(
+			return op<OperationKind::add>(std::move(t), std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		[[nodiscard]] static Expression subscription(Type t, Args&&... args)
+		{
+			return op<OperationKind::subscription>(
 					std::move(t), std::forward<Args>(args)...);
 		}
 
 		template<typename... Args>
-		static Expression subscription(Type t, Args&&... args)
+		[[nodiscard]] static Expression negate(Type t, Args&&... args)
 		{
-			return Expression::op<OperationKind::subscription>(
+			return op<OperationKind::negate>(
 					std::move(t), std::forward<Args>(args)...);
 		}
 
 		template<typename... Args>
-		static Expression negate(Type t, Args&&... args)
+		[[nodiscard]] static Expression subtract(Type t, Args&&... args)
 		{
-			return Expression::op<OperationKind::negate>(
+			return op<OperationKind::subtract>(
 					std::move(t), std::forward<Args>(args)...);
 		}
 
 		template<typename... Args>
-		static Expression subtract(Type t, Args&&... args)
+		[[nodiscard]] static Expression divide(Type t, Args&&... args)
 		{
-			return Expression::op<OperationKind::subtract>(
+			return op<OperationKind::divide>(
 					std::move(t), std::forward<Args>(args)...);
 		}
 
 		template<typename... Args>
-		static Expression divide(Type t, Args&&... args)
+		[[nodiscard]] static Expression powerOf(Type t, Args&&... args)
 		{
-			return Expression::op<OperationKind::divide>(
+			return op<OperationKind::powerOf>(
 					std::move(t), std::forward<Args>(args)...);
 		}
 
 		template<typename... Args>
-		static Expression powerOf(Type t, Args&&... args)
+		[[nodiscard]] static Expression memberLookup(Type t, Args&&... args)
 		{
-			return Expression::op<OperationKind::powerOf>(
+			return op<OperationKind::memberLookup>(
 					std::move(t), std::forward<Args>(args)...);
 		}
 
-		template<typename... Args>
-		static Expression memberLookup(Type t, Args&&... args)
+		[[nodiscard]] static Expression multiply(Type t, Operation::Container args)
 		{
-			return Expression::op<OperationKind::memberLookup>(
-					std::move(t), std::forward<Args>(args)...);
+			return op<OperationKind::multiply>(std::move(t), std::move(args));
 		}
 
-		static Expression multiply(Type t, Operation::Container args)
+		[[nodiscard]] static Expression lor(Type t, Operation::Container args)
 		{
-			return Expression::op<OperationKind::multiply>(
-					std::move(t), std::move(args));
+			return op<OperationKind::lor>(std::move(t), std::move(args));
 		}
 
-		static Expression lor(Type t, Operation::Container args)
+		[[nodiscard]] static Expression land(Type t, Operation::Container args)
 		{
-			return Expression::op<OperationKind::lor>(std::move(t), std::move(args));
-		}
-
-		static Expression land(Type t, Operation::Container args)
-		{
-			return Expression::op<OperationKind::land>(std::move(t), std::move(args));
+			return op<OperationKind::land>(std::move(t), std::move(args));
 		}
 
 		private:
@@ -295,6 +252,5 @@ namespace modelica
 	};
 
 	[[nodiscard]] Expression makeCall(
-			Expression fun, llvm::SmallVector<Expression, 3> exps);
-
+			Expression fun, llvm::ArrayRef<Expression> args);
 }	 // namespace modelica

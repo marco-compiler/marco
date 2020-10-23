@@ -1,14 +1,16 @@
 #pragma once
 
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/raw_ostream.h"
-#include "modelica/frontend/Equation.hpp"
-#include "modelica/frontend/Expression.hpp"
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/raw_ostream.h>
+
+#include "Equation.hpp"
+#include "Expression.hpp"
 
 namespace modelica
 {
 	/**
-	 * an induction is the in memory of a piece of code such as
+	 * An induction is the in memory of a piece of code such as
 	 * for i in 0:20. and induction holds a name and the begin and end
 	 * expressions.
 	 *
@@ -18,26 +20,20 @@ namespace modelica
 	class Induction
 	{
 		public:
-		explicit Induction(std::string indVar, Expression begin, Expression end)
-				: begin(std::move(begin)),
-					end(std::move(end)),
-					inductionIndex(0),
-					inductionVar(std::move(indVar))
+		Induction(std::string indVar, Expression begin, Expression end);
 
-		{
-		}
+		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
 
-		[[nodiscard]] const std::string& getName() const { return inductionVar; }
-		[[nodiscard]] const Expression& getBegin() const { return begin; }
-		[[nodiscard]] const Expression& getEnd() const { return end; }
+		[[nodiscard]] const std::string& getName() const;
 
-		[[nodiscard]] Expression& getBegin() { return begin; }
-		[[nodiscard]] Expression& getEnd() { return end; }
+		[[nodiscard]] Expression& getBegin();
+		[[nodiscard]] const Expression& getBegin() const;
 
-		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0) const;
+		[[nodiscard]] Expression& getEnd();
+		[[nodiscard]] const Expression& getEnd() const;
 
-		[[nodiscard]] size_t getInductionIndex() const { return inductionIndex; }
-		void setInductionIndex(size_t index) { inductionIndex = index; }
+		[[nodiscard]] size_t getInductionIndex() const;
+		void setInductionIndex(size_t index);
 
 		private:
 		Expression begin;
@@ -49,24 +45,24 @@ namespace modelica
 	/**
 	 * For equations are different with respect to regular equations
 	 * because they introduce a set of inductions, and thus a new set of names
-	 * avialable withing the for cycle.
+	 * available withing the for cycle.
 	 *
-	 * Inductions are mapped to a set of indicies so that an from a name we can
+	 * Inductions are mapped to a set of indexes so that an from a name we can
 	 * deduce a index and from a index we can deduce a name
 	 */
 	class ForEquation
 	{
 		public:
-		ForEquation(llvm::SmallVector<Induction, 3> ind, Equation eq);
+		ForEquation(llvm::ArrayRef<Induction> ind, Equation eq);
 
-		[[nodiscard]] const auto& getInductions() const { return induction; }
-		[[nodiscard]] size_t inductionsCount() const { return induction.size(); }
-		[[nodiscard]] auto& getInductions() { return induction; }
+		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
 
-		[[nodiscard]] Equation& getEquation() { return equation; }
-		[[nodiscard]] const Equation& getEquation() const { return equation; }
+		[[nodiscard]] llvm::SmallVectorImpl<Induction>& getInductions();
+		[[nodiscard]] const llvm::SmallVectorImpl<Induction>& getInductions() const;
+		[[nodiscard]] size_t inductionsCount() const;
 
-		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0) const;
+		[[nodiscard]] Equation& getEquation();
+		[[nodiscard]] const Equation& getEquation() const;
 
 		private:
 		llvm::SmallVector<Induction, 3> induction;

@@ -177,7 +177,7 @@ ASTDumper allows as to see how the ast looks like for this model:
 ```
 ASTDumper model.mo
 ```
-It will dump it before the type checking,, so many variables are of unkown type
+It will dump it before the type checking,, so many variables are of unknown type
 To see the ast after the typechecking phase we can do
 
 ```

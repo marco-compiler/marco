@@ -13,7 +13,7 @@ Algorithm::Algorithm(ArrayRef<Statement> statements)
 void Algorithm::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
-	os << "algorithm\n";
+	os << "algorithm:\n";
 
 	for (const auto& statement : statements)
 		statement.dump(os, indents + 1);

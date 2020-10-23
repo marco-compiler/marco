@@ -1,19 +1,17 @@
-#include "modelica/frontend/TypeChecker.hpp"
-
 #include <cstdio>
-
-#include "llvm/Support/Error.h"
-#include "modelica/frontend/Call.hpp"
-#include "modelica/frontend/Constant.hpp"
-#include "modelica/frontend/Equation.hpp"
-#include "modelica/frontend/Expression.hpp"
-#include "modelica/frontend/ForEquation.hpp"
-#include "modelica/frontend/Member.hpp"
-#include "modelica/frontend/ParserErrors.hpp"
-#include "modelica/frontend/ReferenceAccess.hpp"
-#include "modelica/frontend/SymbolTable.hpp"
-#include "modelica/frontend/Type.hpp"
-#include "modelica/utils/IRange.hpp"
+#include <llvm/Support/Error.h>
+#include <modelica/frontend/Call.hpp>
+#include <modelica/frontend/Constant.hpp>
+#include <modelica/frontend/Equation.hpp>
+#include <modelica/frontend/Expression.hpp>
+#include <modelica/frontend/ForEquation.hpp>
+#include <modelica/frontend/Member.hpp>
+#include <modelica/frontend/ParserErrors.hpp>
+#include <modelica/frontend/ReferenceAccess.hpp>
+#include <modelica/frontend/SymbolTable.hpp>
+#include <modelica/frontend/Type.hpp>
+#include <modelica/frontend/TypeChecker.hpp>
+#include <modelica/utils/IRange.hpp>
 
 using namespace modelica;
 using namespace llvm;
@@ -22,6 +20,7 @@ using namespace std;
 Error TypeChecker::checkType(Class& cl, const SymbolTable& table)
 {
 	SymbolTable t(cl, &table);
+
 	for (auto& m : cl.getMembers())
 		if (auto error = checkType(m, t); error)
 			return error;
@@ -29,9 +28,11 @@ Error TypeChecker::checkType(Class& cl, const SymbolTable& table)
 	for (auto& eq : cl.getEquations())
 		if (auto error = checkType(eq, t); error)
 			return error;
+
 	for (auto& eq : cl.getForEquations())
 		if (auto error = checkType(eq, t); error)
 			return error;
+
 	return Error::success();
 }
 
@@ -53,14 +54,18 @@ Error TypeChecker::checkType(Member& mem, const SymbolTable& table)
 Error TypeChecker::checkType(ForEquation& eq, const SymbolTable& table)
 {
 	SymbolTable t(&table);
+
 	for (auto& ind : eq.getInductions())
 		t.addSymbol(ind);
+
 	if (auto error = checkType(eq.getEquation(), t); error)
 		return error;
+
 	for (auto& ind : eq.getInductions())
 	{
 		if (auto error = checkType(ind.getBegin(), table); error)
 			return error;
+
 		if (auto error = checkType(ind.getEnd(), table); error)
 			return error;
 	}
@@ -72,6 +77,7 @@ Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 {
 	if (auto error = checkType(eq.getLeftHand(), table); error)
 		return error;
+
 	if (auto error = checkType(eq.getRightHand(), table); error)
 		return error;
 
@@ -83,6 +89,7 @@ Error TypeChecker::checkCall(Expression& callExp, const SymbolTable& table)
 	assert(callExp.isA<Call>());
 
 	auto& call = callExp.get<Call>();
+
 	for (size_t t : irange(call.argumentsCount()))
 		if (auto error = checkType(call[t], table); error)
 			return error;
@@ -102,6 +109,7 @@ Error TypeChecker::checkCall(Expression& callExp, const SymbolTable& table)
 
 	if (auto error = checkType(call[0], table); error)
 		return error;
+
 	callExp.setType(call[0].getType());
 	return Error::success();
 }
@@ -145,6 +153,7 @@ Error TypeChecker::checkOperation(Expression& exp, const SymbolTable& table)
 		case OperationKind::powerOf:
 			exp.setType(op[0].getType());
 			return Error::success();
+
 		case OperationKind::ifelse:
 			if (op[0].getType() != makeType<bool>())
 				return make_error<IncompatibleType>(
@@ -155,6 +164,7 @@ Error TypeChecker::checkOperation(Expression& exp, const SymbolTable& table)
 
 			exp.setType(op[1].getType());
 			return Error::success();
+
 		case OperationKind::greater:
 		case OperationKind::greaterEqual:
 		case OperationKind::equal:
@@ -163,6 +173,7 @@ Error TypeChecker::checkOperation(Expression& exp, const SymbolTable& table)
 		case OperationKind::less:
 			exp.setType(makeType<bool>());
 			return Error::success();
+
 		case OperationKind::lor:
 		case OperationKind::land:
 			if (op[0].getType() != makeType<bool>())
@@ -173,6 +184,7 @@ Error TypeChecker::checkOperation(Expression& exp, const SymbolTable& table)
 						"boolean operator had non boolean argument");
 			exp.setType(makeType<bool>());
 			return Error::success();
+
 		case OperationKind::subscription:
 			return subscriptionCheckType(exp, table);
 
@@ -190,12 +202,15 @@ static Expected<Type> typeFromSymbol(
 	assert(exp.isA<ReferenceAccess>());
 	ReferenceAccess acc = exp.get<ReferenceAccess>();
 	const auto& name = acc.getName();
+
 	if (name == "der")
-		return Type::unkown();
+		return Type::unknown();
+
 	if (!table.hasSymbol(name))
 		return make_error<NotImplemented>("no known variable named " + name);
 
 	const auto& symbol = table[name];
+
 	if (symbol.isA<Member>())
 		return symbol.get<Member>().getType();
 
@@ -209,8 +224,10 @@ Error TypeChecker::checkType(Expression& exp, const SymbolTable& table)
 {
 	if (exp.isA<Constant>())
 		return Error::success();
+
 	if (exp.isA<Call>())
 		return checkCall(exp, table);
+
 	if (exp.isA<ReferenceAccess>())
 	{
 		auto tp = typeFromSymbol(exp, table);
@@ -219,6 +236,7 @@ Error TypeChecker::checkType(Expression& exp, const SymbolTable& table)
 		exp.setType(move(*tp));
 		return Error::success();
 	}
+
 	if (exp.isOperation())
 	{
 		return checkOperation(exp, table);

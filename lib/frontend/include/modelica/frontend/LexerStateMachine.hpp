@@ -1,10 +1,11 @@
 #pragma once
+
 #include <llvm/ADT/StringMap.h>
+#include <llvm/Support/raw_ostream.h>
 #include <map>
+#include <modelica/utils/NumbersLexer.hpp>
 #include <optional>
 #include <string>
-
-#include "modelica/utils/NumbersLexer.hpp"
 
 namespace modelica
 {
@@ -68,9 +69,9 @@ namespace modelica
 		PureKeyword,
 		RecordKeyword,
 		RedeclareKeyword,
-		ReplacableKeyword,
+		ReplaceableKeyword,
 		ReturnKeyword,
-		StremKeyword,
+		StreamKeyword,
 		ThenKeyword,
 		TrueKeyword,
 		TypeKeyword,
@@ -111,7 +112,7 @@ namespace modelica
 				 // end of file token
 	};
 
-	std::string tokenToString(Token token);
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Token& obj);
 
 	/**
 	 * State machine is the state machine of the modelica language.

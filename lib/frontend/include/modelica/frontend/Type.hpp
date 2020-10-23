@@ -1,5 +1,6 @@
 #pragma once
 
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
 #include <string>
@@ -22,14 +23,19 @@ namespace modelica
 	{
 		if constexpr (std::is_same<T, int>())
 			return BuiltinType::Integer;
+
 		if constexpr (std::is_same<T, long>())
 			return BuiltinType::Integer;
+
 		if constexpr (std::is_same<T, std::string>())
 			return BuiltinType::String;
+
 		if constexpr (std::is_same<T, bool>())
 			return BuiltinType::Boolean;
+
 		if constexpr (std::is_same<T, float>())
 			return BuiltinType::Float;
+
 		if constexpr (std::is_same<T, void>())
 			return BuiltinType::None;
 
@@ -73,66 +79,45 @@ namespace modelica
 	class Type
 	{
 		public:
-		explicit Type(BuiltinType type, llvm::SmallVector<size_t, 3> dim = { 1 })
-				: dimensions(std::move(dim)), type(type)
+		Type(BuiltinType type, llvm::ArrayRef<size_t> dim = { 1 });
+
+		template<typename T>
+		Type(llvm::ArrayRef<size_t> dim = { 1 })
+				: dimensions(llvm::iterator_range<llvm::ArrayRef<size_t>::iterator>(
+							std::move(dim))),
+					type(typeToBuiltin<T>())
 		{
 			assert(!dimensions.empty());
 		}
 
+		[[nodiscard]] bool operator==(const Type& other) const;
+		[[nodiscard]] bool operator!=(const Type& other) const;
+		[[nodiscard]] size_t& operator[](int index);
+		[[nodiscard]] size_t operator[](int index) const;
+
 		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
 
-		[[nodiscard]] size_t dimensionsCount() const { return dimensions.size(); }
-		[[nodiscard]] size_t size() const
-		{
-			size_t toReturn = 1;
-			for (size_t dim : dimensions)
-				toReturn *= dim;
-			return toReturn;
-		}
-		[[nodiscard]] BuiltinType getBuiltIn() const { return type; }
-		[[nodiscard]] auto begin() { return dimensions.begin(); }
-		[[nodiscard]] auto end() { return dimensions.end(); }
-		[[nodiscard]] auto begin() const { return dimensions.begin(); }
-		[[nodiscard]] auto end() const { return dimensions.end(); }
-		[[nodiscard]] size_t& operator[](int index) { return dimensions[index]; }
-		[[nodiscard]] size_t operator[](int index) const
-		{
-			return dimensions[index];
-		}
+		[[nodiscard]] llvm::SmallVectorImpl<size_t>& getDimensions();
+		[[nodiscard]] const llvm::SmallVectorImpl<size_t>& getDimensions() const;
 
-		[[nodiscard]] bool operator==(const Type& other) const
-		{
-			return type == other.type && dimensions == other.dimensions;
-		}
+		[[nodiscard]] size_t dimensionsCount() const;
+		[[nodiscard]] size_t size() const;
 
-		[[nodiscard]] bool operator!=(const Type& other) const
-		{
-			return !(*this == other);
-		}
+		[[nodiscard]] bool isScalar() const;
 
-		[[nodiscard]] static Type unkown() { return Type(BuiltinType::Unknown); }
+		[[nodiscard]] llvm::SmallVectorImpl<size_t>::iterator begin();
+		[[nodiscard]] llvm::SmallVectorImpl<size_t>::const_iterator begin() const;
 
-		[[nodiscard]] Type subscript(size_t times) const
-		{
-			assert(!isScalar());
-			if (dimensions.size() == times)
-				return Type(type);
+		[[nodiscard]] llvm::SmallVectorImpl<size_t>::iterator end();
+		[[nodiscard]] llvm::SmallVectorImpl<size_t>::const_iterator end() const;
 
-			assert(times > dimensions.size());
-			return Type(
-					type,
-					llvm::SmallVector<size_t, 3>(
-							dimensions.begin() + times, dimensions.end()));
-		}
-		[[nodiscard]] auto& getDimensions() { return dimensions; }
-		[[nodiscard]] const auto& getDimensions() const { return dimensions; }
-		[[nodiscard]] bool isScalar() const
-		{
-			return dimensions.size() == 1 && dimensions[0] == 1;
-		}
+		[[nodiscard]] BuiltinType getBuiltIn() const;
 
-		static Type Int() { return Type(typeToBuiltin<int>()); }
-		static Type Float() { return Type(typeToBuiltin<float>()); }
+		[[nodiscard]] Type subscript(size_t times) const;
+
+		[[nodiscard]] static Type Int();
+		[[nodiscard]] static Type Float();
+		[[nodiscard]] static Type unknown();
 
 		private:
 		llvm::SmallVector<size_t, 3> dimensions;
@@ -143,16 +128,19 @@ namespace modelica
 	[[nodiscard]] Type makeType(Args... args)
 	{
 		if constexpr (sizeof...(Args) == 0)
-			return Type(typeToFrontendType<T>());
-		return Type(typeToFrontendType<T>(), { static_cast<size_t>(args)... });
+			return Type(typeToBuiltin<T>());
+
+		return Type(typeToBuiltin<T>(), { static_cast<size_t>(args)... });
 	}
 
 	template<BuiltinType T, typename... Args>
 	[[nodiscard]] Type makeType(Args... args)
 	{
 		static_assert(T != BuiltinType::Unknown);
+
 		if constexpr (sizeof...(Args) == 0)
 			return Type(T);
+
 		return Type(T, { static_cast<size_t>(args)... });
 	}
 }	 // namespace modelica

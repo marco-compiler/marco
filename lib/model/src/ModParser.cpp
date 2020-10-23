@@ -197,7 +197,7 @@ Expected<ModType> ModParser::type()
 		return e.takeError();
 
 	TRY(dim, typeDimensions());
-	return ModType(type, std::move(*dim));
+	return ModType(type, static_cast<ArrayRef<size_t>>(std::move(*dim)));
 }
 
 Expected<vector<ModExp>> ModParser::args()

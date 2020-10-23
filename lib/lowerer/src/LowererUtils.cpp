@@ -316,5 +316,6 @@ ModType modelica::modTypeFromLLVMType(ArrayType* type)
 		dims.push_back(tp->getNumElements());
 		t = tp->getContainedType(0);
 	}
-	return ModType(builtinTypeFromLLVMType(t), move(dims));
+	return ModType(
+			builtinTypeFromLLVMType(t), static_cast<ArrayRef<size_t>>(move(dims)));
 }

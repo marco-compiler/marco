@@ -1,117 +1,199 @@
-#include "modelica/frontend/Expression.hpp"
-
-#include "llvm/ADT/StringRef.h"
-#include "modelica/frontend/Constant.hpp"
-#include "modelica/frontend/ReferenceAccess.hpp"
-#include "modelica/utils/IRange.hpp"
+#include <llvm/ADT/StringRef.h>
+#include <modelica/frontend/Expression.hpp>
+#include <modelica/utils/IRange.hpp>
 
 using namespace modelica;
 using namespace std;
 using namespace llvm;
 
-bool Expression::Operation::operator==(const Operation& other) const
+using Operation = Expression::Operation;
+using Container = Operation::Container;
+
+namespace modelica
+{
+	raw_ostream& operator<<(raw_ostream& stream, const OperationKind& obj)
+	{
+		if (obj == OperationKind::negate)
+			stream << "negate";
+		else if (obj == OperationKind::add)
+			stream << "add";
+		else if (obj == OperationKind::subtract)
+			stream << "subtract";
+		else if (obj == OperationKind::multiply)
+			stream << "multiply";
+		else if (obj == OperationKind::divide)
+			stream << "divide";
+		else if (obj == OperationKind::ifelse)
+			stream << "ifelse";
+		else if (obj == OperationKind::greater)
+			stream << "greater";
+		else if (obj == OperationKind::greaterEqual)
+			stream << "greaterEqual";
+		else if (obj == OperationKind::equal)
+			stream << "equal";
+		else if (obj == OperationKind::different)
+			stream << "different";
+		else if (obj == OperationKind::lessEqual)
+			stream << "lessEqual";
+		else if (obj == OperationKind::less)
+			stream << "less";
+		else if (obj == OperationKind::land)
+			stream << "land";
+		else if (obj == OperationKind::lor)
+			stream << "lor";
+		else if (obj == OperationKind::subscription)
+			stream << "subscription";
+		else if (obj == OperationKind::memberLookup)
+			stream << "memberLookup";
+		else if (obj == OperationKind::powerOf)
+			stream << "powerOf";
+
+		return stream;
+	}
+}	 // namespace modelica
+
+Operation::Operation(OperationKind kind, Container args)
+		: arguments(std::move(args)), kind(kind)
+{
+}
+
+bool Operation::operator==(const Operation& other) const
 {
 	if (kind != other.kind)
 		return false;
+
 	if (arguments.size() != other.arguments.size())
 		return false;
 
 	return arguments == other.arguments;
 }
 
-[[nodiscard]] Expression modelica::makeCall(
-		Expression fun, SmallVector<Expression, 3> exps)
+bool Operation::operator!=(const Operation& other) const
 {
-	SmallVector<Call::UniqueExpr, 3> args;
-	for (auto& arg : exps)
-		args.emplace_back(std::make_unique<Expression>(arg));
-
-	return Expression(
-			Type::unkown(),
-			Call(std::make_unique<Expression>(move(fun)), move(args)));
+	return !(*this == other);
 }
 
-void Expression::dump(llvm::raw_ostream& OS, size_t nestNevel) const
+Expression& Operation::operator[](size_t index) { return arguments[index]; }
+
+const Expression& Operation::operator[](size_t index) const
 {
-	OS.indent(nestNevel);
-	OS << "type: ";
-	getType().dump(OS);
+	return arguments[index];
+}
+
+void Operation::dump(raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "Operation " << kind << " args:\n";
+
+	for (const auto& arg : arguments)
+	{
+		arg.dump(os, indents + 1);
+		os << '\n';
+	}
+}
+
+OperationKind Operation::getKind() const { return kind; }
+
+void Operation::setKind(OperationKind k) { kind = k; }
+
+Container& Operation::getArguments() { return arguments; }
+
+const Container& Operation::getArguments() const { return arguments; }
+
+size_t Operation::argumentsCount() const { return arguments.size(); }
+
+Container::iterator Operation::begin() { return arguments.begin(); }
+
+Container::const_iterator Operation::begin() const { return arguments.begin(); }
+
+Container::iterator Operation::end() { return arguments.end(); }
+
+Container::const_iterator Operation::end() const { return arguments.end(); }
+
+Expression::Expression(Type type, Constant constant)
+		: content(move(constant)), type(move(type))
+{
+}
+
+Expression::Expression(Type type, ReferenceAccess access)
+		: content(move(access)), type(move(type))
+{
+}
+
+Expression::Expression(Type type, Call call)
+		: content(move(call)), type(move(type))
+{
+}
+
+Expression::Expression(Type type, OperationKind kind, Operation::Container args)
+		: content(Operation(kind, move(args))), type(move(type))
+{
+}
+
+bool Expression::operator==(const Expression& other) const
+{
+	return type == other.type && content == other.content;
+}
+
+bool Expression::operator!=(const Expression& other) const
+{
+	return !(*this == other);
+}
+
+void Expression::dump(raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "type: ";
+	getType().dump(os);
+
 	if (isA<Operation>())
 	{
-		get<Operation>().dump(OS, nestNevel);
+		get<Operation>().dump(os, indents);
 		return;
 	}
 
 	if (isA<Constant>())
 	{
-		get<Constant>().dump(OS, nestNevel);
+		get<Constant>().dump(os, indents);
 		return;
 	}
 
 	if (isA<ReferenceAccess>())
 	{
-		get<ReferenceAccess>().dump(OS, nestNevel);
+		get<ReferenceAccess>().dump(os, indents);
 		return;
 	}
 
 	if (isA<Call>())
 	{
-		get<Call>().dump(OS, nestNevel);
+		get<Call>().dump(os, indents);
 		return;
 	}
-	assert(false && "unrechable");
-}
-
-StringRef operationToString(OperationKind kind)
-{
-	switch (kind)
-	{
-		case OperationKind::negate:
-			return "negate";
-		case OperationKind::add:
-			return "add";
-		case OperationKind::subtract:
-			return "subtract";
-		case OperationKind::multiply:
-			return "multiply";
-		case OperationKind::divide:
-			return "divide";
-		case OperationKind::ifelse:
-			return "ifelse";
-		case OperationKind::greater:
-			return "greater";
-		case OperationKind::greaterEqual:
-			return "greaterEqual";
-		case OperationKind::equal:
-			return "equal";
-		case OperationKind::different:
-			return "different";
-		case OperationKind::lessEqual:
-			return "lessEqual";
-		case OperationKind::less:
-			return "less";
-		case OperationKind::land:
-			return "land";
-		case OperationKind::lor:
-			return "lor";
-		case OperationKind::subscription:
-			return "subscription";
-		case OperationKind::memberLookup:
-			return "memberLookup";
-		case OperationKind::powerOf:
-			return "powerOf";
-	}
 	assert(false && "unreachable");
-	return "";
 }
 
-void Expression::Operation::dump(llvm::raw_ostream& OS, size_t nestLevel) const
+bool Expression::isOperation() const { return isA<Operation>(); }
+
+Operation& Expression::getOperation() { return get<Operation>(); }
+
+const Operation& Expression::getOperation() const { return get<Operation>(); }
+
+OperationKind Expression::getOperationKind() const
 {
-	OS.indent(nestLevel);
-	OS << "Operation " << operationToString(kind) << " args:\n";
-	for (const auto& arg : arguments)
-	{
-		arg.dump(OS, nestLevel + 1);
-		OS << '\n';
-	}
+	return get<Operation>().getKind();
+}
+
+Constant& Expression::getConstant() { return get<Constant>(); }
+
+const Constant& Expression::getConstant() const { return get<Constant>(); }
+
+Type& Expression::getType() { return type; }
+
+const Type& Expression::getType() const { return type; }
+
+void Expression::setType(Type tp) { type = move(tp); }
+
+Expression modelica::makeCall(Expression fun, llvm::ArrayRef<Expression> args)
+{
+	return Expression(Type::unknown(), Call(move(fun), move(args)));
 }

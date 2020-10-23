@@ -79,7 +79,9 @@ static BultinModTypes builtinToBuiltin(BuiltinType type)
 Expected<ModType> OmcToModelPass::lower(
 		const Type& tp, const SymbolTable& table)
 {
-	return ModType(builtinToBuiltin(tp.getBuiltIn()), tp.getDimensions());
+	return ModType(
+			builtinToBuiltin(tp.getBuiltIn()),
+			static_cast<ArrayRef<size_t>>(tp.getDimensions()));
 }
 
 static Expected<ModConst> lowerConstant(const Constant& constant)

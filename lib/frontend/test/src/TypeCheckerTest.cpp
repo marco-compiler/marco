@@ -12,7 +12,7 @@ using namespace modelica;
 TEST(TypeCheckTest, sumOfIntShouldProduceInt)
 {
 	Expression exp = Expression::op<OperationKind::add>(
-			Type::unkown(),
+			Type::unknown(),
 			Expression(makeType<int>(), 0),
 			Expression(makeType<int>(), 4));
 
@@ -25,7 +25,7 @@ TEST(TypeCheckTest, sumOfIntShouldProduceInt)
 TEST(TypeCheckTest, andOfBoolShouldProduceBool)
 {
 	Expression exp = Expression::op<OperationKind::add>(
-			Type::unkown(),
+			Type::unknown(),
 			Expression(makeType<bool>(), true),
 			Expression(makeType<bool>(), false));
 

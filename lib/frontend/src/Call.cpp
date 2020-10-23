@@ -1,18 +1,50 @@
-#include "modelica/frontend/Call.hpp"
-
-#include <memory>
-
-#include "modelica/utils/IRange.hpp"
-#include "modelica/frontend/Expression.hpp"
+#include <modelica/frontend/Call.hpp>
+#include <modelica/frontend/Expression.hpp>
+#include <modelica/utils/IRange.hpp>
 
 using namespace modelica;
 using namespace llvm;
 using namespace std;
 
-[[nodiscard]] bool Call::operator==(const Call& other) const
+Call::Call(Expression fun, ArrayRef<Expression> args)
+		: function(make_unique<Expression>(move(fun)))
+{
+	for (const auto& arg : args)
+		this->args.emplace_back(std::make_unique<Expression>(arg));
+}
+
+Call::Call(const Call& other)
+		: function(make_unique<Expression>(*other.function))
+{
+	assert(other.function != nullptr);
+	assert(find(other.args, nullptr) == other.args.end());
+
+	for (const auto& exp : other.args)
+		args.emplace_back(make_unique<Expression>(*exp));
+}
+
+Call& Call::operator=(const Call& other)
+{
+	assert(other.function != nullptr);
+	assert(find(other.args, nullptr) == other.args.end());
+
+	if (this == &other)
+		return *this;
+
+	function = make_unique<Expression>(*other.function);
+	args.clear();
+
+	for (const auto& exp : other.args)
+		args.emplace_back(std::make_unique<Expression>(*exp));
+
+	return *this;
+}
+
+bool Call::operator==(const Call& other) const
 {
 	if (argumentsCount() != other.argumentsCount())
 		return false;
+
 	if (*function != *other.function)
 		return false;
 
@@ -23,38 +55,36 @@ using namespace std;
 	return true;
 }
 
-Call::Call(const Call& other)
-		: function(std::make_unique<Expression>(*other.function))
+bool Call::operator!=(const Call& other) const { return !(*this == other); }
+
+Expression& Call::operator[](size_t index)
 {
-	assert(other.function != nullptr);
-	assert(find(other.args, nullptr) == other.args.end());
-	for (const auto& exp : other.args)
-		args.emplace_back(std::make_unique<Expression>(*exp));
+	assert(index <= argumentsCount());
+	return *args[index];
 }
 
-Call& Call::operator=(const Call& other)
+const Expression& Call::operator[](size_t index) const
 {
-	assert(other.function != nullptr);
-	assert(find(other.args, nullptr) == other.args.end());
-	if (this == &other)
-		return *this;
-
-	function = std::make_unique<Expression>(*other.function);
-	args.clear();
-	for (const auto& exp : other.args)
-		args.emplace_back(std::make_unique<Expression>(*exp));
-	return *this;
+	assert(index <= argumentsCount());
+	return *args[index];
 }
 
-void Call::dump(llvm::raw_ostream& OS, size_t indentLevel) const
+void Call::dump(raw_ostream& os, size_t indents) const
 {
-	OS.indent(indentLevel);
-	OS << "call:\n";
-	function->dump(OS, indentLevel + 1);
-	OS << '\n';
+	os.indent(indents);
+	os << "call:\n";
+
+	function->dump(os, indents + 1);
+
 	for (const auto& exp : args)
 	{
-		exp->dump(OS, indentLevel + 1);
-		OS << '\n';
+		exp->dump(os, indents + 1);
+		os << "\n";
 	}
 }
+
+Expression& Call::getFunction() { return *function; }
+
+const Expression& Call::getFunction() const { return *function; }
+
+size_t Call::argumentsCount() const { return args.size(); }
