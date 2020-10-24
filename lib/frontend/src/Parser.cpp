@@ -73,6 +73,37 @@ void Parser::undoScan(Token t)
 
 #include <modelica/utils/ParserUtils.hpp>
 
+/**
+ * Check whether the current token leads to the termination of the current
+ * section (and eventually to the start of a new one).
+ */
+static bool sectionTerminator(Token current)
+{
+	return current == Token::AlgorithmKeyword ||
+				 current == Token::EquationKeyword || current == Token::PublicKeyword ||
+				 current == Token::EndKeyword || current == Token::LPar ||
+				 current == Token::End;
+}
+
+static Expected<BuiltinType> nameToBuiltin(const std::string& name)
+{
+	if (name == "int")
+		return BuiltinType::Integer;
+	if (name == "string")
+		return BuiltinType::String;
+	if (name == "Real")
+		return BuiltinType::Float;
+	if (name == "Integer")
+		return BuiltinType::Integer;
+	if (name == "float")
+		return BuiltinType::Float;
+	if (name == "bool")
+		return BuiltinType::Boolean;
+
+	return make_error<NotImplemented>(
+			"Only builtin types are supported, not " + name);
+}
+
 Expected<Class> Parser::classDefinition()
 {
 	if (!accept<Token::ModelKeyword>())
@@ -125,51 +156,86 @@ Expected<Class> Parser::classDefinition()
 	return cls;
 }
 
-Expected<SmallVector<size_t, 3>> Parser::arrayDimensions()
+Expected<Func> Parser::functionDefinition()
 {
-	SmallVector<size_t, 3> toReturn;
-	EXPECT(Token::LSquare);
-
-	do
-	{
-		toReturn.push_back(lexer.getLastInt());
-		EXPECT(Token::Integer);
-	} while (accept<Token::Comma>());
-
-	EXPECT(Token::RSquare);
-	return toReturn;
-}
-
-static Expected<BuiltinType> nameToBuiltin(const std::string& name)
-{
-	if (name == "int")
-		return BuiltinType::Integer;
-	if (name == "string")
-		return BuiltinType::String;
-	if (name == "Real")
-		return BuiltinType::Float;
-	if (name == "Integer")
-		return BuiltinType::Integer;
-	if (name == "float")
-		return BuiltinType::Float;
-	if (name == "bool")
-		return BuiltinType::Boolean;
-
-	return make_error<NotImplemented>(
-			"Only builtin types are supported, not " + name);
-}
-
-Expected<Type> Parser::typeSpecifier()
-{
-	string name = lexer.getLastIdentifier();
+	EXPECT(Token::FunctionKeyword);
+	auto name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
-	TRY(builtint, nameToBuiltin(name));
 
-	if (current == Token::Ident)
-		return Type(*builtint);
+	vector<Member> variables;
+	vector<Algorithm> algorithms;
 
-	TRY(sub, arrayDimensions());
-	return Type(*builtint, move(*sub));
+	while (current != Token::EndKeyword)
+	{
+		if (current == Token::AlgorithmKeyword)
+		{
+			TRY(alg, algorithmSection());
+			algorithms.push_back(move(*alg));
+			continue;
+		}
+
+		// TODO: in what sense a variable is "public"?
+		if (current == Token::PublicKeyword)
+		{
+			accept(Token::ProtectedKeyword);
+			TRY(mem, elementList());
+
+			for (auto& m : *mem)
+				variables.push_back(move(m));
+
+			continue;
+		}
+
+		if (current == Token::ProtectedKeyword)
+		{
+			accept(Token::ProtectedKeyword);
+			TRY(mem, elementList());
+
+			for (auto& m : *mem)
+				variables.push_back(move(m));
+
+			continue;
+		}
+
+		TRY(mem, elementList());
+
+		for (auto& m : *mem)
+			variables.push_back(move(m));
+	}
+
+	EXPECT(Token::EndKeyword);
+	auto endName = lexer.getLastIdentifier();
+	EXPECT(Token::Ident);
+
+	if (name != endName)
+		return make_error<UnexpectedIdentifier>(endName, name, getPosition());
+
+	vector<Member> input;
+	vector<Member> output;
+	vector<Member> members;
+
+	for (auto& variable : variables)
+	{
+		// TODO: differentiate input / output / protected variable
+		// but first, unify Type and TypePrefix
+	}
+
+	return Func(
+			move(name), move(input), move(output), move(members), move(algorithms));
+}
+
+Expected<SmallVector<Member, 3>> Parser::elementList()
+{
+	SmallVector<Member, 3> members;
+
+	while (current != Token::EquationKeyword && current != Token::EndKeyword)
+	{
+		TRY(memb, element());
+		EXPECT(Token::Semicolons);
+		members.emplace_back(move(*memb));
+	}
+
+	return members;
 }
 
 Expected<Member> Parser::element()
@@ -204,69 +270,163 @@ Expected<Member> Parser::element()
 			move(name), move(*type), (*prefix).isParameter(), startOverload);
 }
 
-Expected<SmallVector<Member, 3>> Parser::elementList()
+Expected<optional<Expression>> Parser::modification()
 {
-	SmallVector<Member, 3> members;
+	EXPECT(Token::LPar);
 
-	while (current != Token::EquationKeyword && current != Token::EndKeyword)
-	{
-		TRY(memb, element());
-		EXPECT(Token::Semicolons);
-		members.emplace_back(move(*memb));
-	}
-
-	return members;
-}
-
-Expected<vector<Expression>> Parser::arraySubscript()
-{
-	EXPECT(Token::LSquare);
-
-	vector<Expression> expressions;
+	optional<Expression> e = nullopt;
 
 	do
 	{
-		TRY(exp, expression());
-		*exp =
-				Expression::add(Type::Int(), move(*exp), Expression(Type::Int(), -1));
-		expressions.emplace_back(move(*exp));
-	} while (accept<Token::Comma>());
+		auto lastIndent = lexer.getLastIdentifier();
+		EXPECT(Token::Ident);
+		EXPECT(Token::Equal);
+		if (lastIndent == "start")
+		{
+			TRY(exp, expression());
+			e = move(*exp);
+		}
 
-	EXPECT(Token::RSquare);
-	return expressions;
-}
-
-Expected<Expression> Parser::componentReference()
-{
-	bool globalLookup = accept<Token::Dot>();
-	auto name = lexer.getLastIdentifier();
-	EXPECT(Token::Ident);
-
-	Expression exp(Type::unknown(), ReferenceAccess(move(name), globalLookup));
-
-	if (current == Token::LSquare)
-	{
-		TRY(access, arraySubscript());
-		access->insert(access->begin(), move(exp));
-		exp = Expression::subscription(Type::unknown(), move(*access));
-	}
-
-	while (accept<Token::Dot>())
-	{
-		Expression memberName(makeType<std::string>(), lexer.getLastString());
-		EXPECT(Token::String);
-		exp =
-				Expression::memberLookup(Type::unknown(), move(exp), move(memberName));
-
-		if (current != Token::LSquare)
+		if (accept<Token::FloatingPoint>())
 			continue;
 
-		TRY(access, arraySubscript());
-		exp = Expression::subscription(Type::unknown(), move(*access));
+		if (accept<Token::Integer>())
+			continue;
+
+		if (accept<Token::String>())
+			continue;
+
+		if (accept<Token::TrueKeyword>())
+			continue;
+
+		if (accept<Token::FalseKeyword>())
+			continue;
+
+	} while (accept<Token::Comma>());
+
+	EXPECT(Token::RPar);
+	return e;
+}
+
+Expected<TypePrefix> Parser::typePrefix()
+{
+	ParameterQualifier parameterQualifier = ParameterQualifier::none;
+
+	if (accept<Token::DiscreteKeyword>())
+		parameterQualifier = ParameterQualifier::discrete;
+	else if (accept<Token::ParameterKeyword>())
+		parameterQualifier = ParameterQualifier::parameter;
+	else if (accept<Token::ConstantKeyword>())
+		parameterQualifier = ParameterQualifier::constant;
+
+	IOQualifier ioQualifier = IOQualifier::none;
+
+	if (accept<Token::InputKeyword>())
+		ioQualifier = IOQualifier::input;
+	else if (accept<Token::OutputKeyword>())
+		ioQualifier = IOQualifier::output;
+
+	return TypePrefix(parameterQualifier, ioQualifier);
+}
+
+Expected<Type> Parser::typeSpecifier()
+{
+	string name = lexer.getLastIdentifier();
+	EXPECT(Token::Ident);
+	TRY(builtint, nameToBuiltin(name));
+
+	if (current == Token::Ident)
+		return Type(*builtint);
+
+	TRY(sub, arrayDimensions());
+	return Type(*builtint, move(*sub));
+}
+
+Expected<bool> Parser::equationSection(Class& cls)
+{
+	EXPECT(Token::EquationKeyword);
+
+	while (!sectionTerminator(current))
+	{
+		if (current == Token::ForKeyword)
+		{
+			TRY(equs, forEquation(0));
+			for (auto& eq : *equs)
+				cls.getForEquations().push_back(move(eq));
+		}
+		else
+		{
+			TRY(eq, equation());
+			cls.getEquations().push_back(move(*eq));
+		}
+
+		EXPECT(Token::Semicolons);
 	}
 
-	return exp;
+	return true;
 }
+
+Expected<Algorithm> Parser::algorithmSection()
+{
+	EXPECT(Token::AlgorithmKeyword);
+	vector<Statement> statements;
+
+	while (
+			current != Token::End && current != Token::PublicKeyword &&
+			current != Token::ProtectedKeyword && current != Token::EquationKeyword &&
+			current != Token::AlgorithmKeyword && current != Token::ExternalKeyword &&
+			current != Token::AnnotationKeyword && current != Token::EndKeyword)
+	{
+		TRY(stmnt, statement());
+		EXPECT(Token::Semicolons);
+		statements.push_back(move(*stmnt));
+	}
+
+	return Algorithm(move(statements));
+}
+
+Expected<Equation> Parser::equation()
+{
+	TRY(l, expression());
+	EXPECT(Token::Equal);
+	TRY(r, expression());
+	accept<Token::String>();
+	return Equation(move(*l), move(*r));
+}
+
+Expected<Statement> Parser::statement()
+{
+	if (accept(Token::LPar))
+	{
+		SmallVector<Expression, 2> destinations;
+
+		while (!accept<Token::RPar>())
+		{
+			if (current == Token::Comma)
+			{
+				// Result value is discarded
+				destinations.emplace_back(Type::unknown(), OperationKind::empty);
+				continue;
+			}
+
+			TRY(dest, expression());
+			destinations.push_back(move(*dest));
+			accept(Token::Comma);
+		}
+
+		EXPECT(Token::Assignment);
+		TRY(functionName, componentReference());
+		TRY(args, functionCallArguments());
+		Expression call = makeCall(move(*functionName), move(*args));
+		return Statement(move(destinations), call);
+	}
+
+	TRY(component, componentReference());
+	EXPECT(Token::Assignment);
+	TRY(exp, expression());
+	return Statement(move(*component), move(*exp));
+}
+
 Expected<SmallVector<ForEquation, 3>> Parser::forEquationBody(int nestingLevel)
 {
 	SmallVector<ForEquation, 3> toReturn;
@@ -323,68 +483,6 @@ Expected<SmallVector<ForEquation, 3>> Parser::forEquation(int nestingLevel)
 	return toReturn;
 }
 
-Expected<Equation> Parser::equation()
-{
-	TRY(l, expression());
-	EXPECT(Token::Equal);
-	TRY(r, expression());
-	accept<Token::String>();
-	return Equation(move(*l), move(*r));
-}
-
-/**
- * Check whether the current token leads to the termination of the current
- * section (and eventually to the start of a new one).
- */
-static bool sectionTerminator(Token current)
-{
-	return current == Token::AlgorithmKeyword ||
-				 current == Token::EquationKeyword || current == Token::PublicKeyword ||
-				 current == Token::EndKeyword || current == Token::LPar ||
-				 current == Token::End;
-}
-
-Expected<bool> Parser::equationSection(Class& cls)
-{
-	EXPECT(Token::EquationKeyword);
-
-	while (!sectionTerminator(current))
-	{
-		if (current == Token::ForKeyword)
-		{
-			TRY(equs, forEquation(0));
-			for (auto& eq : *equs)
-				cls.getForEquations().push_back(move(eq));
-		}
-		else
-		{
-			TRY(eq, equation());
-			cls.getEquations().push_back(move(*eq));
-		}
-
-		EXPECT(Token::Semicolons);
-	}
-
-	return true;
-}
-
-optional<OperationKind> Parser::relationalOperator()
-{
-	if (accept<Token::GreaterEqual>())
-		return OperationKind::greaterEqual;
-	if (accept<Token::GreaterThan>())
-		return OperationKind::greater;
-	if (accept<Token::LessEqual>())
-		return OperationKind::lessEqual;
-	if (accept<Token::LessThan>())
-		return OperationKind::less;
-	if (accept<Token::OperatorEqual>())
-		return OperationKind::equal;
-	if (accept<Token::Different>())
-		return OperationKind::different;
-	return nullopt;
-}
-
 Expected<Expression> Parser::expression()
 {
 	TRY(l, logicalExpression());
@@ -409,44 +507,6 @@ Expected<Expression> Parser::logicalExpression()
 	}
 
 	return Expression::lor(Type::unknown(), move(factors));
-}
-
-Expected<optional<Expression>> Parser::modification()
-{
-	EXPECT(Token::LPar);
-
-	optional<Expression> e = nullopt;
-
-	do
-	{
-		auto lastIndent = lexer.getLastIdentifier();
-		EXPECT(Token::Ident);
-		EXPECT(Token::Equal);
-		if (lastIndent == "start")
-		{
-			TRY(exp, expression());
-			e = move(*exp);
-		}
-
-		if (accept<Token::FloatingPoint>())
-			continue;
-
-		if (accept<Token::Integer>())
-			continue;
-
-		if (accept<Token::String>())
-			continue;
-
-		if (accept<Token::TrueKeyword>())
-			continue;
-
-		if (accept<Token::FalseKeyword>())
-			continue;
-
-	} while (accept<Token::Comma>());
-
-	EXPECT(Token::RPar);
-	return e;
 }
 
 Expected<Expression> Parser::logicalTerm()
@@ -485,6 +545,23 @@ Expected<Expression> Parser::relation()
 
 	TRY(right, arithmeticExpression());
 	return Expression(Type::unknown(), op.value(), move(*left), move(*right));
+}
+
+optional<OperationKind> Parser::relationalOperator()
+{
+	if (accept<Token::GreaterEqual>())
+		return OperationKind::greaterEqual;
+	if (accept<Token::GreaterThan>())
+		return OperationKind::greater;
+	if (accept<Token::LessEqual>())
+		return OperationKind::lessEqual;
+	if (accept<Token::LessThan>())
+		return OperationKind::less;
+	if (accept<Token::OperatorEqual>())
+		return OperationKind::equal;
+	if (accept<Token::Different>())
+		return OperationKind::different;
+	return nullopt;
 }
 
 Expected<Expression> Parser::arithmeticExpression()
@@ -584,26 +661,6 @@ Expected<Expression> Parser::factor()
 	return Expression::powerOf(Type::unknown(), move(*l), move(*r));
 }
 
-Expected<SmallVector<Expression, 3>> Parser::functionCallArguments()
-{
-	EXPECT(Token::LPar);
-
-	SmallVector<Expression, 3> expressions;
-	while (!accept<Token::RPar>())
-	{
-		TRY(arg, expression());
-		expressions.push_back(move(*arg));
-
-		while (accept(Token::Comma))
-		{
-			TRY(exp, expression());
-			expressions.push_back(move(*exp));
-		}
-	}
-
-	return expressions;
-}
-
 Expected<Expression> Parser::primary()
 {
 	if (current == Token::Integer)
@@ -658,4 +715,89 @@ Expected<Expression> Parser::primary()
 	}
 
 	return make_error<UnexpectedToken>(current, Token::End, getPosition());
+}
+
+Expected<Expression> Parser::componentReference()
+{
+	bool globalLookup = accept<Token::Dot>();
+	auto name = lexer.getLastIdentifier();
+	EXPECT(Token::Ident);
+
+	Expression exp(Type::unknown(), ReferenceAccess(move(name), globalLookup));
+
+	if (current == Token::LSquare)
+	{
+		TRY(access, arraySubscript());
+		access->insert(access->begin(), move(exp));
+		exp = Expression::subscription(Type::unknown(), move(*access));
+	}
+
+	while (accept<Token::Dot>())
+	{
+		Expression memberName(makeType<std::string>(), lexer.getLastString());
+		EXPECT(Token::String);
+		exp =
+				Expression::memberLookup(Type::unknown(), move(exp), move(memberName));
+
+		if (current != Token::LSquare)
+			continue;
+
+		TRY(access, arraySubscript());
+		exp = Expression::subscription(Type::unknown(), move(*access));
+	}
+
+	return exp;
+}
+
+Expected<SmallVector<Expression, 3>> Parser::functionCallArguments()
+{
+	EXPECT(Token::LPar);
+
+	SmallVector<Expression, 3> expressions;
+	while (!accept<Token::RPar>())
+	{
+		TRY(arg, expression());
+		expressions.push_back(move(*arg));
+
+		while (accept(Token::Comma))
+		{
+			TRY(exp, expression());
+			expressions.push_back(move(*exp));
+		}
+	}
+
+	return expressions;
+}
+
+Expected<SmallVector<size_t, 3>> Parser::arrayDimensions()
+{
+	SmallVector<size_t, 3> toReturn;
+	EXPECT(Token::LSquare);
+
+	do
+	{
+		toReturn.push_back(lexer.getLastInt());
+		EXPECT(Token::Integer);
+	} while (accept<Token::Comma>());
+
+	EXPECT(Token::RSquare);
+	return toReturn;
+}
+
+Expected<vector<Expression>> Parser::arraySubscript()
+{
+	EXPECT(Token::LSquare);
+
+	vector<Expression> expressions;
+
+	do
+	{
+		TRY(exp, expression());
+		*exp =
+				Expression::add(Type::Int(), move(*exp), Expression(Type::Int(), -1));
+		expressions.emplace_back(move(*exp));
+	} while (accept<Token::Comma>());
+
+	EXPECT(Token::RSquare);
+	return expressions;
 }

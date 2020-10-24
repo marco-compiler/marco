@@ -27,46 +27,45 @@ namespace modelica
 		void dump(
 				llvm::raw_ostream& OS = llvm::outs(), size_t indentLevel = 0) const;
 
-		template<typename T>
+		template<BuiltinType T>
 		[[nodiscard]] bool isA() const
 		{
-			return std::holds_alternative<T>(content);
+			return std::holds_alternative<frontendTypeToType_v<T>>(content);
 		}
 
-		template<typename T>
-		[[nodiscard]] T& get()
+		template<BuiltinType T>
+		[[nodiscard]] frontendTypeToType_v<T>& get()
 		{
 			assert(isA<T>());
-			return std::get<T>(content);
+			return std::get<frontendTypeToType_v<T>>(content);
 		}
 
-		template<typename T>
-		[[nodiscard]] const T& get() const
+		template<BuiltinType T>
+		[[nodiscard]] const frontendTypeToType_v<T>& get() const
 		{
 			assert(isA<T>());
-			return std::get<T>(content);
+			return std::get<frontendTypeToType_v<T>>(content);
 		}
 
-		template<typename T>
-		[[nodiscard]] T as() const
+		template<BuiltinType T>
+		[[nodiscard]] frontendTypeToType_v<T> as() const
 		{
-			if (isA<int>())
-				return static_cast<T>(get<int>());
+			using Tr = frontendTypeToType_v<T>;
 
-			if (isA<float>())
-				return static_cast<T>(get<float>());
+			if (isA<BuiltinType::Integer>())
+				return static_cast<Tr>(get<BuiltinType::Integer>());
 
-			if (isA<bool>())
-				return static_cast<T>(get<bool>());
+			if (isA<BuiltinType::Float>())
+				return static_cast<Tr>(get<BuiltinType::Float>());
 
-			if (isA<char>())
-				return static_cast<T>(get<char>());
+			if (isA<BuiltinType::Boolean>())
+				return static_cast<Tr>(get<BuiltinType::Boolean>());
 
 			assert(false && "unreachable");
 			return {};
 		}
 
 		private:
-		std::variant<int, float, std::string, char, bool> content;
+		std::variant<int, double, std::string, bool> content;
 	};
 }	 // namespace modelica

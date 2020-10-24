@@ -28,16 +28,14 @@ void Constant::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 
-	if (isA<int>())
-		os << get<int>();
-	else if (isA<float>())
-		os << get<float>();
-	else if (isA<bool>())
-		os << (get<bool>() ? "true" : "false");
-	else if (isA<char>())
-		os << get<char>();
-	else if (isA<std::string>())
-		os << get<std::string>();
+	if (isA<BuiltinType::Integer>())
+		os << get<BuiltinType::Integer>();
+	else if (isA<BuiltinType::Float>())
+		os << get<BuiltinType::Float>();
+	else if (isA<BuiltinType::Boolean>())
+		os << (get<BuiltinType::Boolean>() ? "true" : "false");
+	else if (isA<BuiltinType::String>())
+		os << get<BuiltinType::String>();
 	else
 		assert(false && "unreachable");
 }

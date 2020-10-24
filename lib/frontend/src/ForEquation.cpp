@@ -13,7 +13,7 @@ Induction::Induction(string indVar, Expression begin, Expression end)
 {
 }
 
-void Inducation::dump() const { dump(outs(), 0); }
+void Induction::dump() const { dump(outs(), 0); }
 
 void Induction::dump(raw_ostream& os, size_t indents) const
 {
