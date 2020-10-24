@@ -11,6 +11,7 @@ namespace modelica
 		public:
 		Equation(Expression leftHand, Expression rightHand);
 
+		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		[[nodiscard]] Expression& getLeftHand();

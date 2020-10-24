@@ -22,6 +22,7 @@ namespace modelica
 		public:
 		Induction(std::string indVar, Expression begin, Expression end);
 
+		void dump() const;
 		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
 
 		[[nodiscard]] const std::string& getName() const;
@@ -55,6 +56,7 @@ namespace modelica
 		public:
 		ForEquation(llvm::ArrayRef<Induction> ind, Equation eq);
 
+		void dump() const;
 		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
 
 		[[nodiscard]] llvm::SmallVectorImpl<Induction>& getInductions();

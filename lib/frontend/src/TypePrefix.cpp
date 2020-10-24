@@ -36,6 +36,8 @@ TypePrefix::TypePrefix(
 {
 }
 
+void TypePrefix::dump() const { dump(outs(), 0); }
+
 void TypePrefix::dump(raw_ostream& os, size_t indents) const
 {
 	os << "Prefix: ";

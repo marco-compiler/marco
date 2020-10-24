@@ -27,7 +27,9 @@ namespace modelica
 		public:
 		TypePrefix(ParameterQualifier parameterQualifier, IOQualifier ioQualifier);
 
+		void dump() const;
 		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
+
 		bool isParameter();
 
 		private:

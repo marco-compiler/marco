@@ -13,7 +13,10 @@ namespace modelica
 	{
 		public:
 		Algorithm(llvm::ArrayRef<Statement> statements);
+
+		void dump() const;
 		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
+
 		[[nodiscard]] const llvm::SmallVectorImpl<Statement>& getStatements() const;
 
 		private:

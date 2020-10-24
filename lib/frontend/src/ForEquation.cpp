@@ -13,6 +13,8 @@ Induction::Induction(string indVar, Expression begin, Expression end)
 {
 }
 
+void Inducation::dump() const { dump(outs(), 0); }
+
 void Induction::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
@@ -48,6 +50,8 @@ ForEquation::ForEquation(ArrayRef<Induction> ind, Equation eq)
 	for (auto a : irange(induction.size()))
 		induction[a].setInductionIndex(a);
 }
+
+void ForEquation::dump() const { dump(outs(), 0); }
 
 void ForEquation::dump(llvm::raw_ostream& os, size_t indents) const
 {

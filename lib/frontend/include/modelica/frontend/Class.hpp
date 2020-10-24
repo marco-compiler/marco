@@ -22,6 +22,7 @@ namespace modelica
 				llvm::ArrayRef<Equation> equations = {},
 				llvm::ArrayRef<ForEquation> forEquations = {});
 
+		void dump() const;
 		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
 
 		[[nodiscard]] std::string& getName();

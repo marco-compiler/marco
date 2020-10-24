@@ -19,6 +19,8 @@ Func::Func(
 {
 }
 
+void Func::dump() const { dump(outs(), 0); }
+
 void Func::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);

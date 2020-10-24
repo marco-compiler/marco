@@ -16,6 +16,8 @@ Statement::Statement(ArrayRef<Expression> destinations, Expression expression)
 {
 }
 
+void Statement::dump() const { dump(outs(), 0); }
+
 void Statement::dump(raw_ostream& OS, size_t indents) const
 {
 	OS.indent(indents);

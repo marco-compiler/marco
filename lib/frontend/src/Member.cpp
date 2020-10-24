@@ -28,6 +28,8 @@ Member::Member(
 {
 }
 
+void Member::dump() const { dump(outs(), 0); }
+
 void Member::dump(llvm::raw_ostream& OS, size_t indents) const
 {
 	OS.indent(indents);

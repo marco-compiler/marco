@@ -10,6 +10,8 @@ Algorithm::Algorithm(ArrayRef<Statement> statements)
 {
 }
 
+void Algorithm::dump() const { dump(outs(), 0); }
+
 void Algorithm::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);

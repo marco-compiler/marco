@@ -16,6 +16,7 @@ namespace modelica
 		[[nodiscard]] bool operator==(const ReferenceAccess& other) const;
 		[[nodiscard]] bool operator!=(const ReferenceAccess& other) const;
 
+		void dump() const;
 		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
 
 		[[nodiscard]] std::string& getName();

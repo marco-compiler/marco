@@ -20,6 +20,8 @@ bool ReferenceAccess::operator!=(const ReferenceAccess& other) const
 	return !(*this == other);
 }
 
+void ReferenceAccess::dump() const { dump(outs(), 0); }
+
 void ReferenceAccess::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);

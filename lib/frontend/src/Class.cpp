@@ -17,6 +17,8 @@ Class::Class(
 {
 }
 
+void Class::dump() const { dump(outs(), 0); }
+
 void Class::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);

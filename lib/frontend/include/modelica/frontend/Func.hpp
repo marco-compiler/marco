@@ -20,6 +20,7 @@ namespace modelica
 				llvm::ArrayRef<Member> members = {},
 				llvm::ArrayRef<Algorithm> algorithms = {});
 
+		void dump() const;
 		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
 
 		[[nodiscard]] std::string& getName();

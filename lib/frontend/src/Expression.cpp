@@ -80,6 +80,8 @@ const Expression& Operation::operator[](size_t index) const
 	return arguments[index];
 }
 
+void Operation::dump() const { dump(outs(), 0); }
+
 void Operation::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
@@ -139,6 +141,8 @@ bool Expression::operator!=(const Expression& other) const
 {
 	return !(*this == other);
 }
+
+void Expression::dump() const { dump(outs(), 0); }
 
 void Expression::dump(raw_ostream& os, size_t indents) const
 {

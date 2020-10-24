@@ -7,20 +7,20 @@ using namespace llvm;
 using namespace std;
 
 Call::Call(Expression fun, ArrayRef<Expression> args)
-		: function(make_unique<Expression>(move(fun)))
+		: function(std::make_unique<Expression>(move(fun)))
 {
 	for (const auto& arg : args)
 		this->args.emplace_back(std::make_unique<Expression>(arg));
 }
 
 Call::Call(const Call& other)
-		: function(make_unique<Expression>(*other.function))
+		: function(std::make_unique<Expression>(*other.function))
 {
 	assert(other.function != nullptr);
 	assert(find(other.args, nullptr) == other.args.end());
 
 	for (const auto& exp : other.args)
-		args.emplace_back(make_unique<Expression>(*exp));
+		args.emplace_back(std::make_unique<Expression>(*exp));
 }
 
 Call& Call::operator=(const Call& other)
@@ -31,7 +31,7 @@ Call& Call::operator=(const Call& other)
 	if (this == &other)
 		return *this;
 
-	function = make_unique<Expression>(*other.function);
+	function = std::make_unique<Expression>(*other.function);
 	args.clear();
 
 	for (const auto& exp : other.args)
@@ -68,6 +68,8 @@ const Expression& Call::operator[](size_t index) const
 	assert(index <= argumentsCount());
 	return *args[index];
 }
+
+void Call::dump() const { dump(outs(), 0); }
 
 void Call::dump(raw_ostream& os, size_t indents) const
 {

@@ -47,6 +47,8 @@ bool Type::operator!=(const Type& other) const { return !(*this == other); }
 	return dimensions[index];
 }
 
+void Type::dump() const { dump(outs(), 0); }
+
 void Type::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);

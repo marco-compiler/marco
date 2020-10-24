@@ -15,6 +15,7 @@ namespace modelica
 		Statement(Expression destination, Expression expression);
 		Statement(llvm::ArrayRef<Expression> destinations, Expression expression);
 
+		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents) const;
 
 		[[nodiscard]] llvm::SmallVectorImpl<Expression>& getDestinations();

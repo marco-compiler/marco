@@ -9,6 +9,8 @@ Equation::Equation(Expression leftHand, Expression rightHand)
 {
 }
 
+void Equation::dump() const { dump(outs(), 0); }
+
 void Equation::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);

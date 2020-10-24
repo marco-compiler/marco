@@ -46,7 +46,7 @@ namespace modelica
 			using Container = std::vector<Expression>;
 
 			template<typename... Args>
-			Operation(OperationKind kind, Args... args)
+			explicit Operation(OperationKind kind, Args&&... args)
 					: arguments({ std::forward<Args>(args)... }), kind(kind)
 			{
 			}
@@ -59,6 +59,7 @@ namespace modelica
 			[[nodiscard]] Expression& operator[](size_t index);
 			[[nodiscard]] const Expression& operator[](size_t index) const;
 
+			void dump() const;
 			void dump(
 					llvm::raw_ostream& OS = llvm::outs(), size_t nestLevel = 0) const;
 
@@ -122,6 +123,7 @@ namespace modelica
 		[[nodiscard]] bool operator==(const Expression& other) const;
 		[[nodiscard]] bool operator!=(const Expression& other) const;
 
+		void dump() const;
 		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
 
 		template<typename T>
