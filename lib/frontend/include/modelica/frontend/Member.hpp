@@ -17,78 +17,34 @@ namespace modelica
 				Type tp,
 				Expression initializer,
 				bool isParameter = false,
-				std::optional<Expression> startOverload = std::nullopt)
-				: name(std::move(name)),
-					type(std::move(tp)),
-					initializer(std::move(initializer)),
-					isParam(isParameter),
-					startOverload(std::move(startOverload))
-		{
-		}
+				std::optional<Expression> startOverload = std::nullopt);
 
 		Member(
 				std::string name,
 				Type tp,
 				bool isParameter = false,
-				std::optional<Expression> startOverload = std::nullopt)
-				: name(std::move(name)),
-					type(std::move(tp)),
-					initializer(std::nullopt),
-					isParam(isParameter),
-					startOverload(std::move(startOverload))
-		{
-		}
+				std::optional<Expression> startOverload = std::nullopt);
 
-		[[nodiscard]] const std::string& getName() const { return name; }
-		[[nodiscard]] std::string& getName() { return name; }
-		[[nodiscard]] const Type& getType() const { return type; }
-		[[nodiscard]] Type& getType() { return type; }
-		[[nodiscard]] bool hasInitializer() const
-		{
-			return initializer.has_value();
-		}
+		void dump() const;
+		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0) const;
 
-		[[nodiscard]] const Expression& getInitializer() const
-		{
-			assert(hasInitializer());
-			return *initializer;
-		}
-
-		[[nodiscard]] Expression& getInitializer()
-		{
-			assert(hasInitializer());
-			return *initializer;
-		}
-
-		[[nodiscard]] bool hasStartOverload() const
-		{
-			return startOverload.has_value();
-		}
-
-		[[nodiscard]] const Expression& getStartOverload() const
-		{
-			assert(hasStartOverload());
-			return startOverload.value();
-		}
-
-		[[nodiscard]] std::string& getName();
-		[[nodiscard]] Type& getType();
-		[[nodiscard]] Expression& getInitializer();
-		[[nodiscard]] Constant& getStartOverload();
-		[[nodiscard]] Expression& getStartOverload()
-		{
-			assert(hasStartOverload());
-			return startOverload.value();
-		}
-
-		[[nodiscard]] const std::string& getName() const;
-		[[nodiscard]] const Type& getType() const;
-		[[nodiscard]] bool hasInitializer() const;
-		[[nodiscard]] const Expression& getInitializer() const;
-		[[nodiscard]] bool hasStartOverload() const;
-		[[nodiscard]] const Constant& getStartOverload() const;
 		[[nodiscard]] bool operator==(const Member& other) const;
 		[[nodiscard]] bool operator!=(const Member& other) const;
+
+		[[nodiscard]] std::string& getName();
+		[[nodiscard]] const std::string& getName() const;
+
+		[[nodiscard]] Type& getType();
+		[[nodiscard]] const Type& getType() const;
+
+		[[nodiscard]] bool hasInitializer() const;
+		[[nodiscard]] Expression& getInitializer();
+		[[nodiscard]] const Expression& getInitializer() const;
+
+		[[nodiscard]] bool hasStartOverload() const;
+		[[nodiscard]] Expression& getStartOverload();
+		[[nodiscard]] const Expression& getStartOverload() const;
+
 		[[nodiscard]] bool isParameter() const;
 
 		private:

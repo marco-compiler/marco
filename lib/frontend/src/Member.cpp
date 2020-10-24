@@ -1,4 +1,4 @@
-#include "modelica/frontend/Member.hpp"
+#include <modelica/frontend/Member.hpp>
 
 using namespace llvm;
 using namespace std;
@@ -9,7 +9,7 @@ Member::Member(
 		Type tp,
 		Expression initializer,
 		bool isParameter,
-		optional<Constant> startOverload)
+		optional<Expression> startOverload)
 		: name(move(name)),
 			type(move(tp)),
 			initializer(move(initializer)),
@@ -19,7 +19,7 @@ Member::Member(
 }
 
 Member::Member(
-		string name, Type tp, bool isParameter, optional<Constant> startOverload)
+		string name, Type tp, bool isParameter, optional<Expression> startOverload)
 		: name(move(name)),
 			type(move(tp)),
 			initializer(nullopt),
@@ -87,13 +87,13 @@ Expression& Member::getInitializer()
 
 bool Member::hasStartOverload() const { return startOverload.has_value(); }
 
-const Constant& Member::getStartOverload() const
+const Expression& Member::getStartOverload() const
 {
 	assert(hasStartOverload());
 	return startOverload.value();
 }
 
-Constant& Member::getStartOverload()
+Expression& Member::getStartOverload()
 {
 	assert(hasStartOverload());
 	return startOverload.value();
