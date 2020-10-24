@@ -96,7 +96,7 @@ namespace modelica
 		[[nodiscard]] size_t operator[](int index) const;
 
 		void dump() const;
-		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		[[nodiscard]] llvm::SmallVectorImpl<size_t>& getDimensions();
 		[[nodiscard]] const llvm::SmallVectorImpl<size_t>& getDimensions() const;

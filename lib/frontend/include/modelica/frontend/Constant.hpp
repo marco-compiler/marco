@@ -24,8 +24,7 @@ namespace modelica
 		[[nodiscard]] bool operator!=(const Constant& other) const;
 
 		void dump() const;
-		void dump(
-				llvm::raw_ostream& OS = llvm::outs(), size_t indentLevel = 0) const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		template<BuiltinType T>
 		[[nodiscard]] bool isA() const

@@ -30,7 +30,7 @@ namespace modelica
 		[[nodiscard]] const Expression& operator[](size_t index) const;
 
 		void dump() const;
-		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		[[nodiscard]] Expression& getFunction();
 		[[nodiscard]] const Expression& getFunction() const;

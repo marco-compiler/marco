@@ -15,7 +15,7 @@ namespace modelica
 		Algorithm(llvm::ArrayRef<Statement> statements);
 
 		void dump() const;
-		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		[[nodiscard]] const llvm::SmallVectorImpl<Statement>& getStatements() const;
 

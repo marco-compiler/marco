@@ -26,7 +26,7 @@ namespace modelica
 				std::optional<Expression> startOverload = std::nullopt);
 
 		void dump() const;
-		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t indents = 0) const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		[[nodiscard]] bool operator==(const Member& other) const;
 		[[nodiscard]] bool operator!=(const Member& other) const;

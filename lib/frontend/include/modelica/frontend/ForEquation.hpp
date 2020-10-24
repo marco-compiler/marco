@@ -57,7 +57,7 @@ namespace modelica
 		ForEquation(llvm::ArrayRef<Induction> ind, Equation eq);
 
 		void dump() const;
-		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		[[nodiscard]] llvm::SmallVectorImpl<Induction>& getInductions();
 		[[nodiscard]] const llvm::SmallVectorImpl<Induction>& getInductions() const;
