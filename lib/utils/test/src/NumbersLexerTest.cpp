@@ -67,3 +67,19 @@ TEST(FloatLexerTest, positiveExponentialShouldWork)
 	lex.setSign(false);
 	EXPECT_NEAR(lex.get(), 0.95, 0.01);
 }
+
+TEST(FloatLexerTest, smallPositiveNumberShouldWokr)
+{
+	modelica::FloatLexer<10> lex;
+	lex.addUpper(0);
+	lex.addLower(0);
+	lex.addLower(0);
+	lex.addLower(0);
+	lex.addLower(5);
+	lex.addLower(7);
+	lex.addLower(1);
+	lex.addLower(4);
+	lex.addLower(2);
+	lex.addLower(8);
+	EXPECT_NEAR(lex.get(), 0.000571428557, 1);
+}

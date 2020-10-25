@@ -36,10 +36,10 @@ namespace modelica
 		/**
 		 * Returns the currently built value.
 		 */
-		[[nodiscard]] int get() const { return value; }
+		[[nodiscard]] unsigned long get() const { return value; }
 
 		private:
-		int value;
+		unsigned long value;
 	};
 
 	/**
@@ -90,14 +90,14 @@ namespace modelica
 		/**
 		 * Return the X part to make it compatible with IntLexer.
 		 */
-		[[nodiscard]] int getUpperPart() const { return upperPart.get(); }
+		[[nodiscard]] unsigned long getUpperPart() const { return upperPart.get(); }
 
 		/**
 		 * Returns upper.lower * (base ^ (sign * exponent))
 		 */
 		[[nodiscard]] double get() const
 		{
-			int mantissaNormalizer = 1;
+			unsigned long mantissaNormalizer = 1;
 			while (mantissaNormalizer <= lowerPart.get())
 				mantissaNormalizer *= base;
 

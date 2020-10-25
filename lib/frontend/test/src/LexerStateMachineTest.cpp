@@ -324,6 +324,38 @@ TEST(LexerStateMachineTest, singleDigitNumbers)
 	EXPECT_EQ(lexer.scan(), modelica::Token::Integer);
 	EXPECT_EQ(lexer.getLastInt(), 8);
 }
+
+TEST(LexerTest, Declaration)
+{
+	std::string s = "final parameter Real l(unit = \"m\") = "
+									"0.0005714285714285715 \"Chip length in the x direction\";";
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+	auto lexer = Lex(s);
+
+	EXPECT_EQ(lexer.scan(), modelica::Token::FinalKeyword);
+	EXPECT_EQ(lexer.scan(), modelica::Token::ParameterKeyword);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Ident);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Ident);
+	EXPECT_EQ(lexer.scan(), modelica::Token::LPar);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Ident);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Equal);
+	EXPECT_EQ(lexer.scan(), modelica::Token::String);
+	EXPECT_EQ(lexer.scan(), modelica::Token::RPar);
+	EXPECT_EQ(lexer.scan(), modelica::Token::Equal);
+	EXPECT_EQ(lexer.scan(), modelica::Token::FloatingPoint);
+	EXPECT_NEAR(lexer.getLastFloat(), 0.000571428557, 0.1);
+	EXPECT_EQ(lexer.scan(), modelica::Token::String);
+}
+
+TEST(LexerTest, LexerOfSmallNumber)
+{
+	std::string s("0.000571428557");
+	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
+	auto lexer = Lex(s);
+	EXPECT_EQ(lexer.scan(), modelica::Token::FloatingPoint);
+	EXPECT_NEAR(lexer.getLastFloat(), 0.000571428557, 0.1);
+}
+
 TEST(LexerStateMachineTest, ifElseKeywords)
 {
 	using Lex = modelica::Lexer<modelica::ModelicaStateMachine>;
