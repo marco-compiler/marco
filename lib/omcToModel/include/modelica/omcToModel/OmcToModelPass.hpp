@@ -20,7 +20,7 @@ namespace modelica
 
 		[[nodiscard]] llvm::Error lower(Class& cl, const SymbolTable& table);
 		[[nodiscard]] llvm::Expected<ModEquation> lower(
-				Equation& eq, const SymbolTable& table);
+				Equation& eq, const SymbolTable& table, int nestingLevel);
 		[[nodiscard]] llvm::Expected<ModEquation> lower(
 				ForEquation& eq, const SymbolTable& table);
 		[[nodiscard]] llvm::Expected<ModExp> lower(

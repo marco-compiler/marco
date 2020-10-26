@@ -37,7 +37,7 @@ Error OmcToModelPass::lower(Class& cl, const SymbolTable& table)
 
 	for (auto& eq : cl.getEquations())
 	{
-		auto modEq = lower(eq, t);
+		auto modEq = lower(eq, t, 0);
 		if (!modEq)
 			return modEq.takeError();
 
@@ -144,20 +144,37 @@ Expected<ModCall> OmcToModelPass::lowerCall(
 }
 
 Expected<ModEquation> OmcToModelPass::lower(
-		Equation& eq, const SymbolTable& table)
+		Equation& eq, const SymbolTable& table, int nestingLevel)
 {
 	auto left = lower(eq.getLeftHand(), table);
 	if (!left)
 		return left.takeError();
+	ModExp l = move(*left);
 
 	auto right = lower(eq.getRightHand(), table);
 	if (!right)
 		return left.takeError();
+	ModExp r = move(*right);
+
+	if (not eq.getLeftHand().getType().isScalar())
+		for (int i : irange(eq.getLeftHand().getType().dimensionsCount()))
+		{
+			l = ModExp::at(
+					move(l), ModExp::induction(ModExp(ModConst(nestingLevel + i))));
+			r = ModExp::at(
+					move(r), ModExp::induction(ModExp(ModConst(nestingLevel + i))));
+		}
+
+	SmallVector<Interval, 3> dimensions;
+	if (not eq.getLeftHand().getType().isScalar())
+		for (const auto& i : eq.getLeftHand().getType())
+			dimensions.emplace_back(0, i);
 
 	return ModEquation(
-			move(*left),
-			move(*right),
-			"eq_" + to_string(model.getEquations().size()));
+			move(l),
+			move(r),
+			"eq_" + to_string(model.getEquations().size()),
+			MultiDimInterval(move(dimensions)));
 }
 
 Expected<ModEquation> OmcToModelPass::lower(
@@ -166,7 +183,7 @@ Expected<ModEquation> OmcToModelPass::lower(
 	SymbolTable t(table);
 	for (auto& ind : eq.getInductions())
 		t.addSymbol(ind);
-	auto modEq = lower(eq.getEquation(), t);
+	auto modEq = lower(eq.getEquation(), t, eq.getInductions().size());
 	if (!modEq)
 		return modEq;
 
@@ -185,6 +202,10 @@ Expected<ModEquation> OmcToModelPass::lower(
 				ind.getBegin().get<Constant>().get<BuiltinType::Integer>(),
 				ind.getEnd().get<Constant>().get<BuiltinType::Integer>() + 1);
 	}
+
+	if (not eq.getEquation().getLeftHand().getType().isScalar())
+		for (const auto& i : eq.getEquation().getLeftHand().getType())
+			interval.emplace_back(0, i);
 
 	modEq->setInductionVars(MultiDimInterval(move(interval)));
 	return modEq;
