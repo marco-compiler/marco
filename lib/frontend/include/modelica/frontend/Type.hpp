@@ -39,36 +39,59 @@ namespace modelica
 	}
 
 	template<typename T>
-	[[nodiscard]] constexpr BuiltinType typeToBuiltin()
+	constexpr BuiltinType typeToFrontendType()
 	{
-		if constexpr (std::is_same<T, int>())
-			return BuiltinType::Integer;
-		if constexpr (std::is_same<T, long>())
-			return BuiltinType::Integer;
-		if constexpr (std::is_same<T, std::string>())
-			return BuiltinType::String;
-		if constexpr (std::is_same<T, bool>())
-			return BuiltinType::Boolean;
-		if constexpr (std::is_same<T, float>())
+		if constexpr (std::is_same<T, double>::value)
 			return BuiltinType::Float;
-		if constexpr (std::is_same<T, void>())
-			return BuiltinType::None;
-
+		if constexpr (std::is_same<T, int>::value)
+			return BuiltinType::Integer;
+		if constexpr (std::is_same<T, bool>::value)
+			return BuiltinType::Boolean;
+		if constexpr (std::is_same<std::string, T>::value)
+			return BuiltinType::String;
+		assert(false && "unreachable");
 		return BuiltinType::Unknown;
 	}
+
+	template<BuiltinType T>
+	class frontendTypeToType;
+
+	template<>
+	class frontendTypeToType<BuiltinType::Boolean>
+	{
+		public:
+		using value = bool;
+	};
+
+	template<>
+	class frontendTypeToType<BuiltinType::Float>
+	{
+		public:
+		using value = double;
+	};
+
+	template<>
+	class frontendTypeToType<BuiltinType::Integer>
+	{
+		public:
+		using value = int;
+	};
+
+	template<>
+	class frontendTypeToType<BuiltinType::String>
+	{
+		public:
+		using value = std::string;
+	};
+
+	template<BuiltinType T>
+	using frontendTypeToType_v = typename frontendTypeToType<T>::value;
 
 	class Type
 	{
 		public:
 		explicit Type(BuiltinType type, llvm::SmallVector<size_t, 3> dim = { 1 })
 				: dimensions(std::move(dim)), type(type)
-		{
-			assert(!dimensions.empty());
-		}
-
-		template<typename T>
-		explicit Type(llvm::SmallVector<size_t, 3> dim = { 1 })
-				: dimensions(std::move(dim)), type(typeToBuiltin<T>())
 		{
 			assert(!dimensions.empty());
 		}
@@ -134,8 +157,8 @@ namespace modelica
 				}
 		}
 
-		static Type Int() { return Type(typeToBuiltin<int>()); }
-		static Type Float() { return Type(typeToBuiltin<float>()); }
+		static Type Int() { return Type(BuiltinType::Integer); }
+		static Type Float() { return Type(BuiltinType::Float); }
 
 		private:
 		llvm::SmallVector<size_t, 3> dimensions;
@@ -145,8 +168,18 @@ namespace modelica
 	template<typename T, typename... Args>
 	[[nodiscard]] Type makeType(Args... args)
 	{
+		static_assert(typeToFrontendType<T>() != BuiltinType::Unknown);
 		if constexpr (sizeof...(Args) == 0)
-			return Type(typeToBuiltin<T>());
-		return Type(typeToBuiltin<T>(), { static_cast<size_t>(args)... });
+			return Type(typeToFrontendType<T>());
+		return Type(typeToFrontendType<T>(), { static_cast<size_t>(args)... });
+	}
+
+	template<BuiltinType T, typename... Args>
+	[[nodiscard]] Type makeType(Args... args)
+	{
+		static_assert(T != BuiltinType::Unknown);
+		if constexpr (sizeof...(Args) == 0)
+			return Type(T);
+		return Type(T, { static_cast<size_t>(args)... });
 	}
 }	 // namespace modelica

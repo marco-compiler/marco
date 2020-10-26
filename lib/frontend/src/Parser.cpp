@@ -523,7 +523,7 @@ Expected<Expression> Parser::primary()
 	{
 		Constant c(lexer.getLastFloat());
 		accept<Token::FloatingPoint>();
-		return Expression(makeType<float>(), c);
+		return Expression(makeType<BuiltinType::Float>(), c);
 	}
 
 	if (current == Token::String)

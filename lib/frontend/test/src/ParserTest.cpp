@@ -155,7 +155,7 @@ TEST(ParserTest, memberTest)
 	EXPECT_FALSE(exp->hasInitializer());
 	EXPECT_FALSE(exp->hasStartOverload());
 	EXPECT_EQ(exp->getName(), "Qb");
-	EXPECT_EQ(exp->getType(), makeType<float>(10, 10));
+	EXPECT_EQ(exp->getType(), makeType<BuiltinType::Float>(10, 10));
 }
 
 TEST(ParserTest, memberStartOverloadTest)
@@ -168,6 +168,6 @@ TEST(ParserTest, memberStartOverloadTest)
 	EXPECT_FALSE(exp->hasInitializer());
 	EXPECT_TRUE(exp->hasStartOverload());
 	EXPECT_EQ(exp->getName(), "Qb");
-	EXPECT_EQ(exp->getType(), makeType<float>(10, 10));
+	EXPECT_EQ(exp->getType(), makeType<BuiltinType::Float>(10, 10));
 	EXPECT_TRUE(exp->getStartOverload().isA<ReferenceAccess>());
 }

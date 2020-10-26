@@ -10,55 +10,6 @@
 
 namespace modelica
 {
-	template<typename T>
-	BuiltinType typeToFrontendType()
-	{
-		if constexpr (std::is_same<T, double>::value)
-			return BuiltinType::Float;
-		if constexpr (std::is_same<T, int>::value)
-			return BuiltinType::Integer;
-		if constexpr (std::is_same<T, bool>::value)
-			return BuiltinType::Boolean;
-		if constexpr (std::is_same<std::string, T>::value)
-			return BuiltinType::String;
-		assert(false && "unreachable");
-		return BuiltinType::Unknown;
-	}
-
-	template<BuiltinType T>
-	class frontendTypeToType;
-
-	template<>
-	class frontendTypeToType<BuiltinType::Boolean>
-	{
-		public:
-		using value = bool;
-	};
-
-	template<>
-	class frontendTypeToType<BuiltinType::Float>
-	{
-		public:
-		using value = double;
-	};
-
-	template<>
-	class frontendTypeToType<BuiltinType::Integer>
-	{
-		public:
-		using value = int;
-	};
-
-	template<>
-	class frontendTypeToType<BuiltinType::String>
-	{
-		public:
-		using value = std::string;
-	};
-
-	template<BuiltinType T>
-	using frontendTypeToType_v = typename frontendTypeToType<T>::value;
-
 	class Constant
 	{
 		public:

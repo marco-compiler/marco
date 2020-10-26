@@ -37,10 +37,9 @@ Error TypeChecker::checkType(Class& cl, const SymbolTable& table)
 
 Error TypeChecker::checkType(Member& mem, const SymbolTable& table)
 {
-	if (!mem.hasInitializer())
-		return Error::success();
-	if (auto error = checkType(mem.getInitializer(), table); error)
-		return error;
+	if (mem.hasInitializer())
+		if (auto error = checkType(mem.getInitializer(), table); error)
+			return error;
 
 	if (not mem.hasStartOverload())
 		return Error::success();

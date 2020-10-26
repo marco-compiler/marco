@@ -44,8 +44,8 @@ namespace modelica
 	{
 		public:
 		static MatchingErrorCategory category;
-		[[nodiscard]] std::error_condition default_error_condition(int ev) const
-				noexcept override;
+		[[nodiscard]] std::error_condition default_error_condition(
+				int ev) const noexcept override;
 
 		[[nodiscard]] const char* name() const noexcept override
 		{
@@ -98,8 +98,8 @@ namespace modelica
 		void log(llvm::raw_ostream& OS) const override
 		{
 			OS << "Could not match provided model: Eq count "
-				 << model.equationsCount() << ", state count " << model.stateCount()
-				 << "\n";
+				 << model.equationsCount() << ", state count "
+				 << model.nonStateNonConstCount() << "\n";
 			model.dump(OS);
 		}
 

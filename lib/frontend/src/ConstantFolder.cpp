@@ -262,9 +262,9 @@ static Expected<Expression> foldOpDivide(Expression& exp)
 static Expected<Expression> foldOpSum(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
-	if (arguments[0].getType() == makeType<int>())
+	if (arguments[0].getType() == makeType<BuiltinType::Integer>())
 		return foldOpSum<BuiltinType::Integer>(exp);
-	if (arguments[0].getType() == makeType<float>())
+	if (arguments[0].getType() == makeType<BuiltinType::Float>())
 		return foldOpSum<BuiltinType::Float>(exp);
 	return exp;
 }
@@ -272,9 +272,9 @@ static Expected<Expression> foldOpSum(Expression& exp)
 static Expected<Expression> foldOpSubtract(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
-	if (arguments[0].getType() == makeType<int>())
+	if (arguments[0].getType() == makeType<BuiltinType::Integer>())
 		return foldOpSubtract<BuiltinType::Integer>(exp);
-	if (arguments[0].getType() == makeType<float>())
+	if (arguments[0].getType() == makeType<BuiltinType::Float>())
 		return foldOpSubtract<BuiltinType::Float>(exp);
 
 	return exp;
@@ -283,9 +283,9 @@ static Expected<Expression> foldOpSubtract(Expression& exp)
 static Expected<Expression> foldOpDivide(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
-	if (arguments[0].getType() == makeType<int>())
+	if (arguments[0].getType() == makeType<BuiltinType::Integer>())
 		return foldOpDivide<BuiltinType::Integer>(exp);
-	if (arguments[0].getType() == makeType<float>())
+	if (arguments[0].getType() == makeType<BuiltinType::Float>())
 		return foldOpDivide<BuiltinType::Float>(exp);
 	return exp;
 }
@@ -293,9 +293,9 @@ static Expected<Expression> foldOpDivide(Expression& exp)
 static Expected<Expression> foldOpMult(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
-	if (arguments[0].getType() == makeType<int>())
+	if (arguments[0].getType() == makeType<BuiltinType::Integer>())
 		return foldOpMult<BuiltinType::Integer>(exp);
-	if (arguments[0].getType() == makeType<float>())
+	if (arguments[0].getType() == makeType<BuiltinType::Float>())
 		return foldOpMult<BuiltinType::Float>(exp);
 	return exp;
 }
@@ -318,9 +318,9 @@ static Expected<Expression> foldOpExp(Expression& exp)
 static Expected<Expression> foldOpExp(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
-	if (arguments[0].getType() == makeType<int>())
+	if (arguments[0].getType() == makeType<BuiltinType::Integer>())
 		return foldOpExp<BuiltinType::Integer>(exp);
-	if (arguments[0].getType() == makeType<float>())
+	if (arguments[0].getType() == makeType<BuiltinType::Float>())
 		return foldOpExp<BuiltinType::Float>(exp);
 	return exp;
 }
@@ -328,14 +328,49 @@ static Expected<Expression> foldOpExp(Expression& exp)
 static Expected<Expression> foldOpNegate(Expression& exp)
 {
 	Vector& arguments = exp.getOperation().getArguments();
-	if (arguments[0].getType() == makeType<int>())
+	if (arguments[0].getType() == makeType<BuiltinType::Integer>())
 		return foldOpNegate<BuiltinType::Integer>(exp);
-	if (arguments[0].getType() == makeType<float>())
+	if (arguments[0].getType() == makeType<BuiltinType::Float>())
 		return foldOpNegate<BuiltinType::Float>(exp);
 	if (arguments[0].getType() == makeType<bool>())
 		return foldOpNegate<BuiltinType::Boolean>(exp);
 	assert(false && "unrechable");
 	return exp;
+}
+
+static Expected<Expression> foldOpSubscrition(
+		Expression& exp, const SymbolTable& table)
+{
+	return exp;
+	assert(exp.getOperation().getKind() == OperationKind::subscription);
+
+	const auto& target = exp.getOperation().getArguments()[0];
+	if (not exp.getType().isScalar())
+		return exp;
+
+	if (not target.isA<ReferenceAccess>())
+		return exp;
+
+	const auto& vName = target.get<ReferenceAccess>().getName();
+
+	if (not table.hasSymbol(vName))
+		return exp;
+
+	const auto& e = table[vName];
+	if (not e.isA<Member>())
+		return exp;
+
+	const auto& m = e.get<Member>();
+	if (not m.isParameter())
+		return exp;
+
+	if (m.hasInitializer())
+		return exp;
+
+	if (not m.hasStartOverload())
+		return exp;
+
+	return m.getStartOverload();
 }
 
 Expected<Expression> ConstantFolder::foldExpression(
@@ -371,6 +406,7 @@ Expected<Expression> ConstantFolder::foldExpression(
 		case OperationKind::land:
 		case OperationKind::lor:
 		case OperationKind::subscription:
+			return foldOpSubscrition(exp, table);
 		case OperationKind::memberLookup:
 			return exp;
 	}
@@ -393,6 +429,9 @@ Error ConstantFolder::fold(Expression& exp, const SymbolTable& table)
 		if (!newexp)
 			return newexp.takeError();
 		exp = move(*newexp);
+		assert(
+				exp.isA<Call>() or
+				exp.getType().getBuiltIn() != Type::unkown().getBuiltIn());
 		return Error::success();
 	}
 	assert(false && "unreachable");
