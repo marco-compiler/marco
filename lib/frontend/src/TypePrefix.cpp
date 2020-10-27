@@ -21,7 +21,7 @@ namespace modelica
 	raw_ostream& operator<<(raw_ostream& stream, const IOQualifier& obj)
 	{
 		if (obj == IOQualifier::input)
-			stream << "discrete";
+			stream << "input";
 		else if (obj == IOQualifier::output)
 			stream << "output";
 
