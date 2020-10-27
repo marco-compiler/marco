@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <modelica/frontend/Parser.hpp>
-#include <modelica/frontend/ReferenceAccess.hpp>
 
 using namespace std;
 using namespace modelica;
