@@ -8,7 +8,6 @@ modelicaAddLibrary(
         src/Equation.cpp
         src/Expression.cpp
         src/ForEquation.cpp
-        src/Func.cpp
         src/LexerStateMachine.cpp
         src/Member.cpp
         src/Parser.cpp

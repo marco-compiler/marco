@@ -1,15 +1,17 @@
-#include "modelica/frontend/Class.hpp"
+#include <modelica/frontend/Class.hpp>
 
 using namespace std;
 using namespace llvm;
 using namespace modelica;
 
 Class::Class(
+		ClassType type,
 		string name,
 		ArrayRef<Member> members,
 		ArrayRef<Equation> equations,
 		ArrayRef<ForEquation> forEquations)
-		: name(move(name)),
+		: type(move(type)),
+			name(move(name)),
 			members(iterator_range<ArrayRef<Member>::iterator>(move(members))),
 			equations(iterator_range<ArrayRef<Equation>::iterator>(move(equations))),
 			forEquations(
@@ -52,6 +54,8 @@ SmallVectorImpl<Func>& Class::getFunctions() { return functions; }
 const string& Class::getName() const { return name; }
 
 const SmallVectorImpl<Member>& Class::getMembers() const { return members; }
+
+size_t Class::membersCount() const { return members.size(); }
 
 const SmallVectorImpl<Equation>& Class::getEquations() const
 {
@@ -96,7 +100,7 @@ void Class::addAlgorithm(Algorithm algorithm)
 	algorithms.push_back(move(algorithm));
 }
 
-void Class::addFunction(Func function)
+void Class::addFunction(Class function)
 {
-	return functions.push_back(move(function));
+	return functions.push_back(make_unique<Class>(move(function)));
 }

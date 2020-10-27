@@ -8,15 +8,32 @@
 #include "Algorithm.hpp"
 #include "Equation.hpp"
 #include "ForEquation.hpp"
-#include "Func.hpp"
 #include "Member.hpp"
 
 namespace modelica
 {
+	enum class ClassType
+	{
+		Block,
+		Class,
+		Connector,
+		Function,
+		Model,
+		Package,
+		Operator,
+		Record,
+		Type
+	};
+
+	class Class;
+
+	using Func = std::unique_ptr<Class>;
+
 	class Class
 	{
 		public:
 		Class(
+				ClassType type,
 				std::string name,
 				llvm::ArrayRef<Member> members = {},
 				llvm::ArrayRef<Equation> equations = {},
@@ -25,31 +42,41 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
-		[[nodiscard]] std::string& getName();
-		[[nodiscard]] llvm::SmallVectorImpl<Member>& getMembers();
-		[[nodiscard]] llvm::SmallVectorImpl<Equation>& getEquations();
-		[[nodiscard]] llvm::SmallVectorImpl<ForEquation>& getForEquations();
-		[[nodiscard]] llvm::SmallVectorImpl<Algorithm>& getAlgorithms();
-		[[nodiscard]] llvm::SmallVectorImpl<Func>& getFunctions();
+		template<ClassType T>
+		bool isA()
+		{
+			return type == T;
+		}
 
+		[[nodiscard]] std::string& getName();
 		[[nodiscard]] const std::string& getName() const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<Member>& getMembers();
 		[[nodiscard]] const llvm::SmallVectorImpl<Member>& getMembers() const;
+		[[nodiscard]] size_t membersCount() const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<Equation>& getEquations();
 		[[nodiscard]] const llvm::SmallVectorImpl<Equation>& getEquations() const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<ForEquation>& getForEquations();
 		[[nodiscard]] const llvm::SmallVectorImpl<ForEquation>& getForEquations()
 				const;
-		[[nodiscard]] const llvm::SmallVectorImpl<Algorithm>& getAlgorithms() const;
-		[[nodiscard]] const llvm::SmallVectorImpl<Func>& getFunctions() const;
 
-		[[nodiscard]] size_t membersCount() const { return members.size(); }
+		[[nodiscard]] llvm::SmallVectorImpl<Algorithm>& getAlgorithms();
+		[[nodiscard]] const llvm::SmallVectorImpl<Algorithm>& getAlgorithms() const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<Func>& getFunctions();
+		[[nodiscard]] const llvm::SmallVectorImpl<Func>& getFunctions() const;
 
 		void addMember(Member newMember);
 		void eraseMember(size_t memberIndex);
 		void addEquation(Equation equation);
 		void addForEquation(ForEquation equation);
 		void addAlgorithm(Algorithm algorithm);
-		void addFunction(Func function);
+		void addFunction(Class function);
 
 		private:
+		ClassType type;
 		std::string name;
 		llvm::SmallVector<Member, 3> members;
 		llvm::SmallVector<Equation, 3> equations;

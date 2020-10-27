@@ -39,7 +39,6 @@ namespace modelica
 		[[nodiscard]] Token getCurrentToken() const;
 
 		llvm::Expected<Class> classDefinition();
-		llvm::Expected<Func> functionDefinition();
 		llvm::Expected<Expression> primary();
 		llvm::Expected<Expression> factor();
 		llvm::Expected<std::optional<Expression>> modification();

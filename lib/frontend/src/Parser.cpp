@@ -106,14 +106,38 @@ static Expected<BuiltinType> nameToBuiltin(const std::string& name)
 
 Expected<Class> Parser::classDefinition()
 {
-	if (!accept<Token::ModelKeyword>())
-		if (!accept<Token::ClassKeyword>())
-			EXPECT(Token::PackageKeyword);
+	ClassType type = ClassType::Class;
+
+	if (accept(Token::BlockKeyword))
+		type = ClassType::Block;
+	else if (accept(Token::ConnectorKeyword))
+		type = ClassType::Connector;
+	else if (accept(Token::FunctionKeyword))
+		type = ClassType::Function;
+	else if (accept(Token::ModelKeyword))
+		type = ClassType::Model;
+	else if (accept(Token::PackageKeyword))
+		type = ClassType::Package;
+	else if (accept(Token::OperatorKeyword))
+		type = ClassType::Operator;
+	else if (accept(Token::RecordKeyword))
+		type = ClassType::Record;
+	else if (accept(Token::TypeKeyword))
+		type = ClassType::Type;
+	else
+		EXPECT(Token::ClassKeyword);
 
 	auto name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
 
-	Class cls(name, {}, {});
+	Class cls(type, name);
+
+	// Whether the first elements list is allowed to be encountered or not.
+	// In fact, the class definition allows a first elements list definition
+	// and then others more if preceded by "public" or "protected", but no more
+	// "lone" definitions are anymore allowed if any of those keywords are
+	// encountered.
+	bool firstElementListParsable = true;
 
 	// absorb comments after class/model/package
 	accept<Token::String>();
@@ -135,15 +159,40 @@ Expected<Class> Parser::classDefinition()
 
 		if (current == Token::FunctionKeyword)
 		{
-			TRY(func, functionDefinition());
+			TRY(func, classDefinition());
 			cls.addFunction(move(*func));
 			continue;
 		}
 
-		TRY(mem, elementList());
+		if (accept(Token::PublicKeyword))
+		{
+			TRY(mem, elementList());
+			firstElementListParsable = false;
 
-		for (auto& m : *mem)
-			cls.addMember(move(m));
+			for (auto& m : *mem)
+				cls.addMember(move(m));
+
+			continue;
+		}
+
+		if (accept(Token::ProtectedKeyword))
+		{
+			TRY(mem, elementList());
+			firstElementListParsable = false;
+
+			for (auto& m : *mem)
+				cls.addMember(move(m));
+
+			continue;
+		}
+
+		if (firstElementListParsable)
+		{
+			TRY(mem, elementList());
+
+			for (auto& m : *mem)
+				cls.addMember(move(m));
+		}
 	}
 
 	EXPECT(Token::EndKeyword);
@@ -154,74 +203,6 @@ Expected<Class> Parser::classDefinition()
 		return make_error<UnexpectedIdentifier>(endName, name, getPosition());
 
 	return cls;
-}
-
-Expected<Func> Parser::functionDefinition()
-{
-	EXPECT(Token::FunctionKeyword);
-	auto name = lexer.getLastIdentifier();
-	EXPECT(Token::Ident);
-
-	vector<Member> variables;
-	vector<Algorithm> algorithms;
-
-	while (current != Token::EndKeyword)
-	{
-		if (current == Token::AlgorithmKeyword)
-		{
-			TRY(alg, algorithmSection());
-			algorithms.push_back(move(*alg));
-			continue;
-		}
-
-		// TODO: in what sense a variable is "public"?
-		if (current == Token::PublicKeyword)
-		{
-			accept(Token::ProtectedKeyword);
-			TRY(mem, elementList());
-
-			for (auto& m : *mem)
-				variables.push_back(move(m));
-
-			continue;
-		}
-
-		if (current == Token::ProtectedKeyword)
-		{
-			accept(Token::ProtectedKeyword);
-			TRY(mem, elementList());
-
-			for (auto& m : *mem)
-				variables.push_back(move(m));
-
-			continue;
-		}
-
-		TRY(mem, elementList());
-
-		for (auto& m : *mem)
-			variables.push_back(move(m));
-	}
-
-	EXPECT(Token::EndKeyword);
-	auto endName = lexer.getLastIdentifier();
-	EXPECT(Token::Ident);
-
-	if (name != endName)
-		return make_error<UnexpectedIdentifier>(endName, name, getPosition());
-
-	vector<Member> input;
-	vector<Member> output;
-	vector<Member> members;
-
-	for (auto& variable : variables)
-	{
-		// TODO: differentiate input / output / protected variable
-		// but first, unify Type and TypePrefix
-	}
-
-	return Func(
-			move(name), move(input), move(output), move(members), move(algorithms));
 }
 
 Expected<SmallVector<Member, 3>> Parser::elementList()
@@ -352,12 +333,12 @@ Expected<bool> Parser::equationSection(Class& cls)
 		{
 			TRY(equs, forEquation(0));
 			for (auto& eq : *equs)
-				cls.getForEquations().push_back(move(eq));
+				cls.addForEquation(move(eq));
 		}
 		else
 		{
 			TRY(eq, equation());
-			cls.getEquations().push_back(move(*eq));
+			cls.addEquation(move(*eq));
 		}
 
 		EXPECT(Token::Semicolons);
