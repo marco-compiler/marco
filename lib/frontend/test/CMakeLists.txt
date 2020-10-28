@@ -9,4 +9,5 @@ modelicaAddTest(
 		src/ExpressionTest.cpp
 		src/TypeCheckerTest.cpp
 		src/ParserEquationTest.cpp
-		src/ParserClassTest.cpp)
+		src/ParserClassTest.cpp
+		src/StatementParseTest.cpp)

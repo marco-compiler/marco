@@ -102,5 +102,5 @@ void Class::addAlgorithm(Algorithm algorithm)
 
 void Class::addFunction(Class function)
 {
-	return functions.push_back(make_unique<Class>(move(function)));
+	return functions.push_back(std::make_unique<Class>(move(function)));
 }

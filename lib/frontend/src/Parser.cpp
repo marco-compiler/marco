@@ -688,7 +688,8 @@ Expected<Expression> Parser::primary()
 	if (current == Token::Ident)
 	{
 		TRY(exp, componentReference());
-		if (!accept<Token::LPar>())
+
+		if (current != Token::LPar)
 			return exp;
 
 		TRY(args, functionCallArguments());
