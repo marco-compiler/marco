@@ -16,12 +16,14 @@ TEST(StatementTest, integerAssignment)	// NOLINT
 	auto ast = move(*expectedAst);
 
 	// Left-hand side
-	ASSERT_EQ(1, ast.getDestinations().size());
-	ASSERT_TRUE(ast.getDestinations()[0].isA<ReferenceAccess>());
+	auto& destinations = ast.getDestinations();
+	ASSERT_EQ(1, destinations.size());
+	EXPECT_TRUE(destinations[0].isA<ReferenceAccess>());
 
 	// Right-hand side
-	ASSERT_TRUE(ast.getExpression().isA<Constant>());
-	ASSERT_TRUE(ast.getExpression().getConstant().isA<BuiltinType::Integer>());
+	auto& expression = ast.getExpression();
+	ASSERT_TRUE(expression.isA<Constant>());
+	EXPECT_TRUE(expression.getConstant().isA<BuiltinType::Integer>());
 }
 
 TEST(StatementTest, floatAssignment)	// NOLINT
@@ -36,12 +38,14 @@ TEST(StatementTest, floatAssignment)	// NOLINT
 	auto ast = move(*expectedAst);
 
 	// Left-hand side
-	ASSERT_EQ(1, ast.getDestinations().size());
-	ASSERT_TRUE(ast.getDestinations()[0].isA<ReferenceAccess>());
+	auto& destinations = ast.getDestinations();
+	ASSERT_EQ(1, destinations.size());
+	EXPECT_TRUE(destinations[0].isA<ReferenceAccess>());
 
 	// Right-hand side
-	ASSERT_TRUE(ast.getExpression().isA<Constant>());
-	ASSERT_TRUE(ast.getExpression().getConstant().isA<BuiltinType::Float>());
+	auto& expression = ast.getExpression();
+	ASSERT_TRUE(expression.isA<Constant>());
+	EXPECT_TRUE(expression.getConstant().isA<BuiltinType::Float>());
 }
 
 TEST(StatementTest, referenceAssignment)	// NOLINT
@@ -57,14 +61,14 @@ TEST(StatementTest, referenceAssignment)	// NOLINT
 
 	// Left-hand side
 	ASSERT_EQ(1, ast.getDestinations().size());
-	auto& left = ast.getDestinations()[0];
-	ASSERT_TRUE(left.isA<ReferenceAccess>());
-	ASSERT_EQ("x", left.get<ReferenceAccess>().getName());
+	auto& destinations = ast.getDestinations()[0];
+	ASSERT_TRUE(destinations.isA<ReferenceAccess>());
+	EXPECT_EQ("x", destinations.get<ReferenceAccess>().getName());
 
 	// Right-hand side
-	auto& right = ast.getExpression();
-	ASSERT_TRUE(right.isA<ReferenceAccess>());
-	ASSERT_EQ("y", right.get<ReferenceAccess>().getName());
+	auto& expression = ast.getExpression();
+	ASSERT_TRUE(expression.isA<ReferenceAccess>());
+	EXPECT_EQ("y", expression.get<ReferenceAccess>().getName());
 }
 
 TEST(StatementTest, functionCall)	 // NOLINT
@@ -79,19 +83,21 @@ TEST(StatementTest, functionCall)	 // NOLINT
 	auto ast = move(*expectedAst);
 
 	// Left-hand side is not tested because not so important for this test
-	auto& right = ast.getExpression();
-	ASSERT_TRUE(right.isA<Call>());
-	auto& call = right.get<Call>();
+	auto& expression = ast.getExpression();
+	ASSERT_TRUE(expression.isA<Call>());
+	auto& call = expression.get<Call>();
 
 	// Function name
-	ASSERT_TRUE(call.getFunction().isA<ReferenceAccess>());
+	EXPECT_TRUE(call.getFunction().isA<ReferenceAccess>());
 
 	// Function parameters
 	ASSERT_EQ(2, call.argumentsCount());
+
 	ASSERT_TRUE(call[0].isA<ReferenceAccess>());
-	ASSERT_EQ("y", call[0].get<ReferenceAccess>().getName());
+	EXPECT_EQ("y", call[0].get<ReferenceAccess>().getName());
+
 	ASSERT_TRUE(call[1].isA<ReferenceAccess>());
-	ASSERT_EQ("z", call[1].get<ReferenceAccess>().getName());
+	EXPECT_EQ("z", call[1].get<ReferenceAccess>().getName());
 }
 
 TEST(StatementTest, multipleOutputs)	// NOLINT
@@ -106,12 +112,37 @@ TEST(StatementTest, multipleOutputs)	// NOLINT
 	auto ast = move(*expectedAst);
 
 	// Right-hand side is not tested because not so important for this test
-	auto& left = ast.getDestinations();
-	ASSERT_EQ(2, left.size());
+	auto& destinations = ast.getDestinations();
+	ASSERT_EQ(2, destinations.size());
 
-	ASSERT_TRUE(left[0].isA<ReferenceAccess>());
-	ASSERT_EQ("x", left[0].get<ReferenceAccess>().getName());
+	ASSERT_TRUE(destinations[0].isA<ReferenceAccess>());
+	EXPECT_EQ("x", destinations[0].get<ReferenceAccess>().getName());
 
-	ASSERT_TRUE(left[1].isA<ReferenceAccess>());
-	ASSERT_EQ("y", left[1].get<ReferenceAccess>().getName());
+	ASSERT_TRUE(destinations[1].isA<ReferenceAccess>());
+	EXPECT_EQ("y", destinations[1].get<ReferenceAccess>().getName());
+}
+
+TEST(StatementTest, ignoredOutputs)	 // NOLINT
+{
+	Parser parser("(x, , z) := Foo ();");
+
+	auto expectedAst = parser.statement();
+
+	if (!expectedAst)
+		FAIL();
+
+	auto ast = move(*expectedAst);
+
+	// Right-hand side is not tested because not so important for this test
+	auto& destinations = ast.getDestinations();
+	ASSERT_EQ(3, destinations.size());
+
+	ASSERT_TRUE(destinations[0].isA<ReferenceAccess>());
+	EXPECT_EQ("x", destinations[0].get<ReferenceAccess>().getName());
+
+	ASSERT_TRUE(destinations[0].isA<ReferenceAccess>());
+	EXPECT_TRUE(destinations[1].get<ReferenceAccess>().isDummy());
+
+	ASSERT_TRUE(destinations[2].isA<ReferenceAccess>());
+	EXPECT_EQ("z", destinations[2].get<ReferenceAccess>().getName());
 }

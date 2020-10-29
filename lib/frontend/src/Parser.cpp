@@ -129,6 +129,7 @@ Expected<Class> Parser::classDefinition()
 
 	auto name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
+	accept(Token::String);
 
 	Class cls(type, name);
 
@@ -383,10 +384,9 @@ Expected<Statement> Parser::statement()
 
 		while (!accept<Token::RPar>())
 		{
-			if (current == Token::Comma)
+			if (accept<Token::Comma>())
 			{
-				// Result value is discarded
-				destinations.emplace_back(Type::unknown(), OperationKind::empty);
+				destinations.emplace_back(Type::unknown(), ReferenceAccess::dummy());
 				continue;
 			}
 

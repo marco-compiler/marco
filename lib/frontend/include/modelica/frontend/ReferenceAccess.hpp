@@ -11,7 +11,8 @@ namespace modelica
 	class ReferenceAccess
 	{
 		public:
-		ReferenceAccess(std::string name, bool globalLookup = false);
+		ReferenceAccess(
+				std::string name, bool globalLookup = false, bool dummy = false);
 
 		[[nodiscard]] bool operator==(const ReferenceAccess& other) const;
 		[[nodiscard]] bool operator!=(const ReferenceAccess& other) const;
@@ -23,8 +24,20 @@ namespace modelica
 		[[nodiscard]] const std::string& getName() const;
 		[[nodiscard]] bool hasGlobalLookup() const;
 
+		/**
+		 * Get whether the referenced variable is created just for temporary
+		 * use (such as a function output that is then discarded) and thus the
+		 * reference points to a not already existing variable.
+		 *
+		 * @return true if temporary; false otherwise
+		 */
+		[[nodiscard]] bool isDummy() const;
+
+		static ReferenceAccess dummy();
+
 		private:
 		std::string referencedName;
 		bool globalLookup;
+		bool dummyVariable;
 	};
 }	 // namespace modelica
