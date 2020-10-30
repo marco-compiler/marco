@@ -8,26 +8,45 @@ namespace modelica
 {
 	raw_ostream& operator<<(raw_ostream& stream, const ParameterQualifier& obj)
 	{
-		if (obj == ParameterQualifier::discrete)
-			stream << "discrete";
-		else if (obj == ParameterQualifier::parameter)
-			stream << "parameter";
-		else if (obj == ParameterQualifier::constant)
-			stream << "constant";
+		return stream << toString(obj);
+	}
 
-		return stream;
+	string toString(ParameterQualifier qualifier)
+	{
+		switch (qualifier)
+		{
+			case ParameterQualifier::discrete:
+				return "discrete";
+			case ParameterQualifier::parameter:
+				return "parameter";
+			case ParameterQualifier::constant:
+				return "constant";
+			case ParameterQualifier::none:
+				return "none";
+		}
+
+		return "unexpected";
 	}
 
 	raw_ostream& operator<<(raw_ostream& stream, const IOQualifier& obj)
 	{
-		if (obj == IOQualifier::input)
-			stream << "input";
-		else if (obj == IOQualifier::output)
-			stream << "output";
-
-		return stream;
+		return stream << toString(obj);
 	}
 
+	string toString(IOQualifier qualifier)
+	{
+		switch (qualifier)
+		{
+			case IOQualifier::input:
+				return "input";
+			case IOQualifier::output:
+				return "output";
+			case IOQualifier::none:
+				return "none";
+		}
+
+		return "unexpected";
+	}
 }	 // namespace modelica
 
 TypePrefix::TypePrefix(

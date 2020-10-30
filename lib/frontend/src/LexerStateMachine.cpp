@@ -10,200 +10,208 @@ namespace modelica
 {
 	raw_ostream& operator<<(raw_ostream& stream, const Token& obj)
 	{
-		if (obj == Token::AlgorithmKeyword)
-			stream << "algorithm";
-		else if (obj == Token::AndKeyword)
-			stream << "and";
-		else if (obj == Token::AnnotationKeyword)
-			stream << "annotation";
-		else if (obj == Token::Assignment)
-			stream << ":=";
-		else if (obj == Token::Begin)
-			stream << "begin";
-		else if (obj == Token::BlockKeyword)
-			stream << "block";
-		else if (obj == Token::BreakKeyword)
-			stream << "break";
-		else if (obj == Token::ClassKeyword)
-			stream << "class";
-		else if (obj == Token::Colons)
-			stream << ":";
-		else if (obj == Token::Comma)
-			stream << ",";
-		else if (obj == Token::ConnectKeyword)
-			stream << "connect";
-		else if (obj == Token::ConnectorKeyword)
-			stream << "connector";
-		else if (obj == Token::ConstantKeyword)
-			stream << "constant";
-		else if (obj == Token::ConstraynedByKeyword)
-			stream << "constrainedby";
-		else if (obj == Token::DerKeyword)
-			stream << "der";
-		else if (obj == Token::Different)
-			stream << "<>";
-		else if (obj == Token::DiscreteKeyword)
-			stream << "discrete";
-		else if (obj == Token::Division)
-			stream << "/";
-		else if (obj == Token::Dot)
-			stream << ".";
-		else if (obj == Token::EachKeyword)
-			stream << "each";
-		else if (obj == Token::ElementWiseExponential)
-			stream << "^";
-		else if (obj == Token::ElementWiseMinus)
-			stream << "-";
-		else if (obj == Token::ElementWiseMultilpy)
-			stream << "*";
-		else if (obj == Token::ElementWiseSum)
-			stream << "+";
-		else if (obj == Token::ElementWiseDivision)
-			stream << "/";
-		else if (obj == Token::ElseIfKeyword)
-			stream << "elseif";
-		else if (obj == Token::ElseKeyword)
-			stream << "else";
-		else if (obj == Token::ElseWhenKeyword)
-			stream << "elsewhen";
-		else if (obj == Token::EncapsulatedKeyword)
-			stream << "encapsulated";
-		else if (obj == Token::End)
-			stream << "EOF";
-		else if (obj == Token::EndKeyword)
-			stream << "end";
-		else if (obj == Token::EnumerationKeyword)
-			stream << "enumeration";
-		else if (obj == Token::Equal)
-			stream << "=";
-		else if (obj == Token::EquationKeyword)
-			stream << "equation";
-		else if (obj == Token::Error)
-			stream << "Error";
-		else if (obj == Token::ExpandableKeyword)
-			stream << "expandable";
-		else if (obj == Token::Exponential)
-			stream << "^";
-		else if (obj == Token::ExtendsKeyword)
-			stream << "extends";
-		else if (obj == Token::ExternalKeyword)
-			stream << "external";
-		else if (obj == Token::FalseKeyword)
-			stream << "false";
-		else if (obj == Token::FinalKeyword)
-			stream << "final";
-		else if (obj == Token::FloatingPoint)
-			stream << "FloatingPoint";
-		else if (obj == Token::FlowKeyword)
-			stream << "flow";
-		else if (obj == Token::ForKeyword)
-			stream << "for";
-		else if (obj == Token::FunctionKeyword)
-			stream << "function";
-		else if (obj == Token::GreaterEqual)
-			stream << ">=";
-		else if (obj == Token::GreaterThan)
-			stream << ">";
-		else if (obj == Token::Ident)
-			stream << "Identifier";
-		else if (obj == Token::IfKeyword)
-			stream << "if";
-		else if (obj == Token::ImportKeyword)
-			stream << "import";
-		else if (obj == Token::ImpureKeyword)
-			stream << "impure";
-		else if (obj == Token::InitialKeyword)
-			stream << "initial";
-		else if (obj == Token::InKeyword)
-			stream << "in";
-		else if (obj == Token::InnerKeyword)
-			stream << "inner";
-		else if (obj == Token::InputKeyword)
-			stream << "input";
-		else if (obj == Token::Integer)
-			stream << "Integer";
-		else if (obj == Token::LCurly)
-			stream << "{";
-		else if (obj == Token::LPar)
-			stream << "(";
-		else if (obj == Token::LSquare)
-			stream << "[";
-		else if (obj == Token::LessEqual)
-			stream << "<=";
-		else if (obj == Token::LessThan)
-			stream << "<";
-		else if (obj == Token::LoopKeyword)
-			stream << "loop";
-		else if (obj == Token::Minus)
-			stream << "-";
-		else if (obj == Token::ModelKeyword)
-			stream << "model";
-		else if (obj == Token::Multiply)
-			stream << "*";
-		else if (obj == Token::None)
-			stream << "None";
-		else if (obj == Token::NotKeyword)
-			stream << "not";
-		else if (obj == Token::OperatorEqual)
-			stream << "==";
-		else if (obj == Token::OperatorKeyword)
-			stream << "operator";
-		else if (obj == Token::OrKeyword)
-			stream << "or";
-		else if (obj == Token::OuterKeyword)
-			stream << "outer";
-		else if (obj == Token::OutputKeyword)
-			stream << "output";
-		else if (obj == Token::PackageKeyword)
-			stream << "package";
-		else if (obj == Token::ParameterKeyword)
-			stream << "parameter";
-		else if (obj == Token::PartialKeyword)
-			stream << "partial";
-		else if (obj == Token::Plus)
-			stream << "+";
-		else if (obj == Token::ProtectedKeyword)
-			stream << "protected";
-		else if (obj == Token::PublicKeyword)
-			stream << "public";
-		else if (obj == Token::PureKeyword)
-			stream << "pure";
-		else if (obj == Token::RCurly)
-			stream << "}";
-		else if (obj == Token::RPar)
-			stream << ")";
-		else if (obj == Token::RSquare)
-			stream << "]";
-		else if (obj == Token::RecordKeyword)
-			stream << "record";
-		else if (obj == Token::RedeclareKeyword)
-			stream << "redeclare";
-		else if (obj == Token::ReplaceableKeyword)
-			stream << "replaceable";
-		else if (obj == Token::ReturnKeyword)
-			stream << "return";
-		else if (obj == Token::Semicolons)
-			stream << ";";
-		else if (obj == Token::StreamKeyword)
-			stream << "stream";
-		else if (obj == Token::String)
-			stream << "String";
-		else if (obj == Token::ThenKeyword)
-			stream << "then";
-		else if (obj == Token::TrueKeyword)
-			stream << "true";
-		else if (obj == Token::TypeKeyword)
-			stream << "type";
-		else if (obj == Token::WhenKeyword)
-			stream << "when";
-		else if (obj == Token::WhileKeyword)
-			stream << "while";
-		else if (obj == Token::WhithinKeyword)
-			stream << "whithin";
-
-		return stream;
+		return stream << toString(obj);
 	}
-}
+
+	string toString(Token token)
+	{
+		switch (token)
+		{
+			case Token::AlgorithmKeyword:
+				return "algorithm";
+			case Token::AndKeyword:
+				return "and";
+			case Token::AnnotationKeyword:
+				return "annotation";
+			case Token::Assignment:
+				return ":=";
+			case Token::Begin:
+				return "begin";
+			case Token::BlockKeyword:
+				return "block";
+			case Token::BreakKeyword:
+				return "break";
+			case Token::ClassKeyword:
+				return "class";
+			case Token::Colons:
+				return ":";
+			case Token::Comma:
+				return ",";
+			case Token::ConnectKeyword:
+				return "connect";
+			case Token::ConnectorKeyword:
+				return "connector";
+			case Token::ConstantKeyword:
+				return "constant";
+			case Token::ConstraynedByKeyword:
+				return "constrainedby";
+			case Token::DerKeyword:
+				return "der";
+			case Token::Different:
+				return "<>";
+			case Token::DiscreteKeyword:
+				return "discrete";
+			case Token::Division:
+				return "/";
+			case Token::Dot:
+				return ".";
+			case Token::EachKeyword:
+				return "each";
+			case Token::ElementWiseExponential:
+				return "^";
+			case Token::ElementWiseMinus:
+				return "-";
+			case Token::ElementWiseMultilpy:
+				return "*";
+			case Token::ElementWiseSum:
+				return "+";
+			case Token::ElementWiseDivision:
+				return "/";
+			case Token::ElseIfKeyword:
+				return "elseif";
+			case Token::ElseKeyword:
+				return "else";
+			case Token::ElseWhenKeyword:
+				return "elsewhen";
+			case Token::EncapsulatedKeyword:
+				return "encapsulated";
+			case Token::End:
+				return "EOF";
+			case Token::EndKeyword:
+				return "end";
+			case Token::EnumerationKeyword:
+				return "enumeration";
+			case Token::Equal:
+				return "=";
+			case Token::EquationKeyword:
+				return "equation";
+			case Token::Error:
+				return "Error";
+			case Token::ExpandableKeyword:
+				return "expandable";
+			case Token::Exponential:
+				return "^";
+			case Token::ExtendsKeyword:
+				return "extends";
+			case Token::ExternalKeyword:
+				return "external";
+			case Token::FalseKeyword:
+				return "false";
+			case Token::FinalKeyword:
+				return "final";
+			case Token::FloatingPoint:
+				return "FloatingPoint";
+			case Token::FlowKeyword:
+				return "flow";
+			case Token::ForKeyword:
+				return "for";
+			case Token::FunctionKeyword:
+				return "function";
+			case Token::GreaterEqual:
+				return ">=";
+			case Token::GreaterThan:
+				return ">";
+			case Token::Ident:
+				return "Identifier";
+			case Token::IfKeyword:
+				return "if";
+			case Token::ImportKeyword:
+				return "import";
+			case Token::ImpureKeyword:
+				return "impure";
+			case Token::InitialKeyword:
+				return "initial";
+			case Token::InKeyword:
+				return "in";
+			case Token::InnerKeyword:
+				return "inner";
+			case Token::InputKeyword:
+				return "input";
+			case Token::Integer:
+				return "Integer";
+			case Token::LCurly:
+				return "{";
+			case Token::LPar:
+				return "(";
+			case Token::LSquare:
+				return "[";
+			case Token::LessEqual:
+				return "<=";
+			case Token::LessThan:
+				return "<";
+			case Token::LoopKeyword:
+				return "loop";
+			case Token::Minus:
+				return "-";
+			case Token::ModelKeyword:
+				return "model";
+			case Token::Multiply:
+				return "*";
+			case Token::None:
+				return "None";
+			case Token::NotKeyword:
+				return "not";
+			case Token::OperatorEqual:
+				return "==";
+			case Token::OperatorKeyword:
+				return "operator";
+			case Token::OrKeyword:
+				return "or";
+			case Token::OuterKeyword:
+				return "outer";
+			case Token::OutputKeyword:
+				return "output";
+			case Token::PackageKeyword:
+				return "package";
+			case Token::ParameterKeyword:
+				return "parameter";
+			case Token::PartialKeyword:
+				return "partial";
+			case Token::Plus:
+				return "+";
+			case Token::ProtectedKeyword:
+				return "protected";
+			case Token::PublicKeyword:
+				return "public";
+			case Token::PureKeyword:
+				return "pure";
+			case Token::RCurly:
+				return "}";
+			case Token::RPar:
+				return ")";
+			case Token::RSquare:
+				return "]";
+			case Token::RecordKeyword:
+				return "record";
+			case Token::RedeclareKeyword:
+				return "redeclare";
+			case Token::ReplaceableKeyword:
+				return "replaceable";
+			case Token::ReturnKeyword:
+				return "return";
+			case Token::Semicolons:
+				return ";";
+			case Token::StreamKeyword:
+				return "stream";
+			case Token::String:
+				return "String";
+			case Token::ThenKeyword:
+				return "then";
+			case Token::TrueKeyword:
+				return "true";
+			case Token::TypeKeyword:
+				return "type";
+			case Token::WhenKeyword:
+				return "when";
+			case Token::WhileKeyword:
+				return "while";
+			case Token::WhithinKeyword:
+				return "whithin";
+		}
+
+		return "unexpected";
+	}
+}	 // namespace modelica
 
 static bool isDigit(char c) { return ('0' <= c && c <= '9'); }
 

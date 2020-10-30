@@ -36,6 +36,10 @@ namespace modelica
 		powerOf,
 	};
 
+	llvm::raw_ostream& operator<<(
+			llvm::raw_ostream& stream, const OperationKind& obj);
+	std::string toString(OperationKind operation);
+
 	class Expression
 	{
 		public:

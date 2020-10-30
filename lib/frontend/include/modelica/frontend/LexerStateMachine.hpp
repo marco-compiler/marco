@@ -113,6 +113,7 @@ namespace modelica
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Token& obj);
+	std::string toString(Token obj);
 
 	/**
 	 * State machine is the state machine of the modelica language.

@@ -9,20 +9,28 @@ namespace modelica
 {
 	raw_ostream& operator<<(raw_ostream& stream, const BuiltinType& obj)
 	{
-		if (obj == BuiltinType::None)
-			stream << "None";
-		else if (obj == BuiltinType::Integer)
-			stream << "Integer";
-		else if (obj == BuiltinType::Float)
-			stream << "Float";
-		else if (obj == BuiltinType::String)
-			stream << "String";
-		else if (obj == BuiltinType::Boolean)
-			stream << "Boolean";
-		else if (obj == BuiltinType::Unknown)
-			stream << "Unknown";
+		return stream << toString(obj);
+	}
 
-		return stream;
+	string toString(BuiltinType type)
+	{
+		switch (type)
+		{
+			case BuiltinType::None:
+				return "none";
+			case BuiltinType::Integer:
+				return "integer";
+			case BuiltinType::Float:
+				return "float";
+			case BuiltinType::String:
+				return "string";
+			case BuiltinType::Boolean:
+				return "boolean";
+			case BuiltinType::Unknown:
+				return "unknown";
+		}
+
+		return "unexpected";
 	}
 }	 // namespace modelica
 

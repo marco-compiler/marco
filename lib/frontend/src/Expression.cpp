@@ -13,42 +13,50 @@ namespace modelica
 {
 	raw_ostream& operator<<(raw_ostream& stream, const OperationKind& obj)
 	{
-		if (obj == OperationKind::negate)
-			stream << "negate";
-		else if (obj == OperationKind::add)
-			stream << "add";
-		else if (obj == OperationKind::subtract)
-			stream << "subtract";
-		else if (obj == OperationKind::multiply)
-			stream << "multiply";
-		else if (obj == OperationKind::divide)
-			stream << "divide";
-		else if (obj == OperationKind::ifelse)
-			stream << "ifelse";
-		else if (obj == OperationKind::greater)
-			stream << "greater";
-		else if (obj == OperationKind::greaterEqual)
-			stream << "greaterEqual";
-		else if (obj == OperationKind::equal)
-			stream << "equal";
-		else if (obj == OperationKind::different)
-			stream << "different";
-		else if (obj == OperationKind::lessEqual)
-			stream << "lessEqual";
-		else if (obj == OperationKind::less)
-			stream << "less";
-		else if (obj == OperationKind::land)
-			stream << "land";
-		else if (obj == OperationKind::lor)
-			stream << "lor";
-		else if (obj == OperationKind::subscription)
-			stream << "subscription";
-		else if (obj == OperationKind::memberLookup)
-			stream << "memberLookup";
-		else if (obj == OperationKind::powerOf)
-			stream << "powerOf";
+		return stream << toString(obj);
+	}
 
-		return stream;
+	string toString(OperationKind operation)
+	{
+		switch (operation)
+		{
+			case OperationKind::negate:
+				return "negate";
+			case OperationKind::add:
+				return "add";
+			case OperationKind::subtract:
+				return "subtract";
+			case OperationKind::multiply:
+				return "multiply";
+			case OperationKind::divide:
+				return "divide";
+			case OperationKind::ifelse:
+				return "ifelse";
+			case OperationKind::greater:
+				return "greater";
+			case OperationKind::greaterEqual:
+				return "greaterEqual";
+			case OperationKind::equal:
+				return "equal";
+			case OperationKind::different:
+				return "different";
+			case OperationKind::lessEqual:
+				return "lessEqual";
+			case OperationKind::less:
+				return "less";
+			case OperationKind::land:
+				return "land";
+			case OperationKind::lor:
+				return "lor";
+			case OperationKind::subscription:
+				return "subscription";
+			case OperationKind::memberLookup:
+				return "memberLookup";
+			case OperationKind::powerOf:
+				return "powerOf";
+		}
+
+		return "unexpected";
 	}
 }	 // namespace modelica
 

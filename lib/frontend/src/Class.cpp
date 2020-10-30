@@ -9,24 +9,26 @@ string toString(ClassType type)
 	switch (type)
 	{
 		case ClassType::Block:
-			return "Block";
+			return "block";
 		case ClassType::Class:
-			return "Class";
+			return "class";
 		case ClassType::Connector:
-			return "Connector";
+			return "connector";
 		case ClassType::Function:
-			return "Function";
+			return "function";
 		case ClassType::Model:
-			return "Model";
+			return "model";
 		case ClassType::Package:
-			return "Package";
+			return "package";
 		case ClassType::Operator:
-			return "Operator";
+			return "operator";
 		case ClassType::Record:
-			return "Record";
+			return "record";
 		case ClassType::Type:
-			return "Type";
+			return "type";
 	}
+
+	return "unexpected";
 }
 
 Class::Class(
