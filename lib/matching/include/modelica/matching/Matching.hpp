@@ -194,6 +194,13 @@ namespace modelica
 			return matched;
 		}
 
+		template<typename T>
+		[[nodiscard]] size_t outDegree(const T& t) const
+		{
+			auto r = arcsOf(t);
+			return std::distance(r.begin(), r.end());
+		}
+
 		[[nodiscard]] const_edge_iterator begin() const
 		{
 			return const_edge_iterator(*this, boost::edges(graph).first);

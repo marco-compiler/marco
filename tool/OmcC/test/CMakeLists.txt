@@ -26,8 +26,12 @@ macro(addOmccTest INPUTFILE)
 
 	add_executable(${INPUTFILE} dummy.cpp)
 	target_link_libraries(${INPUTFILE} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${INPUTFILE}.o modelica::runtime)
-	add_dependencies(${INPUTFILE} genFlattenedThermalChipODE)
+	add_dependencies(${INPUTFILE} gen${INPUTFILE})
 endmacro(addOmccTest)
 
 addOmccTest(FlattenedThermalChipODE)
 addOmccTest(FlattenedThermalChipCoolingOde)
+addOmccTest(ZeroingTest)
+addOmccTest(MUltiDimesionalZeroing)
+addOmccTest(DepthThreeCycle)
+addOmccTest(FlattenedThermalChipCoolingOOSimplified)

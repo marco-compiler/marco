@@ -55,6 +55,9 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& OS) const;
 
+		void readableDump() const;
+		void readableDump(llvm::raw_ostream& OS) const;
+
 		void dumpInductions(llvm::raw_ostream& OS) const { inductions.dump(OS); }
 		[[nodiscard]] bool isMatched() const { return matchedExpPath.has_value(); }
 		[[nodiscard]] ModExp& getMatchedExp()
@@ -87,7 +90,16 @@ namespace modelica
 		/**
 		 * explicitate matched expression.
 		 */
-		llvm::Error explicitate() { return explicitate(getMatchedModExpPath()); }
+		llvm::Error explicitate()
+		{
+			auto error = explicitate(getMatchedModExpPath());
+			if (error)
+				return error;
+
+			matchedExpPath = EquationPath({}, true);
+			return llvm::Error::success();
+		}
+
 		void setInductionVars(MultiDimInterval inds);
 
 		[[nodiscard]] size_t dimensions() const
@@ -117,6 +129,8 @@ namespace modelica
 		 * left side of the equation becomes indentity vector access. Crea
 		 */
 		[[nodiscard]] ModEquation normalized() const;
+
+		[[nodiscard]] ModEquation normalizeMatched() const;
 
 		/**
 		 * the induction range is multiplied by the transformation

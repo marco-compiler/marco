@@ -6,5 +6,5 @@
 
 namespace modelica
 {
-	llvm::Expected<Model> solveScc(Model&& model);
+	llvm::Expected<Model> solveScc(Model&& model, size_t maxIterations = 100);
 }

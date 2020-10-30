@@ -3,6 +3,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModMatchers.hpp"
@@ -22,7 +23,7 @@ namespace modelica
 			if (pathToVar.getVarName() != var.getVarName())
 				continue;
 
-			auto composed = newEq.composeAccess(var.getAccess());
+			auto composed = newEq.composeAccess(pathToVar.getAccess());
 			original.reachExp(acc) = composed.getRight();
 		}
 	}
@@ -30,13 +31,11 @@ namespace modelica
 	inline llvm::Error linearySolve(
 			llvm::SmallVectorImpl<ModEquation>& equs, const Model& model)
 	{
-		for (auto& eq : equs)
-			if (auto e = eq.explicitate(); e)
-				return e;
-
 		for (auto eq = equs.rbegin(); eq != equs.rend(); eq++)
+		{
 			for (auto eq2 = eq + 1; eq2 != equs.rend(); eq2++)
 				replaceUses(*eq, *eq2);
+		}
 
 		for (auto& eq : equs)
 			eq = eq.groupLeftHand();

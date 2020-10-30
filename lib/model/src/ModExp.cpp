@@ -1,8 +1,10 @@
 #include "modelica/model/ModExp.hpp"
 
+#include <algorithm>
 #include <functional>
 
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/model/ModConst.hpp"
 
 using namespace modelica;
@@ -157,8 +159,62 @@ bool ModExp::tryFoldConstant()
 	}
 
 	if (isBinary())
-		if (!all_of(range(), [](const auto& exp) { return exp.isConstant(); }))
+	{
+		if (getOperationKind() == ModExpKind::add)
+		{
+			if (getLeftHand().isConstant() and
+					getLeftHand().getConstant().getModTypeOfLiteral().isScalar() and
+					getLeftHand().getConstant().as<double>().get<double>(0) == 0.0)
+			{
+				*this = move(getRightHand());
+				return true;
+			}
+			if (getRightHand().isConstant() and
+					getRightHand().getConstant().getModTypeOfLiteral().isScalar() and
+					getRightHand().getConstant().as<double>().get<double>(0) == 0.0)
+			{
+				*this = move(getLeftHand());
+				return true;
+			}
+		}
+		if (getOperationKind() == ModExpKind::mult)
+		{
+			if (getLeftHand().isConstant() and
+					getLeftHand().getConstant().getModTypeOfLiteral().isScalar() and
+					getLeftHand().getConstant().as<double>().get<double>(0) == 1.0)
+			{
+				*this = move(getRightHand());
+				return true;
+			}
+			if (getRightHand().isConstant() and
+					getRightHand().getConstant().getModTypeOfLiteral().isScalar() and
+					getRightHand().getConstant().as<double>().get<double>(0) == 1.0)
+			{
+				*this = move(getLeftHand());
+				return true;
+			}
+		}
+		if (getOperationKind() == ModExpKind::mult)
+		{
+			if (getLeftHand().isConstant() and
+					getLeftHand().getConstant().getModTypeOfLiteral().isScalar() and
+					getLeftHand().getConstant().as<double>().get<double>(0) == 0.0)
+			{
+				*this = move(getLeftHand());
+				return true;
+			}
+			if (getRightHand().isConstant() and
+					getRightHand().getConstant().getModTypeOfLiteral().isScalar() and
+					getRightHand().getConstant().as<double>().get<double>(0) == 0.0)
+			{
+				*this = move(getRightHand());
+				return true;
+			}
+		}
+
+		if (any_of(range(), [](const auto& exp) { return not exp.isConstant(); }))
 			return false;
+	}
 
 	if (isTernary() && !getCondition().isConstant())
 		return false;
@@ -316,3 +372,78 @@ void ModExp::distribuiteMultiplications()
 	for (auto& c : *this)
 		c.distribuiteMultiplications();
 }
+
+static void readableDumpOperation(const ModExp& exp, llvm::raw_ostream& OS)
+{
+	assert(exp.isOperation());
+	if (exp.getArity() == 1)
+	{
+		OS << exprKindToString(exp.getOperationKind());
+		exp.getLeftHand().readableDump();
+		return;
+	}
+
+	if (exp.getOperationKind() == ModExpKind::at)
+	{
+		exp.getLeftHand().readableDump(OS);
+		OS << '[';
+		exp.getRightHand().readableDump(OS);
+		OS << ']';
+		return;
+	}
+
+	if (exp.getArity() == 2)
+	{
+		OS << "(";
+		exp.getLeftHand().readableDump(OS);
+		OS << " ";
+		OS << exprKindToString(exp.getOperationKind());
+		OS << " ";
+		exp.getRightHand().readableDump(OS);
+		OS << ")";
+		return;
+	}
+
+	if (exp.getArity() == 3)
+	{
+		exp.getCondition().readableDump(OS);
+		OS << " ";
+		OS << "?";
+		OS << " ";
+		exp.getLeftHand().readableDump(OS);
+		OS << " ";
+		OS << exprKindToString(exp.getOperationKind());
+		OS << " ";
+		exp.getRightHand().readableDump(OS);
+		return;
+	}
+	assert(false && "Unrechable");	// NOLINT
+}
+
+void ModExp::readableDump(llvm::raw_ostream& OS) const
+{
+	if (isConstant())
+	{
+		getConstant().dump(OS);
+		return;
+	}
+	if (isReference())
+	{
+		OS << getReference();
+		return;
+	}
+
+	if (isOperation())
+	{
+		readableDumpOperation(*this, OS);
+		return;
+	}
+	if (isCall())
+	{
+		getCall().readableDump(OS);
+		return;
+	}
+	assert(false && "Unrechable");	// NOLINT
+}
+
+void ModExp::readableDump() const { readableDump(llvm::outs()); }

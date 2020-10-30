@@ -37,12 +37,15 @@ void Flow::dump(llvm::raw_ostream& OS) const
 	OS << "\n";
 }
 
-FlowCandidates::FlowCandidates(SmallVector<Flow, 2> c): choises(std::move(c))
+FlowCandidates::FlowCandidates(SmallVector<Flow, 2> c, const MatchingGraph& g)
+		: choises(std::move(c))
 {
 	assert(find_if(choises.begin(), choises.end(), [](const Flow& flow) {
 					 return flow.empty();
 				 }) == choises.end());
-	sort(choises, Flow::compare);
+	sort(choises, [&](const auto& l, const auto& r) {
+		return Flow::compare(l, r, g);
+	});
 }
 
 bool AugmentingPath::valid() const
@@ -75,7 +78,7 @@ FlowCandidates AugmentingPath::selectStartingEdge() const
 			possibleStarts.emplace_back(Flow::forwardedge(e, eqUnmatched));
 	}
 
-	return possibleStarts;
+	return FlowCandidates(possibleStarts, graph);
 }
 static IndexSet possibleForwardFlow(
 		const Flow& backEdge, const Edge& forwadEdge, const MatchingGraph& graph)
@@ -101,7 +104,7 @@ FlowCandidates AugmentingPath::getForwardMatchable() const
 			directMatch.emplace_back(Flow::forwardedge(edge, move(possibleFlow)));
 	}
 
-	return directMatch;
+	return FlowCandidates(directMatch, graph);
 }
 
 IndexSet AugmentingPath::possibleBackwardFlow(const Edge& backEdge) const
@@ -141,7 +144,7 @@ FlowCandidates AugmentingPath::getBackwardMatchable() const
 			undoingMatch.emplace_back(Flow::backedge(edge, move(backFlow)));
 	}
 
-	return undoingMatch;
+	return FlowCandidates(undoingMatch, graph);
 }
 
 FlowCandidates AugmentingPath::getBestCandidate() const

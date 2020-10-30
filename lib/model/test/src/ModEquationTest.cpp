@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModEquation.hpp"
@@ -136,4 +137,16 @@ TEST(ModEquationTest, clonedEquationShouldNotHaveSameTemplate)
 			ModExp(ModConst(5)) / ModExp(ModConst(4)), ModExp(ModConst(4)));
 	auto copy = eq.clone("newName");
 	EXPECT_NE(eq.getTemplate(), copy.getTemplate());
+}
+
+TEST(ModEquationTest, groupLeftTest)
+{
+	ModEquation eq(
+			ModExp("hey", ModType(BultinModTypes::FLOAT, 1)),
+			ModExp(ModConst(4.0)) *
+					(ModExp(ModConst(0.0)) +
+					 ModExp("hey", ModType(BultinModTypes::FLOAT, 1))));
+
+	auto e = eq.groupLeftHand();
+	EXPECT_EQ(e.getLeft(), eq.getLeft());
 }

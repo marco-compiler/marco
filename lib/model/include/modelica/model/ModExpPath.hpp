@@ -43,7 +43,10 @@ namespace modelica
 			OS << "[";
 			OS << (left ? "0" : "1");
 			for (auto i : path)
+			{
+				OS << ",";
 				OS << i;
+			}
 			OS << "]";
 		}
 		void dump(llvm::raw_ostream& OS) const { print(llvm::outs()); }

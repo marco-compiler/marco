@@ -2,6 +2,7 @@
 
 #include <algorithm>
 
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModType.hpp"
 
@@ -55,6 +56,19 @@ ModCall& ModCall::operator=(const ModCall& other)
 	for (const auto& arg : other.args)
 		args.push_back(std::make_unique<ModExp>(*arg));
 	return *this;
+}
+
+void ModCall::readableDump() const { readableDump(llvm::outs()); }
+void ModCall::readableDump(raw_ostream& OS) const
+{
+	OS << name;
+	OS << '(';
+	for (size_t a = 0; a < args.size(); a++)
+	{
+		at(a).readableDump(OS);
+		OS << ',';
+	}
+	OS << ')';
 }
 
 void ModCall::dump(raw_ostream& OS) const

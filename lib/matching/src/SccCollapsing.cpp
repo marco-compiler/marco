@@ -112,34 +112,41 @@ static InexSetVector cyclicDependetSets(
 	for (auto i : irange(v.size()))
 	{
 		const auto& edge = graph[c[i]];
-		auto eq = graph[source(c[i], graph.getImpl())];
+		const auto& eq = graph[source(c[i], graph.getImpl())];
 		v[i] = eq.getVarToEq().map(v[i]);
+		assert(eq.getEquation().getInductions().contains(v[i]));
 	}
 
 	return v;
 }
 
-static bool extractEquationWithDependencies(
+static int a = 0;
+static llvm::Expected<bool> extractEquationWithDependencies(
 		EqVector& source,
 		EqVector& filtered,
 		EqVector& untouched,
 		const std::vector<VVarDependencyGraph::VertexDesc>& cycle,
 		const VVarDependencyGraph& g)
 {
-	auto vecSet = cyclicDependetSets(cycleToEdgeVec(cycle, g), g);
+	auto c = cycleToEdgeVec(cycle, g);
+	auto vecSet = cyclicDependetSets(c, g);
 	if (vecSet[0].empty())
 		return false;
 
 	// for each equation in the cycle
 	for (auto i : irange(cycle.size()))
 	{
-		auto& eq = source[cycle[i]];
+		const auto& eq = g[boost::source(c[i], g.getImpl())].getEquation();
 		// copy the equation
-		auto toFuseEq = eq;
+		auto toFuseEq =
+				eq.clone(eq.getTemplate()->getName() + "merged" + to_string(a++));
 		// set induction to those that generate the circular dependency
+		assert(toFuseEq.getInductions().contains(vecSet[i]));
 		toFuseEq.setInductionVars(vecSet[i]);
+		if (auto error = toFuseEq.explicitate(); error)
+			return move(error);
 		// add it to the list of filterd with normalized body
-		filtered.emplace_back(toFuseEq.normalized());
+		filtered.emplace_back(toFuseEq.normalizeMatched());
 
 		// then for all other index set that
 		// are not in the circular set
@@ -167,11 +174,12 @@ class CycleFuser
 {
 	public:
 	CycleFuser(
-			bool& foundOne,
+			bool& f,
 			EqVector& equs,
 			const Model& model,
-			const VVarDependencyGraph& graph)
-			: foundOne(&foundOne), equs(&equs), model(&model), graph(&graph)
+			const VVarDependencyGraph& graph,
+			llvm::Error* e)
+			: foundOne(&f), equs(&equs), model(&model), graph(&graph), error(e)
 	{
 	}
 
@@ -184,15 +192,25 @@ class CycleFuser
 
 		EqVector newEqus;
 		EqVector filtered;
+		auto err = extractEquationWithDependencies(
+				*equs, filtered, newEqus, cycle, *graph);
+		if (!err)
+		{
+			*error = err.takeError();
+			*foundOne = true;
+			return;
+		}
 
-		if (!extractEquationWithDependencies(
-						*equs, filtered, newEqus, cycle, *graph))
+		if (!*err)
 			return;
 
 		auto e = linearySolve(filtered, *model);
-		assert(e && "could not explicitate equation");
-		if (!e)
+		if (e)
+		{
+			*error = move(e);
+			*foundOne = true;
 			return;
+		}
 		for (auto& eq : filtered)
 			newEqus.emplace_back(std::move(eq));
 
@@ -205,18 +223,29 @@ class CycleFuser
 	EqVector* equs;
 	const Model* model;
 	const VVarDependencyGraph* graph;
+	llvm::Error* error;
 };
 
-static Error fuseEquations(EqVector& equs, const Model& sourceModel)
+static Error fuseEquations(
+		EqVector& equs, const Model& sourceModel, size_t maxIterations)
 {
 	bool atLeastOneCollapse = false;
+	size_t currIterations = 0;
 	do
 	{
 		atLeastOneCollapse = false;
 		VVarDependencyGraph vectorGraph(sourceModel, equs);
+		llvm::Error e(llvm::Error::success());
+		if (e)
+			return e;
 		tiernan_all_cycles(
 				vectorGraph.getImpl(),
-				CycleFuser(atLeastOneCollapse, equs, sourceModel, vectorGraph));
+				CycleFuser(atLeastOneCollapse, equs, sourceModel, vectorGraph, &e));
+		if (e)
+			return e;
+
+		if (++currIterations == maxIterations)
+			return Error::success();
 	} while (atLeastOneCollapse);
 	return Error::success();
 }
@@ -224,20 +253,22 @@ static Error fuseEquations(EqVector& equs, const Model& sourceModel)
 static Error fuseScc(
 		const Scc<VVarDependencyGraph>& scc,
 		const VVarDependencyGraph& vectorGraph,
-		EqVector& out)
+		EqVector& out,
+		size_t maxIterations)
 {
 	out.reserve(scc.size());
 
 	for (const auto& eq : scc.range(vectorGraph))
 		out.push_back(eq.getEquation());
 
-	if (auto error = fuseEquations(out, vectorGraph.getModel()); error)
+	if (auto error = fuseEquations(out, vectorGraph.getModel(), maxIterations);
+			error)
 		return error;
 
 	return Error::success();
 }
 
-Expected<Model> modelica::solveScc(Model&& model)
+Expected<Model> modelica::solveScc(Model&& model, size_t maxIterations)
 {
 	VVarDependencyGraph vectorGraph(model);
 	SccLookup sccs(vectorGraph);
@@ -245,7 +276,9 @@ Expected<Model> modelica::solveScc(Model&& model)
 	SmallVector<EqVector, 3> possibleEq(sccs.count());
 
 	for (auto i : irange(sccs.count()))
-		if (auto error = fuseScc(sccs[i], vectorGraph, possibleEq[i]); error)
+		if (auto error =
+						fuseScc(sccs[i], vectorGraph, possibleEq[i], maxIterations);
+				error)
 			return move(error);
 
 	Model outModel({}, std::move(model.getVars()));

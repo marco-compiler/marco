@@ -429,6 +429,15 @@ namespace modelica
 		 */
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
+		void readableDump(llvm::raw_ostream& OS) const;
+		void readableDump() const;
+
+		[[nodiscard]] ModExpKind getOperationKind() const
+		{
+			assert(isOperation());
+			return getOperation().getKind();
+		}
+
 		/**
 		 * \brief Builds a expression that is the negation of the provided one.
 		 * \warning Remember to move the expression instead of copying them each

@@ -446,7 +446,7 @@ Expected<EquationPath> ModParser::matchingPath()
 	EXPECT(ModToken::Integer);
 	SmallVector<size_t, 3> pos;
 
-	if (accept<ModToken::Comma>())
+	while (accept<ModToken::Comma>())
 	{
 		pos.emplace_back(lexer.getLastInt());
 		EXPECT(ModToken::Integer);

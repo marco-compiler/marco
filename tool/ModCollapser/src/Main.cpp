@@ -33,7 +33,13 @@ opt<bool> dumpModel(
 		init(false),
 		cat(mSchedCat));
 
+opt<bool> dumpGraph(
+		"dumpGraph", desc("dump graph"), init(false), cat(mSchedCat));
+
 opt<string> outputFile("o", desc("<output-file>"), init("-"), cat(mSchedCat));
+
+opt<size_t> maxIterations(
+		"max-iter", desc("max collapsing iterations"), init(100), cat(mSchedCat));
 
 ExitOnError exitOnErr;
 
@@ -56,7 +62,15 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	auto outM = exitOnErr(solveScc(move(model)));
+	auto outM = exitOnErr(solveScc(move(model), maxIterations));
+
+	if (dumpGraph)
+	{
+		VVarDependencyGraph graph(outM);
+		graph.dump(OS);
+		return 0;
+	}
+
 	outM.dump(OS);
 
 	return 0;

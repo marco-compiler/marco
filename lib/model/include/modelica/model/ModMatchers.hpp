@@ -31,10 +31,12 @@ namespace modelica
 		{
 			return vars[index];
 		}
+		[[nodiscard]] ModExpPath& at(size_t index) { return vars[index]; }
 		[[nodiscard]] const ModExpPath& operator[](size_t index) const
 		{
 			return at(index);
 		}
+		[[nodiscard]] ModExpPath& operator[](size_t index) { return at(index); }
 		[[nodiscard]] const ModExp& getExp(size_t index) const
 		{
 			return at(index).getExp();

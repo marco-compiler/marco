@@ -1,5 +1,6 @@
 #pragma once
 #include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
@@ -102,6 +103,18 @@ namespace modelica
 		[[nodiscard]] const Interval& at(size_t index) const
 		{
 			return intervals[index];
+		}
+
+		[[nodiscard]] bool contains(const MultiDimInterval& other) const
+		{
+			assert(dimensions() == other.dimensions());
+			for (size_t i : irange(dimensions()))
+			{
+				if (not intervals[i].contains(other.intervals[i].min()) or
+						not intervals[i].contains(other.intervals[i].max() - 1))
+					return false;
+			}
+			return true;
 		}
 
 		[[nodiscard]] auto begin() const { return intervals.begin(); }

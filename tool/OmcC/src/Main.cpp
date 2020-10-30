@@ -7,6 +7,7 @@
 #include "modelica/frontend/TypeChecker.hpp"
 #include "modelica/lowerer/Lowerer.hpp"
 #include "modelica/matching/Matching.hpp"
+#include "modelica/matching/SccCollapsing.hpp"
 #include "modelica/matching/Schedule.hpp"
 #include "modelica/model/AssignModel.hpp"
 #include "modelica/model/ModVariable.hpp"
@@ -56,6 +57,12 @@ opt<bool> dumpSolvedModel(
 opt<bool> dumpSolvedDerModel(
 		"dd",
 		cl::desc("dump after having removed the derivitives"),
+		cl::init(false),
+		cl::cat(omcCCat));
+
+opt<bool> dumpCollapsed(
+		"dcol",
+		cl::desc("dump after having collapsed scc"),
 		cl::init(false),
 		cl::cat(omcCCat));
 
@@ -160,7 +167,14 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	auto scheduled = schedule(matchedModel);
+	auto collapsed = exitOnErr(solveScc(move(matchedModel), 1000));
+	if (dumpCollapsed)
+	{
+		collapsed.dump(OS);
+		return 0;
+	}
+
+	auto scheduled = schedule(move(collapsed));
 	if (dumpScheduled)
 	{
 		scheduled.dump(OS);

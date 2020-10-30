@@ -91,6 +91,9 @@ namespace modelica
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
+		void readableDump(llvm::raw_ostream& OS = llvm::outs()) const;
+		void readableDump() const;
+
 		[[nodiscard]] const ModType& getType() const { return type; }
 
 		private:

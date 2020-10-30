@@ -1,4 +1,5 @@
 #pragma once
+#include <iterator>
 #include <limits>
 
 #include "llvm/Support/raw_ostream.h"
@@ -43,8 +44,24 @@ namespace modelica
 		[[nodiscard]] const IndexSet& getMappedSet() const { return mappedFlow; }
 		[[nodiscard]] size_t size() const { return set.size(); }
 
-		[[nodiscard]] static bool compare(const Flow& l, const Flow& r)
+		[[nodiscard]] static bool compare(
+				const Flow& l, const Flow& r, const MatchingGraph& g)
 		{
+			if (l.isForwardEdge())
+			{
+				auto lDeg = g.outDegree(l.getEquation());
+				auto rDeg = g.outDegree(r.getEquation());
+				if (lDeg != rDeg)
+					return lDeg < rDeg;
+			}
+			else
+			{
+				auto lDeg = g.outDegree(l.getVariable());
+				auto rDeg = g.outDegree(r.getVariable());
+				if (lDeg != rDeg)
+					return lDeg < rDeg;
+			}
+
 			return l.size() < r.size();
 		};
 		[[nodiscard]] bool isForwardEdge() const { return isForward; }
@@ -95,7 +112,7 @@ namespace modelica
 	class FlowCandidates
 	{
 		public:
-		FlowCandidates(llvm::SmallVector<Flow, 2> c);
+		FlowCandidates(llvm::SmallVector<Flow, 2> c, const MatchingGraph& g);
 
 		[[nodiscard]] bool empty() const { return choises.empty(); }
 

@@ -132,6 +132,7 @@ int main(int argc, char* argv[])
 
 	MatchingGraph graph(constantFoldedModel);
 
+	size_t lastMatched = 0;
 	for (auto i : irange<int>(maxMatchingIterations.getValue()))
 	{
 		AugmentingPath augmentingPath(graph, maxSearchDepth);
@@ -144,6 +145,15 @@ int main(int argc, char* argv[])
 		}
 
 		augmentingPath.apply();
+		if (lastMatched >= graph.matchedCount())
+		{
+			errs() << "Matching stopped incrementing, last " << lastMatched
+						 << " current " << graph.matchedCount() << " iteration " << i
+						 << "\n";
+			break;
+		}
+		lastMatched = graph.matchedCount();
+		outs() << "It " << i << " Matched " << graph.matchedCount() << "\n";
 	}
 
 	if (dumpMatchingGraph != "-")

@@ -3,11 +3,13 @@
 #include <llvm/ADT/StringRef.h>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <utility>
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModExp.hpp"
@@ -283,6 +285,7 @@ Error ModEquation::explicitate(const ModExpPath& path)
 	}
 	if (!path.isOnEquationLeftHand())
 		getTemplate()->swapLeftRight();
+	matchedExpPath = nullopt;
 	return Error::success();
 }
 
@@ -392,6 +395,14 @@ ModEquation ModEquation::composeAccess(const VectorAccess& transformation) const
 	return toReturn;
 }
 
+ModEquation ModEquation::normalizeMatched() const
+{
+	auto access = AccessToVar::fromExp(getMatchedExp()).getAccess();
+	auto invertedAccess = access.invert();
+
+	return composeAccess(invertedAccess);
+}
+
 ModEquation ModEquation::normalized() const
 {
 	assert(getLeft().isReferenceAccess());
@@ -414,8 +425,8 @@ static void toMult(const ModExp& exp, Mult& out, bool mul = true)
 	}
 	if (exp.isOperation<ModExpKind::divide>())
 	{
-		for (auto& c : exp)
-			toMult(c, out, !mul);
+		toMult(exp.getLeftHand(), out, mul);
+		toMult(exp.getRightHand(), out, !mul);
 		return;
 	}
 
@@ -479,6 +490,10 @@ static ModExp multToExp(Mult& mult)
 		exp = ModExp(ModConst(1.0)) / move(exp);
 	for (auto& e : make_range(mult.begin() + 1, mult.end()))
 	{
+		if (e.first.isConstant() and
+				e.first.getConstant().as<double>().get<double>(0) == 1.0)
+			continue;
+
 		if (e.second)
 			exp = move(exp) * move(e.first);
 		else
@@ -499,12 +514,16 @@ static ModExp multToExp(pair<Mult, bool>& mult)
 
 static ModExp sumOfMultToExp(ModExp& exp, pair<Mult, bool>& mult)
 {
+	if (exp.isConstant() and exp.getConstant().as<double>().get<double>(0) == 0.0)
+		return multToExp(mult);
+
 	return move(exp) + multToExp(mult);
 }
 
 ModEquation ModEquation::groupLeftHand() const
 {
 	auto copy = clone(getTemplate()->getName() + "grouped");
+	recursiveFold(copy.getRight());
 	copy.getRight().distribuiteMultiplications();
 	auto acc = AccessToVar::fromExp(getLeft());
 
@@ -517,6 +536,12 @@ ModEquation ModEquation::groupLeftHand() const
 
 	if (pos == sums.begin())
 		return *this;
+
+	if (pos == sums.end())
+	{
+		copy.getRight() = ModExp(ModConst(0), copy.getLeft().getModType());
+		return copy;
+	}
 
 	for (auto& use : make_range(sums.begin(), pos))
 	{
@@ -539,3 +564,14 @@ void ModEquation::setMatchedExp(EquationPath path)
 	assert(reachExp(path).isReferenceAccess());
 	matchedExpPath = path;
 }
+
+void ModEquation::readableDump(raw_ostream& OS) const
+{
+	getInductions().dump(OS);
+	OS << ' ';
+	getLeft().readableDump(OS);
+	OS << '=';
+	getRight().readableDump(OS);
+}
+
+void ModEquation::readableDump() const { readableDump(outs()); }
