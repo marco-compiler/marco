@@ -25,6 +25,8 @@ namespace modelica
 		Type
 	};
 
+	std::string toString(ClassType type);
+
 	class Class;
 
 	using Func = std::unique_ptr<Class>;
@@ -47,6 +49,8 @@ namespace modelica
 		{
 			return type == T;
 		}
+
+		[[nodiscard]] ClassType getType() const;
 
 		[[nodiscard]] std::string& getName();
 		[[nodiscard]] const std::string& getName() const;

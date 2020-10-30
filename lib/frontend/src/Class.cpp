@@ -4,6 +4,31 @@ using namespace std;
 using namespace llvm;
 using namespace modelica;
 
+string toString(ClassType type)
+{
+	switch (type)
+	{
+		case ClassType::Block:
+			return "Block";
+		case ClassType::Class:
+			return "Class";
+		case ClassType::Connector:
+			return "Connector";
+		case ClassType::Function:
+			return "Function";
+		case ClassType::Model:
+			return "Model";
+		case ClassType::Package:
+			return "Package";
+		case ClassType::Operator:
+			return "Operator";
+		case ClassType::Record:
+			return "Record";
+		case ClassType::Type:
+			return "Type";
+	}
+}
+
 Class::Class(
 		ClassType type,
 		string name,
@@ -38,6 +63,8 @@ void Class::dump(raw_ostream& os, size_t indents) const
 	for (const auto& algorithm : algorithms)
 		algorithm.dump(os, indents + 1);
 }
+
+ClassType Class::getType() const { return type; }
 
 string& Class::getName() { return name; }
 

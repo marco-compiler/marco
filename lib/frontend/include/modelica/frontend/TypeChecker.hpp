@@ -16,7 +16,14 @@ namespace modelica
 	class TypeChecker
 	{
 		public:
-		llvm::Error checkType(Class& cl, const SymbolTable& table);
+		template<ClassType T>
+		llvm::Error checkType(Class& cl, const SymbolTable& table)
+		{
+			return llvm::make_error<NotImplemented>(
+					"Type checking is not yet implemented for class type '" +
+					toString(T) + "'");
+		}
+
 		llvm::Error checkType(Expression& exp, const SymbolTable& table);
 		llvm::Error checkType(Member& mem, const SymbolTable& table);
 		llvm::Error checkType(Equation& eq, const SymbolTable& table);

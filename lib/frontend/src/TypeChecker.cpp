@@ -17,7 +17,9 @@ using namespace modelica;
 using namespace llvm;
 using namespace std;
 
-Error TypeChecker::checkType(Class& cl, const SymbolTable& table)
+template<>
+Error TypeChecker::checkType<ClassType::Class>(
+		Class& cl, const SymbolTable& table)
 {
 	SymbolTable t(cl, &table);
 
@@ -34,6 +36,21 @@ Error TypeChecker::checkType(Class& cl, const SymbolTable& table)
 			return error;
 
 	return Error::success();
+}
+
+template<>
+Error TypeChecker::checkType<ClassType::Function>(
+		Class& cl, const SymbolTable& table)
+{
+	return make_error<NotImplemented>(
+			"Type checking is not yet implemented for Function");
+}
+
+template<>
+Error TypeChecker::checkType<ClassType::Model>(
+		Class& cl, const SymbolTable& table)
+{
+	return checkType<ClassType::Class>(cl, table);
 }
 
 Error TypeChecker::checkType(Member& mem, const SymbolTable& table)
