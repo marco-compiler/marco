@@ -90,3 +90,20 @@ Expression& Call::getFunction() { return *function; }
 const Expression& Call::getFunction() const { return *function; }
 
 size_t Call::argumentsCount() const { return args.size(); }
+
+SmallVectorImpl<Call::UniqueExpr>::iterator Call::begin()
+{
+	return args.begin();
+}
+
+SmallVectorImpl<Call::UniqueExpr>::const_iterator Call::begin() const
+{
+	return args.begin();
+}
+
+SmallVectorImpl<Call::UniqueExpr>::iterator Call::end() { return args.end(); }
+
+SmallVectorImpl<Call::UniqueExpr>::const_iterator Call::end() const
+{
+	return args.end();
+}

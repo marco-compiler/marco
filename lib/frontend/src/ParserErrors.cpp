@@ -10,6 +10,7 @@ char ChoiseNotFound::ID;
 char IncompatibleType::ID;
 char BranchesTypeDoNotMatch::ID;
 char EmptyList::ID;
+char BadSemantic::ID;
 
 std::error_condition modelica::make_error_condition(ParserErrorCode errc)
 {
@@ -38,6 +39,8 @@ std::error_condition modelica::make_error_condition(ParserErrorCode errc)
 		return std::error_condition(ParserErrorCode::incompatible_type);
 	if (ev == 6)
 		return std::error_condition(ParserErrorCode::empty_list);
+	if (ev == 7)
+		return std::error_condition(ParserErrorCode::bad_semantic);
 
 	return std::error_condition(ParserErrorCode::unexpected_token);
 }
@@ -53,7 +56,7 @@ std::error_condition modelica::make_error_condition(ParserErrorCode errc)
 
 /**
  * Decides the messaged based upon the type.
- * This is done for compatibilty with std::error, but when writing
+ * This is done for compatibility with std::error, but when writing
  * tools code you should report error with ExitOnError and that will use
  * the string provided by the class extending ErrorInfo.
  */
@@ -76,6 +79,6 @@ std::error_condition modelica::make_error_condition(ParserErrorCode errc)
 		case (6):
 			return "List was empty when expected not";
 		default:
-			return "Unkown Error";
+			return "Unknown Error";
 	}
 }

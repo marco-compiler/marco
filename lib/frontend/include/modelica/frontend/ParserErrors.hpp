@@ -20,7 +20,8 @@ namespace modelica
 		choise_not_found,
 		incompatible_type,
 		branches_types_do_not_match,
-		empty_list
+		empty_list,
+		bad_semantic
 	};
 }
 
@@ -222,6 +223,29 @@ namespace modelica
 		{
 			return std::error_code(
 					static_cast<int>(ParserErrorCode::incompatible_type),
+					ParserErrorCategory::category);
+		}
+
+		private:
+		std::string mess;
+	};
+
+	/**
+	 * BadSemantic is used to signal that the element declaration
+	 * is incompatible with the rules defined by the language.
+	 */
+	class BadSemantic: public llvm::ErrorInfo<BadSemantic>
+	{
+		public:
+		static char ID;
+		BadSemantic(std::string message): mess(std::move(message)) {}
+
+		void log(llvm::raw_ostream& OS) const override { OS << mess; }
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(ParserErrorCode::bad_semantic),
 					ParserErrorCategory::category);
 		}
 

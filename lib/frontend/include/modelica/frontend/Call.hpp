@@ -37,6 +37,13 @@ namespace modelica
 
 		[[nodiscard]] size_t argumentsCount() const;
 
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::iterator begin();
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::const_iterator begin()
+				const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::iterator end();
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::const_iterator end() const;
+
 		private:
 		UniqueExpr function;
 		llvm::SmallVector<UniqueExpr, 3> args;

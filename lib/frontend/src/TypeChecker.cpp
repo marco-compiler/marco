@@ -12,10 +12,16 @@
 #include <modelica/frontend/Type.hpp>
 #include <modelica/frontend/TypeChecker.hpp>
 #include <modelica/utils/IRange.hpp>
+#include <stack>
 
 using namespace modelica;
 using namespace llvm;
 using namespace std;
+
+Error TypeChecker::checkType(Algorithm& algorithm, const SymbolTable& table)
+{
+	return make_error<NotImplemented>("Not implemented");
+}
 
 template<>
 Error TypeChecker::checkType<ClassType::Class>(
@@ -42,8 +48,17 @@ template<>
 Error TypeChecker::checkType<ClassType::Function>(
 		Class& cl, const SymbolTable& table)
 {
-	return make_error<NotImplemented>(
-			"Type checking is not yet implemented for Function");
+	SymbolTable t(cl, &table);
+
+	// From Function reference:
+	// "A function can have at most one algorithm section or one external
+	// function interface (not both), which, if present, is the body of the
+	// function."
+	if (cl.getAlgorithms().size() > 1)
+		return make_error<BadSemantic>(
+				"Functions can have at most one algorithm section");
+
+	return Error::success();
 }
 
 template<>
@@ -97,6 +112,82 @@ Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 
 	if (auto error = checkType(eq.getRightHand(), table); error)
 		return error;
+
+	return Error::success();
+}
+
+Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
+{
+	// From Function reference:
+	// "A function cannot contain calls to the Modelica built-in operators der,
+	// initial, terminal, sample, pre, edge, change, reinit, delay, cardinality,
+	// inStream, actualStream, to the operators of the built-in package
+	// Connections, and is not allowed to contain when-statements."
+
+	stack<Expression> stack;
+	stack.push(statement.getExpression());
+
+	while (!stack.empty())
+	{
+		auto expression = stack.top();
+		stack.pop();
+
+		if (expression.isA<ReferenceAccess>())
+		{
+			string& name = expression.get<ReferenceAccess>().getName();
+
+			if (name == "der")
+				return make_error<BadSemantic>("der is not allowed in procedural code");
+			else if (name == "initial")
+				return make_error<BadSemantic>(
+						"initial is not allowed in procedural code");
+			else if (name == "terminal")
+				return make_error<BadSemantic>(
+						"terminal is not allowed in procedural code");
+			else if (name == "sample")
+				return make_error<BadSemantic>(
+						"sample is not allowed in procedural code");
+			else if (name == "pre")
+				return make_error<BadSemantic>("pre is not allowed in procedural code");
+			else if (name == "edge")
+				return make_error<BadSemantic>(
+						"edge is not allowed in procedural code");
+			else if (name == "change")
+				return make_error<BadSemantic>(
+						"change is not allowed in procedural code");
+			else if (name == "reinit")
+				return make_error<BadSemantic>(
+						"reinit is not allowed in procedural code");
+			else if (name == "delay")
+				return make_error<BadSemantic>(
+						"delay is not allowed in procedural code");
+			else if (name == "cardinality")
+				return make_error<BadSemantic>(
+						"cardinality is not allowed in procedural code");
+			else if (name == "inStream")
+				return make_error<BadSemantic>(
+						"inStream is not allowed in procedural code");
+			else if (name == "actualStream")
+				return make_error<BadSemantic>(
+						"actualStream is not allowed in procedural code");
+
+			// TODO: Connections built-in operators + when statement
+		}
+		else if (expression.isOperation())
+		{
+			for (auto& arg : expression.getOperation())
+				stack.push(arg);
+		}
+		else if (expression.isA<Call>())
+		{
+			auto& call = expression.get<Call>();
+
+			for (auto& arg : call)
+				stack.push(*arg);
+
+			stack.push(call.getFunction());
+		}
+	}
 
 	return Error::success();
 }
