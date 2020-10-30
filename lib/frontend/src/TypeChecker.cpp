@@ -136,40 +136,14 @@ Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
 		{
 			string& name = expression.get<ReferenceAccess>().getName();
 
-			if (name == "der")
-				return make_error<BadSemantic>("der is not allowed in procedural code");
-			else if (name == "initial")
+			if (name == "der" || name == "initial" || name == "terminal" ||
+					name == "sample" || name == "pre" || name == "edge" ||
+					name == "change" || name == "reinit" || name == "delay" ||
+					name == "cardinality" || name == "inStream" || name == "actualStream")
+			{
 				return make_error<BadSemantic>(
-						"initial is not allowed in procedural code");
-			else if (name == "terminal")
-				return make_error<BadSemantic>(
-						"terminal is not allowed in procedural code");
-			else if (name == "sample")
-				return make_error<BadSemantic>(
-						"sample is not allowed in procedural code");
-			else if (name == "pre")
-				return make_error<BadSemantic>("pre is not allowed in procedural code");
-			else if (name == "edge")
-				return make_error<BadSemantic>(
-						"edge is not allowed in procedural code");
-			else if (name == "change")
-				return make_error<BadSemantic>(
-						"change is not allowed in procedural code");
-			else if (name == "reinit")
-				return make_error<BadSemantic>(
-						"reinit is not allowed in procedural code");
-			else if (name == "delay")
-				return make_error<BadSemantic>(
-						"delay is not allowed in procedural code");
-			else if (name == "cardinality")
-				return make_error<BadSemantic>(
-						"cardinality is not allowed in procedural code");
-			else if (name == "inStream")
-				return make_error<BadSemantic>(
-						"inStream is not allowed in procedural code");
-			else if (name == "actualStream")
-				return make_error<BadSemantic>(
-						"actualStream is not allowed in procedural code");
+						name + " is not allowed in procedural code");
+			}
 
 			// TODO: Connections built-in operators + when statement
 		}

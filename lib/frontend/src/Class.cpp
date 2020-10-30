@@ -4,7 +4,7 @@ using namespace std;
 using namespace llvm;
 using namespace modelica;
 
-string toString(ClassType type)
+string modelica::toString(ClassType type)
 {
 	switch (type)
 	{
