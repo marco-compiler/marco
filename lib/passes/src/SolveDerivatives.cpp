@@ -3,6 +3,7 @@
 #include <memory>
 
 #include "llvm/Support/Error.h"
+#include "llvm/Support/raw_ostream.h"
 #include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModErrors.hpp"
 #include "modelica/model/ModExp.hpp"
@@ -101,7 +102,7 @@ Expected<AssignModel> modelica::addAproximation(Model& model, double deltaTime)
 		auto u = update.clone(update.getTemplate()->getName() + "explicitated");
 		if (auto e = u.explicitate(); e)
 			return move(e);
-		auto& templ = update.getTemplate();
+		auto& templ = u.getTemplate();
 		out.emplaceUpdate(templ, move(update.getInductions()), update.isForward());
 	}
 
