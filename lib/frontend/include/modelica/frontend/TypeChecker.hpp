@@ -33,4 +33,16 @@ namespace modelica
 		llvm::Error checkCall(Expression& call, const SymbolTable& table);
 		llvm::Error checkOperation(Expression& call, const SymbolTable& table);
 	};
+
+	template<>
+	llvm::Error TypeChecker::checkType<ClassType::Class>(
+			Class& cl, const SymbolTable& table);
+
+	template<>
+	llvm::Error TypeChecker::checkType<ClassType::Function>(
+			Class& cl, const SymbolTable& table);
+
+	template<>
+	llvm::Error TypeChecker::checkType<ClassType::Model>(
+			Class& cl, const SymbolTable& table);
 }	 // namespace modelica
