@@ -217,11 +217,11 @@ static Expected<ModExp> lowerConstant(Expression& c, const SymbolTable table)
 {
 	assert(c.isA<Constant>());
 
-	if (c.getConstant().isA<BuiltinType::Integer>())
-		return ModExp(ModConst(c.getConstant().as<BuiltinType::Integer>()));
+	if (c.get<Constant>().isA<BuiltinType::Integer>())
+		return ModExp(ModConst(c.get<Constant>().as<BuiltinType::Integer>()));
 
-	if (c.getConstant().isA<BuiltinType::Float>())
-		return ModExp(ModConst(c.getConstant().as<BuiltinType::Float>()));
+	if (c.get<Constant>().isA<BuiltinType::Float>())
+		return ModExp(ModConst(c.get<Constant>().as<BuiltinType::Float>()));
 
 	return make_error<NotImplemented>("unlowerable constant");
 }
@@ -387,7 +387,7 @@ Expected<ModExp> OmcToModelPass::lowerOperation(
 		Expression& op, const SymbolTable& table)
 {
 	SmallVector<ModExp, 3> arguments;
-	for (auto& arg : op.getOperation())
+	for (auto& arg : op.get<Operation>())
 	{
 		auto newArg = lower(arg, table);
 		if (!newArg)
@@ -399,7 +399,7 @@ Expected<ModExp> OmcToModelPass::lowerOperation(
 	if (!tp)
 		return tp.takeError();
 
-	switch (op.getOperation().getKind())
+	switch (op.get<Operation>().getKind())
 	{
 		case OperationKind::negate:
 			return lowerNegate(*tp, move(arguments));
@@ -452,7 +452,7 @@ Expected<ModExp> OmcToModelPass::lower(
 	if (exp.isA<ReferenceAccess>())
 		return lowerReference(exp, table);
 
-	if (exp.isOperation())
+	if (exp.isA<Operation>())
 		return lowerOperation(exp, table);
 
 	assert(false && "unreachable");
@@ -470,7 +470,7 @@ Expected<ModExp> OmcToModelPass::lowerStart(
 				"Start overload of member " + member.getName() +
 				" was not folded into a constant");
 
-	auto cst = lowerConstant(member.getStartOverload().getConstant());
+	auto cst = lowerConstant(member.getStartOverload().get<Constant>());
 	if (!cst)
 		return cst.takeError();
 

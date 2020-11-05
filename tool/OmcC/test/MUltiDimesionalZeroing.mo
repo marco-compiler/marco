@@ -20,4 +20,4 @@ equation
 		end for;
 	end for;
 
-end ZeroingExample;
+end MultiDimZeroingExample;

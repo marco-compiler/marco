@@ -1,4 +1,4 @@
-class MultiDimZeroingExample
+class DepthTreeCycleExample
 	Real[10, 10] v1;
 	Real[10, 10] v2;
 	Real[10, 10] v3;
@@ -34,4 +34,4 @@ equation
 		end for;
 	end for;
 
-end ZeroingExample;
+end DepthTreeCycleExample;
