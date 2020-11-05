@@ -17,7 +17,7 @@ TEST(ParserTest, primaryIntTest)
 		FAIL();
 
 	EXPECT_TRUE(exp->isA<Constant>());
-	EXPECT_TRUE(exp->getConstant().isA<BuiltinType::Integer>());
+	EXPECT_TRUE(exp->get<Constant>().isA<BuiltinType::Integer>());
 }
 
 TEST(ParserTest, primaryFloatTest)
@@ -28,7 +28,7 @@ TEST(ParserTest, primaryFloatTest)
 		FAIL();
 
 	EXPECT_TRUE(exp->isA<Constant>());
-	EXPECT_TRUE(exp->getConstant().isA<BuiltinType::Float>());
+	EXPECT_TRUE(exp->get<Constant>().isA<BuiltinType::Float>());
 }
 
 TEST(ParserTest, expressionTest)
@@ -39,7 +39,7 @@ TEST(ParserTest, expressionTest)
 		FAIL();
 
 	EXPECT_TRUE(exp->isA<Constant>());
-	EXPECT_TRUE(exp->getConstant().isA<BuiltinType::Float>());
+	EXPECT_TRUE(exp->get<Constant>().isA<BuiltinType::Float>());
 }
 
 TEST(ParserTest, sumTest)
@@ -49,13 +49,15 @@ TEST(ParserTest, sumTest)
 	if (!exp)
 		FAIL();
 
-	EXPECT_TRUE(exp->isOperation());
-	EXPECT_EQ(exp->getOperation().getKind(), OperationKind::add);
-	EXPECT_TRUE(exp->getOperation()[0].isA<Constant>());
-	EXPECT_TRUE(exp->getOperation()[0].getConstant().isA<BuiltinType::Float>());
+	EXPECT_TRUE(exp->isA<Operation>());
+	EXPECT_EQ(exp->get<Operation>().getKind(), OperationKind::add);
+	EXPECT_TRUE(exp->get<Operation>()[0].isA<Constant>());
+	EXPECT_TRUE(
+			exp->get<Operation>()[0].get<Constant>().isA<BuiltinType::Float>());
 
-	EXPECT_TRUE(exp->getOperation()[1].isA<Constant>());
-	EXPECT_TRUE(exp->getOperation()[1].getConstant().isA<BuiltinType::Float>());
+	EXPECT_TRUE(exp->get<Operation>()[1].isA<Constant>());
+	EXPECT_TRUE(
+			exp->get<Operation>()[1].get<Constant>().isA<BuiltinType::Float>());
 }
 
 TEST(ParserTest, subTest)
@@ -65,15 +67,17 @@ TEST(ParserTest, subTest)
 	if (!exp)
 		FAIL();
 
-	EXPECT_TRUE(exp->isOperation());
-	EXPECT_EQ(exp->getOperation().getKind(), OperationKind::add);
-	EXPECT_TRUE(exp->getOperation()[0].isA<Constant>());
-	EXPECT_TRUE(exp->getOperation()[0].getConstant().isA<BuiltinType::Float>());
+	EXPECT_TRUE(exp->isA<Operation>());
+	EXPECT_EQ(exp->get<Operation>().getKind(), OperationKind::add);
+	EXPECT_TRUE(exp->get<Operation>()[0].isA<Constant>());
+	EXPECT_TRUE(
+			exp->get<Operation>()[0].get<Constant>().isA<BuiltinType::Float>());
 
-	EXPECT_EQ(exp->getOperation().argumentsCount(), 2);
-	EXPECT_TRUE(exp->getOperation()[1].isOperation());
+	EXPECT_EQ(exp->get<Operation>().argumentsCount(), 2);
+	EXPECT_TRUE(exp->get<Operation>()[1].isA<Operation>());
 	EXPECT_EQ(
-			exp->getOperation()[1].getOperation().getKind(), OperationKind::subtract);
+			exp->get<Operation>()[1].get<Operation>().getKind(),
+			OperationKind::subtract);
 }
 
 TEST(ParserTest, andTest)
@@ -83,13 +87,15 @@ TEST(ParserTest, andTest)
 	if (!exp)
 		FAIL();
 
-	EXPECT_TRUE(exp->isOperation());
-	EXPECT_EQ(exp->getOperation().getKind(), OperationKind::land);
-	EXPECT_TRUE(exp->getOperation()[0].isA<Constant>());
-	EXPECT_TRUE(exp->getOperation()[0].getConstant().isA<BuiltinType::Boolean>());
+	EXPECT_TRUE(exp->isA<Operation>());
+	EXPECT_EQ(exp->get<Operation>().getKind(), OperationKind::land);
+	EXPECT_TRUE(exp->get<Operation>()[0].isA<Constant>());
+	EXPECT_TRUE(
+			exp->get<Operation>()[0].get<Constant>().isA<BuiltinType::Boolean>());
 
-	EXPECT_TRUE(exp->getOperation()[1].isA<Constant>());
-	EXPECT_TRUE(exp->getOperation()[1].getConstant().isA<BuiltinType::Boolean>());
+	EXPECT_TRUE(exp->get<Operation>()[1].isA<Constant>());
+	EXPECT_TRUE(
+			exp->get<Operation>()[1].get<Constant>().isA<BuiltinType::Boolean>());
 }
 
 TEST(ParserTest, orTest)
@@ -99,13 +105,15 @@ TEST(ParserTest, orTest)
 	if (!exp)
 		FAIL();
 
-	EXPECT_TRUE(exp->isOperation());
-	EXPECT_EQ(exp->getOperation().getKind(), OperationKind::lor);
-	EXPECT_TRUE(exp->getOperation()[0].isA<Constant>());
-	EXPECT_TRUE(exp->getOperation()[0].getConstant().isA<BuiltinType::Boolean>());
+	EXPECT_TRUE(exp->isA<Operation>());
+	EXPECT_EQ(exp->get<Operation>().getKind(), OperationKind::lor);
+	EXPECT_TRUE(exp->get<Operation>()[0].isA<Constant>());
+	EXPECT_TRUE(
+			exp->get<Operation>()[0].get<Constant>().isA<BuiltinType::Boolean>());
 
-	EXPECT_TRUE(exp->getOperation()[1].isA<Constant>());
-	EXPECT_TRUE(exp->getOperation()[1].getConstant().isA<BuiltinType::Boolean>());
+	EXPECT_TRUE(exp->get<Operation>()[1].isA<Constant>());
+	EXPECT_TRUE(
+			exp->get<Operation>()[1].get<Constant>().isA<BuiltinType::Boolean>());
 }
 
 TEST(ParserTest, division)
@@ -115,13 +123,14 @@ TEST(ParserTest, division)
 	if (!exp)
 		FAIL();
 
-	EXPECT_TRUE(exp->isOperation());
-	EXPECT_EQ(exp->getOperation().getKind(), OperationKind::divide);
-	EXPECT_TRUE(exp->getOperation()[0].isA<Constant>());
-	EXPECT_TRUE(exp->getOperation()[0].getConstant().isA<BuiltinType::Float>());
+	EXPECT_TRUE(exp->isA<Operation>());
+	EXPECT_EQ(exp->get<Operation>().getKind(), OperationKind::divide);
+	EXPECT_TRUE(exp->get<Operation>()[0].isA<Constant>());
+	EXPECT_TRUE(
+			exp->get<Operation>()[0].get<Constant>().isA<BuiltinType::Float>());
 
-	EXPECT_EQ(exp->getOperation().argumentsCount(), 2);
-	EXPECT_TRUE(exp->getOperation()[1].isA<Constant>());
+	EXPECT_EQ(exp->get<Operation>().argumentsCount(), 2);
+	EXPECT_TRUE(exp->get<Operation>()[1].isA<Constant>());
 }
 
 TEST(ParserTest, equation)
@@ -131,8 +140,8 @@ TEST(ParserTest, equation)
 	if (!exp)
 		FAIL();
 
-	EXPECT_TRUE(exp->getLeftHand().isOperation());
-	EXPECT_TRUE(exp->getRightHand().isOperation());
+	EXPECT_TRUE(exp->getLeftHand().isA<Operation>());
+	EXPECT_TRUE(exp->getRightHand().isA<Operation>());
 }
 
 TEST(ParserTest, classTest)

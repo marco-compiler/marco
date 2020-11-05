@@ -132,6 +132,12 @@ namespace modelica
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		template<typename T>
+		[[nodiscard]] bool isA() const
+		{
+			return std::holds_alternative<T>(content);
+		}
+
+		template<typename T>
 		[[nodiscard]] T& get()
 		{
 			assert(isA<T>());
@@ -145,21 +151,7 @@ namespace modelica
 			return std::get<T>(content);
 		}
 
-		template<typename T>
-		[[nodiscard]] bool isA() const
-		{
-			return std::holds_alternative<T>(content);
-		}
-
 		[[nodiscard]] bool isLValue() const;
-
-		[[nodiscard]] bool isOperation() const;
-		[[nodiscard]] Operation& getOperation();
-		[[nodiscard]] const Operation& getOperation() const;
-		[[nodiscard]] OperationKind getOperationKind() const;
-
-		[[nodiscard]] Constant& getConstant();
-		[[nodiscard]] const Constant& getConstant() const;
 
 		[[nodiscard]] Type& getType();
 		[[nodiscard]] const Type& getType() const;
@@ -259,6 +251,8 @@ namespace modelica
 		std::variant<Operation, Constant, ReferenceAccess, Call> content;
 		Type type;
 	};
+
+	using Operation = Expression::Operation;
 
 	[[nodiscard]] Expression makeCall(
 			Expression fun, llvm::ArrayRef<Expression> args);

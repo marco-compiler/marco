@@ -23,7 +23,7 @@ TEST(StatementTest, integerAssignment)	// NOLINT
 	// Right-hand side
 	auto& expression = ast.getExpression();
 	ASSERT_TRUE(expression.isA<Constant>());
-	EXPECT_TRUE(expression.getConstant().isA<BuiltinType::Integer>());
+	EXPECT_TRUE(expression.get<Constant>().isA<BuiltinType::Integer>());
 }
 
 TEST(StatementTest, floatAssignment)	// NOLINT
@@ -45,7 +45,7 @@ TEST(StatementTest, floatAssignment)	// NOLINT
 	// Right-hand side
 	auto& expression = ast.getExpression();
 	ASSERT_TRUE(expression.isA<Constant>());
-	EXPECT_TRUE(expression.getConstant().isA<BuiltinType::Float>());
+	EXPECT_TRUE(expression.get<Constant>().isA<BuiltinType::Float>());
 }
 
 TEST(StatementTest, referenceAssignment)	// NOLINT

@@ -115,9 +115,6 @@ Error TypeChecker::checkType<ClassType::Function>(
 
 		for (auto& destination : statement.getDestinations())
 		{
-			if (auto error = checkType(destination, t); error)
-				return error;
-
 			// From Function reference:
 			// "Input formal parameters are read-only after being bound to the actual
 			// arguments or default values, i.e., they may not be assigned values in
@@ -125,9 +122,9 @@ Error TypeChecker::checkType<ClassType::Function>(
 
 			auto& exp = destination;
 
-			while (exp.isOperation())
+			while (exp.isA<Operation>())
 			{
-				auto& operation = exp.getOperation();
+				auto& operation = exp.get<Operation>();
 				assert(operation.getKind() == OperationKind::subscription);
 				exp = operation[0];
 			}
@@ -176,9 +173,9 @@ Error TypeChecker::checkType<ClassType::Function>(
 
 				// TODO: Connections built-in operators + when statement
 			}
-			else if (expression.isOperation())
+			else if (expression.isA<Operation>())
 			{
-				for (auto& arg : expression.getOperation())
+				for (auto& arg : expression.get<Operation>())
 					stack.push(arg);
 			}
 			else if (expression.isA<Call>())
@@ -255,6 +252,9 @@ Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
 {
 	for (auto& destination : statement.getDestinations())
 	{
+		if (auto error = checkType(destination, table); error)
+			return error;
+
 		// The destinations must be l-values.
 		// The check can't be enforced at parsing time because the grammar
 		// specifies the destinations as expressions.
@@ -304,10 +304,10 @@ Error TypeChecker::checkCall(Expression& callExp, const SymbolTable& table)
 
 static Error subscriptionCheckType(Expression& exp, const SymbolTable& table)
 {
-	assert(exp.isOperation());
-	assert(exp.getOperation().getKind() == OperationKind::subscription);
+	assert(exp.isA<Operation>());
+	assert(exp.get<Operation>().getKind() == OperationKind::subscription);
 
-	auto& op = exp.getOperation();
+	auto& op = exp.get<Operation>();
 	size_t subscriptionIndiciesCount = op.argumentsCount() - 1;
 
 	if (subscriptionIndiciesCount > op[0].getType().dimensionsCount())
@@ -324,8 +324,8 @@ static Error subscriptionCheckType(Expression& exp, const SymbolTable& table)
 
 Error TypeChecker::checkOperation(Expression& exp, const SymbolTable& table)
 {
-	assert(exp.isOperation());
-	auto& op = exp.getOperation();
+	assert(exp.isA<Operation>());
+	auto& op = exp.get<Operation>();
 
 	for (auto& arg : op)
 		if (auto error = checkType(arg, table); error)
@@ -401,7 +401,7 @@ Error TypeChecker::checkType(Expression& exp, const SymbolTable& table)
 		return Error::success();
 	}
 
-	if (exp.isOperation())
+	if (exp.isA<Operation>())
 	{
 		return checkOperation(exp, table);
 	}

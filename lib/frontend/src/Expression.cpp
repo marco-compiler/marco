@@ -210,21 +210,6 @@ bool Expression::isLValue() const
 	return false;
 }
 
-bool Expression::isOperation() const { return isA<Operation>(); }
-
-Operation& Expression::getOperation() { return get<Operation>(); }
-
-const Operation& Expression::getOperation() const { return get<Operation>(); }
-
-OperationKind Expression::getOperationKind() const
-{
-	return get<Operation>().getKind();
-}
-
-Constant& Expression::getConstant() { return get<Constant>(); }
-
-const Constant& Expression::getConstant() const { return get<Constant>(); }
-
 Type& Expression::getType() { return type; }
 
 const Type& Expression::getType() const { return type; }
