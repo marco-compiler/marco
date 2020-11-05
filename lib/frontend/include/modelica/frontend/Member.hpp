@@ -5,7 +5,8 @@
 #include <optional>
 #include <string>
 
-#include "modelica/frontend/Constant.hpp"
+#include "Constant.hpp"
+#include "TypePrefix.hpp"
 
 namespace modelica
 {
@@ -15,14 +16,16 @@ namespace modelica
 		Member(
 				std::string name,
 				Type tp,
+				TypePrefix prefix,
 				Expression initializer,
-				bool isParameter = false,
+				bool isPublic = true,
 				std::optional<Expression> startOverload = std::nullopt);
 
 		Member(
 				std::string name,
 				Type tp,
-				bool isParameter = false,
+				TypePrefix typePrefix,
+				bool isPublic = true,
 				std::optional<Expression> startOverload = std::nullopt);
 
 		void dump() const;
@@ -45,13 +48,17 @@ namespace modelica
 		[[nodiscard]] Expression& getStartOverload();
 		[[nodiscard]] const Expression& getStartOverload() const;
 
+		[[nodiscard]] bool isPublic() const;
 		[[nodiscard]] bool isParameter() const;
+		[[nodiscard]] bool isInput() const;
+		[[nodiscard]] bool isOutput() const;
 
 		private:
 		std::string name;
 		Type type;
+		TypePrefix typePrefix;
 		std::optional<Expression> initializer;
-		bool isParam;
+		bool isPublicMember;
 
 		std::optional<Expression> startOverload;
 	};

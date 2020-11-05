@@ -210,7 +210,10 @@ Expected<SmallVector<Member, 3>> Parser::elementList()
 {
 	SmallVector<Member, 3> members;
 
-	while (current != Token::EquationKeyword && current != Token::EndKeyword)
+	while (current != Token::PublicKeyword &&
+				 current != Token::ProtectedKeyword &&
+				 current != Token::EquationKeyword &&
+				 current != Token::AlgorithmKeyword && current != Token::EndKeyword)
 	{
 		TRY(memb, element());
 		EXPECT(Token::Semicolons);
@@ -220,7 +223,7 @@ Expected<SmallVector<Member, 3>> Parser::elementList()
 	return members;
 }
 
-Expected<Member> Parser::element()
+Expected<Member> Parser::element(bool publicSection)
 {
 	accept<Token::FinalKeyword>();
 	TRY(prefix, typePrefix());
@@ -244,12 +247,12 @@ Expected<Member> Parser::element()
 
 		accept<Token::String>();
 		return Member(
-				move(name), move(*type), move(*init), (*prefix).isParameter());
+				move(name), move(*type), move(*prefix), move(*init), publicSection);
 	}
 	accept<Token::String>();
 
 	return Member(
-			move(name), move(*type), (*prefix).isParameter(), startOverload);
+			move(name), move(*type), move(*prefix), publicSection, startOverload);
 }
 
 Expected<optional<Expression>> Parser::modification()

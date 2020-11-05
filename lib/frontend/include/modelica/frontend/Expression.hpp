@@ -66,6 +66,8 @@ namespace modelica
 			void dump(
 					llvm::raw_ostream& OS = llvm::outs(), size_t nestLevel = 0) const;
 
+			bool isLValue() const;
+
 			[[nodiscard]] OperationKind getKind() const;
 			void setKind(OperationKind k);
 
@@ -148,6 +150,8 @@ namespace modelica
 		{
 			return std::holds_alternative<T>(content);
 		}
+
+		[[nodiscard]] bool isLValue() const;
 
 		[[nodiscard]] bool isOperation() const;
 		[[nodiscard]] Operation& getOperation();

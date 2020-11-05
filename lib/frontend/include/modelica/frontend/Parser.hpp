@@ -52,7 +52,7 @@ namespace modelica
 		llvm::Expected<llvm::SmallVector<Member, 3>> elementList();
 
 		llvm::Expected<TypePrefix> typePrefix();
-		llvm::Expected<Member> element();
+		llvm::Expected<Member> element(bool publicSection = true);
 		std::optional<OperationKind> relationalOperator();
 
 		llvm::Expected<Expression> logicalTerm();

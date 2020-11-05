@@ -88,8 +88,17 @@ void TypePrefix::dump(raw_ostream& os, size_t indents) const
 	os.indent(indents);
 }
 
-bool TypePrefix::isParameter()
+bool TypePrefix::isParameter() const
 {
 	return parameterQualifier == ParameterQualifier::parameter ||
 				 parameterQualifier == ParameterQualifier::constant;
+}
+
+bool TypePrefix::isInput() const { return ioQualifier == IOQualifier::input; }
+
+bool TypePrefix::isOutput() const { return ioQualifier == IOQualifier::output; }
+
+TypePrefix TypePrefix::empty()
+{
+	return TypePrefix(ParameterQualifier::none, IOQualifier::none);
 }

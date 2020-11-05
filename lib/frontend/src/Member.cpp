@@ -7,23 +7,30 @@ using namespace modelica;
 Member::Member(
 		string name,
 		Type tp,
+		TypePrefix typePrefix,
 		Expression initializer,
-		bool isParameter,
+		bool isPublic,
 		optional<Expression> startOverload)
 		: name(move(name)),
 			type(move(tp)),
+			typePrefix(typePrefix),
 			initializer(move(initializer)),
-			isParam(isParameter),
+			isPublicMember(isPublic),
 			startOverload(move(startOverload))
 {
 }
 
 Member::Member(
-		string name, Type tp, bool isParameter, optional<Expression> startOverload)
+		string name,
+		Type tp,
+		TypePrefix typePrefix,
+		bool isPublic,
+		optional<Expression> startOverload)
 		: name(move(name)),
 			type(move(tp)),
+			typePrefix(typePrefix),
 			initializer(nullopt),
-			isParam(isParameter),
+			isPublicMember(isPublic),
 			startOverload(std::move(startOverload))
 {
 }
@@ -35,7 +42,7 @@ void Member::dump(llvm::raw_ostream& OS, size_t indents) const
 	OS.indent(indents);
 	OS << "member " << name << " type : ";
 	type.dump(OS);
-	OS << (isParam ? "param" : "");
+	OS << (isParameter() ? "param" : "");
 	OS << "\n";
 
 	if (hasInitializer())
@@ -99,4 +106,10 @@ Expression& Member::getStartOverload()
 	return startOverload.value();
 }
 
-bool Member::isParameter() const { return isParam; }
+bool Member::isPublic() const { return isPublicMember; }
+
+bool Member::isParameter() const { return typePrefix.isParameter(); }
+
+bool Member::isInput() const { return typePrefix.isInput(); }
+
+bool Member::isOutput() const { return typePrefix.isOutput(); }

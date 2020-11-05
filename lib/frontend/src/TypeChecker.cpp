@@ -18,9 +18,41 @@ using namespace modelica;
 using namespace llvm;
 using namespace std;
 
+static Expected<Type> typeFromSymbol(
+		const Expression& exp, const SymbolTable& table)
+{
+	assert(exp.isA<ReferenceAccess>());
+	ReferenceAccess acc = exp.get<ReferenceAccess>();
+	const auto& name = acc.getName();
+
+	if (name == "der")
+		return Type::unknown();
+
+	if (!table.hasSymbol(name))
+		return make_error<NotImplemented>("No known variable named " + name);
+
+	const auto& symbol = table[name];
+
+	// TODO: output type for functions
+	if (symbol.isA<Class>())
+		return Type::unknown();
+
+	if (symbol.isA<Member>())
+		return symbol.get<Member>().getType();
+
+	if (symbol.isA<Induction>())
+		return makeType<int>();
+
+	return make_error<NotImplemented>("No known variable named " + name);
+}
+
 Error TypeChecker::checkType(Algorithm& algorithm, const SymbolTable& table)
 {
-	return make_error<NotImplemented>("Not implemented");
+	for (auto& statement : algorithm.getStatements())
+		if (auto error = checkType(statement, table); error)
+			return error;
+
+	return Error::success();
 }
 
 template<>
@@ -50,13 +82,116 @@ Error TypeChecker::checkType<ClassType::Function>(
 {
 	SymbolTable t(cl, &table);
 
+	for (auto& member : cl.getMembers())
+	{
+		if (auto error = checkType(member, t); error)
+			return error;
+
+		// From Function reference:
+		// "Each input formal parameter of the function must be prefixed by the
+		// keyword input, and each result formal parameter by the keyword output.
+		// All public variables are formal parameters."
+
+		if (member.isPublic() && !member.isInput() && !member.isOutput())
+			return make_error<BadSemantic>(
+					"Public members of functions must be input or output variables");
+	}
+
+	auto& algorithms = cl.getAlgorithms();
+
 	// From Function reference:
 	// "A function can have at most one algorithm section or one external
 	// function interface (not both), which, if present, is the body of the
 	// function."
-	if (cl.getAlgorithms().size() > 1)
+
+	if (algorithms.size() == 1)
 		return make_error<BadSemantic>(
-				"Functions can have at most one algorithm section");
+				"Functions must have exactly one algorithm section");
+
+	for (auto& statement : algorithms[0].getStatements())
+	{
+		if (auto error = checkType(statement, t); error)
+			return error;
+
+		for (auto& destination : statement.getDestinations())
+		{
+			if (auto error = checkType(destination, t); error)
+				return error;
+
+			// From Function reference:
+			// "Input formal parameters are read-only after being bound to the actual
+			// arguments or default values, i.e., they may not be assigned values in
+			// the body of the function."
+
+			auto& exp = destination;
+
+			while (exp.isOperation())
+			{
+				auto& operation = exp.getOperation();
+				assert(operation.getKind() == OperationKind::subscription);
+				exp = operation[0];
+			}
+
+			assert(exp.isA<ReferenceAccess>());
+			auto& ref = exp.get<ReferenceAccess>();
+			const auto& name = ref.getName();
+
+			if (!t.hasSymbol(name))
+				return make_error<NotImplemented>("No known variable named " + name);
+
+			const auto& member = t[name].get<Member>();
+
+			if (member.isInput())
+				return make_error<BadSemantic>(
+						"Input variables can't receive a new value");
+		}
+
+		// From Function reference:
+		// "A function cannot contain calls to the Modelica built-in operators der,
+		// initial, terminal, sample, pre, edge, change, reinit, delay, cardinality,
+		// inStream, actualStream, to the operators of the built-in package
+		// Connections, and is not allowed to contain when-statements."
+
+		stack<Expression> stack;
+		stack.push(statement.getExpression());
+
+		while (!stack.empty())
+		{
+			auto expression = stack.top();
+			stack.pop();
+
+			if (expression.isA<ReferenceAccess>())
+			{
+				string& name = expression.get<ReferenceAccess>().getName();
+
+				if (name == "der" || name == "initial" || name == "terminal" ||
+						name == "sample" || name == "pre" || name == "edge" ||
+						name == "change" || name == "reinit" || name == "delay" ||
+						name == "cardinality" || name == "inStream" ||
+						name == "actualStream")
+				{
+					return make_error<BadSemantic>(
+							name + " is not allowed in procedural code");
+				}
+
+				// TODO: Connections built-in operators + when statement
+			}
+			else if (expression.isOperation())
+			{
+				for (auto& arg : expression.getOperation())
+					stack.push(arg);
+			}
+			else if (expression.isA<Call>())
+			{
+				auto& call = expression.get<Call>();
+
+				for (auto& arg : call)
+					stack.push(*arg);
+
+				stack.push(call.getFunction());
+			}
+		}
+	}
 
 	return Error::success();
 }
@@ -118,50 +253,19 @@ Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 
 Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
 {
-	// From Function reference:
-	// "A function cannot contain calls to the Modelica built-in operators der,
-	// initial, terminal, sample, pre, edge, change, reinit, delay, cardinality,
-	// inStream, actualStream, to the operators of the built-in package
-	// Connections, and is not allowed to contain when-statements."
-
-	stack<Expression> stack;
-	stack.push(statement.getExpression());
-
-	while (!stack.empty())
+	for (auto& destination : statement.getDestinations())
 	{
-		auto expression = stack.top();
-		stack.pop();
+		// The destinations must be l-values.
+		// The check can't be enforced at parsing time because the grammar
+		// specifies the destinations as expressions.
 
-		if (expression.isA<ReferenceAccess>())
-		{
-			string& name = expression.get<ReferenceAccess>().getName();
-
-			if (name == "der" || name == "initial" || name == "terminal" ||
-					name == "sample" || name == "pre" || name == "edge" ||
-					name == "change" || name == "reinit" || name == "delay" ||
-					name == "cardinality" || name == "inStream" || name == "actualStream")
-			{
-				return make_error<BadSemantic>(
-						name + " is not allowed in procedural code");
-			}
-
-			// TODO: Connections built-in operators + when statement
-		}
-		else if (expression.isOperation())
-		{
-			for (auto& arg : expression.getOperation())
-				stack.push(arg);
-		}
-		else if (expression.isA<Call>())
-		{
-			auto& call = expression.get<Call>();
-
-			for (auto& arg : call)
-				stack.push(*arg);
-
-			stack.push(call.getFunction());
-		}
+		if (!destination.isLValue())
+			return make_error<BadSemantic>(
+					"Destinations of statements must be l-values");
 	}
+
+	if (auto error = checkType(statement.getExpression(), table); error)
+		return error;
 
 	return Error::success();
 }
@@ -179,6 +283,7 @@ Error TypeChecker::checkCall(Expression& callExp, const SymbolTable& table)
 	if (auto error = checkType(call.getFunction(), table); error)
 		return error;
 
+	/*
 	if (!call.getFunction().isA<ReferenceAccess>())
 		return make_error<NotImplemented>("only der function is implemented");
 
@@ -188,6 +293,7 @@ Error TypeChecker::checkCall(Expression& callExp, const SymbolTable& table)
 	if (call.argumentsCount() != 1)
 		return make_error<NotImplemented>(
 				"only der with one argument are supported");
+				*/
 
 	if (auto error = checkType(call[0], table); error)
 		return error;
@@ -276,30 +382,6 @@ Error TypeChecker::checkOperation(Expression& exp, const SymbolTable& table)
 
 	assert(false && "unreachable");
 	return make_error<NotImplemented>("op was not any supported kind");
-}
-
-static Expected<Type> typeFromSymbol(
-		const Expression& exp, const SymbolTable& table)
-{
-	assert(exp.isA<ReferenceAccess>());
-	ReferenceAccess acc = exp.get<ReferenceAccess>();
-	const auto& name = acc.getName();
-
-	if (name == "der")
-		return Type::unknown();
-
-	if (!table.hasSymbol(name))
-		return make_error<NotImplemented>("no known variable named " + name);
-
-	const auto& symbol = table[name];
-
-	if (symbol.isA<Member>())
-		return symbol.get<Member>().getType();
-
-	if (symbol.isA<Induction>())
-		return makeType<int>();
-
-	return make_error<NotImplemented>("no known variable named " + name);
 }
 
 Error TypeChecker::checkType(Expression& exp, const SymbolTable& table)

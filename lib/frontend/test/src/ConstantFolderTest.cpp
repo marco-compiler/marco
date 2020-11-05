@@ -67,7 +67,7 @@ TEST(folderTest, sumInSubscriptionShouldFold)
 	ConstantFolder folder;
 
 	SymbolTable t;
-	Member m("name", makeType<int>(10), false);
+	Member m("name", makeType<int>(10), TypePrefix::empty());
 	t.addSymbol(m);
 	if (folder.fold(exp, t))
 		FAIL();
@@ -94,7 +94,7 @@ TEST(folderTest, sumInSubscriptionInDerShouldFold)
 	ConstantFolder folder;
 
 	SymbolTable t;
-	Member m("name", makeType<int>(10), false);
+	Member m("name", makeType<int>(10), TypePrefix::empty());
 	t.addSymbol(m);
 	if (folder.fold(call, t))
 		FAIL();

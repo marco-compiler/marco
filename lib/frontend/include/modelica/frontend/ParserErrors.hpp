@@ -252,4 +252,5 @@ namespace modelica
 		private:
 		std::string mess;
 	};
+
 }	 // namespace modelica

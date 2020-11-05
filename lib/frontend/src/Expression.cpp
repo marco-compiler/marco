@@ -102,6 +102,21 @@ void Operation::dump(raw_ostream& os, size_t indents) const
 	}
 }
 
+bool Operation::isLValue() const
+{
+	switch (kind)
+	{
+		case OperationKind::subscription:
+			return arguments[0].isLValue();
+
+		case OperationKind::memberLookup:
+			return true;
+
+		default:
+			return false;
+	}
+}
+
 OperationKind Operation::getKind() const { return kind; }
 
 void Operation::setKind(OperationKind k) { kind = k; }
@@ -182,6 +197,17 @@ void Expression::dump(raw_ostream& os, size_t indents) const
 		return;
 	}
 	assert(false && "unreachable");
+}
+
+bool Expression::isLValue() const
+{
+	if (isA<Operation>())
+		return get<Operation>().isLValue();
+
+	if (isA<ReferenceAccess>())
+		return true;
+
+	return false;
 }
 
 bool Expression::isOperation() const { return isA<Operation>(); }

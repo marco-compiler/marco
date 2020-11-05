@@ -3,8 +3,8 @@ modelicaAddTest(
 		src/AlgorithmParseTest.cpp
 		src/ConstantFolderTest.cpp
 		src/ExpressionTest.cpp
-		src/FunctionParseTest.cpp
-		src/LexerStateMachineTest.cpp
+        src/FunctionTest.cpp
+        src/LexerStateMachineTest.cpp
 		src/ParserTest.cpp
 		src/ParserErrorsTest.cpp
 		src/ParserEquationTest.cpp

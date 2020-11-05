@@ -38,7 +38,11 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
-		bool isParameter();
+		[[nodiscard]] bool isParameter() const;
+		[[nodiscard]] bool isInput() const;
+		[[nodiscard]] bool isOutput() const;
+
+		static TypePrefix empty();
 
 		private:
 		ParameterQualifier parameterQualifier;

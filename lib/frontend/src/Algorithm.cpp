@@ -21,6 +21,8 @@ void Algorithm::dump(llvm::raw_ostream& os, size_t indents) const
 		statement.dump(os, indents + 1);
 }
 
+SmallVectorImpl<Statement>& Algorithm::getStatements() { return statements; }
+
 const SmallVectorImpl<Statement>& Algorithm::getStatements() const
 {
 	return statements;
