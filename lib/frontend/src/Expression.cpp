@@ -6,7 +6,6 @@ using namespace modelica;
 using namespace std;
 using namespace llvm;
 
-using Operation = Expression::Operation;
 using Container = Operation::Container;
 
 namespace modelica
@@ -150,6 +149,10 @@ Expression::Expression(Type type, Call call)
 {
 }
 
+Expression::Expression(Tuple tuple): content(move(tuple)), type(Type::tuple())
+{
+}
+
 Expression::Expression(Type type, OperationKind kind, Operation::Container args)
 		: content(Operation(kind, move(args))), type(move(type))
 {
@@ -196,7 +199,8 @@ void Expression::dump(raw_ostream& os, size_t indents) const
 		get<Call>().dump(os, indents);
 		return;
 	}
-	assert(false && "unreachable");
+
+	assert(false && "Unreachable");
 }
 
 bool Expression::isLValue() const

@@ -29,11 +29,11 @@ static Expected<Type> typeFromSymbol(
 		return Type::unknown();
 
 	if (!table.hasSymbol(name))
-		return make_error<NotImplemented>("No known variable named " + name);
+		return make_error<NotImplemented>("Unknown variable name '" + name + "'");
 
-	const auto& symbol = table[name];
+	auto symbol = table[name];
 
-	// TODO: output type for functions
+	// TODO
 	if (symbol.isA<Class>())
 		return Type::unknown();
 
@@ -82,6 +82,8 @@ Error TypeChecker::checkType<ClassType::Function>(
 {
 	SymbolTable t(cl, &table);
 
+	vector<Type> types;
+
 	for (auto& member : cl.getMembers())
 	{
 		if (auto error = checkType(member, t); error)
@@ -95,6 +97,19 @@ Error TypeChecker::checkType<ClassType::Function>(
 		if (member.isPublic() && !member.isInput() && !member.isOutput())
 			return make_error<BadSemantic>(
 					"Public members of functions must be input or output variables");
+
+		// From Function reference:
+		// "Input formal parameters are read-only after being bound to the actual
+		// arguments or default values, i.e., they may not be assigned values in
+		// the body of the function."
+
+		if (member.isInput() && member.hasInitializer())
+			return make_error<BadSemantic>(
+					"Input variables can't receive a new value");
+
+		// Add type
+		if (member.isOutput())
+			types.push_back(member.getType());
 	}
 
 	auto& algorithms = cl.getAlgorithms();
@@ -104,9 +119,9 @@ Error TypeChecker::checkType<ClassType::Function>(
 	// function interface (not both), which, if present, is the body of the
 	// function."
 
-	if (algorithms.size() == 1)
+	if (algorithms.size() > 1)
 		return make_error<BadSemantic>(
-				"Functions must have exactly one algorithm section");
+				"Functions can have at most one algorithm section");
 
 	for (auto& statement : algorithms[0].getStatements())
 	{
@@ -283,18 +298,6 @@ Error TypeChecker::checkCall(Expression& callExp, const SymbolTable& table)
 	if (auto error = checkType(call.getFunction(), table); error)
 		return error;
 
-	/*
-	if (!call.getFunction().isA<ReferenceAccess>())
-		return make_error<NotImplemented>("only der function is implemented");
-
-	if (call.getFunction().get<ReferenceAccess>().getName() != "der")
-		return make_error<NotImplemented>("only der function is implemented");
-
-	if (call.argumentsCount() != 1)
-		return make_error<NotImplemented>(
-				"only der with one argument are supported");
-				*/
-
 	if (auto error = checkType(call[0], table); error)
 		return error;
 
@@ -395,8 +398,10 @@ Error TypeChecker::checkType(Expression& exp, const SymbolTable& table)
 	if (exp.isA<ReferenceAccess>())
 	{
 		auto tp = typeFromSymbol(exp, table);
+
 		if (!tp)
 			return tp.takeError();
+
 		exp.setType(move(*tp));
 		return Error::success();
 	}

@@ -11,6 +11,7 @@
 #include "Call.hpp"
 #include "Constant.hpp"
 #include "ReferenceAccess.hpp"
+#include "Tuple.hpp"
 #include "Type.hpp"
 
 namespace modelica
@@ -66,7 +67,7 @@ namespace modelica
 			void dump(
 					llvm::raw_ostream& OS = llvm::outs(), size_t nestLevel = 0) const;
 
-			bool isLValue() const;
+			[[nodiscard]] bool isLValue() const;
 
 			[[nodiscard]] OperationKind getKind() const;
 			void setKind(OperationKind k);
@@ -101,6 +102,7 @@ namespace modelica
 		Expression(Type tp, Constant costnt);
 		Expression(Type tp, ReferenceAccess access);
 		Expression(Type tp, Call call);
+		explicit Expression(Tuple tuple);
 
 		template<OperationKind op, typename... Args>
 		Expression(Type type, Args&&... args)
@@ -248,7 +250,7 @@ namespace modelica
 		}
 
 		private:
-		std::variant<Operation, Constant, ReferenceAccess, Call> content;
+		std::variant<Operation, Constant, ReferenceAccess, Call, Tuple> content;
 		Type type;
 	};
 
@@ -256,4 +258,10 @@ namespace modelica
 
 	[[nodiscard]] Expression makeCall(
 			Expression fun, llvm::ArrayRef<Expression> args);
+
+	template<typename... Expressions>
+	[[nodiscard]] Expression makeTuple(Expressions&&... expressions)
+	{
+		return Expression(Tuple(std::forward<Expressions>(expressions)...));
+	}
 }	 // namespace modelica

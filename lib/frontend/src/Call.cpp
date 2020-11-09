@@ -2,8 +2,8 @@
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/utils/IRange.hpp>
 
-using namespace modelica;
 using namespace llvm;
+using namespace modelica;
 using namespace std;
 
 Call::Call(Expression fun, ArrayRef<Expression> args)

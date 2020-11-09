@@ -15,6 +15,7 @@ modelicaAddLibrary(
         src/ReferenceAccess.cpp
         src/Statement.cpp
         src/SymbolTable.cpp
+        src/Tuple.cpp
         src/Type.cpp
         src/TypeChecker.cpp
         src/TypePrefix.cpp

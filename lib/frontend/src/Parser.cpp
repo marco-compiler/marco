@@ -162,6 +162,7 @@ Expected<Class> Parser::classDefinition()
 		{
 			TRY(func, classDefinition());
 			cls.addFunction(move(*func));
+			EXPECT(Token::Semicolons);
 			continue;
 		}
 
@@ -210,10 +211,10 @@ Expected<SmallVector<Member, 3>> Parser::elementList()
 {
 	SmallVector<Member, 3> members;
 
-	while (current != Token::PublicKeyword &&
-				 current != Token::ProtectedKeyword &&
-				 current != Token::EquationKeyword &&
-				 current != Token::AlgorithmKeyword && current != Token::EndKeyword)
+	while (
+			current != Token::PublicKeyword && current != Token::ProtectedKeyword &&
+			current != Token::FunctionKeyword && current != Token::EquationKeyword &&
+			current != Token::AlgorithmKeyword && current != Token::EndKeyword)
 	{
 		TRY(memb, element());
 		EXPECT(Token::Semicolons);
@@ -383,7 +384,7 @@ Expected<Statement> Parser::statement()
 {
 	if (accept(Token::LPar))
 	{
-		SmallVector<Expression, 2> destinations;
+		vector<Expression> destinations;
 
 		while (!accept<Token::RPar>())
 		{
@@ -402,7 +403,8 @@ Expected<Statement> Parser::statement()
 		TRY(functionName, componentReference());
 		TRY(args, functionCallArguments());
 		Expression call = makeCall(move(*functionName), move(*args));
-		return Statement(move(destinations), call);
+
+		return Statement(destinations.begin(), destinations.end(), call);
 	}
 
 	TRY(component, componentReference());

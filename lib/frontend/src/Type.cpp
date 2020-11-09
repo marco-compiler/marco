@@ -1,9 +1,9 @@
 #include <iostream>
 #include <modelica/frontend/Type.hpp>
 
-using namespace std;
 using namespace llvm;
 using namespace modelica;
+using namespace std;
 
 namespace modelica
 {
@@ -26,6 +26,8 @@ namespace modelica
 				return "string";
 			case BuiltinType::Boolean:
 				return "boolean";
+			case BuiltinType::Tuple:
+				return "tuple";
 			case BuiltinType::Unknown:
 				return "unknown";
 		}
@@ -131,5 +133,7 @@ Type Type::subscript(size_t times) const
 Type Type::Int() { return Type(typeToBuiltin<int>()); }
 
 Type Type::Float() { return Type(typeToBuiltin<float>()); }
+
+Type Type::tuple() { return Type(BuiltinType::Tuple); }
 
 Type Type::unknown() { return Type(BuiltinType::Unknown); }

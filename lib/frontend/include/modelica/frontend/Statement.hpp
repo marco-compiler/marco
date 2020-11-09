@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iterator>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
@@ -13,22 +14,42 @@ namespace modelica
 	{
 		public:
 		Statement(Expression destination, Expression expression);
-		Statement(llvm::ArrayRef<Expression> destinations, Expression expression);
+		Statement(
+				std::initializer_list<Expression> destinations, Expression expression);
+
+		template<typename Iter>
+		Statement(
+				Iter destinationsBegin, Iter destinationsEnd, Expression expression)
+				: destination(Tuple(destinationsBegin, destinationsEnd)),
+					expression(std::move(expression))
+		{
+		}
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents) const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<Expression>& getDestinations();
-		[[nodiscard]] Expression& getExpression();
+		template<typename T>
+		[[nodiscard]] bool destinationIsA() const
+		{
+			return std::holds_alternative<T>(destination);
+		}
 
-		[[nodiscard]] const llvm::SmallVectorImpl<Expression>& getDestinations()
-				const;
+		template<typename T>
+		[[nodiscard]] T& getDestination()
+		{
+			assert(destinationIsA<T>());
+			return std::get<T>(destination);
+		}
+
+		[[nodiscard]] std::vector<Expression> getDestinations();
+
+		[[nodiscard]] Expression& getExpression();
 		[[nodiscard]] const Expression& getExpression() const;
 
 		private:
 		// Where the result of the expression has to be stored.
 		// A vector is needed because functions may have multiple outputs.
-		llvm::SmallVector<Expression, 3> destinations;
+		std::variant<Expression, Tuple> destination;
 
 		// Right-hand side expression of the assignment
 		Expression expression;

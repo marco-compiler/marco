@@ -32,13 +32,14 @@ string modelica::toString(ClassType type)
 }
 
 Class::Class(
-		ClassType type,
+		ClassType classType,
 		string name,
 		ArrayRef<Member> members,
 		ArrayRef<Equation> equations,
 		ArrayRef<ForEquation> forEquations)
-		: type(move(type)),
+		: classType(move(classType)),
 			name(move(name)),
+			type(Type::unknown()),
 			members(iterator_range<ArrayRef<Member>::iterator>(move(members))),
 			equations(iterator_range<ArrayRef<Equation>::iterator>(move(equations))),
 			forEquations(
@@ -66,9 +67,15 @@ void Class::dump(raw_ostream& os, size_t indents) const
 		algorithm.dump(os, indents + 1);
 }
 
-ClassType Class::getType() const { return type; }
+ClassType Class::getClassType() const { return classType; }
 
 string& Class::getName() { return name; }
+
+Type& Class::getType() { return type; }
+
+const Type& Class::getType() const { return type; }
+
+void Class::setType(Type t) { type = move(t); }
 
 SmallVectorImpl<Member>& Class::getMembers() { return members; }
 

@@ -15,6 +15,7 @@ namespace modelica
 		Float,
 		String,
 		Boolean,
+		Tuple,
 		Unknown
 	};
 
@@ -23,26 +24,18 @@ namespace modelica
 	std::string toString(BuiltinType type);
 
 	template<typename T>
-	[[nodiscard]] constexpr BuiltinType typeToBuiltin()
+	constexpr BuiltinType typeToFrontendType()
 	{
-		if constexpr (std::is_same<T, int>())
+		if constexpr (std::is_same<T, double>::value)
+			return BuiltinType::Float;
+		if constexpr (std::is_same<T, int>::value)
 			return BuiltinType::Integer;
-
-		if constexpr (std::is_same<T, long>())
-			return BuiltinType::Integer;
-
-		if constexpr (std::is_same<T, std::string>())
+		if constexpr (std::is_same<T, bool>::value)
+			return BuiltinType::Boolean;
+		if constexpr (std::is_same<std::string, T>::value)
 			return BuiltinType::String;
 
-		if constexpr (std::is_same<T, bool>())
-			return BuiltinType::Boolean;
-
-		if constexpr (std::is_same<T, float>())
-			return BuiltinType::Float;
-
-		if constexpr (std::is_same<T, void>())
-			return BuiltinType::None;
-
+		assert(false && "unreachable");
 		return BuiltinType::Unknown;
 	}
 
@@ -85,17 +78,9 @@ namespace modelica
 		public:
 		Type(BuiltinType type, llvm::ArrayRef<size_t> dim = { 1 });
 
-		template<typename T>
-		Type(llvm::ArrayRef<size_t> dim = { 1 })
-				: dimensions(llvm::iterator_range<llvm::ArrayRef<size_t>::iterator>(
-							std::move(dim))),
-					type(typeToBuiltin<T>())
-		{
-			assert(!dimensions.empty());
-		}
-
 		[[nodiscard]] bool operator==(const Type& other) const;
 		[[nodiscard]] bool operator!=(const Type& other) const;
+
 		[[nodiscard]] size_t& operator[](int index);
 		[[nodiscard]] size_t operator[](int index) const;
 
@@ -122,6 +107,7 @@ namespace modelica
 
 		[[nodiscard]] static Type Int();
 		[[nodiscard]] static Type Float();
+		[[nodiscard]] static Type tuple();
 		[[nodiscard]] static Type unknown();
 
 		private:
@@ -132,10 +118,12 @@ namespace modelica
 	template<typename T, typename... Args>
 	[[nodiscard]] Type makeType(Args... args)
 	{
-		if constexpr (sizeof...(Args) == 0)
-			return Type(typeToBuiltin<T>());
+		static_assert(typeToFrontendType<T>() != BuiltinType::Unknown);
 
-		return Type(typeToBuiltin<T>(), { static_cast<size_t>(args)... });
+		if constexpr (sizeof...(Args) == 0)
+			return Type(typeToFrontendType<T>());
+
+		return Type(typeToFrontendType<T>(), { static_cast<size_t>(args)... });
 	}
 
 	template<BuiltinType T, typename... Args>
@@ -148,4 +136,5 @@ namespace modelica
 
 		return Type(T, { static_cast<size_t>(args)... });
 	}
+
 }	 // namespace modelica

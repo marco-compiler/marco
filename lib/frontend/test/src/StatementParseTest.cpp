@@ -16,7 +16,7 @@ TEST(StatementTest, integerAssignment)	// NOLINT
 	auto ast = move(*expectedAst);
 
 	// Left-hand side
-	auto& destinations = ast.getDestinations();
+	auto destinations = ast.getDestinations();
 	ASSERT_EQ(1, destinations.size());
 	EXPECT_TRUE(destinations[0].isA<ReferenceAccess>());
 
@@ -38,7 +38,7 @@ TEST(StatementTest, floatAssignment)	// NOLINT
 	auto ast = move(*expectedAst);
 
 	// Left-hand side
-	auto& destinations = ast.getDestinations();
+	auto destinations = ast.getDestinations();
 	ASSERT_EQ(1, destinations.size());
 	EXPECT_TRUE(destinations[0].isA<ReferenceAccess>());
 
@@ -61,7 +61,7 @@ TEST(StatementTest, referenceAssignment)	// NOLINT
 
 	// Left-hand side
 	ASSERT_EQ(1, ast.getDestinations().size());
-	auto& destinations = ast.getDestinations()[0];
+	auto destinations = ast.getDestinations()[0];
 	ASSERT_TRUE(destinations.isA<ReferenceAccess>());
 	EXPECT_EQ("x", destinations.get<ReferenceAccess>().getName());
 
@@ -112,7 +112,7 @@ TEST(StatementTest, multipleOutputs)	// NOLINT
 	auto ast = move(*expectedAst);
 
 	// Right-hand side is not tested because not so important for this test
-	auto& destinations = ast.getDestinations();
+	auto destinations = ast.getDestinations();
 	ASSERT_EQ(2, destinations.size());
 
 	ASSERT_TRUE(destinations[0].isA<ReferenceAccess>());
@@ -134,7 +134,7 @@ TEST(StatementTest, ignoredOutputs)	 // NOLINT
 	auto ast = move(*expectedAst);
 
 	// Right-hand side is not tested because not so important for this test
-	auto& destinations = ast.getDestinations();
+	auto destinations = ast.getDestinations();
 	ASSERT_EQ(3, destinations.size());
 
 	ASSERT_TRUE(destinations[0].isA<ReferenceAccess>());

@@ -35,7 +35,7 @@ namespace modelica
 	{
 		public:
 		Class(
-				ClassType type,
+				ClassType classType,
 				std::string name,
 				llvm::ArrayRef<Member> members = {},
 				llvm::ArrayRef<Equation> equations = {},
@@ -47,10 +47,14 @@ namespace modelica
 		template<ClassType T>
 		bool isA()
 		{
-			return type == T;
+			return classType == T;
 		}
 
-		[[nodiscard]] ClassType getType() const;
+		[[nodiscard]] ClassType getClassType() const;
+
+		[[nodiscard]] Type& getType();
+		[[nodiscard]] const Type& getType() const;
+		void setType(Type type);
 
 		[[nodiscard]] std::string& getName();
 		[[nodiscard]] const std::string& getName() const;
@@ -80,8 +84,9 @@ namespace modelica
 		void addFunction(Class function);
 
 		private:
-		ClassType type;
+		ClassType classType;
 		std::string name;
+		Type type;
 		llvm::SmallVector<Member, 3> members;
 		llvm::SmallVector<Equation, 3> equations;
 		llvm::SmallVector<ForEquation, 3> forEquations;
