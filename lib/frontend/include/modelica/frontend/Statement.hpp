@@ -28,6 +28,12 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents) const;
 
+		[[nodiscard]] std::vector<Expression*> getDestinations();
+
+		[[nodiscard]] Expression& getExpression();
+		[[nodiscard]] const Expression& getExpression() const;
+
+		private:
 		template<typename T>
 		[[nodiscard]] bool destinationIsA() const
 		{
@@ -41,12 +47,6 @@ namespace modelica
 			return std::get<T>(destination);
 		}
 
-		[[nodiscard]] std::vector<Expression> getDestinations();
-
-		[[nodiscard]] Expression& getExpression();
-		[[nodiscard]] const Expression& getExpression() const;
-
-		private:
 		// Where the result of the expression has to be stored.
 		// A vector is needed because functions may have multiple outputs.
 		std::variant<Expression, Tuple> destination;

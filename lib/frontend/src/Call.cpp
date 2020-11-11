@@ -74,15 +74,12 @@ void Call::dump() const { dump(outs(), 0); }
 void Call::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
-	os << "call:\n";
+	os << "call\n";
 
 	function->dump(os, indents + 1);
 
 	for (const auto& exp : args)
-	{
 		exp->dump(os, indents + 1);
-		os << "\n";
-	}
 }
 
 Expression& Call::getFunction() { return *function; }

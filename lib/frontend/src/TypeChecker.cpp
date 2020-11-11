@@ -14,8 +14,8 @@
 #include <modelica/utils/IRange.hpp>
 #include <stack>
 
-using namespace modelica;
 using namespace llvm;
+using namespace modelica;
 using namespace std;
 
 static Expected<Type> typeFromSymbol(
@@ -28,14 +28,16 @@ static Expected<Type> typeFromSymbol(
 	if (name == "der")
 		return Type::unknown();
 
+	if (name == "time")
+		return Type::Float();
+
 	if (!table.hasSymbol(name))
 		return make_error<NotImplemented>("Unknown variable name '" + name + "'");
 
 	auto symbol = table[name];
 
-	// TODO
 	if (symbol.isA<Class>())
-		return Type::unknown();
+		return symbol.get<Class>().getType();
 
 	if (symbol.isA<Member>())
 		return symbol.get<Member>().getType();
@@ -65,12 +67,20 @@ Error TypeChecker::checkType<ClassType::Class>(
 		if (auto error = checkType(m, t); error)
 			return error;
 
+	for (auto& function : cl.getFunctions())
+		if (auto error = checkType<ClassType::Function>(*function, t); error)
+			return error;
+
 	for (auto& eq : cl.getEquations())
 		if (auto error = checkType(eq, t); error)
 			return error;
 
 	for (auto& eq : cl.getForEquations())
 		if (auto error = checkType(eq, t); error)
+			return error;
+
+	for (auto& algorithm : cl.getAlgorithms())
+		if (auto error = checkType(algorithm, t); error)
 			return error;
 
 	return Error::success();
@@ -112,6 +122,11 @@ Error TypeChecker::checkType<ClassType::Function>(
 			types.push_back(member.getType());
 	}
 
+	if (types.size() == 1)
+		cl.setType(move(types[0]));
+	else
+		cl.setType(Type::tuple());
+
 	auto& algorithms = cl.getAlgorithms();
 
 	// From Function reference:
@@ -135,7 +150,7 @@ Error TypeChecker::checkType<ClassType::Function>(
 			// arguments or default values, i.e., they may not be assigned values in
 			// the body of the function."
 
-			auto& exp = destination;
+			auto& exp = *destination;
 
 			while (exp.isA<Operation>())
 			{
@@ -267,14 +282,14 @@ Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
 {
 	for (auto& destination : statement.getDestinations())
 	{
-		if (auto error = checkType(destination, table); error)
+		if (auto error = checkType(*destination, table); error)
 			return error;
 
 		// The destinations must be l-values.
 		// The check can't be enforced at parsing time because the grammar
 		// specifies the destinations as expressions.
 
-		if (!destination.isLValue())
+		if (!destination->isLValue())
 			return make_error<BadSemantic>(
 					"Destinations of statements must be l-values");
 	}
@@ -301,7 +316,7 @@ Error TypeChecker::checkCall(Expression& callExp, const SymbolTable& table)
 	if (auto error = checkType(call[0], table); error)
 		return error;
 
-	callExp.setType(call[0].getType());
+	callExp.setType(call.getFunction().getType());
 	return Error::success();
 }
 
@@ -411,6 +426,6 @@ Error TypeChecker::checkType(Expression& exp, const SymbolTable& table)
 		return checkOperation(exp, table);
 	}
 
-	assert(false && "unreachable");
+	assert(false && "Unreachable");
 	return make_error<NotImplemented>("exp was not any supported type");
 }

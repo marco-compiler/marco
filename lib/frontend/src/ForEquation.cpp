@@ -2,8 +2,8 @@
 #include <modelica/utils/IRange.hpp>
 
 using namespace llvm;
-using namespace std;
 using namespace modelica;
+using namespace std;
 
 Induction::Induction(string indVar, Expression begin, Expression end)
 		: begin(move(begin)),

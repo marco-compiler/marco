@@ -1,8 +1,8 @@
-#include "modelica/frontend/Statement.hpp"
+#include <modelica/frontend/Statement.hpp>
 
-using namespace std;
 using namespace llvm;
 using namespace modelica;
+using namespace std;
 
 Statement::Statement(Expression destination, Expression expression)
 		: destination(move(destination)), expression(move(expression))
@@ -28,20 +28,20 @@ void Statement::dump(raw_ostream& os, size_t indents) const
 		get<Tuple>(destination).dump(os, indents + 1);
 
 	os.indent(indents);
-	os << "expression:\n";
+	os << "assigned expression:\n";
 	expression.dump(os, indents + 1);
 }
 
-vector<Expression> Statement::getDestinations()
+vector<Expression*> Statement::getDestinations()
 {
-	vector<Expression> destinations;
+	vector<Expression*> destinations;
 
 	if (destinationIsA<Expression>())
-		destinations.push_back(getDestination<Expression>());
+		destinations.push_back(&getDestination<Expression>());
 	else
 	{
 		for (auto& exp : getDestination<Tuple>())
-			destinations.push_back(*exp);
+			destinations.push_back(&*exp);
 	}
 
 	return destinations;

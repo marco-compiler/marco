@@ -16,8 +16,8 @@
 #include <modelica/utils/IRange.hpp>
 
 using namespace llvm;
-using namespace std;
 using namespace modelica;
+using namespace std;
 
 Error ConstantFolder::fold(Equation& eq, const SymbolTable& table)
 {

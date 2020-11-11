@@ -1,8 +1,8 @@
-#include "modelica/frontend/ReferenceAccess.hpp"
+#include <modelica/frontend/ReferenceAccess.hpp>
 
-using namespace std;
 using namespace llvm;
 using namespace modelica;
+using namespace std;
 
 ReferenceAccess::ReferenceAccess(string name, bool globalLookup, bool dummy)
 		: referencedName(move(name)),
@@ -27,7 +27,8 @@ void ReferenceAccess::dump() const { dump(outs(), 0); }
 void ReferenceAccess::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
-	os << "reference access " << (globalLookup ? "." : "") << referencedName;
+	os << "reference access: " << (globalLookup ? "." : "") << referencedName
+		 << "\n";
 }
 
 string& ReferenceAccess::getName() { return referencedName; }

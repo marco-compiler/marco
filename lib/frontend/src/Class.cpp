@@ -1,8 +1,13 @@
 #include <modelica/frontend/Class.hpp>
 
-using namespace std;
 using namespace llvm;
 using namespace modelica;
+using namespace std;
+
+raw_ostream& modelica::operator<<(raw_ostream& stream, const ClassType& obj)
+{
+	return stream << toString(obj);
+}
 
 string modelica::toString(ClassType type)
 {
@@ -28,7 +33,7 @@ string modelica::toString(ClassType type)
 			return "type";
 	}
 
-	return "unexpected";
+	assert(false && "Unknown class type");
 }
 
 Class::Class(
@@ -52,10 +57,18 @@ void Class::dump() const { dump(outs(), 0); }
 void Class::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
-	os << "class " << name << "\n";
+	os << classType << " " << name << "\n";
+
+	os.indent(indents + 1);
+	os << "type: ";
+	type.dump(os);
+	os << "\n";
 
 	for (const auto& member : members)
 		member.dump(os, indents + 1);
+
+	for (const auto& function : functions)
+		function->dump(os, indents + 1);
 
 	for (const auto& equation : equations)
 		equation.dump(os, indents + 1);

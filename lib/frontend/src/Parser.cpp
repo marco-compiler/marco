@@ -13,8 +13,8 @@
 #include <modelica/frontend/Type.hpp>
 #include <optional>
 
-using namespace modelica;
 using namespace llvm;
+using namespace modelica;
 using namespace std;
 
 Parser::Parser(const string& source)
@@ -355,7 +355,7 @@ Expected<bool> Parser::equationSection(Class& cls)
 Expected<Algorithm> Parser::algorithmSection()
 {
 	EXPECT(Token::AlgorithmKeyword);
-	vector<Statement> statements;
+	SmallVector<Statement, 3> statements;
 
 	while (
 			current != Token::End && current != Token::PublicKeyword &&
@@ -368,7 +368,7 @@ Expected<Algorithm> Parser::algorithmSection()
 		statements.push_back(move(*stmnt));
 	}
 
-	return Algorithm(move(statements));
+	return Algorithm(statements.begin(), statements.end());
 }
 
 Expected<Equation> Parser::equation()

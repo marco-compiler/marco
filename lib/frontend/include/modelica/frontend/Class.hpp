@@ -25,6 +25,9 @@ namespace modelica
 		Type
 	};
 
+	llvm::raw_ostream& operator<<(
+			llvm::raw_ostream& stream, const ClassType& obj);
+
 	std::string toString(ClassType type);
 
 	class Class;

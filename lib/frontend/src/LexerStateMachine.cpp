@@ -1,8 +1,8 @@
 #include <modelica/frontend/LexerStateMachine.hpp>
 
-using namespace std;
 using namespace llvm;
 using namespace modelica;
+using namespace std;
 
 using State = ModelicaStateMachine::State;
 

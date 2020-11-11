@@ -2,9 +2,9 @@
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/utils/IRange.hpp>
 
+using namespace llvm;
 using namespace modelica;
 using namespace std;
-using namespace llvm;
 
 using Container = Operation::Container;
 
@@ -92,13 +92,13 @@ void Operation::dump() const { dump(outs(), 0); }
 void Operation::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
-	os << "Operation " << kind << " args:\n";
+	os << "operation kind: " << kind << "\n";
+
+	os.indent(indents);
+	os << "args:\n";
 
 	for (const auto& arg : arguments)
-	{
 		arg.dump(os, indents + 1);
-		os << '\n';
-	}
 }
 
 bool Operation::isLValue() const
@@ -175,30 +175,33 @@ void Expression::dump(raw_ostream& os, size_t indents) const
 	os.indent(indents);
 	os << "type: ";
 	getType().dump(os);
+	os << "\n";
 
 	if (isA<Operation>())
 	{
-		get<Operation>().dump(os, indents);
+		get<Operation>().dump(os, indents + 1);
 		return;
 	}
 
 	if (isA<Constant>())
 	{
-		get<Constant>().dump(os, indents);
+		get<Constant>().dump(os, indents + 1);
 		return;
 	}
 
 	if (isA<ReferenceAccess>())
 	{
-		get<ReferenceAccess>().dump(os, indents);
+		get<ReferenceAccess>().dump(os, indents + 1);
 		return;
 	}
 
 	if (isA<Call>())
 	{
-		get<Call>().dump(os, indents);
+		get<Call>().dump(os, indents + 1);
 		return;
 	}
+
+	os << "\n";
 
 	assert(false && "Unreachable");
 }

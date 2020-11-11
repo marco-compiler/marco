@@ -1,8 +1,8 @@
 #include <modelica/frontend/TypePrefix.hpp>
 
-using namespace std;
 using namespace llvm;
 using namespace modelica;
+using namespace std;
 
 namespace modelica
 {

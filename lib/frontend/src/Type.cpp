@@ -32,7 +32,7 @@ namespace modelica
 				return "unknown";
 		}
 
-		return "unexpected";
+		assert(false && "Unexpected type");
 	}
 }	 // namespace modelica
 

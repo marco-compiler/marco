@@ -56,14 +56,8 @@ void Tuple::dump() const { dump(outs(), 0); }
 
 void Tuple::dump(raw_ostream& os, size_t indents) const
 {
-	os.indent(indents);
-	os << "tuple:\n";
-
 	for (const auto& exp : expressions)
-	{
-		(*exp).dump(os, indents + 1);
-		os << "\n";
-	}
+		(*exp).dump(os, indents);
 }
 
 int Tuple::size() const { return expressions.size(); }

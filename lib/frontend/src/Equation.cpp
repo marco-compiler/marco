@@ -1,8 +1,8 @@
 #include <modelica/frontend/Equation.hpp>
 
-using namespace std;
 using namespace llvm;
 using namespace modelica;
+using namespace std;
 
 Equation::Equation(Expression leftHand, Expression rightHand)
 		: leftHand(std::move(leftHand)), rightHand(std::move(rightHand))

@@ -1,8 +1,8 @@
 #include <modelica/frontend/Member.hpp>
 
 using namespace llvm;
-using namespace std;
 using namespace modelica;
+using namespace std;
 
 Member::Member(
 		string name,
@@ -37,28 +37,25 @@ Member::Member(
 
 void Member::dump() const { dump(outs(), 0); }
 
-void Member::dump(llvm::raw_ostream& OS, size_t indents) const
+void Member::dump(llvm::raw_ostream& os, size_t indents) const
 {
-	OS.indent(indents);
-	OS << "member " << name << " type : ";
-	type.dump(OS);
-	OS << (isParameter() ? "param" : "");
-	OS << "\n";
+	os.indent(indents);
+	os << "member: {name: " << name << ", type: ";
+	type.dump(os);
+	os << "}\n";
 
 	if (hasInitializer())
 	{
-		OS.indent(indents);
-		OS << "initializer: \n";
-		initializer->dump(OS, indents + 1);
-		OS << "\n";
+		os.indent(indents + 1);
+		os << "initializer:\n";
+		initializer->dump(os, indents + 2);
 	}
 
 	if (hasStartOverload())
 	{
-		OS.indent(indents);
-		OS << "start overload: ";
-		startOverload->dump(OS);
-		OS << "\n";
+		os.indent(indents + 1);
+		os << "start overload:\n";
+		startOverload->dump(os, indents + 2);
 	}
 }
 

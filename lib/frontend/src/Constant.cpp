@@ -1,8 +1,8 @@
 #include <modelica/frontend/Constant.hpp>
 #include <modelica/frontend/Type.hpp>
 
-using namespace modelica;
 using namespace llvm;
+using namespace modelica;
 using namespace std;
 
 Constant::Constant(int val): content(val) {}
@@ -27,6 +27,7 @@ void Constant::dump() const { dump(outs(), 0); }
 void Constant::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
+	os << "constant: ";
 
 	if (isA<BuiltinType::Integer>())
 		os << get<BuiltinType::Integer>();
@@ -37,5 +38,7 @@ void Constant::dump(raw_ostream& os, size_t indents) const
 	else if (isA<BuiltinType::String>())
 		os << get<BuiltinType::String>();
 	else
-		assert(false && "unreachable");
+		assert(false && "Unreachable");
+
+	os << "\n";
 }
