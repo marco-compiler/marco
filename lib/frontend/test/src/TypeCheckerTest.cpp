@@ -19,7 +19,7 @@ TEST(TypeCheckTest, sumOfIntShouldProduceInt)
 
 	TypeChecker checker;
 
-	if (checker.checkType(exp, {}))
+	if (checker.checkType<Expression>(exp, {}))
 		FAIL();
 
 	EXPECT_EQ(exp.getType(), makeType<int>());
@@ -34,7 +34,7 @@ TEST(TypeCheckTest, andOfBoolShouldProduceBool)
 
 	TypeChecker checker;
 
-	if (checker.checkType(exp, {}))
+	if (checker.checkType<Expression>(exp, {}))
 		FAIL();
 
 	EXPECT_EQ(exp.getType(), makeType<bool>());

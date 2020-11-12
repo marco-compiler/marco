@@ -1,14 +1,15 @@
 modelicaAddTest(
-		frontend
-		src/AlgorithmParseTest.cpp
-		src/ConstantFolderTest.cpp
-		src/ExpressionTest.cpp
+        frontend
+        src/AlgorithmParseTest.cpp
+        src/ConstantFolderTest.cpp
+        src/ExpressionTest.cpp
         src/FunctionTest.cpp
         src/LexerStateMachineTest.cpp
-		src/ParserTest.cpp
-		src/ParserErrorsTest.cpp
-		src/ParserEquationTest.cpp
-		src/ParserClassTest.cpp
-		src/RecordParseTest.cpp
-		src/StatementParseTest.cpp
-		src/TypeCheckerTest.cpp)
+        src/ParserTest.cpp
+        src/ParserErrorsTest.cpp
+        src/ParserEquationTest.cpp
+        src/ParserClassTest.cpp
+        src/RecordTest.cpp
+        src/StatementTest.cpp
+        src/TupleTest.cpp
+        src/TypeCheckerTest.cpp)

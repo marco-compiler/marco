@@ -9,6 +9,7 @@
 #include <modelica/frontend/Equation.hpp>
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/frontend/Member.hpp>
+#include <modelica/frontend/Operation.hpp>
 #include <modelica/frontend/ParserErrors.hpp>
 #include <modelica/frontend/ReferenceAccess.hpp>
 #include <modelica/frontend/SymbolTable.hpp>
@@ -118,7 +119,7 @@ Error ConstantFolder::foldReference(Expression& exp, const SymbolTable& table)
 	return Error::success();
 }
 
-using Vector = Expression::Operation::Container;
+using Vector = Operation::Container;
 
 template<typename IteratorFrom, typename IteratorTo>
 void moveRange(IteratorFrom b, IteratorFrom e, IteratorTo b2)
@@ -130,22 +131,21 @@ void moveRange(IteratorFrom b, IteratorFrom e, IteratorTo b2)
  * Given a associative operation kind and a expression,
  * it brings all nested expressions to the top level.
  *
- * As an example a+(b+(2*c)) becomes a + b + (2*c)
+ * As an example a + (b+(2*c)) becomes a + b + (2*c)
  */
 static void flatten(Expression& exp, OperationKind kind)
 {
-	Vector& arguments = exp.getOperation().getArguments();
+	Vector& arguments = exp.get<Operation>().getArguments();
 	SmallVector<Expression, 3> newArguments;
 
 	for (size_t a = arguments.size() - 1; a != numeric_limits<size_t>::max(); a--)
 	{
 		// if a argument is not a operation we cannot do anything
-		if (!arguments[a].isOperation())
+		if (!arguments[a].isA<Operation>())
 			continue;
 
 		// if it is not the operation we are looking for we leave it there
-		auto& op = arguments[a].getOperation();
-
+		auto& op = arguments[a].get<Operation>();
 		if (op.getKind() != kind)
 			continue;
 
@@ -163,30 +163,32 @@ static void flatten(Expression& exp, OperationKind kind)
 	moveRange(newArguments.begin(), newArguments.end(), back_inserter(arguments));
 }
 
-template<typename Type>
+template<BuiltinType Type>
 static Expected<Expression> foldOpSum(Expression& exp)
 {
 	flatten(exp, OperationKind::add);
-	Vector& arguments = exp.getOperation().getArguments();
+	Vector& arguments = exp.get<Operation>().getArguments();
 	Vector newArgs;
+
+	using Tr = frontendTypeToType_v<Type>;
 
 	// for each argument, if it is a constant add it to to val, otherwise add it
 	// to the new arguments.
-	Type val = 0;
+	Tr val = 0;
 
 	for (auto& arg : arguments)
 		if (arg.isA<Constant>())
-			val += arg.getConstant().as<Type>();
+			val += arg.get<Constant>().as<Type>();
 		else
 			newArgs.emplace_back(move(arg));
 
 	// if there are not args left transform it into a constant
 	if (newArgs.empty())
-		return Expression(makeType<Type>(), val);
+		return Expression(makeType<Tr>(), val);
 
 	// if the sum of constants is not zero insert a new constant argument
 	if (val != 0)
-		newArgs.push_back(Expression(makeType<Type>(), val));
+		newArgs.push_back(Expression(makeType<Tr>(), val));
 
 	// if the arguments are exactly one, remove the sum and return the argument
 	// itself
@@ -197,27 +199,27 @@ static Expected<Expression> foldOpSum(Expression& exp)
 	return Expression::add(exp.getType(), move(newArgs));
 }
 
-template<typename Type>
+template<BuiltinType Type>
 static Expected<Expression> foldOpMult(Expression& exp)
 {
 	// works as the sum, read that one.
 	flatten(exp, OperationKind::multiply);
-	Vector& arguments = exp.getOperation().getArguments();
+	Vector& arguments = exp.get<Operation>().getArguments();
 	Vector newArgs;
 
-	Type val = 1;
-
+	using Tr = frontendTypeToType_v<Type>;
+	Tr val = 1;
 	for (auto& arg : arguments)
 		if (arg.isA<Constant>())
-			val *= arg.getConstant().as<Type>();
+			val *= arg.get<Constant>().as<Type>();
 		else
 			newArgs.emplace_back(move(arg));
 
 	if (newArgs.empty())
-		return Expression(makeType<Type>(), val);
+		return Expression(makeType<Tr>(), val);
 
 	if (val != 1)
-		newArgs.push_back(Expression(makeType<Type>(), val));
+		newArgs.push_back(Expression(makeType<Tr>(), val));
 
 	if (newArgs.size() == 1)
 		return newArgs[0];
@@ -225,142 +227,139 @@ static Expected<Expression> foldOpMult(Expression& exp)
 	return Expression::multiply(exp.getType(), move(newArgs));
 }
 
-template<typename Type>
+template<BuiltinType Type>
 static Expected<Expression> foldOpNegate(Expression& exp)
 {
-	Vector& arguments = exp.getOperation().getArguments();
-
+	Vector& arguments = exp.get<Operation>().getArguments();
 	if (arguments[0].isA<Constant>())
 		return Expression(
-				arguments[0].getType(), -arguments[0].getConstant().get<Type>());
+				arguments[0].getType(), -arguments[0].get<Constant>().get<Type>());
 	return exp;
 }
 
-template<typename Type>
+template<BuiltinType Type>
 static Expected<Expression> foldOpSubtract(Expression& exp)
 {
-	Vector& arguments = exp.getOperation().getArguments();
-
+	Vector& arguments = exp.get<Operation>().getArguments();
 	if (arguments.size() == 1)
 		if (arguments[0].isA<Constant>())
 			return Expression(
-					arguments[0].getType(), -arguments[0].getConstant().get<Type>());
+					arguments[0].getType(), -arguments[0].get<Constant>().get<Type>());
 
 	if (arguments[0].isA<Constant>() && arguments[1].isA<Constant>())
 		return Expression(
 				arguments[0].getType(),
-				arguments[0].getConstant().as<Type>() -
-						arguments[1].getConstant().as<Type>());
-
+				arguments[0].get<Constant>().as<Type>() -
+						arguments[1].get<Constant>().as<Type>());
 	return exp;
 }
 
-template<typename Type>
+template<BuiltinType Type>
 static Expected<Expression> foldOpDivide(Expression& exp)
 {
-	Vector& arguments = exp.getOperation().getArguments();
-
+	Vector& arguments = exp.get<Operation>().getArguments();
 	if (arguments[0].isA<Constant>() && arguments[1].isA<Constant>())
 		return Expression(
 				arguments[0].getType(),
-				arguments[0].getConstant().as<Type>() /
-						arguments[1].getConstant().as<Type>());
-
+				arguments[0].get<Constant>().as<Type>() /
+						arguments[1].get<Constant>().as<Type>());
 	return exp;
 }
 
 static Expected<Expression> foldOpSum(Expression& exp)
 {
-	Vector& arguments = exp.getOperation().getArguments();
+	Vector& arguments = exp.get<Operation>().getArguments();
 
-	if (arguments[0].getType() == makeType<int>())
-		return foldOpSum<int>(exp);
+	if (arguments[0].getType() == makeType<BuiltinType::Integer>())
+		return foldOpSum<BuiltinType::Integer>(exp);
 
-	if (arguments[0].getType() == makeType<float>())
-		return foldOpSum<float>(exp);
+	if (arguments[0].getType() == makeType<BuiltinType::Float>())
+		return foldOpSum<BuiltinType::Float>(exp);
 
 	return exp;
 }
 
 static Expected<Expression> foldOpSubtract(Expression& exp)
 {
-	Vector& arguments = exp.getOperation().getArguments();
+	Vector& arguments = exp.get<Operation>().getArguments();
 
-	if (arguments[0].getType() == makeType<int>())
-		return foldOpSubtract<int>(exp);
+	if (arguments[0].getType() == makeType<BuiltinType::Integer>())
+		return foldOpSubtract<BuiltinType::Integer>(exp);
 
-	if (arguments[0].getType() == makeType<int>())
-		return foldOpSubtract<float>(exp);
+	if (arguments[0].getType() == makeType<BuiltinType::Float>())
+		return foldOpSubtract<BuiltinType::Float>(exp);
 
 	return exp;
 }
 
 static Expected<Expression> foldOpDivide(Expression& exp)
 {
-	Vector& arguments = exp.getOperation().getArguments();
+	Vector& arguments = exp.get<Operation>().getArguments();
 
-	if (arguments[0].getType() == makeType<int>())
-		return foldOpDivide<int>(exp);
+	if (arguments[0].getType() == makeType<BuiltinType::Integer>())
+		return foldOpDivide<BuiltinType::Integer>(exp);
 
-	if (arguments[0].getType() == makeType<float>())
-		return foldOpDivide<float>(exp);
+	if (arguments[0].getType() == makeType<BuiltinType::Float>())
+		return foldOpDivide<BuiltinType::Float>(exp);
 
 	return exp;
 }
 
 static Expected<Expression> foldOpMult(Expression& exp)
 {
-	Vector& arguments = exp.getOperation().getArguments();
+	Vector& arguments = exp.get<Operation>().getArguments();
 
-	if (arguments[0].getType() == makeType<int>())
-		return foldOpMult<int>(exp);
+	if (arguments[0].getType() == makeType<BuiltinType::Integer>())
+		return foldOpMult<BuiltinType::Integer>(exp);
 
-	if (arguments[0].getType() == makeType<float>())
-		return foldOpMult<float>(exp);
+	if (arguments[0].getType() == makeType<BuiltinType::Float>())
+		return foldOpMult<BuiltinType::Float>(exp);
 
 	return exp;
 }
 
-template<typename T>
+template<BuiltinType T>
 static Expected<Expression> foldOpExp(Expression& exp)
 {
-	Vector& arguments = exp.getOperation().getArguments();
+	Vector& arguments = exp.get<Operation>().getArguments();
 	assert(arguments.size() == 2);
 
 	if (!arguments[0].isA<Constant>() || !arguments[1].isA<Constant>())
 		return exp;
 
-	T val = pow(
-			arguments[0].getConstant().as<T>(), arguments[1].getConstant().as<T>());
+	using Tr = frontendTypeToType_v<T>;
+	Tr val =
+			pow(arguments[0].get<Constant>().as<T>(),
+					arguments[1].get<Constant>().as<T>());
 
-	return Expression(makeType<T>(), val);
+	return Expression(makeType<Tr>(), val);
 }
 
 static Expected<Expression> foldOpExp(Expression& exp)
 {
-	Vector& arguments = exp.getOperation().getArguments();
+	Vector& arguments = exp.get<Operation>().getArguments();
 
-	if (arguments[0].getType() == makeType<int>())
-		return foldOpExp<int>(exp);
+	if (arguments[0].getType() == makeType<BuiltinType::Integer>())
+		return foldOpExp<BuiltinType::Integer>(exp);
 
-	if (arguments[0].getType() == makeType<float>())
-		return foldOpExp<float>(exp);
+	if (arguments[0].getType() == makeType<BuiltinType::Float>())
+		return foldOpExp<BuiltinType::Float>(exp);
 
 	return exp;
 }
 
 static Expected<Expression> foldOpNegate(Expression& exp)
 {
-	Vector& arguments = exp.getOperation().getArguments();
+	Vector& arguments = exp.get<Operation>().getArguments();
 
-	if (arguments[0].getType() == makeType<int>())
-		return foldOpNegate<int>(exp);
+	if (arguments[0].getType() == makeType<BuiltinType::Integer>())
+		return foldOpNegate<BuiltinType::Integer>(exp);
 
-	if (arguments[0].getType() == makeType<float>())
-		return foldOpNegate<float>(exp);
+	if (arguments[0].getType() == makeType<BuiltinType::Float>())
+		return foldOpNegate<BuiltinType::Float>(exp);
 
 	if (arguments[0].getType() == makeType<bool>())
-		return foldOpNegate<bool>(exp);
+		return foldOpNegate<BuiltinType::Boolean>(exp);
 
 	assert(false && "unrechable");
 	return exp;
@@ -370,9 +369,9 @@ static Expected<Expression> foldOpSubscrition(
 		Expression& exp, const SymbolTable& table)
 {
 	return exp;
-	assert(exp.getOperation().getKind() == OperationKind::subscription);
+	assert(exp.get<Operation>().getKind() == OperationKind::subscription);
 
-	const auto& target = exp.getOperation().getArguments()[0];
+	const auto& target = exp.get<Operation>().getArguments()[0];
 	if (not exp.getType().isScalar())
 		return exp;
 
@@ -404,9 +403,8 @@ static Expected<Expression> foldOpSubscrition(
 Expected<Expression> ConstantFolder::foldExpression(
 		Expression& exp, const SymbolTable& table)
 {
-	assert(exp.isOperation());
-	auto& op = exp.getOperation();
-
+	assert(exp.isA<Operation>());
+	auto& op = exp.get<Operation>();
 	for (auto& arg : op)
 		if (auto error = fold(arg, table); error)
 			return move(error);
@@ -455,7 +453,7 @@ Error ConstantFolder::fold(Expression& exp, const SymbolTable& table)
 	if (exp.isA<ReferenceAccess>())
 		return foldReference(exp, table);
 
-	if (exp.isA<Expression::Operation>())
+	if (exp.isA<Operation>())
 	{
 		auto newexp = foldExpression(exp, table);
 
@@ -465,7 +463,7 @@ Error ConstantFolder::fold(Expression& exp, const SymbolTable& table)
 		exp = move(*newexp);
 		assert(
 				exp.isA<Call>() or
-				exp.getType().getBuiltIn() != Type::unkown().getBuiltIn());
+				exp.getType().getBuiltIn() != Type::unknown().getBuiltIn());
 		return Error::success();
 	}
 

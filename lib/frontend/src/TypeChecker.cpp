@@ -45,7 +45,7 @@ static Expected<Type> typeFromSymbol(
 	if (symbol.isA<Induction>())
 		return makeType<int>();
 
-	return make_error<NotImplemented>("No known variable named " + name);
+	return make_error<NotImplemented>("Unknown variable name '" + name + "'");
 }
 
 Error TypeChecker::checkType(Algorithm& algorithm, const SymbolTable& table)
@@ -67,6 +67,9 @@ Error TypeChecker::checkType<ClassType::Class>(
 		if (auto error = checkType(m, t); error)
 			return error;
 
+	// Functions type checking must be done before the equations or algorithm
+	// ones, because it establishes the result type of the functions that may
+	// be invoked elsewhere.
 	for (auto& function : cl.getFunctions())
 		if (auto error = checkType<ClassType::Function>(*function, t); error)
 			return error;
@@ -91,8 +94,9 @@ Error TypeChecker::checkType<ClassType::Function>(
 		Class& cl, const SymbolTable& table)
 {
 	SymbolTable t(cl, &table);
-
 	vector<Type> types;
+
+	// Check members
 
 	for (auto& member : cl.getMembers())
 	{
@@ -138,11 +142,16 @@ Error TypeChecker::checkType<ClassType::Function>(
 		return make_error<BadSemantic>(
 				"Functions can have at most one algorithm section");
 
+	// For now, functions can't have an external implementation and thus must
+	// have exactly one algorithm section. When external implementations will
+	// be allowed, the algorithms amount may also be zero.
+	assert(algorithms.size() == 1);
+
+	if (auto error = checkType(algorithms[0], t); error)
+		return error;
+
 	for (auto& statement : algorithms[0].getStatements())
 	{
-		if (auto error = checkType(statement, t); error)
-			return error;
-
 		for (auto& destination : statement.getDestinations())
 		{
 			// From Function reference:
@@ -164,13 +173,14 @@ Error TypeChecker::checkType<ClassType::Function>(
 			const auto& name = ref.getName();
 
 			if (!t.hasSymbol(name))
-				return make_error<NotImplemented>("No known variable named " + name);
+				return make_error<NotImplemented>(
+						"Unknown variable name '" + name + "'");
 
 			const auto& member = t[name].get<Member>();
 
 			if (member.isInput())
 				return make_error<BadSemantic>(
-						"Input variables can't receive a new value");
+						"Input variable '" + name + "' can't receive a new value");
 		}
 
 		// From Function reference:
@@ -189,7 +199,7 @@ Error TypeChecker::checkType<ClassType::Function>(
 
 			if (expression.isA<ReferenceAccess>())
 			{
-				string& name = expression.get<ReferenceAccess>().getName();
+				string name = expression.get<ReferenceAccess>().getName();
 
 				if (name == "der" || name == "initial" || name == "terminal" ||
 						name == "sample" || name == "pre" || name == "edge" ||
@@ -198,7 +208,7 @@ Error TypeChecker::checkType<ClassType::Function>(
 						name == "actualStream")
 				{
 					return make_error<BadSemantic>(
-							name + " is not allowed in procedural code");
+							"'" + name + "' is not allowed in procedural code");
 				}
 
 				// TODO: Connections built-in operators + when statement
@@ -227,19 +237,20 @@ template<>
 Error TypeChecker::checkType<ClassType::Model>(
 		Class& cl, const SymbolTable& table)
 {
+	// 'class' and 'model' are defined as equivalent
 	return checkType<ClassType::Class>(cl, table);
 }
 
 Error TypeChecker::checkType(Member& mem, const SymbolTable& table)
 {
 	if (mem.hasInitializer())
-		if (auto error = checkType(mem.getInitializer(), table); error)
+		if (auto error = checkType<Expression>(mem.getInitializer(), table); error)
 			return error;
 
 	if (not mem.hasStartOverload())
 		return Error::success();
 
-	if (auto error = checkType(mem.getStartOverload(), table); error)
+	if (auto error = checkType<Expression>(mem.getStartOverload(), table); error)
 		return error;
 
 	return Error::success();
@@ -257,10 +268,10 @@ Error TypeChecker::checkType(ForEquation& eq, const SymbolTable& table)
 
 	for (auto& ind : eq.getInductions())
 	{
-		if (auto error = checkType(ind.getBegin(), table); error)
+		if (auto error = checkType<Expression>(ind.getBegin(), table); error)
 			return error;
 
-		if (auto error = checkType(ind.getEnd(), table); error)
+		if (auto error = checkType<Expression>(ind.getEnd(), table); error)
 			return error;
 	}
 
@@ -269,10 +280,10 @@ Error TypeChecker::checkType(ForEquation& eq, const SymbolTable& table)
 
 Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 {
-	if (auto error = checkType(eq.getLeftHand(), table); error)
+	if (auto error = checkType<Expression>(eq.getLeftHand(), table); error)
 		return error;
 
-	if (auto error = checkType(eq.getRightHand(), table); error)
+	if (auto error = checkType<Expression>(eq.getRightHand(), table); error)
 		return error;
 
 	return Error::success();
@@ -282,7 +293,7 @@ Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
 {
 	for (auto& destination : statement.getDestinations())
 	{
-		if (auto error = checkType(*destination, table); error)
+		if (auto error = checkType<Expression>(*destination, table); error)
 			return error;
 
 		// The destinations must be l-values.
@@ -294,29 +305,10 @@ Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
 					"Destinations of statements must be l-values");
 	}
 
-	if (auto error = checkType(statement.getExpression(), table); error)
+	if (auto error = checkType<Expression>(statement.getExpression(), table);
+			error)
 		return error;
 
-	return Error::success();
-}
-
-Error TypeChecker::checkCall(Expression& callExp, const SymbolTable& table)
-{
-	assert(callExp.isA<Call>());
-
-	auto& call = callExp.get<Call>();
-
-	for (size_t t : irange(call.argumentsCount()))
-		if (auto error = checkType(call[t], table); error)
-			return error;
-
-	if (auto error = checkType(call.getFunction(), table); error)
-		return error;
-
-	if (auto error = checkType(call[0], table); error)
-		return error;
-
-	callExp.setType(call.getFunction().getType());
 	return Error::success();
 }
 
@@ -340,13 +332,34 @@ static Error subscriptionCheckType(Expression& exp, const SymbolTable& table)
 	return Error::success();
 }
 
-Error TypeChecker::checkOperation(Expression& exp, const SymbolTable& table)
+template<>
+Error TypeChecker::checkType<Expression>(
+		Expression& exp, const SymbolTable& table)
+{
+	if (exp.isA<Operation>())
+		return checkType<Operation>(exp, table);
+
+	if (exp.isA<Constant>())
+		return checkType<Constant>(exp, table);
+
+	if (exp.isA<ReferenceAccess>())
+		return checkType<ReferenceAccess>(exp, table);
+
+	if (exp.isA<Call>())
+		return checkType<Call>(exp, table);
+
+	assert(false && "Unreachable");
+}
+
+template<>
+Error TypeChecker::checkType<Operation>(
+		Expression& exp, const SymbolTable& table)
 {
 	assert(exp.isA<Operation>());
 	auto& op = exp.get<Operation>();
 
 	for (auto& arg : op)
-		if (auto error = checkType(arg, table); error)
+		if (auto error = checkType<Expression>(arg, table); error)
 			return error;
 
 	switch (op.getKind())
@@ -402,30 +415,46 @@ Error TypeChecker::checkOperation(Expression& exp, const SymbolTable& table)
 	return make_error<NotImplemented>("op was not any supported kind");
 }
 
-Error TypeChecker::checkType(Expression& exp, const SymbolTable& table)
+template<>
+Error TypeChecker::checkType<Constant>(
+		Expression& expression, const SymbolTable& table)
 {
-	if (exp.isA<Constant>())
-		return Error::success();
+	assert(expression.isA<Constant>());
+	return Error::success();
+}
 
-	if (exp.isA<Call>())
-		return checkCall(exp, table);
+template<>
+Error TypeChecker::checkType<ReferenceAccess>(
+		Expression& expression, const SymbolTable& table)
+{
+	assert(expression.isA<ReferenceAccess>());
+	auto tp = typeFromSymbol(expression, table);
 
-	if (exp.isA<ReferenceAccess>())
-	{
-		auto tp = typeFromSymbol(exp, table);
+	if (!tp)
+		return tp.takeError();
 
-		if (!tp)
-			return tp.takeError();
+	expression.setType(move(*tp));
+	return Error::success();
+}
 
-		exp.setType(move(*tp));
-		return Error::success();
-	}
+template<>
+Error TypeChecker::checkType<Call>(
+		Expression& callExp, const SymbolTable& table)
+{
+	assert(callExp.isA<Call>());
 
-	if (exp.isA<Operation>())
-	{
-		return checkOperation(exp, table);
-	}
+	auto& call = callExp.get<Call>();
 
-	assert(false && "Unreachable");
-	return make_error<NotImplemented>("exp was not any supported type");
+	for (size_t t : irange(call.argumentsCount()))
+		if (auto error = checkType<Expression>(call[t], table); error)
+			return error;
+
+	if (auto error = checkType<Expression>(call.getFunction(), table); error)
+		return error;
+
+	if (auto error = checkType<Expression>(call[0], table); error)
+		return error;
+
+	callExp.setType(call.getFunction().getType());
+	return Error::success();
 }

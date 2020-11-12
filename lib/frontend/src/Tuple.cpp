@@ -8,10 +8,12 @@ using namespace std;
 
 using UniqueExpr = Tuple::UniqueExpr;
 
-Tuple::Tuple(std::initializer_list<Expression> expressions)
+Tuple::Tuple() = default;
+
+Tuple::Tuple(initializer_list<Expression> expressions)
 {
 	for (const auto& exp : expressions)
-		this->expressions.push_back(make_unique<Expression>(exp));
+		this->expressions.push_back(std::make_unique<Expression>(exp));
 }
 
 Tuple::Tuple(const Tuple& other)
@@ -57,7 +59,7 @@ void Tuple::dump() const { dump(outs(), 0); }
 void Tuple::dump(raw_ostream& os, size_t indents) const
 {
 	for (const auto& exp : expressions)
-		(*exp).dump(os, indents);
+		exp->dump(os, indents);
 }
 
 int Tuple::size() const { return expressions.size(); }

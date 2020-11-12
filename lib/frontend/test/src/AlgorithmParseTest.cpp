@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <modelica/frontend/Parser.hpp>
 
-using namespace std;
 using namespace modelica;
+using namespace std;
 
 TEST(AlgorithmTest, emptyAlgorithm)	 // NOLINT
 {

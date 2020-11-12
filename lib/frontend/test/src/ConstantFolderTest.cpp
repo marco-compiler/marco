@@ -9,8 +9,8 @@
 #include "modelica/frontend/SymbolTable.hpp"
 #include "modelica/frontend/Type.hpp"
 
-using namespace std;
 using namespace modelica;
+using namespace std;
 
 TEST(folderTest, sumShouldFold)
 {

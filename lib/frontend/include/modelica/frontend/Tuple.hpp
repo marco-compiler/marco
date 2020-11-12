@@ -14,6 +14,7 @@ namespace modelica
 		public:
 		using UniqueExpr = std::unique_ptr<Expression>;
 
+		Tuple();
 		explicit Tuple(std::initializer_list<Expression> expressions);
 
 		template<typename Iter>

@@ -17,21 +17,16 @@ namespace modelica
 	{
 		public:
 		template<ClassType T>
-		llvm::Error checkType(Class& cl, const SymbolTable& table)
-		{
-			return llvm::make_error<NotImplemented>(
-					"Type checking is not yet implemented for class type '" +
-					toString(T) + "'");
-		}
+		llvm::Error checkType(Class& cl, const SymbolTable& table);
+
+		template<typename T>
+		llvm::Error checkType(Expression& exp, const SymbolTable& table);
 
 		llvm::Error checkType(Algorithm& algorithm, const SymbolTable& table);
-		llvm::Error checkType(Expression& exp, const SymbolTable& table);
 		llvm::Error checkType(Member& mem, const SymbolTable& table);
 		llvm::Error checkType(Equation& eq, const SymbolTable& table);
 		llvm::Error checkType(ForEquation& eq, const SymbolTable& table);
 		llvm::Error checkType(Statement& statement, const SymbolTable& table);
-		llvm::Error checkCall(Expression& call, const SymbolTable& table);
-		llvm::Error checkOperation(Expression& call, const SymbolTable& table);
 	};
 
 	template<>
@@ -45,4 +40,24 @@ namespace modelica
 	template<>
 	llvm::Error TypeChecker::checkType<ClassType::Model>(
 			Class& cl, const SymbolTable& table);
+
+	template<>
+	llvm::Error TypeChecker::checkType<Expression>(
+			Expression& expression, const SymbolTable& table);
+
+	template<>
+	llvm::Error TypeChecker::checkType<Operation>(
+			Expression& expression, const SymbolTable& table);
+
+	template<>
+	llvm::Error TypeChecker::checkType<Constant>(
+			Expression& expression, const SymbolTable& table);
+
+	template<>
+	llvm::Error TypeChecker::checkType<ReferenceAccess>(
+			Expression& expression, const SymbolTable& table);
+
+	template<>
+	llvm::Error TypeChecker::checkType<Call>(
+			Expression& expression, const SymbolTable& table);
 }	 // namespace modelica
