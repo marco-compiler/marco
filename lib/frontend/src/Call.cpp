@@ -59,13 +59,13 @@ bool Call::operator!=(const Call& other) const { return !(*this == other); }
 
 Expression& Call::operator[](size_t index)
 {
-	assert(index <= argumentsCount());
+	assert(index < argumentsCount());
 	return *args[index];
 }
 
 const Expression& Call::operator[](size_t index) const
 {
-	assert(index <= argumentsCount());
+	assert(index < argumentsCount());
 	return *args[index];
 }
 

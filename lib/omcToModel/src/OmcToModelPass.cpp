@@ -80,7 +80,7 @@ Expected<ModType> OmcToModelPass::lower(
 		const Type& tp, const SymbolTable& table)
 {
 	return ModType(
-			builtinToBuiltin(tp.getBuiltIn()),
+			builtinToBuiltin(tp.get<BuiltinType>()),
 			static_cast<ArrayRef<size_t>>(tp.getDimensions()));
 }
 
@@ -104,13 +104,13 @@ Expected<ModExp> OmcToModelPass::defaultInitializer(
 
 	if (type.isScalar())
 	{
-		if (type.getBuiltIn() == BuiltinType::Boolean)
+		if (type.get<BuiltinType>() == BuiltinType::Boolean)
 			return ModExp(ModConst(false));
 
-		if (type.getBuiltIn() == BuiltinType::Integer)
+		if (type.get<BuiltinType>() == BuiltinType::Integer)
 			return ModExp(ModConst(0));
 
-		if (type.getBuiltIn() == BuiltinType::Float)
+		if (type.get<BuiltinType>() == BuiltinType::Float)
 			return ModExp(ModConst(0.0F));
 	}
 

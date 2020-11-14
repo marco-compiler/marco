@@ -16,6 +16,12 @@ Tuple::Tuple(initializer_list<Expression> expressions)
 		this->expressions.push_back(std::make_unique<Expression>(exp));
 }
 
+Tuple::Tuple(ArrayRef<Expression> expressions)
+{
+	for (const auto& exp : expressions)
+		this->expressions.push_back(std::make_unique<Expression>(exp));
+}
+
 Tuple::Tuple(const Tuple& other)
 {
 	for (const auto& exp : other.expressions)

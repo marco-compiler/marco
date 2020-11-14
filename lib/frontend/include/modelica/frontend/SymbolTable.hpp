@@ -46,6 +46,7 @@ namespace modelica
 		[[nodiscard]] const Symbol& operator[](llvm::StringRef name) const
 		{
 			assert(hasSymbol(name));
+
 			if (auto iter = table.find(name); iter != table.end())
 				return iter->second;
 

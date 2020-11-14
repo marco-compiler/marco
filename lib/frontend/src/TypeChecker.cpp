@@ -18,8 +18,9 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
+template<typename... Args>
 static Expected<Type> typeFromSymbol(
-		const Expression& exp, const SymbolTable& table)
+		const Expression& exp, const SymbolTable& table, Args... args)
 {
 	assert(exp.isA<ReferenceAccess>());
 	ReferenceAccess acc = exp.get<ReferenceAccess>();
@@ -129,7 +130,7 @@ Error TypeChecker::checkType<ClassType::Function>(
 	if (types.size() == 1)
 		cl.setType(move(types[0]));
 	else
-		cl.setType(Type::tuple());
+		cl.setType(Type(types));
 
 	auto& algorithms = cl.getAlgorithms();
 
@@ -439,11 +440,10 @@ Error TypeChecker::checkType<ReferenceAccess>(
 
 template<>
 Error TypeChecker::checkType<Call>(
-		Expression& callExp, const SymbolTable& table)
+		Expression& expression, const SymbolTable& table)
 {
-	assert(callExp.isA<Call>());
-
-	auto& call = callExp.get<Call>();
+	assert(expression.isA<Call>());
+	auto& call = expression.get<Call>();
 
 	for (size_t t : irange(call.argumentsCount()))
 		if (auto error = checkType<Expression>(call[t], table); error)
@@ -452,9 +452,10 @@ Error TypeChecker::checkType<Call>(
 	if (auto error = checkType<Expression>(call.getFunction(), table); error)
 		return error;
 
-	if (auto error = checkType<Expression>(call[0], table); error)
-		return error;
+	if (call.getFunction().get<ReferenceAccess>().getName() == "der")
+		expression.setType(call[0].getType());
+	else
+		expression.setType(call.getFunction().getType());
 
-	callExp.setType(call.getFunction().getType());
 	return Error::success();
 }

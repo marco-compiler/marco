@@ -368,7 +368,7 @@ Expected<Algorithm> Parser::algorithmSection()
 		statements.push_back(move(*stmnt));
 	}
 
-	return Algorithm(statements.begin(), statements.end());
+	return Algorithm(statements);
 }
 
 Expected<Equation> Parser::equation()

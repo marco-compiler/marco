@@ -11,12 +11,7 @@ namespace modelica
 	class Algorithm
 	{
 		public:
-		explicit Algorithm(std::initializer_list<Statement> statements);
-
-		template<typename Iter>
-		Algorithm(Iter begin, Iter end): statements(begin, end)
-		{
-		}
+		explicit Algorithm(llvm::ArrayRef<Statement> statements);
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;

@@ -13,7 +13,7 @@ TEST(expressionTest, constantsCanBeBuilt)
 	EXPECT_TRUE(exp.isA<Constant>());
 	EXPECT_TRUE(exp.get<Constant>().isA<BuiltinType::Integer>());
 	EXPECT_EQ(exp.get<Constant>().get<BuiltinType::Integer>(), 3);
-	EXPECT_EQ(exp.getType().getBuiltIn(), BuiltinType::Integer);
+	EXPECT_EQ(exp.getType().get<BuiltinType>(), BuiltinType::Integer);
 	EXPECT_EQ(exp.getType().size(), 1);
 }
 

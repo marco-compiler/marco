@@ -4,8 +4,8 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-Algorithm::Algorithm(initializer_list<Statement> statements)
-		: statements(move(statements))
+Algorithm::Algorithm(ArrayRef<Statement> statements)
+		: statements(statements.begin(), statements.end())
 {
 }
 

@@ -463,7 +463,7 @@ Error ConstantFolder::fold(Expression& exp, const SymbolTable& table)
 		exp = move(*newexp);
 		assert(
 				exp.isA<Call>() or
-				exp.getType().getBuiltIn() != Type::unknown().getBuiltIn());
+				exp.getType().get<BuiltinType>() != Type::unknown().get<BuiltinType>());
 		return Error::success();
 	}
 

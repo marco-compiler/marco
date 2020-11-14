@@ -16,6 +16,7 @@ namespace modelica
 
 		Tuple();
 		explicit Tuple(std::initializer_list<Expression> expressions);
+		explicit Tuple(llvm::ArrayRef<Expression> expressions);
 
 		template<typename Iter>
 		Tuple(Iter begin, Iter end)

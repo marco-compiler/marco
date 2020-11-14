@@ -4,50 +4,48 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-namespace modelica
+raw_ostream& modelica::operator<<(
+		raw_ostream& stream, const ParameterQualifier& obj)
 {
-	raw_ostream& operator<<(raw_ostream& stream, const ParameterQualifier& obj)
+	return stream << toString(obj);
+}
+
+string modelica::toString(ParameterQualifier qualifier)
+{
+	switch (qualifier)
 	{
-		return stream << toString(obj);
+		case ParameterQualifier::discrete:
+			return "discrete";
+		case ParameterQualifier::parameter:
+			return "parameter";
+		case ParameterQualifier::constant:
+			return "constant";
+		case ParameterQualifier::none:
+			return "none";
 	}
 
-	string toString(ParameterQualifier qualifier)
-	{
-		switch (qualifier)
-		{
-			case ParameterQualifier::discrete:
-				return "discrete";
-			case ParameterQualifier::parameter:
-				return "parameter";
-			case ParameterQualifier::constant:
-				return "constant";
-			case ParameterQualifier::none:
-				return "none";
-		}
+	return "unexpected";
+}
 
-		return "unexpected";
+raw_ostream& modelica::operator<<(raw_ostream& stream, const IOQualifier& obj)
+{
+	return stream << toString(obj);
+}
+
+string modelica::toString(IOQualifier qualifier)
+{
+	switch (qualifier)
+	{
+		case IOQualifier::input:
+			return "input";
+		case IOQualifier::output:
+			return "output";
+		case IOQualifier::none:
+			return "none";
 	}
 
-	raw_ostream& operator<<(raw_ostream& stream, const IOQualifier& obj)
-	{
-		return stream << toString(obj);
-	}
-
-	string toString(IOQualifier qualifier)
-	{
-		switch (qualifier)
-		{
-			case IOQualifier::input:
-				return "input";
-			case IOQualifier::output:
-				return "output";
-			case IOQualifier::none:
-				return "none";
-		}
-
-		return "unexpected";
-	}
-}	 // namespace modelica
+	return "unexpected";
+}
 
 TypePrefix::TypePrefix(
 		ParameterQualifier parameterQualifier, IOQualifier ioQualifier)

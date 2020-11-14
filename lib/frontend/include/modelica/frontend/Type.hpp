@@ -5,9 +5,14 @@
 #include <llvm/Support/raw_ostream.h>
 #include <string>
 #include <type_traits>
+#include <variant>
+#include <vector>
 
 namespace modelica
 {
+	class Type;
+	using UniqueType = std::unique_ptr<Type>;
+
 	enum class BuiltinType
 	{
 		None,
@@ -15,7 +20,6 @@ namespace modelica
 		Float,
 		String,
 		Boolean,
-		Tuple,
 		Unknown
 	};
 
@@ -35,7 +39,7 @@ namespace modelica
 		if constexpr (std::is_same<std::string, T>::value)
 			return BuiltinType::String;
 
-		assert(false && "unreachable");
+		assert(false && "Unknown type");
 		return BuiltinType::Unknown;
 	}
 
@@ -73,10 +77,49 @@ namespace modelica
 	template<BuiltinType T>
 	using frontendTypeToType_v = typename frontendTypeToType<T>::value;
 
+	class UserDefinedType
+	{
+		public:
+		explicit UserDefinedType(llvm::ArrayRef<Type> types);
+
+		UserDefinedType(const UserDefinedType& other);
+		UserDefinedType(UserDefinedType&& other) = default;
+
+		~UserDefinedType() = default;
+
+		UserDefinedType& operator=(const UserDefinedType& other);
+		UserDefinedType& operator=(UserDefinedType&& other) = default;
+
+		[[nodiscard]] bool operator==(const UserDefinedType& other) const;
+		[[nodiscard]] bool operator!=(const UserDefinedType& other) const;
+
+		[[nodiscard]] Type& operator[](size_t index);
+		[[nodiscard]] Type operator[](size_t index) const;
+
+		void dump() const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] size_t size() const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueType>::const_iterator begin()
+				const;
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueType>::const_iterator end() const;
+
+		private:
+		llvm::SmallVector<UniqueType, 3> types;
+	};
+
+	llvm::raw_ostream& operator<<(
+			llvm::raw_ostream& stream, const UserDefinedType& obj);
+
+	std::string toString(UserDefinedType obj);
+
 	class Type
 	{
 		public:
 		Type(BuiltinType type, llvm::ArrayRef<size_t> dim = { 1 });
+		Type(UserDefinedType type, llvm::ArrayRef<size_t> dim = { 1 });
+		Type(llvm::ArrayRef<Type> members, llvm::ArrayRef<size_t> dim = { 1 });
 
 		[[nodiscard]] bool operator==(const Type& other) const;
 		[[nodiscard]] bool operator!=(const Type& other) const;
@@ -86,6 +129,32 @@ namespace modelica
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		template<typename T>
+		[[nodiscard]] bool isA() const
+		{
+			return std::holds_alternative<T>(content);
+		}
+
+		template<typename T>
+		[[nodiscard]] T& get()
+		{
+			assert(isA<T>());
+			return std::get<T>(content);
+		}
+
+		template<typename T>
+		[[nodiscard]] const T& get() const
+		{
+			assert(isA<T>());
+			return std::get<T>(content);
+		}
+
+		template<class Visitor>
+		auto visit(Visitor&& vis) const
+		{
+			return std::visit(std::forward<Visitor>(vis), content);
+		}
 
 		[[nodiscard]] llvm::SmallVectorImpl<size_t>& getDimensions();
 		[[nodiscard]] const llvm::SmallVectorImpl<size_t>& getDimensions() const;
@@ -101,19 +170,20 @@ namespace modelica
 		[[nodiscard]] llvm::SmallVectorImpl<size_t>::iterator end();
 		[[nodiscard]] llvm::SmallVectorImpl<size_t>::const_iterator end() const;
 
-		[[nodiscard]] BuiltinType getBuiltIn() const;
-
 		[[nodiscard]] Type subscript(size_t times) const;
 
 		[[nodiscard]] static Type Int();
 		[[nodiscard]] static Type Float();
-		[[nodiscard]] static Type tuple();
 		[[nodiscard]] static Type unknown();
 
 		private:
+		std::variant<BuiltinType, UserDefinedType> content;
 		llvm::SmallVector<size_t, 3> dimensions;
-		BuiltinType type;
 	};
+
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Type& obj);
+
+	std::string toString(Type obj);
 
 	template<typename T, typename... Args>
 	[[nodiscard]] Type makeType(Args... args)

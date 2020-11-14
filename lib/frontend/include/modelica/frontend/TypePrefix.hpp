@@ -28,6 +28,7 @@ namespace modelica
 
 	llvm::raw_ostream& operator<<(
 			llvm::raw_ostream& stream, const IOQualifier& obj);
+
 	std::string toString(IOQualifier qualifier);
 
 	class TypePrefix

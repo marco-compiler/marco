@@ -45,10 +45,9 @@ Class::Class(
 		: classType(move(classType)),
 			name(move(name)),
 			type(Type::unknown()),
-			members(iterator_range<ArrayRef<Member>::iterator>(move(members))),
-			equations(iterator_range<ArrayRef<Equation>::iterator>(move(equations))),
-			forEquations(
-					iterator_range<ArrayRef<ForEquation>::iterator>(move(forEquations)))
+			members(members.begin(), members.end()),
+			equations(equations.begin(), equations.end()),
+			forEquations(forEquations.begin(), forEquations.end())
 {
 }
 
