@@ -73,6 +73,12 @@ void Expression::dump(raw_ostream& os, size_t indents) const
 		return;
 	}
 
+	if (isA<Tuple>())
+	{
+		get<Tuple>().dump(os, indents + 1);
+		return;
+	}
+
 	os << "\n";
 
 	assert(false && "Unreachable");

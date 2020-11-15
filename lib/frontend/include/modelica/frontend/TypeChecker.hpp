@@ -60,4 +60,8 @@ namespace modelica
 	template<>
 	llvm::Error TypeChecker::checkType<Call>(
 			Expression& expression, const SymbolTable& table);
+
+	template<>
+	llvm::Error TypeChecker::checkType<Tuple>(
+			Expression& expression, const SymbolTable& table);
 }	 // namespace modelica

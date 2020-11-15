@@ -43,7 +43,7 @@ namespace modelica
 		[[nodiscard]] bool isInput() const;
 		[[nodiscard]] bool isOutput() const;
 
-		static TypePrefix empty();
+		static TypePrefix none();
 
 		private:
 		ParameterQualifier parameterQualifier;

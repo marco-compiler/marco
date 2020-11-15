@@ -9,6 +9,11 @@ Statement::Statement(Expression destination, Expression expression)
 {
 }
 
+Statement::Statement(Tuple destinations, Expression expression)
+		: destination(move(destinations)), expression(move(expression))
+{
+}
+
 Statement::Statement(
 		initializer_list<Expression> destinations, Expression expression)
 		: destination(Tuple(move(destinations))), expression(move(expression))

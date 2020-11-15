@@ -72,6 +72,7 @@ namespace modelica
 
 		llvm::Expected<Statement> statement();
 		llvm::Expected<Algorithm> algorithmSection();
+		llvm::Expected<Tuple> outputExpressionList();
 
 		private:
 		/**

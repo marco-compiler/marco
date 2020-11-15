@@ -8,7 +8,7 @@ Symbol::Symbol(Class& clas): content(&clas) {}
 Symbol::Symbol(Member& mem): content(&mem) {}
 Symbol::Symbol(Induction& mem): content(&mem) {}
 
-SymbolTable::SymbolTable() = default;
+SymbolTable::SymbolTable() {}
 
 SymbolTable::SymbolTable(const SymbolTable* parent): parentTable(parent) {}
 

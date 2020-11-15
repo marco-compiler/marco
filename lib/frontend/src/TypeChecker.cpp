@@ -18,9 +18,8 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-template<typename... Args>
 static Expected<Type> typeFromSymbol(
-		const Expression& exp, const SymbolTable& table, Args... args)
+		const Expression& exp, const SymbolTable& table)
 {
 	assert(exp.isA<ReferenceAccess>());
 	ReferenceAccess acc = exp.get<ReferenceAccess>();
@@ -349,6 +348,9 @@ Error TypeChecker::checkType<Expression>(
 	if (exp.isA<Call>())
 		return checkType<Call>(exp, table);
 
+	if (exp.isA<Tuple>())
+		return checkType<Tuple>(exp, table);
+
 	assert(false && "Unreachable");
 }
 
@@ -449,13 +451,36 @@ Error TypeChecker::checkType<Call>(
 		if (auto error = checkType<Expression>(call[t], table); error)
 			return error;
 
-	if (auto error = checkType<Expression>(call.getFunction(), table); error)
+	auto& function = call.getFunction();
+
+	if (auto error = checkType<Expression>(function, table); error)
 		return error;
 
-	if (call.getFunction().get<ReferenceAccess>().getName() == "der")
-		expression.setType(call[0].getType());
-	else
-		expression.setType(call.getFunction().getType());
+	if (function.get<ReferenceAccess>().getName() == "der")
+		function.setType(call[0].getType());
 
+	expression.setType(function.getType());
+
+	return Error::success();
+}
+
+template<>
+Error TypeChecker::checkType<Tuple>(
+		Expression& expression, const SymbolTable& table)
+{
+	assert(expression.isA<Tuple>());
+	auto& tuple = expression.get<Tuple>();
+
+	SmallVector<Type, 3> types;
+
+	for (const auto& exp : tuple)
+	{
+		if (auto error = checkType<Expression>(*exp, table); error)
+			return error;
+
+		types.push_back(exp->getType());
+	}
+
+	expression.setType(Type(types));
 	return Error::success();
 }

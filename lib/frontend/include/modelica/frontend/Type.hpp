@@ -25,6 +25,7 @@ namespace modelica
 
 	llvm::raw_ostream& operator<<(
 			llvm::raw_ostream& stream, const BuiltinType& obj);
+
 	std::string toString(BuiltinType type);
 
 	template<typename T>

@@ -14,6 +14,7 @@ namespace modelica
 	{
 		public:
 		Statement(Expression destination, Expression expression);
+		Statement(Tuple destinations, Expression expression);
 		Statement(
 				std::initializer_list<Expression> destinations, Expression expression);
 

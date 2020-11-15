@@ -96,7 +96,7 @@ bool TypePrefix::isInput() const { return ioQualifier == IOQualifier::input; }
 
 bool TypePrefix::isOutput() const { return ioQualifier == IOQualifier::output; }
 
-TypePrefix TypePrefix::empty()
+TypePrefix TypePrefix::none()
 {
 	return TypePrefix(ParameterQualifier::none, IOQualifier::none);
 }

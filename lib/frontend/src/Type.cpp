@@ -136,7 +136,7 @@ Type::Type(BuiltinType type, ArrayRef<size_t> dim)
 Type::Type(UserDefinedType type, ArrayRef<size_t> dim)
 		: content(move(type)), dimensions(dim.begin(), dim.end())
 {
-	assert(holds_alternative<BuiltinType>(content));
+	assert(holds_alternative<UserDefinedType>(content));
 	assert(!dimensions.empty());
 }
 

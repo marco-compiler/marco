@@ -332,7 +332,11 @@ Expected<bool> Parser::equationSection(Class& cls)
 {
 	EXPECT(Token::EquationKeyword);
 
-	while (!sectionTerminator(current))
+	while (
+			current != Token::End && current != Token::PublicKeyword &&
+			current != Token::ProtectedKeyword && current != Token::EquationKeyword &&
+			current != Token::AlgorithmKeyword && current != Token::ExternalKeyword &&
+			current != Token::AnnotationKeyword && current != Token::EndKeyword)
 	{
 		if (current == Token::ForKeyword)
 		{
@@ -382,29 +386,16 @@ Expected<Equation> Parser::equation()
 
 Expected<Statement> Parser::statement()
 {
-	if (accept(Token::LPar))
+	if (accept<Token::LPar>())
 	{
-		vector<Expression> destinations;
-
-		while (!accept<Token::RPar>())
-		{
-			if (accept<Token::Comma>())
-			{
-				destinations.emplace_back(Type::unknown(), ReferenceAccess::dummy());
-				continue;
-			}
-
-			TRY(dest, expression());
-			destinations.push_back(move(*dest));
-			accept(Token::Comma);
-		}
-
+		TRY(destinations, outputExpressionList());
+		EXPECT(Token::RPar);
 		EXPECT(Token::Assignment);
 		TRY(functionName, componentReference());
 		TRY(args, functionCallArguments());
 		Expression call = makeCall(move(*functionName), move(*args));
 
-		return Statement(destinations.begin(), destinations.end(), call);
+		return Statement(move(*destinations), move(call));
 	}
 
 	TRY(component, componentReference());
@@ -678,9 +669,13 @@ Expected<Expression> Parser::primary()
 
 	if (accept<Token::LPar>())
 	{
-		TRY(exp, expression());
+		TRY(exp, outputExpressionList());
 		EXPECT(Token::RPar);
-		return exp;
+
+		if (exp->size() == 1)
+			return *(*exp)[0];
+
+		return Expression(move(*exp));
 	}
 
 	if (accept<Token::DerKeyword>())
@@ -769,6 +764,26 @@ Expected<SmallVector<size_t, 3>> Parser::arrayDimensions()
 
 	EXPECT(Token::RSquare);
 	return toReturn;
+}
+
+Expected<Tuple> Parser::outputExpressionList()
+{
+	SmallVector<Expression, 3> expressions;
+
+	while (current != Token::RPar)
+	{
+		if (accept<Token::Comma>())
+		{
+			expressions.emplace_back(Type::unknown(), ReferenceAccess::dummy());
+			continue;
+		}
+
+		TRY(exp, expression());
+		expressions.push_back(move(*exp));
+		accept(Token::Comma);
+	}
+
+	return Tuple(move(expressions));
 }
 
 Expected<vector<Expression>> Parser::arraySubscript()
