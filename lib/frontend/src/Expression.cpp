@@ -1,10 +1,18 @@
-#include <llvm/ADT/StringRef.h>
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/utils/IRange.hpp>
 
 using namespace llvm;
 using namespace modelica;
 using namespace std;
+
+struct LValueVisitor
+{
+	bool operator()(const Operation& obj) const { return obj.isLValue(); }
+	bool operator()(const Constant& obj) const { return false; }
+	bool operator()(const ReferenceAccess& obj) const { return true; }
+	bool operator()(const Call& obj) const { return false; }
+	bool operator()(const Tuple& obj) const { return false; }
+};
 
 Expression::Expression(Type type, Constant constant)
 		: content(move(constant)), type(move(type))
@@ -49,51 +57,10 @@ void Expression::dump(raw_ostream& os, size_t indents) const
 	getType().dump(os);
 	os << "\n";
 
-	if (isA<Operation>())
-	{
-		get<Operation>().dump(os, indents + 1);
-		return;
-	}
-
-	if (isA<Constant>())
-	{
-		get<Constant>().dump(os, indents + 1);
-		return;
-	}
-
-	if (isA<ReferenceAccess>())
-	{
-		get<ReferenceAccess>().dump(os, indents + 1);
-		return;
-	}
-
-	if (isA<Call>())
-	{
-		get<Call>().dump(os, indents + 1);
-		return;
-	}
-
-	if (isA<Tuple>())
-	{
-		get<Tuple>().dump(os, indents + 1);
-		return;
-	}
-
-	os << "\n";
-
-	assert(false && "Unreachable");
+	visit([&](const auto& exp) { exp.dump(os, indents + 1); });
 }
 
-bool Expression::isLValue() const
-{
-	if (isA<Operation>())
-		return get<Operation>().isLValue();
-
-	if (isA<ReferenceAccess>())
-		return true;
-
-	return false;
-}
+bool Expression::isLValue() const { return visit(LValueVisitor()); }
 
 Type& Expression::getType() { return type; }
 

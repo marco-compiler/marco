@@ -80,6 +80,12 @@ namespace modelica
 			return std::get<T>(content);
 		}
 
+		template<class Visitor>
+		auto visit(Visitor&& vis) const
+		{
+			return std::visit(std::forward<Visitor>(vis), content);
+		}
+
 		[[nodiscard]] bool isLValue() const;
 
 		[[nodiscard]] Type& getType();

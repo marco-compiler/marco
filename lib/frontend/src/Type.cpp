@@ -121,7 +121,7 @@ string modelica::toString(UserDefinedType obj)
 						 obj.end(),
 						 string(),
 						 [](const string& a, const auto& b) -> string {
-							 return a + (a.length() > 0 ? "," : "") + toString(*b);
+							 return a + (a.length() > 0 ? ", " : "") + toString(*b);
 						 }) +
 				 "}";
 }
@@ -188,7 +188,7 @@ size_t Type::size() const
 
 bool Type::isScalar() const
 {
-	return isA<BuiltinType>() && dimensions.size() == 1 && dimensions[0] == 1;
+	return dimensions.size() == 1 && dimensions[0] == 1;
 }
 
 llvm::SmallVectorImpl<size_t>::iterator Type::begin()
@@ -213,20 +213,15 @@ Type Type::subscript(size_t times) const
 	assert(!isScalar());
 
 	if (dimensions.size() == times)
-	{
-		auto visitor = [](const auto& t) { return Type(t); };
-		return std::visit(visitor, content);
-	}
+		return visit([](const auto& t) { return Type(t); });
 
 	assert(times > dimensions.size());
 
-	auto visitor = [&](const auto& t) {
+	return visit([&](const auto& t) {
 		return Type(
 				t,
 				SmallVector<size_t, 3>(dimensions.begin() + times, dimensions.end()));
-	};
-
-	return std::visit(visitor, content);
+	});
 }
 
 raw_ostream& modelica::operator<<(raw_ostream& stream, const Type& obj)
@@ -251,7 +246,7 @@ string modelica::toString(Type obj)
 																				 string(),
 																				 dimensionsToStringLambda) +
 																		 "] ";
-	return "{" + size + obj.visit(visitor) + "}";
+	return size + obj.visit(visitor);
 }
 
 Type Type::Int() { return Type(typeToBuiltin<int>()); }

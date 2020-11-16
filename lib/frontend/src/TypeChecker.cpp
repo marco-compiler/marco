@@ -318,9 +318,9 @@ static Error subscriptionCheckType(Expression& exp, const SymbolTable& table)
 	assert(exp.get<Operation>().getKind() == OperationKind::subscription);
 
 	auto& op = exp.get<Operation>();
-	size_t subscriptionIndiciesCount = op.argumentsCount() - 1;
+	size_t subscriptionIndicesCount = op.argumentsCount() - 1;
 
-	if (subscriptionIndiciesCount > op[0].getType().dimensionsCount())
+	if (subscriptionIndicesCount > op[0].getType().dimensionsCount())
 		return make_error<IncompatibleType>("array was subscripted too many times");
 
 	for (size_t a = 1; a < op.argumentsCount(); a++)
@@ -328,7 +328,7 @@ static Error subscriptionCheckType(Expression& exp, const SymbolTable& table)
 			return make_error<IncompatibleType>(
 					"parameter of array subscription was not int");
 
-	exp.setType(op[0].getType().subscript(subscriptionIndiciesCount));
+	exp.setType(op[0].getType().subscript(subscriptionIndicesCount));
 	return Error::success();
 }
 
