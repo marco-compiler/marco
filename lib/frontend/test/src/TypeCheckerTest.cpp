@@ -10,7 +10,7 @@ using namespace std;
 using namespace modelica;
 using namespace llvm;
 
-TEST(TypeCheckTest, sumOfIntShouldProduceInt)
+TEST(TypeCheckTest, sumOfIntShouldProduceInt)	 // NOLINT
 {
 	Expression exp = Expression::op<OperationKind::add>(
 			Type::unknown(),
@@ -25,7 +25,7 @@ TEST(TypeCheckTest, sumOfIntShouldProduceInt)
 	EXPECT_EQ(exp.getType(), makeType<int>());
 }
 
-TEST(TypeCheckTest, andOfBoolShouldProduceBool)
+TEST(TypeCheckTest, andOfBoolShouldProduceBool)	 // NOLINT
 {
 	Expression exp = Expression::op<OperationKind::add>(
 			Type::unknown(),
@@ -38,4 +38,26 @@ TEST(TypeCheckTest, andOfBoolShouldProduceBool)
 		FAIL();
 
 	EXPECT_EQ(exp.getType(), makeType<bool>());
+}
+
+TEST(TypeCheckerTest, tupleExpressionType)	// NOLINT
+{
+	Expression exp(Tuple({ Expression(Type::Int(), ReferenceAccess("x")),
+												 Expression(Type::Float(), ReferenceAccess("y")) }));
+
+	SymbolTable table;
+
+	Member x("x", Type::Int(), TypePrefix::none());
+	Member y("y", Type::Float(), TypePrefix::none());
+
+	table.addSymbol(x);
+	table.addSymbol(y);
+
+	TypeChecker typeChecker;
+
+	if (typeChecker.checkType<Tuple>(exp, table))
+		FAIL();
+
+	Type expected({ Type::Int(), Type::Float() });
+	ASSERT_EQ(expected, exp.getType());
 }
