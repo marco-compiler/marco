@@ -22,6 +22,8 @@ namespace modelica
 
 		[[nodiscard]] std::string& getName();
 		[[nodiscard]] const std::string& getName() const;
+		void setName(std::string name);
+
 		[[nodiscard]] bool hasGlobalLookup() const;
 
 		/**

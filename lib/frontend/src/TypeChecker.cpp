@@ -23,6 +23,13 @@ static Expected<Type> typeFromSymbol(
 {
 	assert(exp.isA<ReferenceAccess>());
 	ReferenceAccess acc = exp.get<ReferenceAccess>();
+
+	// If the referenced variable is a dummy one (meaning that it is created
+	// to store a result value that will never be used), its type is still
+	// unknown and will be determined according to the assigned value.
+	if (acc.isDummy())
+		return Type::unknown();
+
 	const auto& name = acc.getName();
 
 	if (name == "der")
@@ -170,17 +177,42 @@ Error TypeChecker::checkType<ClassType::Function>(
 
 			assert(exp.isA<ReferenceAccess>());
 			auto& ref = exp.get<ReferenceAccess>();
-			const auto& name = ref.getName();
 
-			if (!t.hasSymbol(name))
-				return make_error<NotImplemented>(
-						"Unknown variable name '" + name + "'");
+			if (ref.isDummy())
+			{
+				const auto& members = cl.getMembers();
+				int counter = 0;
 
-			const auto& member = t[name].get<Member>();
+				const auto* it =
+						find_if(members.begin(), members.end(), [&](const Member& obj) {
+							return obj.getName() == "_temp" + to_string(counter);
+						});
 
-			if (member.isInput())
-				return make_error<BadSemantic>(
-						"Input variable '" + name + "' can't receive a new value");
+				while (it != members.end())
+					counter++;
+
+				Member temp(
+						"_temp" + to_string(counter), exp.getType(), TypePrefix::none());
+				ref.setName(temp.getName());
+				cl.addMember(temp);
+
+				// Note that there is no need to add the dummy variable to the symbol
+				// table, because it will never be referenced.
+			}
+			else
+			{
+				const auto& name = ref.getName();
+
+				if (!t.hasSymbol(name))
+					return make_error<NotImplemented>(
+							"Unknown variable name '" + name + "'");
+
+				const auto& member = t[name].get<Member>();
+
+				if (member.isInput())
+					return make_error<BadSemantic>(
+							"Input variable '" + name + "' can't receive a new value");
+			}
 		}
 
 		// From Function reference:
@@ -305,9 +337,40 @@ Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
 					"Destinations of statements must be l-values");
 	}
 
-	if (auto error = checkType<Expression>(statement.getExpression(), table);
-			error)
+	auto& expression = statement.getExpression();
+
+	if (auto error = checkType<Expression>(expression, table); error)
 		return error;
+
+	// Assign type to dummy variables.
+	// The assignment can't be done earlier because the expression type would
+	// have not been evaluated yet.
+
+	auto destinations = statement.getDestinations();
+
+	if (destinations.size() > 1 && !expression.getType().isA<UserDefinedType>())
+		return make_error<IncompatibleType>(
+				"The expression must return at least " +
+				to_string(destinations.size()) + "values");
+
+	for (size_t i = 0; i < destinations.size(); i++)
+	{
+		// If it's not a direct reference access, there's no way it can be a
+		// dummy variable.
+		if (!destinations[i]->isA<ReferenceAccess>())
+			continue;
+
+		auto& ref = destinations[i]->get<ReferenceAccess>();
+
+		if (ref.isDummy())
+		{
+			auto& expressionType = expression.getType();
+			assert(expressionType.isA<UserDefinedType>());
+			auto& userDefType = expressionType.get<UserDefinedType>();
+			assert(userDefType.size() >= i);
+			destinations[i]->setType(userDefType[i]);
+		}
+	}
 
 	return Error::success();
 }

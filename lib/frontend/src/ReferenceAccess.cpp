@@ -35,6 +35,8 @@ string& ReferenceAccess::getName() { return referencedName; }
 
 const string& ReferenceAccess::getName() const { return referencedName; }
 
+void ReferenceAccess::setName(std::string name) { referencedName = name; }
+
 bool ReferenceAccess::hasGlobalLookup() const { return globalLookup; }
 
 bool ReferenceAccess::isDummy() const { return dummyVariable; }
