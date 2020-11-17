@@ -23,10 +23,14 @@ namespace modelica
 		llvm::Error checkType(Expression& exp, const SymbolTable& table);
 
 		llvm::Error checkType(Algorithm& algorithm, const SymbolTable& table);
+		llvm::Error checkType(Statement& statement, const SymbolTable& table);
+		llvm::Error checkType(
+				AssignmentStatement& statement, const SymbolTable& table);
+		llvm::Error checkType(ForStatement& statement, const SymbolTable& table);
+
 		llvm::Error checkType(Member& mem, const SymbolTable& table);
 		llvm::Error checkType(Equation& eq, const SymbolTable& table);
 		llvm::Error checkType(ForEquation& eq, const SymbolTable& table);
-		llvm::Error checkType(Statement& statement, const SymbolTable& table);
 	};
 
 	template<>

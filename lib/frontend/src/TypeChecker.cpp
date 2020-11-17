@@ -18,6 +18,17 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
+// Fancy declarations used to declare inline visitors
+template<class... Ts>
+struct overload: Ts...
+{
+	using Ts::operator()...;
+};
+template<class... Ts>
+overload(Ts...) -> overload<Ts...>;
+
+llvm::Error resolveDummyReferences(Class& cls);
+
 static Expected<Type> typeFromSymbol(
 		const Expression& exp, const SymbolTable& table)
 {
@@ -157,109 +168,101 @@ Error TypeChecker::checkType<ClassType::Function>(
 	if (auto error = checkType(algorithms[0], t); error)
 		return error;
 
+	if (auto error = resolveDummyReferences(cl); error)
+		return error;
+
 	for (auto& statement : algorithms[0].getStatements())
 	{
-		for (auto& destination : statement.getDestinations())
-		{
-			// From Function reference:
-			// "Input formal parameters are read-only after being bound to the actual
-			// arguments or default values, i.e., they may not be assigned values in
-			// the body of the function."
-
-			auto& exp = *destination;
-
-			while (exp.isA<Operation>())
-			{
-				auto& operation = exp.get<Operation>();
-				assert(operation.getKind() == OperationKind::subscription);
-				exp = operation[0];
-			}
-
-			assert(exp.isA<ReferenceAccess>());
-			auto& ref = exp.get<ReferenceAccess>();
-
-			if (ref.isDummy())
-			{
-				const auto& members = cl.getMembers();
-				int counter = 0;
-
-				const auto* it =
-						find_if(members.begin(), members.end(), [&](const Member& obj) {
-							return obj.getName() == "_temp" + to_string(counter);
-						});
-
-				while (it != members.end())
-					counter++;
-
-				Member temp(
-						"_temp" + to_string(counter), exp.getType(), TypePrefix::none());
-				ref.setName(temp.getName());
-				cl.addMember(temp);
-
-				// Note that there is no need to add the dummy variable to the symbol
-				// table, because it will never be referenced.
-			}
-			else
-			{
-				const auto& name = ref.getName();
-
-				if (!t.hasSymbol(name))
-					return make_error<NotImplemented>(
-							"Unknown variable name '" + name + "'");
-
-				const auto& member = t[name].get<Member>();
-
-				if (member.isInput())
-					return make_error<BadSemantic>(
-							"Input variable '" + name + "' can't receive a new value");
-			}
-		}
-
-		// From Function reference:
-		// "A function cannot contain calls to the Modelica built-in operators der,
-		// initial, terminal, sample, pre, edge, change, reinit, delay, cardinality,
-		// inStream, actualStream, to the operators of the built-in package
-		// Connections, and is not allowed to contain when-statements."
-
-		stack<Expression> stack;
-		stack.push(statement.getExpression());
-
-		while (!stack.empty())
-		{
-			auto expression = stack.top();
-			stack.pop();
-
-			if (expression.isA<ReferenceAccess>())
-			{
-				string name = expression.get<ReferenceAccess>().getName();
-
-				if (name == "der" || name == "initial" || name == "terminal" ||
-						name == "sample" || name == "pre" || name == "edge" ||
-						name == "change" || name == "reinit" || name == "delay" ||
-						name == "cardinality" || name == "inStream" ||
-						name == "actualStream")
+		auto visitor = overload{
+			[&](AssignmentStatement& statement) -> Error {
+				for (auto& destination : statement.getDestinations())
 				{
-					return make_error<BadSemantic>(
-							"'" + name + "' is not allowed in procedural code");
+					// From Function reference:
+					// "Input formal parameters are read-only after being bound to the
+					// actual arguments or default values, i.e., they may not be assigned
+					// values in the body of the function."
+
+					auto& exp = *destination;
+
+					while (exp.isA<Operation>())
+					{
+						auto& operation = exp.get<Operation>();
+						assert(operation.getKind() == OperationKind::subscription);
+						exp = operation[0];
+					}
+
+					assert(exp.isA<ReferenceAccess>());
+					auto& ref = exp.get<ReferenceAccess>();
+
+					if (!ref.isDummy())
+					{
+						const auto& name = ref.getName();
+
+						if (!t.hasSymbol(name))
+							return make_error<NotImplemented>(
+									"Unknown variable name '" + name + "'");
+
+						const auto& member = t[name].get<Member>();
+
+						if (member.isInput())
+							return make_error<BadSemantic>(
+									"Input variable '" + name + "' can't receive a new value");
+					}
 				}
 
-				// TODO: Connections built-in operators + when statement
-			}
-			else if (expression.isA<Operation>())
-			{
-				for (auto& arg : expression.get<Operation>())
-					stack.push(arg);
-			}
-			else if (expression.isA<Call>())
-			{
-				auto& call = expression.get<Call>();
+				// From Function reference:
+				// "A function cannot contain calls to the Modelica built-in operators
+				// der, initial, terminal, sample, pre, edge, change, reinit, delay,
+				// cardinality, inStream, actualStream, to the operators of the built-in
+				// package Connections, and is not allowed to contain when-statements."
 
-				for (auto& arg : call)
-					stack.push(*arg);
+				stack<Expression> stack;
+				stack.push(statement.getExpression());
 
-				stack.push(call.getFunction());
-			}
-		}
+				while (!stack.empty())
+				{
+					auto expression = stack.top();
+					stack.pop();
+
+					if (expression.isA<ReferenceAccess>())
+					{
+						string name = expression.get<ReferenceAccess>().getName();
+
+						if (name == "der" || name == "initial" || name == "terminal" ||
+								name == "sample" || name == "pre" || name == "edge" ||
+								name == "change" || name == "reinit" || name == "delay" ||
+								name == "cardinality" || name == "inStream" ||
+								name == "actualStream")
+						{
+							return make_error<BadSemantic>(
+									"'" + name + "' is not allowed in procedural code");
+						}
+
+						// TODO: Connections built-in operators + when statement
+					}
+					else if (expression.isA<Operation>())
+					{
+						for (auto& arg : expression.get<Operation>())
+							stack.push(arg);
+					}
+					else if (expression.isA<Call>())
+					{
+						auto& call = expression.get<Call>();
+
+						for (auto& arg : call)
+							stack.push(*arg);
+
+						stack.push(call.getFunction());
+					}
+				}
+
+				return Error::success();
+			},
+			[&](ForStatement& statement) -> Error { return Error::success(); }
+		};
+
+		if (auto error = statement.visit(visitor); error)
+			return error;
 	}
 
 	return Error::success();
@@ -325,6 +328,13 @@ Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 }
 
 Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
+{
+	return statement.visit(
+			[&](auto& statement) { return checkType(statement, table); });
+}
+
+Error TypeChecker::checkType(
+		AssignmentStatement& statement, const SymbolTable& table)
 {
 	auto destinations = statement.getDestinations();
 
@@ -397,6 +407,11 @@ Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
 		}
 	}
 
+	return Error::success();
+}
+
+Error TypeChecker::checkType(ForStatement& statement, const SymbolTable& table)
+{
 	return Error::success();
 }
 
@@ -570,5 +585,63 @@ Error TypeChecker::checkType<Tuple>(
 	}
 
 	expression.setType(Type(types));
+	return Error::success();
+}
+
+string getTemporaryVariableName(Class& cls)
+{
+	const auto& members = cls.getMembers();
+	int counter = 0;
+
+	const auto* it =
+			find_if(members.begin(), members.end(), [&](const Member& obj) {
+				return obj.getName() == "_temp" + to_string(counter);
+			});
+
+	while (it != members.end())
+		counter++;
+
+	return "_temp" + to_string(counter);
+}
+
+llvm::Error resolveDummyReferences(Class& cls)
+{
+	// TODO: check of Equation and ForEquation
+
+	for (auto& algorithm : cls.getAlgorithms())
+	{
+		for (auto& statement : algorithm.getStatements())
+		{
+			auto visitor = overload{
+				[&](AssignmentStatement& statement) -> Error {
+					for (auto& destination : statement.getDestinations())
+					{
+						if (!destination->isA<ReferenceAccess>())
+							continue;
+
+						auto& ref = destination->get<ReferenceAccess>();
+
+						if (!ref.isDummy())
+							continue;
+
+						string name = getTemporaryVariableName(cls);
+						Member temp(name, destination->getType(), TypePrefix::none());
+						ref.setName(temp.getName());
+						cls.addMember(temp);
+
+						// Note that there is no need to add the dummy variable to the
+						// symbol table, because it will never be referenced.
+					}
+
+					return Error::success();
+				},
+				[&](ForStatement& statement) -> Error { return Error::success(); }
+			};
+
+			if (auto error = statement.visit(visitor); error)
+				return error;
+		}
+	}
+
 	return Error::success();
 }

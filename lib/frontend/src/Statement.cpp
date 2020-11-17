@@ -4,25 +4,27 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-Statement::Statement(Expression destination, Expression expression)
+AssignmentStatement::AssignmentStatement(
+		Expression destination, Expression expression)
 		: destination(move(destination)), expression(move(expression))
 {
 }
 
-Statement::Statement(Tuple destinations, Expression expression)
+AssignmentStatement::AssignmentStatement(
+		Tuple destinations, Expression expression)
 		: destination(move(destinations)), expression(move(expression))
 {
 }
 
-Statement::Statement(
+AssignmentStatement::AssignmentStatement(
 		initializer_list<Expression> destinations, Expression expression)
 		: destination(Tuple(move(destinations))), expression(move(expression))
 {
 }
 
-void Statement::dump() const { dump(outs(), 0); }
+void AssignmentStatement::dump() const { dump(outs(), 0); }
 
-void Statement::dump(raw_ostream& os, size_t indents) const
+void AssignmentStatement::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "destinations:\n";
@@ -37,7 +39,7 @@ void Statement::dump(raw_ostream& os, size_t indents) const
 	expression.dump(os, indents + 1);
 }
 
-vector<Expression*> Statement::getDestinations()
+vector<Expression*> AssignmentStatement::getDestinations()
 {
 	vector<Expression*> destinations;
 
@@ -52,10 +54,23 @@ vector<Expression*> Statement::getDestinations()
 	return destinations;
 }
 
-void Statement::setDestination(Expression dest) { destination = move(dest); }
+void AssignmentStatement::setDestination(Expression dest)
+{
+	destination = move(dest);
+}
 
-void Statement::setDestination(Tuple dest) { destination = move(dest); }
+void AssignmentStatement::setDestination(Tuple dest)
+{
+	destination = move(dest);
+}
 
-Expression& Statement::getExpression() { return expression; }
+Expression& AssignmentStatement::getExpression() { return expression; }
 
-const Expression& Statement::getExpression() const { return expression; }
+const Expression& AssignmentStatement::getExpression() const
+{
+	return expression;
+}
+
+Statement::Statement(AssignmentStatement statement): content(statement) {}
+
+Statement::Statement(ForStatement statement): content(statement) {}

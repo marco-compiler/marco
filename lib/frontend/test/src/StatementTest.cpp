@@ -8,7 +8,7 @@ TEST(StatementTest, integerAssignment)	// NOLINT
 {
 	Parser parser("x := 1;");
 
-	auto expectedAst = parser.statement();
+	auto expectedAst = parser.assignmentStatement();
 
 	if (!expectedAst)
 		FAIL();
@@ -30,7 +30,7 @@ TEST(StatementTest, floatAssignment)	// NOLINT
 {
 	Parser parser("x := 3.14;");
 
-	auto expectedAst = parser.statement();
+	auto expectedAst = parser.assignmentStatement();
 
 	if (!expectedAst)
 		FAIL();
@@ -52,7 +52,7 @@ TEST(StatementTest, referenceAssignment)	// NOLINT
 {
 	Parser parser("x := y;");
 
-	auto expectedAst = parser.statement();
+	auto expectedAst = parser.assignmentStatement();
 
 	if (!expectedAst)
 		FAIL();
@@ -75,7 +75,7 @@ TEST(StatementTest, functionCall)	 // NOLINT
 {
 	Parser parser("x := Foo (y, z);");
 
-	auto expectedAst = parser.statement();
+	auto expectedAst = parser.assignmentStatement();
 
 	if (!expectedAst)
 		FAIL();
@@ -104,7 +104,7 @@ TEST(StatementTest, multipleOutputs)	// NOLINT
 {
 	Parser parser("(x, y) := Foo ();");
 
-	auto expectedAst = parser.statement();
+	auto expectedAst = parser.assignmentStatement();
 
 	if (!expectedAst)
 		FAIL();
@@ -126,7 +126,7 @@ TEST(StatementTest, ignoredOutputs)	 // NOLINT
 {
 	Parser parser("(x, , z) := Foo ();");
 
-	auto expectedAst = parser.statement();
+	auto expectedAst = parser.assignmentStatement();
 
 	if (!expectedAst)
 		FAIL();

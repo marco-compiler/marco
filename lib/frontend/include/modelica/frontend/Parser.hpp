@@ -70,8 +70,10 @@ namespace modelica
 		llvm::Expected<llvm::SmallVector<Expression, 3>> functionCallArguments();
 		llvm::Expected<std::vector<Expression>> arraySubscript();
 
-		llvm::Expected<Statement> statement();
 		llvm::Expected<Algorithm> algorithmSection();
+		llvm::Expected<Statement> statement();
+		llvm::Expected<AssignmentStatement> assignmentStatement();
+		llvm::Expected<ForStatement> forStatement();
 		llvm::Expected<Tuple> outputExpressionList();
 
 		private:

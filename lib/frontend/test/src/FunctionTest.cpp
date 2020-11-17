@@ -17,7 +17,7 @@ TEST(FunctionParse, functionName)	 // NOLINT
 		FAIL();
 
 	auto ast = move(*expectedAst);
-	ASSERT_EQ("Foo", ast.getName());
+	EXPECT_EQ("Foo", ast.getName());
 }
 
 TEST(FunctionParse, singleAlgorithm)	// NOLINT
@@ -32,7 +32,7 @@ TEST(FunctionParse, singleAlgorithm)	// NOLINT
 		FAIL();
 
 	auto ast = move(*expectedAst);
-	ASSERT_EQ(1, ast.getAlgorithms().size());
+	EXPECT_EQ(1, ast.getAlgorithms().size());
 }
 
 TEST(FunctionParse, multipleAlgorithms)	 // NOLINT
@@ -48,10 +48,10 @@ TEST(FunctionParse, multipleAlgorithms)	 // NOLINT
 		FAIL();
 
 	auto ast = move(*expectedAst);
-	ASSERT_EQ(2, ast.getAlgorithms().size());
+	EXPECT_EQ(2, ast.getAlgorithms().size());
 }
 
-TEST(FunctionTypeCheck, publicMembersMustBeInputOrOutput)
+TEST(FunctionTypeCheck, publicMembersMustBeInputOrOutput)	 // NOLINT
 {
 	Parser parser("function Foo"
 								"	input Real x;"
@@ -67,11 +67,11 @@ TEST(FunctionTypeCheck, publicMembersMustBeInputOrOutput)
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	ASSERT_ERROR(
+	EXPECT_ERROR(
 			typeChecker.checkType<ClassType::Function>(ast, {}), BadSemantic);
 }
 
-TEST(FunctionTypeCheck, assignmentToInputMember)
+TEST(FunctionTypeCheck, assignmentToInputMember)	// NOLINT
 {
 	Parser parser("function Foo"
 								"	input Real x;"
@@ -88,11 +88,11 @@ TEST(FunctionTypeCheck, assignmentToInputMember)
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	ASSERT_ERROR(
+	EXPECT_ERROR(
 			typeChecker.checkType<ClassType::Function>(ast, {}), BadSemantic);
 }
 
-TEST(FunctionTypeCheck, assignmentToInputArray)
+TEST(FunctionTypeCheck, assignmentToInputArray)	 // NOLINT
 {
 	Parser parser("function Foo"
 								"	input Real[2] x;"
@@ -109,11 +109,11 @@ TEST(FunctionTypeCheck, assignmentToInputArray)
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	ASSERT_ERROR(
+	EXPECT_ERROR(
 			typeChecker.checkType<ClassType::Function>(ast, {}), BadSemantic);
 }
 
-TEST(FunctionTypeCheck, directDerCall)
+TEST(FunctionTypeCheck, directDerCall)	// NOLINT
 {
 	Parser parser("function Foo"
 								"	input Real x;"
@@ -128,11 +128,11 @@ TEST(FunctionTypeCheck, directDerCall)
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	ASSERT_ERROR(
+	EXPECT_ERROR(
 			typeChecker.checkType<ClassType::Function>(ast, {}), BadSemantic);
 }
 
-TEST(FunctionTypeCheck, derInsideParameters)
+TEST(FunctionTypeCheck, derInsideParameters)	// NOLINT
 {
 	Parser parser("function Foo"
 								"	input Real x;"
@@ -148,6 +148,6 @@ TEST(FunctionTypeCheck, derInsideParameters)
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	ASSERT_ERROR(
+	EXPECT_ERROR(
 			typeChecker.checkType<ClassType::Function>(ast, {}), BadSemantic);
 }

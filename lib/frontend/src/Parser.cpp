@@ -386,6 +386,18 @@ Expected<Equation> Parser::equation()
 
 Expected<Statement> Parser::statement()
 {
+	if (current == Token::ForKeyword)
+	{
+		TRY(statement, forStatement());
+		return Statement(move(*statement));
+	}
+
+	TRY(statement, assignmentStatement());
+	return Statement(move(*statement));
+}
+
+Expected<AssignmentStatement> Parser::assignmentStatement()
+{
 	if (accept<Token::LPar>())
 	{
 		TRY(destinations, outputExpressionList());
@@ -395,35 +407,30 @@ Expected<Statement> Parser::statement()
 		TRY(args, functionCallArguments());
 		Expression call = makeCall(move(*functionName), move(*args));
 
-		return Statement(move(*destinations), move(call));
+		return AssignmentStatement(move(*destinations), move(call));
 	}
 
 	TRY(component, componentReference());
 	EXPECT(Token::Assignment);
 	TRY(exp, expression());
-	return Statement(move(*component), move(*exp));
+	return AssignmentStatement(move(*component), move(*exp));
 }
 
-Expected<SmallVector<ForEquation, 3>> Parser::forEquationBody(int nestingLevel)
+Expected<ForStatement> Parser::forStatement()
 {
-	SmallVector<ForEquation, 3> toReturn;
+	EXPECT(Token::ForKeyword);
+	auto name = lexer.getLastIdentifier();
+	EXPECT(Token::Ident);
+	EXPECT(Token::InKeyword);
+	TRY(begin, expression());
+	EXPECT(Token::Colons);
+	TRY(end, expression());
+	EXPECT(Token::LoopKeyword);
 
-	if (current != Token::ForKeyword)
-	{
-		TRY(innerEq, equation());
-		toReturn.push_back(ForEquation({}, move(*innerEq)));
-		return toReturn;
-	}
+	Induction ind(move(name), move(*begin), move(*end));
 
-	TRY(innerEq, forEquation(nestingLevel));
-
-	for (auto& eq : *innerEq)
-	{
-		auto& inductions = eq.getInductions();
-		toReturn.push_back(move(eq));
-	}
-
-	return toReturn;
+	EXPECT(Token::EndKeyword);
+	EXPECT(Token::ForKeyword);
 }
 
 Expected<SmallVector<ForEquation, 3>> Parser::forEquation(int nestingLevel)
@@ -457,6 +464,28 @@ Expected<SmallVector<ForEquation, 3>> Parser::forEquation(int nestingLevel)
 	}
 
 	EXPECT(Token::ForKeyword);
+	return toReturn;
+}
+
+Expected<SmallVector<ForEquation, 3>> Parser::forEquationBody(int nestingLevel)
+{
+	SmallVector<ForEquation, 3> toReturn;
+
+	if (current != Token::ForKeyword)
+	{
+		TRY(innerEq, equation());
+		toReturn.push_back(ForEquation({}, move(*innerEq)));
+		return toReturn;
+	}
+
+	TRY(innerEq, forEquation(nestingLevel));
+
+	for (auto& eq : *innerEq)
+	{
+		auto& inductions = eq.getInductions();
+		toReturn.push_back(move(eq));
+	}
+
 	return toReturn;
 }
 
