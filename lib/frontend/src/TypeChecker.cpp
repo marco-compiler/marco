@@ -312,10 +312,13 @@ Error TypeChecker::checkType(ForEquation& eq, const SymbolTable& table)
 
 Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 {
-	if (auto error = checkType<Expression>(eq.getLeftHand(), table); error)
+	auto& lh = eq.getLeftHand();
+	auto& rh = eq.getRightHand();
+
+	if (auto error = checkType<Expression>(lh, table); error)
 		return error;
 
-	if (auto error = checkType<Expression>(eq.getRightHand(), table); error)
+	if (auto error = checkType<Expression>(rh, table); error)
 		return error;
 
 	return Error::success();
@@ -323,7 +326,9 @@ Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 
 Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
 {
-	for (auto& destination : statement.getDestinations())
+	auto destinations = statement.getDestinations();
+
+	for (auto& destination : destinations)
 	{
 		if (auto error = checkType<Expression>(*destination, table); error)
 			return error;
@@ -342,16 +347,14 @@ Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
 	if (auto error = checkType<Expression>(expression, table); error)
 		return error;
 
-	// Assign type to dummy variables.
-	// The assignment can't be done earlier because the expression type would
-	// have not been evaluated yet.
-
-	auto destinations = statement.getDestinations();
-
 	if (destinations.size() > 1 && !expression.getType().isA<UserDefinedType>())
 		return make_error<IncompatibleType>(
 				"The expression must return at least " +
 				to_string(destinations.size()) + "values");
+
+	// Assign type to dummy variables.
+	// The assignment can't be done earlier because the expression type would
+	// have not been evaluated yet.
 
 	for (size_t i = 0; i < destinations.size(); i++)
 	{
@@ -369,6 +372,28 @@ Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
 			auto& userDefType = expressionType.get<UserDefinedType>();
 			assert(userDefType.size() >= i);
 			destinations[i]->setType(userDefType[i]);
+		}
+	}
+
+	// If the function call has more return values than the provided
+	// destinations, then we need to add more dummy references.
+
+	if (expression.getType().isA<UserDefinedType>())
+	{
+		auto& userDefType = expression.getType().get<UserDefinedType>();
+		size_t returns = userDefType.size();
+
+		if (destinations.size() < returns)
+		{
+			vector<Expression> newDestinations;
+
+			for (auto& destination : destinations)
+				newDestinations.push_back(move(*destination));
+
+			for (size_t i = newDestinations.size(); i < returns; i++)
+				newDestinations.emplace_back(userDefType[i], ReferenceAccess::dummy());
+
+			statement.setDestination(Tuple(move(newDestinations)));
 		}
 	}
 

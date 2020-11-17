@@ -33,6 +33,8 @@ Tuple& Tuple::operator=(const Tuple& other)
 	if (this == &other)
 		return *this;
 
+	expressions.clear();
+
 	for (const auto& exp : other.expressions)
 		expressions.push_back(std::make_unique<Expression>(*exp));
 

@@ -52,6 +52,10 @@ vector<Expression*> Statement::getDestinations()
 	return destinations;
 }
 
+void Statement::setDestination(Expression dest) { destination = move(dest); }
+
+void Statement::setDestination(Tuple dest) { destination = move(dest); }
+
 Expression& Statement::getExpression() { return expression; }
 
 const Expression& Statement::getExpression() const { return expression; }
