@@ -42,8 +42,10 @@ TEST(TypeCheckTest, andOfBoolShouldProduceBool)	 // NOLINT
 
 TEST(TypeCheckerTest, tupleExpressionType)	// NOLINT
 {
-	Expression exp(Tuple({ Expression(Type::Int(), ReferenceAccess("x")),
-												 Expression(Type::Float(), ReferenceAccess("y")) }));
+	Expression exp(
+			Type::unknown(),
+			Tuple({ Expression(Type::Int(), ReferenceAccess("x")),
+							Expression(Type::Float(), ReferenceAccess("y")) }));
 
 	SymbolTable table;
 

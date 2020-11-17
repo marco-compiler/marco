@@ -380,6 +380,12 @@ Expected<Statement> Parser::statement()
 		return Statement(move(*statement));
 	}
 
+	if (current == Token::IfKeyword)
+	{
+		TRY(statement, ifStatement());
+		return Statement(move(*statement));
+	}
+
 	TRY(statement, assignmentStatement());
 	return Statement(move(*statement));
 }
@@ -419,6 +425,68 @@ Expected<ForStatement> Parser::forStatement()
 
 	EXPECT(Token::EndKeyword);
 	EXPECT(Token::ForKeyword);
+
+	return ForStatement();
+}
+
+Expected<IfStatement> Parser::ifStatement()
+{
+	SmallVector<IfBlock, 3> blocks;
+
+	EXPECT(Token::IfKeyword);
+	TRY(ifCondition, expression());
+	EXPECT(Token::ThenKeyword);
+
+	SmallVector<Statement, 3> ifStatements;
+
+	while (current != Token::ElseIfKeyword && current != Token::ElseKeyword &&
+				 current != Token::EndKeyword)
+	{
+		TRY(stmnt, statement());
+		EXPECT(Token::Semicolons);
+		ifStatements.push_back(move(*stmnt));
+	}
+
+	blocks.emplace_back(move(*ifCondition), move(ifStatements));
+
+	while (current != Token::ElseKeyword && current != Token::EndKeyword)
+	{
+		EXPECT(Token::ElseIfKeyword);
+		TRY(elseIfCondition, expression());
+		EXPECT(Token::ThenKeyword);
+		SmallVector<Statement, 3> elseIfStatements;
+
+		while (current != Token::ElseIfKeyword && current != Token::ElseKeyword &&
+					 current != Token::EndKeyword)
+		{
+			TRY(stmnt, statement());
+			EXPECT(Token::Semicolons);
+			elseIfStatements.push_back(move(*stmnt));
+		}
+
+		blocks.emplace_back(move(*elseIfCondition), move(elseIfStatements));
+	}
+
+	if (accept<Token::ElseKeyword>())
+	{
+		SmallVector<Statement, 3> elseStatements;
+
+		while (current != Token::EndKeyword)
+		{
+			TRY(stmnt, statement());
+			EXPECT(Token::Semicolons);
+			elseStatements.push_back(move(*stmnt));
+		}
+
+		// Being the last block, it can be discarded if empty
+		if (!elseStatements.empty())
+			blocks.emplace_back(move(elseStatements));
+	}
+
+	EXPECT(Token::EndKeyword);
+	EXPECT(Token::IfKeyword);
+
+	return IfStatement(move(blocks));
 }
 
 Expected<SmallVector<ForEquation, 3>> Parser::forEquation(int nestingLevel)

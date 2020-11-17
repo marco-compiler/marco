@@ -74,6 +74,7 @@ namespace modelica
 		llvm::Expected<Statement> statement();
 		llvm::Expected<AssignmentStatement> assignmentStatement();
 		llvm::Expected<ForStatement> forStatement();
+		llvm::Expected<IfStatement> ifStatement();
 		llvm::Expected<Tuple> outputExpressionList();
 
 		private:

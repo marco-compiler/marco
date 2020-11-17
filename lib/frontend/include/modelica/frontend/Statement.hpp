@@ -10,6 +10,9 @@
 
 namespace modelica
 {
+	class Statement;
+	using UniqueStatement = std::unique_ptr<Statement>;
+
 	class AssignmentStatement
 	{
 		public:
@@ -63,9 +66,42 @@ namespace modelica
 		public:
 		ForStatement() {}
 
-		void dump() const {}
+		void dump() const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+	};
 
-		void dump(llvm::raw_ostream& os, size_t indents) const {}
+	class IfBlock
+	{
+		public:
+		IfBlock(Expression condition, llvm::ArrayRef<Statement> statements);
+		explicit IfBlock(llvm::ArrayRef<Statement> statements);
+
+		IfBlock(const IfBlock& other);
+		IfBlock(IfBlock&& other) = default;
+
+		IfBlock& operator=(const IfBlock& other);
+		IfBlock& operator=(IfBlock&& other) = default;
+
+		~IfBlock() = default;
+
+		void dump() const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		private:
+		Expression condition;
+		llvm::SmallVector<UniqueStatement, 3> statements;
+	};
+
+	class IfStatement
+	{
+		public:
+		explicit IfStatement(llvm::ArrayRef<IfBlock> blocks);
+
+		void dump() const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		private:
+		llvm::SmallVector<IfBlock, 3> blocks;
 	};
 
 	class Statement
@@ -73,6 +109,10 @@ namespace modelica
 		public:
 		Statement(AssignmentStatement statement);
 		Statement(ForStatement statement);
+		Statement(IfStatement statement);
+
+		void dump() const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		template<class Visitor>
 		auto visit(Visitor&& vis)
@@ -87,7 +127,7 @@ namespace modelica
 		}
 
 		private:
-		std::variant<AssignmentStatement, ForStatement> content;
+		std::variant<AssignmentStatement, ForStatement, IfStatement> content;
 	};
 
 }	 // namespace modelica

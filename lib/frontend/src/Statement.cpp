@@ -28,11 +28,7 @@ void AssignmentStatement::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "destinations:\n";
-
-	if (destinationIsA<Expression>())
-		get<Expression>(destination).dump(os, indents + 1);
-	else
-		get<Tuple>(destination).dump(os, indents + 1);
+	visit([&](const auto& obj) { obj.dump(os, indents + 1); }, destination);
 
 	os.indent(indents);
 	os << "assigned expression:\n";
@@ -71,6 +67,85 @@ const Expression& AssignmentStatement::getExpression() const
 	return expression;
 }
 
-Statement::Statement(AssignmentStatement statement): content(statement) {}
+void ForStatement::dump() const { dump(outs(), 0); }
 
-Statement::Statement(ForStatement statement): content(statement) {}
+void ForStatement::dump(raw_ostream& os, size_t indents) const {}
+
+IfBlock::IfBlock(Expression condition, ArrayRef<Statement> statements)
+		: condition(move(condition))
+{
+	for (const auto& statement : statements)
+		this->statements.push_back(std::make_unique<Statement>(statement));
+}
+
+IfBlock::IfBlock(llvm::ArrayRef<Statement> statements)
+		: IfBlock(Expression::trueExp(), statements)
+{
+}
+
+IfBlock::IfBlock(const IfBlock& other): condition(other.condition)
+{
+	statements.clear();
+
+	for (const auto& statement : other.statements)
+		statements.push_back(std::make_unique<Statement>(*statement));
+}
+
+IfBlock& IfBlock::operator=(const IfBlock& other)
+{
+	if (this == &other)
+		return *this;
+
+	condition = other.condition;
+	statements.clear();
+
+	for (const auto& statement : other.statements)
+		statements.push_back(std::make_unique<Statement>(*statement));
+
+	return *this;
+}
+
+void IfBlock::dump() const { dump(outs(), 0); }
+
+void IfBlock::dump(raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "condition:\n";
+	condition.dump(os, indents + 1);
+
+	os.indent(indents);
+	os << "body:\n";
+
+	for (const auto& statement : statements)
+		statement->dump(os, indents + 1);
+}
+
+IfStatement::IfStatement(llvm::ArrayRef<IfBlock> blocks)
+		: blocks(blocks.begin(), blocks.end())
+{
+	assert(this->blocks.size() > 1);
+}
+
+void IfStatement::dump() const { dump(outs(), 0); }
+
+void IfStatement::dump(raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "if statement\n";
+
+	for (const auto& block : blocks)
+		block.dump(os, indents + 1);
+}
+
+Statement::Statement(AssignmentStatement statement): content(move(statement)) {}
+
+Statement::Statement(ForStatement statement): content(move(statement)) {}
+
+Statement::Statement(IfStatement statement): content(move(statement)) {}
+
+void Statement::dump() const { dump(outs(), 0); }
+
+void Statement::dump(raw_ostream& os, size_t indents) const
+{
+	visit([&](const auto& statement) { statement.dump(os, indents); });
+}

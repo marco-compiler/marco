@@ -20,12 +20,13 @@ using namespace std;
 
 // Fancy declarations used to declare inline visitors
 template<class... Ts>
-struct overload: Ts...
+struct Overload: Ts...
 {
 	using Ts::operator()...;
 };
+
 template<class... Ts>
-overload(Ts...) -> overload<Ts...>;
+Overload(Ts...) -> Overload<Ts...>;
 
 llvm::Error resolveDummyReferences(Class& cls);
 
@@ -176,7 +177,7 @@ Error TypeChecker::checkType<ClassType::Function>(
 
 	for (auto& statement : algorithms[0].getStatements())
 	{
-		auto visitor = overload{
+		auto visitor = Overload{
 			[&](AssignmentStatement& statement) -> Error {
 				for (auto& destination : statement.getDestinations())
 				{
@@ -261,7 +262,8 @@ Error TypeChecker::checkType<ClassType::Function>(
 
 				return Error::success();
 			},
-			[&](ForStatement& statement) -> Error { return Error::success(); }
+			[&](ForStatement& statement) -> Error { return Error::success(); },
+			[&](IfStatement& statement) -> Error { return Error::success(); }
 		};
 
 		if (auto error = statement.visit(visitor); error)
@@ -471,6 +473,11 @@ Error TypeChecker::checkType(
 }
 
 Error TypeChecker::checkType(ForStatement& statement, const SymbolTable& table)
+{
+	return Error::success();
+}
+
+Error TypeChecker::checkType(IfStatement& statement, const SymbolTable& table)
 {
 	return Error::success();
 }
@@ -694,7 +701,7 @@ llvm::Error resolveDummyReferences(Class& cls)
 	{
 		for (auto& statement : algorithm.getStatements())
 		{
-			auto visitor = overload{
+			auto visitor = Overload{
 				[&](AssignmentStatement& statement) -> Error {
 					for (auto& destination : statement.getDestinations())
 					{
@@ -717,7 +724,8 @@ llvm::Error resolveDummyReferences(Class& cls)
 
 					return Error::success();
 				},
-				[&](ForStatement& statement) -> Error { return Error::success(); }
+				[&](ForStatement& statement) -> Error { return Error::success(); },
+				[&](IfStatement& statement) -> Error { return Error::success(); }
 			};
 
 			if (auto error = statement.visit(visitor); error)
