@@ -73,18 +73,6 @@ void Parser::undoScan(Token t)
 
 #include <modelica/utils/ParserUtils.hpp>
 
-/**
- * Check whether the current token leads to the termination of the current
- * section (and eventually to the start of a new one).
- */
-static bool sectionTerminator(Token current)
-{
-	return current == Token::AlgorithmKeyword ||
-				 current == Token::EquationKeyword || current == Token::PublicKeyword ||
-				 current == Token::EndKeyword || current == Token::LPar ||
-				 current == Token::End;
-}
-
 static Expected<BuiltinType> nameToBuiltin(const std::string& name)
 {
 	if (name == "int")
@@ -704,7 +692,7 @@ Expected<Expression> Parser::primary()
 		if (exp->size() == 1)
 			return *(*exp)[0];
 
-		return Expression(move(*exp));
+		return Expression(Type::unknown(), move(*exp));
 	}
 
 	if (accept<Token::DerKeyword>())

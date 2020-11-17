@@ -104,6 +104,9 @@ Error TypeChecker::checkType<ClassType::Class>(
 		if (auto error = checkType(algorithm, t); error)
 			return error;
 
+	if (auto error = resolveDummyReferences(cl); error)
+		return error;
+
 	return Error::success();
 }
 
@@ -315,14 +318,71 @@ Error TypeChecker::checkType(ForEquation& eq, const SymbolTable& table)
 
 Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 {
-	auto& lh = eq.getLeftHand();
-	auto& rh = eq.getRightHand();
+	auto& lhs = eq.getLeftHand();
+	auto& rhs = eq.getRightHand();
 
-	if (auto error = checkType<Expression>(lh, table); error)
+	if (auto error = checkType<Expression>(lhs, table); error)
 		return error;
 
-	if (auto error = checkType<Expression>(rh, table); error)
+	if (auto error = checkType<Expression>(rhs, table); error)
 		return error;
+
+	auto& lhsType = lhs.getType();
+	auto& rhsType = rhs.getType();
+
+	if (lhs.isA<Tuple>() && lhs.get<Tuple>().size() > 1)
+		if (!rhsType.isA<UserDefinedType>() ||
+				lhs.get<Tuple>().size() > rhsType.get<UserDefinedType>().size())
+			return make_error<IncompatibleType>("Type dimension mismatch");
+
+	if (lhs.isA<Tuple>())
+	{
+		auto& tuple = lhs.get<Tuple>();
+		auto& types = rhsType.get<UserDefinedType>();
+
+		// Assign type to dummy variables.
+		// The assignment can't be done earlier because the expression type would
+		// have not been evaluated yet.
+
+		for (size_t i = 0; i < tuple.size(); i++)
+		{
+			// If it's not a direct reference access, there's no way it can be a
+			// dummy variable.
+			if (!tuple[i]->isA<ReferenceAccess>())
+				continue;
+
+			auto& ref = tuple[i]->get<ReferenceAccess>();
+
+			if (ref.isDummy())
+			{
+				assert(types.size() >= i);
+				tuple[i]->setType(types[i]);
+			}
+		}
+	}
+
+	// If the function call has more return values than the provided
+	// destinations, then we need to add more dummy references.
+
+	if (rhsType.isA<UserDefinedType>())
+	{
+		auto& types = rhsType.get<UserDefinedType>();
+		size_t returns = types.size();
+
+		vector<Expression> newDestinations;
+
+		if (lhs.isA<Tuple>())
+			for (auto& destination : lhs.get<Tuple>())
+				newDestinations.push_back(move(*destination));
+		else
+			newDestinations.push_back(move(lhs));
+
+		for (size_t i = newDestinations.size(); i < returns; i++)
+			newDestinations.emplace_back(types[i], ReferenceAccess::dummy());
+
+		Tuple tuple(move(newDestinations));
+		eq.setLeftHand(Expression(rhsType, move(tuple)));
+	}
 
 	return Error::success();
 }
@@ -593,12 +653,10 @@ string getTemporaryVariableName(Class& cls)
 	const auto& members = cls.getMembers();
 	int counter = 0;
 
-	const auto* it =
-			find_if(members.begin(), members.end(), [&](const Member& obj) {
-				return obj.getName() == "_temp" + to_string(counter);
-			});
-
-	while (it != members.end())
+	while (members.end() !=
+				 find_if(members.begin(), members.end(), [=](const Member& obj) {
+					 return obj.getName() == "_temp" + to_string(counter);
+				 }))
 		counter++;
 
 	return "_temp" + to_string(counter);
@@ -606,7 +664,31 @@ string getTemporaryVariableName(Class& cls)
 
 llvm::Error resolveDummyReferences(Class& cls)
 {
-	// TODO: check of Equation and ForEquation
+	for (auto& equation : cls.getEquations())
+	{
+		auto& lhs = equation.getLeftHand();
+
+		if (lhs.isA<Tuple>())
+		{
+			for (auto& expression : lhs.get<Tuple>())
+			{
+				if (!expression->isA<ReferenceAccess>())
+					continue;
+
+				auto& ref = expression->get<ReferenceAccess>();
+
+				if (!ref.isDummy())
+					continue;
+
+				string name = getTemporaryVariableName(cls);
+				Member temp(name, expression->getType(), TypePrefix::none());
+				ref.setName(temp.getName());
+				cls.addMember(temp);
+			}
+		}
+	}
+
+	// TODO: check of ForEquation
 
 	for (auto& algorithm : cls.getAlgorithms())
 	{

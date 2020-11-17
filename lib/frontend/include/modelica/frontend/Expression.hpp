@@ -29,7 +29,7 @@ namespace modelica
 		Expression(Type tp, Constant costnt);
 		Expression(Type tp, ReferenceAccess access);
 		Expression(Type tp, Call call);
-		explicit Expression(Tuple tuple);
+		Expression(Type tp, Tuple tuple);
 
 		template<OperationKind op, typename... Args>
 		Expression(Type type, Args&&... args)

@@ -21,8 +21,18 @@ void Equation::dump(raw_ostream& os, size_t indents) const
 
 Expression& Equation::getLeftHand() { return leftHand; }
 
-Expression& Equation::getRightHand() { return rightHand; }
-
 const Expression& Equation::getLeftHand() const { return leftHand; }
 
+void Equation::setLeftHand(Expression expression)
+{
+	this->leftHand = move(expression);
+}
+
+Expression& Equation::getRightHand() { return rightHand; }
+
 const Expression& Equation::getRightHand() const { return rightHand; }
+
+void Equation::setRightHand(Expression expression)
+{
+	this->rightHand = move(expression);
+}

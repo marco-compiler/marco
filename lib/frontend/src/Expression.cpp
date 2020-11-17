@@ -29,7 +29,8 @@ Expression::Expression(Type type, Call call)
 {
 }
 
-Expression::Expression(Tuple tuple): content(move(tuple)), type(Type::unknown())
+Expression::Expression(Type type, Tuple tuple)
+		: content(move(tuple)), type(move(type))
 {
 }
 

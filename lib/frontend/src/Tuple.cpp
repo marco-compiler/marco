@@ -70,7 +70,7 @@ void Tuple::dump(raw_ostream& os, size_t indents) const
 		exp->dump(os, indents);
 }
 
-int Tuple::size() const { return expressions.size(); }
+size_t Tuple::size() const { return expressions.size(); }
 
 SmallVectorImpl<UniqueExpr>::iterator Tuple::begin()
 {

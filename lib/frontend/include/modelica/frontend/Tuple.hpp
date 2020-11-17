@@ -42,7 +42,7 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
-		[[nodiscard]] int size() const;
+		[[nodiscard]] size_t size() const;
 
 		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::iterator begin();
 		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::const_iterator begin()
