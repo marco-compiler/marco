@@ -21,7 +21,7 @@ namespace modelica
 	class ForEquation
 	{
 		public:
-		ForEquation(llvm::ArrayRef<Induction> ind, Equation eq);
+		ForEquation(llvm::ArrayRef<Induction> inductions, Equation equation);
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
@@ -34,7 +34,7 @@ namespace modelica
 		[[nodiscard]] const Equation& getEquation() const;
 
 		private:
-		llvm::SmallVector<Induction, 3> induction;
+		llvm::SmallVector<Induction, 3> inductions;
 		Equation equation;
 	};
 }	 // namespace modelica

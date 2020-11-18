@@ -5,12 +5,11 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-ForEquation::ForEquation(ArrayRef<Induction> ind, Equation eq)
-		: induction(iterator_range<ArrayRef<Induction>::iterator>(move(ind))),
-			equation(move(eq))
+ForEquation::ForEquation(ArrayRef<Induction> inductions, Equation equation)
+		: inductions(inductions.begin(), inductions.end()), equation(move(equation))
 {
-	for (auto a : irange(induction.size()))
-		induction[a].setInductionIndex(a);
+	for (auto i : irange(inductions.size()))
+		this->inductions[i].setInductionIndex(i);
 }
 
 void ForEquation::dump() const { dump(outs(), 0); }
@@ -19,7 +18,7 @@ void ForEquation::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os << "for equation\n";
 
-	for (const auto& ind : induction)
+	for (const auto& ind : inductions)
 	{
 		ind.dump(os, indents + 1);
 		os << "\n";
@@ -28,14 +27,14 @@ void ForEquation::dump(llvm::raw_ostream& os, size_t indents) const
 	equation.dump(os, indents + 1);
 }
 
-SmallVectorImpl<Induction>& ForEquation::getInductions() { return induction; }
+SmallVectorImpl<Induction>& ForEquation::getInductions() { return inductions; }
 
 const SmallVectorImpl<Induction>& ForEquation::getInductions() const
 {
-	return induction;
+	return inductions;
 }
 
-size_t ForEquation::inductionsCount() const { return induction.size(); }
+size_t ForEquation::inductionsCount() const { return inductions.size(); }
 
 Equation& ForEquation::getEquation() { return equation; }
 

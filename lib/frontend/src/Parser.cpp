@@ -421,12 +421,20 @@ Expected<ForStatement> Parser::forStatement()
 	TRY(end, expression());
 	EXPECT(Token::LoopKeyword);
 
-	Induction ind(move(name), move(*begin), move(*end));
+	Induction induction(move(name), move(*begin), move(*end));
+	SmallVector<Statement, 3> statements;
+
+	while (current != Token::EndKeyword)
+	{
+		TRY(stmnt, statement());
+		EXPECT(Token::Semicolons);
+		statements.push_back(move(*stmnt));
+	}
 
 	EXPECT(Token::EndKeyword);
 	EXPECT(Token::ForKeyword);
 
-	return ForStatement();
+	return ForStatement(move(induction), move(statements));
 }
 
 Expected<IfStatement> Parser::ifStatement()

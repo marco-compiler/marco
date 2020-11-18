@@ -12,21 +12,12 @@
 #include <modelica/frontend/Type.hpp>
 #include <modelica/frontend/TypeChecker.hpp>
 #include <modelica/utils/IRange.hpp>
+#include <queue>
 #include <stack>
 
 using namespace llvm;
 using namespace modelica;
 using namespace std;
-
-// Fancy declarations used to declare inline visitors
-template<class... Ts>
-struct Overload: Ts...
-{
-	using Ts::operator()...;
-};
-
-template<class... Ts>
-Overload(Ts...) -> Overload<Ts...>;
 
 llvm::Error resolveDummyReferences(Class& cls);
 
@@ -177,97 +168,91 @@ Error TypeChecker::checkType<ClassType::Function>(
 
 	for (auto& statement : algorithms[0].getStatements())
 	{
-		auto visitor = Overload{
-			[&](AssignmentStatement& statement) -> Error {
-				for (auto& destination : statement.getDestinations())
-				{
-					// From Function reference:
-					// "Input formal parameters are read-only after being bound to the
-					// actual arguments or default values, i.e., they may not be assigned
-					// values in the body of the function."
+		for (auto it = statement.begin(); it != statement.end(); ++it)
+		{
+			auto& assignment = *it;
 
-					auto& exp = *destination;
-
-					while (exp.isA<Operation>())
-					{
-						auto& operation = exp.get<Operation>();
-						assert(operation.getKind() == OperationKind::subscription);
-						exp = operation[0];
-					}
-
-					assert(exp.isA<ReferenceAccess>());
-					auto& ref = exp.get<ReferenceAccess>();
-
-					if (!ref.isDummy())
-					{
-						const auto& name = ref.getName();
-
-						if (!t.hasSymbol(name))
-							return make_error<NotImplemented>(
-									"Unknown variable name '" + name + "'");
-
-						const auto& member = t[name].get<Member>();
-
-						if (member.isInput())
-							return make_error<BadSemantic>(
-									"Input variable '" + name + "' can't receive a new value");
-					}
-				}
-
+			for (auto& destination : assignment.getDestinations())
+			{
 				// From Function reference:
-				// "A function cannot contain calls to the Modelica built-in operators
-				// der, initial, terminal, sample, pre, edge, change, reinit, delay,
-				// cardinality, inStream, actualStream, to the operators of the built-in
-				// package Connections, and is not allowed to contain when-statements."
+				// "Input formal parameters are read-only after being bound to the
+				// actual arguments or default values, i.e., they may not be assigned
+				// values in the body of the function."
 
-				stack<Expression> stack;
-				stack.push(statement.getExpression());
+				auto& exp = *destination;
 
-				while (!stack.empty())
+				while (exp.isA<Operation>())
 				{
-					auto expression = stack.top();
-					stack.pop();
-
-					if (expression.isA<ReferenceAccess>())
-					{
-						string name = expression.get<ReferenceAccess>().getName();
-
-						if (name == "der" || name == "initial" || name == "terminal" ||
-								name == "sample" || name == "pre" || name == "edge" ||
-								name == "change" || name == "reinit" || name == "delay" ||
-								name == "cardinality" || name == "inStream" ||
-								name == "actualStream")
-						{
-							return make_error<BadSemantic>(
-									"'" + name + "' is not allowed in procedural code");
-						}
-
-						// TODO: Connections built-in operators + when statement
-					}
-					else if (expression.isA<Operation>())
-					{
-						for (auto& arg : expression.get<Operation>())
-							stack.push(arg);
-					}
-					else if (expression.isA<Call>())
-					{
-						auto& call = expression.get<Call>();
-
-						for (auto& arg : call)
-							stack.push(*arg);
-
-						stack.push(call.getFunction());
-					}
+					auto& operation = exp.get<Operation>();
+					assert(operation.getKind() == OperationKind::subscription);
+					exp = operation[0];
 				}
 
-				return Error::success();
-			},
-			[&](ForStatement& statement) -> Error { return Error::success(); },
-			[&](IfStatement& statement) -> Error { return Error::success(); }
-		};
+				assert(exp.isA<ReferenceAccess>());
+				auto& ref = exp.get<ReferenceAccess>();
 
-		if (auto error = statement.visit(visitor); error)
-			return error;
+				if (!ref.isDummy())
+				{
+					const auto& name = ref.getName();
+
+					if (!t.hasSymbol(name))
+						return make_error<NotImplemented>(
+								"Unknown variable name '" + name + "'");
+
+					const auto& member = t[name].get<Member>();
+
+					if (member.isInput())
+						return make_error<BadSemantic>(
+								"Input variable '" + name + "' can't receive a new value");
+				}
+			}
+
+			// From Function reference:
+			// "A function cannot contain calls to the Modelica built-in operators
+			// der, initial, terminal, sample, pre, edge, change, reinit, delay,
+			// cardinality, inStream, actualStream, to the operators of the built-in
+			// package Connections, and is not allowed to contain when-statements."
+
+			stack<Expression> stack;
+			stack.push(assignment.getExpression());
+
+			while (!stack.empty())
+			{
+				auto expression = stack.top();
+				stack.pop();
+
+				if (expression.isA<ReferenceAccess>())
+				{
+					string name = expression.get<ReferenceAccess>().getName();
+
+					if (name == "der" || name == "initial" || name == "terminal" ||
+							name == "sample" || name == "pre" || name == "edge" ||
+							name == "change" || name == "reinit" || name == "delay" ||
+							name == "cardinality" || name == "inStream" ||
+							name == "actualStream")
+					{
+						return make_error<BadSemantic>(
+								"'" + name + "' is not allowed in procedural code");
+					}
+
+					// TODO: Connections built-in operators + when statement
+				}
+				else if (expression.isA<Operation>())
+				{
+					for (auto& arg : expression.get<Operation>())
+						stack.push(arg);
+				}
+				else if (expression.isA<Call>())
+				{
+					auto& call = expression.get<Call>();
+
+					for (auto& arg : call)
+						stack.push(*arg);
+
+					stack.push(call.getFunction());
+				}
+			}
+		}
 	}
 
 	return Error::success();
@@ -474,6 +459,18 @@ Error TypeChecker::checkType(
 
 Error TypeChecker::checkType(ForStatement& statement, const SymbolTable& table)
 {
+	auto& induction = statement.getInduction();
+
+	if (auto error = checkType<Expression>(induction.getBegin(), table); error)
+		return error;
+
+	if (auto error = checkType<Expression>(induction.getEnd(), table); error)
+		return error;
+
+	for (auto& stmnt : statement)
+		if (auto error = checkType(*stmnt, table); error)
+			return error;
+
 	return Error::success();
 }
 
@@ -717,35 +714,29 @@ llvm::Error resolveDummyReferences(Class& cls)
 	{
 		for (auto& statement : algorithm.getStatements())
 		{
-			auto visitor = Overload{
-				[&](AssignmentStatement& statement) -> Error {
-					for (auto& destination : statement.getDestinations())
-					{
-						if (!destination->isA<ReferenceAccess>())
-							continue;
+			for (auto it = statement.begin(), end = statement.end(); it != end; ++it)
+			{
+				auto& assignment = *it;
 
-						auto& ref = destination->get<ReferenceAccess>();
+				for (auto& destination : assignment.getDestinations())
+				{
+					if (!destination->isA<ReferenceAccess>())
+						continue;
 
-						if (!ref.isDummy())
-							continue;
+					auto& ref = destination->get<ReferenceAccess>();
 
-						string name = getTemporaryVariableName(cls);
-						Member temp(name, destination->getType(), TypePrefix::none());
-						ref.setName(temp.getName());
-						cls.addMember(temp);
+					if (!ref.isDummy())
+						continue;
 
-						// Note that there is no need to add the dummy variable to the
-						// symbol table, because it will never be referenced.
-					}
+					string name = getTemporaryVariableName(cls);
+					Member temp(name, destination->getType(), TypePrefix::none());
+					ref.setName(temp.getName());
+					cls.addMember(temp);
 
-					return Error::success();
-				},
-				[&](ForStatement& statement) -> Error { return Error::success(); },
-				[&](IfStatement& statement) -> Error { return Error::success(); }
-			};
-
-			if (auto error = statement.visit(visitor); error)
-				return error;
+					// Note that there is no need to add the dummy variable to the
+					// symbol table, because it will never be referenced.
+				}
+			}
 		}
 	}
 

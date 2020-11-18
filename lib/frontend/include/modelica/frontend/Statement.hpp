@@ -4,9 +4,11 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
+#include <stack>
 #include <vector>
 
 #include "Expression.hpp"
+#include "Induction.hpp"
 
 namespace modelica
 {
@@ -64,10 +66,38 @@ namespace modelica
 	class ForStatement
 	{
 		public:
+		ForStatement(Induction induction, llvm::ArrayRef<Statement> statements);
+
+		ForStatement(const ForStatement& other);
+		ForStatement(ForStatement&& other) = default;
+
+		ForStatement& operator=(const ForStatement& other);
+		ForStatement& operator=(ForStatement&& other) = default;
+
+		~ForStatement() = default;
+
+		[[nodiscard]] UniqueStatement& operator[](size_t index);
+		[[nodiscard]] const UniqueStatement& operator[](size_t index) const;
+
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
+		[[nodiscard]] Induction& getInduction();
+		[[nodiscard]] const Induction& getInduction() const;
+
+		[[nodiscard]] size_t size() const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::iterator begin();
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::const_iterator begin()
+				const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::iterator end();
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::const_iterator end()
+				const;
+
 		private:
+		Induction induction;
+		llvm::SmallVector<UniqueStatement, 3> statements;
 	};
 
 	class IfBlock
@@ -131,15 +161,50 @@ namespace modelica
 		llvm::SmallVector<IfBlock, 3> blocks;
 	};
 
+	class AssignmentsIterator
+	{
+		public:
+		using iterator_category = std::forward_iterator_tag;
+		using value_type = AssignmentStatement;
+		using difference_type = AssignmentStatement;
+		using pointer = AssignmentStatement*;
+		using reference = AssignmentStatement&;
+
+		AssignmentsIterator(Statement* root, Statement* start);
+
+		operator bool() const;
+
+		bool operator==(const AssignmentsIterator& it) const;
+		bool operator!=(const AssignmentsIterator& it) const;
+
+		AssignmentsIterator& operator++();
+		AssignmentsIterator operator++(int);
+
+		value_type& operator*();
+		const value_type& operator*() const;
+
+		private:
+		void fetchNext();
+
+		Statement* root;
+		std::stack<Statement*> statements;
+		AssignmentStatement* next;
+	};
+
 	class Statement
 	{
 		public:
+		using iterator = AssignmentsIterator;
+
 		Statement(AssignmentStatement statement);
 		Statement(ForStatement statement);
 		Statement(IfStatement statement);
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] iterator begin();
+		[[nodiscard]] iterator end();
 
 		template<class Visitor>
 		auto visit(Visitor&& vis)
