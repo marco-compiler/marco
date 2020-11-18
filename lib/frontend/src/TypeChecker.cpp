@@ -479,6 +479,22 @@ Error TypeChecker::checkType(ForStatement& statement, const SymbolTable& table)
 
 Error TypeChecker::checkType(IfStatement& statement, const SymbolTable& table)
 {
+	for (auto& block : statement)
+		if (auto error = checkType(block, table); error)
+			return error;
+
+	return Error::success();
+}
+
+Error TypeChecker::checkType(IfBlock& block, const SymbolTable& table)
+{
+	if (auto error = checkType<Expression>(block.getCondition(), table); error)
+		return error;
+
+	for (auto& statement : block)
+		if (auto error = checkType(*statement, table); error)
+			return error;
+
 	return Error::success();
 }
 

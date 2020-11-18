@@ -64,10 +64,10 @@ namespace modelica
 	class ForStatement
 	{
 		public:
-		ForStatement() {}
-
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		private:
 	};
 
 	class IfBlock
@@ -84,8 +84,24 @@ namespace modelica
 
 		~IfBlock() = default;
 
+		[[nodiscard]] UniqueStatement& operator[](size_t index);
+		[[nodiscard]] const UniqueStatement& operator[](size_t index) const;
+
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] Expression& getCondition();
+		[[nodiscard]] const Expression& getCondition() const;
+
+		[[nodiscard]] size_t size() const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::iterator begin();
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::const_iterator begin()
+				const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::iterator end();
+		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::const_iterator end()
+				const;
 
 		private:
 		Expression condition;
@@ -97,8 +113,19 @@ namespace modelica
 		public:
 		explicit IfStatement(llvm::ArrayRef<IfBlock> blocks);
 
+		[[nodiscard]] IfBlock& operator[](size_t index);
+		[[nodiscard]] const IfBlock& operator[](size_t index) const;
+
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] size_t size() const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<IfBlock>::iterator begin();
+		[[nodiscard]] llvm::SmallVectorImpl<IfBlock>::const_iterator begin() const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<IfBlock>::iterator end();
+		[[nodiscard]] llvm::SmallVectorImpl<IfBlock>::const_iterator end() const;
 
 		private:
 		llvm::SmallVector<IfBlock, 3> blocks;

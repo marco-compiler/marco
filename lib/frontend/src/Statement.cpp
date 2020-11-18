@@ -105,6 +105,18 @@ IfBlock& IfBlock::operator=(const IfBlock& other)
 	return *this;
 }
 
+UniqueStatement& IfBlock::operator[](size_t index)
+{
+	assert(index < statements.size());
+	return statements[index];
+}
+
+const UniqueStatement& IfBlock::operator[](size_t index) const
+{
+	assert(index < statements.size());
+	return statements[index];
+}
+
 void IfBlock::dump() const { dump(outs(), 0); }
 
 void IfBlock::dump(raw_ostream& os, size_t indents) const
@@ -120,10 +132,48 @@ void IfBlock::dump(raw_ostream& os, size_t indents) const
 		statement->dump(os, indents + 1);
 }
 
+Expression& IfBlock::getCondition() { return condition; }
+
+const Expression& IfBlock::getCondition() const { return condition; }
+
+size_t IfBlock::size() const { return statements.size(); }
+
+llvm::SmallVectorImpl<UniqueStatement>::iterator IfBlock::begin()
+{
+	return statements.begin();
+}
+
+llvm::SmallVectorImpl<UniqueStatement>::const_iterator IfBlock::begin() const
+{
+	return statements.begin();
+}
+
+llvm::SmallVectorImpl<UniqueStatement>::iterator IfBlock::end()
+{
+	return statements.end();
+}
+
+llvm::SmallVectorImpl<UniqueStatement>::const_iterator IfBlock::end() const
+{
+	return statements.end();
+}
+
 IfStatement::IfStatement(llvm::ArrayRef<IfBlock> blocks)
 		: blocks(blocks.begin(), blocks.end())
 {
 	assert(this->blocks.size() > 1);
+}
+
+IfBlock& IfStatement::operator[](size_t index)
+{
+	assert(index < blocks.size());
+	return blocks[index];
+}
+
+const IfBlock& IfStatement::operator[](size_t index) const
+{
+	assert(index < blocks.size());
+	return blocks[index];
 }
 
 void IfStatement::dump() const { dump(outs(), 0); }
@@ -135,6 +185,28 @@ void IfStatement::dump(raw_ostream& os, size_t indents) const
 
 	for (const auto& block : blocks)
 		block.dump(os, indents + 1);
+}
+
+size_t IfStatement::size() const { return blocks.size(); }
+
+llvm::SmallVectorImpl<IfBlock>::iterator IfStatement::begin()
+{
+	return blocks.begin();
+}
+
+llvm::SmallVectorImpl<IfBlock>::const_iterator IfStatement::begin() const
+{
+	return blocks.begin();
+}
+
+llvm::SmallVectorImpl<IfBlock>::iterator IfStatement::end()
+{
+	return blocks.end();
+}
+
+llvm::SmallVectorImpl<IfBlock>::const_iterator IfStatement::end() const
+{
+	return blocks.end();
 }
 
 Statement::Statement(AssignmentStatement statement): content(move(statement)) {}
