@@ -18,7 +18,7 @@ namespace modelica
 				: condition(std::move(condition))
 		{
 			for (const auto& element : body)
-				this->body.push_back(std::make_unique<T>(element));
+				this->body.emplace_back(std::make_unique<T>(element));
 		}
 
 		ConditionalBlock(const ConditionalBlock& other): condition(other.condition)
@@ -26,7 +26,7 @@ namespace modelica
 			body.clear();
 
 			for (const auto& element : other.body)
-				body.push_back(std::make_unique<T>(*element));
+				body.emplace_back(std::make_unique<T>(*element));
 		}
 
 		ConditionalBlock(ConditionalBlock&& other) = default;
@@ -40,7 +40,7 @@ namespace modelica
 			body.clear();
 
 			for (const auto& element : other.body)
-				body.push_back(std::make_unique<T>(*element));
+				body.emplace_back(std::make_unique<T>(*element));
 
 			return *this;
 		}

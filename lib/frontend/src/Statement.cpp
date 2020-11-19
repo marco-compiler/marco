@@ -39,11 +39,11 @@ vector<Expression*> AssignmentStatement::getDestinations()
 {
 	vector<Expression*> destinations;
 
-	if (destinationIsA<Expression>())
-		destinations.push_back(&getDestination<Expression>());
+	if (holds_alternative<Expression>(destination))
+		destinations.push_back(&get<Expression>(destination));
 	else
 	{
-		for (auto& exp : getDestination<Tuple>())
+		for (auto& exp : get<Tuple>(destination))
 			destinations.push_back(&*exp);
 	}
 
@@ -232,134 +232,116 @@ void Statement::dump(raw_ostream& os, size_t indents) const
 
 Statement::iterator Statement::begin() { return iterator(this, this); }
 
+Statement::const_iterator Statement::cbegin()
+{
+	return const_iterator(this, this);
+}
+
 Statement::iterator Statement::end() { return iterator(this, nullptr); }
 
-class AssignmentsIteratorVisitor
+Statement::const_iterator Statement::cend()
 {
-	public:
-	AssignmentsIteratorVisitor(stack<Statement*>* stack): statements(stack){};
+	return const_iterator(this, nullptr);
+}
 
-	AssignmentStatement* operator()(AssignmentStatement& statement)
+AssignmentsIteratorVisitor::AssignmentsIteratorVisitor(
+		stack<Statement*>* statements)
+		: statements(statements){};
+
+AssignmentStatement* AssignmentsIteratorVisitor::operator()(
+		AssignmentStatement& statement)
+{
+	return &statement;
+}
+
+AssignmentStatement* AssignmentsIteratorVisitor::operator()(
+		IfStatement& ifStatement)
+{
+	for (auto i = ifStatement.size(); i > 0; i--)
 	{
-		return &statement;
+		auto& block = ifStatement[i - 1];
+
+		for (auto j = block.size(); j > 0; j--)
+			statements->push(block[j - 1].get());
 	}
 
-	AssignmentStatement* operator()(IfStatement& ifStatement)
+	return nullptr;
+}
+
+AssignmentStatement* AssignmentsIteratorVisitor::operator()(
+		ForStatement& forStatement)
+{
+	for (auto i = forStatement.size(); i > 0; i--)
+		statements->push(forStatement[i - 1].get());
+
+	return nullptr;
+}
+
+AssignmentStatement* AssignmentsIteratorVisitor::operator()(
+		WhileStatement& whileStatement)
+{
+	for (auto i = whileStatement.size(); i > 0; i--)
+		statements->push(whileStatement[i - 1].get());
+
+	return nullptr;
+}
+
+AssignmentStatement* AssignmentsIteratorVisitor::operator()(
+		WhenStatement& whenStatement)
+{
+	for (auto i = whenStatement.size(); i > 0; i--)
+		statements->push(whenStatement[i - 1].get());
+
+	return nullptr;
+}
+
+AssignmentsConstIteratorVisitor::AssignmentsConstIteratorVisitor(
+		stack<const Statement*>* statements)
+		: statements(statements){};
+
+const AssignmentStatement* AssignmentsConstIteratorVisitor::operator()(
+		const AssignmentStatement& statement)
+{
+	return &statement;
+}
+
+const AssignmentStatement* AssignmentsConstIteratorVisitor::operator()(
+		const IfStatement& ifStatement)
+{
+	for (auto i = ifStatement.size(); i > 0; i--)
 	{
-		for (auto i = ifStatement.size(); i > 0; i--)
-		{
-			auto& block = ifStatement[i - 1];
+		const auto& block = ifStatement[i - 1];
 
-			for (auto j = block.size(); j > 0; j--)
-				statements->push(block[j - 1].get());
-		}
-
-		return nullptr;
+		for (auto j = block.size(); j > 0; j--)
+			statements->push(block[j - 1].get());
 	}
 
-	AssignmentStatement* operator()(ForStatement& forStatement)
-	{
-		for (auto i = forStatement.size(); i > 0; i--)
-			statements->push(forStatement[i - 1].get());
-
-		return nullptr;
-	}
-
-	AssignmentStatement* operator()(WhileStatement& whileStatement)
-	{
-		for (auto i = whileStatement.size(); i > 0; i--)
-			statements->push(whileStatement[i - 1].get());
-
-		return nullptr;
-	}
-
-	AssignmentStatement* operator()(WhenStatement& whenStatement)
-	{
-		for (auto i = whenStatement.size(); i > 0; i--)
-			statements->push(whenStatement[i - 1].get());
-
-		return nullptr;
-	}
-
-	private:
-	stack<Statement*>* statements;
-};
-
-AssignmentsIterator::AssignmentsIterator()
-		: AssignmentsIterator(nullptr, nullptr)
-{
+	return nullptr;
 }
 
-AssignmentsIterator::AssignmentsIterator(Statement* root, Statement* start)
-		: root(root)
+const AssignmentStatement* AssignmentsConstIteratorVisitor::operator()(
+		const ForStatement& forStatement)
 {
-	if (start != nullptr)
-		statements.push(start);
+	for (auto i = forStatement.size(); i > 0; i--)
+		statements->push(forStatement[i - 1].get());
 
-	fetchNext();
+	return nullptr;
 }
 
-AssignmentsIterator::operator bool() const { return !statements.empty(); }
-
-bool AssignmentsIterator::operator==(const AssignmentsIterator& it) const
+const AssignmentStatement* AssignmentsConstIteratorVisitor::operator()(
+		const WhileStatement& whileStatement)
 {
-	return root == it.root && statements.size() == it.statements.size() &&
-				 current == it.current;
+	for (auto i = whileStatement.size(); i > 0; i--)
+		statements->push(whileStatement[i - 1].get());
+
+	return nullptr;
 }
 
-bool AssignmentsIterator::operator!=(const AssignmentsIterator& it) const
+const AssignmentStatement* AssignmentsConstIteratorVisitor::operator()(
+		const WhenStatement& whenStatement)
 {
-	return !(*this == it);
-}
+	for (auto i = whenStatement.size(); i > 0; i--)
+		statements->push(whenStatement[i - 1].get());
 
-AssignmentsIterator& AssignmentsIterator::operator++()
-{
-	fetchNext();
-	return *this;
-}
-
-AssignmentsIterator AssignmentsIterator::operator++(int)
-{
-	auto temp = *this;
-	fetchNext();
-	return temp;
-}
-
-AssignmentsIterator::value_type& AssignmentsIterator::operator*()
-{
-	assert(current != nullptr);
-	return *current;
-}
-
-const AssignmentsIterator::value_type& AssignmentsIterator::operator*() const
-{
-	assert(current != nullptr);
-	return *current;
-}
-
-AssignmentsIterator::value_type* AssignmentsIterator::operator->()
-{
-	return current;
-}
-
-void AssignmentsIterator::fetchNext()
-{
-	bool found = false;
-
-	while (!found && !statements.empty())
-	{
-		auto& statement = statements.top();
-		statements.pop();
-		auto* assignment =
-				statement->visit(AssignmentsIteratorVisitor(&statements));
-
-		if (assignment != nullptr)
-		{
-			current = assignment;
-			found = true;
-		}
-	}
-
-	if (!found)
-		current = nullptr;
+	return nullptr;
 }

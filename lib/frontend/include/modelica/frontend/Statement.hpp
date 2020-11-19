@@ -43,19 +43,6 @@ namespace modelica
 		[[nodiscard]] const Expression& getExpression() const;
 
 		private:
-		template<typename T>
-		[[nodiscard]] bool destinationIsA() const
-		{
-			return std::holds_alternative<T>(destination);
-		}
-
-		template<typename T>
-		[[nodiscard]] T& getDestination()
-		{
-			assert(destinationIsA<T>());
-			return std::get<T>(destination);
-		}
-
 		// Where the result of the expression has to be stored.
 		// A vector is needed because functions may have multiple outputs.
 		std::variant<Expression, Tuple> destination;
@@ -138,42 +125,134 @@ namespace modelica
 		WhenStatement(Expression condition, llvm::ArrayRef<Statement> body);
 	};
 
+	class AssignmentsIteratorVisitor
+	{
+		public:
+		AssignmentsIteratorVisitor(std::stack<Statement*>* statements);
+
+		AssignmentStatement* operator()(AssignmentStatement& statement);
+		AssignmentStatement* operator()(IfStatement& ifStatement);
+		AssignmentStatement* operator()(ForStatement& forStatement);
+		AssignmentStatement* operator()(WhileStatement& whileStatement);
+		AssignmentStatement* operator()(WhenStatement& whenStatement);
+
+		private:
+		std::stack<Statement*>* statements;
+	};
+
+	class AssignmentsConstIteratorVisitor
+	{
+		public:
+		AssignmentsConstIteratorVisitor(std::stack<const Statement*>* statements);
+
+		const AssignmentStatement* operator()(const AssignmentStatement& statement);
+		const AssignmentStatement* operator()(const IfStatement& ifStatement);
+		const AssignmentStatement* operator()(const ForStatement& forStatement);
+		const AssignmentStatement* operator()(const WhileStatement& whileStatement);
+		const AssignmentStatement* operator()(const WhenStatement& whenStatement);
+
+		private:
+		std::stack<const Statement*>* statements;
+	};
+
+	template<typename ValueType, typename NodeType, class Visitor>
 	class AssignmentsIterator
 	{
 		public:
 		using iterator_category = std::forward_iterator_tag;
-		using value_type = AssignmentStatement;
+		using value_type = ValueType;
 		using difference_type = std::ptrdiff_t;
-		using pointer = Statement*;
-		using reference = Statement&;
+		using pointer = ValueType*;
+		using reference = ValueType&;
 
-		AssignmentsIterator();
-		AssignmentsIterator(Statement* root, Statement* start);
+		AssignmentsIterator(): AssignmentsIterator(nullptr, nullptr) {}
 
-		operator bool() const;
+		AssignmentsIterator(NodeType* root, NodeType* start): root(root)
+		{
+			if (start != nullptr)
+				statements.push(start);
 
-		bool operator==(const AssignmentsIterator& it) const;
-		bool operator!=(const AssignmentsIterator& it) const;
+			fetchNext();
+		}
 
-		AssignmentsIterator& operator++();
-		AssignmentsIterator operator++(int);
+		operator bool() const { return !statements.empty(); }
 
-		value_type& operator*();
-		const value_type& operator*() const;
-		value_type* operator->();
+		bool operator==(const AssignmentsIterator& it) const
+		{
+			return root == it.root && statements.size() == it.statements.size() &&
+						 current == it.current;
+		}
+
+		bool operator!=(const AssignmentsIterator& it) const
+		{
+			return !(*this == it);
+		}
+
+		AssignmentsIterator& operator++()
+		{
+			fetchNext();
+			return *this;
+		}
+
+		AssignmentsIterator operator++(int)
+		{
+			auto temp = *this;
+			fetchNext();
+			return temp;
+		}
+
+		value_type& operator*()
+		{
+			assert(current != nullptr);
+			return *current;
+		}
+
+		const value_type& operator*() const
+		{
+			assert(current != nullptr);
+			return *current;
+		}
+
+		value_type* operator->() { return current; }
 
 		private:
-		void fetchNext();
+		void fetchNext()
+		{
+			bool found = false;
 
-		pointer root;
-		std::stack<pointer> statements;
+			while (!found && !statements.empty())
+			{
+				auto& statement = statements.top();
+				statements.pop();
+				auto* assignment = statement->visit(Visitor(&statements));
+
+				if (assignment != nullptr)
+				{
+					current = assignment;
+					found = true;
+				}
+			}
+
+			if (!found)
+				current = nullptr;
+		}
+
+		NodeType* root;
+		std::stack<NodeType*> statements;
 		value_type* current;
 	};
 
 	class Statement
 	{
 		public:
-		using iterator = AssignmentsIterator;
+		using iterator = AssignmentsIterator<
+				AssignmentStatement,
+				Statement,
+				AssignmentsIteratorVisitor>;
+		using const_iterator = AssignmentsIterator<
+				const AssignmentStatement,
+				const Statement,
+				AssignmentsConstIteratorVisitor>;
 
 		Statement(AssignmentStatement statement);
 		Statement(ForStatement statement);
@@ -183,7 +262,9 @@ namespace modelica
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		[[nodiscard]] iterator begin();
+		[[nodiscard]] const_iterator cbegin();
 		[[nodiscard]] iterator end();
+		[[nodiscard]] const_iterator cend();
 
 		template<class Visitor>
 		auto visit(Visitor&& vis)
