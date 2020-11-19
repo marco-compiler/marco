@@ -125,37 +125,70 @@ namespace modelica
 		WhenStatement(Expression condition, llvm::ArrayRef<Statement> body);
 	};
 
+	template<typename ValueType, typename NodeType, typename... Variants>
 	class AssignmentsIteratorVisitor
 	{
 		public:
-		AssignmentsIteratorVisitor(std::stack<Statement*>* statements);
+		AssignmentsIteratorVisitor(std::stack<NodeType*>* statements)
+				: statements(statements){};
 
-		AssignmentStatement* operator()(AssignmentStatement& statement);
-		AssignmentStatement* operator()(IfStatement& ifStatement);
-		AssignmentStatement* operator()(ForStatement& forStatement);
-		AssignmentStatement* operator()(WhileStatement& whileStatement);
-		AssignmentStatement* operator()(WhenStatement& whenStatement);
+		ValueType* operator()(
+				std::tuple_element_t<0, std::tuple<Variants...>>& statement)
+		{
+			return &statement;
+		}
+
+		ValueType* operator()(
+				std::tuple_element_t<1, std::tuple<Variants...>>& ifStatement)
+		{
+			for (auto i = ifStatement.size(); i > 0; i--)
+			{
+				auto& block = ifStatement[i - 1];
+
+				for (auto j = block.size(); j > 0; j--)
+					statements->push(block[j - 1].get());
+			}
+
+			return nullptr;
+		}
+
+		ValueType* operator()(
+				std::tuple_element_t<2, std::tuple<Variants...>>& forStatement)
+		{
+			for (auto i = forStatement.size(); i > 0; i--)
+				statements->push(forStatement[i - 1].get());
+
+			return nullptr;
+		}
+
+		ValueType* operator()(
+				std::tuple_element_t<3, std::tuple<Variants...>>& whileStatement)
+		{
+			for (auto i = whileStatement.size(); i > 0; i--)
+				statements->push(whileStatement[i - 1].get());
+
+			return nullptr;
+		}
+
+		ValueType* operator()(
+				std::tuple_element_t<4, std::tuple<Variants...>>& whenStatement)
+		{
+			for (auto i = whenStatement.size(); i > 0; i--)
+				statements->push(whenStatement[i - 1].get());
+
+			return nullptr;
+		}
 
 		private:
-		std::stack<Statement*>* statements;
+		std::stack<NodeType*>* statements;
 	};
 
-	class AssignmentsConstIteratorVisitor
-	{
-		public:
-		AssignmentsConstIteratorVisitor(std::stack<const Statement*>* statements);
-
-		const AssignmentStatement* operator()(const AssignmentStatement& statement);
-		const AssignmentStatement* operator()(const IfStatement& ifStatement);
-		const AssignmentStatement* operator()(const ForStatement& forStatement);
-		const AssignmentStatement* operator()(const WhileStatement& whileStatement);
-		const AssignmentStatement* operator()(const WhenStatement& whenStatement);
-
-		private:
-		std::stack<const Statement*>* statements;
-	};
-
-	template<typename ValueType, typename NodeType, class Visitor>
+	template<
+			typename ValueType,
+			typename NodeType,
+			template<typename, typename, typename...>
+			class Visitor,
+			typename... Variants>
 	class AssignmentsIterator
 	{
 		public:
@@ -224,7 +257,8 @@ namespace modelica
 			{
 				auto& statement = statements.top();
 				statements.pop();
-				auto* assignment = statement->visit(Visitor(&statements));
+				auto* assignment = statement->visit(
+						Visitor<ValueType, NodeType, Variants...>(&statements));
 
 				if (assignment != nullptr)
 				{
@@ -248,11 +282,22 @@ namespace modelica
 		using iterator = AssignmentsIterator<
 				AssignmentStatement,
 				Statement,
-				AssignmentsIteratorVisitor>;
+				AssignmentsIteratorVisitor,
+				AssignmentStatement,
+				IfStatement,
+				ForStatement,
+				WhileStatement,
+				WhenStatement>;
+
 		using const_iterator = AssignmentsIterator<
 				const AssignmentStatement,
 				const Statement,
-				AssignmentsConstIteratorVisitor>;
+				AssignmentsIteratorVisitor,
+				const AssignmentStatement,
+				const IfStatement,
+				const ForStatement,
+				const WhileStatement,
+				const WhenStatement>;
 
 		Statement(AssignmentStatement statement);
 		Statement(ForStatement statement);
