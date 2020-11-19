@@ -166,10 +166,11 @@ namespace modelica
 		public:
 		using iterator_category = std::forward_iterator_tag;
 		using value_type = AssignmentStatement;
-		using difference_type = AssignmentStatement;
-		using pointer = AssignmentStatement*;
-		using reference = AssignmentStatement&;
+		using difference_type = std::ptrdiff_t;
+		using pointer = Statement*;
+		using reference = Statement&;
 
+		AssignmentsIterator();
 		AssignmentsIterator(Statement* root, Statement* start);
 
 		operator bool() const;
@@ -182,13 +183,14 @@ namespace modelica
 
 		value_type& operator*();
 		const value_type& operator*() const;
+		value_type* operator->();
 
 		private:
 		void fetchNext();
 
-		Statement* root;
-		std::stack<Statement*> statements;
-		AssignmentStatement* next;
+		pointer root;
+		std::stack<pointer> statements;
+		value_type* current;
 	};
 
 	class Statement

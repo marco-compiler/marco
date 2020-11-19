@@ -303,25 +303,19 @@ void Statement::dump(raw_ostream& os, size_t indents) const
 	visit([&](const auto& statement) { statement.dump(os, indents); });
 }
 
-Statement::iterator Statement::begin()
-{
-	return AssignmentsIterator(this, this);
-}
+Statement::iterator Statement::begin() { return iterator(this, this); }
 
-Statement::iterator Statement::end()
-{
-	return AssignmentsIterator(this, nullptr);
-}
+Statement::iterator Statement::end() { return iterator(this, nullptr); }
 
 class AssignmentsIteratorVisitor
 {
 	public:
-	AssignmentsIteratorVisitor(stack<Statement*>& stack): statements(stack){};
+	AssignmentsIteratorVisitor(stack<Statement*>* stack): statements(stack){};
 
 	AssignmentStatement* operator()(ForStatement& forStatement)
 	{
 		for (auto i = forStatement.size(); i > 0; i--)
-			statements.push(forStatement[i - 1].get());
+			statements->push(forStatement[i - 1].get());
 
 		return nullptr;
 	}
@@ -333,7 +327,7 @@ class AssignmentsIteratorVisitor
 			auto& block = ifStatement[i - 1];
 
 			for (auto j = block.size(); j > 0; j--)
-				statements.push(block[j - 1].get());
+				statements->push(block[j - 1].get());
 		}
 
 		return nullptr;
@@ -345,8 +339,13 @@ class AssignmentsIteratorVisitor
 	}
 
 	private:
-	stack<Statement*> statements;
+	stack<Statement*>* statements;
 };
+
+AssignmentsIterator::AssignmentsIterator()
+		: AssignmentsIterator(nullptr, nullptr)
+{
+}
 
 AssignmentsIterator::AssignmentsIterator(Statement* root, Statement* start)
 		: root(root)
@@ -362,7 +361,7 @@ AssignmentsIterator::operator bool() const { return !statements.empty(); }
 bool AssignmentsIterator::operator==(const AssignmentsIterator& it) const
 {
 	return root == it.root && statements.size() == it.statements.size() &&
-				 next == it.next;
+				 current == it.current;
 }
 
 bool AssignmentsIterator::operator!=(const AssignmentsIterator& it) const
@@ -385,14 +384,19 @@ AssignmentsIterator AssignmentsIterator::operator++(int)
 
 AssignmentsIterator::value_type& AssignmentsIterator::operator*()
 {
-	assert(next != nullptr);
-	return *next;
+	assert(current != nullptr);
+	return *current;
 }
 
 const AssignmentsIterator::value_type& AssignmentsIterator::operator*() const
 {
-	assert(next != nullptr);
-	return *next;
+	assert(current != nullptr);
+	return *current;
+}
+
+AssignmentsIterator::value_type* AssignmentsIterator::operator->()
+{
+	return current;
 }
 
 void AssignmentsIterator::fetchNext()
@@ -403,15 +407,16 @@ void AssignmentsIterator::fetchNext()
 	{
 		auto& statement = statements.top();
 		statements.pop();
-		auto* assignment = statement->visit(AssignmentsIteratorVisitor(statements));
+		auto* assignment =
+				statement->visit(AssignmentsIteratorVisitor(&statements));
 
 		if (assignment != nullptr)
 		{
-			next = assignment;
+			current = assignment;
 			found = true;
 		}
 	}
 
 	if (!found)
-		next = nullptr;
+		current = nullptr;
 }

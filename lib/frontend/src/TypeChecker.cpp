@@ -168,10 +168,8 @@ Error TypeChecker::checkType<ClassType::Function>(
 
 	for (auto& statement : algorithms[0].getStatements())
 	{
-		for (auto it = statement.begin(); it != statement.end(); ++it)
+		for (auto& assignment : statement)
 		{
-			auto& assignment = *it;
-
 			for (auto& destination : assignment.getDestinations())
 			{
 				// From Function reference:
@@ -714,10 +712,8 @@ llvm::Error resolveDummyReferences(Class& cls)
 	{
 		for (auto& statement : algorithm.getStatements())
 		{
-			for (auto it = statement.begin(), end = statement.end(); it != end; ++it)
+			for (auto& assignment : statement)
 			{
-				auto& assignment = *it;
-
 				for (auto& destination : assignment.getDestinations())
 				{
 					if (!destination->isA<ReferenceAccess>())
