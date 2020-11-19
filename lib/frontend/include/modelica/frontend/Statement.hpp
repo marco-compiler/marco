@@ -7,6 +7,7 @@
 #include <stack>
 #include <vector>
 
+#include "ConditionalBlock.hpp"
 #include "Expression.hpp"
 #include "Induction.hpp"
 
@@ -63,6 +64,31 @@ namespace modelica
 		Expression expression;
 	};
 
+	class IfStatement
+	{
+		public:
+		using Block = ConditionalBlock<Statement>;
+
+		explicit IfStatement(llvm::ArrayRef<Block> blocks);
+
+		[[nodiscard]] Block& operator[](size_t index);
+		[[nodiscard]] const Block& operator[](size_t index) const;
+
+		void dump() const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] size_t size() const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<Block>::iterator begin();
+		[[nodiscard]] llvm::SmallVectorImpl<Block>::const_iterator begin() const;
+
+		[[nodiscard]] llvm::SmallVectorImpl<Block>::iterator end();
+		[[nodiscard]] llvm::SmallVectorImpl<Block>::const_iterator end() const;
+
+		private:
+		llvm::SmallVector<Block, 3> blocks;
+	};
+
 	class ForStatement
 	{
 		public:
@@ -100,65 +126,16 @@ namespace modelica
 		llvm::SmallVector<UniqueStatement, 3> statements;
 	};
 
-	class IfBlock
+	class WhileStatement: public ConditionalBlock<Statement>
 	{
 		public:
-		IfBlock(Expression condition, llvm::ArrayRef<Statement> statements);
-		explicit IfBlock(llvm::ArrayRef<Statement> statements);
-
-		IfBlock(const IfBlock& other);
-		IfBlock(IfBlock&& other) = default;
-
-		IfBlock& operator=(const IfBlock& other);
-		IfBlock& operator=(IfBlock&& other) = default;
-
-		~IfBlock() = default;
-
-		[[nodiscard]] UniqueStatement& operator[](size_t index);
-		[[nodiscard]] const UniqueStatement& operator[](size_t index) const;
-
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
-
-		[[nodiscard]] Expression& getCondition();
-		[[nodiscard]] const Expression& getCondition() const;
-
-		[[nodiscard]] size_t size() const;
-
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::iterator begin();
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::const_iterator begin()
-				const;
-
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::iterator end();
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::const_iterator end()
-				const;
-
-		private:
-		Expression condition;
-		llvm::SmallVector<UniqueStatement, 3> statements;
+		WhileStatement(Expression condition, llvm::ArrayRef<Statement> body);
 	};
 
-	class IfStatement
+	class WhenStatement: public ConditionalBlock<Statement>
 	{
 		public:
-		explicit IfStatement(llvm::ArrayRef<IfBlock> blocks);
-
-		[[nodiscard]] IfBlock& operator[](size_t index);
-		[[nodiscard]] const IfBlock& operator[](size_t index) const;
-
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
-
-		[[nodiscard]] size_t size() const;
-
-		[[nodiscard]] llvm::SmallVectorImpl<IfBlock>::iterator begin();
-		[[nodiscard]] llvm::SmallVectorImpl<IfBlock>::const_iterator begin() const;
-
-		[[nodiscard]] llvm::SmallVectorImpl<IfBlock>::iterator end();
-		[[nodiscard]] llvm::SmallVectorImpl<IfBlock>::const_iterator end() const;
-
-		private:
-		llvm::SmallVector<IfBlock, 3> blocks;
+		WhenStatement(Expression condition, llvm::ArrayRef<Statement> body);
 	};
 
 	class AssignmentsIterator
@@ -221,7 +198,13 @@ namespace modelica
 		}
 
 		private:
-		std::variant<AssignmentStatement, ForStatement, IfStatement> content;
+		std::variant<
+				AssignmentStatement,
+				IfStatement,
+				ForStatement,
+				WhileStatement,
+				WhenStatement>
+				content;
 	};
 
 }	 // namespace modelica

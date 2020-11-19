@@ -410,36 +410,9 @@ Expected<AssignmentStatement> Parser::assignmentStatement()
 	return AssignmentStatement(move(*component), move(*exp));
 }
 
-Expected<ForStatement> Parser::forStatement()
-{
-	EXPECT(Token::ForKeyword);
-	auto name = lexer.getLastIdentifier();
-	EXPECT(Token::Ident);
-	EXPECT(Token::InKeyword);
-	TRY(begin, expression());
-	EXPECT(Token::Colons);
-	TRY(end, expression());
-	EXPECT(Token::LoopKeyword);
-
-	Induction induction(move(name), move(*begin), move(*end));
-	SmallVector<Statement, 3> statements;
-
-	while (current != Token::EndKeyword)
-	{
-		TRY(stmnt, statement());
-		EXPECT(Token::Semicolons);
-		statements.push_back(move(*stmnt));
-	}
-
-	EXPECT(Token::EndKeyword);
-	EXPECT(Token::ForKeyword);
-
-	return ForStatement(move(induction), move(statements));
-}
-
 Expected<IfStatement> Parser::ifStatement()
 {
-	SmallVector<IfBlock, 3> blocks;
+	SmallVector<IfStatement::Block, 3> blocks;
 
 	EXPECT(Token::IfKeyword);
 	TRY(ifCondition, expression());
@@ -488,13 +461,76 @@ Expected<IfStatement> Parser::ifStatement()
 
 		// Being the last block, it can be discarded if empty
 		if (!elseStatements.empty())
-			blocks.emplace_back(move(elseStatements));
+			blocks.emplace_back(Expression::trueExp(), move(elseStatements));
 	}
 
 	EXPECT(Token::EndKeyword);
 	EXPECT(Token::IfKeyword);
 
 	return IfStatement(move(blocks));
+}
+
+Expected<ForStatement> Parser::forStatement()
+{
+	EXPECT(Token::ForKeyword);
+	auto name = lexer.getLastIdentifier();
+	EXPECT(Token::Ident);
+	EXPECT(Token::InKeyword);
+	TRY(begin, expression());
+	EXPECT(Token::Colons);
+	TRY(end, expression());
+	EXPECT(Token::LoopKeyword);
+
+	Induction induction(move(name), move(*begin), move(*end));
+	SmallVector<Statement, 3> statements;
+
+	while (current != Token::EndKeyword)
+	{
+		TRY(stmnt, statement());
+		EXPECT(Token::Semicolons);
+		statements.push_back(move(*stmnt));
+	}
+
+	EXPECT(Token::EndKeyword);
+	EXPECT(Token::ForKeyword);
+
+	return ForStatement(move(induction), move(statements));
+}
+
+Expected<WhileStatement> Parser::whileStatement()
+{
+	EXPECT(Token::IfKeyword);
+	TRY(condition, expression());
+	EXPECT(Token::LoopKeyword);
+
+	SmallVector<Statement, 3> statements;
+
+	while (current != Token::EndKeyword)
+	{
+		TRY(stmnt, statement());
+		EXPECT(Token::Semicolons);
+		statements.push_back(move(*stmnt));
+	}
+
+	return WhileStatement(move(*condition), move(statements));
+}
+
+Expected<WhenStatement> Parser::whenStatement()
+{
+	EXPECT(Token::IfKeyword);
+	TRY(condition, expression());
+	EXPECT(Token::LoopKeyword);
+
+	SmallVector<Statement, 3> statements;
+
+	while (current != Token::EndKeyword)
+	{
+		TRY(stmnt, statement());
+		EXPECT(Token::Semicolons);
+		statements.push_back(move(*stmnt));
+	}
+
+	return WhenStatement(move(*condition), move(statements));
 }
 
 Expected<SmallVector<ForEquation, 3>> Parser::forEquation(int nestingLevel)

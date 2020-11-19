@@ -67,6 +67,59 @@ const Expression& AssignmentStatement::getExpression() const
 	return expression;
 }
 
+IfStatement::IfStatement(llvm::ArrayRef<Block> blocks)
+		: blocks(blocks.begin(), blocks.end())
+{
+	assert(this->blocks.size() > 1);
+}
+
+IfStatement::Block& IfStatement::operator[](size_t index)
+{
+	assert(index < blocks.size());
+	return blocks[index];
+}
+
+const IfStatement::Block& IfStatement::operator[](size_t index) const
+{
+	assert(index < blocks.size());
+	return blocks[index];
+}
+
+void IfStatement::dump() const { dump(outs(), 0); }
+
+void IfStatement::dump(raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "if statement\n";
+
+	for (const auto& block : blocks)
+		block.dump(os, indents + 1);
+}
+
+size_t IfStatement::size() const { return blocks.size(); }
+
+llvm::SmallVectorImpl<IfStatement::Block>::iterator IfStatement::begin()
+{
+	return blocks.begin();
+}
+
+llvm::SmallVectorImpl<IfStatement::Block>::const_iterator IfStatement::begin()
+		const
+{
+	return blocks.begin();
+}
+
+llvm::SmallVectorImpl<IfStatement::Block>::iterator IfStatement::end()
+{
+	return blocks.end();
+}
+
+llvm::SmallVectorImpl<IfStatement::Block>::const_iterator IfStatement::end()
+		const
+{
+	return blocks.end();
+}
+
 ForStatement::ForStatement(
 		Induction induction, llvm::ArrayRef<Statement> statements)
 		: induction(move(induction))
@@ -152,142 +205,16 @@ llvm::SmallVectorImpl<UniqueStatement>::const_iterator ForStatement::end() const
 	return statements.end();
 }
 
-IfBlock::IfBlock(Expression condition, ArrayRef<Statement> statements)
-		: condition(move(condition))
-{
-	for (const auto& statement : statements)
-		this->statements.push_back(std::make_unique<Statement>(statement));
-}
-
-IfBlock::IfBlock(llvm::ArrayRef<Statement> statements)
-		: IfBlock(Expression::trueExp(), statements)
+WhileStatement::WhileStatement(
+		Expression condition, llvm::ArrayRef<Statement> body)
+		: ConditionalBlock<Statement>(move(condition), move(body))
 {
 }
 
-IfBlock::IfBlock(const IfBlock& other): condition(other.condition)
+WhenStatement::WhenStatement(
+		Expression condition, llvm::ArrayRef<Statement> body)
+		: ConditionalBlock<Statement>(move(condition), move(body))
 {
-	statements.clear();
-
-	for (const auto& statement : other.statements)
-		statements.push_back(std::make_unique<Statement>(*statement));
-}
-
-IfBlock& IfBlock::operator=(const IfBlock& other)
-{
-	if (this == &other)
-		return *this;
-
-	condition = other.condition;
-	statements.clear();
-
-	for (const auto& statement : other.statements)
-		statements.push_back(std::make_unique<Statement>(*statement));
-
-	return *this;
-}
-
-UniqueStatement& IfBlock::operator[](size_t index)
-{
-	assert(index < statements.size());
-	return statements[index];
-}
-
-const UniqueStatement& IfBlock::operator[](size_t index) const
-{
-	assert(index < statements.size());
-	return statements[index];
-}
-
-void IfBlock::dump() const { dump(outs(), 0); }
-
-void IfBlock::dump(raw_ostream& os, size_t indents) const
-{
-	os.indent(indents);
-	os << "condition:\n";
-	condition.dump(os, indents + 1);
-
-	os.indent(indents);
-	os << "body:\n";
-
-	for (const auto& statement : statements)
-		statement->dump(os, indents + 1);
-}
-
-Expression& IfBlock::getCondition() { return condition; }
-
-const Expression& IfBlock::getCondition() const { return condition; }
-
-size_t IfBlock::size() const { return statements.size(); }
-
-llvm::SmallVectorImpl<UniqueStatement>::iterator IfBlock::begin()
-{
-	return statements.begin();
-}
-
-llvm::SmallVectorImpl<UniqueStatement>::const_iterator IfBlock::begin() const
-{
-	return statements.begin();
-}
-
-llvm::SmallVectorImpl<UniqueStatement>::iterator IfBlock::end()
-{
-	return statements.end();
-}
-
-llvm::SmallVectorImpl<UniqueStatement>::const_iterator IfBlock::end() const
-{
-	return statements.end();
-}
-
-IfStatement::IfStatement(llvm::ArrayRef<IfBlock> blocks)
-		: blocks(blocks.begin(), blocks.end())
-{
-	assert(this->blocks.size() > 1);
-}
-
-IfBlock& IfStatement::operator[](size_t index)
-{
-	assert(index < blocks.size());
-	return blocks[index];
-}
-
-const IfBlock& IfStatement::operator[](size_t index) const
-{
-	assert(index < blocks.size());
-	return blocks[index];
-}
-
-void IfStatement::dump() const { dump(outs(), 0); }
-
-void IfStatement::dump(raw_ostream& os, size_t indents) const
-{
-	os.indent(indents);
-	os << "if statement\n";
-
-	for (const auto& block : blocks)
-		block.dump(os, indents + 1);
-}
-
-size_t IfStatement::size() const { return blocks.size(); }
-
-llvm::SmallVectorImpl<IfBlock>::iterator IfStatement::begin()
-{
-	return blocks.begin();
-}
-
-llvm::SmallVectorImpl<IfBlock>::const_iterator IfStatement::begin() const
-{
-	return blocks.begin();
-}
-
-llvm::SmallVectorImpl<IfBlock>::iterator IfStatement::end()
-{
-	return blocks.end();
-}
-
-llvm::SmallVectorImpl<IfBlock>::const_iterator IfStatement::end() const
-{
-	return blocks.end();
 }
 
 Statement::Statement(AssignmentStatement statement): content(move(statement)) {}
@@ -312,12 +239,9 @@ class AssignmentsIteratorVisitor
 	public:
 	AssignmentsIteratorVisitor(stack<Statement*>* stack): statements(stack){};
 
-	AssignmentStatement* operator()(ForStatement& forStatement)
+	AssignmentStatement* operator()(AssignmentStatement& statement)
 	{
-		for (auto i = forStatement.size(); i > 0; i--)
-			statements->push(forStatement[i - 1].get());
-
-		return nullptr;
+		return &statement;
 	}
 
 	AssignmentStatement* operator()(IfStatement& ifStatement)
@@ -333,9 +257,28 @@ class AssignmentsIteratorVisitor
 		return nullptr;
 	}
 
-	AssignmentStatement* operator()(AssignmentStatement& statement)
+	AssignmentStatement* operator()(ForStatement& forStatement)
 	{
-		return &statement;
+		for (auto i = forStatement.size(); i > 0; i--)
+			statements->push(forStatement[i - 1].get());
+
+		return nullptr;
+	}
+
+	AssignmentStatement* operator()(WhileStatement& whileStatement)
+	{
+		for (auto i = whileStatement.size(); i > 0; i--)
+			statements->push(whileStatement[i - 1].get());
+
+		return nullptr;
+	}
+
+	AssignmentStatement* operator()(WhenStatement& whenStatement)
+	{
+		for (auto i = whenStatement.size(); i > 0; i--)
+			statements->push(whenStatement[i - 1].get());
+
+		return nullptr;
 	}
 
 	private:

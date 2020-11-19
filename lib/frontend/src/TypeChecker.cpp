@@ -481,7 +481,8 @@ Error TypeChecker::checkType(IfStatement& statement, const SymbolTable& table)
 	return Error::success();
 }
 
-Error TypeChecker::checkType(IfBlock& block, const SymbolTable& table)
+Error TypeChecker::checkType(
+		IfStatement::Block& block, const SymbolTable& table)
 {
 	if (auto error = checkType<Expression>(block.getCondition(), table); error)
 		return error;

@@ -73,8 +73,11 @@ namespace modelica
 		llvm::Expected<Algorithm> algorithmSection();
 		llvm::Expected<Statement> statement();
 		llvm::Expected<AssignmentStatement> assignmentStatement();
-		llvm::Expected<ForStatement> forStatement();
 		llvm::Expected<IfStatement> ifStatement();
+		llvm::Expected<ForStatement> forStatement();
+		llvm::Expected<WhileStatement> whileStatement();
+		llvm::Expected<WhenStatement> whenStatement();
+
 		llvm::Expected<Tuple> outputExpressionList();
 
 		private:
