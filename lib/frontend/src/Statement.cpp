@@ -217,11 +217,31 @@ WhenStatement::WhenStatement(
 {
 }
 
+void BreakStatement::dump() const { dump(outs(), 0); }
+
+void BreakStatement::dump(raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "break\n";
+}
+
+void ReturnStatement::dump() const { dump(outs(), 0); }
+
+void ReturnStatement::dump(raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "return\n";
+}
+
 Statement::Statement(AssignmentStatement statement): content(move(statement)) {}
+
+Statement::Statement(IfStatement statement): content(move(statement)) {}
 
 Statement::Statement(ForStatement statement): content(move(statement)) {}
 
-Statement::Statement(IfStatement statement): content(move(statement)) {}
+Statement::Statement(BreakStatement statement): content(move(statement)) {}
+
+Statement::Statement(ReturnStatement statement): content(move(statement)) {}
 
 void Statement::dump() const { dump(outs(), 0); }
 

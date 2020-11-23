@@ -26,10 +26,12 @@ namespace modelica
 		llvm::Error checkType(Statement& statement, const SymbolTable& table);
 		llvm::Error checkType(
 				AssignmentStatement& statement, const SymbolTable& table);
-		llvm::Error checkType(ForStatement& statement, const SymbolTable& table);
 		llvm::Error checkType(IfStatement& statement, const SymbolTable& table);
 		llvm::Error checkType(
 				IfStatement::Block& statement, const SymbolTable& table);
+		llvm::Error checkType(ForStatement& statement, const SymbolTable& table);
+		llvm::Error checkType(BreakStatement& statement, const SymbolTable& table);
+		llvm::Error checkType(ReturnStatement& statement, const SymbolTable& table);
 
 		llvm::Error checkType(Member& mem, const SymbolTable& table);
 		llvm::Error checkType(Equation& eq, const SymbolTable& table);

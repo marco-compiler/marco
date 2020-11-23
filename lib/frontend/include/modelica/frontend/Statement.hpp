@@ -125,6 +125,20 @@ namespace modelica
 		WhenStatement(Expression condition, llvm::ArrayRef<Statement> body);
 	};
 
+	class BreakStatement
+	{
+		public:
+		void dump() const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+	};
+
+	class ReturnStatement
+	{
+		public:
+		void dump() const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+	};
+
 	template<typename ValueType, typename NodeType, typename... Variants>
 	class AssignmentsIteratorVisitor
 	{
@@ -176,6 +190,18 @@ namespace modelica
 			for (auto i = whenStatement.size(); i > 0; i--)
 				statements->push(whenStatement[i - 1].get());
 
+			return nullptr;
+		}
+
+		ValueType* operator()(
+				std::tuple_element_t<5, std::tuple<Variants...>>& whenStatement)
+		{
+			return nullptr;
+		}
+
+		ValueType* operator()(
+				std::tuple_element_t<6, std::tuple<Variants...>>& whenStatement)
+		{
 			return nullptr;
 		}
 
@@ -287,7 +313,9 @@ namespace modelica
 				IfStatement,
 				ForStatement,
 				WhileStatement,
-				WhenStatement>;
+				WhenStatement,
+				BreakStatement,
+				ReturnStatement>;
 
 		using const_iterator = AssignmentsIterator<
 				const AssignmentStatement,
@@ -297,11 +325,15 @@ namespace modelica
 				const IfStatement,
 				const ForStatement,
 				const WhileStatement,
-				const WhenStatement>;
+				const WhenStatement,
+				const BreakStatement,
+				const ReturnStatement>;
 
 		Statement(AssignmentStatement statement);
-		Statement(ForStatement statement);
 		Statement(IfStatement statement);
+		Statement(ForStatement statement);
+		Statement(BreakStatement statement);
+		Statement(ReturnStatement statement);
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
@@ -329,7 +361,9 @@ namespace modelica
 				IfStatement,
 				ForStatement,
 				WhileStatement,
-				WhenStatement>
+				WhenStatement,
+				BreakStatement,
+				ReturnStatement>
 				content;
 	};
 

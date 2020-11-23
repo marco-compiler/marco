@@ -455,23 +455,6 @@ Error TypeChecker::checkType(
 	return Error::success();
 }
 
-Error TypeChecker::checkType(ForStatement& statement, const SymbolTable& table)
-{
-	auto& induction = statement.getInduction();
-
-	if (auto error = checkType<Expression>(induction.getBegin(), table); error)
-		return error;
-
-	if (auto error = checkType<Expression>(induction.getEnd(), table); error)
-		return error;
-
-	for (auto& stmnt : statement)
-		if (auto error = checkType(*stmnt, table); error)
-			return error;
-
-	return Error::success();
-}
-
 Error TypeChecker::checkType(IfStatement& statement, const SymbolTable& table)
 {
 	for (auto& block : statement)
@@ -491,6 +474,33 @@ Error TypeChecker::checkType(
 		if (auto error = checkType(*statement, table); error)
 			return error;
 
+	return Error::success();
+}
+
+Error TypeChecker::checkType(ForStatement& statement, const SymbolTable& table)
+{
+	auto& induction = statement.getInduction();
+
+	if (auto error = checkType<Expression>(induction.getBegin(), table); error)
+		return error;
+
+	if (auto error = checkType<Expression>(induction.getEnd(), table); error)
+		return error;
+
+	for (auto& stmnt : statement)
+		if (auto error = checkType(*stmnt, table); error)
+			return error;
+
+	return Error::success();
+}
+
+Error TypeChecker::checkType(BreakStatement& statement, const SymbolTable& table)
+{
+	return Error::success();
+}
+
+Error TypeChecker::checkType(ReturnStatement& statement, const SymbolTable& table)
+{
 	return Error::success();
 }
 
@@ -534,6 +544,7 @@ Error TypeChecker::checkType<Expression>(
 		return checkType<Tuple>(exp, table);
 
 	assert(false && "Unreachable");
+	return Error::success();
 }
 
 template<>
