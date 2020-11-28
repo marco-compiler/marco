@@ -1,4 +1,4 @@
-package SimpleVector
+model SimpleVector
 	Real[10] vector(start = 10.0);
 	equation
 	for i in 1:5 loop

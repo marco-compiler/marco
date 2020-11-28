@@ -1,4 +1,4 @@
-package AdvectionReaction
+model AdvectionReaction
   parameter Real mu = 1000;
   constant Real alpha = 0.5;
   parameter Real u_in = 1;

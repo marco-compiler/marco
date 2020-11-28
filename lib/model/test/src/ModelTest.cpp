@@ -231,6 +231,6 @@ TEST(ModelTest, modExpShouldDistribuiteMultiplication)
 	exp = ModExp::multiply(exp, exp);
 	exp.distribuiteMultiplications();
 	EXPECT_TRUE(exp.isOperation<ModExpKind::add>());
-	EXPECT_TRUE(exp.getLeftHand().isOperation<ModExpKind::add>());
-	EXPECT_TRUE(exp.getRightHand().isOperation<ModExpKind::add>());
+	EXPECT_TRUE(exp.getLeftHand().isOperation<ModExpKind::mult>());
+	EXPECT_TRUE(exp.getRightHand().isOperation<ModExpKind::mult>());
 }

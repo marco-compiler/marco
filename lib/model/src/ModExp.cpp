@@ -345,17 +345,12 @@ void ModExp::distribuite(ModExp exp, bool multiplication)
 
 void ModExp::distribuiteMultiplications()
 {
-	if (isReferenceAccess() or isConstant())
-		return;
-	if (isOperation<ModExpKind::add>() or isOperation<ModExpKind::sub>() or
-			isOperation<ModExpKind::negate>())
-	{
-		for (auto& c : *this)
-			c.distribuiteMultiplications();
-		return;
-	}
+	for (auto& c : *this)
+		c.distribuiteMultiplications();
 
-	assert(isOperation<ModExpKind::mult>() or isOperation<ModExpKind::divide>());
+	if (not isOperation<ModExpKind::mult>() and
+			not isOperation<ModExpKind::divide>())
+		return;
 
 	bool isDivition = isOperation<ModExpKind::divide>();
 	if (getLeftHand().isReferenceAccess() or getLeftHand().isConstant())
@@ -368,9 +363,6 @@ void ModExp::distribuiteMultiplications()
 		getLeftHand().distribuite(move(getRightHand()), !isDivition);
 		*this = move(getLeftHand());
 	}
-
-	for (auto& c : *this)
-		c.distribuiteMultiplications();
 }
 
 static void readableDumpOperation(const ModExp& exp, llvm::raw_ostream& OS)
