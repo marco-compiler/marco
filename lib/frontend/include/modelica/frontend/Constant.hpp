@@ -26,39 +26,39 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
-		template<BuiltinType T>
+		template<BuiltInType T>
 		[[nodiscard]] bool isA() const
 		{
 			return std::holds_alternative<frontendTypeToType_v<T>>(content);
 		}
 
-		template<BuiltinType T>
+		template<BuiltInType T>
 		[[nodiscard]] frontendTypeToType_v<T>& get()
 		{
 			assert(isA<T>());
 			return std::get<frontendTypeToType_v<T>>(content);
 		}
 
-		template<BuiltinType T>
+		template<BuiltInType T>
 		[[nodiscard]] const frontendTypeToType_v<T>& get() const
 		{
 			assert(isA<T>());
 			return std::get<frontendTypeToType_v<T>>(content);
 		}
 
-		template<BuiltinType T>
+		template<BuiltInType T>
 		[[nodiscard]] frontendTypeToType_v<T> as() const
 		{
 			using Tr = frontendTypeToType_v<T>;
 
-			if (isA<BuiltinType::Integer>())
-				return static_cast<Tr>(get<BuiltinType::Integer>());
+			if (isA<BuiltInType::Integer>())
+				return static_cast<Tr>(get<BuiltInType::Integer>());
 
-			if (isA<BuiltinType::Float>())
-				return static_cast<Tr>(get<BuiltinType::Float>());
+			if (isA<BuiltInType::Float>())
+				return static_cast<Tr>(get<BuiltInType::Float>());
 
-			if (isA<BuiltinType::Boolean>())
-				return static_cast<Tr>(get<BuiltinType::Boolean>());
+			if (isA<BuiltInType::Boolean>())
+				return static_cast<Tr>(get<BuiltInType::Boolean>());
 
 			assert(false && "unreachable");
 			return {};

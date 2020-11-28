@@ -2,18 +2,20 @@
 
 #include <llvm/ADT/StringMap.h>
 #include <llvm/ADT/StringRef.h>
+#include <modelica/frontend/Class.hpp>
+#include <modelica/frontend/ClassContainer.hpp>
+#include <modelica/frontend/ForEquation.hpp>
+#include <modelica/frontend/Function.hpp>
+#include <modelica/frontend/Member.hpp>
 #include <variant>
-
-#include "Class.hpp"
-#include "ForEquation.hpp"
-#include "Member.hpp"
 
 namespace modelica
 {
 	class Symbol
 	{
 		public:
-		explicit Symbol(Class& clas);
+		explicit Symbol(Function& function);
+		explicit Symbol(Class& model);
 		explicit Symbol(Member& mem);
 		explicit Symbol(Induction& mem);
 
@@ -31,7 +33,7 @@ namespace modelica
 		}
 
 		private:
-		std::variant<Class*, Member*, Induction*> content;
+		std::variant<Function*, Class*, Member*, Induction*> content;
 	};
 
 	class SymbolTable
@@ -41,6 +43,7 @@ namespace modelica
 		// we would be shadowing the copy constructor.
 		SymbolTable();
 		explicit SymbolTable(const SymbolTable* parent);
+		explicit SymbolTable(Function& cls, const SymbolTable* parent = nullptr);
 		explicit SymbolTable(Class& cls, const SymbolTable* parent = nullptr);
 
 		[[nodiscard]] const Symbol& operator[](llvm::StringRef name) const

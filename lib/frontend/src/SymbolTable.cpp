@@ -4,24 +4,69 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-Symbol::Symbol(Class& clas): content(&clas) {}
+Symbol::Symbol(Function& function): content(&function) {}
+
+Symbol::Symbol(Class& model): content(&model) {}
+
 Symbol::Symbol(Member& mem): content(&mem) {}
+
 Symbol::Symbol(Induction& mem): content(&mem) {}
+
+class ClassVisitor
+{
+	public:
+	ClassVisitor(SymbolTable* table) : table(table)
+	{
+		assert(this->table != nullptr);
+	}
+
+	void operator()(Function& function)
+	{
+		table->addSymbol(function);
+
+		for (auto& member : function.getMembers())
+			table->addSymbol(member);
+	}
+
+	void operator()(Class& model)
+	{
+		table->addSymbol(model);
+
+		for (auto& member : model.getMembers())
+			table->addSymbol(member);
+
+		for (auto& cls : model.getInnerClasses())
+			cls->visit(*this);
+	}
+
+	private:
+	SymbolTable* table;
+};
+
 
 SymbolTable::SymbolTable() {}
 
 SymbolTable::SymbolTable(const SymbolTable* parent): parentTable(parent) {}
 
-SymbolTable::SymbolTable(Class& cls, const SymbolTable* parent)
+SymbolTable::SymbolTable(Function& function, const SymbolTable* parent)
 		: parentTable(parent)
 {
-	addSymbol(cls);
+	addSymbol(function);
 
-	for (auto& member : cls.getMembers())
+	for (auto& member : function.getMembers())
+		addSymbol(member);
+}
+
+SymbolTable::SymbolTable(Class& model, const SymbolTable* parent)
+		: parentTable(parent)
+{
+	addSymbol(model);
+
+	for (auto& member : model.getMembers())
 		addSymbol(member);
 
-	for (auto& function : cls.getFunctions())
-		addSymbol(*function);
+	for (auto& cls : model.getInnerClasses())
+		cls->visit(ClassVisitor(this));
 }
 
 bool SymbolTable::hasSymbol(llvm::StringRef name) const

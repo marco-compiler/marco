@@ -17,7 +17,9 @@ namespace modelica
 		llvm::Error fold(Equation& eq, const SymbolTable& table);
 		llvm::Error fold(ForEquation& eq, const SymbolTable& table);
 		llvm::Error fold(Expression& exp, const SymbolTable& table);
+		llvm::Error fold(ClassContainer& cl, const SymbolTable& table);
 		llvm::Error fold(Class& cl, const SymbolTable& table);
+		llvm::Error fold(Function& cl, const SymbolTable& table);
 		llvm::Error fold(Member& mem, const SymbolTable& table);
 		llvm::Error fold(Call& call, const SymbolTable& table);
 		llvm::Error foldReference(Expression& exp, const SymbolTable& table);

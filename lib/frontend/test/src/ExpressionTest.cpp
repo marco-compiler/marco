@@ -11,9 +11,9 @@ TEST(expressionTest, constantsCanBeBuilt)
 {
 	Expression exp(makeType<int>(), 3);
 	EXPECT_TRUE(exp.isA<Constant>());
-	EXPECT_TRUE(exp.get<Constant>().isA<BuiltinType::Integer>());
-	EXPECT_EQ(exp.get<Constant>().get<BuiltinType::Integer>(), 3);
-	EXPECT_EQ(exp.getType().get<BuiltinType>(), BuiltinType::Integer);
+	EXPECT_TRUE(exp.get<Constant>().isA<BuiltInType::Integer>());
+	EXPECT_EQ(exp.get<Constant>().get<BuiltInType::Integer>(), 3);
+	EXPECT_EQ(exp.getType().get<BuiltInType>(), BuiltInType::Integer);
 	EXPECT_EQ(exp.getType().size(), 1);
 }
 

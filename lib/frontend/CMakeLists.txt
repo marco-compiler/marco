@@ -3,11 +3,13 @@ modelicaAddLibrary(
         src/Algorithm.cpp
         src/Call.cpp
         src/Class.cpp
+		src/ClassContainer.cpp
         src/Constant.cpp
         src/ConstantFolder.cpp
         src/Equation.cpp
         src/Expression.cpp
         src/ForEquation.cpp
+		src/Function.cpp
         src/Induction.cpp
         src/LexerStateMachine.cpp
         src/Member.cpp

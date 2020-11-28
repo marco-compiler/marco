@@ -29,14 +29,14 @@ void Constant::dump(raw_ostream& os, size_t indents) const
 	os.indent(indents);
 	os << "constant: ";
 
-	if (isA<BuiltinType::Integer>())
-		os << get<BuiltinType::Integer>();
-	else if (isA<BuiltinType::Float>())
-		os << get<BuiltinType::Float>();
-	else if (isA<BuiltinType::Boolean>())
-		os << (get<BuiltinType::Boolean>() ? "true" : "false");
-	else if (isA<BuiltinType::String>())
-		os << get<BuiltinType::String>();
+	if (isA<BuiltInType::Integer>())
+		os << get<BuiltInType::Integer>();
+	else if (isA<BuiltInType::Float>())
+		os << get<BuiltInType::Float>();
+	else if (isA<BuiltInType::Boolean>())
+		os << (get<BuiltInType::Boolean>() ? "true" : "false");
+	else if (isA<BuiltInType::String>())
+		os << get<BuiltInType::String>();
 	else
 		assert(false && "Unreachable");
 

@@ -3,21 +3,23 @@
 #include <llvm/ADT/StringMap.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Error.h>
-
-#include "Class.hpp"
-#include "Equation.hpp"
-#include "Expression.hpp"
-#include "Member.hpp"
-#include "SymbolTable.hpp"
-#include "Type.hpp"
+#include <modelica/frontend/Class.hpp>
+#include <modelica/frontend/ClassContainer.hpp>
+#include <modelica/frontend/Equation.hpp>
+#include <modelica/frontend/Expression.hpp>
+#include <modelica/frontend/Function.hpp>
+#include <modelica/frontend/Member.hpp>
+#include <modelica/frontend/SymbolTable.hpp>
+#include <modelica/frontend/Type.hpp>
 
 namespace modelica
 {
 	class TypeChecker
 	{
 		public:
-		template<ClassType T>
-		llvm::Error checkType(Class& cl, const SymbolTable& table);
+		llvm::Error checkType(ClassContainer& cls, const SymbolTable& table);
+		llvm::Error checkType(Function& function, const SymbolTable& table);
+		llvm::Error checkType(Class& model, const SymbolTable& table);
 
 		template<typename T>
 		llvm::Error checkType(Expression& exp, const SymbolTable& table);
@@ -37,18 +39,6 @@ namespace modelica
 		llvm::Error checkType(Equation& eq, const SymbolTable& table);
 		llvm::Error checkType(ForEquation& eq, const SymbolTable& table);
 	};
-
-	template<>
-	llvm::Error TypeChecker::checkType<ClassType::Class>(
-			Class& cl, const SymbolTable& table);
-
-	template<>
-	llvm::Error TypeChecker::checkType<ClassType::Function>(
-			Class& cl, const SymbolTable& table);
-
-	template<>
-	llvm::Error TypeChecker::checkType<ClassType::Model>(
-			Class& cl, const SymbolTable& table);
 
 	template<>
 	llvm::Error TypeChecker::checkType<Expression>(

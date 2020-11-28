@@ -13,7 +13,7 @@ namespace modelica
 	class Type;
 	using UniqueType = std::unique_ptr<Type>;
 
-	enum class BuiltinType
+	enum class BuiltInType
 	{
 		None,
 		Integer,
@@ -24,58 +24,58 @@ namespace modelica
 	};
 
 	llvm::raw_ostream& operator<<(
-			llvm::raw_ostream& stream, const BuiltinType& obj);
+			llvm::raw_ostream& stream, const BuiltInType& obj);
 
-	std::string toString(BuiltinType type);
+	std::string toString(BuiltInType type);
 
 	template<typename T>
-	constexpr BuiltinType typeToFrontendType()
+	constexpr BuiltInType typeToFrontendType()
 	{
 		if constexpr (std::is_same<T, double>::value)
-			return BuiltinType::Float;
+			return BuiltInType::Float;
 		if constexpr (std::is_same<T, int>::value)
-			return BuiltinType::Integer;
+			return BuiltInType::Integer;
 		if constexpr (std::is_same<T, bool>::value)
-			return BuiltinType::Boolean;
+			return BuiltInType::Boolean;
 		if constexpr (std::is_same<std::string, T>::value)
-			return BuiltinType::String;
+			return BuiltInType::String;
 
 		assert(false && "Unknown type");
-		return BuiltinType::Unknown;
+		return BuiltInType::Unknown;
 	}
 
-	template<BuiltinType T>
+	template<BuiltInType T>
 	class frontendTypeToType;
 
 	template<>
-	class frontendTypeToType<BuiltinType::Boolean>
+	class frontendTypeToType<BuiltInType::Boolean>
 	{
 		public:
 		using value = bool;
 	};
 
 	template<>
-	class frontendTypeToType<BuiltinType::Float>
+	class frontendTypeToType<BuiltInType::Float>
 	{
 		public:
 		using value = double;
 	};
 
 	template<>
-	class frontendTypeToType<BuiltinType::Integer>
+	class frontendTypeToType<BuiltInType::Integer>
 	{
 		public:
 		using value = int;
 	};
 
 	template<>
-	class frontendTypeToType<BuiltinType::String>
+	class frontendTypeToType<BuiltInType::String>
 	{
 		public:
 		using value = std::string;
 	};
 
-	template<BuiltinType T>
+	template<BuiltInType T>
 	using frontendTypeToType_v = typename frontendTypeToType<T>::value;
 
 	class UserDefinedType
@@ -118,7 +118,7 @@ namespace modelica
 	class Type
 	{
 		public:
-		Type(BuiltinType type, llvm::ArrayRef<size_t> dim = { 1 });
+		Type(BuiltInType type, llvm::ArrayRef<size_t> dim = { 1 });
 		Type(UserDefinedType type, llvm::ArrayRef<size_t> dim = { 1 });
 		Type(llvm::ArrayRef<Type> members, llvm::ArrayRef<size_t> dim = { 1 });
 
@@ -178,7 +178,7 @@ namespace modelica
 		[[nodiscard]] static Type unknown();
 
 		private:
-		std::variant<BuiltinType, UserDefinedType> content;
+		std::variant<BuiltInType, UserDefinedType> content;
 		llvm::SmallVector<size_t, 3> dimensions;
 	};
 
@@ -189,7 +189,7 @@ namespace modelica
 	template<typename T, typename... Args>
 	[[nodiscard]] Type makeType(Args... args)
 	{
-		static_assert(typeToFrontendType<T>() != BuiltinType::Unknown);
+		static_assert(typeToFrontendType<T>() != BuiltInType::Unknown);
 
 		if constexpr (sizeof...(Args) == 0)
 			return Type(typeToFrontendType<T>());
@@ -197,10 +197,10 @@ namespace modelica
 		return Type(typeToFrontendType<T>(), { static_cast<size_t>(args)... });
 	}
 
-	template<BuiltinType T, typename... Args>
+	template<BuiltInType T, typename... Args>
 	[[nodiscard]] Type makeType(Args... args)
 	{
-		static_assert(T != BuiltinType::Unknown);
+		static_assert(T != BuiltInType::Unknown);
 
 		if constexpr (sizeof...(Args) == 0)
 			return Type(T);

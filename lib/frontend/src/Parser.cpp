@@ -1,6 +1,6 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Error.h>
-#include <modelica/frontend/Class.hpp>
+#include <modelica/frontend/ClassContainer.hpp>
 #include <modelica/frontend/Constant.hpp>
 #include <modelica/frontend/Equation.hpp>
 #include <modelica/frontend/Expression.hpp>
@@ -73,53 +73,74 @@ void Parser::undoScan(Token t)
 
 #include <modelica/utils/ParserUtils.hpp>
 
-static Expected<BuiltinType> nameToBuiltin(const std::string& name)
+static Expected<BuiltInType> nameToBuiltin(const std::string& name)
 {
 	if (name == "int")
-		return BuiltinType::Integer;
+		return BuiltInType::Integer;
 	if (name == "string")
-		return BuiltinType::String;
+		return BuiltInType::String;
 	if (name == "Real")
-		return BuiltinType::Float;
+		return BuiltInType::Float;
 	if (name == "Integer")
-		return BuiltinType::Integer;
+		return BuiltInType::Integer;
 	if (name == "float")
-		return BuiltinType::Float;
+		return BuiltInType::Float;
 	if (name == "bool")
-		return BuiltinType::Boolean;
+		return BuiltInType::Boolean;
 
 	return make_error<NotImplemented>(
 			"Only builtin types are supported, not " + name);
 }
 
-Expected<Class> Parser::classDefinition()
+Expected<ClassContainer> Parser::classDefinition()
 {
-	ClassType type = ClassType::Class;
+	ClassType classType = ClassType::Model;
 
-	if (accept(Token::BlockKeyword))
-		type = ClassType::Block;
-	else if (accept(Token::ConnectorKeyword))
-		type = ClassType::Connector;
-	else if (accept(Token::FunctionKeyword))
-		type = ClassType::Function;
+	bool partial = accept(Token::PartialKeyword);
+	bool op = accept(Token::OperatorKeyword);
+	bool pure = true;
+
+	if (op)
+	{
+		EXPECT(Token::FunctionKeyword);
+		classType = ClassType::Function;
+	}
 	else if (accept(Token::ModelKeyword))
-		type = ClassType::Model;
-	else if (accept(Token::PackageKeyword))
-		type = ClassType::Package;
-	else if (accept(Token::OperatorKeyword))
-		type = ClassType::Operator;
-	else if (accept(Token::RecordKeyword))
-		type = ClassType::Record;
-	else if (accept(Token::TypeKeyword))
-		type = ClassType::Type;
+	{
+		classType = ClassType::Model;
+	}
+	else if (accept(Token::FunctionKeyword))
+	{
+		classType = ClassType::Function;
+	}
+	else if (accept(Token::PureKeyword))
+	{
+		pure = true;
+		op = accept(Token::OperatorKeyword);
+		EXPECT(Token::FunctionKeyword);
+		classType = ClassType::Function;
+	}
+	else if (accept(Token::ImpureKeyword))
+	{
+		pure = false;
+		op = accept(Token::OperatorKeyword);
+		EXPECT(Token::FunctionKeyword);
+		classType = ClassType::Function;
+	}
 	else
+	{
 		EXPECT(Token::ClassKeyword);
+	}
 
 	auto name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
 	accept(Token::String);
 
-	Class cls(type, name);
+	SmallVector<Member, 3> members;
+	SmallVector<Equation, 3> equations;
+	SmallVector<ForEquation, 3> forEquations;
+	SmallVector<Algorithm, 3> algorithms;
+	SmallVector<ClassContainer, 3> innerClasses;
 
 	// Whether the first elements list is allowed to be encountered or not.
 	// In fact, the class definition allows a first elements list definition
@@ -128,28 +149,32 @@ Expected<Class> Parser::classDefinition()
 	// encountered.
 	bool firstElementListParsable = true;
 
-	// absorb comments after class/model/package
-	accept<Token::String>();
-
 	while (current != Token::EndKeyword)
 	{
 		if (current == Token::EquationKeyword)
 		{
-			TRY(eq, equationSection(cls));
+			TRY(eq, equationSection());
+
+			for (auto& equation : eq->first)
+				equations.emplace_back(move(equation));
+
+			for (auto& forEquation : eq->second)
+				forEquations.emplace_back(move(forEquation));
+
 			continue;
 		}
 
 		if (current == Token::AlgorithmKeyword)
 		{
 			TRY(alg, algorithmSection());
-			cls.addAlgorithm(move(*alg));
+			algorithms.emplace_back(move(*alg));
 			continue;
 		}
 
 		if (current == Token::FunctionKeyword)
 		{
 			TRY(func, classDefinition());
-			cls.addFunction(move(*func));
+			innerClasses.emplace_back(move(*func));
 			EXPECT(Token::Semicolons);
 			continue;
 		}
@@ -159,8 +184,8 @@ Expected<Class> Parser::classDefinition()
 			TRY(mem, elementList());
 			firstElementListParsable = false;
 
-			for (auto& m : *mem)
-				cls.addMember(move(m));
+			for (auto& member : *mem)
+				members.emplace_back(move(member));
 
 			continue;
 		}
@@ -170,8 +195,8 @@ Expected<Class> Parser::classDefinition()
 			TRY(mem, elementList());
 			firstElementListParsable = false;
 
-			for (auto& m : *mem)
-				cls.addMember(move(m));
+			for (auto& member : *mem)
+				members.emplace_back(move(member));
 
 			continue;
 		}
@@ -180,8 +205,8 @@ Expected<Class> Parser::classDefinition()
 		{
 			TRY(mem, elementList());
 
-			for (auto& m : *mem)
-				cls.addMember(move(m));
+			for (auto& member : *mem)
+				members.emplace_back(move(member));
 		}
 	}
 
@@ -192,7 +217,16 @@ Expected<Class> Parser::classDefinition()
 	if (name != endName)
 		return make_error<UnexpectedIdentifier>(endName, name, getPosition());
 
-	return cls;
+	switch (classType)
+	{
+		case ClassType::Function:
+			return ClassContainer(Function(move(name), pure, move(members), move(algorithms)));
+
+		case ClassType::Model:
+			return ClassContainer(Class(move(name), move(members), move(equations), move(forEquations), move(algorithms), move(innerClasses)));
+	}
+
+	assert(false && "Unreachable");
 }
 
 Expected<SmallVector<Member, 3>> Parser::elementList()
@@ -316,9 +350,12 @@ Expected<Type> Parser::typeSpecifier()
 	return Type(*builtint, move(*sub));
 }
 
-Expected<bool> Parser::equationSection(Class& cls)
+Expected<pair<SmallVector<Equation, 3>, SmallVector<ForEquation, 3>>> Parser::equationSection()
 {
 	EXPECT(Token::EquationKeyword);
+
+	SmallVector<Equation, 3> equations;
+	SmallVector<ForEquation, 3> forEquations;
 
 	while (
 			current != Token::End && current != Token::PublicKeyword &&
@@ -329,19 +366,20 @@ Expected<bool> Parser::equationSection(Class& cls)
 		if (current == Token::ForKeyword)
 		{
 			TRY(equs, forEquation(0));
+
 			for (auto& eq : *equs)
-				cls.addForEquation(move(eq));
+				forEquations.emplace_back(move(eq));
 		}
 		else
 		{
 			TRY(eq, equation());
-			cls.addEquation(move(*eq));
+			equations.emplace_back(move(*eq));
 		}
 
 		EXPECT(Token::Semicolons);
 	}
 
-	return true;
+	return pair(move(equations), move(forEquations));
 }
 
 Expected<Algorithm> Parser::algorithmSection()
@@ -681,8 +719,8 @@ Expected<Expression> Parser::arithmeticExpression()
 
 	TRY(left, term());
 	Expression first = negative
-												 ? Expression::subtract(Type::unknown(), move(*left))
-												 : move(*left);
+										 ? Expression::subtract(Type::unknown(), move(*left))
+										 : move(*left);
 
 	if (current != Token::Minus && current != Token::Plus)
 		return first;
@@ -780,7 +818,7 @@ Expected<Expression> Parser::primary()
 	{
 		Constant c(lexer.getLastFloat());
 		accept<Token::FloatingPoint>();
-		return Expression(makeType<float>(), c);
+		return Expression(makeType<BuiltInType::Float>(), c);
 	}
 
 	if (current == Token::String)

@@ -17,7 +17,7 @@ TEST(ParserTest, primaryIntTest)
 		FAIL();
 
 	EXPECT_TRUE(exp->isA<Constant>());
-	EXPECT_TRUE(exp->get<Constant>().isA<BuiltinType::Integer>());
+	EXPECT_TRUE(exp->get<Constant>().isA<BuiltInType::Integer>());
 }
 
 TEST(ParserTest, primaryFloatTest)
@@ -28,7 +28,7 @@ TEST(ParserTest, primaryFloatTest)
 		FAIL();
 
 	EXPECT_TRUE(exp->isA<Constant>());
-	EXPECT_TRUE(exp->get<Constant>().isA<BuiltinType::Float>());
+	EXPECT_TRUE(exp->get<Constant>().isA<BuiltInType::Float>());
 }
 
 TEST(ParserTest, expressionTest)
@@ -39,7 +39,7 @@ TEST(ParserTest, expressionTest)
 		FAIL();
 
 	EXPECT_TRUE(exp->isA<Constant>());
-	EXPECT_TRUE(exp->get<Constant>().isA<BuiltinType::Float>());
+	EXPECT_TRUE(exp->get<Constant>().isA<BuiltInType::Float>());
 }
 
 TEST(ParserTest, sumTest)
@@ -53,11 +53,11 @@ TEST(ParserTest, sumTest)
 	EXPECT_EQ(exp->get<Operation>().getKind(), OperationKind::add);
 	EXPECT_TRUE(exp->get<Operation>()[0].isA<Constant>());
 	EXPECT_TRUE(
-			exp->get<Operation>()[0].get<Constant>().isA<BuiltinType::Float>());
+			exp->get<Operation>()[0].get<Constant>().isA<BuiltInType::Float>());
 
 	EXPECT_TRUE(exp->get<Operation>()[1].isA<Constant>());
 	EXPECT_TRUE(
-			exp->get<Operation>()[1].get<Constant>().isA<BuiltinType::Float>());
+			exp->get<Operation>()[1].get<Constant>().isA<BuiltInType::Float>());
 }
 
 TEST(ParserTest, subTest)
@@ -71,7 +71,7 @@ TEST(ParserTest, subTest)
 	EXPECT_EQ(exp->get<Operation>().getKind(), OperationKind::add);
 	EXPECT_TRUE(exp->get<Operation>()[0].isA<Constant>());
 	EXPECT_TRUE(
-			exp->get<Operation>()[0].get<Constant>().isA<BuiltinType::Float>());
+			exp->get<Operation>()[0].get<Constant>().isA<BuiltInType::Float>());
 
 	EXPECT_EQ(exp->get<Operation>().argumentsCount(), 2);
 	EXPECT_TRUE(exp->get<Operation>()[1].isA<Operation>());
@@ -91,11 +91,11 @@ TEST(ParserTest, andTest)
 	EXPECT_EQ(exp->get<Operation>().getKind(), OperationKind::land);
 	EXPECT_TRUE(exp->get<Operation>()[0].isA<Constant>());
 	EXPECT_TRUE(
-			exp->get<Operation>()[0].get<Constant>().isA<BuiltinType::Boolean>());
+			exp->get<Operation>()[0].get<Constant>().isA<BuiltInType::Boolean>());
 
 	EXPECT_TRUE(exp->get<Operation>()[1].isA<Constant>());
 	EXPECT_TRUE(
-			exp->get<Operation>()[1].get<Constant>().isA<BuiltinType::Boolean>());
+			exp->get<Operation>()[1].get<Constant>().isA<BuiltInType::Boolean>());
 }
 
 TEST(ParserTest, orTest)
@@ -109,11 +109,11 @@ TEST(ParserTest, orTest)
 	EXPECT_EQ(exp->get<Operation>().getKind(), OperationKind::lor);
 	EXPECT_TRUE(exp->get<Operation>()[0].isA<Constant>());
 	EXPECT_TRUE(
-			exp->get<Operation>()[0].get<Constant>().isA<BuiltinType::Boolean>());
+			exp->get<Operation>()[0].get<Constant>().isA<BuiltInType::Boolean>());
 
 	EXPECT_TRUE(exp->get<Operation>()[1].isA<Constant>());
 	EXPECT_TRUE(
-			exp->get<Operation>()[1].get<Constant>().isA<BuiltinType::Boolean>());
+			exp->get<Operation>()[1].get<Constant>().isA<BuiltInType::Boolean>());
 }
 
 TEST(ParserTest, division)
@@ -127,7 +127,7 @@ TEST(ParserTest, division)
 	EXPECT_EQ(exp->get<Operation>().getKind(), OperationKind::divide);
 	EXPECT_TRUE(exp->get<Operation>()[0].isA<Constant>());
 	EXPECT_TRUE(
-			exp->get<Operation>()[0].get<Constant>().isA<BuiltinType::Float>());
+			exp->get<Operation>()[0].get<Constant>().isA<BuiltInType::Float>());
 
 	EXPECT_EQ(exp->get<Operation>().argumentsCount(), 2);
 	EXPECT_TRUE(exp->get<Operation>()[1].isA<Constant>());
@@ -164,7 +164,7 @@ TEST(ParserTest, memberTest)
 	EXPECT_FALSE(exp->hasInitializer());
 	EXPECT_FALSE(exp->hasStartOverload());
 	EXPECT_EQ(exp->getName(), "Qb");
-	EXPECT_EQ(exp->getType(), makeType<BuiltinType::Float>(10, 10));
+	EXPECT_EQ(exp->getType(), makeType<BuiltInType::Float>(10, 10));
 }
 
 TEST(ParserTest, memberStartOverloadTest)
@@ -177,6 +177,6 @@ TEST(ParserTest, memberStartOverloadTest)
 	EXPECT_FALSE(exp->hasInitializer());
 	EXPECT_TRUE(exp->hasStartOverload());
 	EXPECT_EQ(exp->getName(), "Qb");
-	EXPECT_EQ(exp->getType(), makeType<BuiltinType::Float>(10, 10));
+	EXPECT_EQ(exp->getType(), makeType<BuiltInType::Float>(10, 10));
 	EXPECT_TRUE(exp->getStartOverload().isA<ReferenceAccess>());
 }

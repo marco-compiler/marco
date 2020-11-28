@@ -3,20 +3,19 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Error.h>
 #include <memory>
+#include <modelica/frontend/ClassContainer.hpp>
+#include <modelica/frontend/Constant.hpp>
+#include <modelica/frontend/Equation.hpp>
+#include <modelica/frontend/Expression.hpp>
+#include <modelica/frontend/ForEquation.hpp>
+#include <modelica/frontend/LexerStateMachine.hpp>
+#include <modelica/frontend/Member.hpp>
+#include <modelica/frontend/ParserErrors.hpp>
+#include <modelica/frontend/ReferenceAccess.hpp>
+#include <modelica/frontend/Type.hpp>
+#include <modelica/frontend/TypePrefix.hpp>
 #include <modelica/utils/Lexer.hpp>
 #include <optional>
-
-#include "Class.hpp"
-#include "Constant.hpp"
-#include "Equation.hpp"
-#include "Expression.hpp"
-#include "ForEquation.hpp"
-#include "LexerStateMachine.hpp"
-#include "Member.hpp"
-#include "ParserErrors.hpp"
-#include "ReferenceAccess.hpp"
-#include "Type.hpp"
-#include "TypePrefix.hpp"
 
 namespace modelica
 {
@@ -38,7 +37,7 @@ namespace modelica
 
 		[[nodiscard]] Token getCurrentToken() const;
 
-		llvm::Expected<Class> classDefinition();
+		llvm::Expected<ClassContainer> classDefinition();
 		llvm::Expected<Expression> primary();
 		llvm::Expected<Expression> factor();
 		llvm::Expected<std::optional<Expression>> modification();
@@ -62,7 +61,7 @@ namespace modelica
 		llvm::Expected<llvm::SmallVector<ForEquation, 3>> forEquation(
 				int nestingLevel);
 
-		llvm::Expected<bool> equationSection(Class& cls);
+		llvm::Expected<std::pair<llvm::SmallVector<Equation, 3>, llvm::SmallVector<ForEquation, 3>>> equationSection();
 		llvm::Expected<Expression> expression();
 		llvm::Expected<Expression> logicalFactor();
 		llvm::Expected<Expression> relation();

@@ -7,26 +7,26 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-raw_ostream& modelica::operator<<(raw_ostream& stream, const BuiltinType& obj)
+raw_ostream& modelica::operator<<(raw_ostream& stream, const BuiltInType& obj)
 {
 	return stream << toString(obj);
 }
 
-string modelica::toString(BuiltinType type)
+string modelica::toString(BuiltInType type)
 {
 	switch (type)
 	{
-		case BuiltinType::None:
+		case BuiltInType::None:
 			return "none";
-		case BuiltinType::Integer:
+		case BuiltInType::Integer:
 			return "integer";
-		case BuiltinType::Float:
+		case BuiltInType::Float:
 			return "float";
-		case BuiltinType::String:
+		case BuiltInType::String:
 			return "string";
-		case BuiltinType::Boolean:
+		case BuiltInType::Boolean:
 			return "boolean";
-		case BuiltinType::Unknown:
+		case BuiltInType::Unknown:
 			return "unknown";
 	}
 
@@ -126,10 +126,10 @@ string modelica::toString(UserDefinedType obj)
 				 "}";
 }
 
-Type::Type(BuiltinType type, ArrayRef<size_t> dim)
+Type::Type(BuiltInType type, ArrayRef<size_t> dim)
 		: content(move(type)), dimensions(dim.begin(), dim.end())
 {
-	assert(holds_alternative<BuiltinType>(content));
+	assert(holds_alternative<BuiltInType>(content));
 	assert(!dimensions.empty());
 }
 
@@ -249,8 +249,8 @@ string modelica::toString(Type obj)
 	return size + obj.visit(visitor);
 }
 
-Type Type::Int() { return Type(typeToBuiltin<int>()); }
+Type Type::Int() { return Type(BuiltInType::Integer); }
 
-Type Type::Float() { return Type(typeToBuiltin<float>()); }
+Type Type::Float() { return Type(BuiltInType::Float); }
 
-Type Type::unknown() { return Type(BuiltinType::Unknown); }
+Type Type::unknown() { return Type(BuiltInType::Unknown); }

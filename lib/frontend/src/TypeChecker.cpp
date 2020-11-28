@@ -19,7 +19,8 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-llvm::Error resolveDummyReferences(Class& cls);
+llvm::Error resolveDummyReferences(Function& function);
+llvm::Error resolveDummyReferences(Class& model);
 
 static Expected<Type> typeFromSymbol(
 		const Expression& exp, const SymbolTable& table)
@@ -46,8 +47,8 @@ static Expected<Type> typeFromSymbol(
 
 	auto symbol = table[name];
 
-	if (symbol.isA<Class>())
-		return symbol.get<Class>().getType();
+	if (symbol.isA<Function>())
+		return symbol.get<Function>().getType();
 
 	if (symbol.isA<Member>())
 		return symbol.get<Member>().getType();
@@ -67,51 +68,19 @@ Error TypeChecker::checkType(Algorithm& algorithm, const SymbolTable& table)
 	return Error::success();
 }
 
-template<>
-Error TypeChecker::checkType<ClassType::Class>(
-		Class& cl, const SymbolTable& table)
+Error TypeChecker::checkType(ClassContainer& cls, const SymbolTable& table)
 {
-	SymbolTable t(cl, &table);
-
-	for (auto& m : cl.getMembers())
-		if (auto error = checkType(m, t); error)
-			return error;
-
-	// Functions type checking must be done before the equations or algorithm
-	// ones, because it establishes the result type of the functions that may
-	// be invoked elsewhere.
-	for (auto& function : cl.getFunctions())
-		if (auto error = checkType<ClassType::Function>(*function, t); error)
-			return error;
-
-	for (auto& eq : cl.getEquations())
-		if (auto error = checkType(eq, t); error)
-			return error;
-
-	for (auto& eq : cl.getForEquations())
-		if (auto error = checkType(eq, t); error)
-			return error;
-
-	for (auto& algorithm : cl.getAlgorithms())
-		if (auto error = checkType(algorithm, t); error)
-			return error;
-
-	if (auto error = resolveDummyReferences(cl); error)
-		return error;
-
-	return Error::success();
+	return cls.visit([&](auto& obj) { return checkType(obj, table); });
 }
 
-template<>
-Error TypeChecker::checkType<ClassType::Function>(
-		Class& cl, const SymbolTable& table)
+Error TypeChecker::checkType(Function& function, const SymbolTable& table)
 {
-	SymbolTable t(cl, &table);
+	SymbolTable t(function, &table);
 	vector<Type> types;
 
 	// Check members
 
-	for (auto& member : cl.getMembers())
+	for (auto& member : function.getMembers())
 	{
 		if (auto error = checkType(member, t); error)
 			return error;
@@ -140,11 +109,11 @@ Error TypeChecker::checkType<ClassType::Function>(
 	}
 
 	if (types.size() == 1)
-		cl.setType(move(types[0]));
+		function.setType(move(types[0]));
 	else
-		cl.setType(Type(types));
+		function.setType(Type(types));
 
-	auto& algorithms = cl.getAlgorithms();
+	auto& algorithms = function.getAlgorithms();
 
 	// From Function reference:
 	// "A function can have at most one algorithm section or one external
@@ -163,7 +132,7 @@ Error TypeChecker::checkType<ClassType::Function>(
 	if (auto error = checkType(algorithms[0], t); error)
 		return error;
 
-	if (auto error = resolveDummyReferences(cl); error)
+	if (auto error = resolveDummyReferences(function); error)
 		return error;
 
 	for (auto& statement : algorithms[0].getStatements())
@@ -256,12 +225,37 @@ Error TypeChecker::checkType<ClassType::Function>(
 	return Error::success();
 }
 
-template<>
-Error TypeChecker::checkType<ClassType::Model>(
-		Class& cl, const SymbolTable& table)
+Error TypeChecker::checkType(Class& model, const SymbolTable& table)
 {
-	// 'class' and 'model' are defined as equivalent
-	return checkType<ClassType::Class>(cl, table);
+	SymbolTable t(model, &table);
+
+	for (auto& m : model.getMembers())
+		if (auto error = checkType(m, t); error)
+			return error;
+
+	// Functions type checking must be done before the equations or algorithm
+	// ones, because it establishes the result type of the functions that may
+	// be invoked elsewhere.
+	for (auto& cls : model.getInnerClasses())
+		if (auto error = checkType(*cls, t); error)
+			return error;
+
+	for (auto& eq : model.getEquations())
+		if (auto error = checkType(eq, t); error)
+			return error;
+
+	for (auto& eq : model.getForEquations())
+		if (auto error = checkType(eq, t); error)
+			return error;
+
+	for (auto& algorithm : model.getAlgorithms())
+		if (auto error = checkType(algorithm, t); error)
+			return error;
+
+	if (auto error = resolveDummyReferences(model); error)
+		return error;
+
+	return Error::success();
 }
 
 Error TypeChecker::checkType(Member& mem, const SymbolTable& table)
@@ -678,7 +672,8 @@ Error TypeChecker::checkType<Tuple>(
 	return Error::success();
 }
 
-string getTemporaryVariableName(Class& cls)
+template<class T>
+string getTemporaryVariableName(T& cls)
 {
 	const auto& members = cls.getMembers();
 	int counter = 0;
@@ -692,35 +687,9 @@ string getTemporaryVariableName(Class& cls)
 	return "_temp" + to_string(counter);
 }
 
-llvm::Error resolveDummyReferences(Class& cls)
+llvm::Error resolveDummyReferences(Function& function)
 {
-	for (auto& equation : cls.getEquations())
-	{
-		auto& lhs = equation.getLeftHand();
-
-		if (lhs.isA<Tuple>())
-		{
-			for (auto& expression : lhs.get<Tuple>())
-			{
-				if (!expression->isA<ReferenceAccess>())
-					continue;
-
-				auto& ref = expression->get<ReferenceAccess>();
-
-				if (!ref.isDummy())
-					continue;
-
-				string name = getTemporaryVariableName(cls);
-				Member temp(name, expression->getType(), TypePrefix::none());
-				ref.setName(temp.getName());
-				cls.addMember(temp);
-			}
-		}
-	}
-
-	// TODO: check of ForEquation
-
-	for (auto& algorithm : cls.getAlgorithms())
+	for (auto& algorithm : function.getAlgorithms())
 	{
 		for (auto& statement : algorithm.getStatements())
 		{
@@ -736,10 +705,69 @@ llvm::Error resolveDummyReferences(Class& cls)
 					if (!ref.isDummy())
 						continue;
 
-					string name = getTemporaryVariableName(cls);
+					string name = getTemporaryVariableName(function);
 					Member temp(name, destination->getType(), TypePrefix::none());
 					ref.setName(temp.getName());
-					cls.addMember(temp);
+					function.addMember(temp);
+
+					// Note that there is no need to add the dummy variable to the
+					// symbol table, because it will never be referenced.
+				}
+			}
+		}
+	}
+
+	return Error::success();
+}
+
+llvm::Error resolveDummyReferences(Class& model)
+{
+	for (auto& equation : model.getEquations())
+	{
+		auto& lhs = equation.getLeftHand();
+
+		if (lhs.isA<Tuple>())
+		{
+			for (auto& expression : lhs.get<Tuple>())
+			{
+				if (!expression->isA<ReferenceAccess>())
+					continue;
+
+				auto& ref = expression->get<ReferenceAccess>();
+
+				if (!ref.isDummy())
+					continue;
+
+				string name = getTemporaryVariableName(model);
+				Member temp(name, expression->getType(), TypePrefix::none());
+				ref.setName(temp.getName());
+				model.addMember(temp);
+			}
+		}
+	}
+
+	// TODO: check of ForEquation
+
+	for (auto& algorithm : model.getAlgorithms())
+	{
+		for (auto& statement : algorithm.getStatements())
+		{
+			for (auto& assignment : statement)
+			{
+				for (auto& destination : assignment.getDestinations())
+				{
+					if (!destination->isA<ReferenceAccess>())
+						continue;
+
+					auto& ref = destination->get<ReferenceAccess>();
+
+					if (!ref.isDummy())
+						continue;
+
+					string name = getTemporaryVariableName(model);
+					Member temp(name, destination->getType(), TypePrefix::none());
+					ref.setName(temp.getName());
+					model.addMember(temp);
 
 					// Note that there is no need to add the dummy variable to the
 					// symbol table, because it will never be referenced.

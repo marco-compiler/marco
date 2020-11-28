@@ -28,6 +28,11 @@ using namespace modelica;
 using namespace std;
 using namespace llvm;
 
+Error OmcToModelPass::lower(ClassContainer& cl, const SymbolTable& table)
+{
+	return cl.visit([&](auto& obj) {return lower(obj, table); });
+}
+
 Error OmcToModelPass::lower(Class& cl, const SymbolTable& table)
 {
 	SymbolTable t(cl, &table);
@@ -56,19 +61,24 @@ Error OmcToModelPass::lower(Class& cl, const SymbolTable& table)
 	return Error::success();
 }
 
-static BultinModTypes builtinToBuiltin(BuiltinType type)
+Error OmcToModelPass::lower(Function& cl, const SymbolTable& table)
+{
+	return Error::success();
+}
+
+static BultinModTypes builtinToBuiltin(BuiltInType type)
 {
 	switch (type)
 	{
-		case modelica::BuiltinType::Boolean:
+		case modelica::BuiltInType::Boolean:
 			return BultinModTypes::BOOL;
-		case modelica::BuiltinType::Integer:
+		case modelica::BuiltInType::Integer:
 			return BultinModTypes::INT;
-		case modelica::BuiltinType::Float:
+		case modelica::BuiltInType::Float:
 			return BultinModTypes::FLOAT;
-		case modelica::BuiltinType::String:
-		case modelica::BuiltinType::None:
-		case modelica::BuiltinType::Unknown:
+		case modelica::BuiltInType::String:
+		case modelica::BuiltInType::None:
+		case modelica::BuiltInType::Unknown:
 			assert(false && "not supported");
 			return BultinModTypes::BOOL;
 	}
@@ -80,18 +90,18 @@ Expected<ModType> OmcToModelPass::lower(
 		const Type& tp, const SymbolTable& table)
 {
 	return ModType(
-			builtinToBuiltin(tp.get<BuiltinType>()),
+			builtinToBuiltin(tp.get<BuiltInType>()),
 			static_cast<ArrayRef<size_t>>(tp.getDimensions()));
 }
 
 static Expected<ModConst> lowerConstant(const Constant& constant)
 {
-	if (constant.isA<BuiltinType::Float>())
-		return ModConst(constant.get<BuiltinType::Float>());
-	if (constant.isA<BuiltinType::Integer>())
-		return ModConst(constant.get<BuiltinType::Integer>());
-	if (constant.isA<BuiltinType::Boolean>())
-		return ModConst(constant.get<BuiltinType::Boolean>());
+	if (constant.isA<BuiltInType::Float>())
+		return ModConst(constant.get<BuiltInType::Float>());
+	if (constant.isA<BuiltInType::Integer>())
+		return ModConst(constant.get<BuiltInType::Integer>());
+	if (constant.isA<BuiltInType::Boolean>())
+		return ModConst(constant.get<BuiltInType::Boolean>());
 
 	assert(false && "unreachable");
 	return ModConst(0);
@@ -104,13 +114,13 @@ Expected<ModExp> OmcToModelPass::defaultInitializer(
 
 	if (type.isScalar())
 	{
-		if (type.get<BuiltinType>() == BuiltinType::Boolean)
+		if (type.get<BuiltInType>() == BuiltInType::Boolean)
 			return ModExp(ModConst(false));
 
-		if (type.get<BuiltinType>() == BuiltinType::Integer)
+		if (type.get<BuiltInType>() == BuiltInType::Integer)
 			return ModExp(ModConst(0));
 
-		if (type.get<BuiltinType>() == BuiltinType::Float)
+		if (type.get<BuiltInType>() == BuiltInType::Float)
 			return ModExp(ModConst(0.0F));
 	}
 
@@ -193,16 +203,16 @@ Expected<ModEquation> OmcToModelPass::lower(
 	for (auto& ind : eq.getInductions())
 	{
 		if (!ind.getBegin().isA<Constant>() ||
-				!ind.getBegin().get<Constant>().isA<BuiltinType::Integer>())
+				!ind.getBegin().get<Constant>().isA<BuiltInType::Integer>())
 			return make_error<NotImplemented>("induction var must be constant int");
 
 		if (!ind.getEnd().isA<Constant>() ||
-				!ind.getEnd().get<Constant>().isA<BuiltinType::Integer>())
+				!ind.getEnd().get<Constant>().isA<BuiltInType::Integer>())
 			return make_error<NotImplemented>("induction var must be constant int");
 
 		interval.emplace_back(
-				ind.getBegin().get<Constant>().get<BuiltinType::Integer>(),
-				ind.getEnd().get<Constant>().get<BuiltinType::Integer>() + 1);
+				ind.getBegin().get<Constant>().get<BuiltInType::Integer>(),
+				ind.getEnd().get<Constant>().get<BuiltInType::Integer>() + 1);
 	}
 
 	if (not eq.getEquation().getLeftHand().getType().isScalar())
@@ -217,11 +227,11 @@ static Expected<ModExp> lowerConstant(Expression& c, const SymbolTable table)
 {
 	assert(c.isA<Constant>());
 
-	if (c.get<Constant>().isA<BuiltinType::Integer>())
-		return ModExp(ModConst(c.get<Constant>().as<BuiltinType::Integer>()));
+	if (c.get<Constant>().isA<BuiltInType::Integer>())
+		return ModExp(ModConst(c.get<Constant>().as<BuiltInType::Integer>()));
 
-	if (c.get<Constant>().isA<BuiltinType::Float>())
-		return ModExp(ModConst(c.get<Constant>().as<BuiltinType::Float>()));
+	if (c.get<Constant>().isA<BuiltInType::Float>())
+		return ModExp(ModConst(c.get<Constant>().as<BuiltInType::Float>()));
 
 	return make_error<NotImplemented>("unlowerable constant");
 }
