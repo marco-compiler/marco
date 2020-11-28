@@ -17,7 +17,8 @@ TEST(FunctionParse, functionName)	 // NOLINT
 		FAIL();
 
 	auto ast = move(*expectedAst);
-	EXPECT_EQ("Foo", ast.getName());
+	const auto& function = ast.get<Function>();
+	EXPECT_EQ("Foo", function.getName());
 }
 
 TEST(FunctionParse, singleAlgorithm)	// NOLINT
@@ -32,7 +33,8 @@ TEST(FunctionParse, singleAlgorithm)	// NOLINT
 		FAIL();
 
 	auto ast = move(*expectedAst);
-	EXPECT_EQ(1, ast.getAlgorithms().size());
+	const auto& function = ast.get<Function>();
+	EXPECT_EQ(1, function.getAlgorithms().size());
 }
 
 TEST(FunctionParse, multipleAlgorithms)	 // NOLINT
@@ -48,7 +50,8 @@ TEST(FunctionParse, multipleAlgorithms)	 // NOLINT
 		FAIL();
 
 	auto ast = move(*expectedAst);
-	EXPECT_EQ(2, ast.getAlgorithms().size());
+	const auto& function = ast.get<Function>();
+	EXPECT_EQ(2, function.getAlgorithms().size());
 }
 
 TEST(FunctionTypeCheck, publicMembersMustBeInputOrOutput)	 // NOLINT
@@ -67,8 +70,7 @@ TEST(FunctionTypeCheck, publicMembersMustBeInputOrOutput)	 // NOLINT
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	EXPECT_ERROR(
-			typeChecker.checkType<ClassType::Function>(ast, {}), BadSemantic);
+	EXPECT_ERROR(typeChecker.checkType(ast, {}), BadSemantic);
 }
 
 TEST(FunctionTypeCheck, assignmentToInputMember)	// NOLINT
@@ -88,8 +90,7 @@ TEST(FunctionTypeCheck, assignmentToInputMember)	// NOLINT
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	EXPECT_ERROR(
-			typeChecker.checkType<ClassType::Function>(ast, {}), BadSemantic);
+	EXPECT_ERROR(typeChecker.checkType(ast, {}), BadSemantic);
 }
 
 TEST(FunctionTypeCheck, assignmentToInputArray)	 // NOLINT
@@ -109,8 +110,7 @@ TEST(FunctionTypeCheck, assignmentToInputArray)	 // NOLINT
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	EXPECT_ERROR(
-			typeChecker.checkType<ClassType::Function>(ast, {}), BadSemantic);
+	EXPECT_ERROR(typeChecker.checkType(ast, {}), BadSemantic);
 }
 
 TEST(FunctionTypeCheck, directDerCall)	// NOLINT
@@ -128,8 +128,7 @@ TEST(FunctionTypeCheck, directDerCall)	// NOLINT
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	EXPECT_ERROR(
-			typeChecker.checkType<ClassType::Function>(ast, {}), BadSemantic);
+	EXPECT_ERROR(typeChecker.checkType(ast, {}), BadSemantic);
 }
 
 TEST(FunctionTypeCheck, derInsideParameters)	// NOLINT
@@ -148,6 +147,5 @@ TEST(FunctionTypeCheck, derInsideParameters)	// NOLINT
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	EXPECT_ERROR(
-			typeChecker.checkType<ClassType::Function>(ast, {}), BadSemantic);
+	EXPECT_ERROR(typeChecker.checkType(ast, {}), BadSemantic);
 }

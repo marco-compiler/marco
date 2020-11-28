@@ -151,7 +151,8 @@ TEST(ParserTest, classTest)
 	if (!exp)
 		FAIL();
 
-	EXPECT_EQ(exp->getName(), "example");
+	const auto& model = exp->get<Class>();
+	EXPECT_EQ(model.getName(), "example");
 }
 
 TEST(ParserTest, memberTest)
