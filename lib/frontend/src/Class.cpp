@@ -80,40 +80,36 @@ void Class::dump(raw_ostream& os, size_t indents) const
 
 string Class::getName() const { return name; }
 
-SmallVectorImpl<Member>& Class::getMembers() { return members; }
+Class::Container<Member>& Class::getMembers() { return members; }
 
-const SmallVectorImpl<Member>& Class::getMembers() const { return members; }
+const Class::Container<Member>& Class::getMembers() const { return members; }
 
 void Class::addMember(Member member)
 {
 	return members.push_back(move(member));
 }
 
-SmallVectorImpl<Equation>& Class::getEquations() { return equations; }
+Class::Container<Equation>& Class::getEquations() { return equations; }
 
-const SmallVectorImpl<Equation>& Class::getEquations() const
+const Class::Container<Equation>& Class::getEquations() const
 {
 	return equations;
 }
 
-SmallVectorImpl<ForEquation>& Class::getForEquations() { return forEquations; }
+Class::Container<ForEquation>& Class::getForEquations() { return forEquations; }
 
-const SmallVectorImpl<ForEquation>& Class::getForEquations() const
+const Class::Container<ForEquation>& Class::getForEquations() const
 {
 	return forEquations;
 }
 
-SmallVectorImpl<Algorithm>& Class::getAlgorithms() { return algorithms; }
+Class::Container<Algorithm>& Class::getAlgorithms() { return algorithms; }
 
-const SmallVectorImpl<Algorithm>& Class::getAlgorithms() const
+const Class::Container<Algorithm>& Class::getAlgorithms() const
 {
 	return algorithms;
 }
 
-SmallVectorImpl<UniqueClass>& Class::getInnerClasses() { return innerClasses; }
+Class::Container<Class::InnerClass>& Class::getInnerClasses() { return innerClasses; }
 
-const SmallVectorImpl<UniqueClass>& Class::getInnerClasses() const { return innerClasses; }
-
-const Type& Function::getType() const { return type; }
-
-void Function::setType(Type t) { type = move(t); }
+const Class::Container<Class::InnerClass>& Class::getInnerClasses() const { return innerClasses; }

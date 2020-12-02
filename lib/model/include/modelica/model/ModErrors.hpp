@@ -214,7 +214,7 @@ namespace modelica
 
 		void log(llvm::raw_ostream& OS) const override
 		{
-			OS << '[' << pos.toString() << "] ";
+			OS << '[' << pos << "] ";
 			OS << "unexpected token: ";
 			OS << tokenToString(received);
 			OS << " expected " << tokenToString(expected);

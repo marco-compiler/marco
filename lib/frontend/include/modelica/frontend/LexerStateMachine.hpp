@@ -113,6 +113,7 @@ namespace modelica
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Token& obj);
+
 	std::string toString(Token obj);
 
 	/**
@@ -153,8 +154,8 @@ namespace modelica
 		 */
 		[[nodiscard]] Token getCurrent() const { return currentToken; }
 
-		[[nodiscard]] int getCurrentLine() const { return lineNumber; }
-		[[nodiscard]] int getCurrentColumn() const { return columnNumber; }
+		[[nodiscard]] unsigned int getCurrentLine() const { return currentLine; }
+		[[nodiscard]] unsigned int getCurrentColumn() const { return currentColumn; }
 
 		/**
 		 * Returns the last seen identifier, or the one being built if the machine
@@ -214,12 +215,12 @@ namespace modelica
 		{
 			current = next;
 			next = c;
-			columnNumber++;
+			currentColumn++;
 
 			if (current == '\n')
 			{
-				columnNumber = 0;
-				lineNumber++;
+				currentColumn = 0;
+				currentLine++;
 			}
 		}
 
@@ -238,8 +239,8 @@ namespace modelica
 		FloatLexer<defaultBase> lastNum;
 		std::string lastString;
 
-		int lineNumber;
-		int columnNumber;
+		unsigned int currentLine;
+		unsigned int currentColumn;
 
 		std::string error;
 		llvm::StringMap<Token> keywordMap;

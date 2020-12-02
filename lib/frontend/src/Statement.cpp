@@ -44,7 +44,7 @@ vector<Expression*> AssignmentStatement::getDestinations()
 	else
 	{
 		for (auto& exp : get<Tuple>(destination))
-			destinations.push_back(&*exp);
+			destinations.push_back(&exp);
 	}
 
 	return destinations;
@@ -98,24 +98,22 @@ void IfStatement::dump(raw_ostream& os, size_t indents) const
 
 size_t IfStatement::size() const { return blocks.size(); }
 
-llvm::SmallVectorImpl<IfStatement::Block>::iterator IfStatement::begin()
+IfStatement::blocks_iterator IfStatement::begin()
 {
 	return blocks.begin();
 }
 
-llvm::SmallVectorImpl<IfStatement::Block>::const_iterator IfStatement::begin()
-		const
+IfStatement::blocks_const_iterator IfStatement::begin() const
 {
 	return blocks.begin();
 }
 
-llvm::SmallVectorImpl<IfStatement::Block>::iterator IfStatement::end()
+IfStatement::blocks_iterator IfStatement::end()
 {
 	return blocks.end();
 }
 
-llvm::SmallVectorImpl<IfStatement::Block>::const_iterator IfStatement::end()
-		const
+IfStatement::blocks_const_iterator IfStatement::end() const
 {
 	return blocks.end();
 }
@@ -151,16 +149,16 @@ ForStatement& ForStatement::operator=(const ForStatement& other)
 	return *this;
 }
 
-UniqueStatement& ForStatement::operator[](size_t index)
+Statement& ForStatement::operator[](size_t index)
 {
 	assert(index < statements.size());
-	return statements[index];
+	return *statements[index];
 }
 
-const UniqueStatement& ForStatement::operator[](size_t index) const
+const Statement& ForStatement::operator[](size_t index) const
 {
 	assert(index < statements.size());
-	return statements[index];
+	return *statements[index];
 }
 
 void ForStatement::dump() const { dump(outs(), 0); }
@@ -184,23 +182,22 @@ const Induction& ForStatement::getInduction() const { return induction; }
 
 size_t ForStatement::size() const { return statements.size(); }
 
-llvm::SmallVectorImpl<UniqueStatement>::iterator ForStatement::begin()
+ForStatement::statements_iterator ForStatement::begin()
 {
 	return statements.begin();
 }
 
-llvm::SmallVectorImpl<UniqueStatement>::const_iterator ForStatement::begin()
-		const
+ForStatement::statements_const_iterator ForStatement::begin() const
 {
 	return statements.begin();
 }
 
-llvm::SmallVectorImpl<UniqueStatement>::iterator ForStatement::end()
+ForStatement::statements_iterator ForStatement::end()
 {
 	return statements.end();
 }
 
-llvm::SmallVectorImpl<UniqueStatement>::const_iterator ForStatement::end() const
+ForStatement::statements_const_iterator ForStatement::end() const
 {
 	return statements.end();
 }
@@ -250,16 +247,16 @@ void Statement::dump(raw_ostream& os, size_t indents) const
 	visit([&](const auto& statement) { statement.dump(os, indents); });
 }
 
-Statement::iterator Statement::begin() { return iterator(this, this); }
+Statement::assignments_iterator Statement::begin() { return assignments_iterator(this, this); }
 
-Statement::const_iterator Statement::cbegin()
+Statement::assignments_const_iterator Statement::begin() const
 {
-	return const_iterator(this, this);
+	return assignments_const_iterator(this, this);
 }
 
-Statement::iterator Statement::end() { return iterator(this, nullptr); }
+Statement::assignments_iterator Statement::end() { return assignments_iterator(this, nullptr); }
 
-Statement::const_iterator Statement::cend()
+Statement::assignments_const_iterator Statement::end() const
 {
-	return const_iterator(this, nullptr);
+	return assignments_const_iterator(this, nullptr);
 }

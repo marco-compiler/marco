@@ -2,11 +2,10 @@
 
 #include <cassert>
 #include <llvm/Support/raw_ostream.h>
+#include <modelica/frontend/Type.hpp>
 #include <string>
 #include <type_traits>
 #include <variant>
-
-#include "Type.hpp"
 
 namespace modelica
 {

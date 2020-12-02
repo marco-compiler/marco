@@ -17,19 +17,28 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
+Parser::Parser(string filename, const string& source)
+		: filename(move(filename)),
+			lexer(source),
+			current(lexer.scan()), undo(Token::End)
+{
+}
+
 Parser::Parser(const string& source)
-		: lexer(source), current(lexer.scan()), undo(Token::End)
+		: Parser("-", source)
 {
 }
 
 Parser::Parser(const char* source)
-		: lexer(source), current(lexer.scan()), undo(Token::End)
+		: filename("-"),
+			lexer(source),
+			current(lexer.scan()), undo(Token::End)
 {
 }
 
 SourcePosition Parser::getPosition() const
 {
-	return SourcePosition(lexer.getCurrentLine(), lexer.getCurrentColumn());
+	return SourcePosition(filename, lexer.getCurrentLine(), lexer.getCurrentColumn());
 }
 
 Token Parser::getCurrentToken() const { return current; }
@@ -94,6 +103,8 @@ static Expected<BuiltInType> nameToBuiltin(const std::string& name)
 
 Expected<ClassContainer> Parser::classDefinition()
 {
+	auto location = getPosition();
+
 	ClassType classType = ClassType::Model;
 
 	bool partial = accept(Token::PartialKeyword);
@@ -220,7 +231,7 @@ Expected<ClassContainer> Parser::classDefinition()
 	switch (classType)
 	{
 		case ClassType::Function:
-			return ClassContainer(Function(move(name), pure, move(members), move(algorithms)));
+			return ClassContainer(Function(location, move(name), pure, move(members), move(algorithms)));
 
 		case ClassType::Model:
 			return ClassContainer(Class(move(name), move(members), move(equations), move(forEquations), move(algorithms), move(innerClasses)));
@@ -840,7 +851,7 @@ Expected<Expression> Parser::primary()
 		EXPECT(Token::RPar);
 
 		if (exp->size() == 1)
-			return *(*exp)[0];
+			return (*exp)[0];
 
 		return Expression(Type::unknown(), move(*exp));
 	}

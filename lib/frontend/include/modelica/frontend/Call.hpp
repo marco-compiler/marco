@@ -1,9 +1,9 @@
 #pragma once
 
+#include <boost/iterator/indirect_iterator.hpp>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
-#include <memory>
 
 namespace modelica
 {
@@ -11,8 +11,13 @@ namespace modelica
 
 	class Call
 	{
+		private:
+		using UniqueExpression = std::unique_ptr<Expression>;
+		using Container = llvm::SmallVector<UniqueExpression, 3>;
+
 		public:
-		using UniqueExpr = std::unique_ptr<Expression>;
+		using args_iterator = boost::indirect_iterator<Container::iterator>;
+		using args_const_iterator = boost::indirect_iterator<Container::const_iterator>;
 
 		Call(Expression fun, llvm::ArrayRef<Expression> args = {});
 		Call(const Call& other);
@@ -37,15 +42,14 @@ namespace modelica
 
 		[[nodiscard]] size_t argumentsCount() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::iterator begin();
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::const_iterator begin()
-				const;
+		[[nodiscard]] args_iterator begin();
+		[[nodiscard]] args_const_iterator begin() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::iterator end();
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::const_iterator end() const;
+		[[nodiscard]] args_iterator end();
+		[[nodiscard]] args_const_iterator end() const;
 
 		private:
-		UniqueExpr function;
-		llvm::SmallVector<UniqueExpr, 3> args;
+		UniqueExpression function;
+		Container args;
 	};
 }	 // namespace modelica

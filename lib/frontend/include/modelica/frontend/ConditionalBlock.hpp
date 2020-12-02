@@ -1,18 +1,23 @@
 #pragma once
 
+#include <boost/iterator/indirect_iterator.hpp>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
-
-#include "Expression.hpp"
+#include <modelica/frontend/Expression.hpp>
 
 namespace modelica
 {
 	template<typename T>
 	class ConditionalBlock
 	{
+		private:
+		using uniqueType = std::unique_ptr<T>;
+		using Container = llvm::SmallVector<uniqueType, 3>;
+
 		public:
-		using uniquePtr = std::unique_ptr<T>;
+		using iterator = boost::indirect_iterator<typename Container::iterator>;
+		using const_iterator = boost::indirect_iterator<typename Container::const_iterator>;
 
 		ConditionalBlock(Expression condition, llvm::ArrayRef<T> body)
 				: condition(std::move(condition))
@@ -49,16 +54,16 @@ namespace modelica
 
 		~ConditionalBlock() = default;
 
-		[[nodiscard]] uniquePtr& operator[](size_t index)
+		[[nodiscard]] T& operator[](size_t index)
 		{
 			assert(index < body.size());
-			return body[index];
+			return *body[index];
 		}
 
-		[[nodiscard]] const uniquePtr& operator[](size_t index) const
+		[[nodiscard]] const T& operator[](size_t index) const
 		{
 			assert(index < body.size());
-			return body[index];
+			return *body[index];
 		}
 
 		void dump() const { dump(llvm::outs(), 0); }
@@ -82,30 +87,28 @@ namespace modelica
 
 		[[nodiscard]] size_t size() const { return body.size(); }
 
-		[[nodiscard]] typename llvm::SmallVectorImpl<uniquePtr>::iterator begin()
+		[[nodiscard]] iterator begin()
 		{
 			return body.begin();
 		}
 
-		[[nodiscard]] typename llvm::SmallVectorImpl<uniquePtr>::const_iterator
-		begin() const
+		[[nodiscard]] const_iterator begin() const
 		{
 			return body.begin();
 		}
 
-		[[nodiscard]] typename llvm::SmallVectorImpl<uniquePtr>::iterator end()
+		[[nodiscard]] iterator end()
 		{
 			return body.end();
 		}
 
-		[[nodiscard]] typename llvm::SmallVectorImpl<uniquePtr>::const_iterator
-		end() const
+		[[nodiscard]] const_iterator end() const
 		{
 			return body.end();
 		}
 
 		private:
 		Expression condition;
-		llvm::SmallVector<uniquePtr, 3> body;
+		Container body;
 	};
 }	 // namespace modelica

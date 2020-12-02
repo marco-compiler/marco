@@ -1,15 +1,20 @@
+#include <algorithm>
 #include <modelica/frontend/ClassContainer.hpp>
 
 using namespace llvm;
 using namespace modelica;
 using namespace std;
 
+template<typename T> using Container = Function::Container<T>;
+
 Function::Function(
+		SourcePosition location,
 		string name,
 		bool pure,
 		ArrayRef<Member> members,
 		ArrayRef<Algorithm> algorithms)
-		: name(move(name)),
+		: location(move(location)),
+			name(move(name)),
 			pure(pure),
 			members(members.begin(), members.end()),
 			algorithms(algorithms.begin(), algorithms.end()),
@@ -32,22 +37,31 @@ void Function::dump(raw_ostream& os, size_t indents) const
 		algorithm.dump(os, indents + 1);
 }
 
+SourcePosition Function::getSourcePosition() const
+{
+	return location;
+}
+
 string Function::getName() const { return name; }
 
-SmallVectorImpl<Member>& Function::getMembers() { return members; }
+Container<Member>& Function::getMembers() { return members; }
 
-const SmallVectorImpl<Member>& Function::getMembers() const { return members; }
+const Container<Member>& Function::getMembers() const { return members; }
 
 void Function::addMember(Member member)
 {
 	members.emplace_back(move(member));
 }
 
-SmallVectorImpl<Algorithm>& Function::getAlgorithms() { return algorithms; }
+Container<Algorithm>& Function::getAlgorithms() { return algorithms; }
 
-const SmallVectorImpl<Algorithm>& Function::getAlgorithms() const
+const Container<Algorithm>& Function::getAlgorithms() const
 {
 	return algorithms;
 }
 
-Type& Function::getType() { return type; }
+modelica::Type& Function::getType() { return type; }
+
+const Type& Function::getType() const { return type; }
+
+void Function::setType(Type t) { type = move(t); }

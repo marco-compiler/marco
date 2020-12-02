@@ -31,7 +31,7 @@ namespace modelica
 		 */
 		[[nodiscard]] SourcePosition getPosition() const
 		{
-			return SourcePosition(lexer.getCurrentLine(), lexer.getCurrentColumn());
+			return SourcePosition("-", lexer.getCurrentLine(), lexer.getCurrentColumn());
 		}
 
 		[[nodiscard]] llvm::Expected<ModExp> expression();

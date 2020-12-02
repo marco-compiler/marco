@@ -276,8 +276,8 @@ ModelicaStateMachine::ModelicaStateMachine(char first)
 			currentToken(Token::Begin),
 			lastIdentifier(""),
 			lastString(""),
-			lineNumber(1),
-			columnNumber(0)
+			currentLine(1),
+			currentColumn(0)
 {
 	keywordMap["algorithm"] = Token::AlgorithmKeyword;
 	keywordMap["and"] = Token::AndKeyword;

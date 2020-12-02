@@ -12,10 +12,13 @@
 namespace modelica
 {
 	class ClassContainer;
-	using UniqueClass = std::unique_ptr<ClassContainer>;
 
 	class Class
 	{
+		private:
+		using InnerClass = std::unique_ptr<ClassContainer>;
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
+
 		public:
 		Class(
 				std::string name,
@@ -38,29 +41,28 @@ namespace modelica
 
 		[[nodiscard]] std::string getName() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<Member>& getMembers();
-		[[nodiscard]] const llvm::SmallVectorImpl<Member>& getMembers() const;
+		[[nodiscard]] Container<Member>& getMembers();
+		[[nodiscard]] const Container<Member>& getMembers() const;
 		void addMember(Member member);
 
-		[[nodiscard]] llvm::SmallVectorImpl<Equation>& getEquations();
-		[[nodiscard]] const llvm::SmallVectorImpl<Equation>& getEquations() const;
+		[[nodiscard]] Container<Equation>& getEquations();
+		[[nodiscard]] const Container<Equation>& getEquations() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<ForEquation>& getForEquations();
-		[[nodiscard]] const llvm::SmallVectorImpl<ForEquation>& getForEquations()
-		const;
+		[[nodiscard]] Container<ForEquation>& getForEquations();
+		[[nodiscard]] const Container<ForEquation>& getForEquations() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<Algorithm>& getAlgorithms();
-		[[nodiscard]] const llvm::SmallVectorImpl<Algorithm>& getAlgorithms() const;
+		[[nodiscard]] Container<Algorithm>& getAlgorithms();
+		[[nodiscard]] const Container<Algorithm>& getAlgorithms() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueClass>& getInnerClasses();
-		[[nodiscard]] const llvm::SmallVectorImpl<UniqueClass>& getInnerClasses() const;
+		[[nodiscard]] Container<InnerClass>& getInnerClasses();
+		[[nodiscard]] const Container<InnerClass>& getInnerClasses() const;
 
 		private:
 		std::string name;
-		llvm::SmallVector<Member, 3> members;
-		llvm::SmallVector<Equation, 3> equations;
-		llvm::SmallVector<ForEquation, 3> forEquations;
-		llvm::SmallVector<Algorithm, 3> algorithms;
-		llvm::SmallVector<UniqueClass, 3> innerClasses;
+		Container<Member> members;
+		Container<Equation> equations;
+		Container<ForEquation> forEquations;
+		Container<Algorithm> algorithms;
+		Container<InnerClass> innerClasses;
 	};
 }	 // namespace modelica

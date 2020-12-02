@@ -1,13 +1,12 @@
 #pragma once
 
 #include <llvm/Support/Error.h>
-
-#include "Class.hpp"
-#include "Equation.hpp"
-#include "Expression.hpp"
-#include "Member.hpp"
-#include "ReferenceAccess.hpp"
-#include "SymbolTable.hpp"
+#include <modelica/frontend/Class.hpp>
+#include <modelica/frontend/Equation.hpp>
+#include <modelica/frontend/Expression.hpp>
+#include <modelica/frontend/Member.hpp>
+#include <modelica/frontend/ReferenceAccess.hpp>
+#include <modelica/frontend/SymbolTable.hpp>
 
 namespace modelica
 {

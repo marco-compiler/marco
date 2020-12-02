@@ -180,17 +180,17 @@ Error TypeChecker::checkType(Function& function, const SymbolTable& table)
 			// cardinality, inStream, actualStream, to the operators of the built-in
 			// package Connections, and is not allowed to contain when-statements."
 
-			stack<Expression> stack;
-			stack.push(assignment.getExpression());
+			stack<Expression*> stack;
+			stack.push(&assignment.getExpression());
 
 			while (!stack.empty())
 			{
-				auto expression = stack.top();
+				auto *expression = stack.top();
 				stack.pop();
 
-				if (expression.isA<ReferenceAccess>())
+				if (expression->isA<ReferenceAccess>())
 				{
-					string name = expression.get<ReferenceAccess>().getName();
+					string name = expression->get<ReferenceAccess>().getName();
 
 					if (name == "der" || name == "initial" || name == "terminal" ||
 							name == "sample" || name == "pre" || name == "edge" ||
@@ -204,19 +204,19 @@ Error TypeChecker::checkType(Function& function, const SymbolTable& table)
 
 					// TODO: Connections built-in operators + when statement
 				}
-				else if (expression.isA<Operation>())
+				else if (expression->isA<Operation>())
 				{
-					for (auto& arg : expression.get<Operation>())
-						stack.push(arg);
+					for (auto& arg : expression->get<Operation>())
+						stack.push(&arg);
 				}
-				else if (expression.isA<Call>())
+				else if (expression->isA<Call>())
 				{
-					auto& call = expression.get<Call>();
+					auto& call = expression->get<Call>();
 
 					for (auto& arg : call)
-						stack.push(*arg);
+						stack.push(&arg);
 
-					stack.push(call.getFunction());
+					stack.push(&call.getFunction());
 				}
 			}
 		}
@@ -327,15 +327,15 @@ Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 		{
 			// If it's not a direct reference access, there's no way it can be a
 			// dummy variable.
-			if (!tuple[i]->isA<ReferenceAccess>())
+			if (!tuple[i].isA<ReferenceAccess>())
 				continue;
 
-			auto& ref = tuple[i]->get<ReferenceAccess>();
+			auto& ref = tuple[i].get<ReferenceAccess>();
 
 			if (ref.isDummy())
 			{
 				assert(types.size() >= i);
-				tuple[i]->setType(types[i]);
+				tuple[i].setType(types[i]);
 			}
 		}
 	}
@@ -352,7 +352,7 @@ Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 
 		if (lhs.isA<Tuple>())
 			for (auto& destination : lhs.get<Tuple>())
-				newDestinations.push_back(move(*destination));
+				newDestinations.push_back(move(destination));
 		else
 			newDestinations.push_back(move(lhs));
 
@@ -465,7 +465,7 @@ Error TypeChecker::checkType(
 		return error;
 
 	for (auto& statement : block)
-		if (auto error = checkType(*statement, table); error)
+		if (auto error = checkType(statement, table); error)
 			return error;
 
 	return Error::success();
@@ -482,7 +482,7 @@ Error TypeChecker::checkType(ForStatement& statement, const SymbolTable& table)
 		return error;
 
 	for (auto& stmnt : statement)
-		if (auto error = checkType(*stmnt, table); error)
+		if (auto error = checkType(stmnt, table); error)
 			return error;
 
 	return Error::success();
@@ -660,12 +660,12 @@ Error TypeChecker::checkType<Tuple>(
 
 	SmallVector<Type, 3> types;
 
-	for (const auto& exp : tuple)
+	for (auto& exp : tuple)
 	{
-		if (auto error = checkType<Expression>(*exp, table); error)
+		if (auto error = checkType<Expression>(exp, table); error)
 			return error;
 
-		types.push_back(exp->getType());
+		types.push_back(exp.getType());
 	}
 
 	expression.setType(Type(types));
@@ -730,16 +730,16 @@ llvm::Error resolveDummyReferences(Class& model)
 		{
 			for (auto& expression : lhs.get<Tuple>())
 			{
-				if (!expression->isA<ReferenceAccess>())
+				if (!expression.isA<ReferenceAccess>())
 					continue;
 
-				auto& ref = expression->get<ReferenceAccess>();
+				auto& ref = expression.get<ReferenceAccess>();
 
 				if (!ref.isDummy())
 					continue;
 
 				string name = getTemporaryVariableName(model);
-				Member temp(name, expression->getType(), TypePrefix::none());
+				Member temp(name, expression.getType(), TypePrefix::none());
 				ref.setName(temp.getName());
 				model.addMember(temp);
 			}

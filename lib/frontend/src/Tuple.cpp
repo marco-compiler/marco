@@ -6,8 +6,6 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-using UniqueExpr = Tuple::UniqueExpr;
-
 Tuple::Tuple() = default;
 
 Tuple::Tuple(initializer_list<Expression> expressions)
@@ -47,7 +45,7 @@ bool Tuple::operator==(const Tuple& other) const
 		return false;
 
 	for (auto i : irange(size()))
-		if (*(*this)[i] != *other[i])
+		if ((*this)[i] != other[i])
 			return false;
 
 	return true;
@@ -55,11 +53,11 @@ bool Tuple::operator==(const Tuple& other) const
 
 bool Tuple::operator!=(const Tuple& other) const { return !(*this == other); }
 
-UniqueExpr& Tuple::operator[](size_t index) { return expressions[index]; }
+Expression& Tuple::operator[](size_t index) { return *expressions[index]; }
 
-const UniqueExpr& Tuple::operator[](size_t index) const
+const Expression& Tuple::operator[](size_t index) const
 {
-	return expressions[index];
+	return *expressions[index];
 }
 
 void Tuple::dump() const { dump(outs(), 0); }
@@ -72,19 +70,19 @@ void Tuple::dump(raw_ostream& os, size_t indents) const
 
 size_t Tuple::size() const { return expressions.size(); }
 
-SmallVectorImpl<UniqueExpr>::iterator Tuple::begin()
+Tuple::iterator Tuple::begin()
 {
 	return expressions.begin();
 }
 
-SmallVectorImpl<UniqueExpr>::const_iterator Tuple::begin() const
+Tuple::const_iterator Tuple::begin() const
 {
 	return expressions.begin();
 }
 
-SmallVectorImpl<UniqueExpr>::iterator Tuple::end() { return expressions.end(); }
+Tuple::iterator Tuple::end() { return expressions.end(); }
 
-SmallVectorImpl<UniqueExpr>::const_iterator Tuple::end() const
+Tuple::const_iterator Tuple::end() const
 {
 	return expressions.end();
 }

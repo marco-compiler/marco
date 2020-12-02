@@ -79,7 +79,7 @@ namespace modelica
 		[[nodiscard]] Token getToken() const { return token; }
 		void log(llvm::raw_ostream& OS) const override
 		{
-			OS << "[" << pos.toString() << "] "
+			OS << "[" << pos << "] "
 				 << "Unexpected Token: " << token << ", expected: " << expected;
 		}
 
@@ -111,7 +111,7 @@ namespace modelica
 
 		void log(llvm::raw_ostream& OS) const override
 		{
-			OS << "[" << pos.toString() << "] "
+			OS << "[" << pos << "] "
 				 << "Unexpected Identifier: " << identifier
 				 << ", expected: " << expected;
 		}

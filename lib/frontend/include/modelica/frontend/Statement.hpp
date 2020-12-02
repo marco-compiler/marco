@@ -1,20 +1,18 @@
 #pragma once
 
-#include <iterator>
+#include <boost/iterator/indirect_iterator.hpp>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
+#include <modelica/frontend/ConditionalBlock.hpp>
+#include <modelica/frontend/Expression.hpp>
+#include <modelica/frontend/Induction.hpp>
 #include <stack>
 #include <vector>
-
-#include "ConditionalBlock.hpp"
-#include "Expression.hpp"
-#include "Induction.hpp"
 
 namespace modelica
 {
 	class Statement;
-	using UniqueStatement = std::unique_ptr<Statement>;
 
 	class AssignmentStatement
 	{
@@ -56,6 +54,13 @@ namespace modelica
 		public:
 		using Block = ConditionalBlock<Statement>;
 
+		private:
+		using Container = llvm::SmallVector<Block, 3>;
+
+		public:
+		using blocks_iterator = Container::iterator;
+		using blocks_const_iterator = Container::const_iterator;
+
 		explicit IfStatement(llvm::ArrayRef<Block> blocks);
 
 		[[nodiscard]] Block& operator[](size_t index);
@@ -66,19 +71,26 @@ namespace modelica
 
 		[[nodiscard]] size_t size() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<Block>::iterator begin();
-		[[nodiscard]] llvm::SmallVectorImpl<Block>::const_iterator begin() const;
+		[[nodiscard]] blocks_iterator begin();
+		[[nodiscard]] blocks_const_iterator begin() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<Block>::iterator end();
-		[[nodiscard]] llvm::SmallVectorImpl<Block>::const_iterator end() const;
+		[[nodiscard]] blocks_iterator end();
+		[[nodiscard]] blocks_const_iterator end() const;
 
 		private:
-		llvm::SmallVector<Block, 3> blocks;
+		Container blocks;
 	};
 
 	class ForStatement
 	{
+		private:
+		using UniqueStatement = std::unique_ptr<Statement>;
+		using Container = llvm::SmallVector<UniqueStatement, 3>;
+
 		public:
+		using statements_iterator = boost::indirect_iterator<Container::iterator>;
+		using statements_const_iterator = boost::indirect_iterator<Container::const_iterator>;
+
 		ForStatement(Induction induction, llvm::ArrayRef<Statement> statements);
 
 		ForStatement(const ForStatement& other);
@@ -89,8 +101,8 @@ namespace modelica
 
 		~ForStatement() = default;
 
-		[[nodiscard]] UniqueStatement& operator[](size_t index);
-		[[nodiscard]] const UniqueStatement& operator[](size_t index) const;
+		[[nodiscard]] Statement& operator[](size_t index);
+		[[nodiscard]] const Statement& operator[](size_t index) const;
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
@@ -100,17 +112,15 @@ namespace modelica
 
 		[[nodiscard]] size_t size() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::iterator begin();
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::const_iterator begin()
-				const;
+		[[nodiscard]] statements_iterator begin();
+		[[nodiscard]] statements_const_iterator begin() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::iterator end();
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueStatement>::const_iterator end()
-				const;
+		[[nodiscard]] statements_iterator end();
+		[[nodiscard]] statements_const_iterator end() const;
 
 		private:
 		Induction induction;
-		llvm::SmallVector<UniqueStatement, 3> statements;
+		Container statements;
 	};
 
 	class WhileStatement: public ConditionalBlock<Statement>
@@ -160,7 +170,7 @@ namespace modelica
 				auto& block = ifStatement[i - 1];
 
 				for (auto j = block.size(); j > 0; j--)
-					statements->push(block[j - 1].get());
+					statements->push(&block[j - 1]);
 			}
 
 			return nullptr;
@@ -170,7 +180,7 @@ namespace modelica
 				std::tuple_element_t<2, std::tuple<Variants...>>& forStatement)
 		{
 			for (auto i = forStatement.size(); i > 0; i--)
-				statements->push(forStatement[i - 1].get());
+				statements->push(&forStatement[i - 1]);
 
 			return nullptr;
 		}
@@ -179,7 +189,7 @@ namespace modelica
 				std::tuple_element_t<3, std::tuple<Variants...>>& whileStatement)
 		{
 			for (auto i = whileStatement.size(); i > 0; i--)
-				statements->push(whileStatement[i - 1].get());
+				statements->push(&whileStatement[i - 1]);
 
 			return nullptr;
 		}
@@ -188,7 +198,7 @@ namespace modelica
 				std::tuple_element_t<4, std::tuple<Variants...>>& whenStatement)
 		{
 			for (auto i = whenStatement.size(); i > 0; i--)
-				statements->push(whenStatement[i - 1].get());
+				statements->push(&whenStatement[i - 1]);
 
 			return nullptr;
 		}
@@ -305,7 +315,7 @@ namespace modelica
 	class Statement
 	{
 		public:
-		using iterator = AssignmentsIterator<
+		using assignments_iterator = AssignmentsIterator<
 				AssignmentStatement,
 				Statement,
 				AssignmentsIteratorVisitor,
@@ -317,7 +327,7 @@ namespace modelica
 				BreakStatement,
 				ReturnStatement>;
 
-		using const_iterator = AssignmentsIterator<
+		using assignments_const_iterator = AssignmentsIterator<
 				const AssignmentStatement,
 				const Statement,
 				AssignmentsIteratorVisitor,
@@ -338,10 +348,11 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
-		[[nodiscard]] iterator begin();
-		[[nodiscard]] const_iterator cbegin();
-		[[nodiscard]] iterator end();
-		[[nodiscard]] const_iterator cend();
+		[[nodiscard]] assignments_iterator begin();
+		[[nodiscard]] assignments_const_iterator begin() const;
+
+		[[nodiscard]] assignments_iterator end();
+		[[nodiscard]] assignments_const_iterator end() const;
 
 		template<class Visitor>
 		auto visit(Visitor&& vis)

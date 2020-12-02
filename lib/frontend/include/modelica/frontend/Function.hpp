@@ -5,14 +5,19 @@
 #include <llvm/Support/raw_ostream.h>
 #include <modelica/frontend/Algorithm.hpp>
 #include <modelica/frontend/Member.hpp>
+#include <modelica/utils/SourceRange.hpp>
 #include <string>
 
 namespace modelica
 {
 	class Function
 	{
+		private:
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
+
 		public:
-		Function(std::string name,
+		Function(SourcePosition location,
+						 std::string name,
 						 bool pure,
 						 llvm::ArrayRef<Member> members,
 						 llvm::ArrayRef<Algorithm> algorithms);
@@ -20,24 +25,27 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
+		[[nodiscard]] SourcePosition getSourcePosition() const;
+
 		[[nodiscard]] std::string getName() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<Member>& getMembers();
-		[[nodiscard]] const llvm::SmallVectorImpl<Member>& getMembers() const;
+		[[nodiscard]] Container<Member>& getMembers();
+		[[nodiscard]] const Container<Member>& getMembers() const;
 		void addMember(Member member);
 
-		[[nodiscard]] llvm::SmallVectorImpl<Algorithm>& getAlgorithms();
-		[[nodiscard]] const llvm::SmallVectorImpl<Algorithm>& getAlgorithms() const;
+		[[nodiscard]] Container<Algorithm>& getAlgorithms();
+		[[nodiscard]] const Container<Algorithm>& getAlgorithms() const;
 
 		[[nodiscard]] Type& getType();
 		[[nodiscard]] const Type& getType() const;
 		void setType(Type type);
 
 		private:
+		SourcePosition location;
 		std::string name;
 		bool pure;
-		llvm::SmallVector<Member, 3> members;
-		llvm::SmallVector<Algorithm, 3> algorithms;
+		Container<Member> members;
+		Container<Algorithm> algorithms;
 		Type type;
 	};
 }	 // namespace modelica

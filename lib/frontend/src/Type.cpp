@@ -65,8 +65,8 @@ bool UserDefinedType::operator==(const UserDefinedType& other) const
 			end(),
 			other.begin(),
 			other.end(),
-			[](const UniqueType& lhs, const UniqueType& rhs) {
-				return *lhs == *rhs;
+			[](const Type& lhs, const Type& rhs) {
+				return lhs == rhs;
 			});
 }
 
@@ -97,12 +97,22 @@ void UserDefinedType::dump(raw_ostream& os, size_t indents) const
 
 size_t UserDefinedType::size() const { return types.size(); }
 
-SmallVectorImpl<UniqueType>::const_iterator UserDefinedType::begin() const
+UserDefinedType::iterator UserDefinedType::begin()
+{
+    return types.begin();
+}
+
+UserDefinedType::const_iterator UserDefinedType::begin() const
 {
 	return types.begin();
 }
 
-SmallVectorImpl<UniqueType>::const_iterator UserDefinedType::end() const
+UserDefinedType::iterator UserDefinedType::end()
+{
+    return types.end();
+}
+
+UserDefinedType::const_iterator UserDefinedType::end() const
 {
 	return types.end();
 }
@@ -121,7 +131,7 @@ string modelica::toString(UserDefinedType obj)
 						 obj.end(),
 						 string(),
 						 [](const string& a, const auto& b) -> string {
-							 return a + (a.length() > 0 ? ", " : "") + toString(*b);
+							 return a + (a.length() > 0 ? ", " : "") + toString(b);
 						 }) +
 				 "}";
 }

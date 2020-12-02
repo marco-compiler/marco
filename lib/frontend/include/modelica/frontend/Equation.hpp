@@ -1,8 +1,7 @@
 #pragma once
 
 #include <llvm/Support/raw_ostream.h>
-
-#include "Expression.hpp"
+#include <modelica/frontend/Expression.hpp>
 
 namespace modelica
 {

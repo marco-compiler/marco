@@ -4,16 +4,15 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
 #include <memory>
+#include <modelica/frontend/Call.hpp>
+#include <modelica/frontend/Constant.hpp>
+#include <modelica/frontend/Operation.hpp>
+#include <modelica/frontend/ReferenceAccess.hpp>
+#include <modelica/frontend/Tuple.hpp>
+#include <modelica/frontend/Type.hpp>
 #include <utility>
 #include <variant>
 #include <vector>
-
-#include "Call.hpp"
-#include "Constant.hpp"
-#include "Operation.hpp"
-#include "ReferenceAccess.hpp"
-#include "Tuple.hpp"
-#include "Type.hpp"
 
 namespace modelica
 {

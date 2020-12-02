@@ -27,6 +27,7 @@ namespace modelica
 	class Parser
 	{
 		public:
+		Parser(std::string filename, const std::string& source);
 		Parser(const std::string& source);
 		Parser(const char* source);
 
@@ -116,6 +117,7 @@ namespace modelica
 		 * accept. If you need to implement that particular case, use this.
 		 */
 		void undoScan(Token t);
+		const std::string filename;
 		Lexer<ModelicaStateMachine> lexer;
 		Token current;
 		Token undo;

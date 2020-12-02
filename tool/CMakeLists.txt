@@ -1,4 +1,5 @@
 add_subdirectory(ASTDumper)
+add_subdirectory(FunctionLowerer)
 add_subdirectory(ModC)
 add_subdirectory(OmcC)
 add_subdirectory(ModMatch)

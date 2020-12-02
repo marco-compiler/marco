@@ -1,46 +1,40 @@
 #pragma once
 
+#include <llvm/Support/raw_ostream.h>
 #include <memory>
 #include <string>
 
 namespace modelica
 {
-	class SourcePosition
+	struct SourcePosition
 	{
-		public:
-		SourcePosition(unsigned l, unsigned c): line(l), column(c) {}
-		[[nodiscard]] unsigned getLine() const { return line; }
-		[[nodiscard]] unsigned getColumn() const { return column; }
-		[[nodiscard]] std::string toString() const
-		{
-			return std::to_string(line) + ":" + std::to_string(column);
-		}
+		SourcePosition(std::string file, unsigned int line, unsigned int column);
 
-		private:
-		unsigned line;
-		unsigned column;
+		std::shared_ptr<std::string> file;
+		unsigned int line;
+		unsigned int column;
 	};
+
+    llvm::raw_ostream& operator<<(
+            llvm::raw_ostream& stream, const SourcePosition& obj);
+
+	std::string toString(const SourcePosition& obj);
+
 	class SourceRange
 	{
 		public:
-		SourceRange(SourcePosition b, SourcePosition e)
-				: begin(std::move(b)), end(std::move(e))
-		{
-		}
-		SourceRange(
-				unsigned beginLine,
-				unsigned beginColumn,
-				unsigned endLine,
-				unsigned endColumn)
-				: begin(beginLine, beginColumn), end(endLine, endColumn)
-		{
-		}
+		SourceRange(SourcePosition b, SourcePosition e);
 
-		[[nodiscard]] const SourcePosition& getBegin() const { return begin; }
-		[[nodiscard]] const SourcePosition& getEnd() const { return end; }
+		[[nodiscard]] const SourcePosition& getBegin() const;
+		[[nodiscard]] const SourcePosition& getEnd() const;
 
 		private:
 		SourcePosition begin;
 		SourcePosition end;
 	};
+
+    llvm::raw_ostream& operator<<(
+            llvm::raw_ostream& stream, const SourceRange& obj);
+
+    std::string toString(const SourceRange& obj);
 }	// namespace modelica

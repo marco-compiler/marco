@@ -33,6 +33,7 @@ namespace modelica
 
 	llvm::raw_ostream& operator<<(
 			llvm::raw_ostream& stream, const OperationKind& obj);
+
 	std::string toString(OperationKind operation);
 
 	class Expression;
@@ -41,6 +42,8 @@ namespace modelica
 	{
 		public:
 		using Container = std::vector<Expression>;
+		using iterator = Container::iterator;
+		using const_iterator = Container::const_iterator;
 
 		template<typename... Args>
 		explicit Operation(OperationKind kind, Args&&... args)
@@ -68,14 +71,14 @@ namespace modelica
 		[[nodiscard]] const Container& getArguments() const;
 		[[nodiscard]] size_t argumentsCount() const;
 
-		[[nodiscard]] Container::iterator begin();
-		[[nodiscard]] Container::const_iterator begin() const;
+		[[nodiscard]] iterator begin();
+		[[nodiscard]] const_iterator begin() const;
 
-		[[nodiscard]] Container::iterator end();
-		[[nodiscard]] Container::const_iterator end() const;
+		[[nodiscard]] iterator end();
+		[[nodiscard]] const_iterator end() const;
 
 		private:
-		Container arguments;
+		std::vector<Expression> arguments;
 		OperationKind kind;
 	};
 

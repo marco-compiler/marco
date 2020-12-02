@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/iterator/indirect_iterator.hpp>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
@@ -11,8 +12,13 @@ namespace modelica
 
 	class Tuple
 	{
+		private:
+		using UniqueExpression = std::unique_ptr<Expression>;
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
+
 		public:
-		using UniqueExpr = std::unique_ptr<Expression>;
+		using iterator = boost::indirect_iterator<Container<UniqueExpression>::iterator>;
+		using const_iterator = boost::indirect_iterator<Container<UniqueExpression>::const_iterator>;
 
 		Tuple();
 		explicit Tuple(std::initializer_list<Expression> expressions);
@@ -36,22 +42,21 @@ namespace modelica
 		[[nodiscard]] bool operator==(const Tuple& other) const;
 		[[nodiscard]] bool operator!=(const Tuple& other) const;
 
-		[[nodiscard]] UniqueExpr& operator[](size_t index);
-		[[nodiscard]] const UniqueExpr& operator[](size_t index) const;
+		[[nodiscard]] Expression& operator[](size_t index);
+		[[nodiscard]] const Expression& operator[](size_t index) const;
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		[[nodiscard]] size_t size() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::iterator begin();
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::const_iterator begin()
-				const;
+		[[nodiscard]] iterator begin();
+		[[nodiscard]] const_iterator begin()const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::iterator end();
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueExpr>::const_iterator end() const;
+		[[nodiscard]] iterator end();
+		[[nodiscard]] const_iterator end() const;
 
 		private:
-		llvm::SmallVector<UniqueExpr, 3> expressions;
+		Container<UniqueExpression> expressions;
 	};
 }	 // namespace modelica

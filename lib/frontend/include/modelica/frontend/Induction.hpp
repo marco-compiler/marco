@@ -3,9 +3,8 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
-
-#include "Equation.hpp"
-#include "Expression.hpp"
+#include <modelica/frontend/Equation.hpp>
+#include <modelica/frontend/Expression.hpp>
 
 namespace modelica
 {

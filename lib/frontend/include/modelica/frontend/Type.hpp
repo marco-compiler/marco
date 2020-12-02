@@ -1,5 +1,6 @@
 #pragma once
 
+#include <boost/iterator/indirect_iterator.hpp>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
@@ -80,7 +81,13 @@ namespace modelica
 
 	class UserDefinedType
 	{
+		private:
+		using Container = llvm::SmallVector<UniqueType, 3>;
+
 		public:
+		using iterator = boost::indirect_iterator<Container::iterator>;
+		using const_iterator = boost::indirect_iterator<Container::const_iterator>;
+
 		explicit UserDefinedType(llvm::ArrayRef<Type> types);
 
 		UserDefinedType(const UserDefinedType& other);
@@ -102,12 +109,14 @@ namespace modelica
 
 		[[nodiscard]] size_t size() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueType>::const_iterator begin()
-				const;
-		[[nodiscard]] llvm::SmallVectorImpl<UniqueType>::const_iterator end() const;
+		[[nodiscard]] iterator begin();
+		[[nodiscard]] const_iterator begin() const;
+
+		[[nodiscard]] iterator end();
+		[[nodiscard]] const_iterator end() const;
 
 		private:
-		llvm::SmallVector<UniqueType, 3> types;
+		Container types;
 	};
 
 	llvm::raw_ostream& operator<<(
@@ -118,6 +127,9 @@ namespace modelica
 	class Type
 	{
 		public:
+		using dimensions_iterator = llvm::SmallVectorImpl<size_t>::iterator;
+		using dimensions_const_iterator = llvm::SmallVectorImpl<size_t>::const_iterator;
+
 		Type(BuiltInType type, llvm::ArrayRef<size_t> dim = { 1 });
 		Type(UserDefinedType type, llvm::ArrayRef<size_t> dim = { 1 });
 		Type(llvm::ArrayRef<Type> members, llvm::ArrayRef<size_t> dim = { 1 });
@@ -165,11 +177,11 @@ namespace modelica
 
 		[[nodiscard]] bool isScalar() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<size_t>::iterator begin();
-		[[nodiscard]] llvm::SmallVectorImpl<size_t>::const_iterator begin() const;
+		[[nodiscard]] dimensions_iterator begin();
+		[[nodiscard]] dimensions_const_iterator begin() const;
 
-		[[nodiscard]] llvm::SmallVectorImpl<size_t>::iterator end();
-		[[nodiscard]] llvm::SmallVectorImpl<size_t>::const_iterator end() const;
+		[[nodiscard]] dimensions_iterator end();
+		[[nodiscard]] dimensions_const_iterator end() const;
 
 		[[nodiscard]] Type subscript(size_t times) const;
 

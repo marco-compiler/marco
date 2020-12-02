@@ -1,12 +1,11 @@
 #pragma once
 
+#include <modelica/frontend/Constant.hpp>
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/frontend/Type.hpp>
+#include <modelica/frontend/TypePrefix.hpp>
 #include <optional>
 #include <string>
-
-#include "Constant.hpp"
-#include "TypePrefix.hpp"
 
 namespace modelica
 {
@@ -28,11 +27,11 @@ namespace modelica
 				bool isPublic = true,
 				std::optional<Expression> startOverload = std::nullopt);
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
-
 		[[nodiscard]] bool operator==(const Member& other) const;
 		[[nodiscard]] bool operator!=(const Member& other) const;
+
+		void dump() const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		[[nodiscard]] std::string& getName();
 		[[nodiscard]] const std::string& getName() const;

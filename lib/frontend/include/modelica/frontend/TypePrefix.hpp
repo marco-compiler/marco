@@ -17,6 +17,7 @@ namespace modelica
 
 	llvm::raw_ostream& operator<<(
 			llvm::raw_ostream& stream, const ParameterQualifier& obj);
+
 	std::string toString(ParameterQualifier qualifier);
 
 	enum class IOQualifier

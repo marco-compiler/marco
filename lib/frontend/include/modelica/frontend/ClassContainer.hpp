@@ -1,15 +1,8 @@
 #pragma once
 
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
-#include <modelica/frontend/Algorithm.hpp>
 #include <modelica/frontend/Class.hpp>
-#include <modelica/frontend/Equation.hpp>
-#include <modelica/frontend/ForEquation.hpp>
 #include <modelica/frontend/Function.hpp>
-#include <modelica/frontend/Member.hpp>
-#include <string>
 
 namespace modelica
 {

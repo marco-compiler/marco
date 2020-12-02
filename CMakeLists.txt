@@ -31,6 +31,7 @@ set(CMAKE_DEBUG_POSTFIX "-d")
 ##############################
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
 
+# LLVM
 set_tests_properties(${noArgsTests}   PROPERTIES TIMEOUT 10)
 find_package(LLVM REQUIRED CONFIG)
 list(APPEND CMAKE_MODULE_PATH "${LLVM_CMAKE_DIR}")
@@ -38,8 +39,14 @@ include(AddLLVM)
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
 
-set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
+# MLIR
+find_package(MLIR REQUIRED)
+list(APPEND CMAKE_MODULE_PATH "${MLIR_CMAKE_DIR}")
+include(AddMLIR)
+include_directories(${MLIR_INCLUDE_DIRS})
+add_definitions(${MLIR_DEFINITIONS})
 
+set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 
 ##############################
 ###       Subfolders       ###
