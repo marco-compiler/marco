@@ -32,13 +32,13 @@ namespace modelica
 	template<typename T>
 	constexpr BuiltInType typeToFrontendType()
 	{
-		if constexpr (std::is_same<T, double>::value)
+		if constexpr (std::is_same<T, float>() || std::is_same<T, double>())
 			return BuiltInType::Float;
-		if constexpr (std::is_same<T, int>::value)
+		if constexpr (std::is_same<T, int>() || std::is_same<T, long>())
 			return BuiltInType::Integer;
-		if constexpr (std::is_same<T, bool>::value)
+		if constexpr (std::is_same<T, bool>())
 			return BuiltInType::Boolean;
-		if constexpr (std::is_same<std::string, T>::value)
+		if constexpr (std::is_same<std::string, T>())
 			return BuiltInType::String;
 
 		assert(false && "Unknown type");
@@ -56,17 +56,17 @@ namespace modelica
 	};
 
 	template<>
-	class frontendTypeToType<BuiltInType::Float>
-	{
-		public:
-		using value = double;
-	};
-
-	template<>
 	class frontendTypeToType<BuiltInType::Integer>
 	{
 		public:
 		using value = int;
+	};
+
+	template<>
+	class frontendTypeToType<BuiltInType::Float>
+	{
+		public:
+		using value = double;
 	};
 
 	template<>
@@ -161,6 +161,12 @@ namespace modelica
 		{
 			assert(isA<T>());
 			return std::get<T>(content);
+		}
+
+		template<class Visitor>
+		auto visit(Visitor&& vis)
+		{
+			return std::visit(std::forward<Visitor>(vis), content);
 		}
 
 		template<class Visitor>

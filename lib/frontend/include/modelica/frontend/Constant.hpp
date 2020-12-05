@@ -25,6 +25,18 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
+		template<class Visitor>
+		auto visit(Visitor&& vis)
+		{
+			return std::visit(std::forward<Visitor>(vis), content);
+		}
+
+		template<class Visitor>
+		auto visit(Visitor&& vis) const
+		{
+			return std::visit(std::forward<Visitor>(vis), content);
+		}
+
 		template<BuiltInType T>
 		[[nodiscard]] bool isA() const
 		{

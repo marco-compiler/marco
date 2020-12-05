@@ -5,7 +5,8 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-template<typename T> using Container = Function::Container<T>;
+template<typename T>
+using Container = Function::Container<T>;
 
 Function::Function(
 		SourcePosition location,
@@ -16,11 +17,13 @@ Function::Function(
 		: location(move(location)),
 			name(move(name)),
 			pure(pure),
-			members(members.begin(), members.end()),
 			algorithms(algorithms.begin(), algorithms.end()),
 			type(Type::unknown())
 {
 	assert(!this->name.empty());
+
+	for (const auto& member : members)
+		addMember(move(member));
 }
 
 void Function::dump() const { dump(outs(), 0); }
@@ -37,20 +40,36 @@ void Function::dump(raw_ostream& os, size_t indents) const
 		algorithm.dump(os, indents + 1);
 }
 
-SourcePosition Function::getSourcePosition() const
-{
-	return location;
-}
+SourcePosition Function::getSourcePosition() const { return location; }
 
-string Function::getName() const { return name; }
+string& Function::getName() { return name; }
+
+const string& Function::getName() const { return name; }
+
+bool Function::isPure() const
+{
+	return pure;
+}
 
 Container<Member>& Function::getMembers() { return members; }
 
 const Container<Member>& Function::getMembers() const { return members; }
 
-void Function::addMember(Member member)
-{
-	members.emplace_back(move(member));
+Container<Member*>& Function::getArgs() { return args; }
+
+const Container<Member*>& Function::getArgs() const { return args; }
+
+Container<Member*>& Function::getResults() { return results; }
+
+const Container<Member*>& Function::getResults() const { return results; }
+
+void Function::addMember(Member member) {
+	Member* m = &members.emplace_back(move(member));
+
+	if (m->isInput())
+		args.push_back(m);
+	else if (m->isOutput())
+		results.push_back(m);
 }
 
 Container<Algorithm>& Function::getAlgorithms() { return algorithms; }

@@ -4,11 +4,16 @@
 
 namespace modelica
 {
-	class ModelicaDialect //: public mlir::Dialect
+	class ModelicaDialect : public mlir::Dialect
 	{
 		public:
-		//ModelicaDialect(mlir::MLIRContext* context);
+		explicit ModelicaDialect(mlir::MLIRContext* context);
 
+		/**
+		 * Get the dialect namespace.
+		 *
+		 * @return dialect namespace
+		 */
 		static llvm::StringRef getDialectNamespace();
 
 	};

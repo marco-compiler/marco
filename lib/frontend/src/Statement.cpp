@@ -50,6 +50,21 @@ vector<Expression*> AssignmentStatement::getDestinations()
 	return destinations;
 }
 
+vector<const Expression*> AssignmentStatement::getDestinations() const
+{
+	vector<const Expression*> destinations;
+
+	if (holds_alternative<Expression>(destination))
+		destinations.push_back(&get<Expression>(destination));
+	else
+	{
+		for (auto& exp : get<Tuple>(destination))
+			destinations.push_back(&exp);
+	}
+
+	return destinations;
+}
+
 void AssignmentStatement::setDestination(Expression dest)
 {
 	destination = move(dest);

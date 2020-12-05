@@ -80,6 +80,12 @@ namespace modelica
 		}
 
 		template<class Visitor>
+		auto visit(Visitor&& vis)
+		{
+			return std::visit(std::forward<Visitor>(vis), content);
+		}
+
+		template<class Visitor>
 		auto visit(Visitor&& vis) const
 		{
 			return std::visit(std::forward<Visitor>(vis), content);

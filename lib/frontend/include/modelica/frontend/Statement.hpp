@@ -34,6 +34,8 @@ namespace modelica
 		void dump(llvm::raw_ostream& os, size_t indents) const;
 
 		[[nodiscard]] std::vector<Expression*> getDestinations();
+		[[nodiscard]] std::vector<const Expression*> getDestinations() const;
+
 		void setDestination(Expression destination);
 		void setDestination(Tuple destinations);
 
