@@ -1,7 +1,9 @@
 #include <gtest/gtest.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/Dialect.h>
 #include <llvm/ADT/ScopedHashTable.h>
+#include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
+#include <mlir/IR/Dialect.h>
+#include <mlir/InitAllDialects.h>
+#include <mlir/Transforms/DialectConversion.h>
 #include <modelica/frontend/Parser.hpp>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
@@ -30,9 +32,9 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 
 	Algorithm algorithm({
 			AssignmentStatement(Expression(Type::Float(), ReferenceAccess("y")),
-													Expression(Type::Float(), Constant(23))),
+													Expression(Type::Float(), Constant(23.0))),
 			AssignmentStatement(Expression(Type::Float(), ReferenceAccess("z")),
-													Expression(Type::Float(), Constant(57)))
+													Expression(Type::Float(), Constant(57.0)))
 	});
 
 	Function function(SourcePosition("-", 0, 0),
@@ -43,5 +45,19 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	lowerer.lower(function).dump();
+	auto lowered = lowerer.lower(function);
+	//lowered.dump();
+
+	mlir::ConversionTarget target(context);
+	target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+	//mlir::LLVMTypeConverter typeConverter(context);
+
+	//mlir::OwningRewritePatternList patterns;
+	//mlir::populateStdToLLVMConversionPatterns(typeConverter, patterns);
+
+	//mlir::ModuleOp module = mlir::ModuleOp::create(lowerer.builder.getUnknownLoc());
+	//module.push_back(lowered);
+
+	//mlir::applyFullConversion(lowered, target, patterns);
+	lowered.dump();
 }

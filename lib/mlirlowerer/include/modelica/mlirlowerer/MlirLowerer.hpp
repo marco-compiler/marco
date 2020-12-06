@@ -7,6 +7,7 @@
 #include <mlir/IR/StandardTypes.h>
 #include <modelica/frontend/ClassContainer.hpp>
 #include <modelica/utils/SourceRange.hpp>
+#include <mlir/InitAllDialects.h>
 
 namespace modelica
 {

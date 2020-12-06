@@ -1,10 +1,9 @@
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/IR/Function.h>
 #include <mlir/IR/StandardTypes.h>
+#include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <modelica/mlirlowerer/ConstantOpOld.hpp>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
-#include <modelica/mlirlowerer/ReturnOp.hpp>
 
 using namespace llvm;
 using namespace mlir;
@@ -29,7 +28,7 @@ FuncOp MlirLowerer::lower(const Class& cls)
 FuncOp MlirLowerer::lower(const Function& foo)
 {
 	// Create a scope in the symbol table to hold variable declarations.
-	ScopedHashTableScope<StringRef, Value> varScope(symbolTable);
+	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
 
 	auto location = loc(foo.getSourcePosition());
 
@@ -73,7 +72,7 @@ FuncOp MlirLowerer::lower(const Function& foo)
 		results.push_back(symbolTable.lookup(member->getName()));
 
 	if (!returnTypes.empty())
-		builder.create<ReturnOp>(loc(SourcePosition("-", 0, 0)), returnTypes, results);
+		builder.create<ReturnOp>(loc(SourcePosition("-", 0, 0)), results);
 
 	return function;
 }
@@ -84,7 +83,7 @@ mlir::Location MlirLowerer::loc(SourcePosition location) {
 																	 location.column);
 }
 
-LogicalResult MlirLowerer::declare(StringRef var, Value value) {
+LogicalResult MlirLowerer::declare(StringRef var, mlir::Value value) {
 	if (symbolTable.count(var) != 0)
 		return failure();
 
@@ -144,7 +143,7 @@ mlir::LogicalResult MlirLowerer::lower(const Statement& statement)
 
 mlir::LogicalResult MlirLowerer::lower(const AssignmentStatement& statement)
 {
-	Value value = lower(statement.getExpression());
+	mlir::Value value = lower(statement.getExpression());
 
 	// Register the value in the symbol table.
 	if (!statement.getDestinations()[0]->isA<ReferenceAccess>())
@@ -158,28 +157,28 @@ mlir::LogicalResult MlirLowerer::lower(const AssignmentStatement& statement)
 
 mlir::LogicalResult MlirLowerer::lower(const IfStatement& statement)
 {
-	ScopedHashTableScope<StringRef, Value> varScope(symbolTable);
+	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
 
 	return success();
 }
 
 mlir::LogicalResult MlirLowerer::lower(const ForStatement& statement)
 {
-	ScopedHashTableScope<StringRef, Value> varScope(symbolTable);
+	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
 
 	return success();
 }
 
 mlir::LogicalResult MlirLowerer::lower(const WhileStatement& statement)
 {
-	ScopedHashTableScope<StringRef, Value> varScope(symbolTable);
+	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
 
 	return success();
 }
 
 mlir::LogicalResult MlirLowerer::lower(const WhenStatement& statement)
 {
-	ScopedHashTableScope<StringRef, Value> varScope(symbolTable);
+	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
 
 	return success();
 }
@@ -211,13 +210,6 @@ mlir::Value MlirLowerer::lower(const Constant& constant)
 			constantToType(constant),
 			constant.visit([&](const auto& obj) { return getAttribute(obj); })
 			);
-	/*
-	return builder.create<ConstantOpOld>(
-			loc(SourcePosition("-", 0, 0)),
-			constantToType(constant),
-			constant.visit([&](const auto& obj) { return getAttribute(obj); })
-			);
-			*/
 }
 
 mlir::Value MlirLowerer::lower(const ReferenceAccess& reference)
