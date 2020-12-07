@@ -13,6 +13,9 @@ namespace modelica
 {
 	class MlirLowerer
 	{
+		private:
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
+
 		public:
 		explicit MlirLowerer(mlir::MLIRContext &context);
 
@@ -31,14 +34,11 @@ namespace modelica
 		mlir::LogicalResult lower(const modelica::WhenStatement& statement);
 		mlir::LogicalResult lower(const modelica::BreakStatement& statement);
 		mlir::LogicalResult lower(const modelica::ReturnStatement& statement);
-		mlir::Value lower(const modelica::Expression& expression);
-		mlir::Value lower(const modelica::Operation& operation);
-		mlir::Value lower(const modelica::Constant& constant);
-		mlir::Value lower(const modelica::ReferenceAccess& reference);
-		mlir::Value lower(const modelica::Call& call);
-		mlir::Value lower(const modelica::Tuple& tuple);
 
-		private:
+		template<typename T>
+		Container<mlir::Value> lower(const modelica::Expression& expression);
+
+		public:
 		/// The builder is a helper class to create IR inside a function. The
 		/// builder is stateful, in particular it keeps an "insertion point":
 		/// this is where the next operations will be introduced.
@@ -58,15 +58,6 @@ namespace modelica
 		 * @return MLIR location
 		 */
 		mlir::Location loc(SourcePosition location);
-
-		/**
-		 * Declare a variable in the current scope.
-		 *
-		 * @param var 	variable name
-		 * @param value value
-		 * @return success if the variable wasn't declared yet
-		 */
-		mlir::LogicalResult declare(llvm::StringRef var, mlir::Value value);
 
 		mlir::Type constantToType(const Constant& constant)
 		{
@@ -97,4 +88,22 @@ namespace modelica
 			assert(false && "Unreachable");
 		}
 	};
+
+	template<>
+	MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Expression>(const modelica::Expression& expression);
+
+	template<>
+	MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Operation>(const modelica::Expression& expression);
+
+	template<>
+	MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Constant>(const modelica::Expression& expression);
+
+	template<>
+	MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::ReferenceAccess>(const modelica::Expression& expression);
+
+	template<>
+	MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Call>(const modelica::Expression& expression);
+
+	template<>
+	MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Tuple>(const modelica::Expression& expression);
 }

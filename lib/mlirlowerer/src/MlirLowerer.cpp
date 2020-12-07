@@ -4,6 +4,7 @@
 #include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
+#include <modelica/utils/IRange.hpp>
 
 using namespace llvm;
 using namespace mlir;
@@ -23,7 +24,6 @@ FuncOp MlirLowerer::lower(const Class& cls)
 {
 	return nullptr;
 }
-
 
 FuncOp MlirLowerer::lower(const Function& foo)
 {
@@ -51,8 +51,7 @@ FuncOp MlirLowerer::lower(const Function& foo)
 
 	// Declare all the function arguments in the symbol table
 	for (const auto &name_value : llvm::zip(foo.getArgs(), entryBlock.getArguments())) {
-		if (failed(declare(get<0>(name_value)->getName(), get<1>(name_value))))
-			return nullptr;
+		symbolTable.insert(get<0>(name_value)->getName(),  get<1>(name_value));
 	}
 
 	// Set the insertion point in the builder to the beginning of the function
@@ -66,29 +65,22 @@ FuncOp MlirLowerer::lower(const Function& foo)
 		return nullptr;
 	}
 
-	SmallVector<mlir::Value, 3> results;
+	std::vector<mlir::Value> results;
 
 	for (const auto& member : foo.getResults())
 		results.push_back(symbolTable.lookup(member->getName()));
 
 	if (!returnTypes.empty())
-		builder.create<ReturnOp>(loc(SourcePosition("-", 0, 0)), results);
+		builder.create<ReturnOp>(builder.getUnknownLoc(), results);
 
 	return function;
 }
 
-mlir::Location MlirLowerer::loc(SourcePosition location) {
+mlir::Location MlirLowerer::loc(SourcePosition location)
+{
 	return builder.getFileLineColLoc(builder.getIdentifier(*location.file),
 																	 location.line,
 																	 location.column);
-}
-
-LogicalResult MlirLowerer::declare(StringRef var, mlir::Value value) {
-	if (symbolTable.count(var) != 0)
-		return failure();
-
-	symbolTable.insert(var, value);
-	return success();
 }
 
 mlir::Type MlirLowerer::lower(const Type& type)
@@ -143,14 +135,12 @@ mlir::LogicalResult MlirLowerer::lower(const Statement& statement)
 
 mlir::LogicalResult MlirLowerer::lower(const AssignmentStatement& statement)
 {
-	mlir::Value value = lower(statement.getExpression());
+	auto destinations = statement.getDestinations();
+	auto values = lower<modelica::Expression>(statement.getExpression());
+	assert(values.size() == destinations.size() && "Unmatched number of destinations and results");
 
-	// Register the value in the symbol table.
-	if (!statement.getDestinations()[0]->isA<ReferenceAccess>())
-		return success();
-
-	if (failed(declare(statement.getDestinations()[0]->get<ReferenceAccess>().getName(), value)))
-		return failure();
+	for (auto pair : zip(destinations, values))
+		symbolTable.insert(get<0>(pair)->get<ReferenceAccess>().getName(), get<1>(pair));
 
 	return success();
 }
@@ -193,36 +183,113 @@ mlir::LogicalResult MlirLowerer::lower(const ReturnStatement& statement)
 	return success();
 }
 
-mlir::Value MlirLowerer::lower(const Expression& expression)
+template<>
+MlirLowerer::Container<mlir::Value> MlirLowerer::lower<Expression>(const Expression& expression)
 {
-	return expression.visit([&](auto& obj) { return lower(obj); });
+	return expression.visit([&](auto& obj) {
+		using type = decltype(obj);
+		using deref = typename std::remove_reference<type>::type;
+		using deconst = typename std::remove_const<deref>::type;
+		return lower<deconst>(expression);
+	});
 }
 
-mlir::Value MlirLowerer::lower(const modelica::Operation& operation)
+template<>
+MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Operation>(const Expression& expression)
 {
-	return nullptr;
+	assert(expression.isA<modelica::Operation>());
+	const auto& operation = expression.get<modelica::Operation>();
+	auto kind = operation.getKind();
+
+	if (kind == OperationKind::negate)
+	{
+		return { nullptr };
+	}
+	else if (kind == OperationKind::add)
+	{
+		auto type = lower(expression.getType());
+		SmallVector<mlir::Value, 3> args;
+
+		for (const auto& arg : operation)
+		{
+			auto tmp = lower<modelica::Expression>(arg);
+
+			//for (auto t : tmp)
+				//args.push_back(tmp);
+		}
+
+		return { builder.create<AddFOp>(builder.getUnknownLoc(), type, args) };
+	}
+
+	return { nullptr };
 }
 
-mlir::Value MlirLowerer::lower(const Constant& constant)
+template<>
+MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Constant>(const Expression& expression)
 {
-	return builder.create<ConstantOp>(
-			loc(SourcePosition("-", 0, 0)),
+	assert(expression.isA<modelica::Constant>());
+	const auto& constant = expression.get<modelica::Constant>();
+
+	auto value = builder.create<ConstantOp>(
+			builder.getUnknownLoc(),
 			constantToType(constant),
-			constant.visit([&](const auto& obj) { return getAttribute(obj); })
-			);
+			constant.visit([&](const auto& obj) { return getAttribute(obj); }));
+
+	return { value };
 }
 
-mlir::Value MlirLowerer::lower(const ReferenceAccess& reference)
+template<>
+MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::ReferenceAccess>(const Expression& expression)
 {
-	return nullptr;
+	assert(expression.isA<modelica::ReferenceAccess>());
+	const auto& reference = expression.get<modelica::ReferenceAccess>();
+	return { symbolTable.lookup(reference.getName()) };
 }
 
-mlir::Value MlirLowerer::lower(const Call& call)
+template<>
+MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Call>(const Expression& expression)
 {
-	return nullptr;
+	assert(expression.isA<modelica::Call>());
+	const auto& call = expression.get<modelica::Call>();
+	const auto& function = call.getFunction();
+
+	SmallVector<mlir::Value, 3> args;
+
+	for (const auto& arg : call)
+		for (auto& val : lower<modelica::Expression>(arg))
+			args.push_back(val);
+
+	auto op = builder.create<CallOp>(
+			builder.getUnknownLoc(),
+			function.get<ReferenceAccess>().getName(),
+			lower(function.getType()),
+			args);
+
+	Container<mlir::Value> results;
+
+	for (auto result : op.getResults())
+		results.push_back(result);
+
+	return results;
 }
 
-mlir::Value MlirLowerer::lower(const Tuple& tuple)
+template<>
+MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Tuple>(const Expression& expression)
 {
-	return nullptr;
+	assert(expression.isA<modelica::Tuple>());
+	const auto& tuple = expression.get<modelica::Tuple>();
+	Container<mlir::Value> result;
+
+	for (auto& exp : tuple)
+	{
+		auto values = lower<modelica::Expression>(expression);
+
+		// The only way to have multiple returns is to call a function, but this
+		// is forbidden in a tuple declaration. In fact, a tuple is just a
+		// container of references.
+		assert(values.size() == 1);
+		result.push_back(values[0]);
+	}
+
+	return result;
 }
