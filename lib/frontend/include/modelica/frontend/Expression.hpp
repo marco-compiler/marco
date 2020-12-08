@@ -20,31 +20,26 @@ namespace modelica
 	{
 		public:
 		template<typename T>
-		Expression(Type type, T&& constant)
-				: content(Constant(std::forward<T>(constant))), type(std::move(type))
+		Expression(SourcePosition location, Type type, T&& constant) : location(std::move(location)), content(Constant(std::forward<T>(constant))), type(std::move(type))
 		{
 		}
 
-		Expression(Type tp, Constant costnt);
-		Expression(Type tp, ReferenceAccess access);
-		Expression(Type tp, Call call);
-		Expression(Type tp, Tuple tuple);
+		Expression(SourcePosition location, Type tp, Constant costnt);
+		Expression(SourcePosition location, Type tp, ReferenceAccess access);
+		Expression(SourcePosition location, Type tp, Call call);
+		Expression(SourcePosition location, Type tp, Tuple tuple);
 
 		template<OperationKind op, typename... Args>
-		Expression(Type type, Args&&... args)
-				: content(makeOp<op>(std::forward<Args>(args)...)),
-					type(std::move(type))
+		Expression(SourcePosition location, Type type, Args&&... args) : location(std::move(location)), content(makeOp<op>(std::forward<Args>(args)...)), type(std::move(type))
 		{
 		}
 
 		template<typename... Args>
-		Expression(Type type, OperationKind kind, Args... args)
-				: content(Operation(kind, std::forward<Args>(args)...)),
-					type(std::move(type))
+		Expression(SourcePosition location, Type type, OperationKind kind, Args... args) : location(std::move(location)), content(Operation(kind, std::forward<Args>(args)...)), type(std::move(type))
 		{
 		}
 
-		Expression(Type tp, OperationKind kind, Operation::Container args);
+		Expression(SourcePosition location, Type tp, OperationKind kind, Operation::Container args);
 
 		~Expression() = default;
 
@@ -91,112 +86,115 @@ namespace modelica
 			return std::visit(std::forward<Visitor>(vis), content);
 		}
 
+		[[nodiscard]] SourcePosition getLocation() const;
+
 		[[nodiscard]] bool isLValue() const;
 
 		[[nodiscard]] Type& getType();
 		[[nodiscard]] const Type& getType() const;
 		void setType(Type tp);
 
-		[[nodiscard]] static Expression trueExp()
+		[[nodiscard]] static Expression trueExp(SourcePosition location)
 		{
-			return Expression(makeType<bool>(), true);
+			return Expression(location, makeType<bool>(), true);
 		}
 
-		[[nodiscard]] static Expression falseExp()
+		[[nodiscard]] static Expression falseExp(SourcePosition location)
 		{
-			return Expression(makeType<bool>(), false);
+			return Expression(location, makeType<bool>(), false);
 		}
 
 		template<OperationKind o, typename... Args>
-		[[nodiscard]] static Expression op(Type tp, Args&&... args)
+		[[nodiscard]] static Expression op(SourcePosition location, Type tp, Args&&... args)
 		{
-			return Expression(std::move(tp), o, std::forward<Args>(args)...);
+			return Expression(location, std::move(tp), o, std::forward<Args>(args)...);
 		}
 
 		template<OperationKind o>
-		[[nodiscard]] static Expression op(Type tp, Operation::Container args)
+		[[nodiscard]] static Expression op(SourcePosition location, Type tp, Operation::Container args)
 		{
-			return Expression(std::move(tp), o, std::move(args));
+			return Expression(location, std::move(tp), o, std::move(args));
 		}
 
-		[[nodiscard]] static Expression add(Type t, Operation::Container args)
+		[[nodiscard]] static Expression add(SourcePosition location, Type t, Operation::Container args)
 		{
-			return op<OperationKind::add>(std::move(t), std::move(args));
-		}
-
-		template<typename... Args>
-		[[nodiscard]] static Expression add(Type t, Args&&... args)
-		{
-			return op<OperationKind::add>(std::move(t), std::forward<Args>(args)...);
+			return op<OperationKind::add>(location, std::move(t), std::move(args));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression subscription(Type t, Args&&... args)
+		[[nodiscard]] static Expression add(SourcePosition location, Type t, Args&&... args)
+		{
+			return op<OperationKind::add>(location, std::move(t), std::forward<Args>(args)...);
+		}
+
+		template<typename... Args>
+		[[nodiscard]] static Expression subscription(SourcePosition location, Type t, Args&&... args)
 		{
 			return op<OperationKind::subscription>(
-					std::move(t), std::forward<Args>(args)...);
+					location, std::move(t), std::forward<Args>(args)...);
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression negate(Type t, Args&&... args)
+		[[nodiscard]] static Expression negate(SourcePosition location, Type t, Args&&... args)
 		{
 			return op<OperationKind::negate>(
-					std::move(t), std::forward<Args>(args)...);
+					location, std::move(t), std::forward<Args>(args)...);
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression subtract(Type t, Args&&... args)
+		[[nodiscard]] static Expression subtract(SourcePosition location, Type t, Args&&... args)
 		{
 			return op<OperationKind::subtract>(
-					std::move(t), std::forward<Args>(args)...);
+					location, std::move(t), std::forward<Args>(args)...);
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression divide(Type t, Args&&... args)
+		[[nodiscard]] static Expression divide(SourcePosition location, Type t, Args&&... args)
 		{
 			return op<OperationKind::divide>(
-					std::move(t), std::forward<Args>(args)...);
+					location, std::move(t), std::forward<Args>(args)...);
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression powerOf(Type t, Args&&... args)
+		[[nodiscard]] static Expression powerOf(SourcePosition location, Type t, Args&&... args)
 		{
 			return op<OperationKind::powerOf>(
-					std::move(t), std::forward<Args>(args)...);
+					location, std::move(t), std::forward<Args>(args)...);
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression memberLookup(Type t, Args&&... args)
+		[[nodiscard]] static Expression memberLookup(SourcePosition location, Type t, Args&&... args)
 		{
 			return op<OperationKind::memberLookup>(
-					std::move(t), std::forward<Args>(args)...);
+					location, std::move(t), std::forward<Args>(args)...);
 		}
 
-		[[nodiscard]] static Expression multiply(Type t, Operation::Container args)
+		[[nodiscard]] static Expression multiply(SourcePosition location, Type t, Operation::Container args)
 		{
-			return op<OperationKind::multiply>(std::move(t), std::move(args));
+			return op<OperationKind::multiply>(location, std::move(t), std::move(args));
 		}
 
-		[[nodiscard]] static Expression lor(Type t, Operation::Container args)
+		[[nodiscard]] static Expression lor(SourcePosition location, Type t, Operation::Container args)
 		{
-			return op<OperationKind::lor>(std::move(t), std::move(args));
+			return op<OperationKind::lor>(location, std::move(t), std::move(args));
 		}
 
-		[[nodiscard]] static Expression land(Type t, Operation::Container args)
+		[[nodiscard]] static Expression land(SourcePosition location, Type t, Operation::Container args)
 		{
-			return op<OperationKind::land>(std::move(t), std::move(args));
+			return op<OperationKind::land>(location, std::move(t), std::move(args));
 		}
 
 		private:
+		SourcePosition location;
 		std::variant<Operation, Constant, ReferenceAccess, Call, Tuple> content;
 		Type type;
 	};
 
 	[[nodiscard]] Expression makeCall(
-			Expression fun, llvm::ArrayRef<Expression> args);
+			SourcePosition location, Expression fun, llvm::ArrayRef<Expression> args);
 
 	template<typename... Expressions>
-	[[nodiscard]] Expression makeTuple(Expressions&&... expressions)
+	[[nodiscard]] Expression makeTuple(SourcePosition location, Expressions&&... expressions)
 	{
 		return Expression(Tuple(std::forward<Expressions>(expressions)...));
 	}

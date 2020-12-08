@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llvm/Support/raw_ostream.h>
+#include <modelica/utils/SourceRange.hpp>
 #include <string>
 
 namespace modelica
@@ -11,8 +12,7 @@ namespace modelica
 	class ReferenceAccess
 	{
 		public:
-		ReferenceAccess(
-				std::string name, bool globalLookup = false, bool dummy = false);
+		ReferenceAccess(std::string name, bool globalLookup = false, bool dummy = false);
 
 		[[nodiscard]] bool operator==(const ReferenceAccess& other) const;
 		[[nodiscard]] bool operator!=(const ReferenceAccess& other) const;

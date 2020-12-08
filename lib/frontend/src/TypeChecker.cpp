@@ -357,10 +357,10 @@ Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 			newDestinations.push_back(move(lhs));
 
 		for (size_t i = newDestinations.size(); i < returns; i++)
-			newDestinations.emplace_back(types[i], ReferenceAccess::dummy());
+			newDestinations.emplace_back(SourcePosition("-", 0, 0), types[i], ReferenceAccess::dummy()); // TODO: fix position
 
 		Tuple tuple(move(newDestinations));
-		eq.setLeftHand(Expression(rhsType, move(tuple)));
+		eq.setLeftHand(Expression(SourcePosition("-", 0, 0), rhsType, move(tuple))); // TODO: fix position
 	}
 
 	return Error::success();
@@ -440,7 +440,7 @@ Error TypeChecker::checkType(
 				newDestinations.push_back(move(*destination));
 
 			for (size_t i = newDestinations.size(); i < returns; i++)
-				newDestinations.emplace_back(userDefType[i], ReferenceAccess::dummy());
+				newDestinations.emplace_back(SourcePosition("-", 0, 0), userDefType[i], ReferenceAccess::dummy()); // TODO: fix position
 
 			statement.setDestination(Tuple(move(newDestinations)));
 		}

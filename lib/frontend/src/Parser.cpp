@@ -409,7 +409,7 @@ Expected<Algorithm> Parser::algorithmSection()
 		statements.push_back(move(*stmnt));
 	}
 
-	return Algorithm(statements);
+	return Algorithm( move(statements));
 }
 
 Expected<Equation> Parser::equation()
@@ -441,6 +441,8 @@ Expected<Statement> Parser::statement()
 
 Expected<AssignmentStatement> Parser::assignmentStatement()
 {
+	auto location = getPosition();
+
 	if (accept<Token::LPar>())
 	{
 		TRY(destinations, outputExpressionList());
@@ -448,7 +450,7 @@ Expected<AssignmentStatement> Parser::assignmentStatement()
 		EXPECT(Token::Assignment);
 		TRY(functionName, componentReference());
 		TRY(args, functionCallArguments());
-		Expression call = makeCall(move(*functionName), move(*args));
+		Expression call = makeCall(move(location), move(*functionName), move(*args));
 
 		return AssignmentStatement(move(*destinations), move(call));
 	}
@@ -499,6 +501,7 @@ Expected<IfStatement> Parser::ifStatement()
 
 	if (accept<Token::ElseKeyword>())
 	{
+		auto location = getPosition();
 		SmallVector<Statement, 3> elseStatements;
 
 		while (current != Token::EndKeyword)
@@ -510,7 +513,7 @@ Expected<IfStatement> Parser::ifStatement()
 
 		// Being the last block, it can be discarded if empty
 		if (!elseStatements.empty())
-			blocks.emplace_back(Expression::trueExp(), move(elseStatements));
+			blocks.emplace_back(Expression::trueExp(move(location)), move(elseStatements));
 	}
 
 	EXPECT(Token::EndKeyword);
@@ -646,6 +649,7 @@ Expected<Expression> Parser::expression()
 
 Expected<Expression> Parser::logicalExpression()
 {
+	auto location = getPosition();
 	vector<Expression> factors;
 
 	TRY(l, logicalTerm());
@@ -661,11 +665,12 @@ Expected<Expression> Parser::logicalExpression()
 		factors.emplace_back(move(*arg));
 	}
 
-	return Expression::lor(Type::unknown(), move(factors));
+	return Expression::lor(move(location), Type::unknown(), move(factors));
 }
 
 Expected<Expression> Parser::logicalTerm()
 {
+	auto location = getPosition();
 	vector<Expression> factors;
 	TRY(l, logicalFactor());
 
@@ -680,18 +685,20 @@ Expected<Expression> Parser::logicalTerm()
 		factors.emplace_back(move(*arg));
 	}
 
-	return Expression::land(Type::unknown(), move(factors));
+	return Expression::land(move(location), Type::unknown(), move(factors));
 }
 
 Expected<Expression> Parser::logicalFactor()
 {
+	auto location = getPosition();
 	bool negated = accept<Token::NotKeyword>();
 	TRY(exp, relation());
-	return negated ? Expression::negate(Type::unknown(), move(*exp)) : move(*exp);
+	return negated ? Expression::negate(move(location), Type::unknown(), move(*exp)) : move(*exp);
 }
 
 Expected<Expression> Parser::relation()
 {
+	auto location = getPosition();
 	TRY(left, arithmeticExpression());
 	auto op = relationalOperator();
 
@@ -699,7 +706,7 @@ Expected<Expression> Parser::relation()
 		return *left;
 
 	TRY(right, arithmeticExpression());
-	return Expression(Type::unknown(), op.value(), move(*left), move(*right));
+	return Expression(move(location), Type::unknown(), op.value(), move(*left), move(*right));
 }
 
 optional<OperationKind> Parser::relationalOperator()
@@ -721,6 +728,7 @@ optional<OperationKind> Parser::relationalOperator()
 
 Expected<Expression> Parser::arithmeticExpression()
 {
+	auto location = getPosition();
 	bool negative = false;
 
 	if (accept<Token::Minus>())
@@ -730,17 +738,20 @@ Expected<Expression> Parser::arithmeticExpression()
 
 	TRY(left, term());
 	Expression first = negative
-										 ? Expression::subtract(Type::unknown(), move(*left))
+										 ? Expression::subtract(move(location), Type::unknown(), move(*left))
 										 : move(*left);
 
 	if (current != Token::Minus && current != Token::Plus)
 		return first;
 
+	location = getPosition();
 	vector<Expression> args;
 	args.push_back(move(first));
 
 	while (current == Token::Minus || current == Token::Plus)
 	{
+		auto loc = getPosition();
+
 		if (accept<Token::Plus>())
 		{
 			TRY(arg, term());
@@ -750,15 +761,17 @@ Expected<Expression> Parser::arithmeticExpression()
 
 		EXPECT(Token::Minus);
 		TRY(arg, term());
-		auto exp = Expression::subtract(Type::unknown(), move(*arg));
+		auto exp = Expression::subtract(move(loc), Type::unknown(), move(*arg));
 		args.emplace_back(move(exp));
 	}
 
-	return Expression::op<OperationKind::add>(Type::unknown(), move(args));
+	return Expression::op<OperationKind::add>(move(location), Type::unknown(), move(args));
 }
 
 Expected<Expression> Parser::term()
 {
+	auto location = getPosition();
+
 	// we keep a list of arguments
 	vector<Expression> arguments;
 	TRY(toReturn, factor());
@@ -772,7 +785,7 @@ Expected<Expression> Parser::term()
 
 	while (current == Token::Multiply || current == Token::Division)
 	{
-		// if see a multyply we add him with the others
+		// if see a multiply we add him with the others
 		if (accept<Token::Multiply>())
 		{
 			TRY(arg, factor());
@@ -781,6 +794,7 @@ Expected<Expression> Parser::term()
 		}
 
 		// otherwise we must see a division sign
+		auto location = getPosition();
 		EXPECT(Token::Division);
 		TRY(arg, factor());
 
@@ -789,61 +803,64 @@ Expected<Expression> Parser::term()
 		if (arguments.size() == 1)
 		{
 			arguments = { Expression::divide(
-					Type::unknown(), move(arguments[0]), move(*arg)) };
+					location, Type::unknown(), move(arguments[0]), move(*arg)) };
 			continue;
 		}
 
 		// otherwise we create a multiply from the already seen arguments
 		// a * b / c * d = ((a*b)/c)*d
-		auto left = Expression::multiply(Type::unknown(), move(arguments));
-		arguments = { Expression::divide(Type::unknown(), move(left), move(*arg)) };
+		auto left = Expression::multiply(location, Type::unknown(), move(arguments));
+		arguments = { Expression::divide(location, Type::unknown(), move(left), move(*arg)) };
 	}
 
 	if (arguments.size() == 1)
 		return move(arguments[0]);
 
-	return Expression::multiply(Type::unknown(), move(arguments));
+	return Expression::multiply(location, Type::unknown(), move(arguments));
 }
 
 Expected<Expression> Parser::factor()
 {
+	auto location = getPosition();
 	TRY(l, primary());
 
 	if (!accept<Token::Exponential>())
 		return *l;
 
 	TRY(r, primary());
-	return Expression::powerOf(Type::unknown(), move(*l), move(*r));
+	return Expression::powerOf(move(location), Type::unknown(), move(*l), move(*r));
 }
 
 Expected<Expression> Parser::primary()
 {
+	auto location = getPosition();
+
 	if (current == Token::Integer)
 	{
 		Constant c(lexer.getLastInt());
 		accept<Token::Integer>();
-		return Expression(makeType<int>(), c);
+		return Expression(move(location), makeType<int>(), c);
 	}
 
 	if (current == Token::FloatingPoint)
 	{
 		Constant c(lexer.getLastFloat());
 		accept<Token::FloatingPoint>();
-		return Expression(makeType<BuiltInType::Float>(), c);
+		return Expression(move(location), makeType<BuiltInType::Float>(), c);
 	}
 
 	if (current == Token::String)
 	{
 		Constant s(lexer.getLastString());
 		accept<Token::String>();
-		return Expression(makeType<std::string>(), s);
+		return Expression(move(location), makeType<std::string>(), s);
 	}
 
 	if (accept<Token::TrueKeyword>())
-		return Expression::trueExp();
+		return Expression::trueExp(move(location));
 
 	if (accept<Token::FalseKeyword>())
-		return Expression::falseExp();
+		return Expression::falseExp(move(location));
 
 	if (accept<Token::LPar>())
 	{
@@ -853,14 +870,14 @@ Expected<Expression> Parser::primary()
 		if (exp->size() == 1)
 			return (*exp)[0];
 
-		return Expression(Type::unknown(), move(*exp));
+		return Expression(move(location), Type::unknown(), move(*exp));
 	}
 
 	if (accept<Token::DerKeyword>())
 	{
 		TRY(args, functionCallArguments());
-		return makeCall(
-				Expression(Type::unknown(), ReferenceAccess("der")), move(*args));
+		return makeCall(location,
+				Expression(location, Type::unknown(), ReferenceAccess("der")), move(*args));
 	}
 
 	if (current == Token::Ident)
@@ -871,7 +888,7 @@ Expected<Expression> Parser::primary()
 			return exp;
 
 		TRY(args, functionCallArguments());
-		return makeCall(move(*exp), move(*args));
+		return makeCall(move(location), move(*exp), move(*args));
 	}
 
 	return make_error<UnexpectedToken>(current, Token::End, getPosition());
@@ -879,31 +896,34 @@ Expected<Expression> Parser::primary()
 
 Expected<Expression> Parser::componentReference()
 {
+	auto location = getPosition();
 	bool globalLookup = accept<Token::Dot>();
 	auto name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
 
-	Expression exp(Type::unknown(), ReferenceAccess(move(name), globalLookup));
+	Expression exp(location, Type::unknown(), ReferenceAccess(move(name), globalLookup));
 
 	if (current == Token::LSquare)
 	{
+		auto loc = getPosition();
 		TRY(access, arraySubscript());
 		access->insert(access->begin(), move(exp));
-		exp = Expression::subscription(Type::unknown(), move(*access));
+		exp = Expression::subscription(move(loc), Type::unknown(), move(*access));
 	}
 
 	while (accept<Token::Dot>())
 	{
-		Expression memberName(makeType<std::string>(), lexer.getLastString());
+		location = getPosition();
+		Expression memberName(location, makeType<std::string>(), lexer.getLastString());
 		EXPECT(Token::String);
-		exp =
-				Expression::memberLookup(Type::unknown(), move(exp), move(memberName));
+		exp = Expression::memberLookup(location, Type::unknown(), move(exp), move(memberName));
 
 		if (current != Token::LSquare)
 			continue;
 
+		location = getPosition();
 		TRY(access, arraySubscript());
-		exp = Expression::subscription(Type::unknown(), move(*access));
+		exp = Expression::subscription(location, Type::unknown(), move(*access));
 	}
 
 	return exp;
@@ -950,9 +970,11 @@ Expected<Tuple> Parser::outputExpressionList()
 
 	while (current != Token::RPar)
 	{
+		auto location = getPosition();
+
 		if (accept<Token::Comma>())
 		{
-			expressions.emplace_back(Type::unknown(), ReferenceAccess::dummy());
+			expressions.emplace_back(location, Type::unknown(), ReferenceAccess::dummy());
 			continue;
 		}
 
@@ -967,14 +989,14 @@ Expected<Tuple> Parser::outputExpressionList()
 Expected<vector<Expression>> Parser::arraySubscript()
 {
 	EXPECT(Token::LSquare);
-
 	vector<Expression> expressions;
 
 	do
 	{
+		auto location = getPosition();
 		TRY(exp, expression());
 		*exp =
-				Expression::add(Type::Int(), move(*exp), Expression(Type::Int(), -1));
+				Expression::add(location, Type::Int(), move(*exp), Expression(location, Type::Int(), -1));
 		expressions.emplace_back(move(*exp));
 	} while (accept<Token::Comma>());
 

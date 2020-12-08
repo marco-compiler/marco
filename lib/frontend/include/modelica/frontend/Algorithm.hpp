@@ -4,6 +4,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
 #include <modelica/frontend/Statement.hpp>
+#include <modelica/utils/SourceRange.hpp>
 
 namespace modelica
 {
@@ -16,7 +17,7 @@ namespace modelica
 		using statements_iterator = Container::iterator;
 		using statements_const_iterator = Container::const_iterator;
 
-		explicit Algorithm(llvm::ArrayRef<Statement> statements);
+		Algorithm(llvm::ArrayRef<Statement> statements);
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;

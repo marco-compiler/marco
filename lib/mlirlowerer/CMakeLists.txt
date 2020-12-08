@@ -10,6 +10,8 @@ target_link_libraries(
         modelica::frontend
         modelica::utils
         MLIRIR
+        MLIRSCF
+        MLIRSCFToStandard
         MLIRStandardOps
         MLIRStandardToLLVM
         MLIRTargetLLVMIR

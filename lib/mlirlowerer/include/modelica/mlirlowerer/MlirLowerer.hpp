@@ -25,15 +25,17 @@ namespace modelica
 		mlir::Type lower(const modelica::Type& type);
 		mlir::Type lower(const modelica::BuiltInType& type);
 		mlir::Type lower(const modelica::UserDefinedType& type);
+
 		mlir::LogicalResult lower(const modelica::Algorithm& algorithm);
-		mlir::LogicalResult lower(const modelica::Statement& statement);
-		mlir::LogicalResult lower(const modelica::AssignmentStatement& statement);
-		mlir::LogicalResult lower(const modelica::IfStatement& statement);
-		mlir::LogicalResult lower(const modelica::ForStatement& statement);
-		mlir::LogicalResult lower(const modelica::WhileStatement& statement);
-		mlir::LogicalResult lower(const modelica::WhenStatement& statement);
-		mlir::LogicalResult lower(const modelica::BreakStatement& statement);
-		mlir::LogicalResult lower(const modelica::ReturnStatement& statement);
+
+		Container<std::pair<llvm::StringRef, mlir::Value>> lower(const modelica::Statement& statement);
+		Container<std::pair<llvm::StringRef, mlir::Value>> lower(const modelica::AssignmentStatement& statement);
+		Container<std::pair<llvm::StringRef, mlir::Value>> lower(const modelica::IfStatement& statement);
+		Container<std::pair<llvm::StringRef, mlir::Value>> lower(const modelica::ForStatement& statement);
+		Container<std::pair<llvm::StringRef, mlir::Value>> lower(const modelica::WhileStatement& statement);
+		Container<std::pair<llvm::StringRef, mlir::Value>> lower(const modelica::WhenStatement& statement);
+		Container<std::pair<llvm::StringRef, mlir::Value>> lower(const modelica::BreakStatement& statement);
+		Container<std::pair<llvm::StringRef, mlir::Value>> lower(const modelica::ReturnStatement& statement);
 
 		template<typename T>
 		Container<mlir::Value> lower(const modelica::Expression& expression);

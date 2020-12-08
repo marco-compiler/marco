@@ -194,11 +194,11 @@ static Expected<Expression> foldOpSum(Expression& exp)
 
 	// if there are not args left transform it into a constant
 	if (newArgs.empty())
-		return Expression(makeType<Tr>(), val);
+		return Expression(exp.getLocation(), makeType<Tr>(), val);
 
 	// if the sum of constants is not zero insert a new constant argument
 	if (val != 0)
-		newArgs.push_back(Expression(makeType<Tr>(), val));
+		newArgs.push_back(Expression(exp.getLocation(), makeType<Tr>(), val));
 
 	// if the arguments are exactly one, remove the sum and return the argument
 	// itself
@@ -206,7 +206,7 @@ static Expected<Expression> foldOpSum(Expression& exp)
 		return newArgs[0];
 
 	// other wise return the sum.
-	return Expression::add(exp.getType(), move(newArgs));
+	return Expression::add(exp.getLocation(), exp.getType(), move(newArgs));
 }
 
 template<BuiltInType Type>
@@ -226,15 +226,15 @@ static Expected<Expression> foldOpMult(Expression& exp)
 			newArgs.emplace_back(move(arg));
 
 	if (newArgs.empty())
-		return Expression(makeType<Tr>(), val);
+		return Expression(exp.getLocation(), makeType<Tr>(), val);
 
 	if (val != 1)
-		newArgs.push_back(Expression(makeType<Tr>(), val));
+		newArgs.push_back(Expression(exp.getLocation(), makeType<Tr>(), val));
 
 	if (newArgs.size() == 1)
 		return newArgs[0];
 
-	return Expression::multiply(exp.getType(), move(newArgs));
+	return Expression::multiply(exp.getLocation(), exp.getType(), move(newArgs));
 }
 
 template<BuiltInType Type>
@@ -243,7 +243,7 @@ static Expected<Expression> foldOpNegate(Expression& exp)
 	Vector& arguments = exp.get<Operation>().getArguments();
 	if (arguments[0].isA<Constant>())
 		return Expression(
-				arguments[0].getType(), -arguments[0].get<Constant>().get<Type>());
+				exp.getLocation(), arguments[0].getType(), -arguments[0].get<Constant>().get<Type>());
 	return exp;
 }
 
@@ -254,10 +254,11 @@ static Expected<Expression> foldOpSubtract(Expression& exp)
 	if (arguments.size() == 1)
 		if (arguments[0].isA<Constant>())
 			return Expression(
-					arguments[0].getType(), -arguments[0].get<Constant>().get<Type>());
+					exp.getLocation(), arguments[0].getType(), -arguments[0].get<Constant>().get<Type>());
 
 	if (arguments[0].isA<Constant>() && arguments[1].isA<Constant>())
 		return Expression(
+				exp.getLocation(),
 				arguments[0].getType(),
 				arguments[0].get<Constant>().as<Type>() -
 						arguments[1].get<Constant>().as<Type>());
@@ -270,6 +271,7 @@ static Expected<Expression> foldOpDivide(Expression& exp)
 	Vector& arguments = exp.get<Operation>().getArguments();
 	if (arguments[0].isA<Constant>() && arguments[1].isA<Constant>())
 		return Expression(
+				exp.getLocation(),
 				arguments[0].getType(),
 				arguments[0].get<Constant>().as<Type>() /
 						arguments[1].get<Constant>().as<Type>());
@@ -342,7 +344,7 @@ static Expected<Expression> foldOpExp(Expression& exp)
 			pow(arguments[0].get<Constant>().as<T>(),
 					arguments[1].get<Constant>().as<T>());
 
-	return Expression(makeType<Tr>(), val);
+	return Expression(exp.getLocation(), makeType<Tr>(), val);
 }
 
 static Expected<Expression> foldOpExp(Expression& exp)

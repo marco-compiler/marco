@@ -1,3 +1,4 @@
+#include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
 #include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
 #include <mlir/Target/LLVMIR.h>
 #include <modelica/mlirlowerer/LLVMLoweringPass.hpp>
@@ -10,6 +11,7 @@ void LLVMLoweringPass::runOnOperation() {
 	LLVMTypeConverter typeConverter(&getContext());
 
 	OwningRewritePatternList patterns;
+	populateLoopToStdConversionPatterns(patterns, &getContext());
 	populateStdToLLVMConversionPatterns(typeConverter, patterns);
 
 	auto module = getOperation();

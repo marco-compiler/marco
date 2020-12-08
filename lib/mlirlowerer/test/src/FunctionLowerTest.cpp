@@ -33,17 +33,29 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 	Member z("z", Type::Float(),
 					 TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
+	SourcePosition location("-", 0, 0);
+
 	Algorithm algorithm({
-			AssignmentStatement(Expression(Type::Float(), ReferenceAccess("y")),
-													Expression(Type::Float(), Constant(23.0))),
-			AssignmentStatement(Expression(Type::Float(), ReferenceAccess("z")),
-													Expression(Type::Float(), ReferenceAccess("y")))
-			//AssignmentStatement(Expression(Type::Float(), ReferenceAccess("z")),
-			//										Expression(Type::Float(), Call(Expression(Type::Float(), ReferenceAccess("test")))))
-			//AssignmentStatement(Expression(Type::Float(), ReferenceAccess("z")),
-			//										Expression(Type::Float(), OperationKind::add, Expression(Type::Float(), ReferenceAccess("x")), Expression(Type::Float(), ReferenceAccess("z")), Expression(Type::Float(), ReferenceAccess("z")), Expression(Type::Float(), ReferenceAccess("z")))),
-			//AssignmentStatement(Expression(Type::Float(), ReferenceAccess("z")),
-			//										Expression(Type::Float(), OperationKind::add, Expression(Type::Float(), ReferenceAccess("z")), Expression(Type::Float(), ReferenceAccess("z"))))
+			AssignmentStatement(Expression(location, Type::Float(), ReferenceAccess("y")),
+													Expression(location, Type::Float(), Constant(23.0))),
+			AssignmentStatement(Expression(location, Type::Float(), ReferenceAccess("z")),
+													Expression(location, Type::Float(), ReferenceAccess("y"))),
+			IfStatement(llvm::ArrayRef({ ConditionalBlock<Statement>(
+					Expression::op<OperationKind::greaterEqual>(location, makeType<bool>(), Expression(location, Type::Float(), ReferenceAccess("y")), Expression(location, Type::Float(), ReferenceAccess("x"))),
+					{
+							AssignmentStatement(Expression(location, Type::Float(), ReferenceAccess("z")),
+																	Expression(location, Type::Float(), Constant(57.0)))
+					}
+					),
+					ConditionalBlock<Statement>(Expression::trueExp(location), {AssignmentStatement(Expression(location, Type::Float(), ReferenceAccess("z")),
+																																													Expression(location, Type::Float(), Constant(44.0)))} )
+			}))
+			//AssignmentStatement(Expression(location, Type::Float(), ReferenceAccess("z")),
+			//										Expression(location, Type::Float(), Call(Expression(Type::Float(), ReferenceAccess("test")))))
+			//AssignmentStatement(Expression(location, Type::Float(), ReferenceAccess("z")),
+			//										Expression(location, Type::Float(), OperationKind::add, Expression(Type::Float(), ReferenceAccess("x")), Expression(Type::Float(), ReferenceAccess("z")), Expression(Type::Float(), ReferenceAccess("z")), Expression(Type::Float(), ReferenceAccess("z")))),
+			//AssignmentStatement(Expression(location, Type::Float(), ReferenceAccess("z")),
+			//										Expression(location, Type::Float(), OperationKind::add, Expression(Type::Float(), ReferenceAccess("z")), Expression(Type::Float(), ReferenceAccess("z"))))
 	});
 
 	Function function(SourcePosition("-", 0, 0),
@@ -51,13 +63,15 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 
 	mlir::registerDialect<ModelicaDialect>();
 	mlir::registerDialect<mlir::StandardOpsDialect>();
+	mlir::registerDialect<mlir::scf::SCFDialect>();
 	mlir::registerDialect<mlir::LLVM::LLVMDialect>();
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
+	auto lowered = lowerer.lower(function);
+	//lowered.dump();
 
 	mlir::ModuleOp module = mlir::ModuleOp::create(lowerer.builder.getUnknownLoc());
-	auto lowered = lowerer.lower(function);
 	module.push_back(lowered);
 
 	module.dump();
@@ -65,7 +79,10 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 	mlir::PassManager pm(&context);
 	pm.addPass(std::make_unique<LLVMLoweringPass>());
 	pm.run(module);
-
-	//mlir::translateModuleToLLVMIR(module);
 	module.dump();
+
+	auto result = mlir::translateModuleToLLVMIR(module);
+	//result->dump(); // doesn't work
+	result->print(llvm::errs(), nullptr);
+
 }

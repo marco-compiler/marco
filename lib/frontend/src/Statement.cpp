@@ -85,7 +85,7 @@ const Expression& AssignmentStatement::getExpression() const
 IfStatement::IfStatement(llvm::ArrayRef<Block> blocks)
 		: blocks(blocks.begin(), blocks.end())
 {
-	assert(this->blocks.size() > 1);
+	assert(!this->blocks.empty());
 }
 
 IfStatement::Block& IfStatement::operator[](size_t index)
