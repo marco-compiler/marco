@@ -167,6 +167,8 @@ MlirLowerer::Container<std::pair<llvm::StringRef, mlir::Value>> MlirLowerer::low
 		Block* trueDest = builder.createBlock(builder.getBlock()->getParent());
 		Block* falseDest = builder.createBlock(builder.getBlock()->getParent());
 
+		// Apart from the "then" blocks, only the last "else" block needs a
+		// final branch.
 		if (!blocks.empty())
 			blocks.pop();
 
@@ -195,17 +197,16 @@ MlirLowerer::Container<std::pair<llvm::StringRef, mlir::Value>> MlirLowerer::low
 		builder.setInsertionPointToStart(falseDest);
 	}
 
+	// The last dummy "else" block is automatically created but will never
+	// contain any statement. It is created anyway to keep the lowering simple,
+	// and its optimization will be done later. For not having an imbalance, we
+	// thus need to register that this last block has no assignments but only
+	// a branch to the exit block.
+	assignments.emplace_back();
+
 	Block* exitBlock = builder.createBlock(builder.getBlock()->getParent());
 
-	assignments.emplace_back();
-	SmallVector<mlir::Type, 3> types;
-
-	for (const auto& var : vars)
-	{
-		auto type = symbolTable.lookup(var).getType();
-		types.push_back(type);
-	}
-
+	// Create the branch operation for each block
 	for (size_t i = assignments.size(); i > 0; i--)
 	{
 		auto& blockAssignments = assignments[i - 1];
@@ -219,13 +220,27 @@ MlirLowerer::Container<std::pair<llvm::StringRef, mlir::Value>> MlirLowerer::low
 		blocks.pop();
 	}
 
+	// Add the argument types to the exit block
+	SmallVector<mlir::Type, 3> types;
+
+	for (const auto& var : vars)
+		types.push_back(symbolTable.lookup(var).getType());
+
 	exitBlock->addArguments(types);
+
+	// The subsequent code will continue to be emitted in the exit block
 	builder.setInsertionPointToEnd(exitBlock);
 
-	for (auto pair : zip(vars, exitBlock->getArguments()))
-		symbolTable.insert(get<0>(pair), get<1>(pair));
+	// Return the list of possibly modified variables
+	Container<std::pair<llvm::StringRef, mlir::Value>> result;
 
-	return {};
+	for (auto pair : zip(vars, exitBlock->getArguments()))
+	{
+		symbolTable.insert(get<0>(pair), get<1>(pair));
+		result.emplace_back(get<0>(pair), get<1>(pair));
+	}
+
+	return result;
 }
 
 MlirLowerer::Container<std::pair<llvm::StringRef, mlir::Value>> MlirLowerer::lower(const ForStatement& statement)
