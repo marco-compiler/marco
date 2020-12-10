@@ -5,12 +5,20 @@
 #include <mlir/IR/Function.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/IR/StandardTypes.h>
+#include <mlir/Pass/PassManager.h>
 #include <modelica/frontend/ClassContainer.hpp>
+#include <modelica/mlirlowerer/LLVMLoweringPass.hpp>
 #include <modelica/utils/SourceRange.hpp>
 #include <mlir/InitAllDialects.h>
 
 namespace modelica
 {
+	static void registerDialects();
+
+	static mlir::LogicalResult convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module);
+
+	static
+
 	class MlirLowerer
 	{
 		private:
@@ -19,17 +27,14 @@ namespace modelica
 		public:
 		explicit MlirLowerer(mlir::MLIRContext &context);
 
-		mlir::FuncOp lower(const modelica::ClassContainer& cls);
-		mlir::FuncOp lower(const modelica::Class& cls);
+		mlir::ModuleOp lower(llvm::ArrayRef<const modelica::ClassContainer> classes);
+		mlir::Operation* lower(const modelica::Class& cls);
 		mlir::FuncOp lower(const modelica::Function& function);
 		mlir::MemRefType lower(const modelica::Type& type);
 		mlir::Type lower(const modelica::BuiltInType& type);
 		mlir::Type lower(const modelica::UserDefinedType& type);
-
 		void lower(const modelica::Member& member);
-
 		void lower(const modelica::Algorithm& algorithm);
-
 		void lower(const modelica::Statement& statement);
 		void lower(const modelica::AssignmentStatement& statement);
 		void lower(const modelica::IfStatement& statement);
@@ -42,7 +47,7 @@ namespace modelica
 		template<typename T>
 		Container<mlir::Value> lower(const modelica::Expression& expression);
 
-		public:
+		private:
 		/// The builder is a helper class to create IR inside a function. The
 		/// builder is stateful, in particular it keeps an "insertion point":
 		/// this is where the next operations will be introduced.
@@ -75,6 +80,7 @@ namespace modelica
 				return builder.getF32Type();
 
 			assert(false && "Unreachable");
+			return builder.getNoneType();
 		}
 
 		template<typename T>

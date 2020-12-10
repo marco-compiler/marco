@@ -35,7 +35,7 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 					 TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Member t("t", Type(BuiltInType::Float, { 2 }),
-					 TypePrefix(ParameterQualifier::none, IOQualifier::output));
+					 TypePrefix(ParameterQualifier::none, IOQualifier::input));
 
 	SourcePosition location("-", 0, 0);
 
@@ -63,31 +63,20 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 	});
 
 	Function function(SourcePosition("-", 0, 0),
-										"Foo", true, {x, y, z}, { algorithm });
+										"Foo", true, {x, y, z, t}, { algorithm });
 
-	mlir::registerDialect<ModelicaDialect>();
-	mlir::registerDialect<mlir::StandardOpsDialect>();
-	mlir::registerDialect<mlir::scf::SCFDialect>();
-	mlir::registerDialect<mlir::LLVM::LLVMDialect>();
+	ClassContainer cls(function);
 
+	registerDialects();
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	auto lowered = lowerer.lower(function);
-	lowered.dump();
+	mlir::ModuleOp module = lowerer.lower({ cls });
 
-	mlir::ModuleOp module = mlir::ModuleOp::create(lowerer.builder.getUnknownLoc());
-	module.push_back(lowered);
-
-	//module.dump();
-
-	mlir::PassManager pm(&context);
-	pm.addPass(std::make_unique<LLVMLoweringPass>());
-	pm.run(module);
-	//module.dump();
+	if (failed(convertToLLVMDialect(&context, module)))
+		return;
 
 	auto llvmModule = mlir::translateModuleToLLVMIR(module);
-	//result->dump(); // doesn't work
-	//llvmModule->print(llvm::errs(), nullptr); // works
+	//llvmModule->print(llvm::errs(), nullptr);
 
 	if (!llvmModule) {
 		llvm::errs() << "Failed to emit LLVM IR\n";

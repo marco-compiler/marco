@@ -11,13 +11,15 @@ using namespace llvm;
 using namespace std;
 using namespace cl;
 
-cl::OptionCategory omcCCat("FunctionLowerer options");
-cl::opt<string> InputFileName(
-		cl::Positional, cl::desc("<input-file>"), cl::init("-"), cl::cat(omcCCat));
+
 
 ExitOnError exitOnErr;
 int main(int argc, char* argv[])
 {
+	cl::OptionCategory optionCategory("FunctionLowerer options");
+	cl::opt<string> InputFileName(
+			cl::Positional, cl::desc("<input-file>"), cl::init("-"), cl::cat(optionCategory));
+
 	cl::ParseCommandLineOptions(argc, argv);
 	auto errorOrBuffer = MemoryBuffer::getFileOrSTDIN(InputFileName);
 	error_code error;

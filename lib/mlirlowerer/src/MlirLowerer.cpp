@@ -5,6 +5,7 @@
 #include <mlir/IR/Function.h>
 #include <mlir/IR/StandardTypes.h>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
+#include <modelica/mlirlowerer/ModelicaDialect.hpp>
 #include <modelica/utils/IRange.hpp>
 #include <set>
 
@@ -15,22 +16,35 @@ using namespace mlir;
 using namespace modelica;
 using namespace std;
 
-
-MlirLowerer::MlirLowerer(mlir::MLIRContext& context) : builder(&context)
+MlirLowerer::MlirLowerer(mlir::MLIRContext& context)
+		: context(context), builder(&context)
 {
+	// Check that the required dialects have been previously registered
+	assert(context.getRegisteredDialect<ModelicaDialect>() != nullptr);
+	assert(context.getRegisteredDialect<StandardOpsDialect>() != nullptr);
+	assert(context.getRegisteredDialect<scf::SCFDialect>() != nullptr);
+	assert(context.getRegisteredDialect<LLVM::LLVMDialect>() != nullptr);
 }
 
-FuncOp MlirLowerer::lower(const ClassContainer& cls)
+mlir::ModuleOp MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer> classes)
 {
-	return cls.visit([&](auto& obj) { return lower(obj); });
+	mlir::ModuleOp module = ModuleOp::create(builder.getUnknownLoc());
+
+	for (const auto& cls : classes)
+	{
+		auto* op = cls.visit([&](auto& obj) -> mlir::Operation* { return lower(obj); });
+		module.push_back(op);
+	}
+
+	return module;
 }
 
-FuncOp MlirLowerer::lower(const Class& cls)
+mlir::Operation* MlirLowerer::lower(const modelica::Class& cls)
 {
 	return nullptr;
 }
 
-FuncOp MlirLowerer::lower(const Function& foo)
+mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 {
 	// Create a scope in the symbol table to hold variable declarations.
 	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
@@ -44,7 +58,7 @@ FuncOp MlirLowerer::lower(const Function& foo)
 		argTypes.push_back(lower(member->getType()));
 
 	for (const auto& member : foo.getResults())
-			returnTypes.push_back(lower(member->getType()));
+		returnTypes.push_back(lower(member->getType()));
 
 	auto functionType = builder.getFunctionType(argTypes, returnTypes);
 	auto function = mlir::FuncOp::create(location, foo.getName(), functionType);
@@ -95,7 +109,7 @@ mlir::Location MlirLowerer::loc(SourcePosition location)
 																	 location.column);
 }
 
-mlir::MemRefType MlirLowerer::lower(const Type& type)
+mlir::MemRefType MlirLowerer::lower(const modelica::Type& type)
 {
 	auto visitor = [&](auto& obj)
 	{
@@ -108,13 +122,13 @@ mlir::MemRefType MlirLowerer::lower(const Type& type)
 			return MemRefType::get(shape, baseType);
 		}
 
-		return MemRefType::get({ }, baseType);
+		return MemRefType::get({}, baseType);
 	};
 
 	return type.visit(visitor);
 }
 
-mlir::Type MlirLowerer::lower(const BuiltInType& type)
+mlir::Type MlirLowerer::lower(const modelica::BuiltInType& type)
 {
 	switch (type)
 	{
@@ -129,9 +143,11 @@ mlir::Type MlirLowerer::lower(const BuiltInType& type)
 		default:
 			assert(false && "Unexpected type");
 	}
+
+	return builder.getNoneType();
 }
 
-mlir::Type MlirLowerer::lower(const UserDefinedType& type)
+mlir::Type MlirLowerer::lower(const modelica::UserDefinedType& type)
 {
 	SmallVector<mlir::Type, 3> types;
 
@@ -141,7 +157,7 @@ mlir::Type MlirLowerer::lower(const UserDefinedType& type)
 	return builder.getTupleType(move(types));
 }
 
-void MlirLowerer::lower(const Member& member)
+void MlirLowerer::lower(const modelica::Member& member)
 {
 	auto type = lower(member.getType());
 	auto var = builder.create<AllocaOp>(builder.getUnknownLoc(), type);
@@ -155,19 +171,19 @@ void MlirLowerer::lower(const Member& member)
 	}
 }
 
-void MlirLowerer::lower(const Algorithm& algorithm)
+void MlirLowerer::lower(const modelica::Algorithm& algorithm)
 {
 	for (const auto& statement : algorithm) {
 		lower(statement);
 	}
 }
 
-void MlirLowerer::lower(const Statement& statement)
+void MlirLowerer::lower(const modelica::Statement& statement)
 {
 	statement.visit([&](auto& obj) { lower(obj); });
 }
 
-void MlirLowerer::lower(const AssignmentStatement& statement)
+void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
 {
 	auto destinations = statement.getDestinations();
 	auto values = lower<modelica::Expression>(statement.getExpression());
@@ -186,7 +202,7 @@ void MlirLowerer::lower(const AssignmentStatement& statement)
 	}
 }
 
-void MlirLowerer::lower(const IfStatement& statement)
+void MlirLowerer::lower(const modelica::IfStatement& statement)
 {
 	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
 
@@ -211,33 +227,33 @@ void MlirLowerer::lower(const IfStatement& statement)
 	builder.restoreInsertionPoint(insertionPoint);
 }
 
-void MlirLowerer::lower(const ForStatement& statement)
+void MlirLowerer::lower(const modelica::ForStatement& statement)
 {
 	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
 }
 
-void MlirLowerer::lower(const WhileStatement& statement)
+void MlirLowerer::lower(const modelica::WhileStatement& statement)
 {
 	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
 }
 
-void MlirLowerer::lower(const WhenStatement& statement)
+void MlirLowerer::lower(const modelica::WhenStatement& statement)
 {
 	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
 }
 
-void MlirLowerer::lower(const BreakStatement& statement)
+void MlirLowerer::lower(const modelica::BreakStatement& statement)
 {
 
 }
 
-void MlirLowerer::lower(const ReturnStatement& statement)
+void MlirLowerer::lower(const modelica::ReturnStatement& statement)
 {
 
 }
 
 template<>
-MlirLowerer::Container<mlir::Value> MlirLowerer::lower<Expression>(const Expression& expression)
+MlirLowerer::Container<mlir::Value> MlirLowerer::lower<Expression>(const modelica::Expression& expression)
 {
 	return expression.visit([&](auto& obj) {
 		using type = decltype(obj);
@@ -248,7 +264,7 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<Expression>(const Express
 }
 
 template<>
-MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Operation>(const Expression& expression)
+MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Operation>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::Operation>());
 	const auto& operation = expression.get<modelica::Operation>();
@@ -287,7 +303,7 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Operation>(cons
 }
 
 template<>
-MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Constant>(const Expression& expression)
+MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Constant>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::Constant>());
 	const auto& constant = expression.get<modelica::Constant>();
@@ -301,7 +317,7 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Constant>(const
 }
 
 template<>
-MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::ReferenceAccess>(const Expression& expression)
+MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::ReferenceAccess>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::ReferenceAccess>());
 	const auto& reference = expression.get<modelica::ReferenceAccess>();
@@ -310,7 +326,7 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::ReferenceAccess
 }
 
 template<>
-MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Call>(const Expression& expression)
+MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Call>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::Call>());
 	const auto& call = expression.get<modelica::Call>();
@@ -337,7 +353,7 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Call>(const Exp
 }
 
 template<>
-MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Tuple>(const Expression& expression)
+MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Tuple>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::Tuple>());
 	const auto& tuple = expression.get<modelica::Tuple>();
@@ -355,4 +371,19 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Tuple>(const Ex
 	}
 
 	return result;
+}
+
+void modelica::registerDialects()
+{
+	mlir::registerDialect<ModelicaDialect>();
+	mlir::registerDialect<StandardOpsDialect>();
+	mlir::registerDialect<scf::SCFDialect>();
+	mlir::registerDialect<LLVM::LLVMDialect>();
+}
+
+mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module)
+{
+	mlir::PassManager passManager(context);
+	passManager.addPass(std::make_unique<LLVMLoweringPass>());
+	return passManager.run(module);
 }
