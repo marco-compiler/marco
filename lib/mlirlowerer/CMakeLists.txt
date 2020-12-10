@@ -16,4 +16,5 @@ target_link_libraries(
         MLIRStandardToLLVM
         MLIRTargetLLVMIR
         MLIRTransforms
+        MLIRExecutionEngine
 )

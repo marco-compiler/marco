@@ -8,6 +8,7 @@ using namespace mlir;
 void LLVMLoweringPass::runOnOperation() {
 	LLVMConversionTarget target(getContext());
 	target.addLegalOp<ModuleOp, ModuleTerminatorOp>();
+
 	LLVMTypeConverter typeConverter(&getContext());
 
 	OwningRewritePatternList patterns;

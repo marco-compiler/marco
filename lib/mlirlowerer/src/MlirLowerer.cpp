@@ -1,12 +1,14 @@
 #include <llvm/ADT/SmallVector.h>
+#include <mlir/Dialect/Affine/IR/AffineOps.h>
+#include <mlir/Dialect/SCF/SCF.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Function.h>
 #include <mlir/IR/StandardTypes.h>
-#include <mlir/Dialect/Affine/IR/AffineOps.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/Dialect/SCF/SCF.h>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/utils/IRange.hpp>
 #include <set>
+
+#include <mlir/IR/PatternMatch.h>
 
 using namespace llvm;
 using namespace mlir;
@@ -62,6 +64,10 @@ FuncOp MlirLowerer::lower(const Function& foo)
 	// function.
 	builder.setInsertionPointToStart(&entryBlock);
 
+	// Initialize members
+	for (const auto& member : foo.getMembers())
+		lower(member);
+
 	// Emit the body of the function
 	if (mlir::failed(lower(foo.getAlgorithms()[0]))) {
 		function.erase();
@@ -71,7 +77,11 @@ FuncOp MlirLowerer::lower(const Function& foo)
 	std::vector<mlir::Value> results;
 
 	for (const auto& member : foo.getResults())
-		results.push_back(symbolTable.lookup(member->getName()));
+	{
+		auto reference = symbolTable.lookup(member->getName());
+		auto value = builder.create<LoadOp>(builder.getUnknownLoc(), reference);
+		results.push_back(value);
+	}
 
 	if (!returnTypes.empty())
 		builder.create<ReturnOp>(builder.getUnknownLoc(), results);
@@ -118,6 +128,22 @@ mlir::Type MlirLowerer::lower(const UserDefinedType& type)
 	return builder.getTupleType(move(types));
 }
 
+mlir::LogicalResult MlirLowerer::lower(const Member& member)
+{
+	auto type = lower(member.getType());
+	auto var = builder.create<AllocaOp>(builder.getUnknownLoc(), MemRefType::get({}, type));
+	symbolTable.insert(member.getName(), var);
+
+	if (member.hasInitializer())
+	{
+		auto values = lower<modelica::Expression>(member.getInitializer());
+		assert(!values.empty());
+		builder.create<StoreOp>(builder.getUnknownLoc(), values[0], var);
+	}
+
+	return mlir::success();
+}
+
 mlir::LogicalResult MlirLowerer::lower(const Algorithm& algorithm)
 {
 	for (const auto& statement : algorithm) {
@@ -127,151 +153,76 @@ mlir::LogicalResult MlirLowerer::lower(const Algorithm& algorithm)
 	return mlir::success();
 }
 
-MlirLowerer::Container<std::pair<llvm::StringRef, mlir::Value>> MlirLowerer::lower(const Statement& statement)
+void MlirLowerer::lower(const Statement& statement)
 {
-	return statement.visit([&](auto& obj) { return lower(obj); });
+	statement.visit([&](auto& obj) { lower(obj); });
 }
 
-MlirLowerer::Container<std::pair<llvm::StringRef, mlir::Value>> MlirLowerer::lower(const AssignmentStatement& statement)
+void MlirLowerer::lower(const AssignmentStatement& statement)
 {
 	auto destinations = statement.getDestinations();
 	auto values = lower<modelica::Expression>(statement.getExpression());
 	assert(values.size() == destinations.size() && "Unmatched number of destinations and results");
-
-	Container<std::pair<llvm::StringRef, mlir::Value>> assigned;
 
 	for (auto pair : zip(destinations, values))
 	{
 		const auto& reference = get<0>(pair)->get<ReferenceAccess>();
 
 		if (!reference.isDummy())
-			symbolTable.insert(reference.getName(), get<1>(pair));
-
-		assigned.emplace_back(reference.getName(), get<1>(pair));
+		{
+			auto destination = symbolTable.lookup(reference.getName());
+			auto& value = get<1>(pair);
+			builder.create<StoreOp>(builder.getUnknownLoc(), value, destination);
+		}
 	}
-
-	return assigned;
 }
 
-MlirLowerer::Container<std::pair<llvm::StringRef, mlir::Value>> MlirLowerer::lower(const IfStatement& statement)
+void MlirLowerer::lower(const IfStatement& statement)
 {
-	SmallVector<std::map<llvm::StringRef, mlir::Value>, 3> assignments;
-	set<llvm::StringRef> vars;
-	stack<Block*> blocks;
+	auto insertionPoint = builder.saveInsertionPoint();
+	size_t blocks = statement.size();
 
-	for (const auto& conditionalBlock : statement)
+	for (size_t i = 0; i < blocks; i++)
 	{
+		const auto& conditionalBlock = statement[i];
 		auto condition = lower<modelica::Expression>(conditionalBlock.getCondition())[0];
-		auto insertionPoint = builder.saveInsertionPoint();
-
-		Block* trueDest = builder.createBlock(builder.getBlock()->getParent());
-		Block* falseDest = builder.createBlock(builder.getBlock()->getParent());
-
-		// Apart from the "then" blocks, only the last "else" block needs a
-		// final branch.
-		if (!blocks.empty())
-			blocks.pop();
-
-		blocks.push(trueDest);
-		blocks.push(falseDest);
-
-		builder.restoreInsertionPoint(insertionPoint);
-		builder.create<CondBranchOp>(condition.getLoc(), condition, trueDest, falseDest);
-
-		// First, we create the statements of the current conditional block.
-		// While creating them, we keep note of which variables are updated.
-		builder.setInsertionPointToStart(trueDest);
-
-		ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
-		assignments.emplace_back();
+		bool elseBlock = i < blocks - 1;
+		auto ifOp = builder.create<scf::IfOp>(builder.getUnknownLoc(), condition, elseBlock);
+		builder.setInsertionPointToStart(&ifOp.thenRegion().front());
 
 		for (const auto& stmnt : conditionalBlock)
-			for (auto& assignment : lower(stmnt))
-			{
-				assignments[assignments.size() - 1][get<0>(assignment)] = get<1>(assignment);
-				vars.emplace(get<0>(assignment));
-			}
+			lower(stmnt);
 
-		// Following code will be inserted in the "else" block. In fact, there is
-		// no "else if" block and thus we need to handle them as nested ifs.
-		builder.setInsertionPointToStart(falseDest);
+		if (elseBlock)
+			builder.setInsertionPointToStart(&ifOp.elseRegion().front());
 	}
 
-	// The last dummy "else" block is automatically created but will never
-	// contain any statement. It is created anyway to keep the lowering simple,
-	// and its optimization will be done later. For not having an imbalance, we
-	// thus need to register that this last block has no assignments but only
-	// a branch to the exit block.
-	assignments.emplace_back();
-
-	Block* exitBlock = builder.createBlock(builder.getBlock()->getParent());
-
-	// Create the branch operation for each block
-	for (size_t i = assignments.size(); i > 0; i--)
-	{
-		auto& blockAssignments = assignments[i - 1];
-		SmallVector<mlir::Value, 3> values;
-
-		for (const auto& var : vars)
-			values.emplace_back(blockAssignments.find(var) != blockAssignments.end() ? blockAssignments[var] : symbolTable.lookup(var));
-
-		builder.setInsertionPointToEnd(blocks.top());
-		builder.create<BranchOp>(builder.getUnknownLoc(), exitBlock, values);
-		blocks.pop();
-	}
-
-	// Add the argument types to the exit block
-	SmallVector<mlir::Type, 3> types;
-
-	for (const auto& var : vars)
-		types.push_back(symbolTable.lookup(var).getType());
-
-	exitBlock->addArguments(types);
-
-	// The subsequent code will continue to be emitted in the exit block
-	builder.setInsertionPointToEnd(exitBlock);
-
-	// Return the list of possibly modified variables
-	Container<std::pair<llvm::StringRef, mlir::Value>> result;
-
-	for (auto pair : zip(vars, exitBlock->getArguments()))
-	{
-		symbolTable.insert(get<0>(pair), get<1>(pair));
-		result.emplace_back(get<0>(pair), get<1>(pair));
-	}
-
-	return result;
+	builder.restoreInsertionPoint(insertionPoint);
 }
 
-MlirLowerer::Container<std::pair<llvm::StringRef, mlir::Value>> MlirLowerer::lower(const ForStatement& statement)
+void MlirLowerer::lower(const ForStatement& statement)
 {
 	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
-
-	return {};
 }
 
-MlirLowerer::Container<std::pair<llvm::StringRef, mlir::Value>> MlirLowerer::lower(const WhileStatement& statement)
+void MlirLowerer::lower(const WhileStatement& statement)
 {
 	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
-
-	return {};
 }
 
-MlirLowerer::Container<std::pair<llvm::StringRef, mlir::Value>> MlirLowerer::lower(const WhenStatement& statement)
+void MlirLowerer::lower(const WhenStatement& statement)
 {
 	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
-
-	return {};
 }
 
-MlirLowerer::Container<std::pair<llvm::StringRef, mlir::Value>> MlirLowerer::lower(const BreakStatement& statement)
+void MlirLowerer::lower(const BreakStatement& statement)
 {
-	return {};
+
 }
 
-MlirLowerer::Container<std::pair<llvm::StringRef, mlir::Value>> MlirLowerer::lower(const ReturnStatement& statement)
+void MlirLowerer::lower(const ReturnStatement& statement)
 {
-	return {};
+
 }
 
 template<>

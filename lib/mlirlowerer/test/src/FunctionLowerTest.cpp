@@ -11,6 +11,7 @@
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
 #include <modelica/utils/SourceRange.hpp>
+#include <mlir/ExecutionEngine/OptUtils.h>
 
 using namespace modelica;
 using namespace std;
@@ -69,20 +70,44 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto lowered = lowerer.lower(function);
-	//lowered.dump();
+	lowered.dump();
 
 	mlir::ModuleOp module = mlir::ModuleOp::create(lowerer.builder.getUnknownLoc());
 	module.push_back(lowered);
 
-	module.dump();
+	//module.dump();
 
 	mlir::PassManager pm(&context);
 	pm.addPass(std::make_unique<LLVMLoweringPass>());
 	pm.run(module);
-	module.dump();
+	//module.dump();
 
-	auto result = mlir::translateModuleToLLVMIR(module);
+	auto llvmModule = mlir::translateModuleToLLVMIR(module);
 	//result->dump(); // doesn't work
-	result->print(llvm::errs(), nullptr);
+	llvmModule->print(llvm::errs(), nullptr); // works
 
+	/*
+	if (!llvmModule) {
+		llvm::errs() << "Failed to emit LLVM IR\n";
+	}
+	else
+	{
+		// Initialize LLVM targets.
+		//mlir::llvm::InitializeNativeTarget();
+		//mlir::llvm::InitializeNativeTargetAsmPrinter();
+		//mlir::ExecutionEngine::setupTargetTriple(llvmModule.get());
+
+		/// Optionally run an optimization pipeline over the llvm module.
+		auto optPipeline = mlir::makeOptimizingTransformer(
+				0, // optLevel
+				0, // sizeLevel
+				nullptr); // targetMachine
+
+		if (auto err = optPipeline(llvmModule.get())) {
+			llvm::errs() << "Failed to optimize LLVM IR " << err << "\n";
+		}
+
+		llvm::errs() << *llvmModule << "\n";
+	}
+	*/
 }
