@@ -53,23 +53,32 @@ bool Function::isPure() const
 
 Container<Member>& Function::getMembers() { return members; }
 
-const Container<Member>& Function::getMembers() const { return members; }
+const Container<Member>& Function::getMembers() const{ return members; }
 
-Container<Member*>& Function::getArgs() { return args; }
+Container<const Member*> Function::getArgs() const
+{
+	Container<const Member*> args;
 
-const Container<Member*>& Function::getArgs() const { return args; }
+	for (const auto& member : members)
+		if (member.isInput())
+			args.push_back(&member);
 
-Container<Member*>& Function::getResults() { return results; }
+	return args;
+}
 
-const Container<Member*>& Function::getResults() const { return results; }
+Container<const Member*> Function::getResults() const
+{
+	Container<const Member*> results;
+
+	for (const auto& member : members)
+		if (member.isOutput())
+			results.push_back(&member);
+
+	return results;
+}
 
 void Function::addMember(Member member) {
-	Member* m = &members.emplace_back(move(member));
-
-	if (m->isInput())
-		args.push_back(m);
-	else if (m->isOutput())
-		results.push_back(m);
+	members.emplace_back(move(member));
 }
 
 Container<Algorithm>& Function::getAlgorithms() { return algorithms; }

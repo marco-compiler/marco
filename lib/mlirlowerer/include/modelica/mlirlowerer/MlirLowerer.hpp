@@ -22,13 +22,13 @@ namespace modelica
 		mlir::FuncOp lower(const modelica::ClassContainer& cls);
 		mlir::FuncOp lower(const modelica::Class& cls);
 		mlir::FuncOp lower(const modelica::Function& function);
-		mlir::Type lower(const modelica::Type& type);
+		mlir::MemRefType lower(const modelica::Type& type);
 		mlir::Type lower(const modelica::BuiltInType& type);
 		mlir::Type lower(const modelica::UserDefinedType& type);
 
-		mlir::LogicalResult lower(const modelica::Member& member);
+		void lower(const modelica::Member& member);
 
-		mlir::LogicalResult lower(const modelica::Algorithm& algorithm);
+		void lower(const modelica::Algorithm& algorithm);
 
 		void lower(const modelica::Statement& statement);
 		void lower(const modelica::AssignmentStatement& statement);

@@ -34,6 +34,9 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 	Member z("z", Type::Float(),
 					 TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
+	Member t("t", Type(BuiltInType::Float, { 2 }),
+					 TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
 	SourcePosition location("-", 0, 0);
 
 	Algorithm algorithm({
@@ -84,9 +87,8 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 
 	auto llvmModule = mlir::translateModuleToLLVMIR(module);
 	//result->dump(); // doesn't work
-	llvmModule->print(llvm::errs(), nullptr); // works
+	//llvmModule->print(llvm::errs(), nullptr); // works
 
-	/*
 	if (!llvmModule) {
 		llvm::errs() << "Failed to emit LLVM IR\n";
 	}
@@ -99,7 +101,7 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 
 		/// Optionally run an optimization pipeline over the llvm module.
 		auto optPipeline = mlir::makeOptimizingTransformer(
-				0, // optLevel
+				3, // optLevel
 				0, // sizeLevel
 				nullptr); // targetMachine
 
@@ -109,5 +111,4 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 
 		llvm::errs() << *llvmModule << "\n";
 	}
-	*/
 }

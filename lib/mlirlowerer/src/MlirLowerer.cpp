@@ -66,14 +66,13 @@ FuncOp MlirLowerer::lower(const Function& foo)
 
 	// Initialize members
 	for (const auto& member : foo.getMembers())
-		lower(member);
+		if (!member.isInput())
+			lower(member);
 
 	// Emit the body of the function
-	if (mlir::failed(lower(foo.getAlgorithms()[0]))) {
-		function.erase();
-		return nullptr;
-	}
+	lower(foo.getAlgorithms()[0]);
 
+	// Return statement
 	std::vector<mlir::Value> results;
 
 	for (const auto& member : foo.getResults())
@@ -96,9 +95,23 @@ mlir::Location MlirLowerer::loc(SourcePosition location)
 																	 location.column);
 }
 
-mlir::Type MlirLowerer::lower(const Type& type)
+mlir::MemRefType MlirLowerer::lower(const Type& type)
 {
-	return type.visit([&](auto& obj) { return lower(obj); });
+	auto visitor = [&](auto& obj)
+	{
+		auto baseType = lower(obj);
+
+		if (!type.isScalar())
+		{
+			const auto& dimensions = type.getDimensions();
+			SmallVector<long, 3> shape(dimensions.begin(), dimensions.end());
+			return MemRefType::get(shape, baseType);
+		}
+
+		return MemRefType::get({ }, baseType);
+	};
+
+	return type.visit(visitor);
 }
 
 mlir::Type MlirLowerer::lower(const BuiltInType& type)
@@ -128,10 +141,10 @@ mlir::Type MlirLowerer::lower(const UserDefinedType& type)
 	return builder.getTupleType(move(types));
 }
 
-mlir::LogicalResult MlirLowerer::lower(const Member& member)
+void MlirLowerer::lower(const Member& member)
 {
 	auto type = lower(member.getType());
-	auto var = builder.create<AllocaOp>(builder.getUnknownLoc(), MemRefType::get({}, type));
+	auto var = builder.create<AllocaOp>(builder.getUnknownLoc(), type);
 	symbolTable.insert(member.getName(), var);
 
 	if (member.hasInitializer())
@@ -140,17 +153,13 @@ mlir::LogicalResult MlirLowerer::lower(const Member& member)
 		assert(!values.empty());
 		builder.create<StoreOp>(builder.getUnknownLoc(), values[0], var);
 	}
-
-	return mlir::success();
 }
 
-mlir::LogicalResult MlirLowerer::lower(const Algorithm& algorithm)
+void MlirLowerer::lower(const Algorithm& algorithm)
 {
 	for (const auto& statement : algorithm) {
 		lower(statement);
 	}
-
-	return mlir::success();
 }
 
 void MlirLowerer::lower(const Statement& statement)
@@ -179,6 +188,8 @@ void MlirLowerer::lower(const AssignmentStatement& statement)
 
 void MlirLowerer::lower(const IfStatement& statement)
 {
+	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
+
 	auto insertionPoint = builder.saveInsertionPoint();
 	size_t blocks = statement.size();
 
@@ -294,7 +305,8 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::ReferenceAccess
 {
 	assert(expression.isA<modelica::ReferenceAccess>());
 	const auto& reference = expression.get<modelica::ReferenceAccess>();
-	return { symbolTable.lookup(reference.getName()) };
+	auto var = symbolTable.lookup(reference.getName());
+	return { builder.create<LoadOp>(builder.getUnknownLoc(), var) };
 }
 
 template<>
