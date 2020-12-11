@@ -1,3 +1,5 @@
+#pragma once
+
 #include <mlir/IR/Dialect.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Transforms/DialectConversion.h>

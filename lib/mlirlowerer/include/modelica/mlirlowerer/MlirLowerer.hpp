@@ -13,11 +13,9 @@
 
 namespace modelica
 {
-	static void registerDialects();
+	void registerDialects();
 
-	static mlir::LogicalResult convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module);
-
-	static
+	mlir::LogicalResult convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module);
 
 	class MlirLowerer
 	{

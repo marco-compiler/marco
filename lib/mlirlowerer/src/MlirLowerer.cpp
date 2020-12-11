@@ -16,8 +16,22 @@ using namespace mlir;
 using namespace modelica;
 using namespace std;
 
-MlirLowerer::MlirLowerer(mlir::MLIRContext& context)
-		: context(context), builder(&context)
+void modelica::registerDialects()
+{
+	mlir::registerDialect<ModelicaDialect>();
+	mlir::registerDialect<StandardOpsDialect>();
+	mlir::registerDialect<scf::SCFDialect>();
+	mlir::registerDialect<LLVM::LLVMDialect>();
+}
+
+mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module)
+{
+	mlir::PassManager passManager(context);
+	passManager.addPass(std::make_unique<LLVMLoweringPass>());
+	return passManager.run(module);
+}
+
+MlirLowerer::MlirLowerer(mlir::MLIRContext& context) : builder(&context)
 {
 	// Check that the required dialects have been previously registered
 	assert(context.getRegisteredDialect<ModelicaDialect>() != nullptr);
@@ -371,19 +385,4 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Tuple>(const mo
 	}
 
 	return result;
-}
-
-void modelica::registerDialects()
-{
-	mlir::registerDialect<ModelicaDialect>();
-	mlir::registerDialect<StandardOpsDialect>();
-	mlir::registerDialect<scf::SCFDialect>();
-	mlir::registerDialect<LLVM::LLVMDialect>();
-}
-
-mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module)
-{
-	mlir::PassManager passManager(context);
-	passManager.addPass(std::make_unique<LLVMLoweringPass>());
-	return passManager.run(module);
 }
