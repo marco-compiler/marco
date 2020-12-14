@@ -71,6 +71,8 @@ namespace modelica
 		[[nodiscard]] const Container& getArguments() const;
 		[[nodiscard]] size_t argumentsCount() const;
 
+		[[nodiscard]] size_t size() const;
+
 		[[nodiscard]] iterator begin();
 		[[nodiscard]] const_iterator begin() const;
 

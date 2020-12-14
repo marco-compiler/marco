@@ -139,14 +139,12 @@ Error TypeChecker::checkType(Function& function, const SymbolTable& table)
 	{
 		for (auto& assignment : statement)
 		{
-			for (auto& destination : assignment.getDestinations())
+			for (auto& exp : assignment.getDestinations())
 			{
 				// From Function reference:
 				// "Input formal parameters are read-only after being bound to the
 				// actual arguments or default values, i.e., they may not be assigned
 				// values in the body of the function."
-
-				auto& exp = *destination;
 
 				while (exp.isA<Operation>())
 				{
@@ -379,14 +377,14 @@ Error TypeChecker::checkType(
 
 	for (auto& destination : destinations)
 	{
-		if (auto error = checkType<Expression>(*destination, table); error)
+		if (auto error = checkType<Expression>(destination, table); error)
 			return error;
 
 		// The destinations must be l-values.
 		// The check can't be enforced at parsing time because the grammar
 		// specifies the destinations as expressions.
 
-		if (!destination->isLValue())
+		if (!destination.isLValue())
 			return make_error<BadSemantic>(
 					"Destinations of statements must be l-values");
 	}
@@ -409,10 +407,10 @@ Error TypeChecker::checkType(
 	{
 		// If it's not a direct reference access, there's no way it can be a
 		// dummy variable.
-		if (!destinations[i]->isA<ReferenceAccess>())
+		if (!destinations[i].isA<ReferenceAccess>())
 			continue;
 
-		auto& ref = destinations[i]->get<ReferenceAccess>();
+		auto& ref = destinations[i].get<ReferenceAccess>();
 
 		if (ref.isDummy())
 		{
@@ -420,7 +418,7 @@ Error TypeChecker::checkType(
 			assert(expressionType.isA<UserDefinedType>());
 			auto& userDefType = expressionType.get<UserDefinedType>();
 			assert(userDefType.size() >= i);
-			destinations[i]->setType(userDefType[i]);
+			destinations[i].setType(userDefType[i]);
 		}
 	}
 
@@ -437,7 +435,7 @@ Error TypeChecker::checkType(
 			vector<Expression> newDestinations;
 
 			for (auto& destination : destinations)
-				newDestinations.push_back(move(*destination));
+				newDestinations.push_back(move(destination));
 
 			for (size_t i = newDestinations.size(); i < returns; i++)
 				newDestinations.emplace_back(SourcePosition("-", 0, 0), userDefType[i], ReferenceAccess::dummy()); // TODO: fix position
@@ -697,16 +695,16 @@ llvm::Error resolveDummyReferences(Function& function)
 			{
 				for (auto& destination : assignment.getDestinations())
 				{
-					if (!destination->isA<ReferenceAccess>())
+					if (!destination.isA<ReferenceAccess>())
 						continue;
 
-					auto& ref = destination->get<ReferenceAccess>();
+					auto& ref = destination.get<ReferenceAccess>();
 
 					if (!ref.isDummy())
 						continue;
 
 					string name = getTemporaryVariableName(function);
-					Member temp(name, destination->getType(), TypePrefix::none());
+					Member temp(name, destination.getType(), TypePrefix::none());
 					ref.setName(temp.getName());
 					function.addMember(temp);
 
@@ -756,16 +754,16 @@ llvm::Error resolveDummyReferences(Class& model)
 			{
 				for (auto& destination : assignment.getDestinations())
 				{
-					if (!destination->isA<ReferenceAccess>())
+					if (!destination.isA<ReferenceAccess>())
 						continue;
 
-					auto& ref = destination->get<ReferenceAccess>();
+					auto& ref = destination.get<ReferenceAccess>();
 
 					if (!ref.isDummy())
 						continue;
 
 					string name = getTemporaryVariableName(model);
-					Member temp(name, destination->getType(), TypePrefix::none());
+					Member temp(name, destination.getType(), TypePrefix::none());
 					ref.setName(temp.getName());
 					model.addMember(temp);
 

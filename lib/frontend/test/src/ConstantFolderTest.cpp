@@ -14,10 +14,12 @@ using namespace std;
 
 TEST(folderTest, sumShouldFold)
 {
+	SourcePosition location("-", 0, 0);
 	Expression exp = Expression::op<OperationKind::add>(
+			location,
 			makeType<int>(),
-			Expression(makeType<int>(), 3),
-			Expression(makeType<int>(), 4));
+			Expression(location, makeType<int>(), 3),
+			Expression(location, makeType<int>(), 4));
 	ConstantFolder folder;
 	if (folder.fold(exp, SymbolTable()))
 		FAIL();
@@ -28,10 +30,12 @@ TEST(folderTest, sumShouldFold)
 
 TEST(folderTest, subShouldFold)
 {
+	SourcePosition location("-", 0, 0);
 	Expression exp = Expression::op<OperationKind::subtract>(
+			location,
 			makeType<int>(),
-			Expression(makeType<int>(), 3),
-			Expression(makeType<int>(), 2));
+			Expression(location, makeType<int>(), 3),
+			Expression(location, makeType<int>(), 2));
 	ConstantFolder folder;
 	if (folder.fold(exp, SymbolTable()))
 		FAIL();
@@ -42,10 +46,12 @@ TEST(folderTest, subShouldFold)
 
 TEST(folderTest, sumOfSubShouldFold)
 {
+	SourcePosition location("-", 0, 0);
 	Expression exp = Expression::op<OperationKind::add>(
+			location,
 			makeType<int>(),
-			Expression(makeType<int>(), 3),
-			Expression(makeType<int>(), -1));
+			Expression(location, makeType<int>(), 3),
+			Expression(location, makeType<int>(), -1));
 	ConstantFolder folder;
 	if (folder.fold(exp, SymbolTable()))
 		FAIL();
@@ -56,13 +62,14 @@ TEST(folderTest, sumOfSubShouldFold)
 
 TEST(folderTest, sumInSubscriptionShouldFold)
 {
+	SourcePosition location("-", 0, 0);
 	Expression exp = Expression::op<OperationKind::add>(
-			makeType<int>(),
-			Expression(makeType<int>(), 3),
-			Expression(makeType<int>(), -1));
+			location, makeType<int>(),
+			Expression(location, makeType<int>(), 3),
+			Expression(location, makeType<int>(), -1));
 	exp = Expression::op<OperationKind::subscription>(
-			makeType<int>(),
-			Expression(makeType<int>(10), ReferenceAccess("name")),
+			location, makeType<int>(),
+			Expression(location, makeType<int>(10), ReferenceAccess("name")),
 			exp);
 	ConstantFolder folder;
 
@@ -80,17 +87,18 @@ TEST(folderTest, sumInSubscriptionShouldFold)
 
 TEST(folderTest, sumInSubscriptionInDerShouldFold)
 {
+	SourcePosition location("-", 0, 0);
 	Expression exp = Expression::op<OperationKind::add>(
-			makeType<int>(),
-			Expression(makeType<int>(), 3),
-			Expression(makeType<int>(), -1));
+			location, makeType<int>(),
+			Expression(location, makeType<int>(), 3),
+			Expression(location, makeType<int>(), -1));
 	exp = Expression::op<OperationKind::subscription>(
-			makeType<int>(),
-			Expression(makeType<int>(10), ReferenceAccess("name")),
+			location, makeType<int>(),
+			Expression(location, makeType<int>(10), ReferenceAccess("name")),
 			exp);
 
-	auto refToDer = Expression(Type::unknown(), ReferenceAccess("der"));
-	auto call = makeCall(move(refToDer), { move(exp) });
+	auto refToDer = Expression(location, Type::unknown(), ReferenceAccess("der"));
+	auto call = makeCall(location, move(refToDer), { move(exp) });
 	ConstantFolder folder;
 
 	SymbolTable t;

@@ -1,15 +1,11 @@
 #include <llvm/ADT/SmallVector.h>
-#include <mlir/Dialect/Affine/IR/AffineOps.h>
+#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/Function.h>
-#include <mlir/IR/StandardTypes.h>
+#include <mlir/Pass/PassManager.h>
+#include <modelica/mlirlowerer/LLVMLoweringPass.hpp>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
-#include <modelica/utils/IRange.hpp>
-#include <set>
-
-#include <mlir/IR/PatternMatch.h>
 
 using namespace llvm;
 using namespace mlir;
@@ -31,6 +27,29 @@ mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, m
 	return passManager.run(module);
 }
 
+mlir::Value Reference::operator*()
+{
+	if (isPtr)
+		return builder->create<LoadOp>(builder->getUnknownLoc(), value, indexes);
+
+	return value;
+}
+
+mlir::Value Reference::getValue() const
+{
+	return value;
+}
+
+bool Reference::isPointer() const
+{
+	return isPtr;
+}
+
+mlir::ValueRange Reference::getIndexes() const
+{
+	return indexes;
+}
+
 MlirLowerer::MlirLowerer(mlir::MLIRContext& context) : builder(&context)
 {
 	// Check that the required dialects have been previously registered
@@ -47,7 +66,9 @@ mlir::ModuleOp MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer>
 	for (const auto& cls : classes)
 	{
 		auto* op = cls.visit([&](auto& obj) -> mlir::Operation* { return lower(obj); });
-		module.push_back(op);
+
+		if (op != nullptr)
+			module.push_back(op);
 	}
 
 	return module;
@@ -65,14 +86,34 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 
 	auto location = loc(foo.getSourcePosition());
 
+	SmallVector<llvm::StringRef, 3> argNames;
 	SmallVector<mlir::Type, 3> argTypes;
+	SmallVector<llvm::StringRef, 3> returnNames;
 	SmallVector<mlir::Type, 3> returnTypes;
 
-	for (const auto& member : foo.getArgs())
-		argTypes.push_back(lower(member->getType()));
-
 	for (const auto& member : foo.getResults())
-		returnTypes.push_back(lower(member->getType()));
+	{
+		if (member->getType().isScalar())
+		{
+			returnNames.emplace_back(member->getName());
+			returnTypes.emplace_back(lower(member->getType()));
+		}
+		else
+		{
+			// If a result is an array, then it has to be placed among the arguments.
+			// Otherwise, the callee should alloc the memory on the heap and thus
+			// create a potential memory leak.
+
+			argNames.emplace_back(member->getName());
+			argTypes.emplace_back(lower(member->getType()));
+		}
+	}
+
+	for (const auto& member : foo.getArgs())
+	{
+		argNames.emplace_back(member->getName());
+		argTypes.emplace_back(lower(member->getType()));
+	}
 
 	auto functionType = builder.getFunctionType(argTypes, returnTypes);
 	auto function = mlir::FuncOp::create(location, foo.getName(), functionType);
@@ -83,8 +124,10 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	auto &entryBlock = *function.addEntryBlock();
 
 	// Declare all the function arguments in the symbol table
-	for (const auto& name_value : llvm::zip(foo.getArgs(), entryBlock.getArguments())) {
-		symbolTable.insert(get<0>(name_value)->getName(),  get<1>(name_value));
+	for (const auto& pair : llvm::zip(argNames, entryBlock.getArguments())) {
+		const auto& name = get<0>(pair);
+		const auto& value = get<1>(pair);
+		symbolTable.insert(name, value);
 	}
 
 	// Set the insertion point in the builder to the beginning of the function
@@ -94,8 +137,7 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 
 	// Initialize members
 	for (const auto& member : foo.getMembers())
-		if (!member.isInput())
-			lower(member);
+		lower(member);
 
 	// Emit the body of the function
 	lower(foo.getAlgorithms()[0]);
@@ -103,29 +145,28 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	// Return statement
 	std::vector<mlir::Value> results;
 
-	for (const auto& member : foo.getResults())
+	for (const auto& name : returnNames)
 	{
-		auto reference = symbolTable.lookup(member->getName());
-		auto value = builder.create<LoadOp>(builder.getUnknownLoc(), reference);
+		auto ptr = symbolTable.lookup(name);
+		auto value = builder.create<LoadOp>(builder.getUnknownLoc(), ptr);
 		results.push_back(value);
 	}
 
-	if (!returnTypes.empty())
-		builder.create<ReturnOp>(builder.getUnknownLoc(), results);
-
+	builder.create<ReturnOp>(builder.getUnknownLoc(), results);
 	return function;
 }
 
 mlir::Location MlirLowerer::loc(SourcePosition location)
 {
-	return builder.getFileLineColLoc(builder.getIdentifier(*location.file),
-																	 location.line,
-																	 location.column);
+	return builder.getFileLineColLoc(
+			builder.getIdentifier(*location.file),
+			location.line,
+			location.column);
 }
 
-mlir::MemRefType MlirLowerer::lower(const modelica::Type& type)
+mlir::Type MlirLowerer::lower(const modelica::Type& type)
 {
-	auto visitor = [&](auto& obj)
+	auto visitor = [&](auto& obj) -> mlir::Type
 	{
 		auto baseType = lower(obj);
 
@@ -133,10 +174,10 @@ mlir::MemRefType MlirLowerer::lower(const modelica::Type& type)
 		{
 			const auto& dimensions = type.getDimensions();
 			SmallVector<long, 3> shape(dimensions.begin(), dimensions.end());
-			return MemRefType::get(shape, baseType);
+			return mlir::MemRefType::get(shape, baseType);
 		}
 
-		return MemRefType::get({}, baseType);
+		return baseType;
 	};
 
 	return type.visit(visitor);
@@ -157,8 +198,6 @@ mlir::Type MlirLowerer::lower(const modelica::BuiltInType& type)
 		default:
 			assert(false && "Unexpected type");
 	}
-
-	return builder.getNoneType();
 }
 
 mlir::Type MlirLowerer::lower(const modelica::UserDefinedType& type)
@@ -173,15 +212,37 @@ mlir::Type MlirLowerer::lower(const modelica::UserDefinedType& type)
 
 void MlirLowerer::lower(const modelica::Member& member)
 {
-	auto type = lower(member.getType());
-	auto var = builder.create<AllocaOp>(builder.getUnknownLoc(), type);
-	symbolTable.insert(member.getName(), var);
-
-	if (member.hasInitializer())
+	if (member.getType().isScalar() || !member.isInput())
 	{
-		auto values = lower<modelica::Expression>(member.getInitializer());
-		assert(!values.empty());
-		builder.create<StoreOp>(builder.getUnknownLoc(), values[0], var);
+		auto type = lower(member.getType());
+		mlir::Value var;
+
+		if (type.isa<ShapedType>())
+		{
+			auto shape = type.cast<ShapedType>().getShape();
+			auto baseType = type.cast<ShapedType>().getElementType();
+			var = builder.create<AllocaOp>(builder.getUnknownLoc(), MemRefType::get(shape, baseType));
+			symbolTable.insert(member.getName(), var);
+		}
+		else
+		{
+			var = builder.create<AllocaOp>(builder.getUnknownLoc(), MemRefType::get({}, type));
+
+			// Input variables already have an associated value. Copy it to the stack.
+			if (member.isInput())
+			{
+				auto value = symbolTable.lookup(member.getName());
+				builder.create<StoreOp>(builder.getUnknownLoc(), value, var);
+			}
+
+			symbolTable.insert(member.getName(), var);
+
+			if (member.hasInitializer())
+			{
+				auto reference = lower<modelica::Expression>(member.getInitializer())[0];
+				builder.create<StoreOp>(builder.getUnknownLoc(), *reference, var);
+			}
+		}
 	}
 }
 
@@ -201,18 +262,13 @@ void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
 {
 	auto destinations = statement.getDestinations();
 	auto values = lower<modelica::Expression>(statement.getExpression());
-	assert(values.size() == destinations.size() && "Unmatched number of destinations and results");
+	assert(values.size() == destinations.size() && "Unequal number of destinations and results");
 
 	for (auto pair : zip(destinations, values))
 	{
-		const auto& reference = get<0>(pair)->get<ReferenceAccess>();
-
-		if (!reference.isDummy())
-		{
-			auto destination = symbolTable.lookup(reference.getName());
-			auto& value = get<1>(pair);
-			builder.create<StoreOp>(builder.getUnknownLoc(), value, destination);
-		}
+		auto& ptr = lower<modelica::Expression>(get<0>(pair))[0];
+		auto value = *get<1>(pair);
+		builder.create<StoreOp>(builder.getUnknownLoc(), value, ptr.getValue(), ptr.getIndexes());
 	}
 }
 
@@ -227,8 +283,12 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 	{
 		const auto& conditionalBlock = statement[i];
 		auto condition = lower<modelica::Expression>(conditionalBlock.getCondition())[0];
+
+		// The last conditional block can be at most an originally equivalent
+		// "else" block, and thus doesn't need a lowered else block.
 		bool elseBlock = i < blocks - 1;
-		auto ifOp = builder.create<scf::IfOp>(builder.getUnknownLoc(), condition, elseBlock);
+
+		auto ifOp = builder.create<scf::IfOp>(builder.getUnknownLoc(), *condition, elseBlock);
 		builder.setInsertionPointToStart(&ifOp.thenRegion().front());
 
 		for (const auto& stmnt : conditionalBlock)
@@ -243,17 +303,17 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 
 void MlirLowerer::lower(const modelica::ForStatement& statement)
 {
-	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
+
 }
 
 void MlirLowerer::lower(const modelica::WhileStatement& statement)
 {
-	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
+
 }
 
 void MlirLowerer::lower(const modelica::WhenStatement& statement)
 {
-	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
+
 }
 
 void MlirLowerer::lower(const modelica::BreakStatement& statement)
@@ -267,7 +327,7 @@ void MlirLowerer::lower(const modelica::ReturnStatement& statement)
 }
 
 template<>
-MlirLowerer::Container<mlir::Value> MlirLowerer::lower<Expression>(const modelica::Expression& expression)
+MlirLowerer::Container<Reference> MlirLowerer::lower<Expression>(const modelica::Expression& expression)
 {
 	return expression.visit([&](auto& obj) {
 		using type = decltype(obj);
@@ -278,7 +338,7 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<Expression>(const modelic
 }
 
 template<>
-MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Operation>(const modelica::Expression& expression)
+MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::Operation>());
 	const auto& operation = expression.get<modelica::Operation>();
@@ -286,38 +346,137 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Operation>(cons
 
 	if (kind == OperationKind::negate)
 	{
-		return { nullptr };
+		// TODO
+		return { Reference(builder, nullptr, false) };
 	}
 
-	 if (kind == OperationKind::add)
+	if (kind == OperationKind::add)
 	{
-		auto type = lower(expression.getType());
-		SmallVector<mlir::Value, 3> args;
+		SmallVector<mlir::Value, 3> operands;
 
-		for (const auto& arg : operation)
-		{
-			auto tmp = lower<modelica::Expression>(arg);
+		for (const auto& operand : operation)
+			operands.push_back(*lower<modelica::Expression>(operand)[0]);
 
-			//for (auto t : tmp)
-				//args.push_back(tmp);
-		}
+		const auto& type = expression.getType().get<BuiltInType>();
 
-		return { builder.create<AddFOp>(loc(expression.getLocation()), type, args) };
+		mlir::Value result = nullptr;
+
+		if (type == BuiltInType::Integer)
+			result = builder.create<AddIOp>(builder.getUnknownLoc(), operands[0], operands[1]);
+		else if (type == BuiltInType::Float)
+			result = builder.create<AddFOp>(builder.getUnknownLoc(), operands[0], operands[1]);
+
+		return { Reference(builder, result, false) };
+	}
+
+	if (kind == OperationKind::subtract)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
+	}
+
+	if (kind == OperationKind::multiply)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
+	}
+
+	if (kind == OperationKind::divide)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
+	}
+
+	if (kind == OperationKind::ifelse)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
+	}
+
+	if (kind == OperationKind::greater)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
 	}
 
 	if (kind == OperationKind::greaterEqual)
 	{
-		auto lhs = lower<modelica::Expression>(operation[0])[0];
-		auto rhs = lower<modelica::Expression>(operation[1])[0];
+		// TODO
+		auto lhs = *lower<modelica::Expression>(operation[0])[0];
+		auto rhs = *lower<modelica::Expression>(operation[1])[0];
 
-		return { builder.create<CmpFOp>(loc(expression.getLocation()), CmpFPredicate::OGE, lhs, rhs) };
+		return { Reference(builder, builder.create<CmpFOp>(loc(expression.getLocation()), CmpFPredicate::OGE, lhs, rhs), false) };
 	}
 
-	return { nullptr };
+	if (kind == OperationKind::equal)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
+	}
+
+	if (kind == OperationKind::different)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
+	}
+
+	if (kind == OperationKind::lessEqual)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
+	}
+
+	if (kind == OperationKind::less)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
+	}
+
+	if (kind == OperationKind::land)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
+	}
+
+	if (kind == OperationKind::lor)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
+	}
+
+	if (kind == OperationKind::subscription)
+	{
+		auto var = lower<modelica::Expression>(operation[0])[0];
+		assert(var.isPointer());
+		SmallVector<mlir::Value, 3> indexes;
+
+		for (size_t i = 1; i < operation.argumentsCount(); i++)
+		{
+			auto subscript = *lower<modelica::Expression>(operation[i])[0];
+			auto index = builder.create<IndexCastOp>(builder.getUnknownLoc(), subscript, builder.getIndexType());
+			indexes.push_back(index);
+		}
+
+		return { Reference(builder, var.getValue(), true, indexes) };
+	}
+
+	if (kind == OperationKind::memberLookup)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
+	}
+
+	if (kind == OperationKind::powerOf)
+	{
+		// TODO
+		return { Reference(builder, nullptr, false) };
+	}
+
+	return { Reference(builder, nullptr, false) };
 }
 
 template<>
-MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Constant>(const modelica::Expression& expression)
+MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Constant>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::Constant>());
 	const auto& constant = expression.get<modelica::Constant>();
@@ -327,20 +486,20 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Constant>(const
 			constantToType(constant),
 			constant.visit([&](const auto& obj) { return getAttribute(obj); }));
 
-	return { value };
+	return { Reference(builder, value, false) };
 }
 
 template<>
-MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::ReferenceAccess>(const modelica::Expression& expression)
+MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::ReferenceAccess>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::ReferenceAccess>());
 	const auto& reference = expression.get<modelica::ReferenceAccess>();
-	auto var = symbolTable.lookup(reference.getName());
-	return { builder.create<LoadOp>(builder.getUnknownLoc(), var) };
+	auto ptr = symbolTable.lookup(reference.getName());
+	return { Reference(builder, ptr, true) };
 }
 
 template<>
-MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Call>(const modelica::Expression& expression)
+MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Call>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::Call>());
 	const auto& call = expression.get<modelica::Call>();
@@ -349,8 +508,10 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Call>(const mod
 	SmallVector<mlir::Value, 3> args;
 
 	for (const auto& arg : call)
-		for (auto& val : lower<modelica::Expression>(arg))
-			args.push_back(val);
+	{
+		auto& reference = lower<modelica::Expression>(arg)[0];
+		args.push_back(*reference);
+	}
 
 	auto op = builder.create<CallOp>(
 			loc(expression.getLocation()),
@@ -358,20 +519,20 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Call>(const mod
 			lower(function.getType()),
 			args);
 
-	Container<mlir::Value> results;
+	Container<Reference> results;
 
 	for (auto result : op.getResults())
-		results.push_back(result);
+		results.emplace_back(builder, result, false);
 
 	return results;
 }
 
 template<>
-MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Tuple>(const modelica::Expression& expression)
+MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Tuple>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::Tuple>());
 	const auto& tuple = expression.get<modelica::Tuple>();
-	Container<mlir::Value> result;
+	Container<Reference> result;
 
 	for (auto& exp : tuple)
 	{
@@ -381,7 +542,7 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Tuple>(const mo
 		// is forbidden in a tuple declaration. In fact, a tuple is just a
 		// container of references.
 		assert(values.size() == 1);
-		result.push_back(values[0]);
+		result.emplace_back(values[0]);
 	}
 
 	return result;

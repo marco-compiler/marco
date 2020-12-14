@@ -5,17 +5,39 @@
 #include <mlir/IR/Function.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/IR/StandardTypes.h>
-#include <mlir/Pass/PassManager.h>
 #include <modelica/frontend/ClassContainer.hpp>
-#include <modelica/mlirlowerer/LLVMLoweringPass.hpp>
 #include <modelica/utils/SourceRange.hpp>
-#include <mlir/InitAllDialects.h>
 
 namespace modelica
 {
 	void registerDialects();
 
 	mlir::LogicalResult convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module);
+
+	class Reference
+	{
+		public:
+		template<typename... Ts>
+		Reference(mlir::OpBuilder& builder, mlir::Value value, bool isPointer, Ts... indexes)
+				: builder(&builder),
+					value(std::move(value)),
+					isPtr(isPointer),
+					indexes({ indexes... })
+		{
+		}
+
+		[[nodiscard]] mlir::Value operator*();
+
+		[[nodiscard]] mlir::Value getValue() const;
+		[[nodiscard]] bool isPointer() const;
+		[[nodiscard]] mlir::ValueRange getIndexes() const;
+
+		private:
+		mlir::OpBuilder* builder;
+		mlir::Value value;
+		bool isPtr;
+		llvm::SmallVector<mlir::Value, 3> indexes;
+	};
 
 	class MlirLowerer
 	{
@@ -28,7 +50,7 @@ namespace modelica
 		mlir::ModuleOp lower(llvm::ArrayRef<const modelica::ClassContainer> classes);
 		mlir::Operation* lower(const modelica::Class& cls);
 		mlir::FuncOp lower(const modelica::Function& function);
-		mlir::MemRefType lower(const modelica::Type& type);
+		mlir::Type lower(const modelica::Type& type);
 		mlir::Type lower(const modelica::BuiltInType& type);
 		mlir::Type lower(const modelica::UserDefinedType& type);
 		void lower(const modelica::Member& member);
@@ -43,7 +65,7 @@ namespace modelica
 		void lower(const modelica::ReturnStatement& statement);
 
 		template<typename T>
-		Container<mlir::Value> lower(const modelica::Expression& expression);
+		Container<Reference> lower(const modelica::Expression& expression);
 
 		private:
 		/// The builder is a helper class to create IR inside a function. The
@@ -93,25 +115,25 @@ namespace modelica
 			else if constexpr (type == BuiltInType::Float)
 				return builder.getF32FloatAttr(value);
 
-			assert(false && "Unreachable");
+			assert(false && "Unknown type");
 		}
 	};
 
 	template<>
-	MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Expression>(const modelica::Expression& expression);
+	MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Expression>(const modelica::Expression& expression);
 
 	template<>
-	MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Operation>(const modelica::Expression& expression);
+	MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const modelica::Expression& expression);
 
 	template<>
-	MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Constant>(const modelica::Expression& expression);
+	MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Constant>(const modelica::Expression& expression);
 
 	template<>
-	MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::ReferenceAccess>(const modelica::Expression& expression);
+	MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::ReferenceAccess>(const modelica::Expression& expression);
 
 	template<>
-	MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Call>(const modelica::Expression& expression);
+	MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Call>(const modelica::Expression& expression);
 
 	template<>
-	MlirLowerer::Container<mlir::Value> MlirLowerer::lower<modelica::Tuple>(const modelica::Expression& expression);
+	MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Tuple>(const modelica::Expression& expression);
 }

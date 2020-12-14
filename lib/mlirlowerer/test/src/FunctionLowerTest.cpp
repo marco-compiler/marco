@@ -71,12 +71,13 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower({ cls });
+	module.dump();
 
 	if (failed(convertToLLVMDialect(&context, module)))
 		return;
 
 	auto llvmModule = mlir::translateModuleToLLVMIR(module);
-	//llvmModule->print(llvm::errs(), nullptr);
+	llvmModule->print(llvm::errs(), nullptr);
 
 	if (!llvmModule) {
 		llvm::errs() << "Failed to emit LLVM IR\n";

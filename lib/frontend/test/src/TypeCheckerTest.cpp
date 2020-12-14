@@ -12,10 +12,12 @@ using namespace llvm;
 
 TEST(TypeCheckTest, sumOfIntShouldProduceInt)	 // NOLINT
 {
+	SourcePosition location("-", 0, 0);
 	Expression exp = Expression::op<OperationKind::add>(
+			location,
 			Type::unknown(),
-			Expression(makeType<int>(), 0),
-			Expression(makeType<int>(), 4));
+			Expression(location, makeType<int>(), 0),
+			Expression(location, makeType<int>(), 4));
 
 	TypeChecker checker;
 
@@ -27,10 +29,12 @@ TEST(TypeCheckTest, sumOfIntShouldProduceInt)	 // NOLINT
 
 TEST(TypeCheckTest, andOfBoolShouldProduceBool)	 // NOLINT
 {
+	SourcePosition location("-", 0, 0);
 	Expression exp = Expression::op<OperationKind::add>(
+			location,
 			Type::unknown(),
-			Expression(makeType<bool>(), true),
-			Expression(makeType<bool>(), false));
+			Expression(location, makeType<bool>(), true),
+			Expression(location, makeType<bool>(), false));
 
 	TypeChecker checker;
 
@@ -42,10 +46,12 @@ TEST(TypeCheckTest, andOfBoolShouldProduceBool)	 // NOLINT
 
 TEST(TypeCheckerTest, tupleExpressionType)	// NOLINT
 {
+	SourcePosition location("-", 0, 0);
 	Expression exp(
+			location,
 			Type::unknown(),
-			Tuple({ Expression(Type::Int(), ReferenceAccess("x")),
-							Expression(Type::Float(), ReferenceAccess("y")) }));
+			Tuple({ Expression(location, Type::Int(), ReferenceAccess("x")),
+							Expression(location, Type::Float(), ReferenceAccess("y")) }));
 
 	SymbolTable table;
 

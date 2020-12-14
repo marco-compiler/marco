@@ -25,7 +25,7 @@ namespace modelica
 		template<typename Iter>
 		AssignmentStatement(
 				Iter destinationsBegin, Iter destinationsEnd, Expression expression)
-				: destination(Tuple(destinationsBegin, destinationsEnd)),
+				: destinations(Tuple(destinationsBegin, destinationsEnd)),
 					expression(std::move(expression))
 		{
 		}
@@ -33,8 +33,8 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents) const;
 
-		[[nodiscard]] std::vector<Expression*> getDestinations();
-		[[nodiscard]] std::vector<const Expression*> getDestinations() const;
+		[[nodiscard]] Tuple& getDestinations();
+		[[nodiscard]] const Tuple& getDestinations() const;
 
 		void setDestination(Expression destination);
 		void setDestination(Tuple destinations);
@@ -45,7 +45,7 @@ namespace modelica
 		private:
 		// Where the result of the expression has to be stored.
 		// A vector is needed because functions may have multiple outputs.
-		std::variant<Expression, Tuple> destination;
+		Tuple destinations;
 
 		// Right-hand side expression of the assignment
 		Expression expression;

@@ -6,19 +6,19 @@ using namespace std;
 
 AssignmentStatement::AssignmentStatement(
 		Expression destination, Expression expression)
-		: destination(move(destination)), expression(move(expression))
+		: destinations(Tuple(move(destination))), expression(move(expression))
 {
 }
 
 AssignmentStatement::AssignmentStatement(
 		Tuple destinations, Expression expression)
-		: destination(move(destinations)), expression(move(expression))
+		: destinations(move(destinations)), expression(move(expression))
 {
 }
 
 AssignmentStatement::AssignmentStatement(
 		initializer_list<Expression> destinations, Expression expression)
-		: destination(Tuple(move(destinations))), expression(move(expression))
+		: destinations(Tuple(move(destinations))), expression(move(expression))
 {
 }
 
@@ -28,51 +28,31 @@ void AssignmentStatement::dump(raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "destinations:\n";
-	visit([&](const auto& obj) { obj.dump(os, indents + 1); }, destination);
+	destinations.dump(os, indents + 1);
 
 	os.indent(indents);
 	os << "assigned expression:\n";
 	expression.dump(os, indents + 1);
 }
 
-vector<Expression*> AssignmentStatement::getDestinations()
+Tuple& AssignmentStatement::getDestinations()
 {
-	vector<Expression*> destinations;
-
-	if (holds_alternative<Expression>(destination))
-		destinations.push_back(&get<Expression>(destination));
-	else
-	{
-		for (auto& exp : get<Tuple>(destination))
-			destinations.push_back(&exp);
-	}
-
 	return destinations;
 }
 
-vector<const Expression*> AssignmentStatement::getDestinations() const
+const Tuple& AssignmentStatement::getDestinations() const
 {
-	vector<const Expression*> destinations;
-
-	if (holds_alternative<Expression>(destination))
-		destinations.push_back(&get<Expression>(destination));
-	else
-	{
-		for (auto& exp : get<Tuple>(destination))
-			destinations.push_back(&exp);
-	}
-
 	return destinations;
 }
 
 void AssignmentStatement::setDestination(Expression dest)
 {
-	destination = move(dest);
+	destinations = Tuple(move(dest));
 }
 
 void AssignmentStatement::setDestination(Tuple dest)
 {
-	destination = move(dest);
+	destinations = move(dest);
 }
 
 Expression& AssignmentStatement::getExpression() { return expression; }

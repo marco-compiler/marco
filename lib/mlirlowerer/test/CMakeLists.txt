@@ -1,1 +1,3 @@
-modelicaAddTest(mlirlowerer src/FunctionLowerTest.cpp)
+modelicaAddTest(mlirlowerer
+        src/AssignmentTest.cpp
+        src/FunctionLowerTest.cpp)

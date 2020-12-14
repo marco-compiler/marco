@@ -18,7 +18,7 @@ TEST(StatementTest, integerAssignment)	// NOLINT
 	// Left-hand side
 	auto destinations = ast.getDestinations();
 	EXPECT_EQ(1, destinations.size());
-	EXPECT_TRUE(destinations[0]->isA<ReferenceAccess>());
+	EXPECT_TRUE(destinations[0].isA<ReferenceAccess>());
 
 	// Right-hand side
 	auto& expression = ast.getExpression();
@@ -39,7 +39,7 @@ TEST(StatementTest, floatAssignment)	// NOLINT
 	// Left-hand side
 	auto destinations = ast.getDestinations();
 	EXPECT_EQ(1, destinations.size());
-	EXPECT_TRUE(destinations[0]->isA<ReferenceAccess>());
+	EXPECT_TRUE(destinations[0].isA<ReferenceAccess>());
 
 	// Right-hand side
 	auto& expression = ast.getExpression();
@@ -59,8 +59,8 @@ TEST(StatementTest, referenceAssignment)	// NOLINT
 
 	// Left-hand side
 	EXPECT_EQ(1, ast.getDestinations().size());
-	auto destinations = ast.getDestinations()[0];
-	EXPECT_EQ("x", destinations->get<ReferenceAccess>().getName());
+	auto destination = ast.getDestinations()[0];
+	EXPECT_EQ("x", destination.get<ReferenceAccess>().getName());
 
 	// Right-hand side
 	auto& expression = ast.getExpression();
@@ -104,8 +104,8 @@ TEST(StatementTest, multipleOutputs)	// NOLINT
 	// Right-hand side is not tested because not so important for this test
 	auto destinations = ast.getDestinations();
 	EXPECT_EQ(2, destinations.size());
-	EXPECT_EQ("x", destinations[0]->get<ReferenceAccess>().getName());
-	EXPECT_EQ("y", destinations[1]->get<ReferenceAccess>().getName());
+	EXPECT_EQ("x", destinations[0].get<ReferenceAccess>().getName());
+	EXPECT_EQ("y", destinations[1].get<ReferenceAccess>().getName());
 }
 
 TEST(StatementTest, ignoredOutputs)	 // NOLINT
@@ -123,7 +123,7 @@ TEST(StatementTest, ignoredOutputs)	 // NOLINT
 	auto destinations = ast.getDestinations();
 	EXPECT_EQ(3, destinations.size());
 
-	EXPECT_EQ("x", destinations[0]->get<ReferenceAccess>().getName());
-	EXPECT_TRUE(destinations[1]->get<ReferenceAccess>().isDummy());
-	EXPECT_EQ("z", destinations[2]->get<ReferenceAccess>().getName());
+	EXPECT_EQ("x", destinations[0].get<ReferenceAccess>().getName());
+	EXPECT_TRUE(destinations[1].get<ReferenceAccess>().isDummy());
+	EXPECT_EQ("z", destinations[2].get<ReferenceAccess>().getName());
 }

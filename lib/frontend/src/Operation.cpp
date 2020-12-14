@@ -123,6 +123,8 @@ const Container& Operation::getArguments() const { return arguments; }
 
 size_t Operation::argumentsCount() const { return arguments.size(); }
 
+size_t Operation::size() const { return arguments.size(); }
+
 Operation::iterator Operation::begin() { return arguments.begin(); }
 
 Operation::const_iterator Operation::begin() const { return arguments.begin(); }
