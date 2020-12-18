@@ -18,6 +18,7 @@ modelicaAddLibrary(
         src/ParserErrors.cpp
         src/ReferenceAccess.cpp
         src/Statement.cpp
+		src/Symbol.cpp
 		src/SymbolTable.cpp
         src/Tuple.cpp
         src/Type.cpp

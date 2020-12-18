@@ -128,7 +128,7 @@ int main(int argc, char* argv[])
 	auto ast = exitOnErr(parser.classDefinition());
 
 	TypeChecker checker;
-	exitOnErr(checker.checkType(ast, SymbolTable()));
+	exitOnErr(checker.check(ast));
 	if (dumpTypeChecked)
 	{
 		ast.dump(OS);

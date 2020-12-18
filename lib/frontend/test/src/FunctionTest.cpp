@@ -70,7 +70,7 @@ TEST(FunctionTypeCheck, publicMembersMustBeInputOrOutput)	 // NOLINT
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	EXPECT_ERROR(typeChecker.checkType(ast, {}), BadSemantic);
+	EXPECT_ERROR(typeChecker.check(ast), BadSemantic);
 }
 
 TEST(FunctionTypeCheck, assignmentToInputMember)	// NOLINT
@@ -90,7 +90,7 @@ TEST(FunctionTypeCheck, assignmentToInputMember)	// NOLINT
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	EXPECT_ERROR(typeChecker.checkType(ast, {}), BadSemantic);
+	EXPECT_ERROR(typeChecker.check(ast), BadSemantic);
 }
 
 TEST(FunctionTypeCheck, assignmentToInputArray)	 // NOLINT
@@ -110,7 +110,7 @@ TEST(FunctionTypeCheck, assignmentToInputArray)	 // NOLINT
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	EXPECT_ERROR(typeChecker.checkType(ast, {}), BadSemantic);
+	EXPECT_ERROR(typeChecker.check(ast), BadSemantic);
 }
 
 TEST(FunctionTypeCheck, directDerCall)	// NOLINT
@@ -128,7 +128,7 @@ TEST(FunctionTypeCheck, directDerCall)	// NOLINT
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	EXPECT_ERROR(typeChecker.checkType(ast, {}), BadSemantic);
+	EXPECT_ERROR(typeChecker.check(ast), BadSemantic);
 }
 
 TEST(FunctionTypeCheck, derInsideParameters)	// NOLINT
@@ -147,5 +147,5 @@ TEST(FunctionTypeCheck, derInsideParameters)	// NOLINT
 
 	auto ast = move(*expectedAst);
 	TypeChecker typeChecker;
-	EXPECT_ERROR(typeChecker.checkType(ast, {}), BadSemantic);
+	EXPECT_ERROR(typeChecker.check(ast), BadSemantic);
 }

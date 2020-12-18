@@ -35,7 +35,7 @@ int main(int argc, char* argv[])
 	auto ast = exitOnErr(parser.classDefinition());
 
 	TypeChecker checker;
-	exitOnErr(checker.checkType(ast, SymbolTable()));
+	exitOnErr(checker.check(ast, SymbolTable()));
 
 	modelica::ConstantFolder folder;
 	exitOnErr(folder.fold(ast, SymbolTable()));

@@ -45,6 +45,14 @@ namespace modelica
 		public:
 		explicit MlirLowerer(mlir::MLIRContext& context);
 
+		/**
+		 * Get the operation builder.
+		 * Should be used only for unit testing.
+		 *
+		 * @return operation builder
+		 */
+		mlir::OpBuilder& getOpBuilder();
+
 		mlir::ModuleOp lower(llvm::ArrayRef<const modelica::ClassContainer> classes);
 		mlir::Operation* lower(const modelica::Class& cls);
 		mlir::FuncOp lower(const modelica::Function& function);
@@ -65,15 +73,16 @@ namespace modelica
 		template<typename T>
 		Container<Reference> lower(const modelica::Expression& expression);
 
-		mlir::OpBuilder& getOpBuilder()
-		{
-			return builder;
-		}
-
 		private:
-		Container<mlir::Value> lowerOperationArgs(const modelica::Operation& operation);
-
-		void loadDialects(mlir::MLIRContext* context);
+		/**
+		 * Lower the arguments of an operation. If any of the operand has a type
+		 * different from the desired one, it is automatically casted (if possible).
+		 *
+		 * @param operation operation whose arguments haave to be lowered
+		 * @param type      result type
+		 * @return lowered args
+		 */
+		Container<mlir::Value> lowerOperationArgs(const modelica::Operation& operation, mlir::Type type);
 
 		/**
 		 * The builder is a helper class to create IR inside a function. The
@@ -128,6 +137,8 @@ namespace modelica
 
 			assert(false && "Unknown type");
 		}
+
+		mlir::Value cast(mlir::Value value, mlir::Type type);
 	};
 
 	template<>

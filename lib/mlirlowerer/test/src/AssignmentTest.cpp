@@ -29,7 +29,7 @@ TEST(MlirLowererTest, constantAssignment)	 // NOLINT
 
 	modelica::TypeChecker typeChecker;
 
-	if (typeChecker.checkType(cls, modelica::SymbolTable()))
+	if (typeChecker.check(cls))
 		FAIL();
 
 	modelica::ConstantFolder folder;
@@ -71,7 +71,7 @@ TEST(MlirLowererTest, variableAssignment)	 // NOLINT
 
 	modelica::TypeChecker typeChecker;
 
-	if (typeChecker.checkType(cls, modelica::SymbolTable()))
+	if (typeChecker.check(cls))
 		FAIL();
 
 	modelica::ConstantFolder folder;
@@ -118,7 +118,7 @@ TEST(MlirLowererTest, arrayElementAssignment)	 // NOLINT
 
 	modelica::TypeChecker typeChecker;
 
-	if (typeChecker.checkType(cls, modelica::SymbolTable()))
+	if (typeChecker.check(cls))
 		FAIL();
 
 	modelica::ConstantFolder folder;

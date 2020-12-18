@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <llvm/ADT/StringMap.h>
 #include <llvm/Support/Error.h>
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/frontend/Parser.hpp>
@@ -6,9 +7,9 @@
 #include <modelica/frontend/TypeChecker.hpp>
 #include <modelica/utils/ErrorTest.hpp>
 
-using namespace std;
-using namespace modelica;
 using namespace llvm;
+using namespace modelica;
+using namespace std;
 
 TEST(TypeCheckTest, sumOfIntShouldProduceInt)	 // NOLINT
 {
@@ -21,7 +22,7 @@ TEST(TypeCheckTest, sumOfIntShouldProduceInt)	 // NOLINT
 
 	TypeChecker checker;
 
-	if (checker.checkType<Expression>(exp, {}))
+	if (checker.check<Expression>(exp))
 		FAIL();
 
 	EXPECT_EQ(exp.getType(), makeType<int>());
@@ -38,7 +39,7 @@ TEST(TypeCheckTest, andOfBoolShouldProduceBool)	 // NOLINT
 
 	TypeChecker checker;
 
-	if (checker.checkType<Expression>(exp, {}))
+	if (checker.check<Expression>(exp))
 		FAIL();
 
 	EXPECT_EQ(exp.getType(), makeType<bool>());
@@ -53,17 +54,18 @@ TEST(TypeCheckerTest, tupleExpressionType)	// NOLINT
 			Tuple({ Expression(location, Type::Int(), ReferenceAccess("x")),
 							Expression(location, Type::Float(), ReferenceAccess("y")) }));
 
-	SymbolTable table;
 
 	Member x("x", Type::Int(), TypePrefix::none());
 	Member y("y", Type::Float(), TypePrefix::none());
 
-	table.addSymbol(x);
-	table.addSymbol(y);
-
 	TypeChecker typeChecker;
+	auto& symbolTable = typeChecker.getSymbolTable();
+	TypeChecker::SymbolTableScope scope(symbolTable);
 
-	if (typeChecker.checkType<Tuple>(exp, table))
+	symbolTable.insert(x.getName(), Symbol(x));
+	symbolTable.insert(y.getName(), Symbol(y));
+
+	if (typeChecker.check<Tuple>(exp))
 		FAIL();
 
 	Type expected({ Type::Int(), Type::Float() });

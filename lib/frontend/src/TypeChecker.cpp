@@ -8,7 +8,6 @@
 #include <modelica/frontend/Member.hpp>
 #include <modelica/frontend/ParserErrors.hpp>
 #include <modelica/frontend/ReferenceAccess.hpp>
-#include <modelica/frontend/SymbolTable.hpp>
 #include <modelica/frontend/Type.hpp>
 #include <modelica/frontend/TypeChecker.hpp>
 #include <modelica/utils/IRange.hpp>
@@ -22,8 +21,7 @@ using namespace std;
 llvm::Error resolveDummyReferences(Function& function);
 llvm::Error resolveDummyReferences(Class& model);
 
-static Expected<Type> typeFromSymbol(
-		const Expression& exp, const SymbolTable& table)
+Expected<Type> TypeChecker::typeFromSymbol(const Expression& exp)
 {
 	assert(exp.isA<ReferenceAccess>());
 	ReferenceAccess acc = exp.get<ReferenceAccess>();
@@ -42,10 +40,10 @@ static Expected<Type> typeFromSymbol(
 	if (name == "time")
 		return Type::Float();
 
-	if (!table.hasSymbol(name))
+	if (symbolTable.count(name) == 0)
 		return make_error<NotImplemented>("Unknown variable name '" + name + "'");
 
-	auto symbol = table[name];
+	auto symbol = symbolTable.lookup(name);
 
 	if (symbol.isA<Function>())
 		return symbol.get<Function>().getType();
@@ -59,30 +57,29 @@ static Expected<Type> typeFromSymbol(
 	return make_error<NotImplemented>("Unknown variable name '" + name + "'");
 }
 
-Error TypeChecker::checkType(Algorithm& algorithm, const SymbolTable& table)
+Error TypeChecker::check(ClassContainer& cls)
 {
-	for (auto& statement : algorithm.getStatements())
-		if (auto error = checkType(statement, table); error)
-			return error;
-
-	return Error::success();
+	return cls.visit([&](auto& obj) { return check(obj); });
 }
 
-Error TypeChecker::checkType(ClassContainer& cls, const SymbolTable& table)
-{
-	return cls.visit([&](auto& obj) { return checkType(obj, table); });
-}
 
-Error TypeChecker::checkType(Function& function, const SymbolTable& table)
+Error TypeChecker::check(Function& function)
 {
-	SymbolTable t(function, &table);
+	SymbolTableScope varScope(symbolTable);
+
+	// Populate the symbol table
+	symbolTable.insert(function.getName(), Symbol(function));
+
+	for (auto& member : function.getMembers())
+		symbolTable.insert(member.getName(), Symbol(member));
+
 	vector<Type> types;
 
 	// Check members
 
 	for (auto& member : function.getMembers())
 	{
-		if (auto error = checkType(member, t); error)
+		if (auto error = check(member); error)
 			return error;
 
 		// From Function reference:
@@ -129,7 +126,7 @@ Error TypeChecker::checkType(Function& function, const SymbolTable& table)
 	// be allowed, the algorithms amount may also be zero.
 	assert(algorithms.size() == 1);
 
-	if (auto error = checkType(algorithms[0], t); error)
+	if (auto error = check(algorithms[0]); error)
 		return error;
 
 	if (auto error = resolveDummyReferences(function); error)
@@ -161,11 +158,11 @@ Error TypeChecker::checkType(Function& function, const SymbolTable& table)
 				{
 					const auto& name = ref.getName();
 
-					if (!t.hasSymbol(name))
+					if (symbolTable.count(name) == 0)
 						return make_error<NotImplemented>(
 								"Unknown variable name '" + name + "'");
 
-					const auto& member = t[name].get<Member>();
+					const auto& member = symbolTable.lookup(name).get<Member>();
 
 					if (member.isInput())
 						return make_error<BadSemantic>(
@@ -224,31 +221,31 @@ Error TypeChecker::checkType(Function& function, const SymbolTable& table)
 	return Error::success();
 }
 
-Error TypeChecker::checkType(Class& model, const SymbolTable& table)
+Error TypeChecker::check(Class& model)
 {
-	SymbolTable t(model, &table);
+	SymbolTableScope varScope(symbolTable);
 
 	for (auto& m : model.getMembers())
-		if (auto error = checkType(m, t); error)
+		if (auto error = check(m); error)
 			return error;
 
 	// Functions type checking must be done before the equations or algorithm
 	// ones, because it establishes the result type of the functions that may
 	// be invoked elsewhere.
 	for (auto& cls : model.getInnerClasses())
-		if (auto error = checkType(*cls, t); error)
+		if (auto error = check(*cls); error)
 			return error;
 
 	for (auto& eq : model.getEquations())
-		if (auto error = checkType(eq, t); error)
+		if (auto error = check(eq); error)
 			return error;
 
 	for (auto& eq : model.getForEquations())
-		if (auto error = checkType(eq, t); error)
+		if (auto error = check(eq); error)
 			return error;
 
 	for (auto& algorithm : model.getAlgorithms())
-		if (auto error = checkType(algorithm, t); error)
+		if (auto error = check(algorithm); error)
 			return error;
 
 	if (auto error = resolveDummyReferences(model); error)
@@ -257,52 +254,186 @@ Error TypeChecker::checkType(Class& model, const SymbolTable& table)
 	return Error::success();
 }
 
-Error TypeChecker::checkType(Member& mem, const SymbolTable& table)
+Error TypeChecker::check(Member& member)
 {
-	if (mem.hasInitializer())
-		if (auto error = checkType<Expression>(mem.getInitializer(), table); error)
+	if (member.hasInitializer())
+		if (auto error = check<Expression>(member.getInitializer()); error)
 			return error;
 
-	if (not mem.hasStartOverload())
+	if (not member.hasStartOverload())
 		return Error::success();
 
-	if (auto error = checkType<Expression>(mem.getStartOverload(), table); error)
+	if (auto error = check<Expression>(member.getStartOverload()); error)
 		return error;
 
 	return Error::success();
 }
 
-Error TypeChecker::checkType(ForEquation& eq, const SymbolTable& table)
+Error TypeChecker::check(Algorithm& algorithm)
 {
-	SymbolTable t(&table);
+	for (auto& statement : algorithm.getStatements())
+		if (auto error = check(statement); error)
+			return error;
 
-	for (auto& ind : eq.getInductions())
-		t.addSymbol(ind);
+	return Error::success();
+}
 
-	if (auto error = checkType(eq.getEquation(), t); error)
+Error TypeChecker::check(Statement& statement)
+{
+	return statement.visit([&](auto& statement) { return check(statement); });
+}
+
+Error TypeChecker::check(AssignmentStatement& statement)
+{
+	auto& destinations = statement.getDestinations();
+
+	for (auto& destination : destinations)
+	{
+		if (auto error = check<Expression>(destination); error)
+			return error;
+
+		// The destinations must be l-values.
+		// The check can't be enforced at parsing time because the grammar
+		// specifies the destinations as expressions.
+
+		if (!destination.isLValue())
+			return make_error<BadSemantic>(
+					"Destinations of statements must be l-values");
+	}
+
+	auto& expression = statement.getExpression();
+
+	if (auto error = check<Expression>(expression); error)
 		return error;
 
-	for (auto& ind : eq.getInductions())
-	{
-		if (auto error = checkType<Expression>(ind.getBegin(), table); error)
-			return error;
+	if (destinations.size() > 1 && !expression.getType().isA<UserDefinedType>())
+		return make_error<IncompatibleType>(
+				"The expression must return at least " +
+				to_string(destinations.size()) + "values");
 
-		if (auto error = checkType<Expression>(ind.getEnd(), table); error)
-			return error;
+	// Assign type to dummy variables.
+	// The assignment can't be done earlier because the expression type would
+	// have not been evaluated yet.
+
+	for (size_t i = 0; i < destinations.size(); i++)
+	{
+		// If it's not a direct reference access, there's no way it can be a
+		// dummy variable.
+		if (!destinations[i].isA<ReferenceAccess>())
+			continue;
+
+		auto& ref = destinations[i].get<ReferenceAccess>();
+
+		if (ref.isDummy())
+		{
+			auto& expressionType = expression.getType();
+			assert(expressionType.isA<UserDefinedType>());
+			auto& userDefType = expressionType.get<UserDefinedType>();
+			assert(userDefType.size() >= i);
+			destinations[i].setType(userDefType[i]);
+		}
+	}
+
+	// If the function call has more return values than the provided
+	// destinations, then we need to add more dummy references.
+
+	if (expression.getType().isA<UserDefinedType>())
+	{
+		auto& userDefType = expression.getType().get<UserDefinedType>();
+		size_t returns = userDefType.size();
+
+		if (destinations.size() < returns)
+		{
+			vector<Expression> newDestinations;
+
+			for (auto& destination : destinations)
+				newDestinations.push_back(move(destination));
+
+			for (size_t i = newDestinations.size(); i < returns; i++)
+				newDestinations.emplace_back(SourcePosition("-", 0, 0), userDefType[i], ReferenceAccess::dummy()); // TODO: fix position
+
+			statement.setDestination(Tuple(move(newDestinations)));
+		}
 	}
 
 	return Error::success();
 }
 
-Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
+Error TypeChecker::check(IfStatement& statement)
+{
+	for (auto& block : statement)
+	{
+		if (auto error = check<Expression>(block.getCondition()); error)
+			return error;
+
+		for (auto& stmnt : block)
+			if (auto error = check(stmnt); error)
+				return error;
+	}
+
+	return Error::success();
+}
+
+Error TypeChecker::check(ForStatement& statement)
+{
+	auto& induction = statement.getInduction();
+
+	if (auto error = check<Expression>(induction.getBegin()); error)
+		return error;
+
+	if (auto error = check<Expression>(induction.getEnd()); error)
+		return error;
+
+	for (auto& stmnt : statement)
+		if (auto error = check(stmnt); error)
+			return error;
+
+	return Error::success();
+}
+
+Error TypeChecker::check(WhileStatement& statement)
+{
+	if (auto error = check<Expression>(statement.getCondition()); error)
+		return error;
+
+	for (auto& stmnt : statement)
+		if (auto error = check(stmnt); error)
+			return error;
+
+	return Error::success();
+}
+
+Error TypeChecker::check(WhenStatement& statement)
+{
+	if (auto error = check<Expression>(statement.getCondition()); error)
+		return error;
+
+	for (auto& stmnt : statement)
+		if (auto error = check(stmnt); error)
+			return error;
+
+	return Error::success();
+}
+
+Error TypeChecker::check(BreakStatement& statement)
+{
+	return Error::success();
+}
+
+Error TypeChecker::check(ReturnStatement& statement)
+{
+	return Error::success();
+}
+
+Error TypeChecker::check(Equation& eq)
 {
 	auto& lhs = eq.getLeftHand();
 	auto& rhs = eq.getRightHand();
 
-	if (auto error = checkType<Expression>(lhs, table); error)
+	if (auto error = check<Expression>(lhs); error)
 		return error;
 
-	if (auto error = checkType<Expression>(rhs, table); error)
+	if (auto error = check<Expression>(rhs); error)
 		return error;
 
 	auto& lhsType = lhs.getType();
@@ -365,190 +496,67 @@ Error TypeChecker::checkType(Equation& eq, const SymbolTable& table)
 	return Error::success();
 }
 
-Error TypeChecker::checkType(Statement& statement, const SymbolTable& table)
+Error TypeChecker::check(ForEquation& forEquation)
 {
-	return statement.visit(
-			[&](auto& statement) { return checkType(statement, table); });
-}
+	SymbolTableScope varScope(symbolTable);
 
-Error TypeChecker::checkType(
-		AssignmentStatement& statement, const SymbolTable& table)
-{
-	auto destinations = statement.getDestinations();
+	for (auto& induction : forEquation.getInductions())
+		symbolTable.insert(induction.getName(), Symbol(induction));
 
-	for (auto& destination : destinations)
-	{
-		if (auto error = checkType<Expression>(destination, table); error)
-			return error;
-
-		// The destinations must be l-values.
-		// The check can't be enforced at parsing time because the grammar
-		// specifies the destinations as expressions.
-
-		if (!destination.isLValue())
-			return make_error<BadSemantic>(
-					"Destinations of statements must be l-values");
-	}
-
-	auto& expression = statement.getExpression();
-
-	if (auto error = checkType<Expression>(expression, table); error)
+	if (auto error = check(forEquation.getEquation()); error)
 		return error;
 
-	if (destinations.size() > 1 && !expression.getType().isA<UserDefinedType>())
-		return make_error<IncompatibleType>(
-				"The expression must return at least " +
-				to_string(destinations.size()) + "values");
-
-	// Assign type to dummy variables.
-	// The assignment can't be done earlier because the expression type would
-	// have not been evaluated yet.
-
-	for (size_t i = 0; i < destinations.size(); i++)
+	for (auto& ind : forEquation.getInductions())
 	{
-		// If it's not a direct reference access, there's no way it can be a
-		// dummy variable.
-		if (!destinations[i].isA<ReferenceAccess>())
-			continue;
+		if (auto error = check<Expression>(ind.getBegin()); error)
+			return error;
 
-		auto& ref = destinations[i].get<ReferenceAccess>();
-
-		if (ref.isDummy())
-		{
-			auto& expressionType = expression.getType();
-			assert(expressionType.isA<UserDefinedType>());
-			auto& userDefType = expressionType.get<UserDefinedType>();
-			assert(userDefType.size() >= i);
-			destinations[i].setType(userDefType[i]);
-		}
-	}
-
-	// If the function call has more return values than the provided
-	// destinations, then we need to add more dummy references.
-
-	if (expression.getType().isA<UserDefinedType>())
-	{
-		auto& userDefType = expression.getType().get<UserDefinedType>();
-		size_t returns = userDefType.size();
-
-		if (destinations.size() < returns)
-		{
-			vector<Expression> newDestinations;
-
-			for (auto& destination : destinations)
-				newDestinations.push_back(move(destination));
-
-			for (size_t i = newDestinations.size(); i < returns; i++)
-				newDestinations.emplace_back(SourcePosition("-", 0, 0), userDefType[i], ReferenceAccess::dummy()); // TODO: fix position
-
-			statement.setDestination(Tuple(move(newDestinations)));
-		}
+		if (auto error = check<Expression>(ind.getEnd()); error)
+			return error;
 	}
 
 	return Error::success();
 }
 
-Error TypeChecker::checkType(IfStatement& statement, const SymbolTable& table)
-{
-	for (auto& block : statement)
-		if (auto error = checkType(block, table); error)
-			return error;
-
-	return Error::success();
-}
-
-Error TypeChecker::checkType(
-		IfStatement::Block& block, const SymbolTable& table)
-{
-	if (auto error = checkType<Expression>(block.getCondition(), table); error)
-		return error;
-
-	for (auto& statement : block)
-		if (auto error = checkType(statement, table); error)
-			return error;
-
-	return Error::success();
-}
-
-Error TypeChecker::checkType(ForStatement& statement, const SymbolTable& table)
-{
-	auto& induction = statement.getInduction();
-
-	if (auto error = checkType<Expression>(induction.getBegin(), table); error)
-		return error;
-
-	if (auto error = checkType<Expression>(induction.getEnd(), table); error)
-		return error;
-
-	for (auto& stmnt : statement)
-		if (auto error = checkType(stmnt, table); error)
-			return error;
-
-	return Error::success();
-}
-
-Error TypeChecker::checkType(BreakStatement& statement, const SymbolTable& table)
-{
-	return Error::success();
-}
-
-Error TypeChecker::checkType(ReturnStatement& statement, const SymbolTable& table)
-{
-	return Error::success();
-}
-
-static Error subscriptionCheckType(Expression& exp, const SymbolTable& table)
+static Error subscriptionCheckType(Expression& exp)
 {
 	assert(exp.isA<Operation>());
-	assert(exp.get<Operation>().getKind() == OperationKind::subscription);
-
 	auto& op = exp.get<Operation>();
+	assert(op.getKind() == OperationKind::subscription);
+
 	size_t subscriptionIndicesCount = op.argumentsCount() - 1;
 
 	if (subscriptionIndicesCount > op[0].getType().dimensionsCount())
-		return make_error<IncompatibleType>("array was subscripted too many times");
+		return make_error<IncompatibleType>("Array was subscripted too many times");
 
 	for (size_t a = 1; a < op.argumentsCount(); a++)
 		if (op[a].getType() != makeType<int>())
 			return make_error<IncompatibleType>(
-					"parameter of array subscription was not int");
+					"Parameter of array subscription was not int");
 
 	exp.setType(op[0].getType().subscript(subscriptionIndicesCount));
 	return Error::success();
 }
 
 template<>
-Error TypeChecker::checkType<Expression>(
-		Expression& exp, const SymbolTable& table)
+Error TypeChecker::check<Expression>(Expression& expression)
 {
-	if (exp.isA<Operation>())
-		return checkType<Operation>(exp, table);
-
-	if (exp.isA<Constant>())
-		return checkType<Constant>(exp, table);
-
-	if (exp.isA<ReferenceAccess>())
-		return checkType<ReferenceAccess>(exp, table);
-
-	if (exp.isA<Call>())
-		return checkType<Call>(exp, table);
-
-	if (exp.isA<Tuple>())
-		return checkType<Tuple>(exp, table);
-
-	assert(false && "Unreachable");
-	return Error::success();
+	return expression.visit([&](auto& obj) {
+		using type = decltype(obj);
+		using deref = typename std::remove_reference<type>::type;
+		using deconst = typename std::remove_const<deref>::type;
+		return check<deconst>(expression);
+	});
 }
 
 template<>
-Error TypeChecker::checkType<Operation>(
-		Expression& exp, const SymbolTable& table)
+Error TypeChecker::check<Operation>(Expression& expression)
 {
-	assert(exp.isA<Operation>());
-	auto& op = exp.get<Operation>();
+	assert(expression.isA<Operation>());
+	auto& op = expression.get<Operation>();
 
 	for (auto& arg : op)
-		if (auto error = checkType<Expression>(arg, table); error)
+		if (auto error = check<Expression>(arg); error)
 			return error;
 
 	switch (op.getKind())
@@ -559,7 +567,7 @@ Error TypeChecker::checkType<Operation>(
 		case OperationKind::multiply:
 		case OperationKind::divide:
 		case OperationKind::powerOf:
-			exp.setType(op[0].getType());
+			expression.setType(op[0].getType());
 			return Error::success();
 
 		case OperationKind::ifelse:
@@ -570,7 +578,7 @@ Error TypeChecker::checkType<Operation>(
 				return make_error<IncompatibleType>(
 						"ternary operator branches had different return type");
 
-			exp.setType(op[1].getType());
+			expression.setType(op[1].getType());
 			return Error::success();
 
 		case OperationKind::greater:
@@ -579,7 +587,7 @@ Error TypeChecker::checkType<Operation>(
 		case OperationKind::different:
 		case OperationKind::lessEqual:
 		case OperationKind::less:
-			exp.setType(makeType<bool>());
+			expression.setType(makeType<bool>());
 			return Error::success();
 
 		case OperationKind::lor:
@@ -590,11 +598,11 @@ Error TypeChecker::checkType<Operation>(
 			if (op[1].getType() != makeType<bool>())
 				return make_error<IncompatibleType>(
 						"boolean operator had non boolean argument");
-			exp.setType(makeType<bool>());
+			expression.setType(makeType<bool>());
 			return Error::success();
 
 		case OperationKind::subscription:
-			return subscriptionCheckType(exp, table);
+			return subscriptionCheckType(expression);
 
 		case OperationKind::memberLookup:
 			return make_error<NotImplemented>("member lookup is not implemented yet");
@@ -605,19 +613,17 @@ Error TypeChecker::checkType<Operation>(
 }
 
 template<>
-Error TypeChecker::checkType<Constant>(
-		Expression& expression, const SymbolTable& table)
+Error TypeChecker::check<Constant>(Expression& expression)
 {
 	assert(expression.isA<Constant>());
 	return Error::success();
 }
 
 template<>
-Error TypeChecker::checkType<ReferenceAccess>(
-		Expression& expression, const SymbolTable& table)
+Error TypeChecker::check<ReferenceAccess>(Expression& expression)
 {
 	assert(expression.isA<ReferenceAccess>());
-	auto tp = typeFromSymbol(expression, table);
+	auto tp = typeFromSymbol(expression);
 
 	if (!tp)
 		return tp.takeError();
@@ -627,19 +633,18 @@ Error TypeChecker::checkType<ReferenceAccess>(
 }
 
 template<>
-Error TypeChecker::checkType<Call>(
-		Expression& expression, const SymbolTable& table)
+Error TypeChecker::check<Call>(Expression& expression)
 {
 	assert(expression.isA<Call>());
 	auto& call = expression.get<Call>();
 
 	for (size_t t : irange(call.argumentsCount()))
-		if (auto error = checkType<Expression>(call[t], table); error)
+		if (auto error = check<Expression>(call[t]); error)
 			return error;
 
 	auto& function = call.getFunction();
 
-	if (auto error = checkType<Expression>(function, table); error)
+	if (auto error = check<Expression>(function); error)
 		return error;
 
 	if (function.get<ReferenceAccess>().getName() == "der")
@@ -651,8 +656,7 @@ Error TypeChecker::checkType<Call>(
 }
 
 template<>
-Error TypeChecker::checkType<Tuple>(
-		Expression& expression, const SymbolTable& table)
+Error TypeChecker::check<Tuple>(Expression& expression)
 {
 	assert(expression.isA<Tuple>());
 	auto& tuple = expression.get<Tuple>();
@@ -661,7 +665,7 @@ Error TypeChecker::checkType<Tuple>(
 
 	for (auto& exp : tuple)
 	{
-		if (auto error = checkType<Expression>(exp, table); error)
+		if (auto error = check<Expression>(exp); error)
 			return error;
 
 		types.push_back(exp.getType());

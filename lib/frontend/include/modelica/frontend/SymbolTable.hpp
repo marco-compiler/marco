@@ -7,35 +7,11 @@
 #include <modelica/frontend/ForEquation.hpp>
 #include <modelica/frontend/Function.hpp>
 #include <modelica/frontend/Member.hpp>
+#include <modelica/frontend/Symbol.hpp>
 #include <variant>
 
 namespace modelica
 {
-	class Symbol
-	{
-		public:
-		explicit Symbol(Function& function);
-		explicit Symbol(Class& model);
-		explicit Symbol(Member& mem);
-		explicit Symbol(Induction& mem);
-
-		template<typename T>
-		[[nodiscard]] bool isA() const
-		{
-			return std::holds_alternative<T*>(content);
-		}
-
-		template<typename T>
-		[[nodiscard]] const T& get() const
-		{
-			assert(isA<T>());
-			return *std::get<T*>(content);
-		}
-
-		private:
-		std::variant<Function*, Class*, Member*, Induction*> content;
-	};
-
 	class SymbolTable
 	{
 		public:

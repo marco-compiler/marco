@@ -4,14 +4,6 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-Symbol::Symbol(Function& function): content(&function) {}
-
-Symbol::Symbol(Class& model): content(&model) {}
-
-Symbol::Symbol(Member& mem): content(&mem) {}
-
-Symbol::Symbol(Induction& mem): content(&mem) {}
-
 class ClassVisitor
 {
 	public:

@@ -54,6 +54,11 @@ MlirLowerer::MlirLowerer(mlir::MLIRContext& context) : builder(&context)
 	context.loadDialect<LLVM::LLVMDialect>();
 }
 
+mlir::OpBuilder& MlirLowerer::getOpBuilder()
+{
+	return builder;
+}
+
 mlir::ModuleOp MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer> classes)
 {
 	mlir::ModuleOp module = ModuleOp::create(builder.getUnknownLoc());
@@ -354,6 +359,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	assert(expression.isA<modelica::Operation>());
 	const auto& operation = expression.get<modelica::Operation>();
 	auto kind = operation.getKind();
+	auto resultType = lower(expression.getType());
 
 	if (kind == OperationKind::negate)
 	{
@@ -363,33 +369,41 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 
 	if (kind == OperationKind::add)
 	{
-		auto operands = lowerOperationArgs(operation);
-		auto type = lower(expression.getType().get<BuiltInType>());
-		mlir::Value result = builder.create<modelica::AddOp>(loc(expression.getLocation()), type, operands);
+		mlir::Value result = builder.create<modelica::AddOp>(
+				loc(expression.getLocation()),
+				resultType,
+				lowerOperationArgs(operation, resultType));
+
 		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::subtract)
 	{
-		auto operands = lowerOperationArgs(operation);
-		auto type = lower(expression.getType().get<BuiltInType>());
-		mlir::Value result = builder.create<modelica::SubOp>(loc(expression.getLocation()), type, operands);
+		mlir::Value result = builder.create<modelica::SubOp>(
+				loc(expression.getLocation()),
+				resultType,
+				lowerOperationArgs(operation, resultType));
+
 		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::multiply)
 	{
-		auto operands = lowerOperationArgs(operation);
-		auto type = lower(expression.getType().get<BuiltInType>());
-		mlir::Value result = builder.create<modelica::MulOp>(loc(expression.getLocation()), type, operands);
+		mlir::Value result = builder.create<modelica::MulOp>(
+				loc(expression.getLocation()),
+				resultType,
+				lowerOperationArgs(operation, resultType));
+
 		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::divide)
 	{
-		auto operands = lowerOperationArgs(operation);
-		auto type = lower(expression.getType().get<BuiltInType>());
-		mlir::Value result = builder.create<modelica::DivOp>(loc(expression.getLocation()), type, operands);
+		mlir::Value result = builder.create<modelica::DivOp>(
+				loc(expression.getLocation()),
+				resultType,
+				lowerOperationArgs(operation, resultType));
+
 		return { Reference(builder, result, false) };
 	}
 
@@ -554,12 +568,20 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Tuple>(const mode
 	return result;
 }
 
-MlirLowerer::Container<mlir::Value> MlirLowerer::lowerOperationArgs(const modelica::Operation& operation)
+MlirLowerer::Container<mlir::Value> MlirLowerer::lowerOperationArgs(const modelica::Operation& operation, mlir::Type type)
 {
 	SmallVector<mlir::Value, 3> args;
 
 	for (const auto& arg : operation)
-		args.push_back(*lower<modelica::Expression>(arg)[0]);
+	{
+		mlir::Value value = *lower<modelica::Expression>(arg)[0];
+		args.push_back(cast(value, type));
+	}
 
 	return args;
+}
+
+mlir::Value MlirLowerer::cast(mlir::Value value, mlir::Type type)
+{
+	return value;
 }
