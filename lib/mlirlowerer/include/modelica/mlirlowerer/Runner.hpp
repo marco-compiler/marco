@@ -4,7 +4,7 @@
 #include <llvm/Support/TargetSelect.h>
 #include <mlir/ExecutionEngine/ExecutionEngine.h>
 #include <mlir/ExecutionEngine/OptUtils.h>
-#include <mlir/IR/Module.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/Target/LLVMIR.h>
 
 namespace modelica
@@ -12,7 +12,7 @@ namespace modelica
 	class Runner
 	{
 		public:
-		explicit Runner(mlir::MLIRContext* context, mlir::ModuleOp& module)
+		Runner(mlir::MLIRContext* context, mlir::ModuleOp module)
 				: context(context), module(std::move(module))
 		{
 		}
@@ -27,7 +27,8 @@ namespace modelica
 				return mlir::failure();
 			}
 
-			auto llvmModule = mlir::translateModuleToLLVMIR(module);
+			llvm::LLVMContext llvmContext;
+			auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmContext);
 			llvm::errs() << *llvmModule;
 
 			// Initialize LLVM targets

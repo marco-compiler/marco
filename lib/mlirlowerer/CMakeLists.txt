@@ -1,8 +1,11 @@
 modelicaAddLibrary(
         mlirlowerer SHARED
+        src/CmpOps.cpp
         src/LLVMLoweringPass.cpp
+        src/MathOps.cpp
         src/MlirLowerer.cpp
         src/ModelicaDialect.cpp
+        src/ModelicaToStandard.cpp
 )
 
 target_link_libraries(
@@ -12,7 +15,7 @@ target_link_libraries(
         MLIRIR
         MLIRSCF
         MLIRSCFToStandard
-        MLIRStandardOps
+        MLIRStandard
         MLIRStandardToLLVM
         MLIRTargetLLVMIR
         MLIRTransforms

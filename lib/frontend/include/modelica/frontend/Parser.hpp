@@ -49,7 +49,7 @@ namespace modelica
 		llvm::Expected<Expression> arithmeticExpression();
 
 		llvm::Expected<llvm::SmallVector<size_t, 3>> arrayDimensions();
-		llvm::Expected<llvm::SmallVector<Member, 3>> elementList();
+		llvm::Expected<llvm::SmallVector<Member, 3>> elementList(bool publicSection = true);
 
 		llvm::Expected<TypePrefix> typePrefix();
 		llvm::Expected<Member> element(bool publicSection = true);

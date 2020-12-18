@@ -67,7 +67,6 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 
 	ClassContainer cls(function);
 
-	registerDialects();
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower({ cls });
@@ -76,7 +75,8 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		return;
 
-	auto llvmModule = mlir::translateModuleToLLVMIR(module);
+	llvm::LLVMContext llvmContext;
+	auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmContext);
 	llvmModule->print(llvm::errs(), nullptr);
 
 	if (!llvmModule) {

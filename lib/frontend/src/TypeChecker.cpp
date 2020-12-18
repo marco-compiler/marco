@@ -145,16 +145,17 @@ Error TypeChecker::checkType(Function& function, const SymbolTable& table)
 				// "Input formal parameters are read-only after being bound to the
 				// actual arguments or default values, i.e., they may not be assigned
 				// values in the body of the function."
+				Expression* current = &exp;
 
-				while (exp.isA<Operation>())
+				while (current->isA<Operation>())
 				{
-					auto& operation = exp.get<Operation>();
+					auto& operation = current->get<Operation>();
 					assert(operation.getKind() == OperationKind::subscription);
-					exp = operation[0];
+					current = &operation[0];
 				}
 
-				assert(exp.isA<ReferenceAccess>());
-				auto& ref = exp.get<ReferenceAccess>();
+				assert(current->isA<ReferenceAccess>());
+				auto& ref = current->get<ReferenceAccess>();
 
 				if (!ref.isDummy())
 				{

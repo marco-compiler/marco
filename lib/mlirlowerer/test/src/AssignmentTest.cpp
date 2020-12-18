@@ -20,15 +20,23 @@ TEST(MlirLowererTest, constantAssignment)	 // NOLINT
 									"end main";
 
 	Parser parser(source);
-	ClassContainer cls = *parser.classDefinition();
+	auto expectedAst = parser.classDefinition();
+
+	if (!expectedAst)
+		FAIL();
+
+	auto& cls = *expectedAst;
 
 	modelica::TypeChecker typeChecker;
-	typeChecker.checkType(cls, modelica::SymbolTable());
+
+	if (typeChecker.checkType(cls, modelica::SymbolTable()))
+		FAIL();
 
 	modelica::ConstantFolder folder;
-	folder.fold(cls, modelica::SymbolTable());
 
-	registerDialects();
+	if (folder.fold(cls, modelica::SymbolTable()))
+		FAIL();
+
 	MLIRContext context;
 	MlirLowerer lowerer(context);
 	ModuleOp module = lowerer.lower(cls);
@@ -54,15 +62,23 @@ TEST(MlirLowererTest, variableAssignment)	 // NOLINT
 									"end main";
 
 	Parser parser(source);
-	ClassContainer cls = *parser.classDefinition();
+	auto expectedAst = parser.classDefinition();
+
+	if (!expectedAst)
+		FAIL();
+
+	auto& cls = *expectedAst;
 
 	modelica::TypeChecker typeChecker;
-	typeChecker.checkType(cls, modelica::SymbolTable());
+
+	if (typeChecker.checkType(cls, modelica::SymbolTable()))
+		FAIL();
 
 	modelica::ConstantFolder folder;
-	folder.fold(cls, modelica::SymbolTable());
 
-	registerDialects();
+	if (folder.fold(cls, modelica::SymbolTable()))
+		FAIL();
+
 	MLIRContext context;
 	MlirLowerer lowerer(context);
 	ModuleOp module = lowerer.lower({ cls });
@@ -81,25 +97,35 @@ TEST(MlirLowererTest, variableAssignment)	 // NOLINT
 
 TEST(MlirLowererTest, arrayElementAssignment)	 // NOLINT
 {
+	//llvm::DebugFlag = true;
+
 	string source = "function main"
 									"  output Integer y;"
 									"  protected"
-									"    Integer[3] x;"
+									"    Integer[3] z;"
 									"  algorithm"
-									"    x[1] := 57;"
-									"    y := x[1];"
+									"    z[1] := 57;"
+									"    y := z[1];"
 									"  end main";
 
 	Parser parser(source);
-	ClassContainer cls = *parser.classDefinition();
+	auto expectedAst = parser.classDefinition();
+
+	if (!expectedAst)
+		FAIL();
+
+	auto& cls = *expectedAst;
 
 	modelica::TypeChecker typeChecker;
-	typeChecker.checkType(cls, modelica::SymbolTable());
+
+	if (typeChecker.checkType(cls, modelica::SymbolTable()))
+		FAIL();
 
 	modelica::ConstantFolder folder;
-	folder.fold(cls, modelica::SymbolTable());
 
-	registerDialects();
+	if (folder.fold(cls, modelica::SymbolTable()))
+		FAIL();
+
 	MLIRContext context;
 	MlirLowerer lowerer(context);
 	ModuleOp module = lowerer.lower({ cls });
@@ -107,7 +133,7 @@ TEST(MlirLowererTest, arrayElementAssignment)	 // NOLINT
 
 	Runner runner(&context, module);
 
-	int x[3] =  { 0, 0, 0 };
+	int x[4] =  { 0, 0, 0, 0 };
 	int y = 0;
 	auto execution = runner.run("main", y);
 

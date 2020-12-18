@@ -203,7 +203,7 @@ Expected<ClassContainer> Parser::classDefinition()
 
 		if (accept(Token::ProtectedKeyword))
 		{
-			TRY(mem, elementList());
+			TRY(mem, elementList(false));
 			firstElementListParsable = false;
 
 			for (auto& member : *mem)
@@ -240,7 +240,7 @@ Expected<ClassContainer> Parser::classDefinition()
 	assert(false && "Unreachable");
 }
 
-Expected<SmallVector<Member, 3>> Parser::elementList()
+Expected<SmallVector<Member, 3>> Parser::elementList(bool publicSection)
 {
 	SmallVector<Member, 3> members;
 
@@ -249,7 +249,7 @@ Expected<SmallVector<Member, 3>> Parser::elementList()
 			current != Token::FunctionKeyword && current != Token::EquationKeyword &&
 			current != Token::AlgorithmKeyword && current != Token::EndKeyword)
 	{
-		TRY(memb, element());
+		TRY(memb, element(publicSection));
 		EXPECT(Token::Semicolons);
 		members.emplace_back(move(*memb));
 	}

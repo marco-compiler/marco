@@ -2,7 +2,7 @@
 
 #include <llvm/ADT/ScopedHashTable.h>
 #include <mlir/IR/Builders.h>
-#include <mlir/IR/Function.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/IR/StandardTypes.h>
 #include <modelica/frontend/ClassContainer.hpp>
@@ -10,8 +10,6 @@
 
 namespace modelica
 {
-	void registerDialects();
-
 	mlir::LogicalResult convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module);
 
 	class Reference
@@ -45,7 +43,7 @@ namespace modelica
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		explicit MlirLowerer(mlir::MLIRContext &context);
+		explicit MlirLowerer(mlir::MLIRContext& context);
 
 		mlir::ModuleOp lower(llvm::ArrayRef<const modelica::ClassContainer> classes);
 		mlir::Operation* lower(const modelica::Class& cls);
@@ -67,17 +65,30 @@ namespace modelica
 		template<typename T>
 		Container<Reference> lower(const modelica::Expression& expression);
 
+		mlir::OpBuilder& getOpBuilder()
+		{
+			return builder;
+		}
+
 		private:
-		/// The builder is a helper class to create IR inside a function. The
-		/// builder is stateful, in particular it keeps an "insertion point":
-		/// this is where the next operations will be introduced.
+		Container<mlir::Value> lowerOperationArgs(const modelica::Operation& operation);
+
+		void loadDialects(mlir::MLIRContext* context);
+
+		/**
+		 * The builder is a helper class to create IR inside a function. The
+		 * builder is stateful, in particular it keeps an "insertion point":
+		 * this is where the next operations will be introduced.
+		 */
 		mlir::OpBuilder builder;
 
-		/// The symbol table maps a variable name to a value in the current scope.
-		/// Entering a function creates a new scope, and the function arguments
-		/// are added to the mapping. When the processing of a function is
-		/// terminated, the scope is destroyed and the mappings created in this
-		/// scope are dropped.
+		/**
+		 * The symbol table maps a variable name to a value in the current scope.
+		 * Entering a function creates a new scope, and the function arguments
+		 * are added to the mapping. When the processing of a function is
+		 * terminated, the scope is destroyed and the mappings created in this
+		 * scope are dropped.
+		 */
 		llvm::ScopedHashTable<llvm::StringRef, mlir::Value> symbolTable;
 
 		/**
