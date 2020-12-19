@@ -111,7 +111,7 @@ TEST(MathOps, addSameSignFloats)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, 5.5);
+	EXPECT_FLOAT_EQ(result, 5.5);
 }
 
 TEST(MathOps, addDifferentSignFloats)	 // NOLINT
@@ -139,7 +139,7 @@ TEST(MathOps, addDifferentSignFloats)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, -0.5);
+	EXPECT_FLOAT_EQ(result, -0.5);
 }
 
 TEST(MathOps, addIntegerCastedToFloat)	 // NOLINT
@@ -167,35 +167,7 @@ TEST(MathOps, addIntegerCastedToFloat)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, -1.5);
-}
-
-TEST(MathOps, addFloatCastedToInt)	 // NOLINT
-{
-	SourcePosition location("-", 0, 0);
-
-	Expression expression = Expression::op<OperationKind::add>(
-			location,
-			Type::Int(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Float(), Constant(-1.5)));
-
-	mlir::MLIRContext context;
-
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
-
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_EQ(result, 0);
+	EXPECT_FLOAT_EQ(result, -1.5);
 }
 
 TEST(MathOps, addMultipleIntegers)	 // NOLINT
@@ -231,12 +203,14 @@ TEST(MathOps, addMultipleIntegers)	 // NOLINT
 TEST(MathOps, addMultipleFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
- // TODO: add more values
+
 	Expression expression = Expression::op<OperationKind::add>(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(2.3F)),
-			Expression(location, Type::Float(), Constant(3.1F)));
+			Expression(location, Type::Float(), Constant(2.3)),
+			Expression(location, Type::Float(), Constant(3.1)),
+			Expression(location, Type::Float(), Constant(4.9)),
+			Expression(location, Type::Float(), Constant(-2.4)));
 
 	mlir::MLIRContext context;
 
@@ -253,9 +227,7 @@ TEST(MathOps, addMultipleFloats)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	float difference = result - 5.4F;
-	llvm::errs() << "difference: " << difference;
-	EXPECT_EQ(result, 5.4F);
+	EXPECT_FLOAT_EQ(result, 7.9);
 }
 
 TEST(MathOps, subSameSignIntegers)	 // NOLINT
@@ -339,7 +311,7 @@ TEST(MathOps, subSameSignFloats)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, -0.7);
+	EXPECT_FLOAT_EQ(result, -0.7);
 }
 
 TEST(MathOps, subDifferentSignFloats)	 // NOLINT
@@ -367,7 +339,7 @@ TEST(MathOps, subDifferentSignFloats)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, 5.7);
+	EXPECT_FLOAT_EQ(result, 5.7);
 }
 
 TEST(MathOps, subIntegerCastedToFloat)	 // NOLINT
@@ -395,35 +367,7 @@ TEST(MathOps, subIntegerCastedToFloat)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, 5.7);
-}
-
-TEST(MathOps, subFloatCastedToInt)	 // NOLINT
-{
-	SourcePosition location("-", 0, 0);
-
-	Expression expression = Expression::op<OperationKind::subtract>(
-			location,
-			Type::Int(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Float(), Constant(-1.5)));
-
-	mlir::MLIRContext context;
-
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
-
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_EQ(result, 3.0);
+	EXPECT_FLOAT_EQ(result, 5.7);
 }
 
 TEST(MathOps, subMultipleIntegers)	 // NOLINT
@@ -483,7 +427,7 @@ TEST(MathOps, subMultipleFloats)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, 3.6);
+	EXPECT_FLOAT_EQ(result, 3.6);
 }
 
 TEST(MathOps, mulSameSignIntegers)	 // NOLINT
@@ -567,7 +511,7 @@ TEST(MathOps, mulSameSignFloats)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, 8.51);
+	EXPECT_FLOAT_EQ(result, 8.51);
 }
 
 TEST(MathOps, mulDifferentSignFloats)	 // NOLINT
@@ -595,7 +539,7 @@ TEST(MathOps, mulDifferentSignFloats)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, -8.51);
+	EXPECT_FLOAT_EQ(result, -8.51);
 }
 
 TEST(MathOps, mulIntegerCastedToFloat)	 // NOLINT
@@ -623,35 +567,7 @@ TEST(MathOps, mulIntegerCastedToFloat)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, -7.4);
-}
-
-TEST(MathOps, mulFloatCastedToInt)	 // NOLINT
-{
-	SourcePosition location("-", 0, 0);
-
-	Expression expression = Expression::op<OperationKind::multiply>(
-			location,
-			Type::Int(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Float(), Constant(-2.5)));
-
-	mlir::MLIRContext context;
-
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
-
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_EQ(result, -5.0);
+	EXPECT_FLOAT_EQ(result, -7.4);
 }
 
 TEST(MathOps, mulMultipleIntegers)	 // NOLINT
@@ -691,10 +607,10 @@ TEST(MathOps, mulMultipleFloats)	 // NOLINT
 	Expression expression = Expression::op<OperationKind::multiply>(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(2.5)),
-			Expression(location, Type::Float(), Constant(3.7)),
-			Expression(location, Type::Float(), Constant(-10.2)),
-			Expression(location, Type::Float(), Constant(4.9)));
+			Expression(location, Type::Float(), Constant(2.5F)),
+			Expression(location, Type::Float(), Constant(3.7F)),
+			Expression(location, Type::Float(), Constant(4.9F)),
+			Expression(location, Type::Float(), Constant(-2.0F)));
 
 	mlir::MLIRContext context;
 
@@ -711,5 +627,205 @@ TEST(MathOps, mulMultipleFloats)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, -144.33);
+	EXPECT_FLOAT_EQ(result, -90.65);
+}
+
+TEST(MathOps, divSameSignIntegers)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::divide>(
+			location,
+			Type::Int(),
+			Expression(location, Type::Int(), Constant(10)),
+			Expression(location, Type::Int(), Constant(3)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	int result = 0;
+	runner.run("main", result);
+	EXPECT_EQ(result, 3);
+}
+
+TEST(MathOps, divDifferentSignIntegers)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::divide>(
+			location,
+			Type::Int(),
+			Expression(location, Type::Int(), Constant(10)),
+			Expression(location, Type::Int(), Constant(-3)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	int result = 0;
+	runner.run("main", result);
+	EXPECT_EQ(result, -3);
+}
+
+TEST(MathOps, divSameSignFloats)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::divide>(
+			location,
+			Type::Float(),
+			Expression(location, Type::Float(), Constant(10.8)),
+			Expression(location, Type::Float(), Constant(3.6)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	float result = 0;
+	runner.run("main", result);
+	EXPECT_FLOAT_EQ(result, 3.0);
+}
+
+TEST(MathOps, divDifferentSignFloats)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::divide>(
+			location,
+			Type::Float(),
+			Expression(location, Type::Float(), Constant(10.8)),
+			Expression(location, Type::Float(), Constant(-3.6)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	float result = 0;
+	runner.run("main", result);
+	EXPECT_FLOAT_EQ(result, -3.0);
+}
+
+TEST(MathOps, divIntegerCastedToFloat)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::divide>(
+			location,
+			Type::Float(),
+			Expression(location, Type::Int(), Constant(10)),
+			Expression(location, Type::Float(), Constant(-3.2)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	float result = 0;
+	runner.run("main", result);
+	EXPECT_FLOAT_EQ(result, -3.125);
+}
+
+TEST(MathOps, divMultipleIntegers)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::divide>(
+			location,
+			Type::Int(),
+			Expression(location, Type::Int(), Constant(120)),
+			Expression(location, Type::Int(), Constant(2)),
+			Expression(location, Type::Int(), Constant(-3)),
+			Expression(location, Type::Int(), Constant(4)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	int result = 0;
+	runner.run("main", result);
+	EXPECT_EQ(result, -5);
+}
+
+TEST(MathOps, divMultipleFloats)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::divide>(
+			location,
+			Type::Float(),
+			Expression(location, Type::Float(), Constant(120.4)),
+			Expression(location, Type::Float(), Constant(3.2)),
+			Expression(location, Type::Float(), Constant(-8.6)),
+			Expression(location, Type::Float(), Constant(2.5)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	float result = 0;
+	runner.run("main", result);
+	EXPECT_FLOAT_EQ(result, -1.75);
 }

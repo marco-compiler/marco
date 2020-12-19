@@ -142,15 +142,6 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	// Emit the body of the function
 	lower(foo.getAlgorithms()[0]);
 
-	/*
-	auto val = builder.create<LoadOp>(builder.getUnknownLoc(), symbolTable.lookup("x"));
-	//auto cast = builder.create<SIToFPOp>(builder.getUnknownLoc(), val, builder.getF32Type());
-	auto c = builder.create<ConstantOp>(builder.getUnknownLoc(), builder.getI32IntegerAttr(2));
-	//auto result = builder.create<AddFOp>(builder.getUnknownLoc(), builder.getF32Type(), cast, c);
-	auto result = builder.create<MulIOp>(builder.getUnknownLoc(), builder.getI32Type(), val, c);
-	builder.create<StoreOp>(builder.getUnknownLoc(), result, symbolTable.lookup("y"));
-	 */
-
 	// Return statement
 	std::vector<mlir::Value> results;
 
