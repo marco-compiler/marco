@@ -142,6 +142,15 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	// Emit the body of the function
 	lower(foo.getAlgorithms()[0]);
 
+	/*
+	auto val = builder.create<LoadOp>(builder.getUnknownLoc(), symbolTable.lookup("x"));
+	//auto cast = builder.create<SIToFPOp>(builder.getUnknownLoc(), val, builder.getF32Type());
+	auto c = builder.create<ConstantOp>(builder.getUnknownLoc(), builder.getI32IntegerAttr(2));
+	//auto result = builder.create<AddFOp>(builder.getUnknownLoc(), builder.getF32Type(), cast, c);
+	auto result = builder.create<MulIOp>(builder.getUnknownLoc(), builder.getI32Type(), val, c);
+	builder.create<StoreOp>(builder.getUnknownLoc(), result, symbolTable.lookup("y"));
+	 */
+
 	// Return statement
 	std::vector<mlir::Value> results;
 
@@ -372,7 +381,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		mlir::Value result = builder.create<modelica::AddOp>(
 				loc(expression.getLocation()),
 				resultType,
-				lowerOperationArgs(operation, resultType));
+				lowerOperationArgs(operation));
 
 		return { Reference(builder, result, false) };
 	}
@@ -382,7 +391,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		mlir::Value result = builder.create<modelica::SubOp>(
 				loc(expression.getLocation()),
 				resultType,
-				lowerOperationArgs(operation, resultType));
+				lowerOperationArgs(operation));
 
 		return { Reference(builder, result, false) };
 	}
@@ -392,7 +401,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		mlir::Value result = builder.create<modelica::MulOp>(
 				loc(expression.getLocation()),
 				resultType,
-				lowerOperationArgs(operation, resultType));
+				lowerOperationArgs(operation));
 
 		return { Reference(builder, result, false) };
 	}
@@ -402,7 +411,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		mlir::Value result = builder.create<modelica::DivOp>(
 				loc(expression.getLocation()),
 				resultType,
-				lowerOperationArgs(operation, resultType));
+				lowerOperationArgs(operation));
 
 		return { Reference(builder, result, false) };
 	}
@@ -568,20 +577,12 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Tuple>(const mode
 	return result;
 }
 
-MlirLowerer::Container<mlir::Value> MlirLowerer::lowerOperationArgs(const modelica::Operation& operation, mlir::Type type)
+MlirLowerer::Container<mlir::Value> MlirLowerer::lowerOperationArgs(const modelica::Operation& operation)
 {
 	SmallVector<mlir::Value, 3> args;
 
 	for (const auto& arg : operation)
-	{
-		mlir::Value value = *lower<modelica::Expression>(arg)[0];
-		args.push_back(cast(value, type));
-	}
+		args.push_back( *lower<modelica::Expression>(arg)[0]);
 
 	return args;
-}
-
-mlir::Value MlirLowerer::cast(mlir::Value value, mlir::Type type)
-{
-	return value;
 }

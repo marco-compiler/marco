@@ -8,6 +8,9 @@ ModelicaDialect::ModelicaDialect(MLIRContext* context)
 		: Dialect("modelica", context, TypeID::get<ModelicaDialect>())
 {
 	addOperations<AddOp>();
+	addOperations<SubOp>();
+	addOperations<MulOp>();
+	addOperations<DivOp>();
 }
 
 StringRef ModelicaDialect::getDialectNamespace()

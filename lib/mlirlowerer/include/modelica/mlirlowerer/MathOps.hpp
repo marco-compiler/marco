@@ -6,7 +6,7 @@
 
 namespace modelica
 {
-	class AddOp : public mlir::Op<AddOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameOperandsAndResultType>
+	class AddOp : public mlir::Op<AddOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -15,7 +15,7 @@ namespace modelica
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::ValueRange operands);
 	};
 
-	class SubOp : public mlir::Op<AddOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameOperandsAndResultType>
+	class SubOp : public mlir::Op<SubOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -24,7 +24,7 @@ namespace modelica
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::ValueRange operands);
 	};
 
-	class MulOp : public mlir::Op<AddOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameOperandsAndResultType>
+	class MulOp : public mlir::Op<MulOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -33,7 +33,7 @@ namespace modelica
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::ValueRange operands);
 	};
 
-	class DivOp : public mlir::Op<AddOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameOperandsAndResultType>
+	class DivOp : public mlir::Op<DivOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;

@@ -10,7 +10,24 @@
 
 namespace modelica
 {
-	mlir::LogicalResult convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module);
+	/**
+	 * Convert a module to the LVVM dialect.
+	 *
+	 * @param context MLIR context
+	 * @param module  module
+	 * @return success if the conversion was successful
+	 */
+	[[nodiscard]] mlir::LogicalResult convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module);
+
+	/**
+	 * Cast a value to a specific type.
+	 *
+	 * @param builder operation builder
+	 * @param value   value to be casted
+	 * @param type    destination type
+	 * @return casted value
+	 */
+	//[[nodiscard]] mlir::Value cast(mlir::OpBuilder& builder, mlir::Value value, mlir::Type type);
 
 	class Reference
 	{
@@ -75,14 +92,12 @@ namespace modelica
 
 		private:
 		/**
-		 * Lower the arguments of an operation. If any of the operand has a type
-		 * different from the desired one, it is automatically casted (if possible).
+		 * Lower the arguments of an operation.
 		 *
-		 * @param operation operation whose arguments haave to be lowered
-		 * @param type      result type
+		 * @param operation operation whose arguments have to be lowered
 		 * @return lowered args
 		 */
-		Container<mlir::Value> lowerOperationArgs(const modelica::Operation& operation, mlir::Type type);
+		Container<mlir::Value> lowerOperationArgs(const modelica::Operation& operatione);
 
 		/**
 		 * The builder is a helper class to create IR inside a function. The
@@ -137,8 +152,6 @@ namespace modelica
 
 			assert(false && "Unknown type");
 		}
-
-		mlir::Value cast(mlir::Value value, mlir::Type type);
 	};
 
 	template<>
