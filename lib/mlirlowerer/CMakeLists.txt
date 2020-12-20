@@ -1,11 +1,10 @@
 modelicaAddLibrary(
         mlirlowerer SHARED
-        src/CmpOps.cpp
         src/LLVMLoweringPass.cpp
-        src/MathOps.cpp
         src/MlirLowerer.cpp
         src/ModelicaDialect.cpp
         src/ModelicaToStandard.cpp
+        src/Ops.cpp
 )
 
 target_link_libraries(

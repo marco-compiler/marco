@@ -1,5 +1,5 @@
-#include <modelica/mlirlowerer/MathOps.hpp>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
+#include <modelica/mlirlowerer/Ops.hpp>
 
 using namespace mlir;
 using namespace modelica;
@@ -7,10 +7,11 @@ using namespace modelica;
 ModelicaDialect::ModelicaDialect(MLIRContext* context)
 		: Dialect("modelica", context, TypeID::get<ModelicaDialect>())
 {
-	addOperations<AddOp>();
-	addOperations<SubOp>();
-	addOperations<MulOp>();
-	addOperations<DivOp>();
+	// Math operations
+	addOperations<AddOp, SubOp, MulOp, DivOp>();
+
+	// Comparison operations
+	addOperations<EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp>();
 }
 
 StringRef ModelicaDialect::getDialectNamespace()

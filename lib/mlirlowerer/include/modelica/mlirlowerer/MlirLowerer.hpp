@@ -19,16 +19,6 @@ namespace modelica
 	 */
 	[[nodiscard]] mlir::LogicalResult convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module);
 
-	/**
-	 * Cast a value to a specific type.
-	 *
-	 * @param builder operation builder
-	 * @param value   value to be casted
-	 * @param type    destination type
-	 * @return casted value
-	 */
-	//[[nodiscard]] mlir::Value cast(mlir::OpBuilder& builder, mlir::Value value, mlir::Type type);
-
 	class Reference
 	{
 		public:

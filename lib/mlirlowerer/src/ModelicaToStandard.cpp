@@ -1,4 +1,6 @@
+#include <modelica/mlirlowerer/ModelicaDialect.hpp>
 #include <modelica/mlirlowerer/ModelicaToStandard.hpp>
+#include <modelica/mlirlowerer/TypeConversion.hpp>
 
 using namespace mlir;
 using namespace modelica;
@@ -12,63 +14,9 @@ void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList&
 	patterns.insert<DivOpLowering>(context);
 }
 
-static mlir::Value cast(mlir::OpBuilder& builder, mlir::Value value, mlir::Type type)
-{
-	auto sourceType = value.getType();
-
-	if (sourceType == type)
-		return value;
-
-	if (sourceType.isF16() || sourceType.isF32() || sourceType.isF64())
-	{
-		if (type.isSignedInteger() || type.isSignlessInteger())
-			return builder.create<FPToSIOp>(builder.getUnknownLoc(), value, type);
-
-		if (type.isUnsignedInteger())
-			return builder.create<FPToUIOp>(builder.getUnknownLoc(), value, type);
-	}
-	else if (sourceType.isSignedInteger() || sourceType.isSignlessInteger())
-	{
-		if (type.isF16() || type.isF32() || type.isF64())
-			return builder.create<SIToFPOp>(builder.getUnknownLoc(), value, type);
-	}
-	else if (sourceType.isUnsignedInteger())
-	{
-		if (type.isF16() || type.isF32() || type.isF64())
-			return builder.create<UIToFPOp>(builder.getUnknownLoc(), value, type);
-	}
-
-	assert(false && "Can't cast value");
-	return value;
-}
-
-template<typename Op>
-static mlir::Value foldBinaryOp(PatternRewriter& rewriter, Location location, ValueRange operands, mlir::Value startValue = nullptr)
-{
-	size_t size = operands.size();
-
-	if (startValue == nullptr)
-		assert(size >= 2);
-	else
-		assert(size >= 1);
-
-	size_t i = 0;
-
-	if (startValue == nullptr)
-	{
-		startValue = operands[0];
-		i = 1;
-	}
-
-	mlir::Value result;
-
-	result = rewriter.create<Op>(location, startValue, operands[i++]);
-
-	for (; i < size; i++)
-		result = rewriter.create<Op>(location, result, operands[i]);
-
-	return result;
-}
+//static pair<mlir::Value, mlir::Value> castToCommon(mlir::OpBuilder& builder, mlir::Value first, mlir::Value second) {
+//	return std::make_pair<mlir::Value, mlir::Value>(nullptr, nullptr);
+//}
 
 LogicalResult AddOpLowering::matchAndRewrite(AddOp op, PatternRewriter& rewriter) const
 {
@@ -215,6 +163,168 @@ LogicalResult DivOpLowering::matchAndRewrite(DivOp op, PatternRewriter& rewriter
 		result = rewriter.create<SIToFPOp>(location, result, type);
 
 	rewriter.replaceOp(op, result);
+	return success();
+}
+
+LogicalResult EqOpLowering::matchAndRewrite(EqOp op, PatternRewriter& rewriter) const
+{
+	Location location = op.getLoc();
+	auto operands = op->getOperands();
+
+	if (operands[0].getType().isSignlessInteger() && operands[1].getType().isSignlessInteger())
+		rewriter.replaceOpWithNewOp<CmpIOp>(op, CmpIPredicate::eq, operands[0], operands[1]);
+	else if (operands[0].getType().isF32() && operands[1].getType().isF32())
+		rewriter.replaceOpWithNewOp<CmpFOp>(op, CmpFPredicate::OEQ, operands[0], operands[1]);
+	else if (operands[0].getType().isSignlessInteger() && operands[1].getType().isF32())
+		rewriter.replaceOpWithNewOp<CmpFOp>(
+				op,
+				CmpFPredicate::OEQ,
+				rewriter.create<SIToFPOp>(location, operands[0], operands[1].getType()),
+				operands[1]);
+	else if (operands[0].getType().isF32() && operands[1].getType().isSignlessInteger())
+		rewriter.replaceOpWithNewOp<CmpFOp>(
+				op,
+				CmpFPredicate::OEQ,
+				operands[0],
+				rewriter.create<SIToFPOp>(location, operands[1], operands[0].getType()));
+	else
+		assert(false && "Incompatible types");
+
+	return success();
+}
+
+LogicalResult NotEqOpLowering::matchAndRewrite(NotEqOp op, PatternRewriter& rewriter) const
+{
+	Location location = op.getLoc();
+	auto operands = op->getOperands();
+
+	if (operands[0].getType().isSignlessInteger() && operands[1].getType().isSignlessInteger())
+		rewriter.replaceOpWithNewOp<CmpIOp>(op, CmpIPredicate::ne, operands[0], operands[1]);
+	else if (operands[0].getType().isF32() && operands[1].getType().isF32())
+		rewriter.replaceOpWithNewOp<CmpFOp>(op, CmpFPredicate::ONE, operands[0], operands[1]);
+	else if (operands[0].getType().isSignlessInteger() && operands[1].getType().isF32())
+		rewriter.replaceOpWithNewOp<CmpFOp>(
+				op,
+				CmpFPredicate::ONE,
+				rewriter.create<SIToFPOp>(location, operands[0], operands[1].getType()),
+				operands[1]);
+	else if (operands[0].getType().isF32() && operands[1].getType().isSignlessInteger())
+		rewriter.replaceOpWithNewOp<CmpFOp>(
+				op,
+				CmpFPredicate::ONE,
+				operands[0],
+				rewriter.create<SIToFPOp>(location, operands[1], operands[0].getType()));
+	else
+		assert(false && "Incompatible types");
+
+	return success();
+}
+
+LogicalResult GtOpLowering::matchAndRewrite(GtOp op, PatternRewriter& rewriter) const
+{
+	Location location = op.getLoc();
+	auto operands = op->getOperands();
+
+	if (operands[0].getType().isSignlessInteger() && operands[1].getType().isSignlessInteger())
+		rewriter.replaceOpWithNewOp<CmpIOp>(op, CmpIPredicate::sgt, operands[0], operands[1]);
+	else if (operands[0].getType().isF32() && operands[1].getType().isF32())
+		rewriter.replaceOpWithNewOp<CmpFOp>(op, CmpFPredicate::OGT, operands[0], operands[1]);
+	else if (operands[0].getType().isSignlessInteger() && operands[1].getType().isF32())
+		rewriter.replaceOpWithNewOp<CmpFOp>(
+				op,
+				CmpFPredicate::OGT,
+				rewriter.create<SIToFPOp>(location, operands[0], operands[1].getType()),
+				operands[1]);
+	else if (operands[0].getType().isF32() && operands[1].getType().isSignlessInteger())
+		rewriter.replaceOpWithNewOp<CmpFOp>(
+				op,
+				CmpFPredicate::OGT,
+				operands[0],
+				rewriter.create<SIToFPOp>(location, operands[1], operands[0].getType()));
+	else
+		assert(false && "Incompatible types");
+
+	return success();
+}
+
+LogicalResult GteOpLowering::matchAndRewrite(GteOp op, PatternRewriter& rewriter) const
+{
+	Location location = op.getLoc();
+	auto operands = op->getOperands();
+
+	if (operands[0].getType().isSignlessInteger() && operands[1].getType().isSignlessInteger())
+		rewriter.replaceOpWithNewOp<CmpIOp>(op, CmpIPredicate::sge, operands[0], operands[1]);
+	else if (operands[0].getType().isF32() && operands[1].getType().isF32())
+		rewriter.replaceOpWithNewOp<CmpFOp>(op, CmpFPredicate::OGE, operands[0], operands[1]);
+	else if (operands[0].getType().isSignlessInteger() && operands[1].getType().isF32())
+		rewriter.replaceOpWithNewOp<CmpFOp>(
+				op,
+				CmpFPredicate::OGE,
+				rewriter.create<SIToFPOp>(location, operands[0], operands[1].getType()),
+				operands[1]);
+	else if (operands[0].getType().isF32() && operands[1].getType().isSignlessInteger())
+		rewriter.replaceOpWithNewOp<CmpFOp>(
+				op,
+				CmpFPredicate::OGE,
+				operands[0],
+				rewriter.create<SIToFPOp>(location, operands[1], operands[0].getType()));
+	else
+		assert(false && "Incompatible types");
+
+	return success();
+}
+
+LogicalResult LtOpLowering::matchAndRewrite(LtOp op, PatternRewriter& rewriter) const
+{
+	Location location = op.getLoc();
+	auto operands = op->getOperands();
+
+	if (operands[0].getType().isSignlessInteger() && operands[1].getType().isSignlessInteger())
+		rewriter.replaceOpWithNewOp<CmpIOp>(op, CmpIPredicate::slt, operands[0], operands[1]);
+	else if (operands[0].getType().isF32() && operands[1].getType().isF32())
+		rewriter.replaceOpWithNewOp<CmpFOp>(op, CmpFPredicate::OLT, operands[0], operands[1]);
+	else if (operands[0].getType().isSignlessInteger() && operands[1].getType().isF32())
+		rewriter.replaceOpWithNewOp<CmpFOp>(
+				op,
+				CmpFPredicate::OLT,
+				rewriter.create<SIToFPOp>(location, operands[0], operands[1].getType()),
+				operands[1]);
+	else if (operands[0].getType().isF32() && operands[1].getType().isSignlessInteger())
+		rewriter.replaceOpWithNewOp<CmpFOp>(
+				op,
+				CmpFPredicate::OLT,
+				operands[0],
+				rewriter.create<SIToFPOp>(location, operands[1], operands[0].getType()));
+	else
+		assert(false && "Incompatible types");
+
+	return success();
+}
+
+LogicalResult LteOpLowering::matchAndRewrite(LteOp op, PatternRewriter& rewriter) const
+{
+	Location location = op.getLoc();
+	auto operands = op->getOperands();
+
+	if (operands[0].getType().isSignlessInteger() && operands[1].getType().isSignlessInteger())
+		rewriter.replaceOpWithNewOp<CmpIOp>(op, CmpIPredicate::sle, operands[0], operands[1]);
+	else if (operands[0].getType().isF32() && operands[1].getType().isF32())
+		rewriter.replaceOpWithNewOp<CmpFOp>(op, CmpFPredicate::OLE, operands[0], operands[1]);
+	else if (operands[0].getType().isSignlessInteger() && operands[1].getType().isF32())
+		rewriter.replaceOpWithNewOp<CmpFOp>(
+				op,
+				CmpFPredicate::OLE,
+				rewriter.create<SIToFPOp>(location, operands[0], operands[1].getType()),
+				operands[1]);
+	else if (operands[0].getType().isF32() && operands[1].getType().isSignlessInteger())
+		rewriter.replaceOpWithNewOp<CmpFOp>(
+				op,
+				CmpFPredicate::OLE,
+				operands[0],
+				rewriter.create<SIToFPOp>(location, operands[1], operands[0].getType()));
+	else
+		assert(false && "Incompatible types");
+
 	return success();
 }
 

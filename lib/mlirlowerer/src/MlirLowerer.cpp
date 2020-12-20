@@ -4,7 +4,6 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Pass/PassManager.h>
 #include <modelica/mlirlowerer/LLVMLoweringPass.hpp>
-#include <modelica/mlirlowerer/MathOps.hpp>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
 #include <modelica/mlirlowerer/ModelicaToStandard.hpp>
@@ -413,43 +412,52 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		return { Reference(builder, nullptr, false) };
 	}
 
-	if (kind == OperationKind::greater)
-	{
-		// TODO
-		return { Reference(builder, nullptr, false) };
-	}
-
-	if (kind == OperationKind::greaterEqual)
-	{
-		// TODO
-		auto lhs = *lower<modelica::Expression>(operation[0])[0];
-		auto rhs = *lower<modelica::Expression>(operation[1])[0];
-
-		return { Reference(builder, builder.create<CmpFOp>(loc(expression.getLocation()), CmpFPredicate::OGE, lhs, rhs), false) };
-	}
-
 	if (kind == OperationKind::equal)
 	{
-		// TODO
-		return { Reference(builder, nullptr, false) };
+		auto lhs = *lower<modelica::Expression>(operation[0])[0];
+		auto rhs = *lower<modelica::Expression>(operation[1])[0];
+		auto cmp = builder.create<EqOp>(loc(expression.getLocation()), lhs, rhs);
+		return { Reference(builder, cmp, false) };
 	}
 
 	if (kind == OperationKind::different)
 	{
-		// TODO
-		return { Reference(builder, nullptr, false) };
+		auto lhs = *lower<modelica::Expression>(operation[0])[0];
+		auto rhs = *lower<modelica::Expression>(operation[1])[0];
+		auto cmp = builder.create<NotEqOp>(loc(expression.getLocation()), lhs, rhs);
+		return { Reference(builder, cmp, false) };
 	}
 
-	if (kind == OperationKind::lessEqual)
+	if (kind == OperationKind::greater)
 	{
-		// TODO
-		return { Reference(builder, nullptr, false) };
+		auto lhs = *lower<modelica::Expression>(operation[0])[0];
+		auto rhs = *lower<modelica::Expression>(operation[1])[0];
+		auto cmp = builder.create<GtOp>(loc(expression.getLocation()), lhs, rhs);
+		return { Reference(builder, cmp, false) };
+	}
+
+	if (kind == OperationKind::greaterEqual)
+	{
+		auto lhs = *lower<modelica::Expression>(operation[0])[0];
+		auto rhs = *lower<modelica::Expression>(operation[1])[0];
+		auto cmp = builder.create<GteOp>(loc(expression.getLocation()), lhs, rhs);
+		return { Reference(builder, cmp, false) };
 	}
 
 	if (kind == OperationKind::less)
 	{
-		// TODO
-		return { Reference(builder, nullptr, false) };
+		auto lhs = *lower<modelica::Expression>(operation[0])[0];
+		auto rhs = *lower<modelica::Expression>(operation[1])[0];
+		auto cmp = builder.create<LtOp>(loc(expression.getLocation()), lhs, rhs);
+		return { Reference(builder, cmp, false) };
+	}
+
+	if (kind == OperationKind::lessEqual)
+	{
+		auto lhs = *lower<modelica::Expression>(operation[0])[0];
+		auto rhs = *lower<modelica::Expression>(operation[1])[0];
+		auto cmp = builder.create<LteOp>(loc(expression.getLocation()), lhs, rhs);
+		return { Reference(builder, cmp, false) };
 	}
 
 	if (kind == OperationKind::land)
