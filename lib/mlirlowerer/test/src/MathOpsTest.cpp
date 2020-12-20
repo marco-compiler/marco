@@ -12,6 +12,168 @@
 using namespace modelica;
 using namespace std;
 
+TEST(MathOps, negateZeroInteger)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::negate>(
+			location,
+			Type::Int(),
+			Expression(location, Type::Int(), Constant(0)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	int result = 0;
+	runner.run("main", result);
+	EXPECT_EQ(result, 0);
+}
+
+TEST(MathOps, negatePositiveInteger)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::negate>(
+			location,
+			Type::Int(),
+			Expression(location, Type::Int(), Constant(57)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	int result = 0;
+	runner.run("main", result);
+	EXPECT_EQ(result, -57);
+}
+
+TEST(MathOps, negateNegativeInteger)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::negate>(
+			location,
+			Type::Int(),
+			Expression(location, Type::Int(), Constant(-57)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	int result = 0;
+	runner.run("main", result);
+	EXPECT_EQ(result, 57);
+}
+
+TEST(MathOps, negateZeroFloat)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::negate>(
+			location,
+			Type::Float(),
+			Expression(location, Type::Float(), Constant(0)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	float result = 0;
+	runner.run("main", result);
+	EXPECT_EQ(result, 0);
+}
+
+TEST(MathOps, negatePositiveFloat)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::negate>(
+			location,
+			Type::Float(),
+			Expression(location, Type::Float(), Constant(57.0)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	float result = 0;
+	runner.run("main", result);
+	EXPECT_EQ(result, -57.0);
+}
+
+TEST(MathOps, negateNegativeFloat)	 // NOLINT
+{
+	SourcePosition location("-", 0, 0);
+
+	Expression expression = Expression::op<OperationKind::negate>(
+			location,
+			Type::Float(),
+			Expression(location, Type::Float(), Constant(-57.0)));
+
+	mlir::MLIRContext context;
+
+	mlir::FuncOp function = getFunctionReturningValue(
+			context,
+			expression.getType(),
+			[&](MlirLowerer& lowerer) -> mlir::Value
+			{
+				auto values = lowerer.lower<modelica::Expression>(expression);
+				EXPECT_EQ(values.size(), 1);
+				return *values[0];
+			});
+
+	Runner runner(&context, wrapFunctionWithModule(context, function));
+	float result = 0;
+	runner.run("main", result);
+	EXPECT_EQ(result, 57.0);
+}
+
 TEST(MathOps, addSameSignIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);

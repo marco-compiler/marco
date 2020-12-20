@@ -9,6 +9,12 @@
 
 namespace modelica
 {
+	class NegateOpLowering : public mlir::OpRewritePattern<NegateOp>
+	{
+		using mlir::OpRewritePattern<NegateOp>::OpRewritePattern;
+		mlir::LogicalResult matchAndRewrite(NegateOp op, mlir::PatternRewriter& rewriter) const final;
+	};
+
 	class AddOpLowering : public mlir::OpRewritePattern<AddOp>
 	{
 		using mlir::OpRewritePattern<AddOp>::OpRewritePattern;

@@ -5,6 +5,16 @@
 using namespace modelica;
 using namespace std;
 
+llvm::StringRef NegateOp::getOperationName() {
+	return "modelica.negate";
+}
+
+void NegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addOperands(operand);
+	state.addTypes(resultType);
+}
+
 llvm::StringRef AddOp::getOperationName() {
 	return "modelica.add";
 }

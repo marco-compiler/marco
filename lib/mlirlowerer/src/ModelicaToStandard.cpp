@@ -9,6 +9,7 @@ using namespace std;
 void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
 {
 	// Math operations
+	patterns.insert<NegateOpLowering>(context);
 	patterns.insert<AddOpLowering>(context);
 	patterns.insert<SubOpLowering>(context);
 	patterns.insert<MulOpLowering>(context);
@@ -26,6 +27,33 @@ void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList&
 //static pair<mlir::Value, mlir::Value> castToCommon(mlir::OpBuilder& builder, mlir::Value first, mlir::Value second) {
 //	return std::make_pair<mlir::Value, mlir::Value>(nullptr, nullptr);
 //}
+
+LogicalResult NegateOpLowering::matchAndRewrite(NegateOp op, PatternRewriter& rewriter) const
+{
+	Location location = op.getLoc();
+	auto operand = op->getOperand(0);
+	mlir::Type type = op.getType();
+
+	mlir::Value result;
+
+	if (operand.getType().isSignlessInteger())
+		result = rewriter.create<MulIOp>(
+				location,
+				rewriter.create<ConstantOp>(location, rewriter.getI32IntegerAttr(-1)),
+				operand);
+	else if (operand.getType().isF32())
+		result = rewriter.create<NegFOp>(location, operand);
+	else
+		assert(false && "Incompatible type");
+
+	if (type.isSignlessInteger() && result.getType().isF32())
+		result = rewriter.create<FPToSIOp>(location, result, type);
+	else if (type.isF32() && result.getType().isSignlessInteger())
+		result = rewriter.create<SIToFPOp>(location, result, type);
+
+	rewriter.replaceOp(op, result);
+	return success();
+}
 
 LogicalResult AddOpLowering::matchAndRewrite(AddOp op, PatternRewriter& rewriter) const
 {

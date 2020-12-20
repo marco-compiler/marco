@@ -362,8 +362,12 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 
 	if (kind == OperationKind::negate)
 	{
-		// TODO
-		return { Reference(builder, nullptr, false) };
+		mlir::Value result = builder.create<modelica::NegateOp>(
+				loc(expression.getLocation()),
+				resultType,
+				*lower<modelica::Expression>(operation[0])[0]);
+
+		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::add)
@@ -500,6 +504,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		return { Reference(builder, nullptr, false) };
 	}
 
+	assert(false && "Unexpected operation");
 	return { Reference(builder, nullptr, false) };
 }
 

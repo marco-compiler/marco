@@ -15,6 +15,5 @@ namespace modelica
 		 * @return dialect namespace
 		 */
 		static llvm::StringRef getDialectNamespace();
-
 	};
 }

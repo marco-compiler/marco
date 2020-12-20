@@ -8,10 +8,19 @@ ModelicaDialect::ModelicaDialect(MLIRContext* context)
 		: Dialect("modelica", context, TypeID::get<ModelicaDialect>())
 {
 	// Math operations
-	addOperations<AddOp, SubOp, MulOp, DivOp>();
+	addOperations<NegateOp>();
+	addOperations<AddOp>();
+	addOperations<SubOp>();
+	addOperations<MulOp>();
+	addOperations<DivOp>();
 
 	// Comparison operations
-	addOperations<EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp>();
+	addOperations<EqOp>();
+	addOperations<NotEqOp>();
+	addOperations<GtOp>();
+	addOperations<GteOp>();
+	addOperations<LtOp>();
+	addOperations<LteOp>();
 }
 
 StringRef ModelicaDialect::getDialectNamespace()
