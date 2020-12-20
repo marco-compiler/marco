@@ -259,6 +259,8 @@ string modelica::toString(Type obj)
 	return size + obj.visit(visitor);
 }
 
+Type Type::Bool() { return Type(BuiltInType::Boolean); }
+
 Type Type::Int() { return Type(BuiltInType::Integer); }
 
 Type Type::Float() { return Type(BuiltInType::Float); }

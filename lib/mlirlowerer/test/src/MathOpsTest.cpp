@@ -7,28 +7,10 @@
 #include <modelica/mlirlowerer/Runner.hpp>
 #include <modelica/utils/SourceRange.hpp>
 
+#include "TestUtils.hpp"
+
 using namespace modelica;
 using namespace std;
-
-static mlir::ModuleOp wrapFunctionWithModule(mlir::MLIRContext& context, mlir::FuncOp& function)
-{
-	mlir::OpBuilder builder(&context);
-	mlir::ModuleOp module = mlir::ModuleOp::create(builder.getUnknownLoc());
-	module.push_back(function);
-	return module;
-}
-
-static mlir::FuncOp getFunctionReturningValue(mlir::MLIRContext& context, Type& returnType, function<mlir::Value(MlirLowerer&)> callback)
-{
-	MlirLowerer lowerer(context);
-	auto& builder = lowerer.getOpBuilder();
-	auto functionType = builder.getFunctionType({}, lowerer.lower(returnType));
-	mlir::FuncOp function = mlir::FuncOp::create(builder.getUnknownLoc(), "main", functionType);
-	auto &entryBlock = *function.addEntryBlock();
-	builder.setInsertionPointToStart(&entryBlock);
-	builder.create<mlir::ReturnOp>(builder.getUnknownLoc(), callback(lowerer));
-	return function;
-}
 
 TEST(MathOps, addSameSignIntegers)	 // NOLINT
 {

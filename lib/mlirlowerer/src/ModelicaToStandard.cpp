@@ -8,10 +8,19 @@ using namespace std;
 
 void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
 {
+	// Math operations
 	patterns.insert<AddOpLowering>(context);
 	patterns.insert<SubOpLowering>(context);
 	patterns.insert<MulOpLowering>(context);
 	patterns.insert<DivOpLowering>(context);
+
+	// Comparison operations
+	patterns.insert<EqOpLowering>(context);
+	patterns.insert<NotEqOpLowering>(context);
+	patterns.insert<GtOpLowering>(context);
+	patterns.insert<GteOpLowering>(context);
+	patterns.insert<LtOpLowering>(context);
+	patterns.insert<LteOpLowering>(context);
 }
 
 //static pair<mlir::Value, mlir::Value> castToCommon(mlir::OpBuilder& builder, mlir::Value first, mlir::Value second) {

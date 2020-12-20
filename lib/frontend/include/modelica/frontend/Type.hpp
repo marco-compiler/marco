@@ -191,6 +191,7 @@ namespace modelica
 
 		[[nodiscard]] Type subscript(size_t times) const;
 
+		[[nodiscard]] static Type Bool();
 		[[nodiscard]] static Type Int();
 		[[nodiscard]] static Type Float();
 		[[nodiscard]] static Type unknown();

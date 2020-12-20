@@ -15,13 +15,9 @@ namespace modelica
 		F64
 	};
 
-	template<MlirType From, MlirType To>
-	mlir::Value cast(mlir::OpBuilder builder, mlir::Value value)
-	{
-
-	}
-
-
-
+	//template<MlirType From, MlirType To>
+	//mlir::Value cast(mlir::OpBuilder builder, mlir::Value value)
+	//{
+	//}
 
 }
