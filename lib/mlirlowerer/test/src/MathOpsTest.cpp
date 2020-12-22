@@ -100,7 +100,7 @@ TEST(MathOps, negateZeroFloat)	 // NOLINT
 	Expression expression = Expression::op<OperationKind::negate>(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(0)));
+			Expression(location, Type::Float(), Constant(0.0)));
 
 	mlir::MLIRContext context;
 
@@ -117,7 +117,7 @@ TEST(MathOps, negateZeroFloat)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, 0);
+	EXPECT_FLOAT_EQ(result, 0);
 }
 
 TEST(MathOps, negatePositiveFloat)	 // NOLINT
@@ -144,7 +144,7 @@ TEST(MathOps, negatePositiveFloat)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, -57.0);
+	EXPECT_FLOAT_EQ(result, -57.0);
 }
 
 TEST(MathOps, negateNegativeFloat)	 // NOLINT
@@ -171,7 +171,7 @@ TEST(MathOps, negateNegativeFloat)	 // NOLINT
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	float result = 0;
 	runner.run("main", result);
-	EXPECT_EQ(result, 57.0);
+	EXPECT_FLOAT_EQ(result, 57.0);
 }
 
 TEST(MathOps, addSameSignIntegers)	 // NOLINT

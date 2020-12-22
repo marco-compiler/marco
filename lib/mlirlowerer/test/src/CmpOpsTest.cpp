@@ -90,6 +90,8 @@ TEST(CmpOps, eqFloatsTrue)	 // NOLINT
 				return *values[0];
 			});
 
+	function.dump();
+
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	bool result = false;
 	runner.run("main", result);

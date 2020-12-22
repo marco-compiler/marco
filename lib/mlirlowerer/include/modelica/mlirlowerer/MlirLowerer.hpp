@@ -11,7 +11,7 @@
 namespace modelica
 {
 	/**
-	 * Convert a module to the LVVM dialect.
+	 * Convert an MLIR module to the LVVM dialect.
 	 *
 	 * @param context MLIR context
 	 * @param module  module
@@ -50,7 +50,7 @@ namespace modelica
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		explicit MlirLowerer(mlir::MLIRContext& context);
+		explicit MlirLowerer(mlir::MLIRContext& context, bool x64 = true);
 
 		/**
 		 * Get the operation builder.
@@ -82,19 +82,17 @@ namespace modelica
 
 		private:
 		/**
-		 * Lower the arguments of an operation.
-		 *
-		 * @param operation operation whose arguments have to be lowered
-		 * @return lowered args
-		 */
-		Container<mlir::Value> lowerOperationArgs(const modelica::Operation& operatione);
-
-		/**
 		 * The builder is a helper class to create IR inside a function. The
 		 * builder is stateful, in particular it keeps an "insertion point":
 		 * this is where the next operations will be introduced.
 		 */
 		mlir::OpBuilder builder;
+
+		/**
+		 * Integer representation to be used.
+		 */
+		mlir::IntegerType integerType;
+		mlir::FloatType floatType;
 
 		/**
 		 * The symbol table maps a variable name to a value in the current scope.
@@ -104,6 +102,14 @@ namespace modelica
 		 * scope are dropped.
 		 */
 		llvm::ScopedHashTable<llvm::StringRef, mlir::Value> symbolTable;
+
+		/**
+		 * Lower the arguments of an operation.
+		 *
+		 * @param operation operation whose arguments have to be lowered
+		 * @return lowered args
+ 		 */
+		Container<mlir::Value> lowerOperationArgs(const modelica::Operation& operation);
 
 		/**
 		 * Helper to convert an AST location to a MLIR location.
@@ -119,10 +125,10 @@ namespace modelica
 				return builder.getI1Type();
 
 			if (constant.isA<BuiltInType::Integer>())
-				return builder.getI32Type();
+				return integerType;
 
 			if (constant.isA<BuiltInType::Float>())
-				return builder.getF32Type();
+				return floatType;
 
 			assert(false && "Unreachable");
 			return builder.getNoneType();
@@ -136,12 +142,14 @@ namespace modelica
 			if constexpr (type == BuiltInType::Boolean)
 				return builder.getBoolAttr(value);
 			else if constexpr (type == BuiltInType::Integer)
-				return builder.getI32IntegerAttr(value);
+				return builder.getIntegerAttr(integerType, value);
 			else if constexpr (type == BuiltInType::Float)
-				return builder.getF32FloatAttr(value);
+				return builder.getFloatAttr(floatType, value);
 
 			assert(false && "Unknown type");
 		}
+
+		mlir::Value cast(mlir::Value value, mlir::Type destination);
 	};
 
 	template<>

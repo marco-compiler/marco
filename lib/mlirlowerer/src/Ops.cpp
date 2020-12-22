@@ -9,50 +9,62 @@ llvm::StringRef NegateOp::getOperationName() {
 	return "modelica.negate";
 }
 
-void NegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+void NegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value operand)
 {
 	state.addOperands(operand);
-	state.addTypes(resultType);
+	state.addTypes(operand.getType());
 }
 
 llvm::StringRef AddOp::getOperationName() {
 	return "modelica.add";
 }
 
-void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange operands)
+void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange operands)
 {
+	assert(operands.size() >= 2);
 	state.addOperands(operands);
-	state.addTypes(resultType);
+
+	// All operands have same type and shape
+	state.addTypes(operands[0].getType());
 }
 
 llvm::StringRef SubOp::getOperationName() {
 	return "modelica.sub";
 }
 
-void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange operands)
+void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange operands)
 {
+	assert(operands.size() >= 2);
 	state.addOperands(operands);
-	state.addTypes(resultType);
+
+	// All operands have same type and shape
+	state.addTypes(operands[0].getType());
 }
 
 llvm::StringRef MulOp::getOperationName() {
 	return "modelica.mul";
 }
 
-void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange operands)
+void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange operands)
 {
+	assert(operands.size() >= 2);
 	state.addOperands(operands);
-	state.addTypes(resultType);
+
+	// All operands have same type and shape
+	state.addTypes(operands[0].getType());
 }
 
 llvm::StringRef DivOp::getOperationName() {
 	return "modelica.div";
 }
 
-void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange operands)
+void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange operands)
 {
+	assert(operands.size() >= 2);
 	state.addOperands(operands);
-	state.addTypes(resultType);
+
+	// All operands have same type and shape
+	state.addTypes(operands[0].getType());
 }
 
 llvm::StringRef EqOp::getOperationName() {

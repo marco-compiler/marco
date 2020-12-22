@@ -44,18 +44,62 @@ mlir::ValueRange Reference::getIndexes() const
 	return indexes;
 }
 
-MlirLowerer::MlirLowerer(mlir::MLIRContext& context) : builder(&context)
+MlirLowerer::MlirLowerer(mlir::MLIRContext& context, bool x64)
+		: builder(&context)
 {
 	// Check that the required dialects have been previously registered
 	context.loadDialect<ModelicaDialect>();
 	context.loadDialect<StandardOpsDialect>();
 	context.loadDialect<scf::SCFDialect>();
 	context.loadDialect<LLVM::LLVMDialect>();
+
+	if (x64)
+	{
+		integerType = builder.getI64Type();
+		floatType = builder.getF64Type();
+	}
+	else
+	{
+		integerType = builder.getI32Type();
+		floatType = builder.getF32Type();
+	}
 }
 
 mlir::OpBuilder& MlirLowerer::getOpBuilder()
 {
 	return builder;
+}
+
+mlir::Location MlirLowerer::loc(SourcePosition location)
+{
+	return builder.getFileLineColLoc(
+			builder.getIdentifier(*location.file),
+			location.line,
+			location.column);
+}
+
+mlir::Value MlirLowerer::cast(mlir::Value value, mlir::Type destination)
+{
+	auto source = value.getType();
+
+	if (source == destination)
+		return value;
+
+	mlir::Type sourceBase = source;
+
+	if (sourceBase.isSignlessInteger())
+	{
+		if (destination.isF32() || destination.isF64())
+			return builder.create<SIToFPOp>(builder.getUnknownLoc(), value, destination);
+	}
+	else if (source.isF32() || source.isF64())
+	{
+		if (destination.isSignlessInteger())
+			return builder.create<FPToSIOp>(builder.getUnknownLoc(), value, destination);
+	}
+
+	assert(false && "Unsupported type conversion");
+	return nullptr;
 }
 
 mlir::ModuleOp MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer> classes)
@@ -155,14 +199,6 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	return function;
 }
 
-mlir::Location MlirLowerer::loc(SourcePosition location)
-{
-	return builder.getFileLineColLoc(
-			builder.getIdentifier(*location.file),
-			location.line,
-			location.column);
-}
-
 mlir::Type MlirLowerer::lower(const modelica::Type& type)
 {
 	auto visitor = [&](auto& obj) -> mlir::Type
@@ -189,9 +225,9 @@ mlir::Type MlirLowerer::lower(const modelica::BuiltInType& type)
 		case BuiltInType::None:
 			return builder.getNoneType();
 		case BuiltInType::Integer:
-			return builder.getI32Type();
+			return integerType;
 		case BuiltInType::Float:
-			return builder.getF32Type();
+			return floatType;
 		case BuiltInType::Boolean:
 			return builder.getI1Type();
 		default:
@@ -358,55 +394,47 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	assert(expression.isA<modelica::Operation>());
 	const auto& operation = expression.get<modelica::Operation>();
 	auto kind = operation.getKind();
-	auto resultType = lower(expression.getType());
+	mlir::Type resultType = lower(expression.getType());
+	mlir::Location location = loc(expression.getLocation());
 
 	if (kind == OperationKind::negate)
 	{
-		mlir::Value result = builder.create<modelica::NegateOp>(
-				loc(expression.getLocation()),
-				resultType,
-				*lower<modelica::Expression>(operation[0])[0]);
-
+		auto args = lowerOperationArgs(operation);
+		assert(args.size() == 1);
+		mlir::Value result = builder.create<modelica::NegateOp>(location, args[0]);
+		result = cast(result, resultType);
 		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::add)
 	{
-		mlir::Value result = builder.create<modelica::AddOp>(
-				loc(expression.getLocation()),
-				resultType,
-				lowerOperationArgs(operation));
-
+		auto args = lowerOperationArgs(operation);
+		mlir::Value result = builder.create<modelica::AddOp>(location, args);
+		result = cast(result, resultType);
 		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::subtract)
 	{
-		mlir::Value result = builder.create<modelica::SubOp>(
-				loc(expression.getLocation()),
-				resultType,
-				lowerOperationArgs(operation));
-
+		auto args = lowerOperationArgs(operation);
+		mlir::Value result = builder.create<modelica::SubOp>(location, args);
+		result = cast(result, resultType);
 		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::multiply)
 	{
-		mlir::Value result = builder.create<modelica::MulOp>(
-				loc(expression.getLocation()),
-				resultType,
-				lowerOperationArgs(operation));
-
+		auto args = lowerOperationArgs(operation);
+		mlir::Value result = builder.create<modelica::MulOp>(location, args);
+		result = cast(result, resultType);
 		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::divide)
 	{
-		mlir::Value result = builder.create<modelica::DivOp>(
-				loc(expression.getLocation()),
-				resultType,
-				lowerOperationArgs(operation));
-
+		auto args = lowerOperationArgs(operation);
+		mlir::Value result = builder.create<modelica::DivOp>(location, args);
+		result = cast(result, resultType);
 		return { Reference(builder, result, false) };
 	}
 
@@ -418,50 +446,56 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 
 	if (kind == OperationKind::equal)
 	{
-		auto lhs = *lower<modelica::Expression>(operation[0])[0];
-		auto rhs = *lower<modelica::Expression>(operation[1])[0];
-		auto cmp = builder.create<EqOp>(loc(expression.getLocation()), lhs, rhs);
-		return { Reference(builder, cmp, false) };
+		auto args = lowerOperationArgs(operation);
+		assert(args.size() == 2);
+		mlir::Value result = builder.create<EqOp>(location, args[0], args[1]);
+		result = cast(result, resultType);
+		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::different)
 	{
-		auto lhs = *lower<modelica::Expression>(operation[0])[0];
-		auto rhs = *lower<modelica::Expression>(operation[1])[0];
-		auto cmp = builder.create<NotEqOp>(loc(expression.getLocation()), lhs, rhs);
-		return { Reference(builder, cmp, false) };
+		auto args = lowerOperationArgs(operation);
+		assert(args.size() == 2);
+		mlir::Value result = builder.create<NotEqOp>(location, args[0], args[1]);
+		result = cast(result, resultType);
+		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::greater)
 	{
-		auto lhs = *lower<modelica::Expression>(operation[0])[0];
-		auto rhs = *lower<modelica::Expression>(operation[1])[0];
-		auto cmp = builder.create<GtOp>(loc(expression.getLocation()), lhs, rhs);
-		return { Reference(builder, cmp, false) };
+		auto args = lowerOperationArgs(operation);
+		assert(args.size() == 2);
+		mlir::Value result = builder.create<GtOp>(location, args[0], args[1]);
+		result = cast(result, resultType);
+		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::greaterEqual)
 	{
-		auto lhs = *lower<modelica::Expression>(operation[0])[0];
-		auto rhs = *lower<modelica::Expression>(operation[1])[0];
-		auto cmp = builder.create<GteOp>(loc(expression.getLocation()), lhs, rhs);
-		return { Reference(builder, cmp, false) };
+		auto args = lowerOperationArgs(operation);
+		assert(args.size() == 2);
+		mlir::Value result = builder.create<GteOp>(location, args[0], args[1]);
+		result = cast(result, resultType);
+		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::less)
 	{
-		auto lhs = *lower<modelica::Expression>(operation[0])[0];
-		auto rhs = *lower<modelica::Expression>(operation[1])[0];
-		auto cmp = builder.create<LtOp>(loc(expression.getLocation()), lhs, rhs);
-		return { Reference(builder, cmp, false) };
+		auto args = lowerOperationArgs(operation);
+		assert(args.size() == 2);
+		mlir::Value result = builder.create<LtOp>(location, args[0], args[1]);
+		result = cast(result, resultType);
+		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::lessEqual)
 	{
-		auto lhs = *lower<modelica::Expression>(operation[0])[0];
-		auto rhs = *lower<modelica::Expression>(operation[1])[0];
-		auto cmp = builder.create<LteOp>(loc(expression.getLocation()), lhs, rhs);
-		return { Reference(builder, cmp, false) };
+		auto args = lowerOperationArgs(operation);
+		assert(args.size() == 2);
+		mlir::Value result = builder.create<LteOp>(location, args[0], args[1]);
+		result = cast(result, resultType);
+		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::land)
@@ -584,9 +618,38 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Tuple>(const mode
 MlirLowerer::Container<mlir::Value> MlirLowerer::lowerOperationArgs(const modelica::Operation& operation)
 {
 	SmallVector<mlir::Value, 3> args;
+	SmallVector<mlir::Value, 3> castedArgs;
+	bool containsFloat = false;
 
 	for (const auto& arg : operation)
-		args.push_back( *lower<modelica::Expression>(arg)[0]);
+	{
+		// For now, we only support operation between built-in types.
+		// In future, this should be extended to support struct types.
+		assert(arg.getType().isA<modelica::BuiltInType>());
 
-	return args;
+		if (arg.getType().get<BuiltInType>() == BuiltInType::Float)
+			containsFloat = true;
+
+		args.push_back(*lower<modelica::Expression>(arg)[0]);
+	}
+
+	// Convert the arguments to a common type.
+	// If any of the arguments is a float, also the others must be floats, in
+	// order to preserve correctness. If a value is a boolean, it is first
+	// extended to an integer in first place, and then, if needed, to a float.
+
+	for (const auto& arg : args)
+	{
+		mlir::Value castedArg = arg;
+
+		if (castedArg.getType().isInteger(1))
+			castedArg = builder.create<SignExtendIOp>(arg.getLoc(), castedArg, integerType);
+
+		if (containsFloat && castedArg.getType().isSignlessInteger())
+			castedArg = builder.create<SIToFPOp>(arg.getLoc(), castedArg, floatType);
+
+		castedArgs.push_back(castedArg);
+	}
+
+	return castedArgs;
 }
