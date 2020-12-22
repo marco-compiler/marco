@@ -438,7 +438,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		return { Reference(builder, result, false) };
 	}
 
-	if (kind == OperationKind::ifelse)
+	if (kind == OperationKind::powerOf)
 	{
 		// TODO
 		return { Reference(builder, nullptr, false) };
@@ -498,16 +498,47 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		return { Reference(builder, result, false) };
 	}
 
+	if (kind == OperationKind::ifelse)
+	{
+		mlir::Value condition = *lower<modelica::Expression>(operation[0])[0];
+		mlir::Value trueValue = cast(*lower<modelica::Expression>(operation[1])[0], resultType);
+		mlir::Value falseValue = cast(*lower<modelica::Expression>(operation[2])[0], resultType);
+		mlir::Value result = builder.create<SelectOp>(location, condition, trueValue, falseValue);
+		return { Reference(builder, result, false) };
+	}
+
 	if (kind == OperationKind::land)
 	{
-		// TODO
-		return { Reference(builder, nullptr, false) };
+		mlir::Value lhs = *lower<modelica::Expression>(operation[0])[0];
+		mlir::Value rhs = *lower<modelica::Expression>(operation[1])[0];
+
+		unsigned int lhsBitWidth = lhs.getType().getIntOrFloatBitWidth();
+		unsigned int rhsBitWidth = lhs.getType().getIntOrFloatBitWidth();
+
+		if (lhsBitWidth < rhsBitWidth)
+			lhs = builder.create<SignExtendIOp>(location, lhs, rhs.getType());
+		else if (lhsBitWidth > rhsBitWidth)
+			rhs = builder.create<SignExtendIOp>(location, rhs, lhs.getType());
+
+		mlir::Value result = builder.create<AndOp>(location, lhs, rhs);
+		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::lor)
 	{
-		// TODO
-		return { Reference(builder, nullptr, false) };
+		mlir::Value lhs = *lower<modelica::Expression>(operation[0])[0];
+		mlir::Value rhs = *lower<modelica::Expression>(operation[1])[0];
+
+		unsigned int lhsBitWidth = lhs.getType().getIntOrFloatBitWidth();
+		unsigned int rhsBitWidth = lhs.getType().getIntOrFloatBitWidth();
+
+		if (lhsBitWidth < rhsBitWidth)
+			lhs = builder.create<SignExtendIOp>(location, lhs, rhs.getType());
+		else if (lhsBitWidth > rhsBitWidth)
+			rhs = builder.create<SignExtendIOp>(location, rhs, lhs.getType());
+
+		mlir::Value result = builder.create<OrOp>(location, lhs, rhs);
+		return { Reference(builder, result, false) };
 	}
 
 	if (kind == OperationKind::subscription)
@@ -527,12 +558,6 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	}
 
 	if (kind == OperationKind::memberLookup)
-	{
-		// TODO
-		return { Reference(builder, nullptr, false) };
-	}
-
-	if (kind == OperationKind::powerOf)
 	{
 		// TODO
 		return { Reference(builder, nullptr, false) };
