@@ -50,7 +50,7 @@ namespace modelica
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		explicit MlirLowerer(mlir::MLIRContext& context, bool x64 = true);
+		explicit MlirLowerer(mlir::MLIRContext& context, bool x64 = false);
 
 		/**
 		 * Get the operation builder.

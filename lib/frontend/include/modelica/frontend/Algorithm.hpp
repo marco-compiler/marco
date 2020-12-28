@@ -17,7 +17,7 @@ namespace modelica
 		using statements_iterator = Container::iterator;
 		using statements_const_iterator = Container::const_iterator;
 
-		Algorithm(llvm::ArrayRef<Statement> statements);
+		explicit Algorithm(llvm::ArrayRef<Statement> statements);
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;

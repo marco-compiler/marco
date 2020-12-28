@@ -441,6 +441,13 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::powerOf)
 	{
 		// TODO
+		/*
+		mlir::Value base = cast(*lower<modelica::Expression>(operation[0])[0], floatType);
+		mlir::Value exponent = cast(*lower<modelica::Expression>(operation[1])[0], floatType);
+		mlir::Value result = builder.create<>(location, base, exponent);
+		result = cast(result, resultType);
+		return { Reference(builder, result, false) };
+		 */
 		return { Reference(builder, nullptr, false) };
 	}
 
