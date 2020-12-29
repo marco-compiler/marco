@@ -344,6 +344,8 @@ namespace modelica
 		Statement(AssignmentStatement statement);
 		Statement(IfStatement statement);
 		Statement(ForStatement statement);
+		Statement(WhileStatement statement);
+		Statement(WhenStatement statement);
 		Statement(BreakStatement statement);
 		Statement(ReturnStatement statement);
 

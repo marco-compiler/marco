@@ -1,6 +1,5 @@
 modelicaAddLibrary(
         mlirlowerer SHARED
-        src/LLVMLoweringPass.cpp
         src/MlirLowerer.cpp
         src/ModelicaDialect.cpp
         src/ModelicaToStandard.cpp

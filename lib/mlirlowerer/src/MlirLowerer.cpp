@@ -1,9 +1,10 @@
 #include <llvm/ADT/SmallVector.h>
+#include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
+#include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Pass/PassManager.h>
-#include <modelica/mlirlowerer/LLVMLoweringPass.hpp>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
 #include <modelica/mlirlowerer/ModelicaToStandard.hpp>
@@ -16,8 +17,9 @@ using namespace std;
 mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module)
 {
 	mlir::PassManager passManager(context);
-	passManager.addPass(std::make_unique<ModelicaToStandardLoweringPass>());
-	passManager.addPass(std::make_unique<LLVMLoweringPass>());
+	passManager.addPass(createModelicaToStdPass());
+	passManager.addPass(createLowerToCFGPass());
+	passManager.addPass(createLowerToLLVMPass());
 	return passManager.run(module);
 }
 
@@ -343,23 +345,27 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 
 void MlirLowerer::lower(const modelica::WhileStatement& statement)
 {
-	SmallVector<mlir::Type, 3> resultTypes;
-	SmallVector<mlir::Value, 3> operands;
-	auto whileOp = builder.create<scf::WhileOp>(builder.getUnknownLoc(), resultTypes, operands);
+	auto whileOp = builder.create<scf::WhileOp>(builder.getUnknownLoc(), TypeRange(), ValueRange());
 
-	auto insertionPoint = builder.saveInsertionPoint();
+	// Differently from IfOp, blocks must be created explicitly
+	builder.createBlock(&whileOp.before());
+	builder.createBlock(&whileOp.after());
 
+	// Condition
 	builder.setInsertionPointToStart(&whileOp.before().front());
 	auto condition = *lower<modelica::Expression>(statement.getCondition())[0];
-	SmallVector<mlir::Value, 3> args;
-	builder.create<scf::ConditionOp>(builder.getUnknownLoc(), condition, args);
+	builder.create<scf::ConditionOp>(builder.getUnknownLoc(), condition, ValueRange());
 
+	// Body
 	builder.setInsertionPointToStart(&whileOp.after().front());
 
 	for (const auto& stmnt : statement)
 		lower(stmnt);
 
-	builder.restoreInsertionPoint(insertionPoint);
+	builder.create<scf::YieldOp>(builder.getUnknownLoc());
+
+	// Keep populating after the while operation
+	builder.setInsertionPointAfter(whileOp);
 }
 
 void MlirLowerer::lower(const modelica::WhenStatement& statement)

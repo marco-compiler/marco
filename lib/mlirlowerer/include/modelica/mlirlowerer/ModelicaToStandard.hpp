@@ -75,7 +75,6 @@ namespace modelica
 		mlir::LogicalResult matchAndRewrite(LteOp op, mlir::PatternRewriter& rewriter) const final;
 	};
 
-
 	class ModelicaToStandardLoweringPass : public mlir::PassWrapper<ModelicaToStandardLoweringPass, mlir::OperationPass<mlir::ModuleOp>> {
 		public:
 		void runOnOperation() final;
@@ -89,4 +88,11 @@ namespace modelica
 	 * @param context	 MLIR context
 	 */
 	void populateModelicaToStdConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context);
+
+	/**
+	 * Create a pass to convert Modelica operations to Standard ones.
+	 *
+	 * @return pass
+	 */
+	std::unique_ptr<mlir::Pass> createModelicaToStdPass();
 }

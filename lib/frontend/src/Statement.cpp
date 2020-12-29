@@ -231,6 +231,10 @@ Statement::Statement(IfStatement statement): content(move(statement)) {}
 
 Statement::Statement(ForStatement statement): content(move(statement)) {}
 
+Statement::Statement(WhileStatement statement): content(move(statement)) {}
+
+Statement::Statement(WhenStatement statement): content(move(statement)) {}
+
 Statement::Statement(BreakStatement statement): content(move(statement)) {}
 
 Statement::Statement(ReturnStatement statement): content(move(statement)) {}

@@ -53,12 +53,6 @@ TEST(IfOp, thenBranchTaken)	 // NOLINT
 			{ xMember, yMember },
 			Algorithm(ifStatement)));
 
-	Expression expression = Expression::op<OperationKind::land>(
-			location,
-			Type::Bool(),
-			Expression::trueExp(location),
-			Expression::trueExp(location));
-
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
@@ -111,12 +105,6 @@ TEST(IfOp, elseBranchTaken)	 // NOLINT
 			location, "main", true,
 			{ xMember, yMember },
 			Algorithm(ifStatement)));
-
-	Expression expression = Expression::op<OperationKind::land>(
-			location,
-			Type::Bool(),
-			Expression::trueExp(location),
-			Expression::trueExp(location));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
@@ -182,12 +170,6 @@ TEST(IfOp, elseIfBranchTaken)	 // NOLINT
 			{ xMember, yMember },
 			Algorithm(ifStatement)));
 
-	Expression expression = Expression::op<OperationKind::land>(
-			location,
-			Type::Bool(),
-			Expression::trueExp(location),
-			Expression::trueExp(location));
-
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
@@ -199,3 +181,100 @@ TEST(IfOp, elseIfBranchTaken)	 // NOLINT
 	EXPECT_EQ(y, 2);
 }
 
+TEST(WhileOp, validLoop)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   output Integer y;
+	 *   algorithm
+	 *     y := 0;
+	 *     while x > 0 loop
+	 *       y := y + x;
+	 *       x := x - 1;
+	 *     end while;
+	 * end main
+	 */
+
+	SourcePosition location("-", 0, 0);
+
+	Member xMember("x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Expression condition = Expression(location, Type::Bool(), OperationKind::greater,
+																		Expression(location, Type::Int(), ReferenceAccess("x")),
+																		Expression(location, Type::Int(), Constant(0)));
+
+	Expression xRef = Expression(location, Type::Int(), ReferenceAccess("x"));
+	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
+
+	Statement whileStatement = WhileStatement(condition, {
+			AssignmentStatement(yRef, Expression(location, Type::Int(), OperationKind::add, yRef, xRef)),
+			AssignmentStatement(xRef, Expression(location, Type::Int(), OperationKind::subtract, xRef, Expression(location, Type::Int(), Constant(1))))
+	});
+
+	Algorithm algorithm = Algorithm({
+			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(0))),
+			whileStatement
+	});
+
+	ClassContainer cls(Function(
+			location, "main", true,
+			{ xMember, yMember },
+			algorithm));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	Runner runner(&context, module);
+	int x = 10;
+	int y = 0;
+	runner.run("main", x, y);
+	EXPECT_EQ(y, 55);
+}
+
+TEST(WhileOp, notExecutedLoop)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   output Integer y;
+	 *   algorithm
+	 *     y := 1;
+	 *     while false loop
+	 *       y := 0;
+	 *       break;
+	 *     end while;
+	 * end main
+	 */
+
+	SourcePosition location("-", 0, 0);
+
+	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::falseExp(location);
+	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
+
+	Statement whileStatement = WhileStatement(condition, {
+			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(0))),
+			BreakStatement()
+	});
+
+	Algorithm algorithm = Algorithm({
+																			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
+																			whileStatement
+																	});
+
+	ClassContainer cls(Function(
+			location, "main", true,
+			{ yMember },
+			algorithm));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	Runner runner(&context, module);
+	int y = 0;
+	runner.run("main", y);
+	EXPECT_EQ(y, 1);
+}

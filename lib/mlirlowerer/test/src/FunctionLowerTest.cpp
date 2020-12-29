@@ -7,7 +7,6 @@
 #include <mlir/Target/LLVMIR.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/frontend/Parser.hpp>
-#include <modelica/mlirlowerer/LLVMLoweringPass.hpp>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
 #include <modelica/utils/SourceRange.hpp>

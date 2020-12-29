@@ -5,29 +5,11 @@ using namespace mlir;
 using namespace modelica;
 using namespace std;
 
-void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
-{
-	// Math operations
-	patterns.insert<NegateOpLowering>(context);
-	patterns.insert<AddOpLowering>(context);
-	patterns.insert<SubOpLowering>(context);
-	patterns.insert<MulOpLowering>(context);
-	patterns.insert<DivOpLowering>(context);
-
-	// Comparison operations
-	patterns.insert<EqOpLowering>(context);
-	patterns.insert<NotEqOpLowering>(context);
-	patterns.insert<GtOpLowering>(context);
-	patterns.insert<GteOpLowering>(context);
-	patterns.insert<LtOpLowering>(context);
-	patterns.insert<LteOpLowering>(context);
-}
-
 LogicalResult NegateOpLowering::matchAndRewrite(NegateOp op, PatternRewriter& rewriter) const
 {
 	Location location = op.getLoc();
 	mlir::Value operand = op->getOperand(0);
-	mlir::Type type = op.getType();
+	mlir::Type type = op->getResultTypes()[0];
 
 	if (type.isa<VectorType>() || type.isa<TensorType>())
 		type = type.cast<ShapedType>().getElementType();
@@ -37,7 +19,7 @@ LogicalResult NegateOpLowering::matchAndRewrite(NegateOp op, PatternRewriter& re
 		// There is no "negate" operation for integers in the Standard dialect
 		mlir::Value result = rewriter.create<MulIOp>(
 				location,
-				rewriter.create<ConstantOp>(location, rewriter.getIntegerAttr(op.getType(), -1)),
+				rewriter.create<ConstantOp>(location, rewriter.getIntegerAttr(type, -1)),
 				operand);
 
 		rewriter.replaceOp(op, result);
@@ -58,7 +40,7 @@ LogicalResult AddOpLowering::matchAndRewrite(AddOp op, PatternRewriter& rewriter
 {
 	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = op.getType();
+	mlir::Type type =  op->getResultTypes()[0];
 
 	if (type.isa<VectorType>() || type.isa<TensorType>())
 		type = type.cast<ShapedType>().getElementType();
@@ -90,7 +72,7 @@ LogicalResult SubOpLowering::matchAndRewrite(SubOp op, PatternRewriter& rewriter
 {
 	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = op.getType();
+	mlir::Type type = op->getResultTypes()[0];
 
 	if (type.isa<VectorType>() || type.isa<TensorType>())
 		type = type.cast<ShapedType>().getElementType();
@@ -122,7 +104,7 @@ LogicalResult MulOpLowering::matchAndRewrite(MulOp op, PatternRewriter& rewriter
 {
 	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = op.getType();
+	mlir::Type type = op->getResultTypes()[0];
 
 	if (type.isa<VectorType>() || type.isa<TensorType>())
 		type = type.cast<ShapedType>().getElementType();
@@ -154,7 +136,7 @@ LogicalResult DivOpLowering::matchAndRewrite(DivOp op, PatternRewriter& rewriter
 {
 	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = op.getType();
+	mlir::Type type = op->getResultTypes()[0];
 
 	if (type.isa<VectorType>() || type.isa<TensorType>())
 		type = type.cast<ShapedType>().getElementType();
@@ -341,4 +323,27 @@ void ModelicaToStandardLoweringPass::runOnOperation()
 	// operations were not converted successfully.
 	if (failed(applyPartialConversion(module, target, move(patterns))))
 		signalPassFailure();
+}
+
+void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
+{
+	// Math operations
+	patterns.insert<NegateOpLowering>(context);
+	patterns.insert<AddOpLowering>(context);
+	patterns.insert<SubOpLowering>(context);
+	patterns.insert<MulOpLowering>(context);
+	patterns.insert<DivOpLowering>(context);
+
+	// Comparison operations
+	patterns.insert<EqOpLowering>(context);
+	patterns.insert<NotEqOpLowering>(context);
+	patterns.insert<GtOpLowering>(context);
+	patterns.insert<GteOpLowering>(context);
+	patterns.insert<LtOpLowering>(context);
+	patterns.insert<LteOpLowering>(context);
+}
+
+std::unique_ptr<mlir::Pass> modelica::createModelicaToStdPass()
+{
+	return std::make_unique<ModelicaToStandardLoweringPass>();
 }

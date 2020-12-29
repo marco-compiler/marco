@@ -118,8 +118,6 @@ TEST(LogicOps, andIntegers)	 // NOLINT
 				return *values[0];
 			});
 
-	function.dump();
-
 	Runner runner(&context, wrapFunctionWithModule(context, function));
 	int result = 0;
 	runner.run("main", result);
