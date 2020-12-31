@@ -1,3 +1,4 @@
+#include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
 #include <modelica/mlirlowerer/ModelicaToStandard.hpp>
 
@@ -17,19 +18,13 @@ LogicalResult NegateOpLowering::matchAndRewrite(NegateOp op, PatternRewriter& re
 	if (type.isSignlessInteger())
 	{
 		// There is no "negate" operation for integers in the Standard dialect
-		mlir::Value result = rewriter.create<MulIOp>(
-				location,
-				rewriter.create<ConstantOp>(location, rewriter.getIntegerAttr(type, -1)),
-				operand);
-
-		rewriter.replaceOp(op, result);
+		rewriter.replaceOpWithNewOp<MulIOp>(op, rewriter.create<ConstantOp>(location, rewriter.getIntegerAttr(type, -1)), operand);
 		return success();
 	}
 
 	if (type.isF64() || type.isF32())
 	{
-		mlir::Value result = rewriter.create<NegFOp>(location, operand);
-		rewriter.replaceOp(op, result);
+		rewriter.replaceOpWithNewOp<NegFOp>(op, operand);
 		return success();
 	}
 
@@ -302,13 +297,75 @@ LogicalResult LteOpLowering::matchAndRewrite(LteOp op, PatternRewriter& rewriter
 	return failure();
 }
 
+LogicalResult WhileOpLowering::matchAndRewrite(WhileOp op, PatternRewriter& rewriter) const
+{
+	OpBuilder::InsertionGuard guard(rewriter);
+	Location loc = op.getLoc();
+
+	// Split the current block
+	Block *currentBlock = rewriter.getInsertionBlock();
+	Block *continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
+
+	// Inline regions
+	Block *exit = &op.exit().front();
+	Block *body = &op.body().front();
+	Block *bodyLast = &op.body().back();
+	Block *condition = &op.condition().front();
+	Block *conditionLast = &op.condition().back();
+
+	rewriter.inlineRegionBefore(op.exit(), continuation);
+	rewriter.inlineRegionBefore(op.body(), exit);
+	rewriter.inlineRegionBefore(op.condition(), body);
+
+	// Branch to the "condition" region
+	rewriter.setInsertionPointToEnd(currentBlock);
+	rewriter.create<BranchOp>(loc, condition);
+
+	// Replace "condition" block terminator with branch
+	rewriter.setInsertionPointToEnd(conditionLast);
+	auto condOp = cast<scf::ConditionOp>(conditionLast->getTerminator());
+	rewriter.replaceOpWithNewOp<CondBranchOp>(condOp, condOp.condition(), body, exit);
+
+	// Replace "body" block terminator with branch
+	rewriter.setInsertionPointToEnd(bodyLast);
+	auto bodyYieldOp = dyn_cast<YieldOp>(bodyLast->getTerminator());
+
+	// We need to check if it is effectively a YieldOp, because the body may
+	// terminate with a break.
+	if (bodyYieldOp)
+		rewriter.replaceOpWithNewOp<BranchOp>(bodyYieldOp, condition);
+
+	// Replace "exit" block terminator with branch
+	rewriter.setInsertionPointToEnd(exit);
+	auto exitYieldOp = cast<YieldOp>(exit->getTerminator());
+	rewriter.replaceOpWithNewOp<BranchOp>(exitYieldOp, continuation);
+
+	rewriter.eraseOp(op);
+	return success();
+}
+
+LogicalResult YieldOpLowering::matchAndRewrite(YieldOp op, PatternRewriter& rewriter) const
+{
+	// The YieldOp is supposed to be converted by the parent loop lowerer,
+	// which knows the structure of the control flow. In this sense, the
+	// lowering process should not reach a point where it needs to invoke this
+	// method.
+	return failure();
+}
+
+LogicalResult BreakOpLowering::matchAndRewrite(BreakOp op, PatternRewriter& rewriter) const
+{
+	rewriter.replaceOpWithNewOp<BranchOp>(op, op->getSuccessor(0));
+	return success();
+}
+
 void ModelicaToStandardLoweringPass::runOnOperation()
 {
 	auto module = getOperation();
 	ConversionTarget target(getContext());
 
-	target.addLegalOp<ModuleOp, FuncOp>();
-	target.addLegalDialect<scf::SCFDialect, StandardOpsDialect>();
+	target.addLegalOp<ModuleOp, FuncOp, ModuleTerminatorOp>();
+	target.addLegalDialect<StandardOpsDialect>();
 
 	// The Modelica dialect is defined as illegal, so that the conversion
 	// will fail if any of its operations are not converted.
@@ -317,11 +374,12 @@ void ModelicaToStandardLoweringPass::runOnOperation()
 	// Provide the set of patterns that will lower the Modelica operations
 	mlir::OwningRewritePatternList patterns;
 	populateModelicaToStdConversionPatterns(patterns, &getContext());
+	populateLoopToStdConversionPatterns(patterns, &getContext());
 
 	// With the target and rewrite patterns defined, we can now attempt the
 	// conversion. The conversion will signal failure if any of our "illegal"
 	// operations were not converted successfully.
-	if (failed(applyPartialConversion(module, target, move(patterns))))
+	if (failed(applyFullConversion(module, target, move(patterns))))
 		signalPassFailure();
 }
 
@@ -341,6 +399,11 @@ void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList&
 	patterns.insert<GteOpLowering>(context);
 	patterns.insert<LtOpLowering>(context);
 	patterns.insert<LteOpLowering>(context);
+
+	// Control flow operations
+	patterns.insert<WhileOpLowering>(context);
+	patterns.insert<YieldOpLowering>(context);
+	patterns.insert<BreakOpLowering>(context);
 }
 
 std::unique_ptr<mlir::Pass> modelica::createModelicaToStdPass()

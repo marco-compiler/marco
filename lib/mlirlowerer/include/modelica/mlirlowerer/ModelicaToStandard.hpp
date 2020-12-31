@@ -75,6 +75,24 @@ namespace modelica
 		mlir::LogicalResult matchAndRewrite(LteOp op, mlir::PatternRewriter& rewriter) const final;
 	};
 
+	class WhileOpLowering : public mlir::OpRewritePattern<WhileOp>
+	{
+		using mlir::OpRewritePattern<WhileOp>::OpRewritePattern;
+		mlir::LogicalResult matchAndRewrite(WhileOp op, mlir::PatternRewriter& rewriter) const final;
+	};
+
+	class YieldOpLowering : public mlir::OpRewritePattern<YieldOp>
+	{
+		using mlir::OpRewritePattern<YieldOp>::OpRewritePattern;
+		mlir::LogicalResult matchAndRewrite(YieldOp op, mlir::PatternRewriter& rewriter) const final;
+	};
+
+	class BreakOpLowering : public mlir::OpRewritePattern<BreakOp>
+	{
+		using mlir::OpRewritePattern<BreakOp>::OpRewritePattern;
+		mlir::LogicalResult matchAndRewrite(BreakOp op, mlir::PatternRewriter& rewriter) const final;
+	};
+
 	class ModelicaToStandardLoweringPass : public mlir::PassWrapper<ModelicaToStandardLoweringPass, mlir::OperationPass<mlir::ModuleOp>> {
 		public:
 		void runOnOperation() final;

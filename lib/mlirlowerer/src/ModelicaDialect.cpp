@@ -21,6 +21,11 @@ ModelicaDialect::ModelicaDialect(MLIRContext* context)
 	addOperations<GteOp>();
 	addOperations<LtOp>();
 	addOperations<LteOp>();
+
+	// Control flow operations
+	addOperations<WhileOp>();
+	addOperations<YieldOp>();
+	addOperations<BreakOp>();
 }
 
 StringRef ModelicaDialect::getDialectNamespace()

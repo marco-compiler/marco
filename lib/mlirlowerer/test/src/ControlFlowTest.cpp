@@ -97,9 +97,9 @@ TEST(IfOp, elseBranchTaken)	 // NOLINT
 			Expression(location, Type::Int(), Constant(2)));
 
 	Statement ifStatement = IfStatement({
-																					IfStatement::Block(condition, { thenStatement }),
-																					IfStatement::Block(Expression::trueExp(location), { elseStatement })
-																			});
+			IfStatement::Block(condition, { thenStatement }),
+			IfStatement::Block(Expression::trueExp(location), { elseStatement })
+	});
 
 	ClassContainer cls(Function(
 			location, "main", true,
@@ -160,10 +160,10 @@ TEST(IfOp, elseIfBranchTaken)	 // NOLINT
 			Expression(location, Type::Int(), Constant(3)));
 
 	Statement ifStatement = IfStatement({
-																					IfStatement::Block(ifCondition, { thenStatement }),
-																					IfStatement::Block(elseIfCondition, { elseIfStatement }),
-																					IfStatement::Block(Expression::trueExp(location), { elseStatement })
-																			});
+			IfStatement::Block(ifCondition, { thenStatement }),
+			IfStatement::Block(elseIfCondition, { elseIfStatement }),
+			IfStatement::Block(Expression::trueExp(location), { elseStatement })
+	});
 
 	ClassContainer cls(Function(
 			location, "main", true,
@@ -260,9 +260,9 @@ TEST(WhileOp, notExecutedLoop)	 // NOLINT
 	});
 
 	Algorithm algorithm = Algorithm({
-																			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
-																			whileStatement
-																	});
+			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
+			whileStatement
+	});
 
 	ClassContainer cls(Function(
 			location, "main", true,
@@ -277,4 +277,104 @@ TEST(WhileOp, notExecutedLoop)	 // NOLINT
 	int y = 0;
 	runner.run("main", y);
 	EXPECT_EQ(y, 1);
+}
+
+TEST(BreakOp, breakAsLastOpInWhile)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   output Integer y;
+	 *   algorithm
+	 *     y := 0;
+	 *     while true loop
+	 *       y := 1;
+	 *       break;
+	 *     end while;
+	 * end main
+	 */
+
+	SourcePosition location("-", 0, 0);
+
+	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::trueExp(location);
+	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
+
+	Statement whileStatement = WhileStatement(condition, {
+			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
+			BreakStatement()
+	});
+
+	Algorithm algorithm = Algorithm({
+			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(0))),
+			whileStatement
+	});
+
+	ClassContainer cls(Function(
+			location, "main", true,
+			{ yMember },
+			algorithm));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	module.dump();
+
+	Runner runner(&context, module);
+	int y = 0;
+	runner.run("main", y);
+	EXPECT_EQ(y, 1);
+}
+
+TEST(BreakOp, nestedWhile)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   output Integer y;
+	 *   algorithm
+	 *     y := 0;
+	 *     while true loop
+	 *       while true loop
+	 *         y := 1;
+	 *         break;
+	 *       end while;
+	 *       break;
+	 *     end while;
+	 * end main
+	 */
+
+	/*
+	SourcePosition location("-", 0, 0);
+
+	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::trueExp(location);
+	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
+
+	Statement whileStatement = WhileStatement(condition, {
+			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
+			BreakStatement()
+	});
+
+	Algorithm algorithm = Algorithm({
+			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(0))),
+			WhileStatement(condition, whileStatement),
+			BreakStatement()
+	});
+
+	ClassContainer cls(Function(
+			location, "main", true,
+			{ yMember },
+			algorithm));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	module.dump();
+
+	Runner runner(&context, module);
+	int y = 0;
+	runner.run("main", y);
+	EXPECT_EQ(y, 1);
+	 */
 }

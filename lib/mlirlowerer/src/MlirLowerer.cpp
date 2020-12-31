@@ -1,5 +1,4 @@
 #include <llvm/ADT/SmallVector.h>
-#include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
 #include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/SCF/SCF.h>
@@ -18,7 +17,6 @@ mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, m
 {
 	mlir::PassManager passManager(context);
 	passManager.addPass(createModelicaToStdPass());
-	passManager.addPass(createLowerToCFGPass());
 	passManager.addPass(createLowerToLLVMPass());
 	return passManager.run(module);
 }
@@ -340,29 +338,28 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 
 void MlirLowerer::lower(const modelica::ForStatement& statement)
 {
-
+	// TODO
 }
 
 void MlirLowerer::lower(const modelica::WhileStatement& statement)
 {
-	auto whileOp = builder.create<scf::WhileOp>(builder.getUnknownLoc(), TypeRange(), ValueRange());
-
-	// Differently from IfOp, blocks must be created explicitly
-	builder.createBlock(&whileOp.before());
-	builder.createBlock(&whileOp.after());
+	auto whileOp = builder.create<WhileOp>(builder.getUnknownLoc());
 
 	// Condition
-	builder.setInsertionPointToStart(&whileOp.before().front());
+	builder.setInsertionPointToStart(&whileOp.condition().front());
 	auto condition = *lower<modelica::Expression>(statement.getCondition())[0];
 	builder.create<scf::ConditionOp>(builder.getUnknownLoc(), condition, ValueRange());
 
 	// Body
-	builder.setInsertionPointToStart(&whileOp.after().front());
+	builder.setInsertionPointToStart(&whileOp.body().front());
 
 	for (const auto& stmnt : statement)
 		lower(stmnt);
 
-	builder.create<scf::YieldOp>(builder.getUnknownLoc());
+	auto& lastBodyOp = whileOp.body().back().getOperations().back();
+
+	if (lastBodyOp.isKnownNonTerminator())
+		builder.create<YieldOp>(builder.getUnknownLoc());
 
 	// Keep populating after the while operation
 	builder.setInsertionPointAfter(whileOp);
@@ -370,17 +367,23 @@ void MlirLowerer::lower(const modelica::WhileStatement& statement)
 
 void MlirLowerer::lower(const modelica::WhenStatement& statement)
 {
-
+	// TODO
 }
 
 void MlirLowerer::lower(const modelica::BreakStatement& statement)
 {
+	mlir::Operation* loop = builder.getInsertionBlock()->getParentOp();
 
+	while (!loop->hasTrait<BreakableLoop>())
+		loop = loop->getParentOp();
+
+	if (auto op = dyn_cast<WhileOp>(loop); op != nullptr)
+		builder.create<BreakOp>(builder.getUnknownLoc(), &op.exit().front());
 }
 
 void MlirLowerer::lower(const modelica::ReturnStatement& statement)
 {
-
+	// TODO
 }
 
 template<>
@@ -680,9 +683,11 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lowerOperationArgs(const modeli
 	{
 		mlir::Value castedArg = arg;
 
+		// Bool -> Int
 		if (castedArg.getType().isInteger(1))
 			castedArg = builder.create<SignExtendIOp>(arg.getLoc(), castedArg, integerType);
 
+		// Int --> Float
 		if (containsFloat && castedArg.getType().isSignlessInteger())
 			castedArg = builder.create<SIToFPOp>(arg.getLoc(), castedArg, floatType);
 

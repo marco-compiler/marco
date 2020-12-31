@@ -1,6 +1,8 @@
 #pragma once
 
 #include <mlir/IR/OpDefinition.h>
+#include <mlir/Interfaces/ControlFlowInterfaces.h>
+#include <mlir/Interfaces/SideEffectInterfaces.h>
 #include <modelica/frontend/Operation.hpp>
 #include <modelica/frontend/Type.hpp>
 
@@ -19,6 +21,15 @@ namespace modelica
 			if (failed(mlir::OpTrait::impl::verifyOperandsAreSignlessIntegerLike(op)))
 				return mlir::OpTrait::impl::verifyOperandsAreFloatLike(op);
 
+			return mlir::success();
+		}
+	};
+
+	template <typename ConcreteType>
+	class BreakableLoop
+			: public mlir::OpTrait::TraitBase<ConcreteType, BreakableLoop> {
+		public:
+		static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
 			return mlir::success();
 		}
 	};
@@ -120,5 +131,39 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+	};
+
+	class YieldOp;
+
+	class WhileOp : public mlir::Op<WhileOp, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, BreakableLoop>
+	{
+		public:
+		using Op::Op;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::Region& condition();
+		mlir::Region& body();
+		mlir::Region& exit();
+	};
+
+	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::IsTerminator>
+	{
+		public:
+		using Op::Op;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
+		void print(mlir::OpAsmPrinter& printer);
+	};
+
+	class BreakOp : public mlir::Op<BreakOp, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::OneSuccessor, mlir::OpTrait::IsTerminator>
+	{
+		public:
+		using Op::Op;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Block* successor);
 	};
 }
