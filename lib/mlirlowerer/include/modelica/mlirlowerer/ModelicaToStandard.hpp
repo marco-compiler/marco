@@ -75,6 +75,12 @@ namespace modelica
 		mlir::LogicalResult matchAndRewrite(LteOp op, mlir::PatternRewriter& rewriter) const final;
 	};
 
+	class IfOpLowering : public mlir::OpRewritePattern<IfOp>
+	{
+		using mlir::OpRewritePattern<IfOp>::OpRewritePattern;
+		mlir::LogicalResult matchAndRewrite(IfOp op, mlir::PatternRewriter& rewriter) const final;
+	};
+
 	class WhileOpLowering : public mlir::OpRewritePattern<WhileOp>
 	{
 		using mlir::OpRewritePattern<WhileOp>::OpRewritePattern;

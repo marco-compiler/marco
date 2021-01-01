@@ -23,6 +23,7 @@ ModelicaDialect::ModelicaDialect(MLIRContext* context)
 	addOperations<LteOp>();
 
 	// Control flow operations
+	addOperations<IfOp>();
 	addOperations<WhileOp>();
 	addOperations<YieldOp>();
 	addOperations<BreakOp>();

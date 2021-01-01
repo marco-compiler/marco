@@ -110,6 +110,8 @@ TEST(IfOp, elseBranchTaken)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
+	module.dump();
+
 	Runner runner(&context, module);
 	int x = -57;
 	int y = 0;
@@ -279,6 +281,59 @@ TEST(WhileOp, notExecutedLoop)	 // NOLINT
 	EXPECT_EQ(y, 1);
 }
 
+TEST(BreakOp, nestedWhile)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   output Integer y;
+	 *   algorithm
+	 *     y := 0;
+	 *     while true loop
+	 *       while true loop
+	 *         y := 1;
+	 *         break;
+	 *       end while;
+	 *       break;
+	 *     end while;
+	 * end main
+	 */
+
+	SourcePosition location("-", 0, 0);
+
+	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::trueExp(location);
+	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
+
+	Statement innerWhile = WhileStatement(condition, {
+			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
+			BreakStatement()
+	});
+
+	Statement outerWhile = WhileStatement(condition, {
+			innerWhile,
+			BreakStatement()
+	});
+
+	Algorithm algorithm = Algorithm({
+			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(0))),
+			outerWhile
+	});
+
+	ClassContainer cls(Function(
+			location, "main", true,
+			{ yMember },
+			algorithm));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	Runner runner(&context, module);
+	int y = 0;
+	runner.run("main", y);
+	EXPECT_EQ(y, 1);
+}
+
 TEST(BreakOp, breakAsLastOpInWhile)	 // NOLINT
 {
 	/**
@@ -318,15 +373,13 @@ TEST(BreakOp, breakAsLastOpInWhile)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-
 	Runner runner(&context, module);
 	int y = 0;
 	runner.run("main", y);
 	EXPECT_EQ(y, 1);
 }
 
-TEST(BreakOp, nestedWhile)	 // NOLINT
+TEST(BreakOp, breakNestedInWhile)	 // NOLINT
 {
 	/**
 	 * function main
@@ -334,31 +387,34 @@ TEST(BreakOp, nestedWhile)	 // NOLINT
 	 *   algorithm
 	 *     y := 0;
 	 *     while true loop
-	 *       while true loop
+	 *       if y == 0 then
 	 *         y := 1;
 	 *         break;
-	 *       end while;
-	 *       break;
+	 *       end if;
 	 *     end while;
 	 * end main
 	 */
 
-	/*
 	SourcePosition location("-", 0, 0);
 
 	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::trueExp(location);
-	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
 
-	Statement whileStatement = WhileStatement(condition, {
+	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
+	Expression condition = Expression(location, Type::Bool(), OperationKind::equal,
+																		yRef,
+																		Expression(location, Type::Int(), Constant(0)));
+
+	Statement ifStatement = IfStatement(IfStatement::Block(condition, {
+			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
 			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
 			BreakStatement()
-	});
+	}));
+
+	Statement whileStatement = WhileStatement(Expression::trueExp(location), ifStatement);
 
 	Algorithm algorithm = Algorithm({
 			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(0))),
-			WhileStatement(condition, whileStatement),
-			BreakStatement()
+			whileStatement
 	});
 
 	ClassContainer cls(Function(
@@ -376,5 +432,4 @@ TEST(BreakOp, nestedWhile)	 // NOLINT
 	int y = 0;
 	runner.run("main", y);
 	EXPECT_EQ(y, 1);
-	 */
 }

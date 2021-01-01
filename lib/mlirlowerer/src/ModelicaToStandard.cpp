@@ -297,6 +297,55 @@ LogicalResult LteOpLowering::matchAndRewrite(LteOp op, PatternRewriter& rewriter
 	return failure();
 }
 
+LogicalResult IfOpLowering::matchAndRewrite(IfOp op, PatternRewriter& rewriter) const
+{
+	auto loc = op.getLoc();
+
+	// Split the current block
+	auto* currentBlock = rewriter.getInsertionBlock();
+	auto* continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
+
+	// "Then" region
+	auto& thenRegion = op.thenRegion();
+	auto* thenBlock = &thenRegion.front();
+	auto thenYieldOp = dyn_cast<YieldOp>(thenRegion.back().getTerminator());
+
+	// We need to check if it is effectively a YieldOp, because the block may
+	// terminate with a break if the if is inside a loop.
+	if (thenYieldOp)
+	{
+		rewriter.setInsertionPointToEnd(&thenRegion.back());
+		rewriter.replaceOpWithNewOp<BranchOp>(thenYieldOp, continuation);
+	}
+
+	rewriter.inlineRegionBefore(thenRegion, continuation);
+
+	// "Else" region
+	auto &elseRegion = op.elseRegion();
+	auto* elseBlock = continuation;
+
+	if (!elseRegion.empty())
+	{
+		elseBlock = &elseRegion.front();
+		auto elseYieldOp = dyn_cast<YieldOp>(elseRegion.back().getTerminator());
+
+		if (elseYieldOp)
+		{
+			rewriter.setInsertionPointToEnd(&elseRegion.back());
+			rewriter.replaceOpWithNewOp<BranchOp>(elseYieldOp, continuation);
+		}
+
+		rewriter.inlineRegionBefore(elseRegion, continuation);
+	}
+
+	// Branch selection
+	rewriter.setInsertionPointToEnd(currentBlock);
+	rewriter.create<CondBranchOp>(loc, op.condition(), thenBlock, elseBlock);
+
+	rewriter.eraseOp(op);
+	return success();
+}
+
 LogicalResult WhileOpLowering::matchAndRewrite(WhileOp op, PatternRewriter& rewriter) const
 {
 	OpBuilder::InsertionGuard guard(rewriter);
@@ -401,6 +450,7 @@ void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList&
 	patterns.insert<LteOpLowering>(context);
 
 	// Control flow operations
+	patterns.insert<IfOpLowering>(context);
 	patterns.insert<WhileOpLowering>(context);
 	patterns.insert<YieldOpLowering>(context);
 	patterns.insert<BreakOpLowering>(context);

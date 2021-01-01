@@ -323,11 +323,22 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 		// "else" block, and thus doesn't need a lowered else block.
 		bool elseBlock = i < blocks - 1;
 
-		auto ifOp = builder.create<scf::IfOp>(builder.getUnknownLoc(), *condition, elseBlock);
+		auto ifOp = builder.create<IfOp>(builder.getUnknownLoc(), *condition, elseBlock);
 		builder.setInsertionPointToStart(&ifOp.thenRegion().front());
 
 		for (const auto& stmnt : conditionalBlock)
 			lower(stmnt);
+
+		auto& lastOp = ifOp.thenRegion().back().getOperations().back();
+
+		if (lastOp.isKnownNonTerminator())
+			builder.create<YieldOp>(builder.getUnknownLoc());
+
+		if (i > 0)
+		{
+			builder.setInsertionPointAfter(ifOp);
+			builder.create<YieldOp>(builder.getUnknownLoc());
+		}
 
 		if (elseBlock)
 			builder.setInsertionPointToStart(&ifOp.elseRegion().front());
