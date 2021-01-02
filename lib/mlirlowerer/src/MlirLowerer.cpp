@@ -3,6 +3,7 @@
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/IR/OpDefinition.h>
 #include <mlir/Pass/PassManager.h>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
@@ -173,6 +174,11 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 		symbolTable.insert(name, value);
 	}
 
+	// Create a separate block for the return of the results.
+	// This way, a return operation in the middle of the function body can
+	// jump directly to that last block and return the values to the callee.
+	Block* returnBlock = function.addBlock();
+
 	// Set the insertion point in the builder to the beginning of the function
 	// body, it will be used throughout the codegen to create operations in this
 	// function.
@@ -185,7 +191,10 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	// Emit the body of the function
 	lower(foo.getAlgorithms()[0]);
 
+	builder.create<BranchOp>(builder.getUnknownLoc(), returnBlock);
+
 	// Return statement
+	builder.setInsertionPointToStart(returnBlock);
 	std::vector<mlir::Value> results;
 
 	for (const auto& name : returnNames)
@@ -311,7 +320,11 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 {
 	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
 
-	auto insertionPoint = builder.saveInsertionPoint();
+	// Each conditional blocks creates an If operation, but we need to keep
+	// track of the first one in order to restore the insertion point right
+	// after that when we have finished to lower all the blocks.
+	mlir::Operation* firstOp = nullptr;
+
 	size_t blocks = statement.size();
 
 	for (size_t i = 0; i < blocks; i++)
@@ -324,6 +337,11 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 		bool elseBlock = i < blocks - 1;
 
 		auto ifOp = builder.create<IfOp>(builder.getUnknownLoc(), *condition, elseBlock);
+
+		if (firstOp == nullptr)
+			firstOp = ifOp;
+
+		// "Then" block
 		builder.setInsertionPointToStart(&ifOp.thenRegion().front());
 
 		for (const auto& stmnt : conditionalBlock)
@@ -340,11 +358,13 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 			builder.create<YieldOp>(builder.getUnknownLoc());
 		}
 
+		// The next conditional blocks will be placed as new If operations
+		// nested inside the "else" block.
 		if (elseBlock)
 			builder.setInsertionPointToStart(&ifOp.elseRegion().front());
 	}
 
-	builder.restoreInsertionPoint(insertionPoint);
+	builder.setInsertionPointAfter(firstOp);
 }
 
 void MlirLowerer::lower(const modelica::ForStatement& statement)
@@ -394,7 +414,12 @@ void MlirLowerer::lower(const modelica::BreakStatement& statement)
 
 void MlirLowerer::lower(const modelica::ReturnStatement& statement)
 {
-	// TODO
+	mlir::Operation* op = builder.getInsertionBlock()->getParentOp();
+
+	while (!op->hasTrait<mlir::OpTrait::FunctionLike>())
+		op = op->getParentOp();
+
+	builder.create<BranchOp>(builder.getUnknownLoc(), &op->getRegion(0).back());
 }
 
 template<>
