@@ -3,7 +3,6 @@
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/OpDefinition.h>
 #include <mlir/Pass/PassManager.h>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
@@ -51,7 +50,6 @@ MlirLowerer::MlirLowerer(mlir::MLIRContext& context, bool x64)
 	// Check that the required dialects have been previously registered
 	context.loadDialect<ModelicaDialect>();
 	context.loadDialect<StandardOpsDialect>();
-	context.loadDialect<scf::SCFDialect>();
 	context.loadDialect<LLVM::LLVMDialect>();
 
 	if (x64)
@@ -379,7 +377,7 @@ void MlirLowerer::lower(const modelica::WhileStatement& statement)
 	// Condition
 	builder.setInsertionPointToStart(&whileOp.condition().front());
 	auto condition = *lower<modelica::Expression>(statement.getCondition())[0];
-	builder.create<scf::ConditionOp>(builder.getUnknownLoc(), condition, ValueRange());
+	builder.create<ConditionOp>(builder.getUnknownLoc(), condition);
 
 	// Body
 	builder.setInsertionPointToStart(&whileOp.body().front());
@@ -719,7 +717,7 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lowerOperationArgs(const modeli
 	{
 		mlir::Value castedArg = arg;
 
-		// Bool -> Int
+		// Bool --> Int
 		if (castedArg.getType().isInteger(1))
 			castedArg = builder.create<SignExtendIOp>(arg.getLoc(), castedArg, integerType);
 

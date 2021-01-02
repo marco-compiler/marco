@@ -276,11 +276,30 @@ mlir::Region& WhileOp::exit()
 	return getOperation()->getRegion(2);
 }
 
+llvm::StringRef ConditionOp::getOperationName() {
+	return "modelica.condition";
+}
+
+void ConditionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value condition)
+{
+	state.addOperands(condition);
+}
+
+void ConditionOp::print(mlir::OpAsmPrinter& printer) {
+	printer << "condition ";
+	printer.printOperand(condition());
+}
+
+mlir::Value ConditionOp::condition()
+{
+	return getOperand();
+}
+
 llvm::StringRef YieldOp::getOperationName() {
 	return "modelica.yield";
 }
 
-void YieldOp::build(mlir::OpBuilder& builder, mlir::OperationState& staten)
+void YieldOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
 
 }

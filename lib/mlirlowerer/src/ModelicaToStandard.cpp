@@ -372,7 +372,7 @@ LogicalResult WhileOpLowering::matchAndRewrite(WhileOp op, PatternRewriter& rewr
 
 	// Replace "condition" block terminator with branch
 	rewriter.setInsertionPointToEnd(conditionLast);
-	auto condOp = cast<scf::ConditionOp>(conditionLast->getTerminator());
+	auto condOp = cast<ConditionOp>(conditionLast->getTerminator());
 	rewriter.replaceOpWithNewOp<CondBranchOp>(condOp, condOp.condition(), body, exit);
 
 	// Replace "body" block terminator with branch
@@ -396,6 +396,15 @@ LogicalResult WhileOpLowering::matchAndRewrite(WhileOp op, PatternRewriter& rewr
 LogicalResult YieldOpLowering::matchAndRewrite(YieldOp op, PatternRewriter& rewriter) const
 {
 	// The YieldOp is supposed to be converted by the parent loop lowerer,
+	// which knows the structure of the control flow. In this sense, the
+	// lowering process should not reach a point where it needs to invoke this
+	// method.
+	return failure();
+}
+
+LogicalResult ConditionOpLowering::matchAndRewrite(ConditionOp op, PatternRewriter& rewriter) const
+{
+	// The ConditionOp is supposed to be converted by the parent loop lowerer,
 	// which knows the structure of the control flow. In this sense, the
 	// lowering process should not reach a point where it needs to invoke this
 	// method.
@@ -452,6 +461,7 @@ void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList&
 	// Control flow operations
 	patterns.insert<IfOpLowering>(context);
 	patterns.insert<WhileOpLowering>(context);
+	patterns.insert<ConditionOpLowering>(context);
 	patterns.insert<YieldOpLowering>(context);
 	patterns.insert<BreakOpLowering>(context);
 }

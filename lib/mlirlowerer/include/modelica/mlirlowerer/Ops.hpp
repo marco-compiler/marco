@@ -144,6 +144,7 @@ namespace modelica
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
+	class ConditionOp;
 	class YieldOp;
 
 	class IfOp : public mlir::Op<IfOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::OneOperand> {
@@ -169,6 +170,16 @@ namespace modelica
 		mlir::Region& condition();
 		mlir::Region& body();
 		mlir::Region& exit();
+	};
+
+	class ConditionOp : public mlir::Op<ConditionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::HasParent<WhileOp>::Impl, mlir::OpTrait::IsTerminator> {
+		public:
+		using Op::Op;
+
+		static llvm::StringRef getOperationName();
+		static void build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState, ::mlir::Value condition);
+		void print(::mlir::OpAsmPrinter &p);
+		mlir::Value condition();
 	};
 
 	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::IsTerminator>
