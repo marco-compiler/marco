@@ -13,6 +13,7 @@ namespace modelica
 	{
 		public:
 		Member(
+				SourcePosition location,
 				std::string name,
 				Type tp,
 				TypePrefix prefix,
@@ -21,6 +22,7 @@ namespace modelica
 				std::optional<Expression> startOverload = std::nullopt);
 
 		Member(
+				SourcePosition location,
 				std::string name,
 				Type tp,
 				TypePrefix typePrefix,
@@ -32,6 +34,8 @@ namespace modelica
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] SourcePosition getLocation() const;
 
 		[[nodiscard]] std::string& getName();
 		[[nodiscard]] const std::string& getName() const;
@@ -53,6 +57,7 @@ namespace modelica
 		[[nodiscard]] bool isOutput() const;
 
 		private:
+		SourcePosition location;
 		std::string name;
 		Type type;
 		TypePrefix typePrefix;

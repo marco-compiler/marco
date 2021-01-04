@@ -6,9 +6,12 @@
 
 namespace modelica
 {
-	struct SourcePosition
+	class SourcePosition
 	{
+		public:
 		SourcePosition(std::string file, unsigned int line, unsigned int column);
+
+		[[nodiscard]] static SourcePosition unknown();
 
 		std::shared_ptr<std::string> file;
 		unsigned int line;

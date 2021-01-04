@@ -13,12 +13,12 @@ using namespace std;
 
 TEST(TypeCheckTest, sumOfIntShouldProduceInt)	 // NOLINT
 {
-	SourcePosition location("-", 0, 0);
-	Expression exp = Expression::op<OperationKind::add>(
-			location,
+	Expression exp = Expression::operation(
+			SourcePosition::unknown(),
 			Type::unknown(),
-			Expression(location, makeType<int>(), 0),
-			Expression(location, makeType<int>(), 4));
+			OperationKind::add,
+			Expression::constant(SourcePosition::unknown(), makeType<int>(), 0),
+			Expression::constant(SourcePosition::unknown(), makeType<int>(), 4));
 
 	TypeChecker checker;
 
@@ -30,12 +30,12 @@ TEST(TypeCheckTest, sumOfIntShouldProduceInt)	 // NOLINT
 
 TEST(TypeCheckTest, andOfBoolShouldProduceBool)	 // NOLINT
 {
-	SourcePosition location("-", 0, 0);
-	Expression exp = Expression::op<OperationKind::add>(
-			location,
+	Expression exp = Expression::operation(
+			SourcePosition::unknown(),
 			Type::unknown(),
-			Expression(location, makeType<bool>(), true),
-			Expression(location, makeType<bool>(), false));
+			OperationKind::add,
+			Expression::constant(SourcePosition::unknown(), makeType<bool>(), true),
+			Expression::constant(SourcePosition::unknown(), makeType<bool>(), false));
 
 	TypeChecker checker;
 
@@ -47,16 +47,17 @@ TEST(TypeCheckTest, andOfBoolShouldProduceBool)	 // NOLINT
 
 TEST(TypeCheckerTest, tupleExpressionType)	// NOLINT
 {
-	SourcePosition location("-", 0, 0);
-	Expression exp(
-			location,
+	SmallVector<Expression, 3> expressions;
+	expressions.emplace_back(Expression::reference(SourcePosition::unknown(), Type::Int(), "x"));
+	expressions.emplace_back(Expression::reference(SourcePosition::unknown(), Type::Float(), "y"));
+
+	Expression exp = Expression::tuple(
+			SourcePosition::unknown(),
 			Type::unknown(),
-			Tuple({ Expression(location, Type::Int(), ReferenceAccess("x")),
-							Expression(location, Type::Float(), ReferenceAccess("y")) }));
+			expressions);
 
-
-	Member x("x", Type::Int(), TypePrefix::none());
-	Member y("y", Type::Float(), TypePrefix::none());
+	Member x(SourcePosition::unknown(), "x", Type::Int(), TypePrefix::none());
+	Member y(SourcePosition::unknown(), "y", Type::Float(), TypePrefix::none());
 
 	TypeChecker typeChecker;
 	auto& symbolTable = typeChecker.getSymbolTable();

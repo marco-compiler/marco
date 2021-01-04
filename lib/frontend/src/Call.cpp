@@ -1,20 +1,21 @@
 #include <modelica/frontend/Call.hpp>
 #include <modelica/frontend/Expression.hpp>
-#include <modelica/utils/IRange.hpp>
 
 using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-Call::Call(Expression fun, ArrayRef<Expression> args)
-		: function(std::make_unique<Expression>(move(fun)))
+Call::Call(SourcePosition location, Expression function, ArrayRef<Expression> args)
+		: location(move(location)),
+			function(std::make_unique<Expression>(move(function)))
 {
 	for (const auto& arg : args)
 		this->args.emplace_back(std::make_unique<Expression>(arg));
 }
 
 Call::Call(const Call& other)
-		: function(std::make_unique<Expression>(*other.function))
+		: location(other.location),
+			function(std::make_unique<Expression>(*other.function))
 {
 	assert(other.function != nullptr);
 	assert(find(other.args, nullptr) == other.args.end());
@@ -31,6 +32,7 @@ Call& Call::operator=(const Call& other)
 	if (this == &other)
 		return *this;
 
+	location = other.location;
 	function = std::make_unique<Expression>(*other.function);
 	args.clear();
 
@@ -48,11 +50,11 @@ bool Call::operator==(const Call& other) const
 	if (*function != *other.function)
 		return false;
 
-	for (auto i : irange(argumentsCount()))
-		if (*args[i] != other[i])
-			return false;
+	auto pairs = llvm::zip(args, other.args);
 
-	return true;
+	return std::all_of(
+			pairs.begin(), pairs.end(),
+			[](const auto& pair) { return *get<0>(pair) == *get<1>(pair); });
 }
 
 bool Call::operator!=(const Call& other) const { return !(*this == other); }
@@ -80,6 +82,11 @@ void Call::dump(raw_ostream& os, size_t indents) const
 
 	for (const auto& exp : args)
 		exp->dump(os, indents + 1);
+}
+
+SourcePosition Call::getLocation() const
+{
+	return location;
 }
 
 Expression& Call::getFunction() { return *function; }

@@ -5,12 +5,41 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-Constant::Constant(int val): content(val) {}
-Constant::Constant(char val): content(val) {}
-Constant::Constant(float val): content(val) {}
-Constant::Constant(bool val): content(val) {}
-Constant::Constant(double val): content(static_cast<float>(val)) {}
-Constant::Constant(string val): content(move(val)) {}
+Constant::Constant(SourcePosition location, bool val)
+		: location(move(location)),
+			content(val)
+{
+}
+
+Constant::Constant(SourcePosition location, int val)
+		: location(move(location)),
+			content(val)
+{
+}
+
+Constant::Constant(SourcePosition location, float val)
+		: location(move(location)),
+			content(val)
+{
+}
+
+Constant::Constant(SourcePosition location, double val)
+		: location(move(location)),
+			content(static_cast<float>(val))
+{
+}
+
+Constant::Constant(SourcePosition location, char val)
+		: location(move(location)),
+			content(val)
+{
+}
+
+Constant::Constant(SourcePosition location, string val)
+		: location(move(location)),
+			content(move(val))
+{
+}
 
 bool Constant::operator==(const Constant& other) const
 {
@@ -41,4 +70,9 @@ void Constant::dump(raw_ostream& os, size_t indents) const
 		assert(false && "Unreachable");
 
 	os << "\n";
+}
+
+SourcePosition Constant::getLocation() const
+{
+	return location;
 }

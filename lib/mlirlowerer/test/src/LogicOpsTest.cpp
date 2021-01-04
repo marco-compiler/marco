@@ -16,11 +16,12 @@ TEST(LogicOps, andBooleansTrueOperands)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::land>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression::trueExp(location),
-			Expression::trueExp(location));
+			OperationKind::land,
+			Expression::constant(location, Type::Bool(), true),
+			Expression::constant(location, Type::Bool(), true));
 
 	mlir::MLIRContext context;
 
@@ -44,11 +45,12 @@ TEST(LogicOps, andBooleansTrueAndFalseOperands)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::land>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression::trueExp(location),
-			Expression::falseExp(location));
+			OperationKind::land,
+			Expression::constant(location, Type::Bool(), true),
+			Expression::constant(location, Type::Bool(), false));
 
 	mlir::MLIRContext context;
 
@@ -72,11 +74,12 @@ TEST(LogicOps, andBooleansFalseOperands)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::land>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression::falseExp(location),
-			Expression::falseExp(location));
+			OperationKind::land,
+			Expression::constant(location, Type::Bool(), false),
+			Expression::constant(location, Type::Bool(), false));
 
 	mlir::MLIRContext context;
 
@@ -100,11 +103,12 @@ TEST(LogicOps, andIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::land>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(13)),
-			Expression(location, Type::Int(), Constant(10)));
+			OperationKind::land,
+			Expression::constant(location, Type::Int(), 13),
+			Expression::constant(location, Type::Int(), 10));
 
 	mlir::MLIRContext context;
 
@@ -128,11 +132,12 @@ TEST(LogicOps, orBooleansTrueOperands)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::lor>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression::trueExp(location),
-			Expression::trueExp(location));
+			OperationKind::lor,
+			Expression::constant(location, Type::Bool(), true),
+			Expression::constant(location, Type::Bool(), true));
 
 	mlir::MLIRContext context;
 
@@ -156,11 +161,12 @@ TEST(LogicOps, orBooleansTrueAndFalseOperands)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::lor>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression::trueExp(location),
-			Expression::falseExp(location));
+			OperationKind::lor,
+			Expression::constant(location, Type::Bool(), true),
+			Expression::constant(location, Type::Bool(), false));
 
 	mlir::MLIRContext context;
 
@@ -184,11 +190,12 @@ TEST(LogicOps, orBooleansFalseOperands)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::lor>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression::falseExp(location),
-			Expression::falseExp(location));
+			OperationKind::lor,
+			Expression::constant(location, Type::Bool(), false),
+			Expression::constant(location, Type::Bool(), false));
 
 	mlir::MLIRContext context;
 
@@ -212,11 +219,12 @@ TEST(LogicOps, orIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::lor>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(9)),
-			Expression(location, Type::Int(), Constant(10)));
+			OperationKind::lor,
+			Expression::constant(location, Type::Int(), 9),
+			Expression::constant(location, Type::Int(), 10));
 
 	mlir::MLIRContext context;
 

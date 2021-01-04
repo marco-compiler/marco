@@ -14,12 +14,13 @@ using namespace std;
 
 TEST(folderTest, sumShouldFold)
 {
-	SourcePosition location("-", 0, 0);
-	Expression exp = Expression::op<OperationKind::add>(
-			location,
-			makeType<int>(),
-			Expression(location, makeType<int>(), 3),
-			Expression(location, makeType<int>(), 4));
+	Expression exp = Expression::operation(
+			SourcePosition::unknown(),
+			Type::Int(),
+			OperationKind::add,
+			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
+			Expression::constant(SourcePosition::unknown(), makeType<int>(), 4));
+
 	ConstantFolder folder;
 	if (folder.fold(exp, SymbolTable()))
 		FAIL();
@@ -30,12 +31,13 @@ TEST(folderTest, sumShouldFold)
 
 TEST(folderTest, subShouldFold)
 {
-	SourcePosition location("-", 0, 0);
-	Expression exp = Expression::op<OperationKind::subtract>(
-			location,
-			makeType<int>(),
-			Expression(location, makeType<int>(), 3),
-			Expression(location, makeType<int>(), 2));
+	Expression exp = Expression::operation(
+			SourcePosition::unknown(),
+			Type::Int(),
+			OperationKind::subtract,
+			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
+			Expression::constant(SourcePosition::unknown(), makeType<int>(), 2));
+
 	ConstantFolder folder;
 	if (folder.fold(exp, SymbolTable()))
 		FAIL();
@@ -46,12 +48,13 @@ TEST(folderTest, subShouldFold)
 
 TEST(folderTest, sumOfSubShouldFold)
 {
-	SourcePosition location("-", 0, 0);
-	Expression exp = Expression::op<OperationKind::add>(
-			location,
-			makeType<int>(),
-			Expression(location, makeType<int>(), 3),
-			Expression(location, makeType<int>(), -1));
+	Expression exp = Expression::operation(
+			SourcePosition::unknown(),
+			Type::Int(),
+			OperationKind::add,
+			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
+			Expression::constant(SourcePosition::unknown(), makeType<int>(), -1));
+
 	ConstantFolder folder;
 	if (folder.fold(exp, SymbolTable()))
 		FAIL();
@@ -62,19 +65,24 @@ TEST(folderTest, sumOfSubShouldFold)
 
 TEST(folderTest, sumInSubscriptionShouldFold)
 {
-	SourcePosition location("-", 0, 0);
-	Expression exp = Expression::op<OperationKind::add>(
-			location, makeType<int>(),
-			Expression(location, makeType<int>(), 3),
-			Expression(location, makeType<int>(), -1));
-	exp = Expression::op<OperationKind::subscription>(
-			location, makeType<int>(),
-			Expression(location, makeType<int>(10), ReferenceAccess("name")),
+	Expression exp = Expression::operation(
+			SourcePosition::unknown(),
+			Type::Int(),
+			OperationKind::add,
+			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
+			Expression::constant(SourcePosition::unknown(), makeType<int>(), -1));
+
+	exp = Expression::operation(
+			SourcePosition::unknown(),
+			Type::Int(),
+			OperationKind::subscription,
+			Expression::reference(SourcePosition::unknown(), makeType<int>(10), "name"),
 			exp);
+
 	ConstantFolder folder;
 
 	SymbolTable t;
-	Member m("name", makeType<int>(10), TypePrefix::none());
+	Member m(SourcePosition::unknown(), "name", makeType<int>(10), TypePrefix::none());
 	t.addSymbol(m);
 	if (folder.fold(exp, t))
 		FAIL();
@@ -87,22 +95,26 @@ TEST(folderTest, sumInSubscriptionShouldFold)
 
 TEST(folderTest, sumInSubscriptionInDerShouldFold)
 {
-	SourcePosition location("-", 0, 0);
-	Expression exp = Expression::op<OperationKind::add>(
-			location, makeType<int>(),
-			Expression(location, makeType<int>(), 3),
-			Expression(location, makeType<int>(), -1));
-	exp = Expression::op<OperationKind::subscription>(
-			location, makeType<int>(),
-			Expression(location, makeType<int>(10), ReferenceAccess("name")),
+	Expression exp = Expression::operation(
+			SourcePosition::unknown(),
+			Type::Int(),
+			OperationKind::add,
+			Expression::constant(SourcePosition::unknown(), Type::Int(), 3),
+			Expression::constant(SourcePosition::unknown(), Type::Int(), -1));
+
+	exp = Expression::operation(
+			SourcePosition::unknown(),
+			Type::Int(),
+			OperationKind::subscription,
+			Expression::reference(SourcePosition::unknown(), makeType<int>(10), "name"),
 			exp);
 
-	auto refToDer = Expression(location, Type::unknown(), ReferenceAccess("der"));
-	auto call = makeCall(location, move(refToDer), { move(exp) });
+	auto refToDer = Expression::reference(SourcePosition::unknown(), Type::unknown(), "der");
+	auto call = Expression::call(SourcePosition::unknown(), Type::unknown(), move(refToDer), move(exp));
 	ConstantFolder folder;
 
 	SymbolTable t;
-	Member m("name", makeType<int>(10), TypePrefix::none());
+	Member m(SourcePosition::unknown(), "name", makeType<int>(10), TypePrefix::none());
 	t.addSymbol(m);
 	if (folder.fold(call, t))
 		FAIL();

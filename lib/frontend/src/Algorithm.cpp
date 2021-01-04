@@ -4,8 +4,9 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-Algorithm::Algorithm(ArrayRef<Statement> statements)
-		: statements(statements.begin(), statements.end())
+Algorithm::Algorithm(SourcePosition location, ArrayRef<Statement> statements)
+		: location(move(location)),
+			statements(statements.begin(), statements.end())
 {
 }
 
@@ -20,9 +21,14 @@ void Algorithm::dump(llvm::raw_ostream& os, size_t indents) const
 		statement.visit([&](const auto& obj) { obj.dump(os, indents + 1); });
 }
 
-Algorithm::Container& Algorithm::getStatements() { return statements; }
+SourcePosition Algorithm::getLocation() const
+{
+	return location;
+}
 
-const Algorithm::Container& Algorithm::getStatements() const
+Algorithm::Container<Statement>& Algorithm::getStatements() { return statements; }
+
+const Algorithm::Container<Statement>& Algorithm::getStatements() const
 {
 	return statements;
 }

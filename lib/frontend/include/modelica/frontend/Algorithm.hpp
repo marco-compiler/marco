@@ -11,19 +11,21 @@ namespace modelica
 	class Algorithm
 	{
 		private:
-		using Container = llvm::SmallVector<Statement, 3>;
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		using statements_iterator = Container::iterator;
-		using statements_const_iterator = Container::const_iterator;
+		using statements_iterator = Container<Statement>::iterator;
+		using statements_const_iterator = Container<Statement>::const_iterator;
 
-		explicit Algorithm(llvm::ArrayRef<Statement> statements);
+		Algorithm(SourcePosition location, llvm::ArrayRef<Statement> statements);
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
-		[[nodiscard]] Container& getStatements();
-		[[nodiscard]] const Container& getStatements() const;
+		[[nodiscard]] SourcePosition getLocation() const;
+
+		[[nodiscard]] Container<Statement>& getStatements();
+		[[nodiscard]] const Container<Statement>& getStatements() const;
 
 		[[nodiscard]] statements_iterator begin();
 		[[nodiscard]] statements_const_iterator begin() const;
@@ -32,6 +34,7 @@ namespace modelica
 		[[nodiscard]] statements_const_iterator end() const;
 
 		private:
-		Container statements;
+		SourcePosition location;
+		Container<Statement> statements;
 	};
 }	 // namespace modelica

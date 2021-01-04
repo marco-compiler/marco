@@ -4,6 +4,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
 #include <memory>
+#include <modelica/utils/SourceRange.hpp>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -46,12 +47,14 @@ namespace modelica
 		using const_iterator = Container::const_iterator;
 
 		template<typename... Args>
-		explicit Operation(OperationKind kind, Args&&... args)
-				: arguments({ std::forward<Args>(args)... }), kind(kind)
+		Operation(SourcePosition location, OperationKind kind, Args&&... args)
+				: location(std::move(location)),
+					arguments({ std::forward<Args>(args)... }),
+					kind(kind)
 		{
 		}
 
-		Operation(OperationKind kind, Container args);
+		Operation(SourcePosition location, OperationKind kind, Container args);
 
 		[[nodiscard]] bool operator==(const Operation& other) const;
 		[[nodiscard]] bool operator!=(const Operation& other) const;
@@ -61,6 +64,8 @@ namespace modelica
 
 		void dump() const;
 		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t nestLevel = 0) const;
+
+		[[nodiscard]] SourcePosition getLocation() const;
 
 		[[nodiscard]] bool isLValue() const;
 
@@ -80,6 +85,7 @@ namespace modelica
 		[[nodiscard]] const_iterator end() const;
 
 		private:
+		SourcePosition location;
 		std::vector<Expression> arguments;
 		OperationKind kind;
 	};

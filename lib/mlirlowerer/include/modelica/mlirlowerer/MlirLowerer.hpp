@@ -11,7 +11,7 @@
 namespace modelica
 {
 	/**
-	 * Convert an MLIR module to the LVVM dialect.
+	 * Convert an MLIR module to the LLVM dialect.
 	 *
 	 * @param context MLIR context
 	 * @param module  module
@@ -92,6 +92,10 @@ namespace modelica
 		 * Integer representation to be used.
 		 */
 		mlir::IntegerType integerType;
+
+		/**
+		 * Float representation to be used.
+		 */
 		mlir::FloatType floatType;
 
 		/**

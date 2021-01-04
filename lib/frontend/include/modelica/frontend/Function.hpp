@@ -26,7 +26,7 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
-		[[nodiscard]] SourcePosition getSourcePosition() const;
+		[[nodiscard]] SourcePosition getLocation() const;
 
 		[[nodiscard]] std::string& getName();
 		[[nodiscard]] const std::string& getName() const;

@@ -16,10 +16,11 @@ TEST(MathOps, negateZeroInteger)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::negate>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(0)));
+			OperationKind::negate,
+			Expression::constant(location, Type::Int(), 0));
 
 	mlir::MLIRContext context;
 
@@ -43,10 +44,11 @@ TEST(MathOps, negatePositiveInteger)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::negate>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(57)));
+			OperationKind::negate,
+			Expression::constant(location, Type::Int(), 57));
 
 	mlir::MLIRContext context;
 
@@ -70,10 +72,11 @@ TEST(MathOps, negateNegativeInteger)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::negate>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(-57)));
+			OperationKind::negate,
+			Expression::constant(location, Type::Int(), -57));
 
 	mlir::MLIRContext context;
 
@@ -97,10 +100,11 @@ TEST(MathOps, negateZeroFloat)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::negate>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(0.0)));
+			OperationKind::negate,
+			Expression::constant(location, Type::Float(), 0.0));
 
 	mlir::MLIRContext context;
 
@@ -124,10 +128,11 @@ TEST(MathOps, negatePositiveFloat)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::negate>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(57.0)));
+			OperationKind::negate,
+			Expression::constant(location, Type::Float(), 57.0));
 
 	mlir::MLIRContext context;
 
@@ -151,10 +156,11 @@ TEST(MathOps, negateNegativeFloat)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::negate>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(-57.0)));
+			OperationKind::negate,
+			Expression::constant(location, Type::Float(), -57.0));
 
 	mlir::MLIRContext context;
 
@@ -178,11 +184,12 @@ TEST(MathOps, addSameSignIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::add>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Int(), Constant(3)));
+			OperationKind::add,
+			Expression::constant(location, Type::Int(), 2),
+			Expression::constant(location, Type::Int(), 3));
 
 	mlir::MLIRContext context;
 
@@ -206,11 +213,12 @@ TEST(MathOps, addDifferentSignIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::add>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Int(), Constant(-3)));
+			OperationKind::add,
+			Expression::constant(location, Type::Int(), 2),
+			Expression::constant(location, Type::Int(), -3));
 
 	mlir::MLIRContext context;
 
@@ -234,11 +242,12 @@ TEST(MathOps, addSameSignFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::add>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(2.5)),
-			Expression(location, Type::Float(), Constant(3.0)));
+			OperationKind::add,
+			Expression::constant(location, Type::Float(), 2.5),
+			Expression::constant(location, Type::Float(), 3.0));
 
 	mlir::MLIRContext context;
 
@@ -262,11 +271,12 @@ TEST(MathOps, addDifferentSignFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::add>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(2.5)),
-			Expression(location, Type::Float(), Constant(-3.0)));
+			OperationKind::add,
+			Expression::constant(location, Type::Float(), 2.5),
+			Expression::constant(location, Type::Float(), -3.0));
 
 	mlir::MLIRContext context;
 
@@ -290,11 +300,12 @@ TEST(MathOps, addIntegerCastedToFloat)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::add>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Float(), Constant(-3.5)));
+			OperationKind::add,
+			Expression::constant(location, Type::Int(), 2),
+			Expression::constant(location, Type::Float(), -3.5));
 
 	mlir::MLIRContext context;
 
@@ -318,13 +329,14 @@ TEST(MathOps, addMultipleIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::add>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Int(), Constant(3)),
-			Expression(location, Type::Int(), Constant(-10)),
-			Expression(location, Type::Int(), Constant(4)));
+			OperationKind::add,
+			Expression::constant(location, Type::Int(), 2),
+			Expression::constant(location, Type::Int(), 3),
+			Expression::constant(location, Type::Int(), -10),
+			Expression::constant(location, Type::Int(), 4));
 
 	mlir::MLIRContext context;
 
@@ -348,13 +360,14 @@ TEST(MathOps, addMultipleFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::add>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(2.3)),
-			Expression(location, Type::Float(), Constant(3.1)),
-			Expression(location, Type::Float(), Constant(4.9)),
-			Expression(location, Type::Float(), Constant(-2.4)));
+			OperationKind::add,
+			Expression::constant(location, Type::Float(), 2.3),
+			Expression::constant(location, Type::Float(), 3.1),
+			Expression::constant(location, Type::Float(), 4.9),
+			Expression::constant(location, Type::Float(), -2.4));
 
 	mlir::MLIRContext context;
 
@@ -378,11 +391,12 @@ TEST(MathOps, subSameSignIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::subtract>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(5)),
-			Expression(location, Type::Int(), Constant(3)));
+			OperationKind::subtract,
+			Expression::constant(location, Type::Int(), 5),
+			Expression::constant(location, Type::Int(), 3));
 
 	mlir::MLIRContext context;
 
@@ -406,11 +420,12 @@ TEST(MathOps, subDifferentSignIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::subtract>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Int(), Constant(-3)));
+			OperationKind::subtract,
+			Expression::constant(location, Type::Int(), 2),
+			Expression::constant(location, Type::Int(), -3));
 
 	mlir::MLIRContext context;
 
@@ -434,11 +449,12 @@ TEST(MathOps, subSameSignFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::subtract>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(2.7)),
-			Expression(location, Type::Float(), Constant(3.4)));
+			OperationKind::subtract,
+			Expression::constant(location, Type::Float(), 2.7),
+			Expression::constant(location, Type::Float(), 3.4));
 
 	mlir::MLIRContext context;
 
@@ -462,11 +478,12 @@ TEST(MathOps, subDifferentSignFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::subtract>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(2.3)),
-			Expression(location, Type::Float(), Constant(-3.4)));
+			OperationKind::subtract,
+			Expression::constant(location, Type::Float(), 2.3),
+			Expression::constant(location, Type::Float(), -3.4));
 
 	mlir::MLIRContext context;
 
@@ -490,11 +507,12 @@ TEST(MathOps, subIntegerCastedToFloat)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::subtract>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Float(), Constant(-3.7)));
+			OperationKind::subtract,
+			Expression::constant(location, Type::Int(), 2),
+			Expression::constant(location, Type::Float(), -3.7));
 
 	mlir::MLIRContext context;
 
@@ -518,13 +536,14 @@ TEST(MathOps, subMultipleIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::subtract>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(10)),
-			Expression(location, Type::Int(), Constant(3)),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Int(), Constant(1)));
+			OperationKind::subtract,
+			Expression::constant(location, Type::Int(), 10),
+			Expression::constant(location, Type::Int(), 3),
+			Expression::constant(location, Type::Int(), 2),
+			Expression::constant(location, Type::Int(), 1));
 
 	mlir::MLIRContext context;
 
@@ -548,13 +567,14 @@ TEST(MathOps, subMultipleFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::subtract>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(10.7)),
-			Expression(location, Type::Float(), Constant(3.2)),
-			Expression(location, Type::Float(), Constant(2.4)),
-			Expression(location, Type::Float(), Constant(1.5)));
+			OperationKind::subtract,
+			Expression::constant(location, Type::Float(), 10.7),
+			Expression::constant(location, Type::Float(), 3.2),
+			Expression::constant(location, Type::Float(), 2.4),
+			Expression::constant(location, Type::Float(), 1.5));
 
 	mlir::MLIRContext context;
 
@@ -578,11 +598,12 @@ TEST(MathOps, mulSameSignIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::multiply>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Int(), Constant(3)));
+			OperationKind::multiply,
+			Expression::constant(location, Type::Int(), 2),
+			Expression::constant(location, Type::Int(), 3));
 
 	mlir::MLIRContext context;
 
@@ -606,11 +627,12 @@ TEST(MathOps, mulDifferentSignIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::multiply>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Int(), Constant(-3)));
+			OperationKind::multiply,
+			Expression::constant(location, Type::Int(), 2),
+			Expression::constant(location, Type::Int(), -3));
 
 	mlir::MLIRContext context;
 
@@ -634,11 +656,12 @@ TEST(MathOps, mulSameSignFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::multiply>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(2.3)),
-			Expression(location, Type::Float(), Constant(3.7)));
+			OperationKind::multiply,
+			Expression::constant(location, Type::Float(), 2.3),
+			Expression::constant(location, Type::Float(), 3.7));
 
 	mlir::MLIRContext context;
 
@@ -662,11 +685,12 @@ TEST(MathOps, mulDifferentSignFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::multiply>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(2.3)),
-			Expression(location, Type::Float(), Constant(-3.7)));
+			OperationKind::multiply,
+			Expression::constant(location, Type::Float(), 2.3),
+			Expression::constant(location, Type::Float(), -3.7));
 
 	mlir::MLIRContext context;
 
@@ -690,11 +714,12 @@ TEST(MathOps, mulIntegerCastedToFloat)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::multiply>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Float(), Constant(-3.7)));
+			OperationKind::multiply,
+			Expression::constant(location, Type::Int(), 2),
+			Expression::constant(location, Type::Float(), -3.7));
 
 	mlir::MLIRContext context;
 
@@ -718,13 +743,14 @@ TEST(MathOps, mulMultipleIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::multiply>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Int(), Constant(3)),
-			Expression(location, Type::Int(), Constant(-10)),
-			Expression(location, Type::Int(), Constant(4)));
+			OperationKind::multiply,
+			Expression::constant(location, Type::Int(), 2),
+			Expression::constant(location, Type::Int(), 3),
+			Expression::constant(location, Type::Int(), -10),
+			Expression::constant(location, Type::Int(), 4));
 
 	mlir::MLIRContext context;
 
@@ -748,13 +774,14 @@ TEST(MathOps, mulMultipleFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::multiply>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(2.5F)),
-			Expression(location, Type::Float(), Constant(3.7F)),
-			Expression(location, Type::Float(), Constant(4.9F)),
-			Expression(location, Type::Float(), Constant(-2.0F)));
+			OperationKind::multiply,
+			Expression::constant(location, Type::Float(), 2.5F),
+			Expression::constant(location, Type::Float(), 3.7F),
+			Expression::constant(location, Type::Float(), 4.9F),
+			Expression::constant(location, Type::Float(), -2.0F));
 
 	mlir::MLIRContext context;
 
@@ -778,11 +805,12 @@ TEST(MathOps, divSameSignIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::divide>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(10)),
-			Expression(location, Type::Int(), Constant(3)));
+			OperationKind::divide,
+			Expression::constant(location, Type::Int(), 10),
+			Expression::constant(location, Type::Int(), 3));
 
 	mlir::MLIRContext context;
 
@@ -806,11 +834,12 @@ TEST(MathOps, divDifferentSignIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::divide>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(10)),
-			Expression(location, Type::Int(), Constant(-3)));
+			OperationKind::divide,
+			Expression::constant(location, Type::Int(), 10),
+			Expression::constant(location, Type::Int(), -3));
 
 	mlir::MLIRContext context;
 
@@ -834,11 +863,12 @@ TEST(MathOps, divSameSignFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::divide>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(10.8)),
-			Expression(location, Type::Float(), Constant(3.6)));
+			OperationKind::divide,
+			Expression::constant(location, Type::Float(), 10.8),
+			Expression::constant(location, Type::Float(), 3.6));
 
 	mlir::MLIRContext context;
 
@@ -862,11 +892,12 @@ TEST(MathOps, divDifferentSignFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::divide>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(10.8)),
-			Expression(location, Type::Float(), Constant(-3.6)));
+			OperationKind::divide,
+			Expression::constant(location, Type::Float(), 10.8),
+			Expression::constant(location, Type::Float(), -3.6));
 
 	mlir::MLIRContext context;
 
@@ -890,11 +921,12 @@ TEST(MathOps, divIntegerCastedToFloat)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::divide>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Int(), Constant(10)),
-			Expression(location, Type::Float(), Constant(-3.2)));
+			OperationKind::divide,
+			Expression::constant(location, Type::Int(), 10),
+			Expression::constant(location, Type::Float(), -3.2));
 
 	mlir::MLIRContext context;
 
@@ -918,13 +950,14 @@ TEST(MathOps, divMultipleIntegers)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::divide>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Int(),
-			Expression(location, Type::Int(), Constant(120)),
-			Expression(location, Type::Int(), Constant(2)),
-			Expression(location, Type::Int(), Constant(-3)),
-			Expression(location, Type::Int(), Constant(4)));
+			OperationKind::divide,
+			Expression::constant(location, Type::Int(), 120),
+			Expression::constant(location, Type::Int(), 2),
+			Expression::constant(location, Type::Int(), -3),
+			Expression::constant(location, Type::Int(), 4));
 
 	mlir::MLIRContext context;
 
@@ -948,13 +981,14 @@ TEST(MathOps, divMultipleFloats)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::divide>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Float(),
-			Expression(location, Type::Float(), Constant(120.4)),
-			Expression(location, Type::Float(), Constant(3.2)),
-			Expression(location, Type::Float(), Constant(-8.6)),
-			Expression(location, Type::Float(), Constant(2.5)));
+			OperationKind::divide,
+			Expression::constant(location, Type::Float(), 120.4),
+			Expression::constant(location, Type::Float(), 3.2),
+			Expression::constant(location, Type::Float(), -8.6),
+			Expression::constant(location, Type::Float(), 2.5));
 
 	mlir::MLIRContext context;
 

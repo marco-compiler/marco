@@ -5,13 +5,15 @@ using namespace modelica;
 using namespace std;
 
 Member::Member(
+		SourcePosition location,
 		string name,
 		Type tp,
 		TypePrefix typePrefix,
 		Expression initializer,
 		bool isPublic,
 		optional<Expression> startOverload)
-		: name(move(name)),
+		: location(move(location)),
+			name(move(name)),
 			type(move(tp)),
 			typePrefix(typePrefix),
 			initializer(move(initializer)),
@@ -21,12 +23,14 @@ Member::Member(
 }
 
 Member::Member(
+		SourcePosition location,
 		string name,
 		Type tp,
 		TypePrefix typePrefix,
 		bool isPublic,
 		optional<Expression> startOverload)
-		: name(move(name)),
+		: location(move(location)),
+			name(move(name)),
 			type(move(tp)),
 			typePrefix(typePrefix),
 			initializer(nullopt),
@@ -66,6 +70,11 @@ bool Member::operator==(const Member& other) const
 }
 
 bool Member::operator!=(const Member& other) const { return !(*this == other); }
+
+SourcePosition Member::getLocation() const
+{
+	return location;
+}
 
 string& Member::getName() { return name; }
 

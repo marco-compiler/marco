@@ -17,21 +17,24 @@ namespace modelica
 	class AssignmentStatement
 	{
 		public:
-		AssignmentStatement(Expression destination, Expression expression);
-		AssignmentStatement(Tuple destinations, Expression expression);
+		AssignmentStatement(SourcePosition location, Expression destination, Expression expression);
+		AssignmentStatement(SourcePosition location, Tuple destinations, Expression expression);
 		AssignmentStatement(
-				std::initializer_list<Expression> destinations, Expression expression);
+				SourcePosition location, std::initializer_list<Expression> destinations, Expression expression);
 
 		template<typename Iter>
 		AssignmentStatement(
-				Iter destinationsBegin, Iter destinationsEnd, Expression expression)
-				: destinations(Tuple(destinationsBegin, destinationsEnd)),
+				SourcePosition location, Iter destinationsBegin, Iter destinationsEnd, Expression expression)
+				: location(std::move(location)),
+					destinations(Tuple(destinationsBegin, destinationsEnd)),
 					expression(std::move(expression))
 		{
 		}
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents) const;
+
+		[[nodiscard]] SourcePosition getLocation() const;
 
 		[[nodiscard]] Tuple& getDestinations();
 		[[nodiscard]] const Tuple& getDestinations() const;
@@ -43,6 +46,8 @@ namespace modelica
 		[[nodiscard]] const Expression& getExpression() const;
 
 		private:
+		SourcePosition location;
+
 		// Where the result of the expression has to be stored.
 		// A vector is needed because functions may have multiple outputs.
 		Tuple destinations;
@@ -63,13 +68,15 @@ namespace modelica
 		using blocks_iterator = Container::iterator;
 		using blocks_const_iterator = Container::const_iterator;
 
-		explicit IfStatement(llvm::ArrayRef<Block> blocks);
+		IfStatement(SourcePosition location, llvm::ArrayRef<Block> blocks);
 
 		[[nodiscard]] Block& operator[](size_t index);
 		[[nodiscard]] const Block& operator[](size_t index) const;
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] SourcePosition getLocation() const;
 
 		[[nodiscard]] size_t size() const;
 
@@ -80,6 +87,7 @@ namespace modelica
 		[[nodiscard]] blocks_const_iterator end() const;
 
 		private:
+		SourcePosition location;
 		Container blocks;
 	};
 
@@ -93,7 +101,7 @@ namespace modelica
 		using statements_iterator = boost::indirect_iterator<Container::iterator>;
 		using statements_const_iterator = boost::indirect_iterator<Container::const_iterator>;
 
-		ForStatement(Induction induction, llvm::ArrayRef<Statement> statements);
+		ForStatement(SourcePosition location, Induction induction, llvm::ArrayRef<Statement> statements);
 
 		ForStatement(const ForStatement& other);
 		ForStatement(ForStatement&& other) = default;
@@ -109,6 +117,8 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
+		[[nodiscard]] SourcePosition getLocation() const;
+
 		[[nodiscard]] Induction& getInduction();
 		[[nodiscard]] const Induction& getInduction() const;
 
@@ -121,6 +131,7 @@ namespace modelica
 		[[nodiscard]] statements_const_iterator end() const;
 
 		private:
+		SourcePosition location;
 		Induction induction;
 		Container statements;
 	};
@@ -128,27 +139,57 @@ namespace modelica
 	class WhileStatement: public ConditionalBlock<Statement>
 	{
 		public:
-		WhileStatement(Expression condition, llvm::ArrayRef<Statement> body);
+		WhileStatement(SourcePosition location, Expression condition, llvm::ArrayRef<Statement> body);
+
+		void dump() const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] SourcePosition getLocation() const;
+
+		private:
+		SourcePosition location;
 	};
 
 	class WhenStatement: public ConditionalBlock<Statement>
 	{
 		public:
-		WhenStatement(Expression condition, llvm::ArrayRef<Statement> body);
+		WhenStatement(SourcePosition location, Expression condition, llvm::ArrayRef<Statement> body);
+
+		void dump() const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] SourcePosition getLocation() const;
+
+		private:
+		SourcePosition location;
 	};
 
 	class BreakStatement
 	{
 		public:
+		explicit BreakStatement(SourcePosition location);
+
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] SourcePosition getLocation() const;
+
+		private:
+		SourcePosition location;
 	};
 
 	class ReturnStatement
 	{
 		public:
+		explicit ReturnStatement(SourcePosition location);
+
+		[[nodiscard]] SourcePosition getLocation() const;
+
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		private:
+		SourcePosition location;
 	};
 
 	template<typename ValueType, typename NodeType, typename... Variants>

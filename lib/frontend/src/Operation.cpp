@@ -56,8 +56,10 @@ string modelica::toString(OperationKind operation)
 	return "unexpected";
 }
 
-Operation::Operation(OperationKind kind, Container args)
-		: arguments(std::move(args)), kind(kind)
+Operation::Operation(SourcePosition location, OperationKind kind, Container args)
+		: location(move(location)),
+			arguments(std::move(args)),
+			kind(kind)
 {
 }
 
@@ -96,6 +98,11 @@ void Operation::dump(raw_ostream& os, size_t indents) const
 
 	for (const auto& arg : arguments)
 		arg.dump(os, indents + 1);
+}
+
+SourcePosition Operation::getLocation() const
+{
+	return location;
 }
 
 bool Operation::isLValue() const

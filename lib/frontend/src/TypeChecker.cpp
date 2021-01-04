@@ -350,9 +350,9 @@ Error TypeChecker::check(AssignmentStatement& statement)
 				newDestinations.push_back(move(destination));
 
 			for (size_t i = newDestinations.size(); i < returns; i++)
-				newDestinations.emplace_back(SourcePosition("-", 0, 0), userDefType[i], ReferenceAccess::dummy()); // TODO: fix position
+				newDestinations.emplace_back(userDefType[i], ReferenceAccess::dummy(SourcePosition::unknown()));
 
-			statement.setDestination(Tuple(move(newDestinations)));
+			statement.setDestination(Tuple(destinations.getLocation(), move(newDestinations)));
 		}
 	}
 
@@ -478,6 +478,7 @@ Error TypeChecker::check(Equation& eq)
 		auto& types = rhsType.get<UserDefinedType>();
 		size_t returns = types.size();
 
+		auto location = lhs.getLocation();
 		vector<Expression> newDestinations;
 
 		if (lhs.isA<Tuple>())
@@ -487,10 +488,10 @@ Error TypeChecker::check(Equation& eq)
 			newDestinations.push_back(move(lhs));
 
 		for (size_t i = newDestinations.size(); i < returns; i++)
-			newDestinations.emplace_back(SourcePosition("-", 0, 0), types[i], ReferenceAccess::dummy()); // TODO: fix position
+			newDestinations.emplace_back(types[i], ReferenceAccess::dummy(SourcePosition::unknown()));
 
-		Tuple tuple(move(newDestinations));
-		eq.setLeftHand(Expression(SourcePosition("-", 0, 0), rhsType, move(tuple))); // TODO: fix position
+		Tuple tuple(location, move(newDestinations));
+		eq.setLeftHand(Expression(rhsType, move(tuple)));
 	}
 
 	return Error::success();
@@ -709,7 +710,7 @@ llvm::Error resolveDummyReferences(Function& function)
 						continue;
 
 					string name = getTemporaryVariableName(function);
-					Member temp(name, destination.getType(), TypePrefix::none());
+					Member temp(destination.getLocation(), name, destination.getType(), TypePrefix::none());
 					ref.setName(temp.getName());
 					function.addMember(temp);
 
@@ -742,7 +743,7 @@ llvm::Error resolveDummyReferences(Class& model)
 					continue;
 
 				string name = getTemporaryVariableName(model);
-				Member temp(name, expression.getType(), TypePrefix::none());
+				Member temp(expression.getLocation(), name, expression.getType(), TypePrefix::none());
 				ref.setName(temp.getName());
 				model.addMember(temp);
 			}
@@ -768,7 +769,7 @@ llvm::Error resolveDummyReferences(Class& model)
 						continue;
 
 					string name = getTemporaryVariableName(model);
-					Member temp(name, destination.getType(), TypePrefix::none());
+					Member temp(destination.getLocation(), name, destination.getType(), TypePrefix::none());
 					ref.setName(temp.getName());
 					model.addMember(temp);
 

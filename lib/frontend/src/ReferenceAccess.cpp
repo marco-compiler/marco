@@ -4,8 +4,9 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-ReferenceAccess::ReferenceAccess(string name, bool globalLookup, bool dummy)
-		: referencedName(move(name)),
+ReferenceAccess::ReferenceAccess(SourcePosition location, string name, bool globalLookup, bool dummy)
+		: location(move(location)),
+			referencedName(move(name)),
 			globalLookup(globalLookup),
 			dummyVariable(dummy)
 {
@@ -31,6 +32,11 @@ void ReferenceAccess::dump(raw_ostream& os, size_t indents) const
 		 << "\n";
 }
 
+SourcePosition ReferenceAccess::getLocation() const
+{
+	return location;
+}
+
 string& ReferenceAccess::getName() { return referencedName; }
 
 const string& ReferenceAccess::getName() const { return referencedName; }
@@ -41,7 +47,7 @@ bool ReferenceAccess::hasGlobalLookup() const { return globalLookup; }
 
 bool ReferenceAccess::isDummy() const { return dummyVariable; }
 
-ReferenceAccess ReferenceAccess::dummy()
+ReferenceAccess ReferenceAccess::dummy(SourcePosition location)
 {
-	return ReferenceAccess("", false, true);
+	return ReferenceAccess(location, "", false, true);
 }

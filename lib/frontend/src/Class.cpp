@@ -5,13 +5,15 @@ using namespace modelica;
 using namespace std;
 
 Class::Class(
+		SourcePosition location,
 		string name,
 		ArrayRef<Member> members,
 		ArrayRef<Equation> equations,
 		ArrayRef<ForEquation> forEquations,
 		ArrayRef<Algorithm> algorithms,
 		ArrayRef<ClassContainer> innerClasses)
-		: name(move(name)),
+		: location(move(location)),
+			name(move(name)),
 			members(members.begin(), members.end()),
 			equations(equations.begin(), equations.end()),
 			forEquations(forEquations.begin(), forEquations.end()),
@@ -24,7 +26,8 @@ Class::Class(
 }
 
 Class::Class(const Class& other)
-		: name(other.name),
+		: location(other.location),
+			name(other.name),
 			members(other.members),
 			equations(other.equations),
 			forEquations(other.forEquations),
@@ -41,6 +44,7 @@ Class& Class::operator=(const Class& other)
 	if (this == &other)
 		return *this;
 
+	location = other.location;
 	name = other.name;
 	members = other.members;
 	equations = other.equations;
@@ -76,6 +80,11 @@ void Class::dump(raw_ostream& os, size_t indents) const
 
 	for (const auto& cls : innerClasses)
 		cls->dump(os, indents + 1);
+}
+
+SourcePosition Class::getLocation() const
+{
+	return location;
 }
 
 string Class::getName() const { return name; }

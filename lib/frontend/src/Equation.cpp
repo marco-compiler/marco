@@ -4,8 +4,10 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-Equation::Equation(Expression leftHand, Expression rightHand)
-		: leftHand(std::move(leftHand)), rightHand(std::move(rightHand))
+Equation::Equation(SourcePosition location, Expression leftHand, Expression rightHand)
+		: location(move(location)),
+			leftHand(std::move(leftHand)),
+			rightHand(std::move(rightHand))
 {
 }
 
@@ -17,6 +19,11 @@ void Equation::dump(raw_ostream& os, size_t indents) const
 	os << "equation\n";
 	leftHand.dump(os, indents + 1);
 	rightHand.dump(os, indents + 1);
+}
+
+SourcePosition Equation::getLocation() const
+{
+	return location;
 }
 
 Expression& Equation::getLeftHand() { return leftHand; }

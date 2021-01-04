@@ -40,7 +40,7 @@ void Function::dump(raw_ostream& os, size_t indents) const
 		algorithm.dump(os, indents + 1);
 }
 
-SourcePosition Function::getSourcePosition() const { return location; }
+SourcePosition Function::getLocation() const { return location; }
 
 string& Function::getName() { return name; }
 

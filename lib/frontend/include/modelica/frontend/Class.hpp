@@ -21,6 +21,7 @@ namespace modelica
 
 		public:
 		Class(
+				SourcePosition location,
 				std::string name,
 				llvm::ArrayRef<Member> members,
 				llvm::ArrayRef<Equation> equations,
@@ -38,6 +39,8 @@ namespace modelica
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] SourcePosition getLocation() const;
 
 		[[nodiscard]] std::string getName() const;
 
@@ -58,6 +61,7 @@ namespace modelica
 		[[nodiscard]] const Container<InnerClass>& getInnerClasses() const;
 
 		private:
+		SourcePosition location;
 		std::string name;
 		Container<Member> members;
 		Container<Equation> equations;

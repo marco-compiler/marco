@@ -5,20 +5,26 @@ using namespace modelica;
 using namespace std;
 
 AssignmentStatement::AssignmentStatement(
-		Expression destination, Expression expression)
-		: destinations(Tuple(move(destination))), expression(move(expression))
+		SourcePosition location, Expression destination, Expression expression)
+		: location(location),
+			destinations(Tuple(location, move(destination))),
+			expression(move(expression))
 {
 }
 
 AssignmentStatement::AssignmentStatement(
-		Tuple destinations, Expression expression)
-		: destinations(move(destinations)), expression(move(expression))
+		SourcePosition location, Tuple destinations, Expression expression)
+		: location(move(location)),
+			destinations(move(destinations)),
+			expression(move(expression))
 {
 }
 
 AssignmentStatement::AssignmentStatement(
-		initializer_list<Expression> destinations, Expression expression)
-		: destinations(Tuple(move(destinations))), expression(move(expression))
+		SourcePosition location, initializer_list<Expression> destinations, Expression expression)
+		: location(location),
+			destinations(Tuple(location, move(destinations))),
+			expression(move(expression))
 {
 }
 
@@ -35,6 +41,11 @@ void AssignmentStatement::dump(raw_ostream& os, size_t indents) const
 	expression.dump(os, indents + 1);
 }
 
+SourcePosition AssignmentStatement::getLocation() const
+{
+	return location;
+}
+
 Tuple& AssignmentStatement::getDestinations()
 {
 	return destinations;
@@ -47,7 +58,8 @@ const Tuple& AssignmentStatement::getDestinations() const
 
 void AssignmentStatement::setDestination(Expression dest)
 {
-	destinations = Tuple(move(dest));
+	auto loc = dest.getLocation();
+	destinations = Tuple(loc, move(dest));
 }
 
 void AssignmentStatement::setDestination(Tuple dest)
@@ -62,8 +74,9 @@ const Expression& AssignmentStatement::getExpression() const
 	return expression;
 }
 
-IfStatement::IfStatement(llvm::ArrayRef<Block> blocks)
-		: blocks(blocks.begin(), blocks.end())
+IfStatement::IfStatement(SourcePosition location, llvm::ArrayRef<Block> blocks)
+		: location(move(location)),
+			blocks(blocks.begin(), blocks.end())
 {
 	assert(!this->blocks.empty());
 }
@@ -91,6 +104,11 @@ void IfStatement::dump(raw_ostream& os, size_t indents) const
 		block.dump(os, indents + 1);
 }
 
+SourcePosition IfStatement::getLocation() const
+{
+	return location;
+}
+
 size_t IfStatement::size() const { return blocks.size(); }
 
 IfStatement::blocks_iterator IfStatement::begin()
@@ -114,15 +132,17 @@ IfStatement::blocks_const_iterator IfStatement::end() const
 }
 
 ForStatement::ForStatement(
-		Induction induction, llvm::ArrayRef<Statement> statements)
-		: induction(move(induction))
+		SourcePosition location, Induction induction, llvm::ArrayRef<Statement> statements)
+		: location(move(location)),
+			induction(move(induction))
 {
 	for (const auto& statement : statements)
 		this->statements.push_back(std::make_unique<Statement>(statement));
 }
 
 ForStatement::ForStatement(const ForStatement& other)
-		: induction(other.induction)
+		: location(other.location),
+			induction(other.induction)
 {
 	statements.clear();
 
@@ -135,6 +155,7 @@ ForStatement& ForStatement::operator=(const ForStatement& other)
 	if (this == &other)
 		return *this;
 
+	location = other.location;
 	induction = other.induction;
 	statements.clear();
 
@@ -171,6 +192,11 @@ void ForStatement::dump(raw_ostream& os, size_t indents) const
 		statement->dump(os, indents + 1);
 }
 
+SourcePosition ForStatement::getLocation() const
+{
+	return location;
+}
+
 Induction& ForStatement::getInduction() { return induction; }
 
 const Induction& ForStatement::getInduction() const { return induction; }
@@ -198,14 +224,43 @@ ForStatement::statements_const_iterator ForStatement::end() const
 }
 
 WhileStatement::WhileStatement(
-		Expression condition, llvm::ArrayRef<Statement> body)
-		: ConditionalBlock<Statement>(move(condition), move(body))
+		SourcePosition location, Expression condition, llvm::ArrayRef<Statement> body)
+		: ConditionalBlock<Statement>(move(condition), move(body)),
+			location(move(location))
 {
 }
 
+void WhileStatement::dump() const { dump(outs(), 0); }
+
+void WhileStatement::dump(raw_ostream& os, size_t indents) const
+{
+}
+
+SourcePosition WhileStatement::getLocation() const
+{
+	return location;
+}
+
 WhenStatement::WhenStatement(
-		Expression condition, llvm::ArrayRef<Statement> body)
-		: ConditionalBlock<Statement>(move(condition), move(body))
+		SourcePosition location, Expression condition, llvm::ArrayRef<Statement> body)
+		: ConditionalBlock<Statement>(move(condition), move(body)),
+			location(move(location))
+{
+}
+
+void WhenStatement::dump() const { dump(outs(), 0); }
+
+void WhenStatement::dump(raw_ostream& os, size_t indents) const
+{
+}
+
+SourcePosition WhenStatement::getLocation() const
+{
+	return location;
+}
+
+BreakStatement::BreakStatement(SourcePosition location)
+		: location(move(location))
 {
 }
 
@@ -217,6 +272,16 @@ void BreakStatement::dump(raw_ostream& os, size_t indents) const
 	os << "break\n";
 }
 
+SourcePosition BreakStatement::getLocation() const
+{
+	return location;
+}
+
+ReturnStatement::ReturnStatement(SourcePosition location)
+		: location(move(location))
+{
+}
+
 void ReturnStatement::dump() const { dump(outs(), 0); }
 
 void ReturnStatement::dump(raw_ostream& os, size_t indents) const
@@ -225,19 +290,45 @@ void ReturnStatement::dump(raw_ostream& os, size_t indents) const
 	os << "return\n";
 }
 
-Statement::Statement(AssignmentStatement statement): content(move(statement)) {}
+SourcePosition ReturnStatement::getLocation() const
+{
+	return location;
+}
 
-Statement::Statement(IfStatement statement): content(move(statement)) {}
+Statement::Statement(AssignmentStatement statement)
+		: content(move(statement))
+{
+}
 
-Statement::Statement(ForStatement statement): content(move(statement)) {}
+Statement::Statement(IfStatement statement)
+		: content(move(statement))
+{
+}
 
-Statement::Statement(WhileStatement statement): content(move(statement)) {}
+Statement::Statement(ForStatement statement)
+		: content(move(statement))
+{
+}
 
-Statement::Statement(WhenStatement statement): content(move(statement)) {}
+Statement::Statement(WhileStatement statement)
+		: content(move(statement))
+{
+}
 
-Statement::Statement(BreakStatement statement): content(move(statement)) {}
+Statement::Statement(WhenStatement statement)
+		: content(move(statement))
+{
+}
 
-Statement::Statement(ReturnStatement statement): content(move(statement)) {}
+Statement::Statement(BreakStatement statement)
+		: content(move(statement))
+{
+}
+
+Statement::Statement(ReturnStatement statement)
+		: content(move(statement))
+{
+}
 
 void Statement::dump() const { dump(outs(), 0); }
 

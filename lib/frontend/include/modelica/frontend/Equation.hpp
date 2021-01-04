@@ -8,10 +8,12 @@ namespace modelica
 	class Equation
 	{
 		public:
-		Equation(Expression leftHand, Expression rightHand);
+		Equation(SourcePosition location, Expression leftHand, Expression rightHand);
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] SourcePosition getLocation() const;
 
 		[[nodiscard]] Expression& getLeftHand();
 		[[nodiscard]] const Expression& getLeftHand() const;
@@ -22,6 +24,7 @@ namespace modelica
 		void setRightHand(Expression expression);
 
 		private:
+		SourcePosition location;
 		Expression leftHand;
 		Expression rightHand;
 	};

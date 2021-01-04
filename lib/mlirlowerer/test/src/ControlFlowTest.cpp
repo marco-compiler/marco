@@ -28,30 +28,35 @@ TEST(IfOp, thenBranchTaken)	 // NOLINT
 
 	SourcePosition location("-", 0, 0);
 
-	Member xMember("x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Expression condition = Expression(location, Type::Bool(), OperationKind::greater,
-																		Expression(location, Type::Int(), ReferenceAccess("x")),
-																		Expression(location, Type::Int(), Constant(0)));
+	Expression condition = Expression::operation(
+			location,
+			Type::Bool(),
+			OperationKind::greater,
+			Expression::reference(location, Type::Int(), "x"),
+			Expression::constant(location, Type::Int(), 0));
 
 	Statement thenStatement = AssignmentStatement(
-			Expression(location, Type::Int(), ReferenceAccess("y")),
-			Expression(location, Type::Int(), Constant(1)));
+			location,
+			Expression::reference(location, Type::Int(), "y"),
+			Expression::constant(location, Type::Int(), 1));
 
 	Statement elseStatement = AssignmentStatement(
-			Expression(location, Type::Int(), ReferenceAccess("y")),
-			Expression(location, Type::Int(), Constant(2)));
+			location,
+			Expression::reference(location, Type::Int(), "y"),
+			Expression::constant(location, Type::Int(), 2));
 
-	Statement ifStatement = IfStatement({
+	Statement ifStatement = IfStatement(location, {
 			IfStatement::Block(condition, { thenStatement }),
-			IfStatement::Block(Expression::trueExp(location), { elseStatement })
+			IfStatement::Block(Expression::constant(location, Type::Bool(), true), { elseStatement })
 	});
 
 	ClassContainer cls(Function(
 			location, "main", true,
 			{ xMember, yMember },
-			Algorithm(ifStatement)));
+			Algorithm(location, ifStatement)));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
@@ -81,30 +86,35 @@ TEST(IfOp, elseBranchTaken)	 // NOLINT
 
 	SourcePosition location("-", 0, 0);
 
-	Member xMember("x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Expression condition = Expression(location, Type::Bool(), OperationKind::greater,
-																		Expression(location, Type::Int(), ReferenceAccess("x")),
-																		Expression(location, Type::Int(), Constant(0)));
+	Expression condition = Expression::operation(
+			location,
+			Type::Bool(),
+			OperationKind::greater,
+			Expression::reference(location, Type::Int(), "x"),
+			Expression::constant(location, Type::Int(), 0));
 
 	Statement thenStatement = AssignmentStatement(
-			Expression(location, Type::Int(), ReferenceAccess("y")),
-			Expression(location, Type::Int(), Constant(1)));
+			location,
+			Expression::reference(location, Type::Int(), "y"),
+			Expression::constant(location, Type::Int(), 1));
 
 	Statement elseStatement = AssignmentStatement(
-			Expression(location, Type::Int(), ReferenceAccess("y")),
-			Expression(location, Type::Int(), Constant(2)));
+			location,
+			Expression::reference(location, Type::Int(), "y"),
+			Expression::constant(location, Type::Int(), 2));
 
-	Statement ifStatement = IfStatement({
+	Statement ifStatement = IfStatement(location, {
 			IfStatement::Block(condition, { thenStatement }),
-			IfStatement::Block(Expression::trueExp(location), { elseStatement })
+			IfStatement::Block(Expression::constant(location, Type::Bool(), true), { elseStatement })
 	});
 
 	ClassContainer cls(Function(
 			location, "main", true,
 			{ xMember, yMember },
-			Algorithm(ifStatement)));
+			Algorithm(location, ifStatement)));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
@@ -138,39 +148,48 @@ TEST(IfOp, elseIfBranchTaken)	 // NOLINT
 
 	SourcePosition location("-", 0, 0);
 
-	Member xMember("x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Expression ifCondition = Expression(location, Type::Bool(), OperationKind::equal,
-																		Expression(location, Type::Int(), ReferenceAccess("x")),
-																		Expression(location, Type::Int(), Constant(0)));
+	Expression ifCondition = Expression::operation(
+			location,
+			Type::Bool(),
+			OperationKind::equal,
+			Expression::reference(location, Type::Int(), "x"),
+			Expression::constant(location, Type::Int(), 0));
 
 	Statement thenStatement = AssignmentStatement(
-			Expression(location, Type::Int(), ReferenceAccess("y")),
-			Expression(location, Type::Int(), Constant(1)));
+			location,
+			Expression::reference(location, Type::Int(), "y"),
+			Expression::constant(location, Type::Int(), 1));
 
-	Expression elseIfCondition = Expression(location, Type::Bool(), OperationKind::greater,
-																				Expression(location, Type::Int(), ReferenceAccess("x")),
-																				Expression(location, Type::Int(), Constant(0)));
+	Expression elseIfCondition = Expression::operation(
+			location,
+			Type::Bool(),
+			OperationKind::greater,
+			Expression::reference(location, Type::Int(), "x"),
+			Expression::constant(location, Type::Int(), 0));
 
 	Statement elseIfStatement = AssignmentStatement(
-			Expression(location, Type::Int(), ReferenceAccess("y")),
-			Expression(location, Type::Int(), Constant(2)));
+			location,
+			Expression::reference(location, Type::Int(), "y"),
+			Expression::constant(location, Type::Int(), 2));
 
 	Statement elseStatement = AssignmentStatement(
-			Expression(location, Type::Int(), ReferenceAccess("y")),
-			Expression(location, Type::Int(), Constant(3)));
+			location,
+			Expression::reference(location, Type::Int(), "y"),
+			Expression::constant(location, Type::Int(), 3));
 
-	Statement ifStatement = IfStatement({
+	Statement ifStatement = IfStatement(location, {
 			IfStatement::Block(ifCondition, { thenStatement }),
 			IfStatement::Block(elseIfCondition, { elseIfStatement }),
-			IfStatement::Block(Expression::trueExp(location), { elseStatement })
+			IfStatement::Block(Expression::constant(location, Type::Bool(), true), { elseStatement })
 	});
 
 	ClassContainer cls(Function(
 			location, "main", true,
 			{ xMember, yMember },
-			Algorithm(ifStatement)));
+			Algorithm(location, ifStatement)));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
@@ -200,23 +219,26 @@ TEST(WhileOp, validLoop)	 // NOLINT
 
 	SourcePosition location("-", 0, 0);
 
-	Member xMember("x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Expression condition = Expression(location, Type::Bool(), OperationKind::greater,
-																		Expression(location, Type::Int(), ReferenceAccess("x")),
-																		Expression(location, Type::Int(), Constant(0)));
+	Expression condition = Expression::operation(
+			location,
+			Type::Bool(),
+			OperationKind::greater,
+			Expression::reference(location, Type::Int(), "x"),
+			Expression::constant(location, Type::Int(), 0));
 
-	Expression xRef = Expression(location, Type::Int(), ReferenceAccess("x"));
-	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
+	Expression xRef = Expression::reference(location, Type::Int(), "x");
+	Expression yRef = Expression::reference(location, Type::Int(), "y");
 
-	Statement whileStatement = WhileStatement(condition, {
-			AssignmentStatement(yRef, Expression(location, Type::Int(), OperationKind::add, yRef, xRef)),
-			AssignmentStatement(xRef, Expression(location, Type::Int(), OperationKind::subtract, xRef, Expression(location, Type::Int(), Constant(1))))
+	Statement whileStatement = WhileStatement(location, condition, {
+			AssignmentStatement(location, yRef, Expression::operation(location, Type::Int(), OperationKind::add, yRef, xRef)),
+			AssignmentStatement(location, xRef, Expression::operation(location, Type::Int(), OperationKind::subtract, xRef, Expression::constant(location, Type::Int(), 1)))
 	});
 
-	Algorithm algorithm = Algorithm({
-			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(0))),
+	Algorithm algorithm = Algorithm(location, {
+			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 0)),
 			whileStatement
 	});
 
@@ -252,17 +274,17 @@ TEST(WhileOp, notExecutedLoop)	 // NOLINT
 
 	SourcePosition location("-", 0, 0);
 
-	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::falseExp(location);
-	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
+	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::constant(location, Type::Bool(), false);
+	Expression yRef = Expression::reference(location, Type::Int(), "y");
 
-	Statement whileStatement = WhileStatement(condition, {
-			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(0))),
-			BreakStatement()
+	Statement whileStatement = WhileStatement(location, condition, {
+			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 0)),
+			BreakStatement(location)
 	});
 
-	Algorithm algorithm = Algorithm({
-			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
+	Algorithm algorithm = Algorithm(location, {
+			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 1)),
 			whileStatement
 	});
 
@@ -300,22 +322,22 @@ TEST(BreakOp, nestedWhile)	 // NOLINT
 
 	SourcePosition location("-", 0, 0);
 
-	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::trueExp(location);
-	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
+	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::constant(location, Type::Bool(), true);
+	Expression yRef = Expression::reference(location, Type::Int(), "y");
 
-	Statement innerWhile = WhileStatement(condition, {
-			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
-			BreakStatement()
+	Statement innerWhile = WhileStatement(location, condition, {
+			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 1)),
+			BreakStatement(location)
 	});
 
-	Statement outerWhile = WhileStatement(condition, {
+	Statement outerWhile = WhileStatement(location, condition, {
 			innerWhile,
-			BreakStatement()
+			BreakStatement(location)
 	});
 
-	Algorithm algorithm = Algorithm({
-			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(0))),
+	Algorithm algorithm = Algorithm(location, {
+			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 0)),
 			outerWhile
 	});
 
@@ -350,17 +372,17 @@ TEST(BreakOp, breakAsLastOpInWhile)	 // NOLINT
 
 	SourcePosition location("-", 0, 0);
 
-	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::trueExp(location);
-	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
+	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::constant(location, Type::Bool(), true);
+	Expression yRef = Expression::reference(location, Type::Int(), "y");
 
-	Statement whileStatement = WhileStatement(condition, {
-			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
-			BreakStatement()
+	Statement whileStatement = WhileStatement(location, condition, {
+			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 1)),
+			BreakStatement(location)
 	});
 
-	Algorithm algorithm = Algorithm({
-			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(0))),
+	Algorithm algorithm = Algorithm(location, {
+			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 0)),
 			whileStatement
 	});
 
@@ -397,22 +419,25 @@ TEST(BreakOp, breakNestedInWhile)	 // NOLINT
 
 	SourcePosition location("-", 0, 0);
 
-	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
-	Expression condition = Expression(location, Type::Bool(), OperationKind::equal,
-																		yRef,
-																		Expression(location, Type::Int(), Constant(0)));
+	Expression yRef = Expression::reference(location, Type::Int(), "y");
+	Expression condition = Expression::operation(
+			location,
+			Type::Bool(),
+			OperationKind::equal,
+			yRef,
+			Expression::constant(location, Type::Int(), 0));
 
-	Statement ifStatement = IfStatement(IfStatement::Block(condition, {
-			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
-			BreakStatement()
+	Statement ifStatement = IfStatement(location, IfStatement::Block(condition, {
+			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 1)),
+			BreakStatement(location)
 	}));
 
-	Statement whileStatement = WhileStatement(Expression::trueExp(location), ifStatement);
+	Statement whileStatement = WhileStatement(location, Expression::constant(location, Type::Bool(), true), ifStatement);
 
-	Algorithm algorithm = Algorithm({
-			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(0))),
+	Algorithm algorithm = Algorithm(location, {
+			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 0)),
 			whileStatement
 	});
 
@@ -447,14 +472,14 @@ TEST(ReturnOp, earlyReturn)	 // NOLINT
 
 	SourcePosition location("-", 0, 0);
 
-	Member yMember("y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression yRef = Expression(location, Type::Int(), ReferenceAccess("y"));
-	Statement ifStatement = IfStatement(IfStatement::Block(Expression::trueExp(location), { ReturnStatement() }));
+	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression yRef = Expression::reference(location, Type::Int(), "y");
+	Statement ifStatement = IfStatement(location, IfStatement::Block(Expression::constant(location, Type::Bool(), true), { ReturnStatement(location) }));
 
-	Algorithm algorithm = Algorithm({
-			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(1))),
+	Algorithm algorithm = Algorithm(location, {
+			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 1)),
 			ifStatement,
-			AssignmentStatement(yRef, Expression(location, Type::Int(), Constant(0))),
+			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 0)),
 	});
 
 	ClassContainer cls(Function(

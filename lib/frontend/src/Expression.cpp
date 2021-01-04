@@ -7,35 +7,40 @@ using namespace std;
 
 struct LValueVisitor
 {
-	bool operator()(const Operation& obj) const { return obj.isLValue(); }
 	bool operator()(const Constant& obj) const { return false; }
 	bool operator()(const ReferenceAccess& obj) const { return true; }
+	bool operator()(const Operation& obj) const { return obj.isLValue(); }
 	bool operator()(const Call& obj) const { return false; }
 	bool operator()(const Tuple& obj) const { return false; }
 };
 
-Expression::Expression(SourcePosition location, Type type, Constant constant)
-		: location(move(location)), content(move(constant)), type(move(type))
+Expression::Expression(Type type, Constant constant)
+		: content(move(constant)),
+			type(move(type))
 {
 }
 
-Expression::Expression(SourcePosition location, Type type, ReferenceAccess access)
-		: location(move(location)), content(move(access)), type(move(type))
+Expression::Expression(Type type, ReferenceAccess access)
+		: content(move(access)),
+			type(move(type))
 {
 }
 
-Expression::Expression(SourcePosition location, Type type, Call call)
-		: location(move(location)), content(move(call)), type(move(type))
+Expression::Expression(Type type, Operation operation)
+		: content(move(operation)),
+			type(move(type))
 {
 }
 
-Expression::Expression(SourcePosition location, Type type, Tuple tuple)
-		: location(move(location)), content(move(tuple)), type(move(type))
+Expression::Expression(Type type, Call call)
+		: content(move(call)),
+			type(move(type))
 {
 }
 
-Expression::Expression(SourcePosition location, Type type, OperationKind kind, Operation::Container args)
-		: location(move(location)), content(Operation(kind, move(args))), type(move(type))
+Expression::Expression(Type type, Tuple tuple)
+		: content(move(tuple)),
+			type(move(type))
 {
 }
 
@@ -63,7 +68,7 @@ void Expression::dump(raw_ostream& os, size_t indents) const
 
 SourcePosition Expression::getLocation() const
 {
-	return location;
+	return visit([](const auto& value) { return value.getLocation(); });
 }
 
 bool Expression::isLValue() const { return visit(LValueVisitor()); }
@@ -74,7 +79,3 @@ const Type& Expression::getType() const { return type; }
 
 void Expression::setType(Type tp) { type = move(tp); }
 
-Expression modelica::makeCall(SourcePosition location, Expression fun, llvm::ArrayRef<Expression> args)
-{
-	return Expression(move(location), Type::unknown(), Call(move(fun), move(args)));
-}

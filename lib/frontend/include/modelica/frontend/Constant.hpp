@@ -3,6 +3,7 @@
 #include <cassert>
 #include <llvm/Support/raw_ostream.h>
 #include <modelica/frontend/Type.hpp>
+#include <modelica/utils/SourceRange.hpp>
 #include <string>
 #include <type_traits>
 #include <variant>
@@ -12,18 +13,20 @@ namespace modelica
 	class Constant
 	{
 		public:
-		explicit Constant(int val);
-		explicit Constant(char val);
-		explicit Constant(float val);
-		explicit Constant(bool val);
-		explicit Constant(double val);
-		explicit Constant(std::string val);
+		Constant(SourcePosition location, bool val);
+		Constant(SourcePosition location, int val);
+		Constant(SourcePosition location, float val);
+		Constant(SourcePosition location, double val);
+		Constant(SourcePosition location, char val);
+		Constant(SourcePosition location, std::string val);
 
 		[[nodiscard]] bool operator==(const Constant& other) const;
 		[[nodiscard]] bool operator!=(const Constant& other) const;
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] SourcePosition getLocation() const;
 
 		template<class Visitor>
 		auto visit(Visitor&& vis)
@@ -76,6 +79,7 @@ namespace modelica
 		}
 
 		private:
-		std::variant<int, double, std::string, bool> content;
+		SourcePosition location;
+		std::variant<bool, int, double, std::string> content;
 	};
 }	 // namespace modelica

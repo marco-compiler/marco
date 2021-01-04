@@ -19,34 +19,11 @@ namespace modelica
 	class Expression
 	{
 		public:
-		template<typename T>
-		Expression(SourcePosition location, Type type, T&& constant) : location(std::move(location)), content(Constant(std::forward<T>(constant))), type(std::move(type))
-		{
-		}
-
-		Expression(SourcePosition location, Type tp, Constant costnt);
-		Expression(SourcePosition location, Type tp, ReferenceAccess access);
-		Expression(SourcePosition location, Type tp, Call call);
-		Expression(SourcePosition location, Type tp, Tuple tuple);
-
-		template<OperationKind op, typename... Args>
-		Expression(SourcePosition location, Type type, Args&&... args) : location(std::move(location)), content(makeOp<op>(std::forward<Args>(args)...)), type(std::move(type))
-		{
-		}
-
-		template<typename... Args>
-		Expression(SourcePosition location, Type type, OperationKind kind, Args... args) : location(std::move(location)), content(Operation(kind, std::forward<Args>(args)...)), type(std::move(type))
-		{
-		}
-
-		Expression(SourcePosition location, Type tp, OperationKind kind, Operation::Container args);
-
-		~Expression() = default;
-
-		Expression(const Expression& other) = default;
-		Expression(Expression&& other) = default;
-		Expression& operator=(const Expression& other) = default;
-		Expression& operator=(Expression&& other) = default;
+		Expression(Type type, Constant constant);
+		Expression(Type type, ReferenceAccess access);
+		Expression(Type type, Operation operation);
+		Expression(Type type, Call call);
+		Expression(Type type, Tuple tuple);
 
 		[[nodiscard]] bool operator==(const Expression& other) const;
 		[[nodiscard]] bool operator!=(const Expression& other) const;
@@ -94,108 +71,43 @@ namespace modelica
 		[[nodiscard]] const Type& getType() const;
 		void setType(Type tp);
 
-		[[nodiscard]] static Expression trueExp(SourcePosition location)
+		template<typename Arg>
+		[[nodiscard]] static Expression constant(SourcePosition location, Type type, Arg&& arg)
 		{
-			return Expression(location, makeType<bool>(), true);
-		}
-
-		[[nodiscard]] static Expression falseExp(SourcePosition location)
-		{
-			return Expression(location, makeType<bool>(), false);
-		}
-
-		template<OperationKind o, typename... Args>
-		[[nodiscard]] static Expression op(SourcePosition location, Type tp, Args&&... args)
-		{
-			return Expression(location, std::move(tp), o, std::forward<Args>(args)...);
-		}
-
-		template<OperationKind o>
-		[[nodiscard]] static Expression op(SourcePosition location, Type tp, Operation::Container args)
-		{
-			return Expression(location, std::move(tp), o, std::move(args));
-		}
-
-		[[nodiscard]] static Expression add(SourcePosition location, Type t, Operation::Container args)
-		{
-			return op<OperationKind::add>(location, std::move(t), std::move(args));
+			Constant content(std::move(location), std::forward<Arg>(arg));
+			return Expression(type, std::move(content));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression add(SourcePosition location, Type t, Args&&... args)
+		[[nodiscard]] static Expression reference(SourcePosition location, Type type, Args&&... args)
 		{
-			return op<OperationKind::add>(location, std::move(t), std::forward<Args>(args)...);
+			ReferenceAccess content(location, std::forward<Args>(args)...);
+			return Expression(type, std::move(content));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression subscription(SourcePosition location, Type t, Args&&... args)
+		[[nodiscard]] static Expression operation(SourcePosition location, Type type, OperationKind kind, Args&&... args)
 		{
-			return op<OperationKind::subscription>(
-					location, std::move(t), std::forward<Args>(args)...);
+			Operation content(location, kind, std::forward<Args>(args)...);
+			return Expression(type, std::move(content));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression negate(SourcePosition location, Type t, Args&&... args)
+		[[nodiscard]] static Expression call(SourcePosition location, Type type, Expression function, Args&&... args)
 		{
-			return op<OperationKind::negate>(
-					location, std::move(t), std::forward<Args>(args)...);
+			Call content(location, std::move(function), std::forward<Args>(args)...);
+			return Expression(type, std::move(content));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression subtract(SourcePosition location, Type t, Args&&... args)
+		[[nodiscard]] static Expression tuple(SourcePosition location, Type type, Args&&... args)
 		{
-			return op<OperationKind::subtract>(
-					location, std::move(t), std::forward<Args>(args)...);
-		}
-
-		template<typename... Args>
-		[[nodiscard]] static Expression divide(SourcePosition location, Type t, Args&&... args)
-		{
-			return op<OperationKind::divide>(
-					location, std::move(t), std::forward<Args>(args)...);
-		}
-
-		template<typename... Args>
-		[[nodiscard]] static Expression powerOf(SourcePosition location, Type t, Args&&... args)
-		{
-			return op<OperationKind::powerOf>(
-					location, std::move(t), std::forward<Args>(args)...);
-		}
-
-		template<typename... Args>
-		[[nodiscard]] static Expression memberLookup(SourcePosition location, Type t, Args&&... args)
-		{
-			return op<OperationKind::memberLookup>(
-					location, std::move(t), std::forward<Args>(args)...);
-		}
-
-		[[nodiscard]] static Expression multiply(SourcePosition location, Type t, Operation::Container args)
-		{
-			return op<OperationKind::multiply>(location, std::move(t), std::move(args));
-		}
-
-		[[nodiscard]] static Expression lor(SourcePosition location, Type t, Operation::Container args)
-		{
-			return op<OperationKind::lor>(location, std::move(t), std::move(args));
-		}
-
-		[[nodiscard]] static Expression land(SourcePosition location, Type t, Operation::Container args)
-		{
-			return op<OperationKind::land>(location, std::move(t), std::move(args));
+			Tuple content(location, std::forward<Args>(args)...);
+			return Expression(type, std::move(content));
 		}
 
 		private:
-		SourcePosition location;
-		std::variant<Operation, Constant, ReferenceAccess, Call, Tuple> content;
+		std::variant<Constant, ReferenceAccess, Operation, Call, Tuple> content;
 		Type type;
 	};
-
-	[[nodiscard]] Expression makeCall(
-			SourcePosition location, Expression fun, llvm::ArrayRef<Expression> args);
-
-	template<typename... Expressions>
-	[[nodiscard]] Expression makeTuple(SourcePosition location, Expressions&&... expressions)
-	{
-		return Expression(Tuple(std::forward<Expressions>(expressions)...));
-	}
 }	 // namespace modelica

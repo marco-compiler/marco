@@ -10,7 +10,7 @@ using namespace std;
 TEST(expressionTest, constantsCanBeBuilt)
 {
 	SourcePosition location("-", 0, 0);
-	Expression exp(location, makeType<int>(), 3);
+	Expression exp = Expression::constant(location, makeType<int>(), 3);
 	EXPECT_TRUE(exp.isA<Constant>());
 	EXPECT_TRUE(exp.get<Constant>().isA<BuiltInType::Integer>());
 	EXPECT_EQ(exp.get<Constant>().get<BuiltInType::Integer>(), 3);
@@ -21,9 +21,9 @@ TEST(expressionTest, constantsCanBeBuilt)
 TEST(expressionTest, operationsCanBeBuilt)
 {
 	SourcePosition location("-", 0, 0);
-	Expression constant(location, makeType<int>(), 3);
+	Expression constant = Expression::constant(location, makeType<int>(), 3);
 	Expression exp =
-			Expression::op<OperationKind::add>(location, makeType<int>(), constant, constant);
+			Expression::operation(location, Type::Int(), OperationKind::add, constant, constant);
 	EXPECT_TRUE(exp.isA<Operation>());
 	EXPECT_EQ(exp.get<Operation>().getKind(), OperationKind::add);
 }

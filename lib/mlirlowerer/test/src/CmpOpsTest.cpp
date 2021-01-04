@@ -16,11 +16,12 @@ TEST(CmpOps, eqIntTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::equal>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Int(), Constant(57)));
+			OperationKind::equal,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Int(), 57));
 
 	mlir::MLIRContext context;
 
@@ -44,11 +45,12 @@ TEST(CmpOps, eqIntFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::equal>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Int(), Constant(57)));
+			OperationKind::equal,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Int(), 57));
 
 	mlir::MLIRContext context;
 
@@ -72,11 +74,12 @@ TEST(CmpOps, eqFloatsTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::equal>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(57.23)),
-			Expression(location, Type::Float(), Constant(57.23)));
+			OperationKind::equal,
+			Expression::constant(location, Type::Float(), 57.23),
+			Expression::constant(location, Type::Float(), 57.23));
 
 	mlir::MLIRContext context;
 
@@ -100,11 +103,12 @@ TEST(CmpOps, eqFloatsFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::equal>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(23.57)),
-			Expression(location, Type::Float(), Constant(57.23)));
+			OperationKind::equal,
+			Expression::constant(location, Type::Float(), 23.57),
+			Expression::constant(location, Type::Float(), 57.23));
 
 	mlir::MLIRContext context;
 
@@ -128,11 +132,12 @@ TEST(CmpOps, eqIntCastedToFloatTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::equal>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Float(), Constant(57.0)));
+			OperationKind::equal,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Float(), 57.0));
 
 	mlir::MLIRContext context;
 
@@ -156,11 +161,12 @@ TEST(CmpOps, eqIntCastedToFloatFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::equal>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Float(), Constant(57.0)));
+			OperationKind::equal,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Float(), 57.0));
 
 	mlir::MLIRContext context;
 
@@ -184,11 +190,12 @@ TEST(CmpOps, notEqIntTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::different>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Int(), Constant(57)));
+			OperationKind::different,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Int(), 57));
 
 	mlir::MLIRContext context;
 
@@ -212,11 +219,12 @@ TEST(CmpOps, notEqIntFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::different>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Int(), Constant(57)));
+			OperationKind::different,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Int(), 57));
 
 	mlir::MLIRContext context;
 
@@ -240,11 +248,12 @@ TEST(CmpOps, notEqFloatsTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::different>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(23.57)),
-			Expression(location, Type::Float(), Constant(57.23)));
+			OperationKind::different,
+			Expression::constant(location, Type::Float(), 23.57),
+			Expression::constant(location, Type::Float(), 57.23));
 
 	mlir::MLIRContext context;
 
@@ -268,11 +277,12 @@ TEST(CmpOps, notEqFloatsFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::different>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(57.23)),
-			Expression(location, Type::Float(), Constant(57.23)));
+			OperationKind::different,
+			Expression::constant(location, Type::Float(), 57.23),
+			Expression::constant(location, Type::Float(), 57.23));
 
 	mlir::MLIRContext context;
 
@@ -296,11 +306,12 @@ TEST(CmpOps, notEqIntCastedToFloatTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::different>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Float(), Constant(57.0)));
+			OperationKind::different,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Float(), 57.0));
 
 	mlir::MLIRContext context;
 
@@ -324,11 +335,12 @@ TEST(CmpOps, notEqIntCastedToFloatFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::different>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Float(), Constant(57.0)));
+			OperationKind::different,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Float(), 57.0));
 
 	mlir::MLIRContext context;
 
@@ -352,11 +364,12 @@ TEST(CmpOps, gtIntTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greater>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Int(), Constant(23)));
+			OperationKind::greater,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Int(), 23));
 
 	mlir::MLIRContext context;
 
@@ -380,11 +393,12 @@ TEST(CmpOps, gtIntFalseSameValue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greater>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Int(), Constant(23)));
+			OperationKind::greater,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Int(), 23));
 
 	mlir::MLIRContext context;
 
@@ -408,11 +422,12 @@ TEST(CmpOps, gtIntFalseDifferentValue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greater>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Int(), Constant(57)));
+			OperationKind::greater,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Int(), 57));
 
 	mlir::MLIRContext context;
 
@@ -436,11 +451,12 @@ TEST(CmpOps, gtFloatsTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greater>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(57.23)),
-			Expression(location, Type::Float(), Constant(23.57)));
+			OperationKind::greater,
+			Expression::constant(location, Type::Float(), 57.23),
+			Expression::constant(location, Type::Float(), 23.57));
 
 	mlir::MLIRContext context;
 
@@ -464,11 +480,12 @@ TEST(CmpOps, gtFloatsFalseSameValues)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greater>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(57.23)),
-			Expression(location, Type::Float(), Constant(57.23)));
+			OperationKind::greater,
+			Expression::constant(location, Type::Float(), 57.23),
+			Expression::constant(location, Type::Float(), 57.23));
 
 	mlir::MLIRContext context;
 
@@ -492,11 +509,12 @@ TEST(CmpOps, gtFloatsFalseDifferentValues)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greater>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(23.57)),
-			Expression(location, Type::Float(), Constant(57.23)));
+			OperationKind::greater,
+			Expression::constant(location, Type::Float(), 23.57),
+			Expression::constant(location, Type::Float(), 57.23));
 
 	mlir::MLIRContext context;
 
@@ -520,11 +538,12 @@ TEST(CmpOps, gtIntCastedToFloatTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greater>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Float(), Constant(23.0)));
+			OperationKind::greater,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Float(), 23.0));
 
 	mlir::MLIRContext context;
 
@@ -548,11 +567,12 @@ TEST(CmpOps, gtIntCastedToFloatFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greater>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Float(), Constant(57.0)));
+			OperationKind::greater,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Float(), 57.0));
 
 	mlir::MLIRContext context;
 
@@ -576,11 +596,12 @@ TEST(CmpOps, gteIntTrueSameValues)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greaterEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Int(), Constant(57)));
+			OperationKind::greaterEqual,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Int(), 57));
 
 	mlir::MLIRContext context;
 
@@ -604,11 +625,12 @@ TEST(CmpOps, gteIntTrueDifferentValues)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greaterEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Int(), Constant(23)));
+			OperationKind::greaterEqual,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Int(), 23));
 
 	mlir::MLIRContext context;
 
@@ -632,11 +654,12 @@ TEST(CmpOps, gteIntFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greaterEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Int(), Constant(57)));
+			OperationKind::greaterEqual,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Int(), 57));
 
 	mlir::MLIRContext context;
 
@@ -660,11 +683,12 @@ TEST(CmpOps, gteFloatsTrueSameValues)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greaterEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(57.23)),
-			Expression(location, Type::Float(), Constant(57.23)));
+			OperationKind::greaterEqual,
+			Expression::constant(location, Type::Float(), 57.23),
+			Expression::constant(location, Type::Float(), 57.23));
 
 	mlir::MLIRContext context;
 
@@ -688,11 +712,12 @@ TEST(CmpOps, gteFloatsTrueDifferentValues)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greaterEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(57.23)),
-			Expression(location, Type::Float(), Constant(23.57)));
+			OperationKind::greaterEqual,
+			Expression::constant(location, Type::Float(), 57.23),
+			Expression::constant(location, Type::Float(), 23.57));
 
 	mlir::MLIRContext context;
 
@@ -716,11 +741,12 @@ TEST(CmpOps, gteFloatsFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greaterEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(23.57)),
-			Expression(location, Type::Float(), Constant(57.23)));
+			OperationKind::greaterEqual,
+			Expression::constant(location, Type::Float(), 23.57),
+			Expression::constant(location, Type::Float(), 57.23));
 
 	mlir::MLIRContext context;
 
@@ -744,11 +770,12 @@ TEST(CmpOps, gteIntCastedToFloatTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greaterEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Float(), Constant(23.0)));
+			OperationKind::greaterEqual,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Float(), 23.0));
 
 	mlir::MLIRContext context;
 
@@ -772,11 +799,12 @@ TEST(CmpOps, gteIntCastedToFloatFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::greaterEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Float(), Constant(57.0)));
+			OperationKind::greaterEqual,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Float(), 57.0));
 
 	mlir::MLIRContext context;
 
@@ -800,11 +828,12 @@ TEST(CmpOps, ltIntTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::less>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Int(), Constant(57)));
+			OperationKind::less,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Int(), 57));
 
 	mlir::MLIRContext context;
 
@@ -828,11 +857,12 @@ TEST(CmpOps, ltIntFalseSameValue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::less>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Int(), Constant(23)));
+			OperationKind::less,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Int(), 23));
 
 	mlir::MLIRContext context;
 
@@ -856,11 +886,12 @@ TEST(CmpOps, ltIntFalseDifferentValue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::less>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Int(), Constant(23)));
+			OperationKind::less,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Int(), 23));
 
 	mlir::MLIRContext context;
 
@@ -884,11 +915,12 @@ TEST(CmpOps, ltFloatsTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::less>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(23.57)),
-			Expression(location, Type::Float(), Constant(57.23)));
+			OperationKind::less,
+			Expression::constant(location, Type::Float(), 23.57),
+			Expression::constant(location, Type::Float(), 57.23));
 
 	mlir::MLIRContext context;
 
@@ -912,11 +944,12 @@ TEST(CmpOps, ltFloatsFalseSameValues)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::less>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(57.23)),
-			Expression(location, Type::Float(), Constant(57.23)));
+			OperationKind::less,
+			Expression::constant(location, Type::Float(), 57.23),
+			Expression::constant(location, Type::Float(), 57.23));
 
 	mlir::MLIRContext context;
 
@@ -940,11 +973,12 @@ TEST(CmpOps, ltFloatsFalseDifferentValues)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::less>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(57.23)),
-			Expression(location, Type::Float(), Constant(23.57)));
+			OperationKind::less,
+			Expression::constant(location, Type::Float(), 57.23),
+			Expression::constant(location, Type::Float(), 23.57));
 
 	mlir::MLIRContext context;
 
@@ -968,11 +1002,12 @@ TEST(CmpOps, ltIntCastedToFloatTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::less>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Float(), Constant(57.0)));
+			OperationKind::less,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Float(), 57.0));
 
 	mlir::MLIRContext context;
 
@@ -996,11 +1031,12 @@ TEST(CmpOps, ltIntCastedToFloatFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::less>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Float(), Constant(23.0)));
+			OperationKind::less,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Float(), 23.0));
 
 	mlir::MLIRContext context;
 
@@ -1024,11 +1060,12 @@ TEST(CmpOps, lteIntTrueSameValues)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::lessEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Int(), Constant(57)));
+			OperationKind::lessEqual,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Int(), 57));
 
 	mlir::MLIRContext context;
 
@@ -1052,11 +1089,12 @@ TEST(CmpOps, lteIntTrueDifferentValues)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::lessEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Int(), Constant(57)));
+			OperationKind::lessEqual,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Int(), 57));
 
 	mlir::MLIRContext context;
 
@@ -1080,11 +1118,12 @@ TEST(CmpOps, lteIntFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::lessEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Int(), Constant(23)));
+			OperationKind::lessEqual,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Int(), 23));
 
 	mlir::MLIRContext context;
 
@@ -1108,11 +1147,12 @@ TEST(CmpOps, lteFloatsTrueSameValues)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::lessEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(57.23)),
-			Expression(location, Type::Float(), Constant(57.23)));
+			OperationKind::lessEqual,
+			Expression::constant(location, Type::Float(), 57.23),
+			Expression::constant(location, Type::Float(), 57.23));
 
 	mlir::MLIRContext context;
 
@@ -1136,11 +1176,12 @@ TEST(CmpOps, lteFloatsTrueDifferentValues)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::lessEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(23.57)),
-			Expression(location, Type::Float(), Constant(57.23)));
+			OperationKind::lessEqual,
+			Expression::constant(location, Type::Float(), 23.57),
+			Expression::constant(location, Type::Float(), 57.23));
 
 	mlir::MLIRContext context;
 
@@ -1164,11 +1205,12 @@ TEST(CmpOps, lteFloatsFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::lessEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Float(), Constant(57.23)),
-			Expression(location, Type::Float(), Constant(23.57)));
+			OperationKind::lessEqual,
+			Expression::constant(location, Type::Float(), 57.23),
+			Expression::constant(location, Type::Float(), 23.57));
 
 	mlir::MLIRContext context;
 
@@ -1192,11 +1234,12 @@ TEST(CmpOps, lteIntCastedToFloatTrue)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::lessEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(23)),
-			Expression(location, Type::Float(), Constant(57.0)));
+			OperationKind::lessEqual,
+			Expression::constant(location, Type::Int(), 23),
+			Expression::constant(location, Type::Float(), 57.0));
 
 	mlir::MLIRContext context;
 
@@ -1220,11 +1263,12 @@ TEST(CmpOps, lteIntCastedToFloatFalse)	 // NOLINT
 {
 	SourcePosition location("-", 0, 0);
 
-	Expression expression = Expression::op<OperationKind::lessEqual>(
+	Expression expression = Expression::operation(
 			location,
 			Type::Bool(),
-			Expression(location, Type::Int(), Constant(57)),
-			Expression(location, Type::Float(), Constant(23.0)));
+			OperationKind::lessEqual,
+			Expression::constant(location, Type::Int(), 57),
+			Expression::constant(location, Type::Float(), 23.0));
 
 	mlir::MLIRContext context;
 

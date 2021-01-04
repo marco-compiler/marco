@@ -11,6 +11,11 @@ SourcePosition::SourcePosition(string file, unsigned int line, unsigned int colu
 {
 }
 
+SourcePosition SourcePosition::unknown()
+{
+	return SourcePosition("", 0, 0);
+}
+
 raw_ostream& modelica::operator<<(raw_ostream& stream, const SourcePosition& obj)
 {
 	return stream << toString(obj);
@@ -20,7 +25,6 @@ std::string modelica::toString(const SourcePosition& obj)
 {
 	return *obj.file + " " + to_string(obj.line) + ":" + to_string(obj.column);
 }
-
 
 SourceRange::SourceRange(SourcePosition begin, SourcePosition end)
 		: begin(move(begin)),

@@ -21,18 +21,16 @@ TEST(TupleTest, emptyTuple)	 // NOLINT
 
 TEST(TupleTest, singleElementTupleCanBeBuilt)	 // NOLINT
 {
-	SourcePosition location("-", 0, 0);
-	Expression exp(location, Type::Int(), ReferenceAccess("x"));
-	Tuple tuple({ exp });
+	Expression exp = Expression::reference(SourcePosition::unknown(), Type::Int(), "x");
+	Tuple tuple(SourcePosition::unknown(), { exp });
 	EXPECT_EQ(1, tuple.size());
 }
 
 TEST(TupleTest, multipleElementsTupleCanBeBuilt)	// NOLINT
 {
-	SourcePosition location("-", 0, 0);
-	Expression exp1(location, Type::Int(), ReferenceAccess("x"));
-	Expression exp2(location, Type::Float(), ReferenceAccess("y"));
-	Expression exp3(location, Type::unknown(), ReferenceAccess("z"));
-	Tuple tuple({ exp1, exp2, exp3 });
+	Expression exp1 = Expression::reference(SourcePosition::unknown(), Type::Int(), "x");
+	Expression exp2 = Expression::reference(SourcePosition::unknown(), Type::Float(), "y");
+	Expression exp3 = Expression::reference(SourcePosition::unknown(), Type::unknown(), "z");
+	Tuple tuple(SourcePosition::unknown(), { exp1, exp2, exp3 });
 	EXPECT_EQ(3, tuple.size());
 }

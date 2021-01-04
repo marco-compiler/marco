@@ -4,12 +4,18 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
+#include <modelica/utils/SourceRange.hpp>
 #include <memory>
 
 namespace modelica
 {
 	class Expression;
 
+	/**
+	 * A tuple is a container for destinations of a call. It is NOT an
+	 * array-like structure that is supposed to be summable, passed around or
+	 * whatever.
+	 */
 	class Tuple
 	{
 		private:
@@ -20,12 +26,11 @@ namespace modelica
 		using iterator = boost::indirect_iterator<Container<UniqueExpression>::iterator>;
 		using const_iterator = boost::indirect_iterator<Container<UniqueExpression>::const_iterator>;
 
-		Tuple();
-		explicit Tuple(std::initializer_list<Expression> expressions);
-		explicit Tuple(llvm::ArrayRef<Expression> expressions);
+		explicit Tuple(SourcePosition location, llvm::ArrayRef<Expression> expressions = {});
 
 		template<typename Iter>
-		Tuple(Iter begin, Iter end)
+		Tuple(SourcePosition location, Iter begin, Iter end)
+				: location(std::move(location))
 		{
 			for (auto it = begin; it != end; it++)
 				expressions.push_back(std::make_unique<Expression>(*it));
@@ -48,6 +53,8 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
+		[[nodiscard]] SourcePosition getLocation() const;
+
 		[[nodiscard]] size_t size() const;
 
 		[[nodiscard]] iterator begin();
@@ -57,6 +64,7 @@ namespace modelica
 		[[nodiscard]] const_iterator end() const;
 
 		private:
+		SourcePosition location;
 		Container<UniqueExpression> expressions;
 	};
 }	 // namespace modelica

@@ -1,7 +1,6 @@
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
-#include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Pass/PassManager.h>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
@@ -126,7 +125,7 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	// Create a scope in the symbol table to hold variable declarations.
 	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
 
-	auto location = loc(foo.getSourcePosition());
+	auto location = loc(foo.getLocation());
 
 	SmallVector<llvm::StringRef, 3> argNames;
 	SmallVector<mlir::Type, 3> argTypes;
@@ -302,6 +301,7 @@ void MlirLowerer::lower(const modelica::Statement& statement)
 
 void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
 {
+	auto location = loc(statement.getLocation());
 	auto destinations = statement.getDestinations();
 	auto values = lower<modelica::Expression>(statement.getExpression());
 	assert(values.size() == destinations.size() && "Unequal number of destinations and results");
@@ -310,7 +310,7 @@ void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
 	{
 		auto& ptr = lower<modelica::Expression>(get<0>(pair))[0];
 		auto value = *get<1>(pair);
-		builder.create<StoreOp>(builder.getUnknownLoc(), value, ptr.getValue(), ptr.getIndexes());
+		builder.create<StoreOp>(location, value, ptr.getValue(), ptr.getIndexes());
 	}
 }
 
@@ -334,7 +334,7 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 		// "else" block, and thus doesn't need a lowered else block.
 		bool elseBlock = i < blocks - 1;
 
-		auto ifOp = builder.create<IfOp>(builder.getUnknownLoc(), *condition, elseBlock);
+		auto ifOp = builder.create<IfOp>(loc(statement.getLocation()), *condition, elseBlock);
 
 		if (firstOp == nullptr)
 			firstOp = ifOp;
@@ -372,12 +372,16 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 
 void MlirLowerer::lower(const modelica::WhileStatement& statement)
 {
-	auto whileOp = builder.create<WhileOp>(builder.getUnknownLoc());
+	auto location = loc(statement.getLocation());
+	auto whileOp = builder.create<WhileOp>(location);
 
 	// Condition
 	builder.setInsertionPointToStart(&whileOp.condition().front());
-	auto condition = *lower<modelica::Expression>(statement.getCondition())[0];
-	builder.create<ConditionOp>(builder.getUnknownLoc(), condition);
+	const auto& condition = statement.getCondition();
+
+	builder.create<ConditionOp>(
+			loc(condition.getLocation()),
+			*lower<modelica::Expression>(condition)[0]);
 
 	// Body
 	builder.setInsertionPointToStart(&whileOp.body().front());
@@ -406,18 +410,24 @@ void MlirLowerer::lower(const modelica::BreakStatement& statement)
 	while (!loop->hasTrait<BreakableLoop>())
 		loop = loop->getParentOp();
 
+	auto location = loc(statement.getLocation());
+
 	if (auto op = dyn_cast<WhileOp>(loop); op != nullptr)
-		builder.create<BreakOp>(builder.getUnknownLoc(), &op.exit().front());
+		builder.create<BreakOp>(location, &op.exit().front());
 }
 
 void MlirLowerer::lower(const modelica::ReturnStatement& statement)
 {
+	auto location = loc(statement.getLocation());
 	mlir::Operation* op = builder.getInsertionBlock()->getParentOp();
 
 	while (!op->hasTrait<mlir::OpTrait::FunctionLike>())
 		op = op->getParentOp();
 
-	builder.create<BranchOp>(builder.getUnknownLoc(), &op->getRegion(0).back());
+	// Jump to the "return" block of the function
+	auto* continuation = &op->getRegion(0).back();
+
+	builder.create<BranchOp>(location, continuation);
 }
 
 template<>

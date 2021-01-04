@@ -6,21 +6,15 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-Tuple::Tuple() = default;
-
-Tuple::Tuple(initializer_list<Expression> expressions)
-{
-	for (const auto& exp : expressions)
-		this->expressions.push_back(std::make_unique<Expression>(exp));
-}
-
-Tuple::Tuple(ArrayRef<Expression> expressions)
+Tuple::Tuple(SourcePosition location, ArrayRef<Expression> expressions)
+		: location(move(location))
 {
 	for (const auto& exp : expressions)
 		this->expressions.push_back(std::make_unique<Expression>(exp));
 }
 
 Tuple::Tuple(const Tuple& other)
+		: location(other.location)
 {
 	for (const auto& exp : other.expressions)
 		this->expressions.push_back(std::make_unique<Expression>(*exp));
@@ -31,6 +25,7 @@ Tuple& Tuple::operator=(const Tuple& other)
 	if (this == &other)
 		return *this;
 
+	location = other.location;
 	expressions.clear();
 
 	for (const auto& exp : other.expressions)
@@ -66,6 +61,11 @@ void Tuple::dump(raw_ostream& os, size_t indents) const
 {
 	for (const auto& exp : expressions)
 		exp->dump(os, indents);
+}
+
+SourcePosition Tuple::getLocation() const
+{
+	return location;
 }
 
 size_t Tuple::size() const { return expressions.size(); }

@@ -97,8 +97,6 @@ TEST(MlirLowererTest, variableAssignment)	 // NOLINT
 
 TEST(MlirLowererTest, arrayElementAssignment)	 // NOLINT
 {
-	//llvm::DebugFlag = true;
-
 	string source = "function main"
 									"  output Integer y;"
 									"  protected"

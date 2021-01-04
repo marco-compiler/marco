@@ -4,6 +4,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
+#include <modelica/utils/SourceRange.hpp>
 
 namespace modelica
 {
@@ -13,13 +14,14 @@ namespace modelica
 	{
 		private:
 		using UniqueExpression = std::unique_ptr<Expression>;
-		using Container = llvm::SmallVector<UniqueExpression, 3>;
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		using args_iterator = boost::indirect_iterator<Container::iterator>;
-		using args_const_iterator = boost::indirect_iterator<Container::const_iterator>;
+		using args_iterator = boost::indirect_iterator<Container<UniqueExpression>::iterator>;
+		using args_const_iterator = boost::indirect_iterator<Container<UniqueExpression>::const_iterator>;
 
-		Call(Expression fun, llvm::ArrayRef<Expression> args = {});
+		Call(SourcePosition location, Expression function, llvm::ArrayRef<Expression> args = {});
+
 		Call(const Call& other);
 		Call(Call&& other) = default;
 
@@ -37,6 +39,8 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
+		[[nodiscard]] SourcePosition getLocation() const;
+
 		[[nodiscard]] Expression& getFunction();
 		[[nodiscard]] const Expression& getFunction() const;
 
@@ -49,7 +53,8 @@ namespace modelica
 		[[nodiscard]] args_const_iterator end() const;
 
 		private:
+		SourcePosition location;
 		UniqueExpression function;
-		Container args;
+		Container<UniqueExpression> args;
 	};
 }	 // namespace modelica
