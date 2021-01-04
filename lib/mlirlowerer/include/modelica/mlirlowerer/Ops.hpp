@@ -5,35 +5,10 @@
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 #include <modelica/frontend/Operation.hpp>
 #include <modelica/frontend/Type.hpp>
+#include <modelica/mlirlowerer/OpTrait.hpp>
 
 namespace modelica
 {
-	/**
-	 * This class verifies that all operands of the specified operation have a
-	 * signless integer, float or index type, a vector thereof, or a tensor
-	 * thereof.
-	 */
-	template <typename ConcreteType>
-	class OperandsAreSignlessIntegerOrFloatLike
-			: public mlir::OpTrait::TraitBase<ConcreteType, OperandsAreSignlessIntegerOrFloatLike> {
-		public:
-		static mlir::LogicalResult verifyTrait(mlir::Operation *op) {
-			if (failed(mlir::OpTrait::impl::verifyOperandsAreSignlessIntegerLike(op)))
-				return mlir::OpTrait::impl::verifyOperandsAreFloatLike(op);
-
-			return mlir::success();
-		}
-	};
-
-	template <typename ConcreteType>
-	class BreakableLoop
-			: public mlir::OpTrait::TraitBase<ConcreteType, BreakableLoop> {
-		public:
-		static mlir::LogicalResult verifyTrait(mlir::Operation* op) {
-			return mlir::success();
-		}
-	};
-
 	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameOperandsAndResultType, mlir::OpTrait::IsInvolution>
 	{
 		public:
@@ -159,7 +134,7 @@ namespace modelica
 		mlir::Region& elseRegion();
 	};
 
-	class WhileOp : public mlir::Op<WhileOp, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, BreakableLoop>
+	class WhileOp : public mlir::Op<WhileOp, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, BreakableLoop::Trait>
 	{
 		public:
 		using Op::Op;

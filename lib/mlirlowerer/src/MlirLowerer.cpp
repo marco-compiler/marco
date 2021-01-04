@@ -407,13 +407,12 @@ void MlirLowerer::lower(const modelica::BreakStatement& statement)
 {
 	mlir::Operation* loop = builder.getInsertionBlock()->getParentOp();
 
-	while (!loop->hasTrait<BreakableLoop>())
+	while (!loop->hasTrait<BreakableLoop::Trait>())
 		loop = loop->getParentOp();
 
 	auto location = loc(statement.getLocation());
-
-	if (auto op = dyn_cast<WhileOp>(loop); op != nullptr)
-		builder.create<BreakOp>(location, &op.exit().front());
+	auto op = dyn_cast<BreakableLoop>(loop);
+	builder.create<BreakOp>(location, &op.exit().front());
 }
 
 void MlirLowerer::lower(const modelica::ReturnStatement& statement)
