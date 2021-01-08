@@ -27,8 +27,6 @@ namespace modelica
 				return mlir::failure();
 			}
 
-			module.dump();
-
 			llvm::LLVMContext llvmContext;
 			auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmContext);
 

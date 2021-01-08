@@ -88,12 +88,12 @@ mlir::Value MlirLowerer::cast(mlir::Value value, mlir::Type destination)
 	if (sourceBase.isSignlessInteger())
 	{
 		if (destination.isF32() || destination.isF64())
-			return builder.create<SIToFPOp>(builder.getUnknownLoc(), value, destination);
+			return builder.create<SIToFPOp>(value.getLoc(), value, destination);
 	}
 	else if (source.isF32() || source.isF64())
 	{
 		if (destination.isSignlessInteger())
-			return builder.create<FPToSIOp>(builder.getUnknownLoc(), value, destination);
+			return builder.create<FPToSIOp>(value.getLoc(), value, destination);
 	}
 
 	assert(false && "Unsupported type conversion");
@@ -253,6 +253,8 @@ mlir::Type MlirLowerer::lower(const modelica::UserDefinedType& type)
 
 void MlirLowerer::lower(const modelica::Member& member)
 {
+	auto location = loc(member.getLocation());
+
 	if (member.getType().isScalar() || !member.isInput())
 	{
 		auto type = lower(member.getType());
@@ -262,18 +264,18 @@ void MlirLowerer::lower(const modelica::Member& member)
 		{
 			auto shape = type.cast<ShapedType>().getShape();
 			auto baseType = type.cast<ShapedType>().getElementType();
-			var = builder.create<AllocaOp>(builder.getUnknownLoc(), MemRefType::get(shape, baseType));
+			var = builder.create<AllocaOp>(location, MemRefType::get(shape, baseType));
 			symbolTable.insert(member.getName(), var);
 		}
 		else
 		{
-			var = builder.create<AllocaOp>(builder.getUnknownLoc(), MemRefType::get({}, type));
+			var = builder.create<AllocaOp>(location, MemRefType::get({}, type));
 
 			// Input variables already have an associated value. Copy it to the stack.
 			if (member.isInput())
 			{
 				auto value = symbolTable.lookup(member.getName());
-				builder.create<StoreOp>(builder.getUnknownLoc(), value, var);
+				builder.create<StoreOp>(value.getLoc(), value, var);
 			}
 
 			symbolTable.insert(member.getName(), var);
@@ -281,7 +283,7 @@ void MlirLowerer::lower(const modelica::Member& member)
 			if (member.hasInitializer())
 			{
 				auto reference = lower<modelica::Expression>(member.getInitializer())[0];
-				builder.create<StoreOp>(builder.getUnknownLoc(), *reference, var);
+				builder.create<StoreOp>(loc(member.getInitializer().getLocation()), *reference, var);
 			}
 		}
 	}
@@ -492,15 +494,11 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 
 	if (kind == OperationKind::powerOf)
 	{
-		// TODO
-		/*
 		mlir::Value base = cast(*lower<modelica::Expression>(operation[0])[0], floatType);
 		mlir::Value exponent = cast(*lower<modelica::Expression>(operation[1])[0], floatType);
-		mlir::Value result = builder.create<>(location, base, exponent);
+		mlir::Value result = builder.create<PowFOp>(location, base, exponent);
 		result = cast(result, resultType);
 		return { Reference(builder, result, false) };
-		 */
-		return { Reference(builder, nullptr, false) };
 	}
 
 	if (kind == OperationKind::equal)
@@ -609,7 +607,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		for (size_t i = 1; i < operation.argumentsCount(); i++)
 		{
 			auto subscript = *lower<modelica::Expression>(operation[i])[0];
-			auto index = builder.create<IndexCastOp>(builder.getUnknownLoc(), subscript, builder.getIndexType());
+			auto index = builder.create<IndexCastOp>(loc(operation[i].getLocation()), subscript, builder.getIndexType());
 			indexes.push_back(index);
 		}
 

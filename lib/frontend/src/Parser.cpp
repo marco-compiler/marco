@@ -865,7 +865,7 @@ Expected<Expression> Parser::primary()
 	{
 		auto value = lexer.getLastInt();
 		accept<Token::Integer>();
-		return Expression::constant(location, Type::Int(), value);
+		return Expression::constant(location, makeType<BuiltInType::Integer>(), value);
 	}
 
 	if (current == Token::FloatingPoint)
@@ -883,10 +883,10 @@ Expected<Expression> Parser::primary()
 	}
 
 	if (accept<Token::TrueKeyword>())
-		return Expression::constant(location, Type::Bool(), true);
+		return Expression::constant(location, makeType<BuiltInType::Boolean>(), true);
 
 	if (accept<Token::FalseKeyword>())
-		return Expression::constant(location, Type::Bool(), false);
+		return Expression::constant(location, makeType<BuiltInType::Boolean>(), false);
 
 	if (accept<Token::LPar>())
 	{
@@ -1023,7 +1023,7 @@ Expected<vector<Expression>> Parser::arraySubscript()
 		auto location = getPosition();
 		TRY(exp, expression());
 		*exp =
-				Expression::operation(location, Type::Int(), OperationKind::add, move(*exp), Expression::constant(location, Type::Int(), -1));
+				Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add, move(*exp), Expression::constant(location, makeType<BuiltInType::Integer>(), -1));
 		expressions.emplace_back(move(*exp));
 	} while (accept<Token::Comma>());
 

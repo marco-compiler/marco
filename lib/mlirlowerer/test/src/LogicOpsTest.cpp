@@ -12,16 +12,16 @@
 using namespace modelica;
 using namespace std;
 
-TEST(LogicOps, andBooleansTrueOperands)	 // NOLINT
+TEST(AndOp, booleansTrueOperands)	 // NOLINT
 {
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
 	Expression expression = Expression::operation(
 			location,
-			Type::Bool(),
+			makeType<BuiltInType::Boolean>(),
 			OperationKind::land,
-			Expression::constant(location, Type::Bool(), true),
-			Expression::constant(location, Type::Bool(), true));
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), true),
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), true));
 
 	mlir::MLIRContext context;
 
@@ -41,16 +41,16 @@ TEST(LogicOps, andBooleansTrueOperands)	 // NOLINT
 	EXPECT_TRUE(result);
 }
 
-TEST(LogicOps, andBooleansTrueAndFalseOperands)	 // NOLINT
+TEST(AndOp, booleansTrueAndFalseOperands)	 // NOLINT
 {
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
 	Expression expression = Expression::operation(
 			location,
-			Type::Bool(),
+			makeType<BuiltInType::Boolean>(),
 			OperationKind::land,
-			Expression::constant(location, Type::Bool(), true),
-			Expression::constant(location, Type::Bool(), false));
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), true),
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), false));
 
 	mlir::MLIRContext context;
 
@@ -70,16 +70,16 @@ TEST(LogicOps, andBooleansTrueAndFalseOperands)	 // NOLINT
 	EXPECT_FALSE(result);
 }
 
-TEST(LogicOps, andBooleansFalseOperands)	 // NOLINT
+TEST(AndOp, booleansFalseOperands)	 // NOLINT
 {
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
 	Expression expression = Expression::operation(
 			location,
-			Type::Bool(),
+			makeType<BuiltInType::Boolean>(),
 			OperationKind::land,
-			Expression::constant(location, Type::Bool(), false),
-			Expression::constant(location, Type::Bool(), false));
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), false),
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), false));
 
 	mlir::MLIRContext context;
 
@@ -99,16 +99,16 @@ TEST(LogicOps, andBooleansFalseOperands)	 // NOLINT
 	EXPECT_FALSE(result);
 }
 
-TEST(LogicOps, andIntegers)	 // NOLINT
+TEST(AndOp, integers)	 // NOLINT
 {
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
 	Expression expression = Expression::operation(
 			location,
-			Type::Int(),
+			makeType<BuiltInType::Integer>(),
 			OperationKind::land,
-			Expression::constant(location, Type::Int(), 13),
-			Expression::constant(location, Type::Int(), 10));
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 13),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 10));
 
 	mlir::MLIRContext context;
 
@@ -128,16 +128,16 @@ TEST(LogicOps, andIntegers)	 // NOLINT
 	EXPECT_EQ(result, 8);
 }
 
-TEST(LogicOps, orBooleansTrueOperands)	 // NOLINT
+TEST(OrOp, booleansTrueOperands)	 // NOLINT
 {
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
 	Expression expression = Expression::operation(
 			location,
-			Type::Bool(),
+			makeType<BuiltInType::Boolean>(),
 			OperationKind::lor,
-			Expression::constant(location, Type::Bool(), true),
-			Expression::constant(location, Type::Bool(), true));
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), true),
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), true));
 
 	mlir::MLIRContext context;
 
@@ -157,16 +157,16 @@ TEST(LogicOps, orBooleansTrueOperands)	 // NOLINT
 	EXPECT_TRUE(result);
 }
 
-TEST(LogicOps, orBooleansTrueAndFalseOperands)	 // NOLINT
+TEST(OrOp, booleansTrueAndFalseOperands)	 // NOLINT
 {
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
 	Expression expression = Expression::operation(
 			location,
-			Type::Bool(),
+			makeType<BuiltInType::Boolean>(),
 			OperationKind::lor,
-			Expression::constant(location, Type::Bool(), true),
-			Expression::constant(location, Type::Bool(), false));
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), true),
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), false));
 
 	mlir::MLIRContext context;
 
@@ -186,16 +186,16 @@ TEST(LogicOps, orBooleansTrueAndFalseOperands)	 // NOLINT
 	EXPECT_TRUE(result);
 }
 
-TEST(LogicOps, orBooleansFalseOperands)	 // NOLINT
+TEST(OrOp, booleansFalseOperands)	 // NOLINT
 {
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
 	Expression expression = Expression::operation(
 			location,
-			Type::Bool(),
+			makeType<BuiltInType::Boolean>(),
 			OperationKind::lor,
-			Expression::constant(location, Type::Bool(), false),
-			Expression::constant(location, Type::Bool(), false));
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), false),
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), false));
 
 	mlir::MLIRContext context;
 
@@ -215,16 +215,16 @@ TEST(LogicOps, orBooleansFalseOperands)	 // NOLINT
 	EXPECT_FALSE(result);
 }
 
-TEST(LogicOps, orIntegers)	 // NOLINT
+TEST(OrOp, integers)	 // NOLINT
 {
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
 	Expression expression = Expression::operation(
 			location,
-			Type::Int(),
+			makeType<BuiltInType::Integer>(),
 			OperationKind::lor,
-			Expression::constant(location, Type::Int(), 9),
-			Expression::constant(location, Type::Int(), 10));
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 9),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 10));
 
 	mlir::MLIRContext context;
 

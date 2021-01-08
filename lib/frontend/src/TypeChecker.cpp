@@ -38,7 +38,7 @@ Expected<Type> TypeChecker::typeFromSymbol(const Expression& exp)
 		return Type::unknown();
 
 	if (name == "time")
-		return Type::Float();
+		return makeType<BuiltInType::Float>();
 
 	if (symbolTable.count(name) == 0)
 		return make_error<NotImplemented>("Unknown variable name '" + name + "'");
@@ -61,7 +61,6 @@ Error TypeChecker::check(ClassContainer& cls)
 {
 	return cls.visit([&](auto& obj) { return check(obj); });
 }
-
 
 Error TypeChecker::check(Function& function)
 {

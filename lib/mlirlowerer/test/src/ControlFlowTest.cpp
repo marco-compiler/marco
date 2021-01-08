@@ -26,31 +26,31 @@ TEST(IfOp, thenBranchTaken)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Expression condition = Expression::operation(
 			location,
-			Type::Bool(),
+			makeType<BuiltInType::Boolean>(),
 			OperationKind::greater,
-			Expression::reference(location, Type::Int(), "x"),
-			Expression::constant(location, Type::Int(), 0));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
 
 	Statement thenStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, Type::Int(), "y"),
-			Expression::constant(location, Type::Int(), 1));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 1));
 
 	Statement elseStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, Type::Int(), "y"),
-			Expression::constant(location, Type::Int(), 2));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 2));
 
 	Statement ifStatement = IfStatement(location, {
 			IfStatement::Block(condition, { thenStatement }),
-			IfStatement::Block(Expression::constant(location, Type::Bool(), true), { elseStatement })
+			IfStatement::Block(Expression::constant(location, makeType<BuiltInType::Boolean>(), true), { elseStatement })
 	});
 
 	ClassContainer cls(Function(
@@ -84,31 +84,31 @@ TEST(IfOp, elseBranchTaken)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Expression condition = Expression::operation(
 			location,
-			Type::Bool(),
+			makeType<BuiltInType::Boolean>(),
 			OperationKind::greater,
-			Expression::reference(location, Type::Int(), "x"),
-			Expression::constant(location, Type::Int(), 0));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
 
 	Statement thenStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, Type::Int(), "y"),
-			Expression::constant(location, Type::Int(), 1));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 1));
 
 	Statement elseStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, Type::Int(), "y"),
-			Expression::constant(location, Type::Int(), 2));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 2));
 
 	Statement ifStatement = IfStatement(location, {
 			IfStatement::Block(condition, { thenStatement }),
-			IfStatement::Block(Expression::constant(location, Type::Bool(), true), { elseStatement })
+			IfStatement::Block(Expression::constant(location, makeType<BuiltInType::Boolean>(), true), { elseStatement })
 	});
 
 	ClassContainer cls(Function(
@@ -119,8 +119,6 @@ TEST(IfOp, elseBranchTaken)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
-
-	module.dump();
 
 	Runner runner(&context, module);
 	int x = -57;
@@ -146,44 +144,44 @@ TEST(IfOp, elseIfBranchTaken)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Expression ifCondition = Expression::operation(
 			location,
-			Type::Bool(),
+			makeType<BuiltInType::Boolean>(),
 			OperationKind::equal,
-			Expression::reference(location, Type::Int(), "x"),
-			Expression::constant(location, Type::Int(), 0));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
 
 	Statement thenStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, Type::Int(), "y"),
-			Expression::constant(location, Type::Int(), 1));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 1));
 
 	Expression elseIfCondition = Expression::operation(
 			location,
-			Type::Bool(),
+			makeType<BuiltInType::Boolean>(),
 			OperationKind::greater,
-			Expression::reference(location, Type::Int(), "x"),
-			Expression::constant(location, Type::Int(), 0));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
 
 	Statement elseIfStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, Type::Int(), "y"),
-			Expression::constant(location, Type::Int(), 2));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 2));
 
 	Statement elseStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, Type::Int(), "y"),
-			Expression::constant(location, Type::Int(), 3));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 3));
 
 	Statement ifStatement = IfStatement(location, {
 			IfStatement::Block(ifCondition, { thenStatement }),
 			IfStatement::Block(elseIfCondition, { elseIfStatement }),
-			IfStatement::Block(Expression::constant(location, Type::Bool(), true), { elseStatement })
+			IfStatement::Block(Expression::constant(location, makeType<BuiltInType::Boolean>(), true), { elseStatement })
 	});
 
 	ClassContainer cls(Function(
@@ -217,28 +215,28 @@ TEST(WhileOp, validLoop)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Expression condition = Expression::operation(
 			location,
-			Type::Bool(),
+			makeType<BuiltInType::Boolean>(),
 			OperationKind::greater,
-			Expression::reference(location, Type::Int(), "x"),
-			Expression::constant(location, Type::Int(), 0));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
 
-	Expression xRef = Expression::reference(location, Type::Int(), "x");
-	Expression yRef = Expression::reference(location, Type::Int(), "y");
+	Expression xRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "x");
+	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
 
 	Statement whileStatement = WhileStatement(location, condition, {
-			AssignmentStatement(location, yRef, Expression::operation(location, Type::Int(), OperationKind::add, yRef, xRef)),
-			AssignmentStatement(location, xRef, Expression::operation(location, Type::Int(), OperationKind::subtract, xRef, Expression::constant(location, Type::Int(), 1)))
+			AssignmentStatement(location, yRef, Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add, yRef, xRef)),
+			AssignmentStatement(location, xRef, Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subtract, xRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)))
 	});
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 0)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
 			whileStatement
 	});
 
@@ -272,19 +270,19 @@ TEST(WhileOp, notExecutedLoop)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::constant(location, Type::Bool(), false);
-	Expression yRef = Expression::reference(location, Type::Int(), "y");
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::constant(location, makeType<BuiltInType::Boolean>(), false);
+	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
 
 	Statement whileStatement = WhileStatement(location, condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 0)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
 			BreakStatement(location)
 	});
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 1)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
 			whileStatement
 	});
 
@@ -320,14 +318,14 @@ TEST(BreakOp, nestedWhile)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::constant(location, Type::Bool(), true);
-	Expression yRef = Expression::reference(location, Type::Int(), "y");
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::constant(location, makeType<BuiltInType::Boolean>(), true);
+	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
 
 	Statement innerWhile = WhileStatement(location, condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 1)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
 			BreakStatement(location)
 	});
 
@@ -337,7 +335,7 @@ TEST(BreakOp, nestedWhile)	 // NOLINT
 	});
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 0)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
 			outerWhile
 	});
 
@@ -370,19 +368,19 @@ TEST(BreakOp, breakAsLastOpInWhile)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::constant(location, Type::Bool(), true);
-	Expression yRef = Expression::reference(location, Type::Int(), "y");
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::constant(location, makeType<BuiltInType::Boolean>(), true);
+	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
 
 	Statement whileStatement = WhileStatement(location, condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 1)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
 			BreakStatement(location)
 	});
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 0)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
 			whileStatement
 	});
 
@@ -417,27 +415,27 @@ TEST(BreakOp, breakNestedInWhile)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Expression yRef = Expression::reference(location, Type::Int(), "y");
+	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
 	Expression condition = Expression::operation(
 			location,
-			Type::Bool(),
+			makeType<BuiltInType::Boolean>(),
 			OperationKind::equal,
 			yRef,
-			Expression::constant(location, Type::Int(), 0));
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
 
 	Statement ifStatement = IfStatement(location, IfStatement::Block(condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 1)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
 			BreakStatement(location)
 	}));
 
-	Statement whileStatement = WhileStatement(location, Expression::constant(location, Type::Bool(), true), ifStatement);
+	Statement whileStatement = WhileStatement(location, Expression::constant(location, makeType<BuiltInType::Boolean>(), true), ifStatement);
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 0)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
 			whileStatement
 	});
 
@@ -470,16 +468,16 @@ TEST(ReturnOp, earlyReturn)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location("-", 0, 0);
+	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", Type::Int(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression yRef = Expression::reference(location, Type::Int(), "y");
-	Statement ifStatement = IfStatement(location, IfStatement::Block(Expression::constant(location, Type::Bool(), true), { ReturnStatement(location) }));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
+	Statement ifStatement = IfStatement(location, IfStatement::Block(Expression::constant(location, makeType<BuiltInType::Boolean>(), true), { ReturnStatement(location) }));
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 1)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
 			ifStatement,
-			AssignmentStatement(location, yRef, Expression::constant(location, Type::Int(), 0)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
 	});
 
 	ClassContainer cls(Function(

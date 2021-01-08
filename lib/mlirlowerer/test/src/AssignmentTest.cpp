@@ -1,142 +1,140 @@
 #include <gtest/gtest.h>
 #include <mlir/IR/Dialect.h>
-#include <modelica/frontend/ConstantFolder.hpp>
-#include <modelica/frontend/Parser.hpp>
-#include <modelica/frontend/TypeChecker.hpp>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/Runner.hpp>
 #include <modelica/utils/SourceRange.hpp>
 
-using namespace mlir;
 using namespace modelica;
 using namespace std;
 
-TEST(MlirLowererTest, constantAssignment)	 // NOLINT
+TEST(Assignment, constant)	 // NOLINT
 {
-	string source = "function main"
-									"  output Integer x;"
-									"  algorithm"
-									"    x := 57;"
-									"end main";
+	/**
+	 * function main
+	 *   output Integer x;
+	 *   algorithm
+	 *     x := 57;
+	 * end main
+	 */
 
-	Parser parser(source);
-	auto expectedAst = parser.classDefinition();
+	SourcePosition location = SourcePosition::unknown();
 
-	if (!expectedAst)
-		FAIL();
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	auto& cls = *expectedAst;
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 57));
 
-	modelica::TypeChecker typeChecker;
+	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, assignment)));
 
-	if (typeChecker.check(cls))
-		FAIL();
-
-	modelica::ConstantFolder folder;
-
-	if (folder.fold(cls, modelica::SymbolTable()))
-		FAIL();
-
-	MLIRContext context;
-	MlirLowerer lowerer(context);
-	ModuleOp module = lowerer.lower(cls);
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
 	Runner runner(&context, module);
-
 	int x = 0;
-	auto execution = runner.run("main", x);
-
-	if (failed(execution))
-		FAIL();
-
+	runner.run("main", x);
 	EXPECT_EQ(x, 57);
 }
 
-TEST(MlirLowererTest, variableAssignment)	 // NOLINT
+TEST(Assignment, variableCopy)	 // NOLINT
 {
-	string source = "function main"
-									"  input Integer x;"
-									"  output Integer y;"
-									"algorithm"
-									"  y := x;"
-									"end main";
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   output Integer y;
+	 *   algorithm
+	 *     y := x;
+	 * end main
+	 */
 
-	Parser parser(source);
-	auto expectedAst = parser.classDefinition();
+	SourcePosition location = SourcePosition::unknown();
 
-	if (!expectedAst)
-		FAIL();
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	auto& cls = *expectedAst;
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"));
 
-	modelica::TypeChecker typeChecker;
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
 
-	if (typeChecker.check(cls))
-		FAIL();
-
-	modelica::ConstantFolder folder;
-
-	if (folder.fold(cls, modelica::SymbolTable()))
-		FAIL();
-
-	MLIRContext context;
-	MlirLowerer lowerer(context);
-	ModuleOp module = lowerer.lower({ cls });
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
 	Runner runner(&context, module);
-
 	int x = 57;
 	int y = 0;
-	auto execution = runner.run("main", x, y);
-
-	if (failed(execution))
-		FAIL();
-
-	EXPECT_EQ(x, y);
+	runner.run("main", x, y);
+	EXPECT_EQ(y, x);
 }
 
-TEST(MlirLowererTest, arrayElementAssignment)	 // NOLINT
+TEST(Assignment, internalArrayElement)	 // NOLINT
 {
-	string source = "function main"
-									"  output Integer y;"
-									"  protected"
-									"    Integer[3] z;"
-									"  algorithm"
-									"    z[1] := 57;"
-									"    y := z[1];"
-									"  end main";
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   output Integer y;
+	 *   protected
+	 *     Integer[2] z;
+	 *   algorithm
+	 *     z[0] := x * 2;
+	 *     z[1] := z[0] + 1;
+	 *     y := z[1];
+	 * end main
+	 */
 
-	Parser parser(source);
-	auto expectedAst = parser.classDefinition();
+	SourcePosition location = SourcePosition::unknown();
 
-	if (!expectedAst)
-		FAIL();
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member zMember(location, "z", makeType<BuiltInType::Integer>(2), TypePrefix(ParameterQualifier::none, IOQualifier::none));
 
-	auto& cls = *expectedAst;
+	Algorithm algorithm(
+			location,
+			{
+					AssignmentStatement(
+							location,
+							Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
+																		Expression::reference(location, makeType<BuiltInType::Integer>(2), "z"),
+																		Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+							Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::multiply,
+																		Expression::reference(location, makeType<BuiltInType::Integer>(2), "x"),
+																		Expression::constant(location, makeType<BuiltInType::Integer>(), 2))),
+					AssignmentStatement(
+							location,
+							Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
+																		Expression::reference(location, makeType<BuiltInType::Integer>(2), "z"),
+																		Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
+							Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add,
+																		Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
+																													Expression::reference(location, makeType<BuiltInType::Integer>(2), "z"),
+																													Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+																		Expression::constant(location, makeType<BuiltInType::Integer>(), 1))),
+					AssignmentStatement(
+							location,
+							Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+							Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
+																		Expression::reference(location, makeType<BuiltInType::Integer>(2), "z"),
+																		Expression::constant(location, makeType<BuiltInType::Integer>(), 1)))
+			});
 
-	modelica::TypeChecker typeChecker;
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															algorithm));
 
-	if (typeChecker.check(cls))
-		FAIL();
-
-	modelica::ConstantFolder folder;
-
-	if (folder.fold(cls, modelica::SymbolTable()))
-		FAIL();
-
-	MLIRContext context;
-	MlirLowerer lowerer(context);
-	ModuleOp module = lowerer.lower({ cls });
-	module.dump();
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
 	Runner runner(&context, module);
-
-	int x[4] =  { 0, 0, 0, 0 };
+	int x = 57;
 	int y = 0;
-	auto execution = runner.run("main", y);
-
-	if (failed(execution))
-		FAIL();
-
-	EXPECT_EQ(y, 57);
+	runner.run("main", x, y);
+	EXPECT_EQ(y, x * 2 + 1);
 }

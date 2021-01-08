@@ -18,8 +18,7 @@ void NegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir
 }
 
 void NegateOp::print(mlir::OpAsmPrinter& printer) {
-	printer << "neg ";
-	printer.printOperands(getOperation()->getOperands());
+	printer << "neg " << getOperand();
 }
 
 llvm::StringRef AddOp::getOperationName() {
@@ -36,8 +35,7 @@ void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 }
 
 void AddOp::print(mlir::OpAsmPrinter& printer) {
-	printer << "add ";
-	printer.printOperands(getOperation()->getOperands());
+	printer << "add " << getOperands();
 }
 
 llvm::StringRef SubOp::getOperationName() {
@@ -54,8 +52,7 @@ void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 }
 
 void SubOp::print(mlir::OpAsmPrinter& printer) {
-	printer << "sub ";
-	printer.printOperands(getOperation()->getOperands());
+	printer << "sub " << getOperands();
 }
 
 llvm::StringRef MulOp::getOperationName() {
@@ -72,8 +69,7 @@ void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 }
 
 void MulOp::print(mlir::OpAsmPrinter& printer) {
-	printer << "mul ";
-	printer.printOperands(getOperation()->getOperands());
+	printer << "mul " << getOperands();
 }
 
 llvm::StringRef DivOp::getOperationName() {
@@ -90,8 +86,7 @@ void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 }
 
 void DivOp::print(mlir::OpAsmPrinter& printer) {
-	printer << "div ";
-	printer.printOperands(getOperation()->getOperands());
+	printer << "div " << getOperands();
 }
 
 llvm::StringRef EqOp::getOperationName() {
@@ -105,8 +100,7 @@ void EqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Va
 }
 
 void EqOp::print(mlir::OpAsmPrinter& printer) {
-	printer << "eq ";
-	printer.printOperands(getOperation()->getOperands());
+	printer << "eq " << getOperands();
 }
 
 llvm::StringRef NotEqOp::getOperationName() {
@@ -120,8 +114,7 @@ void NotEqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 }
 
 void NotEqOp::print(mlir::OpAsmPrinter& printer) {
-	printer << "neq ";
-	printer.printOperands(getOperation()->getOperands());
+	printer << "neq " << getOperands();
 }
 
 llvm::StringRef GtOp::getOperationName() {
@@ -135,8 +128,7 @@ void GtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Va
 }
 
 void GtOp::print(mlir::OpAsmPrinter& printer) {
-	printer << "gt ";
-	printer.printOperands(getOperation()->getOperands());
+	printer << "gt " << getOperands();
 }
 
 llvm::StringRef GteOp::getOperationName() {
@@ -150,8 +142,7 @@ void GteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 }
 
 void GteOp::print(mlir::OpAsmPrinter& printer) {
-	printer << "gte ";
-	printer.printOperands(getOperation()->getOperands());
+	printer << "gte " << getOperands();
 }
 
 llvm::StringRef LtOp::getOperationName() {
@@ -165,8 +156,7 @@ void LtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Va
 }
 
 void LtOp::print(mlir::OpAsmPrinter& printer) {
-	printer << "lt ";
-	printer.printOperands(getOperation()->getOperands());
+	printer << "lt " << getOperands();
 }
 
 llvm::StringRef LteOp::getOperationName() {
@@ -180,8 +170,7 @@ void LteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 }
 
 void LteOp::print(mlir::OpAsmPrinter& printer) {
-	printer << "lte ";
-	printer.printOperands(getOperation()->getOperands());
+	printer << "lte " << getOperands();
 }
 
 llvm::StringRef IfOp::getOperationName() {
@@ -207,8 +196,7 @@ void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Va
 }
 
 void IfOp::print(mlir::OpAsmPrinter& printer) {
-	printer << "if ";
-	printer.printOperands(getOperation()->getOperands());
+	printer << "if " << getOperand();
 	printer.printRegion(getRegion(0));
 
 	if (!getRegion(1).empty())

@@ -134,7 +134,7 @@ namespace modelica
 		mlir::Region& elseRegion();
 	};
 
-	class WhileOp : public mlir::Op<WhileOp, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, BreakableLoop::Trait>
+	class WhileOp : public mlir::Op<WhileOp, mlir::OpTrait::NRegions<3>::Impl, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, BreakableLoop::Trait>
 	{
 		public:
 		using Op::Op;
@@ -157,7 +157,7 @@ namespace modelica
 		mlir::Value condition();
 	};
 
-	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::IsTerminator>
+	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<IfOp, WhileOp>::Impl, mlir::OpTrait::IsTerminator>
 	{
 		public:
 		using Op::Op;
@@ -167,7 +167,7 @@ namespace modelica
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
-	class BreakOp : public mlir::Op<BreakOp, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::OneSuccessor, mlir::OpTrait::IsTerminator>
+	class BreakOp : public mlir::Op<BreakOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::OneSuccessor, mlir::OpTrait::HasParent<IfOp, WhileOp>::Impl, mlir::OpTrait::IsTerminator>
 	{
 		public:
 		using Op::Op;
