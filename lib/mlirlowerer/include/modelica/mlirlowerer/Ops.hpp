@@ -134,6 +134,21 @@ namespace modelica
 		mlir::Region& elseRegion();
 	};
 
+	class ForOp : public mlir::Op<ForOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::NOperands<3>::Impl, mlir::OpTrait::ZeroResult, BreakableLoop::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lowerBound, mlir::Value upperBound, mlir::Value step);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::Value lowerBound();
+		mlir::Value upperBound();
+		mlir::Value step();
+		mlir::Region& body();
+		mlir::Region& exit();
+	};
+
 	class WhileOp : public mlir::Op<WhileOp, mlir::OpTrait::NRegions<3>::Impl, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, BreakableLoop::Trait>
 	{
 		public:
@@ -152,7 +167,7 @@ namespace modelica
 		using Op::Op;
 
 		static llvm::StringRef getOperationName();
-		static void build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState, ::mlir::Value condition);
+		static void build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState, mlir::Value condition);
 		void print(::mlir::OpAsmPrinter &p);
 		mlir::Value condition();
 	};

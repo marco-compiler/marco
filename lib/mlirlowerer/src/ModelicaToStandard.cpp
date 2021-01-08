@@ -346,10 +346,58 @@ LogicalResult IfOpLowering::matchAndRewrite(IfOp op, PatternRewriter& rewriter) 
 	return success();
 }
 
+LogicalResult ForOpLowering::matchAndRewrite(ForOp op, PatternRewriter& rewriter) const
+{
+	Location location = op.getLoc();
+
+	// Split the current block
+	Block* currentBlock = rewriter.getInsertionBlock();
+	Block* continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
+
+	// Inline regions
+	Block* body = &op.body().front();
+	Block* bodyLast = &op.body().back();
+	Block* exit = &op.exit().front();
+
+	rewriter.inlineRegionBefore(op.exit(), continuation);
+	rewriter.inlineRegionBefore(op.body(), exit);
+
+	Block* condition = rewriter.createBlock(body, rewriter.getIndexType());
+
+	// Branch to the "condition" region
+	rewriter.setInsertionPointToEnd(currentBlock);
+	rewriter.create<BranchOp>(location, condition, op.lowerBound());
+
+	// Condition check
+	rewriter.setInsertionPointToStart(condition);
+	auto comparison = rewriter.create<CmpIOp>(location, CmpIPredicate::slt, condition->getArgument(0), op.upperBound());
+	rewriter.create<CondBranchOp>(location, comparison, body, condition->getArgument(0), exit, ValueRange());
+
+	// Replace "body" block terminator with branch
+	rewriter.setInsertionPointToEnd(bodyLast);
+	auto bodyYieldOp = dyn_cast<YieldOp>(bodyLast->getTerminator());
+
+	// We need to check if it is effectively a YieldOp, because the body may
+	// terminate with a break.
+	if (bodyYieldOp)
+	{
+		auto incrementedInductionVariable = rewriter.create<AddIOp>(location, body->getArgument(0), op.step()).getResult();
+		rewriter.replaceOpWithNewOp<BranchOp>(bodyYieldOp, condition, incrementedInductionVariable);
+	}
+
+	// Replace "exit" block terminator with branch
+	rewriter.setInsertionPointToEnd(exit);
+	auto exitYieldOp = cast<YieldOp>(exit->getTerminator());
+	rewriter.replaceOpWithNewOp<BranchOp>(exitYieldOp, continuation);
+
+	rewriter.eraseOp(op);
+	return success();
+}
+
 LogicalResult WhileOpLowering::matchAndRewrite(WhileOp op, PatternRewriter& rewriter) const
 {
 	OpBuilder::InsertionGuard guard(rewriter);
-	Location loc = op.getLoc();
+	Location location = op.getLoc();
 
 	// Split the current block
 	Block *currentBlock = rewriter.getInsertionBlock();
@@ -368,7 +416,7 @@ LogicalResult WhileOpLowering::matchAndRewrite(WhileOp op, PatternRewriter& rewr
 
 	// Branch to the "condition" region
 	rewriter.setInsertionPointToEnd(currentBlock);
-	rewriter.create<BranchOp>(loc, condition);
+	rewriter.create<BranchOp>(location, condition);
 
 	// Replace "condition" block terminator with branch
 	rewriter.setInsertionPointToEnd(conditionLast);
@@ -460,6 +508,7 @@ void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList&
 
 	// Control flow operations
 	patterns.insert<IfOpLowering>(context);
+	patterns.insert<ForOpLowering>(context);
 	patterns.insert<WhileOpLowering>(context);
 	patterns.insert<ConditionOpLowering>(context);
 	patterns.insert<YieldOpLowering>(context);

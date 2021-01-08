@@ -89,11 +89,22 @@ mlir::Value MlirLowerer::cast(mlir::Value value, mlir::Type destination)
 	{
 		if (destination.isF32() || destination.isF64())
 			return builder.create<SIToFPOp>(value.getLoc(), value, destination);
+
+		if (destination.isIndex())
+			return builder.create<IndexCastOp>(value.getLoc(), value, destination);
 	}
 	else if (source.isF32() || source.isF64())
 	{
 		if (destination.isSignlessInteger())
 			return builder.create<FPToSIOp>(value.getLoc(), value, destination);
+	}
+	else if (source.isIndex())
+	{
+		if (destination.isSignlessInteger())
+			return builder.create<IndexCastOp>(value.getLoc(), value, integerType);
+
+		if (destination.isF32() || destination.isF64())
+			return cast(builder.create<IndexCastOp>(value.getLoc(), value, integerType), destination);
 	}
 
 	assert(false && "Unsupported type conversion");
@@ -318,8 +329,6 @@ void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
 
 void MlirLowerer::lower(const modelica::IfStatement& statement)
 {
-	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
-
 	// Each conditional blocks creates an If operation, but we need to keep
 	// track of the first one in order to restore the insertion point right
 	// after that when we have finished to lower all the blocks.
@@ -329,6 +338,7 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 
 	for (size_t i = 0; i < blocks; i++)
 	{
+		ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
 		const auto& conditionalBlock = statement[i];
 		auto condition = lower<modelica::Expression>(conditionalBlock.getCondition())[0];
 
@@ -369,7 +379,29 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 
 void MlirLowerer::lower(const modelica::ForStatement& statement)
 {
-	// TODO
+	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
+
+	auto location = loc(statement.getLocation());
+
+	const auto& induction = statement.getInduction();
+	auto lowerBound = *lower<modelica::Expression>(induction.getBegin())[0];
+	auto upperBound = *lower<modelica::Expression>(induction.getEnd())[0];
+	auto step = builder.create<ConstantOp>(location, builder.getIndexAttr(1));
+
+	auto forOp = builder.create<ForOp>(location, lowerBound, upperBound, step);
+	symbolTable.insert(induction.getName(), Reference(builder, forOp.body().front().getArgument(0), false));
+
+	builder.setInsertionPointToStart(&forOp.body().front());
+
+	for (const auto& stmnt : statement)
+		lower(stmnt);
+
+	auto& lastBodyOp = forOp.body().back().getOperations().back();
+
+	if (lastBodyOp.isKnownNonTerminator())
+		builder.create<YieldOp>(builder.getUnknownLoc());
+
+	builder.setInsertionPointAfter(forOp);
 }
 
 void MlirLowerer::lower(const modelica::WhileStatement& statement)
@@ -377,24 +409,30 @@ void MlirLowerer::lower(const modelica::WhileStatement& statement)
 	auto location = loc(statement.getLocation());
 	auto whileOp = builder.create<WhileOp>(location);
 
-	// Condition
-	builder.setInsertionPointToStart(&whileOp.condition().front());
-	const auto& condition = statement.getCondition();
+	{
+		// Condition
+		ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
+		builder.setInsertionPointToStart(&whileOp.condition().front());
+		const auto& condition = statement.getCondition();
 
-	builder.create<ConditionOp>(
-			loc(condition.getLocation()),
-			*lower<modelica::Expression>(condition)[0]);
+		builder.create<ConditionOp>(
+				loc(condition.getLocation()),
+				*lower<modelica::Expression>(condition)[0]);
+	}
 
-	// Body
-	builder.setInsertionPointToStart(&whileOp.body().front());
+	{
+		// Body
+		ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
+		builder.setInsertionPointToStart(&whileOp.body().front());
 
-	for (const auto& stmnt : statement)
-		lower(stmnt);
+		for (const auto& stmnt : statement)
+			lower(stmnt);
 
-	auto& lastBodyOp = whileOp.body().back().getOperations().back();
+		auto& lastBodyOp = whileOp.body().back().getOperations().back();
 
-	if (lastBodyOp.isKnownNonTerminator())
-		builder.create<YieldOp>(builder.getUnknownLoc());
+		if (lastBodyOp.isKnownNonTerminator())
+			builder.create<YieldOp>(builder.getUnknownLoc());
+	}
 
 	// Keep populating after the while operation
 	builder.setInsertionPointAfter(whileOp);
@@ -607,7 +645,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		for (size_t i = 1; i < operation.argumentsCount(); i++)
 		{
 			auto subscript = *lower<modelica::Expression>(operation[i])[0];
-			auto index = builder.create<IndexCastOp>(loc(operation[i].getLocation()), subscript, builder.getIndexType());
+			auto index = cast(subscript, builder.getIndexType());
 			indexes.push_back(index);
 		}
 
