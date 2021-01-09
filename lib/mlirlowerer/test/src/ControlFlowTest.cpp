@@ -202,8 +202,6 @@ TEST(IfOp, elseIfBranchTaken)	 // NOLINT
 
 TEST(ForOp, validLoop)	 // NOLINT
 {
-	llvm::DebugFlag = true;
-
 	/**
 	 * function main
 	 *   input Integer x;
@@ -212,7 +210,7 @@ TEST(ForOp, validLoop)	 // NOLINT
 	 *     y := 0;
 	 *     for i in 1:x loop
 	 *       y := y + i;
-	 *     end while;
+	 *     end for;
 	 * end main
 	 */
 
@@ -251,13 +249,67 @@ TEST(ForOp, validLoop)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-
 	Runner runner(&context, module);
 	int x = 10;
 	int y = 0;
 	runner.run("main", x, y);
 	EXPECT_EQ(y, 45);
+}
+
+TEST(ForOp, notExecutedLoop)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   output Integer y;
+	 *   algorithm
+	 *     y := 1;
+	 *     for i in 1:x loop
+	 *       y := y + i;
+	 *     end for;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement forAssignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add,
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "i"))
+	);
+
+	Statement forStatement = ForStatement(
+			location,
+			Induction(
+					"i",
+					Expression::constant(location, makeType<BuiltInType::Integer>(), 1),
+					Expression::reference(location, makeType<BuiltInType::Integer>(), "x")),
+			forAssignment);
+
+	Algorithm algorithm = Algorithm(location, {
+			AssignmentStatement(location, Expression::reference(location, makeType<BuiltInType::Integer>(), "y"), Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
+			forStatement
+	});
+
+	ClassContainer cls(Function(
+			location, "main", true,
+			{ xMember, yMember },
+			algorithm));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	Runner runner(&context, module);
+	int x = 1;
+	int y = 0;
+	runner.run("main", x, y);
+	EXPECT_EQ(y, 1);
 }
 
 TEST(WhileOp, validLoop)	 // NOLINT
@@ -471,6 +523,7 @@ TEST(BreakOp, breakNestedInWhile)	 // NOLINT
 	 *         y := 1;
 	 *         break;
 	 *       end if;
+	 *       y := 0;
 	 *     end while;
 	 * end main
 	 */
@@ -478,8 +531,8 @@ TEST(BreakOp, breakNestedInWhile)	 // NOLINT
 	SourcePosition location = SourcePosition::unknown();
 
 	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-
 	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
+
 	Expression condition = Expression::operation(
 			location,
 			makeType<BuiltInType::Boolean>(),
@@ -492,11 +545,136 @@ TEST(BreakOp, breakNestedInWhile)	 // NOLINT
 			BreakStatement(location)
 	}));
 
-	Statement whileStatement = WhileStatement(location, Expression::constant(location, makeType<BuiltInType::Boolean>(), true), ifStatement);
+	Statement whileStatement = WhileStatement(
+			location,
+			Expression::constant(location, makeType<BuiltInType::Boolean>(), true),
+			{
+					ifStatement,
+					AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0))
+			});
+
+	Algorithm algorithm = Algorithm(
+			location,
+			{
+					AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+					whileStatement
+			});
+
+	ClassContainer cls(Function(
+			location, "main", true,
+			{ yMember },
+			algorithm));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	Runner runner(&context, module);
+	int y = 0;
+	runner.run("main", y);
+	EXPECT_EQ(y, 1);
+}
+
+TEST(BreakOp, breakAsLastOpInFor)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   output Integer y;
+	 *   algorithm
+	 *     y := 0;
+	 *     for i in 1:10 loop
+	 *       y := 1;
+	 *       break;
+	 *     end for;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement forAssignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 1)
+	);
+
+	Statement forStatement = ForStatement(
+			location,
+			Induction(
+					"i",
+					Expression::constant(location, makeType<BuiltInType::Integer>(), 1),
+					Expression::constant(location, makeType<BuiltInType::Integer>(), 10)),
+			forAssignment);
+
+	Algorithm algorithm = Algorithm(location, {
+			AssignmentStatement(location, Expression::reference(location, makeType<BuiltInType::Integer>(), "y"), Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+			forStatement
+	});
+
+	ClassContainer cls(Function(
+			location, "main", true,
+			{ yMember },
+			algorithm));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	Runner runner(&context, module);
+	int y = 0;
+	runner.run("main", y);
+	EXPECT_EQ(y, 1);
+}
+
+TEST(BreakOp, breakNestedInFor)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   output Integer y;
+	 *   algorithm
+	 *     y := 0;
+	 *     for i in 1:10 loop
+	 *       if y == 0 then
+	 *         y := 1;
+	 *         break;
+	 *       end if;
+	 *       y := 0;
+	 *     end for;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
+
+	Expression condition = Expression::operation(
+			location,
+			makeType<BuiltInType::Boolean>(),
+			OperationKind::equal,
+			yRef,
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
+
+	Statement ifStatement = IfStatement(location, IfStatement::Block(condition, {
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
+			BreakStatement(location)
+	}));
+
+	Statement forStatement = ForStatement(
+			location,
+			Induction(
+					"i",
+					Expression::constant(location, makeType<BuiltInType::Integer>(), 1),
+					Expression::constant(location, makeType<BuiltInType::Integer>(), 10)),
+			{
+					ifStatement,
+					AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0))
+			});
 
 	Algorithm algorithm = Algorithm(location, {
 			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
-			whileStatement
+			forStatement
 	});
 
 	ClassContainer cls(Function(

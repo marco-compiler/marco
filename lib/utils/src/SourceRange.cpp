@@ -13,7 +13,7 @@ SourcePosition::SourcePosition(string file, unsigned int line, unsigned int colu
 
 SourcePosition SourcePosition::unknown()
 {
-	return SourcePosition("test", 1, 5);
+	return SourcePosition("-", 0, 0);
 }
 
 raw_ostream& modelica::operator<<(raw_ostream& stream, const SourcePosition& obj)

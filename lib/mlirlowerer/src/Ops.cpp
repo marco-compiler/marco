@@ -256,10 +256,6 @@ void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 
 	auto insertionPoint = builder.saveInsertionPoint();
 
-	// Condition block
-	auto* condition = state.addRegion();
-	builder.createBlock(condition, condition->begin(), builder.getIndexType());
-
 	// Body block
 	auto* body = state.addRegion();
 	builder.createBlock(body, body->begin(), builder.getIndexType());
@@ -273,7 +269,7 @@ void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 
 void ForOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "for " << lowerBound() << "to " << upperBound() << "step " << step();
+	printer << "for " << lowerBound() << " to " << upperBound() << " step " << step();
 	printer.printRegion(body());
 }
 

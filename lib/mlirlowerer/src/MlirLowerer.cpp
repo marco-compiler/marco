@@ -134,7 +134,7 @@ mlir::Operation* MlirLowerer::lower(const modelica::Class& cls)
 mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 {
 	// Create a scope in the symbol table to hold variable declarations.
-	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
+	ScopedHashTableScope<StringRef, Reference> varScope(symbolTable);
 
 	auto location = loc(foo.getLocation());
 
@@ -179,7 +179,7 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	for (const auto& pair : llvm::zip(argNames, entryBlock.getArguments())) {
 		const auto& name = get<0>(pair);
 		const auto& value = get<1>(pair);
-		symbolTable.insert(name, value);
+		symbolTable.insert(name, Reference(builder, value, false));
 	}
 
 	// Create a separate block for the return of the results.
@@ -208,8 +208,7 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	for (const auto& name : returnNames)
 	{
 		auto ptr = symbolTable.lookup(name);
-		auto value = builder.create<LoadOp>(builder.getUnknownLoc(), ptr);
-		results.push_back(value);
+		results.push_back(*ptr);
 	}
 
 	builder.create<ReturnOp>(builder.getUnknownLoc(), results);
@@ -276,7 +275,7 @@ void MlirLowerer::lower(const modelica::Member& member)
 			auto shape = type.cast<ShapedType>().getShape();
 			auto baseType = type.cast<ShapedType>().getElementType();
 			var = builder.create<AllocaOp>(location, MemRefType::get(shape, baseType));
-			symbolTable.insert(member.getName(), var);
+			symbolTable.insert(member.getName(), Reference(builder, var, true));
 		}
 		else
 		{
@@ -285,11 +284,11 @@ void MlirLowerer::lower(const modelica::Member& member)
 			// Input variables already have an associated value. Copy it to the stack.
 			if (member.isInput())
 			{
-				auto value = symbolTable.lookup(member.getName());
+				auto value = *symbolTable.lookup(member.getName());
 				builder.create<StoreOp>(value.getLoc(), value, var);
 			}
 
-			symbolTable.insert(member.getName(), var);
+			symbolTable.insert(member.getName(), Reference(builder, var, true));
 
 			if (member.hasInitializer())
 			{
@@ -338,7 +337,7 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 
 	for (size_t i = 0; i < blocks; i++)
 	{
-		ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
+		ScopedHashTableScope<StringRef, Reference> varScope(symbolTable);
 		const auto& conditionalBlock = statement[i];
 		auto condition = lower<modelica::Expression>(conditionalBlock.getCondition())[0];
 
@@ -379,13 +378,13 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 
 void MlirLowerer::lower(const modelica::ForStatement& statement)
 {
-	ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
+	ScopedHashTableScope<StringRef, Reference> varScope(symbolTable);
 
 	auto location = loc(statement.getLocation());
 
 	const auto& induction = statement.getInduction();
-	auto lowerBound = *lower<modelica::Expression>(induction.getBegin())[0];
-	auto upperBound = *lower<modelica::Expression>(induction.getEnd())[0];
+	auto lowerBound = cast(*lower<modelica::Expression>(induction.getBegin())[0], builder.getIndexType());
+	auto upperBound = cast(*lower<modelica::Expression>(induction.getEnd())[0], builder.getIndexType());
 	auto step = builder.create<ConstantOp>(location, builder.getIndexAttr(1));
 
 	auto forOp = builder.create<ForOp>(location, lowerBound, upperBound, step);
@@ -411,7 +410,7 @@ void MlirLowerer::lower(const modelica::WhileStatement& statement)
 
 	{
 		// Condition
-		ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
+		ScopedHashTableScope<StringRef, Reference> varScope(symbolTable);
 		builder.setInsertionPointToStart(&whileOp.condition().front());
 		const auto& condition = statement.getCondition();
 
@@ -422,7 +421,7 @@ void MlirLowerer::lower(const modelica::WhileStatement& statement)
 
 	{
 		// Body
-		ScopedHashTableScope<StringRef, mlir::Value> varScope(symbolTable);
+		ScopedHashTableScope<StringRef, Reference> varScope(symbolTable);
 		builder.setInsertionPointToStart(&whileOp.body().front());
 
 		for (const auto& stmnt : statement)
@@ -681,8 +680,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::ReferenceAccess>(
 {
 	assert(expression.isA<modelica::ReferenceAccess>());
 	const auto& reference = expression.get<modelica::ReferenceAccess>();
-	auto ptr = symbolTable.lookup(reference.getName());
-	return { Reference(builder, ptr, true) };
+	return { symbolTable.lookup(reference.getName()) };
 }
 
 template<>
@@ -766,7 +764,11 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lowerOperationArgs(const modeli
 		if (castedArg.getType().isInteger(1))
 			castedArg = builder.create<SignExtendIOp>(arg.getLoc(), castedArg, integerType);
 
-		// Int --> Float
+		// Index --> Integer
+		if (castedArg.getType().isIndex())
+			castedArg = builder.create<IndexCastOp>(arg.getLoc(), castedArg, integerType);
+
+		// Integer --> Float
 		if (containsFloat && castedArg.getType().isSignlessInteger())
 			castedArg = builder.create<SIToFPOp>(arg.getLoc(), castedArg, floatType);
 

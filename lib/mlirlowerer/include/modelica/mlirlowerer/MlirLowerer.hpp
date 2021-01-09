@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llvm/ADT/ScopedHashTable.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
@@ -22,6 +23,11 @@ namespace modelica
 	class Reference
 	{
 		public:
+		Reference() : builder(nullptr), value(nullptr), isPtr(false)
+		{
+
+		}
+
 		template<typename... Ts>
 		Reference(mlir::OpBuilder& builder, mlir::Value value, bool isPointer, Ts... indexes)
 				: builder(&builder),
@@ -41,6 +47,7 @@ namespace modelica
 		mlir::OpBuilder* builder;
 		mlir::Value value;
 		bool isPtr;
+		//std::function<mlir::Value> load;
 		llvm::SmallVector<mlir::Value, 3> indexes;
 	};
 
@@ -105,7 +112,7 @@ namespace modelica
 		 * terminated, the scope is destroyed and the mappings created in this
 		 * scope are dropped.
 		 */
-		llvm::ScopedHashTable<llvm::StringRef, mlir::Value> symbolTable;
+		llvm::ScopedHashTable<llvm::StringRef, Reference> symbolTable;
 
 		/**
 		 * Lower the arguments of an operation.
