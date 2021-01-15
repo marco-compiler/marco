@@ -74,6 +74,59 @@ TEST(Assignment, variableCopy)	 // NOLINT
 	EXPECT_EQ(y, x);
 }
 
+TEST(Assignment, arrayCopy)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[2] x;
+	 *   output Integer[2] y;
+	 *   algorithm
+	 *     y := x;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(2), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Integer>(2), "y"),
+			Expression::reference(location, makeType<BuiltInType::Integer>(2), "x"));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	module.dump();
+
+	Runner runner(&context, module);
+
+	array<int, 2> x = { 23, 57 };
+	int* xBufferPtr = x.data();
+	int* xAlignedPtr = x.data();
+	long xOffset = 0;
+	long xSize = 2;
+	long xStride = 1;
+
+	array<int, 2> y = { 0, 0 };
+	int* yBufferPtr = y.data();
+	int* yAlignedPtr = y.data();
+	long yOffset = 0;
+	long ySize = 2;
+	long yStride = 1;
+
+	runner.run("main", xBufferPtr, xAlignedPtr, xOffset, xSize, xStride, yBufferPtr, yAlignedPtr, yOffset, ySize, yStride);
+
+	EXPECT_EQ(y[0], x[0]);
+	EXPECT_EQ(y[1], x[1]);
+}
+
 TEST(Assignment, internalArrayElement)	 // NOLINT
 {
 	/**

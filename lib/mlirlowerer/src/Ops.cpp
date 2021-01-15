@@ -7,6 +7,21 @@
 using namespace modelica;
 using namespace std;
 
+llvm::StringRef ArrayCopyOp::getOperationName()
+{
+	return "modelica.arraycopy";
+}
+
+void ArrayCopyOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination)
+{
+	state.addOperands({ source, destination });
+}
+
+void ArrayCopyOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "copy " << getOperands();
+}
+
 llvm::StringRef NegateOp::getOperationName()
 {
 	return "modelica.negate";
@@ -250,15 +265,21 @@ llvm::StringRef ForOp::getOperationName()
 	return "modelica.for";
 }
 
-void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lowerBound, mlir::Value upperBound, mlir::Value step)
+void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type inductionVarType)
 {
-	state.addOperands({ lowerBound, upperBound, step });
-
 	auto insertionPoint = builder.saveInsertionPoint();
 
+	// Init block
+	builder.createBlock(state.addRegion());
+
+	// Condition block
+	builder.createBlock(state.addRegion(), {}, inductionVarType);
+
+	// Step block
+	builder.createBlock(state.addRegion(), {}, inductionVarType);
+
 	// Body block
-	auto* body = state.addRegion();
-	builder.createBlock(body, body->begin(), builder.getIndexType());
+	builder.createBlock(state.addRegion(), {}, inductionVarType);
 
 	// Exit block (for break operation)
 	builder.createBlock(state.addRegion());
@@ -269,33 +290,39 @@ void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 
 void ForOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "for " << lowerBound() << " to " << upperBound() << " step " << step();
-	printer.printRegion(body());
+	printer << "for init";
+	printer.printRegion(init(), true);
+	printer << " condition";
+	printer.printRegion(condition(), true);
+	printer << " step";
+	printer.printRegion(step(), true);
+	printer << " body";
+	printer.printRegion(body(), true);
 }
 
-mlir::Value ForOp::lowerBound()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value ForOp::upperBound()
-{
-	return getOperation()->getOperand(1);
-}
-
-mlir::Value ForOp::step()
-{
-	return getOperation()->getOperand(2);
-}
-
-mlir::Region& ForOp::body()
+mlir::Region& ForOp::init()
 {
 	return getOperation()->getRegion(0);
 }
 
-mlir::Region& ForOp::exit()
+mlir::Region& ForOp::condition()
 {
 	return getOperation()->getRegion(1);
+}
+
+mlir::Region& ForOp::step()
+{
+	return getOperation()->getRegion(2);
+}
+
+mlir::Region& ForOp::body()
+{
+	return getOperation()->getRegion(3);
+}
+
+mlir::Region& ForOp::exit()
+{
+	return getOperation()->getRegion(4);
 }
 
 llvm::StringRef WhileOp::getOperationName()
@@ -373,9 +400,14 @@ void YieldOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 
 }
 
+void YieldOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange operands)
+{
+	state.addOperands(operands);
+}
+
 void YieldOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "yield";
+	printer << "yield " << getOperation()->getOperands();
 }
 
 llvm::StringRef BreakOp::getOperationName()

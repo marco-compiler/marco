@@ -9,6 +9,12 @@
 
 namespace modelica
 {
+	class ArrayCopyOpLowering : public mlir::OpRewritePattern<ArrayCopyOp>
+	{
+		using mlir::OpRewritePattern<ArrayCopyOp>::OpRewritePattern;
+		mlir::LogicalResult matchAndRewrite(ArrayCopyOp op, mlir::PatternRewriter& rewriter) const final;
+	};
+
 	class NegateOpLowering : public mlir::OpRewritePattern<NegateOp>
 	{
 		using mlir::OpRewritePattern<NegateOp>::OpRewritePattern;

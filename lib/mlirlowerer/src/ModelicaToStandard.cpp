@@ -6,6 +6,14 @@ using namespace mlir;
 using namespace modelica;
 using namespace std;
 
+LogicalResult ArrayCopyOpLowering::matchAndRewrite(ArrayCopyOp op, PatternRewriter& rewriter) const
+{
+	Location location = op.getLoc();
+
+
+	return failure();
+}
+
 LogicalResult NegateOpLowering::matchAndRewrite(NegateOp op, PatternRewriter& rewriter) const
 {
 	Location location = op.getLoc();
@@ -355,40 +363,70 @@ LogicalResult ForOpLowering::matchAndRewrite(ForOp op, PatternRewriter& rewriter
 	Block* continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
 
 	// Inline regions
+	Block* init = &op.init().front();
+	Block* initLast = &op.init().back();
+
+	Block* condition = &op.condition().front();
+	Block* conditionLast = &op.condition().back();
+
 	Block* body = &op.body().front();
 	Block* bodyLast = &op.body().back();
+
+	Block* step = &op.step().front();
+	Block* stepLast = &op.step().back();
+
 	Block* exit = &op.exit().front();
 
 	rewriter.inlineRegionBefore(op.exit(), continuation);
-	rewriter.inlineRegionBefore(op.body(), exit);
+	rewriter.inlineRegionBefore(op.step(), exit);
+	rewriter.inlineRegionBefore(op.body(), step);
+	rewriter.inlineRegionBefore(op.condition(), body);
+	rewriter.inlineRegionBefore(op.init(), condition);
 
-	Block* condition = rewriter.createBlock(body, rewriter.getIndexType());
-
-	// Branch to the "condition" region
-	rewriter.setInsertionPointToEnd(currentBlock);
-	rewriter.create<BranchOp>(location, condition, op.lowerBound());
-
-	// Condition check
-	rewriter.setInsertionPointToStart(condition);
-	auto comparison = rewriter.create<CmpIOp>(location, CmpIPredicate::slt, condition->getArgument(0), op.upperBound());
-	rewriter.create<CondBranchOp>(location, comparison, body, condition->getArgument(0), exit, ValueRange());
-
-	// Replace "body" block terminator with branch
-	rewriter.setInsertionPointToEnd(bodyLast);
-	auto bodyYieldOp = dyn_cast<YieldOp>(bodyLast->getTerminator());
-
-	// We need to check if it is effectively a YieldOp, because the body may
-	// terminate with a break.
-	if (bodyYieldOp)
 	{
-		auto incrementedInductionVariable = rewriter.create<AddIOp>(location, body->getArgument(0), op.step()).getResult();
-		rewriter.replaceOpWithNewOp<BranchOp>(bodyYieldOp, condition, incrementedInductionVariable);
+		// Start the for loop by branching to the "init" region
+		rewriter.setInsertionPointToEnd(currentBlock);
+		rewriter.create<BranchOp>(location, init);
 	}
 
-	// Replace "exit" block terminator with branch
-	rewriter.setInsertionPointToEnd(exit);
-	auto exitYieldOp = cast<YieldOp>(exit->getTerminator());
-	rewriter.replaceOpWithNewOp<BranchOp>(exitYieldOp, continuation);
+	{
+		// Check the condition right after the initialization of the induction variable
+		rewriter.setInsertionPointToEnd(initLast);
+		auto yieldOp = dyn_cast<YieldOp>(initLast->getTerminator());
+		rewriter.replaceOpWithNewOp<BranchOp>(yieldOp, condition, yieldOp->getOperands());
+	}
+
+	{
+		// Branch to the loop body if the condition is satisfied
+		rewriter.setInsertionPointToEnd(conditionLast);
+		auto conditionOp = dyn_cast<ConditionOp>(conditionLast->getTerminator());
+		rewriter.replaceOpWithNewOp<CondBranchOp>(conditionOp, conditionOp.getOperand(), body, condition->getArgument(0), exit, ValueRange());
+	}
+
+	{
+		// Replace "body" block terminator with a branch to the "step" block
+		rewriter.setInsertionPointToEnd(bodyLast);
+		auto yieldOp = dyn_cast<YieldOp>(bodyLast->getTerminator());
+
+		// We need to check if it is effectively a YieldOp, because the body may
+		// terminate with a break.
+		if (yieldOp)
+			rewriter.replaceOpWithNewOp<BranchOp>(yieldOp, step, yieldOp->getOperands());
+	}
+
+	{
+		// Branch to the condition check after incrementing the induction variable
+		rewriter.setInsertionPointToEnd(stepLast);
+		auto yieldOp = dyn_cast<YieldOp>(stepLast->getTerminator());
+		rewriter.replaceOpWithNewOp<BranchOp>(yieldOp, condition, yieldOp->getOperands());
+	}
+
+	{
+		// Replace "exit" block terminator with a branch to the continuation block after the For operation
+		rewriter.setInsertionPointToEnd(exit);
+		auto yieldOp = cast<YieldOp>(exit->getTerminator());
+		rewriter.replaceOpWithNewOp<BranchOp>(yieldOp, continuation);
+	}
 
 	rewriter.eraseOp(op);
 	return success();
@@ -491,6 +529,9 @@ void ModelicaToStandardLoweringPass::runOnOperation()
 
 void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
 {
+	// Generic operations
+	patterns.insert<ArrayCopyOpLowering>(context);
+
 	// Math operations
 	patterns.insert<NegateOpLowering>(context);
 	patterns.insert<AddOpLowering>(context);

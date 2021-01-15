@@ -23,10 +23,7 @@ namespace modelica
 	class Reference
 	{
 		public:
-		Reference() : builder(nullptr), value(nullptr), isPtr(false)
-		{
-
-		}
+		Reference();
 
 		template<typename... Ts>
 		Reference(mlir::OpBuilder& builder, mlir::Value value, bool isPointer, Ts... indexes)
@@ -40,14 +37,12 @@ namespace modelica
 		[[nodiscard]] mlir::Value operator*();
 
 		[[nodiscard]] mlir::Value getValue() const;
-		[[nodiscard]] bool isPointer() const;
 		[[nodiscard]] mlir::ValueRange getIndexes() const;
 
 		private:
 		mlir::OpBuilder* builder;
 		mlir::Value value;
 		bool isPtr;
-		//std::function<mlir::Value> load;
 		llvm::SmallVector<mlir::Value, 3> indexes;
 	};
 

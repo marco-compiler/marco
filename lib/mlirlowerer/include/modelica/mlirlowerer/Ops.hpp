@@ -9,6 +9,15 @@
 
 namespace modelica
 {
+	class ArrayCopyOp : public mlir::Op<ArrayCopyOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::SameTypeOperands> {
+		public:
+		using Op::Op;
+
+		static ::llvm::StringRef getOperationName();
+		static void build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState, mlir::Value source, mlir::Value destination);
+		void print(::mlir::OpAsmPrinter &p);
+	};
+
 	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameOperandsAndResultType, mlir::OpTrait::IsInvolution>
 	{
 		public:
@@ -134,17 +143,17 @@ namespace modelica
 		mlir::Region& elseRegion();
 	};
 
-	class ForOp : public mlir::Op<ForOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::NOperands<3>::Impl, mlir::OpTrait::ZeroResult, BreakableLoop::Trait>
+	class ForOp : public mlir::Op<ForOp, mlir::OpTrait::NRegions<5>::Impl, mlir::OpTrait::NOperands<3>::Impl, mlir::OpTrait::ZeroResult, BreakableLoop::Trait>
 	{
 		public:
 		using Op::Op;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lowerBound, mlir::Value upperBound, mlir::Value step);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type inductionVarType);
 		void print(mlir::OpAsmPrinter& printer);
-		mlir::Value lowerBound();
-		mlir::Value upperBound();
-		mlir::Value step();
+		mlir::Region& init();
+		mlir::Region& condition();
+		mlir::Region& step();
 		mlir::Region& body();
 		mlir::Region& exit();
 	};
@@ -172,13 +181,14 @@ namespace modelica
 		mlir::Value condition();
 	};
 
-	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<IfOp, ForOp, WhileOp>::Impl, mlir::OpTrait::IsTerminator>
+	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<IfOp, ForOp, WhileOp>::Impl, mlir::OpTrait::IsTerminator>
 	{
 		public:
 		using Op::Op;
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange operands);
 		void print(mlir::OpAsmPrinter& printer);
 	};
 

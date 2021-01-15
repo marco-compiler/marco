@@ -16,8 +16,16 @@ mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, m
 {
 	mlir::PassManager passManager(context);
 	passManager.addPass(createModelicaToStdPass());
-	passManager.addPass(createLowerToLLVMPass());
+
+	LowerToLLVMOptions llvmLoweringOptions;
+	llvmLoweringOptions.emitCWrappers = true;
+	passManager.addPass(createLowerToLLVMPass(llvmLoweringOptions));
+
 	return passManager.run(module);
+}
+
+Reference::Reference() : builder(nullptr), value(nullptr), isPtr(false)
+{
 }
 
 mlir::Value Reference::operator*()
@@ -31,11 +39,6 @@ mlir::Value Reference::operator*()
 mlir::Value Reference::getValue() const
 {
 	return value;
-}
-
-bool Reference::isPointer() const
-{
-	return isPtr;
 }
 
 mlir::ValueRange Reference::getIndexes() const
@@ -265,36 +268,39 @@ void MlirLowerer::lower(const modelica::Member& member)
 {
 	auto location = loc(member.getLocation());
 
-	if (member.getType().isScalar() || !member.isInput())
+	if (!member.getType().isScalar() && member.isInput())
+		return;
+
+	if (!member.getType().isScalar() && member.isOutput())
+		return;
+
+	auto type = lower(member.getType());
+	mlir::Value var;
+
+	if (type.isa<ShapedType>())
 	{
-		auto type = lower(member.getType());
-		mlir::Value var;
+		auto shape = type.cast<ShapedType>().getShape();
+		auto baseType = type.cast<ShapedType>().getElementType();
+		var = builder.create<AllocaOp>(location, MemRefType::get(shape, baseType));
+		symbolTable.insert(member.getName(), Reference(builder, var, true));
+	}
+	else
+	{
+		var = builder.create<AllocaOp>(location, MemRefType::get({}, type));
 
-		if (type.isa<ShapedType>())
+		// Input variables already have an associated value. Copy it to the stack.
+		if (member.isInput())
 		{
-			auto shape = type.cast<ShapedType>().getShape();
-			auto baseType = type.cast<ShapedType>().getElementType();
-			var = builder.create<AllocaOp>(location, MemRefType::get(shape, baseType));
-			symbolTable.insert(member.getName(), Reference(builder, var, true));
+			auto value = *symbolTable.lookup(member.getName());
+			builder.create<StoreOp>(value.getLoc(), value, var);
 		}
-		else
+
+		symbolTable.insert(member.getName(), Reference(builder, var, true));
+
+		if (member.hasInitializer())
 		{
-			var = builder.create<AllocaOp>(location, MemRefType::get({}, type));
-
-			// Input variables already have an associated value. Copy it to the stack.
-			if (member.isInput())
-			{
-				auto value = *symbolTable.lookup(member.getName());
-				builder.create<StoreOp>(value.getLoc(), value, var);
-			}
-
-			symbolTable.insert(member.getName(), Reference(builder, var, true));
-
-			if (member.hasInitializer())
-			{
-				auto reference = lower<modelica::Expression>(member.getInitializer())[0];
-				builder.create<StoreOp>(loc(member.getInitializer().getLocation()), *reference, var);
-			}
+			auto reference = lower<modelica::Expression>(member.getInitializer())[0];
+			builder.create<StoreOp>(loc(member.getInitializer().getLocation()), *reference, var);
 		}
 	}
 }
@@ -383,22 +389,54 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 	auto location = loc(statement.getLocation());
 
 	const auto& induction = statement.getInduction();
-	auto lowerBound = cast(*lower<modelica::Expression>(induction.getBegin())[0], builder.getIndexType());
-	auto upperBound = cast(*lower<modelica::Expression>(induction.getEnd())[0], builder.getIndexType());
-	auto step = builder.create<ConstantOp>(location, builder.getIndexAttr(1));
+	auto forOp = builder.create<ForOp>(location, builder.getIndexType());
 
-	auto forOp = builder.create<ForOp>(location, lowerBound, upperBound, step);
-	symbolTable.insert(induction.getName(), Reference(builder, forOp.body().front().getArgument(0), false));
+	{
+		// Initialize the induction variable
+		builder.setInsertionPointToStart(&forOp.init().front());
+		auto lowerBound = cast(*lower<modelica::Expression>(induction.getBegin())[0], builder.getIndexType());
+		builder.create<YieldOp>(location, lowerBound);
+	}
 
-	builder.setInsertionPointToStart(&forOp.body().front());
+	{
+		// Check the loop condition
+		ScopedHashTableScope<StringRef, Reference> scope(symbolTable);
+		symbolTable.insert(induction.getName(), Reference(builder, forOp.condition().front().getArgument(0), false));
 
-	for (const auto& stmnt : statement)
-		lower(stmnt);
+		builder.setInsertionPointToStart(&forOp.condition().front());
 
-	auto& lastBodyOp = forOp.body().back().getOperations().back();
+		auto upperBound = cast(*lower<modelica::Expression>(induction.getEnd())[0], builder.getIndexType());
+		auto condition = builder.create<CmpIOp>(location, CmpIPredicate::slt, forOp.condition().front().getArgument(0), upperBound);
+		builder.create<ConditionOp>(location, condition);
+	}
 
-	if (lastBodyOp.isKnownNonTerminator())
-		builder.create<YieldOp>(builder.getUnknownLoc());
+	{
+		// Body
+		ScopedHashTableScope<StringRef, Reference> scope(symbolTable);
+		symbolTable.insert(induction.getName(), Reference(builder, forOp.body().front().getArgument(0), false));
+
+		builder.setInsertionPointToStart(&forOp.body().front());
+
+		for (const auto& stmnt : statement)
+			lower(stmnt);
+
+		auto& lastBodyOp = forOp.body().back().getOperations().back();
+
+		if (lastBodyOp.isKnownNonTerminator())
+			builder.create<YieldOp>(location, *symbolTable.lookup(induction.getName()));
+	}
+
+	{
+		// Step
+		ScopedHashTableScope<StringRef, Reference> scope(symbolTable);
+		symbolTable.insert(induction.getName(), Reference(builder, forOp.step().front().getArgument(0), false));
+
+		builder.setInsertionPointToStart(&forOp.step().front());
+
+		mlir::Value step = builder.create<ConstantOp>(location, builder.getIndexAttr(1));
+		mlir::Value incremented = builder.create<AddIOp>(location, forOp.step().front().getArgument(0), step);
+		builder.create<YieldOp>(location, incremented);
+	}
 
 	builder.setInsertionPointAfter(forOp);
 }
@@ -638,7 +676,6 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::subscription)
 	{
 		auto var = lower<modelica::Expression>(operation[0])[0];
-		assert(var.isPointer());
 		SmallVector<mlir::Value, 3> indexes;
 
 		for (size_t i = 1; i < operation.argumentsCount(); i++)

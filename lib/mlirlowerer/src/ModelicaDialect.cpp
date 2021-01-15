@@ -6,6 +6,9 @@ using namespace modelica;
 ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 		: Dialect("modelica", context, mlir::TypeID::get<ModelicaDialect>())
 {
+	// Generic operations
+	addOperations<ArrayCopyOp>();
+
 	// Math operations
 	addOperations<NegateOp>();
 	addOperations<AddOp>();

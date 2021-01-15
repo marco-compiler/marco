@@ -29,6 +29,7 @@ namespace modelica
 
 			llvm::LLVMContext llvmContext;
 			auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmContext);
+			llvm::errs() << *llvmModule;
 
 			// Initialize LLVM targets
 			llvm::InitializeNativeTarget();
