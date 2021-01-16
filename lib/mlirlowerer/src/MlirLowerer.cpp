@@ -389,14 +389,8 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 	auto location = loc(statement.getLocation());
 
 	const auto& induction = statement.getInduction();
-	auto forOp = builder.create<ForOp>(location, builder.getIndexType());
-
-	{
-		// Initialize the induction variable
-		builder.setInsertionPointToStart(&forOp.init().front());
-		auto lowerBound = cast(*lower<modelica::Expression>(induction.getBegin())[0], builder.getIndexType());
-		builder.create<YieldOp>(location, lowerBound);
-	}
+	auto lowerBound = cast(*lower<modelica::Expression>(induction.getBegin())[0], builder.getIndexType());
+	auto forOp = builder.create<ForOp>(location, lowerBound);
 
 	{
 		// Check the loop condition
@@ -407,7 +401,7 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 
 		auto upperBound = cast(*lower<modelica::Expression>(induction.getEnd())[0], builder.getIndexType());
 		auto condition = builder.create<CmpIOp>(location, CmpIPredicate::slt, forOp.condition().front().getArgument(0), upperBound);
-		builder.create<ConditionOp>(location, condition);
+		builder.create<ConditionOp>(location, condition, *symbolTable.lookup(induction.getName()));
 	}
 
 	{

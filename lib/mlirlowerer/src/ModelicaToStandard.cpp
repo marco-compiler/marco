@@ -363,9 +363,6 @@ LogicalResult ForOpLowering::matchAndRewrite(ForOp op, PatternRewriter& rewriter
 	Block* continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
 
 	// Inline regions
-	Block* init = &op.init().front();
-	Block* initLast = &op.init().back();
-
 	Block* condition = &op.condition().front();
 	Block* conditionLast = &op.condition().back();
 
@@ -381,26 +378,24 @@ LogicalResult ForOpLowering::matchAndRewrite(ForOp op, PatternRewriter& rewriter
 	rewriter.inlineRegionBefore(op.step(), exit);
 	rewriter.inlineRegionBefore(op.body(), step);
 	rewriter.inlineRegionBefore(op.condition(), body);
-	rewriter.inlineRegionBefore(op.init(), condition);
 
 	{
-		// Start the for loop by branching to the "init" region
+		// Start the for loop by branching to the "condition" region
 		rewriter.setInsertionPointToEnd(currentBlock);
-		rewriter.create<BranchOp>(location, init);
-	}
-
-	{
-		// Check the condition right after the initialization of the induction variable
-		rewriter.setInsertionPointToEnd(initLast);
-		auto yieldOp = dyn_cast<YieldOp>(initLast->getTerminator());
-		rewriter.replaceOpWithNewOp<BranchOp>(yieldOp, condition, yieldOp->getOperands());
+		rewriter.create<BranchOp>(location, condition, op.getOperands());
 	}
 
 	{
 		// Branch to the loop body if the condition is satisfied
 		rewriter.setInsertionPointToEnd(conditionLast);
 		auto conditionOp = dyn_cast<ConditionOp>(conditionLast->getTerminator());
-		rewriter.replaceOpWithNewOp<CondBranchOp>(conditionOp, conditionOp.getOperand(), body, condition->getArgument(0), exit, ValueRange());
+
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		for (size_t i = 1; i < conditionOp->getNumOperands(); i++)
+			args.push_back(conditionOp.getOperand(i));
+
+		rewriter.replaceOpWithNewOp<CondBranchOp>(conditionOp, conditionOp.getOperand(0), body, args, exit, ValueRange());
 	}
 
 	{

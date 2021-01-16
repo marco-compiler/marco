@@ -143,15 +143,14 @@ namespace modelica
 		mlir::Region& elseRegion();
 	};
 
-	class ForOp : public mlir::Op<ForOp, mlir::OpTrait::NRegions<5>::Impl, mlir::OpTrait::NOperands<3>::Impl, mlir::OpTrait::ZeroResult, BreakableLoop::Trait>
+	class ForOp : public mlir::Op<ForOp, mlir::OpTrait::NRegions<4>::Impl, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, BreakableLoop::Trait>
 	{
 		public:
 		using Op::Op;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type inductionVarType);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args);
 		void print(mlir::OpAsmPrinter& printer);
-		mlir::Region& init();
 		mlir::Region& condition();
 		mlir::Region& step();
 		mlir::Region& body();
@@ -171,17 +170,18 @@ namespace modelica
 		mlir::Region& exit();
 	};
 
-	class ConditionOp : public mlir::Op<ConditionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::HasParent<WhileOp>::Impl, mlir::OpTrait::IsTerminator> {
+	class ConditionOp : public mlir::Op<ConditionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::HasParent<ForOp, WhileOp>::Impl, mlir::OpTrait::IsTerminator> {
 		public:
 		using Op::Op;
 
 		static llvm::StringRef getOperationName();
 		static void build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState, mlir::Value condition);
+		static void build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState, mlir::Value condition, mlir::ValueRange args);
 		void print(::mlir::OpAsmPrinter &p);
 		mlir::Value condition();
 	};
 
-	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<IfOp, ForOp, WhileOp>::Impl, mlir::OpTrait::IsTerminator>
+	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<IfOp, ForOp, WhileOp>::Impl, mlir::OpTrait::IsTerminator>
 	{
 		public:
 		using Op::Op;
