@@ -7,7 +7,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 		: Dialect("modelica", context, mlir::TypeID::get<ModelicaDialect>())
 {
 	// Generic operations
-	addOperations<ArrayCopyOp>();
+	addOperations<MemCopyOp>();
 
 	// Math operations
 	addOperations<NegateOp>();

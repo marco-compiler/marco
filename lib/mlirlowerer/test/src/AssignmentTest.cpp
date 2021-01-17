@@ -76,6 +76,8 @@ TEST(Assignment, variableCopy)	 // NOLINT
 
 TEST(Assignment, arrayCopy)	 // NOLINT
 {
+	//llvm::DebugFlag = true;
+
 	/**
 	 * function main
 	 *   input Integer[2] x;

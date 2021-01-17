@@ -249,8 +249,6 @@ TEST(ForOp, validLoop)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module->dump();
-
 	Runner runner(&context, module);
 	int x = 10;
 	int y = 0;

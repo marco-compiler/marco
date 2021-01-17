@@ -109,21 +109,6 @@ TEST(Input, integerArray)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module->dump();
-
-	/*
-	Runner runner(&context, module);
-
-	array<int, 2> x = {23, 57};
-	int* bufferPtr = x.data();
-	int* alignedPtr = x.data();
-	long offset = 0;
-	long size = 2;
-	long stride = 1;
-	int y = 0;
-	runner.run("main", bufferPtr, alignedPtr, offset, size, stride, y);
-	 */
-
 	if (failed(modelica::convertToLLVMDialect(&context, module)))
 		llvm::errs() << "Failed to convert to LLVM dialect\n";
 
@@ -197,20 +182,13 @@ TEST(Input, floatArray)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-
 	Runner runner(&context, module);
 	array<float, 2> xArray = { 23.0, 57.0 };
-	StridedMemRefType<float, 2> x{xArray.data(), xArray.data(), 0, {2}, {1}};
-	auto* xPtr = &x;
-	float* bufferPtr = xArray.data();
-	float* alignedPtr = xArray.data();
-	long offset = 0;
-	long size = 2;
-	long stride = 1;
+	StridedMemRefType<float, 2> xMemRef{xArray.data(), xArray.data(), 0, {2}, {1}};
+	auto* x = &xMemRef;
 	float y = 0;
 
-	runner.run("_mlir_ciface_main", xPtr, y);
+	runner.run("_mlir_ciface_main", x, y);
 
 	EXPECT_FLOAT_EQ(y, 80);
 }
@@ -219,7 +197,7 @@ TEST(Output, integerArray)	 // NOLINT
 {
 	/**
 	 * function main
-	 *   output Integer[2] y;
+	 *   output Integer[2] x;
 	 *   algorithm
 	 *     y[0] := 23;
 	 *     y[1] := 57;
@@ -251,15 +229,12 @@ TEST(Output, integerArray)	 // NOLINT
 	mlir::ModuleOp module = lowerer.lower(cls);
 
 	Runner runner(&context, module);
-	array<int, 2> x = { 0, 0 };
-	int* bufferPtr = x.data();
-	int* alignedPtr = x.data();
-	long offset = 0;
-	long size = 2;
-	long stride = 1;
+	array<int, 2> xArray = { 0, 0 };
+	StridedMemRefType<int, 2> xMemRef{xArray.data(), xArray.data(), 0, {2}, {1}};
+	auto* x = &xMemRef;
 
-	runner.run("main", bufferPtr, alignedPtr, offset, size, stride);
+	runner.run("_mlir_ciface_main", x);
 
-	EXPECT_EQ(x[0], 23);
-	EXPECT_EQ(x[1], 57);
+	EXPECT_EQ(xArray[0], 23);
+	EXPECT_EQ(xArray[1], 57);
 }

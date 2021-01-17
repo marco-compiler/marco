@@ -1,8 +1,10 @@
 #include <llvm/ADT/SmallVector.h>
-#include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
+#include <mlir/Conversion/Passes.h>
+#include <mlir/Dialect/Linalg/Passes.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Pass/PassManager.h>
+#include <mlir/Transforms/Passes.h>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
 #include <modelica/mlirlowerer/ModelicaToStandard.hpp>
@@ -16,6 +18,9 @@ mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, m
 {
 	mlir::PassManager passManager(context);
 	passManager.addPass(createModelicaToStdPass());
+	passManager.addPass(createBufferResultsToOutParamsPass());
+	passManager.addNestedPass<FuncOp>(createConvertLinalgToLoopsPass());
+	passManager.addPass(createLowerToCFGPass());
 
 	LowerToLLVMOptions llvmLoweringOptions;
 	llvmLoweringOptions.emitCWrappers = true;
@@ -146,22 +151,12 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	SmallVector<llvm::StringRef, 3> returnNames;
 	SmallVector<mlir::Type, 3> returnTypes;
 
-	for (const auto& member : foo.getResults())
-	{
-		if (member->getType().isScalar())
-		{
-			returnNames.emplace_back(member->getName());
-			returnTypes.emplace_back(lower(member->getType()));
-		}
-		else
-		{
-			// If a result is an array, then it has to be placed among the arguments.
-			// Otherwise, the callee should alloc the memory on the heap and thus
-			// create a potential memory leak.
+	auto outputMembers = foo.getResults();
 
-			argNames.emplace_back(member->getName());
-			argTypes.emplace_back(lower(member->getType()));
-		}
+	for (const auto& member : outputMembers)
+	{
+		returnNames.emplace_back(member->getName());
+		returnTypes.emplace_back(lower(member->getType()));
 	}
 
 	for (const auto& member : foo.getArgs())
@@ -208,13 +203,17 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	builder.setInsertionPointToStart(returnBlock);
 	std::vector<mlir::Value> results;
 
-	for (const auto& name : returnNames)
+	for (const auto& member : outputMembers)
 	{
-		auto ptr = symbolTable.lookup(name);
-		results.push_back(*ptr);
+		auto ptr = symbolTable.lookup(member->getName());
+
+		if (member->getType().isScalar())
+			results.push_back(*ptr);
+		else
+			results.push_back(ptr.getValue());
 	}
 
-	builder.create<ReturnOp>(builder.getUnknownLoc(), results);
+	builder.create<ReturnOp>(location, results);
 	return function;
 }
 
@@ -251,6 +250,7 @@ mlir::Type MlirLowerer::lower(const modelica::BuiltInType& type)
 			return builder.getI1Type();
 		default:
 			assert(false && "Unexpected type");
+			return builder.getNoneType();
 	}
 }
 
@@ -269,9 +269,6 @@ void MlirLowerer::lower(const modelica::Member& member)
 	auto location = loc(member.getLocation());
 
 	if (!member.getType().isScalar() && member.isInput())
-		return;
-
-	if (!member.getType().isScalar() && member.isOutput())
 		return;
 
 	auto type = lower(member.getType());
@@ -326,9 +323,13 @@ void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
 
 	for (auto pair : zip(destinations, values))
 	{
-		auto& ptr = lower<modelica::Expression>(get<0>(pair))[0];
+		auto& destination = lower<modelica::Expression>(get<0>(pair))[0];
 		auto value = *get<1>(pair);
-		builder.create<StoreOp>(location, value, ptr.getValue(), ptr.getIndexes());
+
+		if (value.getType().isa<ShapedType>())
+			builder.create<MemCopyOp>(location, value, destination.getValue());
+		else
+			builder.create<StoreOp>(location, value, destination.getValue(), destination.getIndexes());
 	}
 }
 

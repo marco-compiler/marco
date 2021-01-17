@@ -7,19 +7,29 @@
 using namespace modelica;
 using namespace std;
 
-llvm::StringRef ArrayCopyOp::getOperationName()
+llvm::StringRef MemCopyOp::getOperationName()
 {
-	return "modelica.arraycopy";
+	return "modelica.memcopy";
 }
 
-void ArrayCopyOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination)
+void MemCopyOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination)
 {
 	state.addOperands({ source, destination });
 }
 
-void ArrayCopyOp::print(mlir::OpAsmPrinter& printer)
+void MemCopyOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "copy " << getOperands();
+}
+
+mlir::Value MemCopyOp::source()
+{
+	return getOperand(0);
+}
+
+mlir::Value MemCopyOp::destination()
+{
+	return getOperand(1);
 }
 
 llvm::StringRef NegateOp::getOperationName()
@@ -263,6 +273,11 @@ mlir::Region& IfOp::elseRegion()
 llvm::StringRef ForOp::getOperationName()
 {
 	return "modelica.for";
+}
+
+void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
+{
+	build(builder, state, {});
 }
 
 void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args)

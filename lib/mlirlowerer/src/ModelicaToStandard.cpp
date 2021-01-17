@@ -1,4 +1,5 @@
 #include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
+#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
 #include <modelica/mlirlowerer/ModelicaToStandard.hpp>
 
@@ -6,12 +7,10 @@ using namespace mlir;
 using namespace modelica;
 using namespace std;
 
-LogicalResult ArrayCopyOpLowering::matchAndRewrite(ArrayCopyOp op, PatternRewriter& rewriter) const
+LogicalResult MemCopyOpLowering::matchAndRewrite(MemCopyOp op, PatternRewriter& rewriter) const
 {
-	Location location = op.getLoc();
-
-
-	return failure();
+	rewriter.replaceOpWithNewOp<linalg::CopyOp>(op, op.source(), op.destination());
+	return success();
 }
 
 LogicalResult NegateOpLowering::matchAndRewrite(NegateOp op, PatternRewriter& rewriter) const
@@ -505,6 +504,7 @@ void ModelicaToStandardLoweringPass::runOnOperation()
 
 	target.addLegalOp<ModuleOp, FuncOp, ModuleTerminatorOp>();
 	target.addLegalDialect<StandardOpsDialect>();
+	target.addLegalDialect<linalg::LinalgDialect>();
 
 	// The Modelica dialect is defined as illegal, so that the conversion
 	// will fail if any of its operations are not converted.
@@ -513,19 +513,18 @@ void ModelicaToStandardLoweringPass::runOnOperation()
 	// Provide the set of patterns that will lower the Modelica operations
 	mlir::OwningRewritePatternList patterns;
 	populateModelicaToStdConversionPatterns(patterns, &getContext());
-	populateLoopToStdConversionPatterns(patterns, &getContext());
 
 	// With the target and rewrite patterns defined, we can now attempt the
 	// conversion. The conversion will signal failure if any of our "illegal"
 	// operations were not converted successfully.
-	if (failed(applyFullConversion(module, target, move(patterns))))
+	if (failed(applyPartialConversion(module, target, move(patterns))))
 		signalPassFailure();
 }
 
 void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
 {
 	// Generic operations
-	patterns.insert<ArrayCopyOpLowering>(context);
+	patterns.insert<MemCopyOpLowering>(context);
 
 	// Math operations
 	patterns.insert<NegateOpLowering>(context);

@@ -153,6 +153,7 @@ namespace modelica
 				return builder.getFloatAttr(floatType, value);
 
 			assert(false && "Unknown type");
+			return builder.getZeroAttr(builder.getNoneType());
 		}
 
 		mlir::Value cast(mlir::Value value, mlir::Type destination);

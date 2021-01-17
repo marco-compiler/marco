@@ -9,13 +9,15 @@
 
 namespace modelica
 {
-	class ArrayCopyOp : public mlir::Op<ArrayCopyOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::SameTypeOperands> {
+	class MemCopyOp: public mlir::Op<MemCopyOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::SameTypeOperands> {
 		public:
 		using Op::Op;
 
 		static ::llvm::StringRef getOperationName();
-		static void build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState, mlir::Value source, mlir::Value destination);
-		void print(::mlir::OpAsmPrinter &p);
+		static void build(mlir::OpBuilder &odsBuilder, mlir::OperationState &odsState, mlir::Value source, mlir::Value destination);
+		void print(mlir::OpAsmPrinter &p);
+		mlir::Value source();
+		mlir::Value destination();
 	};
 
 	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameOperandsAndResultType, mlir::OpTrait::IsInvolution>
@@ -149,6 +151,7 @@ namespace modelica
 		using Op::Op;
 
 		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::Region& condition();

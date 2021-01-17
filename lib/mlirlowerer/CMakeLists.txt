@@ -11,10 +11,15 @@ target_link_libraries(
         modelica::frontend
         modelica::utils
         MLIRIR
-        MLIRSCF
+        MLIRLinalg
+        MLIRLinalgToStandard
+        MLIROpenMP
+        MLIROpenMPToLLVM
         MLIRSCFToStandard
+        MLIRSCFToOpenMP
         MLIRStandard
         MLIRStandardToLLVM
+        MLIRLinalgTransforms
         MLIRTargetLLVMIR
         MLIRTransforms
         MLIRExecutionEngine
