@@ -24,6 +24,9 @@ namespace modelica
 
 		[[nodiscard]] SourcePosition getLocation() const;
 
+		[[nodiscard]] const std::string& getReturnCheckName() const;
+		void setReturnCheckName(std::string name);
+
 		[[nodiscard]] Container<Statement>& getStatements();
 		[[nodiscard]] const Container<Statement>& getStatements() const;
 
@@ -35,6 +38,7 @@ namespace modelica
 
 		private:
 		SourcePosition location;
+		std::string returnCheckName;
 		Container<Statement> statements;
 	};
 }	 // namespace modelica

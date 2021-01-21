@@ -1,9 +1,11 @@
 modelicaAddLibrary(
         mlirlowerer SHARED
+        src/BreakRemover.cpp
         src/MlirLowerer.cpp
         src/ModelicaDialect.cpp
-        src/ModelicaToStandard.cpp
+        src/ModelicaLoweringPass.cpp
         src/Ops.cpp
+        src/ReturnRemover.cpp
 )
 
 target_link_libraries(
@@ -15,6 +17,7 @@ target_link_libraries(
         MLIRLinalgToStandard
         MLIROpenMP
         MLIROpenMPToLLVM
+        MLIRSCF
         MLIRSCFToStandard
         MLIRSCFToOpenMP
         MLIRStandard

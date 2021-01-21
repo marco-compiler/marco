@@ -26,6 +26,16 @@ SourcePosition Algorithm::getLocation() const
 	return location;
 }
 
+const string& Algorithm::getReturnCheckName() const
+{
+	return returnCheckName;
+}
+
+void Algorithm::setReturnCheckName(string name)
+{
+	this->returnCheckName = name;
+}
+
 Algorithm::Container<Statement>& Algorithm::getStatements() { return statements; }
 
 const Algorithm::Container<Statement>& Algorithm::getStatements() const

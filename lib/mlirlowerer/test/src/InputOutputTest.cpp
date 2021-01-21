@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 #include <mlir/IR/Dialect.h>
-#include <mlir/ExecutionEngine/CRunnerUtils.h>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/Runner.hpp>
 #include <modelica/utils/SourceRange.hpp>
@@ -35,10 +34,12 @@ TEST(Input, integerScalar)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
 	int x = 57;
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", x, y);
+
 	EXPECT_EQ(y, 57);
 }
 
@@ -69,10 +70,12 @@ TEST(Input, floatScalar)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
 	float x = 57;
 	float y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", x, y);
+
 	EXPECT_EQ(y, 57.0);
 }
 
@@ -109,42 +112,12 @@ TEST(Input, integerArray)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	if (failed(modelica::convertToLLVMDialect(&context, module)))
-		llvm::errs() << "Failed to convert to LLVM dialect\n";
+	array<int, 2> x = { 23, 57 };
+	int* xPtr = x.data();
+	int y = 0;
 
-	llvm::LLVMContext llvmContext;
-	auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmContext);
-
-	llvm::errs() << *llvmModule;
-
-	llvm::InitializeNativeTarget();
-	llvm::InitializeNativeTargetAsmPrinter();
-	auto maybeEngine = mlir::ExecutionEngine::create(module);
-
-	if (!maybeEngine)
-		llvm::errs() << "Failed to create the engine\n";
-
-	auto& engine = maybeEngine.get();
-
-	int x[2] = {23, 57};
-	int* bufferPtr = x;
-	int* alignedPtr = x;
-	long offset = 0;
-	long size = 2;
-	long stride = 1;
-	int y;
-
-	StridedMemRefType<int, 2> arr{x, x, 0, {2}, {1}};
-	llvm::SmallVector<void*, 3> args;
-	args.push_back((void*) &bufferPtr);
-	args.push_back((void*) &alignedPtr);
-	args.push_back((void*) &offset);
-	args.push_back((void*) &size);
-	args.push_back((void*) &stride);
-	args.push_back((void*) &y);
-
-	if (engine->invoke("main", args))
-		llvm::errs() << "JIT invocation failed\n";
+	Runner runner(&context, module);
+	runner.run("main", xPtr, y);
 
 	EXPECT_EQ(y, 80);
 }
@@ -182,13 +155,12 @@ TEST(Input, floatArray)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
-	array<float, 2> xArray = { 23.0, 57.0 };
-	StridedMemRefType<float, 2> xMemRef{xArray.data(), xArray.data(), 0, {2}, {1}};
-	auto* x = &xMemRef;
+	array<float, 2> x = { 23.0, 57.0 };
+	float* xPtr = x.data();
 	float y = 0;
 
-	runner.run("_mlir_ciface_main", x, y);
+	Runner runner(&context, module);
+	runner.run("main", xPtr, y);
 
 	EXPECT_FLOAT_EQ(y, 80);
 }
@@ -228,13 +200,12 @@ TEST(Output, integerArray)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
+	array<int, 2> x = { 0, 0 };
+	int* xPtr = x.data();
+
 	Runner runner(&context, module);
-	array<int, 2> xArray = { 0, 0 };
-	StridedMemRefType<int, 2> xMemRef{xArray.data(), xArray.data(), 0, {2}, {1}};
-	auto* x = &xMemRef;
+	runner.run("main", xPtr);
 
-	runner.run("_mlir_ciface_main", x);
-
-	EXPECT_EQ(xArray[0], 23);
-	EXPECT_EQ(xArray[1], 57);
+	EXPECT_EQ(x[0], 23);
+	EXPECT_EQ(x[1], 57);
 }

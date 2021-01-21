@@ -119,6 +119,12 @@ namespace modelica
 
 		[[nodiscard]] SourcePosition getLocation() const;
 
+		[[nodiscard]] const std::string& getBreakCheckName() const;
+		void setBreakCheckName(std::string name);
+
+		[[nodiscard]] const std::string& getReturnCheckName() const;
+		void setReturnCheckName(std::string name);
+
 		[[nodiscard]] Induction& getInduction();
 		[[nodiscard]] const Induction& getInduction() const;
 
@@ -134,6 +140,8 @@ namespace modelica
 		SourcePosition location;
 		Induction induction;
 		Container statements;
+		std::string breakCheckName;
+		std::string returnCheckName;
 	};
 
 	class WhileStatement: public ConditionalBlock<Statement>
@@ -146,8 +154,16 @@ namespace modelica
 
 		[[nodiscard]] SourcePosition getLocation() const;
 
+		[[nodiscard]] const std::string& getBreakCheckName() const;
+		void setBreakCheckName(std::string name);
+
+		[[nodiscard]] const std::string& getReturnCheckName() const;
+		void setReturnCheckName(std::string name);
+
 		private:
 		SourcePosition location;
+		std::string breakCheckName;
+		std::string returnCheckName;
 	};
 
 	class WhenStatement: public ConditionalBlock<Statement>
@@ -174,8 +190,12 @@ namespace modelica
 
 		[[nodiscard]] SourcePosition getLocation() const;
 
+		[[nodiscard]] const std::string& getBreakCheckName() const;
+		void setBreakCheckName(std::string name);
+
 		private:
 		SourcePosition location;
+		std::string breakCheckName;
 	};
 
 	class ReturnStatement
@@ -185,11 +205,15 @@ namespace modelica
 
 		[[nodiscard]] SourcePosition getLocation() const;
 
+		[[nodiscard]] const std::string& getReturnCheckName() const;
+		void setReturnCheckName(std::string name);
+
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		private:
 		SourcePosition location;
+		std::string returnCheckName;
 	};
 
 	template<typename ValueType, typename NodeType, typename... Variants>
@@ -392,6 +416,26 @@ namespace modelica
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		template<typename T>
+		[[nodiscard]] bool isA() const
+		{
+			return std::holds_alternative<T>(content);
+		}
+
+		template<typename T>
+		[[nodiscard]] T& get()
+		{
+			assert(isA<T>());
+			return std::get<T>(content);
+		}
+
+		template<typename T>
+		[[nodiscard]] const T& get() const
+		{
+			assert(isA<T>());
+			return std::get<T>(content);
+		}
 
 		[[nodiscard]] assignments_iterator begin();
 		[[nodiscard]] assignments_const_iterator begin() const;

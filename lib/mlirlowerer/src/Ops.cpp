@@ -275,13 +275,15 @@ llvm::StringRef ForOp::getOperationName()
 	return "modelica.for";
 }
 
-void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
+void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition)
 {
-	build(builder, state, {});
+	build(builder, state, breakCondition, returnCondition, {});
 }
 
-void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args)
+void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args)
 {
+	state.addOperands(breakCondition);
+	state.addOperands(returnCondition);
 	state.addOperands(args);
 
 	auto insertionPoint = builder.saveInsertionPoint();
@@ -295,22 +297,29 @@ void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 	// Body block
 	builder.createBlock(state.addRegion(), {}, args.getTypes());
 
-	// Exit block (for break operation)
-	builder.createBlock(state.addRegion());
-	builder.create<YieldOp>(state.location);
-
 	builder.restoreInsertionPoint(insertionPoint);
 }
 
 void ForOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "for (" << getOperands() << ")";
+	printer << "for (break on " << breakCondition() << ", return on " << returnCondition() << ")";
+
+	auto operands = getOperands();
+
+	if (operands.size() > 2)
+	{
+		auto operandsBegin = operands.begin();
+		operandsBegin += 2;
+		printer << " ";
+		printer.printOperands(operandsBegin, operands.end());
+	}
+
 	printer << " condition";
 	printer.printRegion(condition(), true);
-	printer << " step";
-	printer.printRegion(step(), true);
 	printer << " body";
 	printer.printRegion(body(), true);
+	printer << " step";
+	printer.printRegion(step(), true);
 }
 
 mlir::Region& ForOp::condition()
@@ -328,9 +337,19 @@ mlir::Region& ForOp::body()
 	return getOperation()->getRegion(2);
 }
 
-mlir::Region& ForOp::exit()
+mlir::Value ForOp::breakCondition()
 {
-	return getOperation()->getRegion(3);
+	return getOperand(0);
+}
+
+mlir::Value ForOp::returnCondition()
+{
+	return getOperand(1);
+}
+
+mlir::Operation::operand_range ForOp::args()
+{
+	return { std::next(getOperation()->operand_begin(), 2), getOperation()->operand_end()};
 }
 
 llvm::StringRef WhileOp::getOperationName()
@@ -338,8 +357,11 @@ llvm::StringRef WhileOp::getOperationName()
 	return "modelica.while";
 }
 
-void WhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
+void WhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition)
 {
+	state.addOperands(breakCondition);
+	state.addOperands(returnCondition);
+
 	auto insertionPoint = builder.saveInsertionPoint();
 
 	// Condition block
@@ -348,16 +370,12 @@ void WhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 	// Body block
 	builder.createBlock(state.addRegion());
 
-	// Exit block (for break operation)
-	builder.createBlock(state.addRegion());
-	builder.create<YieldOp>(state.location);
-
 	builder.restoreInsertionPoint(insertionPoint);
 }
 
 void WhileOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "while";
+	printer << "while (break on " << breakCondition() << ", return on " << returnCondition() << ")";
 	printer.printRegion(condition(), false);
 	printer << " do";
 	printer.printRegion(body(), false);
@@ -373,9 +391,14 @@ mlir::Region& WhileOp::body()
 	return getOperation()->getRegion(1);
 }
 
-mlir::Region& WhileOp::exit()
+mlir::Value WhileOp::breakCondition()
 {
-	return getOperation()->getRegion(2);
+	return getOperand(0);
+}
+
+mlir::Value WhileOp::returnCondition()
+{
+	return getOperand(1);
 }
 
 llvm::StringRef ConditionOp::getOperationName()
@@ -407,6 +430,11 @@ mlir::Value ConditionOp::condition()
 	return getOperand(0);
 }
 
+mlir::Operation::operand_range ConditionOp::args()
+{
+	return { std::next(getOperation()->operand_begin()), getOperation()->operand_end()};
+}
+
 llvm::StringRef YieldOp::getOperationName()
 {
 	return "modelica.yield";
@@ -424,20 +452,5 @@ void YieldOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 
 void YieldOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "yield " << getOperands();
-}
-
-llvm::StringRef BreakOp::getOperationName()
-{
-	return "modelica.break";
-}
-
-void BreakOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Block* successor)
-{
-	state.addSuccessors(successor);
-}
-
-void BreakOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "break";
+	printer << "modelica.yield " << getOperands();
 }

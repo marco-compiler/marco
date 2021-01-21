@@ -27,34 +27,4 @@ namespace modelica
 			return mlir::success();
 		}
 	};
-
-	/**
-	 * Trait for the BreakableLoop interface.
-	 */
-	struct BreakableLoopTrait {
-		struct Concept {
-			virtual mlir::Region& exit(mlir::Operation* operation) const = 0;
-		};
-
-		template<typename ConcreteOp>
-		struct Model : public Concept {
-			mlir::Region& exit(mlir::Operation* operation) const final {
-				return llvm::cast<ConcreteOp>(operation).exit();
-			}
-		};
-	};
-
-	/**
-	 * A breakable loop is a loop that can accept a break operation inside its
-	 * body and thus stop its execution earlier.
-	 */
-	class BreakableLoop : public mlir::OpInterface<BreakableLoop, BreakableLoopTrait> {
-		public:
-		using OpInterface<BreakableLoop, BreakableLoopTrait>::OpInterface;
-
-		mlir::Region& exit() {
-			return getImpl()->exit(getOperation());
-		}
-	};
-
 }

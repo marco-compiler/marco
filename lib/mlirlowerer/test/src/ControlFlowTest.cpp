@@ -4,6 +4,8 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/frontend/Member.hpp>
+#include <modelica/mlirlowerer/BreakRemover.hpp>
+#include <modelica/mlirlowerer/ReturnRemover.hpp>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/Runner.hpp>
 #include <modelica/utils/SourceRange.hpp>
@@ -318,11 +320,14 @@ TEST(WhileOp, validLoop)	 // NOLINT
 	 * function main
 	 *   input Integer x;
 	 *   output Integer y;
+	 *   protected
+	 *     Integer i;
 	 *   algorithm
 	 *     y := 0;
-	 *     while x > 0 loop
+	 *     i := 0;
+	 *     while i < x loop
 	 *       y := y + x;
-	 *       x := x - 1;
+	 *       i := i + 1;
 	 *     end while;
 	 * end main
 	 */
@@ -331,31 +336,35 @@ TEST(WhileOp, validLoop)	 // NOLINT
 
 	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-
-	Expression condition = Expression::operation(
-			location,
-			makeType<BuiltInType::Boolean>(),
-			OperationKind::greater,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
+	Member iMember(location, "i", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::none));
 
 	Expression xRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "x");
 	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
+	Expression iRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "i");
+
+	Expression condition = Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::less, iRef, xRef);
 
 	Statement whileStatement = WhileStatement(location, condition, {
 			AssignmentStatement(location, yRef, Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add, yRef, xRef)),
-			AssignmentStatement(location, xRef, Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subtract, xRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)))
+			AssignmentStatement(location, iRef, Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add, iRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)))
 	});
 
 	Algorithm algorithm = Algorithm(location, {
+			AssignmentStatement(location, iRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
 			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
 			whileStatement
 	});
 
 	ClassContainer cls(Function(
 			location, "main", true,
-			{ xMember, yMember },
+			{ xMember, yMember, iMember },
 			algorithm));
+
+	BreakRemover breakRemover;
+	breakRemover.fix(cls);
+
+	ReturnRemover returnRemover;
+	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
@@ -365,7 +374,7 @@ TEST(WhileOp, validLoop)	 // NOLINT
 	int x = 10;
 	int y = 0;
 	runner.run("main", x, y);
-	EXPECT_EQ(y, 55);
+	EXPECT_EQ(y, 100);
 }
 
 TEST(WhileOp, notExecutedLoop)	 // NOLINT
@@ -402,6 +411,12 @@ TEST(WhileOp, notExecutedLoop)	 // NOLINT
 			location, "main", true,
 			{ yMember },
 			algorithm));
+
+	BreakRemover breakRemover;
+	breakRemover.fix(cls);
+
+	ReturnRemover returnRemover;
+	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
@@ -456,6 +471,12 @@ TEST(BreakOp, nestedWhile)	 // NOLINT
 			{ yMember },
 			algorithm));
 
+	BreakRemover breakRemover;
+	breakRemover.fix(cls);
+
+	ReturnRemover returnRemover;
+	returnRemover.fix(cls);
+
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
@@ -500,6 +521,12 @@ TEST(BreakOp, breakAsLastOpInWhile)	 // NOLINT
 			location, "main", true,
 			{ yMember },
 			algorithm));
+
+	BreakRemover breakRemover;
+	breakRemover.fix(cls);
+
+	ReturnRemover returnRemover;
+	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
@@ -565,6 +592,12 @@ TEST(BreakOp, breakNestedInWhile)	 // NOLINT
 			{ yMember },
 			algorithm));
 
+	BreakRemover breakRemover;
+	breakRemover.fix(cls);
+
+	ReturnRemover returnRemover;
+	returnRemover.fix(cls);
+
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
@@ -616,6 +649,12 @@ TEST(BreakOp, breakAsLastOpInFor)	 // NOLINT
 			location, "main", true,
 			{ yMember },
 			algorithm));
+
+	BreakRemover breakRemover;
+	breakRemover.fix(cls);
+
+	ReturnRemover returnRemover;
+	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
@@ -682,6 +721,12 @@ TEST(BreakOp, breakNestedInFor)	 // NOLINT
 			{ yMember },
 			algorithm));
 
+	BreakRemover breakRemover;
+	breakRemover.fix(cls);
+
+	ReturnRemover returnRemover;
+	returnRemover.fix(cls);
+
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
@@ -722,6 +767,12 @@ TEST(ReturnOp, earlyReturn)	 // NOLINT
 			location, "main", true,
 			{ yMember },
 			algorithm));
+
+	BreakRemover breakRemover;
+	breakRemover.fix(cls);
+
+	ReturnRemover returnRemover;
+	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context, false);

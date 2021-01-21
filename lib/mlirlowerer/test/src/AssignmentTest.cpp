@@ -76,8 +76,6 @@ TEST(Assignment, variableCopy)	 // NOLINT
 
 TEST(Assignment, arrayCopy)	 // NOLINT
 {
-	//llvm::DebugFlag = true;
-
 	/**
 	 * function main
 	 *   input Integer[2] x;
@@ -105,25 +103,15 @@ TEST(Assignment, arrayCopy)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-
 	Runner runner(&context, module);
 
 	array<int, 2> x = { 23, 57 };
-	int* xBufferPtr = x.data();
-	int* xAlignedPtr = x.data();
-	long xOffset = 0;
-	long xSize = 2;
-	long xStride = 1;
+	int* xPtr = x.data();
 
 	array<int, 2> y = { 0, 0 };
-	int* yBufferPtr = y.data();
-	int* yAlignedPtr = y.data();
-	long yOffset = 0;
-	long ySize = 2;
-	long yStride = 1;
+	int* yPtr = y.data();
 
-	runner.run("main", xBufferPtr, xAlignedPtr, xOffset, xSize, xStride, yBufferPtr, yAlignedPtr, yOffset, ySize, yStride);
+	runner.run("main", xPtr, yPtr);
 
 	EXPECT_EQ(y[0], x[0]);
 	EXPECT_EQ(y[1], x[1]);

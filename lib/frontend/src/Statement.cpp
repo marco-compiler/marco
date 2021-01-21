@@ -142,7 +142,9 @@ ForStatement::ForStatement(
 
 ForStatement::ForStatement(const ForStatement& other)
 		: location(other.location),
-			induction(other.induction)
+			induction(other.induction),
+			breakCheckName(other.breakCheckName),
+			returnCheckName(other.returnCheckName)
 {
 	statements.clear();
 
@@ -158,6 +160,8 @@ ForStatement& ForStatement::operator=(const ForStatement& other)
 	location = other.location;
 	induction = other.induction;
 	statements.clear();
+	breakCheckName = other.breakCheckName;
+	returnCheckName = other.returnCheckName;
 
 	for (const auto& statement : other.statements)
 		statements.push_back(std::make_unique<Statement>(*statement));
@@ -195,6 +199,26 @@ void ForStatement::dump(raw_ostream& os, size_t indents) const
 SourcePosition ForStatement::getLocation() const
 {
 	return location;
+}
+
+const string& ForStatement::getBreakCheckName() const
+{
+	return breakCheckName;
+}
+
+void ForStatement::setBreakCheckName(string name)
+{
+	this->breakCheckName = name;
+}
+
+const string& ForStatement::getReturnCheckName() const
+{
+	return returnCheckName;
+}
+
+void ForStatement::setReturnCheckName(string name)
+{
+	this->returnCheckName = name;
 }
 
 Induction& ForStatement::getInduction() { return induction; }
@@ -241,6 +265,26 @@ SourcePosition WhileStatement::getLocation() const
 	return location;
 }
 
+const string& WhileStatement::getBreakCheckName() const
+{
+	return breakCheckName;
+}
+
+void WhileStatement::setBreakCheckName(string name)
+{
+	this->breakCheckName = name;
+}
+
+const string& WhileStatement::getReturnCheckName() const
+{
+	return returnCheckName;
+}
+
+void WhileStatement::setReturnCheckName(string name)
+{
+	this->returnCheckName = name;
+}
+
 WhenStatement::WhenStatement(
 		SourcePosition location, Expression condition, llvm::ArrayRef<Statement> body)
 		: ConditionalBlock<Statement>(move(condition), move(body)),
@@ -277,6 +321,16 @@ SourcePosition BreakStatement::getLocation() const
 	return location;
 }
 
+const string& BreakStatement::getBreakCheckName() const
+{
+	return breakCheckName;
+}
+
+void BreakStatement::setBreakCheckName(string name)
+{
+	this->breakCheckName = name;
+}
+
 ReturnStatement::ReturnStatement(SourcePosition location)
 		: location(move(location))
 {
@@ -293,6 +347,16 @@ void ReturnStatement::dump(raw_ostream& os, size_t indents) const
 SourcePosition ReturnStatement::getLocation() const
 {
 	return location;
+}
+
+const string& ReturnStatement::getReturnCheckName() const
+{
+	return returnCheckName;
+}
+
+void ReturnStatement::setReturnCheckName(string name)
+{
+	this->returnCheckName = name;
 }
 
 Statement::Statement(AssignmentStatement statement)

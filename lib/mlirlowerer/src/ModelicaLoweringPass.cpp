@@ -1,7 +1,7 @@
 #include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
 #include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
-#include <modelica/mlirlowerer/ModelicaToStandard.hpp>
+#include <modelica/mlirlowerer/ModelicaLoweringPass.hpp>
 
 using namespace mlir;
 using namespace modelica;
@@ -306,48 +306,28 @@ LogicalResult LteOpLowering::matchAndRewrite(LteOp op, PatternRewriter& rewriter
 
 LogicalResult IfOpLowering::matchAndRewrite(IfOp op, PatternRewriter& rewriter) const
 {
-	auto loc = op.getLoc();
+	bool hasElseBlock = !op.elseRegion().empty();
 
-	// Split the current block
-	auto* currentBlock = rewriter.getInsertionBlock();
-	auto* continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
-
-	// "Then" region
-	auto& thenRegion = op.thenRegion();
-	auto* thenBlock = &thenRegion.front();
-	auto thenYieldOp = dyn_cast<YieldOp>(thenRegion.back().getTerminator());
-
-	// We need to check if it is effectively a YieldOp, because the block may
-	// terminate with a break if the if is inside a loop.
-	if (thenYieldOp)
+	auto thenBuilder = [&](mlir::OpBuilder& builder, mlir::Location location)
 	{
-		rewriter.setInsertionPointToEnd(&thenRegion.back());
-		rewriter.replaceOpWithNewOp<BranchOp>(thenYieldOp, continuation);
-	}
+		rewriter.mergeBlocks(&op.thenRegion().front(), rewriter.getInsertionBlock());
+	};
 
-	rewriter.inlineRegionBefore(thenRegion, continuation);
-
-	// "Else" region
-	auto &elseRegion = op.elseRegion();
-	auto* elseBlock = continuation;
-
-	if (!elseRegion.empty())
+	if (hasElseBlock)
 	{
-		elseBlock = &elseRegion.front();
-		auto elseYieldOp = dyn_cast<YieldOp>(elseRegion.back().getTerminator());
-
-		if (elseYieldOp)
-		{
-			rewriter.setInsertionPointToEnd(&elseRegion.back());
-			rewriter.replaceOpWithNewOp<BranchOp>(elseYieldOp, continuation);
-		}
-
-		rewriter.inlineRegionBefore(elseRegion, continuation);
+		auto ifOp = rewriter.create<scf::IfOp>(
+				op.getLoc(), TypeRange(), op.condition(), thenBuilder,
+				[&](mlir::OpBuilder& builder, mlir::Location location)
+				{
+					rewriter.mergeBlocks(&op.elseRegion().front(), builder.getInsertionBlock());
+				});
+		ifOp.dump();
 	}
-
-	// Branch selection
-	rewriter.setInsertionPointToEnd(currentBlock);
-	rewriter.create<CondBranchOp>(loc, op.condition(), thenBlock, elseBlock);
+	else
+	{
+		auto ifOp = rewriter.create<scf::IfOp>(op.getLoc(), TypeRange(), op.condition(), thenBuilder, nullptr);
+		ifOp.dump();
+	}
 
 	rewriter.eraseOp(op);
 	return success();
@@ -362,65 +342,64 @@ LogicalResult ForOpLowering::matchAndRewrite(ForOp op, PatternRewriter& rewriter
 	Block* continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
 
 	// Inline regions
-	Block* condition = &op.condition().front();
-	Block* conditionLast = &op.condition().back();
+	Block* conditionBlock = &op.condition().front();
+	Block* bodyBlock = &op.body().front();
+	Block* stepBlock = &op.step().front();
 
-	Block* body = &op.body().front();
-	Block* bodyLast = &op.body().back();
+	rewriter.inlineRegionBefore(op.step(), continuation);
+	rewriter.inlineRegionBefore(op.body(), stepBlock);
+	rewriter.inlineRegionBefore(op.condition(), bodyBlock);
 
-	Block* step = &op.step().front();
-	Block* stepLast = &op.step().back();
+	// Start the for loop by branching to the "condition" region
+	rewriter.setInsertionPointToEnd(currentBlock);
+	rewriter.create<BranchOp>(location, conditionBlock, op.args());
 
-	Block* exit = &op.exit().front();
+	// The loop is supposed to be breakable. Thus, before checking the normal
+	// condition, we first need to check if the break condition variable has
+	// been set to true in the previous loop execution. If it is set to true,
+	// it means that a break statement has been executed and thus the loop
+	// must be terminated.
 
-	rewriter.inlineRegionBefore(op.exit(), continuation);
-	rewriter.inlineRegionBefore(op.step(), exit);
-	rewriter.inlineRegionBefore(op.body(), step);
-	rewriter.inlineRegionBefore(op.condition(), body);
+	rewriter.setInsertionPointToStart(conditionBlock);
 
-	{
-		// Start the for loop by branching to the "condition" region
-		rewriter.setInsertionPointToEnd(currentBlock);
-		rewriter.create<BranchOp>(location, condition, op.getOperands());
-	}
+	mlir::Value breakCondition = rewriter.create<LoadOp>(location, op.breakCondition());
+	mlir::Value returnCondition = rewriter.create<LoadOp>(location, op.returnCondition());
+	mlir::Value stopCondition = rewriter.create<OrOp>(location, breakCondition, returnCondition);
 
-	{
-		// Branch to the loop body if the condition is satisfied
-		rewriter.setInsertionPointToEnd(conditionLast);
-		auto conditionOp = dyn_cast<ConditionOp>(conditionLast->getTerminator());
+	mlir::Value trueValue = rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(true));
+	mlir::Value condition = rewriter.create<EqOp>(location, stopCondition, trueValue);
 
-		llvm::SmallVector<mlir::Value, 3> args;
+	auto ifOp = rewriter.create<scf::IfOp>(location, rewriter.getI1Type(), condition, true);
+	Block* originalCondition = rewriter.splitBlock(conditionBlock, rewriter.getInsertionPoint());
 
-		for (size_t i = 1; i < conditionOp->getNumOperands(); i++)
-			args.push_back(conditionOp.getOperand(i));
+	// If the break condition variable is set to true, return false from the
+	// condition block in order to stop the loop execution.
+	rewriter.setInsertionPointToStart(&ifOp.thenRegion().front());
+	mlir::Value falseValue = rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(false));
+	rewriter.create<scf::YieldOp>(location, falseValue);
 
-		rewriter.replaceOpWithNewOp<CondBranchOp>(conditionOp, conditionOp.getOperand(0), body, args, exit, ValueRange());
-	}
+	// Move the original condition check in the "else" branch
+	rewriter.mergeBlocks(originalCondition, &ifOp.elseRegion().front());
+	rewriter.setInsertionPointToEnd(&ifOp.elseRegion().front());
+	auto conditionOp = cast<ConditionOp>(ifOp.elseRegion().front().getTerminator());
+	rewriter.replaceOpWithNewOp<scf::YieldOp>(conditionOp, conditionOp.getOperand(0));
 
-	{
-		// Replace "body" block terminator with a branch to the "step" block
-		rewriter.setInsertionPointToEnd(bodyLast);
-		auto yieldOp = dyn_cast<YieldOp>(bodyLast->getTerminator());
+	// The original condition operation is converted to the SCF one and takes
+	// as condition argument the result of the If operation, which is false
+	// if a break must be executed or the intended condition value otherwise.
+	rewriter.setInsertionPointAfter(ifOp);
+	rewriter.create<CondBranchOp>(location, ifOp.getResult(0),
+			bodyBlock, conditionOp.args(), continuation, ValueRange());
 
-		// We need to check if it is effectively a YieldOp, because the body may
-		// terminate with a break.
-		if (yieldOp)
-			rewriter.replaceOpWithNewOp<BranchOp>(yieldOp, step, yieldOp->getOperands());
-	}
+	// Replace "body" block terminator with a branch to the "step" block
+	rewriter.setInsertionPointToEnd(bodyBlock);
+	auto bodyYieldOp = cast<YieldOp>(bodyBlock->getTerminator());
+	rewriter.replaceOpWithNewOp<BranchOp>(bodyYieldOp, stepBlock, bodyYieldOp->getOperands());
 
-	{
-		// Branch to the condition check after incrementing the induction variable
-		rewriter.setInsertionPointToEnd(stepLast);
-		auto yieldOp = dyn_cast<YieldOp>(stepLast->getTerminator());
-		rewriter.replaceOpWithNewOp<BranchOp>(yieldOp, condition, yieldOp->getOperands());
-	}
-
-	{
-		// Replace "exit" block terminator with a branch to the continuation block after the For operation
-		rewriter.setInsertionPointToEnd(exit);
-		auto yieldOp = cast<YieldOp>(exit->getTerminator());
-		rewriter.replaceOpWithNewOp<BranchOp>(yieldOp, continuation);
-	}
+	// Branch to the condition check after incrementing the induction variable
+	rewriter.setInsertionPointToEnd(stepBlock);
+	auto stepYieldOp = cast<YieldOp>(stepBlock->getTerminator());
+	rewriter.replaceOpWithNewOp<BranchOp>(stepYieldOp, conditionBlock, stepYieldOp->getOperands());
 
 	rewriter.eraseOp(op);
 	return success();
@@ -428,46 +407,54 @@ LogicalResult ForOpLowering::matchAndRewrite(ForOp op, PatternRewriter& rewriter
 
 LogicalResult WhileOpLowering::matchAndRewrite(WhileOp op, PatternRewriter& rewriter) const
 {
-	OpBuilder::InsertionGuard guard(rewriter);
 	Location location = op.getLoc();
+	auto whileOp = rewriter.create<scf::WhileOp>(location, TypeRange(), ValueRange());
 
-	// Split the current block
-	Block *currentBlock = rewriter.getInsertionBlock();
-	Block *continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
+	// The body block requires no modification apart from the change of the
+	// terminator to the SCF dialect one.
 
-	// Inline regions
-	Block *exit = &op.exit().front();
-	Block *body = &op.body().front();
-	Block *bodyLast = &op.body().back();
-	Block *condition = &op.condition().front();
-	Block *conditionLast = &op.condition().back();
+	rewriter.createBlock(&whileOp.after());
+	rewriter.mergeBlocks(&op.body().front(), &whileOp.after().front());
+	mlir::Block* body = &whileOp.after().front();
+	auto bodyTerminator = cast<YieldOp>(body->getTerminator());
+	rewriter.setInsertionPointToEnd(body);
+	rewriter.replaceOpWithNewOp<scf::YieldOp>(bodyTerminator, bodyTerminator.getOperands());
 
-	rewriter.inlineRegionBefore(op.exit(), continuation);
-	rewriter.inlineRegionBefore(op.body(), exit);
-	rewriter.inlineRegionBefore(op.condition(), body);
+	// The loop is supposed to be breakable. Thus, before checking the normal
+	// condition, we first need to check if the break condition variable has
+	// been set to true in the previous loop execution. If it is set to true,
+	// it means that a break statement has been executed and thus the loop
+	// must be terminated.
 
-	// Branch to the "condition" region
-	rewriter.setInsertionPointToEnd(currentBlock);
-	rewriter.create<BranchOp>(location, condition);
+	rewriter.createBlock(&whileOp.before());
+	rewriter.setInsertionPointToStart(&whileOp.before().front());
 
-	// Replace "condition" block terminator with branch
-	rewriter.setInsertionPointToEnd(conditionLast);
-	auto condOp = cast<ConditionOp>(conditionLast->getTerminator());
-	rewriter.replaceOpWithNewOp<CondBranchOp>(condOp, condOp.condition(), body, exit);
+	mlir::Value breakCondition = rewriter.create<LoadOp>(location, op.breakCondition());
+	mlir::Value returnCondition = rewriter.create<LoadOp>(location, op.returnCondition());
+	mlir::Value stopCondition = rewriter.create<OrOp>(location, breakCondition, returnCondition);
 
-	// Replace "body" block terminator with branch
-	rewriter.setInsertionPointToEnd(bodyLast);
-	auto bodyYieldOp = dyn_cast<YieldOp>(bodyLast->getTerminator());
+	mlir::Value trueValue = rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(true));
+	mlir::Value condition = rewriter.create<EqOp>(location, stopCondition, trueValue);
 
-	// We need to check if it is effectively a YieldOp, because the body may
-	// terminate with a break.
-	if (bodyYieldOp)
-		rewriter.replaceOpWithNewOp<BranchOp>(bodyYieldOp, condition);
+	auto ifOp = rewriter.create<scf::IfOp>(location, rewriter.getI1Type(), condition, true);
 
-	// Replace "exit" block terminator with branch
-	rewriter.setInsertionPointToEnd(exit);
-	auto exitYieldOp = cast<YieldOp>(exit->getTerminator());
-	rewriter.replaceOpWithNewOp<BranchOp>(exitYieldOp, continuation);
+	// If the break condition variable is set to true, return false from the
+	// condition block in order to stop the loop execution.
+	rewriter.setInsertionPointToStart(&ifOp.thenRegion().front());
+	mlir::Value falseValue = rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(false));
+	rewriter.create<scf::YieldOp>(location, falseValue);
+
+	// Move the original condition check in the "else" branch
+	rewriter.mergeBlocks(&op.condition().front(), &ifOp.elseRegion().front());
+	rewriter.setInsertionPointToEnd(&ifOp.elseRegion().front());
+	auto conditionOp = cast<ConditionOp>(ifOp.elseRegion().front().getTerminator());
+	rewriter.replaceOpWithNewOp<scf::YieldOp>(conditionOp, conditionOp.getOperand(0));
+
+	// The original condition operation is converted to the SCF one and takes
+	// as condition argument the result of the If operation, which is false
+	// if a break must be executed or the intended condition value otherwise.
+	rewriter.setInsertionPointAfter(ifOp);
+	rewriter.create<scf::ConditionOp>(location, ifOp.getResult(0), conditionOp.args());
 
 	rewriter.eraseOp(op);
 	return success();
@@ -475,29 +462,11 @@ LogicalResult WhileOpLowering::matchAndRewrite(WhileOp op, PatternRewriter& rewr
 
 LogicalResult YieldOpLowering::matchAndRewrite(YieldOp op, PatternRewriter& rewriter) const
 {
-	// The YieldOp is supposed to be converted by the parent loop lowerer,
-	// which knows the structure of the control flow. In this sense, the
-	// lowering process should not reach a point where it needs to invoke this
-	// method.
-	return failure();
-}
-
-LogicalResult ConditionOpLowering::matchAndRewrite(ConditionOp op, PatternRewriter& rewriter) const
-{
-	// The ConditionOp is supposed to be converted by the parent loop lowerer,
-	// which knows the structure of the control flow. In this sense, the
-	// lowering process should not reach a point where it needs to invoke this
-	// method.
-	return failure();
-}
-
-LogicalResult BreakOpLowering::matchAndRewrite(BreakOp op, PatternRewriter& rewriter) const
-{
-	rewriter.replaceOpWithNewOp<BranchOp>(op, op->getSuccessor(0));
+	rewriter.replaceOpWithNewOp<scf::YieldOp>(op, op.getOperands());
 	return success();
 }
 
-void ModelicaToStandardLoweringPass::runOnOperation()
+void ModelicaLoweringPass::runOnOperation()
 {
 	auto module = getOperation();
 	ConversionTarget target(getContext());
@@ -512,16 +481,17 @@ void ModelicaToStandardLoweringPass::runOnOperation()
 
 	// Provide the set of patterns that will lower the Modelica operations
 	mlir::OwningRewritePatternList patterns;
-	populateModelicaToStdConversionPatterns(patterns, &getContext());
+	populateModelicaConversionPatterns(patterns, &getContext());
+	populateLoopToStdConversionPatterns(patterns, &getContext());
 
 	// With the target and rewrite patterns defined, we can now attempt the
 	// conversion. The conversion will signal failure if any of our "illegal"
 	// operations were not converted successfully.
-	if (failed(applyPartialConversion(module, target, move(patterns))))
+	if (failed(applyFullConversion(module, target, move(patterns))))
 		signalPassFailure();
 }
 
-void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
+void modelica::populateModelicaConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
 {
 	// Generic operations
 	patterns.insert<MemCopyOpLowering>(context);
@@ -545,12 +515,10 @@ void modelica::populateModelicaToStdConversionPatterns(OwningRewritePatternList&
 	patterns.insert<IfOpLowering>(context);
 	patterns.insert<ForOpLowering>(context);
 	patterns.insert<WhileOpLowering>(context);
-	patterns.insert<ConditionOpLowering>(context);
 	patterns.insert<YieldOpLowering>(context);
-	patterns.insert<BreakOpLowering>(context);
 }
 
-std::unique_ptr<mlir::Pass> modelica::createModelicaToStdPass()
+std::unique_ptr<mlir::Pass> modelica::createModelicaLoweringPass()
 {
-	return std::make_unique<ModelicaToStandardLoweringPass>();
+	return std::make_unique<ModelicaLoweringPass>();
 }

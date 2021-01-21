@@ -99,42 +99,30 @@ namespace modelica
 		mlir::LogicalResult matchAndRewrite(WhileOp op, mlir::PatternRewriter& rewriter) const final;
 	};
 
-	class ConditionOpLowering : public mlir::OpRewritePattern<ConditionOp>
-	{
-		using mlir::OpRewritePattern<ConditionOp>::OpRewritePattern;
-		mlir::LogicalResult matchAndRewrite(ConditionOp op, mlir::PatternRewriter& rewriter) const final;
-	};
-
 	class YieldOpLowering : public mlir::OpRewritePattern<YieldOp>
 	{
 		using mlir::OpRewritePattern<YieldOp>::OpRewritePattern;
 		mlir::LogicalResult matchAndRewrite(YieldOp op, mlir::PatternRewriter& rewriter) const final;
 	};
 
-	class BreakOpLowering : public mlir::OpRewritePattern<BreakOp>
-	{
-		using mlir::OpRewritePattern<BreakOp>::OpRewritePattern;
-		mlir::LogicalResult matchAndRewrite(BreakOp op, mlir::PatternRewriter& rewriter) const final;
-	};
-
-	class ModelicaToStandardLoweringPass : public mlir::PassWrapper<ModelicaToStandardLoweringPass, mlir::OperationPass<mlir::ModuleOp>> {
+	class ModelicaLoweringPass : public mlir::PassWrapper<ModelicaLoweringPass, mlir::OperationPass<mlir::ModuleOp>> {
 		public:
 		void runOnOperation() final;
 	};
 
 	/**
 	 * Collect a set of patterns to lower from Modelica operations to operations
-	 * within the Standard dialect.
+	 * within the Standard and Linalg dialects.
 	 *
 	 * @param patterns patterns list to populate
 	 * @param context	 MLIR context
 	 */
-	void populateModelicaToStdConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context);
+	void populateModelicaConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context);
 
 	/**
-	 * Create a pass to convert Modelica operations to Standard ones.
+	 * Create a pass to convert Modelica operations to Standard and Linalg ones.
 	 *
 	 * @return pass
 	 */
-	std::unique_ptr<mlir::Pass> createModelicaToStdPass();
+	std::unique_ptr<mlir::Pass> createModelicaLoweringPass();
 }

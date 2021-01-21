@@ -25,25 +25,24 @@ namespace modelica
 		public:
 		Reference();
 
-		template<typename... Ts>
-		Reference(mlir::OpBuilder& builder, mlir::Value value, bool isPointer, Ts... indexes)
-				: builder(&builder),
-					value(std::move(value)),
-					isPtr(isPointer),
-					indexes({ indexes... })
-		{
-		}
-
 		[[nodiscard]] mlir::Value operator*();
 
-		[[nodiscard]] mlir::Value getValue() const;
+		[[nodiscard]] mlir::Value getReference() const;
 		[[nodiscard]] mlir::ValueRange getIndexes() const;
 
+		[[nodiscard]] static Reference ssa(mlir::OpBuilder* builder, mlir::Value value);
+		[[nodiscard]] static Reference memref(mlir::OpBuilder* builder, mlir::Value value, llvm::ArrayRef<mlir::Value> indexes = {});
+
 		private:
+		Reference(mlir::OpBuilder* builder,
+							mlir::Value value,
+							llvm::ArrayRef<mlir::Value> indexes,
+							std::function<mlir::Value(mlir::OpBuilder*, mlir::Value, llvm::ArrayRef<mlir::Value>)> reader);
+
 		mlir::OpBuilder* builder;
 		mlir::Value value;
-		bool isPtr;
 		llvm::SmallVector<mlir::Value, 3> indexes;
+		std::function<mlir::Value(mlir::OpBuilder* builder, mlir::Value ref, llvm::ArrayRef<mlir::Value>)> reader;
 	};
 
 	class MlirLowerer
