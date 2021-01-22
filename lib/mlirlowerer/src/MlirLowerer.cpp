@@ -24,6 +24,7 @@ mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, m
 	passManager.addNestedPass<FuncOp>(createConvertLinalgToLoopsPass());
 	passManager.addPass(createLowerToCFGPass());
 	passManager.addNestedPass<FuncOp>(createMemRefDataFlowOptPass());
+	//passManager.addPass(createConvertLinalgToLLVMPass());
 
 	LowerToLLVMOptions llvmLoweringOptions;
 	llvmLoweringOptions.useBarePtrCallConv = true;
@@ -90,6 +91,7 @@ MlirLowerer::MlirLowerer(mlir::MLIRContext& context, bool x64)
 	context.loadDialect<ModelicaDialect>();
 	context.loadDialect<StandardOpsDialect>();
 	context.loadDialect<scf::SCFDialect>();
+	context.loadDialect<linalg::LinalgDialect>();
 	context.loadDialect<LLVM::LLVMDialect>();
 
 	if (x64)
@@ -240,6 +242,82 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	// Lower the statements
 	lower(foo.getAlgorithms()[0]);
 
+	/*
+	mlir::Value memref = builder.create<AllocaOp>(location, MemRefType::get({5, 3}, builder.getI32Type()));
+
+	for (int i = 0; i < 5; i++)
+		for (int j = 0; j < 3; j++)
+		{
+			SmallVector<mlir::Value, 3> index;
+			index.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(i)));
+			index.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(j)));
+			mlir::Value val = builder.create<ConstantOp>(location, builder.getI32IntegerAttr(i * 3 + j));
+			builder.create<StoreOp>(location, val, memref, index);
+		}
+
+	SmallVector<int64_t, 3> staticOffsets;
+	staticOffsets.push_back(2);
+	staticOffsets.push_back(0);
+
+	SmallVector<int64_t, 3> staticSizes;
+	staticSizes.push_back(1);
+	staticSizes.push_back(3);
+
+	SmallVector<int64_t, 3> staticStrides;
+	staticStrides.push_back(1);
+	staticStrides.push_back(1);
+
+	SmallVector<mlir::Value, 3> offsets;
+	//offsets.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(0)));
+	//offsets.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(0)));
+
+	SmallVector<mlir::Value, 3> sizes;
+	//sizes.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(1)));
+	//sizes.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(3)));
+
+	SmallVector<mlir::Value, 3> strides;
+	//strides.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(1)));
+	//strides.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(1)));
+
+	mlir::Value shape = builder.create<AllocaOp>(location, MemRefType::get({ 1 }, builder.getIndexType()));
+	mlir::Value c3 = builder.create<ConstantOp>(location, builder.getIndexAttr(3));
+	mlir::Value c1 = builder.create<ConstantOp>(location, builder.getIndexAttr(1));
+	builder.create<StoreOp>(location, c3, shape, c1);
+	mlir::Value el = builder.create<SubViewOp>(location, memref, staticOffsets, staticSizes, staticStrides, offsets, sizes, strides);
+	mlir::Value reshape = builder.create<MemRefReshapeOp>(location, MemRefType::get({ 3 }, builder.getI32Type()), el, shape);
+	//mlir::Value el = builder.create<SubViewOp>(location, MemRefType::get({ 3 }, builder.getI32Type()), memref, staticOffsets, staticSizes, staticStrides, offsets, sizes, strides);
+	mlir::Value cst = builder.create<ConstantOp>(location, builder.getI32IntegerAttr(57));
+	//builder.create<StoreOp>(location, cst, el);
+	SmallVector<mlir::Value, 3> loadInd;
+	//loadInd.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(0)));
+	loadInd.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(1)));
+	//mlir::Value val = builder.create<LoadOp>(location, memref, loadInd);
+	mlir::Value val = builder.create<LoadOp>(location, el, loadInd);
+	builder.create<StoreOp>(location, val, symbolTable.lookup("y").getReference());
+	 */
+
+/*
+	mlir::Value c0 = builder.create<ConstantOp>(location, builder.getIndexAttr(0));
+	mlir::Value c2 = builder.create<ConstantOp>(location, builder.getIndexAttr(2));
+	mlir::Value c1 = builder.create<ConstantOp>(location, builder.getIndexAttr(1));
+
+	mlir::Value range = builder.create<linalg::RangeOp>(location, c0, c2, c1);
+
+	SmallVector<mlir::Value, 3> indexes;
+	indexes.push_back(c1);
+	indexes.push_back(c0);
+	mlir::Value slice = builder.create<linalg::SliceOp>(location, MemRefType::get({ }, builder.getI32Type()), memref, indexes);
+
+	mlir::Value cst = builder.create<ConstantOp>(location, builder.getI32IntegerAttr(57));
+	builder.create<StoreOp>(location, cst, slice);
+
+	SmallVector<mlir::Value, 3> loadInd;
+	loadInd.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(1)));
+	loadInd.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(0)));
+	mlir::Value val = builder.create<LoadOp>(location, memref, loadInd);
+	builder.create<StoreOp>(location, val, symbolTable.lookup("y").getReference());
+	 */
+
 	// Return statement
 	std::vector<mlir::Value> results;
 
@@ -362,6 +440,9 @@ void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
 		bool valueIsArray = false;
 		mlir::Type valueType = value.getReference().getType();
 
+		builder.create<AssignmentOp>(location, value.getReference(), value.getIndexes(), destination.getReference(), destination.getIndexes());
+
+/*
 		if (valueType.isa<MemRefType>())
 			if (valueType.cast<MemRefType>().getShape().size() != value.getIndexes().size())
 				valueIsArray = true;
@@ -370,6 +451,7 @@ void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
 			builder.create<MemCopyOp>(location, value.getReference(), destination.getReference());
 		else
 			builder.create<StoreOp>(location, *value, destination.getReference(), destination.getIndexes());
+*/
 	}
 }
 

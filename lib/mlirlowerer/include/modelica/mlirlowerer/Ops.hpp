@@ -9,15 +9,17 @@
 
 namespace modelica
 {
-	class MemCopyOp: public mlir::Op<MemCopyOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::SameTypeOperands> {
+	class AssignmentOp : public mlir::Op<AssignmentOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::VariadicOperands, mlir::OpTrait::SameTypeOperands> {
 		public:
 		using Op::Op;
 
 		static ::llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &odsBuilder, mlir::OperationState &odsState, mlir::Value source, mlir::Value destination);
+		static void build(mlir::OpBuilder &odsBuilder, mlir::OperationState &odsState, mlir::Value source, mlir::ValueRange sourceIndexes, mlir::Value destination, mlir::ValueRange destinationIndexes);
 		void print(mlir::OpAsmPrinter &p);
 		mlir::Value source();
 		mlir::Value destination();
+		mlir::Operation::operand_range sourceIndexes();
+		mlir::Operation::operand_range destinationIndexes();
 	};
 
 	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameOperandsAndResultType, mlir::OpTrait::IsInvolution>

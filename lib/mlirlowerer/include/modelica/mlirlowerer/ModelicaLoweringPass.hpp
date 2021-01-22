@@ -9,10 +9,10 @@
 
 namespace modelica
 {
-	class MemCopyOpLowering: public mlir::OpRewritePattern<MemCopyOp>
+	class AssignmentOpLowering: public mlir::OpRewritePattern<AssignmentOp>
 	{
-		using mlir::OpRewritePattern<MemCopyOp>::OpRewritePattern;
-		mlir::LogicalResult matchAndRewrite(MemCopyOp op, mlir::PatternRewriter& rewriter) const final;
+		using mlir::OpRewritePattern<AssignmentOp>::OpRewritePattern;
+		mlir::LogicalResult matchAndRewrite(AssignmentOp op, mlir::PatternRewriter& rewriter) const final;
 	};
 
 	class NegateOpLowering : public mlir::OpRewritePattern<NegateOp>

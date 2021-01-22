@@ -7,29 +7,47 @@
 using namespace modelica;
 using namespace std;
 
-llvm::StringRef MemCopyOp::getOperationName()
+llvm::StringRef AssignmentOp::getOperationName()
 {
-	return "modelica.memcopy";
+	return "modelica.assignment";
 }
 
-void MemCopyOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination)
+void AssignmentOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::ValueRange sourceIndexes, mlir::Value destination, mlir::ValueRange destinationIndexes)
 {
 	state.addOperands({ source, destination });
+
+	state.addAttribute("sourceIndexes", builder.getIndexAttr(sourceIndexes.size()));
+	state.addAttribute("destinationIndexes", builder.getIndexAttr(destinationIndexes.size()));
+
+	state.addOperands(sourceIndexes);
+	state.addOperands(destinationIndexes);
 }
 
-void MemCopyOp::print(mlir::OpAsmPrinter& printer)
+void AssignmentOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "copy " << getOperands();
+	printer << "store " << source() << "[" << sourceIndexes() << "], " << destination() << "[" << destinationIndexes() << "]";
 }
 
-mlir::Value MemCopyOp::source()
+mlir::Value AssignmentOp::source()
 {
 	return getOperand(0);
 }
 
-mlir::Value MemCopyOp::destination()
+mlir::Value AssignmentOp::destination()
 {
 	return getOperand(1);
+}
+
+mlir::Operation::operand_range AssignmentOp::sourceIndexes()
+{
+	size_t sourceIndexes = getAttr("sourceIndexes").cast<mlir::IntegerAttr>().getInt();
+	return { operand_begin() + 2, operand_begin() + 2 + sourceIndexes };
+}
+
+mlir::Operation::operand_range AssignmentOp::destinationIndexes()
+{
+	size_t sourceIndexes = getAttr("sourceIndexes").cast<mlir::IntegerAttr>().getInt();
+	return { operand_begin() + 2 + sourceIndexes, operand_end() };
 }
 
 llvm::StringRef NegateOp::getOperationName()

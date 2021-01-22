@@ -7,9 +7,83 @@ using namespace mlir;
 using namespace modelica;
 using namespace std;
 
-LogicalResult MemCopyOpLowering::matchAndRewrite(MemCopyOp op, PatternRewriter& rewriter) const
+LogicalResult AssignmentOpLowering::matchAndRewrite(AssignmentOp op, PatternRewriter& rewriter) const
 {
-	rewriter.replaceOpWithNewOp<linalg::CopyOp>(op, op.source(), op.destination());
+	auto location = op.getLoc();
+
+	mlir::Value source = op.source();
+	mlir::ValueRange sourceIndexes = op.sourceIndexes();
+	mlir::Type sourceType = source.getType();
+
+	mlir::Value destination = op.destination();
+	mlir::ValueRange destinationIndexes = op.destinationIndexes();
+	mlir::Type destinationType = destination.getType();
+
+	if (sourceType.isa<MemRefType>())
+	{
+		auto sourceMemRef = sourceType.cast<MemRefType>();
+		auto destinationMemRef = destinationType.cast<MemRefType>();
+		bool sourceIsArray = false;
+
+		if (sourceMemRef.getShape().size() == sourceIndexes.size())
+		{
+			mlir::Value value = rewriter.create<LoadOp>(location, source, sourceIndexes);
+			rewriter.replaceOpWithNewOp<StoreOp>(op, value, destination, destinationIndexes);
+		}
+		else
+		{
+			mlir::Value zeroValue = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(0));
+			mlir::Value oneValue = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(1));
+
+			SmallVector<mlir::Value, 3> sourceOffsets;
+			SmallVector<mlir::Value, 3> sourceSizes;
+			SmallVector<mlir::Value, 3> sourceStrides;
+
+			for (auto index : sourceIndexes)
+			{
+				sourceOffsets.push_back(index);
+				sourceSizes.push_back(oneValue);
+				sourceStrides.push_back(oneValue);
+			}
+
+			for (long i = sourceIndexes.size(); i < sourceMemRef.getRank(); i++)
+			{
+				sourceOffsets.push_back(zeroValue);
+				sourceSizes.push_back(rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(sourceMemRef.getDimSize(i))));
+				sourceStrides.push_back(oneValue);
+			}
+
+			mlir::Value sourceView = rewriter.create<SubViewOp>(location, source, sourceOffsets, sourceSizes, sourceStrides);
+
+			SmallVector<mlir::Value, 3> destinationOffsets;
+			SmallVector<mlir::Value, 3> destinationSizes;
+			SmallVector<mlir::Value, 3> destinationStrides;
+
+			for (auto index : destinationIndexes)
+			{
+				destinationOffsets.push_back(index);
+				destinationSizes.push_back(oneValue);
+				destinationStrides.push_back(oneValue);
+			}
+
+			for (long i = destinationIndexes.size(); i < destinationMemRef.getRank(); i++)
+			{
+				destinationOffsets.push_back(zeroValue);
+				destinationSizes.push_back(rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(destinationMemRef.getDimSize(i))));
+				destinationStrides.push_back(oneValue);
+			}
+
+			mlir::Value destinationView = rewriter.create<SubViewOp>(location, destination, destinationOffsets, destinationSizes, destinationStrides);
+
+			rewriter.create<linalg::CopyOp>(location, sourceView, destinationView);
+			rewriter.eraseOp(op);
+		}
+	}
+	else
+	{
+		rewriter.replaceOpWithNewOp<StoreOp>(op, source, destination, destinationIndexes);
+	}
+
 	return success();
 }
 
@@ -494,7 +568,7 @@ void ModelicaLoweringPass::runOnOperation()
 void modelica::populateModelicaConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
 {
 	// Generic operations
-	patterns.insert<MemCopyOpLowering>(context);
+	patterns.insert<AssignmentOpLowering>(context);
 
 	// Math operations
 	patterns.insert<NegateOpLowering>(context);

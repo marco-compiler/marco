@@ -74,6 +74,44 @@ TEST(Assignment, variableCopy)	 // NOLINT
 	EXPECT_EQ(y, x);
 }
 
+TEST(Assignment, arraySliceAssignment)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[2] x;
+	 *   output Integer[3,2] y;
+	 *   algorithm
+	 *     y := x;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context, false);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	module->dump();
+
+	Runner runner(&context, module);
+	int x = 57;
+	int y = 0;
+	runner.run("main", x, y);
+	EXPECT_EQ(y, x);
+}
+
 TEST(Assignment, arrayCopy)	 // NOLINT
 {
 	/**

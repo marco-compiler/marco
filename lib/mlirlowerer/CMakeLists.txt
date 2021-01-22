@@ -15,6 +15,7 @@ target_link_libraries(
         MLIRIR
         MLIRLinalg
         MLIRLinalgToStandard
+        MLIRLinalgToLLVM
         MLIROpenMP
         MLIROpenMPToLLVM
         MLIRSCF
