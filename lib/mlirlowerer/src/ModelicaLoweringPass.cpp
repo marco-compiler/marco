@@ -35,45 +35,75 @@ LogicalResult AssignmentOpLowering::matchAndRewrite(AssignmentOp op, PatternRewr
 			mlir::Value zeroValue = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(0));
 			mlir::Value oneValue = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(1));
 
-			SmallVector<mlir::Value, 3> sourceOffsets;
-			SmallVector<mlir::Value, 3> sourceSizes;
-			SmallVector<mlir::Value, 3> sourceStrides;
+			SmallVector<long, 3> sourceResultIndexes;
+			SmallVector<long, 3> sourceStaticOffsets;
+			SmallVector<long, 3> sourceStaticSizes;
+			SmallVector<long, 3> sourceStaticStrides;
+			SmallVector<mlir::Value, 3> sourceDynamicOffsets;
+			SmallVector<mlir::Value, 3> sourceDynamicSizes;
+			SmallVector<mlir::Value, 3> sourceDynamicStrides;
 
 			for (auto index : sourceIndexes)
 			{
-				sourceOffsets.push_back(index);
-				sourceSizes.push_back(oneValue);
-				sourceStrides.push_back(oneValue);
+				sourceStaticOffsets.push_back(ShapedType::kDynamicStrideOrOffset);
+				sourceDynamicOffsets.push_back(index);
+
+				sourceStaticSizes.push_back(1);
+				sourceStaticStrides.push_back(1);
 			}
 
 			for (long i = sourceIndexes.size(); i < sourceMemRef.getRank(); i++)
 			{
-				sourceOffsets.push_back(zeroValue);
-				sourceSizes.push_back(rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(sourceMemRef.getDimSize(i))));
-				sourceStrides.push_back(oneValue);
+				sourceStaticOffsets.push_back(0);
+
+				long size = sourceMemRef.getDimSize(i);
+				sourceStaticSizes.push_back(size);
+				sourceResultIndexes.push_back(size);
+
+				sourceStaticStrides.push_back(1);
 			}
 
-			mlir::Value sourceView = rewriter.create<SubViewOp>(location, source, sourceOffsets, sourceSizes, sourceStrides);
+			mlir::Value sourceView = rewriter.create<SubViewOp>(
+					location,
+					MemRefType::get(sourceResultIndexes, sourceMemRef.getElementType()),
+					source,
+					sourceStaticOffsets, sourceStaticSizes, sourceStaticStrides,
+					sourceDynamicOffsets, sourceDynamicSizes, sourceDynamicStrides);
 
-			SmallVector<mlir::Value, 3> destinationOffsets;
-			SmallVector<mlir::Value, 3> destinationSizes;
-			SmallVector<mlir::Value, 3> destinationStrides;
+			SmallVector<long, 3> destinationResultIndexes;
+			SmallVector<long, 3> destinationStaticOffsets;
+			SmallVector<long, 3> destinationStaticSizes;
+			SmallVector<long, 3> destinationStaticStrides;
+			SmallVector<mlir::Value, 3> destinationDynamicOffsets;
+			SmallVector<mlir::Value, 3> destinationDynamicSizes;
+			SmallVector<mlir::Value, 3> destinationDynamicStrides;
 
 			for (auto index : destinationIndexes)
 			{
-				destinationOffsets.push_back(index);
-				destinationSizes.push_back(oneValue);
-				destinationStrides.push_back(oneValue);
+				destinationStaticOffsets.push_back(ShapedType::kDynamicStrideOrOffset);
+				destinationDynamicOffsets.push_back(index);
+
+				destinationStaticSizes.push_back(1);
+				destinationStaticStrides.push_back(1);
 			}
 
 			for (long i = destinationIndexes.size(); i < destinationMemRef.getRank(); i++)
 			{
-				destinationOffsets.push_back(zeroValue);
-				destinationSizes.push_back(rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(destinationMemRef.getDimSize(i))));
-				destinationStrides.push_back(oneValue);
+				destinationStaticOffsets.push_back(0);
+
+				long size = destinationMemRef.getDimSize(i);
+				destinationStaticSizes.push_back(size);
+				destinationResultIndexes.push_back(size);
+
+				destinationStaticStrides.push_back(1);
 			}
 
-			mlir::Value destinationView = rewriter.create<SubViewOp>(location, destination, destinationOffsets, destinationSizes, destinationStrides);
+			mlir::Value destinationView = rewriter.create<SubViewOp>(
+					location,
+					MemRefType::get(destinationResultIndexes, destinationMemRef.getElementType()),
+					destination,
+					destinationStaticOffsets, destinationStaticSizes, destinationStaticStrides,
+					destinationDynamicOffsets, destinationDynamicSizes, destinationDynamicStrides);
 
 			rewriter.create<linalg::CopyOp>(location, sourceView, destinationView);
 			rewriter.eraseOp(op);

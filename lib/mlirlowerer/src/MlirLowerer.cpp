@@ -242,7 +242,7 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	// Lower the statements
 	lower(foo.getAlgorithms()[0]);
 
-	/*
+  /*
 	mlir::Value memref = builder.create<AllocaOp>(location, MemRefType::get({5, 3}, builder.getI32Type()));
 
 	for (int i = 0; i < 5; i++)
@@ -279,24 +279,15 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	//strides.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(1)));
 	//strides.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(1)));
 
-	mlir::Value shape = builder.create<AllocaOp>(location, MemRefType::get({ 1 }, builder.getIndexType()));
-	mlir::Value c3 = builder.create<ConstantOp>(location, builder.getIndexAttr(3));
-	mlir::Value c1 = builder.create<ConstantOp>(location, builder.getIndexAttr(1));
-	builder.create<StoreOp>(location, c3, shape, c1);
-	mlir::Value el = builder.create<SubViewOp>(location, memref, staticOffsets, staticSizes, staticStrides, offsets, sizes, strides);
-	mlir::Value reshape = builder.create<MemRefReshapeOp>(location, MemRefType::get({ 3 }, builder.getI32Type()), el, shape);
-	//mlir::Value el = builder.create<SubViewOp>(location, MemRefType::get({ 3 }, builder.getI32Type()), memref, staticOffsets, staticSizes, staticStrides, offsets, sizes, strides);
-	mlir::Value cst = builder.create<ConstantOp>(location, builder.getI32IntegerAttr(57));
-	//builder.create<StoreOp>(location, cst, el);
-	SmallVector<mlir::Value, 3> loadInd;
-	//loadInd.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(0)));
-	loadInd.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(1)));
-	//mlir::Value val = builder.create<LoadOp>(location, memref, loadInd);
-	mlir::Value val = builder.create<LoadOp>(location, el, loadInd);
+	//mlir::Value row = builder.create<SubViewOp>(location, memref, staticOffsets, staticSizes, staticStrides, offsets, sizes, strides);
+	mlir::Value row = builder.create<SubViewOp>(location, MemRefType::get({ 3 }, builder.getI32Type()), memref, staticOffsets, staticSizes, staticStrides, offsets, sizes, strides);
+	SmallVector<mlir::Value, 3> indexes;
+	indexes.push_back(builder.create<ConstantOp>(location, builder.getIndexAttr(1)));
+	mlir::Value val = builder.create<LoadOp>(location, row, indexes);
 	builder.create<StoreOp>(location, val, symbolTable.lookup("y").getReference());
-	 */
+  */
 
-/*
+	/*
 	mlir::Value c0 = builder.create<ConstantOp>(location, builder.getIndexAttr(0));
 	mlir::Value c2 = builder.create<ConstantOp>(location, builder.getIndexAttr(2));
 	mlir::Value c1 = builder.create<ConstantOp>(location, builder.getIndexAttr(1));
