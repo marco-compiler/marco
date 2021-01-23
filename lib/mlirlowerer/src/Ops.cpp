@@ -25,7 +25,7 @@ void AssignmentOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 
 void AssignmentOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "store " << source() << "[" << sourceIndexes() << "], " << destination() << "[" << destinationIndexes() << "]";
+	printer << "assign " << source() << "[" << sourceIndexes() << "], " << destination() << "[" << destinationIndexes() << "]";
 }
 
 mlir::Value AssignmentOp::source()

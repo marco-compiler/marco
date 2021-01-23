@@ -36,12 +36,12 @@ LogicalResult AssignmentOpLowering::matchAndRewrite(AssignmentOp op, PatternRewr
 			mlir::Value oneValue = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(1));
 
 			SmallVector<long, 3> sourceResultIndexes;
+
 			SmallVector<long, 3> sourceStaticOffsets;
 			SmallVector<long, 3> sourceStaticSizes;
 			SmallVector<long, 3> sourceStaticStrides;
+
 			SmallVector<mlir::Value, 3> sourceDynamicOffsets;
-			SmallVector<mlir::Value, 3> sourceDynamicSizes;
-			SmallVector<mlir::Value, 3> sourceDynamicStrides;
 
 			for (auto index : sourceIndexes)
 			{
@@ -63,20 +63,30 @@ LogicalResult AssignmentOpLowering::matchAndRewrite(AssignmentOp op, PatternRewr
 				sourceStaticStrides.push_back(1);
 			}
 
+			SmallVector<long, 3> sourceMapStrides;
+
+			for (size_t i = 0; i < sourceResultIndexes.size(); i++)
+				sourceMapStrides.push_back(1);
+
+			auto sourceMap = makeStridedLinearLayoutMap(
+					sourceMapStrides,
+					sourceDynamicOffsets.empty() ? 0 : ShapedType::kDynamicStrideOrOffset,
+					rewriter.getContext());
+
 			mlir::Value sourceView = rewriter.create<SubViewOp>(
 					location,
-					MemRefType::get(sourceResultIndexes, sourceMemRef.getElementType()),
+					MemRefType::get(sourceResultIndexes, sourceMemRef.getElementType(), sourceMap),
 					source,
 					sourceStaticOffsets, sourceStaticSizes, sourceStaticStrides,
-					sourceDynamicOffsets, sourceDynamicSizes, sourceDynamicStrides);
+					sourceDynamicOffsets, ValueRange(), ValueRange());
 
 			SmallVector<long, 3> destinationResultIndexes;
+
 			SmallVector<long, 3> destinationStaticOffsets;
 			SmallVector<long, 3> destinationStaticSizes;
 			SmallVector<long, 3> destinationStaticStrides;
+
 			SmallVector<mlir::Value, 3> destinationDynamicOffsets;
-			SmallVector<mlir::Value, 3> destinationDynamicSizes;
-			SmallVector<mlir::Value, 3> destinationDynamicStrides;
 
 			for (auto index : destinationIndexes)
 			{
@@ -98,12 +108,22 @@ LogicalResult AssignmentOpLowering::matchAndRewrite(AssignmentOp op, PatternRewr
 				destinationStaticStrides.push_back(1);
 			}
 
+			SmallVector<long, 3> destinationMapStrides;
+
+			for (size_t i = 0; i < destinationResultIndexes.size(); i++)
+				destinationMapStrides.push_back(1);
+
+			auto destinationMap = makeStridedLinearLayoutMap(
+					destinationMapStrides,
+					destinationDynamicOffsets.empty() ? 0 : ShapedType::kDynamicStrideOrOffset,
+					rewriter.getContext());
+
 			mlir::Value destinationView = rewriter.create<SubViewOp>(
 					location,
-					MemRefType::get(destinationResultIndexes, destinationMemRef.getElementType()),
+					MemRefType::get(destinationResultIndexes, destinationMemRef.getElementType(), destinationMap),
 					destination,
 					destinationStaticOffsets, destinationStaticSizes, destinationStaticStrides,
-					destinationDynamicOffsets, destinationDynamicSizes, destinationDynamicStrides);
+					destinationDynamicOffsets, ValueRange(), ValueRange());
 
 			rewriter.create<linalg::CopyOp>(location, sourceView, destinationView);
 			rewriter.eraseOp(op);
