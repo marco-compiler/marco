@@ -125,8 +125,6 @@ TEST(Assignment, arraySliceAssignment)	 // NOLINT
 	MlirLowerer lowerer(context, false);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module->dump();
-
 	array<int, 2> x = { 0, 1 };
 	array<int, 2> y = { 2, 3 };
 	array<int, 2> z = { 4, 5 };

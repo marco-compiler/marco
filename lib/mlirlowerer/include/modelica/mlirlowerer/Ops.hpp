@@ -14,12 +14,10 @@ namespace modelica
 		using Op::Op;
 
 		static ::llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &odsBuilder, mlir::OperationState &odsState, mlir::Value source, mlir::ValueRange sourceIndexes, mlir::Value destination, mlir::ValueRange destinationIndexes);
+		static void build(mlir::OpBuilder &odsBuilder, mlir::OperationState &odsState, mlir::Value source, mlir::Value destination);
 		void print(mlir::OpAsmPrinter &p);
 		mlir::Value source();
 		mlir::Value destination();
-		mlir::Operation::operand_range sourceIndexes();
-		mlir::Operation::operand_range destinationIndexes();
 	};
 
 	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameOperandsAndResultType, mlir::OpTrait::IsInvolution>

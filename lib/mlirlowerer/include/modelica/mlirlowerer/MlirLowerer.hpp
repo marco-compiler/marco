@@ -28,21 +28,18 @@ namespace modelica
 		[[nodiscard]] mlir::Value operator*();
 
 		[[nodiscard]] mlir::Value getReference() const;
-		[[nodiscard]] mlir::ValueRange getIndexes() const;
 
 		[[nodiscard]] static Reference ssa(mlir::OpBuilder* builder, mlir::Value value);
-		[[nodiscard]] static Reference memref(mlir::OpBuilder* builder, mlir::Value value, llvm::ArrayRef<mlir::Value> indexes = {});
+		[[nodiscard]] static Reference memref(mlir::OpBuilder* builder, mlir::Value value);
 
 		private:
 		Reference(mlir::OpBuilder* builder,
 							mlir::Value value,
-							llvm::ArrayRef<mlir::Value> indexes,
-							std::function<mlir::Value(mlir::OpBuilder*, mlir::Value, llvm::ArrayRef<mlir::Value>)> reader);
+							std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader);
 
 		mlir::OpBuilder* builder;
 		mlir::Value value;
-		llvm::SmallVector<mlir::Value, 3> indexes;
-		std::function<mlir::Value(mlir::OpBuilder* builder, mlir::Value ref, llvm::ArrayRef<mlir::Value>)> reader;
+		std::function<mlir::Value(mlir::OpBuilder* builder, mlir::Value ref)> reader;
 	};
 
 	class MlirLowerer

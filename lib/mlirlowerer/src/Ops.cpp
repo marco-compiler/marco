@@ -12,20 +12,14 @@ llvm::StringRef AssignmentOp::getOperationName()
 	return "modelica.assignment";
 }
 
-void AssignmentOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::ValueRange sourceIndexes, mlir::Value destination, mlir::ValueRange destinationIndexes)
+void AssignmentOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination)
 {
 	state.addOperands({ source, destination });
-
-	state.addAttribute("sourceIndexes", builder.getIndexAttr(sourceIndexes.size()));
-	state.addAttribute("destinationIndexes", builder.getIndexAttr(destinationIndexes.size()));
-
-	state.addOperands(sourceIndexes);
-	state.addOperands(destinationIndexes);
 }
 
 void AssignmentOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "assign " << source() << "[" << sourceIndexes() << "], " << destination() << "[" << destinationIndexes() << "]";
+	printer << "assign " << source() << ", " << destination();
 }
 
 mlir::Value AssignmentOp::source()
@@ -36,18 +30,6 @@ mlir::Value AssignmentOp::source()
 mlir::Value AssignmentOp::destination()
 {
 	return getOperand(1);
-}
-
-mlir::Operation::operand_range AssignmentOp::sourceIndexes()
-{
-	size_t sourceIndexes = getAttr("sourceIndexes").cast<mlir::IntegerAttr>().getInt();
-	return { operand_begin() + 2, operand_begin() + 2 + sourceIndexes };
-}
-
-mlir::Operation::operand_range AssignmentOp::destinationIndexes()
-{
-	size_t sourceIndexes = getAttr("sourceIndexes").cast<mlir::IntegerAttr>().getInt();
-	return { operand_begin() + 2 + sourceIndexes, operand_end() };
 }
 
 llvm::StringRef NegateOp::getOperationName()
