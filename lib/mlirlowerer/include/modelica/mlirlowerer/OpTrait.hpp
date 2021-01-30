@@ -27,4 +27,24 @@ namespace modelica
 			return mlir::success();
 		}
 	};
+
+	/**
+ 	 * This class verifies that all operands of the specified operation are
+ 	 * scalar
+   */
+	template<typename ConcreteType>
+	class OperandsAreScalars
+			: public mlir::OpTrait::
+			TraitBase<ConcreteType, OperandsAreScalars>
+	{
+		public:
+		static mlir::LogicalResult verifyTrait(mlir::Operation* op)
+		{
+			for (auto operand : op->getOperands())
+				if (operand.getType().isa<mlir::ShapedType>())
+					return op->emitOpError("Operands must be scalars");
+
+			return mlir::success();
+		}
+	};
 }

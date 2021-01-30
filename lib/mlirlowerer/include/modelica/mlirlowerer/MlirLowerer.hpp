@@ -11,14 +11,31 @@
 
 namespace modelica
 {
+	struct ModelicaOptions {
+
+		bool x64 = false;
+		bool useBarePtrCallConv = true;
+
+		/**
+		 * Get a statically allocated copy of the default options.
+		 *
+		 * @return default options
+		 */
+		static const ModelicaOptions& getDefaultOptions() {
+			static ModelicaOptions options;
+			return options;
+		}
+	};
+
 	/**
 	 * Convert an MLIR module to the LLVM dialect.
 	 *
 	 * @param context MLIR context
 	 * @param module  module
+	 * @param options Modelica lowering options
 	 * @return success if the conversion was successful
 	 */
-	[[nodiscard]] mlir::LogicalResult convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module);
+	[[nodiscard]] mlir::LogicalResult convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
 
 	class Reference
 	{
@@ -48,7 +65,7 @@ namespace modelica
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		explicit MlirLowerer(mlir::MLIRContext& context, bool x64 = false);
+		explicit MlirLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
 
 		/**
 		 * Get the operation builder.
@@ -104,6 +121,11 @@ namespace modelica
 		 * scope are dropped.
 		 */
 		llvm::ScopedHashTable<llvm::StringRef, Reference> symbolTable;
+
+		/**
+		 * Options for the lowerer.
+		 */
+		 ModelicaOptions options;
 
 		/**
 		 * Lower the arguments of an operation.

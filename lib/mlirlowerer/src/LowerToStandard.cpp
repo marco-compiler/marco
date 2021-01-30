@@ -1,7 +1,9 @@
-#include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
+#include <mlir/Conversion/Passes.h>
+#include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/Linalg/IR/LinalgOps.h>
+#include <mlir/Dialect/Vector/VectorOps.h>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
-#include <modelica/mlirlowerer/ModelicaLoweringPass.hpp>
+#include <modelica/mlirlowerer/LowerToStandard.hpp>
 
 using namespace mlir;
 using namespace modelica;
@@ -11,12 +13,21 @@ LogicalResult AssignmentOpLowering::matchAndRewrite(AssignmentOp op, PatternRewr
 {
 	mlir::Value source = op.source();
 	mlir::Type sourceType = source.getType();
-	mlir::Value destination = op.destination();
 
 	if (sourceType.isa<MemRefType>())
-		rewriter.replaceOpWithNewOp<linalg::CopyOp>(op, source, destination);
+	{
+		rewriter.replaceOpWithNewOp<linalg::CopyOp>(op, source, op.destination());
+	}
+	else if (sourceType.isa<VectorType>())
+	{
+		mlir::Value zeroValue = rewriter.create<ConstantOp>(op.getLoc(), rewriter.getIndexAttr(0));
+		SmallVector<mlir::Value, 3> indexes(sourceType.cast<ShapedType>().getRank(), zeroValue);
+		rewriter.replaceOpWithNewOp<AffineVectorStoreOp>(op, source, op.destination(), indexes);
+	}
 	else
-		rewriter.replaceOpWithNewOp<StoreOp>(op, source, destination);
+	{
+		rewriter.replaceOpWithNewOp<StoreOp>(op, source, op.destination());
+	}
 
 	return success();
 }
@@ -25,25 +36,53 @@ LogicalResult NegateOpLowering::matchAndRewrite(NegateOp op, PatternRewriter& re
 {
 	Location location = op.getLoc();
 	mlir::Value operand = op->getOperand(0);
+
 	mlir::Type type = op->getResultTypes()[0];
 
-	if (type.isa<VectorType>() || type.isa<TensorType>())
-		type = type.cast<ShapedType>().getElementType();
-
-	if (type.isSignlessInteger())
+	if (type.isa<MemRefType>())
 	{
-		// There is no "negate" operation for integers in the Standard dialect
-		rewriter.replaceOpWithNewOp<MulIOp>(op, rewriter.create<ConstantOp>(location, rewriter.getIntegerAttr(type, -1)), operand);
-		return success();
+		auto memRefType = type.cast<MemRefType>();
+
+		mlir::Value fake = rewriter.create<AllocaOp>(location, MemRefType::get({ 2 }, rewriter.getI1Type()));
+		rewriter.create<StoreOp>(location, rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(true)).getResult(), fake, rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(0)).getResult());
+		rewriter.create<StoreOp>(location, rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(false)).getResult(), fake, rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(1)).getResult());
+		operand = fake;
+
+		mlir::VectorType vectorType = VectorType::get(memRefType.getShape(), memRefType.getElementType());
+		mlir::Value zeroValue = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(0));
+		SmallVector<mlir::Value, 3> indexes(memRefType.getRank(), zeroValue);
+		mlir::Value vector = rewriter.create<AffineVectorLoadOp>(location, vectorType, operand, indexes);
+		rewriter.create<mlir::vector::PrintOp>(location, vector);
+
+		SmallVector<bool, 3> trueValues(memRefType.getNumElements(), true);
+		mlir::Value trueVector = rewriter.create<ConstantOp>(location, rewriter.getBoolVectorAttr(trueValues));
+		mlir::Value xorOp = rewriter.create<XOrOp>(location, vector, trueVector);
+		rewriter.create<mlir::vector::PrintOp>(location, xorOp);
+
+		mlir::Value destination = rewriter.create<AllocaOp>(location, memRefType);
+		rewriter.create<AffineVectorStoreOp>(location, xorOp, destination, indexes);
+
+		//mlir::Value unranked = rewriter.create<MemRefCastOp>(location, destination, MemRefType::get(-1, rewriter.getI32Type()));
+		//rewriter.create<CallOp>(location, "print_memref_i32", TypeRange(), unranked);
+
+		/*
+		rewriter.create<StoreOp>(location, rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(false)).getResult(), destination, rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(0)).getResult());
+		rewriter.create<StoreOp>(location, rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(true)).getResult(), destination, rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(1)).getResult());
+		mlir::Value vectorAfterStore = rewriter.create<AffineVectorLoadOp>(location, vectorType, destination, indexes);
+		rewriter.create<mlir::vector::PrintOp>(location, vectorAfterStore);
+		 */
+
+		rewriter.replaceOp(op, destination);
+	}
+	else
+	{
+		mlir::Value trueValue = rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(true));
+		rewriter.replaceOpWithNewOp<XOrOp>(op, operand, trueValue);
 	}
 
-	if (type.isF64() || type.isF32())
-	{
-		rewriter.replaceOpWithNewOp<NegFOp>(op, operand);
-		return success();
-	}
+	//op->getParentOp()->dump();
 
-	return failure();
+	return success();
 }
 
 LogicalResult AddOpLowering::matchAndRewrite(AddOp op, PatternRewriter& rewriter) const
@@ -52,7 +91,7 @@ LogicalResult AddOpLowering::matchAndRewrite(AddOp op, PatternRewriter& rewriter
 	auto operands = op->getOperands();
 	mlir::Type type =  op->getResultTypes()[0];
 
-	if (type.isa<VectorType>() || type.isa<TensorType>())
+	if (type.isa<ShapedType>())
 		type = type.cast<ShapedType>().getElementType();
 
 	mlir::Value result = operands[0];
@@ -312,6 +351,7 @@ LogicalResult LteOpLowering::matchAndRewrite(LteOp op, PatternRewriter& rewriter
 	return failure();
 }
 
+
 LogicalResult IfOpLowering::matchAndRewrite(IfOp op, PatternRewriter& rewriter) const
 {
 	bool hasElseBlock = !op.elseRegion().empty();
@@ -397,7 +437,7 @@ LogicalResult ForOpLowering::matchAndRewrite(ForOp op, PatternRewriter& rewriter
 	// if a break must be executed or the intended condition value otherwise.
 	rewriter.setInsertionPointAfter(ifOp);
 	rewriter.create<CondBranchOp>(location, ifOp.getResult(0),
-			bodyBlock, conditionOp.args(), continuation, ValueRange());
+																bodyBlock, conditionOp.args(), continuation, ValueRange());
 
 	// Replace "body" block terminator with a branch to the "step" block
 	rewriter.setInsertionPointToEnd(bodyBlock);
@@ -474,7 +514,7 @@ LogicalResult YieldOpLowering::matchAndRewrite(YieldOp op, PatternRewriter& rewr
 	return success();
 }
 
-void ModelicaLoweringPass::runOnOperation()
+void ModelicaToStandardLoweringPass::runOnOperation()
 {
 	auto module = getOperation();
 	ConversionTarget target(getContext());
@@ -482,6 +522,7 @@ void ModelicaLoweringPass::runOnOperation()
 	target.addLegalOp<ModuleOp, FuncOp, ModuleTerminatorOp>();
 	target.addLegalDialect<StandardOpsDialect>();
 	target.addLegalDialect<linalg::LinalgDialect>();
+	target.addLegalDialect<mlir::vector::VectorDialect>();
 
 	// The Modelica dialect is defined as illegal, so that the conversion
 	// will fail if any of its operations are not converted.
@@ -489,8 +530,9 @@ void ModelicaLoweringPass::runOnOperation()
 
 	// Provide the set of patterns that will lower the Modelica operations
 	mlir::OwningRewritePatternList patterns;
-	populateModelicaConversionPatterns(patterns, &getContext());
+	populateModelicaToStandardConversionPatterns(patterns, &getContext());
 	populateLoopToStdConversionPatterns(patterns, &getContext());
+	populateAffineToVectorConversionPatterns(patterns, &getContext());
 
 	// With the target and rewrite patterns defined, we can now attempt the
 	// conversion. The conversion will signal failure if any of our "illegal"
@@ -499,7 +541,7 @@ void ModelicaLoweringPass::runOnOperation()
 		signalPassFailure();
 }
 
-void modelica::populateModelicaConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
+void modelica::populateModelicaToStandardConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
 {
 	// Generic operations
 	patterns.insert<AssignmentOpLowering>(context);
@@ -526,7 +568,7 @@ void modelica::populateModelicaConversionPatterns(OwningRewritePatternList& patt
 	patterns.insert<YieldOpLowering>(context);
 }
 
-std::unique_ptr<mlir::Pass> modelica::createModelicaLoweringPass()
+std::unique_ptr<mlir::Pass> modelica::createModelicaToStandardLoweringPass()
 {
-	return std::make_unique<ModelicaLoweringPass>();
+	return std::make_unique<ModelicaToStandardLoweringPass>();
 }

@@ -19,7 +19,9 @@ void AssignmentOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 
 void AssignmentOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "assign " << source() << ", " << destination();
+	mlir::Value source = this->source();
+	mlir::Value destination = this->destination();
+	printer << "assign " << source << ", " << destination << " : " << source.getType() << ", " << destination.getType();
 }
 
 mlir::Value AssignmentOp::source()
@@ -45,7 +47,7 @@ void NegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir
 
 void NegateOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "neg " << getOperand();
+	printer << "neg " << getOperand() << " : " << getOperation()->getResultTypes();
 }
 
 llvm::StringRef AddOp::getOperationName()
@@ -64,7 +66,7 @@ void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 
 void AddOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "add " << getOperands();
+	printer << "add " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 llvm::StringRef SubOp::getOperationName()
@@ -135,6 +137,15 @@ void EqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Va
 	state.addTypes(builder.getI1Type());
 }
 
+mlir::LogicalResult EqOp::verify()
+{
+	for (auto operand : getOperands())
+		if (operand.getType().isa<mlir::ShapedType>())
+			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+
+	return mlir::success();
+}
+
 void EqOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "eq " << getOperands();
@@ -149,6 +160,15 @@ void NotEqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 {
 	state.addOperands({ lhs, rhs });
 	state.addTypes(builder.getI1Type());
+}
+
+mlir::LogicalResult NotEqOp::verify()
+{
+	for (auto operand : getOperands())
+		if (operand.getType().isa<mlir::ShapedType>())
+			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+
+	return mlir::success();
 }
 
 void NotEqOp::print(mlir::OpAsmPrinter& printer)
@@ -167,6 +187,15 @@ void GtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Va
 	state.addTypes(builder.getI1Type());
 }
 
+mlir::LogicalResult GtOp::verify()
+{
+	for (auto operand : getOperands())
+		if (operand.getType().isa<mlir::ShapedType>())
+			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+
+	return mlir::success();
+}
+
 void GtOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "gt " << getOperands();
@@ -181,6 +210,15 @@ void GteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 {
 	state.addOperands({ lhs, rhs });
 	state.addTypes(builder.getI1Type());
+}
+
+mlir::LogicalResult GteOp::verify()
+{
+	for (auto operand : getOperands())
+		if (operand.getType().isa<mlir::ShapedType>())
+			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+
+	return mlir::success();
 }
 
 void GteOp::print(mlir::OpAsmPrinter& printer)
@@ -199,6 +237,15 @@ void LtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Va
 	state.addTypes(builder.getI1Type());
 }
 
+mlir::LogicalResult LtOp::verify()
+{
+	for (auto operand : getOperands())
+		if (operand.getType().isa<mlir::ShapedType>())
+			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+
+	return mlir::success();
+}
+
 void LtOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "lt " << getOperands();
@@ -213,6 +260,15 @@ void LteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 {
 	state.addOperands({ lhs, rhs });
 	state.addTypes(builder.getI1Type());
+}
+
+mlir::LogicalResult LteOp::verify()
+{
+	for (auto operand : getOperands())
+		if (operand.getType().isa<mlir::ShapedType>())
+			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+
+	return mlir::success();
 }
 
 void LteOp::print(mlir::OpAsmPrinter& printer)

@@ -1,596 +1,771 @@
 #include <gtest/gtest.h>
-#include <mlir/IR/BuiltinOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/Runner.hpp>
 #include <modelica/utils/SourceRange.hpp>
-
 #include "TestUtils.hpp"
 
 using namespace modelica;
 using namespace std;
 
-TEST(NegateOp, zeroInteger)	 // NOLINT
+TEST(AddOp, scalarIntegers)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   input Integer y;
+	 *   output Integer z;
+	 *   algorithm
+	 *     z := x + y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Integer>(),
-			OperationKind::negate,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "z"),
+			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add,
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_EQ(result, 0);
+	Runner runner(&context, module);
+
+	array<int, 2> xData = { 23, 57 };
+	array<int, 2> yData = { 57, -23 };
+	array<int, 2> zData = { 0, 0 };
+
+	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	{
+		int x = get<0>(tuple);
+		int y = get<1>(tuple);
+		int z = get<2>(tuple);
+
+		runner.run("main", x, y, z);
+
+		EXPECT_EQ(z, x + y);
+	}
 }
 
-TEST(NegateOp, positiveInteger)	 // NOLINT
+TEST(AddOp, vectorIntegers)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Integer[3] x;
+	 *   input Integer[3] y;
+	 *   output Integer[3] z;
+	 *   algorithm
+	 *     z := x + y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Integer>(),
-			OperationKind::negate,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 57));
+			Expression::reference(location, makeType<BuiltInType::Integer>(3), "z"),
+			Expression::operation(location, makeType<BuiltInType::Integer>(3), OperationKind::add,
+														Expression::reference(location, makeType<BuiltInType::Integer>(3), "x"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(3), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	module.dump();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_EQ(result, -57);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	Runner runner(&context, module);
+
+	array<int, 3> x = { 10, 23, 57 };
+	array<int, 3> y = { 10, 57, -23 };
+	array<int, 3> z = { 0, 0, 0 };
+
+	int* xPtr = x.data();
+	int* yPtr = y.data();
+	int* zPtr = z.data();
+
+	runner.run("main", xPtr, yPtr, zPtr);
+
+	for (const auto& tuple : llvm::zip(x, y, z))
+		EXPECT_EQ(get<2>(tuple), get<0>(tuple) + get<1>(tuple));
 }
 
-TEST(NegateOp, negativeInteger)	 // NOLINT
+TEST(AddOp, scalarFloats)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Real x;
+	 *   input Real y;
+	 *   output Real z;
+	 *   algorithm
+	 *     z := x + y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Integer>(),
-			OperationKind::negate,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), -57));
+			Expression::reference(location, makeType<BuiltInType::Float>(), "z"),
+			Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::add,
+														Expression::reference(location, makeType<BuiltInType::Float>(), "x"),
+														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_EQ(result, 57);
+	Runner runner(&context, module);
+
+	array<float, 2> xData = { 23.2f, 57.5f };
+	array<float, 2> yData = { 57.3f, -23.7f };
+	array<float, 2> zData = { 0.0f, 0.0f };
+
+	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	{
+		float x = get<0>(tuple);
+		float y = get<1>(tuple);
+		float z = get<2>(tuple);
+
+		runner.run("main", x, y, z);
+
+		EXPECT_FLOAT_EQ(z, x + y);
+	}
 }
 
-TEST(NegateOp, zeroFloat)	 // NOLINT
+TEST(AddOp, vectorFloats)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Real[3] x;
+	 *   input Real[3] y;
+	 *   output Real[3] z;
+	 *   algorithm
+	 *     z := x + y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Float>(),
-			OperationKind::negate,
-			Expression::constant(location, makeType<BuiltInType::Float>(), 0.0));
+			Expression::reference(location, makeType<BuiltInType::Float>(3), "z"),
+			Expression::operation(location, makeType<BuiltInType::Float>(3), OperationKind::add,
+														Expression::reference(location, makeType<BuiltInType::Float>(3), "x"),
+														Expression::reference(location, makeType<BuiltInType::Float>(3), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, 0);
+	Runner runner(&context, module);
+
+	array<float, 3> x = { 10.1f, 23.3f, 57.8f };
+	array<float, 3> y = { 10.2f, 57.3f, -23.5f };
+	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+
+	float* xPtr = x.data();
+	float* yPtr = y.data();
+	float* zPtr = z.data();
+
+	runner.run("main", xPtr, yPtr, zPtr);
+
+	for (const auto& tuple : llvm::zip(x, y, z))
+		EXPECT_FLOAT_EQ(get<2>(tuple), get<0>(tuple) + get<1>(tuple));
 }
 
-TEST(NegateOp, positiveFloat)	 // NOLINT
+TEST(AddOp, integerCastedToFloatScalar)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   input Real y;
+	 *   output Real z;
+	 *   algorithm
+	 *     z := x + y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Float>(),
-			OperationKind::negate,
-			Expression::constant(location, makeType<BuiltInType::Float>(), 57.0));
+			Expression::reference(location, makeType<BuiltInType::Float>(), "z"),
+			Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::add,
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, -57.0);
+	Runner runner(&context, module);
+
+	array<int, 3> xData = { 2, -3, -3 };
+	array<float, 3> yData = { -3.5f, 5.2f, -2.0f };
+	array<float, 3> zData = { 0.0f, 0.0f, 0.0f };
+
+	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	{
+		int x = get<0>(tuple);
+		float y = get<1>(tuple);
+		float z = get<2>(tuple);
+
+		runner.run("main", x, y, z);
+
+		EXPECT_FLOAT_EQ(z, x + y);
+	}
 }
 
-TEST(NegateOp, negativeFloat)	 // NOLINT
+TEST(AddOp, integerCastedToFloatVector)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Integer[3] x;
+	 *   input Real[3] y;
+	 *   output Real[3] z;
+	 *   algorithm
+	 *     z := x + y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Float>(),
-			OperationKind::negate,
-			Expression::constant(location, makeType<BuiltInType::Float>(), -57.0));
+			Expression::reference(location, makeType<BuiltInType::Float>(3), "z"),
+			Expression::operation(location, makeType<BuiltInType::Float>(3), OperationKind::add,
+														Expression::reference(location, makeType<BuiltInType::Integer>(3), "x"),
+														Expression::reference(location, makeType<BuiltInType::Float>(3), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, 57.0);
+	Runner runner(&context, module);
+
+	array<int, 3> x = { 2, -3, -3 };
+	array<float, 3> y = { -3.5f, 5.2f, -2.0f };
+	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+
+	int* xPtr = x.data();
+	float* yPtr = y.data();
+	float* zPtr = z.data();
+
+	runner.run("main", xPtr, yPtr, zPtr);
+
+	for (const auto& tuple : llvm::zip(x, y, z))
+		EXPECT_FLOAT_EQ(get<2>(tuple), get<0>(tuple) + get<1>(tuple));
 }
 
-TEST(AddOp, sameSignIntegers)	 // NOLINT
+TEST(AddOp, multipleValues)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   input Integer y;
+	 *   input Integer z;
+	 *   output Integer t;
+	 *   algorithm
+	 *     t := x + y + z;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member tMember(location, "t", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Integer>(),
-			OperationKind::add,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 2),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 3));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "t"),
+			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add,
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "z")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember, tMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_EQ(result, 5);
+	Runner runner(&context, module);
+
+	array<int, 3> xData = { 10, 23, 57 };
+	array<int, 3> yData = { 10, 57, -23 };
+	array<int, 3> zData = { 4, -7, -15 };
+	array<int, 3> tData = { 0, 0, 0 };
+
+	for (const auto& tuple : llvm::zip(xData, yData, zData, tData))
+	{
+		int x = get<0>(tuple);
+		int y = get<1>(tuple);
+		int z = get<2>(tuple);
+		int t = get<3>(tuple);
+
+		runner.run("main", x, y, z, t);
+
+		EXPECT_EQ(t, x + y + z);
+	}
 }
 
-TEST(AddOp, differentSignIntegers)	 // NOLINT
+TEST(SubOp, scalarIntegers)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   input Integer y;
+	 *   output Integer z;
+	 *   algorithm
+	 *     z := x - y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Integer>(),
-			OperationKind::add,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 2),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), -3));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "z"),
+			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subtract,
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_EQ(result, -1);
+	Runner runner(&context, module);
+
+	array<int, 2> xData = { 23, 57 };
+	array<int, 2> yData = { 57, -23 };
+	array<int, 2> zData = { 0, 0 };
+
+	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	{
+		int x = get<0>(tuple);
+		int y = get<1>(tuple);
+		int z = get<2>(tuple);
+
+		runner.run("main", x, y, z);
+
+		EXPECT_EQ(z, x - y);
+	}
 }
 
-TEST(AddOp, sameSignFloats)	 // NOLINT
+TEST(SubOp, vectorIntegers)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Integer[3] x;
+	 *   input Integer[3] y;
+	 *   output Integer[3] z;
+	 *   algorithm
+	 *     z := x - y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Float>(),
-			OperationKind::add,
-			Expression::constant(location, makeType<BuiltInType::Float>(), 2.5),
-			Expression::constant(location, makeType<BuiltInType::Float>(), 3.0));
+			Expression::reference(location, makeType<BuiltInType::Integer>(3), "z"),
+			Expression::operation(location, makeType<BuiltInType::Integer>(3), OperationKind::subtract,
+														Expression::reference(location, makeType<BuiltInType::Integer>(3), "x"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(3), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	module.dump();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, 5.5);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	Runner runner(&context, module);
+
+	array<int, 3> x = { 10, 23, 57 };
+	array<int, 3> y = { 10, 57, -23 };
+	array<int, 3> z = { 0, 0, 0 };
+
+	int* xPtr = x.data();
+	int* yPtr = y.data();
+	int* zPtr = z.data();
+
+	runner.run("main", xPtr, yPtr, zPtr);
+
+	for (const auto& tuple : llvm::zip(x, y, z))
+		EXPECT_EQ(get<2>(tuple), get<0>(tuple) - get<1>(tuple));
 }
 
-TEST(AddOp, differentSignFloats)	 // NOLINT
+TEST(SubOp, scalarFloats)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Real x;
+	 *   input Real y;
+	 *   output Real z;
+	 *   algorithm
+	 *     z := x - y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Float>(),
-			OperationKind::add,
-			Expression::constant(location, makeType<BuiltInType::Float>(), 2.5),
-			Expression::constant(location, makeType<BuiltInType::Float>(), -3.0));
+			Expression::reference(location, makeType<BuiltInType::Float>(), "z"),
+			Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::subtract,
+														Expression::reference(location, makeType<BuiltInType::Float>(), "x"),
+														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, -0.5);
+	Runner runner(&context, module);
+
+	array<float, 2> xData = { 23.2f, 57.5f };
+	array<float, 2> yData = { 57.3f, -23.7f };
+	array<float, 2> zData = { 0.0f, 0.0f };
+
+	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	{
+		float x = get<0>(tuple);
+		float y = get<1>(tuple);
+		float z = get<2>(tuple);
+
+		runner.run("main", x, y, z);
+
+		EXPECT_FLOAT_EQ(z, x - y);
+	}
 }
 
-TEST(AddOp, integerCastedToFloat)	 // NOLINT
+TEST(SubOp, vectorFloats)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Real[3] x;
+	 *   input Real[3] y;
+	 *   output Real[3] z;
+	 *   algorithm
+	 *     z := x - y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Float>(),
-			OperationKind::add,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 2),
-			Expression::constant(location, makeType<BuiltInType::Float>(), -3.5));
+			Expression::reference(location, makeType<BuiltInType::Float>(3), "z"),
+			Expression::operation(location, makeType<BuiltInType::Float>(3), OperationKind::subtract,
+														Expression::reference(location, makeType<BuiltInType::Float>(3), "x"),
+														Expression::reference(location, makeType<BuiltInType::Float>(3), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, -1.5);
+	Runner runner(&context, module);
+
+	array<float, 3> x = { 10.1f, 23.3f, 57.8f };
+	array<float, 3> y = { 10.2f, 57.3f, -23.5f };
+	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+
+	float* xPtr = x.data();
+	float* yPtr = y.data();
+	float* zPtr = z.data();
+
+	runner.run("main", xPtr, yPtr, zPtr);
+
+	for (const auto& tuple : llvm::zip(x, y, z))
+		EXPECT_FLOAT_EQ(get<2>(tuple), get<0>(tuple) - get<1>(tuple));
 }
 
-TEST(AddOp, multipleIntegers)	 // NOLINT
+TEST(SubOp, integerCastedToFloatScalar)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   input Real y;
+	 *   output Real z;
+	 *   algorithm
+	 *     z := x - y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Integer>(),
-			OperationKind::add,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 2),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 3),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), -10),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 4));
+			Expression::reference(location, makeType<BuiltInType::Float>(), "z"),
+			Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::subtract,
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_EQ(result, -1);
+	Runner runner(&context, module);
+
+	array<int, 3> xData = { 2, -3, -3 };
+	array<float, 3> yData = { -3.5f, 5.2f, -2.0f };
+	array<float, 3> zData = { 0.0f, 0.0f, 0.0f };
+
+	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	{
+		int x = get<0>(tuple);
+		float y = get<1>(tuple);
+		float z = get<2>(tuple);
+
+		runner.run("main", x, y, z);
+
+		EXPECT_FLOAT_EQ(z, x - y);
+	}
 }
 
-TEST(AddOp, multipleFloats)	 // NOLINT
+TEST(SubOp, integerCastedToFloatVector)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Integer[3] x;
+	 *   input Real[3] y;
+	 *   output Real[3] z;
+	 *   algorithm
+	 *     z := x - y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Float>(),
-			OperationKind::add,
-			Expression::constant(location, makeType<BuiltInType::Float>(), 2.3),
-			Expression::constant(location, makeType<BuiltInType::Float>(), 3.1),
-			Expression::constant(location, makeType<BuiltInType::Float>(), 4.9),
-			Expression::constant(location, makeType<BuiltInType::Float>(), -2.4));
+			Expression::reference(location, makeType<BuiltInType::Float>(3), "z"),
+			Expression::operation(location, makeType<BuiltInType::Float>(3), OperationKind::subtract,
+														Expression::reference(location, makeType<BuiltInType::Integer>(3), "x"),
+														Expression::reference(location, makeType<BuiltInType::Float>(3), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, 7.9);
+	Runner runner(&context, module);
+
+	array<int, 3> x = { 2, -3, -3 };
+	array<float, 3> y = { -3.5f, 5.2f, -2.0f };
+	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+
+	int* xPtr = x.data();
+	float* yPtr = y.data();
+	float* zPtr = z.data();
+
+	runner.run("main", xPtr, yPtr, zPtr);
+
+	for (const auto& tuple : llvm::zip(x, y, z))
+		EXPECT_FLOAT_EQ(get<2>(tuple), get<0>(tuple) - get<1>(tuple));
 }
 
-TEST(SubOp, sameSignIntegers)	 // NOLINT
+TEST(SubOp, multipleValues)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   input Integer y;
+	 *   input Integer z;
+	 *   output Integer t;
+	 *   algorithm
+	 *     t := x - y - z;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member tMember(location, "t", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<BuiltInType::Integer>(),
-			OperationKind::subtract,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 5),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 3));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "t"),
+			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subtract,
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "z")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember, tMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_EQ(result, 2);
-}
+	Runner runner(&context, module);
 
-TEST(SubOp, differentSignIntegers)	 // NOLINT
-{
-	SourcePosition location = SourcePosition::unknown();
+	array<int, 3> xData = { 10, 23, 57 };
+	array<int, 3> yData = { 10, 57, -23 };
+	array<int, 3> zData = { 4, -7, -15 };
+	array<int, 3> tData = { 0, 0, 0 };
 
-	Expression expression = Expression::operation(
-			location,
-			makeType<BuiltInType::Integer>(),
-			OperationKind::subtract,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 2),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), -3));
+	for (const auto& tuple : llvm::zip(xData, yData, zData, tData))
+	{
+		int x = get<0>(tuple);
+		int y = get<1>(tuple);
+		int z = get<2>(tuple);
+		int t = get<3>(tuple);
 
-	mlir::MLIRContext context;
+		runner.run("main", x, y, z, t);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
-
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_EQ(result, 5);
-}
-
-TEST(SubOp, sameSignFloats)	 // NOLINT
-{
-	SourcePosition location = SourcePosition::unknown();
-
-	Expression expression = Expression::operation(
-			location,
-			makeType<BuiltInType::Float>(),
-			OperationKind::subtract,
-			Expression::constant(location, makeType<BuiltInType::Float>(), 2.7),
-			Expression::constant(location, makeType<BuiltInType::Float>(), 3.4));
-
-	mlir::MLIRContext context;
-
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
-
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, -0.7);
-}
-
-TEST(SubOp, differentSignFloats)	 // NOLINT
-{
-	SourcePosition location = SourcePosition::unknown();
-
-	Expression expression = Expression::operation(
-			location,
-			makeType<BuiltInType::Float>(),
-			OperationKind::subtract,
-			Expression::constant(location, makeType<BuiltInType::Float>(), 2.3),
-			Expression::constant(location, makeType<BuiltInType::Float>(), -3.4));
-
-	mlir::MLIRContext context;
-
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
-
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, 5.7);
-}
-
-TEST(SubOp, integerCastedToFloat)	 // NOLINT
-{
-	SourcePosition location = SourcePosition::unknown();
-
-	Expression expression = Expression::operation(
-			location,
-			makeType<BuiltInType::Float>(),
-			OperationKind::subtract,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 2),
-			Expression::constant(location, makeType<BuiltInType::Float>(), -3.7));
-
-	mlir::MLIRContext context;
-
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
-
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, 5.7);
-}
-
-TEST(SubOp, multipleIntegers)	 // NOLINT
-{
-	SourcePosition location = SourcePosition::unknown();
-
-	Expression expression = Expression::operation(
-			location,
-			makeType<BuiltInType::Integer>(),
-			OperationKind::subtract,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 10),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 3),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 2),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 1));
-
-	mlir::MLIRContext context;
-
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
-
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_EQ(result, 4);
-}
-
-TEST(SubOp, multipleFloats)	 // NOLINT
-{
-	SourcePosition location = SourcePosition::unknown();
-
-	Expression expression = Expression::operation(
-			location,
-			makeType<BuiltInType::Float>(),
-			OperationKind::subtract,
-			Expression::constant(location, makeType<BuiltInType::Float>(), 10.7),
-			Expression::constant(location, makeType<BuiltInType::Float>(), 3.2),
-			Expression::constant(location, makeType<BuiltInType::Float>(), 2.4),
-			Expression::constant(location, makeType<BuiltInType::Float>(), 1.5));
-
-	mlir::MLIRContext context;
-
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
-
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, 3.6);
+		EXPECT_EQ(t, x - y - z);
+	}
 }
 
 TEST(MulOp, sameSignIntegers)	 // NOLINT

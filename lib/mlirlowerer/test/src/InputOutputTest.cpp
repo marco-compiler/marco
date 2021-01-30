@@ -7,12 +7,53 @@
 using namespace modelica;
 using namespace std;
 
+TEST(Input, booleanScalar)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Boolean x;
+	 *   output Boolean y;
+	 *
+	 *   algorithm
+	 *     y := x;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Boolean>(), "y"),
+			Expression::reference(location, makeType<BuiltInType::Boolean>(), "x"));
+
+	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	bool x = true;
+	bool y = false;
+
+	Runner runner(&context, module);
+	runner.run("main", x, y);
+
+	EXPECT_EQ(y, x);
+}
+
 TEST(Input, integerScalar)	 // NOLINT
 {
 	/**
 	 * function main
 	 *   input Integer x;
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := x;
 	 * end main
@@ -31,8 +72,11 @@ TEST(Input, integerScalar)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
 	int x = 57;
 	int y = 0;
@@ -40,7 +84,7 @@ TEST(Input, integerScalar)	 // NOLINT
 	Runner runner(&context, module);
 	runner.run("main", x, y);
 
-	EXPECT_EQ(y, 57);
+	EXPECT_EQ(y, x);
 }
 
 TEST(Input, floatScalar)	 // NOLINT
@@ -49,6 +93,7 @@ TEST(Input, floatScalar)	 // NOLINT
 	 * function main
 	 *   input Real x;
 	 *   output Real y;
+	 *
 	 *   algorithm
 	 *     y := x;
 	 * end main
@@ -67,8 +112,11 @@ TEST(Input, floatScalar)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
 	float x = 57;
 	float y = 0;
@@ -76,7 +124,7 @@ TEST(Input, floatScalar)	 // NOLINT
 	Runner runner(&context, module);
 	runner.run("main", x, y);
 
-	EXPECT_EQ(y, 57.0);
+	EXPECT_FLOAT_EQ(y, x);
 }
 
 TEST(Input, integerArray)	 // NOLINT
@@ -109,8 +157,11 @@ TEST(Input, integerArray)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
 	array<int, 2> x = { 23, 57 };
 	int* xPtr = x.data();
@@ -152,8 +203,11 @@ TEST(Input, floatArray)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
 	array<float, 2> x = { 23.0, 57.0 };
 	float* xPtr = x.data();
@@ -221,8 +275,11 @@ TEST(Input, integerMatrix)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember, zMember }, Algorithm(location, { yAssignment, zAssignment })));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
 	int* xPtr = x.data();
@@ -271,8 +328,11 @@ TEST(Output, integerArray)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, { assignment0, assignment1 })));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
 	array<int, 2> x = { 0, 0 };
 	int* xPtr = x.data();
@@ -316,8 +376,11 @@ TEST(Output, floatArray)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, { assignment0, assignment1 })));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
 	array<float, 2> x = { 0, 0 };
 	float* xPtr = x.data();
@@ -365,8 +428,11 @@ TEST(Output, integerMatrix)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, assignments)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
 	array<int, 6> x = { 0, 0, 0, 0, 0, 0 };
 	int* xPtr = x.data();

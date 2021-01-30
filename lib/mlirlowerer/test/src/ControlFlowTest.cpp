@@ -19,6 +19,7 @@ TEST(IfOp, thenBranchTaken)	 // NOLINT
 	 * function main
 	 *   input Integer x;
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     if x > 0 then
 	 *       y := 1;
@@ -61,13 +62,18 @@ TEST(IfOp, thenBranchTaken)	 // NOLINT
 			Algorithm(location, ifStatement)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
-	int x = 57;
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	int x = 1;
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", x, y);
+
 	EXPECT_EQ(y, 1);
 }
 
@@ -77,6 +83,7 @@ TEST(IfOp, elseBranchTaken)	 // NOLINT
 	 * function main
 	 *   input Integer x;
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     if x > 0 then
 	 *       y := 1;
@@ -119,13 +126,18 @@ TEST(IfOp, elseBranchTaken)	 // NOLINT
 			Algorithm(location, ifStatement)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
-	int x = -57;
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	int x = -1;
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", x, y);
+
 	EXPECT_EQ(y, 2);
 }
 
@@ -135,6 +147,7 @@ TEST(IfOp, elseIfBranchTaken)	 // NOLINT
 	 * function main
 	 *   input Integer x;
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     if x == 0 then
 	 *       y := 1;
@@ -192,12 +205,16 @@ TEST(IfOp, elseIfBranchTaken)	 // NOLINT
 			Algorithm(location, ifStatement)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
-	int x = 57;
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	int x = 1;
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", x, y);
 	EXPECT_EQ(y, 2);
 }
@@ -208,6 +225,7 @@ TEST(ForOp, validLoop)	 // NOLINT
 	 * function main
 	 *   input Integer x;
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := 0;
 	 *     for i in 1:x loop
@@ -248,13 +266,18 @@ TEST(ForOp, validLoop)	 // NOLINT
 			algorithm));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int x = 10;
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", x, y);
+
 	EXPECT_EQ(y, 45);
 }
 
@@ -264,6 +287,7 @@ TEST(ForOp, notExecutedLoop)	 // NOLINT
 	 * function main
 	 *   input Integer x;
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := 1;
 	 *     for i in 1:x loop
@@ -304,13 +328,18 @@ TEST(ForOp, notExecutedLoop)	 // NOLINT
 			algorithm));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int x = 1;
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", x, y);
+
 	EXPECT_EQ(y, 1);
 }
 
@@ -320,8 +349,10 @@ TEST(WhileOp, validLoop)	 // NOLINT
 	 * function main
 	 *   input Integer x;
 	 *   output Integer y;
+	 *
 	 *   protected
 	 *     Integer i;
+	 *
 	 *   algorithm
 	 *     y := 0;
 	 *     i := 0;
@@ -367,13 +398,18 @@ TEST(WhileOp, validLoop)	 // NOLINT
 	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int x = 10;
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", x, y);
+
 	EXPECT_EQ(y, 100);
 }
 
@@ -382,6 +418,7 @@ TEST(WhileOp, notExecutedLoop)	 // NOLINT
 	/**
 	 * function main
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := 1;
 	 *     while false loop
@@ -419,12 +456,17 @@ TEST(WhileOp, notExecutedLoop)	 // NOLINT
 	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", y);
+
 	EXPECT_EQ(y, 1);
 }
 
@@ -433,6 +475,7 @@ TEST(BreakOp, nestedWhile)	 // NOLINT
 	/**
 	 * function main
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := 0;
 	 *     while true loop
@@ -478,12 +521,17 @@ TEST(BreakOp, nestedWhile)	 // NOLINT
 	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", y);
+
 	EXPECT_EQ(y, 1);
 }
 
@@ -492,6 +540,7 @@ TEST(BreakOp, breakAsLastOpInWhile)	 // NOLINT
 	/**
 	 * function main
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := 0;
 	 *     while true loop
@@ -529,12 +578,17 @@ TEST(BreakOp, breakAsLastOpInWhile)	 // NOLINT
 	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", y);
+
 	EXPECT_EQ(y, 1);
 }
 
@@ -543,6 +597,7 @@ TEST(BreakOp, breakNestedInWhile)	 // NOLINT
 	/**
 	 * function main
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := 0;
 	 *     while true loop
@@ -599,12 +654,17 @@ TEST(BreakOp, breakNestedInWhile)	 // NOLINT
 	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", y);
+
 	EXPECT_EQ(y, 1);
 }
 
@@ -613,6 +673,7 @@ TEST(BreakOp, breakAsLastOpInFor)	 // NOLINT
 	/**
 	 * function main
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := 0;
 	 *     for i in 1:10 loop
@@ -657,12 +718,17 @@ TEST(BreakOp, breakAsLastOpInFor)	 // NOLINT
 	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", y);
+
 	EXPECT_EQ(y, 1);
 }
 
@@ -671,6 +737,7 @@ TEST(BreakOp, breakNestedInFor)	 // NOLINT
 	/**
 	 * function main
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := 0;
 	 *     for i in 1:10 loop
@@ -728,12 +795,17 @@ TEST(BreakOp, breakNestedInFor)	 // NOLINT
 	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", y);
+
 	EXPECT_EQ(y, 1);
 }
 
@@ -742,6 +814,7 @@ TEST(ReturnOp, earlyReturn)	 // NOLINT
 	/**
 	 * function main
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := 1;
    *     if true then
@@ -775,11 +848,16 @@ TEST(ReturnOp, earlyReturn)	 // NOLINT
 	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", y);
+
 	EXPECT_EQ(y, 1);
 }

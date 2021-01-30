@@ -13,7 +13,7 @@ static mlir::ModuleOp wrapFunctionWithModule(mlir::MLIRContext& context, mlir::F
 
 static mlir::FuncOp getFunctionReturningValue(mlir::MLIRContext& context, modelica::Type& returnType, std::function<mlir::Value(modelica::MlirLowerer&)> callback)
 {
-	modelica::MlirLowerer lowerer(context, false);
+	modelica::MlirLowerer lowerer(context);
 	auto& builder = lowerer.getOpBuilder();
 	auto functionType = builder.getFunctionType({}, lowerer.lower(returnType));
 	mlir::FuncOp function = mlir::FuncOp::create(builder.getUnknownLoc(), "main", functionType);

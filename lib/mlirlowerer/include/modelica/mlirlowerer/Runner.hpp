@@ -17,8 +17,7 @@ namespace modelica
 		{
 		}
 
-		template<typename... T>
-		mlir::LogicalResult run(llvm::StringRef function, T&... params)
+		mlir::LogicalResult convertToLLVM()
 		{
 			// Convert to LLVM IR
 			if (failed(convertToLLVMDialect(context, module)))
@@ -27,14 +26,22 @@ namespace modelica
 				return mlir::failure();
 			}
 
-			module->dump();
+			return mlir::success();
+		}
 
+		template<typename... T>
+		mlir::LogicalResult run(llvm::StringRef function, T&... params)
+		{
 			// Initialize LLVM targets
 			llvm::InitializeNativeTarget();
 			llvm::InitializeNativeTargetAsmPrinter();
 
 			// Create the engine to run the code
-			auto maybeEngine = mlir::ExecutionEngine::create(module);
+			llvm::SmallVector<llvm::StringRef, 3> libraries;
+			libraries.push_back("/opt/llvm/lib/libmlir_runner_utils.so");
+			libraries.push_back("/opt/llvm/lib/libmlir_c_runner_utils.so");
+
+			auto maybeEngine = mlir::ExecutionEngine::create(module, nullptr, {}, llvm::None, libraries);
 
 			if (!maybeEngine)
 			{

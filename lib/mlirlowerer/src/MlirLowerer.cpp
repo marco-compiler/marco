@@ -1,33 +1,46 @@
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/Conversion/Passes.h>
+#include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/Linalg/Passes.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Dialect/StandardOps/Transforms/Passes.h>
+#include <mlir/Dialect/Vector/VectorOps.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
+#include <modelica/mlirlowerer/LowerToLLVM.hpp>
+#include <modelica/mlirlowerer/LowerToStandard.hpp>
 #include <modelica/mlirlowerer/MlirLowerer.hpp>
 #include <modelica/mlirlowerer/ModelicaDialect.hpp>
-#include <modelica/mlirlowerer/ModelicaLoweringPass.hpp>
 
 using namespace llvm;
 using namespace mlir;
 using namespace modelica;
 using namespace std;
 
-mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module)
+mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module, ModelicaOptions options)
 {
 	mlir::PassManager passManager(context);
 
-	passManager.addPass(createModelicaLoweringPass());
-	passManager.addPass(createBufferResultsToOutParamsPass());
-	passManager.addNestedPass<FuncOp>(createConvertLinalgToLoopsPass());
-	passManager.addPass(createLowerToCFGPass());
-	passManager.addNestedPass<FuncOp>(createMemRefDataFlowOptPass());
+	// Convert the Modelica dialect to the Standard one
+	passManager.addPass(createModelicaToStandardLoweringPass());
 
-	LowerToLLVMOptions llvmLoweringOptions;
-	llvmLoweringOptions.useBarePtrCallConv = true;
-	passManager.addPass(createLowerToLLVMPass(llvmLoweringOptions));
+	// Convert the output buffers to input buffers, in order to delegate the
+	// buffer allocation to the caller.
+	passManager.addPass(createBufferResultsToOutParamsPass());
+
+	// Convert vector operations to loops
+	passManager.addNestedPass<FuncOp>(createConvertLinalgToLoopsPass());
+
+	// Lower the SCF operations
+	passManager.addPass(createLowerToCFGPass());
+
+	//passManager.addNestedPass<FuncOp>(createMemRefDataFlowOptPass());
+
+	// Conversion to LLVM dialect
+	ModelicaToLLVMLoweringOptions modelicaToLLVMOptions;
+	modelicaToLLVMOptions.useBarePtrCallConv = options.useBarePtrCallConv;
+	passManager.addPass(createModelicaToLLVMLoweringPass(modelicaToLLVMOptions));
 
 	return passManager.run(module);
 }
@@ -44,7 +57,6 @@ Reference::Reference(mlir::OpBuilder* builder,
 			reader(std::move(reader))
 {
 }
-
 
 mlir::Value Reference::operator*()
 {
@@ -72,21 +84,33 @@ Reference Reference::memref(mlir::OpBuilder* builder, mlir::Value value)
 			builder, value,
 			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value
 			{
-				return builder->create<mlir::LoadOp>(builder->getUnknownLoc(), value);
+				mlir::Type type = value.getType();
+				assert(type.isa<MemRefType>());
+				auto memRefType = type.cast<MemRefType>();
+
+				if (memRefType.getNumElements() == 1)
+					return builder->create<mlir::LoadOp>(value.getLoc(), value);
+
+				mlir::VectorType vectorType = mlir::VectorType::get(memRefType.getShape(), memRefType.getElementType());
+				mlir::Value zeroValue = builder->create<ConstantOp>(value.getLoc(), builder->getIndexAttr(0));
+				SmallVector<mlir::Value, 3> indexes(memRefType.getRank(), zeroValue);
+				return builder->create<AffineVectorLoadOp>(value.getLoc(), vectorType, value, indexes);
 			});
 }
 
-MlirLowerer::MlirLowerer(mlir::MLIRContext& context, bool x64)
-		: builder(&context)
+MlirLowerer::MlirLowerer(mlir::MLIRContext& context, ModelicaOptions options)
+		: builder(&context), options(move(options))
 {
 	// Check that the required dialects have been previously registered
 	context.loadDialect<ModelicaDialect>();
 	context.loadDialect<StandardOpsDialect>();
 	context.loadDialect<scf::SCFDialect>();
 	context.loadDialect<linalg::LinalgDialect>();
+	context.loadDialect<AffineDialect>();
+	context.loadDialect<mlir::vector::VectorDialect>();
 	context.loadDialect<LLVM::LLVMDialect>();
 
-	if (x64)
+	if (options.x64)
 	{
 		integerType = builder.getI64Type();
 		floatType = builder.getF64Type();
@@ -119,26 +143,53 @@ mlir::Value MlirLowerer::cast(mlir::Value value, mlir::Type destination)
 		return value;
 
 	mlir::Type sourceBase = source;
+	mlir::Type destinationBase = destination;
+
+	if (source.isa<ShapedType>())
+	{
+		sourceBase = source.cast<ShapedType>().getElementType();
+		auto sourceShape = source.cast<ShapedType>().getShape();
+
+		if (destination.isa<ShapedType>())
+		{
+			auto destinationShape = destination.cast<ShapedType>().getShape();
+			destinationBase = destination.cast<ShapedType>().getElementType();
+			assert(all_of(llvm::zip(sourceShape, destinationShape),
+										[](const auto& pair)
+										{
+											return get<0>(pair) == get<1>(pair);
+										}));
+
+			destination = mlir::VectorType::get(destinationShape, destinationBase);
+		}
+		else
+		{
+			destination = mlir::VectorType::get(sourceShape, destinationBase);
+		}
+	}
+
+	if (sourceBase == destinationBase)
+		return value;
 
 	if (sourceBase.isSignlessInteger())
 	{
-		if (destination.isF32() || destination.isF64())
+		if (destinationBase.isF32() || destinationBase.isF64())
 			return builder.create<SIToFPOp>(value.getLoc(), value, destination);
 
-		if (destination.isIndex())
+		if (destinationBase.isIndex())
 			return builder.create<IndexCastOp>(value.getLoc(), value, destination);
 	}
-	else if (source.isF32() || source.isF64())
+	else if (sourceBase.isF32() || sourceBase.isF64())
 	{
-		if (destination.isSignlessInteger())
+		if (destinationBase.isSignlessInteger())
 			return builder.create<FPToSIOp>(value.getLoc(), value, destination);
 	}
-	else if (source.isIndex())
+	else if (sourceBase.isIndex())
 	{
-		if (destination.isSignlessInteger())
+		if (destinationBase.isSignlessInteger())
 			return builder.create<IndexCastOp>(value.getLoc(), value, integerType);
 
-		if (destination.isF32() || destination.isF64())
+		if (destinationBase.isF32() || destinationBase.isF64())
 			return cast(builder.create<IndexCastOp>(value.getLoc(), value, integerType), destination);
 	}
 
@@ -306,34 +357,32 @@ void MlirLowerer::lower(const modelica::Member& member)
 		return;
 
 	auto type = lower(member.getType());
+	mlir::Value var;
 
 	if (type.isa<MemRefType>())
 	{
 		auto shape = type.cast<MemRefType>().getShape();
 		auto baseType = type.cast<MemRefType>().getElementType();
-		mlir::Value var = builder.create<AllocaOp>(location, MemRefType::get(shape, baseType));
-		symbolTable.insert(member.getName(), Reference::memref(&builder, var));
-
-		// TODO: initializer
+		var = builder.create<AllocaOp>(location, MemRefType::get(shape, baseType));
 	}
 	else
 	{
-		mlir::Value var = builder.create<AllocaOp>(location, MemRefType::get({}, type));
-		symbolTable.insert(member.getName(), Reference::memref(&builder, var));
+		var = builder.create<AllocaOp>(location, MemRefType::get({}, type));
+	}
 
-		if (member.hasInitializer())
-		{
-			auto reference = lower<modelica::Expression>(member.getInitializer())[0];
-			builder.create<StoreOp>(loc(member.getInitializer().getLocation()), *reference, var);
-		}
+	symbolTable.insert(member.getName(), Reference::memref(&builder, var));
+
+	if (member.hasInitializer())
+	{
+		auto reference = lower<modelica::Expression>(member.getInitializer())[0];
+		builder.create<AssignmentOp>(loc(member.getInitializer().getLocation()), reference.getReference(), var);
 	}
 }
 
 void MlirLowerer::lower(const modelica::Algorithm& algorithm)
 {
-	for (const auto& statement : algorithm) {
+	for (const auto& statement : algorithm)
 		lower(statement);
-	}
 }
 
 void MlirLowerer::lower(const modelica::Statement& statement)
@@ -508,7 +557,7 @@ void MlirLowerer::lower(const modelica::WhileStatement& statement)
 
 void MlirLowerer::lower(const modelica::WhenStatement& statement)
 {
-	// TODO
+
 }
 
 void MlirLowerer::lower(const modelica::BreakStatement& statement)
@@ -549,9 +598,8 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 
 	if (kind == OperationKind::negate)
 	{
-		auto args = lowerOperationArgs(operation);
-		assert(args.size() == 1);
-		mlir::Value result = builder.create<modelica::NegateOp>(location, args[0]);
+		auto arg = lower<modelica::Expression>(operation[0])[0].getReference();
+		mlir::Value result = builder.create<modelica::NegateOp>(location, arg);
 		result = cast(result, resultType);
 		return { Reference::ssa(&builder, result) };
 	}
@@ -561,6 +609,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		auto args = lowerOperationArgs(operation);
 		mlir::Value result = builder.create<modelica::AddOp>(location, args);
 		result = cast(result, resultType);
+
 		return { Reference::ssa(&builder, result) };
 	}
 
@@ -600,7 +649,6 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::equal)
 	{
 		auto args = lowerOperationArgs(operation);
-		assert(args.size() == 2);
 		mlir::Value result = builder.create<EqOp>(location, args[0], args[1]);
 		result = cast(result, resultType);
 		return { Reference::ssa(&builder, result) };
@@ -609,7 +657,6 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::different)
 	{
 		auto args = lowerOperationArgs(operation);
-		assert(args.size() == 2);
 		mlir::Value result = builder.create<NotEqOp>(location, args[0], args[1]);
 		result = cast(result, resultType);
 		return { Reference::ssa(&builder, result) };
@@ -618,7 +665,6 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::greater)
 	{
 		auto args = lowerOperationArgs(operation);
-		assert(args.size() == 2);
 		mlir::Value result = builder.create<GtOp>(location, args[0], args[1]);
 		result = cast(result, resultType);
 		return { Reference::ssa(&builder, result) };
@@ -627,7 +673,6 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::greaterEqual)
 	{
 		auto args = lowerOperationArgs(operation);
-		assert(args.size() == 2);
 		mlir::Value result = builder.create<GteOp>(location, args[0], args[1]);
 		result = cast(result, resultType);
 		return { Reference::ssa(&builder, result) };
@@ -636,7 +681,6 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::less)
 	{
 		auto args = lowerOperationArgs(operation);
-		assert(args.size() == 2);
 		mlir::Value result = builder.create<LtOp>(location, args[0], args[1]);
 		result = cast(result, resultType);
 		return { Reference::ssa(&builder, result) };
@@ -645,7 +689,6 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::lessEqual)
 	{
 		auto args = lowerOperationArgs(operation);
-		assert(args.size() == 2);
 		mlir::Value result = builder.create<LteOp>(location, args[0], args[1]);
 		result = cast(result, resultType);
 		return { Reference::ssa(&builder, result) };
@@ -877,35 +920,12 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lowerOperationArgs(const modeli
 
 	for (const auto& arg : args)
 	{
-		mlir::Value castedArg = arg;
-
-		if (containsInteger)
-		{
-			// Bool --> Int
-			if (castedArg.getType().isInteger(1))
-				castedArg = builder.create<SignExtendIOp>(arg.getLoc(), castedArg, integerType);
-
-			// Index --> Integer
-			if (castedArg.getType().isIndex())
-				castedArg = builder.create<IndexCastOp>(arg.getLoc(), castedArg, integerType);
-		}
-
 		if (containsFloat)
-		{
-			// Bool --> Int
-			if (castedArg.getType().isInteger(1))
-				castedArg = builder.create<SignExtendIOp>(arg.getLoc(), castedArg, integerType);
-
-			// Index --> Integer
-			if (castedArg.getType().isIndex())
-				castedArg = builder.create<IndexCastOp>(arg.getLoc(), castedArg, integerType);
-
-			// Integer --> Float
-			if (containsFloat && castedArg.getType().isSignlessInteger())
-				castedArg = builder.create<SIToFPOp>(arg.getLoc(), castedArg, floatType);
-		}
-
-		castedArgs.push_back(castedArg);
+			castedArgs.push_back(cast(arg, floatType));
+		else if (containsInteger)
+			castedArgs.push_back(cast(arg, integerType));
+		else
+			castedArgs.push_back(arg);
 	}
 
 	return castedArgs;

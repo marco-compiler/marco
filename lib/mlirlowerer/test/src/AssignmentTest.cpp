@@ -12,6 +12,7 @@ TEST(Assignment, constant)	 // NOLINT
 	/**
 	 * function main
 	 *   output Integer x;
+	 *
 	 *   algorithm
 	 *     x := 57;
 	 * end main
@@ -29,12 +30,17 @@ TEST(Assignment, constant)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int x = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", x);
+
 	EXPECT_EQ(x, 57);
 }
 
@@ -44,6 +50,7 @@ TEST(Assignment, variableCopy)	 // NOLINT
 	 * function main
 	 *   input Integer x;
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := x;
 	 * end main
@@ -64,13 +71,18 @@ TEST(Assignment, variableCopy)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int x = 57;
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", x, y);
+
 	EXPECT_EQ(y, x);
 }
 
@@ -82,6 +94,7 @@ TEST(Assignment, arraySliceAssignment)	 // NOLINT
 	 *   input Integer[2] y;
 	 *   input Integer[2] z;
 	 *   output Integer[3,2] t;
+	 *
 	 *   algorithm
 	 *     t[1] := x;
 	 *     t[2] := y;
@@ -122,8 +135,11 @@ TEST(Assignment, arraySliceAssignment)	 // NOLINT
 															Algorithm(location, { assignment1, assignment2, assignment3 })));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
 	array<int, 2> x = { 0, 1 };
 	array<int, 2> y = { 2, 3 };
@@ -152,6 +168,7 @@ TEST(Assignment, arrayCopy)	 // NOLINT
 	 * function main
 	 *   input Integer[2] x;
 	 *   output Integer[2] y;
+	 *
 	 *   algorithm
 	 *     y := x;
 	 * end main
@@ -172,10 +189,11 @@ TEST(Assignment, arrayCopy)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
 	array<int, 2> x = { 23, 57 };
 	int* xPtr = x.data();
@@ -183,6 +201,7 @@ TEST(Assignment, arrayCopy)	 // NOLINT
 	array<int, 2> y = { 0, 0 };
 	int* yPtr = y.data();
 
+	Runner runner(&context, module);
 	runner.run("main", xPtr, yPtr);
 
 	EXPECT_EQ(y[0], x[0]);
@@ -195,8 +214,10 @@ TEST(Assignment, internalArrayElement)	 // NOLINT
 	 * function main
 	 *   input Integer x;
 	 *   output Integer y;
+	 *
 	 *   protected
 	 *     Integer[2] z;
+	 *
 	 *   algorithm
 	 *     z[0] := x * 2;
 	 *     z[1] := z[0] + 1;
@@ -244,12 +265,17 @@ TEST(Assignment, internalArrayElement)	 // NOLINT
 															algorithm));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	Runner runner(&context, module);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
 	int x = 57;
 	int y = 0;
+
+	Runner runner(&context, module);
 	runner.run("main", x, y);
+
 	EXPECT_EQ(y, x * 2 + 1);
 }

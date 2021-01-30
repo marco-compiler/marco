@@ -9,7 +9,7 @@
 
 namespace modelica
 {
-	class AssignmentOp : public mlir::Op<AssignmentOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::VariadicOperands, mlir::OpTrait::SameTypeOperands> {
+	class AssignmentOp : public mlir::Op<AssignmentOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::VariadicOperands> {
 		public:
 		using Op::Op;
 
@@ -20,7 +20,7 @@ namespace modelica
 		mlir::Value destination();
 	};
 
-	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameOperandsAndResultType, mlir::OpTrait::IsInvolution>
+	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, mlir::OpTrait::SameOperandsAndResultType, mlir::OpTrait::IsInvolution>
 	{
 		public:
 		using Op::Op;
@@ -30,7 +30,7 @@ namespace modelica
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
-	class AddOp : public mlir::Op<AddOp,mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameOperandsAndResultType, mlir::OpTrait::IsCommutative>
+	class AddOp : public mlir::Op<AddOp,mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::IsCommutative>
 	{
 		public:
 		using Op::Op;
@@ -50,7 +50,7 @@ namespace modelica
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
-	class MulOp : public mlir::Op<MulOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameOperandsAndResultType>
+	class MulOp : public mlir::Op<MulOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike>
 	{
 		public:
 		using Op::Op;
@@ -77,6 +77,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
@@ -87,6 +88,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
@@ -97,6 +99,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
@@ -107,6 +110,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
@@ -117,6 +121,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
@@ -127,6 +132,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
