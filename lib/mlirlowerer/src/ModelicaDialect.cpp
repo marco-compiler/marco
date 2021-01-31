@@ -8,6 +8,8 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 {
 	// Generic operations
 	addOperations<AssignmentOp>();
+	addOperations<CastOp>();
+	addOperations<CastCommonOp>();
 
 	// Math operations
 	addOperations<NegateOp>();

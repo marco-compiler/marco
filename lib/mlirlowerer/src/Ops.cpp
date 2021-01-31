@@ -7,6 +7,139 @@
 using namespace modelica;
 using namespace std;
 
+llvm::StringRef CastOp::getOperationName()
+{
+	return "modelica.cast";
+}
+
+void CastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Type destinationType)
+{
+	state.addOperands(value);
+	state.addTypes(destinationType);
+}
+
+void CastOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "cast " << value() << " " << getOperation()->getResultTypes()[0];
+}
+
+mlir::Value CastOp::value()
+{
+	return getOperand();
+}
+
+llvm::StringRef CastCommonOp::getOperationName()
+{
+	return "modelica.cast_common";
+}
+
+static mlir::Type getMoreGenericType(mlir::Type x, mlir::Type y)
+{
+	mlir::Type xBase = x;
+	mlir::Type yBase = y;
+
+	while (xBase.isa<mlir::ShapedType>())
+		xBase = xBase.cast<mlir::ShapedType>().getElementType();
+
+	while (yBase.isa<mlir::ShapedType>())
+		yBase = yBase.cast<mlir::ShapedType>().getElementType();
+
+	if (xBase.isa<mlir::FloatType>())
+		return x;
+
+	if (yBase.isa<mlir::FloatType>())
+		return y;
+
+	if (xBase.isa<mlir::IntegerType>())
+		return x;
+
+	if (yBase.isa<mlir::IntegerType>())
+		return y;
+
+	return x;
+}
+
+void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
+{
+	state.addOperands(values);
+
+	mlir::Type resultType = nullptr;
+	mlir::Type resultBaseType = nullptr;
+
+	for (const auto& value : values)
+	{
+		mlir::Type type = value.getType();
+		mlir::Type baseType = type;
+
+		if (resultType == nullptr)
+		{
+			resultType = type;
+			resultBaseType = type;
+
+			while (resultBaseType.isa<mlir::ShapedType>())
+				resultBaseType = resultBaseType.cast<mlir::ShapedType>().getElementType();
+
+			continue;
+		}
+
+		if (type.isa<mlir::ShapedType>())
+		{
+			mlir::Type result = resultType;
+
+			assert(result.isa<mlir::ShapedType>() && "Values have different shape");
+			assert(result.cast<mlir::ShapedType>().getShape() == type.cast<mlir::ShapedType>().getShape() && "Values have different shape");
+
+			while (baseType.isa<mlir::ShapedType>())
+				baseType = baseType.cast<mlir::ShapedType>().getElementType();
+		}
+
+		if (baseType.isIndex())
+			continue;
+
+		if (resultBaseType.isIndex())
+		{
+			resultType = type;
+			resultBaseType = baseType;
+		}
+		else if (resultBaseType.isa<mlir::IntegerType>())
+		{
+			if (baseType.isa<mlir::FloatType>() || baseType.getIntOrFloatBitWidth() > resultBaseType.getIntOrFloatBitWidth())
+			{
+				resultType = type;
+				resultBaseType = baseType;
+			}
+		}
+		else if (resultBaseType.isa<mlir::FloatType>())
+		{
+			if (baseType.isa<mlir::FloatType>() && baseType.getIntOrFloatBitWidth() > resultBaseType.getIntOrFloatBitWidth())
+			{
+				resultType = type;
+				resultBaseType = baseType;
+			}
+		}
+	}
+
+	llvm::SmallVector<mlir::Type, 3> types(values.size(), resultType);
+	state.addTypes(types);
+}
+
+void CastCommonOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "cast_common ";
+	printer.printOperands(values());
+	printer << " : " << getOperation()->getResultTypes()[0];
+}
+
+mlir::ValueRange CastCommonOp::values()
+{
+	return getOperands();
+}
+
+mlir::Type CastCommonOp::type()
+{
+	return getResultTypes()[0];
+}
+
 llvm::StringRef AssignmentOp::getOperationName()
 {
 	return "modelica.assignment";
@@ -55,13 +188,18 @@ llvm::StringRef AddOp::getOperationName()
 	return "modelica.add";
 }
 
-void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange operands)
+void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange operands)
 {
+	if (resultType.isa<mlir::ShapedType>())
+	{
+		auto shapedType = resultType.cast<mlir::ShapedType>();
+		resultType = mlir::VectorType::get(shapedType.getShape(), shapedType.getElementType());
+	}
+
+	state.addTypes(resultType);
+
 	assert(operands.size() >= 2);
 	state.addOperands(operands);
-
-	// All operands have same type and shape
-	state.addTypes(operands[0].getType());
 }
 
 void AddOp::print(mlir::OpAsmPrinter& printer)
@@ -69,23 +207,33 @@ void AddOp::print(mlir::OpAsmPrinter& printer)
 	printer << "add " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
+mlir::ValueRange AddOp::values()
+{
+	return getOperands();
+}
+
 llvm::StringRef SubOp::getOperationName()
 {
 	return "modelica.sub";
 }
 
-void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange operands)
+void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange operands)
 {
+	if (resultType.isa<mlir::ShapedType>())
+	{
+		auto shapedType = resultType.cast<mlir::ShapedType>();
+		resultType = mlir::VectorType::get(shapedType.getShape(), shapedType.getElementType());
+	}
+
+	state.addTypes(resultType);
+
 	assert(operands.size() >= 2);
 	state.addOperands(operands);
-
-	// All operands have same type and shape
-	state.addTypes(operands[0].getType());
 }
 
 void SubOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "sub " << getOperands();
+	printer << "sub " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 llvm::StringRef MulOp::getOperationName()
@@ -93,18 +241,23 @@ llvm::StringRef MulOp::getOperationName()
 	return "modelica.mul";
 }
 
-void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange operands)
+void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange operands)
 {
+	if (resultType.isa<mlir::ShapedType>())
+	{
+		auto shapedType = resultType.cast<mlir::ShapedType>();
+		resultType = mlir::VectorType::get(shapedType.getShape(), shapedType.getElementType());
+	}
+
+	state.addTypes(resultType);
+
 	assert(operands.size() >= 2);
 	state.addOperands(operands);
-
-	// All operands have same type and shape
-	state.addTypes(operands[0].getType());
 }
 
 void MulOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "mul " << getOperands();
+	printer << "mul " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 llvm::StringRef DivOp::getOperationName()
@@ -112,18 +265,23 @@ llvm::StringRef DivOp::getOperationName()
 	return "modelica.div";
 }
 
-void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange operands)
+void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange operands)
 {
+	if (resultType.isa<mlir::ShapedType>())
+	{
+		auto shapedType = resultType.cast<mlir::ShapedType>();
+		resultType = mlir::VectorType::get(shapedType.getShape(), shapedType.getElementType());
+	}
+
+	state.addTypes(resultType);
+
 	assert(operands.size() >= 2);
 	state.addOperands(operands);
-
-	// All operands have same type and shape
-	state.addTypes(operands[0].getType());
 }
 
 void DivOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "div " << getOperands();
+	printer << "div " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 llvm::StringRef EqOp::getOperationName()
@@ -133,8 +291,14 @@ llvm::StringRef EqOp::getOperationName()
 
 void EqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
 {
-	state.addOperands({ lhs, rhs });
 	state.addTypes(builder.getI1Type());
+	state.addOperands({ lhs, rhs });
+}
+
+void EqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
 }
 
 mlir::LogicalResult EqOp::verify()
@@ -148,7 +312,7 @@ mlir::LogicalResult EqOp::verify()
 
 void EqOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "eq " << getOperands();
+	printer << "eq " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 llvm::StringRef NotEqOp::getOperationName()
@@ -158,8 +322,14 @@ llvm::StringRef NotEqOp::getOperationName()
 
 void NotEqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
 {
-	state.addOperands({ lhs, rhs });
 	state.addTypes(builder.getI1Type());
+	state.addOperands({ lhs, rhs });
+}
+
+void NotEqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
 }
 
 mlir::LogicalResult NotEqOp::verify()
@@ -173,7 +343,7 @@ mlir::LogicalResult NotEqOp::verify()
 
 void NotEqOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "neq " << getOperands();
+	printer << "neq " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 llvm::StringRef GtOp::getOperationName()
@@ -183,8 +353,14 @@ llvm::StringRef GtOp::getOperationName()
 
 void GtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
 {
-	state.addOperands({ lhs, rhs });
 	state.addTypes(builder.getI1Type());
+	state.addOperands({ lhs, rhs });
+}
+
+void GtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
 }
 
 mlir::LogicalResult GtOp::verify()
@@ -198,7 +374,7 @@ mlir::LogicalResult GtOp::verify()
 
 void GtOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "gt " << getOperands();
+	printer << "gt " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 llvm::StringRef GteOp::getOperationName()
@@ -208,8 +384,14 @@ llvm::StringRef GteOp::getOperationName()
 
 void GteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
 {
-	state.addOperands({ lhs, rhs });
 	state.addTypes(builder.getI1Type());
+	state.addOperands({ lhs, rhs });
+}
+
+void GteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
 }
 
 mlir::LogicalResult GteOp::verify()
@@ -223,7 +405,7 @@ mlir::LogicalResult GteOp::verify()
 
 void GteOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "gte " << getOperands();
+	printer << "gte " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 llvm::StringRef LtOp::getOperationName()
@@ -233,8 +415,14 @@ llvm::StringRef LtOp::getOperationName()
 
 void LtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
 {
-	state.addOperands({ lhs, rhs });
 	state.addTypes(builder.getI1Type());
+	state.addOperands({ lhs, rhs });
+}
+
+void LtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
 }
 
 mlir::LogicalResult LtOp::verify()
@@ -248,7 +436,7 @@ mlir::LogicalResult LtOp::verify()
 
 void LtOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "lt " << getOperands();
+	printer << "lt " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 llvm::StringRef LteOp::getOperationName()
@@ -258,8 +446,14 @@ llvm::StringRef LteOp::getOperationName()
 
 void LteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
 {
-	state.addOperands({ lhs, rhs });
 	state.addTypes(builder.getI1Type());
+	state.addOperands({ lhs, rhs });
+}
+
+void LteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
 }
 
 mlir::LogicalResult LteOp::verify()
@@ -273,7 +467,7 @@ mlir::LogicalResult LteOp::verify()
 
 void LteOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "lte " << getOperands();
+	printer << "lte " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 llvm::StringRef IfOp::getOperationName()

@@ -9,6 +9,112 @@ using namespace mlir;
 using namespace modelica;
 using namespace std;
 
+LogicalResult CastOpLowering::matchAndRewrite(CastOp op, PatternRewriter& rewriter) const
+{
+	auto location = op.getLoc();
+
+	mlir::Value value = op.value();
+	mlir::Type source = value.getType();
+	mlir::Type destination = op->getResultTypes()[0];
+
+	if (source == destination)
+	{
+		rewriter.replaceOp(op, value);
+		return success();
+	}
+
+	mlir::Type sourceBase = source;
+	mlir::Type destinationBase = destination;
+
+	if (source.isa<ShapedType>())
+	{
+		sourceBase = source.cast<ShapedType>().getElementType();
+		auto sourceShape = source.cast<ShapedType>().getShape();
+
+		if (destination.isa<ShapedType>())
+		{
+			auto destinationShape = destination.cast<ShapedType>().getShape();
+			destinationBase = destination.cast<ShapedType>().getElementType();
+			assert(all_of(llvm::zip(sourceShape, destinationShape),
+										[](const auto& pair)
+										{
+											return get<0>(pair) == get<1>(pair);
+										}));
+
+			destination = mlir::VectorType::get(destinationShape, destinationBase);
+		}
+		else
+		{
+			destination = mlir::VectorType::get(sourceShape, destinationBase);
+		}
+	}
+
+	if (sourceBase == destinationBase)
+	{
+		rewriter.replaceOp(op, value);
+		return success();
+	}
+
+	if (sourceBase.isSignlessInteger())
+	{
+		if (destinationBase.isa<FloatType>())
+		{
+			rewriter.replaceOpWithNewOp<SIToFPOp>(op, value, destination);
+			return success();
+		}
+
+		if (destinationBase.isIndex())
+		{
+			rewriter.replaceOpWithNewOp<IndexCastOp>(op, value, destination);
+			return success();
+		}
+	}
+
+	if (sourceBase.isa<FloatType>())
+	{
+		if (destinationBase.isSignlessInteger())
+		{
+			rewriter.replaceOpWithNewOp<FPToSIOp>(op, value, destination);
+			return success();
+		}
+	}
+
+	if (sourceBase.isIndex())
+	{
+		if (destinationBase.isSignlessInteger())
+		{
+			rewriter.replaceOpWithNewOp<IndexCastOp>(op, value, destinationBase);
+			return success();
+		}
+
+		if (destinationBase.isa<FloatType>())
+		{
+			mlir::Type integerType = rewriter.getIntegerType(sourceBase.getIntOrFloatBitWidth());
+			mlir::Value integer = rewriter.create<IndexCastOp>(location, value, integerType);
+			rewriter.replaceOpWithNewOp<SIToFPOp>(op, integer, destination);
+			return success();
+		}
+	}
+
+	return rewriter.notifyMatchFailure(op, "Unsupported type conversion");
+}
+
+LogicalResult CastCommonOpLowering::matchAndRewrite(CastCommonOp op, PatternRewriter& rewriter) const
+{
+	auto location = op->getLoc();
+	mlir::Type type = op->getResultTypes()[0];
+	SmallVector<mlir::Value, 3> values;
+
+	for (auto value : op->getOperands())
+	{
+		mlir::Value castedValue = rewriter.create<CastOp>(location, value, type);
+		values.push_back(castedValue);
+	}
+
+	rewriter.replaceOp(op, values);
+	return success();
+}
+
 LogicalResult AssignmentOpLowering::matchAndRewrite(AssignmentOp op, PatternRewriter& rewriter) const
 {
 	mlir::Value source = op.source();
@@ -89,268 +195,357 @@ LogicalResult AddOpLowering::matchAndRewrite(AddOp op, PatternRewriter& rewriter
 {
 	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type =  op->getResultTypes()[0];
-
-	if (type.isa<ShapedType>())
-		type = type.cast<ShapedType>().getElementType();
 
 	mlir::Value result = operands[0];
 
-	if (type.isSignlessInteger())
+	for (size_t i = 1; i < operands.size(); i++)
 	{
-		for (size_t i = 1; i < operands.size(); i++)
-			result = rewriter.create<AddIOp>(location, result, operands[i]);
+		SmallVector<mlir::Value, 2> currentOperands = { result, operands[i] };
+		auto castOp = rewriter.create<CastCommonOp>(location, currentOperands);
+		auto castedOperands = castOp.getResults();
+		mlir::Type type = castOp.type();
 
-		rewriter.replaceOp(op, result);
-		return success();
+		while (type.isa<ShapedType>())
+			type = type.cast<ShapedType>().getElementType();
+
+		if (type.isIndex() || type.isa<IntegerType>())
+			result = rewriter.create<AddIOp>(location, castedOperands[0], castedOperands[1]);
+		else if (type.isa<FloatType>())
+			result = rewriter.create<AddFOp>(location, castedOperands[0], castedOperands[1]);
+		else
+			return rewriter.notifyMatchFailure(op, "Incompatible types");
 	}
 
-	if (type.isF64() || type.isF32())
-	{
-		for (size_t i = 1; i < operands.size(); i++)
-			result = rewriter.create<AddFOp>(location, result, operands[i]);
-
-		rewriter.replaceOp(op, result);
-		return success();
-	}
-
-	return failure();
+	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	return success();
 }
 
 LogicalResult SubOpLowering::matchAndRewrite(SubOp op, PatternRewriter& rewriter) const
 {
 	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = op->getResultTypes()[0];
-
-	if (type.isa<VectorType>() || type.isa<TensorType>())
-		type = type.cast<ShapedType>().getElementType();
 
 	mlir::Value result = operands[0];
 
-	if (type.isSignlessInteger())
+	for (size_t i = 1; i < operands.size(); i++)
 	{
-		for (size_t i = 1; i < operands.size(); i++)
-			result = rewriter.create<SubIOp>(location, result, operands[i]);
+		SmallVector<mlir::Value, 2> currentOperands = { result, operands[i] };
+		auto castOp = rewriter.create<CastCommonOp>(location, currentOperands);
+		auto castedOperands = castOp.getResults();
+		mlir::Type type = castOp.type();
 
-		rewriter.replaceOp(op, result);
-		return success();
+		while (type.isa<ShapedType>())
+			type = type.cast<ShapedType>().getElementType();
+
+		if (type.isIndex() || type.isa<IntegerType>())
+			result = rewriter.create<SubIOp>(location, castedOperands[0], castedOperands[1]);
+		else if (type.isa<FloatType>())
+			result = rewriter.create<SubFOp>(location, castedOperands[0], castedOperands[1]);
+		else
+			return rewriter.notifyMatchFailure(op, "Incompatible types");
 	}
 
-	if (type.isF64() || type.isF32())
-	{
-		for (size_t i = 1; i < operands.size(); i++)
-			result = rewriter.create<SubFOp>(location, result, operands[i]);
-
-		rewriter.replaceOp(op, result);
-		return success();
-	}
-
-	return failure();
+	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	return success();
 }
 
 LogicalResult MulOpLowering::matchAndRewrite(MulOp op, PatternRewriter& rewriter) const
 {
 	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = op->getResultTypes()[0];
-
-	if (type.isa<VectorType>() || type.isa<TensorType>())
-		type = type.cast<ShapedType>().getElementType();
 
 	mlir::Value result = operands[0];
 
-	if (type.isSignlessInteger())
+	for (size_t i = 1; i < operands.size(); i++)
 	{
-		for (size_t i = 1; i < operands.size(); i++)
-			result = rewriter.create<MulIOp>(location, result, operands[i]);
+		SmallVector<mlir::Value, 2> currentOperands = { result, operands[i] };
+		auto castOp = rewriter.create<CastCommonOp>(location, currentOperands);
+		auto castedOperands = castOp.getResults();
+		mlir::Type type = castOp.type();
 
-		rewriter.replaceOp(op, result);
-		return success();
+		while (type.isa<ShapedType>())
+			type = type.cast<ShapedType>().getElementType();
+
+		if (type.isIndex() || type.isa<IntegerType>())
+			result = rewriter.create<MulIOp>(location, castedOperands[0], castedOperands[1]);
+		else if (type.isa<FloatType>())
+			result = rewriter.create<MulFOp>(location, castedOperands[0], castedOperands[1]);
+		else
+			return rewriter.notifyMatchFailure(op, "Incompatible types");
 	}
 
-	if (type.isF64() || type.isF32())
-	{
-		for (size_t i = 1; i < operands.size(); i++)
-			result = rewriter.create<MulFOp>(location, result, operands[i]);
-
-		rewriter.replaceOp(op, result);
-		return success();
-	}
-
-	return failure();
+	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	return success();
 }
 
 LogicalResult DivOpLowering::matchAndRewrite(DivOp op, PatternRewriter& rewriter) const
 {
 	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = op->getResultTypes()[0];
-
-	if (type.isa<VectorType>() || type.isa<TensorType>())
-		type = type.cast<ShapedType>().getElementType();
 
 	mlir::Value result = operands[0];
 
-	if (type.isSignlessInteger())
+	for (size_t i = 1; i < operands.size(); i++)
 	{
-		for (size_t i = 1; i < operands.size(); i++)
-			result = rewriter.create<SignedDivIOp>(location, result, operands[i]);
+		SmallVector<mlir::Value, 2> currentOperands = { result, operands[i] };
+		auto castOp = rewriter.create<CastCommonOp>(location, currentOperands);
+		auto castedOperands = castOp.getResults();
+		mlir::Type type = castOp.type();
 
-		rewriter.replaceOp(op, result);
-		return success();
+		while (type.isa<ShapedType>())
+			type = type.cast<ShapedType>().getElementType();
+
+		if (type.isIndex() || type.isa<IntegerType>())
+			result = rewriter.create<SignedDivIOp>(location, castedOperands[0], castedOperands[1]);
+		else if (type.isa<FloatType>())
+			result = rewriter.create<DivFOp>(location, castedOperands[0], castedOperands[1]);
+		else
+			return rewriter.notifyMatchFailure(op, "Incompatible types");
 	}
 
-	if (type.isF64() || type.isF32())
-	{
-		for (size_t i = 1; i < operands.size(); i++)
-			result = rewriter.create<DivFOp>(location, result, operands[i]);
-
-		rewriter.replaceOp(op, result);
-		return success();
-	}
-
-	return failure();
+	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	return success();
 }
 
 LogicalResult EqOpLowering::matchAndRewrite(EqOp op, PatternRewriter& rewriter) const
 {
+	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = operands[0].getType();
 
-	if (type.isa<VectorType>() || type.isa<TensorType>())
-		type = type.cast<ShapedType>().getElementType();
+	mlir::Value lhs = operands[0];
+	mlir::Type lhsBaseType = lhs.getType();
 
-	if (type.isSignlessInteger())
+	while (lhsBaseType.isa<ShapedType>())
+		lhsBaseType = lhsBaseType.cast<ShapedType>().getElementType();
+
+	mlir::Value rhs = operands[1];
+	mlir::Type rhsBaseType = rhs.getType();
+
+	while (rhsBaseType.isa<ShapedType>())
+		rhsBaseType = rhsBaseType.cast<ShapedType>().getElementType();
+
+	mlir::Value result;
+
+	if (lhsBaseType.isa<IntegerType>() && rhsBaseType.isa<IntegerType>())
+		result = rewriter.create<CmpIOp>(location, CmpIPredicate::eq, lhs, rhs);
+	else if (lhsBaseType.isa<FloatType>() && rhsBaseType.isa<FloatType>())
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OEQ, lhs, rhs);
+	else if (lhsBaseType.isa<IntegerType>() && rhsBaseType.isa<FloatType>())
 	{
-		rewriter.replaceOpWithNewOp<CmpIOp>(op, CmpIPredicate::eq, operands[0], operands[1]);
-		return success();
+		lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OEQ, lhs, rhs);
 	}
-
-	if (type.isF32() || type.isF64())
+	else if (lhsBaseType.isa<FloatType>() && rhsBaseType.isa<IntegerType>())
 	{
-		rewriter.replaceOpWithNewOp<CmpFOp>(op, CmpFPredicate::OEQ, operands[0], operands[1]);
-		return success();
+		rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OEQ, lhs, rhs);
 	}
+	else
+		return rewriter.notifyMatchFailure(op, "Incompatible types");
 
-	return failure();
+	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	return success();
 }
 
 LogicalResult NotEqOpLowering::matchAndRewrite(NotEqOp op, PatternRewriter& rewriter) const
 {
+	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = operands[0].getType();
 
-	if (type.isa<VectorType>() || type.isa<TensorType>())
-		type = type.cast<ShapedType>().getElementType();
+	mlir::Value lhs = operands[0];
+	mlir::Type lhsBaseType = lhs.getType();
 
-	if (type.isSignlessInteger())
+	while (lhsBaseType.isa<ShapedType>())
+		lhsBaseType = lhsBaseType.cast<ShapedType>().getElementType();
+
+	mlir::Value rhs = operands[1];
+	mlir::Type rhsBaseType = rhs.getType();
+
+	while (rhsBaseType.isa<ShapedType>())
+		rhsBaseType = rhsBaseType.cast<ShapedType>().getElementType();
+
+	mlir::Value result;
+
+	if (lhsBaseType.isa<IntegerType>() && rhsBaseType.isa<IntegerType>())
+		result = rewriter.create<CmpIOp>(location, CmpIPredicate::ne, lhs, rhs);
+	else if (lhsBaseType.isa<FloatType>() && rhsBaseType.isa<FloatType>())
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::ONE, lhs, rhs);
+	else if (lhsBaseType.isa<IntegerType>() && rhsBaseType.isa<FloatType>())
 	{
-		rewriter.replaceOpWithNewOp<CmpIOp>(op, CmpIPredicate::ne, operands[0], operands[1]);
-		return success();
+		lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::ONE, lhs, rhs);
 	}
-
-	if (type.isF32() || type.isF64())
+	else if (lhsBaseType.isa<FloatType>() && rhsBaseType.isa<IntegerType>())
 	{
-		rewriter.replaceOpWithNewOp<CmpFOp>(op, CmpFPredicate::ONE, operands[0], operands[1]);
-		return success();
+		rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::ONE, lhs, rhs);
 	}
+	else
+		return rewriter.notifyMatchFailure(op, "Incompatible types");
 
-	return failure();
+	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	return success();
 }
 
 LogicalResult GtOpLowering::matchAndRewrite(GtOp op, PatternRewriter& rewriter) const
 {
+	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = operands[0].getType();
 
-	if (type.isa<VectorType>() || type.isa<TensorType>())
-		type = type.cast<ShapedType>().getElementType();
+	mlir::Value lhs = operands[0];
+	mlir::Type lhsBaseType = lhs.getType();
 
-	if (type.isSignlessInteger())
+	while (lhsBaseType.isa<ShapedType>())
+		lhsBaseType = lhsBaseType.cast<ShapedType>().getElementType();
+
+	mlir::Value rhs = operands[1];
+	mlir::Type rhsBaseType = rhs.getType();
+
+	while (rhsBaseType.isa<ShapedType>())
+		rhsBaseType = rhsBaseType.cast<ShapedType>().getElementType();
+
+	mlir::Value result;
+
+	if (lhsBaseType.isa<IntegerType>() && rhsBaseType.isa<IntegerType>())
+		result = rewriter.create<CmpIOp>(location, CmpIPredicate::sgt, lhs, rhs);
+	else if (lhsBaseType.isa<FloatType>() && rhsBaseType.isa<FloatType>())
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OGT, lhs, rhs);
+	else if (lhsBaseType.isa<IntegerType>() && rhsBaseType.isa<FloatType>())
 	{
-		rewriter.replaceOpWithNewOp<CmpIOp>(op, CmpIPredicate::sgt, operands[0], operands[1]);
-		return success();
+		lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OGT, lhs, rhs);
 	}
-
-	if (type.isF32() || type.isF64())
+	else if (lhsBaseType.isa<FloatType>() && rhsBaseType.isa<IntegerType>())
 	{
-		rewriter.replaceOpWithNewOp<CmpFOp>(op, CmpFPredicate::OGT, operands[0], operands[1]);
-		return success();
+		rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OGT, lhs, rhs);
 	}
+	else
+		return rewriter.notifyMatchFailure(op, "Incompatible types");
 
-	return failure();
+	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	return success();
 }
 
 LogicalResult GteOpLowering::matchAndRewrite(GteOp op, PatternRewriter& rewriter) const
 {
+	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = operands[0].getType();
 
-	if (type.isa<VectorType>() || type.isa<TensorType>())
-		type = type.cast<ShapedType>().getElementType();
+	mlir::Value lhs = operands[0];
+	mlir::Type lhsBaseType = lhs.getType();
 
-	if (type.isSignlessInteger())
+	while (lhsBaseType.isa<ShapedType>())
+		lhsBaseType = lhsBaseType.cast<ShapedType>().getElementType();
+
+	mlir::Value rhs = operands[1];
+	mlir::Type rhsBaseType = rhs.getType();
+
+	while (rhsBaseType.isa<ShapedType>())
+		rhsBaseType = rhsBaseType.cast<ShapedType>().getElementType();
+
+	mlir::Value result;
+
+	if (lhsBaseType.isa<IntegerType>() && rhsBaseType.isa<IntegerType>())
+		result = rewriter.create<CmpIOp>(location, CmpIPredicate::sge, lhs, rhs);
+	else if (lhsBaseType.isa<FloatType>() && rhsBaseType.isa<FloatType>())
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OGE, lhs, rhs);
+	else if (lhsBaseType.isa<IntegerType>() && rhsBaseType.isa<FloatType>())
 	{
-		rewriter.replaceOpWithNewOp<CmpIOp>(op, CmpIPredicate::sge, operands[0], operands[1]);
-		return success();
+		lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OGE, lhs, rhs);
 	}
-
-	if (type.isF32() || type.isF64())
+	else if (lhsBaseType.isa<FloatType>() && rhsBaseType.isa<IntegerType>())
 	{
-		rewriter.replaceOpWithNewOp<CmpFOp>(op, CmpFPredicate::OGE, operands[0], operands[1]);
-		return success();
+		rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OGE, lhs, rhs);
 	}
+	else
+		return rewriter.notifyMatchFailure(op, "Incompatible types");
 
-	return failure();
+	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	return success();
 }
 
 LogicalResult LtOpLowering::matchAndRewrite(LtOp op, PatternRewriter& rewriter) const
 {
+	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = operands[0].getType();
 
-	if (type.isa<VectorType>() || type.isa<TensorType>())
-		type = type.cast<ShapedType>().getElementType();
+	mlir::Value lhs = operands[0];
+	mlir::Type lhsBaseType = lhs.getType();
 
-	if (type.isSignlessInteger())
+	while (lhsBaseType.isa<ShapedType>())
+		lhsBaseType = lhsBaseType.cast<ShapedType>().getElementType();
+
+	mlir::Value rhs = operands[1];
+	mlir::Type rhsBaseType = rhs.getType();
+
+	while (rhsBaseType.isa<ShapedType>())
+		rhsBaseType = rhsBaseType.cast<ShapedType>().getElementType();
+
+	mlir::Value result;
+
+	if (lhsBaseType.isa<IntegerType>() && rhsBaseType.isa<IntegerType>())
+		result = rewriter.create<CmpIOp>(location, CmpIPredicate::slt, lhs, rhs);
+	else if (lhsBaseType.isa<FloatType>() && rhsBaseType.isa<FloatType>())
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OLT, lhs, rhs);
+	else if (lhsBaseType.isa<IntegerType>() && rhsBaseType.isa<FloatType>())
 	{
-		rewriter.replaceOpWithNewOp<CmpIOp>(op, CmpIPredicate::slt, operands[0], operands[1]);
-		return success();
+		lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OLT, lhs, rhs);
 	}
-
-	if (type.isF32() || type.isF64())
+	else if (lhsBaseType.isa<FloatType>() && rhsBaseType.isa<IntegerType>())
 	{
-		rewriter.replaceOpWithNewOp<CmpFOp>(op, CmpFPredicate::OLT, operands[0], operands[1]);
-		return success();
+		rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OLT, lhs, rhs);
 	}
+	else
+		return rewriter.notifyMatchFailure(op, "Incompatible types");
 
-	return failure();
+	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	return success();
 }
 
 LogicalResult LteOpLowering::matchAndRewrite(LteOp op, PatternRewriter& rewriter) const
 {
+	Location location = op.getLoc();
 	auto operands = op->getOperands();
-	mlir::Type type = operands[0].getType();
 
-	if (type.isa<VectorType>() || type.isa<TensorType>())
-		type = type.cast<ShapedType>().getElementType();
+	mlir::Value lhs = operands[0];
+	mlir::Type lhsBaseType = lhs.getType();
 
-	if (type.isSignlessInteger())
+	while (lhsBaseType.isa<ShapedType>())
+		lhsBaseType = lhsBaseType.cast<ShapedType>().getElementType();
+
+	mlir::Value rhs = operands[1];
+	mlir::Type rhsBaseType = rhs.getType();
+
+	while (rhsBaseType.isa<ShapedType>())
+		rhsBaseType = rhsBaseType.cast<ShapedType>().getElementType();
+
+	mlir::Value result;
+
+	if (lhsBaseType.isa<IntegerType>() && rhsBaseType.isa<IntegerType>())
+		result = rewriter.create<CmpIOp>(location, CmpIPredicate::sle, lhs, rhs);
+	else if (lhsBaseType.isa<FloatType>() && rhsBaseType.isa<FloatType>())
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OLE, lhs, rhs);
+	else if (lhsBaseType.isa<IntegerType>() && rhsBaseType.isa<FloatType>())
 	{
-		rewriter.replaceOpWithNewOp<CmpIOp>(op, CmpIPredicate::sle, operands[0], operands[1]);
-		return success();
+		lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OLE, lhs, rhs);
 	}
-
-	if (type.isF32() || type.isF64())
+	else if (lhsBaseType.isa<FloatType>() && rhsBaseType.isa<IntegerType>())
 	{
-		rewriter.replaceOpWithNewOp<CmpFOp>(op, CmpFPredicate::OLE, operands[0], operands[1]);
-		return success();
+		rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
+		result = rewriter.create<CmpFOp>(location, CmpFPredicate::OLE, lhs, rhs);
 	}
+	else
+		return rewriter.notifyMatchFailure(op, "Incompatible types");
 
-	return failure();
+	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	return success();
 }
-
 
 LogicalResult IfOpLowering::matchAndRewrite(IfOp op, PatternRewriter& rewriter) const
 {
@@ -363,18 +558,16 @@ LogicalResult IfOpLowering::matchAndRewrite(IfOp op, PatternRewriter& rewriter) 
 
 	if (hasElseBlock)
 	{
-		auto ifOp = rewriter.create<scf::IfOp>(
+		rewriter.create<scf::IfOp>(
 				op.getLoc(), TypeRange(), op.condition(), thenBuilder,
 				[&](mlir::OpBuilder& builder, mlir::Location location)
 				{
 					rewriter.mergeBlocks(&op.elseRegion().front(), builder.getInsertionBlock());
 				});
-		ifOp.dump();
 	}
 	else
 	{
-		auto ifOp = rewriter.create<scf::IfOp>(op.getLoc(), TypeRange(), op.condition(), thenBuilder, nullptr);
-		ifOp.dump();
+		rewriter.create<scf::IfOp>(op.getLoc(), TypeRange(), op.condition(), thenBuilder, nullptr);
 	}
 
 	rewriter.eraseOp(op);
@@ -544,6 +737,8 @@ void ModelicaToStandardLoweringPass::runOnOperation()
 void modelica::populateModelicaToStandardConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
 {
 	// Generic operations
+	patterns.insert<CastOpLowering>(context);
+	patterns.insert<CastCommonOpLowering>(context);
 	patterns.insert<AssignmentOpLowering>(context);
 
 	// Math operations

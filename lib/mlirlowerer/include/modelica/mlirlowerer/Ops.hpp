@@ -9,7 +9,28 @@
 
 namespace modelica
 {
-	class AssignmentOp : public mlir::Op<AssignmentOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::VariadicOperands> {
+	class CastOp : public mlir::Op<CastOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult> {
+		public:
+		using Op::Op;
+
+		static ::llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &odsBuilder, mlir::OperationState &odsState, mlir::Value value, mlir::Type destinationType);
+		void print(mlir::OpAsmPrinter &p);
+		mlir::Value value();
+	};
+
+	class CastCommonOp : public mlir::Op<CastCommonOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::VariadicResults> {
+		public:
+		using Op::Op;
+
+		static ::llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &odsBuilder, mlir::OperationState &odsState, mlir::ValueRange values);
+		void print(mlir::OpAsmPrinter &p);
+		mlir::ValueRange values();
+		mlir::Type type();
+	};
+
+	class AssignmentOp : public mlir::Op<AssignmentOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::VariadicOperands> {
 		public:
 		using Op::Op;
 
@@ -36,17 +57,18 @@ namespace modelica
 		using Op::Op;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::ValueRange operands);
+		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::ValueRange operands);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::ValueRange values();
 	};
 
-	class SubOp : public mlir::Op<SubOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameOperandsAndResultType>
+	class SubOp : public mlir::Op<SubOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike>
 	{
 		public:
 		using Op::Op;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::ValueRange operands);
+		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::ValueRange operands);
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
@@ -56,17 +78,17 @@ namespace modelica
 		using Op::Op;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::ValueRange operands);
+		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::ValueRange operands);
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
-	class DivOp : public mlir::Op<DivOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameOperandsAndResultType>
+	class DivOp : public mlir::Op<DivOp, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike>
 	{
 		public:
 		using Op::Op;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::ValueRange operands);
+		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::ValueRange operands);
 		void print(mlir::OpAsmPrinter& printer);
 	};
 
@@ -77,6 +99,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 	};
@@ -88,6 +111,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 	};
@@ -99,6 +123,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 	};
@@ -110,6 +135,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 	};
@@ -121,6 +147,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 	};
@@ -132,6 +159,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 	};
