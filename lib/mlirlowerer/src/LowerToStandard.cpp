@@ -102,12 +102,11 @@ LogicalResult CastOpLowering::matchAndRewrite(CastOp op, PatternRewriter& rewrit
 LogicalResult CastCommonOpLowering::matchAndRewrite(CastCommonOp op, PatternRewriter& rewriter) const
 {
 	auto location = op->getLoc();
-	mlir::Type type = op->getResultTypes()[0];
 	SmallVector<mlir::Value, 3> values;
 
-	for (auto value : op->getOperands())
+	for (auto tuple : llvm::zip(op->getOperands(), op->getResultTypes()))
 	{
-		mlir::Value castedValue = rewriter.create<CastOp>(location, value, type);
+		mlir::Value castedValue = rewriter.create<CastOp>(location, get<0>(tuple), get<1>(tuple));
 		values.push_back(castedValue);
 	}
 
@@ -249,6 +248,28 @@ LogicalResult SubOpLowering::matchAndRewrite(SubOp op, PatternRewriter& rewriter
 	return success();
 }
 
+/**
+ * Lower the multiplication operation to the vector or standard dialect.
+ * According to the elements types and shapes, there are different scenarios:
+ *
+ * 1. scalar * scalar = scalar
+ *    Normal multiplication, it is lowered to the standard dialect by just
+ *    looking at their types
+ * 2. scalar * vector[n] = vector[n]
+ *    Scalar multiplication. It can be seen as a special case of the outer
+ *    product of the vector dialect.
+ * 3. vector[n] * vector[n] = scalar
+ *    Cross product. It can be seen as a degenerate case of matrix product
+ *    with the common dimension set to 1.
+ * 4. vector[n] * matrix[n,m] = vector[m]
+ *    The first vector is multiplied for each column of the matrix, thus
+ *    generating each column of the result vector. It can be seen as
+ *    transpose(vector[n]) * matrix[n,m] = transpose(vector[m])
+ * 5. matrix[n,m] * vector[m] = vector[n]
+ *    Cross product.
+ * 6. matrix[n,m] * matrix[m,p] = matrix[n,p]
+ *    Cross product.
+ */
 LogicalResult MulOpLowering::matchAndRewrite(MulOp op, PatternRewriter& rewriter) const
 {
 	Location location = op.getLoc();
@@ -260,22 +281,83 @@ LogicalResult MulOpLowering::matchAndRewrite(MulOp op, PatternRewriter& rewriter
 	{
 		SmallVector<mlir::Value, 2> currentOperands = { result, operands[i] };
 		auto castOp = rewriter.create<CastCommonOp>(location, currentOperands);
-		auto castedOperands = castOp.getResults();
-		mlir::Type type = castOp.type();
 
-		while (type.isa<ShapedType>())
-			type = type.cast<ShapedType>().getElementType();
+		mlir::Value x = castOp.getResults()[0];
+		mlir::Value y = castOp.getResults()[1];
 
-		if (type.isIndex() || type.isa<IntegerType>())
-			result = rewriter.create<MulIOp>(location, castedOperands[0], castedOperands[1]);
-		else if (type.isa<FloatType>())
-			result = rewriter.create<MulFOp>(location, castedOperands[0], castedOperands[1]);
+		mlir::Type xType = x.getType();
+		mlir::Type yType = y.getType();
+
+		if (!xType.isa<ShapedType>() && !yType.isa<ShapedType>())
+		{
+			// Case 1: scalar * scalar = scalar
+			assert(x.getType() == y.getType());
+
+			if (x.getType().isIndex() || x.getType().isa<IntegerType>())
+				result = rewriter.create<MulIOp>(location, x, y);
+			else if (x.getType().isa<FloatType>())
+				result = rewriter.create<MulFOp>(location, x, y);
+			else
+				return rewriter.notifyMatchFailure(op, "Incompatible types");
+		}
+		else if (!xType.isa<ShapedType>() && yType.isa<ShapedType>())
+		{
+			// Case 2: scalar * vector[n] = vector[n]
+			mlir::Value zeroValue = rewriter.create<ConstantOp>(location, rewriter.getZeroAttr(yType));
+			result = rewriter.create<mlir::vector::OuterProductOp>(location, y, x, zeroValue);
+		}
+		else if (xType.isa<ShapedType>() && !yType.isa<ShapedType>())
+		{
+			// Case 2: vector[n] * scalar = vector[n]
+			mlir::Value zeroValue = rewriter.create<ConstantOp>(location, rewriter.getZeroAttr(xType));
+			result = rewriter.create<mlir::vector::OuterProductOp>(location, x, y, zeroValue);
+		}
+		else if (xType.isa<ShapedType>() && yType.isa<ShapedType>())
+		{
+			result = rewriter.create<CrossProductOp>(location, x, y);
+		}
 		else
+		{
 			return rewriter.notifyMatchFailure(op, "Incompatible types");
+		}
 	}
 
 	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
 	return success();
+}
+
+/**
+ * Lower the cross product operation to the vector or SCF dialect.
+ * According to the elements shapes, there are different scenarios:
+ *
+ * 1. vector[n] * vector[n] = scalar
+ *    Cross product. It can be seen as a degenerate case of matrix product
+ *    with the common dimension set to 1.
+ * 2. vector[n] * matrix[n,m] = vector[m]
+ *    The first vector is multiplied for each column of the matrix, thus
+ *    generating each column of the result vector. It can be seen as
+ *    transpose(vector[n]) * matrix[n,m] = transpose(vector[m])
+ * 3. matrix[n,m] * vector[m] = vector[n]
+ *    Cross product.
+ * 4. matrix[n,m] * matrix[m,p] = matrix[n,p]
+ *    Cross product.
+ */
+LogicalResult CrossProductOpLowering::matchAndRewrite(CrossProductOp op, PatternRewriter& rewriter) const
+{
+	mlir::Value x = op.lhs();
+	mlir::Value y = op.rhs();
+
+	auto xType = x.getType().cast<ShapedType>();
+	auto yType = y.getType().cast<ShapedType>();
+
+	/*
+	if (xShapedType.getRank() == 1 && yShapedType.getRank() == 1 &&
+			xShapedType.getDimSize(0) == yShapedType.getDimSize(0))
+	{
+		// Case 3: vector[n] * vector[n] = scalar
+		// TODO
+	}
+	 */
 }
 
 LogicalResult DivOpLowering::matchAndRewrite(DivOp op, PatternRewriter& rewriter) const
@@ -746,6 +828,7 @@ void modelica::populateModelicaToStandardConversionPatterns(OwningRewritePattern
 	patterns.insert<AddOpLowering>(context);
 	patterns.insert<SubOpLowering>(context);
 	patterns.insert<MulOpLowering>(context);
+	patterns.insert<CrossProductOpLowering>(context);
 	patterns.insert<DivOpLowering>(context);
 
 	// Comparison operations

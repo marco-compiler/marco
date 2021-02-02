@@ -51,6 +51,12 @@ namespace modelica
 		mlir::LogicalResult matchAndRewrite(MulOp op, mlir::PatternRewriter& rewriter) const final;
 	};
 
+	class CrossProductOpLowering : public mlir::OpRewritePattern<CrossProductOp>
+	{
+		using mlir::OpRewritePattern<CrossProductOp>::OpRewritePattern;
+		mlir::LogicalResult matchAndRewrite(CrossProductOp op, mlir::PatternRewriter& rewriter) const final;
+	};
+
 	class DivOpLowering : public mlir::OpRewritePattern<DivOp>
 	{
 		using mlir::OpRewritePattern<DivOp>::OpRewritePattern;

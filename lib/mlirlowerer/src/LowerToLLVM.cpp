@@ -37,6 +37,7 @@ void ModelicaToLLVMLoweringPass::runOnOperation()
 
 	// Provide the set of patterns that will lower the Modelica operations
 	mlir::OwningRewritePatternList patterns;
+	mlir::vector::populateVectorContractLoweringPatterns(patterns, &getContext());
 	populateVectorToLLVMConversionPatterns(typeConverter, patterns);
 	populateStdToLLVMConversionPatterns(typeConverter, patterns);
 

@@ -20,7 +20,7 @@ void CastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 
 void CastOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "cast " << value() << " " << getOperation()->getResultTypes()[0];
+	printer << "cast " << value() << " : " << getOperation()->getResultTypes()[0];
 }
 
 mlir::Value CastOp::value()
@@ -86,8 +86,8 @@ void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 		{
 			mlir::Type result = resultType;
 
-			assert(result.isa<mlir::ShapedType>() && "Values have different shape");
-			assert(result.cast<mlir::ShapedType>().getShape() == type.cast<mlir::ShapedType>().getShape() && "Values have different shape");
+			//assert(result.isa<mlir::ShapedType>() && "Values have different shape");
+			//assert(result.cast<mlir::ShapedType>().getShape() == type.cast<mlir::ShapedType>().getShape() && "Values have different shape");
 
 			while (baseType.isa<mlir::ShapedType>())
 				baseType = baseType.cast<mlir::ShapedType>().getElementType();
@@ -119,7 +119,21 @@ void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 		}
 	}
 
-	llvm::SmallVector<mlir::Type, 3> types(values.size(), resultType);
+	llvm::SmallVector<mlir::Type, 3> types;
+
+	for (const auto& value : values)
+	{
+		mlir::Type type = value.getType();
+
+		if (type.isa<mlir::ShapedType>())
+		{
+			auto shape = type.cast<mlir::ShapedType>().getShape();
+			types.emplace_back(mlir::VectorType::get(shape, resultBaseType));
+		}
+		else
+			types.emplace_back(resultBaseType);
+	}
+
 	state.addTypes(types);
 }
 
@@ -127,7 +141,7 @@ void CastCommonOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "cast_common ";
 	printer.printOperands(values());
-	printer << " : " << getOperation()->getResultTypes()[0];
+	printer << " : " << getOperation()->getResultTypes();
 }
 
 mlir::ValueRange CastCommonOp::values()
@@ -257,7 +271,47 @@ void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 
 void MulOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "mul " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+	printer << "mul " << getOperands() << " : (" << getOperandTypes() << ") -> (" << getOperation()->getResultTypes()[0] << ")";
+}
+
+llvm::StringRef CrossProductOp::getOperationName()
+{
+	return "modelica.cross_product";
+}
+
+void CrossProductOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
+{
+	auto xShapedType = lhs.getType().cast<mlir::ShapedType>();
+	auto yShapedType = rhs.getType().cast<mlir::ShapedType>();
+
+	mlir::Type baseType = xShapedType;
+
+	while (baseType.isa<mlir::ShapedType>())
+		baseType = baseType.cast<mlir::ShapedType>().getElementType();
+
+	// TODO: add verifier for equality of base types
+
+
+
+	state.addTypes(baseType);
+
+	state.addOperands(lhs);
+	state.addOperands(rhs);
+}
+
+void CrossProductOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "cross_product " << getOperands() << " : (" << getOperandTypes() << ") -> (" << getOperation()->getResultTypes()[0] << ")";
+}
+
+mlir::Value CrossProductOp::lhs()
+{
+	return getOperand(0);
+}
+
+mlir::Value CrossProductOp::rhs()
+{
+	return getOperand(1);
 }
 
 llvm::StringRef DivOp::getOperationName()

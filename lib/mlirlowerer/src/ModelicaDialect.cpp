@@ -16,6 +16,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<AddOp>();
 	addOperations<SubOp>();
 	addOperations<MulOp>();
+	addOperations<CrossProductOp>();
 	addOperations<DivOp>();
 
 	// Comparison operations

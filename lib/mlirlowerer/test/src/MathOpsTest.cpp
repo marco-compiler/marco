@@ -1013,6 +1013,110 @@ TEST(MulOp, multipleValues)	 // NOLINT
 	}
 }
 
+TEST(MulOp, scalarTimesVector)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   input Integer[3] y;
+	 *   output Integer[3] z;
+	 *
+	 *   algorithm
+	 *     z := x * y;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Integer>(3), "z"),
+			Expression::operation(location, makeType<BuiltInType::Integer>(3), OperationKind::multiply,
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(3), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	Runner runner(&context, module);
+
+	int x = 2;
+	array<int, 2> y = { 3, -5 };
+	array<int, 2> z = { 0, 0 };
+
+	int* yPtr = y.data();
+	int* zPtr = z.data();
+
+	runner.run("main", x, yPtr, zPtr);
+
+	for (const auto& tuple : llvm::zip(y, z))
+		EXPECT_EQ(get<1>(tuple), x * get<0>(tuple));
+}
+
+TEST(MulOp, vectorTimesScalar)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[3] x;
+	 *   input Integer y;
+	 *   output Integer[3] z;
+	 *
+	 *   algorithm
+	 *     z := x * y;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Integer>(3), "z"),
+			Expression::operation(location, makeType<BuiltInType::Integer>(3), OperationKind::multiply,
+														Expression::reference(location, makeType<BuiltInType::Integer>(3), "x"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	Runner runner(&context, module);
+
+	array<int, 2> x = { 3, -5 };
+	int y = 2;
+	array<int, 2> z = { 0, 0 };
+
+	int* xPtr = x.data();
+	int* zPtr = z.data();
+
+	runner.run("main", xPtr, y, zPtr);
+
+	for (const auto& tuple : llvm::zip(x, z))
+		EXPECT_EQ(get<1>(tuple), get<0>(tuple) * y);
+}
+
 /*
 TEST(DivOp, sameSignIntegers)	 // NOLINT
 {
