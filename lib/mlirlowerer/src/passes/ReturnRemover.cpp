@@ -1,4 +1,4 @@
-#include <modelica/mlirlowerer/ReturnRemover.hpp>
+#include <modelica/mlirlowerer/passes/ReturnRemover.h>
 
 using namespace modelica;
 using namespace std;

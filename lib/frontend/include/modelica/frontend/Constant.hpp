@@ -82,4 +82,8 @@ namespace modelica
 		SourcePosition location;
 		std::variant<bool, int, double, std::string> content;
 	};
+
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Constant& obj);
+
+	std::string toString(const Constant& obj);
 }	 // namespace modelica

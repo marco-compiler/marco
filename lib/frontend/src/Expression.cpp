@@ -79,3 +79,12 @@ const Type& Expression::getType() const { return type; }
 
 void Expression::setType(Type tp) { type = move(tp); }
 
+llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Expression& obj)
+{
+	return stream << toString(obj);
+}
+
+std::string modelica::toString(const Expression& obj)
+{
+	return obj.visit([](const auto& obj) { return toString(obj); });
+}

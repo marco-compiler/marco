@@ -16,7 +16,7 @@ namespace modelica
 	class Class
 	{
 		private:
-		using InnerClass = std::unique_ptr<ClassContainer>;
+		using ClassPtr = std::shared_ptr<ClassContainer>;
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
@@ -28,14 +28,6 @@ namespace modelica
 				llvm::ArrayRef<ForEquation> forEquations,
 				llvm::ArrayRef<Algorithm> algorithms,
 				llvm::ArrayRef<ClassContainer> innerClasses);
-
-		Class(const Class& other);
-		Class(Class&& other) = default;
-
-		Class& operator=(const Class& other);
-		Class& operator=(Class&& other) = default;
-
-		~Class() = default;
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
@@ -57,8 +49,8 @@ namespace modelica
 		[[nodiscard]] Container<Algorithm>& getAlgorithms();
 		[[nodiscard]] const Container<Algorithm>& getAlgorithms() const;
 
-		[[nodiscard]] Container<InnerClass>& getInnerClasses();
-		[[nodiscard]] const Container<InnerClass>& getInnerClasses() const;
+		[[nodiscard]] Container<ClassPtr>& getInnerClasses();
+		[[nodiscard]] const Container<ClassPtr>& getInnerClasses() const;
 
 		private:
 		SourcePosition location;
@@ -67,6 +59,6 @@ namespace modelica
 		Container<Equation> equations;
 		Container<ForEquation> forEquations;
 		Container<Algorithm> algorithms;
-		Container<InnerClass> innerClasses;
+		Container<ClassPtr> innerClasses;
 	};
 }	 // namespace modelica

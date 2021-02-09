@@ -12,8 +12,7 @@ namespace modelica
 	class ConditionalBlock
 	{
 		private:
-		using uniqueType = std::unique_ptr<T>;
-		using Container = llvm::SmallVector<uniqueType, 3>;
+		using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
 
 		public:
 		using iterator = boost::indirect_iterator<typename Container::iterator>;
@@ -23,36 +22,8 @@ namespace modelica
 				: condition(std::move(condition))
 		{
 			for (const auto& element : body)
-				this->body.emplace_back(std::make_unique<T>(element));
+				this->body.emplace_back(std::make_shared<T>(element));
 		}
-
-		ConditionalBlock(const ConditionalBlock& other): condition(other.condition)
-		{
-			body.clear();
-
-			for (const auto& element : other.body)
-				body.emplace_back(std::make_unique<T>(*element));
-		}
-
-		ConditionalBlock(ConditionalBlock&& other) = default;
-
-		ConditionalBlock& operator=(const ConditionalBlock& other)
-		{
-			if (this == &other)
-				return *this;
-
-			condition = other.condition;
-			body.clear();
-
-			for (const auto& element : other.body)
-				body.emplace_back(std::make_unique<T>(*element));
-
-			return *this;
-		}
-
-		ConditionalBlock& operator=(ConditionalBlock&& other) = default;
-
-		~ConditionalBlock() = default;
 
 		[[nodiscard]] T& operator[](size_t index)
 		{

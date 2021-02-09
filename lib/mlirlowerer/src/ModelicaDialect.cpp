@@ -1,25 +1,28 @@
-#include <modelica/mlirlowerer/ModelicaDialect.hpp>
-#include <modelica/mlirlowerer/Ops.hpp>
+#include <modelica/mlirlowerer/ArrayType.h>
+#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <modelica/mlirlowerer/Ops.h>
 
 using namespace modelica;
 
 ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 		: Dialect("modelica", context, mlir::TypeID::get<ModelicaDialect>())
 {
+	addTypes<ArrayType>();
+
 	// Generic operations
 	addOperations<AssignmentOp>();
 	addOperations<CastOp>();
 	addOperations<CastCommonOp>();
 
 	// Math operations
-	addOperations<NegateOp>();
 	addOperations<AddOp>();
 	addOperations<SubOp>();
 	addOperations<MulOp>();
 	addOperations<CrossProductOp>();
 	addOperations<DivOp>();
 
-	// Comparison operations
+	// Logic operations
+	addOperations<NegateOp>();
 	addOperations<EqOp>();
 	addOperations<NotEqOp>();
 	addOperations<GtOp>();

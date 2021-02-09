@@ -48,7 +48,7 @@ namespace modelica
 				int nestingLevel);
 		llvm::Expected<Expression> arithmeticExpression();
 
-		llvm::Expected<llvm::SmallVector<size_t, 3>> arrayDimensions();
+		llvm::Expected<llvm::SmallVector<ArrayDimension, 3>> arrayDimensions();
 		llvm::Expected<llvm::SmallVector<Member, 3>> elementList(bool publicSection = true);
 
 		llvm::Expected<TypePrefix> typePrefix();
@@ -68,7 +68,6 @@ namespace modelica
 		llvm::Expected<Expression> relation();
 		llvm::Expected<Expression> componentReference();
 		llvm::Expected<llvm::SmallVector<Expression, 3>> functionCallArguments();
-		llvm::Expected<std::vector<Expression>> arraySubscript();
 
 		llvm::Expected<Algorithm> algorithmSection();
 		llvm::Expected<Statement> statement();
@@ -79,6 +78,8 @@ namespace modelica
 		llvm::Expected<WhenStatement> whenStatement();
 
 		llvm::Expected<Tuple> outputExpressionList();
+		llvm::Expected<std::vector<Expression>> arraySubscript();
+		llvm::Expected<Expression> subscript();
 
 		private:
 		/**

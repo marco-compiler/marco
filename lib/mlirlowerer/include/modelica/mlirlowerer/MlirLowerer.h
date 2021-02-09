@@ -46,16 +46,20 @@ namespace modelica
 
 		[[nodiscard]] mlir::Value getReference() const;
 
+
 		[[nodiscard]] static Reference ssa(mlir::OpBuilder* builder, mlir::Value value);
 		[[nodiscard]] static Reference memref(mlir::OpBuilder* builder, mlir::Value value);
+		[[nodiscard]] static Reference placeholder(mlir::OpBuilder* builder);
 
 		private:
 		Reference(mlir::OpBuilder* builder,
 							mlir::Value value,
+							bool initialized,
 							std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader);
 
 		mlir::OpBuilder* builder;
 		mlir::Value value;
+		bool initialized;
 		std::function<mlir::Value(mlir::OpBuilder* builder, mlir::Value ref)> reader;
 	};
 

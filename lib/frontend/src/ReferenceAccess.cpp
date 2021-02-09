@@ -51,3 +51,13 @@ ReferenceAccess ReferenceAccess::dummy(SourcePosition location)
 {
 	return ReferenceAccess(location, "", false, true);
 }
+
+llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const ReferenceAccess& obj)
+{
+	return stream << toString(obj);
+}
+
+std::string modelica::toString(const ReferenceAccess& obj)
+{
+	return obj.getName();
+}

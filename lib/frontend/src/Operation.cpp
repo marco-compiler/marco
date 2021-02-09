@@ -1,6 +1,7 @@
 #include <llvm/ADT/StringRef.h>
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/utils/IRange.hpp>
+#include <numeric>
 
 using namespace llvm;
 using namespace modelica;
@@ -139,3 +140,103 @@ Operation::const_iterator Operation::begin() const { return arguments.begin(); }
 Operation::iterator Operation::end() { return arguments.end(); }
 
 Operation::const_iterator Operation::end() const { return arguments.end(); }
+
+llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Operation& obj)
+{
+	return stream << toString(obj);
+}
+
+std::string modelica::toString(const Operation& obj)
+{
+	switch (obj.getKind())
+	{
+		case OperationKind::negate:
+			return "(not" + toString(obj[0]) + ")";
+
+		case OperationKind::add:
+			return "(" +
+						 accumulate(obj.begin(), obj.end(), string(),
+												[](const string& result, const Expression& element)
+												{
+													string str = toString(element);
+													return result.empty() ? str : result + " + " + str;
+												})
+						 + ")";
+
+		case OperationKind::subtract:
+			return "(" +
+						 accumulate(obj.begin(), obj.end(), string(),
+												[](const string& result, const Expression& element)
+												{
+													string str = toString(element);
+													return result.empty() ? str : result + " - " + str;
+												})
+						 + ")";
+
+		case OperationKind::multiply:
+			return "(" +
+						 accumulate(obj.begin(), obj.end(), string(),
+												[](const string& result, const Expression& element)
+												{
+													string str = toString(element);
+													return result.empty() ? str : result + " * " + str;
+												})
+						 + ")";
+
+		case OperationKind::divide:
+			return "(" +
+						 accumulate(obj.begin(), obj.end(), string(),
+												[](const string& result, const Expression& element)
+												{
+													string str = toString(element);
+													return result.empty() ? str : result + " / " + str;
+												})
+						 + ")";
+
+		case OperationKind::ifelse:
+			return "(" + toString(obj[0]) + " ? " + toString(obj[1]) + " : " + toString(obj[2]) + ")";
+
+		case OperationKind::greater:
+			return "(" + toString(obj[0]) + " > " + toString(obj[1]) + ")";
+
+		case OperationKind::greaterEqual:
+			return "(" + toString(obj[0]) + " >= " + toString(obj[1]) + ")";
+
+		case OperationKind::equal:
+			return "(" + toString(obj[0]) + " == " + toString(obj[1]) + ")";
+
+		case OperationKind::different:
+			return "(" + toString(obj[0]) + " != " + toString(obj[1]) + ")";
+
+		case OperationKind::lessEqual:
+			return "(" + toString(obj[0]) + " <= " + toString(obj[1]) + ")";
+
+		case OperationKind::less:
+			return "(" + toString(obj[0]) + " < " + toString(obj[1]) + ")";
+
+		case OperationKind::land:
+			return "(" + toString(obj[0]) + " && " + toString(obj[1]) + ")";
+
+		case OperationKind::lor:
+			return "(" + toString(obj[0]) + " || " + toString(obj[1]) + ")";
+
+		case OperationKind::subscription:
+			return "(" + toString(obj[0]) +
+						 accumulate(++obj.begin(), obj.end(), string(),
+												[](const string& result, const Expression& element)
+												{
+													string str = toString(element);
+													return result + "[" + str + "]";
+												}) +
+						 ")";
+
+		case OperationKind::memberLookup:
+			return "unknown";
+
+		case OperationKind::powerOf:
+			return "(" + toString(obj[0]) + " ^ " + toString(obj[1]) + ")";
+
+		default:
+			return "unknown";
+	}
+}

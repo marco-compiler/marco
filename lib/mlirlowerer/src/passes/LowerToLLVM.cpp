@@ -5,12 +5,16 @@
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/Linalg/IR/LinalgOps.h>
 #include <mlir/Dialect/Vector/VectorOps.h>
-#include <modelica/mlirlowerer/LowerToLLVM.hpp>
-#include <modelica/mlirlowerer/ModelicaDialect.hpp>
+#include <modelica/mlirlowerer/passes/LowerToLLVM.h>
+#include <modelica/mlirlowerer/ModelicaDialect.h>
 
 using namespace mlir;
 using namespace modelica;
 using namespace std;
+
+void ModelicaToLLVMLoweringPass::getDependentDialects(mlir::DialectRegistry &registry) const {
+	registry.insert<LLVM::LLVMDialect>();
+}
 
 ModelicaToLLVMLoweringPass::ModelicaToLLVMLoweringPass(ModelicaToLLVMLoweringOptions options)
 		: options(move(options))
@@ -32,6 +36,7 @@ void ModelicaToLLVMLoweringPass::runOnOperation()
 	// doing more complicated lowerings, involving loop region arguments.
 	LowerToLLVMOptions llvmLoweringOptions;
 	llvmLoweringOptions.useBarePtrCallConv = options.useBarePtrCallConv;
+	llvmLoweringOptions.emitCWrappers = true;
 
 	LLVMTypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 

@@ -1,12 +1,20 @@
 modelicaAddLibrary(
         mlirlowerer SHARED
-        src/BreakRemover.cpp
-        src/LowerToLLVM.cpp
-        src/LowerToStandard.cpp
+        src/ops/BasicOps.cpp
+        src/ops/LogicOps.cpp
+        src/ops/LoopOps.cpp
+        src/ops/MathOps.cpp
+        src/passes/patterns/BasicOpsPatterns.cpp
+        src/passes/patterns/LogicOpsPatterns.cpp
+        src/passes/patterns/LoopOpsPatterns.cpp
+        src/passes/patterns/MathOpsPatterns.cpp
+        src/passes/LowerModelica.cpp
+        src/passes/LowerToLLVM.cpp
+        src/passes/BreakRemover.cpp
+        src/passes/ReturnRemover.cpp
+        src/ArrayType.cpp
         src/MlirLowerer.cpp
         src/ModelicaDialect.cpp
-        src/Ops.cpp
-        src/ReturnRemover.cpp
 )
 
 target_link_libraries(

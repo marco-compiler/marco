@@ -22,41 +22,7 @@ Class::Class(
 	assert(!this->name.empty());
 
 	for (const auto& cls : innerClasses)
-		this->innerClasses.emplace_back(std::make_unique<ClassContainer>(cls));
-}
-
-Class::Class(const Class& other)
-		: location(other.location),
-			name(other.name),
-			members(other.members),
-			equations(other.equations),
-			forEquations(other.forEquations),
-			algorithms(other.algorithms)
-{
-	innerClasses.clear();
-
-	for (const auto& cls : other.innerClasses)
-		innerClasses.push_back(std::make_unique<ClassContainer>(*cls));
-}
-
-Class& Class::operator=(const Class& other)
-{
-	if (this == &other)
-		return *this;
-
-	location = other.location;
-	name = other.name;
-	members = other.members;
-	equations = other.equations;
-	forEquations = other.forEquations,
-			algorithms = other.algorithms;
-
-	innerClasses.clear();
-
-	for (const auto& cls : other.innerClasses)
-		innerClasses.push_back(std::make_unique<ClassContainer>(*cls));
-
-	return *this;
+		this->innerClasses.emplace_back(std::make_shared<ClassContainer>(cls));
 }
 
 void Class::dump() const { dump(outs(), 0); }
@@ -119,6 +85,6 @@ const Class::Container<Algorithm>& Class::getAlgorithms() const
 	return algorithms;
 }
 
-Class::Container<Class::InnerClass>& Class::getInnerClasses() { return innerClasses; }
+Class::Container<Class::ClassPtr>& Class::getInnerClasses() { return innerClasses; }
 
-const Class::Container<Class::InnerClass>& Class::getInnerClasses() const { return innerClasses; }
+const Class::Container<Class::ClassPtr>& Class::getInnerClasses() const { return innerClasses; }

@@ -12,7 +12,7 @@
 namespace modelica
 {
 	class Type;
-	using UniqueType = std::unique_ptr<Type>;
+	class Expression;
 
 	enum class BuiltInType
 	{
@@ -82,21 +82,14 @@ namespace modelica
 	class UserDefinedType
 	{
 		private:
-		using Container = llvm::SmallVector<UniqueType, 3>;
+		using TypePtr = std::shared_ptr<Type>;
+		using Container = llvm::SmallVector<TypePtr, 3>;
 
 		public:
 		using iterator = boost::indirect_iterator<Container::iterator>;
 		using const_iterator = boost::indirect_iterator<Container::const_iterator>;
 
 		explicit UserDefinedType(llvm::ArrayRef<Type> types);
-
-		UserDefinedType(const UserDefinedType& other);
-		UserDefinedType(UserDefinedType&& other) = default;
-
-		~UserDefinedType() = default;
-
-		UserDefinedType& operator=(const UserDefinedType& other);
-		UserDefinedType& operator=(UserDefinedType&& other) = default;
 
 		[[nodiscard]] bool operator==(const UserDefinedType& other) const;
 		[[nodiscard]] bool operator!=(const UserDefinedType& other) const;
@@ -124,21 +117,67 @@ namespace modelica
 
 	std::string toString(UserDefinedType obj);
 
+	/**
+	 * Represent the size of an array dimension.
+	 * Can be either static or determined by an expression. Note that
+	 * a dynamic size (":", in Modelica) is considered static and is
+	 * represented by value "-1".
+	 */
+	class ArrayDimension
+	{
+		public:
+		using ExpressionPtr = std::shared_ptr<Expression>;
+
+		ArrayDimension(long size);
+		ArrayDimension(Expression size);
+
+		[[nodiscard]] bool operator==(const ArrayDimension& other) const;
+		[[nodiscard]] bool operator!=(const ArrayDimension& other) const;
+
+		template<class Visitor>
+		auto visit(Visitor&& visitor)
+		{
+			return std::visit(std::forward<Visitor>(visitor), size);
+		}
+
+		template<class Visitor>
+		auto visit(Visitor&& visitor) const
+		{
+			return std::visit(std::forward<Visitor>(visitor), size);
+		}
+
+		[[nodiscard]] bool hasExpression() const;
+
+		[[nodiscard]] bool isDynamic() const;
+
+		[[nodiscard]] long getNumericSize() const;
+
+		[[nodiscard]] Expression getExpression();
+		[[nodiscard]] Expression getExpression() const;
+
+		private:
+		std::variant<long, ExpressionPtr> size;
+	};
+
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const ArrayDimension& obj);
+
+	std::string toString(const ArrayDimension& obj);
+
 	class Type
 	{
 		public:
-		using dimensions_iterator = llvm::SmallVectorImpl<size_t>::iterator;
-		using dimensions_const_iterator = llvm::SmallVectorImpl<size_t>::const_iterator;
+		using dimensions_iterator = llvm::SmallVectorImpl<ArrayDimension>::iterator;
+		using dimensions_const_iterator = llvm::SmallVectorImpl<ArrayDimension>::const_iterator;
 
-		Type(BuiltInType type, llvm::ArrayRef<size_t> dim = { 1 });
-		Type(UserDefinedType type, llvm::ArrayRef<size_t> dim = { 1 });
-		Type(llvm::ArrayRef<Type> members, llvm::ArrayRef<size_t> dim = { 1 });
+		Type(BuiltInType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
+		Type(UserDefinedType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
+		Type(llvm::ArrayRef<Type> members, llvm::ArrayRef<ArrayDimension> dim = { 1 });
 
 		[[nodiscard]] bool operator==(const Type& other) const;
 		[[nodiscard]] bool operator!=(const Type& other) const;
 
-		[[nodiscard]] size_t& operator[](int index);
-		[[nodiscard]] size_t operator[](int index) const;
+		[[nodiscard]] ArrayDimension& operator[](int index);
+		[[nodiscard]] ArrayDimension operator[](int index) const;
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
@@ -164,19 +203,20 @@ namespace modelica
 		}
 
 		template<class Visitor>
-		auto visit(Visitor&& vis)
+		auto visit(Visitor&& visitor)
 		{
-			return std::visit(std::forward<Visitor>(vis), content);
+			return std::visit(std::forward<Visitor>(visitor), content);
 		}
 
 		template<class Visitor>
-		auto visit(Visitor&& vis) const
+		auto visit(Visitor&& visitor) const
 		{
-			return std::visit(std::forward<Visitor>(vis), content);
+			return std::visit(std::forward<Visitor>(visitor), content);
 		}
 
-		[[nodiscard]] llvm::SmallVectorImpl<size_t>& getDimensions();
-		[[nodiscard]] const llvm::SmallVectorImpl<size_t>& getDimensions() const;
+		[[nodiscard]] llvm::SmallVectorImpl<ArrayDimension>& getDimensions();
+		[[nodiscard]] const llvm::SmallVectorImpl<ArrayDimension>& getDimensions() const;
+		void setDimensions(llvm::ArrayRef<ArrayDimension> dimensions);
 
 		[[nodiscard]] size_t dimensionsCount() const;
 		[[nodiscard]] size_t size() const;
@@ -195,7 +235,7 @@ namespace modelica
 
 		private:
 		std::variant<BuiltInType, UserDefinedType> content;
-		llvm::SmallVector<size_t, 3> dimensions;
+		llvm::SmallVector<ArrayDimension, 3> dimensions;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Type& obj);
@@ -210,7 +250,7 @@ namespace modelica
 		if constexpr (sizeof...(Args) == 0)
 			return Type(typeToFrontendType<T>());
 
-		return Type(typeToFrontendType<T>(), { static_cast<size_t>(args)... });
+		return Type(typeToFrontendType<T>(), { static_cast<ArrayDimension>(args)... });
 	}
 
 	template<BuiltInType T, typename... Args>
@@ -221,7 +261,7 @@ namespace modelica
 		if constexpr (sizeof...(Args) == 0)
 			return Type(T);
 
-		return Type(T, { static_cast<size_t>(args)... });
+		return Type(T, { static_cast<ArrayDimension>(args)... });
 	}
 
 }	 // namespace modelica

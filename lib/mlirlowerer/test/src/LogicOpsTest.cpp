@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <modelica/frontend/Expression.hpp>
-#include <modelica/mlirlowerer/MlirLowerer.hpp>
-#include <modelica/mlirlowerer/Runner.hpp>
+#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
 
 using namespace modelica;

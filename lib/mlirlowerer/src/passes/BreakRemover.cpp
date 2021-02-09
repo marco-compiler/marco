@@ -1,4 +1,4 @@
-#include <modelica/mlirlowerer/BreakRemover.hpp>
+#include <modelica/mlirlowerer/passes/BreakRemover.h>
 
 using namespace modelica;
 using namespace std;

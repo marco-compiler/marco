@@ -1,9 +1,9 @@
 #include <gtest/gtest.h>
-#include <mlir/IR/BuiltinOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <modelica/frontend/Expression.hpp>
-#include <modelica/mlirlowerer/MlirLowerer.hpp>
-#include <modelica/mlirlowerer/Runner.hpp>
+#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
 
 #include "TestUtils.hpp"

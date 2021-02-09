@@ -1,7 +1,8 @@
 #include <gtest/gtest.h>
+#include <mlir/ExecutionEngine/CRunnerUtils.h>
 #include <mlir/IR/Dialect.h>
-#include <modelica/mlirlowerer/MlirLowerer.hpp>
-#include <modelica/mlirlowerer/Runner.hpp>
+#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
 
 using namespace modelica;
@@ -131,7 +132,7 @@ TEST(Input, integerArray)	 // NOLINT
 {
 	/**
 	 * function main
-	 *   input Integer[2] x;
+	 *   input Integer x[2];
 	 *   output Integer y;
 	 *   algorithm
 	 *     y := x[1] + x[2];
@@ -164,20 +165,70 @@ TEST(Input, integerArray)	 // NOLINT
 		FAIL();
 
 	array<int, 2> x = { 23, 57 };
-	int* xPtr = x.data();
+	StridedMemRefType<int, 1> xMemRef = { x.data(), x.data(), 0, { 2 }, { 1 } };
+	auto* xPtr = &xMemRef;
+
 	int y = 0;
 
 	Runner runner(&context, module);
-	runner.run("main", xPtr, y);
+	runner.run("_mlir_ciface_main", xPtr, y);
 
-	EXPECT_EQ(y, 80);
+	EXPECT_EQ(y, x[0] + x[1]);
+}
+
+TEST(Input, integerArrayUnknownSize)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x[:];
+	 *   output Integer y;
+	 *   algorithm
+	 *     y := x[1] + x[2];
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add,
+														Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+																									Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+														Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+																									Expression::constant(location, makeType<BuiltInType::Integer>(), 1))));
+
+	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	array<int, 5> x = { 23, 57, 10, -23, -10 };
+	StridedMemRefType<int, 1> xMemRef { x.data(), x.data(), 0, { 5 }, { 1 } };
+	auto* xPtr = &xMemRef;
+
+	int y = 0;
+
+	Runner runner(&context, module);
+	runner.run("_mlir_ciface_main", xPtr, y);
+
+	EXPECT_EQ(y, x[0] + x[1]);
 }
 
 TEST(Input, floatArray)	 // NOLINT
 {
 	/**
 	 * function main
-	 *   input Real[2] x;
+	 *   input Real x[2];
 	 *   output Real y;
 	 *   algorithm
 	 *     y := x[1] + x[2];
@@ -210,11 +261,59 @@ TEST(Input, floatArray)	 // NOLINT
 		FAIL();
 
 	array<float, 2> x = { 23.0, 57.0 };
-	float* xPtr = x.data();
+	StridedMemRefType<float, 1> xMemRef { x.data(), x.data(), 0, { 2 }, { 1 }};
+	auto* xPtr = &xMemRef;
 	float y = 0;
 
 	Runner runner(&context, module);
-	runner.run("main", xPtr, y);
+	runner.run("_mlir_ciface_main", xPtr, y);
+
+	EXPECT_FLOAT_EQ(y, 80);
+}
+
+TEST(Input, floatArrayUnknownSize)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Real x[:];
+	 *   output Real y;
+	 *   algorithm
+	 *     y := x[1] + x[2];
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<BuiltInType::Float>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Float>(), "y"),
+			Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::add,
+														Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+																									Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+														Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+																									Expression::constant(location, makeType<BuiltInType::Integer>(), 1))));
+
+	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	array<float, 2> x = { 23.0, 57.0 };
+	StridedMemRefType<float, 1> xMemRef { x.data(), x.data(), 0, { 2 }, { 1 }};
+	auto* xPtr = &xMemRef;
+	float y = 0;
+
+	Runner runner(&context, module);
+	runner.run("_mlir_ciface_main", xPtr, y);
 
 	EXPECT_FLOAT_EQ(y, 80);
 }
@@ -223,7 +322,7 @@ TEST(Input, integerMatrix)	 // NOLINT
 {
 	/**
 	 * function main
-	 *   input Integer[2,3] x;
+	 *   input Integer x[2,3];
 	 *   output Integer y;
 	 *   output Integer z;
 	 *   algorithm
@@ -300,7 +399,7 @@ TEST(Output, integerArray)	 // NOLINT
 {
 	/**
 	 * function main
-	 *   output Integer[2] x;
+	 *   output Integer x[2];
 	 *   algorithm
 	 *     x[1] := 23;
 	 *     x[2] := 57;
@@ -344,11 +443,81 @@ TEST(Output, integerArray)	 // NOLINT
 	EXPECT_EQ(x[1], 57);
 }
 
+TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   output Integer y[x * 2];
+	 *   algorithm
+	 *     for i in 1 : (x * 2)
+	 *       y[i] := i;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Expression xReference = Expression::reference(location, makeType<BuiltInType::Integer>(), "x");
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(xReference), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement forAssignment = AssignmentStatement(
+			location,
+			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "i")),
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "i"));
+
+	Statement forStatement = ForStatement(
+			location,
+			Induction(
+					"i",
+					Expression::constant(location, makeType<BuiltInType::Integer>(), 1),
+					Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::multiply,
+																Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+																Expression::constant(location, makeType<BuiltInType::Integer>(), 2))),
+			forAssignment);
+
+	/*
+	Statement assignment0 = AssignmentStatement(
+			location,
+			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+														Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 23));
+
+	Statement assignment1 = AssignmentStatement(
+			location,
+			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
+														Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 57));
+			*/
+
+	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, forStatement)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	int x = 2;
+	StridedMemRefType<int, 1> y { nullptr, nullptr, 0, { 1 }, { 1 }};
+
+	Runner runner(&context, module);
+	runner.run("main", x, y);
+
+	for (int i = 0; i < y.sizes[0]; i++)
+		EXPECT_EQ(y[i], i);
+}
+
 TEST(Output, floatArray)	 // NOLINT
 {
 	/**
 	 * function main
-	 *   output Real[2] x;
+	 *   output Real x[2];
 	 *   algorithm
 	 *     x[1] := 23;
 	 *     x[2] := 57;
@@ -396,7 +565,7 @@ TEST(Output, integerMatrix)	 // NOLINT
 {
 	/**
 	 * function main
-	 *   output Integer[2,3] x;
+	 *   output Integer x[2,3];
 	 *   algorithm
 	 *     x[1][1] := 1;
 	 *     x[1][2] := 2;

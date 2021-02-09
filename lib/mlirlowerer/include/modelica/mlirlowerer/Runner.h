@@ -40,6 +40,7 @@ namespace modelica
 			llvm::SmallVector<llvm::StringRef, 3> libraries;
 			libraries.push_back("/opt/llvm/lib/libmlir_runner_utils.so");
 			libraries.push_back("/opt/llvm/lib/libmlir_c_runner_utils.so");
+			libraries.push_back("/mnt/d/modelica/cmake-build-gcc-debug/lib/runtime/libruntime-d.so");
 
 			auto maybeEngine = mlir::ExecutionEngine::create(module, nullptr, {}, llvm::None, libraries);
 

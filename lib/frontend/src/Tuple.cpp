@@ -1,6 +1,7 @@
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/frontend/Tuple.hpp>
 #include <modelica/utils/IRange.hpp>
+#include <numeric>
 
 using namespace llvm;
 using namespace modelica;
@@ -85,4 +86,21 @@ Tuple::iterator Tuple::end() { return expressions.end(); }
 Tuple::const_iterator Tuple::end() const
 {
 	return expressions.end();
+}
+
+llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Tuple& obj)
+{
+	return stream << toString(obj);
+}
+
+std::string modelica::toString(const Tuple& obj)
+{
+	return "(" +
+				 accumulate(++obj.begin(), obj.end(), string(),
+										[](const string& result, const Expression& element)
+										{
+											string str = toString(element);
+											return result.empty() ? str : result + "," + str;
+										}) +
+				 ")";
 }

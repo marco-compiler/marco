@@ -5,7 +5,7 @@
 #include <mlir/IR/PatternMatch.h>
 #include <mlir/Pass/Pass.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <modelica/mlirlowerer/Ops.hpp>
+#include <modelica/mlirlowerer/Ops.h>
 
 namespace modelica
 {
@@ -28,6 +28,7 @@ namespace modelica
 		public:
 		ModelicaToLLVMLoweringPass(ModelicaToLLVMLoweringOptions options = ModelicaToLLVMLoweringOptions::getDefaultOptions());
 
+		void getDependentDialects(mlir::DialectRegistry &registry) const override;
 		void runOnOperation() final;
 
 		private:

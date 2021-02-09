@@ -260,11 +260,35 @@ Expected<SmallVector<Member, 3>> Parser::elementList(bool publicSection)
 Expected<Member> Parser::element(bool publicSection)
 {
 	auto location = getPosition();
+
 	accept<Token::FinalKeyword>();
 	TRY(prefix, typePrefix());
 	TRY(type, typeSpecifier());
 	auto name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
+
+	if (current == Token::LSquare)
+	{
+		TRY(dims, arrayDimensions());
+		auto& postDimensions = *dims;
+
+		SmallVector<ArrayDimension, 3> dimensions;
+
+		if (postDimensions.size() > 1 || postDimensions[0] != 1)
+			for (auto& dimension : postDimensions)
+				dimensions.push_back(dimension);
+
+		auto& preDimensions = type->getDimensions();
+
+		if (preDimensions.size() > 1 || preDimensions[0] != 1)
+			for (auto& dimension : preDimensions)
+				dimensions.push_back(dimension);
+
+		if (dimensions.empty())
+			dimensions.push_back(ArrayDimension(1));
+
+		type->setDimensions(dimensions);
+	}
 
 	optional<Expression> startOverload = nullopt;
 
@@ -284,6 +308,7 @@ Expected<Member> Parser::element(bool publicSection)
 		return Member(
 				location, move(name), move(*type), move(*prefix), move(*init), publicSection);
 	}
+
 	accept<Token::String>();
 
 	return Member(
@@ -975,19 +1000,29 @@ Expected<SmallVector<Expression, 3>> Parser::functionCallArguments()
 	return expressions;
 }
 
-Expected<SmallVector<size_t, 3>> Parser::arrayDimensions()
+Expected<SmallVector<ArrayDimension, 3>> Parser::arrayDimensions()
 {
-	SmallVector<size_t, 3> toReturn;
+	SmallVector<ArrayDimension, 3> dimensions;
 	EXPECT(Token::LSquare);
 
 	do
 	{
-		toReturn.push_back(lexer.getLastInt());
-		EXPECT(Token::Integer);
+		auto location = getPosition();
+
+		if (accept<Token::Colons>())
+			dimensions.push_back(ArrayDimension(-1));
+		else if (current == Token::Integer)
+			dimensions.push_back(lexer.getLastInt());
+		else
+		{
+			TRY(exp, expression());
+			dimensions.push_back(ArrayDimension(*exp));
+		}
+
 	} while (accept<Token::Comma>());
 
 	EXPECT(Token::RSquare);
-	return toReturn;
+	return dimensions;
 }
 
 Expected<Tuple> Parser::outputExpressionList()

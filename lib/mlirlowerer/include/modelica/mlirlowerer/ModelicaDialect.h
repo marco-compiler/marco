@@ -1,6 +1,8 @@
 #pragma once
 
 #include <mlir/IR/Dialect.h>
+#include <modelica/mlirlowerer/Ops.h>
+#include <modelica/mlirlowerer/ArrayType.h>
 
 namespace modelica
 {

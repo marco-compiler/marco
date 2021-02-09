@@ -1,5 +1,6 @@
 #include <modelica/frontend/Call.hpp>
 #include <modelica/frontend/Expression.hpp>
+#include <numeric>
 
 using namespace llvm;
 using namespace modelica;
@@ -7,39 +8,10 @@ using namespace std;
 
 Call::Call(SourcePosition location, Expression function, ArrayRef<Expression> args)
 		: location(move(location)),
-			function(std::make_unique<Expression>(move(function)))
+			function(std::make_shared<Expression>(move(function)))
 {
 	for (const auto& arg : args)
-		this->args.emplace_back(std::make_unique<Expression>(arg));
-}
-
-Call::Call(const Call& other)
-		: location(other.location),
-			function(std::make_unique<Expression>(*other.function))
-{
-	assert(other.function != nullptr);
-	assert(find(other.args, nullptr) == other.args.end());
-
-	for (const auto& exp : other.args)
-		args.emplace_back(std::make_unique<Expression>(*exp));
-}
-
-Call& Call::operator=(const Call& other)
-{
-	assert(other.function != nullptr);
-	assert(find(other.args, nullptr) == other.args.end());
-
-	if (this == &other)
-		return *this;
-
-	location = other.location;
-	function = std::make_unique<Expression>(*other.function);
-	args.clear();
-
-	for (const auto& exp : other.args)
-		args.emplace_back(std::make_unique<Expression>(*exp));
-
-	return *this;
+		this->args.emplace_back(std::make_shared<Expression>(arg));
 }
 
 bool Call::operator==(const Call& other) const
@@ -110,4 +82,21 @@ Call::args_iterator Call::end() { return args.end(); }
 Call::args_const_iterator Call::end() const
 {
 	return args.end();
+}
+
+llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Call& obj)
+{
+	return stream << toString(obj);
+}
+
+std::string modelica::toString(const Call& obj)
+{
+	return toString(obj.getFunction()) + "(" +
+				 accumulate(obj.begin(), obj.end(), string(),
+										[](const string& result, const Expression& argument)
+										{
+											string str = toString(argument);
+											return result.empty() ? str : result + "," + str;
+										}) +
+				 ")";
 }

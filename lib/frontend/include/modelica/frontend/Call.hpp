@@ -13,22 +13,14 @@ namespace modelica
 	class Call
 	{
 		private:
-		using UniqueExpression = std::unique_ptr<Expression>;
+		using ExpressionPtr = std::shared_ptr<Expression>;
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		using args_iterator = boost::indirect_iterator<Container<UniqueExpression>::iterator>;
-		using args_const_iterator = boost::indirect_iterator<Container<UniqueExpression>::const_iterator>;
+		using args_iterator = boost::indirect_iterator<Container<ExpressionPtr>::iterator>;
+		using args_const_iterator = boost::indirect_iterator<Container<ExpressionPtr>::const_iterator>;
 
 		Call(SourcePosition location, Expression function, llvm::ArrayRef<Expression> args = {});
-
-		Call(const Call& other);
-		Call(Call&& other) = default;
-
-		Call& operator=(const Call& other);
-		Call& operator=(Call&& other) = default;
-
-		~Call() = default;
 
 		[[nodiscard]] bool operator==(const Call& other) const;
 		[[nodiscard]] bool operator!=(const Call& other) const;
@@ -54,7 +46,11 @@ namespace modelica
 
 		private:
 		SourcePosition location;
-		UniqueExpression function;
-		Container<UniqueExpression> args;
+		ExpressionPtr function;
+		Container<ExpressionPtr> args;
 	};
+
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Call& obj);
+
+	std::string toString(const Call& obj);
 }	 // namespace modelica

@@ -1,7 +1,5 @@
 #include <modelica/frontend/Constant.hpp>
-#include <modelica/frontend/Type.hpp>
 
-using namespace llvm;
 using namespace modelica;
 using namespace std;
 
@@ -51,28 +49,33 @@ bool Constant::operator!=(const Constant& other) const
 	return !(*this == other);
 }
 
-void Constant::dump() const { dump(outs(), 0); }
+void Constant::dump() const { dump(llvm::outs(), 0); }
 
-void Constant::dump(raw_ostream& os, size_t indents) const
+void Constant::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
-	os << "constant: ";
-
-	if (isA<BuiltInType::Integer>())
-		os << get<BuiltInType::Integer>();
-	else if (isA<BuiltInType::Float>())
-		os << get<BuiltInType::Float>();
-	else if (isA<BuiltInType::Boolean>())
-		os << (get<BuiltInType::Boolean>() ? "true" : "false");
-	else if (isA<BuiltInType::String>())
-		os << get<BuiltInType::String>();
-	else
-		assert(false && "Unreachable");
-
-	os << "\n";
+	os << "constant: " << *this << "\n";
 }
 
 SourcePosition Constant::getLocation() const
 {
 	return location;
+}
+
+llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Constant& obj)
+{
+	return stream << toString(obj);
+}
+
+class ConstantToStringVisitor {
+	public:
+	string operator()(const bool& value) { return value ? "true" : "false"; }
+	string operator()(const int& value) { return to_string(value); }
+	string operator()(const double& value) { return to_string(value); }
+	string operator()(const string& value) { return value; }
+};
+
+std::string modelica::toString(const Constant& obj)
+{
+	return obj.visit(ConstantToStringVisitor());
 }

@@ -110,4 +110,8 @@ namespace modelica
 		std::variant<Constant, ReferenceAccess, Operation, Call, Tuple> content;
 		Type type;
 	};
+
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Expression& obj);
+
+	std::string toString(const Expression& obj);
 }	 // namespace modelica

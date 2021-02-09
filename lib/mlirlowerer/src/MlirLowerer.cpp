@@ -8,10 +8,10 @@
 #include <mlir/Dialect/Vector/VectorOps.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
-#include <modelica/mlirlowerer/LowerToLLVM.hpp>
-#include <modelica/mlirlowerer/LowerToStandard.hpp>
-#include <modelica/mlirlowerer/MlirLowerer.hpp>
-#include <modelica/mlirlowerer/ModelicaDialect.hpp>
+#include <modelica/mlirlowerer/passes/LowerToLLVM.h>
+#include <modelica/mlirlowerer/passes/LowerModelica.h>
+#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/ModelicaDialect.h>
 
 using namespace llvm;
 using namespace mlir;
@@ -20,14 +20,19 @@ using namespace std;
 
 mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module, ModelicaOptions options)
 {
+	module.dump();
+
 	mlir::PassManager passManager(context);
 
-	// Convert the Modelica dialect to the Standard one
-	passManager.addPass(createModelicaToStandardLoweringPass());
+	// Lower the Modelica dialect
+	passManager.addPass(createModelicaLoweringPass());
+
+	// Lower the Affine dialect
+	passManager.addPass(createLowerAffinePass());
 
 	// Convert the output buffers to input buffers, in order to delegate the
 	// buffer allocation to the caller.
-	passManager.addPass(createBufferResultsToOutParamsPass());
+	//passManager.addPass(createBufferResultsToOutParamsPass());
 
 	// Convert vector operations to loops
 	passManager.addNestedPass<FuncOp>(createConvertLinalgToLoopsPass());
@@ -39,7 +44,7 @@ mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, m
 
 	// Conversion to LLVM dialect
 	ModelicaToLLVMLoweringOptions modelicaToLLVMOptions;
-	modelicaToLLVMOptions.useBarePtrCallConv = options.useBarePtrCallConv;
+	//modelicaToLLVMOptions.useBarePtrCallConv = options.useBarePtrCallConv;
 	passManager.addPass(createModelicaToLLVMLoweringPass(modelicaToLLVMOptions));
 
 	return passManager.run(module);
@@ -51,9 +56,11 @@ Reference::Reference() : builder(nullptr), value(nullptr), reader(nullptr)
 
 Reference::Reference(mlir::OpBuilder* builder,
 										 mlir::Value value,
+										 bool initialized,
 										 std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader)
 		: builder(builder),
 			value(std::move(value)),
+			initialized(initialized),
 			reader(std::move(reader))
 {
 }
@@ -71,7 +78,7 @@ mlir::Value Reference::getReference() const
 Reference Reference::ssa(mlir::OpBuilder* builder, mlir::Value value)
 {
 	return Reference(
-			builder, value,
+			builder, value, true,
 			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value
 			{
 				return value;
@@ -81,34 +88,37 @@ Reference Reference::ssa(mlir::OpBuilder* builder, mlir::Value value)
 Reference Reference::memref(mlir::OpBuilder* builder, mlir::Value value)
 {
 	return Reference(
-			builder, value,
+			builder, value, true,
 			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value
 			{
 				mlir::Type type = value.getType();
 				assert(type.isa<MemRefType>());
 				auto memRefType = type.cast<MemRefType>();
 
-				if (memRefType.getNumElements() == 1)
+				if (memRefType.getRank() == 0)
 					return builder->create<mlir::LoadOp>(value.getLoc(), value);
 
-				mlir::VectorType vectorType = mlir::VectorType::get(memRefType.getShape(), memRefType.getElementType());
-				mlir::Value zeroValue = builder->create<ConstantOp>(value.getLoc(), builder->getIndexAttr(0));
-				SmallVector<mlir::Value, 3> indexes(memRefType.getRank(), zeroValue);
-				return builder->create<AffineVectorLoadOp>(value.getLoc(), vectorType, value, indexes);
+				return value;
 			});
+}
+
+Reference Reference::placeholder(mlir::OpBuilder* builder)
+{
+	return Reference(
+					builder, nullptr, false,
+					[](mlir::OpBuilder* builder, mlir::Value val) -> mlir::Value
+					{
+						assert(false && "Uninitialized value");
+						return mlir::Value();
+					});
 }
 
 MlirLowerer::MlirLowerer(mlir::MLIRContext& context, ModelicaOptions options)
 		: builder(&context), options(move(options))
 {
-	// Check that the required dialects have been previously registered
 	context.loadDialect<ModelicaDialect>();
 	context.loadDialect<StandardOpsDialect>();
 	context.loadDialect<scf::SCFDialect>();
-	context.loadDialect<linalg::LinalgDialect>();
-	context.loadDialect<AffineDialect>();
-	context.loadDialect<mlir::vector::VectorDialect>();
-	context.loadDialect<LLVM::LLVMDialect>();
 
 	if (options.x64)
 	{
@@ -201,6 +211,13 @@ mlir::ModuleOp MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer>
 {
 	mlir::ModuleOp module = ModuleOp::create(builder.getUnknownLoc());
 
+	/*
+	auto funcType = builder.getFunctionType(TypeRange(), TypeRange());
+	auto testFoo = FuncOp::create(builder.getUnknownLoc(), "test", funcType);
+	testFoo.setPrivate();
+	module.push_back(testFoo);
+	 */
+
 	for (const auto& cls : classes)
 	{
 		auto* op = cls.visit([&](auto& obj) -> mlir::Operation* { return lower(obj); });
@@ -215,6 +232,22 @@ mlir::ModuleOp MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer>
 mlir::Operation* MlirLowerer::lower(const modelica::Class& cls)
 {
 	return nullptr;
+}
+
+/**
+ * Check whether a variable with the given type can be allocated on the stack
+ * or must be allocated on the heap.
+ *
+ * @param type
+ * @return
+ */
+bool canBeAllocatedOnStack(mlir::Type type)
+{
+	if (!type.isa<MemRefType>())
+		return true;
+
+	auto memRef = type.cast<MemRefType>();
+	return memRef.hasStaticShape();
 }
 
 mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
@@ -239,12 +272,26 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 
 	for (const auto& member : outputMembers)
 	{
-		returnNames.emplace_back(member->getName());
-		returnTypes.emplace_back(lower(member->getType()));
+		mlir::Type type = lower(member->getType());
+
+		if (type.isa<MemRefType>() && type.cast<MemRefType>().hasStaticShape())
+		{
+			argNames.emplace_back(member->getName());
+			argTypes.emplace_back(type);
+		}
+		else
+		{
+			returnNames.emplace_back(member->getName());
+			returnTypes.emplace_back(type);
+		}
 	}
 
 	auto functionType = builder.getFunctionType(argTypes, returnTypes);
 	auto function = mlir::FuncOp::create(location, foo.getName(), functionType);
+
+	// If the function doesn't have a body, it means it is just a declaration
+	if (foo.getAlgorithms().empty())
+		return function;
 
 	// Start the body of the function.
 	// In MLIR the entry block of the function is special: it must have the same
@@ -285,6 +332,29 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	// Lower the statements
 	lower(foo.getAlgorithms()[0]);
 
+	/*
+	mlir::Value sizeInteger = builder.create<ConstantOp>(location, builder.getI32IntegerAttr(4));
+	mlir::Value sizeIndex = builder.create<IndexCastOp>(location, sizeInteger, builder.getIndexType());
+	auto memref = builder.create<AllocOp>(location, MemRefType::get({ -1 }, builder.getI32Type()), sizeIndex);
+	symbolTable.insert("y", Reference::memref(&builder, memref));
+
+	mlir::Value zeroInt = builder.create<ConstantOp>(location, builder.getI32IntegerAttr(0));
+	mlir::Value zeroIndex = builder.create<ConstantOp>(location, builder.getIndexAttr(0));
+	builder.create<StoreOp>(location, zeroInt, memref, zeroIndex);
+
+	mlir::Value oneInt = builder.create<ConstantOp>(location, builder.getI32IntegerAttr(1));
+	mlir::Value oneIndex = builder.create<ConstantOp>(location, builder.getIndexAttr(1));
+	builder.create<StoreOp>(location, oneInt, memref, oneIndex);
+
+	mlir::Value twoInt = builder.create<ConstantOp>(location, builder.getI32IntegerAttr(2));
+	mlir::Value twoIndex = builder.create<ConstantOp>(location, builder.getIndexAttr(2));
+	builder.create<StoreOp>(location, twoInt, memref, twoIndex);
+
+	mlir::Value threeInt = builder.create<ConstantOp>(location, builder.getI32IntegerAttr(3));
+	mlir::Value threeIndex = builder.create<ConstantOp>(location, builder.getIndexAttr(3));
+	builder.create<StoreOp>(location, threeInt, memref, threeIndex);
+	 */
+
 	// Return statement
 	std::vector<mlir::Value> results;
 
@@ -311,7 +381,16 @@ mlir::Type MlirLowerer::lower(const modelica::Type& type)
 		if (!type.isScalar())
 		{
 			const auto& dimensions = type.getDimensions();
-			SmallVector<long, 3> shape(dimensions.begin(), dimensions.end());
+			SmallVector<long, 3> shape;
+
+			for (const auto& dimension : type.getDimensions())
+			{
+				if (dimension.isDynamic())
+					shape.emplace_back(-1);
+				else
+					shape.emplace_back(dimension.getNumericSize());
+			}
+
 			return mlir::MemRefType::get(shape, baseType);
 		}
 
@@ -349,6 +428,20 @@ mlir::Type MlirLowerer::lower(const modelica::UserDefinedType& type)
 	return builder.getTupleType(move(types));
 }
 
+/**
+ * Lower a member of a function.
+ * If the size of the element can be determined statically, then it is
+ * allocated on the stack. If not, it will be allocated when it will be
+ * initialized.
+ * Input members are ignored because they are supposed to be unmodifiable
+ * as per the Modelica standard.
+ *
+ * 	                 INPUT              OUTPUT               PROTECTED
+ * scalar              -                stack                  stack
+ * memref ranked       -                - (in param)           stack
+ * memref unranked     -                heap (out param)       stack
+ * @param member
+ */
 void MlirLowerer::lower(const modelica::Member& member)
 {
 	auto location = loc(member.getLocation());
@@ -356,26 +449,80 @@ void MlirLowerer::lower(const modelica::Member& member)
 	if (member.isInput())
 		return;
 
-	auto type = lower(member.getType());
-	mlir::Value var;
+	mlir::Type type = lower(member.getType());
 
-	if (type.isa<MemRefType>())
+	if (type.isa<MemRefType>() && member.isOutput())
+		return;
+
+	if (!type.isa<MemRefType>())
 	{
-		auto shape = type.cast<MemRefType>().getShape();
-		auto baseType = type.cast<MemRefType>().getElementType();
-		var = builder.create<AllocaOp>(location, MemRefType::get(shape, baseType));
+		// Scalar value
+		mlir::Value var = builder.create<AllocaOp>(location, MemRefType::get({}, type));
+		symbolTable.insert(member.getName(), Reference::memref(&builder, var));
 	}
 	else
 	{
-		var = builder.create<AllocaOp>(location, MemRefType::get({}, type));
-	}
+		auto memRefType = type.cast<MemRefType>();
 
-	symbolTable.insert(member.getName(), Reference::memref(&builder, var));
+		// Only memrefs with static size can be allocated. The dynamically sized
+		// ones can be allocated only when their size will be determined.
+		if (memRefType.hasStaticShape())
+		{
+			if (member.isOutput())
+			{
+				// Output arrays with static size are passed as input argument and
+				// are allocated by the caller.
+
+			}
+			else
+			{
+				mlir::Value var = builder.create<AllocaOp>(location, memRefType);
+				var.setType(ArrayType::get(memRefType, false));
+				symbolTable.insert(member.getName(), Reference::memref(&builder, var));
+			}
+		}
+		else
+		{
+			size_t dynamicDimensions = 0;
+			SmallVector<mlir::Value, 3> sizes;
+
+			for (const auto& dimension : member.getType().getDimensions())
+			{
+				if (dimension.isDynamic())
+					dynamicDimensions++;
+
+				if (dimension.hasExpression())
+					sizes.emplace_back(*lower<modelica::Expression>(dimension.getExpression())[0]);
+			}
+
+			if (sizes.size() == dynamicDimensions)
+			{
+				// All the dynamic dimensions have an expression to determine their values.
+				// So we can instantiate the array.
+
+				if (member.isOutput())
+				{
+					mlir::Value var = builder.create<AllocOp>(location, memRefType, sizes);
+					symbolTable.insert(member.getName(), Reference::memref(&builder, var));
+				}
+				else
+				{
+					mlir::Value var = builder.create<AllocaOp>(location, memRefType, sizes);
+					symbolTable.insert(member.getName(), Reference::memref(&builder, var));
+				}
+			}
+			else
+			{
+				symbolTable.insert(member.getName(), Reference::memref(&builder, nullptr));
+			}
+		}
+	}
 
 	if (member.hasInitializer())
 	{
-		auto reference = lower<modelica::Expression>(member.getInitializer())[0];
-		builder.create<AssignmentOp>(loc(member.getInitializer().getLocation()), reference.getReference(), var);
+		mlir::Value reference = symbolTable.lookup(member.getName()).getReference();
+		mlir::Value value = lower<modelica::Expression>(member.getInitializer())[0].getReference();
+		builder.create<AssignmentOp>(loc(member.getInitializer().getLocation()), value, reference);
 	}
 }
 
@@ -401,9 +548,6 @@ void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
 	{
 		auto destination = lower<modelica::Expression>(get<0>(pair))[0];
 		auto value = get<1>(pair);
-
-		bool valueIsArray = false;
-		mlir::Type valueType = value.getReference().getType();
 
 		builder.create<AssignmentOp>(location, value.getReference(), destination.getReference());
 	}

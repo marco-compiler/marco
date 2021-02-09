@@ -67,4 +67,8 @@ namespace modelica
 		SourcePosition location;
 		Container<UniqueExpression> expressions;
 	};
+
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Tuple& obj);
+
+	std::string toString(const Tuple& obj);
 }	 // namespace modelica

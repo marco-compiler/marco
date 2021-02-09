@@ -45,4 +45,8 @@ namespace modelica
 		bool globalLookup;
 		bool dummyVariable;
 	};
+
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const ReferenceAccess& obj);
+
+	std::string toString(const ReferenceAccess& obj);
 }	 // namespace modelica

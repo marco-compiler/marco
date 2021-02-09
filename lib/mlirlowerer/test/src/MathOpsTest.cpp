@@ -2,15 +2,16 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <modelica/frontend/Expression.hpp>
-#include <modelica/mlirlowerer/MlirLowerer.hpp>
-#include <modelica/mlirlowerer/Runner.hpp>
+#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
+
 #include "TestUtils.hpp"
 
 using namespace modelica;
 using namespace std;
 
-TEST(AddOp, scalarIntegers)	 // NOLINT
+TEST(MathOps, sumOfIntegerScalars)	 // NOLINT
 {
 	/**
 	 * function main
@@ -65,8 +66,9 @@ TEST(AddOp, scalarIntegers)	 // NOLINT
 	}
 }
 
-TEST(AddOp, vectorIntegers)	 // NOLINT
+TEST(MathOps, sumOfIntegerVectors)	 // NOLINT
 {
+	llvm::DebugFlag=true;
 	/**
 	 * function main
 	 *   input Integer[3] x;
@@ -99,8 +101,6 @@ TEST(AddOp, vectorIntegers)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
@@ -120,7 +120,7 @@ TEST(AddOp, vectorIntegers)	 // NOLINT
 		EXPECT_EQ(get<2>(tuple), get<0>(tuple) + get<1>(tuple));
 }
 
-TEST(AddOp, scalarFloats)	 // NOLINT
+TEST(MathOps, sumOfFloatScalars)	 // NOLINT
 {
 	/**
 	 * function main
@@ -154,8 +154,6 @@ TEST(AddOp, scalarFloats)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
@@ -177,7 +175,7 @@ TEST(AddOp, scalarFloats)	 // NOLINT
 	}
 }
 
-TEST(AddOp, vectorFloats)	 // NOLINT
+TEST(MathOps, sumOfFloatVectors)	 // NOLINT
 {
 	/**
 	 * function main
@@ -230,7 +228,7 @@ TEST(AddOp, vectorFloats)	 // NOLINT
 		EXPECT_FLOAT_EQ(get<2>(tuple), get<0>(tuple) + get<1>(tuple));
 }
 
-TEST(AddOp, integerCastedToFloatScalar)	 // NOLINT
+TEST(MathOps, sumIntegerScalarToFloatScalar)	 // NOLINT
 {
 	/**
 	 * function main
@@ -264,8 +262,6 @@ TEST(AddOp, integerCastedToFloatScalar)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
@@ -287,7 +283,7 @@ TEST(AddOp, integerCastedToFloatScalar)	 // NOLINT
 	}
 }
 
-TEST(AddOp, integerCastedToFloatVector)	 // NOLINT
+TEST(MathOps, sumIntegerVectorToFloatVector)	 // NOLINT
 {
 	/**
 	 * function main
@@ -321,8 +317,6 @@ TEST(AddOp, integerCastedToFloatVector)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
@@ -342,7 +336,7 @@ TEST(AddOp, integerCastedToFloatVector)	 // NOLINT
 		EXPECT_FLOAT_EQ(get<2>(tuple), get<0>(tuple) + get<1>(tuple));
 }
 
-TEST(AddOp, multipleValues)	 // NOLINT
+TEST(MathOps, sumMultipleIntegerScalars)	 // NOLINT
 {
 	/**
 	 * function main

@@ -1,5 +1,6 @@
 modelicaAddTest(mlirlowerer
         src/AssignmentTest.cpp
+        src/BuiltInFunctionsTest.cpp
         src/CmpOpsTest.cpp
         src/ControlFlowTest.cpp
         src/FunctionLowerTest.cpp

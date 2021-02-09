@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <mlir/IR/Dialect.h>
-#include <modelica/mlirlowerer/MlirLowerer.hpp>
-#include <modelica/mlirlowerer/Runner.hpp>
+#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
 
 using namespace modelica;

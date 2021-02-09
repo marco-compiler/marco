@@ -95,4 +95,8 @@ namespace modelica
 	{
 		return Operation(op, std::forward(args)...);
 	}
+
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Operation& obj);
+
+	std::string toString(const Operation& obj);
 }	 // namespace modelica

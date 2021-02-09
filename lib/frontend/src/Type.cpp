@@ -1,7 +1,7 @@
 #include <iostream>
 #include <modelica/frontend/Type.hpp>
+#include <modelica/frontend/Expression.hpp>
 #include <numeric>
-#include <stack>
 
 using namespace llvm;
 using namespace modelica;
@@ -36,26 +36,7 @@ string modelica::toString(BuiltInType type)
 UserDefinedType::UserDefinedType(ArrayRef<Type> types)
 {
 	for (const auto& type : types)
-		this->types.emplace_back(std::make_unique<Type>(type));
-}
-
-UserDefinedType::UserDefinedType(const UserDefinedType& other)
-{
-	for (const auto& type : other.types)
-		types.emplace_back(std::make_unique<Type>(*type));
-}
-
-UserDefinedType& UserDefinedType::operator=(const UserDefinedType& other)
-{
-	if (this == &other)
-		return *this;
-
-	types.clear();
-
-	for (const auto& type : other.types)
-		types.emplace_back(std::make_unique<Type>(*type));
-
-	return *this;
+		this->types.emplace_back(std::make_shared<Type>(type));
 }
 
 bool UserDefinedType::operator==(const UserDefinedType& other) const
@@ -136,21 +117,78 @@ string modelica::toString(UserDefinedType obj)
 				 "}";
 }
 
-Type::Type(BuiltInType type, ArrayRef<size_t> dim)
+ArrayDimension::ArrayDimension(long size) : size(size)
+{
+}
+
+ArrayDimension::ArrayDimension(Expression size)
+		: size(std::make_shared<Expression>(move(size)))
+{
+}
+
+bool ArrayDimension::operator==(const ArrayDimension& other) const
+{
+	return size == other.size;
+}
+
+bool ArrayDimension::operator!=(const ArrayDimension& other) const { return !(*this == other); }
+
+bool ArrayDimension::hasExpression() const
+{
+	return std::holds_alternative<ExpressionPtr>(size);
+}
+
+bool ArrayDimension::isDynamic() const
+{
+	return hasExpression() || getNumericSize() == -1;
+}
+
+long ArrayDimension::getNumericSize() const
+{
+	assert(holds_alternative<long>(size));
+	return get<long>(size);
+}
+
+Expression ArrayDimension::getExpression()
+{
+	assert(hasExpression());
+	return *get<ArrayDimension::ExpressionPtr>(size);
+}
+
+Expression ArrayDimension::getExpression() const
+{
+	assert(hasExpression());
+	return *get<ArrayDimension::ExpressionPtr>(size);
+}
+
+raw_ostream& modelica::operator<<(raw_ostream& stream, const ArrayDimension& obj)
+{
+	return stream << toString(obj);
+}
+
+string modelica::toString(const ArrayDimension& obj)
+{
+	if (obj.hasExpression())
+		return toString(obj.getExpression());
+
+	return to_string(obj.getNumericSize());
+}
+
+Type::Type(BuiltInType type, ArrayRef<ArrayDimension> dim)
 		: content(move(type)), dimensions(dim.begin(), dim.end())
 {
 	assert(holds_alternative<BuiltInType>(content));
 	assert(!dimensions.empty());
 }
 
-Type::Type(UserDefinedType type, ArrayRef<size_t> dim)
+Type::Type(UserDefinedType type, ArrayRef<ArrayDimension> dim)
 		: content(move(type)), dimensions(dim.begin(), dim.end())
 {
 	assert(holds_alternative<UserDefinedType>(content));
 	assert(!dimensions.empty());
 }
 
-Type::Type(llvm::ArrayRef<Type> members, ArrayRef<size_t> dim)
+Type::Type(llvm::ArrayRef<Type> members, ArrayRef<ArrayDimension> dim)
 		: Type(UserDefinedType(move(members)), move(dim))
 {
 }
@@ -162,9 +200,9 @@ bool Type::operator==(const Type& other) const
 
 bool Type::operator!=(const Type& other) const { return !(*this == other); }
 
-[[nodiscard]] size_t& Type::operator[](int index) { return dimensions[index]; }
+ArrayDimension& Type::operator[](int index) { return dimensions[index]; }
 
-[[nodiscard]] size_t Type::operator[](int index) const
+ArrayDimension Type::operator[](int index) const
 {
 	return dimensions[index];
 }
@@ -177,43 +215,56 @@ void Type::dump(raw_ostream& os, size_t indents) const
 	os << toString(*this);
 }
 
-SmallVectorImpl<size_t>& Type::getDimensions() { return dimensions; }
+SmallVectorImpl<ArrayDimension>& Type::getDimensions() { return dimensions; }
 
-const SmallVectorImpl<size_t>& Type::getDimensions() const
+const SmallVectorImpl<ArrayDimension>& Type::getDimensions() const
 {
 	return dimensions;
+}
+
+void Type::setDimensions(llvm::ArrayRef<ArrayDimension> dims)
+{
+	dimensions.clear();
+	dimensions.insert(dimensions.begin(), dims.begin(), dims.end());
 }
 
 size_t Type::dimensionsCount() const { return dimensions.size(); }
 
 size_t Type::size() const
 {
-	size_t toReturn = 1;
+	long result = 1;
 
-	for (size_t dim : dimensions)
-		toReturn *= dim;
+	for (const auto& dimension : dimensions)
+	{
+		if (dimension.hasExpression())
+			return -1;
 
-	return toReturn;
+		result *= dimension.getNumericSize();
+	}
+
+	return result;
 }
 
 bool Type::isScalar() const
 {
-	return dimensions.size() == 1 && dimensions[0] == 1;
+	return dimensions.size() == 1 &&
+				 !dimensions[0].hasExpression() &&
+				 dimensions[0].getNumericSize() == 1;
 }
 
-llvm::SmallVectorImpl<size_t>::iterator Type::begin()
+Type::dimensions_iterator Type::begin()
 {
 	return dimensions.begin();
 }
 
-llvm::SmallVectorImpl<size_t>::const_iterator Type::begin() const
+Type::dimensions_const_iterator Type::begin() const
 {
 	return dimensions.begin();
 }
 
-llvm::SmallVectorImpl<size_t>::iterator Type::end() { return dimensions.end(); }
+Type::dimensions_iterator Type::end() { return dimensions.end(); }
 
-llvm::SmallVectorImpl<size_t>::const_iterator Type::end() const
+Type::dimensions_const_iterator Type::end() const
 {
 	return dimensions.end();
 }
@@ -230,7 +281,7 @@ Type Type::subscript(size_t times) const
 	return visit([&](const auto& t) {
 		return Type(
 				t,
-				SmallVector<size_t, 3>(dimensions.begin() + times, dimensions.end()));
+				SmallVector<ArrayDimension, 3>(dimensions.begin() + times, dimensions.end()));
 	});
 }
 
@@ -239,12 +290,19 @@ raw_ostream& modelica::operator<<(raw_ostream& stream, const Type& obj)
 	return stream << toString(obj);
 }
 
+class ArrayDimensionToStringVisitor
+{
+	public:
+	string operator()(const long& value) { return to_string(value); }
+	string operator()(const ArrayDimension::ExpressionPtr& expression) { return toString(*expression); };
+};
+
 string modelica::toString(Type obj)
 {
 	auto visitor = [](const auto& t) { return toString(t); };
 
-	auto dimensionsToStringLambda = [](const string& a, const auto& b) -> string {
-		return a + (a.length() > 0 ? "," : "") + to_string(b);
+	auto dimensionsToStringLambda = [](const string& a, ArrayDimension& b) -> string {
+		return a + (a.length() > 0 ? "," : "") + b.visit(ArrayDimensionToStringVisitor());
 	};
 
 	auto& dimensions = obj.getDimensions();

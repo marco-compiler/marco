@@ -1,16 +1,17 @@
 #include <gtest/gtest.h>
 #include <llvm/ADT/ScopedHashTable.h>
 #include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
+#include <mlir/ExecutionEngine/OptUtils.h>
 #include <mlir/IR/Dialect.h>
 #include <mlir/InitAllDialects.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Target/LLVMIR.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/frontend/Parser.hpp>
-#include <modelica/mlirlowerer/MlirLowerer.hpp>
-#include <modelica/mlirlowerer/ModelicaDialect.hpp>
+#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
-#include <mlir/ExecutionEngine/OptUtils.h>
 
 using namespace modelica;
 using namespace std;
@@ -18,13 +19,40 @@ using namespace std;
 TEST(FunctionLowerTest, test)	 // NOLINT
 {
 	/**
-	 * function Foo
-	 *   input Real x;
-	 *   output Real y;
-	 * algorithm
-	 *   y := x;
-	 * end Foo
+	 * function main
+	 *   input Integer[:] x;
+	 *   output Integer y;
+	 *
+	 *   algorithm
+	 *     x := 57;
+	 * end main
 	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+			Expression::constant(location, makeType<BuiltInType::Integer>(), 57));
+
+	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	int x = 0;
+
+	Runner runner(&context, module);
+	runner.run("main", x);
+
+	EXPECT_EQ(x, 5);
+
 
 	/*
 	SourcePosition location("-", 0, 0);
