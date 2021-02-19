@@ -5,8 +5,8 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
-#include <mlir/IR/StandardTypes.h>
 #include <modelica/frontend/ClassContainer.hpp>
+#include <modelica/mlirlowerer/ModelicaBuilder.h>
 #include <modelica/utils/SourceRange.hpp>
 
 namespace modelica
@@ -14,7 +14,6 @@ namespace modelica
 	struct ModelicaOptions {
 
 		bool x64 = false;
-		bool useBarePtrCallConv = true;
 
 		/**
 		 * Get a statically allocated copy of the default options.
@@ -46,21 +45,20 @@ namespace modelica
 
 		[[nodiscard]] mlir::Value getReference() const;
 
-
-		[[nodiscard]] static Reference ssa(mlir::OpBuilder* builder, mlir::Value value);
-		[[nodiscard]] static Reference memref(mlir::OpBuilder* builder, mlir::Value value);
-		[[nodiscard]] static Reference placeholder(mlir::OpBuilder* builder);
+		[[nodiscard]] static Reference ssa(ModelicaBuilder* builder, mlir::Value value);
+		[[nodiscard]] static Reference memref(ModelicaBuilder* builder, mlir::Value value);
+		[[nodiscard]] static Reference placeholder(ModelicaBuilder* builder);
 
 		private:
-		Reference(mlir::OpBuilder* builder,
+		Reference(ModelicaBuilder* builder,
 							mlir::Value value,
 							bool initialized,
-							std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader);
+							std::function<mlir::Value(ModelicaBuilder*, mlir::Value)> reader);
 
-		mlir::OpBuilder* builder;
+		ModelicaBuilder* builder;
 		mlir::Value value;
 		bool initialized;
-		std::function<mlir::Value(mlir::OpBuilder* builder, mlir::Value ref)> reader;
+		std::function<mlir::Value(ModelicaBuilder* builder, mlir::Value ref)> reader;
 	};
 
 	class MlirLowerer
@@ -70,14 +68,6 @@ namespace modelica
 
 		public:
 		explicit MlirLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
-
-		/**
-		 * Get the operation builder.
-		 * Should be used only for unit testing.
-		 *
-		 * @return operation builder
-		 */
-		mlir::OpBuilder& getOpBuilder();
 
 		mlir::ModuleOp lower(llvm::ArrayRef<const modelica::ClassContainer> classes);
 		mlir::Operation* lower(const modelica::Class& cls);
@@ -105,7 +95,7 @@ namespace modelica
 		 * builder is stateful, in particular it keeps an "insertion point":
 		 * this is where the next operations will be introduced.
 		 */
-		mlir::OpBuilder builder;
+		ModelicaBuilder builder;
 
 		/**
 		 * Integer representation to be used.

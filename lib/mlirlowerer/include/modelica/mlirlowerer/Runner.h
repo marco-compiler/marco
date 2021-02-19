@@ -17,18 +17,6 @@ namespace modelica
 		{
 		}
 
-		mlir::LogicalResult convertToLLVM()
-		{
-			// Convert to LLVM IR
-			if (failed(convertToLLVMDialect(context, module)))
-			{
-				llvm::errs() << "Failed to convert to LLVM dialect\n";
-				return mlir::failure();
-			}
-
-			return mlir::success();
-		}
-
 		template<typename... T>
 		mlir::LogicalResult run(llvm::StringRef function, T&... params)
 		{
@@ -40,7 +28,9 @@ namespace modelica
 			llvm::SmallVector<llvm::StringRef, 3> libraries;
 			libraries.push_back("/opt/llvm/lib/libmlir_runner_utils.so");
 			libraries.push_back("/opt/llvm/lib/libmlir_c_runner_utils.so");
-			libraries.push_back("/mnt/d/modelica/cmake-build-gcc-debug/lib/runtime/libruntime-d.so");
+			//libraries.push_back("/mnt/d/modelica/cmake-build-gcc-debug/lib/runtime/libruntime-d.so");
+
+			//mlir::registerLLVMDialectTranslation(*module->getContext());
 
 			auto maybeEngine = mlir::ExecutionEngine::create(module, nullptr, {}, llvm::None, libraries);
 

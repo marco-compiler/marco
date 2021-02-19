@@ -52,26 +52,26 @@ void modelica::populateModelicaConversionPatterns(OwningRewritePatternList& patt
 	patterns.insert<AssignmentOpLowering>(context);
 
 	// Math operations
-	patterns.insert<AddOpLowering>(context);
-	patterns.insert<SubOpLowering>(context);
-	patterns.insert<MulOpLowering>(context);
-	patterns.insert<CrossProductOpLowering>(context);
-	patterns.insert<DivOpLowering>(context);
+	//patterns.insert<AddOpLowering>(context);
+	//patterns.insert<SubOpLowering>(context);
+	//patterns.insert<MulOpLowering>(context);
+	//patterns.insert<CrossProductOpLowering>(context);
+	//patterns.insert<DivOpLowering>(context);
 
 	// Logic operations
-	patterns.insert<NegateOpLowering>(context);
-	patterns.insert<EqOpLowering>(context);
-	patterns.insert<NotEqOpLowering>(context);
-	patterns.insert<GtOpLowering>(context);
-	patterns.insert<GteOpLowering>(context);
-	patterns.insert<LtOpLowering>(context);
-	patterns.insert<LteOpLowering>(context);
+	//patterns.insert<NegateOpLowering>(context);
+	//patterns.insert<EqOpLowering>(context);
+	//patterns.insert<NotEqOpLowering>(context);
+	//patterns.insert<GtOpLowering>(context);
+	//patterns.insert<GteOpLowering>(context);
+	//patterns.insert<LtOpLowering>(context);
+	//patterns.insert<LteOpLowering>(context);
 
 	// Control flow operations
-	patterns.insert<IfOpLowering>(context);
-	patterns.insert<ForOpLowering>(context);
-	patterns.insert<WhileOpLowering>(context);
-	patterns.insert<YieldOpLowering>(context);
+	//patterns.insert<IfOpLowering>(context);
+	//patterns.insert<ForOpLowering>(context);
+	//patterns.insert<WhileOpLowering>(context);
+	//patterns.insert<YieldOpLowering>(context);
 }
 
 std::unique_ptr<mlir::Pass> modelica::createModelicaLoweringPass()

@@ -1,15 +1,14 @@
-#include <modelica/mlirlowerer/ArrayType.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/mlirlowerer/Ops.h>
 
 using namespace modelica;
 
 ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 		: Dialect("modelica", context, mlir::TypeID::get<ModelicaDialect>())
 {
-	addTypes<ArrayType>();
+	addTypes<BooleanType, IntegerType, RealType, PointerType>();
 
-	// Generic operations
+	// Basic operations
+	addOperations<AllocaOp, AllocOp, FreeOp, DimOp, LoadOp, StoreOp>();
 	addOperations<AssignmentOp>();
 	addOperations<CastOp>();
 	addOperations<CastCommonOp>();
@@ -41,4 +40,8 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 mlir::StringRef ModelicaDialect::getDialectNamespace()
 {
 	return "modelica";
+}
+
+void ModelicaDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& printer) const {
+	return printModelicaType(const_cast<ModelicaDialect*>(this), type, printer);
 }

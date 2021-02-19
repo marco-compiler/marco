@@ -2,7 +2,7 @@
 
 #include <mlir/IR/Dialect.h>
 #include <modelica/mlirlowerer/Ops.h>
-#include <modelica/mlirlowerer/ArrayType.h>
+#include <modelica/mlirlowerer/Type.h>
 
 namespace modelica
 {
@@ -17,5 +17,7 @@ namespace modelica
 		 * @return dialect namespace
 		 */
 		static llvm::StringRef getDialectNamespace();
+
+		void printType(mlir::Type type, mlir::DialectAsmPrinter& printer) const override;
 	};
 }

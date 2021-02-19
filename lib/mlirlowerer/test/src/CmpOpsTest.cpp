@@ -6,8 +6,6 @@
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
 
-#include "TestUtils.hpp"
-
 using namespace modelica;
 using namespace std;
 

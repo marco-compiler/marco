@@ -6,12 +6,11 @@
 #include <mlir/Pass/Pass.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/mlirlowerer/Ops.h>
+#include <modelica/mlirlowerer/passes/TypeConverter.h>
 
 namespace modelica
 {
 	struct ModelicaToLLVMLoweringOptions {
-
-		bool useBarePtrCallConv = false;
 
 		/**
 		 * Get a statically allocated copy of the default options.
@@ -37,15 +36,15 @@ namespace modelica
 
 	/**
 	 * Collect a set of patterns to lower from Modelica operations to operations
-	 * within the Standard and Linalg dialects.
+	 * within the LLVM dialect.
 	 *
 	 * @param patterns patterns list to populate
 	 * @param context	 MLIR context
 	 */
-	void populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context);
+	void populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter);
 
 	/**
-	 * Create a pass to convert Modelica operations to Standard and Linalg ones.
+	 * Create a pass to convert Modelica operations to LLVM ones.
 	 *
 	 * @return pass
 	 */

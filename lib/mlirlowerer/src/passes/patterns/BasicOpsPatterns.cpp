@@ -131,7 +131,7 @@ LogicalResult AssignmentOpLowering::matchAndRewrite(AssignmentOp op, PatternRewr
 	}
 	else
 	{
-		rewriter.replaceOpWithNewOp<StoreOp>(op, source, op.destination());
+		rewriter.replaceOpWithNewOp<mlir::StoreOp>(op, source, op.destination());
 	}
 
 	return success();

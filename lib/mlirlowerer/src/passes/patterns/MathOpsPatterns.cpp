@@ -56,7 +56,7 @@ mlir::Type getMostGeneralBaseType(mlir::Type x, mlir::Type y)
 	if (x.isIndex())
 		return y;
 
-	if (x.isa<IntegerType>())
+	if (x.isa<mlir::IntegerType>())
 	{
 		if (y.isa<FloatType>())
 			return y;
@@ -64,7 +64,7 @@ mlir::Type getMostGeneralBaseType(mlir::Type x, mlir::Type y)
 		return x;
 	}
 
-	if (x.isa<FloatType>())
+	if (x.isa<mlir::FloatType>())
 		if (y.isa<FloatType>() && y.getIntOrFloatBitWidth() > x.getIntOrFloatBitWidth())
 			return y;
 
@@ -97,7 +97,7 @@ LogicalResult AddOpLowering::matchAndRewrite(AddOp op, PatternRewriter& rewriter
 
 			for (long j = 0; j < xShapedType.getRank(); j++)
 				if (xShapedType.isDynamicDim(j))
-					dynamicSizes.push_back(rewriter.create<DimOp>(location, x, j));
+					dynamicSizes.push_back(rewriter.create<mlir::DimOp>(location, x, j));
 
 			result = rewriter.create<AllocaOp>(
 					location,
@@ -141,7 +141,7 @@ LogicalResult AddOpLowering::matchAndRewrite(AddOp op, PatternRewriter& rewriter
 
 				for (long dimension = 0; dimension < xShapedType.getRank(); dimension++)
 				{
-					upperBounds.push_back(rewriter.create<DimOp>(location, x, dimension));
+					upperBounds.push_back(rewriter.create<mlir::DimOp>(location, x, dimension));
 					steps.push_back(1);
 				}
 

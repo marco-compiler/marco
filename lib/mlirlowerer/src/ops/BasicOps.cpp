@@ -1,11 +1,20 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/OpImplementation.h>
-#include <mlir/IR/StandardTypes.h>
 #include <modelica/mlirlowerer/ops/BasicOps.h>
 
 using namespace modelica;
 using namespace std;
+
+
+
+
+
+
+
+
+
+
 
 llvm::StringRef CastOp::getOperationName()
 {
@@ -20,7 +29,7 @@ void CastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 
 void CastOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "cast " << value() << " : " << getOperation()->getResultTypes()[0];
+	printer << "modelica.cast " << value() << " : " << getOperation()->getResultTypes()[0];
 }
 
 mlir::Value CastOp::value()
@@ -139,7 +148,7 @@ void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 
 void CastCommonOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "cast_common ";
+	printer << "modelica.cast_common ";
 	printer.printOperands(values());
 	printer << " : " << getOperation()->getResultTypes();
 }
@@ -168,7 +177,7 @@ void AssignmentOp::print(mlir::OpAsmPrinter& printer)
 {
 	mlir::Value source = this->source();
 	mlir::Value destination = this->destination();
-	printer << "assign " << source << ", " << destination << " : " << source.getType() << ", " << destination.getType();
+	printer << "modelica.assign " << source << " to " << destination << " : " << source.getType() << ", " << destination.getType();
 }
 
 mlir::Value AssignmentOp::source()

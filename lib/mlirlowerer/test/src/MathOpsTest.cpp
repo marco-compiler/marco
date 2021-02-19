@@ -6,8 +6,6 @@
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
 
-#include "TestUtils.hpp"
-
 using namespace modelica;
 using namespace std;
 
@@ -45,8 +43,12 @@ TEST(MathOps, sumOfIntegerScalars)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
+	module.dump();
+
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
+
+	module.dump();
 
 	Runner runner(&context, module);
 

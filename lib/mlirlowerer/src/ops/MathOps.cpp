@@ -1,7 +1,6 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/OpImplementation.h>
-#include <mlir/IR/StandardTypes.h>
 #include <modelica/mlirlowerer/ops/MathOps.h>
 
 using namespace modelica;
@@ -15,14 +14,12 @@ llvm::StringRef AddOp::getOperationName()
 void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange operands)
 {
 	state.addTypes(resultType);
-
-	assert(operands.size() >= 2);
 	state.addOperands(operands);
 }
 
 void AddOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "add " << getOperands() << " : (" << getOperandTypes() << ") -> (" << getOperation()->getResultTypes()[0] << ")";
+	printer << "modelica.add " << getOperands() << " : (" << getOperandTypes() << ") -> (" << getOperation()->getResultTypes()[0] << ")";
 }
 
 mlir::ValueRange AddOp::values()
@@ -51,7 +48,7 @@ void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 
 void SubOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "sub " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+	printer << "modelica.sub " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 llvm::StringRef MulOp::getOperationName()
@@ -75,7 +72,7 @@ void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 
 void MulOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "mul " << getOperands() << " : (" << getOperandTypes() << ") -> (" << getOperation()->getResultTypes()[0] << ")";
+	printer << "modelica.mul " << getOperands() << " : (" << getOperandTypes() << ") -> (" << getOperation()->getResultTypes()[0] << ")";
 }
 
 llvm::StringRef CrossProductOp::getOperationName()
@@ -139,5 +136,5 @@ void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 
 void DivOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "div " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+	printer << "modelica.div " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }

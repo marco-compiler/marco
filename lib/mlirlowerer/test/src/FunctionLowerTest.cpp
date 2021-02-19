@@ -18,40 +18,68 @@ using namespace std;
 
 TEST(FunctionLowerTest, test)	 // NOLINT
 {
-	/**
-	 * function main
-	 *   input Integer[:] x;
-	 *   output Integer y;
-	 *
-	 *   algorithm
-	 *     x := 57;
-	 * end main
-	 */
+	llvm::DebugFlag = true;
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
 			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
 			Expression::constant(location, makeType<BuiltInType::Integer>(), 57));
 
-	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, assignment)));
+	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
+	module.dump();
+
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	int x = 0;
+	module.dump();
 
-	Runner runner(&context, module);
-	runner.run("main", x);
+	mlir::registerLLVMDialectTranslation(*module->getContext());
+	llvm::LLVMContext llvmContext;
+	auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmContext);
+	llvmModule->print(llvm::errs(), nullptr);
 
-	EXPECT_EQ(x, 5);
+	bool x = true;
+	bool y = true;
+
+	llvm::InitializeNativeTarget();
+	llvm::InitializeNativeTargetAsmPrinter();
+
+	// Create the engine to run the code
+	llvm::SmallVector<llvm::StringRef, 3> libraries;
+	libraries.push_back("/opt/llvm/lib/libmlir_runner_utils.so");
+	libraries.push_back("/opt/llvm/lib/libmlir_c_runner_utils.so");
+	//libraries.push_back("/mnt/d/modelica/cmake-build-gcc-debug/lib/runtime/libruntime-d.so");
+
+	//mlir::registerLLVMDialectTranslation(*module->getContext());
+
+	auto maybeEngine = mlir::ExecutionEngine::create(module, nullptr, {}, llvm::None, libraries);
+
+	if (!maybeEngine)
+		llvm::errs() << "Failed to create the engine\n";
+
+	auto& engine = maybeEngine.get();
+
+	llvm::SmallVector<void*, 3> args;
+	args.push_back((void*) &x);
+	args.push_back((void*) &y);
+
+	if (engine->invoke("main", x, mlir::ExecutionEngine::result(y)))
+		llvm::errs() << "JIT invocation failed\n";
+
+	//Runner runner(&context, module);
+	//runner.run("main", x, y);
+
+	EXPECT_EQ(y, false);
 
 
 	/*

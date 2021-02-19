@@ -5,7 +5,7 @@
 
 namespace modelica
 {
-	class AddOp : public mlir::Op<AddOp,mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::IsCommutative>
+	class AddOp : public mlir::Op<AddOp,mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
 	{
 		public:
 		using Op::Op;
