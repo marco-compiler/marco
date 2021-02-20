@@ -190,6 +190,38 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 		return result;
 	}
 
+	/**
+	 * Iterate over an array.
+	 *
+	 * @param builder   operation builder
+	 * @param location  source location
+	 * @param array     array to be iterated
+	 * @param callback  function on each iteration
+	 */
+	void iterateArray(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array, std::function<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)> callback) const
+	{
+		assert(array.getType().isa<PointerType>());
+		auto pointerType = array.getType().cast<PointerType>();
+
+		mlir::Value zero = builder.create<mlir::ConstantOp>(location, builder.getZeroAttr(builder.getIndexType()));
+		llvm::SmallVector<mlir::Value, 3> lowerBounds(pointerType.getRank(), zero);
+		llvm::SmallVector<mlir::Value, 3> upperBounds;
+		llvm::SmallVector<long, 3> steps;
+
+		for (long dimension = 0; dimension < pointerType.getRank(); dimension++)
+		{
+			mlir::Value dim = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(dimension));
+			upperBounds.push_back(builder.create<DimOp>(location, array, dim));
+			steps.push_back(1);
+		}
+
+		buildAffineLoopNest(
+				builder, location, lowerBounds, upperBounds, steps,
+				[&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position) {
+					callback(nestedBuilder, loc, position);
+				});
+	}
+
 	[[nodiscard]] mlir::Value allocateSameTypeArray(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array) const
 	{
 		mlir::Type type = array.getType();
@@ -650,51 +682,17 @@ class NegateOpLowering: public ModelicaOpConversion<NegateOp>
 		if (op.operand().getType().isa<PointerType>())
 		{
 			// Operand is an array
-			auto pointerType = op.operand().getType().cast<PointerType>();
-
-			if (pointerType.hasConstantShape())
-			{
-				// TODO: use SIMD instruction for static arrays
-			}
-
 			mlir::Value result = allocateSameTypeArray(rewriter, location, op.operand());
-
-			//mlir::Value arraySize = getArrayTotalSize(rewriter, location, adaptor.operand(), pointerType.getRank());
-			//mlir::Value zeroValue = rewriter.create<mlir::LLVM::ConstantOp>(location, typeConverter().indexType(), rewriter.getIndexAttr(0));
-			// TODO: use llvm operations or higher ones?
-
-			mlir::Value zero = rewriter.create<mlir::ConstantOp>(location, rewriter.getZeroAttr(rewriter.getIndexType()));
-			llvm::SmallVector<mlir::Value, 3> lowerBounds(pointerType.getRank(), zero);
-			llvm::SmallVector<mlir::Value, 3> upperBounds;
-			llvm::SmallVector<long, 3> steps;
-
-			for (long dimension = 0; dimension < pointerType.getRank(); dimension++)
-			{
-				mlir::Value dim = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(dimension));
-				//upperBounds.push_back(rewriter.create<DimOp>(location, op.operand(), dim));
-				upperBounds.push_back(rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(3)));
-				steps.push_back(1);
-			}
+			rewriter.replaceOp(op, result);
 
 			mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getBoolAttr(true));
 
-			/*
-			buildAffineLoopNest(
-					rewriter, location, lowerBounds, upperBounds, steps,
-					[&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange ivs) {
-						nestedBuilder.create<StoreOp>(location, trueValue, result, ivs);
-					});
-			*/
-
-			//mlir::Value memtmp = rewriter.create<mlir::AllocaOp>(location, mlir::MemRefType::get({}, rewriter.getI1Type()));
-			buildAffineLoopNest(
-					rewriter, location, lowerBounds, upperBounds, steps,
-					[&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange ivs) {
-						//mlir::Value t = nestedBuilder.create<mlir::ConstantOp>(location, nestedBuilder.getBoolAttr(true));
-						nestedBuilder.create<StoreOp>(location, trueValue, result, ivs);
-					});
-
-			rewriter.replaceOp(op, result);
+			iterateArray(rewriter, location, op.operand(),
+									 [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange position) {
+										 mlir::Value value = builder.create<LoadOp>(loc, op.operand(), position);
+										 mlir::Value negated = builder.create<mlir::XOrOp>(location, trueValue, value);
+										 builder.create<StoreOp>(loc, negated, result, position);
+									 });
 		}
 		else
 		{
@@ -702,8 +700,6 @@ class NegateOpLowering: public ModelicaOpConversion<NegateOp>
 			mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getBoolAttr(true));
 			rewriter.replaceOpWithNewOp<mlir::XOrOp>(op, trueValue, adaptor.operand());
 		}
-
-		op->getParentOp()->dump();
 
 		return mlir::success();
 
@@ -1009,11 +1005,11 @@ void ModelicaToLLVMLoweringPass::runOnOperation()
 	target.addLegalDialect<mlir::LLVM::LLVMDialect>();
 	target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
 
-	// We need to mark the scf::YieldOp as legal due to a current limitation
-	// of MLIR. In fact, YieldOp is used just as a placeholder and would lead
-	// to conversion problems when converting the Affine dialect.
-	//target.addLegalOp<mlir::AffineYieldOp>();
-	//target.addLegalOp<mlir::scf::YieldOp>();
+	// We need to mark the scf::YieldOp and AffineYieldOp as legal due to a
+	// current limitation of MLIR. In fact, they are used just as a placeholder
+	// and would lead to conversion problems if encountered while lowering.
+	target.addLegalOp<mlir::scf::YieldOp>();
+	target.addLegalOp<mlir::AffineYieldOp>();
 
 	// During this lowering, we will also be lowering the MemRef types, that are
 	// currently being operated on, to a representation in LLVM. To perform this

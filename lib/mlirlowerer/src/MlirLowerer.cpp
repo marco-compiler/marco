@@ -44,6 +44,9 @@ mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, m
 	ModelicaToLLVMLoweringOptions modelicaToLLVMOptions;
 	passManager.addPass(createModelicaToLLVMLoweringPass(modelicaToLLVMOptions));
 
+	//passManager.addPass(createLowerAffinePass());
+	//passManager.addPass(createLowerToCFGPass());
+
 	return passManager.run(module);
 }
 
@@ -369,26 +372,43 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	builder.create<modelica::StoreOp>(location, trueValue, mem, indexes);
 	*/
 
-	mlir::Value zero = builder.create<mlir::LLVM::ConstantOp>(location, builder.getI64Type(), builder.getZeroAttr(builder.getI64Type()));
+	mlir::Value one = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(1));
+	mlir::Value zero = builder.create<mlir::ConstantOp>(location, builder.getZeroAttr(builder.getIndexType()));
 	llvm::SmallVector<mlir::Value, 3> lowerBounds(2, zero);
 	llvm::SmallVector<mlir::Value, 3> upperBounds;
 	llvm::SmallVector<long, 3> steps;
 
 	for (long dimension = 0; dimension < 2; dimension++)
 	{
-		upperBounds.push_back(builder.create<mlir::LLVM::ConstantOp>(location, builder.getI64Type(), builder.getI64IntegerAttr(3)));
+		mlir::Value dim = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(dimension));
+		upperBounds.push_back(builder.create<DimOp>(location, mem, dim));
 		steps.push_back(1);
 	}
 
-	mlir::Value memtmp = builder.create<mlir::AllocaOp>(location, MemRefType::get({}, builder.getI1Type()));
+/*
 	buildAffineLoopNest(
 			builder, location, lowerBounds, upperBounds, steps,
 			[&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange ivs) {
-				mlir::Value t = nestedBuilder.create<mlir::ConstantOp>(location, nestedBuilder.getBoolAttr(true));
-				nestedBuilder.create<mlir::StoreOp>(location, t, memtmp);
+				mlir::Value value = nestedBuilder.create<LoadOp>(loc, mem, ivs);
+				//mlir::Value t = nestedBuilder.create<mlir::ConstantOp>(location, nestedBuilder.getBoolAttr(true));
+				//nestedBuilder.create<mlir::StoreOp>(location, t, memtmp);
 			});
+	*/
 
-	//mlir::Value v = builder.create<NegateOp>(location, mem);
+	/*
+	auto insertionPoint = builder.saveInsertionPoint();
+
+	for (long dimension = 0; dimension < 2; dimension++)
+	{
+		auto forOp = builder.create<mlir::scf::ForOp>(location, zero, upperBounds[dimension], one);
+		//mlir::Block* body = builder.createBlock(&forOp.getLoopBody());
+		builder.setInsertionPointToStart(&forOp.getLoopBody().front());
+	}
+
+	builder.restoreInsertionPoint(insertionPoint);
+	 */
+
+	builder.create<NegateOp>(location, mem);
 
 	// Return statement
 	std::vector<mlir::Value> results;
@@ -788,8 +808,9 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::negate)
 	{
 		auto arg = lower<modelica::Expression>(operation[0])[0].getReference();
-		mlir::Value result = builder.create<modelica::NegateOp>(location, arg);
-		result = cast(result, resultType);
+		//mlir::Value result = builder.create<modelica::NegateOp>(location, arg);
+		//result = cast(result, resultType);
+		mlir::Value result = nullptr;
 		return { Reference::ssa(&builder, result) };
 	}
 

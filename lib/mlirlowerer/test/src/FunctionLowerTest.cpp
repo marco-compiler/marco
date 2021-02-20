@@ -43,10 +43,15 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 
 	module.dump();
 
+	llvm::DebugFlag = false;
+
 	mlir::registerLLVMDialectTranslation(*module->getContext());
+
+	/*
 	llvm::LLVMContext llvmContext;
 	auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmContext);
 	llvmModule->print(llvm::errs(), nullptr);
+	 */
 
 	bool x = true;
 	bool y = true;
