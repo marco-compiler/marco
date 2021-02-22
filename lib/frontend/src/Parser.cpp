@@ -37,6 +37,9 @@ Expected<Class> Parser::classDefinition()
 	auto name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
 
+	// absorb comments after class/model/package
+	accept<Token::String>();
+
 	Class cls(move(name), {}, {});
 
 	while (current != Token::EndKeyword)
