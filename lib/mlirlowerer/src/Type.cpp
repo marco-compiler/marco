@@ -211,7 +211,7 @@ void modelica::printModelicaType(ModelicaDialect* dialect, mlir::Type ty, mlir::
 		return;
 	}
 
-	if (auto type = ty.dyn_cast<IntegerType>()) {
+	if (auto type = ty.dyn_cast<RealType>()) {
 		os << "real";
 		return;
 	}

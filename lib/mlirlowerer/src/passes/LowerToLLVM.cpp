@@ -4,8 +4,7 @@
 #include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/LLVMIR/FunctionCallUtils.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
-#include <mlir/Dialect/Linalg/IR/LinalgOps.h>
-#include <mlir/Dialect/Vector/VectorOps.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <modelica/mlirlowerer/passes/LowerToLLVM.h>
 #include <modelica/mlirlowerer/passes/TypeConverter.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
@@ -176,6 +175,69 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 		return typeConverter().convertType(type);
 	}
 
+	/**
+	 * Get whether the type is a modelica numeric one.
+	 *
+	 * @param type  type
+	 * @return true if it is an integer or a float type
+	 */
+	[[nodiscard]] bool isNumericType(mlir::Type type) const {
+		return type.isa<IntegerType>() || type.isa<RealType>();
+	}
+
+	/**
+	 * Get the type that can represent all the values with the minimum loss
+	 * of information.
+	 * Example: int, float -> float
+	 *
+	 * @param values  values
+	 * @return most generic type
+	 */
+	[[nodiscard]] mlir::Type getMostGenericBaseType(mlir::ValueRange values) const
+	{
+		assert(!values.empty());
+		mlir::Type resultType = nullptr;
+
+		for (mlir::Value value : values)
+		{
+			mlir::Type type = value.getType();
+
+			while (type.isa<PointerType>())
+				type = type.cast<PointerType>().getElementType();
+
+			if (resultType == nullptr)
+			{
+				resultType = type;
+				continue;
+			}
+
+			if (resultType.isa<IntegerType>())
+				resultType = type;
+		}
+
+		return resultType;
+	}
+
+	[[nodiscard]] llvm::SmallVector<mlir::Value, 3> getArrayDynamicDimensions(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array) const
+	{
+		assert(array.getType().isa<PointerType>());
+		auto pointerType = array.getType().cast<PointerType>();
+		auto shape = pointerType.getShape();
+
+		llvm::SmallVector<mlir::Value, 3> dimensions;
+
+		for (size_t i = 0, e = shape.size(); i < e; ++i)
+		{
+			if (shape[i] == -1)
+			{
+				mlir::Value dim = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(i));
+				dimensions.push_back(builder.create<DimOp>(location, array, dim));
+			}
+		}
+
+		return dimensions;
+	}
+
 	[[nodiscard]] mlir::Value getArrayTotalSize(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array, unsigned int rank) const
 	{
 		MemoryDescriptor descriptor(array);
@@ -196,9 +258,9 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 	 * @param builder   operation builder
 	 * @param location  source location
 	 * @param array     array to be iterated
-	 * @param callback  function on each iteration
+	 * @param callback  function executed on each iteration
 	 */
-	void iterateArray(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array, std::function<void(mlir::OpBuilder&, mlir::Location, mlir::ValueRange)> callback) const
+	void iterateArray(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array, std::function<void(mlir::ValueRange)> callback) const
 	{
 		assert(array.getType().isa<PointerType>());
 		auto pointerType = array.getType().cast<PointerType>();
@@ -215,10 +277,11 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 			steps.push_back(1);
 		}
 
+		// Create nested loops in order to iterate on each dimension of the array
 		buildAffineLoopNest(
 				builder, location, lowerBounds, upperBounds, steps,
 				[&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position) {
-					callback(nestedBuilder, loc, position);
+					callback(position);
 				});
 	}
 
@@ -670,86 +733,165 @@ class WhileOpLowering: public ModelicaOpConversion<WhileOp>
 	}
 };
 
-class NegateOpLowering: public ModelicaOpConversion<NegateOp>
+class CastOpLowering: public ModelicaOpConversion<CastOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(NegateOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(CastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		CastOp::Adaptor adaptor(operands);
+
+		mlir::Type source = op.value().getType();
+		mlir::Type destination = op.resultType();
+
+		if (source == destination)
+		{
+			rewriter.replaceOp(op, op.value());
+			return mlir::success();
+		}
+
+		mlir::Type sourceBase = source;
+		mlir::Type destinationBase = destination;
+
+		if (source.isa<PointerType>())
+		{
+			return rewriter.notifyMatchFailure(op, "Not supported yet");
+
+			/*
+			sourceBase = source.cast<PointerType>().getElementType();
+			auto sourceShape = source.cast<PointerType>().getShape();
+
+			if (destination.isa<PointerType>())
+			{
+				auto destinationShape = destination.cast<PointerType>().getShape();
+				destinationBase = destination.cast<PointerType>().getElementType();
+				assert(all_of(llvm::zip(sourceShape, destinationShape),
+											[](const auto& pair)
+											{
+												return std::get<0>(pair) == std::get<1>(pair);
+											}));
+
+				destination = mlir::VectorType::get(destinationShape, destinationBase);
+			}
+			else
+			{
+				destination = mlir::VectorType::get(sourceShape, destinationBase);
+			}
+			 */
+		}
+
+		if (sourceBase == destinationBase)
+		{
+			rewriter.replaceOp(op, op.value());
+			return mlir::success();
+		}
+
+		if (sourceBase.isa<IntegerType>())
+		{
+			if (destinationBase.isa<RealType>())
+			{
+				rewriter.replaceOpWithNewOp<mlir::LLVM::SIToFPOp>(op, convertType(destinationBase), adaptor.value());
+				return mlir::success();
+			}
+		}
+
+		if (sourceBase.isa<RealType>())
+		{
+			if (destinationBase.isa<IntegerType>())
+			{
+				rewriter.replaceOpWithNewOp<mlir::LLVM::FPToSIOp>(op, convertType(destinationBase), adaptor.value());
+				return mlir::success();
+			}
+		}
+
+		return rewriter.notifyMatchFailure(op, "Unsupported type conversion");
+	}
+};
+
+class CastCommonOpLowering: public ModelicaOpConversion<CastCommonOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(CastCommonOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		CastCommonOp::Adaptor adaptor(operands);
+
+		llvm::SmallVector<mlir::Value, 3> values;
+
+		for (auto tuple : llvm::zip(op->getOperands(), op->getResultTypes()))
+		{
+			mlir::Value castedValue = rewriter.create<CastOp>(location, std::get<0>(tuple), std::get<1>(tuple));
+			values.push_back(castedValue);
+		}
+
+		rewriter.replaceOp(op, values);
+		return mlir::success();
+	}
+};
+
+/**
+ * Negate a boolean scalar.
+ */
+class NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		NegateOp::Adaptor adaptor(op->getOperands());
+		auto type = adaptor.operand().getType();
+		return mlir::success(type.isa<BooleanType>());
+	}
+
+	void rewrite(NegateOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
 		NegateOp::Adaptor adaptor(operands);
 
-		if (op.operand().getType().isa<PointerType>())
-		{
-			// Operand is an array
-			mlir::Value result = allocateSameTypeArray(rewriter, location, op.operand());
-			rewriter.replaceOp(op, result);
+		// There is no native negate operation in LLVM IR, so we need to leverage
+		// a property of the XOR operation: x XOR true = NOT x
+		mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getBoolAttr(true));
+		rewriter.replaceOpWithNewOp<mlir::XOrOp>(op, trueValue, adaptor.operand());
+	}
+};
 
-			mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getBoolAttr(true));
+/**
+ * Negate a boolean array.
+ */
+class NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
 
-			iterateArray(rewriter, location, op.operand(),
-									 [&](mlir::OpBuilder& builder, mlir::Location loc, mlir::ValueRange position) {
-										 mlir::Value value = builder.create<LoadOp>(loc, op.operand(), position);
-										 mlir::Value negated = builder.create<mlir::XOrOp>(location, trueValue, value);
-										 builder.create<StoreOp>(loc, negated, result, position);
-									 });
-		}
-		else
-		{
-			// Operand is a scalar
-			mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getBoolAttr(true));
-			rewriter.replaceOpWithNewOp<mlir::XOrOp>(op, trueValue, adaptor.operand());
-		}
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		NegateOp::Adaptor adaptor(op->getOperands());
+		auto type = adaptor.operand().getType();
 
-		return mlir::success();
+		if (!type.isa<PointerType>())
+			return mlir::failure();
 
-		/*
+		auto pointerType = type.cast<PointerType>();
+		return mlir::success(pointerType.getElementType().isa<BooleanType>());
+	}
+
+	void rewrite(NegateOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
 		mlir::Location location = op.getLoc();
-		mlir::Value operand = op->getOperand(0);
+		NegateOp::Adaptor adaptor(operands);
 
-		mlir::Type type = op->getResultTypes()[0];
+		mlir::Value result = allocateSameTypeArray(rewriter, location, op.operand());
+		rewriter.replaceOp(op, result);
 
-		if (type.isa<mlir::MemRefType>())
-		{
-			auto memRefType = type.cast<mlir::MemRefType>();
+		mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getBoolAttr(true));
 
-			mlir::Value fake = rewriter.create<AllocaOp>(location, MemRefType::get({ 2 }, rewriter.getI1Type()));
-			rewriter.create<StoreOp>(location, rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(true)).getResult(), fake, rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(0)).getResult());
-			rewriter.create<StoreOp>(location, rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(false)).getResult(), fake, rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(1)).getResult());
-			operand = fake;
-
-			mlir::VectorType vectorType = VectorType::get(memRefType.getShape(), memRefType.getElementType());
-			mlir::Value zeroValue = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(0));
-			SmallVector<mlir::Value, 3> indexes(memRefType.getRank(), zeroValue);
-			mlir::Value vector = rewriter.create<AffineVectorLoadOp>(location, vectorType, operand, indexes);
-			rewriter.create<mlir::vector::PrintOp>(location, vector);
-
-			SmallVector<bool, 3> trueValues(memRefType.getNumElements(), true);
-			mlir::Value trueVector = rewriter.create<ConstantOp>(location, rewriter.getBoolVectorAttr(trueValues));
-			mlir::Value xorOp = rewriter.create<XOrOp>(location, vector, trueVector);
-			rewriter.create<mlir::vector::PrintOp>(location, xorOp);
-
-			mlir::Value destination = rewriter.create<AllocaOp>(location, memRefType);
-			rewriter.create<AffineVectorStoreOp>(location, xorOp, destination, indexes);
-
-			//mlir::Value unranked = rewriter.create<MemRefCastOp>(location, destination, MemRefType::get(-1, rewriter.getI32Type()));
-			//rewriter.create<CallOp>(location, "print_memref_i32", TypeRange(), unranked);
-
-			//rewriter.create<StoreOp>(location, rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(false)).getResult(), destination, rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(0)).getResult());
-			//rewriter.create<StoreOp>(location, rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(true)).getResult(), destination, rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(1)).getResult());
-			//mlir::Value vectorAfterStore = rewriter.create<AffineVectorLoadOp>(location, vectorType, destination, indexes);
-			//rewriter.create<mlir::vector::PrintOp>(location, vectorAfterStore);
-
-			rewriter.replaceOp(op, destination);
-		}
-		else
-		{
-			mlir::Value trueValue = rewriter.create<ConstantOp>(location, rewriter.getBoolAttr(true));
-			rewriter.replaceOpWithNewOp<XOrOp>(op, operand, trueValue);
-		}
-
-		return mlir::success();
-		*/
+		iterateArray(rewriter, location, op.operand(),
+								 [&](mlir::ValueRange position) {
+									 mlir::Value value = rewriter.create<LoadOp>(location, op.operand(), position);
+									 mlir::Value negated = rewriter.create<NegateOp>(location, value);
+									 rewriter.create<StoreOp>(location, negated, result, position);
+								 });
 	}
 };
 
@@ -987,7 +1129,101 @@ class LteOpLowering: public ModelicaOpConversion<LteOp>
 	}
 };
 
+/**
+ * Sum of two numeric scalars.
+ */
+class AddOpScalarLowering: public ModelicaOpConversion<AddOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		AddOp::Adaptor adaptor(op->getOperands());
+		return mlir::success(isNumericType(adaptor.lhs().getType()) && isNumericType(adaptor.rhs().getType()));
+	}
+
+	void rewrite(AddOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		auto castOp = rewriter.create<CastCommonOp>(location, op->getOperands());
+		AddOp::Adaptor adaptor(castOp.getResults());
+
+		mlir::Type type = castOp.resultType();
+
+		if (type.isa<IntegerType>())
+			rewriter.replaceOpWithNewOp<mlir::AddIOp>(op, adaptor.lhs(), adaptor.rhs());
+		else if (type.isa<RealType>())
+			rewriter.replaceOpWithNewOp<mlir::AddFOp>(op, adaptor.lhs(), adaptor.rhs());
+	}
+};
+
+/**
+ * Sum of two numeric arrays.
+ */
+class AddOpArrayLowering: public ModelicaOpConversion<AddOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		AddOp::Adaptor adaptor(op->getOperands());
+
+		if (!adaptor.lhs().getType().isa<PointerType>())
+			return mlir::failure();
+
+		if (!adaptor.rhs().getType().isa<PointerType>())
+			return mlir::failure();
+
+		auto lhsPointerType = adaptor.lhs().getType().cast<PointerType>();
+		auto rhsPointerType = adaptor.rhs().getType().cast<PointerType>();
+
+		for (auto pair : llvm::zip(lhsPointerType.getShape(), rhsPointerType.getShape()))
+		{
+			auto lhsDimension = std::get<0>(pair);
+			auto rhsDimension = std::get<1>(pair);
+
+			if (lhsDimension != -1 && rhsDimension != -1 && lhsDimension != rhsDimension)
+				return mlir::failure();
+		}
+
+		if (!isNumericType(lhsPointerType.getElementType()))
+			return mlir::failure();
+
+		if (!isNumericType(rhsPointerType.getElementType()))
+			return mlir::failure();
+
+		return mlir::success();
+	}
+
+	void rewrite(AddOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		// Allocate the result array
+		mlir::Type baseType = getMostGenericBaseType({ op.lhs(), op.rhs() });
+		auto shape = op.lhs().getType().cast<PointerType>().getShape();
+		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, location, op.lhs());
+		mlir::Value result = rewriter.create<AllocaOp>(location, baseType, shape, dynamicDimensions);
+
+		// Sum each element
+		iterateArray(rewriter, location, op.lhs(),
+								 [&](mlir::ValueRange position) {
+									 mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), position);
+									 lhs = rewriter.create<CastOp>(location, lhs, baseType);
+
+									 mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), position);
+									 rhs = rewriter.create<CastOp>(location, rhs, baseType);
+
+									 AddOp::Adaptor adaptor({ lhs, rhs });
+									 rewriter.create<AddOp>(location, lhs.getType(), adaptor.lhs(), adaptor.rhs());
+								 });
+
+		rewriter.replaceOp(op, result);
+	}
+};
+
 void ModelicaToLLVMLoweringPass::getDependentDialects(mlir::DialectRegistry &registry) const {
+	registry.insert<mlir::StandardOpsDialect>();
 	registry.insert<mlir::LLVM::LLVMDialect>();
 	registry.insert<mlir::AffineDialect>();
 }
@@ -1044,7 +1280,10 @@ void modelica::populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatte
 {
 	patterns.insert<AllocaOpLowering, AllocOpLowering, FreeOpLowering, DimOpLowering, LoadOpLowering, StoreOpLowering>(context, typeConverter);
 	patterns.insert<IfOpLowering, ForOpLowering, WhileOpLowering>(context, typeConverter);
-	patterns.insert<NegateOpLowering, EqOpLowering, NotEqOpLowering, GtOpLowering, GteOpLowering, LtOpLowering, LteOpLowering>(context, typeConverter);
+	patterns.insert<CastOpLowering, CastCommonOpLowering>(context, typeConverter);
+	patterns.insert<EqOpLowering, NotEqOpLowering, GtOpLowering, GteOpLowering, LtOpLowering, LteOpLowering>(context, typeConverter);
+	patterns.insert<NegateOpScalarLowering, NegateOpArrayLowering>(context, typeConverter);
+	patterns.insert<AddOpScalarLowering, AddOpArrayLowering>(context, typeConverter);
 }
 
 std::unique_ptr<mlir::Pass> modelica::createModelicaToLLVMLoweringPass(ModelicaToLLVMLoweringOptions options)

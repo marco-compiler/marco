@@ -47,8 +47,8 @@ void ModelicaLoweringPass::runOnOperation()
 void modelica::populateModelicaConversionPatterns(OwningRewritePatternList& patterns, MLIRContext* context)
 {
 	// Generic operations
-	patterns.insert<CastOpLowering>(context);
-	patterns.insert<CastCommonOpLowering>(context);
+	//patterns.insert<CastOpLowering>(context);
+	//patterns.insert<CastCommonOpLowering>(context);
 	patterns.insert<AssignmentOpLowering>(context);
 
 	// Math operations

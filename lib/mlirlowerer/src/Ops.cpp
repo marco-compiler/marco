@@ -638,6 +638,171 @@ mlir::ValueRange YieldOp::args()
 }
 
 //===----------------------------------------------------------------------===//
+// Modelica::CastOp
+//===----------------------------------------------------------------------===//
+
+CastOpAdaptor::CastOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
+		: values(values), attrs(attrs)
+{
+}
+
+CastOpAdaptor::CastOpAdaptor(CastOp& op)
+		: values(op->getOperands()), attrs(op->getAttrDictionary())
+{
+}
+
+mlir::Value CastOpAdaptor::value()
+{
+	return values[0];
+}
+
+llvm::StringRef CastOp::getOperationName()
+{
+	return "modelica.cast";
+}
+
+void CastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType)
+{
+	state.addOperands(value);
+	state.addTypes(resultType);
+}
+
+void CastOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.cast " << value() << " : " << resultType();
+}
+
+mlir::Value CastOp::value()
+{
+	return Adaptor(*this).value();
+}
+
+mlir::Type CastOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::CastCommonOp
+//===----------------------------------------------------------------------===//
+
+CastCommonOpAdaptor::CastCommonOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
+		: values(values), attrs(attrs)
+{
+}
+
+CastCommonOpAdaptor::CastCommonOpAdaptor(CastCommonOp& op)
+		: values(op->getOperands()), attrs(op->getAttrDictionary())
+{
+}
+
+mlir::ValueRange CastCommonOpAdaptor::operands()
+{
+	return values;
+}
+
+static mlir::Type getMoreGenericType(mlir::Type x, mlir::Type y)
+{
+	mlir::Type xBase = x;
+	mlir::Type yBase = y;
+
+	while (xBase.isa<PointerType>())
+		xBase = xBase.cast<PointerType>().getElementType();
+
+	while (yBase.isa<PointerType>())
+		yBase = yBase.cast<PointerType>().getElementType();
+
+	if (xBase.isa<RealType>())
+		return x;
+
+	if (yBase.isa<RealType>())
+		return y;
+
+	if (xBase.isa<IntegerType>())
+		return x;
+
+	if (yBase.isa<IntegerType>())
+		return y;
+
+	return x;
+}
+
+llvm::StringRef CastCommonOp::getOperationName()
+{
+	return "modelica.cast_common";
+}
+
+void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
+{
+	state.addOperands(values);
+
+	mlir::Type resultType = nullptr;
+	mlir::Type resultBaseType = nullptr;
+
+	for (const auto& value : values)
+	{
+		mlir::Type type = value.getType();
+		mlir::Type baseType = type;
+
+		if (resultType == nullptr)
+		{
+			resultType = type;
+			resultBaseType = type;
+
+			while (resultBaseType.isa<PointerType>())
+				resultBaseType = resultBaseType.cast<PointerType>().getElementType();
+
+			continue;
+		}
+
+		if (type.isa<PointerType>())
+		{
+			while (baseType.isa<PointerType>())
+				baseType = baseType.cast<PointerType>().getElementType();
+		}
+
+		if (resultBaseType.isa<IntegerType>())
+		{
+			resultType = type;
+			resultBaseType = baseType;
+		}
+	}
+
+	llvm::SmallVector<mlir::Type, 3> types;
+
+	for (const auto& value : values)
+	{
+		mlir::Type type = value.getType();
+
+		if (type.isa<PointerType>())
+		{
+			auto pointerType = type.cast<PointerType>();
+			auto shape = pointerType.getShape();
+			types.emplace_back(PointerType::get(pointerType.getContext(), resultBaseType, shape));
+		}
+		else
+			types.emplace_back(resultBaseType);
+	}
+
+	state.addTypes(types);
+}
+
+void CastCommonOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.cast_common " << operands() << " : " << resultType();
+}
+
+mlir::Type CastCommonOp::resultType()
+{
+	return getResultTypes()[0];
+}
+
+mlir::ValueRange CastCommonOp::operands()
+{
+	return Adaptor(*this).operands();
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::NegateOp
 //===----------------------------------------------------------------------===//
 
@@ -1063,6 +1228,61 @@ mlir::Value LteOp::lhs()
 }
 
 mlir::Value LteOp::rhs()
+{
+	return Adaptor(*this).rhs();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::AddOp
+//===----------------------------------------------------------------------===//
+
+AddOpAdaptor::AddOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
+		: values(values), attrs(attrs)
+{
+}
+
+AddOpAdaptor::AddOpAdaptor(AddOp& op)
+		: values(op->getOperands()), attrs(op->getAttrDictionary())
+{
+}
+
+mlir::Value AddOpAdaptor::lhs()
+{
+	return values[0];
+}
+
+mlir::Value AddOpAdaptor::rhs()
+{
+	return values[1];
+}
+
+llvm::StringRef AddOp::getOperationName()
+{
+	return "modelica.add";
+}
+
+void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
+}
+
+void AddOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.add " << lhs() << ", " << rhs() << " : " << resultType();
+}
+
+mlir::Type AddOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value AddOp::lhs()
+{
+	return Adaptor(*this).lhs();
+}
+
+mlir::Value AddOp::rhs()
 {
 	return Adaptor(*this).rhs();
 }

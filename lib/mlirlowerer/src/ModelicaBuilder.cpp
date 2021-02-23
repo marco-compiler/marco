@@ -9,12 +9,12 @@ BooleanType ModelicaBuilder::getBooleanType()
 
 IntegerType ModelicaBuilder::getIntegerType()
 {
-	return IntegerType::get(getContext(), 32);
+	return IntegerType::get(getContext(), 64);
 }
 
 RealType ModelicaBuilder::getRealType()
 {
-	return RealType::get(getContext(), 32);
+	return RealType::get(getContext(), 64);
 }
 
 PointerType ModelicaBuilder::getPointerType(mlir::Type elementType, const PointerType::Shape& shape, mlir::AffineMapAttr map)
@@ -22,9 +22,22 @@ PointerType ModelicaBuilder::getPointerType(mlir::Type elementType, const Pointe
 	return PointerType::get(getContext(), elementType, shape, map);
 }
 
-/*
-IndexAttribute ModelicaBuilder::getIndexAttribute(long value)
+mlir::IntegerAttr ModelicaBuilder::getBooleanAttribute(bool value)
 {
-	return IndexAttribute::get(getContext(), value);
+	return getBoolAttr(value);
 }
-*/
+
+mlir::IntegerAttr ModelicaBuilder::getIndexAttribute(long value)
+{
+	return getIndexAttr(value);
+}
+
+mlir::IntegerAttr ModelicaBuilder::getIntegerAttribute(long value)
+{
+	return getI64IntegerAttr(value);
+}
+
+mlir::FloatAttr ModelicaBuilder::getRealAttribute(double value)
+{
+	return getF64FloatAttr(value);
+}

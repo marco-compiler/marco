@@ -6,27 +6,6 @@
 using namespace modelica;
 using namespace std;
 
-llvm::StringRef AddOp::getOperationName()
-{
-	return "modelica.add";
-}
-
-void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange operands)
-{
-	state.addTypes(resultType);
-	state.addOperands(operands);
-}
-
-void AddOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.add " << getOperands() << " : (" << getOperandTypes() << ") -> (" << getOperation()->getResultTypes()[0] << ")";
-}
-
-mlir::ValueRange AddOp::values()
-{
-	return getOperands();
-}
-
 llvm::StringRef SubOp::getOperationName()
 {
 	return "modelica.sub";

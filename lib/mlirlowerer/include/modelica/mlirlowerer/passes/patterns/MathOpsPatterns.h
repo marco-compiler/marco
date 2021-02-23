@@ -8,12 +8,6 @@
 
 namespace modelica
 {
-	class AddOpLowering : public mlir::OpRewritePattern<AddOp>
-	{
-		using mlir::OpRewritePattern<AddOp>::OpRewritePattern;
-		mlir::LogicalResult matchAndRewrite(AddOp op, mlir::PatternRewriter& rewriter) const final;
-	};
-
 	class SubOpLowering : public mlir::OpRewritePattern<SubOp>
 	{
 		using mlir::OpRewritePattern<SubOp>::OpRewritePattern;

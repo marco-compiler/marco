@@ -71,6 +71,7 @@ mlir::Type getMostGeneralBaseType(mlir::Type x, mlir::Type y)
 	return x;
 }
 
+/*
 LogicalResult AddOpLowering::matchAndRewrite(AddOp op, PatternRewriter& rewriter) const
 {
 	Location location = op.getLoc();
@@ -192,6 +193,7 @@ LogicalResult AddOpLowering::matchAndRewrite(AddOp op, PatternRewriter& rewriter
 	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
 	return success();
 }
+*/
 
 LogicalResult SubOpLowering::matchAndRewrite(SubOp op, PatternRewriter& rewriter) const
 {
@@ -205,7 +207,7 @@ LogicalResult SubOpLowering::matchAndRewrite(SubOp op, PatternRewriter& rewriter
 		SmallVector<mlir::Value, 2> currentOperands = { result, operands[i] };
 		auto castOp = rewriter.create<CastCommonOp>(location, currentOperands);
 		auto castedOperands = castOp.getResults();
-		mlir::Type type = castOp.type();
+		mlir::Type type = castOp.resultType();
 
 		while (type.isa<ShapedType>())
 			type = type.cast<ShapedType>().getElementType();
@@ -353,7 +355,7 @@ LogicalResult DivOpLowering::matchAndRewrite(DivOp op, PatternRewriter& rewriter
 		SmallVector<mlir::Value, 2> currentOperands = { result, operands[i] };
 		auto castOp = rewriter.create<CastCommonOp>(location, currentOperands);
 		auto castedOperands = castOp.getResults();
-		mlir::Type type = castOp.type();
+		mlir::Type type = castOp.resultType();
 
 		while (type.isa<ShapedType>())
 			type = type.cast<ShapedType>().getElementType();

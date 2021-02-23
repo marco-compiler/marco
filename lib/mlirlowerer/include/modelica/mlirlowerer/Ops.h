@@ -357,6 +357,70 @@ namespace modelica
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::CastOp
+	//===----------------------------------------------------------------------===//
+
+	class CastOp;
+
+	class CastOpAdaptor
+	{
+		public:
+		CastOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
+		CastOpAdaptor(CastOp& op);
+
+		mlir::Value value();
+
+		private:
+		mlir::ValueRange values;
+		mlir::DictionaryAttr attrs;
+	};
+
+	class CastOp : public mlir::Op<CastOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult> {
+		public:
+		using Op::Op;
+		using Adaptor = CastOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& Builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType);
+		void print(mlir::OpAsmPrinter &p);
+
+		mlir::Value value();
+		mlir::Type resultType();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::CastCommonOp
+	//===----------------------------------------------------------------------===//
+
+	class CastCommonOp;
+
+	class CastCommonOpAdaptor
+	{
+		public:
+		CastCommonOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
+		CastCommonOpAdaptor(CastCommonOp& op);
+
+		mlir::ValueRange operands();
+
+		private:
+		mlir::ValueRange values;
+		mlir::DictionaryAttr attrs;
+	};
+
+	class CastCommonOp : public mlir::Op<CastCommonOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::VariadicResults> {
+		public:
+		using Op::Op;
+		using Adaptor = CastCommonOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values);
+		void print(mlir::OpAsmPrinter &p);
+
+		mlir::Type resultType();
+		mlir::ValueRange operands();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::NegateOp
 	//===----------------------------------------------------------------------===//
 
@@ -605,4 +669,38 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
+	//===----------------------------------------------------------------------===//
+	// Modelica::AddOp
+	//===----------------------------------------------------------------------===//
+
+	class AddOp;
+
+	class AddOpAdaptor
+	{
+		public:
+		AddOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
+		AddOpAdaptor(AddOp& op);
+
+		mlir::Value lhs();
+		mlir::Value rhs();
+
+		private:
+		mlir::ValueRange values;
+		mlir::DictionaryAttr attrs;
+	};
+
+	class AddOp : public mlir::Op<AddOp,mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = AddOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Type resultType();
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
 }

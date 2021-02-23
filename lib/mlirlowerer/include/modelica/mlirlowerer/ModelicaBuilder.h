@@ -13,14 +13,13 @@ namespace modelica
 		using mlir::OpBuilder::OpBuilder;
 
 		BooleanType getBooleanType();
-
 		IntegerType getIntegerType();
-
 		RealType getRealType();
-
 		PointerType getPointerType(mlir::Type elementType, const PointerType::Shape& shape = {}, mlir::AffineMapAttr map = {});
 
-		//IndexAttribute getIndexAttribute(long value);
-
+		mlir::IntegerAttr getBooleanAttribute(bool value);
+		mlir::IntegerAttr getIndexAttribute(long value);
+		mlir::IntegerAttr getIntegerAttribute(long value);
+		mlir::FloatAttr getRealAttribute(double value);
 	};
 }
