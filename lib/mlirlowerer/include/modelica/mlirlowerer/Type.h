@@ -52,6 +52,7 @@ namespace modelica
 		[[nodiscard]] mlir::AffineMapAttr getLayoutMap() const;
 
 		[[nodiscard]] unsigned int getConstantDimensions() const;
+		[[nodiscard]] unsigned int getDynamicDimensions() const;
 
 		[[nodiscard]] bool hasConstantShape() const;
 	};

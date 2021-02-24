@@ -193,6 +193,19 @@ unsigned int PointerType::getConstantDimensions() const
 	return count;
 }
 
+unsigned int PointerType::getDynamicDimensions() const
+{
+	auto dimensions = getShape();
+	unsigned int count = 0;
+
+	for (auto dimension : dimensions) {
+		if (dimension  == -1)
+			count++;
+	}
+
+	return count;
+}
+
 bool PointerType::hasConstantShape() const
 {
 	return getConstantDimensions() == getRank();

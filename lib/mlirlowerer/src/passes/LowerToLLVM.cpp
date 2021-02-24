@@ -161,6 +161,9 @@ class MemoryDescriptor {
  */
 template <typename FromOp>
 class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
+	protected:
+	using Adaptor = typename FromOp::Adaptor;
+
 	public:
 	ModelicaOpConversion(mlir::MLIRContext* ctx, TypeConverter& typeConverter)
 			: mlir::OpConversionPattern<FromOp>(typeConverter, ctx, 1)
@@ -175,12 +178,10 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 		return typeConverter().convertType(type);
 	}
 
-	/**
-	 * Get whether the type is a modelica numeric one.
-	 *
-	 * @param type  type
-	 * @return true if it is an integer or a float type
-	 */
+	[[nodiscard]] bool isNumeric(mlir::Value value) const {
+		return isNumericType(value.getType());
+	}
+
 	[[nodiscard]] bool isNumericType(mlir::Type type) const {
 		return type.isa<IntegerType>() || type.isa<RealType>();
 	}
@@ -423,7 +424,7 @@ class FreeOpLowering: public ModelicaOpConversion<FreeOp>
 	mlir::LogicalResult matchAndRewrite(FreeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		FreeOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 
 		// Insert the "free" declaration if it is not already present in the module
 		auto freeFunc = mlir::LLVM::lookupOrCreateFreeFn(op->getParentOfType<mlir::ModuleOp>());
@@ -445,7 +446,7 @@ class DimOpLowering: public ModelicaOpConversion<DimOp>
 	mlir::LogicalResult matchAndRewrite(DimOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		DimOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 
 		// The actual size of each dimensions is stored in the memory description
 		// structure.
@@ -457,6 +458,45 @@ class DimOpLowering: public ModelicaOpConversion<DimOp>
 	}
 };
 
+class SubscriptOpLowering: public ModelicaOpConversion<SubscriptionOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(SubscriptionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+		mlir::Type indexType = typeConverter().indexType();
+
+		auto sourcePointerType = op.source().getType().cast<PointerType>();
+		auto resultPointerType = op.getPointerType();
+
+		MemoryDescriptor sourceDescriptor(adaptor.source());
+		MemoryDescriptor result = MemoryDescriptor::undef(rewriter, location, convertType(resultPointerType));
+
+		mlir::Value index = adaptor.indexes()[0];
+
+		for (size_t i = 1, e = sourcePointerType.getRank(); i < e; ++i)
+		{
+			mlir::Value size = sourceDescriptor.getSize(rewriter, location, i);
+			index = rewriter.create<mlir::LLVM::MulOp>(location, indexType, index, size);
+		}
+
+		mlir::Value base = sourceDescriptor.getPtr(rewriter, location);
+		mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(location, base.getType(), base, index);
+		result.setPtr(rewriter, location, ptr);
+
+		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(location, indexType, rewriter.getI64IntegerAttr(op.getPointerType().getRank()));
+		result.setRank(rewriter, location, rank);
+
+		for (size_t i = sourcePointerType.getRank() - resultPointerType.getRank(), e = sourcePointerType.getRank(), j = 0; i < e; ++i, ++j)
+			result.setSize(rewriter, location, j, sourceDescriptor.getSize(rewriter, location, i));
+
+		rewriter.replaceOp(op, *result);
+		return mlir::success();
+	}
+};
+
 class LoadOpLowering: public ModelicaOpConversion<LoadOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
@@ -464,7 +504,7 @@ class LoadOpLowering: public ModelicaOpConversion<LoadOp>
 	mlir::LogicalResult matchAndRewrite(LoadOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op->getLoc();
-		LoadOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 		auto indexes = adaptor.indexes();
 
 		PointerType pointerType = op.getPointerType();
@@ -500,7 +540,7 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 	mlir::LogicalResult matchAndRewrite(StoreOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op->getLoc();
-		StoreOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 		auto indexes = adaptor.indexes();
 
 		PointerType pointerType = op.getPointerType();
@@ -536,7 +576,7 @@ class IfOpLowering: public ModelicaOpConversion<IfOp>
 	mlir::LogicalResult matchAndRewrite(IfOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op->getLoc();
-		IfOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 		bool hasElseBlock = !op.elseRegion().empty();
 
 		mlir::scf::IfOp ifOp;
@@ -601,7 +641,7 @@ class ForOpLowering: public ModelicaOpConversion<ForOp>
 	mlir::LogicalResult matchAndRewrite(ForOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		ForOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 
 		// Split the current block
 		mlir::Block* currentBlock = rewriter.getInsertionBlock();
@@ -678,7 +718,7 @@ class WhileOpLowering: public ModelicaOpConversion<WhileOp>
 	mlir::LogicalResult matchAndRewrite(WhileOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		WhileOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 
 		auto whileOp = rewriter.create<mlir::scf::WhileOp>(location, llvm::None, llvm::None);
 
@@ -740,7 +780,7 @@ class CastOpLowering: public ModelicaOpConversion<CastOp>
 	mlir::LogicalResult matchAndRewrite(CastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		CastOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 
 		mlir::Type source = op.value().getType();
 		mlir::Type destination = op.resultType();
@@ -816,7 +856,7 @@ class CastCommonOpLowering: public ModelicaOpConversion<CastCommonOp>
 	mlir::LogicalResult matchAndRewrite(CastCommonOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		CastCommonOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 
 		llvm::SmallVector<mlir::Value, 3> values;
 
@@ -840,7 +880,7 @@ class NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
 
 	mlir::LogicalResult match(mlir::Operation* op) const override
 	{
-		NegateOp::Adaptor adaptor(op->getOperands());
+		Adaptor adaptor(op->getOperands());
 		auto type = adaptor.operand().getType();
 		return mlir::success(type.isa<BooleanType>());
 	}
@@ -848,7 +888,7 @@ class NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
 	void rewrite(NegateOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		NegateOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 
 		// There is no native negate operation in LLVM IR, so we need to leverage
 		// a property of the XOR operation: x XOR true = NOT x
@@ -866,7 +906,7 @@ class NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
 
 	mlir::LogicalResult match(mlir::Operation* op) const override
 	{
-		NegateOp::Adaptor adaptor(op->getOperands());
+		Adaptor adaptor(op->getOperands());
 		auto type = adaptor.operand().getType();
 
 		if (!type.isa<PointerType>())
@@ -879,7 +919,7 @@ class NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
 	void rewrite(NegateOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		NegateOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 
 		mlir::Value result = allocateSameTypeArray(rewriter, location, op.operand());
 		rewriter.replaceOp(op, result);
@@ -895,237 +935,561 @@ class NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
 	}
 };
 
-class EqOpLowering: public ModelicaOpConversion<EqOp>
+class EqOpIntegerLowering: public ModelicaOpConversion<EqOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(EqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<BooleanType>())
+			return mlir::success(rhsType.isa<BooleanType>());
+
+		if (lhsType.isa<IntegerType>())
+			return mlir::success(rhsType.isa<IntegerType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(EqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		EqOp::Adaptor adaptor(operands);
-
-		mlir::Value lhs = adaptor.lhs();
-		mlir::Value rhs = adaptor.rhs();
-
-		mlir::Type lhsType = lhs.getType();
-		mlir::Type rhsType = rhs.getType();
-
-		mlir::Value result;
-
-		if (lhsType.isa<IntegerType>() && rhsType.isa<IntegerType>())
-			result = rewriter.create<mlir::CmpIOp>(location, mlir::CmpIPredicate::eq, lhs, rhs);
-		else if (lhsType.isa<RealType>() && rhsType.isa<RealType>())
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OEQ, lhs, rhs);
-		else if (lhsType.isa<IntegerType>() && rhsType.isa<RealType>())
-		{
-			lhs = rewriter.create<CastOp>(location, lhs, rhsType);
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OEQ, lhs, rhs);
-		}
-		else if (lhsType.isa<RealType>() && rhsType.isa<IntegerType>())
-		{
-			rhs = rewriter.create<CastOp>(location, rhs, lhsType);
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OEQ, lhs, rhs);
-		}
-		else
-			return rewriter.notifyMatchFailure(op, "Incompatible types");
-
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(location, mlir::LLVM::ICmpPredicate::eq, adaptor.lhs(), adaptor.rhs());
 		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
-		return mlir::success();
 	}
 };
 
-class NotEqOpLowering: public ModelicaOpConversion<NotEqOp>
+class EqOpRealLowering: public ModelicaOpConversion<EqOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(NotEqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<RealType>())
+			return mlir::success(rhsType.isa<RealType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(EqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		NotEqOp::Adaptor adaptor(operands);
-
-		mlir::Value lhs = adaptor.lhs();
-		mlir::Value rhs = adaptor.rhs();
-
-		mlir::Type lhsType = lhs.getType();
-		mlir::Type rhsType = rhs.getType();
-
-		mlir::Value result;
-
-		if (lhsType.isa<IntegerType>() && rhsType.isa<IntegerType>())
-			result = rewriter.create<mlir::CmpIOp>(location, mlir::CmpIPredicate::ne, lhs, rhs);
-		else if (lhsType.isa<RealType>() && rhsType.isa<RealType>())
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::ONE, lhs, rhs);
-		else if (lhsType.isa<IntegerType>() && rhsType.isa<RealType>())
-		{
-			lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::ONE, lhs, rhs);
-		}
-		else if (lhsType.isa<RealType>() && rhsType.isa<IntegerType>())
-		{
-			rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::ONE, lhs, rhs);
-		}
-		else
-			return rewriter.notifyMatchFailure(op, "Incompatible types");
-
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(location, mlir::LLVM::FCmpPredicate::oeq, adaptor.lhs(), adaptor.rhs());
 		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
-		return mlir::success();
 	}
 };
 
-class GtOpLowering: public ModelicaOpConversion<GtOp>
+class EqOpMixedLowering: public ModelicaOpConversion<EqOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(GtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<IntegerType>() || lhsType.isa<BooleanType>())
+			return mlir::success(rhsType.isa<RealType>());
+
+		if (rhsType.isa<IntegerType>() || rhsType.isa<BooleanType>())
+			return mlir::success(lhsType.isa<RealType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(EqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		GtOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 
 		mlir::Value lhs = adaptor.lhs();
 		mlir::Value rhs = adaptor.rhs();
 
-		mlir::Type lhsType = lhs.getType();
-		mlir::Type rhsType = rhs.getType();
-
-		mlir::Value result;
-
-		if (lhsType.isa<IntegerType>() && rhsType.isa<IntegerType>())
-			result = rewriter.create<mlir::CmpIOp>(location, mlir::CmpIPredicate::sgt, lhs, rhs);
-		else if (lhsType.isa<mlir::FloatType>() && rhsType.isa<mlir::FloatType>())
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OGT, lhs, rhs);
-		else if (lhsType.isa<IntegerType>() && rhsType.isa<RealType>())
-		{
-			lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OGT, lhs, rhs);
-		}
-		else if (lhsType.isa<RealType>() && rhsType.isa<IntegerType>())
-		{
+		if (lhs.getType().isa<RealType>())
 			rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OGT, lhs, rhs);
-		}
-		else
-			return rewriter.notifyMatchFailure(op, "Incompatible types");
+		else if (rhs.getType().isa<RealType>())
+			lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
 
+		mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(location, mlir::LLVM::FCmpPredicate::oeq, lhs, rhs);
 		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
-		return mlir::success();
 	}
 };
 
-class GteOpLowering: public ModelicaOpConversion<GteOp>
+class NotEqOpIntegerLowering: public ModelicaOpConversion<NotEqOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(GteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<BooleanType>())
+			return mlir::success(rhsType.isa<BooleanType>());
+
+		if (lhsType.isa<IntegerType>())
+			return mlir::success(rhsType.isa<IntegerType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(NotEqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		GteOp::Adaptor adaptor(operands);
-
-		mlir::Value lhs = adaptor.lhs();
-		mlir::Value rhs = adaptor.rhs();
-
-		mlir::Type lhsType = lhs.getType();
-		mlir::Type rhsType = rhs.getType();
-
-		mlir::Value result;
-
-		if (lhsType.isa<IntegerType>() && rhsType.isa<IntegerType>())
-			result = rewriter.create<mlir::CmpIOp>(location, mlir::CmpIPredicate::sge, lhs, rhs);
-		else if (lhsType.isa<RealType>() && rhsType.isa<RealType>())
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OGE, lhs, rhs);
-		else if (lhsType.isa<IntegerType>() && rhsType.isa<RealType>())
-		{
-			lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OGE, lhs, rhs);
-		}
-		else if (lhsType.isa<RealType>() && rhsType.isa<IntegerType>())
-		{
-			rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OGE, lhs, rhs);
-		}
-		else
-			return rewriter.notifyMatchFailure(op, "Incompatible types");
-
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(location, mlir::LLVM::ICmpPredicate::ne, adaptor.lhs(), adaptor.rhs());
 		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
-		return mlir::success();
 	}
 };
 
-class LtOpLowering: public ModelicaOpConversion<LtOp>
+class NotEqOpRealLowering: public ModelicaOpConversion<NotEqOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(LtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<RealType>())
+			return mlir::success(rhsType.isa<RealType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(NotEqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		LtOp::Adaptor adaptor(operands);
-
-		mlir::Value lhs = adaptor.lhs();
-		mlir::Value rhs = adaptor.rhs();
-
-		mlir::Type lhsType = lhs.getType();
-		mlir::Type rhsType = rhs.getType();
-
-		mlir::Value result;
-
-		if (lhsType.isa<IntegerType>() && rhsType.isa<IntegerType>())
-			result = rewriter.create<mlir::CmpIOp>(location, mlir::CmpIPredicate::slt, lhs, rhs);
-		else if (lhsType.isa<RealType>() && rhsType.isa<RealType>())
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OLT, lhs, rhs);
-		else if (lhsType.isa<IntegerType>() && rhsType.isa<RealType>())
-		{
-			lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OLT, lhs, rhs);
-		}
-		else if (lhsType.isa<RealType>() && rhsType.isa<IntegerType>())
-		{
-			rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OLT, lhs, rhs);
-		}
-		else
-			return rewriter.notifyMatchFailure(op, "Incompatible types");
-
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(location, mlir::LLVM::FCmpPredicate::one, adaptor.lhs(), adaptor.rhs());
 		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
-		return mlir::success();
 	}
 };
 
-class LteOpLowering: public ModelicaOpConversion<LteOp>
+class NotEqOpMixedLowering: public ModelicaOpConversion<NotEqOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(LteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<IntegerType>() || lhsType.isa<BooleanType>())
+			return mlir::success(rhsType.isa<RealType>());
+
+		if (rhsType.isa<IntegerType>() || rhsType.isa<BooleanType>())
+			return mlir::success(lhsType.isa<RealType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(NotEqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		LteOp::Adaptor adaptor(operands);
+		Adaptor adaptor(operands);
 
 		mlir::Value lhs = adaptor.lhs();
 		mlir::Value rhs = adaptor.rhs();
 
-		mlir::Type lhsType = lhs.getType();
-		mlir::Type rhsType = rhs.getType();
-
-		mlir::Value result;
-
-		if (lhsType.isa<IntegerType>() && rhsType.isa<IntegerType>())
-			result = rewriter.create<mlir::CmpIOp>(location, mlir::CmpIPredicate::sle, lhs, rhs);
-		else if (lhsType.isa<RealType>() && rhsType.isa<RealType>())
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OLE, lhs, rhs);
-		else if (lhsType.isa<IntegerType>() && rhsType.isa<RealType>())
-		{
-			lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OLE, lhs, rhs);
-		}
-		else if (lhsType.isa<RealType>() && rhsType.isa<IntegerType>())
-		{
+		if (lhs.getType().isa<RealType>())
 			rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
-			result = rewriter.create<mlir::CmpFOp>(location, mlir::CmpFPredicate::OLE, lhs, rhs);
-		}
-		else
-			return rewriter.notifyMatchFailure(op, "Incompatible types");
+		else if (rhs.getType().isa<RealType>())
+			lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
 
+		mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(location, mlir::LLVM::FCmpPredicate::one, lhs, rhs);
 		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
-		return mlir::success();
+	}
+};
+
+class GtOpIntegerLowering: public ModelicaOpConversion<GtOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<BooleanType>())
+			return mlir::success(rhsType.isa<BooleanType>());
+
+		if (lhsType.isa<IntegerType>())
+			return mlir::success(rhsType.isa<IntegerType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(GtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(location, mlir::LLVM::ICmpPredicate::sgt, adaptor.lhs(), adaptor.rhs());
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	}
+};
+
+class GtOpRealLowering: public ModelicaOpConversion<GtOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<RealType>())
+			return mlir::success(rhsType.isa<RealType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(GtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(location, mlir::LLVM::FCmpPredicate::ogt, adaptor.lhs(), adaptor.rhs());
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	}
+};
+
+class GtOpMixedLowering: public ModelicaOpConversion<GtOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<IntegerType>() || lhsType.isa<BooleanType>())
+			return mlir::success(rhsType.isa<RealType>());
+
+		if (rhsType.isa<IntegerType>() || rhsType.isa<BooleanType>())
+			return mlir::success(lhsType.isa<RealType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(GtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+
+		mlir::Value lhs = adaptor.lhs();
+		mlir::Value rhs = adaptor.rhs();
+
+		if (lhs.getType().isa<RealType>())
+			rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
+		else if (rhs.getType().isa<RealType>())
+			lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
+
+		mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(location, mlir::LLVM::FCmpPredicate::ogt, lhs, rhs);
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	}
+};
+
+class GteOpIntegerLowering: public ModelicaOpConversion<GteOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<BooleanType>())
+			return mlir::success(rhsType.isa<BooleanType>());
+
+		if (lhsType.isa<IntegerType>())
+			return mlir::success(rhsType.isa<IntegerType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(GteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(location, mlir::LLVM::ICmpPredicate::sge, adaptor.lhs(), adaptor.rhs());
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	}
+};
+
+class GteOpRealLowering: public ModelicaOpConversion<GteOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<RealType>())
+			return mlir::success(rhsType.isa<RealType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(GteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(location, mlir::LLVM::FCmpPredicate::oge, adaptor.lhs(), adaptor.rhs());
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	}
+};
+
+class GteOpMixedLowering: public ModelicaOpConversion<GteOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<IntegerType>() || lhsType.isa<BooleanType>())
+			return mlir::success(rhsType.isa<RealType>());
+
+		if (rhsType.isa<IntegerType>() || rhsType.isa<BooleanType>())
+			return mlir::success(lhsType.isa<RealType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(GteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+
+		mlir::Value lhs = adaptor.lhs();
+		mlir::Value rhs = adaptor.rhs();
+
+		if (lhs.getType().isa<RealType>())
+			rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
+		else if (rhs.getType().isa<RealType>())
+			lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
+
+		mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(location, mlir::LLVM::FCmpPredicate::oge, lhs, rhs);
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	}
+};
+
+class LtOpIntegerLowering: public ModelicaOpConversion<LtOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<BooleanType>())
+			return mlir::success(rhsType.isa<BooleanType>());
+
+		if (lhsType.isa<IntegerType>())
+			return mlir::success(rhsType.isa<IntegerType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(LtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(location, mlir::LLVM::ICmpPredicate::slt, adaptor.lhs(), adaptor.rhs());
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	}
+};
+
+class LtOpRealLowering: public ModelicaOpConversion<LtOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<RealType>())
+			return mlir::success(rhsType.isa<RealType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(LtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(location, mlir::LLVM::FCmpPredicate::olt, adaptor.lhs(), adaptor.rhs());
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	}
+};
+
+class LtOpMixedLowering: public ModelicaOpConversion<LtOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<IntegerType>() || lhsType.isa<BooleanType>())
+			return mlir::success(rhsType.isa<RealType>());
+
+		if (rhsType.isa<IntegerType>() || rhsType.isa<BooleanType>())
+			return mlir::success(lhsType.isa<RealType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(LtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+
+		mlir::Value lhs = adaptor.lhs();
+		mlir::Value rhs = adaptor.rhs();
+
+		if (lhs.getType().isa<RealType>())
+			rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
+		else if (rhs.getType().isa<RealType>())
+			lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
+
+		mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(location, mlir::LLVM::FCmpPredicate::olt, lhs, rhs);
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	}
+};
+
+class LteOpIntegerLowering: public ModelicaOpConversion<LteOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<BooleanType>())
+			return mlir::success(rhsType.isa<BooleanType>());
+
+		if (lhsType.isa<IntegerType>())
+			return mlir::success(rhsType.isa<IntegerType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(LteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(location, mlir::LLVM::ICmpPredicate::sle, adaptor.lhs(), adaptor.rhs());
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	}
+};
+
+class LteOpRealLowering: public ModelicaOpConversion<LteOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<RealType>())
+			return mlir::success(rhsType.isa<RealType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(LteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(location, mlir::LLVM::FCmpPredicate::ole, adaptor.lhs(), adaptor.rhs());
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
+	}
+};
+
+class LteOpMixedLowering: public ModelicaOpConversion<LteOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		mlir::Type lhsType = adaptor.lhs().getType();
+		mlir::Type rhsType = adaptor.rhs().getType();
+
+		if (lhsType.isa<IntegerType>() || lhsType.isa<BooleanType>())
+			return mlir::success(rhsType.isa<RealType>());
+
+		if (rhsType.isa<IntegerType>() || rhsType.isa<BooleanType>())
+			return mlir::success(lhsType.isa<RealType>());
+
+		return mlir::failure();
+	}
+
+	void rewrite(LteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+
+		mlir::Value lhs = adaptor.lhs();
+		mlir::Value rhs = adaptor.rhs();
+
+		if (lhs.getType().isa<RealType>())
+			rhs = rewriter.create<CastOp>(location, rhs, lhs.getType());
+		else if (rhs.getType().isa<RealType>())
+			lhs = rewriter.create<CastOp>(location, lhs, rhs.getType());
+
+		mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(location, mlir::LLVM::FCmpPredicate::ole, lhs, rhs);
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
 	}
 };
 
@@ -1138,7 +1502,7 @@ class AddOpScalarLowering: public ModelicaOpConversion<AddOp>
 
 	mlir::LogicalResult match(mlir::Operation* op) const override
 	{
-		AddOp::Adaptor adaptor(op->getOperands());
+		Adaptor adaptor(op->getOperands());
 		return mlir::success(isNumericType(adaptor.lhs().getType()) && isNumericType(adaptor.rhs().getType()));
 	}
 
@@ -1146,7 +1510,7 @@ class AddOpScalarLowering: public ModelicaOpConversion<AddOp>
 	{
 		mlir::Location location = op.getLoc();
 		auto castOp = rewriter.create<CastCommonOp>(location, op->getOperands());
-		AddOp::Adaptor adaptor(castOp.getResults());
+		Adaptor adaptor(castOp.getResults());
 
 		mlir::Type type = castOp.resultType();
 
@@ -1166,7 +1530,7 @@ class AddOpArrayLowering: public ModelicaOpConversion<AddOp>
 
 	mlir::LogicalResult match(mlir::Operation* op) const override
 	{
-		AddOp::Adaptor adaptor(op->getOperands());
+		Adaptor adaptor(op->getOperands());
 
 		if (!adaptor.lhs().getType().isa<PointerType>())
 			return mlir::failure();
@@ -1214,7 +1578,7 @@ class AddOpArrayLowering: public ModelicaOpConversion<AddOp>
 									 mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), position);
 									 rhs = rewriter.create<CastOp>(location, rhs, baseType);
 
-									 AddOp::Adaptor adaptor({ lhs, rhs });
+									 Adaptor adaptor({ lhs, rhs });
 									 rewriter.create<AddOp>(location, lhs.getType(), adaptor.lhs(), adaptor.rhs());
 								 });
 
@@ -1267,9 +1631,7 @@ void ModelicaToLLVMLoweringPass::runOnOperation()
 	// With the target and rewrite patterns defined, we can now attempt the
 	// conversion. The conversion will signal failure if any of our "illegal"
 	// operations were not converted successfully.
-	module.dump();
-
-	if (failed(applyPartialConversion(module, target, std::move(patterns))))
+	if (failed(applyFullConversion(module, target, std::move(patterns))))
 	{
 		mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
 		signalPassFailure();
@@ -1278,11 +1640,20 @@ void ModelicaToLLVMLoweringPass::runOnOperation()
 
 void modelica::populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, modelica::TypeConverter& typeConverter)
 {
-	patterns.insert<AllocaOpLowering, AllocOpLowering, FreeOpLowering, DimOpLowering, LoadOpLowering, StoreOpLowering>(context, typeConverter);
+	patterns.insert<AllocaOpLowering, AllocOpLowering, FreeOpLowering, SubscriptOpLowering, DimOpLowering, LoadOpLowering, StoreOpLowering>(context, typeConverter);
 	patterns.insert<IfOpLowering, ForOpLowering, WhileOpLowering>(context, typeConverter);
 	patterns.insert<CastOpLowering, CastCommonOpLowering>(context, typeConverter);
-	patterns.insert<EqOpLowering, NotEqOpLowering, GtOpLowering, GteOpLowering, LtOpLowering, LteOpLowering>(context, typeConverter);
+
+	// Logic operations
 	patterns.insert<NegateOpScalarLowering, NegateOpArrayLowering>(context, typeConverter);
+	patterns.insert<EqOpIntegerLowering, EqOpRealLowering, EqOpMixedLowering>(context, typeConverter);
+	patterns.insert<NotEqOpIntegerLowering, NotEqOpRealLowering, NotEqOpMixedLowering>(context, typeConverter);
+	patterns.insert<GtOpIntegerLowering, GtOpRealLowering, GtOpMixedLowering>(context, typeConverter);
+	patterns.insert<GteOpIntegerLowering, GteOpRealLowering, GteOpMixedLowering>(context, typeConverter);
+	patterns.insert<LtOpIntegerLowering, LtOpRealLowering, LtOpMixedLowering>(context, typeConverter);
+	patterns.insert<LteOpIntegerLowering, LteOpRealLowering, LteOpMixedLowering>(context, typeConverter);
+
+	// Math operations
 	patterns.insert<AddOpScalarLowering, AddOpArrayLowering>(context, typeConverter);
 }
 

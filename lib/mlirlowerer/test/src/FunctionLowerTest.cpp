@@ -23,6 +23,7 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 	SourcePosition location = SourcePosition::unknown();
 
 	Member xMember(location, "x", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Integer>(3, 2), TypePrefix(ParameterQualifier::none, IOQualifier::none));
 	Member yMember(location, "y", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
@@ -30,7 +31,7 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
 			Expression::constant(location, makeType<BuiltInType::Integer>(), 57));
 
-	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
+	ClassContainer cls(Function(location, "main", true, { xMember, zMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);

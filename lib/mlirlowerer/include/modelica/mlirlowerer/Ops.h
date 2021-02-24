@@ -4,19 +4,67 @@
 #include <modelica/mlirlowerer/ops/OpTrait.h>
 #include <modelica/mlirlowerer/Type.h>
 
-#include "ops/BasicOps.h"
 #include "ops/MathOps.h"
 
 namespace modelica
 {
 	//===----------------------------------------------------------------------===//
+	// Modelica::AssignmentOp
+	//===----------------------------------------------------------------------===//
+
+	class AssignmentOp;
+
+	class AssignmentOpAdaptor
+	{
+		public:
+		AssignmentOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
+		AssignmentOpAdaptor(AssignmentOp& op);
+
+		mlir::Value source();
+		mlir::Value destination();
+
+		private:
+		mlir::ValueRange values;
+		mlir::DictionaryAttr attrs;
+	};
+
+	class AssignmentOp : public mlir::Op<AssignmentOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::VariadicOperands> {
+		public:
+		using Op::Op;
+		using Adaptor = AssignmentOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &odsBuilder, mlir::OperationState &odsState, mlir::Value source, mlir::Value destination);
+		void print(mlir::OpAsmPrinter &p);
+
+		mlir::Value source();
+		mlir::Value destination();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::AllocaOp
 	//===----------------------------------------------------------------------===//
+
+	class AllocaOp;
+
+	class AllocaOpAdaptor
+	{
+		public:
+		AllocaOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
+		AllocaOpAdaptor(AllocaOp& op);
+
+		mlir::ValueRange dimensions();
+
+		private:
+		mlir::ValueRange values;
+		mlir::DictionaryAttr attrs;
+	};
 
 	class AllocaOp : public mlir::Op<AllocaOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
+		using Adaptor = AllocaOpAdaptor;
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, PointerType::Shape shape = {}, mlir::ValueRange dimensions = {});
@@ -29,10 +77,26 @@ namespace modelica
 	// Modelica::AllocOp
 	//===----------------------------------------------------------------------===//
 
+	class AllocOp;
+
+	class AllocOpAdaptor
+	{
+		public:
+		AllocOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
+		AllocOpAdaptor(AllocOp& op);
+
+		mlir::ValueRange dimensions();
+
+		private:
+		mlir::ValueRange values;
+		mlir::DictionaryAttr attrs;
+	};
+
 	class AllocOp : public mlir::Op<AllocOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
+		using Adaptor = AllocOpAdaptor;
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, PointerType::Shape shape = {}, mlir::ValueRange dimensions = {});
@@ -106,6 +170,41 @@ namespace modelica
 		PointerType getPointerType();
 		mlir::Value memory();
 		mlir::Value dimension();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::SubscriptionOp
+	//===----------------------------------------------------------------------===//
+
+	class SubscriptionOp;
+
+	class SubscriptionOpAdaptor
+	{
+		public:
+		SubscriptionOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
+		SubscriptionOpAdaptor(SubscriptionOp& op);
+
+		mlir::Value source();
+		mlir::ValueRange indexes();
+
+		private:
+		mlir::ValueRange values;
+		mlir::DictionaryAttr attrs;
+	};
+
+	class SubscriptionOp : public mlir::Op<SubscriptionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = SubscriptionOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::ValueRange indexes);
+		void print(mlir::OpAsmPrinter& printer);
+
+		PointerType getPointerType();
+		mlir::Value source();
+		mlir::ValueRange indexes();
 	};
 
 	//===----------------------------------------------------------------------===//

@@ -98,16 +98,6 @@ namespace modelica
 		ModelicaBuilder builder;
 
 		/**
-		 * Integer representation to be used.
-		 */
-		mlir::IntegerType integerType;
-
-		/**
-		 * Float representation to be used.
-		 */
-		mlir::FloatType floatType;
-
-		/**
 		 * The symbol table maps a variable name to a value in the current scope.
 		 * Entering a function creates a new scope, and the function arguments
 		 * are added to the mapping. When the processing of a function is
@@ -140,13 +130,13 @@ namespace modelica
 		mlir::Type constantToType(const Constant& constant)
 		{
 			if (constant.isA<BuiltInType::Boolean>())
-				return builder.getI1Type();
+				return builder.getBooleanType();
 
 			if (constant.isA<BuiltInType::Integer>())
-				return integerType;
+				return builder.getIntegerType();
 
 			if (constant.isA<BuiltInType::Float>())
-				return floatType;
+				return builder.getRealType();
 
 			assert(false && "Unreachable");
 			return builder.getNoneType();
@@ -160,9 +150,9 @@ namespace modelica
 			if constexpr (type == BuiltInType::Boolean)
 				return builder.getBoolAttr(value);
 			else if constexpr (type == BuiltInType::Integer)
-				return builder.getIntegerAttr(integerType, value);
+				return builder.getIntegerAttribute(value);
 			else if constexpr (type == BuiltInType::Float)
-				return builder.getFloatAttr(floatType, value);
+				return builder.getRealAttribute(value);
 
 			assert(false && "Unknown type");
 			return builder.getZeroAttr(builder.getNoneType());

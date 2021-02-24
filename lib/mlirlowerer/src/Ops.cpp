@@ -5,8 +5,74 @@
 using namespace modelica;
 
 //===----------------------------------------------------------------------===//
+// Modelica::AssignmentOp
+//===----------------------------------------------------------------------===//
+
+AssignmentOpAdaptor::AssignmentOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
+		: values(values), attrs(attrs)
+{
+}
+
+AssignmentOpAdaptor::AssignmentOpAdaptor(AssignmentOp& op)
+		: values(op->getOperands()), attrs(op->getAttrDictionary())
+{
+}
+
+mlir::Value AssignmentOpAdaptor::source()
+{
+	return values[0];
+}
+
+mlir::Value AssignmentOpAdaptor::destination()
+{
+	return values[1];
+}
+
+llvm::StringRef AssignmentOp::getOperationName()
+{
+	return "modelica.assignment";
+}
+
+void AssignmentOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination)
+{
+	state.addOperands({ source, destination });
+}
+
+void AssignmentOp::print(mlir::OpAsmPrinter& printer)
+{
+	mlir::Value source = this->source();
+	mlir::Value destination = this->destination();
+	printer << "modelica.assign " << source << " to " << destination << " : " << source.getType() << ", " << destination.getType();
+}
+
+mlir::Value AssignmentOp::source()
+{
+	return Adaptor(*this).source();
+}
+
+mlir::Value AssignmentOp::destination()
+{
+	return Adaptor(*this).destination();
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::AllocaOp
 //===----------------------------------------------------------------------===//
+
+AllocaOpAdaptor::AllocaOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
+		: values(values), attrs(attrs)
+{
+}
+
+AllocaOpAdaptor::AllocaOpAdaptor(AllocaOp& op)
+		: values(op->getOperands()), attrs(op->getAttrDictionary())
+{
+}
+
+mlir::ValueRange AllocaOpAdaptor::dimensions()
+{
+	return values;
+}
 
 llvm::StringRef AllocaOp::getOperationName()
 {
@@ -47,6 +113,21 @@ PointerType AllocaOp::getPointerType()
 //===----------------------------------------------------------------------===//
 // Modelica::AllocOp
 //===----------------------------------------------------------------------===//
+
+AllocOpAdaptor::AllocOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
+		: values(values), attrs(attrs)
+{
+}
+
+AllocOpAdaptor::AllocOpAdaptor(AllocOp& op)
+		: values(op->getOperands()), attrs(op->getAttrDictionary())
+{
+}
+
+mlir::ValueRange AllocOpAdaptor::dimensions()
+{
+	return values;
+}
 
 llvm::StringRef AllocOp::getOperationName()
 {
@@ -176,6 +257,75 @@ mlir::Value DimOp::memory()
 mlir::Value DimOp::dimension()
 {
 	return Adaptor(*this).dimension();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::SubscriptionOp
+//===----------------------------------------------------------------------===//
+
+SubscriptionOpAdaptor::SubscriptionOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
+		: values(values), attrs(attrs)
+{
+}
+
+SubscriptionOpAdaptor::SubscriptionOpAdaptor(SubscriptionOp& op)
+		: values(op->getOperands()), attrs(op->getAttrDictionary())
+{
+}
+
+mlir::Value SubscriptionOpAdaptor::source()
+{
+	return values[0];
+}
+
+mlir::ValueRange SubscriptionOpAdaptor::indexes()
+{
+	return mlir::ValueRange(std::next(values.begin(), 1), values.end());
+}
+
+llvm::StringRef SubscriptionOp::getOperationName()
+{
+	return "modelica.subscription";
+}
+
+void SubscriptionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::ValueRange indexes)
+{
+	state.addOperands(source);
+	state.addOperands(indexes);
+
+	assert(source.getType().isa<PointerType>());
+	auto sourcePointerType = source.getType().cast<PointerType>();
+	auto shape = sourcePointerType.getShape();
+
+	llvm::SmallVector<long, 3> resultShape;
+
+	for (size_t i = indexes.size(), e = shape.size(); i < e; ++i)
+		resultShape.push_back(shape[i]);
+
+	mlir::Type resultType = PointerType::get(builder.getContext(), sourcePointerType.getElementType(), resultShape);
+	state.addTypes(resultType);
+}
+
+void SubscriptionOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.subscript " << source() << "[";
+	printer.printOperands(indexes());
+	printer << "] : " << getPointerType();
+}
+
+PointerType SubscriptionOp::getPointerType()
+{
+	return getOperation()->getResultTypes()[0].cast<PointerType>();
+}
+
+mlir::Value SubscriptionOp::source()
+{
+	return Adaptor(*this).source();
+}
+
+mlir::ValueRange SubscriptionOp::indexes()
+{
+	return Adaptor(*this).indexes();
 }
 
 //===----------------------------------------------------------------------===//
