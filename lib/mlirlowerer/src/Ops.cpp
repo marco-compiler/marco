@@ -8,24 +8,14 @@ using namespace modelica;
 // Modelica::AssignmentOp
 //===----------------------------------------------------------------------===//
 
-AssignmentOpAdaptor::AssignmentOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-AssignmentOpAdaptor::AssignmentOpAdaptor(AssignmentOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value AssignmentOpAdaptor::source()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::Value AssignmentOpAdaptor::destination()
 {
-	return values[1];
+	return getValues()[1];
 }
 
 llvm::StringRef AssignmentOp::getOperationName()
@@ -59,19 +49,9 @@ mlir::Value AssignmentOp::destination()
 // Modelica::AllocaOp
 //===----------------------------------------------------------------------===//
 
-AllocaOpAdaptor::AllocaOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-AllocaOpAdaptor::AllocaOpAdaptor(AllocaOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::ValueRange AllocaOpAdaptor::dimensions()
 {
-	return values;
+	return getValues();
 }
 
 llvm::StringRef AllocaOp::getOperationName()
@@ -114,19 +94,9 @@ PointerType AllocaOp::getPointerType()
 // Modelica::AllocOp
 //===----------------------------------------------------------------------===//
 
-AllocOpAdaptor::AllocOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-AllocOpAdaptor::AllocOpAdaptor(AllocOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::ValueRange AllocOpAdaptor::dimensions()
 {
-	return values;
+	return getValues();
 }
 
 llvm::StringRef AllocOp::getOperationName()
@@ -169,19 +139,9 @@ PointerType AllocOp::getPointerType()
 // Modelica::FreeOp
 //===----------------------------------------------------------------------===//
 
-FreeOpAdaptor::FreeOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-FreeOpAdaptor::FreeOpAdaptor(FreeOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value FreeOpAdaptor::memory()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 llvm::StringRef FreeOp::getOperationName()
@@ -208,24 +168,14 @@ mlir::Value FreeOp::memory()
 // Modelica::DimOp
 //===----------------------------------------------------------------------===//
 
-DimOpAdaptor::DimOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-DimOpAdaptor::DimOpAdaptor(DimOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value DimOpAdaptor::memory()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::Value DimOpAdaptor::dimension()
 {
-	return values[1];
+	return getValues()[1];
 }
 
 llvm::StringRef DimOp::getOperationName()
@@ -263,24 +213,14 @@ mlir::Value DimOp::dimension()
 // Modelica::SubscriptionOp
 //===----------------------------------------------------------------------===//
 
-SubscriptionOpAdaptor::SubscriptionOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-SubscriptionOpAdaptor::SubscriptionOpAdaptor(SubscriptionOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value SubscriptionOpAdaptor::source()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::ValueRange SubscriptionOpAdaptor::indexes()
 {
-	return mlir::ValueRange(std::next(values.begin(), 1), values.end());
+	return mlir::ValueRange(std::next(getValues().begin(), 1), getValues().end());
 }
 
 llvm::StringRef SubscriptionOp::getOperationName()
@@ -332,24 +272,14 @@ mlir::ValueRange SubscriptionOp::indexes()
 // Modelica::LoadOp
 //===----------------------------------------------------------------------===//
 
-LoadOpAdaptor::LoadOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-LoadOpAdaptor::LoadOpAdaptor(LoadOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value LoadOpAdaptor::memory()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::ValueRange LoadOpAdaptor::indexes()
 {
-	return mlir::ValueRange(std::next(values.begin(), 1), values.end());
+	return mlir::ValueRange(std::next(getValues().begin(), 1), getValues().end());
 }
 
 llvm::StringRef LoadOp::getOperationName()
@@ -391,29 +321,19 @@ mlir::ValueRange LoadOp::indexes()
 // Modelica::StoreOp
 //===----------------------------------------------------------------------===//
 
-StoreOpAdaptor::StoreOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-StoreOpAdaptor::StoreOpAdaptor(StoreOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value StoreOpAdaptor::value()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::Value StoreOpAdaptor::memory()
 {
-	return values[1];
+	return getValues()[1];
 }
 
 mlir::ValueRange StoreOpAdaptor::indexes()
 {
-	return mlir::ValueRange(std::next(values.begin(), 2), values.end());
+	return mlir::ValueRange(std::next(getValues().begin(), 2), getValues().end());
 }
 
 llvm::StringRef StoreOp::getOperationName()
@@ -460,19 +380,9 @@ mlir::ValueRange StoreOp::indexes()
 // Modelica::IfOp
 //===----------------------------------------------------------------------===//
 
-IfOpAdaptor::IfOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-IfOpAdaptor::IfOpAdaptor(IfOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value IfOpAdaptor::condition()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 llvm::StringRef IfOp::getOperationName()
@@ -529,29 +439,19 @@ mlir::Region& IfOp::elseRegion()
 // Modelica::ForOp
 //===----------------------------------------------------------------------===//
 
-ForOpAdaptor::ForOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-ForOpAdaptor::ForOpAdaptor(ForOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value ForOpAdaptor::breakCondition()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::Value ForOpAdaptor::returnCondition()
 {
-	return values[1];
+	return getValues()[1];
 }
 
 mlir::ValueRange ForOpAdaptor::args()
 {
-	return mlir::ValueRange(std::next(values.begin(), 2), values.end());
+	return mlir::ValueRange(std::next(getValues().begin(), 2), getValues().end());
 }
 
 llvm::StringRef ForOp::getOperationName()
@@ -629,24 +529,14 @@ mlir::ValueRange ForOp::args()
 // Modelica::WhileOp
 //===----------------------------------------------------------------------===//
 
-WhileOpAdaptor::WhileOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-WhileOpAdaptor::WhileOpAdaptor(WhileOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value WhileOpAdaptor::breakCondition()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::Value WhileOpAdaptor::returnCondition()
 {
-	return values[1];
+	return getValues()[1];
 }
 
 llvm::StringRef WhileOp::getOperationName()
@@ -702,24 +592,14 @@ mlir::Value WhileOp::returnCondition()
 // Modelica::ConditionOp
 //===----------------------------------------------------------------------===//
 
-ConditionOpAdaptor::ConditionOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-ConditionOpAdaptor::ConditionOpAdaptor(ConditionOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value ConditionOpAdaptor::condition()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::ValueRange ConditionOpAdaptor::args()
 {
-	return mlir::ValueRange(std::next(values.begin()), values.end());
+	return mlir::ValueRange(std::next(getValues().begin()), getValues().end());
 }
 
 llvm::StringRef ConditionOp::getOperationName()
@@ -752,19 +632,9 @@ mlir::ValueRange ConditionOp::args()
 // Modelica::YieldOp
 //===----------------------------------------------------------------------===//
 
-YieldOpAdaptor::YieldOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-YieldOpAdaptor::YieldOpAdaptor(YieldOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::ValueRange YieldOpAdaptor::args()
 {
-	return values;
+	return getValues();
 }
 
 llvm::StringRef YieldOp::getOperationName()
@@ -791,19 +661,9 @@ mlir::ValueRange YieldOp::args()
 // Modelica::CastOp
 //===----------------------------------------------------------------------===//
 
-CastOpAdaptor::CastOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-CastOpAdaptor::CastOpAdaptor(CastOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value CastOpAdaptor::value()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 llvm::StringRef CastOp::getOperationName()
@@ -836,19 +696,9 @@ mlir::Type CastOp::resultType()
 // Modelica::CastCommonOp
 //===----------------------------------------------------------------------===//
 
-CastCommonOpAdaptor::CastCommonOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-CastCommonOpAdaptor::CastCommonOpAdaptor(CastCommonOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::ValueRange CastCommonOpAdaptor::operands()
 {
-	return values;
+	return getValues();
 }
 
 static mlir::Type getMoreGenericType(mlir::Type x, mlir::Type y)
@@ -956,19 +806,9 @@ mlir::ValueRange CastCommonOp::operands()
 // Modelica::NegateOp
 //===----------------------------------------------------------------------===//
 
-NegateOpAdaptor::NegateOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-NegateOpAdaptor::NegateOpAdaptor(NegateOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value NegateOpAdaptor::operand()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 llvm::StringRef NegateOp::getOperationName()
@@ -996,24 +836,14 @@ mlir::Value NegateOp::operand()
 // Modelica::EqOp
 //===----------------------------------------------------------------------===//
 
-EqOpAdaptor::EqOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-EqOpAdaptor::EqOpAdaptor(EqOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value EqOpAdaptor::lhs()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::Value EqOpAdaptor::rhs()
 {
-	return values[1];
+	return getValues()[1];
 }
 
 llvm::StringRef EqOp::getOperationName()
@@ -1061,24 +891,14 @@ mlir::Value EqOp::rhs()
 // Modelica::NotEqOp
 //===----------------------------------------------------------------------===//
 
-NotEqOpAdaptor::NotEqOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-NotEqOpAdaptor::NotEqOpAdaptor(NotEqOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value NotEqOpAdaptor::lhs()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::Value NotEqOpAdaptor::rhs()
 {
-	return values[1];
+	return getValues()[1];
 }
 
 llvm::StringRef NotEqOp::getOperationName()
@@ -1126,24 +946,14 @@ mlir::Value NotEqOp::rhs()
 // Modelica::GtOp
 //===----------------------------------------------------------------------===//
 
-GtOpAdaptor::GtOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-GtOpAdaptor::GtOpAdaptor(GtOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value GtOpAdaptor::lhs()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::Value GtOpAdaptor::rhs()
 {
-	return values[1];
+	return getValues()[1];
 }
 
 llvm::StringRef GtOp::getOperationName()
@@ -1191,24 +1001,14 @@ mlir::Value GtOp::rhs()
 // Modelica::GteOp
 //===----------------------------------------------------------------------===//
 
-GteOpAdaptor::GteOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-GteOpAdaptor::GteOpAdaptor(GteOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value GteOpAdaptor::lhs()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::Value GteOpAdaptor::rhs()
 {
-	return values[1];
+	return getValues()[1];
 }
 
 llvm::StringRef GteOp::getOperationName()
@@ -1256,24 +1056,14 @@ mlir::Value GteOp::rhs()
 // Modelica::LtOp
 //===----------------------------------------------------------------------===//
 
-LtOpAdaptor::LtOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-LtOpAdaptor::LtOpAdaptor(LtOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value LtOpAdaptor::lhs()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::Value LtOpAdaptor::rhs()
 {
-	return values[1];
+	return getValues()[1];
 }
 
 llvm::StringRef LtOp::getOperationName()
@@ -1321,24 +1111,14 @@ mlir::Value LtOp::rhs()
 // Modelica::LteOp
 //===----------------------------------------------------------------------===//
 
-LteOpAdaptor::LteOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-LteOpAdaptor::LteOpAdaptor(LteOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value LteOpAdaptor::lhs()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::Value LteOpAdaptor::rhs()
 {
-	return values[1];
+	return getValues()[1];
 }
 
 llvm::StringRef LteOp::getOperationName()
@@ -1386,24 +1166,14 @@ mlir::Value LteOp::rhs()
 // Modelica::AddOp
 //===----------------------------------------------------------------------===//
 
-AddOpAdaptor::AddOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs)
-		: values(values), attrs(attrs)
-{
-}
-
-AddOpAdaptor::AddOpAdaptor(AddOp& op)
-		: values(op->getOperands()), attrs(op->getAttrDictionary())
-{
-}
-
 mlir::Value AddOpAdaptor::lhs()
 {
-	return values[0];
+	return getValues()[0];
 }
 
 mlir::Value AddOpAdaptor::rhs()
 {
-	return values[1];
+	return getValues()[1];
 }
 
 llvm::StringRef AddOp::getOperationName()

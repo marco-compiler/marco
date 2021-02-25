@@ -8,24 +8,58 @@
 
 namespace modelica
 {
+	/**
+	 * Generic operation adaptor.
+	 *
+	 * The purpose of an adaptor is to allow to access specific values in both
+	 * the operation and the conversion pattern without relying on hard-coded
+	 * constants in both places.
+	 *
+	 * @tparam OpType operation class
+	 */
+	template<typename OpType>
+	class OpAdaptor
+	{
+		public:
+		OpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr)
+				: values(values), attrs(attrs)
+		{
+		}
+
+		OpAdaptor(OpType& op)
+				: values(op->getOperands()), attrs(op->getAttrDictionary())
+		{
+		}
+
+		protected:
+		[[nodiscard]] mlir::ValueRange getValues() const
+		{
+			return values;
+		}
+
+		[[nodiscard]] mlir::DictionaryAttr getAttrs() const
+		{
+			return attrs;
+		}
+
+		private:
+		mlir::ValueRange values;
+		mlir::DictionaryAttr attrs;
+	};
+
 	//===----------------------------------------------------------------------===//
 	// Modelica::AssignmentOp
 	//===----------------------------------------------------------------------===//
 
 	class AssignmentOp;
 
-	class AssignmentOpAdaptor
+	class AssignmentOpAdaptor : public OpAdaptor<AssignmentOp>
 	{
 		public:
-		AssignmentOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		AssignmentOpAdaptor(AssignmentOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value source();
 		mlir::Value destination();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class AssignmentOp : public mlir::Op<AssignmentOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::VariadicOperands> {
@@ -47,17 +81,12 @@ namespace modelica
 
 	class AllocaOp;
 
-	class AllocaOpAdaptor
+	class AllocaOpAdaptor : public OpAdaptor<AllocaOp>
 	{
 		public:
-		AllocaOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		AllocaOpAdaptor(AllocaOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::ValueRange dimensions();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class AllocaOp : public mlir::Op<AllocaOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
@@ -79,17 +108,12 @@ namespace modelica
 
 	class AllocOp;
 
-	class AllocOpAdaptor
+	class AllocOpAdaptor : public OpAdaptor<AllocOp>
 	{
 		public:
-		AllocOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		AllocOpAdaptor(AllocOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::ValueRange dimensions();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class AllocOp : public mlir::Op<AllocOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
@@ -111,17 +135,12 @@ namespace modelica
 
 	class FreeOp;
 
-	class FreeOpAdaptor
+	class FreeOpAdaptor : public OpAdaptor<FreeOp>
 	{
 		public:
-		FreeOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		FreeOpAdaptor(FreeOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value memory();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class FreeOp : public mlir::Op<FreeOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::ZeroResult>
@@ -143,18 +162,13 @@ namespace modelica
 
 	class DimOp;
 
-	class DimOpAdaptor
+	class DimOpAdaptor : public OpAdaptor<DimOp>
 	{
 		public:
-		DimOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		DimOpAdaptor(DimOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value memory();
 		mlir::Value dimension();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class DimOp : public mlir::Op<DimOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
@@ -178,18 +192,13 @@ namespace modelica
 
 	class SubscriptionOp;
 
-	class SubscriptionOpAdaptor
+	class SubscriptionOpAdaptor : public OpAdaptor<SubscriptionOp>
 	{
 		public:
-		SubscriptionOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		SubscriptionOpAdaptor(SubscriptionOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value source();
 		mlir::ValueRange indexes();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class SubscriptionOp : public mlir::Op<SubscriptionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult>
@@ -213,18 +222,13 @@ namespace modelica
 
 	class LoadOp;
 
-	class LoadOpAdaptor
+	class LoadOpAdaptor : public OpAdaptor<LoadOp>
 	{
 		public:
-		LoadOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		LoadOpAdaptor(LoadOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value memory();
 		mlir::ValueRange indexes();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class LoadOp : public mlir::Op<LoadOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult>
@@ -248,19 +252,14 @@ namespace modelica
 
 	class StoreOp;
 
-	class StoreOpAdaptor
+	class StoreOpAdaptor : public OpAdaptor<StoreOp>
 	{
 		public:
-		StoreOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		StoreOpAdaptor(StoreOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value value();
 		mlir::Value memory();
 		mlir::ValueRange indexes();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class StoreOp :public mlir::Op<StoreOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::ZeroResult>
@@ -285,17 +284,12 @@ namespace modelica
 
 	class IfOp;
 
-	class IfOpAdaptor
+	class IfOpAdaptor : public OpAdaptor<IfOp>
 	{
 		public:
-		IfOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		IfOpAdaptor(IfOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value condition();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class IfOp : public mlir::Op<IfOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::OneOperand> {
@@ -318,19 +312,14 @@ namespace modelica
 
 	class ForOp;
 
-	class ForOpAdaptor
+	class ForOpAdaptor : public OpAdaptor<ForOp>
 	{
 		public:
-		ForOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		ForOpAdaptor(ForOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value breakCondition();
 		mlir::Value returnCondition();
 		mlir::ValueRange args();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class ForOp : public mlir::Op<ForOp, mlir::OpTrait::NRegions<3>::Impl, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::ZeroResult>
@@ -359,18 +348,13 @@ namespace modelica
 
 	class WhileOp;
 
-	class WhileOpAdaptor
+	class WhileOpAdaptor : public OpAdaptor<WhileOp>
 	{
 		public:
-		WhileOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		WhileOpAdaptor(WhileOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value breakCondition();
 		mlir::Value returnCondition();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class WhileOp : public mlir::Op<WhileOp, mlir::OpTrait::NRegions<3>::Impl, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::ZeroResult>
@@ -396,18 +380,13 @@ namespace modelica
 
 	class ConditionOp;
 
-	class ConditionOpAdaptor
+	class ConditionOpAdaptor : public OpAdaptor<ConditionOp>
 	{
 		public:
-		ConditionOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		ConditionOpAdaptor(ConditionOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value condition();
 		mlir::ValueRange args();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class ConditionOp : public mlir::Op<ConditionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::HasParent<ForOp, WhileOp>::Impl, mlir::OpTrait::IsTerminator> {
@@ -429,17 +408,12 @@ namespace modelica
 
 	class YieldOp;
 
-	class YieldOpAdaptor
+	class YieldOpAdaptor : public OpAdaptor<YieldOp>
 	{
 		public:
-		YieldOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		YieldOpAdaptor(YieldOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::ValueRange args();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<IfOp, ForOp, WhileOp>::Impl, mlir::OpTrait::IsTerminator>
@@ -461,17 +435,12 @@ namespace modelica
 
 	class CastOp;
 
-	class CastOpAdaptor
+	class CastOpAdaptor : public OpAdaptor<CastOp>
 	{
 		public:
-		CastOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		CastOpAdaptor(CastOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value value();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class CastOp : public mlir::Op<CastOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult> {
@@ -493,17 +462,12 @@ namespace modelica
 
 	class CastCommonOp;
 
-	class CastCommonOpAdaptor
+	class CastCommonOpAdaptor : public OpAdaptor<CastCommonOp>
 	{
 		public:
-		CastCommonOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		CastCommonOpAdaptor(CastCommonOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::ValueRange operands();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class CastCommonOp : public mlir::Op<CastCommonOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::VariadicResults> {
@@ -525,21 +489,15 @@ namespace modelica
 
 	class NegateOp;
 
-	class NegateOpAdaptor
+	class NegateOpAdaptor : public OpAdaptor<NegateOp>
 	{
 		public:
-		NegateOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		NegateOpAdaptor(NegateOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value operand();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, mlir::OpTrait::SameOperandsAndResultType, mlir::OpTrait::IsInvolution>
-	//class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::ZeroResult>
 	{
 		public:
 		using Op::Op;
@@ -558,18 +516,13 @@ namespace modelica
 
 	class EqOp;
 
-	class EqOpAdaptor
+	class EqOpAdaptor : public OpAdaptor<EqOp>
 	{
 		public:
-		EqOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		EqOpAdaptor(EqOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value lhs();
 		mlir::Value rhs();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class EqOp : public mlir::Op<EqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike, mlir::OpTrait::IsCommutative>
@@ -594,18 +547,13 @@ namespace modelica
 
 	class NotEqOp;
 
-	class NotEqOpAdaptor
+	class NotEqOpAdaptor : public OpAdaptor<NotEqOp>
 	{
 		public:
-		NotEqOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		NotEqOpAdaptor(NotEqOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value lhs();
 		mlir::Value rhs();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class NotEqOp : public mlir::Op<NotEqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike, mlir::OpTrait::IsCommutative>
@@ -630,18 +578,13 @@ namespace modelica
 
 	class GtOp;
 
-	class GtOpAdaptor
+	class GtOpAdaptor : public OpAdaptor<GtOp>
 	{
 		public:
-		GtOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		GtOpAdaptor(GtOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value lhs();
 		mlir::Value rhs();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class GtOp : public mlir::Op<GtOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
@@ -666,18 +609,13 @@ namespace modelica
 
 	class GteOp;
 
-	class GteOpAdaptor
+	class GteOpAdaptor : public OpAdaptor<GteOp>
 	{
 		public:
-		GteOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		GteOpAdaptor(GteOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value lhs();
 		mlir::Value rhs();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class GteOp : public mlir::Op<GteOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
@@ -702,18 +640,13 @@ namespace modelica
 
 	class LtOp;
 
-	class LtOpAdaptor
+	class LtOpAdaptor : public OpAdaptor<LtOp>
 	{
 		public:
-		LtOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		LtOpAdaptor(LtOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value lhs();
 		mlir::Value rhs();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class LtOp : public mlir::Op<LtOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
@@ -738,18 +671,13 @@ namespace modelica
 
 	class LteOp;
 
-	class LteOpAdaptor
+	class LteOpAdaptor : public OpAdaptor<LteOp>
 	{
 		public:
-		LteOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		LteOpAdaptor(LteOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value lhs();
 		mlir::Value rhs();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class LteOp : public mlir::Op<LteOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
@@ -774,18 +702,13 @@ namespace modelica
 
 	class AddOp;
 
-	class AddOpAdaptor
+	class AddOpAdaptor : public OpAdaptor<AddOp>
 	{
 		public:
-		AddOpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr);
-		AddOpAdaptor(AddOp& op);
+		using OpAdaptor::OpAdaptor;
 
 		mlir::Value lhs();
 		mlir::Value rhs();
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
 	};
 
 	class AddOp : public mlir::Op<AddOp,mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>

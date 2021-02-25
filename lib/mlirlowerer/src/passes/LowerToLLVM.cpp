@@ -159,7 +159,7 @@ class MemoryDescriptor {
  *
  * @tparam FromOp type of the operation to be converted
  */
-template <typename FromOp>
+template<typename FromOp>
 class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 	protected:
 	using Adaptor = typename FromOp::Adaptor;
