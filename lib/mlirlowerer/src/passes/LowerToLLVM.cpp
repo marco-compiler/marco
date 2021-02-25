@@ -480,6 +480,9 @@ class SubscriptOpLowering: public ModelicaOpConversion<SubscriptionOp>
 		{
 			mlir::Value size = sourceDescriptor.getSize(rewriter, location, i);
 			index = rewriter.create<mlir::LLVM::MulOp>(location, indexType, index, size);
+
+			if (i < resultPointerType.getRank())
+				index = rewriter.create<mlir::LLVM::AddOp>(location, indexType, index, adaptor.indexes()[i]);
 		}
 
 		mlir::Value base = sourceDescriptor.getPtr(rewriter, location);
