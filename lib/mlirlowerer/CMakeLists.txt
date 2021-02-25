@@ -1,7 +1,6 @@
 modelicaAddLibrary(
         mlirlowerer SHARED
         src/ops/MathOps.cpp
-        src/passes/patterns/BasicOpsPatterns.cpp
         src/passes/patterns/MathOpsPatterns.cpp
         src/passes/LowerModelica.cpp
         src/passes/LowerToLLVM.cpp

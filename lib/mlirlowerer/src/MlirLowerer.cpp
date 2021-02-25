@@ -338,10 +338,16 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	sizes.push_back(-1);
 	mlir::Value dynSize = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(2));
 
-	mlir::Value mem = builder.create<modelica::AllocaOp>(location, builder.getIntegerType(), sizes, dynSize);
+	mlir::Value mem1 = builder.create<modelica::AllocaOp>(location, builder.getIntegerType(), sizes, dynSize);
+	mlir::Value mem2 = builder.create<modelica::AllocaOp>(location, builder.getIntegerType(), sizes, dynSize);
+
+	builder.create<AssignmentOp>(location, mem1, mem2);
 
 	mlir::Value oneValue = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(1));
-	builder.create<SubscriptionOp>(location, mem, oneValue);
+	mlir::Value sub = builder.create<SubscriptionOp>(location, mem1, oneValue);
+	mlir::Value res = builder.create<modelica::LoadOp>(location, sub, oneValue);
+
+
 
 	/*
 	mlir::Value index1 = builder.create<ConstantOp>(location, builder.getIndexAttr(1));

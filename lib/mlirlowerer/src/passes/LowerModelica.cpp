@@ -49,7 +49,7 @@ void modelica::populateModelicaConversionPatterns(OwningRewritePatternList& patt
 	// Generic operations
 	//patterns.insert<CastOpLowering>(context);
 	//patterns.insert<CastCommonOpLowering>(context);
-	patterns.insert<AssignmentOpLowering>(context);
+	//patterns.insert<AssignmentOpLowering>(context);
 
 	// Math operations
 	//patterns.insert<AddOpLowering>(context);

@@ -309,6 +309,58 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 	}
 };
 
+/**
+ * Store a scalar value.
+ */
+class AssignmentOpScalarLowering: public ModelicaOpConversion<AssignmentOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+		auto type = adaptor.source().getType();
+		return mlir::success(isNumericType(type));
+	}
+
+	void rewrite(AssignmentOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op->getLoc();
+		rewriter.replaceOpWithNewOp<StoreOp>(op, op.source(), op.destination());
+	}
+};
+
+/**
+ * Store (copy) an array value.
+ */
+class AssignmentOpArrayLowering: public ModelicaOpConversion<AssignmentOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+		auto type = adaptor.source().getType();
+		return mlir::success(type.isa<PointerType>());
+	}
+
+	void rewrite(AssignmentOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op->getLoc();
+		Adaptor adaptor(operands);
+
+		MemoryDescriptor sourceDescriptor(adaptor.source());
+
+		iterateArray(rewriter, location, op.source(),
+								 [&](mlir::ValueRange position) {
+									 mlir::Value value = rewriter.create<LoadOp>(location, op.source(), position);
+									 rewriter.create<StoreOp>(location, value, op.destination(), position);
+								 });
+
+		rewriter.eraseOp(op);
+	}
+};
+
 class AllocaOpLowering: public ModelicaOpConversion<AllocaOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
@@ -1643,9 +1695,17 @@ void ModelicaToLLVMLoweringPass::runOnOperation()
 
 void modelica::populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, modelica::TypeConverter& typeConverter)
 {
-	patterns.insert<AllocaOpLowering, AllocOpLowering, FreeOpLowering, SubscriptOpLowering, DimOpLowering, LoadOpLowering, StoreOpLowering>(context, typeConverter);
-	patterns.insert<IfOpLowering, ForOpLowering, WhileOpLowering>(context, typeConverter);
+	// Basic operations
+	patterns.insert<AssignmentOpScalarLowering, AssignmentOpArrayLowering>(context, typeConverter);
 	patterns.insert<CastOpLowering, CastCommonOpLowering>(context, typeConverter);
+
+	// Memory operations
+	patterns.insert<AllocaOpLowering, AllocOpLowering, FreeOpLowering>(context, typeConverter);
+	patterns.insert<SubscriptOpLowering, DimOpLowering>(context, typeConverter);
+	patterns.insert<LoadOpLowering, StoreOpLowering>(context, typeConverter);
+
+	// Control flow operations
+	patterns.insert<IfOpLowering, ForOpLowering, WhileOpLowering>(context, typeConverter);
 
 	// Logic operations
 	patterns.insert<NegateOpScalarLowering, NegateOpArrayLowering>(context, typeConverter);
