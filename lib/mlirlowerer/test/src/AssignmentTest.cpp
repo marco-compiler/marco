@@ -38,7 +38,7 @@ TEST(Assignment, constant)	 // NOLINT
 
 	int x = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x);
 
 	EXPECT_EQ(x, 57);
@@ -80,7 +80,7 @@ TEST(Assignment, variableCopy)	 // NOLINT
 	int x = 57;
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x, y);
 
 	EXPECT_EQ(y, x);
@@ -151,7 +151,7 @@ TEST(Assignment, arraySliceAssignment)	 // NOLINT
 	int* zPtr = z.data();
 	int* tPtr = t.data();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", xPtr, yPtr, zPtr, tPtr);
 
 	EXPECT_EQ(t[0], x[0]);
@@ -201,7 +201,7 @@ TEST(Assignment, arrayCopy)	 // NOLINT
 	array<int, 2> y = { 0, 0 };
 	int* yPtr = y.data();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", xPtr, yPtr);
 
 	EXPECT_EQ(y[0], x[0]);
@@ -274,7 +274,7 @@ TEST(Assignment, internalArrayElement)	 // NOLINT
 	int x = 57;
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x, y);
 
 	EXPECT_EQ(y, x * 2 + 1);

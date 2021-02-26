@@ -160,7 +160,7 @@ TEST(AndOp, scalar)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<bool, 4> xData = { false, false, true, true };
 	array<bool, 4> yData = { false, true, false, true };
@@ -214,7 +214,7 @@ TEST(OrOp, scalar)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<bool, 4> xData = { false, false, true, true };
 	array<bool, 4> yData = { false, true, false, true };

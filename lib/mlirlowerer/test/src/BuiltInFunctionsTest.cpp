@@ -44,7 +44,7 @@ TEST(BuiltInOps, sumOfIntegerVectorValues)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> x = { 10, 23, -57 };
 	int y = 0;

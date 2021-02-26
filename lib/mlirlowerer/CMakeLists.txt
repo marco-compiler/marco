@@ -12,6 +12,7 @@ modelicaAddLibrary(
         src/ModelicaBuilder.cpp
         src/ModelicaDialect.cpp
         src/Ops.cpp
+        src/Runner.cpp
         src/Type.cpp
 )
 

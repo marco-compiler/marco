@@ -71,7 +71,7 @@ TEST(IfOp, thenBranchTaken)	 // NOLINT
 	int x = 1;
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x, y);
 
 	EXPECT_EQ(y, 1);
@@ -135,7 +135,7 @@ TEST(IfOp, elseBranchTaken)	 // NOLINT
 	int x = -1;
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x, y);
 
 	EXPECT_EQ(y, 2);
@@ -214,7 +214,7 @@ TEST(IfOp, elseIfBranchTaken)	 // NOLINT
 	int x = 1;
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x, y);
 	EXPECT_EQ(y, 2);
 }
@@ -275,7 +275,7 @@ TEST(ForOp, validLoop)	 // NOLINT
 	int x = 10;
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x, y);
 
 	EXPECT_EQ(y, 45);
@@ -337,7 +337,7 @@ TEST(ForOp, notExecutedLoop)	 // NOLINT
 	int x = 1;
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x, y);
 
 	EXPECT_EQ(y, 1);
@@ -407,7 +407,7 @@ TEST(WhileOp, validLoop)	 // NOLINT
 	int x = 10;
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x, y);
 
 	EXPECT_EQ(y, 100);
@@ -464,7 +464,7 @@ TEST(WhileOp, notExecutedLoop)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", y);
 
 	EXPECT_EQ(y, 1);
@@ -529,7 +529,7 @@ TEST(BreakOp, nestedWhile)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", y);
 
 	EXPECT_EQ(y, 1);
@@ -586,7 +586,7 @@ TEST(BreakOp, breakAsLastOpInWhile)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", y);
 
 	EXPECT_EQ(y, 1);
@@ -662,7 +662,7 @@ TEST(BreakOp, breakNestedInWhile)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", y);
 
 	EXPECT_EQ(y, 1);
@@ -726,7 +726,7 @@ TEST(BreakOp, breakAsLastOpInFor)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", y);
 
 	EXPECT_EQ(y, 1);
@@ -803,7 +803,7 @@ TEST(BreakOp, breakNestedInFor)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", y);
 
 	EXPECT_EQ(y, 1);
@@ -856,7 +856,7 @@ TEST(ReturnOp, earlyReturn)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", y);
 
 	EXPECT_EQ(y, 1);

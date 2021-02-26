@@ -231,7 +231,7 @@ namespace modelica
 		mlir::ValueRange indexes();
 	};
 
-	class LoadOp : public mlir::Op<LoadOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult>
+	class LoadOp : public mlir::Op<LoadOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<1>::Impl, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;

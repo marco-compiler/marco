@@ -599,6 +599,10 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 		auto indexes = adaptor.indexes();
 
 		PointerType pointerType = op.getPointerType();
+		/*llvm::errs() << "Converting ";
+		op.dump();
+		op->getParentOp()->dump();
+		llvm::errs() << "--------" << pointerType.getRank() << " " << indexes.size();*/
 		assert(pointerType.getRank() == indexes.size() && "Wrong indexes amount");
 
 		// Determine the address into which the value has to be stored.
@@ -1558,7 +1562,14 @@ class AddOpScalarLowering: public ModelicaOpConversion<AddOp>
 	mlir::LogicalResult match(mlir::Operation* op) const override
 	{
 		Adaptor adaptor(op->getOperands());
-		return mlir::success(isNumericType(adaptor.lhs().getType()) && isNumericType(adaptor.rhs().getType()));
+
+		if (!isNumericType(adaptor.lhs().getType()))
+			return mlir::failure();
+
+		if (!isNumericType(adaptor.rhs().getType()))
+			return mlir::failure();
+
+		return mlir::success();
 	}
 
 	void rewrite(AddOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
@@ -1634,17 +1645,18 @@ class AddOpArrayLowering: public ModelicaOpConversion<AddOp>
 									 rhs = rewriter.create<CastOp>(location, rhs, baseType);
 
 									 Adaptor adaptor({ lhs, rhs });
-									 rewriter.create<AddOp>(location, lhs.getType(), adaptor.lhs(), adaptor.rhs());
+									 mlir::Value value = rewriter.create<AddOp>(location, lhs.getType(), adaptor.lhs(), adaptor.rhs());
+									 rewriter.create<StoreOp>(location, value, result, position);
 								 });
 
 		rewriter.replaceOp(op, result);
 	}
 };
 
-void ModelicaToLLVMLoweringPass::getDependentDialects(mlir::DialectRegistry &registry) const {
+void ModelicaToLLVMLoweringPass::getDependentDialects(mlir::DialectRegistry& registry) const {
 	registry.insert<mlir::StandardOpsDialect>();
-	registry.insert<mlir::LLVM::LLVMDialect>();
 	registry.insert<mlir::AffineDialect>();
+	registry.insert<mlir::LLVM::LLVMDialect>();
 }
 
 ModelicaToLLVMLoweringPass::ModelicaToLLVMLoweringPass(ModelicaToLLVMLoweringOptions options)
@@ -1666,14 +1678,10 @@ void ModelicaToLLVMLoweringPass::runOnOperation()
 	target.addLegalOp<mlir::scf::YieldOp>();
 	target.addLegalOp<mlir::AffineYieldOp>();
 
-	// During this lowering, we will also be lowering the MemRef types, that are
-	// currently being operated on, to a representation in LLVM. To perform this
-	// conversion we use a TypeConverter as part of the lowering. This converter
-	// details how one type maps to another. This is necessary now that we will be
-	// doing more complicated lowerings, involving loop region arguments.
+	// Create the Modelica types converter. We also need to create
+	// the functions wrapper, in order to JIT it easily.
 	mlir::LowerToLLVMOptions llvmLoweringOptions;
 	llvmLoweringOptions.emitCWrappers = true;
-
 	TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
 	// Provide the set of patterns that will lower the Modelica operations

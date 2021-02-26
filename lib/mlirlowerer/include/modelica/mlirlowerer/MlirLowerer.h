@@ -42,12 +42,11 @@ namespace modelica
 		Reference();
 
 		[[nodiscard]] mlir::Value operator*();
-
 		[[nodiscard]] mlir::Value getReference() const;
+		[[nodiscard]] bool isInitialized() const;
 
 		[[nodiscard]] static Reference ssa(ModelicaBuilder* builder, mlir::Value value);
-		[[nodiscard]] static Reference memref(ModelicaBuilder* builder, mlir::Value value);
-		[[nodiscard]] static Reference placeholder(ModelicaBuilder* builder);
+		[[nodiscard]] static Reference memref(ModelicaBuilder* builder, mlir::Value value, bool initialized);
 
 		private:
 		Reference(ModelicaBuilder* builder,
@@ -110,6 +109,15 @@ namespace modelica
 		 * Options for the lowerer.
 		 */
 		 ModelicaOptions options;
+
+		 /**
+		  * Apply a binary operation to a list of values.
+		  *
+		  * @param args      arguments
+		  * @param callback  callback that should process the current args and return a result
+		  * @return folded value
+		  */
+		 mlir::Value foldBinaryOperation(llvm::ArrayRef<mlir::Value> args, std::function<mlir::Value(mlir::Value, mlir::Value)> callback);
 
 		/**
 		 * Lower the arguments of an operation.

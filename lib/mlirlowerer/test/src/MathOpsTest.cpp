@@ -2,9 +2,11 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <modelica/frontend/Expression.hpp>
+#include <modelica/mlirlowerer/CRunnerUtils.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
+#include <mlir/ExecutionEngine/CRunnerUtils.h>
 
 using namespace modelica;
 using namespace std;
@@ -43,34 +45,30 @@ TEST(MathOps, sumOfIntegerScalars)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	module.dump();
+	Runner runner(module);
 
-	Runner runner(&context, module);
-
-	array<int, 2> xData = { 23, 57 };
-	array<int, 2> yData = { 57, -23 };
-	array<int, 2> zData = { 0, 0 };
+	array<long, 2> xData = { 23, 57 };
+	array<long, 2> yData = { 57, -23 };
+	array<long, 2> zData = { 0, 0 };
 
 	for (const auto& tuple : llvm::zip(xData, yData, zData))
 	{
-		int x = get<0>(tuple);
-		int y = get<1>(tuple);
-		int z = get<2>(tuple);
+		long x = get<0>(tuple);
+		long y = get<1>(tuple);
+		long z = get<2>(tuple);
 
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x + y);
 	}
 }
 
-TEST(MathOps, sumOfIntegerVectors)	 // NOLINT
+TEST(MathOps, sumOfIntegerArrays)	 // NOLINT
 {
-	llvm::DebugFlag=true;
 	/**
 	 * function main
 	 *   input Integer[3] x;
@@ -106,20 +104,23 @@ TEST(MathOps, sumOfIntegerVectors)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
-	array<int, 3> x = { 10, 23, 57 };
-	array<int, 3> y = { 10, 57, -23 };
-	array<int, 3> z = { 0, 0, 0 };
+	array<long, 3> x = { 10, 23, 57 };
+	array<long, 3> y = { 10, 57, -23 };
+	array<long, 3> z = { 0, 0, 0 };
 
-	int* xPtr = x.data();
-	int* yPtr = y.data();
-	int* zPtr = z.data();
+	ArrayDescriptor<long, 1> xPtr { x.data(), 1, { 3 }};
+	ArrayDescriptor<long, 1> yPtr { y.data(), 1, { 3 }};
+	ArrayDescriptor<long, 1> zPtr { z.data(), 1, { 3 }};
 
-	runner.run("main", xPtr, yPtr, zPtr);
+	if (failed(runner.run("main", xPtr, yPtr, Runner::result(zPtr))))
+		FAIL();
 
-	for (const auto& tuple : llvm::zip(x, y, z))
-		EXPECT_EQ(get<2>(tuple), get<0>(tuple) + get<1>(tuple));
+	for (size_t i = 0; i < 3; i++)
+	{
+		EXPECT_EQ(zPtr.data[i], xPtr.data[i] + yPtr.data[i]);
+	}
 }
 
 TEST(MathOps, sumOfFloatScalars)	 // NOLINT
@@ -159,7 +160,7 @@ TEST(MathOps, sumOfFloatScalars)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<float, 2> xData = { 23.2f, 57.5f };
 	array<float, 2> yData = { 57.3f, -23.7f };
@@ -171,7 +172,8 @@ TEST(MathOps, sumOfFloatScalars)	 // NOLINT
 		float y = get<1>(tuple);
 		float z = get<2>(tuple);
 
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_FLOAT_EQ(z, x + y);
 	}
@@ -214,7 +216,7 @@ TEST(MathOps, sumOfFloatVectors)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<float, 3> x = { 10.1f, 23.3f, 57.8f };
 	array<float, 3> y = { 10.2f, 57.3f, -23.5f };
@@ -267,7 +269,7 @@ TEST(MathOps, sumIntegerScalarToFloatScalar)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 2, -3, -3 };
 	array<float, 3> yData = { -3.5f, 5.2f, -2.0f };
@@ -279,7 +281,8 @@ TEST(MathOps, sumIntegerScalarToFloatScalar)	 // NOLINT
 		float y = get<1>(tuple);
 		float z = get<2>(tuple);
 
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_FLOAT_EQ(z, x + y);
 	}
@@ -322,7 +325,7 @@ TEST(MathOps, sumIntegerVectorToFloatVector)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> x = { 2, -3, -3 };
 	array<float, 3> y = { -3.5f, 5.2f, -2.0f };
@@ -378,7 +381,7 @@ TEST(MathOps, sumMultipleIntegerScalars)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 10, 23, 57 };
 	array<int, 3> yData = { 10, 57, -23 };
@@ -392,7 +395,8 @@ TEST(MathOps, sumMultipleIntegerScalars)	 // NOLINT
 		int z = get<2>(tuple);
 		int t = get<3>(tuple);
 
-		runner.run("main", x, y, z, t);
+		if (failed(runner.run("main", x, y, z, Runner::result(t))))
+			FAIL();
 
 		EXPECT_EQ(t, x + y + z);
 	}
@@ -435,7 +439,7 @@ TEST(SubOp, scalarIntegers)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 2> xData = { 23, 57 };
 	array<int, 2> yData = { 57, -23 };
@@ -447,7 +451,8 @@ TEST(SubOp, scalarIntegers)	 // NOLINT
 		int y = get<1>(tuple);
 		int z = get<2>(tuple);
 
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x - y);
 	}
@@ -492,7 +497,7 @@ TEST(SubOp, vectorIntegers)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> x = { 10, 23, 57 };
 	array<int, 3> y = { 10, 57, -23 };
@@ -545,7 +550,7 @@ TEST(SubOp, scalarFloats)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<float, 2> xData = { 23.2f, 57.5f };
 	array<float, 2> yData = { 57.3f, -23.7f };
@@ -557,7 +562,8 @@ TEST(SubOp, scalarFloats)	 // NOLINT
 		float y = get<1>(tuple);
 		float z = get<2>(tuple);
 
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_FLOAT_EQ(z, x - y);
 	}
@@ -600,7 +606,7 @@ TEST(SubOp, vectorFloats)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<float, 3> x = { 10.1f, 23.3f, 57.8f };
 	array<float, 3> y = { 10.2f, 57.3f, -23.5f };
@@ -653,7 +659,7 @@ TEST(SubOp, integerCastedToFloatScalar)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 2, -3, -3 };
 	array<float, 3> yData = { -3.5f, 5.2f, -2.0f };
@@ -665,7 +671,8 @@ TEST(SubOp, integerCastedToFloatScalar)	 // NOLINT
 		float y = get<1>(tuple);
 		float z = get<2>(tuple);
 
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_FLOAT_EQ(z, x - y);
 	}
@@ -708,7 +715,7 @@ TEST(SubOp, integerCastedToFloatVector)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> x = { 2, -3, -3 };
 	array<float, 3> y = { -3.5f, 5.2f, -2.0f };
@@ -764,7 +771,7 @@ TEST(SubOp, multipleValues)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 10, 23, 57 };
 	array<int, 3> yData = { 10, 57, -23 };
@@ -778,7 +785,8 @@ TEST(SubOp, multipleValues)	 // NOLINT
 		int z = get<2>(tuple);
 		int t = get<3>(tuple);
 
-		runner.run("main", x, y, z, t);
+		if (failed(runner.run("main", x, y, z, Runner::result(t))))
+			FAIL();
 
 		EXPECT_EQ(t, x - y - z);
 	}
@@ -821,7 +829,7 @@ TEST(MulOp, scalarIntegers)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 2> xData = { 2, 5 };
 	array<int, 2> yData = { 3, -3 };
@@ -833,7 +841,8 @@ TEST(MulOp, scalarIntegers)	 // NOLINT
 		int y = get<1>(tuple);
 		int z = get<2>(tuple);
 
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x * y);
 	}
@@ -876,7 +885,7 @@ TEST(MulOp, scalarFloats)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<float, 2> xData = { 2.3f, 5.7f };
 	array<float, 2> yData = { 23.57f, -23.57f };
@@ -888,7 +897,8 @@ TEST(MulOp, scalarFloats)	 // NOLINT
 		float y = get<1>(tuple);
 		float z = get<2>(tuple);
 
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_FLOAT_EQ(z, x * y);
 	}
@@ -931,7 +941,7 @@ TEST(MulOp, integerCastedToFloatScalar)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 2, -3, -3 };
 	array<float, 3> yData = { -3.5f, 5.2f, -2.0f };
@@ -943,7 +953,8 @@ TEST(MulOp, integerCastedToFloatScalar)	 // NOLINT
 		float y = get<1>(tuple);
 		float z = get<2>(tuple);
 
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_FLOAT_EQ(z, x * y);
 	}
@@ -989,7 +1000,7 @@ TEST(MulOp, multipleValues)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 10, 23, 57 };
 	array<int, 3> yData = { 10, 57, -23 };
@@ -1003,7 +1014,8 @@ TEST(MulOp, multipleValues)	 // NOLINT
 		int z = get<2>(tuple);
 		int t = get<3>(tuple);
 
-		runner.run("main", x, y, z, t);
+		if (failed(runner.run("main", x, y, z, Runner::result(t))))
+			FAIL();
 
 		EXPECT_EQ(t, x * y * z);
 	}
@@ -1046,7 +1058,7 @@ TEST(MulOp, scalarTimesVector)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	int x = 2;
 	array<int, 2> y = { 3, -5 };
@@ -1098,7 +1110,7 @@ TEST(MulOp, vectorTimesScalar)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 2> x = { 3, -5 };
 	int y = 2;

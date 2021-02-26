@@ -46,7 +46,7 @@ TEST(EqOp, integers)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 2> xData = { 57, 57 };
 	array<int, 2> yData = { 57, 23 };
@@ -101,7 +101,7 @@ TEST(EqOp, floats)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<float, 2> xData = { 57.0f, 57.0f };
 	array<float, 2> yData = { 57.0f, 23.0f };
@@ -156,7 +156,7 @@ TEST(EqOp, integerCastedToFloat)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 2> xData = { 57, 57 };
 	array<float, 2> yData = { 57.0f, 23.0f };
@@ -211,7 +211,7 @@ TEST(NotEqOp, integers)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 2> xData = { 57, 57 };
 	array<int, 2> yData = { 57, 23 };
@@ -266,7 +266,7 @@ TEST(NotEqOp, floats)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<float, 2> xData = { 57.0f, 57.0f };
 	array<float, 2> yData = { 57.0f, 23.0f };
@@ -321,7 +321,7 @@ TEST(NotEqOp, integerCastedToFloat)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 2> xData = { 57, 57 };
 	array<float, 2> yData = { 57.0f, 23.0f };
@@ -376,7 +376,7 @@ TEST(GtOp, integers)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 23, 57, 57 };
 	array<int, 3> yData = { 57, 57, 23 };
@@ -431,7 +431,7 @@ TEST(GtOp, floats)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<float, 3> xData = { 23.0f, 57.0f, 57.0f };
 	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
@@ -486,7 +486,7 @@ TEST(GtOp, integerCastedToFloat)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 23, 57, 57 };
 	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
@@ -541,7 +541,7 @@ TEST(GteOp, integers)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 23, 57, 57 };
 	array<int, 3> yData = { 57, 57, 23 };
@@ -596,7 +596,7 @@ TEST(GteOp, floats)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<float, 3> xData = { 23.0f, 57.0f, 57.0f };
 	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
@@ -651,7 +651,7 @@ TEST(GteOp, integerCastedToFloat)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 23, 57, 57 };
 	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
@@ -706,7 +706,7 @@ TEST(LtOp, integers)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 23, 57, 57 };
 	array<int, 3> yData = { 57, 57, 23 };
@@ -761,7 +761,7 @@ TEST(LtOp, floats)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<float, 3> xData = { 23.0f, 57.0f, 57.0f };
 	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
@@ -816,7 +816,7 @@ TEST(LtOp, integerCastedToFloat)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 23, 57, 57 };
 	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
@@ -871,7 +871,7 @@ TEST(LteOp, integers)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 23, 57, 57 };
 	array<int, 3> yData = { 57, 57, 23 };
@@ -926,7 +926,7 @@ TEST(LteOp, floats)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<float, 3> xData = { 23.0f, 57.0f, 57.0f };
 	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
@@ -981,7 +981,7 @@ TEST(LteOp, integerCastedToFloat)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 
 	array<int, 3> xData = { 23, 57, 57 };
 	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };

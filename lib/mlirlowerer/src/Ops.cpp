@@ -124,7 +124,7 @@ void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 
 void AllocOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.alloca ";
+	printer << "modelica.alloc ";
 	printer.printOperands(getOperands());
 	printer << ": ";
 	printer.printType(getOperation()->getResultTypes()[0]);
@@ -299,7 +299,7 @@ void LoadOp::print(mlir::OpAsmPrinter& printer)
 	printer << "modelica.load " << memory() << "[";
 	printer.printOperands(indexes());
 	printer << "] : ";
-	printer.printType(memory().getType());
+	printer.printType(getOperation()->getResultTypes()[0]);
 }
 
 PointerType LoadOp::getPointerType()

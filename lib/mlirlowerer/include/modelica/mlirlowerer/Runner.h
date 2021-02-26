@@ -12,40 +12,25 @@ namespace modelica
 	class Runner
 	{
 		public:
-		Runner(mlir::MLIRContext* context, mlir::ModuleOp module)
-				: context(context), module(std::move(module))
-		{
+		template<typename T> using Result = mlir::ExecutionEngine::Result<T>;
+
+		Runner(mlir::ModuleOp module, llvm::ArrayRef<mlir::StringRef> libraries = {});
+
+		template <typename T>
+		static Result<T> result(T &t) {
+			return Result<T>(t);
 		}
 
 		template<typename... T>
-		mlir::LogicalResult run(llvm::StringRef function, T&... params)
+		mlir::LogicalResult run(llvm::StringRef function, T... args)
 		{
-			// Initialize LLVM targets
-			llvm::InitializeNativeTarget();
-			llvm::InitializeNativeTargetAsmPrinter();
-
-			// Create the engine to run the code
-			llvm::SmallVector<llvm::StringRef, 3> libraries;
-			libraries.push_back("/opt/llvm/lib/libmlir_runner_utils.so");
-			libraries.push_back("/opt/llvm/lib/libmlir_c_runner_utils.so");
-			//libraries.push_back("/mnt/d/modelica/cmake-build-gcc-debug/lib/runtime/libruntime-d.so");
-
-			//mlir::registerLLVMDialectTranslation(*module->getContext());
-
-			auto maybeEngine = mlir::ExecutionEngine::create(module, nullptr, {}, llvm::None, libraries);
-
-			if (!maybeEngine)
+			if (!initialized)
 			{
-				llvm::errs() << "Failed to create the engine\n";
+				llvm::errs() << "Engine not initialized\n";
 				return mlir::failure();
 			}
 
-			auto& engine = maybeEngine.get();
-
-			// Run
-			llvm::SmallVector<void*, 3> args = { ((void*) &params)... };
-
-			if (engine->invoke(function, args))
+			if (engine->invoke(function, args...))
 			{
 				llvm::errs() << "JIT invocation failed\n";
 				return mlir::failure();
@@ -55,7 +40,8 @@ namespace modelica
 		}
 
 		private:
-		mlir::MLIRContext* context;
+		bool initialized;
 		mlir::ModuleOp module;
+		std::unique_ptr<mlir::ExecutionEngine> engine;
 	};
 }

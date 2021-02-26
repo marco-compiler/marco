@@ -42,7 +42,7 @@ TEST(Input, booleanScalar)	 // NOLINT
 	bool x = true;
 	bool y = false;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x, y);
 
 	EXPECT_EQ(y, x);
@@ -82,7 +82,7 @@ TEST(Input, integerScalar)	 // NOLINT
 	int x = 57;
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x, y);
 
 	EXPECT_EQ(y, x);
@@ -122,7 +122,7 @@ TEST(Input, floatScalar)	 // NOLINT
 	float x = 57;
 	float y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x, y);
 
 	EXPECT_FLOAT_EQ(y, x);
@@ -170,7 +170,7 @@ TEST(Input, integerArray)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("_mlir_ciface_main", xPtr, y);
 
 	EXPECT_EQ(y, x[0] + x[1]);
@@ -218,7 +218,7 @@ TEST(Input, integerArrayUnknownSize)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("_mlir_ciface_main", xPtr, y);
 
 	EXPECT_EQ(y, x[0] + x[1]);
@@ -265,7 +265,7 @@ TEST(Input, floatArray)	 // NOLINT
 	auto* xPtr = &xMemRef;
 	float y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("_mlir_ciface_main", xPtr, y);
 
 	EXPECT_FLOAT_EQ(y, 80);
@@ -312,7 +312,7 @@ TEST(Input, floatArrayUnknownSize)	 // NOLINT
 	auto* xPtr = &xMemRef;
 	float y = 0;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("_mlir_ciface_main", xPtr, y);
 
 	EXPECT_FLOAT_EQ(y, 80);
@@ -388,7 +388,7 @@ TEST(Input, integerMatrix)	 // NOLINT
 		int z = 0;
 	} result;
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", xPtr, result);
 
 	EXPECT_EQ(result.y, 6);
@@ -436,7 +436,7 @@ TEST(Output, integerArray)	 // NOLINT
 	array<int, 2> x = { 0, 0 };
 	int* xPtr = x.data();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", xPtr);
 
 	EXPECT_EQ(x[0], 23);
@@ -506,7 +506,7 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 	int x = 2;
 	StridedMemRefType<int, 1> y { nullptr, nullptr, 0, { 1 }, { 1 }};
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", x, y);
 
 	for (int i = 0; i < y.sizes[0]; i++)
@@ -554,7 +554,7 @@ TEST(Output, floatArray)	 // NOLINT
 	array<float, 2> x = { 0, 0 };
 	float* xPtr = x.data();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", xPtr);
 
 	EXPECT_EQ(x[0], 23.0);
@@ -606,7 +606,7 @@ TEST(Output, integerMatrix)	 // NOLINT
 	array<int, 6> x = { 0, 0, 0, 0, 0, 0 };
 	int* xPtr = x.data();
 
-	Runner runner(&context, module);
+	Runner runner(module);
 	runner.run("main", xPtr);
 
 	/*

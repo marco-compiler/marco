@@ -18,20 +18,24 @@ using namespace std;
 
 TEST(FunctionLowerTest, test)	 // NOLINT
 {
-	llvm::DebugFlag = true;
+	//llvm::DebugFlag = true;
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Integer>(3, 2), TypePrefix(ParameterQualifier::none, IOQualifier::none));
-	Member yMember(location, "y", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 57));
+			Expression::reference(location, makeType<BuiltInType::Integer>(), "z"),
+			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add,
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(), "y")));
 
-	ClassContainer cls(Function(location, "main", true, { xMember, zMember, yMember }, Algorithm(location, assignment)));
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
@@ -54,8 +58,9 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 	llvmModule->print(llvm::errs(), nullptr);
 	 */
 
-	bool x = true;
-	bool y = true;
+	long x = 57;
+	long y = 23;
+	long z = 0;
 
 	llvm::InitializeNativeTarget();
 	llvm::InitializeNativeTargetAsmPrinter();
@@ -79,14 +84,13 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 	args.push_back((void*) &x);
 	args.push_back((void*) &y);
 
-	if (engine->invoke("main", x, mlir::ExecutionEngine::result(y)))
+	if (engine->invoke("main", x, y, mlir::ExecutionEngine::result(z)))
 		llvm::errs() << "JIT invocation failed\n";
 
 	//Runner runner(&context, module);
 	//runner.run("main", x, y);
 
-	EXPECT_EQ(y, false);
-
+	EXPECT_EQ(z, 80);
 
 	/*
 	SourcePosition location("-", 0, 0);
