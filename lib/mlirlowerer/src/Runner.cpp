@@ -2,7 +2,7 @@
 
 using namespace modelica;
 
-Runner::Runner(mlir::ModuleOp module, llvm::ArrayRef<mlir::StringRef> libraries)
+Runner::Runner(mlir::ModuleOp module, llvm::ArrayRef<mlir::StringRef> libraries, unsigned int speedOptimization, unsigned int sizeOptimization)
 		: module(std::move(module))
 {
 	// Register the conversion to LLVM IR
@@ -17,7 +17,8 @@ Runner::Runner(mlir::ModuleOp module, llvm::ArrayRef<mlir::StringRef> libraries)
 	//libraries.push_back("/mnt/d/modelica/cmake-build-gcc-debug/lib/runtime/libruntime-d.so");
 
 	// Create the engine
-	auto maybeEngine = mlir::ExecutionEngine::create(module, nullptr, {}, llvm::None, libraries);
+	auto optPipeline = mlir::makeOptimizingTransformer(speedOptimization, sizeOptimization, nullptr);
+	auto maybeEngine = mlir::ExecutionEngine::create(module, nullptr, optPipeline, llvm::None, libraries);
 
 	if (!maybeEngine)
 	{

@@ -6,7 +6,7 @@
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
-#include <mlir/ExecutionEngine/CRunnerUtils.h>
+//#include <mlir/ExecutionEngine/CRunnerUtils.h>
 
 using namespace modelica;
 using namespace std;
@@ -54,12 +54,8 @@ TEST(MathOps, sumOfIntegerScalars)	 // NOLINT
 	array<long, 2> yData = { 57, -23 };
 	array<long, 2> zData = { 0, 0 };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(xData, yData, zData))
 	{
-		long x = get<0>(tuple);
-		long y = get<1>(tuple);
-		long z = get<2>(tuple);
-
 		if (failed(runner.run("main", x, y, Runner::result(z))))
 			FAIL();
 
@@ -67,7 +63,7 @@ TEST(MathOps, sumOfIntegerScalars)	 // NOLINT
 	}
 }
 
-TEST(MathOps, sumOfIntegerArrays)	 // NOLINT
+TEST(MathOps, sumOfIntegerStaticArrays)	 // NOLINT
 {
 	/**
 	 * function main
@@ -117,10 +113,66 @@ TEST(MathOps, sumOfIntegerArrays)	 // NOLINT
 	if (failed(runner.run("main", xPtr, yPtr, Runner::result(zPtr))))
 		FAIL();
 
-	for (size_t i = 0; i < 3; i++)
-	{
-		EXPECT_EQ(zPtr.data[i], xPtr.data[i] + yPtr.data[i]);
-	}
+	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))
+		EXPECT_EQ(z, x + y);
+}
+
+TEST(MathOps, sumOfIntegerDynamicArrays)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[:] x;
+	 *   input Integer[:] y;
+	 *   output Integer[:] z;
+	 *
+	 *   algorithm
+	 *     z := x + y;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<BuiltInType::Integer>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<BuiltInType::Integer>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<BuiltInType::Integer>(-1), "z"),
+			Expression::operation(location, makeType<BuiltInType::Integer>(-1), OperationKind::add,
+														Expression::reference(location, makeType<BuiltInType::Integer>(-1), "x"),
+														Expression::reference(location, makeType<BuiltInType::Integer>(-1), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	module.dump();
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	module.dump();
+
+	Runner runner(module);
+
+	array<long, 3> x = { 10, 23, 57 };
+	array<long, 3> y = { 10, 57, -23 };
+	array<long, 3> z = { 0, 0, 0 };
+
+	ArrayDescriptor<long, 1> xPtr { x.data(), 1, { 3 }};
+	ArrayDescriptor<long, 1> yPtr { y.data(), 1, { 3 }};
+	ArrayDescriptor<long, 1> zPtr { z.data(), 1, { 3 }};
+
+	if (failed(runner.run("main", xPtr, yPtr, Runner::result(zPtr))))
+		FAIL();
+
+	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))
+		EXPECT_EQ(z, x + y);
 }
 
 TEST(MathOps, sumOfFloatScalars)	 // NOLINT

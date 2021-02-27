@@ -14,7 +14,7 @@ namespace modelica
 		public:
 		template<typename T> using Result = mlir::ExecutionEngine::Result<T>;
 
-		Runner(mlir::ModuleOp module, llvm::ArrayRef<mlir::StringRef> libraries = {});
+		Runner(mlir::ModuleOp module, llvm::ArrayRef<mlir::StringRef> libraries = {}, unsigned int speedOptimization = 0, unsigned int sizeOptimization = 0);
 
 		template <typename T>
 		static Result<T> result(T &t) {
