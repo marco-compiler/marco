@@ -6,30 +6,6 @@
 using namespace modelica;
 using namespace std;
 
-llvm::StringRef SubOp::getOperationName()
-{
-	return "modelica.sub";
-}
-
-void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange operands)
-{
-	if (resultType.isa<mlir::ShapedType>())
-	{
-		auto shapedType = resultType.cast<mlir::ShapedType>();
-		resultType = mlir::VectorType::get(shapedType.getShape(), shapedType.getElementType());
-	}
-
-	state.addTypes(resultType);
-
-	assert(operands.size() >= 2);
-	state.addOperands(operands);
-}
-
-void SubOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.sub " << getOperands() << " : " << getOperation()->getResultTypes()[0];
-}
-
 llvm::StringRef MulOp::getOperationName()
 {
 	return "modelica.mul";

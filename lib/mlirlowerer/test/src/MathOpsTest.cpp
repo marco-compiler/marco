@@ -119,6 +119,7 @@ TEST(MathOps, sumOfIntegerStaticArrays)	 // NOLINT
 
 TEST(MathOps, sumOfIntegerDynamicArrays)	 // NOLINT
 {
+	// TODO
 	/**
 	 * function main
 	 *   input Integer[:] x;

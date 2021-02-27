@@ -711,11 +711,41 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class AddOp : public mlir::Op<AddOp,mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
+	class AddOp : public mlir::Op<AddOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
 	{
 		public:
 		using Op::Op;
 		using Adaptor = AddOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Type resultType();
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::SubOp
+	//===----------------------------------------------------------------------===//
+
+	class SubOp;
+
+	class SubOpAdaptor : public OpAdaptor<SubOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	class SubOp : public mlir::Op<SubOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = SubOpAdaptor;
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);

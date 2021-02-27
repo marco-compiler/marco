@@ -528,11 +528,14 @@ void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
 
 		if (destinationPointer.getElementType().isa<PointerType>())
 		{
-			// Copy source on stack
-			// Save the descriptor of the new copy into the destination using StoreOp
-
 			if (destination.isInitialized())
 				builder.create<AssignmentOp>(location, *value, *destination);
+			else
+			{
+				// Copy source on stack
+				// Save the descriptor of the new copy into the destination using StoreOp
+				// TODO
+			}
 		}
 		else
 		{
@@ -756,7 +759,13 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::subtract)
 	{
 		auto args = lowerOperationArgs(operation);
-		mlir::Value result = builder.create<modelica::SubOp>(location, resultType, args);
+		mlir::Value result = foldBinaryOperation(
+				args,
+				[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
+				{
+					return builder.create<modelica::SubOp>(location, resultType, lhs, rhs);
+				});
+
 		return { Reference::ssa(&builder, result) };
 	}
 

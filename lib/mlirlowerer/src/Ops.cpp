@@ -1206,3 +1206,48 @@ mlir::Value AddOp::rhs()
 {
 	return Adaptor(*this).rhs();
 }
+
+//===----------------------------------------------------------------------===//
+// Modelica::SubOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value SubOpAdaptor::lhs()
+{
+	return getValues()[0];
+}
+
+mlir::Value SubOpAdaptor::rhs()
+{
+	return getValues()[1];
+}
+
+llvm::StringRef SubOp::getOperationName()
+{
+	return "modelica.sub";
+}
+
+void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
+}
+
+void SubOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.sub " << lhs() << ", " << rhs() << " : " << resultType();
+}
+
+mlir::Type SubOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value SubOp::lhs()
+{
+	return Adaptor(*this).lhs();
+}
+
+mlir::Value SubOp::rhs()
+{
+	return Adaptor(*this).rhs();
+}

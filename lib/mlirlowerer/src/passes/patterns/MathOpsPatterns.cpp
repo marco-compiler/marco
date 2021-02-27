@@ -195,35 +195,6 @@ LogicalResult AddOpLowering::matchAndRewrite(AddOp op, PatternRewriter& rewriter
 }
 */
 
-LogicalResult SubOpLowering::matchAndRewrite(SubOp op, PatternRewriter& rewriter) const
-{
-	Location location = op.getLoc();
-	auto operands = op->getOperands();
-
-	mlir::Value result = operands[0];
-
-	for (size_t i = 1; i < operands.size(); i++)
-	{
-		SmallVector<mlir::Value, 2> currentOperands = { result, operands[i] };
-		auto castOp = rewriter.create<CastCommonOp>(location, currentOperands);
-		auto castedOperands = castOp.getResults();
-		mlir::Type type = castOp.resultType();
-
-		while (type.isa<ShapedType>())
-			type = type.cast<ShapedType>().getElementType();
-
-		if (type.isIndex() || type.isa<IntegerType>())
-			result = rewriter.create<SubIOp>(location, castedOperands[0], castedOperands[1]);
-		else if (type.isa<FloatType>())
-			result = rewriter.create<SubFOp>(location, castedOperands[0], castedOperands[1]);
-		else
-			return rewriter.notifyMatchFailure(op, "Incompatible types");
-	}
-
-	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
-	return success();
-}
-
 /**
  * Lower the multiplication operation to the vector or standard dialect.
  * According to the elements types and shapes, there are different scenarios:

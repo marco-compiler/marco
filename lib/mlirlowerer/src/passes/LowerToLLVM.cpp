@@ -1653,6 +1653,107 @@ class AddOpArrayLowering: public ModelicaOpConversion<AddOp>
 	}
 };
 
+/**
+ * Subtraction of two numeric scalars.
+ */
+class SubOpScalarLowering: public ModelicaOpConversion<SubOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		if (!isNumericType(adaptor.lhs().getType()))
+			return mlir::failure();
+
+		if (!isNumericType(adaptor.rhs().getType()))
+			return mlir::failure();
+
+		return mlir::success();
+	}
+
+	void rewrite(SubOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		auto castOp = rewriter.create<CastCommonOp>(location, op->getOperands());
+		Adaptor adaptor(castOp.getResults());
+
+		mlir::Type type = castOp.resultType();
+
+		if (type.isa<IntegerType>())
+			rewriter.replaceOpWithNewOp<mlir::SubIOp>(op, adaptor.lhs(), adaptor.rhs());
+		else if (type.isa<RealType>())
+			rewriter.replaceOpWithNewOp<mlir::SubFOp>(op, adaptor.lhs(), adaptor.rhs());
+	}
+};
+
+/**
+ * Subtraction of two numeric arrays.
+ */
+class SubOpArrayLowering: public ModelicaOpConversion<SubOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		if (!adaptor.lhs().getType().isa<PointerType>())
+			return mlir::failure();
+
+		if (!adaptor.rhs().getType().isa<PointerType>())
+			return mlir::failure();
+
+		auto lhsPointerType = adaptor.lhs().getType().cast<PointerType>();
+		auto rhsPointerType = adaptor.rhs().getType().cast<PointerType>();
+
+		for (auto pair : llvm::zip(lhsPointerType.getShape(), rhsPointerType.getShape()))
+		{
+			auto lhsDimension = std::get<0>(pair);
+			auto rhsDimension = std::get<1>(pair);
+
+			if (lhsDimension != -1 && rhsDimension != -1 && lhsDimension != rhsDimension)
+				return mlir::failure();
+		}
+
+		if (!isNumericType(lhsPointerType.getElementType()))
+			return mlir::failure();
+
+		if (!isNumericType(rhsPointerType.getElementType()))
+			return mlir::failure();
+
+		return mlir::success();
+	}
+
+	void rewrite(SubOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		// Allocate the result array
+		mlir::Type baseType = getMostGenericBaseType({ op.lhs(), op.rhs() });
+		auto shape = op.lhs().getType().cast<PointerType>().getShape();
+		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, location, op.lhs());
+		mlir::Value result = rewriter.create<AllocaOp>(location, baseType, shape, dynamicDimensions);
+
+		// Sum each element
+		iterateArray(rewriter, location, op.lhs(),
+								 [&](mlir::ValueRange position) {
+									 mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), position);
+									 lhs = rewriter.create<CastOp>(location, lhs, baseType);
+
+									 mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), position);
+									 rhs = rewriter.create<CastOp>(location, rhs, baseType);
+
+									 Adaptor adaptor({ lhs, rhs });
+									 mlir::Value value = rewriter.create<SubOp>(location, lhs.getType(), adaptor.lhs(), adaptor.rhs());
+									 rewriter.create<StoreOp>(location, value, result, position);
+								 });
+
+		rewriter.replaceOp(op, result);
+	}
+};
+
 void ModelicaToLLVMLoweringPass::getDependentDialects(mlir::DialectRegistry& registry) const {
 	registry.insert<mlir::StandardOpsDialect>();
 	registry.insert<mlir::AffineDialect>();
@@ -1726,6 +1827,7 @@ void modelica::populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatte
 
 	// Math operations
 	patterns.insert<AddOpScalarLowering, AddOpArrayLowering>(context, typeConverter);
+	patterns.insert<SubOpScalarLowering, SubOpArrayLowering>(context, typeConverter);
 }
 
 std::unique_ptr<mlir::Pass> modelica::createModelicaToLLVMLoweringPass(ModelicaToLLVMLoweringOptions options)
