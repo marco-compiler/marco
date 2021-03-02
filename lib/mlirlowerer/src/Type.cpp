@@ -81,25 +81,23 @@ llvm::hash_code hash_value(const PointerType::Shape& shape) {
 
 class modelica::PointerTypeStorage : public mlir::TypeStorage {
 	public:
-	using KeyTy = std::tuple<PointerType::Shape, mlir::Type, mlir::AffineMapAttr>;
+	using KeyTy = std::tuple<bool, mlir::Type, PointerType::Shape>;
 
 	PointerTypeStorage() = delete;
 
 	static unsigned hashKey(const KeyTy& key) {
 		auto shapeHash{hash_value(std::get<PointerType::Shape>(key))};
 		shapeHash = llvm::hash_combine(shapeHash, std::get<mlir::Type>(key));
-		return llvm::hash_combine(shapeHash, std::get<mlir::AffineMapAttr>(key));
+		return llvm::hash_combine(std::get<bool>(key), std::get<mlir::Type>(key), shapeHash);
 	}
 
 	bool operator==(const KeyTy& key) const {
-		return key == KeyTy{getShape(), getElementType(), getLayoutMap()};
+		return key == KeyTy{isOnHeap(), getElementType(), getShape()};
 	}
 
 	static PointerTypeStorage *construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key) {
 		auto *storage = allocator.allocate<PointerTypeStorage>();
-		return new (storage) PointerTypeStorage{
-				std::get<PointerType::Shape>(key), std::get<mlir::Type>(key),
-				std::get<mlir::AffineMapAttr>(key)};
+		return new (storage) PointerTypeStorage{std::get<bool>(key), std::get<mlir::Type>(key), std::get<PointerType::Shape>(key)};
 	}
 
 	[[nodiscard]] PointerType::Shape getShape() const
@@ -112,22 +110,22 @@ class modelica::PointerTypeStorage : public mlir::TypeStorage {
 		return elementType;
 	}
 
-	[[nodiscard]] mlir::AffineMapAttr getLayoutMap() const
+	[[nodiscard]] bool isOnHeap() const
 	{
-		return map;
+		return heap;
 	}
 
 	private:
-	PointerTypeStorage(const PointerType::Shape& shape, mlir::Type elementType, mlir::AffineMapAttr map)
-			: shape(std::move(shape)),
+	PointerTypeStorage(bool heap, mlir::Type elementType, const PointerType::Shape& shape)
+			: heap(heap),
 				elementType(elementType),
-				map(map)
+				shape(std::move(shape))
 	{
 	}
 
-	PointerType::Shape shape;
+	bool heap;
 	mlir::Type elementType;
-	mlir::AffineMapAttr map;
+	PointerType::Shape shape;
 };
 
 BooleanType BooleanType::get(mlir::MLIRContext* context)
@@ -155,9 +153,14 @@ unsigned int RealType::getBitWidth() const
 	return getImpl()->getBitWidth();
 }
 
-PointerType PointerType::get(mlir::MLIRContext* context, mlir::Type elementType, const Shape& shape, mlir::AffineMapAttr map)
+PointerType PointerType::get(mlir::MLIRContext* context, bool heap, mlir::Type elementType, const Shape& shape)
 {
-	return Base::get(context, shape, elementType, map);
+	return Base::get(context, heap, elementType, shape);
+}
+
+bool PointerType::isOnHeap() const
+{
+	return getImpl()->isOnHeap();
 }
 
 mlir::Type PointerType::getElementType() const
@@ -173,11 +176,6 @@ PointerType::Shape PointerType::getShape() const
 unsigned int PointerType::getRank() const
 {
 	return getShape().size();
-}
-
-mlir::AffineMapAttr PointerType::getLayoutMap() const
-{
-	return getImpl()->getLayoutMap();
 }
 
 unsigned int PointerType::getConstantDimensions() const
@@ -230,7 +228,7 @@ void modelica::printModelicaType(ModelicaDialect* dialect, mlir::Type ty, mlir::
 	}
 
 	if (auto type = ty.dyn_cast<PointerType>()) {
-		os << "ptr<";
+		os << "ptr<" << (type.isOnHeap() ? "true" : "false") << ", ";
 		auto dimensions = type.getShape();
 
 		for (const auto& dimension : dimensions)

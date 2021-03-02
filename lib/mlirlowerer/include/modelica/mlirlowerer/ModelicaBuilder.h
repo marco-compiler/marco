@@ -15,7 +15,7 @@ namespace modelica
 		BooleanType getBooleanType();
 		IntegerType getIntegerType();
 		RealType getRealType();
-		PointerType getPointerType(mlir::Type elementType, const PointerType::Shape& shape = {}, mlir::AffineMapAttr map = {});
+		PointerType getPointerType(bool heap, mlir::Type elementType, const PointerType::Shape& shape = {});
 
 		mlir::IntegerAttr getBooleanAttribute(bool value);
 		mlir::IntegerAttr getIndexAttribute(long value);

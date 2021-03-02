@@ -298,8 +298,6 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	// Return statement
 	std::vector<mlir::Value> results;
 
-	//results.push_back(mem);
-
 	for (const auto& member : outputMembers)
 	{
 		auto ptr = symbolTable.lookup(member->getName());
@@ -329,7 +327,7 @@ mlir::Type MlirLowerer::lower(const modelica::Type& type)
 					shape.emplace_back(dimension.getNumericSize());
 			}
 
-			return builder.getPointerType(baseType, shape);
+			return builder.getPointerType(false, baseType, shape);
 		}
 
 		return baseType;
@@ -390,6 +388,15 @@ void MlirLowerer::lower(const modelica::Member& member)
 		return;
 
 	mlir::Type type = lower(member.getType());
+
+	if (type.isa<PointerType>())
+	{
+		auto pointerType = type.cast<PointerType>();
+
+		if (member.isOutput())
+			type = builder.getPointerType(true, pointerType.getElementType(), pointerType.getShape());
+	}
+
 	mlir::Value ptr = builder.create<modelica::AllocaOp>(location, type);
 	bool initialized = false;
 
@@ -407,7 +414,7 @@ void MlirLowerer::lower(const modelica::Member& member)
 			// All the dynamic dimensions have an expression to determine their values.
 			// So we can instantiate the array.
 
-			if (member.isOutput())
+			if (pointerType.isOnHeap())
 			{
 				mlir::Value var = builder.create<modelica::AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), sizes);
 				builder.create<modelica::StoreOp>(location, var, ptr);
@@ -425,73 +432,6 @@ void MlirLowerer::lower(const modelica::Member& member)
 	symbolTable.insert(member.getName(), Reference::memref(&builder, ptr, initialized));
 
 	/*
-	if (type.isa<PointerType>() && member.isOutput())
-		return;
-
-	if (!type.isa<PointerType>())
-	{
-		// Scalar value
-		mlir::Value var = builder.create<AllocaOp>(location, MemRefType::get({}, type));
-		symbolTable.insert(member.getName(), Reference::memref(&builder, var));
-	}
-	else
-	{
-		auto memRefType = type.cast<MemRefType>();
-
-		// Only memrefs with static size can be allocated. The dynamically sized
-		// ones can be allocated only when their size will be determined.
-		if (memRefType.hasStaticShape())
-		{
-			if (member.isOutput())
-			{
-				// Output arrays with static size are passed as input argument and
-				// are allocated by the caller.
-
-			}
-			else
-			{
-				mlir::Value var = builder.create<AllocaOp>(location, memRefType);
-				//var.setType(ArrayType::get(memRefType, false));
-				symbolTable.insert(member.getName(), Reference::memref(&builder, var));
-			}
-		}
-		else
-		{
-			size_t dynamicDimensions = 0;
-			SmallVector<mlir::Value, 3> sizes;
-
-			for (const auto& dimension : member.getType().getDimensions())
-			{
-				if (dimension.isDynamic())
-					dynamicDimensions++;
-
-				if (dimension.hasExpression())
-					sizes.emplace_back(*lower<modelica::Expression>(dimension.getExpression())[0]);
-			}
-
-			if (sizes.size() == dynamicDimensions)
-			{
-				// All the dynamic dimensions have an expression to determine their values.
-				// So we can instantiate the array.
-
-				if (member.isOutput())
-				{
-					mlir::Value var = builder.create<mlir::AllocOp>(location, memRefType, sizes);
-					symbolTable.insert(member.getName(), Reference::memref(&builder, var));
-				}
-				else
-				{
-					//mlir::Value var = builder.create<mlir::AllocaOp>(location, memRefType, sizes);
-					//symbolTable.insert(member.getName(), Reference::memref(&builder, var));
-				}
-			}
-			else
-			{
-				symbolTable.insert(member.getName(), Reference::memref(&builder, nullptr));
-			}
-		}
-	}
-
 	if (member.hasInitializer())
 	{
 		mlir::Value reference = symbolTable.lookup(member.getName()).getReference();
@@ -532,9 +472,13 @@ void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
 				builder.create<AssignmentOp>(location, *value, *destination);
 			else
 			{
+				auto pointer = destinationPointer.getElementType().cast<PointerType>();
+
 				// Copy source on stack
 				// Save the descriptor of the new copy into the destination using StoreOp
-				// TODO
+
+				mlir::Value copy = builder.create<ArrayCopyOp>(location, *value, pointer.isOnHeap());
+				builder.create<StoreOp>(location, copy, destination.getReference());
 			}
 		}
 		else

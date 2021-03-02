@@ -286,7 +286,7 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 				});
 	}
 
-	[[nodiscard]] mlir::Value allocateSameTypeArray(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array) const
+	[[nodiscard]] mlir::Value allocateSameTypeArray(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array, bool heap) const
 	{
 		mlir::Type type = array.getType();
 		assert(type.isa<PointerType>() && "Not an array");
@@ -304,6 +304,9 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 				dynamicDimensions.push_back(builder.create<DimOp>(location, array, dimension));
 			}
 		}
+
+		if (heap)
+			return builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions);
 
 		return builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions);
 	}
@@ -599,10 +602,6 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 		auto indexes = adaptor.indexes();
 
 		PointerType pointerType = op.getPointerType();
-		/*llvm::errs() << "Converting ";
-		op.dump();
-		op->getParentOp()->dump();
-		llvm::errs() << "--------" << pointerType.getRank() << " " << indexes.size();*/
 		assert(pointerType.getRank() == indexes.size() && "Wrong indexes amount");
 
 		// Determine the address into which the value has to be stored.
@@ -624,6 +623,30 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 		// Store the value
 		rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(op, adaptor.value(), ptr);
 
+		return mlir::success();
+	}
+};
+
+class ArrayCopyOpLowering: public ModelicaOpConversion<ArrayCopyOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(ArrayCopyOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op->getLoc();
+		Adaptor adaptor(operands);
+
+		auto pointerType = op.getPointerType();
+		mlir::Value copy = allocateSameTypeArray(rewriter, location, op.source(), pointerType.isOnHeap());
+		rewriter.replaceOp(op, copy);
+
+		auto copyCallback = [&](mlir::ValueRange indexes)
+		{
+			mlir::Value value = rewriter.create<LoadOp>(location, op.source(), indexes);
+			rewriter.create<StoreOp>(location, value, copy, indexes);
+		};
+
+		iterateArray(rewriter, location, op.source(), copyCallback);
 		return mlir::success();
 	}
 };
@@ -980,7 +1003,7 @@ class NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
 		mlir::Location location = op.getLoc();
 		Adaptor adaptor(operands);
 
-		mlir::Value result = allocateSameTypeArray(rewriter, location, op.operand());
+		mlir::Value result = allocateSameTypeArray(rewriter, location, op.operand(), false);
 		rewriter.replaceOp(op, result);
 
 		mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getBoolAttr(true));
@@ -1812,6 +1835,7 @@ void modelica::populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatte
 	patterns.insert<AllocaOpLowering, AllocOpLowering, FreeOpLowering>(context, typeConverter);
 	patterns.insert<SubscriptOpLowering, DimOpLowering>(context, typeConverter);
 	patterns.insert<LoadOpLowering, StoreOpLowering>(context, typeConverter);
+	patterns.insert<ArrayCopyOpLowering>(context, typeConverter);
 
 	// Control flow operations
 	patterns.insert<IfOpLowering, ForOpLowering, WhileOpLowering>(context, typeConverter);

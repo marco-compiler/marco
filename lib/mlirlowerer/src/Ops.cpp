@@ -70,9 +70,9 @@ void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir
 	assert(dynamicDimensions == dimensions.size() && "Dynamic dimensions amount doesn't match with the number of provided values");
 
 	if (shape.empty())
-		state.addTypes(PointerType::get(state.getContext(), elementType));
+		state.addTypes(PointerType::get(state.getContext(), false, elementType));
 	else
-		state.addTypes(PointerType::get(state.getContext(), elementType, shape));
+		state.addTypes(PointerType::get(state.getContext(), false, elementType, shape));
 
 	state.addOperands(dimensions);
 }
@@ -115,9 +115,9 @@ void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 	assert(dynamicDimensions == dimensions.size() && "Dynamic dimensions amount doesn't match with the number of provided values");
 
 	if (shape.empty())
-		state.addTypes(PointerType::get(state.getContext(), elementType));
+		state.addTypes(PointerType::get(state.getContext(), true, elementType));
 	else
-		state.addTypes(PointerType::get(state.getContext(), elementType, shape));
+		state.addTypes(PointerType::get(state.getContext(), true, elementType, shape));
 
 	state.addOperands(dimensions);
 }
@@ -242,7 +242,7 @@ void SubscriptionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 	for (size_t i = indexes.size(), e = shape.size(); i < e; ++i)
 		resultShape.push_back(shape[i]);
 
-	mlir::Type resultType = PointerType::get(builder.getContext(), sourcePointerType.getElementType(), resultShape);
+	mlir::Type resultType = PointerType::get(builder.getContext(), false, sourcePointerType.getElementType(), resultShape);
 	state.addTypes(resultType);
 }
 
@@ -374,6 +374,42 @@ mlir::Value StoreOp::memory()
 mlir::ValueRange StoreOp::indexes()
 {
 	return Adaptor(*this).indexes();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::ArrayCopyOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value ArrayCopyOpAdaptor::source()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef ArrayCopyOp::getOperationName()
+{
+	return "modelica.array_copy";
+}
+
+void ArrayCopyOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, bool heap)
+{
+	state.addOperands(source);
+	auto sourceType = source.getType().cast<PointerType>();
+	state.addTypes(PointerType::get(builder.getContext(), heap, sourceType.getElementType(), sourceType.getShape()));
+}
+
+void ArrayCopyOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.array_copy " << source() << " : " << getPointerType();
+}
+
+PointerType ArrayCopyOp::getPointerType()
+{
+	return getOperation()->getResultTypes()[0].cast<PointerType>();
+}
+
+mlir::Value ArrayCopyOp::source()
+{
+	return Adaptor(*this).source();
 }
 
 //===----------------------------------------------------------------------===//
@@ -778,7 +814,7 @@ void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 		{
 			auto pointerType = type.cast<PointerType>();
 			auto shape = pointerType.getShape();
-			types.emplace_back(PointerType::get(pointerType.getContext(), resultBaseType, shape));
+			types.emplace_back(PointerType::get(pointerType.getContext(), pointerType.isOnHeap(), resultBaseType, shape));
 		}
 		else
 			types.emplace_back(resultBaseType);

@@ -279,6 +279,34 @@ namespace modelica
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::ArrayCopyOp
+	//===----------------------------------------------------------------------===//
+
+	class ArrayCopyOp;
+
+	class ArrayCopyOpAdaptor : public OpAdaptor<ArrayCopyOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value source();
+	};
+
+	class ArrayCopyOp :public mlir::Op<ArrayCopyOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = ArrayCopyOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, bool heap);
+		void print(mlir::OpAsmPrinter& printer);
+
+		PointerType getPointerType();
+		mlir::Value source();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::IfOp
 	//===----------------------------------------------------------------------===//
 

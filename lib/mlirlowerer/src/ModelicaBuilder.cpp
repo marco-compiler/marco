@@ -17,9 +17,9 @@ RealType ModelicaBuilder::getRealType()
 	return RealType::get(getContext(), 64);
 }
 
-PointerType ModelicaBuilder::getPointerType(mlir::Type elementType, const PointerType::Shape& shape, mlir::AffineMapAttr map)
+PointerType ModelicaBuilder::getPointerType(bool heap, mlir::Type elementType, const PointerType::Shape& shape)
 {
-	return PointerType::get(getContext(), elementType, shape, map);
+	return PointerType::get(getContext(), heap, elementType, shape);
 }
 
 mlir::IntegerAttr ModelicaBuilder::getBooleanAttribute(bool value)

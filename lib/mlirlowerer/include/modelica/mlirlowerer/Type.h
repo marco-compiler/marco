@@ -38,7 +38,9 @@ namespace modelica
 		using Shape = llvm::SmallVector<long, 3>;
 
 		/// Return a sequence type with the specified shape and element type
-		static PointerType get(mlir::MLIRContext* context, mlir::Type elementType, const Shape& shape = {}, mlir::AffineMapAttr map = {});
+		static PointerType get(mlir::MLIRContext* context, bool heap, mlir::Type elementType, const Shape& shape = {});
+
+		[[nodiscard]] bool isOnHeap() const;
 
 		/// The element type of this sequence
 		[[nodiscard]] mlir::Type getElementType() const;
@@ -48,8 +50,6 @@ namespace modelica
 		[[nodiscard]] Shape getShape() const;
 
 		[[nodiscard]] unsigned int getRank() const;
-
-		[[nodiscard]] mlir::AffineMapAttr getLayoutMap() const;
 
 		[[nodiscard]] unsigned int getConstantDimensions() const;
 		[[nodiscard]] unsigned int getDynamicDimensions() const;

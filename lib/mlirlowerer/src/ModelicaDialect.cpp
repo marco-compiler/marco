@@ -8,10 +8,15 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addTypes<BooleanType, IntegerType, RealType, PointerType>();
 
 	// Basic operations
-	addOperations<AllocaOp, AllocOp, FreeOp, DimOp, SubscriptionOp, LoadOp, StoreOp>();
 	addOperations<AssignmentOp>();
 	addOperations<CastOp>();
 	addOperations<CastCommonOp>();
+
+	// MMemory operations
+	addOperations<AllocaOp, AllocOp>();
+	addOperations<FreeOp, DimOp, SubscriptionOp>();
+	addOperations<LoadOp, StoreOp>();
+	addOperations<ArrayCopyOp>();
 
 	// Math operations
 	addOperations<AddOp>();
