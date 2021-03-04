@@ -6,20 +6,62 @@ namespace modelica
 	class ArrayDescriptorIterator;
 
 	template<typename T, int Rank>
-	struct ArrayDescriptor
+	class ArrayDescriptor
 	{
+		friend ArrayDescriptorIterator<T, Rank>;
+
+		public:
 		using iterator = ArrayDescriptorIterator<T, Rank>;
 		using const_iterator = ArrayDescriptorIterator<const T, Rank>;
 
-		long* data;
-		long rank;
-		long sizes[3];
+		ArrayDescriptor(T* data, llvm::ArrayRef<long> sizes) : data(data), rank(Rank)
+		{
+			for (size_t i = 0, e = sizes.size(); i < e; ++i)
+				this->sizes[i] = sizes[i];
+		}
+
+		// 1-D case
+		T operator[](unsigned int index)
+		{
+			return get(index);
+		}
+
+		// [] operator can't be overloaded with multiple arguments, so we must
+		// use a dedicated method to access multidimensional arrays.
+		template<typename... Indexes>
+		T get(Indexes... indexes)
+		{
+			llvm::SmallVector<long, 3> positions{ indexes... };
+			assert(positions.size() == Rank && "Wrong amount of indexes");
+
+			unsigned int resultIndex = positions[0];
+
+			for (size_t i = 1; i < positions.size(); i++)
+				resultIndex = resultIndex * sizes[i] + positions[i];
+
+			return data[resultIndex];
+		}
+
+		long getRank()
+		{
+			return rank;
+		}
+
+		long getSize(size_t index)
+		{
+			return sizes[index];
+		}
 
 		iterator begin() { return { *this }; }
 		const_iterator begin() const { return { *this }; }
 
 		iterator end() { return { *this, -1 }; }
 		const_iterator end() const { return { *this, -1 }; }
+
+		private:
+		T* data;
+		long rank;
+		long sizes[Rank];
 	};
 
 	template <typename T, int Rank>
@@ -76,8 +118,6 @@ namespace modelica
 		{
 			return &descriptor->data[offset];
 		}
-
-		//const std::array<long, Rank> &getIndices() { return indices; }
 
 		bool operator==(const ArrayDescriptorIterator &other) const {
 			return other.offset == offset && other.descriptor == descriptor;

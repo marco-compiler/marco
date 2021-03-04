@@ -370,6 +370,29 @@ namespace modelica
 		mlir::ValueRange args();
 	};
 
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::WhileOp
+	//===----------------------------------------------------------------------===//
+
+	class TestOp : public mlir::Op<TestOp, mlir::OpTrait::OneOperand, mlir::OpTrait::ZeroResult>
+	{
+		public:
+		using Op::Op;
+
+		static llvm::StringRef getOperationName() {
+			return "modelica.test";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value val) {
+			state.addOperands(val);
+		}
+
+		mlir::Value val() {
+			return getOperand();
+		}
+	};
+
 	//===----------------------------------------------------------------------===//
 	// Modelica::WhileOp
 	//===----------------------------------------------------------------------===//
@@ -560,7 +583,6 @@ namespace modelica
 		using Adaptor = EqOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);

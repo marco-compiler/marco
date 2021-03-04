@@ -797,6 +797,9 @@ void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 				baseType = baseType.cast<PointerType>().getElementType();
 		}
 
+		if (baseType.isa<mlir::IndexType>())
+			continue;
+
 		if (resultBaseType.isa<IntegerType>())
 		{
 			resultType = type;
@@ -885,12 +888,6 @@ mlir::Value EqOpAdaptor::rhs()
 llvm::StringRef EqOp::getOperationName()
 {
 	return "modelica.eq";
-}
-
-void EqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
-{
-	state.addTypes(builder.getI1Type());
-	state.addOperands({ lhs, rhs });
 }
 
 void EqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)

@@ -12,8 +12,8 @@ Runner::Runner(mlir::ModuleOp module, llvm::ArrayRef<mlir::StringRef> libraries,
 	llvm::InitializeNativeTarget();
 	llvm::InitializeNativeTargetAsmPrinter();
 
-	//libraries.push_back("/opt/llvm/lib/libmlir_runner_utils.so");
-	//libraries.push_back("/opt/llvm/lib/libmlir_c_runner_utils.so");
+	//libs.push_back("/opt/llvm/lib/libmlir_runner_utils.so");
+	//libs.push_back("/opt/llvm/lib/libmlir_c_runner_utils.so");
 	//libraries.push_back("/mnt/d/modelica/cmake-build-gcc-debug/lib/runtime/libruntime-d.so");
 
 	// Create the engine

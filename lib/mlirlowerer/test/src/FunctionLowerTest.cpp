@@ -16,7 +16,10 @@
 using namespace modelica;
 using namespace std;
 
-TEST(FunctionLowerTest, test)	 // NOLINT
+
+
+
+TEST(FunctionLowerTest, test2)	 // NOLINT
 {
 	//llvm::DebugFlag = true;
 

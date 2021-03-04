@@ -15,6 +15,14 @@ namespace modelica
 
 		bool x64 = false;
 
+		unsigned int getBitWidth()
+		{
+			if (x64)
+				return 64;
+
+			return 32;
+		}
+
 		/**
 		 * Get a statically allocated copy of the default options.
 		 *
@@ -156,7 +164,7 @@ namespace modelica
 			constexpr BuiltInType type = typeToFrontendType<T>();
 
 			if constexpr (type == BuiltInType::Boolean)
-				return builder.getBoolAttr(value);
+				return builder.getBooleanAttribute(value);
 			else if constexpr (type == BuiltInType::Integer)
 				return builder.getIntegerAttribute(value);
 			else if constexpr (type == BuiltInType::Float)

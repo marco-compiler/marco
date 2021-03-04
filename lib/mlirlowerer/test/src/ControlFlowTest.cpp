@@ -13,7 +13,7 @@
 using namespace modelica;
 using namespace std;
 
-TEST(IfOp, thenBranchTaken)	 // NOLINT
+TEST(ControlFlow, thenBranchTaken)	 // NOLINT
 {
 	/**
 	 * function main
@@ -31,29 +31,29 @@ TEST(IfOp, thenBranchTaken)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Expression condition = Expression::operation(
 			location,
-			makeType<BuiltInType::Boolean>(),
+			makeType<bool>(),
 			OperationKind::greater,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
+			Expression::reference(location, makeType<int>(), "x"),
+			Expression::constant(location, makeType<int>(), 0));
 
 	Statement thenStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 1));
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::constant(location, makeType<int>(), 1));
 
 	Statement elseStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 2));
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::constant(location, makeType<int>(), 2));
 
 	Statement ifStatement = IfStatement(location, {
 			IfStatement::Block(condition, { thenStatement }),
-			IfStatement::Block(Expression::constant(location, makeType<BuiltInType::Boolean>(), true), { elseStatement })
+			IfStatement::Block(Expression::constant(location, makeType<bool>(), true), { elseStatement })
 	});
 
 	ClassContainer cls(Function(
@@ -67,17 +67,19 @@ TEST(IfOp, thenBranchTaken)	 // NOLINT
 
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
+
+	Runner runner(module);
 
 	int x = 1;
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", x, y);
+	if (failed(runner.run("main", x, Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, 1);
 }
 
-TEST(IfOp, elseBranchTaken)	 // NOLINT
+TEST(ControlFlow, elseBranchTaken)	 // NOLINT
 {
 	/**
 	 * function main
@@ -95,29 +97,29 @@ TEST(IfOp, elseBranchTaken)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Expression condition = Expression::operation(
 			location,
-			makeType<BuiltInType::Boolean>(),
+			makeType<bool>(),
 			OperationKind::greater,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
+			Expression::reference(location, makeType<int>(), "x"),
+			Expression::constant(location, makeType<int>(), 0));
 
 	Statement thenStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 1));
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::constant(location, makeType<int>(), 1));
 
 	Statement elseStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 2));
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::constant(location, makeType<int>(), 2));
 
 	Statement ifStatement = IfStatement(location, {
 			IfStatement::Block(condition, { thenStatement }),
-			IfStatement::Block(Expression::constant(location, makeType<BuiltInType::Boolean>(), true), { elseStatement })
+			IfStatement::Block(Expression::constant(location, makeType<bool>(), true), { elseStatement })
 	});
 
 	ClassContainer cls(Function(
@@ -132,16 +134,18 @@ TEST(IfOp, elseBranchTaken)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	int x = -1;
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", x, y);
+	if (failed(runner.run("main", x, Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, 2);
 }
 
-TEST(IfOp, elseIfBranchTaken)	 // NOLINT
+TEST(ControlFlow, elseIfBranchTaken)	 // NOLINT
 {
 	/**
 	 * function main
@@ -161,42 +165,42 @@ TEST(IfOp, elseIfBranchTaken)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Expression ifCondition = Expression::operation(
 			location,
-			makeType<BuiltInType::Boolean>(),
+			makeType<bool>(),
 			OperationKind::equal,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
+			Expression::reference(location, makeType<int>(), "x"),
+			Expression::constant(location, makeType<int>(), 0));
 
 	Statement thenStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 1));
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::constant(location, makeType<int>(), 1));
 
 	Expression elseIfCondition = Expression::operation(
 			location,
-			makeType<BuiltInType::Boolean>(),
+			makeType<bool>(),
 			OperationKind::greater,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
+			Expression::reference(location, makeType<int>(), "x"),
+			Expression::constant(location, makeType<int>(), 0));
 
 	Statement elseIfStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 2));
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::constant(location, makeType<int>(), 2));
 
 	Statement elseStatement = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 3));
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::constant(location, makeType<int>(), 3));
 
 	Statement ifStatement = IfStatement(location, {
 			IfStatement::Block(ifCondition, { thenStatement }),
 			IfStatement::Block(elseIfCondition, { elseIfStatement }),
-			IfStatement::Block(Expression::constant(location, makeType<BuiltInType::Boolean>(), true), { elseStatement })
+			IfStatement::Block(Expression::constant(location, makeType<bool>(), true), { elseStatement })
 	});
 
 	ClassContainer cls(Function(
@@ -211,15 +215,18 @@ TEST(IfOp, elseIfBranchTaken)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	int x = 1;
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", x, y);
+	if (failed(runner.run("main", x, Runner::result(y))))
+		FAIL();
+
 	EXPECT_EQ(y, 2);
 }
 
-TEST(ForOp, validLoop)	 // NOLINT
+TEST(ControlFlow, forLoop)	 // NOLINT
 {
 	/**
 	 * function main
@@ -236,27 +243,27 @@ TEST(ForOp, validLoop)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement forAssignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "i"))
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::operation(location, makeType<int>(), OperationKind::add,
+														Expression::reference(location, makeType<int>(), "y"),
+														Expression::reference(location, makeType<int>(), "i"))
 			);
 
 	Statement forStatement = ForStatement(
 			location,
 			Induction(
 					"i",
-					Expression::constant(location, makeType<BuiltInType::Integer>(), 1),
-					Expression::reference(location, makeType<BuiltInType::Integer>(), "x")),
+					Expression::constant(location, makeType<int>(), 1),
+					Expression::reference(location, makeType<int>(), "x")),
 			forAssignment);
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, Expression::reference(location, makeType<BuiltInType::Integer>(), "y"), Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+			AssignmentStatement(location, Expression::reference(location, makeType<int>(), "y"), Expression::constant(location, makeType<int>(), 0)),
 			forStatement
 	});
 
@@ -265,23 +272,37 @@ TEST(ForOp, validLoop)	 // NOLINT
 			{ xMember, yMember },
 			algorithm));
 
+	BreakRemover breakRemover;
+	breakRemover.fix(cls);
+
+	ReturnRemover returnRemover;
+	returnRemover.fix(cls);
+
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
+	module.dump();
+	llvm::DebugFlag = true;
+
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
+
+	module.dump();
+	llvm::DebugFlag = false;
+
+	Runner runner(module);
 
 	int x = 10;
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", x, y);
+	if (failed(runner.run("main", x, Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, 45);
 }
 
-TEST(ForOp, notExecutedLoop)	 // NOLINT
+TEST(ControlFlow, forNotExecuted)	 // NOLINT
 {
 	/**
 	 * function main
@@ -298,27 +319,27 @@ TEST(ForOp, notExecutedLoop)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement forAssignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "i"))
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::operation(location, makeType<int>(), OperationKind::add,
+														Expression::reference(location, makeType<int>(), "y"),
+														Expression::reference(location, makeType<int>(), "i"))
 	);
 
 	Statement forStatement = ForStatement(
 			location,
 			Induction(
 					"i",
-					Expression::constant(location, makeType<BuiltInType::Integer>(), 1),
-					Expression::reference(location, makeType<BuiltInType::Integer>(), "x")),
+					Expression::constant(location, makeType<int>(), 1),
+					Expression::reference(location, makeType<int>(), "x")),
 			forAssignment);
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, Expression::reference(location, makeType<BuiltInType::Integer>(), "y"), Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
+			AssignmentStatement(location, Expression::reference(location, makeType<int>(), "y"), Expression::constant(location, makeType<int>(), 1)),
 			forStatement
 	});
 
@@ -327,6 +348,12 @@ TEST(ForOp, notExecutedLoop)	 // NOLINT
 			{ xMember, yMember },
 			algorithm));
 
+	BreakRemover breakRemover;
+	breakRemover.fix(cls);
+
+	ReturnRemover returnRemover;
+	returnRemover.fix(cls);
+
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
@@ -334,16 +361,64 @@ TEST(ForOp, notExecutedLoop)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	int x = 1;
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", x, y);
+	if (failed(runner.run("main", x, Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, 1);
 }
 
-TEST(WhileOp, validLoop)	 // NOLINT
+TEST(FunctionLowerTest, test)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   protected
+	 *   Integer[3] x;
+	 *
+	 *   algorithm
+	 *     z := x + y;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::none));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::operation(location, makeType<BuiltInType::Integer>(3), OperationKind::subscription,
+														Expression::reference(location, makeType<int>(3), "x"),
+														Expression::constant(location, makeType<int>(), 1)),
+			Expression::constant(location, makeType<int>(), 23));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember},
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	module.dump();
+	llvm::DebugFlag = true;
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	module.dump();
+	llvm::DebugFlag = false;
+
+	Runner runner(module);
+
+	if (failed(runner.run("main")))
+		FAIL();
+}
+
+TEST(ControlFlow, whileLoop)	 // NOLINT
 {
 	/**
 	 * function main
@@ -365,24 +440,24 @@ TEST(WhileOp, validLoop)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Member iMember(location, "i", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::none));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member iMember(location, "i", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::none));
 
-	Expression xRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "x");
-	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
-	Expression iRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "i");
+	Expression xRef = Expression::reference(location, makeType<int>(), "x");
+	Expression yRef = Expression::reference(location, makeType<int>(), "y");
+	Expression iRef = Expression::reference(location, makeType<int>(), "i");
 
-	Expression condition = Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::less, iRef, xRef);
+	Expression condition = Expression::operation(location, makeType<bool>(), OperationKind::less, iRef, xRef);
 
 	Statement whileStatement = WhileStatement(location, condition, {
-			AssignmentStatement(location, yRef, Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add, yRef, xRef)),
-			AssignmentStatement(location, iRef, Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add, iRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)))
+			AssignmentStatement(location, yRef, Expression::operation(location, makeType<int>(), OperationKind::add, yRef, xRef)),
+			AssignmentStatement(location, iRef, Expression::operation(location, makeType<int>(), OperationKind::add, iRef, Expression::constant(location, makeType<int>(), 1)))
 	});
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, iRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+			AssignmentStatement(location, iRef, Expression::constant(location, makeType<int>(), 0)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
 			whileStatement
 	});
 
@@ -404,16 +479,18 @@ TEST(WhileOp, validLoop)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	int x = 10;
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", x, y);
+	if (failed(runner.run("main", x, Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, 100);
 }
 
-TEST(WhileOp, notExecutedLoop)	 // NOLINT
+TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 {
 	/**
 	 * function main
@@ -430,17 +507,17 @@ TEST(WhileOp, notExecutedLoop)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::constant(location, makeType<BuiltInType::Boolean>(), false);
-	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::constant(location, makeType<bool>(), false);
+	Expression yRef = Expression::reference(location, makeType<int>(), "y");
 
 	Statement whileStatement = WhileStatement(location, condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
 			BreakStatement(location)
 	});
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
 			whileStatement
 	});
 
@@ -462,15 +539,17 @@ TEST(WhileOp, notExecutedLoop)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", y);
+	if (failed(runner.run("main", Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, 1);
 }
 
-TEST(BreakOp, nestedWhile)	 // NOLINT
+TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 {
 	/**
 	 * function main
@@ -490,12 +569,12 @@ TEST(BreakOp, nestedWhile)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::constant(location, makeType<BuiltInType::Boolean>(), true);
-	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::constant(location, makeType<bool>(), true);
+	Expression yRef = Expression::reference(location, makeType<int>(), "y");
 
 	Statement innerWhile = WhileStatement(location, condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
 			BreakStatement(location)
 	});
 
@@ -505,7 +584,7 @@ TEST(BreakOp, nestedWhile)	 // NOLINT
 	});
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
 			outerWhile
 	});
 
@@ -527,15 +606,17 @@ TEST(BreakOp, nestedWhile)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", y);
+	if (failed(runner.run("main", Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, 1);
 }
 
-TEST(BreakOp, breakAsLastOpInWhile)	 // NOLINT
+TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 {
 	/**
 	 * function main
@@ -552,17 +633,17 @@ TEST(BreakOp, breakAsLastOpInWhile)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::constant(location, makeType<BuiltInType::Boolean>(), true);
-	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression condition = Expression::constant(location, makeType<bool>(), true);
+	Expression yRef = Expression::reference(location, makeType<int>(), "y");
 
 	Statement whileStatement = WhileStatement(location, condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
 			BreakStatement(location)
 	});
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
 			whileStatement
 	});
 
@@ -584,15 +665,17 @@ TEST(BreakOp, breakAsLastOpInWhile)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", y);
+	if (failed(runner.run("main", Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, 1);
 }
 
-TEST(BreakOp, breakNestedInWhile)	 // NOLINT
+TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 {
 	/**
 	 * function main
@@ -612,33 +695,33 @@ TEST(BreakOp, breakNestedInWhile)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression yRef = Expression::reference(location, makeType<int>(), "y");
 
 	Expression condition = Expression::operation(
 			location,
-			makeType<BuiltInType::Boolean>(),
+			makeType<bool>(),
 			OperationKind::equal,
 			yRef,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
+			Expression::constant(location, makeType<int>(), 0));
 
 	Statement ifStatement = IfStatement(location, IfStatement::Block(condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
 			BreakStatement(location)
 	}));
 
 	Statement whileStatement = WhileStatement(
 			location,
-			Expression::constant(location, makeType<BuiltInType::Boolean>(), true),
+			Expression::constant(location, makeType<bool>(), true),
 			{
 					ifStatement,
-					AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0))
+					AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0))
 			});
 
 	Algorithm algorithm = Algorithm(
 			location,
 			{
-					AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+					AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
 					whileStatement
 			});
 
@@ -660,15 +743,17 @@ TEST(BreakOp, breakNestedInWhile)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", y);
+	if (failed(runner.run("main", Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, 1);
 }
 
-TEST(BreakOp, breakAsLastOpInFor)	 // NOLINT
+TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 {
 	/**
 	 * function main
@@ -685,24 +770,24 @@ TEST(BreakOp, breakAsLastOpInFor)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement forAssignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 1)
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::constant(location, makeType<int>(), 1)
 	);
 
 	Statement forStatement = ForStatement(
 			location,
 			Induction(
 					"i",
-					Expression::constant(location, makeType<BuiltInType::Integer>(), 1),
-					Expression::constant(location, makeType<BuiltInType::Integer>(), 10)),
+					Expression::constant(location, makeType<int>(), 1),
+					Expression::constant(location, makeType<int>(), 10)),
 			forAssignment);
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, Expression::reference(location, makeType<BuiltInType::Integer>(), "y"), Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+			AssignmentStatement(location, Expression::reference(location, makeType<int>(), "y"), Expression::constant(location, makeType<int>(), 0)),
 			forStatement
 	});
 
@@ -724,15 +809,17 @@ TEST(BreakOp, breakAsLastOpInFor)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", y);
+	if (failed(runner.run("main", Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, 1);
 }
 
-TEST(BreakOp, breakNestedInFor)	 // NOLINT
+TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 {
 	/**
 	 * function main
@@ -752,18 +839,18 @@ TEST(BreakOp, breakNestedInFor)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression yRef = Expression::reference(location, makeType<int>(), "y");
 
 	Expression condition = Expression::operation(
 			location,
-			makeType<BuiltInType::Boolean>(),
+			makeType<bool>(),
 			OperationKind::equal,
 			yRef,
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 0));
+			Expression::constant(location, makeType<int>(), 0));
 
 	Statement ifStatement = IfStatement(location, IfStatement::Block(condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
 			BreakStatement(location)
 	}));
 
@@ -771,15 +858,15 @@ TEST(BreakOp, breakNestedInFor)	 // NOLINT
 			location,
 			Induction(
 					"i",
-					Expression::constant(location, makeType<BuiltInType::Integer>(), 1),
-					Expression::constant(location, makeType<BuiltInType::Integer>(), 10)),
+					Expression::constant(location, makeType<int>(), 1),
+					Expression::constant(location, makeType<int>(), 10)),
 			{
 					ifStatement,
-					AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0))
+					AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0))
 			});
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
 			forStatement
 	});
 
@@ -801,15 +888,17 @@ TEST(BreakOp, breakNestedInFor)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", y);
+	if (failed(runner.run("main", Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, 1);
 }
 
-TEST(ReturnOp, earlyReturn)	 // NOLINT
+TEST(ControlFlow, earlyReturn)	 // NOLINT
 {
 	/**
 	 * function main
@@ -826,14 +915,15 @@ TEST(ReturnOp, earlyReturn)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression yRef = Expression::reference(location, makeType<BuiltInType::Integer>(), "y");
-	Statement ifStatement = IfStatement(location, IfStatement::Block(Expression::constant(location, makeType<BuiltInType::Boolean>(), true), { ReturnStatement(location) }));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Expression yRef = Expression::reference(location, makeType<int>(), "y");
+	Statement ifStatement = IfStatement(location, IfStatement::Block(Expression::constant(location, makeType<bool>(), true), { ReturnStatement(location) }));
 
 	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
 			ifStatement,
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
 	});
 
 	ClassContainer cls(Function(
@@ -854,10 +944,12 @@ TEST(ReturnOp, earlyReturn)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", y);
+	if (failed(runner.run("main", Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, 1);
 }

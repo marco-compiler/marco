@@ -17,29 +17,39 @@ namespace modelica
 			addConversion([&](RealType type) { return convertRealType(type); });
 			addConversion([&](PointerType type) { return convertPointerType(type); });
 
-			// FIXME: https://reviews.llvm.org/D82831 introduced an automatic
-			// materialization of conversion around function calls that is not working
-			// well with modelica lowering to llvm (incorrect llvm.mlir.cast are inserted).
-			// Workaround until better analysis: register a handler that does not insert
-			// any conversions.
+			/*
 			addSourceMaterialization(
-					[&](mlir::OpBuilder &builder, mlir::Type resultType,
-							mlir::ValueRange inputs,
-							mlir::Location loc) -> llvm::Optional<mlir::Value> {
+					[&](mlir::OpBuilder &builder, BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
 						if (inputs.size() != 1)
 							return llvm::None;
+
+						if (inputs[0].getType().isa<mlir::IntegerType>() && inputs[0].getType().getIntOrFloatBitWidth() == 1)
+						{
+							inputs[0].setType(resultType);
+							return inputs[0];
+						}
+
+						return llvm::None;
+			});
+			 */
+
+			/*
+			addTargetMaterialization(
+					[&](mlir::OpBuilder &builder, mlir::Type resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+						if (inputs.size() != 1)
+							return llvm::None;
+
 						return inputs[0];
 					});
 
-			// Similar FIXME workaround here
-			addTargetMaterialization(
-					[&](mlir::OpBuilder &builder, mlir::Type resultType,
-							mlir::ValueRange inputs,
-							mlir::Location loc) -> llvm::Optional<mlir::Value> {
+			addSourceMaterialization(
+					[&](mlir::OpBuilder &builder, mlir::Type resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
 						if (inputs.size() != 1)
 							return llvm::None;
+
 						return inputs[0];
 					});
+					*/
 		}
 
 		[[nodiscard]] mlir::Type indexType();

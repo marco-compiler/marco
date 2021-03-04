@@ -3,6 +3,7 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
 #include <modelica/frontend/Expression.hpp>
+#include <modelica/mlirlowerer/CRunnerUtils.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
@@ -10,127 +11,111 @@
 using namespace modelica;
 using namespace std;
 
-TEST(NegateOp, negateScalar)	 // NOLINT
+TEST(Logic, negateScalar)	 // NOLINT
 {
 	/**
 	 * function main
 	 *   input Boolean x;
 	 *   output Boolean y;
+	 *
 	 *   algorithm
 	 *     y := not x;
 	 * end main
 	 */
 
-	/*
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "y"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::negate,
-														Expression::reference(location, makeType<BuiltInType::Boolean>(), "x")));
+			Expression::reference(location, makeType<bool>(), "y"),
+			Expression::operation(location, makeType<bool>(), OperationKind::negate,
+														Expression::reference(location, makeType<bool>(), "x")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember },
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
-
-	module.dump();
 
 	if (failed(convertToLLVMDialect(&context, module)))
 			FAIL();
 
-	module.dump();
+	Runner runner(module);
 
-	Runner runner(&context, module);
+	array<bool, 2> x = { true, false };
+	array<bool, 2> y = { true, false };
 
-	for (bool x : { true, false })
+	for (const auto& [x, y] : llvm::zip(x, y))
 	{
-		bool y = x;
-		runner.run("main", x, y);
+		if (failed(runner.run("main", x, Runner::result(y))))
+			FAIL();
+
 		EXPECT_EQ(y, !x);
 	}
-	 */
 }
 
-TEST(NegateOp, negateVector)	 // NOLINT
+TEST(Logic, negateVector)	 // NOLINT
 {
 	/**
 	 * function main
 	 *   input Boolean[2] x;
 	 *   output Boolean[2] y;
+	 *
 	 *   algorithm
 	 *     y := not x;
 	 * end main
 	 */
 
-	/*
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Boolean>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Boolean>(2), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<bool>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<bool>(2), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(2), "y"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(2), OperationKind::negate,
-														Expression::reference(location, makeType<BuiltInType::Boolean>(2), "x")));
+			Expression::reference(location, makeType<bool>(2), "y"),
+			Expression::operation(location, makeType<bool>(2), OperationKind::negate,
+														Expression::reference(location, makeType<bool>(2), "x")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember },
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context, false);
+	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
-
-	module.dump();
 
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	module.dump();
+	Runner runner(module);
 
-	Runner runner(&context, module);
-
-	/*
-	array<bool, 2> x = { false, true };
+	array<bool, 2> x = { true, false };
 	array<bool, 2> y = { true, false };
 
-	bool* xPtr = x.data();
-	bool* yPtr = y.data();
-	 */
+	ArrayDescriptor<bool, 1> xPtr(x.data(), { 2 });
+	ArrayDescriptor<bool, 1> yPtr(y.data(), { 2 });
 
-	/*
-	bool x[2] = { true, false };
-	bool y[2] = { true, false };
+	if (failed(runner.run("main", xPtr, Runner::result(yPtr))))
+		FAIL();
 
-	bool *xPtr = &x[0];
-	bool *yPtr = &y[0];
-
-	runner.run("main", xPtr, yPtr);
-
-	EXPECT_EQ(y[0], false);
-	EXPECT_EQ(y[1], true);
-	 */
-
-	//for (const auto& pair : llvm::zip(x, y))
-	//	EXPECT_EQ(get<1>(pair), !get<0>(pair));
+	for (const auto& [x, y] : llvm::zip(xPtr, yPtr))
+		EXPECT_EQ(y, !x);
 }
 
-TEST(AndOp, scalar)	 // NOLINT
+TEST(Logic, andScalars)	 // NOLINT
 {
 	/**
 	 * function main
 	 *   input Boolean x;
 	 *   input Boolean y;
 	 *   output Boolean z;
+	 *
 	 *   algorithm
 	 *     z := x and y;
 	 * end main
@@ -138,16 +123,16 @@ TEST(AndOp, scalar)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::land,
-														Expression::reference(location, makeType<BuiltInType::Boolean>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Boolean>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::land,
+														Expression::reference(location, makeType<bool>(), "x"),
+														Expression::reference(location, makeType<bool>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -162,29 +147,27 @@ TEST(AndOp, scalar)	 // NOLINT
 
 	Runner runner(module);
 
-	array<bool, 4> xData = { false, false, true, true };
-	array<bool, 4> yData = { false, true, false, true };
-	array<bool, 4> zData = { true, true, true, false };
+	array<bool, 4> x = { false, false, true, true };
+	array<bool, 4> y = { false, true, false, true };
+	array<bool, 4> z = { true, true, true, false };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		bool x = get<0>(tuple);
-		bool y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x && y);
 	}
 }
 
-TEST(OrOp, scalar)	 // NOLINT
+TEST(Logic, orScalars)	 // NOLINT
 {
 	/**
 	 * function main
 	 *   input Boolean x;
 	 *   input Boolean y;
 	 *   output Boolean z;
+	 *
 	 *   algorithm
 	 *     z := x or y;
 	 * end main
@@ -192,16 +175,16 @@ TEST(OrOp, scalar)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::lor,
-														Expression::reference(location, makeType<BuiltInType::Boolean>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Boolean>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::lor,
+														Expression::reference(location, makeType<bool>(), "x"),
+														Expression::reference(location, makeType<bool>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -216,17 +199,14 @@ TEST(OrOp, scalar)	 // NOLINT
 
 	Runner runner(module);
 
-	array<bool, 4> xData = { false, false, true, true };
-	array<bool, 4> yData = { false, true, false, true };
-	array<bool, 4> zData = { true, false, false, false };
+	array<bool, 4> x = { false, false, true, true };
+	array<bool, 4> y = { false, true, false, true };
+	array<bool, 4> z = { true, false, false, false };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		bool x = get<0>(tuple);
-		bool y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x || y);
 	}

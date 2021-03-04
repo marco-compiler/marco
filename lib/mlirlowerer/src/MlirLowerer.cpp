@@ -98,7 +98,7 @@ Reference Reference::memref(ModelicaBuilder* builder, mlir::Value value, bool in
 }
 
 MlirLowerer::MlirLowerer(mlir::MLIRContext& context, ModelicaOptions options)
-		: builder(&context), options(move(options))
+		: builder(&context, options.getBitWidth()), options(move(options))
 {
 	context.loadDialect<ModelicaDialect>();
 	context.loadDialect<mlir::StandardOpsDialect>();
@@ -202,22 +202,6 @@ mlir::Operation* MlirLowerer::lower(const modelica::Class& cls)
 	return nullptr;
 }
 
-/**
- * Check whether a variable with the given type can be allocated on the stack
- * or must be allocated on the heap.
- *
- * @param type
- * @return
- */
-bool canBeAllocatedOnStack(mlir::Type type)
-{
-	if (!type.isa<mlir::MemRefType>())
-		return true;
-
-	auto memRef = type.cast<mlir::MemRefType>();
-	return memRef.hasStaticShape();
-}
-
 mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 {
 	// Create a scope in the symbol table to hold variable declarations.
@@ -294,6 +278,9 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 
 	// Lower the statements
 	lower(foo.getAlgorithms()[0]);
+
+	//mlir::Value val = builder.create<mlir::ConstantOp>(location, builder.getBooleanType(), builder.getBooleanAttribute(true));
+	//builder.create<TestOp>(location, val);
 
 	// Return statement
 	std::vector<mlir::Value> results;
@@ -539,9 +526,9 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 	auto location = loc(statement.getLocation());
 
 	// Variable to be set when calling "break"
-	mlir::Value breakCondition = builder.create<AllocaOp>(location, mlir::MemRefType::get({}, builder.getI1Type()));
-	mlir::Value falseValue = builder.create<mlir::ConstantOp>(location, builder.getBoolAttr(false));
-	builder.create<mlir::StoreOp>(location, falseValue, breakCondition);
+	mlir::Value breakCondition = builder.create<AllocaOp>(location, builder.getBooleanType());
+	mlir::Value falseValue = builder.create<mlir::ConstantOp>(location, builder.getBooleanAttribute(false));
+	builder.create<StoreOp>(location, falseValue, breakCondition);
 	symbolTable.insert(statement.getBreakCheckName(), Reference::memref(&builder, breakCondition, true));
 
 	// Variable to be set when calling "return"
@@ -564,7 +551,8 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 		mlir::Value upperBound = *lower<modelica::Expression>(induction.getEnd())[0];
 		upperBound = builder.create<CastOp>(lowerBound.getLoc(), upperBound, builder.getIndexType());
 
-		mlir::Value condition = builder.create<mlir::CmpIOp>(location, mlir::CmpIPredicate::slt, forOp.condition().front().getArgument(0), upperBound);
+		//mlir::Value condition = builder.create<mlir::CmpIOp>(location, mlir::CmpIPredicate::slt, forOp.condition().front().getArgument(0), upperBound);
+		mlir::Value condition = builder.create<LtOp>(location, builder.getBooleanType(), forOp.condition().front().getArgument(0), upperBound);
 		builder.create<ConditionOp>(location, condition, *symbolTable.lookup(induction.getName()));
 	}
 
@@ -588,7 +576,7 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 
 		builder.setInsertionPointToStart(&forOp.step().front());
 
-		mlir::Value step = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(1));
+		mlir::Value step = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(1));
 		mlir::Value incremented = builder.create<mlir::AddIOp>(location, forOp.step().front().getArgument(0), step);
 		builder.create<YieldOp>(location, incremented);
 	}
@@ -601,9 +589,9 @@ void MlirLowerer::lower(const modelica::WhileStatement& statement)
 	auto location = loc(statement.getLocation());
 
 	// Variable to be set when calling "break"
-	mlir::Value breakCondition = builder.create<AllocaOp>(location, mlir::MemRefType::get({}, builder.getI1Type()));
-	mlir::Value falseValue = builder.create<mlir::ConstantOp>(location, builder.getBoolAttr(false));
-	builder.create<mlir::StoreOp>(location, falseValue, breakCondition);
+	mlir::Value breakCondition = builder.create<AllocaOp>(location, builder.getBooleanType());
+	mlir::Value falseValue = builder.create<mlir::ConstantOp>(location, builder.getBooleanAttribute(false));
+	builder.create<StoreOp>(location, falseValue, breakCondition);
 	symbolTable.insert(statement.getBreakCheckName(), Reference::memref(&builder, breakCondition, true));
 
 	// Variable to be set when calling "return"
@@ -647,17 +635,17 @@ void MlirLowerer::lower(const modelica::WhenStatement& statement)
 void MlirLowerer::lower(const modelica::BreakStatement& statement)
 {
 	auto location = loc(statement.getLocation());
-	mlir::Value trueValue = builder.create<mlir::ConstantOp>(location, builder.getBoolAttr(true));
+	mlir::Value trueValue = builder.create<mlir::ConstantOp>(location, builder.getBooleanAttribute(true));
 	mlir::Value breakCondition = symbolTable.lookup(statement.getBreakCheckName()).getReference();
-	builder.create<mlir::StoreOp>(location, trueValue, breakCondition);
+	builder.create<StoreOp>(location, trueValue, breakCondition);
 }
 
 void MlirLowerer::lower(const modelica::ReturnStatement& statement)
 {
 	auto location = loc(statement.getLocation());
-	mlir::Value trueValue = builder.create<mlir::ConstantOp>(location, builder.getBoolAttr(true));
+	mlir::Value trueValue = builder.create<mlir::ConstantOp>(location, builder.getBooleanAttribute(true));
 	mlir::Value returnCondition = symbolTable.lookup(statement.getReturnCheckName()).getReference();
-	builder.create<mlir::StoreOp>(location, trueValue, returnCondition);
+	builder.create<StoreOp>(location, trueValue, returnCondition);
 }
 
 template<>
@@ -802,14 +790,6 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		mlir::Value lhs = *lower<modelica::Expression>(operation[0])[0];
 		mlir::Value rhs = *lower<modelica::Expression>(operation[1])[0];
 
-		unsigned int lhsBitWidth = lhs.getType().getIntOrFloatBitWidth();
-		unsigned int rhsBitWidth = lhs.getType().getIntOrFloatBitWidth();
-
-		if (lhsBitWidth < rhsBitWidth)
-			lhs = builder.create<mlir::SignExtendIOp>(location, lhs, rhs.getType());
-		else if (lhsBitWidth > rhsBitWidth)
-			rhs = builder.create<mlir::SignExtendIOp>(location, rhs, lhs.getType());
-
 		mlir::Value result = builder.create<mlir::AndOp>(location, lhs, rhs);
 		result = builder.create<CastOp>(result.getLoc(), result, resultType);
 		return { Reference::ssa(&builder, result) };
@@ -820,14 +800,6 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		mlir::Value lhs = *lower<modelica::Expression>(operation[0])[0];
 		mlir::Value rhs = *lower<modelica::Expression>(operation[1])[0];
 
-		unsigned int lhsBitWidth = lhs.getType().getIntOrFloatBitWidth();
-		unsigned int rhsBitWidth = lhs.getType().getIntOrFloatBitWidth();
-
-		if (lhsBitWidth < rhsBitWidth)
-			lhs = builder.create<mlir::SignExtendIOp>(location, lhs, rhs.getType());
-		else if (lhsBitWidth > rhsBitWidth)
-			rhs = builder.create<mlir::SignExtendIOp>(location, rhs, lhs.getType());
-
 		mlir::Value result = builder.create<mlir::OrOp>(location, lhs, rhs);
 		result = builder.create<CastOp>(result.getLoc(), result, resultType);
 		return { Reference::ssa(&builder, result) };
@@ -835,22 +807,8 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 
 	if (kind == OperationKind::subscription)
 	{
-		// Base pointer
-		auto memref = lower<modelica::Expression>(operation[0])[0];
-		mlir::Type type = memref.getReference().getType();
-		assert(type.isa<mlir::MemRefType>());
-		auto memrefType = type.cast<mlir::MemRefType>();
-
-		// Create the subview
-		mlir::Value zeroValue = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(0));
-		mlir::Value oneValue = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(1));
-
-		llvm::SmallVector<long, 3> resultIndexes;
-
-		llvm::SmallVector<long, 3> staticOffsets;
-		llvm::SmallVector<mlir::Value, 3> dynamicOffsets;
-		llvm::SmallVector<long, 3> staticSizes;
-		llvm::SmallVector<long, 3> staticStrides;
+		auto buffer = *lower<modelica::Expression>(operation[0])[0];
+		assert(buffer.getType().isa<PointerType>());
 
 		llvm::SmallVector<mlir::Value, 3> indexes;
 
@@ -858,51 +816,11 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		{
 			auto subscript = *lower<modelica::Expression>(operation[i])[0];
 			mlir::Value index = builder.create<CastOp>(subscript.getLoc(), subscript, builder.getIndexType());
-
-			staticOffsets.push_back(mlir::ShapedType::kDynamicStrideOrOffset);
-			dynamicOffsets.push_back(index);
-
-			// Set the dimension to 1 in order to get a slice along that dimension
-			staticSizes.push_back(1);
-
-			// The elements are supposed to be spaced by 1 element size in each dimension
-			staticStrides.push_back(1);
+			indexes.push_back(index);
 		}
 
-		for (long i = staticSizes.size(); i < memrefType.getRank(); i++)
-		{
-			// Start at the beginning of that dimension
-			staticOffsets.push_back(0);
-
-			// The remaining sizes will be as big as the original ones
-			long size = memrefType.getDimSize(i);
-			staticSizes.push_back(size);
-			resultIndexes.push_back(size);
-
-			// Again, strides supposed to be 1
-			staticStrides.push_back(1);
-		}
-
-		llvm::SmallVector<long, 3> mapStrides;
-
-		for (size_t i = 0; i < resultIndexes.size(); i++)
-			mapStrides.push_back(1);
-
-		auto map = makeStridedLinearLayoutMap(
-				mapStrides,
-				dynamicOffsets.empty() ? 0 : mlir::ShapedType::kDynamicStrideOrOffset,
-				builder.getContext());
-
-		/*
-		mlir::Value sourceView = builder.create<SubViewOp>(
-				location,
-				MemRefType::get(resultIndexes, memrefType.getElementType(), map),
-				memref.getReference(),
-				staticOffsets, staticSizes, staticStrides,
-				dynamicOffsets, ValueRange(), ValueRange());
-				*/
-
-		return { Reference::memref(&builder, nullptr, true) };
+		mlir::Value result = builder.create<SubscriptionOp>(location, buffer, indexes);
+		return { Reference::memref(&builder, result, true) };
 	}
 
 	if (kind == OperationKind::memberLookup)

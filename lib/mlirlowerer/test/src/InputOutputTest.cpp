@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <mlir/ExecutionEngine/CRunnerUtils.h>
 #include <mlir/IR/Dialect.h>
+#include <modelica/mlirlowerer/CRunnerUtils.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
@@ -22,13 +23,13 @@ TEST(Input, booleanScalar)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "y"),
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "x"));
+			Expression::reference(location, makeType<bool>(), "y"),
+			Expression::reference(location, makeType<bool>(), "x"));
 
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
@@ -39,11 +40,13 @@ TEST(Input, booleanScalar)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	bool x = true;
 	bool y = false;
 
-	Runner runner(module);
-	runner.run("main", x, y);
+	if (failed(runner.run("main", x, Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, x);
 }
@@ -62,13 +65,13 @@ TEST(Input, integerScalar)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "x"));
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::reference(location, makeType<int>(), "x"));
 
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
@@ -79,11 +82,13 @@ TEST(Input, integerScalar)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	int x = 57;
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("main", x, y);
+	if (failed(runner.run("main", x, Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, x);
 }
@@ -102,13 +107,13 @@ TEST(Input, floatScalar)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Float>(), "y"),
-			Expression::reference(location, makeType<BuiltInType::Float>(), "x"));
+			Expression::reference(location, makeType<float>(), "y"),
+			Expression::reference(location, makeType<float>(), "x"));
 
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
@@ -119,11 +124,13 @@ TEST(Input, floatScalar)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	float x = 57;
 	float y = 0;
 
-	Runner runner(module);
-	runner.run("main", x, y);
+	if (failed(runner.run("main", x, Runner::result(y))))
+		FAIL();
 
 	EXPECT_FLOAT_EQ(y, x);
 }
@@ -134,6 +141,7 @@ TEST(Input, integerArray)	 // NOLINT
 	 * function main
 	 *   input Integer x[2];
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := x[1] + x[2];
 	 * end main
@@ -141,19 +149,19 @@ TEST(Input, integerArray)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add,
-														Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
-														Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 1))));
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::operation(location, makeType<int>(), OperationKind::add,
+														Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<int>(), "x"),
+																									Expression::constant(location, makeType<int>(), 0)),
+														Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<int>(), "x"),
+																									Expression::constant(location, makeType<int>(), 1))));
 
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
@@ -161,17 +169,22 @@ TEST(Input, integerArray)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
+	module.dump();
+
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	module.dump();
+
+	Runner runner(module);
+	
 	array<int, 2> x = { 23, 57 };
-	StridedMemRefType<int, 1> xMemRef = { x.data(), x.data(), 0, { 2 }, { 1 } };
-	auto* xPtr = &xMemRef;
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
 
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("_mlir_ciface_main", xPtr, y);
+	if (failed(runner.run("main", xPtr, Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, x[0] + x[1]);
 }
@@ -182,6 +195,7 @@ TEST(Input, integerArrayUnknownSize)	 // NOLINT
 	 * function main
 	 *   input Integer x[:];
 	 *   output Integer y;
+	 *
 	 *   algorithm
 	 *     y := x[1] + x[2];
 	 * end main
@@ -189,19 +203,19 @@ TEST(Input, integerArrayUnknownSize)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add,
-														Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
-														Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 1))));
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::operation(location, makeType<int>(), OperationKind::add,
+														Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<int>(), "x"),
+																									Expression::constant(location, makeType<int>(), 0)),
+														Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<int>(), "x"),
+																									Expression::constant(location, makeType<int>(), 1))));
 
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
@@ -212,14 +226,15 @@ TEST(Input, integerArrayUnknownSize)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	array<int, 5> x = { 23, 57, 10, -23, -10 };
-	StridedMemRefType<int, 1> xMemRef { x.data(), x.data(), 0, { 5 }, { 1 } };
-	auto* xPtr = &xMemRef;
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 5 });
 
 	int y = 0;
 
-	Runner runner(module);
-	runner.run("_mlir_ciface_main", xPtr, y);
+	if (failed(runner.run("main", xPtr, Runner::result(y))))
+		FAIL();
 
 	EXPECT_EQ(y, x[0] + x[1]);
 }
@@ -230,6 +245,7 @@ TEST(Input, floatArray)	 // NOLINT
 	 * function main
 	 *   input Real x[2];
 	 *   output Real y;
+	 *
 	 *   algorithm
 	 *     y := x[1] + x[2];
 	 * end main
@@ -237,19 +253,19 @@ TEST(Input, floatArray)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Float>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<float>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Float>(), "y"),
-			Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::add,
-														Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
-														Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 1))));
+			Expression::reference(location, makeType<float>(), "y"),
+			Expression::operation(location, makeType<float>(), OperationKind::add,
+														Expression::operation(location, makeType<float>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<float>(), "x"),
+																									Expression::constant(location, makeType<int>(), 0)),
+														Expression::operation(location, makeType<float>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<float>(), "x"),
+																									Expression::constant(location, makeType<int>(), 1))));
 
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
@@ -260,13 +276,15 @@ TEST(Input, floatArray)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	array<float, 2> x = { 23.0, 57.0 };
-	StridedMemRefType<float, 1> xMemRef { x.data(), x.data(), 0, { 2 }, { 1 }};
-	auto* xPtr = &xMemRef;
+	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
+
 	float y = 0;
 
-	Runner runner(module);
-	runner.run("_mlir_ciface_main", xPtr, y);
+	if (failed(runner.run("main", xPtr, Runner::result(y))))
+		FAIL();
 
 	EXPECT_FLOAT_EQ(y, 80);
 }
@@ -277,6 +295,7 @@ TEST(Input, floatArrayUnknownSize)	 // NOLINT
 	 * function main
 	 *   input Real x[:];
 	 *   output Real y;
+	 *
 	 *   algorithm
 	 *     y := x[1] + x[2];
 	 * end main
@@ -284,19 +303,19 @@ TEST(Input, floatArrayUnknownSize)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Float>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<float>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Float>(), "y"),
-			Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::add,
-														Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
-														Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 1))));
+			Expression::reference(location, makeType<float>(), "y"),
+			Expression::operation(location, makeType<float>(), OperationKind::add,
+														Expression::operation(location, makeType<float>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<float>(), "x"),
+																									Expression::constant(location, makeType<int>(), 0)),
+														Expression::operation(location, makeType<float>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<float>(), "x"),
+																									Expression::constant(location, makeType<int>(), 1))));
 
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
@@ -307,13 +326,15 @@ TEST(Input, floatArrayUnknownSize)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	array<float, 2> x = { 23.0, 57.0 };
-	StridedMemRefType<float, 1> xMemRef { x.data(), x.data(), 0, { 2 }, { 1 }};
-	auto* xPtr = &xMemRef;
+	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
+
 	float y = 0;
 
-	Runner runner(module);
-	runner.run("_mlir_ciface_main", xPtr, y);
+	if (failed(runner.run("main", xPtr, Runner::result(y))))
+		FAIL();
 
 	EXPECT_FLOAT_EQ(y, 80);
 }
@@ -325,6 +346,7 @@ TEST(Input, integerMatrix)	 // NOLINT
 	 *   input Integer x[2,3];
 	 *   output Integer y;
 	 *   output Integer z;
+	 *
 	 *   algorithm
 	 *     y := x[1][1] + x[1][2] + x[1][3];
 	 *     z := x[2][1] + x[2][2] + x[2][3];
@@ -333,43 +355,43 @@ TEST(Input, integerMatrix)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(2, 3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Member zMember(location, "z", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(2, 3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member zMember(location, "z", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement yAssignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add,
-														Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 0),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
-														Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 0),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
-														Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 0),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 2))));
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::operation(location, makeType<int>(), OperationKind::add,
+														Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<int>(), "x"),
+																									Expression::constant(location, makeType<int>(), 0),
+																									Expression::constant(location, makeType<int>(), 0)),
+														Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<int>(), "x"),
+																									Expression::constant(location, makeType<int>(), 0),
+																									Expression::constant(location, makeType<int>(), 1)),
+														Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<int>(), "x"),
+																									Expression::constant(location, makeType<int>(), 0),
+																									Expression::constant(location, makeType<int>(), 2))));
 
 	Statement zAssignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add,
-														Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 1),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
-														Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 1),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
-														Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-																									Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 1),
-																									Expression::constant(location, makeType<BuiltInType::Integer>(), 2))));
+			Expression::reference(location, makeType<int>(), "z"),
+			Expression::operation(location, makeType<int>(), OperationKind::add,
+														Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<int>(), "x"),
+																									Expression::constant(location, makeType<int>(), 1),
+																									Expression::constant(location, makeType<int>(), 0)),
+														Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<int>(), "x"),
+																									Expression::constant(location, makeType<int>(), 1),
+																									Expression::constant(location, makeType<int>(), 1)),
+														Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																									Expression::reference(location, makeType<int>(), "x"),
+																									Expression::constant(location, makeType<int>(), 1),
+																									Expression::constant(location, makeType<int>(), 2))));
 
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember, zMember }, Algorithm(location, { yAssignment, zAssignment })));
 
@@ -380,16 +402,18 @@ TEST(Input, integerMatrix)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	Runner runner(module);
+
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
-	int* xPtr = x.data();
+	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });
 
 	struct {
 		int y = 0;
 		int z = 0;
 	} result;
 
-	Runner runner(module);
-	runner.run("main", xPtr, result);
+	if (failed(runner.run("main", xPtr, Runner::result(result))))
+		FAIL();
 
 	EXPECT_EQ(result.y, 6);
 	EXPECT_EQ(result.z, 15);
@@ -400,6 +424,7 @@ TEST(Output, integerArray)	 // NOLINT
 	/**
 	 * function main
 	 *   output Integer x[2];
+	 *
 	 *   algorithm
 	 *     x[1] := 23;
 	 *     x[2] := 57;
@@ -408,21 +433,21 @@ TEST(Output, integerArray)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(2), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(2), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment0 = AssignmentStatement(
 			location,
-			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 23));
+			Expression::operation(location, makeType<int>(), OperationKind::subscription,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::constant(location, makeType<int>(), 0)),
+			Expression::constant(location, makeType<int>(), 23));
 
 	Statement assignment1 = AssignmentStatement(
 			location,
-			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 57));
+			Expression::operation(location, makeType<int>(), OperationKind::subscription,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::constant(location, makeType<int>(), 1)),
+			Expression::constant(location, makeType<int>(), 57));
 
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, { assignment0, assignment1 })));
 
@@ -433,14 +458,16 @@ TEST(Output, integerArray)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	array<int, 2> x = { 0, 0 };
-	int* xPtr = x.data();
-
 	Runner runner(module);
-	runner.run("main", xPtr);
 
-	EXPECT_EQ(x[0], 23);
-	EXPECT_EQ(x[1], 57);
+	array<int, 2> x = { 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 2 });
+
+	if (failed(runner.run("main", Runner::result(xPtr))))
+		FAIL();
+
+	EXPECT_EQ(xPtr[0], 23);
+	EXPECT_EQ(xPtr[1], 57);
 }
 
 TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
@@ -448,51 +475,35 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 	/**
 	 * function main
 	 *   input Integer x;
-	 *   output Integer y[x * 2];
+	 *   output Integer y[x + x];
+	 *
 	 *   algorithm
-	 *     for i in 1 : (x * 2)
+	 *     for i in 1 : (x + x)
 	 *       y[i] := i;
 	 * end main
 	 */
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Expression xReference = Expression::reference(location, makeType<BuiltInType::Integer>(), "x");
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(xReference), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Expression xReference = Expression::reference(location, makeType<int>(), "x");
+	Expression ySize = Expression::operation(location, makeType<int>(), OperationKind::add, xReference, xReference);
+	Member yMember(location, "y", makeType<int>(ySize), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement forAssignment = AssignmentStatement(
 			location,
-			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "i")),
-			Expression::reference(location, makeType<BuiltInType::Integer>(), "i"));
+			Expression::operation(location, makeType<int>(), OperationKind::subscription,
+														Expression::reference(location, makeType<int>(), "y"),
+														Expression::reference(location, makeType<int>(), "i")),
+			Expression::reference(location, makeType<int>(), "i"));
 
 	Statement forStatement = ForStatement(
 			location,
 			Induction(
 					"i",
-					Expression::constant(location, makeType<BuiltInType::Integer>(), 1),
-					Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::multiply,
-																Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																Expression::constant(location, makeType<BuiltInType::Integer>(), 2))),
+					Expression::constant(location, makeType<int>(), 1),
+					ySize),
 			forAssignment);
-
-	/*
-	Statement assignment0 = AssignmentStatement(
-			location,
-			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-														Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 23));
-
-	Statement assignment1 = AssignmentStatement(
-			location,
-			Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "y"),
-														Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
-			Expression::constant(location, makeType<BuiltInType::Integer>(), 57));
-			*/
 
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, forStatement)));
 
@@ -500,17 +511,23 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
+	module.dump();
+
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	int x = 2;
-	StridedMemRefType<int, 1> y { nullptr, nullptr, 0, { 1 }, { 1 }};
+	module.dump();
 
 	Runner runner(module);
-	runner.run("main", x, y);
 
-	for (int i = 0; i < y.sizes[0]; i++)
-		EXPECT_EQ(y[i], i);
+	int x = 2;
+	ArrayDescriptor<float, 1> yPtr(nullptr, { 2 });
+
+	if (failed(runner.run("main", x, Runner::result(yPtr))))
+		FAIL();
+
+	for (int i = 0; i < yPtr.getSize(0); i++)
+		EXPECT_EQ(yPtr[i], i);
 }
 
 TEST(Output, floatArray)	 // NOLINT
@@ -518,6 +535,7 @@ TEST(Output, floatArray)	 // NOLINT
 	/**
 	 * function main
 	 *   output Real x[2];
+	 *
 	 *   algorithm
 	 *     x[1] := 23;
 	 *     x[2] := 57;
@@ -526,21 +544,21 @@ TEST(Output, floatArray)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Float>(2), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<float>(2), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment0 = AssignmentStatement(
 			location,
-			Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::subscription,
-														Expression::reference(location, makeType<BuiltInType::Float>(), "x"),
-														Expression::constant(location, makeType<BuiltInType::Integer>(), 0)),
-			Expression::constant(location, makeType<BuiltInType::Float>(), 23.0));
+			Expression::operation(location, makeType<float>(), OperationKind::subscription,
+														Expression::reference(location, makeType<float>(), "x"),
+														Expression::constant(location, makeType<int>(), 0)),
+			Expression::constant(location, makeType<float>(), 23.0));
 
 	Statement assignment1 = AssignmentStatement(
 			location,
-			Expression::operation(location, makeType<BuiltInType::Float>(), OperationKind::subscription,
-														Expression::reference(location, makeType<BuiltInType::Float>(), "x"),
-														Expression::constant(location, makeType<BuiltInType::Integer>(), 1)),
-			Expression::constant(location, makeType<BuiltInType::Float>(), 57.0));
+			Expression::operation(location, makeType<float>(), OperationKind::subscription,
+														Expression::reference(location, makeType<float>(), "x"),
+														Expression::constant(location, makeType<int>(), 1)),
+			Expression::constant(location, makeType<float>(), 57.0));
 
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, { assignment0, assignment1 })));
 
@@ -551,14 +569,16 @@ TEST(Output, floatArray)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	array<float, 2> x = { 0, 0 };
-	float* xPtr = x.data();
-
 	Runner runner(module);
-	runner.run("main", xPtr);
 
-	EXPECT_EQ(x[0], 23.0);
-	EXPECT_EQ(x[1], 57.0);
+	array<float, 2> x = { 0, 0 };
+	ArrayDescriptor<float, 1> xPtr(x.data(), { 2 });
+
+	if (failed(runner.run("main", Runner::result(xPtr))))
+		FAIL();
+
+	EXPECT_FLOAT_EQ(xPtr[0], 23.0);
+	EXPECT_FLOAT_EQ(xPtr[1], 57.0);
 }
 
 TEST(Output, integerMatrix)	 // NOLINT
@@ -566,6 +586,7 @@ TEST(Output, integerMatrix)	 // NOLINT
 	/**
 	 * function main
 	 *   output Integer x[2,3];
+	 *
 	 *   algorithm
 	 *     x[1][1] := 1;
 	 *     x[1][2] := 2;
@@ -578,7 +599,7 @@ TEST(Output, integerMatrix)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(2, 3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(2, 3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	llvm::SmallVector<Statement, 3> assignments;
 
@@ -587,11 +608,11 @@ TEST(Output, integerMatrix)	 // NOLINT
 		{
 			assignments.push_back(AssignmentStatement(
 					location,
-					Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::subscription,
-																Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-																Expression::constant(location, makeType<BuiltInType::Integer>(), i),
-																Expression::constant(location, makeType<BuiltInType::Integer>(), j)),
-					Expression::constant(location, makeType<BuiltInType::Integer>(), i * 3 + j + 1)));
+					Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																Expression::reference(location, makeType<int>(), "x"),
+																Expression::constant(location, makeType<int>(), i),
+																Expression::constant(location, makeType<int>(), j)),
+					Expression::constant(location, makeType<int>(), i * 3 + j + 1)));
 		}
 
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, assignments)));
@@ -603,22 +624,15 @@ TEST(Output, integerMatrix)	 // NOLINT
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
-	array<int, 6> x = { 0, 0, 0, 0, 0, 0 };
-	int* xPtr = x.data();
-
 	Runner runner(module);
-	runner.run("main", xPtr);
 
-	/*
+	array<int, 6> x = { 0, 0, 0, 0, 0, 0 };
+	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });
+
+	if (failed(runner.run("main", Runner::result(xPtr))))
+		FAIL();
+
 	for (int i = 0; i < 2; i++)
 		for (int j = 0; j < 3; j++)
-			EXPECT_EQ(x[i * 3 + j], i * 3 + j + 1);
-	*/
-
-	EXPECT_EQ(x[0], 1);
-	EXPECT_EQ(x[1], 2);
-	EXPECT_EQ(x[2], 3);
-	EXPECT_EQ(x[3], 4);
-	EXPECT_EQ(x[4], 5);
-	EXPECT_EQ(x[5], 6);
+			EXPECT_EQ(xPtr.get(i, j), i * 3 + j + 1);
 }

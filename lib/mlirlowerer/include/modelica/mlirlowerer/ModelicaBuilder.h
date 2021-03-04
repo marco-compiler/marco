@@ -10,16 +10,19 @@ namespace modelica
 	class ModelicaBuilder : public mlir::OpBuilder
 	{
 		public:
-		using mlir::OpBuilder::OpBuilder;
+		ModelicaBuilder(mlir::MLIRContext* context, unsigned int bitWidth);
 
 		BooleanType getBooleanType();
 		IntegerType getIntegerType();
 		RealType getRealType();
 		PointerType getPointerType(bool heap, mlir::Type elementType, const PointerType::Shape& shape = {});
 
-		mlir::IntegerAttr getBooleanAttribute(bool value);
 		mlir::IntegerAttr getIndexAttribute(long value);
+		mlir::IntegerAttr getBooleanAttribute(bool value);
 		mlir::IntegerAttr getIntegerAttribute(long value);
 		mlir::FloatAttr getRealAttribute(double value);
+
+		private:
+		unsigned int bitWidth;
 	};
 }

@@ -9,7 +9,7 @@
 using namespace modelica;
 using namespace std;
 
-TEST(EqOp, integers)	 // NOLINT
+TEST(Comparison, eqIntegers)	 // NOLINT
 {
 	/**
 	 * function main
@@ -24,16 +24,16 @@ TEST(EqOp, integers)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::equal,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::equal,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<int>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -48,23 +48,20 @@ TEST(EqOp, integers)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 2> xData = { 57, 57 };
-	array<int, 2> yData = { 57, 23 };
-	array<bool, 2> zData = { false, true };
+	array<int, 2> x = { 57, 57 };
+	array<int, 2> y = { 57, 23 };
+	array<bool, 2> z = { false, true };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		int y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x == y);
 	}
 }
 
-TEST(EqOp, floats)	 // NOLINT
+TEST(Comparison, eqFloats)	 // NOLINT
 {
 	/**
 	 * function main
@@ -79,16 +76,16 @@ TEST(EqOp, floats)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::equal,
-														Expression::reference(location, makeType<BuiltInType::Float>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::equal,
+														Expression::reference(location, makeType<float>(), "x"),
+														Expression::reference(location, makeType<float>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -103,23 +100,20 @@ TEST(EqOp, floats)	 // NOLINT
 
 	Runner runner(module);
 
-	array<float, 2> xData = { 57.0f, 57.0f };
-	array<float, 2> yData = { 57.0f, 23.0f };
-	array<bool, 2> zData = { false, true };
+	array<float, 2> x = { 57.0f, 57.0f };
+	array<float, 2> y = { 57.0f, 23.0f };
+	array<bool, 2> z = { false, true };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		float x = get<0>(tuple);
-		float y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x == y);
 	}
 }
 
-TEST(EqOp, integerCastedToFloat)	 // NOLINT
+TEST(Comparison, eqIntegerAndFloat)	 // NOLINT
 {
 	/**
 	 * function main
@@ -134,16 +128,16 @@ TEST(EqOp, integerCastedToFloat)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::equal,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::equal,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<float>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -153,28 +147,31 @@ TEST(EqOp, integerCastedToFloat)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
+	module.dump();
+	llvm::DebugFlag = true;
+
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
+	module.dump();
+	llvm::DebugFlag = false;
+
 	Runner runner(module);
 
-	array<int, 2> xData = { 57, 57 };
-	array<float, 2> yData = { 57.0f, 23.0f };
-	array<bool, 2> zData = { false, true };
+	array<int, 2> x = { 57, 57 };
+	array<float, 2> y = { 57.0f, 23.0f };
+	array<bool, 2> z = { false, true };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		float y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x == y);
 	}
 }
 
-TEST(NotEqOp, integers)	 // NOLINT
+TEST(Comparison, notEqIntegers)	 // NOLINT
 {
 	/**
 	 * function main
@@ -189,16 +186,16 @@ TEST(NotEqOp, integers)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::different,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::different,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<int>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -213,23 +210,20 @@ TEST(NotEqOp, integers)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 2> xData = { 57, 57 };
-	array<int, 2> yData = { 57, 23 };
-	array<bool, 2> zData = { true, false };
+	array<int, 2> x = { 57, 57 };
+	array<int, 2> y = { 57, 23 };
+	array<bool, 2> z = { true, false };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		int y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x != y);
 	}
 }
 
-TEST(NotEqOp, floats)	 // NOLINT
+TEST(Comparison, notEqFloats)	 // NOLINT
 {
 	/**
 	 * function main
@@ -244,16 +238,16 @@ TEST(NotEqOp, floats)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::different,
-														Expression::reference(location, makeType<BuiltInType::Float>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::different,
+														Expression::reference(location, makeType<float>(), "x"),
+														Expression::reference(location, makeType<float>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -268,23 +262,20 @@ TEST(NotEqOp, floats)	 // NOLINT
 
 	Runner runner(module);
 
-	array<float, 2> xData = { 57.0f, 57.0f };
-	array<float, 2> yData = { 57.0f, 23.0f };
-	array<bool, 2> zData = { true, false };
+	array<float, 2> x = { 57.0f, 57.0f };
+	array<float, 2> y = { 57.0f, 23.0f };
+	array<bool, 2> z = { true, false };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		float x = get<0>(tuple);
-		float y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x != y);
 	}
 }
 
-TEST(NotEqOp, integerCastedToFloat)	 // NOLINT
+TEST(Comparison, notEqIntegerAndFloat)	 // NOLINT
 {
 	/**
 	 * function main
@@ -299,16 +290,16 @@ TEST(NotEqOp, integerCastedToFloat)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::different,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::different,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<float>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -323,23 +314,20 @@ TEST(NotEqOp, integerCastedToFloat)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 2> xData = { 57, 57 };
-	array<float, 2> yData = { 57.0f, 23.0f };
-	array<bool, 2> zData = { true, false };
+	array<int, 2> x = { 57, 57 };
+	array<float, 2> y = { 57.0f, 23.0f };
+	array<bool, 2> z = { true, false };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		float y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x != y);
 	}
 }
 
-TEST(GtOp, integers)	 // NOLINT
+TEST(Comparison, gtIntegers)	 // NOLINT
 {
 	/**
 	 * function main
@@ -354,16 +342,16 @@ TEST(GtOp, integers)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::greater,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::greater,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<int>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -378,23 +366,20 @@ TEST(GtOp, integers)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 3> xData = { 23, 57, 57 };
-	array<int, 3> yData = { 57, 57, 23 };
-	array<bool, 3> zData = { true, true, false };
+	array<int, 3> x = { 23, 57, 57 };
+	array<int, 3> y = { 57, 57, 23 };
+	array<bool, 3> z = { true, true, false };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		int y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x > y);
 	}
 }
 
-TEST(GtOp, floats)	 // NOLINT
+TEST(Comparison, gtFloats)	 // NOLINT
 {
 	/**
 	 * function main
@@ -409,16 +394,16 @@ TEST(GtOp, floats)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::greater,
-														Expression::reference(location, makeType<BuiltInType::Float>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::greater,
+														Expression::reference(location, makeType<float>(), "x"),
+														Expression::reference(location, makeType<float>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -433,23 +418,20 @@ TEST(GtOp, floats)	 // NOLINT
 
 	Runner runner(module);
 
-	array<float, 3> xData = { 23.0f, 57.0f, 57.0f };
-	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
-	array<bool, 3> zData = { true, true, false };
+	array<float, 3> x = { 23.0f, 57.0f, 57.0f };
+	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<bool, 3> z = { true, true, false };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		float x = get<0>(tuple);
-		float y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x > y);
 	}
 }
 
-TEST(GtOp, integerCastedToFloat)	 // NOLINT
+TEST(Comparison, gtIntegerAndFloat)	 // NOLINT
 {
 	/**
 	 * function main
@@ -464,16 +446,16 @@ TEST(GtOp, integerCastedToFloat)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::greater,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::greater,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<float>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -488,23 +470,20 @@ TEST(GtOp, integerCastedToFloat)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 3> xData = { 23, 57, 57 };
-	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
-	array<bool, 3> zData = { true, true, false };
+	array<int, 3> x = { 23, 57, 57 };
+	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<bool, 3> z = { true, true, false };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		float y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x > y);
 	}
 }
 
-TEST(GteOp, integers)	 // NOLINT
+TEST(Comparison, gteIntegers)	 // NOLINT
 {
 	/**
 	 * function main
@@ -519,16 +498,16 @@ TEST(GteOp, integers)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::greaterEqual,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::greaterEqual,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<int>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -543,23 +522,20 @@ TEST(GteOp, integers)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 3> xData = { 23, 57, 57 };
-	array<int, 3> yData = { 57, 57, 23 };
-	array<bool, 3> zData = { true, false, false };
+	array<int, 3> x = { 23, 57, 57 };
+	array<int, 3> y = { 57, 57, 23 };
+	array<bool, 3> z = { true, false, false };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		int y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x >= y);
 	}
 }
 
-TEST(GteOp, floats)	 // NOLINT
+TEST(Comparison, gteFloats)	 // NOLINT
 {
 	/**
 	 * function main
@@ -574,16 +550,16 @@ TEST(GteOp, floats)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::greaterEqual,
-														Expression::reference(location, makeType<BuiltInType::Float>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::greaterEqual,
+														Expression::reference(location, makeType<float>(), "x"),
+														Expression::reference(location, makeType<float>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -598,23 +574,20 @@ TEST(GteOp, floats)	 // NOLINT
 
 	Runner runner(module);
 
-	array<float, 3> xData = { 23.0f, 57.0f, 57.0f };
-	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
-	array<bool, 3> zData = { true, false, false };
+	array<float, 3> x = { 23.0f, 57.0f, 57.0f };
+	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<bool, 3> z = { true, false, false };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		float x = get<0>(tuple);
-		float y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x >= y);
 	}
 }
 
-TEST(GteOp, integerCastedToFloat)	 // NOLINT
+TEST(Comparison, gteIntegerAndFloat)	 // NOLINT
 {
 	/**
 	 * function main
@@ -629,16 +602,16 @@ TEST(GteOp, integerCastedToFloat)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::greaterEqual,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::greaterEqual,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<float>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -653,23 +626,20 @@ TEST(GteOp, integerCastedToFloat)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 3> xData = { 23, 57, 57 };
-	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
-	array<bool, 3> zData = { true, false, false };
+	array<int, 3> x = { 23, 57, 57 };
+	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<bool, 3> z = { true, false, false };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		float y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x >= y);
 	}
 }
 
-TEST(LtOp, integers)	 // NOLINT
+TEST(Comparison, ltIntegers)	 // NOLINT
 {
 	/**
 	 * function main
@@ -684,16 +654,16 @@ TEST(LtOp, integers)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::less,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::less,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<int>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -708,23 +678,20 @@ TEST(LtOp, integers)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 3> xData = { 23, 57, 57 };
-	array<int, 3> yData = { 57, 57, 23 };
-	array<bool, 3> zData = { false, true, true };
+	array<int, 3> x = { 23, 57, 57 };
+	array<int, 3> y = { 57, 57, 23 };
+	array<bool, 3> z = { false, true, true };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		int y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x < y);
 	}
 }
 
-TEST(LtOp, floats)	 // NOLINT
+TEST(Comparison, ltFloats)	 // NOLINT
 {
 	/**
 	 * function main
@@ -739,16 +706,16 @@ TEST(LtOp, floats)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::less,
-														Expression::reference(location, makeType<BuiltInType::Float>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::less,
+														Expression::reference(location, makeType<float>(), "x"),
+														Expression::reference(location, makeType<float>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -763,23 +730,20 @@ TEST(LtOp, floats)	 // NOLINT
 
 	Runner runner(module);
 
-	array<float, 3> xData = { 23.0f, 57.0f, 57.0f };
-	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
-	array<bool, 3> zData = { false, true, true };
+	array<float, 3> x = { 23.0f, 57.0f, 57.0f };
+	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<bool, 3> z = { false, true, true };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		float x = get<0>(tuple);
-		float y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x < y);
 	}
 }
 
-TEST(LtOp, integerCastedToFloat)	 // NOLINT
+TEST(Comparison, ltIntegerAndFloat)	 // NOLINT
 {
 	/**
 	 * function main
@@ -794,16 +758,16 @@ TEST(LtOp, integerCastedToFloat)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::less,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::less,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<float>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -818,23 +782,20 @@ TEST(LtOp, integerCastedToFloat)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 3> xData = { 23, 57, 57 };
-	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
-	array<bool, 3> zData = { false, true, true };
+	array<int, 3> x = { 23, 57, 57 };
+	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<bool, 3> z = { false, true, true };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		float y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x < y);
 	}
 }
 
-TEST(LteOp, integers)	 // NOLINT
+TEST(Comparison, lteIntegers)	 // NOLINT
 {
 	/**
 	 * function main
@@ -849,16 +810,16 @@ TEST(LteOp, integers)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::lessEqual,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::lessEqual,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<int>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -873,23 +834,20 @@ TEST(LteOp, integers)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 3> xData = { 23, 57, 57 };
-	array<int, 3> yData = { 57, 57, 23 };
-	array<bool, 3> zData = { false, false, true };
+	array<int, 3> x = { 23, 57, 57 };
+	array<int, 3> y = { 57, 57, 23 };
+	array<bool, 3> z = { false, false, true };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		int y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x <= y);
 	}
 }
 
-TEST(LteOp, floats)	 // NOLINT
+TEST(Comparison, lteFloats)	 // NOLINT
 {
 	/**
 	 * function main
@@ -904,16 +862,16 @@ TEST(LteOp, floats)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::lessEqual,
-														Expression::reference(location, makeType<BuiltInType::Float>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::lessEqual,
+														Expression::reference(location, makeType<float>(), "x"),
+														Expression::reference(location, makeType<float>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -928,23 +886,20 @@ TEST(LteOp, floats)	 // NOLINT
 
 	Runner runner(module);
 
-	array<float, 3> xData = { 23.0f, 57.0f, 57.0f };
-	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
-	array<bool, 3> zData = { false, false, true };
+	array<float, 3> x = { 23.0f, 57.0f, 57.0f };
+	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<bool, 3> z = { false, false, true };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		float x = get<0>(tuple);
-		float y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x <= y);
 	}
 }
 
-TEST(LteOp, integerCastedToFloat)	 // NOLINT
+TEST(Comparison, lteIntegerAndFloat)	 // NOLINT
 {
 	/**
 	 * function main
@@ -959,16 +914,16 @@ TEST(LteOp, integerCastedToFloat)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<BuiltInType::Float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<BuiltInType::Boolean>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
 	Statement assignment = AssignmentStatement(
 			location,
-			Expression::reference(location, makeType<BuiltInType::Boolean>(), "z"),
-			Expression::operation(location, makeType<BuiltInType::Boolean>(), OperationKind::lessEqual,
-														Expression::reference(location, makeType<BuiltInType::Integer>(), "x"),
-														Expression::reference(location, makeType<BuiltInType::Float>(), "y")));
+			Expression::reference(location, makeType<bool>(), "z"),
+			Expression::operation(location, makeType<bool>(), OperationKind::lessEqual,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<float>(), "y")));
 
 	ClassContainer cls(Function(location, "main", true,
 															{ xMember, yMember, zMember },
@@ -983,17 +938,14 @@ TEST(LteOp, integerCastedToFloat)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 3> xData = { 23, 57, 57 };
-	array<float, 3> yData = { 57.0f, 57.0f, 23.0f };
-	array<bool, 3> zData = { false, false, true };
+	array<int, 3> x = { 23, 57, 57 };
+	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<bool, 3> z = { false, false, true };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		float y = get<1>(tuple);
-		bool z = get<2>(tuple);
-
-		runner.run("main", x, y, z);
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
 
 		EXPECT_EQ(z, x <= y);
 	}
