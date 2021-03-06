@@ -1811,6 +1811,8 @@ class MulOpCrossProductLowering: public ModelicaOpConversion<MulOp>
 	}
 };
 
+
+
 void ModelicaToLLVMLoweringPass::getDependentDialects(mlir::DialectRegistry& registry) const {
 	registry.insert<mlir::StandardOpsDialect>();
 	registry.insert<mlir::LLVM::LLVMDialect>();
