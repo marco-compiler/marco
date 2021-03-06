@@ -16,13 +16,8 @@
 using namespace modelica;
 using namespace std;
 
-
-
-
 TEST(FunctionLowerTest, test2)	 // NOLINT
 {
-	//llvm::DebugFlag = true;
-
 	SourcePosition location = SourcePosition::unknown();
 
 	Member xMember(location, "x", makeType<BuiltInType::Integer>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
@@ -44,14 +39,8 @@ TEST(FunctionLowerTest, test2)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
-
-	module.dump();
-
-	llvm::DebugFlag = false;
 
 	mlir::registerLLVMDialectTranslation(*module->getContext());
 

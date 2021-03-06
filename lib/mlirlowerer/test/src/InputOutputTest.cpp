@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 #include <mlir/ExecutionEngine/CRunnerUtils.h>
 #include <mlir/IR/Dialect.h>
+#include <modelica/mlirlowerer/passes/BreakRemover.h>
+#include <modelica/mlirlowerer/passes/ReturnRemover.h>
 #include <modelica/mlirlowerer/CRunnerUtils.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
@@ -169,12 +171,8 @@ TEST(Input, integerArray)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
-
-	module.dump();
 
 	Runner runner(module);
 	
@@ -439,20 +437,25 @@ TEST(Output, integerArray)	 // NOLINT
 			location,
 			Expression::operation(location, makeType<int>(), OperationKind::subscription,
 														Expression::reference(location, makeType<int>(), "x"),
-														Expression::constant(location, makeType<int>(), 0)),
+														Expression::operation(location, makeType<int>(), OperationKind::add,
+																									Expression::constant(location, makeType<int>(), 1),
+																									Expression::constant(location, makeType<int>(), -1))),
 			Expression::constant(location, makeType<int>(), 23));
 
 	Statement assignment1 = AssignmentStatement(
 			location,
 			Expression::operation(location, makeType<int>(), OperationKind::subscription,
 														Expression::reference(location, makeType<int>(), "x"),
-														Expression::constant(location, makeType<int>(), 1)),
+														Expression::operation(location, makeType<int>(), OperationKind::add,
+																									Expression::constant(location, makeType<int>(), 2),
+																									Expression::constant(location, makeType<int>(), -1))),
 			Expression::constant(location, makeType<int>(), 57));
 
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, { assignment0, assignment1 })));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
+
 	mlir::ModuleOp module = lowerer.lower(cls);
 
 	if (failed(convertToLLVMDialect(&context, module)))
@@ -494,7 +497,9 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 			location,
 			Expression::operation(location, makeType<int>(), OperationKind::subscription,
 														Expression::reference(location, makeType<int>(), "y"),
-														Expression::reference(location, makeType<int>(), "i")),
+														Expression::operation(location, makeType<int>(), OperationKind::add,
+																									Expression::reference(location, makeType<int>(), "i"),
+																									Expression::constant(location, makeType<int>(), -1))),
 			Expression::reference(location, makeType<int>(), "i"));
 
 	Statement forStatement = ForStatement(
@@ -511,23 +516,31 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
+	BreakRemover breakRemover;
+	breakRemover.fix(cls);
+
+	ReturnRemover returnRemover;
+	returnRemover.fix(cls);
+
 	module.dump();
+	llvm::DebugFlag = true;
 
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
 	module.dump();
+	llvm::DebugFlag = false;
 
 	Runner runner(module);
 
 	int x = 2;
-	ArrayDescriptor<float, 1> yPtr(nullptr, { 2 });
+	ArrayDescriptor<int, 1> yPtr(nullptr, { 2 });
 
 	if (failed(runner.run("main", x, Runner::result(yPtr))))
 		FAIL();
 
 	for (int i = 0; i < yPtr.getSize(0); i++)
-		EXPECT_EQ(yPtr[i], i);
+		EXPECT_EQ(yPtr[i], i + 1);
 }
 
 TEST(Output, floatArray)	 // NOLINT

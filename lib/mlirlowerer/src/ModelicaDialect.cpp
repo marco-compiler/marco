@@ -19,11 +19,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<ArrayCopyOp>();
 
 	// Math operations
-	addOperations<AddOp>();
-	addOperations<SubOp>();
-	addOperations<MulOp>();
-	addOperations<CrossProductOp>();
-	addOperations<DivOp>();
+	addOperations<AddOp, SubOp, MulOp, DivOp>();
 
 	// Logic operations
 	addOperations<NegateOp>();
@@ -40,8 +36,6 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<WhileOp>();
 	addOperations<ConditionOp>();
 	addOperations<YieldOp>();
-
-	addOperations<TestOp>();
 }
 
 mlir::StringRef ModelicaDialect::getDialectNamespace()

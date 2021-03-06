@@ -978,7 +978,7 @@ TEST(MathOps, subMultipleIntegerScalars)	 // NOLINT
 	}
 }
 
-TEST(MulOp, scalarIntegers)	 // NOLINT
+TEST(MathOps, mulOfIntegerScalars)	 // NOLINT
 {
 	/**
 	 * function main
@@ -1017,16 +1017,12 @@ TEST(MulOp, scalarIntegers)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 2> xData = { 2, 5 };
-	array<int, 2> yData = { 3, -3 };
-	array<int, 2> zData = { 0, 0 };
+	array<int, 2> x = { 2, 5 };
+	array<int, 2> y = { 3, -3 };
+	array<int, 2> z = { 0, 0 };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		int y = get<1>(tuple);
-		int z = get<2>(tuple);
-
 		if (failed(runner.run("main", x, y, Runner::result(z))))
 			FAIL();
 
@@ -1034,7 +1030,7 @@ TEST(MulOp, scalarIntegers)	 // NOLINT
 	}
 }
 
-TEST(MulOp, scalarFloats)	 // NOLINT
+TEST(MathOps, mulOfFloatScalars)	 // NOLINT
 {
 	/**
 	 * function main
@@ -1073,16 +1069,12 @@ TEST(MulOp, scalarFloats)	 // NOLINT
 
 	Runner runner(module);
 
-	array<float, 2> xData = { 2.3f, 5.7f };
-	array<float, 2> yData = { 23.57f, -23.57f };
-	array<float, 2> zData = { 0.0f, 0.0f };
+	array<float, 2> x = { 2.3f, 5.7f };
+	array<float, 2> y = { 23.57f, -23.57f };
+	array<float, 2> z = { 0.0f, 0.0f };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		float x = get<0>(tuple);
-		float y = get<1>(tuple);
-		float z = get<2>(tuple);
-
 		if (failed(runner.run("main", x, y, Runner::result(z))))
 			FAIL();
 
@@ -1090,7 +1082,7 @@ TEST(MulOp, scalarFloats)	 // NOLINT
 	}
 }
 
-TEST(MulOp, integerCastedToFloatScalar)	 // NOLINT
+TEST(MathOps, mulIntegerScalarAndFloatScalar)	 // NOLINT
 {
 	/**
 	 * function main
@@ -1129,16 +1121,12 @@ TEST(MulOp, integerCastedToFloatScalar)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 3> xData = { 2, -3, -3 };
-	array<float, 3> yData = { -3.5f, 5.2f, -2.0f };
-	array<float, 3> zData = { 0.0f, 0.0f, 0.0f };
+	array<int, 3> x = { 2, -3, -3 };
+	array<float, 3> y = { -3.5f, 5.2f, -2.0f };
+	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData))
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		int x = get<0>(tuple);
-		float y = get<1>(tuple);
-		float z = get<2>(tuple);
-
 		if (failed(runner.run("main", x, y, Runner::result(z))))
 			FAIL();
 
@@ -1146,7 +1134,7 @@ TEST(MulOp, integerCastedToFloatScalar)	 // NOLINT
 	}
 }
 
-TEST(MulOp, multipleValues)	 // NOLINT
+TEST(MathOps, mulMultipleIntegerScalars)	 // NOLINT
 {
 	/**
 	 * function main
@@ -1188,18 +1176,13 @@ TEST(MulOp, multipleValues)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 3> xData = { 10, 23, 57 };
-	array<int, 3> yData = { 10, 57, -23 };
-	array<int, 3> zData = { 4, -7, -15 };
-	array<int, 3> tData = { 0, 0, 0 };
+	array<int, 3> x = { 10, 23, 57 };
+	array<int, 3> y = { 10, 57, -23 };
+	array<int, 3> z = { 4, -7, -15 };
+	array<int, 3> t = { 0, 0, 0 };
 
-	for (const auto& tuple : llvm::zip(xData, yData, zData, tData))
+	for (const auto& [x, y, z, t] : llvm::zip(x, y, z, t))
 	{
-		int x = get<0>(tuple);
-		int y = get<1>(tuple);
-		int z = get<2>(tuple);
-		int t = get<3>(tuple);
-
 		if (failed(runner.run("main", x, y, z, Runner::result(t))))
 			FAIL();
 
@@ -1207,7 +1190,7 @@ TEST(MulOp, multipleValues)	 // NOLINT
 	}
 }
 
-TEST(MulOp, scalarTimesVector)	 // NOLINT
+TEST(MathOps, mulIntegerScalarAndIntegerStaticArray)	 // NOLINT
 {
 	/**
 	 * function main
@@ -1248,18 +1231,70 @@ TEST(MulOp, scalarTimesVector)	 // NOLINT
 
 	int x = 2;
 	array<int, 2> y = { 3, -5 };
-	array<int, 2> z = { 0, 0 };
 
-	int* yPtr = y.data();
-	int* zPtr = z.data();
+	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+	ArrayDescriptor<int, 1> zPtr(nullptr, { 3 });
 
-	runner.run("main", x, yPtr, zPtr);
+	if (failed(runner.run("main", x, yPtr, Runner::result(zPtr))))
+		FAIL();
 
-	for (const auto& tuple : llvm::zip(y, z))
-		EXPECT_EQ(get<1>(tuple), x * get<0>(tuple));
+	for (const auto& [y, z] : llvm::zip(yPtr, zPtr))
+		EXPECT_EQ(z, x * y);
 }
 
-TEST(MulOp, vectorTimesScalar)	 // NOLINT
+TEST(MathOps, mulIntegerScalarAndIntegerDynamicArray)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   input Integer[-1] y;
+	 *   output Integer[-1] z;
+	 *
+	 *   algorithm
+	 *     z := x * y;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(-1), "z"),
+			Expression::operation(location, makeType<int>(-1), OperationKind::multiply,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<int>(-1), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	Runner runner(module);
+
+	int x = 2;
+	array<int, 2> y = { 3, -5 };
+
+	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+	ArrayDescriptor<int, 1> zPtr(nullptr, { 3 });
+
+	if (failed(runner.run("main", x, yPtr, Runner::result(zPtr))))
+		FAIL();
+
+	for (const auto& [y, z] : llvm::zip(yPtr, zPtr))
+		EXPECT_EQ(z, x * y);
+}
+
+TEST(MathOps, mulIntegerStaticArrayAndIntegerScalar)	 // NOLINT
 {
 	/**
 	 * function main
@@ -1300,16 +1335,135 @@ TEST(MulOp, vectorTimesScalar)	 // NOLINT
 
 	array<int, 2> x = { 3, -5 };
 	int y = 2;
-	array<int, 2> z = { 0, 0 };
 
-	int* xPtr = x.data();
-	int* zPtr = z.data();
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<int, 1> zPtr(nullptr, { 3 });
 
-	runner.run("main", xPtr, y, zPtr);
+	if (failed(runner.run("main", xPtr, y, Runner::result(zPtr))))
+		FAIL();
 
-	for (const auto& tuple : llvm::zip(x, z))
-		EXPECT_EQ(get<1>(tuple), get<0>(tuple) * y);
+	for (const auto& [x, z] : llvm::zip(xPtr, zPtr))
+		EXPECT_EQ(z, x * y);
 }
+
+TEST(MathOps, mulIntegerDynamicArrayAndIntegerScalar)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[-1] x;
+	 *   input Integer y;
+	 *   output Integer[-1] z;
+	 *
+	 *   algorithm
+	 *     z := x * y;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(-1), "z"),
+			Expression::operation(location, makeType<int>(-1), OperationKind::multiply,
+														Expression::reference(location, makeType<int>(-1), "x"),
+														Expression::reference(location, makeType<int>(), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	Runner runner(module);
+
+	array<int, 2> x = { 3, -5 };
+	int y = 2;
+
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<int, 1> zPtr(nullptr, { 3 });
+
+	if (failed(runner.run("main", xPtr, y, Runner::result(zPtr))))
+		FAIL();
+
+	for (const auto& [x, z] : llvm::zip(xPtr, zPtr))
+		EXPECT_EQ(z, x * y);
+}
+
+TEST(MathOps, mulCrossProductIntegerStaticArrays)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[3] x;
+	 *   input Integer[3] y;
+	 *   output Integer z;
+	 *
+	 *   algorithm
+	 *     z := x * y;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(), "z"),
+			Expression::operation(location, makeType<int>(), OperationKind::multiply,
+														Expression::reference(location, makeType<int>(3), "x"),
+														Expression::reference(location, makeType<int>(3), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	module.dump();
+	llvm::DebugFlag = true;
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	module.dump();
+	llvm::DebugFlag = false;
+
+	Runner runner(module);
+
+	array<int, 3> x = { 3, 5, 2 };
+	array<int, 3> y = { 7, -2, 3 };
+	int z = 0;
+
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+
+	if (failed(runner.run("main", xPtr, yPtr, Runner::result(z))))
+		FAIL();
+
+	EXPECT_EQ(z, 17);
+}
+
+
+
+
+
+
+
+
+
 
 /*
 TEST(DivOp, sameSignIntegers)	 // NOLINT

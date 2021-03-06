@@ -282,14 +282,8 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-	llvm::DebugFlag = true;
-
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
-
-	module.dump();
-	llvm::DebugFlag = false;
 
 	Runner runner(module);
 
@@ -299,7 +293,7 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 	if (failed(runner.run("main", x, Runner::result(y))))
 		FAIL();
 
-	EXPECT_EQ(y, 45);
+	EXPECT_EQ(y, 55);
 }
 
 TEST(ControlFlow, forNotExecuted)	 // NOLINT
@@ -311,7 +305,7 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 	 *
 	 *   algorithm
 	 *     y := 1;
-	 *     for i in 1:x loop
+	 *     for i in 2:x loop
 	 *       y := y + i;
 	 *     end for;
 	 * end main
@@ -334,7 +328,7 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 			location,
 			Induction(
 					"i",
-					Expression::constant(location, makeType<int>(), 1),
+					Expression::constant(location, makeType<int>(), 2),
 					Expression::reference(location, makeType<int>(), "x")),
 			forAssignment);
 
@@ -403,14 +397,8 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-	llvm::DebugFlag = true;
-
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
-
-	module.dump();
-	llvm::DebugFlag = false;
 
 	Runner runner(module);
 

@@ -737,32 +737,6 @@ mlir::ValueRange CastCommonOpAdaptor::operands()
 	return getValues();
 }
 
-static mlir::Type getMoreGenericType(mlir::Type x, mlir::Type y)
-{
-	mlir::Type xBase = x;
-	mlir::Type yBase = y;
-
-	while (xBase.isa<PointerType>())
-		xBase = xBase.cast<PointerType>().getElementType();
-
-	while (yBase.isa<PointerType>())
-		yBase = yBase.cast<PointerType>().getElementType();
-
-	if (xBase.isa<RealType>())
-		return x;
-
-	if (yBase.isa<RealType>())
-		return y;
-
-	if (xBase.isa<IntegerType>())
-		return x;
-
-	if (yBase.isa<IntegerType>())
-		return y;
-
-	return x;
-}
-
 llvm::StringRef CastCommonOp::getOperationName()
 {
 	return "modelica.cast_common";
@@ -797,10 +771,7 @@ void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 				baseType = baseType.cast<PointerType>().getElementType();
 		}
 
-		if (baseType.isa<mlir::IndexType>())
-			continue;
-
-		if (resultBaseType.isa<IntegerType>())
+		if (resultBaseType.isa<mlir::IndexType>() || baseType.isa<RealType>())
 		{
 			resultType = type;
 			resultBaseType = baseType;
@@ -1281,6 +1252,51 @@ mlir::Value SubOp::lhs()
 }
 
 mlir::Value SubOp::rhs()
+{
+	return Adaptor(*this).rhs();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::MulOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value MulOpAdaptor::lhs()
+{
+	return getValues()[0];
+}
+
+mlir::Value MulOpAdaptor::rhs()
+{
+	return getValues()[1];
+}
+
+llvm::StringRef MulOp::getOperationName()
+{
+	return "modelica.mul";
+}
+
+void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
+}
+
+void MulOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.mul " << lhs() << ", " << rhs() << " : " << resultType();
+}
+
+mlir::Type MulOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value MulOp::lhs()
+{
+	return Adaptor(*this).lhs();
+}
+
+mlir::Value MulOp::rhs()
 {
 	return Adaptor(*this).rhs();
 }

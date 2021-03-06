@@ -2,6 +2,7 @@
 
 #include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/MLIRContext.h>
 #include <modelica/mlirlowerer/Type.h>
 
@@ -17,21 +18,61 @@ namespace modelica
 			addConversion([&](RealType type) { return convertRealType(type); });
 			addConversion([&](PointerType type) { return convertPointerType(type); });
 
-			/*
+			addTargetMaterialization(
+					[&](mlir::OpBuilder &builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+						if (inputs.size() != 1)
+							return llvm::None;
+
+						// FIXME: IndexType shouldn't be necessary
+						if (!inputs[0].getType().isa<mlir::IndexType>() && !inputs[0].getType().isa<BooleanType>() && !inputs[0].getType().isa<IntegerType>())
+							return llvm::None;
+
+						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+					});
+
+			addTargetMaterialization(
+					[&](mlir::OpBuilder &builder, mlir::FloatType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+						if (inputs.size() != 1)
+							return llvm::None;
+
+						if (!inputs[0].getType().isa<RealType>())
+							return llvm::None;
+
+						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+					});
+
 			addSourceMaterialization(
 					[&](mlir::OpBuilder &builder, BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
 						if (inputs.size() != 1)
 							return llvm::None;
 
-						if (inputs[0].getType().isa<mlir::IntegerType>() && inputs[0].getType().getIntOrFloatBitWidth() == 1)
-						{
-							inputs[0].setType(resultType);
-							return inputs[0];
-						}
+						if (!inputs[0].getType().isa<mlir::IntegerType>() || inputs[0].getType().getIntOrFloatBitWidth() != 1)
+							return llvm::None;
 
-						return llvm::None;
+						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
 			});
-			 */
+
+			addSourceMaterialization(
+					[&](mlir::OpBuilder &builder, IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+						if (inputs.size() != 1)
+							return llvm::None;
+
+						if (!inputs[0].getType().isa<mlir::IntegerType>() || inputs[0].getType().getIntOrFloatBitWidth() != resultType.getBitWidth())
+							return llvm::None;
+
+						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+					});
+
+			addSourceMaterialization(
+					[&](mlir::OpBuilder &builder, RealType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+						if (inputs.size() != 1)
+							return llvm::None;
+
+						if (!inputs[0].getType().isa<mlir::FloatType>() || inputs[0].getType().getIntOrFloatBitWidth() != resultType.getBitWidth())
+							return llvm::None;
+
+						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+					});
 
 			/*
 			addTargetMaterialization(

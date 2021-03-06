@@ -217,7 +217,8 @@ LogicalResult AddOpLowering::matchAndRewrite(AddOp op, PatternRewriter& rewriter
  * 6. matrix[n,m] * matrix[m,p] = matrix[n,p]
  *    Cross product.
  */
-LogicalResult MulOpLowering::matchAndRewrite(MulOp op, PatternRewriter& rewriter) const
+ /*
+LogicalResult MultOpLowering::matchAndRewrite(MulOp op, PatternRewriter& rewriter) const
 {
 	Location location = op.getLoc();
 	auto operands = op->getOperands();
@@ -272,7 +273,7 @@ LogicalResult MulOpLowering::matchAndRewrite(MulOp op, PatternRewriter& rewriter
 	rewriter.replaceOpWithNewOp<CastOp>(op, result, op->getResultTypes()[0]);
 	return success();
 }
-
+*/
 /**
  * Lower the cross product operation to the vector or SCF dialect.
  * According to the elements shapes, there are different scenarios:

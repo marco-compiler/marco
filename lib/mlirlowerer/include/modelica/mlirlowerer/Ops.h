@@ -5,6 +5,8 @@
 #include <modelica/mlirlowerer/Type.h>
 
 #include "ops/MathOps.h"
+#include <mlir/IR/Builders.h>
+#include <mlir/IR/OpImplementation.h>
 
 namespace modelica
 {
@@ -368,29 +370,6 @@ namespace modelica
 		mlir::Value breakCondition();
 		mlir::Value returnCondition();
 		mlir::ValueRange args();
-	};
-
-
-	//===----------------------------------------------------------------------===//
-	// Modelica::WhileOp
-	//===----------------------------------------------------------------------===//
-
-	class TestOp : public mlir::Op<TestOp, mlir::OpTrait::OneOperand, mlir::OpTrait::ZeroResult>
-	{
-		public:
-		using Op::Op;
-
-		static llvm::StringRef getOperationName() {
-			return "modelica.test";
-		}
-
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value val) {
-			state.addOperands(val);
-		}
-
-		mlir::Value val() {
-			return getOperand();
-		}
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -799,6 +778,36 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Type resultType();
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::MulOp
+	//===----------------------------------------------------------------------===//
+
+	class MulOp;
+
+	class MulOpAdaptor : public OpAdaptor<MulOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	class MulOp : public mlir::Op<MulOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = MulOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Type resultType();

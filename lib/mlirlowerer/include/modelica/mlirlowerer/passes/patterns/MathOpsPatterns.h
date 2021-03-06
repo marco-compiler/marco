@@ -8,12 +8,6 @@
 
 namespace modelica
 {
-	class MulOpLowering : public mlir::OpRewritePattern<MulOp>
-	{
-		using mlir::OpRewritePattern<MulOp>::OpRewritePattern;
-		mlir::LogicalResult matchAndRewrite(MulOp op, mlir::PatternRewriter& rewriter) const final;
-	};
-
 	class CrossProductOpLowering : public mlir::OpRewritePattern<CrossProductOp>
 	{
 		using mlir::OpRewritePattern<CrossProductOp>::OpRewritePattern;

@@ -225,17 +225,12 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	for (const auto& member : outputMembers)
 	{
 		mlir::Type type = lower(member->getType());
+		returnNames.emplace_back(member->getName());
 
-		if (type.isa<mlir::MemRefType>() && type.cast<mlir::MemRefType>().hasStaticShape())
-		{
-			argNames.emplace_back(member->getName());
-			argTypes.emplace_back(type);
-		}
-		else
-		{
-			returnNames.emplace_back(member->getName());
-			returnTypes.emplace_back(type);
-		}
+		if (member->isOutput() && type.isa<PointerType>())
+			type = builder.getPointerType(true, type.cast<PointerType>().getElementType(), type.cast<PointerType>().getShape());
+
+		returnTypes.emplace_back(type);
 	}
 
 	auto functionType = builder.getFunctionType(argTypes, returnTypes);
@@ -276,11 +271,48 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	builder.create<StoreOp>(algorithmLocation, falseValue, returnCondition);
 	symbolTable.insert(algorithm.getReturnCheckName(), Reference::memref(&builder, returnCondition, true));
 
+
+
+	//mlir::Value mem = *symbolTable.lookup("y");
+
+	/*
+	mlir::Value twoIndex = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(2));
+	mlir::Value twoValue = builder.create<mlir::ConstantOp>(location, builder.getIntegerAttribute(2));
+	builder.create<StoreOp>(location, twoValue, mem, twoIndex);
+	 */
+
+	/*
+	mlir::Value twoIndex = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(2));
+	mlir::Value twoValue = builder.create<mlir::ConstantOp>(location, builder.getIntegerType(), builder.getIntegerAttribute(2));
+	mlir::Value sub2 = builder.create<SubscriptionOp>(location, mem, twoIndex);
+	builder.create<AssignmentOp>(location, twoValue, sub2);
+	 */
+
+
+
 	// Lower the statements
 	lower(foo.getAlgorithms()[0]);
 
-	//mlir::Value val = builder.create<mlir::ConstantOp>(location, builder.getBooleanType(), builder.getBooleanAttribute(true));
-	//builder.create<TestOp>(location, val);
+
+
+
+	/*
+	mlir::Value zeroIndex = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(0));
+	mlir::Value oneIndex = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(1));
+	mlir::Value twoIndex = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(2));
+	mlir::Value threeIndex = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(3));
+
+	builder.create<mlir::vector::PrintOp>(location, builder.create<LoadOp>(location, mem, zeroIndex));
+	builder.create<mlir::vector::PrintOp>(location, builder.create<LoadOp>(location, mem, oneIndex));
+	builder.create<mlir::vector::PrintOp>(location, builder.create<LoadOp>(location, mem, twoIndex));
+	builder.create<mlir::vector::PrintOp>(location, builder.create<LoadOp>(location, mem, threeIndex));
+	 */
+
+
+
+
+
+
 
 	// Return statement
 	std::vector<mlir::Value> results;
@@ -394,7 +426,11 @@ void MlirLowerer::lower(const modelica::Member& member)
 
 		for (const auto& dimension : member.getType().getDimensions())
 			if (dimension.hasExpression())
-				sizes.push_back(*lower<modelica::Expression>(dimension.getExpression())[0]);
+			{
+				mlir::Value size = *lower<modelica::Expression>(dimension.getExpression())[0];
+				size = builder.create<CastOp>(location, size, builder.getIndexType());
+				sizes.push_back(size);
+			}
 
 		if (sizes.size() == pointerType.getDynamicDimensions())
 		{
@@ -551,8 +587,7 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 		mlir::Value upperBound = *lower<modelica::Expression>(induction.getEnd())[0];
 		upperBound = builder.create<CastOp>(lowerBound.getLoc(), upperBound, builder.getIndexType());
 
-		//mlir::Value condition = builder.create<mlir::CmpIOp>(location, mlir::CmpIPredicate::slt, forOp.condition().front().getArgument(0), upperBound);
-		mlir::Value condition = builder.create<LtOp>(location, builder.getBooleanType(), forOp.condition().front().getArgument(0), upperBound);
+		mlir::Value condition = builder.create<LteOp>(location, builder.getBooleanType(), forOp.condition().front().getArgument(0), upperBound);
 		builder.create<ConditionOp>(location, condition, *symbolTable.lookup(induction.getName()));
 	}
 
@@ -577,7 +612,7 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 		builder.setInsertionPointToStart(&forOp.step().front());
 
 		mlir::Value step = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(1));
-		mlir::Value incremented = builder.create<mlir::AddIOp>(location, forOp.step().front().getArgument(0), step);
+		mlir::Value incremented = builder.create<mlir::AddIOp>(location, *symbolTable.lookup(induction.getName()), step);
 		builder.create<YieldOp>(location, incremented);
 	}
 
@@ -704,7 +739,13 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::multiply)
 	{
 		auto args = lowerOperationArgs(operation);
-		mlir::Value result = builder.create<modelica::MulOp>(location, resultType, args);
+		mlir::Value result = foldBinaryOperation(
+				args,
+				[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
+				{
+					return builder.create<modelica::MulOp>(location, resultType, lhs, rhs);
+				});
+
 		return { Reference::ssa(&builder, result) };
 	}
 
@@ -926,18 +967,23 @@ MlirLowerer::Container<mlir::Value> MlirLowerer::lowerOperationArgs(const modeli
 
 	for (const auto& arg : operation)
 	{
+		mlir::Location location = loc(arg.getLocation());
 		const auto& type = arg.getType();
 
 		// For now, we only support operation between built-in types.
 		// In future, this should be extended to support struct types.
 		assert(type.isA<modelica::BuiltInType>());
 
-		if (type.get<BuiltInType>() == BuiltInType::Integer)
-			containsInteger = true;
-		else if (type.get<BuiltInType>() == BuiltInType::Float)
-			containsFloat = true;
+		mlir::Value value = *lower<modelica::Expression>(arg)[0];
 
-		args.push_back(*lower<modelica::Expression>(arg)[0]);
+		/*
+		if (type.get<BuiltInType>() == BuiltInType::Integer)
+			value = builder.create<CastOp>(location, value, builder.getIntegerType());
+		else if (type.get<BuiltInType>() == BuiltInType::Float)
+			value = builder.create<CastOp>(location, value, builder.getRealType());
+		 */
+
+		args.push_back(value);
 	}
 
 	// Convert the arguments to a common type.
