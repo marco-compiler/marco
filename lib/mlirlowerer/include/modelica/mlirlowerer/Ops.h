@@ -800,11 +800,41 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class MulOp : public mlir::Op<MulOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike>
+	class MulOp : public mlir::Op<MulOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
 		using Adaptor = MulOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Type resultType();
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::DivOp
+	//===----------------------------------------------------------------------===//
+
+	class DivOp;
+
+	class DivOpAdaptor : public OpAdaptor<DivOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	class DivOp : public mlir::Op<DivOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = DivOpAdaptor;
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);

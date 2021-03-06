@@ -1300,3 +1300,48 @@ mlir::Value MulOp::rhs()
 {
 	return Adaptor(*this).rhs();
 }
+
+//===----------------------------------------------------------------------===//
+// Modelica::DivOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value DivOpAdaptor::lhs()
+{
+	return getValues()[0];
+}
+
+mlir::Value DivOpAdaptor::rhs()
+{
+	return getValues()[1];
+}
+
+llvm::StringRef DivOp::getOperationName()
+{
+	return "modelica.div";
+}
+
+void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
+}
+
+void DivOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.div " << lhs() << ", " << rhs() << " : " << resultType();
+}
+
+mlir::Type DivOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value DivOp::lhs()
+{
+	return Adaptor(*this).lhs();
+}
+
+mlir::Value DivOp::rhs()
+{
+	return Adaptor(*this).rhs();
+}

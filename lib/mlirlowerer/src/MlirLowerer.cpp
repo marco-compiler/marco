@@ -706,7 +706,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::negate)
 	{
 		auto arg = lower<modelica::Expression>(operation[0])[0].getReference();
-		mlir::Value result = builder.create<modelica::NegateOp>(location, arg);
+		mlir::Value result = builder.create<NegateOp>(location, arg);
 		return { Reference::ssa(&builder, result) };
 	}
 
@@ -717,7 +717,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 				args,
 				[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
 				{
-					return builder.create<modelica::AddOp>(location, resultType, lhs, rhs);
+					return builder.create<AddOp>(location, resultType, lhs, rhs);
 				});
 
 		return { Reference::ssa(&builder, result) };
@@ -730,7 +730,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 				args,
 				[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
 				{
-					return builder.create<modelica::SubOp>(location, resultType, lhs, rhs);
+					return builder.create<SubOp>(location, resultType, lhs, rhs);
 				});
 
 		return { Reference::ssa(&builder, result) };
@@ -743,7 +743,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 				args,
 				[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
 				{
-					return builder.create<modelica::MulOp>(location, resultType, lhs, rhs);
+					return builder.create<MulOp>(location, resultType, lhs, rhs);
 				});
 
 		return { Reference::ssa(&builder, result) };
@@ -752,7 +752,13 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::divide)
 	{
 		auto args = lowerOperationArgs(operation);
-		mlir::Value result = builder.create<modelica::DivOp>(location, resultType, args);
+		mlir::Value result = foldBinaryOperation(
+				args,
+				[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
+				{
+					return builder.create<DivOp>(location, resultType, lhs, rhs);
+				});
+
 		return { Reference::ssa(&builder, result) };
 	}
 

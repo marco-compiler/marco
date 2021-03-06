@@ -1646,7 +1646,7 @@ class SubOpArrayLowering: public ModelicaOpConversion<SubOp>
 };
 
 /**
- * Multiplication between two scalar values
+ * Product between two scalar values
  */
 class MulOpLowering: public ModelicaOpConversion<MulOp>
 {
@@ -1658,10 +1658,10 @@ class MulOpLowering: public ModelicaOpConversion<MulOp>
 
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()))
-			return rewriter.notifyMatchFailure(op, "Scalar multiplication: left-hand side value is not a scalar");
+			return rewriter.notifyMatchFailure(op, "Scalar-scalar product: left-hand side value is not a scalar");
 
 		if (!isNumeric(op.rhs()))
-			return rewriter.notifyMatchFailure(op, "Scalar multiplication: right-hand side value is not a scalar");
+			return rewriter.notifyMatchFailure(op, "Scalar-scalar product: right-hand side value is not a scalar");
 
 		// Cast the operands to the most generic type
 		auto castOp = rewriter.create<CastCommonOp>(location, op->getOperands());
@@ -1690,9 +1690,9 @@ class MulOpLowering: public ModelicaOpConversion<MulOp>
 };
 
 /**
- * Multiplication between two scalar values
+ * Product between a scalar and an array
  */
-class MulOpElementWiseLowering: public ModelicaOpConversion<MulOp>
+class MulOpScalarProductLowering: public ModelicaOpConversion<MulOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
@@ -1702,24 +1702,24 @@ class MulOpElementWiseLowering: public ModelicaOpConversion<MulOp>
 
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) && !isNumeric(op.rhs()))
-			return rewriter.notifyMatchFailure(op, "Element-wise scalar multiplication: none of the operands is a scalar");
+			return rewriter.notifyMatchFailure(op, "Scalar-array product: none of the operands is a scalar");
 
 		if (isNumeric(op.lhs()))
 		{
 			if (!op.rhs().getType().isa<PointerType>())
-				return rewriter.notifyMatchFailure(op, "Element-wise scalar multiplication: right-hand size value is not an array");
+				return rewriter.notifyMatchFailure(op, "Scalar-array product: right-hand size value is not an array");
 
 			if (!isNumericType(op.rhs().getType().cast<PointerType>().getElementType()))
-				return rewriter.notifyMatchFailure(op, "Element-wise scalar multiplication: right-hand side array has not numeric elements");
+				return rewriter.notifyMatchFailure(op, "Scalar-array product: right-hand side array has not numeric elements");
 		}
 
 		if (isNumeric(op.rhs()))
 		{
 			if (!op.lhs().getType().isa<PointerType>())
-				return rewriter.notifyMatchFailure(op, "Element-wise scalar multiplication: right-hand size value is not an array");
+				return rewriter.notifyMatchFailure(op, "Scalar-array product: right-hand size value is not an array");
 
 			if (!isNumericType(op.lhs().getType().cast<PointerType>().getElementType()))
-				return rewriter.notifyMatchFailure(op, "Element-wise scalar multiplication: left-hand side array has not numeric elements");
+				return rewriter.notifyMatchFailure(op, "Scalar-array product: left-hand side array has not numeric elements");
 		}
 
 		mlir::Value scalar = isNumeric(op.lhs()) ? op.lhs() : op.rhs();
@@ -1811,7 +1811,89 @@ class MulOpCrossProductLowering: public ModelicaOpConversion<MulOp>
 	}
 };
 
+/**
+ * Division between two scalar values
+ */
+class DivOpLowering: public ModelicaOpConversion<DivOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
 
+	mlir::LogicalResult matchAndRewrite(DivOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		// Check if the operands are compatible
+		if (!isNumeric(op.lhs()))
+			return rewriter.notifyMatchFailure(op, "Scalar-scalar division: left-hand side value is not a scalar");
+
+		if (!isNumeric(op.rhs()))
+			return rewriter.notifyMatchFailure(op, "Scalar-scalar division: right-hand side value is not a scalar");
+
+		// Cast the operands to the most generic type
+		auto castOp = rewriter.create<CastCommonOp>(location, op->getOperands());
+		Adaptor adaptor(castOp.getResults());
+		mlir::Type type = castOp.resultType();
+
+		// Compute the result
+		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		{
+			mlir::Value result = rewriter.create<mlir::SignedDivIOp>(location, adaptor.lhs(), adaptor.rhs());
+			result = getTypeConverter()->materializeSourceConversion(rewriter, location, type, result);
+			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
+			return mlir::success();
+		}
+
+		if (type.isa<RealType>())
+		{
+			mlir::Value result = rewriter.create<mlir::DivFOp>(location, adaptor.lhs(), adaptor.rhs());
+			result = getTypeConverter()->materializeSourceConversion(rewriter, location, type, result);
+			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
+			return mlir::success();
+		}
+
+		return rewriter.notifyMatchFailure(op, "Unknown type");
+	}
+};
+
+/**
+ * Product between a scalar and an array
+ */
+class DivOpArrayLowering: public ModelicaOpConversion<DivOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(DivOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		// Check if the operands are compatible
+		if (!op.lhs().getType().isa<PointerType>())
+			return rewriter.notifyMatchFailure(op, "Array-scalar division: left-hand size value is not an array");
+
+		if (!isNumericType(op.lhs().getType().cast<PointerType>().getElementType()))
+			return rewriter.notifyMatchFailure(op, "Array-scalar division: right-hand side array has not numeric elements");
+
+		if (!isNumeric(op.rhs()))
+			return rewriter.notifyMatchFailure(op, "Array-scalar division: right-hand size value is not a scalar");
+
+		// Allocate the result array
+		mlir::Type baseType = op.resultType().cast<PointerType>().getElementType();
+		auto shape = op.lhs().getType().cast<PointerType>().getShape();
+		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, location, op.lhs());
+		mlir::Value result = rewriter.create<AllocaOp>(location, baseType, shape, dynamicDimensions);
+
+		// Divide each array element by the scalar value
+		iterateArray(rewriter, location, op.lhs(),
+								 [&](mlir::ValueRange position) {
+									 mlir::Value arrayValue = rewriter.create<LoadOp>(location, op.lhs(), position);
+									 mlir::Value value = rewriter.create<DivOp>(location, baseType, arrayValue, op.rhs());
+									 rewriter.create<StoreOp>(location, value, result, position);
+								 });
+
+		rewriter.replaceOp(op, result);
+		return mlir::success();
+	}
+};
 
 void ModelicaToLLVMLoweringPass::getDependentDialects(mlir::DialectRegistry& registry) const {
 	registry.insert<mlir::StandardOpsDialect>();
@@ -1881,7 +1963,8 @@ void modelica::populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatte
 	// Math operations
 	patterns.insert<AddOpScalarLowering, AddOpArrayLowering>(context, typeConverter);
 	patterns.insert<SubOpScalarLowering, SubOpArrayLowering>(context, typeConverter);
-	patterns.insert<MulOpLowering, MulOpElementWiseLowering, MulOpCrossProductLowering>(context, typeConverter);
+	patterns.insert<MulOpLowering, MulOpScalarProductLowering, MulOpCrossProductLowering>(context, typeConverter);
+	patterns.insert<DivOpLowering, DivOpArrayLowering>(context, typeConverter);
 }
 
 std::unique_ptr<mlir::Pass> modelica::createModelicaToLLVMLoweringPass(ModelicaToLLVMLoweringOptions options)

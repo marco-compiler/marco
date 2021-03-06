@@ -45,27 +45,3 @@ mlir::Value CrossProductOp::rhs()
 {
 	return getOperand(1);
 }
-
-llvm::StringRef DivOp::getOperationName()
-{
-	return "modelica.div";
-}
-
-void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange operands)
-{
-	if (resultType.isa<mlir::ShapedType>())
-	{
-		auto shapedType = resultType.cast<mlir::ShapedType>();
-		resultType = mlir::VectorType::get(shapedType.getShape(), shapedType.getElementType());
-	}
-
-	state.addTypes(resultType);
-
-	assert(operands.size() >= 2);
-	state.addOperands(operands);
-}
-
-void DivOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.div " << getOperands() << " : " << getOperation()->getResultTypes()[0];
-}
