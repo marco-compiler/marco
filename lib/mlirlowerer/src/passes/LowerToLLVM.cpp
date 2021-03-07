@@ -1550,7 +1550,6 @@ class AddOpArrayLowering: public ModelicaOpConversion<AddOp>
 								 });
 
 		rewriter.replaceOp(op, result);
-		op->getParentOp()->dump();
 		return mlir::success();
 	}
 };
@@ -2072,30 +2071,23 @@ class MulOpMatrixLowering: public ModelicaOpConversion<MulOp>
 
 		mlir::Value result = rewriter.create<AllocaOp>(location, type, shape, dynamicDimensions);
 
-
-		if (lhsPointerType.getShape()[0] > lhsPointerType.getShape()[1])
-		{
-
-		}
-		else
-		{
-
-		}
-
-
-
-
-
-
 		// Iterate on the rows
 		mlir::Value rowsLowerBound = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(0));
 		mlir::Value rowsUpperBound = lhsDescriptor.getSize(rewriter, location, 0);
 		mlir::Value rowsStep = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
 
-		auto outerLoop = rewriter.create<mlir::scf::ForOp>(location, rowsLowerBound, rowsUpperBound, rowsStep);
-		rewriter.setInsertionPointToStart(outerLoop.getBody());
+		auto rowsLoop = rewriter.create<mlir::scf::ForOp>(location, rowsLowerBound, rowsUpperBound, rowsStep);
+		rewriter.setInsertionPointToStart(rowsLoop.getBody());
 
-		// Product between the current row and the vector
+		// Iterate on the columns
+		mlir::Value columnsLowerBound = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(0));
+		mlir::Value columnsUpperBound = rhsDescriptor.getSize(rewriter, location, 1);
+		mlir::Value columnsStep = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
+
+		auto columnsLoop = rewriter.create<mlir::scf::ForOp>(location, columnsLowerBound, columnsUpperBound, columnsStep);
+		rewriter.setInsertionPointToStart(columnsLoop.getBody());
+
+		// Product between the current row and the current column
 		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(0));
 		mlir::Value upperBound = rhsDescriptor.getSize(rewriter, location, 0);
 		mlir::Value step = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
@@ -2104,8 +2096,8 @@ class MulOpMatrixLowering: public ModelicaOpConversion<MulOp>
 		auto innerLoop = rewriter.create<mlir::scf::ForOp>(location, lowerBound, upperBound, step, init);
 		rewriter.setInsertionPointToStart(innerLoop.getBody());
 
-		mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), mlir::ValueRange({ outerLoop.getInductionVar(), innerLoop.getInductionVar() }));
-		mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), innerLoop.getInductionVar());
+		mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), mlir::ValueRange({ rowsLoop.getInductionVar(), innerLoop.getInductionVar() }));
+		mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), mlir::ValueRange({ innerLoop.getInductionVar(), columnsLoop.getInductionVar() }));
 		mlir::Value product = rewriter.create<MulOp>(location, type, lhs, rhs);
 		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, location, type, innerLoop.getRegionIterArgs()[0]);
 		sum = rewriter.create<AddOp>(location, type, product, sum);
@@ -2115,9 +2107,9 @@ class MulOpMatrixLowering: public ModelicaOpConversion<MulOp>
 		rewriter.setInsertionPointAfter(innerLoop);
 		mlir::Value productResult = innerLoop.getResult(0);
 		productResult = getTypeConverter()->materializeSourceConversion(rewriter, location, type, productResult);
-		rewriter.create<StoreOp>(location, productResult, result, outerLoop.getInductionVar());
+		rewriter.create<StoreOp>(location, productResult, result, mlir::ValueRange({ rowsLoop.getInductionVar(), columnsLoop.getInductionVar() }));
 
-		rewriter.setInsertionPointAfter(outerLoop);
+		rewriter.setInsertionPointAfter(rowsLoop);
 
 		rewriter.replaceOp(op, result);
 		return mlir::success();
@@ -2227,8 +2219,6 @@ void ModelicaToLLVMLoweringPass::runOnOperation()
 	target.addIllegalOp<mlir::LLVM::DialectCastOp>();
 	target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
 
-	//target.addLegalDialect<mlir::scf::SCFDialect>();
-
 	// We need to mark the scf::YieldOp and AffineYieldOp as legal due to a
 	// current limitation of MLIR. In fact, they are used just as a placeholder
 	// and would lead to conversion problems if encountered while lowering.
@@ -2280,7 +2270,7 @@ void modelica::populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatte
 	// Math operations
 	patterns.insert<AddOpScalarLowering, AddOpArrayLowering>(context, typeConverter);
 	patterns.insert<SubOpScalarLowering, SubOpArrayLowering>(context, typeConverter);
-	patterns.insert<MulOpLowering, MulOpScalarProductLowering, MulOpCrossProductLowering, MulOpVectorMatrixLowering, MulOpMatrixVectorLowering>(context, typeConverter);
+	patterns.insert<MulOpLowering, MulOpScalarProductLowering, MulOpCrossProductLowering, MulOpVectorMatrixLowering, MulOpMatrixVectorLowering, MulOpMatrixLowering>(context, typeConverter);
 	patterns.insert<DivOpLowering, DivOpArrayLowering>(context, typeConverter);
 }
 

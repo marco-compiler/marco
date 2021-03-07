@@ -471,22 +471,8 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-	llvm::DebugFlag = true;
-
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
-
-	module.dump();
-	llvm::DebugFlag = false;
-
-	/*
-	llvm::LLVMContext llvmCtx;
-	if (auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmCtx)) {
-		llvmModule->print(llvm::errs(), nullptr);
-		return;
-	}
-	 */
 
 	Runner runner(module);
 

@@ -58,7 +58,7 @@ namespace modelica
 		iterator end() { return { *this, -1 }; }
 		const_iterator end() const { return { *this, -1 }; }
 
-		private:
+		public:
 		T* data;
 		long rank;
 		long sizes[Rank];
