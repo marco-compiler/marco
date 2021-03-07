@@ -95,7 +95,7 @@ namespace modelica
 		template<typename... Args>
 		[[nodiscard]] static Expression call(SourcePosition location, Type type, Expression function, Args&&... args)
 		{
-			Call content(location, std::move(function), std::forward<Args>(args)...);
+			Call content(location, std::move(function), { std::forward<Args>(args)... });
 			return Expression(type, std::move(content));
 		}
 

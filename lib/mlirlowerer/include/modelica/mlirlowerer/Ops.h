@@ -1,7 +1,6 @@
 #pragma once
 
 #include <mlir/IR/OpDefinition.h>
-#include <modelica/mlirlowerer/ops/OpTrait.h>
 #include <modelica/mlirlowerer/Type.h>
 
 namespace modelica
@@ -551,7 +550,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class EqOp : public mlir::Op<EqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike, mlir::OpTrait::IsCommutative>
+	class EqOp : public mlir::Op<EqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike, mlir::OpTrait::IsCommutative>
 	{
 		public:
 		using Op::Op;
@@ -581,7 +580,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class NotEqOp : public mlir::Op<NotEqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike, mlir::OpTrait::IsCommutative>
+	class NotEqOp : public mlir::Op<NotEqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike, mlir::OpTrait::IsCommutative>
 	{
 		public:
 		using Op::Op;
@@ -612,7 +611,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class GtOp : public mlir::Op<GtOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
+	class GtOp : public mlir::Op<GtOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
 	{
 		public:
 		using Op::Op;
@@ -643,7 +642,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class GteOp : public mlir::Op<GteOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
+	class GteOp : public mlir::Op<GteOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
 	{
 		public:
 		using Op::Op;
@@ -674,7 +673,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class LtOp : public mlir::Op<LtOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
+	class LtOp : public mlir::Op<LtOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
 	{
 		public:
 		using Op::Op;
@@ -705,7 +704,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class LteOp : public mlir::Op<LteOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, OperandsAreSignlessIntegerOrFloatLike, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
+	class LteOp : public mlir::Op<LteOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
 	{
 		public:
 		using Op::Op;
