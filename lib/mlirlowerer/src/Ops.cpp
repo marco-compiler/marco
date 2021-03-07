@@ -1345,3 +1345,48 @@ mlir::Value DivOp::rhs()
 {
 	return Adaptor(*this).rhs();
 }
+
+//===----------------------------------------------------------------------===//
+// Modelica::PowOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value PowOpAdaptor::base()
+{
+	return getValues()[0];
+}
+
+mlir::Value PowOpAdaptor::exponent()
+{
+	return getValues()[1];
+}
+
+llvm::StringRef PowOp::getOperationName()
+{
+	return "modelica.pow";
+}
+
+void PowOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value base, mlir::Value exponent)
+{
+	state.addTypes(resultType);
+	state.addOperands({ base, exponent });
+}
+
+void PowOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.pow " << base() << ", " << exponent() << " : " << resultType();
+}
+
+mlir::Type PowOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value PowOp::base()
+{
+	return Adaptor(*this).base();
+}
+
+mlir::Value PowOp::exponent()
+{
+	return Adaptor(*this).exponent();
+}

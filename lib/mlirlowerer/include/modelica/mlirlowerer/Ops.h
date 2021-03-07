@@ -4,10 +4,6 @@
 #include <modelica/mlirlowerer/ops/OpTrait.h>
 #include <modelica/mlirlowerer/Type.h>
 
-#include "ops/MathOps.h"
-#include <mlir/IR/Builders.h>
-#include <mlir/IR/OpImplementation.h>
-
 namespace modelica
 {
 	/**
@@ -843,5 +839,35 @@ namespace modelica
 		mlir::Type resultType();
 		mlir::Value lhs();
 		mlir::Value rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::PowOp
+	//===----------------------------------------------------------------------===//
+
+	class PowOp;
+
+	class PowOpAdaptor : public OpAdaptor<PowOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value base();
+		mlir::Value exponent();
+	};
+
+	class PowOp : public mlir::Op<PowOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = PowOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value base, mlir::Value exponent);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Type resultType();
+		mlir::Value base();
+		mlir::Value exponent();
 	};
 }

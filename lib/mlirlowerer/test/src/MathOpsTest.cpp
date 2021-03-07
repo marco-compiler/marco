@@ -1937,121 +1937,114 @@ TEST(MathOps, divIntegerDynamicArrayAndIntegerScalar)	 // NOLINT
 		EXPECT_EQ(z, x / y);
 }
 
-/*
-
-TEST(Pow, integerRaisedToInteger)	 // NOLINT
+TEST(MathOps, powScalar)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   input Integer y;
+	 *   output Integer z;
+	 *
+	 *   algorithm
+	 *     z := x * y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<int>(),
-			OperationKind::powerOf,
-			Expression::constant(location, makeType<int>(), 2),
-			Expression::constant(location, makeType<int>(), 3));
+			Expression::reference(location, makeType<int>(), "z"),
+			Expression::operation(location, makeType<int>(), OperationKind::powerOf,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::reference(location, makeType<int>(), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, 8);
+	Runner runner(module);
+
+	array<int, 2> x = { 3, 2 };
+	array<int, 2> y = { 4, 0 };
+	array<int, 2> z = { 0, 0 };
+
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
+	{
+		if (failed(runner.run("main", x, y, Runner::result(z))))
+			FAIL();
+
+		EXPECT_EQ(z, pow(x, y));
+	}
 }
 
-TEST(Pow, integerRaisedToFloat)	 // NOLINT
+TEST(MathOps, powSquareMatrix)	 // NOLINT
 {
+	/**
+	 * function main
+	 *   input Integer[2, 2] x;
+	 *   input Integer y;
+	 *   output Integer[2, 2] z;
+	 *
+	 *   algorithm
+	 *     z := x * y;
+	 * end main
+	 */
+
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression expression = Expression::operation(
+	Member xMember(location, "x", makeType<int>(2, 2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<int>(2, 2), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
 			location,
-			makeType<int>(),
-			OperationKind::powerOf,
-			Expression::constant(location, makeType<int>(), 4),
-			Expression::constant(location, makeType<float>(), 0.5));
+			Expression::reference(location, makeType<int>(2, 2), "z"),
+			Expression::operation(location, makeType<int>(2, 2), OperationKind::powerOf,
+														Expression::reference(location, makeType<int>(2, 2), "x"),
+														Expression::reference(location, makeType<int>(), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
 
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
+	module.dump();
+	llvm::DebugFlag = true;
 
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	int result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, 2);
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	module.dump();
+	llvm::DebugFlag = false;
+
+	Runner runner(module);
+
+	array<int, 4> x = { 1, 2, 3, 4 };
+	int y = 2;
+
+	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 2 });
+	ArrayDescriptor<int, 2> zPtr(nullptr, { 1, 1 });
+
+	if (failed(runner.run("main", xPtr, y, Runner::result(zPtr))))
+		FAIL();
+
+	EXPECT_EQ(zPtr.get(0, 0), 7);
+	EXPECT_EQ(zPtr.get(0, 1), 10);
+	EXPECT_EQ(zPtr.get(1, 0), 15);
+	EXPECT_EQ(zPtr.get(1, 1), 22);
 }
-
-TEST(Pow, floatRaisedToInteger)	 // NOLINT
-{
-	SourcePosition location = SourcePosition::unknown();
-
-	Expression expression = Expression::operation(
-			location,
-			makeType<float>(),
-			OperationKind::powerOf,
-			Expression::constant(location, makeType<float>(), 2.5),
-			Expression::constant(location, makeType<int>(), 2));
-
-	mlir::MLIRContext context;
-
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
-
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, 6.25);
-}
-
-TEST(Pow, floatRaisedToFloat)	 // NOLINT
-{
-	SourcePosition location = SourcePosition::unknown();
-
-	Expression expression = Expression::operation(
-			location,
-			makeType<float>(),
-			OperationKind::powerOf,
-			Expression::constant(location, makeType<float>(), 1.5625),
-			Expression::constant(location, makeType<int>(), 0.5));
-
-	mlir::MLIRContext context;
-
-	mlir::FuncOp function = getFunctionReturningValue(
-			context,
-			expression.getType(),
-			[&](MlirLowerer& lowerer) -> mlir::Value
-			{
-				auto values = lowerer.lower<modelica::Expression>(expression);
-				EXPECT_EQ(values.size(), 1);
-				return *values[0];
-			});
-
-	Runner runner(&context, wrapFunctionWithModule(context, function));
-	float result = 0;
-	runner.run("main", result);
-	EXPECT_FLOAT_EQ(result, 1.25);
-}
-*/

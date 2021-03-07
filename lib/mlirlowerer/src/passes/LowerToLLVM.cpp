@@ -4,6 +4,7 @@
 #include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/LLVMIR/FunctionCallUtils.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Dialect/Math/IR/Math.h>
 #include <mlir/Dialect/SCF/Transforms.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
@@ -2200,8 +2201,75 @@ class DivOpArrayLowering: public ModelicaOpConversion<DivOp>
 	}
 };
 
+class PowOpLowering: public ModelicaOpConversion<PowOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(PowOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		// Check if the operands are compatible
+		if (!isNumeric(op.base()))
+			return rewriter.notifyMatchFailure(op, "Pow: base is not a scalar");
+
+		if (!isNumeric(op.exponent()))
+			return rewriter.notifyMatchFailure(op, "Pow: base is not a scalar");
+
+		// Compute the result
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::math::PowFOp>(location, adaptor.base(), adaptor.exponent());
+		result = getTypeConverter()->materializeSourceConversion(rewriter, location, op.base().getType(), result);
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
+		return mlir::success();
+	}
+};
+
+class PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(PowOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		// Check if the operands are compatible
+		if (!op.base().getType().isa<PointerType>())
+			return rewriter.notifyMatchFailure(op, "Pow: base is not an array");
+
+		auto basePointerType = op.base().getType().cast<PointerType>();
+
+		if (basePointerType.getRank() != 2)
+			return rewriter.notifyMatchFailure(op, "Pow: base array is not 2-D");
+
+		if (basePointerType.getShape()[0] != -1 && basePointerType.getShape()[1] != -1)
+			if (basePointerType.getShape()[0] != basePointerType.getShape()[1])
+				return rewriter.notifyMatchFailure(op, "Pow: base is not a square matrix");
+
+		if (!op.exponent().getType().isa<IntegerType>())
+			return rewriter.notifyMatchFailure(op, "Pow: exponent is not an integer");
+
+		// Compute the result
+		Adaptor adaptor(operands);
+
+		mlir::Value exponent = rewriter.create<CastOp>(location, op.exponent(), mlir::IndexType::get(op->getContext()));
+		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(0));
+		mlir::Value step = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
+
+		auto forLoop = rewriter.create<mlir::scf::ForOp>(location, lowerBound, exponent, step, op.base());
+		rewriter.setInsertionPointToStart(forLoop.getBody());
+		mlir::Value next = rewriter.create<MulOp>(location, op.base().getType(), forLoop.getRegionIterArgs()[0], op.base());
+		rewriter.create<mlir::scf::YieldOp>(location, next);
+		rewriter.setInsertionPointAfter(forLoop);
+
+		rewriter.replaceOp(op, forLoop.getResult(0));
+		return mlir::success();
+	}
+};
+
 void ModelicaToLLVMLoweringPass::getDependentDialects(mlir::DialectRegistry& registry) const {
 	registry.insert<mlir::StandardOpsDialect>();
+	registry.insert<mlir::math::MathDialect>();
 	registry.insert<mlir::LLVM::LLVMDialect>();
 }
 
@@ -2272,6 +2340,7 @@ void modelica::populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatte
 	patterns.insert<SubOpScalarLowering, SubOpArrayLowering>(context, typeConverter);
 	patterns.insert<MulOpLowering, MulOpScalarProductLowering, MulOpCrossProductLowering, MulOpVectorMatrixLowering, MulOpMatrixVectorLowering, MulOpMatrixLowering>(context, typeConverter);
 	patterns.insert<DivOpLowering, DivOpArrayLowering>(context, typeConverter);
+	patterns.insert<PowOpLowering, PowOpMatrixLowering>(context, typeConverter);
 }
 
 std::unique_ptr<mlir::Pass> modelica::createModelicaToLLVMLoweringPass(ModelicaToLLVMLoweringOptions options)

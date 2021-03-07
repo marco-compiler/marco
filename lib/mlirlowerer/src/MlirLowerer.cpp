@@ -9,7 +9,6 @@
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 #include <modelica/mlirlowerer/passes/LowerToLLVM.h>
-#include <modelica/mlirlowerer/passes/LowerModelica.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 
@@ -766,14 +765,20 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::powerOf)
 	{
 		mlir::Value base = *lower<modelica::Expression>(operation[0])[0];
-		base = builder.create<CastOp>(base.getLoc(), base, builder.getRealType());
-
 		mlir::Value exponent = *lower<modelica::Expression>(operation[1])[0];
-		exponent = builder.create<CastOp>(base.getLoc(), exponent, builder.getRealType());
 
-		//mlir::Value result = builder.create<PowFOp>(location, base, exponent);
-		//result = builder.create<CastOp>(result.getLoc(), result, resultType);
-		return { Reference::ssa(&builder, nullptr) };
+		if (base.getType().isa<PointerType>())
+		{
+			exponent = builder.create<CastOp>(base.getLoc(), exponent, builder.getIndexType());
+		}
+		else
+		{
+			base = builder.create<CastOp>(base.getLoc(), base, builder.getRealType());
+			exponent = builder.create<CastOp>(base.getLoc(), exponent, builder.getRealType());
+		}
+
+		mlir::Value result = builder.create<PowOp>(location, resultType, base, exponent);
+		return { Reference::ssa(&builder, result) };
 	}
 
 	if (kind == OperationKind::equal)

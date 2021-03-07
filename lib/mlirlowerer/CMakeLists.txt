@@ -1,8 +1,5 @@
 modelicaAddLibrary(
         mlirlowerer SHARED
-        src/ops/MathOps.cpp
-        src/passes/patterns/MathOpsPatterns.cpp
-        src/passes/LowerModelica.cpp
         src/passes/LowerToLLVM.cpp
         src/passes/BreakRemover.cpp
         src/passes/ReturnRemover.cpp
