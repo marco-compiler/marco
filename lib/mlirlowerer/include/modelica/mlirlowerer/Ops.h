@@ -98,7 +98,7 @@ namespace modelica
 		using Adaptor = AllocaOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, PointerType::Shape shape = {}, mlir::ValueRange dimensions = {});
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
 		void print(mlir::OpAsmPrinter& printer);
 
 		PointerType getPointerType();
@@ -125,7 +125,7 @@ namespace modelica
 		using Adaptor = AllocOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, PointerType::Shape shape = {}, mlir::ValueRange dimensions = {});
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
 		void print(mlir::OpAsmPrinter& printer);
 
 		PointerType getPointerType();

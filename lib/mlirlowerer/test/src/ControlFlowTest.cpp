@@ -406,6 +406,13 @@ TEST(FunctionLowerTest, test)	 // NOLINT
 		FAIL();
 }
 
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/Support/TargetSelect.h>
+#include <mlir/ExecutionEngine/ExecutionEngine.h>
+#include <mlir/ExecutionEngine/OptUtils.h>
+#include <mlir/IR/BuiltinOps.h>
+#include <mlir/Target/LLVMIR.h>
+
 TEST(ControlFlow, whileLoop)	 // NOLINT
 {
 	/**
@@ -464,8 +471,22 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
+	module.dump();
+	llvm::DebugFlag = true;
+
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
+
+	module.dump();
+	llvm::DebugFlag = false;
+
+	/*
+	llvm::LLVMContext llvmCtx;
+	if (auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmCtx)) {
+		llvmModule->print(llvm::errs(), nullptr);
+		return;
+	}
+	 */
 
 	Runner runner(module);
 

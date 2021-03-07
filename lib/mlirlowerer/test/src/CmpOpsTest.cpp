@@ -43,8 +43,14 @@ TEST(Comparison, eqIntegers)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
+	module.dump();
+	llvm::DebugFlag = true;
+
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
+
+	module.dump();
+	llvm::DebugFlag = false;
 
 	Runner runner(module);
 

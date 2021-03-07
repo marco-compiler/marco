@@ -366,6 +366,17 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 	}
 };
 
+struct UnrealizedCastOpLowering : public mlir::OpConversionPattern<mlir::UnrealizedConversionCastOp>
+{
+	using mlir::OpConversionPattern<mlir::UnrealizedConversionCastOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(mlir::UnrealizedConversionCastOp castOp, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter &rewriter) const override {
+		mlir::UnrealizedConversionCastOp::Adaptor transformed(operands);
+		rewriter.replaceOp(castOp, transformed.inputs());
+		return mlir::success();
+	}
+};
+
 /**
  * Store a scalar value.
  */
@@ -900,7 +911,7 @@ class WhileOpLowering: public ModelicaOpConversion<WhileOp>
 		rewriter.mergeBlocks(&op.condition().front(), &ifOp.elseRegion().front(), llvm::None);
 		rewriter.setInsertionPointToEnd(&ifOp.elseRegion().front());
 		auto conditionOp = mlir::cast<ConditionOp>(ifOp.elseRegion().front().getTerminator());
-		rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(conditionOp, materializeTargetConversion(rewriter, location, conditionOp.condition()));
+		rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(conditionOp, conditionOp.condition());
 
 		// The original condition operation is converted to the SCF one and takes
 		// as condition argument the result of the If operation, which is false
@@ -1232,11 +1243,11 @@ class NotEqOpLowering: public ModelicaOpConversion<NotEqOp>
 
 		for (const auto& operand : castOp.getResults())
 		{
-			mlir::Type resultType = typeConverter().convertType(operand.getType());
-			transformed.push_back(typeConverter().materializeTargetConversion(rewriter, location, resultType, operand));
+			//mlir::Type resultType = typeConverter().convertType(operand.getType());
+			//transformed.push_back(typeConverter().materializeTargetConversion(rewriter, location, resultType, operand));
 		}
 
-		Adaptor adaptor(transformed);
+		Adaptor adaptor(castOp->getResults());
 		mlir::Type type = castOp.resultType();
 
 		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
@@ -1539,6 +1550,7 @@ class AddOpArrayLowering: public ModelicaOpConversion<AddOp>
 								 });
 
 		rewriter.replaceOp(op, result);
+		op->getParentOp()->dump();
 		return mlir::success();
 	}
 };
@@ -1746,6 +1758,8 @@ class MulOpScalarProductLowering: public ModelicaOpConversion<MulOp>
 
 /**
  * Cross product of two 1-D arrays. Result is a scalar.
+ *
+ * [ x1, x2, x3 ] * [ y1, y2, y3 ] = x1 * y1 + x2 * y2 + x3 * y3
  */
 class MulOpCrossProductLowering: public ModelicaOpConversion<MulOp>
 {
@@ -1776,11 +1790,8 @@ class MulOpCrossProductLowering: public ModelicaOpConversion<MulOp>
 			if (lhsPointerType.getShape()[0] != rhsPointerType.getShape()[0])
 				return rewriter.notifyMatchFailure(op, "Cross product: the two arrays have different shape");
 
-		// Allocate the result
-		mlir::Type type = op.resultType();
-		mlir::Value result = rewriter.create<AllocaOp>(location, type);
-
 		// Compute the result
+		mlir::Type type = op.resultType();
 		Adaptor transformed(operands);
 
 		assert(lhsPointerType.getRank() == 1);
@@ -1807,6 +1818,308 @@ class MulOpCrossProductLowering: public ModelicaOpConversion<MulOp>
 		rewriter.setInsertionPointAfter(loop);
 
 		rewriter.replaceOp(op, loop.getResult(0));
+		return mlir::success();
+	}
+};
+
+/**
+ * Product of a vector (1-D array) and a matrix (2-D array).
+ *
+ * [ x1, x2, x3 ] * [ y11, y12 ] = [ (x1 * y11 + x2 * y21 + x3 * y31), (x1 * y12 + x2 * y22 + x3 * y32) ]
+ * 									[ y21, y22 ]
+ * 									[ y31, y32 ]
+ */
+class MulOpVectorMatrixLowering: public ModelicaOpConversion<MulOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(MulOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		// Check if the operands are compatible
+		if (!op.lhs().getType().isa<PointerType>())
+			return rewriter.notifyMatchFailure(op, "Vector-matrix product: left-hand side value is not an array");
+
+		auto lhsPointerType = op.lhs().getType().cast<PointerType>();
+
+		if (lhsPointerType.getRank() != 1)
+			return rewriter.notifyMatchFailure(op, "Vector-matrix product: left-hand size array is not 1-D");
+
+		if (!op.rhs().getType().isa<PointerType>())
+			return rewriter.notifyMatchFailure(op, "Vector-matrix product: right-hand side value is not an array");
+
+		auto rhsPointerType = op.rhs().getType().cast<PointerType>();
+
+		if (rhsPointerType.getRank() != 2)
+			return rewriter.notifyMatchFailure(op, "Vector-matrix product: right-hand side matrix is not 2-D");
+
+		if (lhsPointerType.getShape()[0] != -1 && rhsPointerType.getShape()[0] != -1)
+			if (lhsPointerType.getShape()[0] != rhsPointerType.getShape()[0])
+				return rewriter.notifyMatchFailure(op, "Vector-matrix product: incompatible shapes");
+
+		// Allocate the result array
+		Adaptor transformed(operands);
+
+		MemoryDescriptor lhsDescriptor(transformed.lhs());
+		MemoryDescriptor rhsDescriptor(transformed.rhs());
+
+		assert(lhsPointerType.getRank() == 1);
+		assert(rhsPointerType.getRank() == 2);
+
+		mlir::Type type = op.resultType().cast<PointerType>().getElementType();
+
+		llvm::SmallVector<long, 1> shape;
+		shape.push_back(rhsPointerType.getShape()[1]);
+
+		llvm::SmallVector<mlir::Value, 1> dynamicDimensions;
+
+		if (shape[0] == -1)
+			dynamicDimensions.push_back(rhsDescriptor.getSize(rewriter, location, 1));
+
+		mlir::Value result = rewriter.create<AllocaOp>(location, type, shape, dynamicDimensions);
+
+		// Iterate on the columns
+		mlir::Value columnsLowerBound = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(0));
+		mlir::Value columnsUpperBound = rhsDescriptor.getSize(rewriter, location, 1);
+		mlir::Value columnsStep = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
+
+		auto outerLoop = rewriter.create<mlir::scf::ForOp>(location, columnsLowerBound, columnsUpperBound, columnsStep);
+		rewriter.setInsertionPointToStart(outerLoop.getBody());
+
+		// Product between the vector and the current column
+		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(0));
+		mlir::Value upperBound = lhsDescriptor.getSize(rewriter, location, 0);
+		mlir::Value step = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
+		mlir::Value init = rewriter.create<mlir::ConstantOp>(location, rewriter.getZeroAttr(convertType(type)));
+
+		auto innerLoop = rewriter.create<mlir::scf::ForOp>(location, lowerBound, upperBound, step, init);
+		rewriter.setInsertionPointToStart(innerLoop.getBody());
+
+		mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), innerLoop.getInductionVar());
+		mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), mlir::ValueRange({ innerLoop.getInductionVar(), outerLoop.getInductionVar() }));
+		mlir::Value product = rewriter.create<MulOp>(location, type, lhs, rhs);
+		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, location, type, innerLoop.getRegionIterArgs()[0]);
+		sum = rewriter.create<AddOp>(location, type, product, sum);
+		rewriter.create<mlir::scf::YieldOp>(location, sum);
+
+		// Store the product in the result array
+		rewriter.setInsertionPointAfter(innerLoop);
+		mlir::Value productResult = innerLoop.getResult(0);
+		productResult = getTypeConverter()->materializeSourceConversion(rewriter, location, type, productResult);
+		rewriter.create<StoreOp>(location, productResult, result, outerLoop.getInductionVar());
+
+		rewriter.setInsertionPointAfter(outerLoop);
+
+		rewriter.replaceOp(op, result);
+		return mlir::success();
+	}
+};
+
+/**
+ * Product of a matrix (2-D array) and a vector (1-D array).
+ *
+ * [ x11, x12 ] * [ y1, y2 ] = [ x11 * y1 + x12 * y2 ]
+ * [ x21, x22 ]								 [ x21 * y1 + x22 * y2 ]
+ * [ x31, x32 ]								 [ x31 * y1 + x22 * y2 ]
+ */
+class MulOpMatrixVectorLowering: public ModelicaOpConversion<MulOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(MulOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		// Check if the operands are compatible
+		if (!op.lhs().getType().isa<PointerType>())
+			return rewriter.notifyMatchFailure(op, "Matrix-vector product: left-hand side value is not an array");
+
+		auto lhsPointerType = op.lhs().getType().cast<PointerType>();
+
+		if (lhsPointerType.getRank() != 2)
+			return rewriter.notifyMatchFailure(op, "Matrix-vector product: left-hand size array is not 2-D");
+
+		if (!op.rhs().getType().isa<PointerType>())
+			return rewriter.notifyMatchFailure(op, "Matrix-vector product: right-hand side value is not an array");
+
+		auto rhsPointerType = op.rhs().getType().cast<PointerType>();
+
+		if (rhsPointerType.getRank() != 1)
+			return rewriter.notifyMatchFailure(op, "Matrix-vector product: right-hand side matrix is not 1-D");
+
+		if (lhsPointerType.getShape()[1] != -1 && rhsPointerType.getShape()[0] != -1)
+			if (lhsPointerType.getShape()[1] != rhsPointerType.getShape()[0])
+				return rewriter.notifyMatchFailure(op, "Matrix-vector product: incompatible shapes");
+
+		// Allocate the result array
+		Adaptor transformed(operands);
+
+		MemoryDescriptor lhsDescriptor(transformed.lhs());
+		MemoryDescriptor rhsDescriptor(transformed.rhs());
+
+		assert(lhsPointerType.getRank() == 2);
+		assert(rhsPointerType.getRank() == 1);
+
+		mlir::Type type = op.resultType().cast<PointerType>().getElementType();
+
+		llvm::SmallVector<long, 1> shape;
+		shape.push_back(lhsPointerType.getShape()[0]);
+
+		llvm::SmallVector<mlir::Value, 1> dynamicDimensions;
+
+		if (shape[0] == -1)
+			dynamicDimensions.push_back(lhsDescriptor.getSize(rewriter, location, 0));
+
+		mlir::Value result = rewriter.create<AllocaOp>(location, type, shape, dynamicDimensions);
+
+		// Iterate on the rows
+		mlir::Value rowsLowerBound = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(0));
+		mlir::Value rowsUpperBound = lhsDescriptor.getSize(rewriter, location, 0);
+		mlir::Value rowsStep = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
+
+		auto outerLoop = rewriter.create<mlir::scf::ForOp>(location, rowsLowerBound, rowsUpperBound, rowsStep);
+		rewriter.setInsertionPointToStart(outerLoop.getBody());
+
+		// Product between the current row and the vector
+		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(0));
+		mlir::Value upperBound = rhsDescriptor.getSize(rewriter, location, 0);
+		mlir::Value step = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
+		mlir::Value init = rewriter.create<mlir::ConstantOp>(location, rewriter.getZeroAttr(convertType(type)));
+
+		auto innerLoop = rewriter.create<mlir::scf::ForOp>(location, lowerBound, upperBound, step, init);
+		rewriter.setInsertionPointToStart(innerLoop.getBody());
+
+		mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), mlir::ValueRange({ outerLoop.getInductionVar(), innerLoop.getInductionVar() }));
+		mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), innerLoop.getInductionVar());
+		mlir::Value product = rewriter.create<MulOp>(location, type, lhs, rhs);
+		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, location, type, innerLoop.getRegionIterArgs()[0]);
+		sum = rewriter.create<AddOp>(location, type, product, sum);
+		rewriter.create<mlir::scf::YieldOp>(location, sum);
+
+		// Store the product in the result array
+		rewriter.setInsertionPointAfter(innerLoop);
+		mlir::Value productResult = innerLoop.getResult(0);
+		productResult = getTypeConverter()->materializeSourceConversion(rewriter, location, type, productResult);
+		rewriter.create<StoreOp>(location, productResult, result, outerLoop.getInductionVar());
+
+		rewriter.setInsertionPointAfter(outerLoop);
+
+		rewriter.replaceOp(op, result);
+		return mlir::success();
+	}
+};
+
+/**
+ * Product of two matrixes (2-D arrays).
+ *
+ * [ x11, x12, x13 ] * [ y11, y12 ] = [ x11 * y11 + x12 * y21 + x13 * y31, x11 * y12 + x12 * y22 + x13 * y32 ]
+ * [ x21, x22, x23 ]   [ y21, y22 ]		[ x21 * y11 + x22 * y21 + x23 * y31, x21 * y12 + x22 * y22 + x23 * y32 ]
+ * [ x31, x32, x33 ]	 [ y31, y32 ]		[ x31 * y11 + x32 * y21 + x33 * y31, x31 * y12 + x32 * y22 + x33 * y32 ]
+ * [ x41, x42, x43 ]
+ */
+class MulOpMatrixLowering: public ModelicaOpConversion<MulOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(MulOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		// Check if the operands are compatible
+		if (!op.lhs().getType().isa<PointerType>())
+			return rewriter.notifyMatchFailure(op, "Matrix product: left-hand side value is not an array");
+
+		auto lhsPointerType = op.lhs().getType().cast<PointerType>();
+
+		if (lhsPointerType.getRank() != 2)
+			return rewriter.notifyMatchFailure(op, "Matrix product: left-hand size array is not 2-D");
+
+		if (!op.rhs().getType().isa<PointerType>())
+			return rewriter.notifyMatchFailure(op, "Matrix product: right-hand side value is not an array");
+
+		auto rhsPointerType = op.rhs().getType().cast<PointerType>();
+
+		if (rhsPointerType.getRank() != 2)
+			return rewriter.notifyMatchFailure(op, "Matrix product: right-hand side matrix is not 2-D");
+
+		if (lhsPointerType.getShape()[1] != -1 && rhsPointerType.getShape()[0] != -1)
+			if (lhsPointerType.getShape()[1] != rhsPointerType.getShape()[0])
+				return rewriter.notifyMatchFailure(op, "Matrix-vector product: incompatible shapes");
+
+		// Allocate the result array
+		Adaptor transformed(operands);
+
+		MemoryDescriptor lhsDescriptor(transformed.lhs());
+		MemoryDescriptor rhsDescriptor(transformed.rhs());
+
+		assert(lhsPointerType.getRank() == 2);
+		assert(rhsPointerType.getRank() == 2);
+
+		mlir::Type type = op.resultType().cast<PointerType>().getElementType();
+
+		llvm::SmallVector<long, 2> shape;
+		shape.push_back(lhsPointerType.getShape()[0]);
+		shape.push_back(rhsPointerType.getShape()[1]);
+
+		llvm::SmallVector<mlir::Value, 2> dynamicDimensions;
+
+		if (shape[0] == -1)
+			dynamicDimensions.push_back(lhsDescriptor.getSize(rewriter, location, 0));
+
+		if (shape[1] == -1)
+			dynamicDimensions.push_back(rhsDescriptor.getSize(rewriter, location, 1));
+
+		mlir::Value result = rewriter.create<AllocaOp>(location, type, shape, dynamicDimensions);
+
+
+		if (lhsPointerType.getShape()[0] > lhsPointerType.getShape()[1])
+		{
+
+		}
+		else
+		{
+
+		}
+
+
+
+
+
+
+		// Iterate on the rows
+		mlir::Value rowsLowerBound = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(0));
+		mlir::Value rowsUpperBound = lhsDescriptor.getSize(rewriter, location, 0);
+		mlir::Value rowsStep = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
+
+		auto outerLoop = rewriter.create<mlir::scf::ForOp>(location, rowsLowerBound, rowsUpperBound, rowsStep);
+		rewriter.setInsertionPointToStart(outerLoop.getBody());
+
+		// Product between the current row and the vector
+		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(0));
+		mlir::Value upperBound = rhsDescriptor.getSize(rewriter, location, 0);
+		mlir::Value step = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
+		mlir::Value init = rewriter.create<mlir::ConstantOp>(location, rewriter.getZeroAttr(convertType(type)));
+
+		auto innerLoop = rewriter.create<mlir::scf::ForOp>(location, lowerBound, upperBound, step, init);
+		rewriter.setInsertionPointToStart(innerLoop.getBody());
+
+		mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), mlir::ValueRange({ outerLoop.getInductionVar(), innerLoop.getInductionVar() }));
+		mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), innerLoop.getInductionVar());
+		mlir::Value product = rewriter.create<MulOp>(location, type, lhs, rhs);
+		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, location, type, innerLoop.getRegionIterArgs()[0]);
+		sum = rewriter.create<AddOp>(location, type, product, sum);
+		rewriter.create<mlir::scf::YieldOp>(location, sum);
+
+		// Store the product in the result array
+		rewriter.setInsertionPointAfter(innerLoop);
+		mlir::Value productResult = innerLoop.getResult(0);
+		productResult = getTypeConverter()->materializeSourceConversion(rewriter, location, type, productResult);
+		rewriter.create<StoreOp>(location, productResult, result, outerLoop.getInductionVar());
+
+		rewriter.setInsertionPointAfter(outerLoop);
+
+		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
@@ -1912,7 +2225,9 @@ void ModelicaToLLVMLoweringPass::runOnOperation()
 	mlir::ConversionTarget target(getContext());
 	target.addLegalDialect<mlir::LLVM::LLVMDialect>();
 	target.addIllegalOp<mlir::LLVM::DialectCastOp>();
-	target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp, mlir::UnrealizedConversionCastOp>();
+	target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
+
+	//target.addLegalDialect<mlir::scf::SCFDialect>();
 
 	// We need to mark the scf::YieldOp and AffineYieldOp as legal due to a
 	// current limitation of MLIR. In fact, they are used just as a placeholder
@@ -1934,7 +2249,7 @@ void ModelicaToLLVMLoweringPass::runOnOperation()
 	// With the target and rewrite patterns defined, we can now attempt the
 	// conversion. The conversion will signal failure if any of our "illegal"
 	// operations were not converted successfully.
-	if (failed(applyFullConversion(module, target, std::move(patterns))))
+	if (failed(applyPartialConversion(module, target, std::move(patterns))))
 	{
 		mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
 		signalPassFailure();
@@ -1943,6 +2258,8 @@ void ModelicaToLLVMLoweringPass::runOnOperation()
 
 void modelica::populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, modelica::TypeConverter& typeConverter)
 {
+	patterns.insert<UnrealizedCastOpLowering>(context);
+
 	// Basic operations
 	patterns.insert<AssignmentOpScalarLowering, AssignmentOpArrayLowering>(context, typeConverter);
 	patterns.insert<CastOpIndexLowering, CastOpBooleanLowering, CastOpIntegerLowering, CastOpRealLowering, CastCommonOpLowering>(context, typeConverter);
@@ -1963,7 +2280,7 @@ void modelica::populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatte
 	// Math operations
 	patterns.insert<AddOpScalarLowering, AddOpArrayLowering>(context, typeConverter);
 	patterns.insert<SubOpScalarLowering, SubOpArrayLowering>(context, typeConverter);
-	patterns.insert<MulOpLowering, MulOpScalarProductLowering, MulOpCrossProductLowering>(context, typeConverter);
+	patterns.insert<MulOpLowering, MulOpScalarProductLowering, MulOpCrossProductLowering, MulOpVectorMatrixLowering, MulOpMatrixVectorLowering>(context, typeConverter);
 	patterns.insert<DivOpLowering, DivOpArrayLowering>(context, typeConverter);
 }
 

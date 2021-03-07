@@ -1456,6 +1456,125 @@ TEST(MathOps, mulCrossProductIntegerStaticArrays)	 // NOLINT
 	EXPECT_EQ(z, 17);
 }
 
+TEST(MathOps, mulIntegerStaticVectorAndIntegerStaticMatrix)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[4] x;
+	 *   input Integer[4,3] y;
+	 *   output Integer[3] z;
+	 *
+	 *   algorithm
+	 *     z := x * y;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(4), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(4, 3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(3), "z"),
+			Expression::operation(location, makeType<int>(3), OperationKind::multiply,
+														Expression::reference(location, makeType<int>(4), "x"),
+														Expression::reference(location, makeType<int>(4, 3), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	Runner runner(module);
+
+	array<int, 4> x = { 1, 2, 3, 4 };
+	array<int, 12> y = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 4 });
+	ArrayDescriptor<int, 2> yPtr(y.data(), { 4, 3 });
+	ArrayDescriptor<int, 1> zPtr(nullptr, { 1 });
+
+	if (failed(runner.run("main", xPtr, yPtr, Runner::result(zPtr))))
+		FAIL();
+
+	EXPECT_EQ(zPtr.getSize(0), 3);
+
+	EXPECT_EQ(zPtr[0], 70);
+	EXPECT_EQ(zPtr[1], 80);
+	EXPECT_EQ(zPtr[2], 90);
+}
+
+TEST(MathOps, mulIntegerStaticMatrixAndIntegerStaticVector)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[4, 3] x;
+	 *   input Integer[3] y;
+	 *   output Integer[4] z;
+	 *
+	 *   algorithm
+	 *     z := x * y;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(4, 3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<int>(4), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(4), "z"),
+			Expression::operation(location, makeType<int>(4), OperationKind::multiply,
+														Expression::reference(location, makeType<int>(4, 3), "x"),
+														Expression::reference(location, makeType<int>(3), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	mlir::ModuleOp module = lowerer.lower(cls);
+
+	module.dump();
+	llvm::DebugFlag = true;
+
+	if (failed(convertToLLVMDialect(&context, module)))
+		FAIL();
+
+	module.dump();
+	llvm::DebugFlag = false;
+
+	Runner runner(module);
+
+	array<int, 12> x = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+	array<int, 3> y = { 1, 2, 3 };
+
+	ArrayDescriptor<int, 2> xPtr(x.data(), { 4, 3 });
+	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+	ArrayDescriptor<int, 1> zPtr(nullptr, { 1 });
+
+	if (failed(runner.run("main", xPtr, yPtr, Runner::result(zPtr))))
+		FAIL();
+
+	EXPECT_EQ(zPtr.getSize(0), 4);
+
+	EXPECT_EQ(zPtr[0], 14);
+	EXPECT_EQ(zPtr[1], 32);
+	EXPECT_EQ(zPtr[2], 50);
+	EXPECT_EQ(zPtr[3], 68);
+}
+
 TEST(MathOps, divOfIntegerScalars)	 // NOLINT
 {
 	/**

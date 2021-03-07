@@ -42,7 +42,8 @@ mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, m
 	ModelicaToLLVMLoweringOptions modelicaToLLVMOptions;
 	passManager.addPass(createModelicaToLLVMLoweringPass(modelicaToLLVMOptions));
 
-	passManager.addPass(mlir::createConvertVectorToLLVMPass());
+	//passManager.addPass(mlir::createConvertVectorToLLVMPass());
+	//passManager.addPass(mlir::createLowerToCFGPass());
 
 	return passManager.run(module);
 }

@@ -38,7 +38,7 @@ namespace modelica
 		using Shape = llvm::SmallVector<long, 3>;
 
 		/// Return a sequence type with the specified shape and element type
-		static PointerType get(mlir::MLIRContext* context, bool heap, mlir::Type elementType, const Shape shape = {});
+		static PointerType get(mlir::MLIRContext* context, bool heap, mlir::Type elementType, llvm::ArrayRef<long> shape = {});
 
 		[[nodiscard]] bool isOnHeap() const;
 

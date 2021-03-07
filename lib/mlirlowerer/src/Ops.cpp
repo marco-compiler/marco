@@ -59,7 +59,7 @@ llvm::StringRef AllocaOp::getOperationName()
 	return "modelica.alloca";
 }
 
-void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, PointerType::Shape shape, mlir::ValueRange dimensions)
+void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions)
 {
 	size_t dynamicDimensions = 0;
 
@@ -104,7 +104,7 @@ llvm::StringRef AllocOp::getOperationName()
 	return "modelica.alloc";
 }
 
-void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, PointerType::Shape shape, mlir::ValueRange dimensions)
+void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions)
 {
 	size_t dynamicDimensions = 0;
 

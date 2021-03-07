@@ -153,9 +153,9 @@ unsigned int RealType::getBitWidth() const
 	return getImpl()->getBitWidth();
 }
 
-PointerType PointerType::get(mlir::MLIRContext* context, bool heap, mlir::Type elementType, const Shape shape)
+PointerType PointerType::get(mlir::MLIRContext* context, bool heap, mlir::Type elementType, llvm::ArrayRef<long> shape)
 {
-	return Base::get(context, heap, elementType, shape);
+	return Base::get(context, heap, elementType, Shape(shape.begin(), shape.end()));
 }
 
 bool PointerType::isOnHeap() const

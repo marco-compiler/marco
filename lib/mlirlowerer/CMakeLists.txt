@@ -26,6 +26,7 @@ target_link_libraries(
         MLIRLinalgToStandard
         MLIRSCF
         MLIRSCFToStandard
+        MLIRSCFToGPU
         MLIRStandard
         MLIRStandardToLLVM
         MLIRVectorToLLVM
