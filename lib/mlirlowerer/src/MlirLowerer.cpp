@@ -271,48 +271,8 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	builder.create<StoreOp>(algorithmLocation, falseValue, returnCondition);
 	symbolTable.insert(algorithm.getReturnCheckName(), Reference::memref(&builder, returnCondition, true));
 
-
-
-	//mlir::Value mem = *symbolTable.lookup("y");
-
-	/*
-	mlir::Value twoIndex = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(2));
-	mlir::Value twoValue = builder.create<mlir::ConstantOp>(location, builder.getIntegerAttribute(2));
-	builder.create<StoreOp>(location, twoValue, mem, twoIndex);
-	 */
-
-	/*
-	mlir::Value twoIndex = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(2));
-	mlir::Value twoValue = builder.create<mlir::ConstantOp>(location, builder.getIntegerType(), builder.getIntegerAttribute(2));
-	mlir::Value sub2 = builder.create<SubscriptionOp>(location, mem, twoIndex);
-	builder.create<AssignmentOp>(location, twoValue, sub2);
-	 */
-
-
-
 	// Lower the statements
 	lower(foo.getAlgorithms()[0]);
-
-
-
-
-	/*
-	mlir::Value zeroIndex = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(0));
-	mlir::Value oneIndex = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(1));
-	mlir::Value twoIndex = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(2));
-	mlir::Value threeIndex = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(3));
-
-	builder.create<mlir::vector::PrintOp>(location, builder.create<LoadOp>(location, mem, zeroIndex));
-	builder.create<mlir::vector::PrintOp>(location, builder.create<LoadOp>(location, mem, oneIndex));
-	builder.create<mlir::vector::PrintOp>(location, builder.create<LoadOp>(location, mem, twoIndex));
-	builder.create<mlir::vector::PrintOp>(location, builder.create<LoadOp>(location, mem, threeIndex));
-	 */
-
-
-
-
-
-
 
 	// Return statement
 	std::vector<mlir::Value> results;

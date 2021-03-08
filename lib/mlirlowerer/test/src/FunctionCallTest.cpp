@@ -55,6 +55,8 @@ TEST(Function, callNoArguments)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower({ foo, main });
 
+	module.dump();
+
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 

@@ -2,7 +2,6 @@
 #include <llvm/ADT/Optional.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
-#include <modelica/mlirlowerer/Attribute.h>
 #include <modelica/mlirlowerer/Type.h>
 
 namespace modelica

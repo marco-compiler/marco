@@ -366,53 +366,6 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 	EXPECT_EQ(y, 1);
 }
 
-TEST(FunctionLowerTest, test)	 // NOLINT
-{
-	/**
-	 * function main
-	 *   protected
-	 *   Integer[3] x;
-	 *
-	 *   algorithm
-	 *     z := x + y;
-	 * end main
-	 */
-
-	SourcePosition location = SourcePosition::unknown();
-
-	Member xMember(location, "x", makeType<BuiltInType::Integer>(3), TypePrefix(ParameterQualifier::none, IOQualifier::none));
-
-	Statement assignment = AssignmentStatement(
-			location,
-			Expression::operation(location, makeType<BuiltInType::Integer>(3), OperationKind::subscription,
-														Expression::reference(location, makeType<int>(3), "x"),
-														Expression::constant(location, makeType<int>(), 1)),
-			Expression::constant(location, makeType<int>(), 23));
-
-	ClassContainer cls(Function(location, "main", true,
-															{ xMember},
-															Algorithm(location, assignment)));
-
-	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
-
-	if (failed(convertToLLVMDialect(&context, module)))
-		FAIL();
-
-	Runner runner(module);
-
-	if (failed(runner.run("main")))
-		FAIL();
-}
-
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/Support/TargetSelect.h>
-#include <mlir/ExecutionEngine/ExecutionEngine.h>
-#include <mlir/ExecutionEngine/OptUtils.h>
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Target/LLVMIR.h>
-
 TEST(ControlFlow, whileLoop)	 // NOLINT
 {
 	/**

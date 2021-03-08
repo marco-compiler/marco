@@ -1,8 +1,9 @@
 #pragma once
 
 #include <mlir/IR/Dialect.h>
-#include <modelica/mlirlowerer/Ops.h>
-#include <modelica/mlirlowerer/Type.h>
+
+#include "Ops.h"
+#include "Type.h"
 
 namespace modelica
 {
