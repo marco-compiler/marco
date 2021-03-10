@@ -831,7 +831,7 @@ class ForOpLowering: public ModelicaOpConversion<ForOp>
 
 		// Start the for loop by branching to the "condition" region
 		rewriter.setInsertionPointToEnd(currentBlock);
-		rewriter.create<mlir::BranchOp>(location, conditionBlock, transformed.args());
+		rewriter.create<mlir::BranchOp>(location, conditionBlock, op.args());
 
 		// The loop is supposed to be breakable. Thus, before checking the normal
 		// condition, we first need to check if the break condition variable has
@@ -842,7 +842,11 @@ class ForOpLowering: public ModelicaOpConversion<ForOp>
 		rewriter.setInsertionPointToStart(conditionBlock);
 
 		mlir::Value breakCondition = rewriter.create<LoadOp>(location, op.breakCondition());
+		breakCondition = materializeTargetConversion(rewriter, location, breakCondition);
+
 		mlir::Value returnCondition = rewriter.create<LoadOp>(location, op.returnCondition());
+		returnCondition = materializeTargetConversion(rewriter, location, returnCondition);
+
 		mlir::Value stopCondition = rewriter.create<mlir::OrOp>(location, breakCondition, returnCondition);
 
 		mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getBoolAttr(true));
@@ -966,7 +970,6 @@ class CastOpIndexLowering: public ModelicaOpConversion<CastOp>
 			return rewriter.notifyMatchFailure(op, "Source is not an IndexType");
 
 		mlir::Location location = op.getLoc();
-		Adaptor adaptor(operands);
 
 		auto source = op.value().getType().cast<mlir::IndexType>();
 		mlir::Type destination = op.resultType();
@@ -979,15 +982,15 @@ class CastOpIndexLowering: public ModelicaOpConversion<CastOp>
 
 		if (destination.isa<IntegerType>())
 		{
-			unsigned int destinationBitWidth = destination.cast<IntegerType>().getBitWidth();
-			rewriter.replaceOpWithNewOp<mlir::IndexCastOp>(op, adaptor.value(), convertType(IntegerType::get(rewriter.getContext(), destinationBitWidth)));
+			rewriter.replaceOpWithNewOp<mlir::IndexCastOp>(op, op.value(), getTypeConverter()->convertType(destination));
 			return mlir::success();
 		}
 
 		if (destination.isa<RealType>())
 		{
-			unsigned int destinationBitWidth = destination.cast<IntegerType>().getBitWidth();
-			mlir::Value value = rewriter.create<mlir::IndexCastOp>(location, adaptor.value(), convertType(IntegerType::get(rewriter.getContext(), destinationBitWidth)));
+			unsigned int destinationBitWidth = destination.cast<RealType>().getBitWidth();
+			mlir::Value value = rewriter.create<mlir::IndexCastOp>(location, op.value(), convertType(IntegerType::get(rewriter.getContext(), destinationBitWidth)));
+			value = materializeTargetConversion(rewriter, location, value);
 			rewriter.replaceOpWithNewOp<mlir::LLVM::SIToFPOp>(op, convertType(destination), value);
 			return mlir::success();
 		}
@@ -2376,6 +2379,7 @@ void ModelicaConversionPass::runOnOperation()
 
 	mlir::ConversionTarget target(getContext());
 
+	target.addLegalOp<mlir::FuncOp>();
 	target.addLegalDialect<mlir::StandardOpsDialect>();
 	target.addLegalDialect<mlir::scf::SCFDialect>();
 	target.addLegalDialect<mlir::LLVM::LLVMDialect>();

@@ -14,16 +14,12 @@
 
 using namespace modelica;
 
-struct UnrealizedCastOpLowering : public mlir::OpConversionPattern<mlir::UnrealizedConversionCastOp>
+struct UnrealizedCastOpLowering : public mlir::OpRewritePattern<mlir::UnrealizedConversionCastOp>
 {
-	UnrealizedCastOpLowering(mlir::MLIRContext* ctx, mlir::TypeConverter& typeConverter)
-			: mlir::OpConversionPattern<mlir::UnrealizedConversionCastOp>(typeConverter, ctx, 1)
-	{
-	}
+	using mlir::OpRewritePattern<mlir::UnrealizedConversionCastOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(mlir::UnrealizedConversionCastOp castOp, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter &rewriter) const override {
-		mlir::UnrealizedConversionCastOp::Adaptor transformed(operands);
-		rewriter.replaceOp(castOp, transformed.inputs());
+	mlir::LogicalResult matchAndRewrite(mlir::UnrealizedConversionCastOp op, mlir::PatternRewriter& rewriter) const override {
+		rewriter.replaceOp(op, op->getOperands());
 		return mlir::success();
 	}
 };
@@ -32,16 +28,15 @@ ModelicaFinalizerPass::ModelicaFinalizerPass()
 {
 }
 
-void ModelicaFinalizerPass::runOnOperation()
+mlir::LogicalResult ModelicaFinalizerPass::stdToLLVMConversionPass(mlir::ModuleOp module)
 {
-	auto module = getOperation();
-
 	mlir::ConversionTarget target(getContext());
 	target.addIllegalDialect<ModelicaDialect>();
 	target.addIllegalDialect<mlir::StandardOpsDialect>();
 	target.addIllegalOp<mlir::FuncOp>();
 
 	target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+	target.addIllegalOp<mlir::LLVM::DialectCastOp>();
 	target.addLegalOp<mlir::UnrealizedConversionCastOp>();
 	target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
 
@@ -54,22 +49,42 @@ void ModelicaFinalizerPass::runOnOperation()
 	// Provide the set of patterns that will lower the Modelica operations
 	mlir::OwningRewritePatternList patterns;
 	populateStdToLLVMConversionPatterns(typeConverter, patterns);
-	populateModelicaFinalizerPatterns(patterns, &getContext(), typeConverter);
 
 	// With the target and rewrite patterns defined, we can now attempt the
 	// conversion. The conversion will signal failure if any of our "illegal"
 	// operations were not converted successfully.
-	if (failed(applyPartialConversion(module, target, std::move(patterns))))
+	return applyPartialConversion(module, target, std::move(patterns));
+}
+
+mlir::LogicalResult ModelicaFinalizerPass::castsFolderPass(mlir::ModuleOp module)
+{
+	mlir::ConversionTarget target(getContext());
+	target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
+	target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+	target.addIllegalOp<mlir::UnrealizedConversionCastOp>();
+
+	mlir::OwningRewritePatternList patterns;
+	patterns.insert<UnrealizedCastOpLowering>(&getContext());
+
+	return applyFullConversion(module, target, std::move(patterns));
+}
+
+void ModelicaFinalizerPass::runOnOperation()
+{
+	auto module = getOperation();
+
+	if (failed(stdToLLVMConversionPass(module)))
 	{
 		mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
 		signalPassFailure();
+		return;
 	}
-}
 
-void modelica::populateModelicaFinalizerPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, mlir::TypeConverter& typeConverter)
-{
-	//patterns.insert<TestOpLowering>(context, typeConverter);
-	//patterns.insert<UnrealizedCastOpLowering>(context, typeConverter);
+	if (failed(castsFolderPass(module)))
+	{
+		mlir::emitError(module.getLoc(), "Error in folding the casts operations\n");
+		signalPassFailure();
+	}
 }
 
 std::unique_ptr<mlir::Pass> modelica::createModelicaFinalizerPass()

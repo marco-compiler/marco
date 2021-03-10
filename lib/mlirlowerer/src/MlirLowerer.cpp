@@ -24,8 +24,9 @@ mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, m
 	passManager.addPass(createModelicaConversionPass(modelicaToLLVMOptions));
 
 	passManager.addPass(mlir::createLowerToCFGPass());
-	passManager.addPass(createModelicaFinalizerPass());
 	passManager.addPass(mlir::createCanonicalizerPass());
+	passManager.addPass(createModelicaFinalizerPass()); // forse questo non deve avere le materialization, ma solo le conversion
+	//passManager.addPass(mlir::createLowerToLLVMPass());
 
 	return passManager.run(module);
 }

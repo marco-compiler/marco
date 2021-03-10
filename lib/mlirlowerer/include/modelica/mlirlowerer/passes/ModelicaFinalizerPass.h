@@ -10,17 +10,15 @@
 
 namespace modelica
 {
-
 	class ModelicaFinalizerPass : public mlir::PassWrapper<ModelicaFinalizerPass, mlir::OperationPass<mlir::ModuleOp>> {
 		public:
 		ModelicaFinalizerPass();
 
-		//mlir::LogicalResult step1(mlir::ModuleOp module);
+		mlir::LogicalResult stdToLLVMConversionPass(mlir::ModuleOp module);
+		mlir::LogicalResult castsFolderPass(mlir::ModuleOp module);
 
 		void runOnOperation() final;
 	};
-
-	void populateModelicaFinalizerPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, mlir::TypeConverter& typeConverter);
 
 	std::unique_ptr<mlir::Pass> createModelicaFinalizerPass();
 }

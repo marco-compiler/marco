@@ -24,8 +24,7 @@ namespace modelica
 						if (inputs.size() != 1)
 							return llvm::None;
 
-						// FIXME: IndexType shouldn't be necessary
-						if (!inputs[0].getType().isa<mlir::IndexType>() && !inputs[0].getType().isa<BooleanType>() && !inputs[0].getType().isa<IntegerType>())
+						if (!inputs[0].getType().isa<BooleanType>() && !inputs[0].getType().isa<IntegerType>())
 							return llvm::None;
 
 						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
@@ -48,18 +47,6 @@ namespace modelica
 							return llvm::None;
 
 						if (!inputs[0].getType().isa<PointerType>())
-							return llvm::None;
-
-						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
-					});
-
-
-			addSourceMaterialization(
-					[&](mlir::OpBuilder &builder, mlir::IndexType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
-						if (inputs.size() != 1)
-							return llvm::None;
-
-						if (convertType(resultType) != indexType())
 							return llvm::None;
 
 						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
