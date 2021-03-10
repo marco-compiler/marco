@@ -24,7 +24,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<AddOp, SubOp, MulOp, DivOp, PowOp>();
 
 	// Logic operations
-	addOperations<NegateOp>();
+	addOperations<AndOp, OrOp, NegateOp>();
 	addOperations<EqOp>();
 	addOperations<NotEqOp>();
 	addOperations<GtOp>();

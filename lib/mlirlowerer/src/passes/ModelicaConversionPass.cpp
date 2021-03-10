@@ -915,7 +915,10 @@ class WhileOpLowering: public ModelicaOpConversion<WhileOp>
 		rewriter.setInsertionPointToStart(&whileOp.before().front());
 
 		mlir::Value breakCondition = rewriter.create<LoadOp>(location, op.breakCondition());
+		breakCondition = materializeTargetConversion(rewriter, location, breakCondition);
+
 		mlir::Value returnCondition = rewriter.create<LoadOp>(location, op.returnCondition());
+		returnCondition = materializeTargetConversion(rewriter, location, returnCondition);
 
 		mlir::Value stopCondition = rewriter.create<mlir::OrOp>(location, breakCondition, returnCondition);
 
@@ -934,13 +937,19 @@ class WhileOpLowering: public ModelicaOpConversion<WhileOp>
 		rewriter.mergeBlocks(&op.condition().front(), &ifOp.elseRegion().front(), llvm::None);
 		rewriter.setInsertionPointToEnd(&ifOp.elseRegion().front());
 		auto conditionOp = mlir::cast<ConditionOp>(ifOp.elseRegion().front().getTerminator());
-		rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(conditionOp, conditionOp.condition());
+		rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(conditionOp, materializeTargetConversion(rewriter, location, conditionOp.condition()));
 
 		// The original condition operation is converted to the SCF one and takes
 		// as condition argument the result of the If operation, which is false
 		// if a break must be executed or the intended condition value otherwise.
 		rewriter.setInsertionPointAfter(ifOp);
-		rewriter.create<mlir::scf::ConditionOp>(location, ifOp.getResult(0), conditionOp.args());
+
+		llvm::SmallVector<mlir::Value, 3> conditionOpArgs;
+
+		for (mlir::Value arg : conditionOp.args())
+			conditionOpArgs.push_back(materializeTargetConversion(rewriter, location, arg));
+
+		rewriter.create<mlir::scf::ConditionOp>(location, ifOp.getResult(0), conditionOpArgs);
 
 		rewriter.eraseOp(op);
 		return mlir::success();
@@ -1202,6 +1211,40 @@ class NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
 									 mlir::Value negated = rewriter.create<NegateOp>(location, value);
 									 rewriter.create<StoreOp>(location, negated, result, position);
 								 });
+	}
+};
+
+class AndOpLowering: public ModelicaOpConversion<AndOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(AndOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::AndOp>(location, adaptor.lhs(), adaptor.rhs());
+		result = getTypeConverter()->materializeSourceConversion(rewriter, location, BooleanType::get(op.getContext()), result);
+		result = rewriter.create<CastOp>(location, result, op.resultType());
+		result = materializeTargetConversion(rewriter, location, result);
+		rewriter.replaceOp(op, result);
+		return mlir::success();
+	}
+};
+
+class OrOpLowering: public ModelicaOpConversion<OrOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(OrOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+		mlir::Value result = rewriter.create<mlir::OrOp>(location, adaptor.lhs(), adaptor.rhs());
+		result = getTypeConverter()->materializeSourceConversion(rewriter, location, BooleanType::get(op.getContext()), result);
+		result = rewriter.create<CastOp>(location, result, op.resultType());
+		result = materializeTargetConversion(rewriter, location, result);
+		rewriter.replaceOp(op, result);
+		return mlir::success();
 	}
 };
 
@@ -2345,7 +2388,6 @@ void ModelicaConversionPass::runOnOperation()
 	// Provide the set of patterns that will lower the Modelica operations
 	mlir::OwningRewritePatternList patterns;
 	populateModelicaConversionPatterns(patterns, &getContext(), typeConverter);
-	//populateStdToLLVMConversionPatterns(typeConverter, patterns);
 
 	// With the target and rewrite patterns defined, we can now attempt the
 	// conversion. The conversion will signal failure if any of our "illegal"
@@ -2374,6 +2416,7 @@ void modelica::populateModelicaConversionPatterns(mlir::OwningRewritePatternList
 	patterns.insert<IfOpLowering, ForOpLowering, WhileOpLowering>(context, typeConverter);
 
 	// Logic operations
+	patterns.insert<AndOpLowering, OrOpLowering>(context, typeConverter);
 	patterns.insert<NegateOpScalarLowering, NegateOpArrayLowering>(context, typeConverter);
 	patterns.insert<EqOpLowering, NotEqOpLowering, GtOpLowering, GteOpLowering, LtOpLowering, LteOpLowering>(context, typeConverter);
 

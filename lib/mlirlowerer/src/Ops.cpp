@@ -873,6 +873,96 @@ mlir::Value NegateOp::operand()
 }
 
 //===----------------------------------------------------------------------===//
+// Modelica::AndOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value AndOpAdaptor::lhs()
+{
+	return getValues()[0];
+}
+
+mlir::Value AndOpAdaptor::rhs()
+{
+	return getValues()[1];
+}
+
+llvm::StringRef AndOp::getOperationName()
+{
+	return "modelica.and";
+}
+
+void AndOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
+}
+
+void AndOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.and " << lhs() << ", " << rhs() << " : " << resultType();
+}
+
+mlir::Type AndOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value AndOp::lhs()
+{
+	return Adaptor(*this).lhs();
+}
+
+mlir::Value AndOp::rhs()
+{
+	return Adaptor(*this).rhs();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::OrOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value OrOpAdaptor::lhs()
+{
+	return getValues()[0];
+}
+
+mlir::Value OrOpAdaptor::rhs()
+{
+	return getValues()[1];
+}
+
+llvm::StringRef OrOp::getOperationName()
+{
+	return "modelica.or";
+}
+
+void OrOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
+}
+
+void OrOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.or " << lhs() << ", " << rhs() << " : " << resultType();
+}
+
+mlir::Type OrOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value OrOp::lhs()
+{
+	return Adaptor(*this).lhs();
+}
+
+mlir::Value OrOp::rhs()
+{
+	return Adaptor(*this).rhs();
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::EqOp
 //===----------------------------------------------------------------------===//
 

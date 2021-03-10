@@ -466,7 +466,7 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 		// "else" block, and thus doesn't need a lowered else block.
 		bool elseBlock = i < blocks - 1;
 
-		auto ifOp = builder.create<mlir::scf::IfOp>(loc(statement.getLocation()), *condition, elseBlock);
+		auto ifOp = builder.create<IfOp>(loc(statement.getLocation()), *condition, elseBlock);
 
 		if (firstOp == nullptr)
 			firstOp = ifOp;
@@ -477,9 +477,12 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 		for (const auto& stmnt : conditionalBlock)
 			lower(stmnt);
 
+		builder.create<YieldOp>(loc(statement.getLocation()));
+
 		if (i > 0)
 		{
 			builder.setInsertionPointAfter(ifOp);
+			builder.create<YieldOp>(loc(statement.getLocation()));
 		}
 
 		// The next conditional blocks will be placed as new If operations
@@ -499,7 +502,7 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 
 	// Variable to be set when calling "break"
 	mlir::Value breakCondition = builder.create<AllocaOp>(location, builder.getBooleanType());
-	mlir::Value falseValue = builder.create<mlir::ConstantOp>(location, builder.getBooleanAttribute(false));
+	mlir::Value falseValue = builder.create<ConstantOp>(location, builder.getBooleanAttribute(false));
 	builder.create<StoreOp>(location, falseValue, breakCondition);
 	symbolTable.insert(statement.getBreakCheckName(), Reference::memref(&builder, breakCondition, true));
 
@@ -561,7 +564,7 @@ void MlirLowerer::lower(const modelica::WhileStatement& statement)
 
 	// Variable to be set when calling "break"
 	mlir::Value breakCondition = builder.create<AllocaOp>(location, builder.getBooleanType());
-	mlir::Value falseValue = builder.create<mlir::ConstantOp>(location, builder.getBooleanAttribute(false));
+	mlir::Value falseValue = builder.create<ConstantOp>(location, builder.getBooleanAttribute(false));
 	builder.create<StoreOp>(location, falseValue, breakCondition);
 	symbolTable.insert(statement.getBreakCheckName(), Reference::memref(&builder, breakCondition, true));
 
@@ -606,7 +609,7 @@ void MlirLowerer::lower(const modelica::WhenStatement& statement)
 void MlirLowerer::lower(const modelica::BreakStatement& statement)
 {
 	auto location = loc(statement.getLocation());
-	mlir::Value trueValue = builder.create<mlir::ConstantOp>(location, builder.getBooleanAttribute(true));
+	mlir::Value trueValue = builder.create<ConstantOp>(location, builder.getBooleanAttribute(true));
 	mlir::Value breakCondition = symbolTable.lookup(statement.getBreakCheckName()).getReference();
 	builder.create<StoreOp>(location, trueValue, breakCondition);
 }
@@ -614,7 +617,7 @@ void MlirLowerer::lower(const modelica::BreakStatement& statement)
 void MlirLowerer::lower(const modelica::ReturnStatement& statement)
 {
 	auto location = loc(statement.getLocation());
-	mlir::Value trueValue = builder.create<mlir::ConstantOp>(location, builder.getBooleanAttribute(true));
+	mlir::Value trueValue = builder.create<ConstantOp>(location, builder.getBooleanAttribute(true));
 	mlir::Value returnCondition = symbolTable.lookup(statement.getReturnCheckName()).getReference();
 	builder.create<StoreOp>(location, trueValue, returnCondition);
 }
@@ -779,8 +782,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		mlir::Value lhs = *lower<modelica::Expression>(operation[0])[0];
 		mlir::Value rhs = *lower<modelica::Expression>(operation[1])[0];
 
-		mlir::Value result = builder.create<mlir::AndOp>(location, lhs, rhs);
-		result = builder.create<CastOp>(result.getLoc(), result, resultType);
+		mlir::Value result = builder.create<AndOp>(location, resultType, lhs, rhs);
 		return { Reference::ssa(&builder, result) };
 	}
 
@@ -789,8 +791,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 		mlir::Value lhs = *lower<modelica::Expression>(operation[0])[0];
 		mlir::Value rhs = *lower<modelica::Expression>(operation[1])[0];
 
-		mlir::Value result = builder.create<mlir::OrOp>(location, lhs, rhs);
-		result = builder.create<CastOp>(result.getLoc(), result, resultType);
+		mlir::Value result = builder.create<OrOp>(location, resultType, lhs, rhs);
 		return { Reference::ssa(&builder, result) };
 	}
 

@@ -561,6 +561,68 @@ namespace modelica
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::AndOp
+	//===----------------------------------------------------------------------===//
+
+	class AndOp;
+
+	class AndOpAdaptor : public OpAdaptor<AndOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	class AndOp : public mlir::Op<AndOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameOperandsAndResultType>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = AndOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Type resultType();
+
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::OrOp
+	//===----------------------------------------------------------------------===//
+
+	class OrOp;
+
+	class OrOpAdaptor : public OpAdaptor<OrOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	class OrOp : public mlir::Op<OrOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameOperandsAndResultType>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = OrOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Type resultType();
+
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::EqOp
 	//===----------------------------------------------------------------------===//
 
