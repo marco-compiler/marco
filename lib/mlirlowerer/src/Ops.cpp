@@ -5,6 +5,36 @@
 using namespace modelica;
 
 //===----------------------------------------------------------------------===//
+// Modelica::ConstantOp
+//===----------------------------------------------------------------------===//
+
+llvm::StringRef ConstantOp::getOperationName()
+{
+	return "modelica.constant";
+}
+
+void ConstantOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Attribute attribute)
+{
+	state.addAttribute("value", attribute);
+	state.addTypes(attribute.getType());
+}
+
+void ConstantOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.constant " << value();
+}
+
+mlir::Attribute ConstantOp::value()
+{
+	return getOperation()->getAttr("value");
+}
+
+mlir::Type ConstantOp::getType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::AssignmentOp
 //===----------------------------------------------------------------------===//
 

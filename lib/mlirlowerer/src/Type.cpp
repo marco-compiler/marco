@@ -10,14 +10,14 @@ class modelica::IntegerTypeStorage : public mlir::TypeStorage {
 
 	IntegerTypeStorage() = delete;
 
-	static unsigned hashKey(const KeyTy& key)
-	{
-		return llvm::hash_combine(key);
-	}
-
 	bool operator==(const KeyTy& key) const
 	{
 		return key == getBitWidth();
+	}
+
+	static unsigned int hashKey(const KeyTy& key)
+	{
+		return llvm::hash_combine(key);
 	}
 
 	static IntegerTypeStorage *construct(mlir::TypeStorageAllocator&allocator, unsigned int bitWidth) {
@@ -44,14 +44,14 @@ class modelica::RealTypeStorage : public mlir::TypeStorage {
 
 	RealTypeStorage() = delete;
 
-	static unsigned hashKey(const KeyTy& key)
-	{
-		return llvm::hash_combine(key);
-	}
-
 	bool operator==(const KeyTy& key) const
 	{
 		return key == getBitWidth();
+	}
+
+	static unsigned int hashKey(const KeyTy& key)
+	{
+		return llvm::hash_combine(key);
 	}
 
 	static RealTypeStorage *construct(mlir::TypeStorageAllocator&allocator, unsigned int bitWidth) {
@@ -85,14 +85,14 @@ class modelica::PointerTypeStorage : public mlir::TypeStorage {
 
 	PointerTypeStorage() = delete;
 
-	static unsigned hashKey(const KeyTy& key) {
+	bool operator==(const KeyTy& key) const {
+		return key == KeyTy{isOnHeap(), getElementType(), getShape()};
+	}
+
+	static unsigned int hashKey(const KeyTy& key) {
 		auto shapeHash{hash_value(std::get<PointerType::Shape>(key))};
 		shapeHash = llvm::hash_combine(shapeHash, std::get<mlir::Type>(key));
 		return llvm::hash_combine(std::get<bool>(key), std::get<mlir::Type>(key), shapeHash);
-	}
-
-	bool operator==(const KeyTy& key) const {
-		return key == KeyTy{isOnHeap(), getElementType(), getShape()};
 	}
 
 	static PointerTypeStorage *construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key) {
@@ -209,7 +209,7 @@ bool PointerType::hasConstantShape() const
 	return getConstantDimensions() == getRank();
 }
 
-void modelica::printModelicaType(ModelicaDialect* dialect, mlir::Type ty, mlir::DialectAsmPrinter& printer) {
+void modelica::printModelicaType(mlir::Type ty, mlir::DialectAsmPrinter& printer) {
 	auto& os = printer.getStream();
 
 	if (auto type = ty.dyn_cast<BooleanType>()) {

@@ -8,9 +8,10 @@
 #include <mlir/Dialect/Vector/VectorOps.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
-#include <modelica/mlirlowerer/passes/LowerToLLVM.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <modelica/mlirlowerer/passes/ModelicaConversionPass.h>
+#include <modelica/mlirlowerer/passes/ModelicaFinalizerPass.h>
 
 using namespace modelica;
 using namespace std;
@@ -19,30 +20,12 @@ mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, m
 {
 	mlir::PassManager passManager(context);
 
-	// Lower the Modelica dialect
-	//passManager.addPass(createModelicaLoweringPass());
+	ModelicaConversionOptions modelicaToLLVMOptions;
+	passManager.addPass(createModelicaConversionPass(modelicaToLLVMOptions));
 
-	// Lower the Affine dialect
-	//passManager.addPass(createLowerAffinePass());
-
-	// Convert the output buffers to input buffers, in order to delegate the
-	// buffer allocation to the caller.
-	//passManager.addPass(createBufferResultsToOutParamsPass());
-
-	// Convert vector operations to loops
-	//passManager.addNestedPass<FuncOp>(createConvertLinalgToLoopsPass());
-
-	// Lower the SCF operations
-	//passManager.addPass(createLowerToCFGPass());
-
-	//passManager.addNestedPass<FuncOp>(createMemRefDataFlowOptPass());
-
-	// Conversion to LLVM dialect
-	ModelicaToLLVMLoweringOptions modelicaToLLVMOptions;
-	passManager.addPass(createModelicaToLLVMLoweringPass(modelicaToLLVMOptions));
-
-	//passManager.addPass(mlir::createConvertVectorToLLVMPass());
-	//passManager.addPass(mlir::createLowerToCFGPass());
+	passManager.addPass(mlir::createLowerToCFGPass());
+	passManager.addPass(createModelicaFinalizerPass());
+	passManager.addPass(mlir::createCanonicalizerPass());
 
 	return passManager.run(module);
 }
@@ -179,13 +162,6 @@ mlir::ModuleOp MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer>
 {
 	mlir::ModuleOp module = mlir::ModuleOp::create(builder.getUnknownLoc());
 
-	/*
-	auto funcType = builder.getFunctionType(TypeRange(), TypeRange());
-	auto testFoo = FuncOp::create(builder.getUnknownLoc(), "test", funcType);
-	testFoo.setPrivate();
-	module.push_back(testFoo);
-	 */
-
 	for (const auto& cls : classes)
 	{
 		auto* op = cls.visit([&](auto& obj) -> mlir::Operation* { return lower(obj); });
@@ -266,8 +242,8 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 
 	// Create the variable to be checked for an early return
 	auto algorithmLocation = loc(algorithm.getLocation());
-	mlir::Value returnCondition = builder.create<AllocaOp>(algorithmLocation,  builder.getBooleanType());
-	mlir::Value falseValue = builder.create<mlir::ConstantOp>(algorithmLocation, builder.getBooleanAttribute(false));
+	mlir::Value returnCondition = builder.create<AllocaOp>(algorithmLocation, builder.getBooleanType());
+	mlir::Value falseValue = builder.create<ConstantOp>(algorithmLocation, builder.getBooleanAttribute(false));
 	builder.create<StoreOp>(algorithmLocation, falseValue, returnCondition);
 	symbolTable.insert(algorithm.getReturnCheckName(), Reference::memref(&builder, returnCondition, true));
 
@@ -275,7 +251,7 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	lower(foo.getAlgorithms()[0]);
 
 	// Return statement
-	std::vector<mlir::Value> results;
+	llvm::SmallVector<mlir::Value, 3> results;
 
 	for (const auto& member : outputMembers)
 	{
@@ -852,9 +828,8 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Constant>(const m
 	assert(expression.isA<modelica::Constant>());
 	const auto& constant = expression.get<modelica::Constant>();
 
-	auto value = builder.create<mlir::ConstantOp>(
+	auto value = builder.create<ConstantOp>(
 			loc(expression.getLocation()),
-			constantToType(constant),
 			constant.visit([&](const auto& obj) { return getAttribute(obj); }));
 
 	return { Reference::ssa(&builder, value) };

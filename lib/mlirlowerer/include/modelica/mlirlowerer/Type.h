@@ -57,5 +57,5 @@ namespace modelica
 		[[nodiscard]] bool hasConstantShape() const;
 	};
 
-	void printModelicaType(ModelicaDialect* dialect, mlir::Type type, mlir::DialectAsmPrinter& printer);
+	void printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer);
 }

@@ -274,6 +274,7 @@ TEST(MathOps, sumOfFloatStaticArrays)	 // NOLINT
 
 	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))
 		EXPECT_FLOAT_EQ(z, x + y);
+
 }
 
 TEST(MathOps, sumOfFloatDynamicArrays)	 // NOLINT
@@ -578,8 +579,6 @@ TEST(MathOps, subOfIntegerStaticArrays)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
-	module.dump();
-
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 
@@ -633,8 +632,6 @@ TEST(MathOps, subOfIntegerDynamicArrays)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
-
-	module.dump();
 
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();

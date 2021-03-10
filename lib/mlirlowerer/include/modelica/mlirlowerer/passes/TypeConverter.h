@@ -3,6 +3,7 @@
 #include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/IR/BuiltinDialect.h>
 #include <mlir/IR/MLIRContext.h>
 #include <modelica/mlirlowerer/Type.h>
 
@@ -11,7 +12,7 @@ namespace modelica
 	class TypeConverter : public mlir::LLVMTypeConverter
 	{
 		public:
-		TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options) : mlir::LLVMTypeConverter(context, options)
+		TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options) : mlir::LLVMTypeConverter(context, options), context(context)
 		{
 			addConversion([&](BooleanType type) { return convertBooleanType(type); });
 			addConversion([&](IntegerType type) { return convertIntegerType(type); });
@@ -36,6 +37,29 @@ namespace modelica
 							return llvm::None;
 
 						if (!inputs[0].getType().isa<RealType>())
+							return llvm::None;
+
+						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+					});
+
+			addTargetMaterialization(
+					[&](mlir::OpBuilder &builder, mlir::LLVM::LLVMStructType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+						if (inputs.size() != 1)
+							return llvm::None;
+
+						if (!inputs[0].getType().isa<PointerType>())
+							return llvm::None;
+
+						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+					});
+
+
+			addSourceMaterialization(
+					[&](mlir::OpBuilder &builder, mlir::IndexType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+						if (inputs.size() != 1)
+							return llvm::None;
+
+						if (convertType(resultType) != indexType())
 							return llvm::None;
 
 						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
@@ -74,23 +98,16 @@ namespace modelica
 						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
 					});
 
-			/*
-			addTargetMaterialization(
-					[&](mlir::OpBuilder &builder, mlir::Type resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
-						if (inputs.size() != 1)
-							return llvm::None;
-
-						return inputs[0];
-					});
-
 			addSourceMaterialization(
-					[&](mlir::OpBuilder &builder, mlir::Type resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
+					[&](mlir::OpBuilder &builder, PointerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value> {
 						if (inputs.size() != 1)
 							return llvm::None;
 
-						return inputs[0];
+						if (!inputs[0].getType().isa<mlir::LLVM::LLVMStructType>())
+							return llvm::None;
+
+						return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
 					});
-					*/
 		}
 
 		[[nodiscard]] mlir::Type indexType();
@@ -104,5 +121,7 @@ namespace modelica
 		mlir::Type convertPointerType(PointerType type);
 
 		llvm::SmallVector<mlir::Type, 3> getPointerDescriptorFields(PointerType type);
+
+		mlir::MLIRContext* context;
 	};
 }

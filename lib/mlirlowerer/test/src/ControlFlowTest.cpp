@@ -65,6 +65,8 @@ TEST(ControlFlow, thenBranchTaken)	 // NOLINT
 	MlirLowerer lowerer(context);
 	mlir::ModuleOp module = lowerer.lower(cls);
 
+	module.dump();
+
 	if (failed(convertToLLVMDialect(&context, module)))
 		FAIL();
 

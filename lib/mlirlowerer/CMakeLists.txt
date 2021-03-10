@@ -1,9 +1,11 @@
 modelicaAddLibrary(
         mlirlowerer SHARED
-        src/passes/LowerToLLVM.cpp
+        src/passes/ModelicaConversionPass.cpp
+        src/passes/ModelicaFinalizerPass.cpp
         src/passes/BreakRemover.cpp
         src/passes/ReturnRemover.cpp
         src/passes/TypeConverter.cpp
+        src/Attribute.cpp
         src/MlirLowerer.cpp
         src/ModelicaBuilder.cpp
         src/ModelicaDialect.cpp

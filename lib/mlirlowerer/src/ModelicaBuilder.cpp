@@ -28,43 +28,22 @@ PointerType ModelicaBuilder::getPointerType(bool heap, mlir::Type elementType, c
 	return PointerType::get(getContext(), heap, elementType, shape);
 }
 
-mlir::IntegerAttr ModelicaBuilder::getBooleanAttribute(bool value)
-{
-	return getBoolAttr(value);
-}
-
 mlir::IntegerAttr ModelicaBuilder::getIndexAttribute(long value)
 {
 	return getIndexAttr(value);
 }
 
-mlir::IntegerAttr ModelicaBuilder::getIntegerAttribute(long value)
+BooleanAttribute ModelicaBuilder::getBooleanAttribute(bool value)
 {
-	if (bitWidth == 8)
-		return getI8IntegerAttr(value);
-
-	if (bitWidth == 16)
-		return getI16IntegerAttr(value);
-
-	if (bitWidth == 32)
-		return getI32IntegerAttr(value);
-
-	if (bitWidth == 64)
-		return getI64IntegerAttr(value);
-
-	assert(false && "Unsupported bit width");
+	return BooleanAttribute::get(getBooleanType(), value);
 }
 
-mlir::FloatAttr ModelicaBuilder::getRealAttribute(double value)
+IntegerAttribute ModelicaBuilder::getIntegerAttribute(long value)
 {
-	if (bitWidth == 16)
-		return getF16FloatAttr(value);
+	return IntegerAttribute::get(getIntegerType(), value);
+}
 
-	if (bitWidth == 32)
-		return getF32FloatAttr(value);
-
-	if (bitWidth == 64)
-		return getF64FloatAttr(value);
-
-	assert(false && "Unsupported bit width");
+RealAttribute ModelicaBuilder::getRealAttribute(double value)
+{
+	return RealAttribute::get(getRealType(), value);
 }

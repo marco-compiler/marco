@@ -2,6 +2,7 @@
 
 #include <mlir/IR/Dialect.h>
 
+#include "Attribute.h"
 #include "Ops.h"
 #include "Type.h"
 
@@ -20,5 +21,6 @@ namespace modelica
 		static llvm::StringRef getDialectNamespace();
 
 		void printType(mlir::Type type, mlir::DialectAsmPrinter& printer) const override;
+		void printAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& printer) const override;
 	};
 }

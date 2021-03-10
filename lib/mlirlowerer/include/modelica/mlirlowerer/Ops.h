@@ -45,6 +45,31 @@ namespace modelica
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::ConstantOp
+	//===----------------------------------------------------------------------===//
+
+	class ConstantOp;
+
+	class ConstantOpAdaptor : public OpAdaptor<ConstantOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+	};
+
+	class ConstantOp : public mlir::Op<ConstantOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneResult, mlir::OpTrait::ZeroOperands> {
+		public:
+		using Op::Op;
+		using Adaptor = ConstantOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Attribute value);
+		void print(mlir::OpAsmPrinter &p);
+
+		mlir::Attribute value();
+		mlir::Type getType();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::AssignmentOp
 	//===----------------------------------------------------------------------===//
 
@@ -65,7 +90,7 @@ namespace modelica
 		using Adaptor = AssignmentOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &odsBuilder, mlir::OperationState &odsState, mlir::Value source, mlir::Value destination);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination);
 		void print(mlir::OpAsmPrinter &p);
 
 		mlir::Value source();
@@ -323,7 +348,7 @@ namespace modelica
 		using Adaptor = IfOpAdaptor;
 
 		static ::llvm::StringRef getOperationName();
-		static void build(::mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState, mlir::Value cond, bool withElseRegion = false);
+		static void build(::mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Value cond, bool withElseRegion = false);
 		void print(::mlir::OpAsmPrinter &p);
 
 		mlir::Value condition();
@@ -420,7 +445,7 @@ namespace modelica
 		using Adaptor = ConditionOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &odsBuilder, ::mlir::OperationState &odsState, mlir::Value condition, mlir::ValueRange args = {});
+		static void build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Value condition, mlir::ValueRange args = {});
 		void print(::mlir::OpAsmPrinter &p);
 
 		mlir::Value condition();

@@ -10,28 +10,29 @@
 
 namespace modelica
 {
-	struct ModelicaToLLVMLoweringOptions {
+	struct ModelicaConversionOptions
+	{
 
 		/**
 		 * Get a statically allocated copy of the default options.
 		 *
 		 * @return default options
 		 */
-		static const ModelicaToLLVMLoweringOptions& getDefaultOptions() {
-			static ModelicaToLLVMLoweringOptions options;
+		static const ModelicaConversionOptions& getDefaultOptions() {
+			static ModelicaConversionOptions options;
 			return options;
 		}
 	};
 
-	class ModelicaToLLVMLoweringPass : public mlir::PassWrapper<ModelicaToLLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>> {
+	class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, mlir::OperationPass<mlir::ModuleOp>> {
 		public:
-		ModelicaToLLVMLoweringPass(ModelicaToLLVMLoweringOptions options = ModelicaToLLVMLoweringOptions::getDefaultOptions());
+		ModelicaConversionPass(ModelicaConversionOptions options = ModelicaConversionOptions::getDefaultOptions());
 
 		void getDependentDialects(mlir::DialectRegistry &registry) const override;
 		void runOnOperation() final;
 
 		private:
-		ModelicaToLLVMLoweringOptions options;
+		ModelicaConversionOptions options;
 	};
 
 	/**
@@ -41,12 +42,12 @@ namespace modelica
 	 * @param patterns patterns list to populate
 	 * @param context	 MLIR context
 	 */
-	void populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter);
+	void populateModelicaConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter);
 
 	/**
 	 * Create a pass to convert Modelica operations to LLVM ones.
 	 *
 	 * @return pass
 	 */
-	std::unique_ptr<mlir::Pass> createModelicaToLLVMLoweringPass(ModelicaToLLVMLoweringOptions options = ModelicaToLLVMLoweringOptions::getDefaultOptions());
+	std::unique_ptr<mlir::Pass> createModelicaConversionPass(ModelicaConversionOptions options = ModelicaConversionOptions::getDefaultOptions());
 }

@@ -6,8 +6,10 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 		: Dialect("modelica", context, mlir::TypeID::get<ModelicaDialect>())
 {
 	addTypes<BooleanType, IntegerType, RealType, PointerType>();
+	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute>();
 
 	// Basic operations
+	addOperations<ConstantOp>();
 	addOperations<AssignmentOp>();
 	addOperations<CastOp>();
 	addOperations<CastCommonOp>();
@@ -44,5 +46,9 @@ mlir::StringRef ModelicaDialect::getDialectNamespace()
 }
 
 void ModelicaDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& printer) const {
-	return printModelicaType(const_cast<ModelicaDialect*>(this), type, printer);
+	return printModelicaType(type, printer);
+}
+
+void ModelicaDialect::printAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& printer) const {
+	return printModelicaAttribute(attribute, printer);
 }
