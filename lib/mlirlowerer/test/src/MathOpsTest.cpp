@@ -1949,7 +1949,7 @@ TEST(MathOps, powScalar)	 // NOLINT
 	 *   output Integer z;
 	 *
 	 *   algorithm
-	 *     z := x * y;
+	 *     z := x ^ y;
 	 * end main
 	 */
 
@@ -2001,7 +2001,7 @@ TEST(MathOps, powSquareMatrix)	 // NOLINT
 	 *   output Integer[2, 2] z;
 	 *
 	 *   algorithm
-	 *     z := x * y;
+	 *     z := x ^ y;
 	 * end main
 	 */
 
@@ -2032,7 +2032,7 @@ TEST(MathOps, powSquareMatrix)	 // NOLINT
 	Runner runner(module);
 
 	array<int, 4> x = { 1, 2, 3, 4 };
-	int y = 2;
+	int y = 3;
 
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 2 });
 	ArrayDescriptor<int, 2> zPtr(nullptr, { 1, 1 });
@@ -2040,8 +2040,8 @@ TEST(MathOps, powSquareMatrix)	 // NOLINT
 	if (failed(runner.run("main", xPtr, y, Runner::result(zPtr))))
 		FAIL();
 
-	EXPECT_EQ(zPtr.get(0, 0), 7);
-	EXPECT_EQ(zPtr.get(0, 1), 10);
-	EXPECT_EQ(zPtr.get(1, 0), 15);
-	EXPECT_EQ(zPtr.get(1, 1), 22);
+	EXPECT_EQ(zPtr.get(0, 0), 37);
+	EXPECT_EQ(zPtr.get(0, 1), 54);
+	EXPECT_EQ(zPtr.get(1, 0), 81);
+	EXPECT_EQ(zPtr.get(1, 1), 118);
 }

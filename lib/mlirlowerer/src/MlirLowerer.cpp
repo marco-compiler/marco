@@ -25,9 +25,7 @@ mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, m
 
 	//passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
 	passManager.addPass(mlir::createLowerToCFGPass());
-	//passManager.addPass(mlir::createCanonicalizerPass());
 	passManager.addPass(createLLVMLoweringPass());
-	//passManager.addPass(mlir::createConvertOpenMPToLLVMPass());
 
 	return passManager.run(module);
 }
@@ -651,7 +649,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 
 		if (base.getType().isa<PointerType>())
 		{
-			exponent = builder.create<CastOp>(base.getLoc(), exponent, builder.getIndexType());
+			exponent = builder.create<CastOp>(base.getLoc(), exponent, builder.getIntegerType());
 		}
 		else
 		{

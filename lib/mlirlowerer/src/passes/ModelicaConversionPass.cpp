@@ -2305,10 +2305,10 @@ class PowOpLowering: public ModelicaOpConversion<PowOp>
 
 		// Check if the operands are compatible
 		if (!isNumeric(op.base()))
-			return rewriter.notifyMatchFailure(op, "Pow: base is not a scalar");
+			return rewriter.notifyMatchFailure(op, "Base is not a scalar");
 
 		if (!isNumeric(op.exponent()))
-			return rewriter.notifyMatchFailure(op, "Pow: base is not a scalar");
+			return rewriter.notifyMatchFailure(op, "Base is not a scalar");
 
 		// Compute the result
 		Adaptor adaptor(operands);
@@ -2329,25 +2329,23 @@ class PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 
 		// Check if the operands are compatible
 		if (!op.base().getType().isa<PointerType>())
-			return rewriter.notifyMatchFailure(op, "Pow: base is not an array");
+			return rewriter.notifyMatchFailure(op, "Base is not an array");
 
 		auto basePointerType = op.base().getType().cast<PointerType>();
 
 		if (basePointerType.getRank() != 2)
-			return rewriter.notifyMatchFailure(op, "Pow: base array is not 2-D");
+			return rewriter.notifyMatchFailure(op, "Base array is not 2-D");
 
 		if (basePointerType.getShape()[0] != -1 && basePointerType.getShape()[1] != -1)
 			if (basePointerType.getShape()[0] != basePointerType.getShape()[1])
-				return rewriter.notifyMatchFailure(op, "Pow: base is not a square matrix");
+				return rewriter.notifyMatchFailure(op, "Base is not a square matrix");
 
 		if (!op.exponent().getType().isa<IntegerType>())
-			return rewriter.notifyMatchFailure(op, "Pow: exponent is not an integer");
+			return rewriter.notifyMatchFailure(op, "Exponent is not an integer");
 
 		// Compute the result
-		Adaptor adaptor(operands);
-
 		mlir::Value exponent = rewriter.create<CastOp>(location, op.exponent(), mlir::IndexType::get(op->getContext()));
-		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(0));
+		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
 		mlir::Value step = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
 
 		auto forLoop = rewriter.create<mlir::scf::ForOp>(location, lowerBound, exponent, step, op.base());
@@ -2469,11 +2467,11 @@ void ModelicaConversionPass::runOnOperation()
 
 	mlir::ConversionTarget target(getContext());
 
-	target.addLegalOp<mlir::FuncOp>();
 	target.addLegalDialect<mlir::StandardOpsDialect>();
+	target.addLegalDialect<mlir::math::MathDialect>();
 	target.addLegalDialect<mlir::scf::SCFDialect>();
 	target.addLegalDialect<mlir::LLVM::LLVMDialect>();
-	target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp, mlir::UnrealizedConversionCastOp>();
+	target.addLegalOp<mlir::FuncOp, mlir::ModuleOp, mlir::ModuleTerminatorOp, mlir::UnrealizedConversionCastOp>();
 
 	mlir::LowerToLLVMOptions llvmLoweringOptions;
 	llvmLoweringOptions.emitCWrappers = true;

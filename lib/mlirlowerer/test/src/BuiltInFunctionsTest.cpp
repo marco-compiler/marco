@@ -156,7 +156,7 @@ TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
 	EXPECT_EQ(yPtr[1], xPtr.getSize(1));
 }
 
-TEST(BuiltInOps, sumOfIntegerArrayValues)	 // NOLINT
+TEST(BuiltInOps, sumOfIntegerStaticArrayValues)	 // NOLINT
 {
 	/**
 	 * function main
@@ -167,6 +167,8 @@ TEST(BuiltInOps, sumOfIntegerArrayValues)	 // NOLINT
 	 *     y := sum(x);
 	 * end main
 	 */
+
+	// TODO
 
 	/*
 	SourcePosition location = SourcePosition::unknown();
@@ -194,7 +196,7 @@ TEST(BuiltInOps, sumOfIntegerArrayValues)	 // NOLINT
 
 	Runner runner(module);
 
-	array<int, 3> x = { 10, 23, -57 };
+	array<int, 3> x = { 1, 2, 3 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
 
 	int y = 0;
