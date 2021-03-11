@@ -956,4 +956,64 @@ namespace modelica
 		mlir::Value base();
 		mlir::Value exponent();
 	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::RankOp
+	//===----------------------------------------------------------------------===//
+
+	class NDimsOp;
+
+	class NDimsOpAdaptor : public OpAdaptor<NDimsOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value memory();
+	};
+
+	class NDimsOp : public mlir::Op<NDimsOp, mlir::OpTrait::AtLeastNOperands<1>::Impl, mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = NDimsOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value memory);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Type resultType();
+		mlir::Value memory();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::SizeOp
+	//===----------------------------------------------------------------------===//
+
+	class SizeOp;
+
+	class SizeOpAdaptor : public OpAdaptor<SizeOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value memory();
+		mlir::Value index();
+	};
+
+	class SizeOp : public mlir::Op<SizeOp, mlir::OpTrait::AtLeastNOperands<1>::Impl, mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = SizeOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value memory, mlir::Value index = nullptr);
+		void print(mlir::OpAsmPrinter& printer);
+
+		bool hasIndex();
+
+		mlir::Type resultType();
+		mlir::Value memory();
+		mlir::Value index();
+	};
 }

@@ -489,7 +489,7 @@ class AllocaOpLowering: public ModelicaOpConversion<AllocaOp>
 
 		// Allocate the buffer
 		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.getPointerType().getElementType()));
-		mlir::Value buffer = rewriter.create<mlir::LLVM::AllocaOp>(location, bufferPtrType, totalSize, op.getAttrs());
+		mlir::Value buffer = rewriter.create<mlir::LLVM::AllocaOp>(location, bufferPtrType, totalSize, op->getAttrs());
 
 		// Create the descriptor
 		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(location, indexType, rewriter.getI64IntegerAttr(op.getPointerType().getRank()));
@@ -2061,7 +2061,7 @@ class MulOpMatrixVectorLowering: public ModelicaOpConversion<MulOp>
 		rowsUpperBound = getTypeConverter()->materializeSourceConversion(rewriter, location, rewriter.getIndexType(), rowsUpperBound);
 		mlir::Value rowsStep = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
 
-		auto outerLoop = rewriter.create<mlir::scf::ForOp>(location, rowsLowerBound, rowsUpperBound, rowsStep);
+		auto outerLoop = rewriter.create<mlir::scf::ParallelOp>(location, rowsLowerBound, rowsUpperBound, rowsStep);
 		rewriter.setInsertionPointToStart(outerLoop.getBody());
 
 		// Product between the current row and the vector
@@ -2074,7 +2074,7 @@ class MulOpMatrixVectorLowering: public ModelicaOpConversion<MulOp>
 		auto innerLoop = rewriter.create<mlir::scf::ForOp>(location, lowerBound, upperBound, step, init);
 		rewriter.setInsertionPointToStart(innerLoop.getBody());
 
-		mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), mlir::ValueRange({ outerLoop.getInductionVar(), innerLoop.getInductionVar() }));
+		mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), mlir::ValueRange({ outerLoop.getInductionVars()[0], innerLoop.getInductionVar() }));
 		mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), innerLoop.getInductionVar());
 		mlir::Value product = rewriter.create<MulOp>(location, type, lhs, rhs);
 		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, location, type, innerLoop.getRegionIterArgs()[0]);
@@ -2086,7 +2086,7 @@ class MulOpMatrixVectorLowering: public ModelicaOpConversion<MulOp>
 		rewriter.setInsertionPointAfter(innerLoop);
 		mlir::Value productResult = innerLoop.getResult(0);
 		productResult = getTypeConverter()->materializeSourceConversion(rewriter, location, type, productResult);
-		rewriter.create<StoreOp>(location, productResult, result, outerLoop.getInductionVar());
+		rewriter.create<StoreOp>(location, productResult, result, outerLoop.getInductionVars()[0]);
 
 		rewriter.setInsertionPointAfter(outerLoop);
 
@@ -2361,9 +2361,99 @@ class PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 	}
 };
 
+class NDimsOpLowering: public ModelicaOpConversion<NDimsOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(NDimsOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor adaptor(operands);
+		MemoryDescriptor descriptor(adaptor.memory());
+		mlir::Value result = descriptor.getRank(rewriter, location);
+		result = getTypeConverter()->materializeSourceConversion(rewriter, location, rewriter.getIndexType(), result);
+		result = rewriter.create<CastOp>(location, result, op.resultType());
+		rewriter.replaceOp(op, result);
+		return mlir::success();
+	}
+};
+
+/**
+ * Get the size of a specific array dimension.
+ */
+class SizeOpDimensionLowering: public ModelicaOpConversion<SizeOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(SizeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		if (!op.hasIndex())
+			return rewriter.notifyMatchFailure(op, "No index specified");
+
+		Adaptor adaptor(operands);
+		MemoryDescriptor descriptor(adaptor.memory());
+		mlir::Value result = descriptor.getSize(rewriter, location, adaptor.index());
+		result = getTypeConverter()->materializeSourceConversion(rewriter, location, rewriter.getIndexType(), result);
+		result = rewriter.create<CastOp>(location, result, op.resultType());
+		rewriter.replaceOp(op, result);
+		return mlir::success();
+	}
+};
+
+/**
+ * Get the size of alla the array dimensions.
+ */
+class SizeOpArrayLowering: public ModelicaOpConversion<SizeOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(SizeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		if (op.hasIndex())
+			return rewriter.notifyMatchFailure(op, "Index specified");
+
+		Adaptor transformed(operands);
+		MemoryDescriptor descriptor(transformed.memory());
+
+		assert(op.resultType().isa<PointerType>());
+		mlir::Type resultBaseType = op.resultType().cast<PointerType>().getElementType();
+		mlir::Value result = rewriter.create<AllocaOp>(location, resultBaseType, op.memory().getType().cast<PointerType>().getRank());
+
+		// Iterate on each dimension
+		mlir::Value zeroValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(0));
+
+		mlir::Value rank = descriptor.getRank(rewriter, location);
+		rank = getTypeConverter()->materializeSourceConversion(rewriter, location, rewriter.getIndexType(), rank);
+
+		mlir::Value step = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
+
+		auto loop = rewriter.create<mlir::scf::ForOp>(location, zeroValue, rank, step);
+
+		rewriter.setInsertionPointToStart(loop.getBody());
+
+		// Get the size of the current dimension
+		mlir::Value dimensionSize = descriptor.getSize(rewriter, location, materializeTargetConversion(rewriter, location, loop.getInductionVar()));
+		dimensionSize = getTypeConverter()->materializeSourceConversion(rewriter, location, rewriter.getIndexType(), dimensionSize);
+
+		// Cast it to the result base type and store it into the result array
+		dimensionSize = rewriter.create<CastOp>(location, dimensionSize, resultBaseType);
+		rewriter.create<StoreOp>(location, dimensionSize, result, loop.getInductionVar());
+
+		rewriter.setInsertionPointAfter(loop);
+
+		rewriter.replaceOp(op, result);
+		return mlir::success();
+	}
+};
+
 void ModelicaConversionPass::getDependentDialects(mlir::DialectRegistry& registry) const {
 	registry.insert<mlir::StandardOpsDialect>();
 	registry.insert<mlir::math::MathDialect>();
+	registry.insert<mlir::scf::SCFDialect>();
 	registry.insert<mlir::LLVM::LLVMDialect>();
 }
 
@@ -2430,10 +2520,13 @@ void modelica::populateModelicaConversionPatterns(mlir::OwningRewritePatternList
 	patterns.insert<MulOpLowering, MulOpScalarProductLowering, MulOpCrossProductLowering, MulOpVectorMatrixLowering, MulOpMatrixVectorLowering, MulOpMatrixLowering>(context, typeConverter);
 	patterns.insert<DivOpLowering, DivOpArrayLowering>(context, typeConverter);
 	patterns.insert<PowOpLowering, PowOpMatrixLowering>(context, typeConverter);
+
+	// Builtin operations
+	patterns.insert<NDimsOpLowering>(context, typeConverter);
+	patterns.insert<SizeOpDimensionLowering, SizeOpArrayLowering>(context, typeConverter);
 }
 
-std::unique_ptr<mlir::Pass> modelica::createModelicaConversionPass(
-		ModelicaConversionOptions options)
+std::unique_ptr<mlir::Pass> modelica::createModelicaConversionPass(ModelicaConversionOptions options)
 {
 	return std::make_unique<ModelicaConversionPass>(options);
 }

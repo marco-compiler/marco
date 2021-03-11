@@ -24,6 +24,12 @@ namespace modelica
 		}
 	};
 
+	/**
+	 * Pass to convert Modelica operations to a mix of Std, SCF and LLVM ones.
+	 *
+	 * @param patterns patterns list to populate
+	 * @param context	 MLIR context
+	 */
 	class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, mlir::OperationPass<mlir::ModuleOp>> {
 		public:
 		ModelicaConversionPass(ModelicaConversionOptions options = ModelicaConversionOptions::getDefaultOptions());
@@ -35,19 +41,7 @@ namespace modelica
 		ModelicaConversionOptions options;
 	};
 
-	/**
-	 * Collect a set of patterns to lower from Modelica operations to operations
-	 * within the LLVM dialect.
-	 *
-	 * @param patterns patterns list to populate
-	 * @param context	 MLIR context
-	 */
 	void populateModelicaConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter);
 
-	/**
-	 * Create a pass to convert Modelica operations to LLVM ones.
-	 *
-	 * @return pass
-	 */
 	std::unique_ptr<mlir::Pass> createModelicaConversionPass(ModelicaConversionOptions options = ModelicaConversionOptions::getDefaultOptions());
 }

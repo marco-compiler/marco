@@ -1510,3 +1510,96 @@ mlir::Value PowOp::exponent()
 {
 	return Adaptor(*this).exponent();
 }
+
+//===----------------------------------------------------------------------===//
+// Modelica::NDimsOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value NDimsOpAdaptor::memory()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef NDimsOp::getOperationName()
+{
+	return "modelica.ndims";
+}
+
+void NDimsOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory)
+{
+	state.addTypes(resultType);
+	state.addOperands(memory);
+}
+
+void NDimsOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.ndims " << memory() << " : " << resultType();
+}
+
+mlir::Type NDimsOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value NDimsOp::memory()
+{
+	return Adaptor(*this).memory();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::SizeOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value SizeOpAdaptor::memory()
+{
+	return getValues()[0];
+}
+
+mlir::Value SizeOpAdaptor::index()
+{
+	return getValues()[1];
+}
+
+llvm::StringRef SizeOp::getOperationName()
+{
+	return "modelica.size";
+}
+
+void SizeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory, mlir::Value index)
+{
+	state.addTypes(resultType);
+	state.addOperands(memory);
+
+	if (index != nullptr)
+		state.addOperands(index);
+}
+
+void SizeOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.size " << memory();
+
+	if (hasIndex())
+		printer << "[" << index() << "]";
+
+	printer << " : " << resultType();
+}
+
+bool SizeOp::hasIndex()
+{
+	return getNumOperands() == 2;
+}
+
+mlir::Type SizeOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value SizeOp::memory()
+{
+	return Adaptor(*this).memory();
+}
+
+mlir::Value SizeOp::index()
+{
+	return Adaptor(*this).index();
+}

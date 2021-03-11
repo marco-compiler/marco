@@ -173,8 +173,6 @@ namespace modelica
 			assert(false && "Unknown type");
 			return builder.getZeroAttr(builder.getNoneType());
 		}
-
-		mlir::Value cast(mlir::Value value, mlir::Type destination);
 	};
 
 	template<>

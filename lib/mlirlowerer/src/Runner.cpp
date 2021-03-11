@@ -1,3 +1,5 @@
+#include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
+#include <mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h>
 #include <modelica/mlirlowerer/Runner.h>
 
 using namespace modelica;
@@ -7,6 +9,7 @@ Runner::Runner(mlir::ModuleOp module, llvm::ArrayRef<mlir::StringRef> libraries,
 {
 	// Register the conversion to LLVM IR
 	mlir::registerLLVMDialectTranslation(*module->getContext());
+	mlir::registerOpenMPDialectTranslation(*module->getContext());
 
 	// Initialize LLVM targets
 	llvm::InitializeNativeTarget();

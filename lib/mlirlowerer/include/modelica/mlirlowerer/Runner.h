@@ -5,7 +5,6 @@
 #include <mlir/ExecutionEngine/ExecutionEngine.h>
 #include <mlir/ExecutionEngine/OptUtils.h>
 #include <mlir/IR/BuiltinOps.h>
-#include <mlir/Target/LLVMIR.h>
 
 namespace modelica
 {

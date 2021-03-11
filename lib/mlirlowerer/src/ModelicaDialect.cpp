@@ -38,6 +38,9 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<WhileOp>();
 	addOperations<ConditionOp>();
 	addOperations<YieldOp>();
+
+	// Builtin operations
+	addOperations<NDimsOp, SizeOp>();
 }
 
 mlir::StringRef ModelicaDialect::getDialectNamespace()

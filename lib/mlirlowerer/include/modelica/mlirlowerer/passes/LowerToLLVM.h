@@ -10,9 +10,9 @@
 
 namespace modelica
 {
-	class ModelicaFinalizerPass : public mlir::PassWrapper<ModelicaFinalizerPass, mlir::OperationPass<mlir::ModuleOp>> {
+	class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>> {
 		public:
-		ModelicaFinalizerPass();
+		LLVMLoweringPass();
 
 		mlir::LogicalResult stdToLLVMConversionPass(mlir::ModuleOp module);
 		mlir::LogicalResult castsFolderPass(mlir::ModuleOp module);
@@ -20,5 +20,5 @@ namespace modelica
 		void runOnOperation() final;
 	};
 
-	std::unique_ptr<mlir::Pass> createModelicaFinalizerPass();
+	std::unique_ptr<mlir::Pass> createLLVMLoweringPass();
 }

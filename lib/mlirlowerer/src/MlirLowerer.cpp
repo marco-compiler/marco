@@ -10,8 +10,8 @@
 #include <mlir/Transforms/Passes.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <modelica/mlirlowerer/passes/LowerToLLVM.h>
 #include <modelica/mlirlowerer/passes/ModelicaConversionPass.h>
-#include <modelica/mlirlowerer/passes/ModelicaFinalizerPass.h>
 
 using namespace modelica;
 using namespace std;
@@ -23,10 +23,11 @@ mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, m
 	ModelicaConversionOptions modelicaToLLVMOptions;
 	passManager.addPass(createModelicaConversionPass(modelicaToLLVMOptions));
 
+	//passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
 	passManager.addPass(mlir::createLowerToCFGPass());
-	passManager.addPass(mlir::createCanonicalizerPass());
-	passManager.addPass(createModelicaFinalizerPass()); // forse questo non deve avere le materialization, ma solo le conversion
-	//passManager.addPass(mlir::createLowerToLLVMPass());
+	//passManager.addPass(mlir::createCanonicalizerPass());
+	passManager.addPass(createLLVMLoweringPass());
+	//passManager.addPass(mlir::createConvertOpenMPToLLVMPass());
 
 	return passManager.run(module);
 }
@@ -86,77 +87,18 @@ MlirLowerer::MlirLowerer(mlir::MLIRContext& context, ModelicaOptions options)
 {
 	context.loadDialect<ModelicaDialect>();
 	context.loadDialect<mlir::StandardOpsDialect>();
-	context.loadDialect<mlir::scf::SCFDialect>();
 }
 
 mlir::Location MlirLowerer::loc(SourcePosition location)
 {
+	// TODO
+	return builder.getUnknownLoc();
+	/*
 	return builder.getFileLineColLoc(
 			builder.getIdentifier(*location.file),
 			location.line,
 			location.column);
-}
-
-mlir::Value MlirLowerer::cast(mlir::Value value, mlir::Type destination)
-{
-	auto source = value.getType();
-
-	if (source == destination)
-		return value;
-
-	mlir::Type sourceBase = source;
-	mlir::Type destinationBase = destination;
-
-	if (source.isa<mlir::ShapedType>())
-	{
-		sourceBase = source.cast<mlir::ShapedType>().getElementType();
-		auto sourceShape = source.cast<mlir::ShapedType>().getShape();
-
-		if (destination.isa<mlir::ShapedType>())
-		{
-			auto destinationShape = destination.cast<mlir::ShapedType>().getShape();
-			destinationBase = destination.cast<mlir::ShapedType>().getElementType();
-			assert(all_of(llvm::zip(sourceShape, destinationShape),
-										[](const auto& pair)
-										{
-											return get<0>(pair) == get<1>(pair);
-										}));
-
-			destination = mlir::VectorType::get(destinationShape, destinationBase);
-		}
-		else
-		{
-			destination = mlir::VectorType::get(sourceShape, destinationBase);
-		}
-	}
-
-	if (sourceBase == destinationBase)
-		return value;
-
-	if (sourceBase.isSignlessInteger())
-	{
-		if (destinationBase.isa<mlir::FloatType>())
-			return builder.create<mlir::SIToFPOp>(value.getLoc(), value, destination);
-
-		if (destinationBase.isIndex())
-			return builder.create<mlir::IndexCastOp>(value.getLoc(), value, destination);
-	}
-	else if (sourceBase.isa<mlir::FloatType>())
-	{
-		if (destinationBase.isSignlessInteger())
-			return builder.create<mlir::FPToSIOp>(value.getLoc(), value, destination);
-	}
-	else if (sourceBase.isIndex())
-	{
-		if (destinationBase.isSignlessInteger())
-			return builder.create<mlir::IndexCastOp>(value.getLoc(), value, builder.getIntegerType());
-
-		if (destinationBase.isa<mlir::FloatType>())
-			return cast(builder.create<mlir::IndexCastOp>(value.getLoc(), value, builder.getIntegerType()), destination);
-	}
-
-	assert(false && "Unsupported type conversion");
-	return nullptr;
+			*/
 }
 
 mlir::ModuleOp MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer> classes)
@@ -851,6 +793,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Call>(const model
 	assert(expression.isA<modelica::Call>());
 	const auto& call = expression.get<modelica::Call>();
 	const auto& function = call.getFunction();
+	mlir::Location location = loc(expression.getLocation());
 
 	llvm::SmallVector<mlir::Value, 3> args;
 
@@ -860,16 +803,47 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Call>(const model
 		args.push_back(*reference);
 	}
 
-	auto op = builder.create<mlir::CallOp>(
-			loc(expression.getLocation()),
-			function.get<ReferenceAccess>().getName(),
-			lower(function.getType()),
-			args);
+	auto& functionName = function.get<ReferenceAccess>().getName();
 
 	Container<Reference> results;
 
-	for (auto result : op.getResults())
+	if (functionName == "ndims")
+	{
+		assert(args.size() == 1);
+		mlir::Type resultType = lower(expression.getType());
+		mlir::Value result = builder.create<NDimsOp>(location, resultType, args[0]);
 		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "size")
+	{
+		assert(args.size() == 1 || args.size() == 2);
+		mlir::Type resultType = lower(expression.getType());
+
+		if (args.size() == 1)
+		{
+			mlir::Value result = builder.create<SizeOp>(location, resultType, args[0]);
+			results.emplace_back(Reference::ssa(&builder, result));
+		}
+		else if (args.size() == 2)
+		{
+			mlir::Value oneValue = builder.create<ConstantOp>(location, builder.getIntegerAttribute(1));
+			mlir::Value index = builder.create<SubOp>(location, builder.getIndexType(), args[1], oneValue);
+			mlir::Value result = builder.create<SizeOp>(location, resultType, args[0], index);
+			results.emplace_back(Reference::ssa(&builder, result));
+		}
+	}
+	else
+	{
+		auto op = builder.create<mlir::CallOp>(
+				loc(expression.getLocation()),
+				function.get<ReferenceAccess>().getName(),
+				lower(function.getType()),
+				args);
+
+
+		for (auto result : op.getResults())
+			results.emplace_back(Reference::ssa(&builder, result));
+	}
 
 	return results;
 }

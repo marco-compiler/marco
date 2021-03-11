@@ -1,7 +1,7 @@
 modelicaAddLibrary(
         mlirlowerer SHARED
         src/passes/ModelicaConversionPass.cpp
-        src/passes/ModelicaFinalizerPass.cpp
+        src/passes/LowerToLLVM.cpp
         src/passes/BreakRemover.cpp
         src/passes/ReturnRemover.cpp
         src/passes/TypeConverter.cpp
@@ -20,16 +20,16 @@ target_link_libraries(
         modelica::utils
         MLIRIR
         MLIRAffineToStandard
-        MLIRLinalg
-        MLIRLinalgToStandard
+        MLIROpenMPToLLVM
+        MLIROpenMPToLLVMIRTranslation
         MLIRSCF
         MLIRSCFToStandard
+        MLIRSCFToOpenMP
         MLIRSCFToGPU
         MLIRStandard
         MLIRStandardToLLVM
         MLIRVectorToLLVM
-        MLIRLinalgTransforms
-        MLIRTargetLLVMIR
         MLIRTransforms
+        MLIRTranslation
         MLIRExecutionEngine
 )

@@ -5,7 +5,6 @@
 #include <mlir/IR/Dialect.h>
 #include <mlir/InitAllDialects.h>
 #include <mlir/Pass/PassManager.h>
-#include <mlir/Target/LLVMIR.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/frontend/Parser.hpp>
 #include <modelica/mlirlowerer/CRunnerUtils.h>
