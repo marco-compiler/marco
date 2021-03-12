@@ -1,4 +1,3 @@
-#include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/DialectImplementation.h>
 #include <modelica/mlirlowerer/Type.h>
 
@@ -206,35 +205,41 @@ unsigned int PointerType::getDynamicDimensions() const
 
 bool PointerType::hasConstantShape() const
 {
-	return getConstantDimensions() == getRank();
+	auto dimensions = getShape();
+
+	for (auto dimension : dimensions)
+		if (dimension == -1)
+			return false;
+
+	return true;
 }
 
-void modelica::printModelicaType(mlir::Type ty, mlir::DialectAsmPrinter& printer) {
+void modelica::printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer) {
 	auto& os = printer.getStream();
 
-	if (auto type = ty.dyn_cast<BooleanType>()) {
+	if (type.isa<BooleanType>()) {
 		os << "bool";
 		return;
 	}
 
-	if (auto type = ty.dyn_cast<IntegerType>()) {
+	if (type.isa<IntegerType>()) {
 		os << "int";
 		return;
 	}
 
-	if (auto type = ty.dyn_cast<RealType>()) {
+	if (type.dyn_cast<RealType>()) {
 		os << "real";
 		return;
 	}
 
-	if (auto type = ty.dyn_cast<PointerType>()) {
-		os << "ptr<" << (type.isOnHeap() ? "true" : "false") << ", ";
-		auto dimensions = type.getShape();
+	if (auto pointerType = type.dyn_cast<PointerType>()) {
+		os << "ptr<" << (pointerType.isOnHeap() ? "true" : "false") << ", ";
+		auto dimensions = pointerType.getShape();
 
 		for (const auto& dimension : dimensions)
 			os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
 
-		printer.printType(type.getElementType());
+		printer.printType(pointerType.getElementType());
 		os << ">";
 		return;
 	}

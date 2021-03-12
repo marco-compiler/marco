@@ -41,12 +41,15 @@ TEST(Comparison, eqIntegers)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module)
+		FAIL();
+	
+	if (failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 2> x = { 57, 57 };
 	array<int, 2> y = { 57, 23 };
@@ -93,12 +96,15 @@ TEST(Comparison, eqFloats)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module)
 		FAIL();
 
-	Runner runner(module);
+	if (failed(convertToLLVMDialect(&context, *module)))
+		FAIL();
+
+	Runner runner(*module);
 
 	array<float, 2> x = { 57.0f, 57.0f };
 	array<float, 2> y = { 57.0f, 23.0f };
@@ -145,12 +151,15 @@ TEST(Comparison, eqIntegerAndFloat)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module)
 		FAIL();
 
-	Runner runner(module);
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
+		FAIL();
+
+	Runner runner(*module);
 
 	array<int, 2> x = { 57, 57 };
 	array<float, 2> y = { 57.0f, 23.0f };
@@ -197,12 +206,15 @@ TEST(Comparison, notEqIntegers)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module)
 		FAIL();
 
-	Runner runner(module);
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
+		FAIL();
+
+	Runner runner(*module);
 
 	array<int, 2> x = { 57, 57 };
 	array<int, 2> y = { 57, 23 };
@@ -249,12 +261,12 @@ TEST(Comparison, notEqFloats)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<float, 2> x = { 57.0f, 57.0f };
 	array<float, 2> y = { 57.0f, 23.0f };
@@ -301,12 +313,12 @@ TEST(Comparison, notEqIntegerAndFloat)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 2> x = { 57, 57 };
 	array<float, 2> y = { 57.0f, 23.0f };
@@ -353,12 +365,12 @@ TEST(Comparison, gtIntegers)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 3> x = { 23, 57, 57 };
 	array<int, 3> y = { 57, 57, 23 };
@@ -405,12 +417,12 @@ TEST(Comparison, gtFloats)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<float, 3> x = { 23.0f, 57.0f, 57.0f };
 	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
@@ -457,12 +469,12 @@ TEST(Comparison, gtIntegerAndFloat)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 3> x = { 23, 57, 57 };
 	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
@@ -509,12 +521,12 @@ TEST(Comparison, gteIntegers)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 3> x = { 23, 57, 57 };
 	array<int, 3> y = { 57, 57, 23 };
@@ -561,12 +573,12 @@ TEST(Comparison, gteFloats)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<float, 3> x = { 23.0f, 57.0f, 57.0f };
 	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
@@ -613,12 +625,12 @@ TEST(Comparison, gteIntegerAndFloat)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 3> x = { 23, 57, 57 };
 	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
@@ -665,12 +677,12 @@ TEST(Comparison, ltIntegers)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 3> x = { 23, 57, 57 };
 	array<int, 3> y = { 57, 57, 23 };
@@ -717,12 +729,12 @@ TEST(Comparison, ltFloats)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<float, 3> x = { 23.0f, 57.0f, 57.0f };
 	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
@@ -769,12 +781,12 @@ TEST(Comparison, ltIntegerAndFloat)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 3> x = { 23, 57, 57 };
 	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
@@ -821,12 +833,12 @@ TEST(Comparison, lteIntegers)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 3> x = { 23, 57, 57 };
 	array<int, 3> y = { 57, 57, 23 };
@@ -873,12 +885,12 @@ TEST(Comparison, lteFloats)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<float, 3> x = { 23.0f, 57.0f, 57.0f };
 	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
@@ -925,12 +937,12 @@ TEST(Comparison, lteIntegerAndFloat)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 3> x = { 23, 57, 57 };
 	array<float, 3> y = { 57.0f, 57.0f, 23.0f };

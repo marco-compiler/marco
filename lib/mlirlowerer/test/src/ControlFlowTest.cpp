@@ -63,12 +63,12 @@ TEST(ControlFlow, thenBranchTaken)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
-
-	if (failed(convertToLLVMDialect(&context, module)))
+	auto module = lowerer.lower(cls);
+	
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int x = 1;
 	int y = 0;
@@ -129,12 +129,12 @@ TEST(ControlFlow, elseBranchTaken)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int x = -1;
 	int y = 0;
@@ -210,12 +210,12 @@ TEST(ControlFlow, elseIfBranchTaken)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int x = 1;
 	int y = 0;
@@ -280,12 +280,12 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int x = 10;
 	int y = 0;
@@ -350,12 +350,12 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int x = 1;
 	int y = 0;
@@ -422,12 +422,12 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int x = 10;
 	int y = 0;
@@ -482,12 +482,11 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
-
-	if (failed(convertToLLVMDialect(&context, module)))
+	auto module = lowerer.lower(cls);
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int y = 0;
 
@@ -549,12 +548,12 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int y = 0;
 
@@ -608,12 +607,12 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int y = 0;
 
@@ -686,12 +685,12 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int y = 0;
 
@@ -752,12 +751,12 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int y = 0;
 
@@ -831,12 +830,12 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int y = 0;
 
@@ -887,12 +886,12 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int y = 0;
 

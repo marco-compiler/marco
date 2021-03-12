@@ -79,7 +79,7 @@ mlir::Value AssignmentOp::destination()
 // Modelica::AllocaOp
 //===----------------------------------------------------------------------===//
 
-mlir::ValueRange AllocaOpAdaptor::dimensions()
+mlir::ValueRange AllocaOpAdaptor::dynamicDimensions()
 {
 	return getValues();
 }
@@ -91,20 +91,26 @@ llvm::StringRef AllocaOp::getOperationName()
 
 void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions)
 {
-	size_t dynamicDimensions = 0;
-
-	for (long dimension : shape)
-		if (dimension == -1)
-			dynamicDimensions++;
-
-	assert(dynamicDimensions == dimensions.size() && "Dynamic dimensions amount doesn't match with the number of provided values");
-
-	if (shape.empty())
-		state.addTypes(PointerType::get(state.getContext(), false, elementType));
-	else
-		state.addTypes(PointerType::get(state.getContext(), false, elementType, shape));
-
+	state.addTypes(PointerType::get(state.getContext(), false, elementType, shape));
 	state.addOperands(dimensions);
+}
+
+mlir::LogicalResult AllocaOp::verify()
+{
+	auto shape = resultType().getShape();
+	unsigned int unknownSizes = 0;
+
+	for (const auto& size : shape)
+		if (size == -1)
+			++unknownSizes;
+
+	if (unknownSizes != dynamicDimensions().size())
+		return emitOpError("requires the dynamic dimensions amount (" +
+											 std::to_string(dynamicDimensions().size()) +
+											 ") to match the number of provided values (" +
+											 std::to_string(unknownSizes) + ")");
+
+	return mlir::success();
 }
 
 void AllocaOp::print(mlir::OpAsmPrinter& printer)
@@ -115,16 +121,21 @@ void AllocaOp::print(mlir::OpAsmPrinter& printer)
 	printer.printType(getOperation()->getResultTypes()[0]);
 }
 
-PointerType AllocaOp::getPointerType()
+PointerType AllocaOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<PointerType>();
+}
+
+mlir::ValueRange AllocaOp::dynamicDimensions()
+{
+	return Adaptor(*this).dynamicDimensions();
 }
 
 //===----------------------------------------------------------------------===//
 // Modelica::AllocOp
 //===----------------------------------------------------------------------===//
 
-mlir::ValueRange AllocOpAdaptor::dimensions()
+mlir::ValueRange AllocOpAdaptor::dynamicDimensions()
 {
 	return getValues();
 }
@@ -136,20 +147,26 @@ llvm::StringRef AllocOp::getOperationName()
 
 void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions)
 {
-	size_t dynamicDimensions = 0;
-
-	for (long dimension : shape)
-		if (dimension == -1)
-			dynamicDimensions++;
-
-	assert(dynamicDimensions == dimensions.size() && "Dynamic dimensions amount doesn't match with the number of provided values");
-
-	if (shape.empty())
-		state.addTypes(PointerType::get(state.getContext(), true, elementType));
-	else
-		state.addTypes(PointerType::get(state.getContext(), true, elementType, shape));
-
+	state.addTypes(PointerType::get(state.getContext(), true, elementType, shape));
 	state.addOperands(dimensions);
+}
+
+mlir::LogicalResult AllocOp::verify()
+{
+	auto shape = resultType().getShape();
+	unsigned int unknownSizes = 0;
+
+	for (const auto& size : shape)
+		if (size == -1)
+			++unknownSizes;
+
+	if (unknownSizes != dynamicDimensions().size())
+		return emitOpError("requires the dynamic dimensions amount (" +
+											 std::to_string(dynamicDimensions().size()) +
+											 ") to match the number of provided values (" +
+											 std::to_string(unknownSizes) + ")");
+
+	return mlir::success();
 }
 
 void AllocOp::print(mlir::OpAsmPrinter& printer)
@@ -160,9 +177,14 @@ void AllocOp::print(mlir::OpAsmPrinter& printer)
 	printer.printType(getOperation()->getResultTypes()[0]);
 }
 
-PointerType AllocOp::getPointerType()
+PointerType AllocOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<PointerType>();
+}
+
+mlir::ValueRange AllocOp::dynamicDimensions()
+{
+	return Adaptor(*this).dynamicDimensions();
 }
 
 //===----------------------------------------------------------------------===//
@@ -194,6 +216,19 @@ mlir::Value FreeOp::memory()
 	return Adaptor(*this).memory();
 }
 
+mlir::LogicalResult FreeOp::verify()
+{
+	if (auto pointerType = memory().getType().dyn_cast<PointerType>(); pointerType)
+	{
+		if (pointerType.isOnHeap())
+			return mlir::success();
+
+		return emitOpError("requires the memory to be allocated on the heap");
+	}
+
+	return emitOpError("requires operand to be a pointer to heap allocated memory");
+}
+
 //===----------------------------------------------------------------------===//
 // Modelica::DimOp
 //===----------------------------------------------------------------------===//
@@ -217,6 +252,14 @@ void DimOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 {
 	state.addOperands({ memory, dimension });
 	state.addTypes(builder.getIndexType());
+}
+
+mlir::LogicalResult DimOp::verify()
+{
+	if (!memory().getType().isa<PointerType>())
+		return emitOpError("requires the operand to be a pointer to an array");
+
+	return mlir::success();
 }
 
 void DimOp::print(mlir::OpAsmPrinter& printer)
@@ -263,10 +306,10 @@ void SubscriptionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 	state.addOperands(source);
 	state.addOperands(indexes);
 
-	assert(source.getType().isa<PointerType>());
 	auto sourcePointerType = source.getType().cast<PointerType>();
 	auto shape = sourcePointerType.getShape();
 
+	assert(indexes.size() <= shape.size() && "Too many subscription indexes");
 	llvm::SmallVector<long, 3> resultShape;
 
 	for (size_t i = indexes.size(), e = shape.size(); i < e; ++i)
@@ -278,12 +321,12 @@ void SubscriptionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 
 void SubscriptionOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.subscript " << source() << "[";
-	printer.printOperands(indexes());
-	printer << "] : " << getPointerType();
+ 	printer << "modelica.subscript " << source() << "[" << indexes() << "] : ";
+	printer << indexes();
+	printer << "] : " << resultType();
 }
 
-PointerType SubscriptionOp::getPointerType()
+PointerType SubscriptionOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<PointerType>();
 }
@@ -322,6 +365,19 @@ void LoadOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 	state.addOperands(memory);
 	state.addOperands(indexes);
 	state.addTypes(memory.getType().cast<PointerType>().getElementType());
+}
+
+mlir::LogicalResult LoadOp::verify()
+{
+	auto pointerType = memory().getType().cast<PointerType>();
+
+	if (pointerType.getRank() != indexes().size())
+		return emitOpError("requires the indexes amount (" +
+											 std::to_string(indexes().size()) +
+											 ") to match the array rank (" +
+											 std::to_string(pointerType.getRank()) + ")");
+
+	return mlir::success();
 }
 
 void LoadOp::print(mlir::OpAsmPrinter& printer)
@@ -376,6 +432,22 @@ void StoreOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 	state.addOperands(value);
 	state.addOperands(memory);
 	state.addOperands(indexes);
+}
+
+mlir::LogicalResult StoreOp::verify()
+{
+	auto pointerType = memory().getType().cast<PointerType>();
+
+	if (pointerType.getElementType() != value().getType())
+		return emitOpError("requires the value to have the same type of the array elements");
+
+	if (pointerType.getRank() != indexes().size())
+		return emitOpError("requires the indexes amount (" +
+											 std::to_string(indexes().size()) +
+											 ") to match the array rank (" +
+											 std::to_string(pointerType.getRank()) + ")");
+
+	return mlir::success();
 }
 
 void StoreOp::print(mlir::OpAsmPrinter& printer)
@@ -474,6 +546,14 @@ void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Va
 	builder.restoreInsertionPoint(insertionPoint);
 }
 
+mlir::LogicalResult IfOp::verify()
+{
+	if (!condition().getType().isa<BooleanType>())
+		return emitOpError("requires the condition to be a boolean");
+
+	return mlir::success();
+}
+
 void IfOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.if " << condition();
@@ -525,11 +605,6 @@ llvm::StringRef ForOp::getOperationName()
 	return "modelica.for";
 }
 
-void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition)
-{
-	build(builder, state, breakCondition, returnCondition, {});
-}
-
 void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args)
 {
 	state.addOperands(breakCondition);
@@ -548,6 +623,19 @@ void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 	builder.createBlock(state.addRegion(), {}, args.getTypes());
 
 	builder.restoreInsertionPoint(insertionPoint);
+}
+
+mlir::LogicalResult ForOp::verify()
+{
+	if (auto breakPtr = breakCondition().getType().dyn_cast<PointerType>();
+			!breakPtr || !breakPtr.getElementType().isa<BooleanType>() || breakPtr.getRank() != 0)
+		return emitOpError("requires the break condition to be a pointer to a single boolean value");
+
+	if (auto returnPtr = breakCondition().getType().dyn_cast<PointerType>();
+			!returnPtr || !returnPtr.getElementType().isa<BooleanType>() || returnPtr.getRank() != 0)
+		return emitOpError("requires the return condition to be a pointer to a single boolean value");
+
+	return mlir::success();
 }
 
 void ForOp::print(mlir::OpAsmPrinter& printer)
@@ -626,6 +714,19 @@ void WhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 	builder.restoreInsertionPoint(insertionPoint);
 }
 
+mlir::LogicalResult WhileOp::verify()
+{
+	if (auto breakPtr = breakCondition().getType().dyn_cast<PointerType>();
+			!breakPtr || !breakPtr.getElementType().isa<BooleanType>() || breakPtr.getRank() != 0)
+		return emitOpError("requires the break condition to be a pointer to a single boolean value");
+
+	if (auto returnPtr = breakCondition().getType().dyn_cast<PointerType>();
+			!returnPtr || !returnPtr.getElementType().isa<BooleanType>() || returnPtr.getRank() != 0)
+		return emitOpError("requires the return condition to be a pointer to a single boolean value");
+
+	return mlir::success();
+}
+
 void WhileOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.while (break on " << breakCondition() << ", return on " << returnCondition() << ")";
@@ -677,6 +778,14 @@ void ConditionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, m
 {
 	state.addOperands(condition);
 	state.addOperands(args);
+}
+
+mlir::LogicalResult ConditionOp::verify()
+{
+	if (!condition().getType().isa<BooleanType>())
+		return emitOpError("requires the condition to be a boolean");
+
+	return mlir::success();
 }
 
 void ConditionOp::print(mlir::OpAsmPrinter& printer)
@@ -741,6 +850,19 @@ void CastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 {
 	state.addOperands(value);
 	state.addTypes(resultType);
+}
+
+mlir::LogicalResult CastOp::verify()
+{
+	mlir::Type inputType = value().getType();
+
+	if (!inputType.isa<mlir::IndexType, BooleanType, IntegerType, RealType>())
+		return emitOpError("requires the value to be an index, boolean, integer or real");
+
+	if (!resultType().isa<mlir::IndexType, BooleanType, IntegerType, RealType>())
+		return emitOpError("requires the result type to be index, boolean, integer or real");
+
+	return mlir::success();
 }
 
 void CastOp::print(mlir::OpAsmPrinter& printer)
@@ -862,6 +984,15 @@ void NegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir
 	state.addTypes(operand.getType());
 }
 
+mlir::LogicalResult NegateOp::verify()
+{
+	if (!operand().getType().isa<BooleanType>())
+		if (auto pointerType = operand().getType().dyn_cast<PointerType>(); !pointerType || !pointerType.getElementType().isa<BooleanType>())
+			return emitOpError("requires the operand to be a boolean or an array of booleans");
+
+	return mlir::success();
+}
+
 void NegateOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.neg " << getOperand() << " : " << getOperation()->getResultTypes();
@@ -895,6 +1026,14 @@ void AndOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 {
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
+}
+
+mlir::LogicalResult AndOp::verify()
+{
+	if (!lhs().getType().isa<BooleanType>() || !rhs().getType().isa<BooleanType>())
+		return emitOpError("requires the operands to be booleans");
+
+	return mlir::success();
 }
 
 void AndOp::print(mlir::OpAsmPrinter& printer)
@@ -940,6 +1079,14 @@ void OrOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Ty
 {
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
+}
+
+mlir::LogicalResult OrOp::verify()
+{
+	if (!lhs().getType().isa<BooleanType>() || !rhs().getType().isa<BooleanType>())
+		return emitOpError("requires the operands to be booleans");
+
+	return mlir::success();
 }
 
 void OrOp::print(mlir::OpAsmPrinter& printer)

@@ -6,6 +6,7 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Dialect/StandardOps/Transforms/Passes.h>
 #include <mlir/Dialect/Vector/VectorOps.h>
+#include <mlir/IR/Verifier.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
@@ -99,7 +100,7 @@ mlir::Location MlirLowerer::loc(SourcePosition location)
 			*/
 }
 
-mlir::ModuleOp MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer> classes)
+llvm::Optional<mlir::ModuleOp> MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer> classes)
 {
 	mlir::ModuleOp module = mlir::ModuleOp::create(builder.getUnknownLoc());
 
@@ -110,6 +111,9 @@ mlir::ModuleOp MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer>
 		if (op != nullptr)
 			module.push_back(op);
 	}
+
+	if (failed(mlir::verify(module)))
+		return llvm::None;
 
 	return module;
 }

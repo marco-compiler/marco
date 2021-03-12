@@ -1,7 +1,8 @@
 #pragma once
 
 #include <mlir/IR/OpDefinition.h>
-#include <modelica/mlirlowerer/Type.h>
+
+#include "Type.h"
 
 namespace modelica
 {
@@ -63,7 +64,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Attribute value);
-		void print(mlir::OpAsmPrinter &p);
+		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Attribute value();
 		mlir::Type getType();
@@ -108,7 +109,7 @@ namespace modelica
 		public:
 		using OpAdaptor::OpAdaptor;
 
-		mlir::ValueRange dimensions();
+		mlir::ValueRange dynamicDimensions();
 	};
 
 	class AllocaOp : public mlir::Op<AllocaOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
@@ -119,9 +120,11 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 
-		PointerType getPointerType();
+		PointerType resultType();
+		mlir::ValueRange dynamicDimensions();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -135,7 +138,7 @@ namespace modelica
 		public:
 		using OpAdaptor::OpAdaptor;
 
-		mlir::ValueRange dimensions();
+		mlir::ValueRange dynamicDimensions();
 	};
 
 	class AllocOp : public mlir::Op<AllocOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
@@ -146,9 +149,11 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 
-		PointerType getPointerType();
+		PointerType resultType();
+		mlir::ValueRange dynamicDimensions();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -173,6 +178,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Value memory();
@@ -201,6 +207,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::Value dimension);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 
 		PointerType getPointerType();
@@ -233,7 +240,7 @@ namespace modelica
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::ValueRange indexes);
 		void print(mlir::OpAsmPrinter& printer);
 
-		PointerType getPointerType();
+		PointerType resultType();
 		mlir::Value source();
 		mlir::ValueRange indexes();
 	};
@@ -261,6 +268,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::ValueRange indexes = {});
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 
 		PointerType getPointerType();
@@ -292,6 +300,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory, mlir::ValueRange indexes = {});
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 
 		PointerType getPointerType();
@@ -349,6 +358,7 @@ namespace modelica
 
 		static ::llvm::StringRef getOperationName();
 		static void build(::mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Value cond, bool withElseRegion = false);
+		mlir::LogicalResult verify();
 		void print(::mlir::OpAsmPrinter &p);
 
 		mlir::Value condition();
@@ -379,8 +389,8 @@ namespace modelica
 		using Adaptor = ForOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition);
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args = {});
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Region& condition();
@@ -407,7 +417,7 @@ namespace modelica
 		mlir::Value returnCondition();
 	};
 
-	class WhileOp : public mlir::Op<WhileOp, mlir::OpTrait::NRegions<3>::Impl, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::ZeroResult>
+	class WhileOp : public mlir::Op<WhileOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::ZeroResult>
 	{
 		public:
 		using Op::Op;
@@ -415,6 +425,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Region& condition();
@@ -446,6 +457,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Value condition, mlir::ValueRange args = {});
+		mlir::LogicalResult verify();
 		void print(::mlir::OpAsmPrinter &p);
 
 		mlir::Value condition();
@@ -500,6 +512,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& Builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter &p);
 
 		mlir::Value value();
@@ -547,7 +560,7 @@ namespace modelica
 		mlir::Value operand();
 	};
 
-	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, mlir::OpTrait::SameOperandsAndResultType, mlir::OpTrait::IsInvolution>
+	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -555,6 +568,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Value operand);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Value operand();
@@ -575,7 +589,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class AndOp : public mlir::Op<AndOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameOperandsAndResultType>
+	class AndOp : public mlir::Op<AndOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
 	{
 		public:
 		using Op::Op;
@@ -583,6 +597,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Type resultType();
@@ -606,7 +621,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class OrOp : public mlir::Op<OrOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameOperandsAndResultType>
+	class OrOp : public mlir::Op<OrOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
 	{
 		public:
 		using Op::Op;
@@ -614,6 +629,7 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Type resultType();
@@ -637,7 +653,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class EqOp : public mlir::Op<EqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike, mlir::OpTrait::IsCommutative>
+	class EqOp : public mlir::Op<EqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
 	{
 		public:
 		using Op::Op;
@@ -667,7 +683,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class NotEqOp : public mlir::Op<NotEqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike, mlir::OpTrait::IsCommutative>
+	class NotEqOp : public mlir::Op<NotEqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
 	{
 		public:
 		using Op::Op;
@@ -698,7 +714,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class GtOp : public mlir::Op<GtOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
+	class GtOp : public mlir::Op<GtOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -729,7 +745,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class GteOp : public mlir::Op<GteOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
+	class GteOp : public mlir::Op<GteOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -760,7 +776,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class LtOp : public mlir::Op<LtOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
+	class LtOp : public mlir::Op<LtOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -791,7 +807,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class LteOp : public mlir::Op<LteOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::SameTypeOperands, mlir::OpTrait::ResultsAreBoolLike>
+	class LteOp : public mlir::Op<LteOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -958,7 +974,7 @@ namespace modelica
 	};
 
 	//===----------------------------------------------------------------------===//
-	// Modelica::RankOp
+	// Modelica::NDimsOp
 	//===----------------------------------------------------------------------===//
 
 	class NDimsOp;

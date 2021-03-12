@@ -3,9 +3,9 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
 #include <modelica/frontend/Expression.hpp>
-#include <modelica/mlirlowerer/CRunnerUtils.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
+#include <modelica/utils/CRunnerUtils.h>
 #include <modelica/utils/SourceRange.hpp>
 
 using namespace modelica;
@@ -40,12 +40,12 @@ TEST(Logic, negateScalar)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 			FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<bool, 2> x = { true, false };
 	array<bool, 2> y = { true, false };
@@ -59,7 +59,7 @@ TEST(Logic, negateScalar)	 // NOLINT
 	}
 }
 
-TEST(Logic, negateVector)	 // NOLINT
+TEST(Logic, negateArray)	 // NOLINT
 {
 	/**
 	 * function main
@@ -88,12 +88,12 @@ TEST(Logic, negateVector)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<bool, 2> x = { true, false };
 	array<bool, 2> y = { true, false };
@@ -140,12 +140,12 @@ TEST(Logic, andScalars)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<bool, 4> x = { false, false, true, true };
 	array<bool, 4> y = { false, true, false, true };
@@ -192,12 +192,12 @@ TEST(Logic, orScalars)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<bool, 4> x = { false, false, true, true };
 	array<bool, 4> y = { false, true, false, true };

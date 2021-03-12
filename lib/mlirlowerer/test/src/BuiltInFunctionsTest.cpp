@@ -2,9 +2,9 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <modelica/frontend/Expression.hpp>
-#include <modelica/mlirlowerer/CRunnerUtils.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
+#include <modelica/utils/CRunnerUtils.h>
 #include <modelica/utils/SourceRange.hpp>
 
 using namespace modelica;
@@ -40,12 +40,12 @@ TEST(BuiltInOps, ndims)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 3> x = { 10, 23, -57 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
@@ -89,12 +89,12 @@ TEST(BuiltInOps, sizeSpecificArrayDimension)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 3, 2 });
@@ -137,12 +137,12 @@ TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 12> x = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 4, 3 });

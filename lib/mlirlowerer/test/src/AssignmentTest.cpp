@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
 #include <mlir/IR/Dialect.h>
-#include <modelica/mlirlowerer/CRunnerUtils.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
+#include <modelica/utils/CRunnerUtils.h>
 #include <modelica/utils/SourceRange.hpp>
 
 using namespace modelica;
@@ -32,12 +32,12 @@ TEST(Assignment, constant)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int x = 0;
 
@@ -75,12 +75,12 @@ TEST(Assignment, variableCopy)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int x = 57;
 	int y = 0;
@@ -141,12 +141,12 @@ TEST(Assignment, arraySliceAssignment)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 2> x = { 0, 1 };
 	array<int, 2> y = { 2, 3 };
@@ -197,12 +197,12 @@ TEST(Assignment, arrayCopy)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 2> x = { 23, 57 };
 	array<int, 2> y = { 0, 0 };
@@ -274,12 +274,12 @@ TEST(Assignment, internalArrayElement)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int x = 57;
 	int y = 0;

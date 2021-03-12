@@ -1,4 +1,3 @@
-#include <mlir/IR/Diagnostics.h>
 #include <mlir/IR/DialectImplementation.h>
 #include <modelica/mlirlowerer/Attribute.h>
 #include <modelica/mlirlowerer/Type.h>
@@ -127,6 +126,7 @@ constexpr llvm::StringRef BooleanAttribute::getAttrName()
 
 BooleanAttribute BooleanAttribute::get(mlir::Type type, bool value)
 {
+	assert(type.isa<BooleanType>());
 	return Base::get(type.getContext(), type, value);
 }
 
@@ -142,6 +142,7 @@ constexpr llvm::StringRef IntegerAttribute::getAttrName()
 
 IntegerAttribute IntegerAttribute::get(mlir::Type type, long value)
 {
+	assert(type.isa<IntegerType>());
 	return Base::get(type.getContext(), type, value);
 }
 
@@ -157,6 +158,7 @@ constexpr llvm::StringRef RealAttribute::getAttrName()
 
 RealAttribute RealAttribute::get(mlir::Type type, double value)
 {
+	assert(type.isa<RealType>());
 	return Base::get(type.getContext(), type, value);
 }
 
@@ -174,12 +176,12 @@ void modelica::printModelicaAttribute(mlir::Attribute attr, mlir::DialectAsmPrin
 	}
 
 	if (auto attribute = attr.dyn_cast<IntegerAttribute>()) {
-		os << attribute.getValue();
+		os << "int<" << std::to_string(attribute.getValue()) << ">";
 		return;
 	}
 
 	if (auto attribute = attr.dyn_cast<RealAttribute>()) {
-		os << attribute.getValue();
+		os << "real<" << std::to_string(attribute.getValue()) << ">";
 		return;
 	}
 }

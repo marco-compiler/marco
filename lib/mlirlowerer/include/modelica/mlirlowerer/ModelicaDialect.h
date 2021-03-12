@@ -13,13 +13,7 @@ namespace modelica
 		public:
 		explicit ModelicaDialect(mlir::MLIRContext* context);
 
-		/**
-		 * Get the dialect namespace.
-		 *
-		 * @return dialect namespace
-		 */
 		static llvm::StringRef getDialectNamespace();
-
 		void printType(mlir::Type type, mlir::DialectAsmPrinter& printer) const override;
 		void printAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& printer) const override;
 	};

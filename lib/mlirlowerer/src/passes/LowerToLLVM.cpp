@@ -79,9 +79,6 @@ void LLVMLoweringPass::runOnOperation()
 		return;
 	}
 
-	module.dump();
-	llvm::DebugFlag = true;
-
 	if (failed(castsFolderPass(module)))
 	{
 		mlir::emitError(module.getLoc(), "Error in folding the casts operations\n");

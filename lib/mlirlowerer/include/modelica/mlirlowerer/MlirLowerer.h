@@ -76,7 +76,9 @@ namespace modelica
 		public:
 		explicit MlirLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
 
-		mlir::ModuleOp lower(llvm::ArrayRef<const modelica::ClassContainer> classes);
+		llvm::Optional<mlir::ModuleOp> lower(llvm::ArrayRef<const modelica::ClassContainer> classes);
+
+		private:
 		mlir::Operation* lower(const modelica::Class& cls);
 		mlir::FuncOp lower(const modelica::Function& function);
 		mlir::Type lower(const modelica::Type& type);
@@ -96,7 +98,6 @@ namespace modelica
 		template<typename T>
 		Container<Reference> lower(const modelica::Expression& expression);
 
-		private:
 		/**
 		 * The builder is a helper class to create IR inside a function. The
 		 * builder is stateful, in particular it keeps an "insertion point":

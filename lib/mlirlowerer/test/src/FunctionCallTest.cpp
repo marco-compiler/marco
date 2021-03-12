@@ -7,10 +7,10 @@
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/frontend/Parser.hpp>
-#include <modelica/mlirlowerer/CRunnerUtils.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/Runner.h>
+#include <modelica/utils/CRunnerUtils.h>
 #include <modelica/utils/SourceRange.hpp>
 
 using namespace modelica;
@@ -52,14 +52,12 @@ TEST(Function, callNoArguments)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower({ foo, main });
+	auto module = lowerer.lower({ foo, main });
 
-	module.dump();
-
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int y = 0;
 
@@ -119,12 +117,12 @@ TEST(Function, recursiveCall)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<float, 3> x = { 1, 2, 3 };
 	int i = 1;

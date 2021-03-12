@@ -3,9 +3,9 @@
 #include <mlir/IR/Dialect.h>
 #include <modelica/mlirlowerer/passes/BreakRemover.h>
 #include <modelica/mlirlowerer/passes/ReturnRemover.h>
-#include <modelica/mlirlowerer/CRunnerUtils.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
+#include <modelica/utils/CRunnerUtils.h>
 #include <modelica/utils/SourceRange.hpp>
 
 using namespace modelica;
@@ -37,12 +37,12 @@ TEST(Input, booleanScalar)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	bool x = true;
 	bool y = false;
@@ -79,12 +79,12 @@ TEST(Input, integerScalar)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	int x = 57;
 	int y = 0;
@@ -121,12 +121,12 @@ TEST(Input, floatScalar)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	float x = 57;
 	float y = 0;
@@ -169,12 +169,12 @@ TEST(Input, integerArray)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 	
 	array<int, 2> x = { 23, 57 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
@@ -219,12 +219,12 @@ TEST(Input, integerArrayUnknownSize)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 5> x = { 23, 57, 10, -23, -10 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 5 });
@@ -269,12 +269,12 @@ TEST(Input, floatArray)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<float, 2> x = { 23.0, 57.0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
@@ -319,12 +319,12 @@ TEST(Input, floatArrayUnknownSize)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<float, 2> x = { 23.0, 57.0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
@@ -395,12 +395,12 @@ TEST(Input, integerMatrix)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });
@@ -456,12 +456,12 @@ TEST(Output, integerArray)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 2> x = { 0, 0 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 2 });
@@ -520,18 +520,12 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	module.dump();
-	llvm::DebugFlag = true;
-
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	module.dump();
-	llvm::DebugFlag = false;
-
-	Runner runner(module);
+	Runner runner(*module);
 
 	int x = 2;
 	ArrayDescriptor<int, 1> yPtr(nullptr, { 2 });
@@ -577,12 +571,12 @@ TEST(Output, floatArray)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<float, 2> x = { 0, 0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 2 });
@@ -632,12 +626,12 @@ TEST(Output, integerMatrix)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-	mlir::ModuleOp module = lowerer.lower(cls);
+	auto module = lowerer.lower(cls);
 
-	if (failed(convertToLLVMDialect(&context, module)))
+	if (!module || failed(convertToLLVMDialect(&context, *module)))
 		FAIL();
 
-	Runner runner(module);
+	Runner runner(*module);
 
 	array<int, 6> x = { 0, 0, 0, 0, 0, 0 };
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });

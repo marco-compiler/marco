@@ -23,6 +23,7 @@ namespace modelica
 		// 1-D case
 		T operator[](unsigned int index)
 		{
+			assert(Rank == 1);
 			return get(index);
 		}
 

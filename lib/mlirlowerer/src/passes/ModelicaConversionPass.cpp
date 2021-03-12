@@ -199,79 +199,6 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 		return type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>() || type.isa<RealType>();
 	}
 
-	/**
-	 * Get the type that can represent all the values with the minimum loss
-	 * of information.
-	 * Example: int, float -> float
-	 *
-	 * @param values  values
-	 * @return most generic type
-	 */
-	[[nodiscard]] mlir::Type getMostGenericBaseType(mlir::ValueRange values) const
-	{
-		assert(!values.empty());
-		mlir::Type resultType = nullptr;
-
-		for (mlir::Value value : values)
-		{
-			mlir::Type type = value.getType();
-
-			while (type.isa<PointerType>())
-				type = type.cast<PointerType>().getElementType();
-
-			if (resultType == nullptr)
-			{
-				resultType = type;
-				continue;
-			}
-
-			if (resultType.isa<mlir::IndexType>() || type.isa<RealType>())
-				resultType = type;
-		}
-
-		return resultType;
-	}
-
-	[[nodiscard]] mlir::Value changeBitWidth(mlir::OpBuilder& builder, mlir::Location location, mlir::Value value, unsigned int width) const
-	{
-		assert(value.getType().isa<IntegerType>() || value.getType().isa<RealType>());
-
-		if (value.getType().isa<IntegerType>())
-		{
-			auto sourceType = value.getType().cast<IntegerType>();
-			unsigned int sourceWidth = sourceType.getBitWidth();
-
-			mlir::Type resultType = convertType(IntegerType::get(builder.getContext(), width));
-
-			if (sourceWidth < width)
-				return builder.create<mlir::LLVM::SExtOp>(location, resultType, value);
-
-			if (sourceWidth > width)
-				return builder.create<mlir::LLVM::TruncOp>(location, resultType, value);
-
-			return value;
-		}
-
-		if (value.getType().isa<RealType>())
-		{
-			auto sourceType = value.getType().cast<RealType>();
-			unsigned int sourceWidth = sourceType.getBitWidth();
-
-			mlir::Type resultType = convertType(RealType::get(builder.getContext(), width));
-
-			if (sourceWidth < width)
-				return builder.create<mlir::LLVM::FPExtOp>(location, resultType, value);
-
-			if (sourceWidth > width)
-				return builder.create<mlir::LLVM::FPTruncOp>(location, resultType, value);
-
-			return value;
-		}
-
-		assert(false && "Unknown type");
-		return {};
-	}
-
 	[[nodiscard]] llvm::SmallVector<mlir::Value, 3> getArrayDynamicDimensions(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array) const
 	{
 		assert(array.getType().isa<PointerType>());
@@ -290,20 +217,6 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 		}
 
 		return dimensions;
-	}
-
-	[[nodiscard]] mlir::Value getArrayTotalSize(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array, unsigned int rank) const
-	{
-		MemoryDescriptor descriptor(array);
-		mlir::Value result = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(1));
-
-		for (unsigned int dimension = 0; dimension < rank; ++dimension)
-		{
-			mlir::Value size = descriptor.getSize(builder, location, dimension);
-			result = builder.create<mlir::MulIOp>(location, result, size);
-		}
-
-		return result;
 	}
 
 	/**
@@ -463,7 +376,7 @@ class AllocaOpLowering: public ModelicaOpConversion<AllocaOp>
 		mlir::Location location = op->getLoc();
 
 		mlir::Type indexType = typeConverter().indexType();
-		auto shape = op.getPointerType().getShape();
+		auto shape = op.resultType().getShape();
 		llvm::SmallVector<mlir::Value, 3> sizes;
 
 		// Multi-dimensional arrays must be flattened into a 1-dimensional one-
@@ -488,12 +401,12 @@ class AllocaOpLowering: public ModelicaOpConversion<AllocaOp>
 		}
 
 		// Allocate the buffer
-		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.getPointerType().getElementType()));
+		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.resultType().getElementType()));
 		mlir::Value buffer = rewriter.create<mlir::LLVM::AllocaOp>(location, bufferPtrType, totalSize, op->getAttrs());
 
 		// Create the descriptor
-		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(location, indexType, rewriter.getI64IntegerAttr(op.getPointerType().getRank()));
-		auto descriptorType = convertType(op.getPointerType());
+		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(location, indexType, rewriter.getI64IntegerAttr(op.resultType().getRank()));
+		auto descriptorType = convertType(op.resultType());
 		auto descriptor = MemoryDescriptor::undef(rewriter, location, descriptorType);
 
 		descriptor.setPtr(rewriter, location, buffer);
@@ -516,7 +429,7 @@ class AllocOpLowering: public ModelicaOpConversion<AllocOp>
 		mlir::Location location = op->getLoc();
 
 		auto indexType = typeConverter().indexType();
-		auto shape = op.getPointerType().getShape();
+		auto shape = op.resultType().getShape();
 		llvm::SmallVector<mlir::Value, 3> sizes;
 
 		// Multi-dimensional arrays must be flattened into a 1-dimensional one-
@@ -543,13 +456,13 @@ class AllocOpLowering: public ModelicaOpConversion<AllocOp>
 		auto mallocFunc = mlir::LLVM::lookupOrCreateMallocFn(op->getParentOfType<mlir::ModuleOp>(), indexType);
 
 		// Allocate the buffer
-		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.getPointerType().getElementType()));
+		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.resultType().getElementType()));
 		auto results = createLLVMCall(rewriter, location, mallocFunc, totalSize, typeConverter().voidPtrType());
 		mlir::Value buffer = rewriter.create<mlir::LLVM::BitcastOp>(location, bufferPtrType, results[0]);
 
 		// Create the descriptor
-		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(location, indexType, rewriter.getI64IntegerAttr(op.getPointerType().getRank()));
-		mlir::Type descriptorType = convertType(op.getPointerType());
+		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(location, indexType, rewriter.getI64IntegerAttr(op.resultType().getRank()));
+		mlir::Type descriptorType = convertType(op.resultType());
 		auto descriptor = MemoryDescriptor::undef(rewriter, location, descriptorType);
 
 		descriptor.setPtr(rewriter, location, buffer);
@@ -615,7 +528,7 @@ class SubscriptOpLowering: public ModelicaOpConversion<SubscriptionOp>
 		mlir::Type indexType = typeConverter().indexType();
 
 		auto sourcePointerType = op.source().getType().cast<PointerType>();
-		auto resultPointerType = op.getPointerType();
+		auto resultPointerType = op.resultType();
 
 		MemoryDescriptor sourceDescriptor(adaptor.source());
 		MemoryDescriptor result = MemoryDescriptor::undef(rewriter, location, convertType(resultPointerType));
@@ -635,7 +548,7 @@ class SubscriptOpLowering: public ModelicaOpConversion<SubscriptionOp>
 		mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(location, base.getType(), base, index);
 		result.setPtr(rewriter, location, ptr);
 
-		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(location, indexType, rewriter.getI64IntegerAttr(op.getPointerType().getRank()));
+		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(location, indexType, rewriter.getI64IntegerAttr(op.resultType().getRank()));
 		result.setRank(rewriter, location, rank);
 
 		for (size_t i = sourcePointerType.getRank() - resultPointerType.getRank(), e = sourcePointerType.getRank(), j = 0; i < e; ++i, ++j)
