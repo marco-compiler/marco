@@ -37,12 +37,12 @@ Error OmcToModelPass::lower(Class& cl, const SymbolTable& table)
 {
 	SymbolTable t(cl, &table);
 	for (auto& member : cl.getMembers())
-		if (auto error = lower(member, t); error)
+		if (auto error = lower(*member, t); error)
 			return error;
 
 	for (auto& eq : cl.getEquations())
 	{
-		auto modEq = lower(eq, t, 0);
+		auto modEq = lower(*eq, t, 0);
 		if (!modEq)
 			return modEq.takeError();
 
@@ -51,7 +51,7 @@ Error OmcToModelPass::lower(Class& cl, const SymbolTable& table)
 
 	for (auto& eq : cl.getForEquations())
 	{
-		auto modEq = lower(eq, t);
+		auto modEq = lower(*eq, t);
 		if (!modEq)
 			return modEq.takeError();
 

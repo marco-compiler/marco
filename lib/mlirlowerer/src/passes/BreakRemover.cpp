@@ -16,7 +16,7 @@ void BreakRemover::fix(modelica::Class& cls)
 void BreakRemover::fix(modelica::Function& function)
 {
 	for (auto& algorithm : function.getAlgorithms())
-		fix(algorithm);
+		fix(*algorithm);
 }
 
 void BreakRemover::fix(modelica::Algorithm& algorithm)

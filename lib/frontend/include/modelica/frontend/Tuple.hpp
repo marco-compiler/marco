@@ -19,12 +19,11 @@ namespace modelica
 	class Tuple
 	{
 		private:
-		using UniqueExpression = std::unique_ptr<Expression>;
-		template<typename T> using Container = llvm::SmallVector<T, 3>;
+		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
 
 		public:
-		using iterator = boost::indirect_iterator<Container<UniqueExpression>::iterator>;
-		using const_iterator = boost::indirect_iterator<Container<UniqueExpression>::const_iterator>;
+		using iterator = boost::indirect_iterator<Container<Expression>::iterator>;
+		using const_iterator = boost::indirect_iterator<Container<Expression>::const_iterator>;
 
 		explicit Tuple(SourcePosition location, llvm::ArrayRef<Expression> expressions = {});
 
@@ -65,7 +64,7 @@ namespace modelica
 
 		private:
 		SourcePosition location;
-		Container<UniqueExpression> expressions;
+		Container<Expression> expressions;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Tuple& obj);

@@ -17,7 +17,7 @@ class ClassVisitor
 		table->addSymbol(function);
 
 		for (auto& member : function.getMembers())
-			table->addSymbol(member);
+			table->addSymbol(*member);
 	}
 
 	void operator()(Class& model)
@@ -25,7 +25,7 @@ class ClassVisitor
 		table->addSymbol(model);
 
 		for (auto& member : model.getMembers())
-			table->addSymbol(member);
+			table->addSymbol(*member);
 
 		for (auto& cls : model.getInnerClasses())
 			cls->visit(*this);
@@ -34,7 +34,6 @@ class ClassVisitor
 	private:
 	SymbolTable* table;
 };
-
 
 SymbolTable::SymbolTable() {}
 
@@ -46,7 +45,7 @@ SymbolTable::SymbolTable(Function& function, const SymbolTable* parent)
 	addSymbol(function);
 
 	for (auto& member : function.getMembers())
-		addSymbol(member);
+		addSymbol(*member);
 }
 
 SymbolTable::SymbolTable(Class& model, const SymbolTable* parent)
@@ -55,7 +54,7 @@ SymbolTable::SymbolTable(Class& model, const SymbolTable* parent)
 	addSymbol(model);
 
 	for (auto& member : model.getMembers())
-		addSymbol(member);
+		addSymbol(*member);
 
 	for (auto& cls : model.getInnerClasses())
 		cls->visit(ClassVisitor(this));

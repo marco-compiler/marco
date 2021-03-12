@@ -19,6 +19,13 @@
 
 namespace modelica
 {
+	class Statement;
+	class AssignmentStatement;
+	class IfStatement;
+	class ForStatement;
+	class WhileStatement;
+	class WhenStatement;
+
 	/**
 	 * The parser encapsulates the lexer but not the memory where the string we
 	 * are reading is held. It exposes parts of the grammatical rules that are

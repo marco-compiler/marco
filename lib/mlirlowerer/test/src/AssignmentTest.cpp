@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <mlir/IR/Dialect.h>
+#include <modelica/frontend/Statement.hpp>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>

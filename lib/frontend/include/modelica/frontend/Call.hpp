@@ -13,12 +13,11 @@ namespace modelica
 	class Call
 	{
 		private:
-		using ExpressionPtr = std::shared_ptr<Expression>;
-		template<typename T> using Container = llvm::SmallVector<T, 3>;
+		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
 
 		public:
-		using args_iterator = boost::indirect_iterator<Container<ExpressionPtr>::iterator>;
-		using args_const_iterator = boost::indirect_iterator<Container<ExpressionPtr>::const_iterator>;
+		using args_iterator = boost::indirect_iterator<Container<Expression>::iterator>;
+		using args_const_iterator = boost::indirect_iterator<Container<Expression>::const_iterator>;
 
 		Call(SourcePosition location, Expression function, llvm::ArrayRef<Expression> args = {});
 
@@ -46,8 +45,8 @@ namespace modelica
 
 		private:
 		SourcePosition location;
-		ExpressionPtr function;
-		Container<ExpressionPtr> args;
+		std::shared_ptr<Expression> function;
+		Container<Expression> args;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Call& obj);

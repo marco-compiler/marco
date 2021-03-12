@@ -145,6 +145,6 @@ TEST(folderTest, startDeclarationWithReference)	 // NOLINT
 		FAIL();
 
 	const auto& model = ast.get<Class>();
-	bool isConstant = model.getMembers()[1].getStartOverload().isA<Constant>();
+	bool isConstant = model.getMembers()[1]->getStartOverload().isA<Constant>();
 	EXPECT_TRUE(isConstant);
 }

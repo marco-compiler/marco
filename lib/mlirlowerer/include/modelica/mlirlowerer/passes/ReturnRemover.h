@@ -1,6 +1,7 @@
 #pragma once
 
 #include <modelica/frontend/ClassContainer.hpp>
+#include <modelica/frontend/Statement.hpp>
 
 namespace modelica
 {

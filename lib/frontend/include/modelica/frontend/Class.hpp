@@ -3,21 +3,21 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
-#include <modelica/frontend/Algorithm.hpp>
-#include <modelica/frontend/Equation.hpp>
-#include <modelica/frontend/ForEquation.hpp>
-#include <modelica/frontend/Member.hpp>
+#include <modelica/utils/SourceRange.hpp>
 #include <string>
 
 namespace modelica
 {
+	class Member;
+	class Equation;
+	class ForEquation;
+	class Algorithm;
 	class ClassContainer;
 
 	class Class
 	{
 		private:
-		using ClassPtr = std::shared_ptr<ClassContainer>;
-		template<typename T> using Container = llvm::SmallVector<T, 3>;
+		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
 
 		public:
 		Class(
@@ -49,8 +49,8 @@ namespace modelica
 		[[nodiscard]] Container<Algorithm>& getAlgorithms();
 		[[nodiscard]] const Container<Algorithm>& getAlgorithms() const;
 
-		[[nodiscard]] Container<ClassPtr>& getInnerClasses();
-		[[nodiscard]] const Container<ClassPtr>& getInnerClasses() const;
+		[[nodiscard]] Container<ClassContainer>& getInnerClasses();
+		[[nodiscard]] const Container<ClassContainer>& getInnerClasses() const;
 
 		private:
 		SourcePosition location;
@@ -59,6 +59,6 @@ namespace modelica
 		Container<Equation> equations;
 		Container<ForEquation> forEquations;
 		Container<Algorithm> algorithms;
-		Container<ClassPtr> innerClasses;
+		Container<ClassContainer> innerClasses;
 	};
 }	 // namespace modelica

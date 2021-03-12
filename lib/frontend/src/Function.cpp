@@ -17,13 +17,15 @@ Function::Function(
 		: location(move(location)),
 			name(move(name)),
 			pure(pure),
-			algorithms(algorithms.begin(), algorithms.end()),
 			type(Type::unknown())
 {
 	assert(!this->name.empty());
 
 	for (const auto& member : members)
-		addMember(move(member));
+		this->members.emplace_back(std::make_shared<Member>(member));
+
+	for (const auto& algorithm : algorithms)
+		this->algorithms.emplace_back(std::make_shared<Algorithm>(algorithm));
 }
 
 void Function::dump() const { dump(outs(), 0); }
@@ -34,10 +36,10 @@ void Function::dump(raw_ostream& os, size_t indents) const
 	os << "function " << name << "\n";
 
 	for (const auto& member : members)
-		member.dump(os, indents + 1);
+		member->dump(os, indents + 1);
 
 	for (const auto& algorithm : algorithms)
-		algorithm.dump(os, indents + 1);
+		algorithm->dump(os, indents + 1);
 }
 
 SourcePosition Function::getLocation() const { return location; }
@@ -55,30 +57,30 @@ Container<Member>& Function::getMembers() { return members; }
 
 const Container<Member>& Function::getMembers() const{ return members; }
 
-Container<const Member*> Function::getArgs() const
+Container<Member> Function::getArgs() const
 {
-	Container<const Member*> args;
+	Container<Member> args;
 
 	for (const auto& member : members)
-		if (member.isInput())
-			args.push_back(&member);
+		if (member->isInput())
+			args.push_back(member);
 
 	return args;
 }
 
-Container<const Member*> Function::getResults() const
+Container<Member> Function::getResults() const
 {
-	Container<const Member*> results;
+	Container<Member> results;
 
 	for (const auto& member : members)
-		if (member.isOutput())
-			results.push_back(&member);
+		if (member->isOutput())
+			results.push_back(member);
 
 	return results;
 }
 
 void Function::addMember(Member member) {
-	members.emplace_back(move(member));
+	members.emplace_back(std::make_shared<Member>(move(member)));
 }
 
 Container<Algorithm>& Function::getAlgorithms() { return algorithms; }

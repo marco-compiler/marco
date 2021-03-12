@@ -10,6 +10,7 @@
 #include <modelica/frontend/Parser.hpp>
 #include <modelica/frontend/ParserErrors.hpp>
 #include <modelica/frontend/ReferenceAccess.hpp>
+#include <modelica/frontend/Statement.hpp>
 #include <modelica/frontend/Type.hpp>
 #include <optional>
 

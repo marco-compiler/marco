@@ -83,15 +83,15 @@ Error ConstantFolder::fold(Class& cl, const SymbolTable& table)
 	SymbolTable t(cl, &table);
 
 	for (auto& m : cl.getMembers())
-		if (auto error = fold(m, t); error)
+		if (auto error = fold(*m, t); error)
 			return error;
 
 	for (auto& eq : cl.getEquations())
-		if (auto error = fold(eq, t); error)
+		if (auto error = fold(*eq, t); error)
 			return error;
 
 	for (auto& eq : cl.getForEquations())
-		if (auto error = fold(eq, t); error)
+		if (auto error = fold(*eq, t); error)
 			return error;
 
 	return Error::success();

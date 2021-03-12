@@ -2,13 +2,11 @@
 #include <modelica/frontend/Expression.hpp>
 #include <numeric>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
-Call::Call(SourcePosition location, Expression function, ArrayRef<Expression> args)
-		: location(move(location)),
-			function(std::make_shared<Expression>(move(function)))
+Call::Call(SourcePosition location, Expression function, llvm::ArrayRef<Expression> args)
+		: location(std::move(location)),
+			function(std::make_shared<Expression>(std::move(function)))
 {
 	for (const auto& arg : args)
 		this->args.emplace_back(std::make_shared<Expression>(arg));
@@ -26,7 +24,7 @@ bool Call::operator==(const Call& other) const
 
 	return std::all_of(
 			pairs.begin(), pairs.end(),
-			[](const auto& pair) { return *get<0>(pair) == *get<1>(pair); });
+			[](const auto& pair) { return *std::get<0>(pair) == *std::get<1>(pair); });
 }
 
 bool Call::operator!=(const Call& other) const { return !(*this == other); }
@@ -43,9 +41,9 @@ const Expression& Call::operator[](size_t index) const
 	return *args[index];
 }
 
-void Call::dump() const { dump(outs(), 0); }
+void Call::dump() const { dump(llvm::outs(), 0); }
 
-void Call::dump(raw_ostream& os, size_t indents) const
+void Call::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "call\n";
@@ -92,10 +90,10 @@ llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Call& o
 std::string modelica::toString(const Call& obj)
 {
 	return toString(obj.getFunction()) + "(" +
-				 accumulate(obj.begin(), obj.end(), string(),
-										[](const string& result, const Expression& argument)
+				 accumulate(obj.begin(), obj.end(), std::string(),
+										[](const std::string& result, const Expression& argument)
 										{
-											string str = toString(argument);
+											std::string str = toString(argument);
 											return result.empty() ? str : result + "," + str;
 										}) +
 				 ")";

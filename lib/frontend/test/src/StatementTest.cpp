@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <modelica/frontend/Parser.hpp>
+#include <modelica/frontend/Statement.hpp>
 
 using namespace std;
 using namespace modelica;

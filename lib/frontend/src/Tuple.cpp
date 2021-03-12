@@ -3,22 +3,20 @@
 #include <modelica/utils/IRange.hpp>
 #include <numeric>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
-Tuple::Tuple(SourcePosition location, ArrayRef<Expression> expressions)
-		: location(move(location))
+Tuple::Tuple(SourcePosition location, llvm::ArrayRef<Expression> expressions)
+		: location(std::move(location))
 {
 	for (const auto& exp : expressions)
-		this->expressions.push_back(std::make_unique<Expression>(exp));
+		this->expressions.push_back(std::make_shared<Expression>(exp));
 }
 
 Tuple::Tuple(const Tuple& other)
 		: location(other.location)
 {
 	for (const auto& exp : other.expressions)
-		this->expressions.push_back(std::make_unique<Expression>(*exp));
+		this->expressions.push_back(std::make_shared<Expression>(*exp));
 }
 
 Tuple& Tuple::operator=(const Tuple& other)
@@ -30,7 +28,7 @@ Tuple& Tuple::operator=(const Tuple& other)
 	expressions.clear();
 
 	for (const auto& exp : other.expressions)
-		expressions.push_back(std::make_unique<Expression>(*exp));
+		expressions.push_back(std::make_shared<Expression>(*exp));
 
 	return *this;
 }
@@ -56,9 +54,9 @@ const Expression& Tuple::operator[](size_t index) const
 	return *expressions[index];
 }
 
-void Tuple::dump() const { dump(outs(), 0); }
+void Tuple::dump() const { dump(llvm::outs(), 0); }
 
-void Tuple::dump(raw_ostream& os, size_t indents) const
+void Tuple::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	for (const auto& exp : expressions)
 		exp->dump(os, indents);
@@ -96,10 +94,10 @@ llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Tuple& 
 std::string modelica::toString(const Tuple& obj)
 {
 	return "(" +
-				 accumulate(++obj.begin(), obj.end(), string(),
-										[](const string& result, const Expression& element)
+				 accumulate(++obj.begin(), obj.end(), std::string(),
+										[](const std::string& result, const Expression& element)
 										{
-											string str = toString(element);
+											std::string str = toString(element);
 											return result.empty() ? str : result + "," + str;
 										}) +
 				 ")";

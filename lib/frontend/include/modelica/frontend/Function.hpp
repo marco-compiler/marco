@@ -14,7 +14,7 @@ namespace modelica
 	class Function
 	{
 		private:
-		template<typename T> using Container = llvm::SmallVector<T, 4>;
+		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 4>;
 
 		public:
 		Function(SourcePosition location,
@@ -36,8 +36,8 @@ namespace modelica
 		[[nodiscard]] Container<Member>& getMembers();
 		[[nodiscard]] const Container<Member>& getMembers() const;
 
-		[[nodiscard]] Container<const Member*> getArgs() const;
-		[[nodiscard]] Container<const Member*> getResults() const;
+		[[nodiscard]] Container<Member> getArgs() const;
+		[[nodiscard]] Container<Member> getResults() const;
 
 		void addMember(Member member);
 

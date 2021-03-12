@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/frontend/Parser.hpp>
+#include <modelica/frontend/Statement.hpp>
 #include <modelica/frontend/Tuple.hpp>
 #include <vector>
 

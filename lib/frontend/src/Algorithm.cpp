@@ -1,16 +1,16 @@
 #include <modelica/frontend/Algorithm.hpp>
+#include <modelica/frontend/Statement.hpp>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
-Algorithm::Algorithm(SourcePosition location, ArrayRef<Statement> statements)
-		: location(move(location)),
-			statements(statements.begin(), statements.end())
+Algorithm::Algorithm(SourcePosition location, llvm::ArrayRef<Statement> statements)
+		: location(std::move(location))
 {
+	for (const auto& statement : statements)
+		this->statements.emplace_back(std::make_shared<Statement>(statement));
 }
 
-void Algorithm::dump() const { dump(outs(), 0); }
+void Algorithm::dump() const { dump(llvm::outs(), 0); }
 
 void Algorithm::dump(llvm::raw_ostream& os, size_t indents) const
 {
@@ -18,7 +18,7 @@ void Algorithm::dump(llvm::raw_ostream& os, size_t indents) const
 	os << "algorithm\n";
 
 	for (const auto& statement : statements)
-		statement.visit([&](const auto& obj) { obj.dump(os, indents + 1); });
+		statement->visit([&](const auto& obj) { obj.dump(os, indents + 1); });
 }
 
 SourcePosition Algorithm::getLocation() const
@@ -26,12 +26,12 @@ SourcePosition Algorithm::getLocation() const
 	return location;
 }
 
-const string& Algorithm::getReturnCheckName() const
+const std::string& Algorithm::getReturnCheckName() const
 {
 	return returnCheckName;
 }
 
-void Algorithm::setReturnCheckName(string name)
+void Algorithm::setReturnCheckName(std::string name)
 {
 	this->returnCheckName = name;
 }

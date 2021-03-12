@@ -4,17 +4,32 @@
 #include <llvm/ADT/StringMap.h>
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Error.h>
-#include <modelica/frontend/Class.hpp>
-#include <modelica/frontend/ClassContainer.hpp>
-#include <modelica/frontend/Equation.hpp>
-#include <modelica/frontend/Expression.hpp>
-#include <modelica/frontend/Function.hpp>
-#include <modelica/frontend/Member.hpp>
 #include <modelica/frontend/Symbol.hpp>
-#include <modelica/frontend/Type.hpp>
 
 namespace modelica
 {
+	class Algorithm;
+	class AssignmentStatement;
+	class BreakStatement;
+	class Call;
+	class Class;
+	class ClassContainer;
+	class Constant;
+	class Equation;
+	class Expression;
+	class ForEquation;
+	class ForStatement;
+	class Function;
+	class IfStatement;
+	class Member;
+	class Operation;
+	class ReferenceAccess;
+	class ReturnStatement;
+	class Statement;
+	class Tuple;
+	class WhenStatement;
+	class WhileStatement;
+
 	class TypeChecker
 	{
 		public:
@@ -22,8 +37,8 @@ namespace modelica
 		using SymbolTableScope = llvm::ScopedHashTableScope<llvm::StringRef, Symbol>;
 
 		llvm::Error check(ClassContainer& cls);
-		llvm::Error check(Function& function);
 		llvm::Error check(Class& model);
+		llvm::Error check(Function& function);
 		llvm::Error check(Member& member);
 		llvm::Error check(Algorithm& algorithm);
 		llvm::Error check(Statement& statement);

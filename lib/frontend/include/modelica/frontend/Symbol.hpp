@@ -15,8 +15,8 @@ namespace modelica
 		Symbol();
 		explicit Symbol(Function& function);
 		explicit Symbol(Class& model);
-		explicit Symbol(Member& mem);
-		explicit Symbol(Induction& mem);
+		explicit Symbol(Member& member);
+		explicit Symbol(Induction& induction);
 
 		template<typename T>
 		[[nodiscard]] bool isA() const

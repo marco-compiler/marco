@@ -8,6 +8,6 @@ Symbol::Symbol(Function& function): content(&function) {}
 
 Symbol::Symbol(Class& model): content(&model) {}
 
-Symbol::Symbol(Member& mem): content(&mem) {}
+Symbol::Symbol(Member& member): content(&member) {}
 
-Symbol::Symbol(Induction& mem): content(&mem) {}
+Symbol::Symbol(Induction& induction): content(&induction) {}

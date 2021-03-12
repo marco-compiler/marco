@@ -1,13 +1,17 @@
 #include <cstdio>
 #include <llvm/Support/Error.h>
 #include <modelica/frontend/Call.hpp>
+#include <modelica/frontend/Class.hpp>
+#include <modelica/frontend/ClassContainer.hpp>
 #include <modelica/frontend/Constant.hpp>
 #include <modelica/frontend/Equation.hpp>
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/frontend/ForEquation.hpp>
+#include <modelica/frontend/Function.hpp>
 #include <modelica/frontend/Member.hpp>
 #include <modelica/frontend/ParserErrors.hpp>
 #include <modelica/frontend/ReferenceAccess.hpp>
+#include <modelica/frontend/Statement.hpp>
 #include <modelica/frontend/Type.hpp>
 #include <modelica/frontend/TypeChecker.hpp>
 #include <modelica/utils/IRange.hpp>
@@ -69,16 +73,16 @@ Error TypeChecker::check(Function& function)
 	// Populate the symbol table
 	symbolTable.insert(function.getName(), Symbol(function));
 
-	for (auto& member : function.getMembers())
-		symbolTable.insert(member.getName(), Symbol(member));
+	for (const auto& member : function.getMembers())
+		symbolTable.insert(member->getName(), Symbol(*member));
 
-	vector<Type> types;
+	llvm::SmallVector<Type, 3> types;
 
 	// Check members
 
 	for (auto& member : function.getMembers())
 	{
-		if (auto error = check(member); error)
+		if (auto error = check(*member); error)
 			return error;
 
 		// From Function reference:
@@ -86,7 +90,7 @@ Error TypeChecker::check(Function& function)
 		// keyword input, and each result formal parameter by the keyword output.
 		// All public variables are formal parameters."
 
-		if (member.isPublic() && !member.isInput() && !member.isOutput())
+		if (member->isPublic() && !member->isInput() && !member->isOutput())
 			return make_error<BadSemantic>(
 					"Public members of functions must be input or output variables");
 
@@ -95,13 +99,13 @@ Error TypeChecker::check(Function& function)
 		// arguments or default values, i.e., they may not be assigned values in
 		// the body of the function."
 
-		if (member.isInput() && member.hasInitializer())
+		if (member->isInput() && member->hasInitializer())
 			return make_error<BadSemantic>(
 					"Input variables can't receive a new value");
 
 		// Add type
-		if (member.isOutput())
-			types.push_back(member.getType());
+		if (member->isOutput())
+			types.push_back(member->getType());
 	}
 
 	if (types.size() == 1)
@@ -125,23 +129,23 @@ Error TypeChecker::check(Function& function)
 	// be allowed, the algorithms amount may also be zero.
 	assert(algorithms.size() == 1);
 
-	if (auto error = check(algorithms[0]); error)
+	if (auto error = check(*algorithms[0]); error)
 		return error;
 
 	if (auto error = resolveDummyReferences(function); error)
 		return error;
 
-	for (auto& statement : algorithms[0].getStatements())
+	for (const auto& statement : algorithms[0]->getStatements())
 	{
-		for (auto& assignment : statement)
+		for (const auto& assignment : *statement)
 		{
-			for (auto& exp : assignment.getDestinations())
+			for (const auto& exp : assignment.getDestinations())
 			{
 				// From Function reference:
 				// "Input formal parameters are read-only after being bound to the
 				// actual arguments or default values, i.e., they may not be assigned
 				// values in the body of the function."
-				Expression* current = &exp;
+				auto* current = &exp;
 
 				while (current->isA<Operation>())
 				{
@@ -175,7 +179,7 @@ Error TypeChecker::check(Function& function)
 			// cardinality, inStream, actualStream, to the operators of the built-in
 			// package Connections, and is not allowed to contain when-statements."
 
-			stack<Expression*> stack;
+			stack<const Expression*> stack;
 			stack.push(&assignment.getExpression());
 
 			while (!stack.empty())
@@ -228,10 +232,10 @@ Error TypeChecker::check(Class& model)
 	symbolTable.insert(model.getName(), Symbol(model));
 
 	for (auto& member : model.getMembers())
-		symbolTable.insert(member.getName(), Symbol(member));
+		symbolTable.insert(member->getName(), Symbol(*member));
 
 	for (auto& m : model.getMembers())
-		if (auto error = check(m); error)
+		if (auto error = check(*m); error)
 			return error;
 
 	// Functions type checking must be done before the equations or algorithm
@@ -242,15 +246,15 @@ Error TypeChecker::check(Class& model)
 			return error;
 
 	for (auto& eq : model.getEquations())
-		if (auto error = check(eq); error)
+		if (auto error = check(*eq); error)
 			return error;
 
 	for (auto& eq : model.getForEquations())
-		if (auto error = check(eq); error)
+		if (auto error = check(*eq); error)
 			return error;
 
 	for (auto& algorithm : model.getAlgorithms())
-		if (auto error = check(algorithm); error)
+		if (auto error = check(*algorithm); error)
 			return error;
 
 	if (auto error = resolveDummyReferences(model); error)
@@ -277,7 +281,7 @@ Error TypeChecker::check(Member& member)
 Error TypeChecker::check(Algorithm& algorithm)
 {
 	for (auto& statement : algorithm.getStatements())
-		if (auto error = check(statement); error)
+		if (auto error = check(*statement); error)
 			return error;
 
 	return Error::success();
@@ -320,7 +324,7 @@ Error TypeChecker::check(AssignmentStatement& statement)
 	// The assignment can't be done earlier because the expression type would
 	// have not been evaluated yet.
 
-	for (size_t i = 0; i < destinations.size(); i++)
+	for (size_t i = 0, e = destinations.size(); i < e; ++i)
 	{
 		// If it's not a direct reference access, there's no way it can be a
 		// dummy variable.
@@ -687,9 +691,9 @@ string getTemporaryVariableName(T& cls)
 	const auto& members = cls.getMembers();
 	int counter = 0;
 
-	while (members.end() !=
-				 find_if(members.begin(), members.end(), [=](const Member& obj) {
-					 return obj.getName() == "_temp" + to_string(counter);
+	while (*(members.end()) !=
+				 *find_if(members.begin(), members.end(), [=](std::shared_ptr<Member> obj) {
+					 return obj->getName() == "_temp" + to_string(counter);
 				 }))
 		counter++;
 
@@ -700,9 +704,9 @@ llvm::Error resolveDummyReferences(Function& function)
 {
 	for (auto& algorithm : function.getAlgorithms())
 	{
-		for (auto& statement : algorithm.getStatements())
+		for (auto& statement : algorithm->getStatements())
 		{
-			for (auto& assignment : statement)
+			for (auto& assignment : *statement)
 			{
 				for (auto& destination : assignment.getDestinations())
 				{
@@ -733,7 +737,7 @@ llvm::Error resolveDummyReferences(Class& model)
 {
 	for (auto& equation : model.getEquations())
 	{
-		auto& lhs = equation.getLeftHand();
+		auto& lhs = equation->getLeftHand();
 
 		if (lhs.isA<Tuple>())
 		{
@@ -759,9 +763,9 @@ llvm::Error resolveDummyReferences(Class& model)
 
 	for (auto& algorithm : model.getAlgorithms())
 	{
-		for (auto& statement : algorithm.getStatements())
+		for (auto& statement : algorithm->getStatements())
 		{
-			for (auto& assignment : statement)
+			for (auto& assignment : *statement)
 			{
 				for (auto& destination : assignment.getDestinations())
 				{

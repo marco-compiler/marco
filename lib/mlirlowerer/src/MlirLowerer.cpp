@@ -9,6 +9,8 @@
 #include <mlir/IR/Verifier.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
+#include <modelica/frontend/Algorithm.hpp>
+#include <modelica/frontend/Statement.hpp>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/LowerToLLVM.h>
@@ -176,20 +178,20 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 
 	// Initialize members
 	for (const auto& member : foo.getMembers())
-		lower(member);
+		lower(*member);
 
 	// Emit the body of the function
 	const auto& algorithm = foo.getAlgorithms()[0];
 
 	// Create the variable to be checked for an early return
-	auto algorithmLocation = loc(algorithm.getLocation());
+	auto algorithmLocation = loc(algorithm->getLocation());
 	mlir::Value returnCondition = builder.create<AllocaOp>(algorithmLocation, builder.getBooleanType());
 	mlir::Value falseValue = builder.create<ConstantOp>(algorithmLocation, builder.getBooleanAttribute(false));
 	builder.create<StoreOp>(algorithmLocation, falseValue, returnCondition);
-	symbolTable.insert(algorithm.getReturnCheckName(), Reference::memref(&builder, returnCondition, true));
+	symbolTable.insert(algorithm->getReturnCheckName(), Reference::memref(&builder, returnCondition, true));
 
 	// Lower the statements
-	lower(foo.getAlgorithms()[0]);
+	lower(*foo.getAlgorithms()[0]);
 
 	// Return statement
 	llvm::SmallVector<mlir::Value, 3> results;

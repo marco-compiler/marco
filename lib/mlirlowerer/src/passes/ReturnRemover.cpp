@@ -16,7 +16,7 @@ void ReturnRemover::fix(modelica::Class& cls)
 void ReturnRemover::fix(modelica::Function& function)
 {
 	for (auto& algorithm : function.getAlgorithms())
-		fix(algorithm);
+		fix(*algorithm);
 }
 
 void ReturnRemover::fix(modelica::Algorithm& algorithm)
