@@ -65,6 +65,7 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Attribute value);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::OpFoldResult fold(llvm::ArrayRef<mlir::Attribute> operands);
 
 		mlir::Attribute value();
 		mlir::Type getType();
@@ -120,8 +121,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		PointerType resultType();
 		mlir::ValueRange dynamicDimensions();
@@ -149,8 +150,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		PointerType resultType();
 		mlir::ValueRange dynamicDimensions();
@@ -178,8 +179,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Value memory();
 	};
@@ -207,8 +208,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::Value dimension);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		PointerType getPointerType();
 		mlir::Value memory();
@@ -268,8 +269,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::ValueRange indexes = {});
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		PointerType getPointerType();
 		mlir::Value memory();
@@ -300,8 +301,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory, mlir::ValueRange indexes = {});
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		PointerType getPointerType();
 		mlir::Value value();
@@ -358,8 +359,8 @@ namespace modelica
 
 		static ::llvm::StringRef getOperationName();
 		static void build(::mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Value cond, bool withElseRegion = false);
-		mlir::LogicalResult verify();
 		void print(::mlir::OpAsmPrinter &p);
+		mlir::LogicalResult verify();
 
 		mlir::Value condition();
 		mlir::Region& thenRegion();
@@ -390,8 +391,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args = {});
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Region& condition();
 		mlir::Region& step();
@@ -425,8 +426,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Region& condition();
 		mlir::Region& body();
@@ -457,8 +458,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Value condition, mlir::ValueRange args = {});
-		mlir::LogicalResult verify();
 		void print(::mlir::OpAsmPrinter &p);
+		mlir::LogicalResult verify();
 
 		mlir::Value condition();
 		mlir::ValueRange args();
@@ -512,8 +513,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& Builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter &p);
+		mlir::LogicalResult verify();
 
 		mlir::Value value();
 		mlir::Type resultType();
@@ -568,8 +569,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Value operand);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Value operand();
 	};
@@ -597,8 +598,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Type resultType();
 
@@ -629,8 +630,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Type resultType();
 
@@ -661,8 +662,8 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Value lhs();
 		mlir::Value rhs();
@@ -692,8 +693,8 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Value lhs();
 		mlir::Value rhs();
@@ -723,8 +724,8 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Value lhs();
 		mlir::Value rhs();
@@ -754,8 +755,8 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Value lhs();
 		mlir::Value rhs();
@@ -785,8 +786,8 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Value lhs();
 		mlir::Value rhs();
@@ -816,8 +817,8 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs);
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
-		mlir::LogicalResult verify();
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Value lhs();
 		mlir::Value rhs();

@@ -90,14 +90,10 @@ MlirLowerer::MlirLowerer(mlir::MLIRContext& context, ModelicaOptions options)
 
 mlir::Location MlirLowerer::loc(SourcePosition location)
 {
-	// TODO
-	return builder.getUnknownLoc();
-	/*
-	return builder.getFileLineColLoc(
+	return mlir::FileLineColLoc::get(
 			builder.getIdentifier(*location.file),
 			location.line,
 			location.column);
-			*/
 }
 
 llvm::Optional<mlir::ModuleOp> MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer> classes)

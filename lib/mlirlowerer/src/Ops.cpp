@@ -24,6 +24,12 @@ void ConstantOp::print(mlir::OpAsmPrinter& printer)
 	printer << "modelica.constant " << value();
 }
 
+mlir::OpFoldResult ConstantOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
+{
+	assert(operands.empty() && "constant has no operands");
+	return value();
+}
+
 mlir::Attribute ConstantOp::value()
 {
 	return getOperation()->getAttr("value");
@@ -95,6 +101,14 @@ void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir
 	state.addOperands(dimensions);
 }
 
+void AllocaOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.alloca ";
+	printer.printOperands(getOperands());
+	printer << ": ";
+	printer.printType(getOperation()->getResultTypes()[0]);
+}
+
 mlir::LogicalResult AllocaOp::verify()
 {
 	auto shape = resultType().getShape();
@@ -111,14 +125,6 @@ mlir::LogicalResult AllocaOp::verify()
 											 std::to_string(unknownSizes) + ")");
 
 	return mlir::success();
-}
-
-void AllocaOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.alloca ";
-	printer.printOperands(getOperands());
-	printer << ": ";
-	printer.printType(getOperation()->getResultTypes()[0]);
 }
 
 PointerType AllocaOp::resultType()
@@ -151,6 +157,14 @@ void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 	state.addOperands(dimensions);
 }
 
+void AllocOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.alloc ";
+	printer.printOperands(getOperands());
+	printer << ": ";
+	printer.printType(getOperation()->getResultTypes()[0]);
+}
+
 mlir::LogicalResult AllocOp::verify()
 {
 	auto shape = resultType().getShape();
@@ -167,14 +181,6 @@ mlir::LogicalResult AllocOp::verify()
 											 std::to_string(unknownSizes) + ")");
 
 	return mlir::success();
-}
-
-void AllocOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.alloc ";
-	printer.printOperands(getOperands());
-	printer << ": ";
-	printer.printType(getOperation()->getResultTypes()[0]);
 }
 
 PointerType AllocOp::resultType()
@@ -211,11 +217,6 @@ void FreeOp::print(mlir::OpAsmPrinter& printer)
 	printer << "modelica.free " << memory();
 }
 
-mlir::Value FreeOp::memory()
-{
-	return Adaptor(*this).memory();
-}
-
 mlir::LogicalResult FreeOp::verify()
 {
 	if (auto pointerType = memory().getType().dyn_cast<PointerType>(); pointerType)
@@ -227,6 +228,11 @@ mlir::LogicalResult FreeOp::verify()
 	}
 
 	return emitOpError("requires operand to be a pointer to heap allocated memory");
+}
+
+mlir::Value FreeOp::memory()
+{
+	return Adaptor(*this).memory();
 }
 
 //===----------------------------------------------------------------------===//
@@ -254,17 +260,17 @@ void DimOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 	state.addTypes(builder.getIndexType());
 }
 
+void DimOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.dim " << getOperands() << " : " << memory().getType();
+}
+
 mlir::LogicalResult DimOp::verify()
 {
 	if (!memory().getType().isa<PointerType>())
 		return emitOpError("requires the operand to be a pointer to an array");
 
 	return mlir::success();
-}
-
-void DimOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.dim " << getOperands() << " : " << memory().getType();
 }
 
 PointerType DimOp::getPointerType()
@@ -367,6 +373,14 @@ void LoadOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 	state.addTypes(memory.getType().cast<PointerType>().getElementType());
 }
 
+void LoadOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.load " << memory() << "[";
+	printer.printOperands(indexes());
+	printer << "] : ";
+	printer.printType(getOperation()->getResultTypes()[0]);
+}
+
 mlir::LogicalResult LoadOp::verify()
 {
 	auto pointerType = memory().getType().cast<PointerType>();
@@ -378,14 +392,6 @@ mlir::LogicalResult LoadOp::verify()
 											 std::to_string(pointerType.getRank()) + ")");
 
 	return mlir::success();
-}
-
-void LoadOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.load " << memory() << "[";
-	printer.printOperands(indexes());
-	printer << "] : ";
-	printer.printType(getOperation()->getResultTypes()[0]);
 }
 
 PointerType LoadOp::getPointerType()
@@ -434,6 +440,14 @@ void StoreOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 	state.addOperands(indexes);
 }
 
+void StoreOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.store " << value() << ", " << memory() << "[";
+	printer.printOperands(indexes());
+	printer << "] : ";
+	printer.printType(memory().getType());
+}
+
 mlir::LogicalResult StoreOp::verify()
 {
 	auto pointerType = memory().getType().cast<PointerType>();
@@ -448,14 +462,6 @@ mlir::LogicalResult StoreOp::verify()
 											 std::to_string(pointerType.getRank()) + ")");
 
 	return mlir::success();
-}
-
-void StoreOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.store " << value() << ", " << memory() << "[";
-	printer.printOperands(indexes());
-	printer << "] : ";
-	printer.printType(memory().getType());
 }
 
 PointerType StoreOp::getPointerType()
@@ -546,14 +552,6 @@ void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Va
 	builder.restoreInsertionPoint(insertionPoint);
 }
 
-mlir::LogicalResult IfOp::verify()
-{
-	if (!condition().getType().isa<BooleanType>())
-		return emitOpError("requires the condition to be a boolean");
-
-	return mlir::success();
-}
-
 void IfOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.if " << condition();
@@ -564,6 +562,14 @@ void IfOp::print(mlir::OpAsmPrinter& printer)
 		printer << " else";
 		printer.printRegion(elseRegion());
 	}
+}
+
+mlir::LogicalResult IfOp::verify()
+{
+	if (!condition().getType().isa<BooleanType>())
+		return emitOpError("requires the condition to be a boolean");
+
+	return mlir::success();
 }
 
 mlir::Value IfOp::condition()
@@ -625,6 +631,17 @@ void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 	builder.restoreInsertionPoint(insertionPoint);
 }
 
+void ForOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.for (break on " << breakCondition() << ", return on " << returnCondition() << ") " << args();
+	printer << " condition";
+	printer.printRegion(condition(), true);
+	printer << " body";
+	printer.printRegion(body(), true);
+	printer << " step";
+	printer.printRegion(step(), true);
+}
+
 mlir::LogicalResult ForOp::verify()
 {
 	if (auto breakPtr = breakCondition().getType().dyn_cast<PointerType>();
@@ -636,17 +653,6 @@ mlir::LogicalResult ForOp::verify()
 		return emitOpError("requires the return condition to be a pointer to a single boolean value");
 
 	return mlir::success();
-}
-
-void ForOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.for (break on " << breakCondition() << ", return on " << returnCondition() << ") " << args();
-	printer << " condition";
-	printer.printRegion(condition(), true);
-	printer << " body";
-	printer.printRegion(body(), true);
-	printer << " step";
-	printer.printRegion(step(), true);
 }
 
 mlir::Region& ForOp::condition()
@@ -714,6 +720,14 @@ void WhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 	builder.restoreInsertionPoint(insertionPoint);
 }
 
+void WhileOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.while (break on " << breakCondition() << ", return on " << returnCondition() << ")";
+	printer.printRegion(condition(), false);
+	printer << " do";
+	printer.printRegion(body(), false);
+}
+
 mlir::LogicalResult WhileOp::verify()
 {
 	if (auto breakPtr = breakCondition().getType().dyn_cast<PointerType>();
@@ -725,14 +739,6 @@ mlir::LogicalResult WhileOp::verify()
 		return emitOpError("requires the return condition to be a pointer to a single boolean value");
 
 	return mlir::success();
-}
-
-void WhileOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.while (break on " << breakCondition() << ", return on " << returnCondition() << ")";
-	printer.printRegion(condition(), false);
-	printer << " do";
-	printer.printRegion(body(), false);
 }
 
 mlir::Region& WhileOp::condition()
@@ -780,17 +786,17 @@ void ConditionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, m
 	state.addOperands(args);
 }
 
+void ConditionOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.condition (" << condition() << ") " << args();
+}
+
 mlir::LogicalResult ConditionOp::verify()
 {
 	if (!condition().getType().isa<BooleanType>())
 		return emitOpError("requires the condition to be a boolean");
 
 	return mlir::success();
-}
-
-void ConditionOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.condition (" << condition() << ") " << args();
 }
 
 mlir::Value ConditionOp::condition()
@@ -852,6 +858,11 @@ void CastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 	state.addTypes(resultType);
 }
 
+void CastOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.cast " << value() << " : " << resultType();
+}
+
 mlir::LogicalResult CastOp::verify()
 {
 	mlir::Type inputType = value().getType();
@@ -863,11 +874,6 @@ mlir::LogicalResult CastOp::verify()
 		return emitOpError("requires the result type to be index, boolean, integer or real");
 
 	return mlir::success();
-}
-
-void CastOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.cast " << value() << " : " << resultType();
 }
 
 mlir::Value CastOp::value()
@@ -984,6 +990,11 @@ void NegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir
 	state.addTypes(operand.getType());
 }
 
+void NegateOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.neg " << getOperand() << " : " << getOperation()->getResultTypes();
+}
+
 mlir::LogicalResult NegateOp::verify()
 {
 	if (!operand().getType().isa<BooleanType>())
@@ -991,11 +1002,6 @@ mlir::LogicalResult NegateOp::verify()
 			return emitOpError("requires the operand to be a boolean or an array of booleans");
 
 	return mlir::success();
-}
-
-void NegateOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.neg " << getOperand() << " : " << getOperation()->getResultTypes();
 }
 
 mlir::Value NegateOp::operand()
@@ -1028,17 +1034,17 @@ void AndOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 	state.addOperands({ lhs, rhs });
 }
 
+void AndOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.and " << lhs() << ", " << rhs() << " : " << resultType();
+}
+
 mlir::LogicalResult AndOp::verify()
 {
 	if (!lhs().getType().isa<BooleanType>() || !rhs().getType().isa<BooleanType>())
 		return emitOpError("requires the operands to be booleans");
 
 	return mlir::success();
-}
-
-void AndOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.and " << lhs() << ", " << rhs() << " : " << resultType();
 }
 
 mlir::Type AndOp::resultType()
@@ -1081,17 +1087,17 @@ void OrOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Ty
 	state.addOperands({ lhs, rhs });
 }
 
+void OrOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.or " << lhs() << ", " << rhs() << " : " << resultType();
+}
+
 mlir::LogicalResult OrOp::verify()
 {
 	if (!lhs().getType().isa<BooleanType>() || !rhs().getType().isa<BooleanType>())
 		return emitOpError("requires the operands to be booleans");
 
 	return mlir::success();
-}
-
-void OrOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.or " << lhs() << ", " << rhs() << " : " << resultType();
 }
 
 mlir::Type OrOp::resultType()
@@ -1134,6 +1140,11 @@ void EqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Ty
 	state.addOperands({ lhs, rhs });
 }
 
+void EqOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.eq " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+}
+
 mlir::LogicalResult EqOp::verify()
 {
 	for (auto operand : getOperands())
@@ -1141,11 +1152,6 @@ mlir::LogicalResult EqOp::verify()
 			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
-}
-
-void EqOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.eq " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 mlir::Value EqOp::lhs()
@@ -1189,6 +1195,11 @@ void NotEqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 	state.addOperands({ lhs, rhs });
 }
 
+void NotEqOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.neq " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+}
+
 mlir::LogicalResult NotEqOp::verify()
 {
 	for (auto operand : getOperands())
@@ -1196,11 +1207,6 @@ mlir::LogicalResult NotEqOp::verify()
 			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
-}
-
-void NotEqOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.neq " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 mlir::Value NotEqOp::lhs()
@@ -1244,6 +1250,11 @@ void GtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Ty
 	state.addOperands({ lhs, rhs });
 }
 
+void GtOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.gt " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+}
+
 mlir::LogicalResult GtOp::verify()
 {
 	for (auto operand : getOperands())
@@ -1251,11 +1262,6 @@ mlir::LogicalResult GtOp::verify()
 			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
-}
-
-void GtOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.gt " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 mlir::Value GtOp::lhs()
@@ -1299,6 +1305,11 @@ void GteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 	state.addOperands({ lhs, rhs });
 }
 
+void GteOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.gte " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+}
+
 mlir::LogicalResult GteOp::verify()
 {
 	for (auto operand : getOperands())
@@ -1306,11 +1317,6 @@ mlir::LogicalResult GteOp::verify()
 			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
-}
-
-void GteOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.gte " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 mlir::Value GteOp::lhs()
@@ -1354,6 +1360,11 @@ void LtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Ty
 	state.addOperands({ lhs, rhs });
 }
 
+void LtOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.lt " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+}
+
 mlir::LogicalResult LtOp::verify()
 {
 	for (auto operand : getOperands())
@@ -1361,11 +1372,6 @@ mlir::LogicalResult LtOp::verify()
 			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
-}
-
-void LtOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.lt " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 mlir::Value LtOp::lhs()
@@ -1409,6 +1415,11 @@ void LteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 	state.addOperands({ lhs, rhs });
 }
 
+void LteOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.lte " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+}
+
 mlir::LogicalResult LteOp::verify()
 {
 	for (auto operand : getOperands())
@@ -1416,11 +1427,6 @@ mlir::LogicalResult LteOp::verify()
 			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
-}
-
-void LteOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.lte " << getOperands() << " : " << getOperation()->getResultTypes()[0];
 }
 
 mlir::Value LteOp::lhs()
