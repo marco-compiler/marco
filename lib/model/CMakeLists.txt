@@ -14,6 +14,6 @@ modelicaAddLibrary(
    	src/ModConst.cpp
 	src/ModMatchers.cpp)
 
-target_link_libraries(model PUBLIC  modelica::utils)
+target_link_libraries(model PUBLIC modelica::utils)
 
 

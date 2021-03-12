@@ -25,5 +25,5 @@ modelicaAddLibrary(
 		src/TypeChecker.cpp
 		src/TypePrefix.cpp
 )
-   	
-target_link_libraries(frontend PUBLIC modelica::model)
+
+target_link_libraries(frontend PUBLIC modelica::model boost)

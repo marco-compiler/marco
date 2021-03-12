@@ -56,24 +56,24 @@ add_subdirectory(tool)
 add_subdirectory(lib)
 
 ##############################
-###       BOOSTGRAPH       ###
+###          BOOST         ###
 ##############################
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost 1.45.0 COMPONENTS graph)
 
-add_library(graph INTERFACE)
-target_include_directories(graph INTERFACE ${Boost_INCLUDE_DIRS})
-target_compile_definitions(graph INTERFACE -DBOOST_NO_EXCEPTIONS)
-target_compile_features(graph INTERFACE cxx_std_17)
+add_library(boost INTERFACE)
+target_include_directories(boost INTERFACE ${Boost_INCLUDE_DIRS})
+target_compile_definitions(boost INTERFACE -DBOOST_NO_EXCEPTIONS)
+target_compile_features(boost INTERFACE cxx_std_17)
 
-install(TARGETS graph EXPORT GraphTargets
+install(TARGETS boost EXPORT BoostTargets
 	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
 	RUNTIME DESTINATION bin
 	INCLUDES DESTINATION include)
 
-install(EXPORT GraphTargets DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME}
-	FILE graphTargets.cmake
+install(EXPORT BoostTargets DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME}
+	FILE boostTargets.cmake
 	NAMESPACE modelica::)
