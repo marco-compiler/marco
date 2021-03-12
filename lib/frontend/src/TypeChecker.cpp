@@ -224,6 +224,12 @@ Error TypeChecker::check(Class& model)
 {
 	SymbolTableScope varScope(symbolTable);
 
+	// Populate the symbol table
+	symbolTable.insert(model.getName(), Symbol(model));
+
+	for (auto& member : model.getMembers())
+		symbolTable.insert(member.getName(), Symbol(member));
+
 	for (auto& m : model.getMembers())
 		if (auto error = check(m); error)
 			return error;

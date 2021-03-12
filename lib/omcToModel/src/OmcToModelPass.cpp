@@ -89,9 +89,17 @@ static BultinModTypes builtinToBuiltin(BuiltInType type)
 Expected<ModType> OmcToModelPass::lower(
 		const Type& tp, const SymbolTable& table)
 {
+	llvm::SmallVector<size_t, 3> dimensions;
+
+	for (const auto& dim : tp.getDimensions())
+	{
+		assert(!dim.hasExpression() && "not a numeric size");
+		dimensions.push_back(dim.getNumericSize());
+	}
+
 	return ModType(
 			builtinToBuiltin(tp.get<BuiltInType>()),
-			static_cast<ArrayRef<size_t>>(tp.getDimensions()));
+			static_cast<ArrayRef<size_t>>(dimensions));
 }
 
 static Expected<ModConst> lowerConstant(const Constant& constant)
@@ -180,7 +188,10 @@ Expected<ModEquation> OmcToModelPass::lower(
 	SmallVector<Interval, 3> dimensions;
 	if (not eq.getLeftHand().getType().isScalar())
 		for (const auto& i : eq.getLeftHand().getType())
-			dimensions.emplace_back(0, i);
+		{
+			assert(!i.hasExpression() && "not a numeric size");
+			dimensions.emplace_back(0, i.getNumericSize());
+		}
 
 	return ModEquation(
 			move(l),
@@ -217,7 +228,10 @@ Expected<ModEquation> OmcToModelPass::lower(
 
 	if (not eq.getEquation().getLeftHand().getType().isScalar())
 		for (const auto& i : eq.getEquation().getLeftHand().getType())
-			interval.emplace_back(0, i);
+		{
+			assert(!i.hasExpression() && "not a numeric size");
+			interval.emplace_back(0, i.getNumericSize());
+		}
 
 	modEq->setInductionVars(MultiDimInterval(move(interval)));
 	return modEq;

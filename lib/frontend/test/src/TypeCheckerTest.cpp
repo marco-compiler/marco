@@ -48,16 +48,16 @@ TEST(TypeCheckTest, andOfBoolShouldProduceBool)	 // NOLINT
 TEST(TypeCheckerTest, tupleExpressionType)	// NOLINT
 {
 	SmallVector<Expression, 3> expressions;
-	expressions.emplace_back(Expression::reference(SourcePosition::unknown(), Type::Int(), "x"));
-	expressions.emplace_back(Expression::reference(SourcePosition::unknown(), Type::Float(), "y"));
+	expressions.emplace_back(Expression::reference(SourcePosition::unknown(), makeType<int>(), "x"));
+	expressions.emplace_back(Expression::reference(SourcePosition::unknown(), makeType<float>(), "y"));
 
 	Expression exp = Expression::tuple(
 			SourcePosition::unknown(),
 			Type::unknown(),
 			expressions);
 
-	Member x(SourcePosition::unknown(), "x", Type::Int(), TypePrefix::none());
-	Member y(SourcePosition::unknown(), "y", Type::Float(), TypePrefix::none());
+	Member x(SourcePosition::unknown(), "x", makeType<int>(), TypePrefix::none());
+	Member y(SourcePosition::unknown(), "y", makeType<float>(), TypePrefix::none());
 
 	TypeChecker typeChecker;
 	auto& symbolTable = typeChecker.getSymbolTable();
@@ -69,6 +69,45 @@ TEST(TypeCheckerTest, tupleExpressionType)	// NOLINT
 	if (typeChecker.check<Tuple>(exp))
 		FAIL();
 
-	Type expected({ Type::Int(), Type::Float() });
+	Type expected({ makeType<int>(), makeType<float>() });
 	ASSERT_EQ(expected, exp.getType());
+}
+
+TEST(TypeCheckerTest, test)
+{
+	Parser parser("class MultiDimZeroingExample"
+								"  Real[10, 10] v1;"
+								"  Real[10, 10] v2;"
+								"  equation"
+								"    for j in 0:9 loop"
+								"      for i in 0:9 loop"
+								"        v1[j+1, i+1] = v2[j+1, i+1];"
+								"      end for;"
+								"    end for;"
+								"    for j in 7:11 loop"
+								"    for i in 0:9 loop"
+								"      v2[j-1, i+1] = -v1[j-1, i+1];"
+								"    end for;"
+								"  end for;"
+								"  for j in 2:6 loop"
+								"    for i in 0:9 loop"
+								"      v2[j-1, i+1] = -v1[j-1, i+1];"
+								"    end for;"
+								"  end for;"
+								"end MultiDimZeroingExample;");
+
+	auto expectedAST = parser.classDefinition();
+
+	if (!expectedAST)
+		FAIL();
+
+	auto ast = move(*expectedAST);
+
+	TypeChecker typeChecker;
+	auto& symbolTable = typeChecker.getSymbolTable();
+	TypeChecker::SymbolTableScope scope(symbolTable);
+
+	if (typeChecker.check(ast))
+		FAIL();
+
 }

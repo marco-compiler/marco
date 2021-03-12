@@ -53,7 +53,7 @@ SourcePosition Class::getLocation() const
 	return location;
 }
 
-string Class::getName() const { return name; }
+const string& Class::getName() const { return name; }
 
 Class::Container<Member>& Class::getMembers() { return members; }
 

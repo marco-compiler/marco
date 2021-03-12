@@ -23,7 +23,7 @@ TEST(expressionTest, operationsCanBeBuilt)
 	SourcePosition location("-", 0, 0);
 	Expression constant = Expression::constant(location, makeType<int>(), 3);
 	Expression exp =
-			Expression::operation(location, Type::Int(), OperationKind::add, constant, constant);
+			Expression::operation(location, makeType<int>(), OperationKind::add, constant, constant);
 	EXPECT_TRUE(exp.isA<Operation>());
 	EXPECT_EQ(exp.get<Operation>().getKind(), OperationKind::add);
 }

@@ -16,7 +16,7 @@ TEST(folderTest, sumShouldFold)
 {
 	Expression exp = Expression::operation(
 			SourcePosition::unknown(),
-			Type::Int(),
+			makeType<int>(),
 			OperationKind::add,
 			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
 			Expression::constant(SourcePosition::unknown(), makeType<int>(), 4));
@@ -33,7 +33,7 @@ TEST(folderTest, subShouldFold)
 {
 	Expression exp = Expression::operation(
 			SourcePosition::unknown(),
-			Type::Int(),
+			makeType<int>(),
 			OperationKind::subtract,
 			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
 			Expression::constant(SourcePosition::unknown(), makeType<int>(), 2));
@@ -50,7 +50,7 @@ TEST(folderTest, sumOfSubShouldFold)
 {
 	Expression exp = Expression::operation(
 			SourcePosition::unknown(),
-			Type::Int(),
+			makeType<int>(),
 			OperationKind::add,
 			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
 			Expression::constant(SourcePosition::unknown(), makeType<int>(), -1));
@@ -67,14 +67,14 @@ TEST(folderTest, sumInSubscriptionShouldFold)
 {
 	Expression exp = Expression::operation(
 			SourcePosition::unknown(),
-			Type::Int(),
+			makeType<int>(),
 			OperationKind::add,
 			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
 			Expression::constant(SourcePosition::unknown(), makeType<int>(), -1));
 
 	exp = Expression::operation(
 			SourcePosition::unknown(),
-			Type::Int(),
+			makeType<int>(),
 			OperationKind::subscription,
 			Expression::reference(SourcePosition::unknown(), makeType<int>(10), "name"),
 			exp);
@@ -97,14 +97,14 @@ TEST(folderTest, sumInSubscriptionInDerShouldFold)
 {
 	Expression exp = Expression::operation(
 			SourcePosition::unknown(),
-			Type::Int(),
+			makeType<int>(),
 			OperationKind::add,
-			Expression::constant(SourcePosition::unknown(), Type::Int(), 3),
-			Expression::constant(SourcePosition::unknown(), Type::Int(), -1));
+			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
+			Expression::constant(SourcePosition::unknown(), makeType<int>(), -1));
 
 	exp = Expression::operation(
 			SourcePosition::unknown(),
-			Type::Int(),
+			makeType<int>(),
 			OperationKind::subscription,
 			Expression::reference(SourcePosition::unknown(), makeType<int>(10), "name"),
 			exp);
@@ -128,10 +128,13 @@ TEST(folderTest, sumInSubscriptionInDerShouldFold)
 
 TEST(folderTest, startDeclarationWithReference)	 // NOLINT
 {
-	Parser parser("model C parameter Real A = 315.15; Real[10, 10, 4] T(start = "
-								"A); end C;");
+	Parser parser("model C"
+								"  parameter Real A = 315.15;"
+								"  Real[10, 10, 4] T(start = A);"
+								"end C;");
 
 	auto expectedAST = parser.classDefinition();
+
 	if (!expectedAST)
 		FAIL();
 

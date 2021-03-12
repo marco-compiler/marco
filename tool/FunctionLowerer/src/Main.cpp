@@ -33,13 +33,13 @@ int main(int argc, char* argv[])
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	Parser parser(buffer->getBufferStart());
 	auto ast = exitOnErr(parser.classDefinition());
-
+/*
 	TypeChecker checker;
 	exitOnErr(checker.check(ast, SymbolTable()));
 
 	modelica::ConstantFolder folder;
 	exitOnErr(folder.fold(ast, SymbolTable()));
-/*
+
 	Model model;
 	OmcToModelPass pass(model);
 	exitOnErr(pass.lower(ast, SymbolTable()));

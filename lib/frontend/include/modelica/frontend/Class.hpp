@@ -34,7 +34,7 @@ namespace modelica
 
 		[[nodiscard]] SourcePosition getLocation() const;
 
-		[[nodiscard]] std::string getName() const;
+		[[nodiscard]] const std::string& getName() const;
 
 		[[nodiscard]] Container<Member>& getMembers();
 		[[nodiscard]] const Container<Member>& getMembers() const;
