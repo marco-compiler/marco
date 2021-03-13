@@ -28,6 +28,24 @@ Function::Function(
 		this->algorithms.emplace_back(std::make_shared<Algorithm>(algorithm));
 }
 
+Member& Function::operator[](llvm::StringRef str)
+{
+	for (auto& member : members)
+		if (member->getName() == str)
+			return *member;
+
+	assert(false && "Not found");
+}
+
+const Member& Function::operator[](llvm::StringRef str) const
+{
+	for (const auto& member : members)
+		if (member->getName() == str)
+			return *member;
+
+	assert(false && "Not found");
+}
+
 void Function::dump() const { dump(outs(), 0); }
 
 void Function::dump(raw_ostream& os, size_t indents) const
@@ -74,6 +92,17 @@ Container<Member> Function::getResults() const
 
 	for (const auto& member : members)
 		if (member->isOutput())
+			results.push_back(member);
+
+	return results;
+}
+
+Container<Member> Function::getProtectedMembers() const
+{
+	Container<Member> results;
+
+	for (const auto& member : members)
+		if (!member->isInput() && !member->isOutput())
 			results.push_back(member);
 
 	return results;

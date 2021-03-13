@@ -31,8 +31,8 @@ namespace modelica
 		Tuple(SourcePosition location, Iter begin, Iter end)
 				: location(std::move(location))
 		{
-			for (auto it = begin; it != end; it++)
-				expressions.push_back(std::make_unique<Expression>(*it));
+			for (auto it = begin; it != end; ++it)
+				expressions.push_back(std::make_shared<Expression>(*it));
 		}
 
 		Tuple(const Tuple& other);

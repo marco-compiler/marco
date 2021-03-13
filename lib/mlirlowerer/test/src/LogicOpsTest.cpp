@@ -42,20 +42,16 @@ TEST(Logic, negateScalar)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-			FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<bool, 2> x = { true, false };
 	array<bool, 2> y = { true, false };
 
+	Runner runner(*module);
+
 	for (const auto& [x, y] : llvm::zip(x, y))
 	{
-		if (failed(runner.run("main", x, Runner::result(y))))
-			FAIL();
-
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
 		EXPECT_EQ(y, !x);
 	}
 }
@@ -90,11 +86,7 @@ TEST(Logic, negateArray)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<bool, 2> x = { true, false };
 	array<bool, 2> y = { true, false };
@@ -102,8 +94,8 @@ TEST(Logic, negateArray)	 // NOLINT
 	ArrayDescriptor<bool, 1> xPtr(x.data(), { 2 });
 	ArrayDescriptor<bool, 1> yPtr(y.data(), { 2 });
 
-	if (failed(runner.run("main", xPtr, Runner::result(yPtr))))
-		FAIL();
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(yPtr))));
 
 	for (const auto& [x, y] : llvm::zip(xPtr, yPtr))
 		EXPECT_EQ(y, !x);
@@ -142,21 +134,17 @@ TEST(Logic, andScalars)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<bool, 4> x = { false, false, true, true };
 	array<bool, 4> y = { false, true, false, true };
 	array<bool, 4> z = { true, true, true, false };
 
+	Runner runner(*module);
+
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		if (failed(runner.run("main", x, y, Runner::result(z))))
-			FAIL();
-
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, Runner::result(z))));
 		EXPECT_EQ(z, x && y);
 	}
 }
@@ -194,21 +182,17 @@ TEST(Logic, orScalars)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<bool, 4> x = { false, false, true, true };
 	array<bool, 4> y = { false, true, false, true };
 	array<bool, 4> z = { true, false, false, false };
 
+	Runner runner(*module);
+
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		if (failed(runner.run("main", x, y, Runner::result(z))))
-			FAIL();
-
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, Runner::result(z))));
 		EXPECT_EQ(z, x || y);
 	}
 }

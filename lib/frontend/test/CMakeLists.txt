@@ -1,6 +1,6 @@
 modelicaAddTest(
         frontend
-        src/AlgorithmParseTest.cpp
+        src/AlgorithmTest.cpp
         src/ConstantFolderTest.cpp
         src/ExpressionTest.cpp
         src/FunctionTest.cpp

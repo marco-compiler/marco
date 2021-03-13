@@ -55,17 +55,6 @@ namespace modelica
 		template<typename T>
 		llvm::Error check(Expression& expression);
 
-		/**
-		 * Get the symbol table in use.
-		 * Should be used only for unit testing.
-		 *
-		 * @return symbol table
-		 */
-		SymbolTable& getSymbolTable()
-		{
-			return symbolTable;
-		}
-
 		private:
 		llvm::ScopedHashTable<llvm::StringRef, Symbol> symbolTable;
 

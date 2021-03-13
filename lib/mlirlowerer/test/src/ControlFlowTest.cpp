@@ -64,18 +64,13 @@ TEST(ControlFlow, thenBranchTaken)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-	
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int x = 1;
 	int y = 0;
 
-	if (failed(runner.run("main", x, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -130,18 +125,13 @@ TEST(ControlFlow, elseBranchTaken)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int x = -1;
 	int y = 0;
 
-	if (failed(runner.run("main", x, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
 	EXPECT_EQ(y, 2);
 }
 
@@ -211,18 +201,13 @@ TEST(ControlFlow, elseIfBranchTaken)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int x = 1;
 	int y = 0;
 
-	if (failed(runner.run("main", x, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
 	EXPECT_EQ(y, 2);
 }
 
@@ -281,18 +266,13 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int x = 10;
 	int y = 0;
 
-	if (failed(runner.run("main", x, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
 	EXPECT_EQ(y, 55);
 }
 
@@ -351,18 +331,13 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int x = 1;
 	int y = 0;
 
-	if (failed(runner.run("main", x, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -423,18 +398,13 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int x = 10;
 	int y = 0;
 
-	if (failed(runner.run("main", x, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
 	EXPECT_EQ(y, 100);
 }
 
@@ -483,16 +453,12 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int y = 0;
 
-	if (failed(runner.run("main", Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -549,17 +515,12 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int y = 0;
 
-	if (failed(runner.run("main", Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -608,17 +569,12 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int y = 0;
 
-	if (failed(runner.run("main", Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -686,17 +642,12 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int y = 0;
 
-	if (failed(runner.run("main", Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -752,17 +703,12 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int y = 0;
 
-	if (failed(runner.run("main", Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -831,17 +777,12 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int y = 0;
 
-	if (failed(runner.run("main", Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -887,16 +828,11 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int y = 0;
 
-	if (failed(runner.run("main", Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }

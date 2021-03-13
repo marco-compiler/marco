@@ -38,18 +38,13 @@ TEST(Input, booleanScalar)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	bool x = true;
 	bool y = false;
 
-	if (failed(runner.run("main", x, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
 	EXPECT_EQ(y, x);
 }
 
@@ -80,18 +75,13 @@ TEST(Input, integerScalar)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int x = 57;
 	int y = 0;
 
-	if (failed(runner.run("main", x, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
 	EXPECT_EQ(y, x);
 }
 
@@ -122,18 +112,13 @@ TEST(Input, floatScalar)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	float x = 57;
 	float y = 0;
 
-	if (failed(runner.run("main", x, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
 	EXPECT_FLOAT_EQ(y, x);
 }
 
@@ -170,20 +155,15 @@ TEST(Input, integerArray)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 	
 	array<int, 2> x = { 23, 57 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
 
 	int y = 0;
 
-	if (failed(runner.run("main", xPtr, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(y))));
 	EXPECT_EQ(y, x[0] + x[1]);
 }
 
@@ -220,20 +200,15 @@ TEST(Input, integerArrayUnknownSize)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 5> x = { 23, 57, 10, -23, -10 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 5 });
 
 	int y = 0;
 
-	if (failed(runner.run("main", xPtr, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(y))));
 	EXPECT_EQ(y, x[0] + x[1]);
 }
 
@@ -270,20 +245,15 @@ TEST(Input, floatArray)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<float, 2> x = { 23.0, 57.0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
 
 	float y = 0;
 
-	if (failed(runner.run("main", xPtr, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(y))));
 	EXPECT_FLOAT_EQ(y, 80);
 }
 
@@ -320,20 +290,15 @@ TEST(Input, floatArrayUnknownSize)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<float, 2> x = { 23.0, 57.0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
 
 	float y = 0;
 
-	if (failed(runner.run("main", xPtr, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(y))));
 	EXPECT_FLOAT_EQ(y, 80);
 }
 
@@ -396,11 +361,7 @@ TEST(Input, integerMatrix)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });
@@ -410,8 +371,8 @@ TEST(Input, integerMatrix)	 // NOLINT
 		int z = 0;
 	} result;
 
-	if (failed(runner.run("main", xPtr, Runner::result(result))))
-		FAIL();
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(result))));
 
 	EXPECT_EQ(result.y, 6);
 	EXPECT_EQ(result.z, 15);
@@ -455,19 +416,14 @@ TEST(Output, integerArray)	 // NOLINT
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
-
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 2> x = { 0, 0 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 2 });
 
-	if (failed(runner.run("main", Runner::result(xPtr))))
-		FAIL();
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(xPtr))));
 
 	EXPECT_EQ(xPtr[0], 23);
 	EXPECT_EQ(xPtr[1], 57);
@@ -521,17 +477,13 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int x = 2;
 	ArrayDescriptor<int, 1> yPtr(nullptr, { 2 });
 
-	if (failed(runner.run("main", x, Runner::result(yPtr))))
-		FAIL();
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(yPtr))));
 
 	for (int i = 0; i < yPtr.getSize(0); i++)
 		EXPECT_EQ(yPtr[i], i + 1);
@@ -572,17 +524,13 @@ TEST(Output, floatArray)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<float, 2> x = { 0, 0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 2 });
 
-	if (failed(runner.run("main", Runner::result(xPtr))))
-		FAIL();
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(xPtr))));
 
 	EXPECT_FLOAT_EQ(xPtr[0], 23.0);
 	EXPECT_FLOAT_EQ(xPtr[1], 57.0);
@@ -627,17 +575,13 @@ TEST(Output, integerMatrix)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 6> x = { 0, 0, 0, 0, 0, 0 };
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });
 
-	if (failed(runner.run("main", Runner::result(xPtr))))
-		FAIL();
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(xPtr))));
 
 	for (int i = 0; i < 2; i++)
 		for (int j = 0; j < 3; j++)

@@ -10,6 +10,16 @@ Algorithm::Algorithm(SourcePosition location, llvm::ArrayRef<Statement> statemen
 		this->statements.emplace_back(std::make_shared<Statement>(statement));
 }
 
+Statement& Algorithm::operator[](size_t index)
+{
+	return *statements[index];
+}
+
+const Statement& Algorithm::operator[](size_t index) const
+{
+	return *statements[index];
+}
+
 void Algorithm::dump() const { dump(llvm::outs(), 0); }
 
 void Algorithm::dump(llvm::raw_ostream& os, size_t indents) const

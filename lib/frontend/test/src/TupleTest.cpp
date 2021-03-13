@@ -2,36 +2,36 @@
 #include <modelica/frontend/Expression.hpp>
 #include <modelica/frontend/Parser.hpp>
 #include <modelica/frontend/Statement.hpp>
-#include <modelica/frontend/Tuple.hpp>
-#include <vector>
 
 using namespace modelica;
-using namespace std;
 
-TEST(TupleTest, emptyTuple)	 // NOLINT
+TEST(AST, singleElementTupleCanBeBuilt)	 // NOLINT
+{
+	SourcePosition location = SourcePosition::unknown();
+	Expression exp = Expression::reference(location, makeType<int>(), "x");
+	Tuple tuple(location, { exp });
+	EXPECT_EQ(tuple.size(), 1);
+}
+
+TEST(AST, multipleElementsTupleCanBeBuilt)	// NOLINT
+{
+	SourcePosition location = SourcePosition::unknown();
+
+	Expression exp1 = Expression::reference(location, makeType<int>(), "x");
+	Expression exp2 = Expression::reference(location, makeType<float>(), "y");
+	Expression exp3 = Expression::reference(location, Type::unknown(), "z");
+
+	Tuple tuple(location, { exp1, exp2, exp3 });
+
+	EXPECT_EQ(tuple.size(), 3);
+}
+
+TEST(Parser, emptyTuple)	 // NOLINT
 {
 	Parser parser("() := Foo(time);");
 
-	auto expectedAst = parser.statement();
+	auto ast = parser.statement();
+	ASSERT_FALSE(!ast);
 
-	if (!expectedAst)
-		FAIL();
-
-	auto ast = move(*expectedAst);
-}
-
-TEST(TupleTest, singleElementTupleCanBeBuilt)	 // NOLINT
-{
-	Expression exp = Expression::reference(SourcePosition::unknown(), makeType<int>(), "x");
-	Tuple tuple(SourcePosition::unknown(), { exp });
-	EXPECT_EQ(1, tuple.size());
-}
-
-TEST(TupleTest, multipleElementsTupleCanBeBuilt)	// NOLINT
-{
-	Expression exp1 = Expression::reference(SourcePosition::unknown(), makeType<int>(), "x");
-	Expression exp2 = Expression::reference(SourcePosition::unknown(), makeType<float>(), "y");
-	Expression exp3 = Expression::reference(SourcePosition::unknown(), Type::unknown(), "z");
-	Tuple tuple(SourcePosition::unknown(), { exp1, exp2, exp3 });
-	EXPECT_EQ(3, tuple.size());
+	EXPECT_EQ(ast->get<AssignmentStatement>().getDestinations().size(), 0);
 }

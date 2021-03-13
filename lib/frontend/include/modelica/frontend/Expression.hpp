@@ -102,7 +102,7 @@ namespace modelica
 		template<typename... Args>
 		[[nodiscard]] static Expression tuple(SourcePosition location, Type type, Args&&... args)
 		{
-			Tuple content(location, std::forward<Args>(args)...);
+			Tuple content(location, { std::forward<Args>(args)... });
 			return Expression(type, std::move(content));
 		}
 

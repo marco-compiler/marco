@@ -54,17 +54,12 @@ TEST(Function, callNoArguments)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower({ foo, main });
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	int y = 0;
 
-	if (failed(runner.run("main", Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -119,11 +114,7 @@ TEST(Function, recursiveCall)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<float, 3> x = { 1, 2, 3 };
 	int i = 1;
@@ -131,8 +122,8 @@ TEST(Function, recursiveCall)	 // NOLINT
 
 	ArrayDescriptor<float, 1> xPtr(x.data(), { x.size() });
 
-	if (failed(runner.run("main", xPtr, i, Runner::result(y))))
-		FAIL();
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, i, Runner::result(y))));
 
 	float expected = 0;
 

@@ -45,6 +45,7 @@ TEST(TypeCheckTest, andOfBoolShouldProduceBool)	 // NOLINT
 	EXPECT_EQ(exp.getType(), makeType<bool>());
 }
 
+/*
 TEST(TypeCheckerTest, tupleExpressionType)	// NOLINT
 {
 	SmallVector<Expression, 3> expressions;
@@ -72,3 +73,4 @@ TEST(TypeCheckerTest, tupleExpressionType)	// NOLINT
 	Type expected({ makeType<int>(), makeType<float>() });
 	ASSERT_EQ(expected, exp.getType());
 }
+*/

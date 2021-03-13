@@ -42,20 +42,15 @@ TEST(BuiltInOps, ndims)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 3> x = { 10, 23, -57 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
 
 	int y = 0;
 
-	if (failed(runner.run("main", xPtr, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(y))));
 	EXPECT_EQ(y, xPtr.getRank());
 }
 
@@ -91,20 +86,15 @@ TEST(BuiltInOps, sizeSpecificArrayDimension)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 3, 2 });
 
 	int y = 0;
 
-	if (failed(runner.run("main", xPtr, Runner::result(y))))
-		FAIL();
-
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(y))));
 	EXPECT_EQ(y, xPtr.getSize(1));
 }
 
@@ -139,19 +129,15 @@ TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
-
-	if (!module || failed(convertToLLVMDialect(&context, *module)))
-		FAIL();
-
-	Runner runner(*module);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 12> x = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 4, 3 });
 
 	ArrayDescriptor<int, 1> yPtr(nullptr, { 1 });
 
-	if (failed(runner.run("main", xPtr, Runner::result(yPtr))))
-		FAIL();
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(yPtr))));
 
 	EXPECT_EQ(yPtr[0], xPtr.getSize(0));
 	EXPECT_EQ(yPtr[1], xPtr.getSize(1));

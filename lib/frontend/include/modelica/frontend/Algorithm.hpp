@@ -21,6 +21,9 @@ namespace modelica
 
 		Algorithm(SourcePosition location, llvm::ArrayRef<Statement> statements);
 
+		Statement& operator[](size_t index);
+		const Statement& operator[](size_t index) const;
+
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 

@@ -49,7 +49,7 @@ namespace modelica
 		SourcePosition location;
 
 		// Where the result of the expression has to be stored.
-		// A vector is needed because functions may have multiple outputs.
+		// A tuple is needed because functions may have multiple outputs.
 		Tuple destinations;
 
 		// Right-hand side expression of the assignment
