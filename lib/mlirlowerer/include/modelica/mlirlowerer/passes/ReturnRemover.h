@@ -9,6 +9,8 @@ namespace modelica
 	{
 		public:
 		void fix(modelica::ClassContainer& cls);
+
+		private:
 		void fix(modelica::Class& cls);
 		void fix(modelica::Function& function);
 		void fix(modelica::Algorithm& algorithm);
