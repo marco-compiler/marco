@@ -3,22 +3,58 @@ name: CI
 on: [push]
 
 jobs:
-  build:
-
+  build-and-test:
     runs-on: ubuntu-20.04
 
     steps:
-    - uses: actions/checkout@v2
-    - name: fetch libboost 
-      run: sudo apt-get install libboost-all-dev 
-    - name: fetch llvm key
-      run:  wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add
-    - name: add apt repo
-      run: sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main' 
-    - name: install llvm
-      run: sudo apt install libllvm-11-ocaml-dev libllvm11 llvm-11 llvm-11-dev llvm-11-doc llvm-11-examples llvm-11-runtime clang-11 clang-tools-11 clang-11-doc libclang-common-11-dev libclang-11-dev libclang1-11 
-    - name: collect-dependencies
-      run: git submodule update --recursive --init 
-    - name: build 
-      run: mkdir build && cd build && cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang ../ && make all -j4 && make test
+      - name: Checkout repository and submodules
+        uses: actions/checkout@v2
+        with:
+          submodules: recursive
+          path: marco
 
+      - name: Tar
+        run: tar -cvf marco.tar marco
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.5.1
+        with:
+          ssh-private-key: ${{secrets.SSH_KEY}}
+
+      - name: Save server fingerprint
+        run: echo "$SSH_FINGERPRINT" > /home/runner/.ssh/known_hosts
+        env:
+          SSH_FINGERPRINT: ${{secrets.SERVER_FINGERPRINT}}
+
+      - name: Copy tar to server
+        id: copy
+        run: scp marco.tar ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}}:marco.tar
+
+      - name: Untar
+        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} tar -xvf marco.tar
+
+      - name: Build
+        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} mkdir marco/build '&&' cd marco/build '&&' cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_EXE_LINKER_FLAGS='-fuse-ld=gold' -DBOOST_ROOT=${{secrets.BOOST_ROOT}} -DLLVM_DIR=${{secrets.LLVM_PATH}}/lib/cmake/llvm -DMLIR_DIR=${{secrets.LLVM_PATH}}/lib/cmake/mlir '&&' ninja
+
+      - name: Run tests
+        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd marco/build '&&' ninja test
+
+      - name: Clean remote files
+        if: always() && steps.copy.outcome == 'success'
+        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} rm marco.tar '&&' rm -r -f marco
+
+# Old steps to run tests on Github:
+#steps:
+#  - uses: actions/checkout@v2
+#  - name: fetch libboost
+#    run: sudo apt-get install libboost-all-dev
+#  - name: fetch llvm key
+#    run:  wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add
+#  - name: add apt repo
+#    run: sudo add-apt-repository 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal-11 main'
+#  - name: install llvm
+#    run: sudo apt install libllvm-11-ocaml-dev libllvm11 llvm-11 llvm-11-dev llvm-11-doc llvm-11-examples llvm-11-runtime clang-11 clang-tools-11 clang-11-doc libclang-common-11-dev libclang-11-dev libclang1-11
+#  - name: collect-dependencies
+#    run: git submodule update --recursive --init
+#  - name: build
+#    run: mkdir build && cd build && cmake -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang ../ && make all -j4 && make test
