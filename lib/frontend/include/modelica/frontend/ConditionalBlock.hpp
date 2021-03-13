@@ -15,8 +15,8 @@ namespace modelica
 		using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
 
 		public:
-		using iterator = boost::indirect_iterator<typename Container::iterator>;
-		using const_iterator = boost::indirect_iterator<typename Container::const_iterator>;
+		using iterator = typename Container::iterator;
+		using const_iterator = typename Container::const_iterator;
 
 		ConditionalBlock(Expression condition, llvm::ArrayRef<T> body)
 				: condition(std::move(condition))
@@ -55,6 +55,10 @@ namespace modelica
 		[[nodiscard]] Expression& getCondition() { return condition; }
 
 		[[nodiscard]] const Expression& getCondition() const { return condition; }
+
+		[[nodiscard]] Container& getBody() { return body; }
+
+		[[nodiscard]] const Container& getBody() const { return body; }
 
 		[[nodiscard]] size_t size() const { return body.size(); }
 

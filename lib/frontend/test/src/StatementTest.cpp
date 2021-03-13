@@ -321,6 +321,26 @@ TEST(Parser, whileStatementBody)	 // NOLINT
 	EXPECT_EQ(ast->size(), 2);
 }
 
+TEST(TypeChecker, assignmentStatementConstant)	 // NOLINT
+{
+	Parser parser("function Foo"
+								"  output Integer y;"
+								"algorithm"
+								"  y := 1;"
+								"end Foo;");
+
+	auto ast = parser.classDefinition();
+	ASSERT_FALSE(!ast);
+
+	TypeChecker typeChecker;
+	EXPECT_TRUE(!typeChecker.check(*ast));
+
+	auto& statement = (*ast->get<Function>().getAlgorithms()[0])[0].get<AssignmentStatement>();
+	EXPECT_EQ(statement.getDestinations().size(), 1);
+	EXPECT_EQ(statement.getDestinations()[0].getType(), makeType<int>());
+	EXPECT_EQ(statement.getExpression().getType(), makeType<int>());
+}
+
 TEST(TypeChecker, assignmentStatementReference)	 // NOLINT
 {
 	Parser parser("function Foo"
@@ -342,13 +362,14 @@ TEST(TypeChecker, assignmentStatementReference)	 // NOLINT
 	EXPECT_EQ(statement.getExpression().getType(), makeType<int>());
 }
 
-TEST(TypeChecker, assignmentStatementReferenceImplicitCast)	 // NOLINT
+TEST(TypeChecker, assignmentStatementOperation)	 // NOLINT
 {
 	Parser parser("function Foo"
 								"  input Integer x;"
-								"  output Real y;"
+								"  input Real y;"
+								"  output Integer z;"
 								"algorithm"
-								"  y := x;"
+								"  z := x + y;"
 								"end Foo;");
 
 	auto ast = parser.classDefinition();
@@ -359,6 +380,28 @@ TEST(TypeChecker, assignmentStatementReferenceImplicitCast)	 // NOLINT
 
 	auto& statement = (*ast->get<Function>().getAlgorithms()[0])[0].get<AssignmentStatement>();
 	EXPECT_EQ(statement.getDestinations().size(), 1);
-	EXPECT_EQ(statement.getDestinations()[0].getType(), makeType<float>());
+	EXPECT_EQ(statement.getDestinations()[0].getType(), makeType<int>());
 	EXPECT_EQ(statement.getExpression().getType(), makeType<float>());
+}
+
+TEST(TypeChecker, assignmentStatementCall)	 // NOLINT
+{
+	Parser parser("function Foo"
+								"  input Integer x;"
+								"  input Real y;"
+								"  output Integer z;"
+								"algorithm"
+								"  z := Foo(z, z);"
+								"end Foo;");
+
+	auto ast = parser.classDefinition();
+	ASSERT_FALSE(!ast);
+
+	TypeChecker typeChecker;
+	EXPECT_TRUE(!typeChecker.check(*ast));
+
+	auto& statement = (*ast->get<Function>().getAlgorithms()[0])[0].get<AssignmentStatement>();
+	EXPECT_EQ(statement.getDestinations().size(), 1);
+	EXPECT_EQ(statement.getDestinations()[0].getType(), makeType<int>());
+	EXPECT_EQ(statement.getExpression().getType(), makeType<int>());
 }

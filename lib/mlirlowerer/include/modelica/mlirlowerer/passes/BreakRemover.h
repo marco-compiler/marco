@@ -9,6 +9,8 @@ namespace modelica
 	{
 		public:
 		void fix(modelica::ClassContainer& cls);
+
+		private:
 		void fix(modelica::Class& cls);
 		void fix(modelica::Function& function);
 		void fix(modelica::Algorithm& algorithm);
@@ -16,7 +18,6 @@ namespace modelica
 		template<typename T>
 		bool fix(modelica::Statement& statement);
 
-		private:
 		int nestLevel = 0;
 	};
 

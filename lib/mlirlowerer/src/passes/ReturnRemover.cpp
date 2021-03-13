@@ -73,10 +73,10 @@ bool ReturnRemover::fix<modelica::IfStatement>(modelica::Statement& statement)
 				Expression reference = Expression::reference(SourcePosition::unknown(), makeType<bool>(), "__mustReturn");
 				Expression falseConstant = Expression::constant(SourcePosition::unknown(), makeType<bool>(), false);
 				Expression condition = Expression::operation(SourcePosition::unknown(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
-				stmnt = IfStatement(SourcePosition::unknown(), IfStatement::Block(condition, stmnt));
+				stmnt = std::make_shared<Statement>(IfStatement(SourcePosition::unknown(), IfStatement::Block(condition, *stmnt)));
 			}
 
-			blockCanReturn |= fix<modelica::Statement>(stmnt);
+			blockCanReturn |= fix<modelica::Statement>(*stmnt);
 		}
 
 		canReturn |= blockCanReturn;
@@ -98,10 +98,10 @@ bool ReturnRemover::fix<modelica::ForStatement>(modelica::Statement& statement)
 			Expression reference = Expression::reference(SourcePosition::unknown(), makeType<bool>(), "__mustReturn");
 			Expression falseConstant = Expression::constant(SourcePosition::unknown(), makeType<bool>(), false);
 			Expression condition = Expression::operation(SourcePosition::unknown(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
-			stmnt = IfStatement(SourcePosition::unknown(), IfStatement::Block(condition, stmnt));
+			stmnt = std::make_shared<Statement>(IfStatement(SourcePosition::unknown(), IfStatement::Block(condition, *stmnt)));
 		}
 
-		canReturn |= fix<modelica::Statement>(stmnt);
+		canReturn |= fix<modelica::Statement>(*stmnt);
 	}
 
 	forStatement.setReturnCheckName("__mustReturn");
@@ -121,10 +121,10 @@ bool ReturnRemover::fix<modelica::WhileStatement>(modelica::Statement& statement
 			Expression reference = Expression::reference(SourcePosition::unknown(), makeType<bool>(), "__mustReturn");
 			Expression falseConstant = Expression::constant(SourcePosition::unknown(), makeType<bool>(), false);
 			Expression condition = Expression::operation(SourcePosition::unknown(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
-			stmnt = IfStatement(SourcePosition::unknown(), IfStatement::Block(condition, stmnt));
+			stmnt = std::make_shared<Statement>(IfStatement(SourcePosition::unknown(), IfStatement::Block(condition, *stmnt)));
 		}
 
-		canReturn |= fix<modelica::Statement>(stmnt);
+		canReturn |= fix<modelica::Statement>(*stmnt);
 	}
 
 	whileStatement.setReturnCheckName("__mustReturn");

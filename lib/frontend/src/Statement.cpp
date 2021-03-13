@@ -137,7 +137,7 @@ ForStatement::ForStatement(
 			induction(move(induction))
 {
 	for (const auto& statement : statements)
-		this->statements.push_back(std::make_unique<Statement>(statement));
+		this->statements.push_back(std::make_shared<Statement>(statement));
 }
 
 ForStatement::ForStatement(const ForStatement& other)
@@ -149,7 +149,7 @@ ForStatement::ForStatement(const ForStatement& other)
 	statements.clear();
 
 	for (const auto& statement : other.statements)
-		statements.push_back(std::make_unique<Statement>(*statement));
+		statements.push_back(std::make_shared<Statement>(*statement));
 }
 
 ForStatement& ForStatement::operator=(const ForStatement& other)
@@ -164,7 +164,7 @@ ForStatement& ForStatement::operator=(const ForStatement& other)
 	returnCheckName = other.returnCheckName;
 
 	for (const auto& statement : other.statements)
-		statements.push_back(std::make_unique<Statement>(*statement));
+		statements.push_back(std::make_shared<Statement>(*statement));
 
 	return *this;
 }
@@ -224,6 +224,16 @@ void ForStatement::setReturnCheckName(string name)
 Induction& ForStatement::getInduction() { return induction; }
 
 const Induction& ForStatement::getInduction() const { return induction; }
+
+ForStatement::Container& ForStatement::getBody()
+{
+	return statements;
+}
+
+const ForStatement::Container& ForStatement::getBody() const
+{
+	return statements;
+}
 
 size_t ForStatement::size() const { return statements.size(); }
 

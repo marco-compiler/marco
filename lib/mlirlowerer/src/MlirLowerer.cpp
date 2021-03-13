@@ -418,7 +418,7 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 		builder.setInsertionPointToStart(&ifOp.thenRegion().front());
 
 		for (const auto& stmnt : conditionalBlock)
-			lower(stmnt);
+			lower(*stmnt);
 
 		builder.create<YieldOp>(loc(statement.getLocation()));
 
@@ -481,7 +481,7 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 		builder.setInsertionPointToStart(&forOp.body().front());
 
 		for (const auto& stmnt : statement)
-			lower(stmnt);
+			lower(*stmnt);
 
 		builder.create<YieldOp>(location, *symbolTable.lookup(induction.getName()));
 	}
@@ -535,7 +535,7 @@ void MlirLowerer::lower(const modelica::WhileStatement& statement)
 		builder.setInsertionPointToStart(&whileOp.body().front());
 
 		for (const auto& stmnt : statement)
-			lower(stmnt);
+			lower(*stmnt);
 
 		builder.create<YieldOp>(location);
 	}

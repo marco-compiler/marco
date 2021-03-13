@@ -3,7 +3,7 @@
 
 using namespace modelica;
 
-TEST(Parser, emptyAlgorithm)	 // NOLINT
+TEST(Parser, algorithmWithNoStatements)	 // NOLINT
 {
 	Parser parser("algorithm");
 

@@ -82,6 +82,84 @@ TEST(Assignment, variableCopy)	 // NOLINT
 	EXPECT_EQ(y, x);
 }
 
+TEST(Assignment, implicitCastIntegerToFloat)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   output Real y;
+	 *
+	 *   algorithm
+	 *     y := x;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<float>(), "y"),
+			Expression::reference(location, makeType<int>(), "x"));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	auto module = lowerer.lower(cls);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	int x = 57;
+	float y = 0;
+
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	EXPECT_FLOAT_EQ(y, x);
+}
+
+TEST(Assignment, implicitCastFloatToInteger)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Real x;
+	 *   output Integer y;
+	 *
+	 *   algorithm
+	 *     y := x;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::reference(location, makeType<float>(), "x"));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MlirLowerer lowerer(context);
+	auto module = lowerer.lower(cls);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	float x = 1.8;
+	int y = 0;
+
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	EXPECT_EQ(y, (int) x);
+}
+
 TEST(Assignment, arraySliceAssignment)	 // NOLINT
 {
 	/**

@@ -52,17 +52,31 @@ bool BreakRemover::fix<modelica::IfStatement>(modelica::Statement& statement)
 	{
 		bool blockBreakable = false;
 
+		llvm::SmallVector<std::shared_ptr<Statement>, 3> statements;
+		llvm::SmallVector<std::shared_ptr<Statement>, 3> avoidableStatements;
+
 		for (auto& stmnt : block)
 		{
 			if (blockBreakable)
-			{
-				Expression reference = Expression::reference(SourcePosition::unknown(), makeType<bool>(), "__mustBreak" + to_string(nestLevel));
-				Expression falseConstant = Expression::constant(SourcePosition::unknown(), makeType<bool>(), false);
-				Expression condition = Expression::operation(SourcePosition::unknown(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
-				stmnt = IfStatement(SourcePosition::unknown(), IfStatement::Block(condition, stmnt));
-			}
+				avoidableStatements.push_back(stmnt);
+			else
+				statements.push_back(stmnt);
 
-			blockBreakable |= fix<modelica::Statement>(stmnt);
+			blockBreakable |= fix<modelica::Statement>(*stmnt);
+		}
+
+		if (blockBreakable && !avoidableStatements.empty())
+		{
+			Expression reference = Expression::reference(ifStatement.getLocation(), makeType<bool>(), "__mustBreak" + to_string(nestLevel));
+			Expression falseConstant = Expression::constant(ifStatement.getLocation(), makeType<bool>(), false);
+			Expression condition = Expression::operation(ifStatement.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
+
+			// Create the block of code to be executed if a break is not called
+			IfStatement::Block breakNotCalledBlock(condition, {});
+			breakNotCalledBlock.getBody() = avoidableStatements;
+			statements.push_back(std::make_shared<Statement>(IfStatement(ifStatement.getLocation(), breakNotCalledBlock)));
+
+			block.getBody() = statements;
 		}
 
 		breakable |= blockBreakable;
@@ -78,19 +92,32 @@ bool BreakRemover::fix<modelica::ForStatement>(modelica::Statement& statement)
 	bool breakable = false;
 	nestLevel++;
 
+	llvm::SmallVector<std::shared_ptr<Statement>, 3> statements;
+	llvm::SmallVector<std::shared_ptr<Statement>, 3> avoidableStatements;
+
 	for (auto& stmnt : forStatement)
 	{
 		if (breakable)
-		{
-			Expression reference = Expression::reference(SourcePosition::unknown(), makeType<bool>(), "__mustBreak" + to_string(nestLevel));
-			Expression falseConstant = Expression::constant(SourcePosition::unknown(), makeType<bool>(), false);
-			Expression condition = Expression::operation(SourcePosition::unknown(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
-			stmnt = IfStatement(SourcePosition::unknown(), IfStatement::Block(condition, stmnt));
-		}
+			avoidableStatements.push_back(stmnt);
+		else
+			statements.push_back(stmnt);
 
-		breakable |= fix<modelica::Statement>(stmnt);
+		breakable |= fix<modelica::Statement>(*stmnt);
 	}
 
+	if (breakable && !avoidableStatements.empty())
+	{
+		Expression reference = Expression::reference(forStatement.getLocation(), makeType<bool>(), "__mustBreak" + to_string(nestLevel));
+		Expression falseConstant = Expression::constant(forStatement.getLocation(), makeType<bool>(), false);
+		Expression condition = Expression::operation(forStatement.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
+
+		// Create the block of code to be executed if a break is not called
+		IfStatement::Block breakNotCalledBlock(condition, {});
+		breakNotCalledBlock.getBody() = avoidableStatements;
+		statements.push_back(std::make_shared<Statement>(IfStatement(forStatement.getLocation(), breakNotCalledBlock)));
+	}
+
+	forStatement.getBody() = statements;
 	forStatement.setBreakCheckName("__mustBreak" + to_string(nestLevel));
 	nestLevel--;
 
@@ -105,19 +132,32 @@ bool BreakRemover::fix<modelica::WhileStatement>(modelica::Statement& statement)
 	bool breakable = false;
 	nestLevel++;
 
+	llvm::SmallVector<std::shared_ptr<Statement>, 3> statements;
+	llvm::SmallVector<std::shared_ptr<Statement>, 3> avoidableStatements;
+
 	for (auto& stmnt : whileStatement)
 	{
 		if (breakable)
-		{
-			Expression reference = Expression::reference(SourcePosition::unknown(), makeType<bool>(), "__mustBreak" + to_string(nestLevel));
-			Expression falseConstant = Expression::constant(SourcePosition::unknown(), makeType<bool>(), false);
-			Expression condition = Expression::operation(SourcePosition::unknown(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
-			stmnt = IfStatement(SourcePosition::unknown(), IfStatement::Block(condition, stmnt));
-		}
+			avoidableStatements.push_back(stmnt);
+		else
+			statements.push_back(stmnt);
 
-		breakable |= fix<modelica::Statement>(stmnt);
+		breakable |= fix<modelica::Statement>(*stmnt);
 	}
 
+	if (breakable && !avoidableStatements.empty())
+	{
+		Expression reference = Expression::reference(whileStatement.getLocation(), makeType<bool>(), "__mustBreak" + to_string(nestLevel));
+		Expression falseConstant = Expression::constant(whileStatement.getLocation(), makeType<bool>(), false);
+		Expression condition = Expression::operation(whileStatement.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
+
+		// Create the block of code to be executed if a break is not called
+		IfStatement::Block breakNotCalledBlock(condition, {});
+		breakNotCalledBlock.getBody() = avoidableStatements;
+		statements.push_back(std::make_shared<Statement>(IfStatement(whileStatement.getLocation(), breakNotCalledBlock)));
+	}
+
+	whileStatement.getBody() = statements;
 	whileStatement.setBreakCheckName("__mustBreak" + to_string(nestLevel));
 	nestLevel--;
 

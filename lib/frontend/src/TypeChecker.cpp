@@ -376,7 +376,7 @@ Error TypeChecker::check(IfStatement& statement)
 			return error;
 
 		for (auto& stmnt : block)
-			if (auto error = check(stmnt); error)
+			if (auto error = check(*stmnt); error)
 				return error;
 	}
 
@@ -394,7 +394,7 @@ Error TypeChecker::check(ForStatement& statement)
 		return error;
 
 	for (auto& stmnt : statement)
-		if (auto error = check(stmnt); error)
+		if (auto error = check(*stmnt); error)
 			return error;
 
 	return Error::success();
@@ -406,7 +406,7 @@ Error TypeChecker::check(WhileStatement& statement)
 		return error;
 
 	for (auto& stmnt : statement)
-		if (auto error = check(stmnt); error)
+		if (auto error = check(*stmnt); error)
 			return error;
 
 	return Error::success();
@@ -418,7 +418,7 @@ Error TypeChecker::check(WhenStatement& statement)
 		return error;
 
 	for (auto& stmnt : statement)
-		if (auto error = check(stmnt); error)
+		if (auto error = check(*stmnt); error)
 			return error;
 
 	return Error::success();
@@ -559,6 +559,23 @@ Error TypeChecker::check<Expression>(Expression& expression)
 	});
 }
 
+static bool operator>=(Type x, Type y)
+{
+	assert(x.isA<BuiltInType>());
+	assert(y.isA<BuiltInType>());
+
+	if (x.get<BuiltInType>() == BuiltInType::Float)
+		return true;
+
+	if (x.get<BuiltInType>() == BuiltInType::Integer)
+		return y.get<BuiltInType>() != BuiltInType::Float;
+
+	if (x.get<BuiltInType>() == BuiltInType::Boolean)
+		return y.get<BuiltInType>() == BuiltInType::Boolean;
+
+	return false;
+}
+
 template<>
 Error TypeChecker::check<Operation>(Expression& expression)
 {
@@ -572,10 +589,24 @@ Error TypeChecker::check<Operation>(Expression& expression)
 	switch (op.getKind())
 	{
 		case OperationKind::negate:
+			expression.setType(op[0].getType());
+			return Error::success();
+
 		case OperationKind::add:
 		case OperationKind::subtract:
 		case OperationKind::multiply:
 		case OperationKind::divide:
+		{
+			Type result = op[0].getType();
+
+			for (auto& arg : op)
+				if (arg.getType() >= result)
+					result = arg.getType();
+
+			expression.setType(result);
+			return Error::success();
+		}
+
 		case OperationKind::powerOf:
 			expression.setType(op[0].getType());
 			return Error::success();

@@ -94,12 +94,12 @@ namespace modelica
 	class ForStatement
 	{
 		private:
-		using UniqueStatement = std::unique_ptr<Statement>;
+		using UniqueStatement = std::shared_ptr<Statement>;
 		using Container = llvm::SmallVector<UniqueStatement, 3>;
 
 		public:
-		using statements_iterator = boost::indirect_iterator<Container::iterator>;
-		using statements_const_iterator = boost::indirect_iterator<Container::const_iterator>;
+		using statements_iterator = Container::iterator;
+		using statements_const_iterator = Container::const_iterator;
 
 		ForStatement(SourcePosition location, Induction induction, llvm::ArrayRef<Statement> statements);
 
@@ -127,6 +127,9 @@ namespace modelica
 
 		[[nodiscard]] Induction& getInduction();
 		[[nodiscard]] const Induction& getInduction() const;
+
+		[[nodiscard]] Container& getBody();
+		[[nodiscard]] const Container& getBody() const;
 
 		[[nodiscard]] size_t size() const;
 
