@@ -1,8 +1,7 @@
 #include <gtest/gtest.h>
 #include <mlir/ExecutionEngine/CRunnerUtils.h>
 #include <mlir/IR/Dialect.h>
-#include <modelica/mlirlowerer/passes/BreakRemover.h>
-#include <modelica/mlirlowerer/passes/ReturnRemover.h>
+#include <modelica/frontend/AST.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
@@ -467,12 +466,6 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 			forAssignment);
 
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, forStatement)));
-
-	BreakRemover breakRemover;
-	breakRemover.fix(cls);
-
-	ReturnRemover returnRemover;
-	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);

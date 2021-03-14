@@ -1,10 +1,9 @@
 #include <gtest/gtest.h>
 #include <llvm/ADT/StringMap.h>
 #include <llvm/Support/Error.h>
-#include <modelica/frontend/Expression.hpp>
+#include <modelica/frontend/AST.h>
 #include <modelica/frontend/Parser.hpp>
-#include <modelica/frontend/Type.hpp>
-#include <modelica/frontend/TypeChecker.hpp>
+#include <modelica/frontend/passes/TypeCheckingPass.h>
 #include <modelica/utils/ErrorTest.hpp>
 
 using namespace llvm;
@@ -22,7 +21,7 @@ TEST(TypeCheckTest, sumOfIntShouldProduceInt)	 // NOLINT
 
 	TypeChecker checker;
 
-	if (checker.check<Expression>(exp))
+	if (checker.run<Expression>(exp))
 		FAIL();
 
 	EXPECT_EQ(exp.getType(), makeType<int>());
@@ -39,7 +38,7 @@ TEST(TypeCheckTest, andOfBoolShouldProduceBool)	 // NOLINT
 
 	TypeChecker checker;
 
-	if (checker.check<Expression>(exp))
+	if (checker.run<Expression>(exp))
 		FAIL();
 
 	EXPECT_EQ(exp.getType(), makeType<bool>());

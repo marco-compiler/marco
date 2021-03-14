@@ -1,7 +1,6 @@
-#include "gtest/gtest.h"
-
-#include "modelica/frontend/LexerStateMachine.hpp"
-#include "modelica/utils/Lexer.hpp"
+#include <gtest/gtest.h>
+#include <modelica/frontend/LexerStateMachine.hpp>
+#include <modelica/utils/Lexer.hpp>
 
 TEST(LexerStateMachineTest, checkDefaults)
 {

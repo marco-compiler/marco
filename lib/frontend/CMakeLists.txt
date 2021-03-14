@@ -1,29 +1,33 @@
 modelicaAddLibrary(
         frontend SHARED
-        src/Algorithm.cpp
-        src/Call.cpp
-        src/Class.cpp
-		src/ClassContainer.cpp
-        src/Constant.cpp
-        src/ConstantFolder.cpp
-        src/Equation.cpp
-        src/Expression.cpp
-        src/ForEquation.cpp
-		src/Function.cpp
-        src/Induction.cpp
+		src/ast/Algorithm.cpp
+		src/ast/Call.cpp
+		src/ast/Class.cpp
+		src/ast/ClassContainer.cpp
+		src/ast/Constant.cpp
+		src/ast/Equation.cpp
+		src/ast/Expression.cpp
+		src/ast/ForEquation.cpp
+		src/ast/Function.cpp
+		src/ast/Induction.cpp
+		src/ast/Member.cpp
+		src/ast/Operation.cpp
+		src/ast/ReferenceAccess.cpp
+		src/ast/Statement.cpp
+		src/ast/Tuple.cpp
+		src/ast/Type.cpp
+		src/ast/TypePrefix.cpp
+		src/passes/BreakRemovingPass.cpp
+		src/passes/ConstantFoldingPass.cpp
+		src/passes/PassManager.cpp
+		src/passes/ReturnRemovingPass.cpp
+		src/passes/TypeCheckingPass.cpp
         src/LexerStateMachine.cpp
-        src/Member.cpp
-        src/Operation.cpp
         src/Parser.cpp
         src/ParserErrors.cpp
-        src/ReferenceAccess.cpp
-        src/Statement.cpp
 		src/Symbol.cpp
 		src/SymbolTable.cpp
-        src/Tuple.cpp
-        src/Type.cpp
-		src/TypeChecker.cpp
-		src/TypePrefix.cpp
+
 )
 
 target_link_libraries(frontend PUBLIC modelica::model boost)

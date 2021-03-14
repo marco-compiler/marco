@@ -1,8 +1,5 @@
 #include <gtest/gtest.h>
-
-#include <modelica/frontend/Constant.hpp>
-#include <modelica/frontend/Expression.hpp>
-#include <modelica/frontend/Type.hpp>
+#include <modelica/frontend/AST.h>
 
 using namespace modelica;
 

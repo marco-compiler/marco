@@ -3,19 +3,12 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Error.h>
 #include <memory>
-#include <modelica/frontend/ClassContainer.hpp>
-#include <modelica/frontend/Constant.hpp>
-#include <modelica/frontend/Equation.hpp>
-#include <modelica/frontend/Expression.hpp>
-#include <modelica/frontend/ForEquation.hpp>
 #include <modelica/frontend/LexerStateMachine.hpp>
-#include <modelica/frontend/Member.hpp>
 #include <modelica/frontend/ParserErrors.hpp>
-#include <modelica/frontend/ReferenceAccess.hpp>
-#include <modelica/frontend/Type.hpp>
-#include <modelica/frontend/TypePrefix.hpp>
 #include <modelica/utils/Lexer.hpp>
 #include <optional>
+
+#include "AST.h"
 
 namespace modelica
 {

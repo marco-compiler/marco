@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
+#include <modelica/frontend/AST.h>
+#include <modelica/frontend/Passes.h>
 #include <modelica/frontend/Parser.hpp>
-#include <modelica/frontend/Statement.hpp>
-#include <modelica/frontend/TypeChecker.hpp>
 
 using namespace modelica;
 
@@ -333,7 +333,7 @@ TEST(TypeChecker, assignmentStatementConstant)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	TypeChecker typeChecker;
-	EXPECT_TRUE(!typeChecker.check(*ast));
+	EXPECT_TRUE(!typeChecker.run(*ast));
 
 	auto& statement = (*ast->get<Function>().getAlgorithms()[0])[0].get<AssignmentStatement>();
 	EXPECT_EQ(statement.getDestinations().size(), 1);
@@ -354,7 +354,7 @@ TEST(TypeChecker, assignmentStatementReference)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	TypeChecker typeChecker;
-	EXPECT_TRUE(!typeChecker.check(*ast));
+	EXPECT_TRUE(!typeChecker.run(*ast));
 
 	auto& statement = (*ast->get<Function>().getAlgorithms()[0])[0].get<AssignmentStatement>();
 	EXPECT_EQ(statement.getDestinations().size(), 1);
@@ -376,7 +376,7 @@ TEST(TypeChecker, assignmentStatementOperation)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	TypeChecker typeChecker;
-	EXPECT_TRUE(!typeChecker.check(*ast));
+	EXPECT_TRUE(!typeChecker.run(*ast));
 
 	auto& statement = (*ast->get<Function>().getAlgorithms()[0])[0].get<AssignmentStatement>();
 	EXPECT_EQ(statement.getDestinations().size(), 1);
@@ -398,7 +398,7 @@ TEST(TypeChecker, assignmentStatementCall)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	TypeChecker typeChecker;
-	EXPECT_TRUE(!typeChecker.check(*ast));
+	EXPECT_TRUE(!typeChecker.run(*ast));
 
 	auto& statement = (*ast->get<Function>().getAlgorithms()[0])[0].get<AssignmentStatement>();
 	EXPECT_EQ(statement.getDestinations().size(), 1);

@@ -9,8 +9,7 @@
 #include <mlir/IR/Verifier.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
-#include <modelica/frontend/Algorithm.hpp>
-#include <modelica/frontend/Statement.hpp>
+#include <modelica/frontend/AST.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/LowerToLLVM.h>

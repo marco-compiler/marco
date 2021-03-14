@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "modelica/frontend/Constant.hpp"
+#include "modelica/frontend/AST.h"
 #include "modelica/frontend/Parser.hpp"
 #include "modelica/frontend/SymbolTable.hpp"
 #include "modelica/omcToModel/OmcToModelPass.hpp"

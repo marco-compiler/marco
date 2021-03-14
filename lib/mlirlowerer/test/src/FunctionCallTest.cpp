@@ -6,8 +6,8 @@
 #include <mlir/InitAllDialects.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <modelica/frontend/Parser.hpp>
-#include <modelica/frontend/Statement.hpp>
+#include <modelica/frontend/AST.h>
+#include <modelica/frontend/Passes.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/Runner.h>

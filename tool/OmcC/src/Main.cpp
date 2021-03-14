@@ -1,10 +1,10 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "modelica/frontend/ConstantFolder.hpp"
+#include "modelica/frontend/Passes.h"
 #include "modelica/frontend/Parser.hpp"
 #include "modelica/frontend/SymbolTable.hpp"
-#include "modelica/frontend/TypeChecker.hpp"
+#include "modelica/frontend/passes/TypeCheckingPass.h"
 #include "modelica/lowerer/Lowerer.hpp"
 #include "modelica/matching/Matching.hpp"
 #include "modelica/matching/SccCollapsing.hpp"
@@ -128,7 +128,7 @@ int main(int argc, char* argv[])
 	auto ast = exitOnErr(parser.classDefinition());
 
 	TypeChecker checker;
-	exitOnErr(checker.check(ast));
+	exitOnErr(checker.run(ast));
 	if (dumpTypeChecked)
 	{
 		ast.dump(OS);
@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
 	}
 
 	modelica::ConstantFolder folder;
-	exitOnErr(folder.fold(ast, SymbolTable()));
+	exitOnErr(folder.run(ast));
 	if (dumpFolded)
 	{
 		ast.dump(OS);

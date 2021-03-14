@@ -1,10 +1,7 @@
 #pragma once
 
 #include "llvm/Support/Error.h"
-#include "modelica/frontend/Class.hpp"
-#include "modelica/frontend/Equation.hpp"
-#include "modelica/frontend/Expression.hpp"
-#include "modelica/frontend/ForEquation.hpp"
+#include "modelica/frontend/AST.h"
 #include "modelica/frontend/SymbolTable.hpp"
 #include "modelica/model/ModCall.hpp"
 #include "modelica/model/ModExp.hpp"

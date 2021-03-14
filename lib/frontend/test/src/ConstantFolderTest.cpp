@@ -1,13 +1,8 @@
-#include "gtest/gtest.h"
-
-#include "modelica/frontend/Constant.hpp"
-#include "modelica/frontend/ConstantFolder.hpp"
-#include "modelica/frontend/Expression.hpp"
-#include "modelica/frontend/Member.hpp"
-#include "modelica/frontend/Parser.hpp"
-#include "modelica/frontend/ReferenceAccess.hpp"
-#include "modelica/frontend/SymbolTable.hpp"
-#include "modelica/frontend/Type.hpp"
+#include <gtest/gtest.h>
+#include <modelica/frontend/AST.h>
+#include <modelica/frontend/Parser.hpp>
+#include <modelica/frontend/Passes.h>
+#include <modelica/frontend/SymbolTable.hpp>
 
 using namespace modelica;
 using namespace std;
@@ -22,7 +17,7 @@ TEST(folderTest, sumShouldFold)
 			Expression::constant(SourcePosition::unknown(), makeType<int>(), 4));
 
 	ConstantFolder folder;
-	if (folder.fold(exp, SymbolTable()))
+	if (folder.run(exp))
 		FAIL();
 
 	EXPECT_TRUE(exp.isA<Constant>());
@@ -39,7 +34,7 @@ TEST(folderTest, subShouldFold)
 			Expression::constant(SourcePosition::unknown(), makeType<int>(), 2));
 
 	ConstantFolder folder;
-	if (folder.fold(exp, SymbolTable()))
+	if (folder.run(exp))
 		FAIL();
 
 	EXPECT_TRUE(exp.isA<Constant>());
@@ -56,7 +51,7 @@ TEST(folderTest, sumOfSubShouldFold)
 			Expression::constant(SourcePosition::unknown(), makeType<int>(), -1));
 
 	ConstantFolder folder;
-	if (folder.fold(exp, SymbolTable()))
+	if (folder.run(exp))
 		FAIL();
 
 	EXPECT_TRUE(exp.isA<Constant>());
@@ -80,11 +75,13 @@ TEST(folderTest, sumInSubscriptionShouldFold)
 			exp);
 
 	ConstantFolder folder;
+	auto& symbolTable = folder.getSymbolTable();
+	ConstantFolder::SymbolTableScope scope(symbolTable);
 
-	SymbolTable t;
 	Member m(SourcePosition::unknown(), "name", makeType<int>(10), TypePrefix::none());
-	t.addSymbol(m);
-	if (folder.fold(exp, t))
+	symbolTable.insert(m.getName(), Symbol(m));
+
+	if (folder.run(exp))
 		FAIL();
 
 	EXPECT_TRUE(exp.isA<Operation>());
@@ -111,12 +108,15 @@ TEST(folderTest, sumInSubscriptionInDerShouldFold)
 
 	auto refToDer = Expression::reference(SourcePosition::unknown(), Type::unknown(), "der");
 	auto call = Expression::call(SourcePosition::unknown(), Type::unknown(), move(refToDer), move(exp));
-	ConstantFolder folder;
 
-	SymbolTable t;
+	ConstantFolder folder;
+	auto& symbolTable = folder.getSymbolTable();
+	ConstantFolder::SymbolTableScope scope(symbolTable);
+
 	Member m(SourcePosition::unknown(), "name", makeType<int>(10), TypePrefix::none());
-	t.addSymbol(m);
-	if (folder.fold(call, t))
+	symbolTable.insert(m.getName(), Symbol(m));
+
+	if (folder.run(call))
 		FAIL();
 
 	EXPECT_TRUE(call.isA<Call>());
@@ -141,7 +141,8 @@ TEST(folderTest, startDeclarationWithReference)	 // NOLINT
 	auto ast = move(*expectedAST);
 
 	ConstantFolder folder;
-	if (folder.fold(ast, {}))
+
+	if (folder.run(ast))
 		FAIL();
 
 	const auto& model = ast.get<Class>();

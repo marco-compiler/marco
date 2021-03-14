@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <mlir/IR/Dialect.h>
-#include <modelica/frontend/Statement.hpp>
+#include <modelica/frontend/AST.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
@@ -30,7 +30,6 @@ TEST(Assignment, constant)	 // NOLINT
 			Expression::constant(location, makeType<int>(), 57));
 
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, assignment)));
-
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);

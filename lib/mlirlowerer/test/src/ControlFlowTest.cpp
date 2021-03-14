@@ -2,10 +2,8 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
-#include <modelica/frontend/Expression.hpp>
-#include <modelica/frontend/Member.hpp>
-#include <modelica/mlirlowerer/passes/BreakRemover.h>
-#include <modelica/mlirlowerer/passes/ReturnRemover.h>
+#include <modelica/frontend/AST.h>
+#include <modelica/frontend/Passes.h>
 #include <modelica/mlirlowerer/MlirLowerer.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
@@ -257,12 +255,6 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 			{ xMember, yMember },
 			algorithm));
 
-	BreakRemover breakRemover;
-	breakRemover.fix(cls);
-
-	ReturnRemover returnRemover;
-	returnRemover.fix(cls);
-
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
@@ -321,12 +313,6 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 			location, "main", true,
 			{ xMember, yMember },
 			algorithm));
-
-	BreakRemover breakRemover;
-	breakRemover.fix(cls);
-
-	ReturnRemover returnRemover;
-	returnRemover.fix(cls);
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
@@ -389,12 +375,6 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 			{ xMember, yMember, iMember },
 			algorithm));
 
-	BreakRemover breakRemover;
-	breakRemover.fix(cls);
-
-	ReturnRemover returnRemover;
-	returnRemover.fix(cls);
-
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
@@ -444,11 +424,9 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 			{ yMember },
 			algorithm));
 
-	BreakRemover breakRemover;
-	breakRemover.fix(cls);
-
-	ReturnRemover returnRemover;
-	returnRemover.fix(cls);
+	PassManager passManager;
+	passManager.addPass(createBreakRemovingPass());
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
@@ -506,11 +484,9 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 			{ yMember },
 			algorithm));
 
-	BreakRemover breakRemover;
-	breakRemover.fix(cls);
-
-	ReturnRemover returnRemover;
-	returnRemover.fix(cls);
+	PassManager passManager;
+	passManager.addPass(createBreakRemovingPass());
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
@@ -560,11 +536,9 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 			{ yMember },
 			algorithm));
 
-	BreakRemover breakRemover;
-	breakRemover.fix(cls);
-
-	ReturnRemover returnRemover;
-	returnRemover.fix(cls);
+	PassManager passManager;
+	passManager.addPass(createBreakRemovingPass());
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
@@ -633,11 +607,9 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 			{ yMember },
 			algorithm));
 
-	BreakRemover breakRemover;
-	breakRemover.fix(cls);
-
-	ReturnRemover returnRemover;
-	returnRemover.fix(cls);
+	PassManager passManager;
+	passManager.addPass(createBreakRemovingPass());
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
@@ -694,11 +666,9 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 			{ yMember },
 			algorithm));
 
-	BreakRemover breakRemover;
-	breakRemover.fix(cls);
-
-	ReturnRemover returnRemover;
-	returnRemover.fix(cls);
+	PassManager passManager;
+	passManager.addPass(createBreakRemovingPass());
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
@@ -768,11 +738,9 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 			{ yMember },
 			algorithm));
 
-	BreakRemover breakRemover;
-	breakRemover.fix(cls);
-
-	ReturnRemover returnRemover;
-	returnRemover.fix(cls);
+	PassManager passManager;
+	passManager.addPass(createBreakRemovingPass());
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);
@@ -819,11 +787,9 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 			{ yMember },
 			algorithm));
 
-	BreakRemover breakRemover;
-	breakRemover.fix(cls);
-
-	ReturnRemover returnRemover;
-	returnRemover.fix(cls);
+	PassManager passManager;
+	passManager.addPass(createReturnRemovingPass());
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 	MlirLowerer lowerer(context);

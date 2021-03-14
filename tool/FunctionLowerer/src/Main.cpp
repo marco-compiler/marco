@@ -1,10 +1,9 @@
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Support/MemoryBuffer.h>
-#include <modelica/frontend/ConstantFolder.hpp>
 #include <modelica/frontend/Parser.hpp>
+#include <modelica/frontend/Passes.h>
 #include <modelica/frontend/SymbolTable.hpp>
-#include <modelica/frontend/TypeChecker.hpp>
 
 using namespace modelica;
 using namespace llvm;

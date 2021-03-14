@@ -1,11 +1,7 @@
-#include "gtest/gtest.h"
-
-#include "llvm/Support/Error.h"
-#include "modelica/frontend/Constant.hpp"
-#include "modelica/frontend/Expression.hpp"
-#include "modelica/frontend/Parser.hpp"
-#include "modelica/frontend/ReferenceAccess.hpp"
-#include "modelica/frontend/Type.hpp"
+#include <gtest/gtest.h>
+#include <llvm/Support/Error.h>
+#include <modelica/frontend/AST.h>
+#include <modelica/frontend/Parser.hpp>
 
 using namespace modelica;
 

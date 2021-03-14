@@ -5,7 +5,7 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
-#include <modelica/frontend/ClassContainer.hpp>
+#include <modelica/frontend/AST.h>
 #include <modelica/mlirlowerer/ModelicaBuilder.h>
 #include <modelica/utils/SourceRange.hpp>
 

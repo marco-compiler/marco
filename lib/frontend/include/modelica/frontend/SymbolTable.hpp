@@ -2,13 +2,10 @@
 
 #include <llvm/ADT/StringMap.h>
 #include <llvm/ADT/StringRef.h>
-#include <modelica/frontend/Class.hpp>
-#include <modelica/frontend/ClassContainer.hpp>
-#include <modelica/frontend/ForEquation.hpp>
-#include <modelica/frontend/Function.hpp>
-#include <modelica/frontend/Member.hpp>
 #include <modelica/frontend/Symbol.hpp>
 #include <variant>
+
+#include "AST.h"
 
 namespace modelica
 {
