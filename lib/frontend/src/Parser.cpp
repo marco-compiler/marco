@@ -467,6 +467,18 @@ llvm::Expected<Statement> Parser::statement()
 		return Statement(std::move(*statement));
 	}
 
+	if (current == Token::BreakKeyword)
+	{
+		TRY(statement, breakStatement());
+		return Statement(std::move(*statement));
+	}
+
+	if (current == Token::ReturnKeyword)
+	{
+		TRY(statement, returnStatement());
+		return Statement(std::move(*statement));
+	}
+
 	TRY(statement, assignmentStatement());
 	return Statement(std::move(*statement));
 }
@@ -602,6 +614,9 @@ llvm::Expected<WhileStatement> Parser::whileStatement()
 		statements.push_back(std::move(*stmnt));
 	}
 
+	EXPECT(Token::EndKeyword);
+	EXPECT(Token::WhileKeyword);
+
 	return WhileStatement(location, std::move(*condition), std::move(statements));
 }
 
@@ -622,7 +637,24 @@ llvm::Expected<WhenStatement> Parser::whenStatement()
 		statements.push_back(std::move(*stmnt));
 	}
 
+	EXPECT(Token::EndKeyword);
+	EXPECT(Token::WhenKeyword);
+
 	return WhenStatement(location, std::move(*condition), std::move(statements));
+}
+
+llvm::Expected<BreakStatement> Parser::breakStatement()
+{
+	auto location = getPosition();
+	EXPECT(Token::BreakKeyword);
+	return BreakStatement(location);
+}
+
+llvm::Expected<ReturnStatement> Parser::returnStatement()
+{
+	auto location = getPosition();
+	EXPECT(Token::ReturnKeyword);
+	return ReturnStatement(location);
 }
 
 llvm::Expected<llvm::SmallVector<ForEquation, 3>> Parser::forEquation(int nestingLevel)

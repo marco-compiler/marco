@@ -194,12 +194,8 @@ namespace modelica
 
 		[[nodiscard]] SourcePosition getLocation() const;
 
-		[[nodiscard]] const std::string& getBreakCheckName() const;
-		void setBreakCheckName(std::string name);
-
 		private:
 		SourcePosition location;
-		std::string breakCheckName;
 	};
 
 	class ReturnStatement

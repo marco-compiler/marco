@@ -26,19 +26,32 @@ llvm::Error ReturnRemover::run(Algorithm& algorithm)
 {
 	bool canReturn = false;
 
+	llvm::SmallVector<std::shared_ptr<Statement>, 3> statements;
+	llvm::SmallVector<std::shared_ptr<Statement>, 3> avoidableStatements;
+
 	for (auto& statement : algorithm)
 	{
 		if (canReturn)
-		{
-			Expression reference = Expression::reference(SourcePosition::unknown(), makeType<bool>(), "__mustReturn");
-			Expression falseConstant = Expression::constant(SourcePosition::unknown(), makeType<bool>(), false);
-			Expression condition = Expression::operation(SourcePosition::unknown(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
-			statement = IfStatement(SourcePosition::unknown(), IfStatement::Block(condition, statement));
-		}
+			avoidableStatements.push_back(statement);
+		else
+			statements.push_back(statement);
 
-		canReturn |= run<Statement>(statement);
+		canReturn |= run<Statement>(*statement);
 	}
 
+	if (canReturn && !avoidableStatements.empty())
+	{
+		Expression reference = Expression::reference(algorithm.getLocation(), makeType<bool>(), "__mustReturn");
+		Expression falseConstant = Expression::constant(algorithm.getLocation(), makeType<bool>(), false);
+		Expression condition = Expression::operation(algorithm.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
+
+		// Create the block of code to be executed if a return is not called
+		IfStatement::Block returnNotCalledBlock(condition, {});
+		returnNotCalledBlock.getBody() = avoidableStatements;
+		statements.push_back(std::make_shared<Statement>(IfStatement(algorithm.getLocation(), returnNotCalledBlock)));
+	}
+
+	algorithm.getStatements() = statements;
 	algorithm.setReturnCheckName("__mustReturn");
 	return llvm::Error::success();
 }
@@ -89,7 +102,7 @@ bool ReturnRemover::run<IfStatement>(Statement& statement)
 			Expression falseConstant = Expression::constant(ifStatement.getLocation(), makeType<bool>(), false);
 			Expression condition = Expression::operation(ifStatement.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
 
-			// Create the block of code to be executed if a break is not called
+			// Create the block of code to be executed if a return is not called
 			IfStatement::Block returnNotCalledBlock(condition, {});
 			returnNotCalledBlock.getBody() = avoidableStatements;
 			statements.push_back(std::make_shared<Statement>(IfStatement(ifStatement.getLocation(), returnNotCalledBlock)));
@@ -128,7 +141,7 @@ bool ReturnRemover::run<ForStatement>(Statement& statement)
 		Expression falseConstant = Expression::constant(forStatement.getLocation(), makeType<bool>(), false);
 		Expression condition = Expression::operation(forStatement.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
 
-		// Create the block of code to be executed if a break is not called
+		// Create the block of code to be executed if a return is not called
 		IfStatement::Block returnNotCalledBlock(condition, {});
 		returnNotCalledBlock.getBody() = avoidableStatements;
 		statements.push_back(std::make_shared<Statement>(IfStatement(forStatement.getLocation(), returnNotCalledBlock)));
@@ -164,7 +177,7 @@ bool ReturnRemover::run<WhileStatement>(Statement& statement)
 		Expression falseConstant = Expression::constant(whileStatement.getLocation(), makeType<bool>(), false);
 		Expression condition = Expression::operation(whileStatement.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
 
-		// Create the block of code to be executed if a break is not called
+		// Create the block of code to be executed if a return is not called
 		IfStatement::Block returnNotCalledBlock(condition, {});
 		returnNotCalledBlock.getBody() = avoidableStatements;
 		statements.push_back(std::make_shared<Statement>(IfStatement(whileStatement.getLocation(), returnNotCalledBlock)));
@@ -190,8 +203,13 @@ bool ReturnRemover::run<BreakStatement>(Statement& statement)
 template<>
 bool ReturnRemover::run<ReturnStatement>(Statement& statement)
 {
-	auto& returnStatement = statement.get<ReturnStatement>();
-	returnStatement.setReturnCheckName("__mustReturn");
+	auto location = statement.get<ReturnStatement>().getLocation();
+
+	statement = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<bool>(), "__mustReturn"),
+			Expression::constant(location, makeType<bool>(), true));
+
 	return true;
 }
 

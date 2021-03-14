@@ -76,6 +76,8 @@ namespace modelica
 		llvm::Expected<ForStatement> forStatement();
 		llvm::Expected<WhileStatement> whileStatement();
 		llvm::Expected<WhenStatement> whenStatement();
+		llvm::Expected<BreakStatement> breakStatement();
+		llvm::Expected<ReturnStatement> returnStatement();
 
 		llvm::Expected<Tuple> outputExpressionList();
 		llvm::Expected<std::vector<Expression>> arraySubscript();

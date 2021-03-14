@@ -1,6 +1,7 @@
 modelicaAddTest(
         frontend
         src/AlgorithmTest.cpp
+        src/BreakRemoverTest.cpp
         src/ConstantFolderTest.cpp
         src/ExpressionTest.cpp
         src/FunctionTest.cpp
@@ -10,6 +11,7 @@ modelicaAddTest(
         src/ParserEquationTest.cpp
         src/ParserClassTest.cpp
         src/RecordTest.cpp
+        src/ReturnRemoverTest.cpp
         src/StatementTest.cpp
         src/TupleTest.cpp
         src/TypeCheckerTest.cpp)

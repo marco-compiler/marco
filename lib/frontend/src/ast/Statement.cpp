@@ -268,6 +268,18 @@ void WhileStatement::dump() const { dump(outs(), 0); }
 
 void WhileStatement::dump(raw_ostream& os, size_t indents) const
 {
+	os.indent(indents);
+	os << "while:\n";
+
+	os.indent(indents + 1);
+	os << "condition:\n";
+	getCondition().dump(os, indents + 2);
+
+	os.indent(indents + 1);
+	os << "body:\n";
+
+	for (const auto& statement : getBody())
+		statement->dump(os, indents + 2);
 }
 
 SourcePosition WhileStatement::getLocation() const
@@ -331,16 +343,6 @@ SourcePosition BreakStatement::getLocation() const
 	return location;
 }
 
-const string& BreakStatement::getBreakCheckName() const
-{
-	return breakCheckName;
-}
-
-void BreakStatement::setBreakCheckName(string name)
-{
-	this->breakCheckName = name;
-}
-
 ReturnStatement::ReturnStatement(SourcePosition location)
 		: location(move(location))
 {
@@ -357,16 +359,6 @@ void ReturnStatement::dump(raw_ostream& os, size_t indents) const
 SourcePosition ReturnStatement::getLocation() const
 {
 	return location;
-}
-
-const string& ReturnStatement::getReturnCheckName() const
-{
-	return returnCheckName;
-}
-
-void ReturnStatement::setReturnCheckName(string name)
-{
-	this->returnCheckName = name;
 }
 
 Statement::Statement(AssignmentStatement statement)

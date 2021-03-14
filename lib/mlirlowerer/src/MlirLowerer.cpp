@@ -345,7 +345,7 @@ void MlirLowerer::lower(const modelica::Member& member)
 void MlirLowerer::lower(const modelica::Algorithm& algorithm)
 {
 	for (const auto& statement : algorithm)
-		lower(statement);
+		lower(*statement);
 }
 
 void MlirLowerer::lower(const modelica::Statement& statement)
@@ -550,18 +550,12 @@ void MlirLowerer::lower(const modelica::WhenStatement& statement)
 
 void MlirLowerer::lower(const modelica::BreakStatement& statement)
 {
-	auto location = loc(statement.getLocation());
-	mlir::Value trueValue = builder.create<ConstantOp>(location, builder.getBooleanAttribute(true));
-	mlir::Value breakCondition = symbolTable.lookup(statement.getBreakCheckName()).getReference();
-	builder.create<StoreOp>(location, trueValue, breakCondition);
+	assert(false && "Break statement encountered. BreakRemovingPass may have not been run before lowering the AST.");
 }
 
 void MlirLowerer::lower(const modelica::ReturnStatement& statement)
 {
-	auto location = loc(statement.getLocation());
-	mlir::Value trueValue = builder.create<ConstantOp>(location, builder.getBooleanAttribute(true));
-	mlir::Value returnCondition = symbolTable.lookup(statement.getReturnCheckName()).getReference();
-	builder.create<StoreOp>(location, trueValue, returnCondition);
+	assert(false && "Return statement encountered. ReturnRemovingPass may have not been run before lowering the AST.");
 }
 
 template<>

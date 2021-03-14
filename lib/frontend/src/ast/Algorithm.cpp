@@ -52,6 +52,11 @@ const Algorithm::Container<Statement>& Algorithm::getStatements() const
 	return statements;
 }
 
+size_t Algorithm::size() const
+{
+	return statements.size();
+}
+
 Algorithm::statements_iterator Algorithm::begin()
 {
 	return statements.begin();

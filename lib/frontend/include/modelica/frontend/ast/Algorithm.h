@@ -16,8 +16,8 @@ namespace modelica
 		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
 
 		public:
-		using statements_iterator = boost::indirect_iterator<Container<Statement>::iterator>;
-		using statements_const_iterator = boost::indirect_iterator<Container<Statement>::const_iterator>;
+		using statements_iterator = Container<Statement>::iterator;
+		using statements_const_iterator = Container<Statement>::const_iterator;
 
 		Algorithm(SourcePosition location, llvm::ArrayRef<Statement> statements);
 
@@ -34,6 +34,8 @@ namespace modelica
 
 		[[nodiscard]] Container<Statement>& getStatements();
 		[[nodiscard]] const Container<Statement>& getStatements() const;
+
+		[[nodiscard]] size_t size() const;
 
 		[[nodiscard]] statements_iterator begin();
 		[[nodiscard]] statements_const_iterator begin() const;

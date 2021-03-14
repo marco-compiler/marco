@@ -25,7 +25,7 @@ llvm::Error BreakRemover::run(Function& function)
 llvm::Error BreakRemover::run(Algorithm& algorithm)
 {
 	for (auto& statement : algorithm)
-		run<Statement>(statement);
+		run<Statement>(*statement);
 
 	return llvm::Error::success();
 }
@@ -179,8 +179,13 @@ bool BreakRemover::run<WhenStatement>(Statement& statement)
 template<>
 bool BreakRemover::run<BreakStatement>(Statement& statement)
 {
-	auto& breakStatement = statement.get<BreakStatement>();
-	breakStatement.setBreakCheckName("__mustBreak" + std::to_string(nestLevel));
+	auto location = statement.get<BreakStatement>().getLocation();
+
+	statement = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<bool>(), "__mustBreak" + std::to_string(nestLevel)),
+			Expression::constant(location, makeType<bool>(), true));
+
 	return true;
 }
 
