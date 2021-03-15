@@ -548,12 +548,12 @@ namespace modelica
 	};
 
 	//===----------------------------------------------------------------------===//
-	// Modelica::NegateOp
+	// Modelica::NotOp
 	//===----------------------------------------------------------------------===//
 
-	class NegateOp;
+	class NotOp;
 
-	class NegateOpAdaptor : public OpAdaptor<NegateOp>
+	class NotOpAdaptor : public OpAdaptor<NotOp>
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
@@ -561,11 +561,11 @@ namespace modelica
 		mlir::Value operand();
 	};
 
-	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult>
+	class NotOp : public mlir::Op<NotOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
-		using Adaptor = NegateOpAdaptor;
+		using Adaptor = NotOpAdaptor;
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Value operand);
@@ -822,6 +822,34 @@ namespace modelica
 
 		mlir::Value lhs();
 		mlir::Value rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::NegateOp
+	//===----------------------------------------------------------------------===//
+
+	class NegateOp;
+
+	class NegateOpAdaptor : public OpAdaptor<NegateOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value value();
+	};
+
+	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = NegateOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value value);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Type resultType();
+		mlir::Value value();
 	};
 
 	//===----------------------------------------------------------------------===//

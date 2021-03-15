@@ -152,8 +152,8 @@ namespace modelica
 
 		[[nodiscard]] long getNumericSize() const;
 
-		[[nodiscard]] Expression getExpression();
-		[[nodiscard]] Expression getExpression() const;
+		[[nodiscard]] Expression& getExpression();
+		[[nodiscard]] const Expression& getExpression() const;
 
 		private:
 		std::variant<long, ExpressionPtr> size;

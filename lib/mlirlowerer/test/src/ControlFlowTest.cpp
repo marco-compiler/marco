@@ -4,7 +4,7 @@
 #include <mlir/IR/MLIRContext.h>
 #include <modelica/frontend/AST.h>
 #include <modelica/frontend/Passes.h>
-#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
 
@@ -60,7 +60,7 @@ TEST(ControlFlow, thenBranchTaken)	 // NOLINT
 			Algorithm(location, ifStatement)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -121,7 +121,7 @@ TEST(ControlFlow, elseBranchTaken)	 // NOLINT
 			Algorithm(location, ifStatement)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -197,7 +197,7 @@ TEST(ControlFlow, elseIfBranchTaken)	 // NOLINT
 			Algorithm(location, ifStatement)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -256,7 +256,7 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 			algorithm));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -315,7 +315,7 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 			algorithm));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -376,7 +376,7 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 			algorithm));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -429,7 +429,7 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -489,7 +489,7 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -541,7 +541,7 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -612,7 +612,7 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -671,7 +671,7 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -743,7 +743,7 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -792,7 +792,7 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 

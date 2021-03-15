@@ -21,10 +21,10 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<ArrayCopyOp>();
 
 	// Math operations
-	addOperations<AddOp, SubOp, MulOp, DivOp, PowOp>();
+	addOperations<NegateOp, AddOp, SubOp, MulOp, DivOp, PowOp>();
 
 	// Logic operations
-	addOperations<AndOp, OrOp, NegateOp>();
+	addOperations<NotOp, AndOp, OrOp>();
 	addOperations<EqOp>();
 	addOperations<NotEqOp>();
 	addOperations<GtOp>();

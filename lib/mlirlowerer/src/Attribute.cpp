@@ -4,7 +4,8 @@
 
 using namespace modelica;
 
-class modelica::BooleanAttributeStorage : public mlir::AttributeStorage {
+class modelica::BooleanAttributeStorage : public mlir::AttributeStorage
+{
 	public:
 	using KeyTy = std::tuple<mlir::Type, bool>;
 
@@ -24,7 +25,8 @@ class modelica::BooleanAttributeStorage : public mlir::AttributeStorage {
 		return KeyTy(type, value);
 	}
 
-	static BooleanAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, KeyTy key) {
+	static BooleanAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, KeyTy key)
+	{
 		return new (allocator.allocate<BooleanAttributeStorage>()) BooleanAttributeStorage(std::get<0>(key), std::get<1>(key));
 	}
 
@@ -43,7 +45,49 @@ class modelica::BooleanAttributeStorage : public mlir::AttributeStorage {
 	bool value;
 };
 
-class modelica::IntegerAttributeStorage : public mlir::AttributeStorage {
+class modelica::BooleanArrayAttributeStorage : public mlir::AttributeStorage
+{
+	public:
+	using KeyTy = std::tuple<mlir::Type, llvm::ArrayRef<bool>>;
+
+	bool operator==(const KeyTy& key) const
+	{
+		return key == KeyTy(type, values);
+	}
+
+	static unsigned int hashKey(const KeyTy& key)
+	{
+		return llvm::hash_combine(std::get<0>(key), std::get<1>(key));
+	}
+
+	static KeyTy getKey(mlir::Type type, llvm::ArrayRef<bool> values)
+	{
+		assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<BooleanType>());
+		return KeyTy(type, values);
+	}
+
+	static BooleanArrayAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, KeyTy key)
+	{
+		return new (allocator.allocate<BooleanArrayAttributeStorage>()) BooleanArrayAttributeStorage(std::get<0>(key), std::get<1>(key));
+	}
+
+	[[nodiscard]] llvm::ArrayRef<bool> getValue() const
+	{
+		return values;
+	}
+
+	private:
+	BooleanArrayAttributeStorage(mlir::Type type, llvm::ArrayRef<bool> value)
+			: AttributeStorage(type), type(type), values(value.begin(), value.end())
+	{
+	}
+
+	mlir::Type type;
+	llvm::SmallVector<bool, 3> values;
+};
+
+class modelica::IntegerAttributeStorage : public mlir::AttributeStorage
+{
 	public:
 	using KeyTy = std::tuple<mlir::Type, llvm::APInt>;
 
@@ -57,13 +101,15 @@ class modelica::IntegerAttributeStorage : public mlir::AttributeStorage {
 		return llvm::hash_combine(std::get<0>(key), std::get<1>(key));
 	}
 
-	static KeyTy getKey(mlir::Type type, long value) {
+	static KeyTy getKey(mlir::Type type, long value)
+	{
 		assert(type.isa<IntegerType>());
 		auto integerType = type.cast<IntegerType>();
 		return KeyTy(type, llvm::APInt(integerType.getBitWidth(), value, true));
 	}
 
-	static IntegerAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, KeyTy key) {
+	static IntegerAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, KeyTy key)
+	{
 		return new (allocator.allocate<IntegerAttributeStorage>()) IntegerAttributeStorage(std::get<0>(key), std::get<1>(key));
 	}
 
@@ -82,7 +128,49 @@ class modelica::IntegerAttributeStorage : public mlir::AttributeStorage {
 	llvm::APInt value;
 };
 
-class modelica::RealAttributeStorage : public mlir::AttributeStorage {
+class modelica::IntegerArrayAttributeStorage : public mlir::AttributeStorage
+{
+	public:
+	using KeyTy = std::tuple<mlir::Type, llvm::ArrayRef<llvm::APInt>>;
+
+	bool operator==(const KeyTy& key) const
+	{
+		return key == KeyTy(type, values);
+	}
+
+	static unsigned int hashKey(const KeyTy& key)
+	{
+		return llvm::hash_combine(std::get<0>(key), std::get<1>(key));
+	}
+
+	static KeyTy getKey(mlir::Type type, llvm::ArrayRef<llvm::APInt> values)
+	{
+		assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<IntegerType>());
+		return KeyTy(type, values);
+	}
+
+	static IntegerArrayAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, KeyTy key)
+	{
+		return new (allocator.allocate<IntegerArrayAttributeStorage>()) IntegerArrayAttributeStorage(std::get<0>(key), std::get<1>(key));
+	}
+
+	[[nodiscard]] llvm::ArrayRef<llvm::APInt> getValue() const
+	{
+		return values;
+	}
+
+	private:
+	IntegerArrayAttributeStorage(mlir::Type type, llvm::ArrayRef<llvm::APInt> value)
+			: AttributeStorage(type), type(type), values(value.begin(), value.end())
+	{
+	}
+
+	mlir::Type type;
+	llvm::SmallVector<llvm::APInt, 3> values;
+};
+
+class modelica::RealAttributeStorage : public mlir::AttributeStorage
+{
 	public:
 	using KeyTy = std::tuple<mlir::Type, llvm::APFloat>;
 
@@ -96,11 +184,12 @@ class modelica::RealAttributeStorage : public mlir::AttributeStorage {
 		return llvm::hash_combine(std::get<0>(key), std::get<1>(key));
 	}
 
-	static KeyTy getKey(mlir::Type type, unsigned int bitWidth, double value) {
+	static KeyTy getKey(mlir::Type type, double value) {
 		return KeyTy(type, value);
 	}
 
-	static RealAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, KeyTy key) {
+	static RealAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, KeyTy key)
+	{
 		return new (allocator.allocate<RealAttributeStorage>()) RealAttributeStorage(std::get<0>(key), std::get<1>(key));
 	}
 
@@ -119,6 +208,47 @@ class modelica::RealAttributeStorage : public mlir::AttributeStorage {
 	llvm::APFloat value;
 };
 
+class modelica::RealArrayAttributeStorage : public mlir::AttributeStorage
+{
+	public:
+	using KeyTy = std::tuple<mlir::Type, llvm::ArrayRef<llvm::APFloat>>;
+
+	bool operator==(const KeyTy& key) const
+	{
+		return key == KeyTy(type, values);
+	}
+
+	static unsigned int hashKey(const KeyTy& key)
+	{
+		return llvm::hash_combine(std::get<0>(key), std::get<1>(key));
+	}
+
+	static KeyTy getKey(mlir::Type type, llvm::ArrayRef<llvm::APFloat> values)
+	{
+		assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<RealType>());
+		return KeyTy(type, values);
+	}
+
+	static RealArrayAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, KeyTy key)
+	{
+		return new (allocator.allocate<RealArrayAttributeStorage>()) RealArrayAttributeStorage(std::get<0>(key), std::get<1>(key));
+	}
+
+	[[nodiscard]] llvm::ArrayRef<llvm::APFloat> getValue() const
+	{
+		return values;
+	}
+
+	private:
+	RealArrayAttributeStorage(mlir::Type type, llvm::ArrayRef<llvm::APFloat> value)
+			: AttributeStorage(type), type(type), values(value.begin(), value.end())
+	{
+	}
+
+	mlir::Type type;
+	llvm::SmallVector<llvm::APFloat, 3> values;
+};
+
 constexpr llvm::StringRef BooleanAttribute::getAttrName()
 {
 	return "bool";
@@ -131,6 +261,22 @@ BooleanAttribute BooleanAttribute::get(mlir::Type type, bool value)
 }
 
 bool BooleanAttribute::getValue() const
+{
+	return getImpl()->getValue();
+}
+
+constexpr llvm::StringRef BooleanArrayAttribute::getAttrName()
+{
+	return "bool[]";
+}
+
+BooleanArrayAttribute BooleanArrayAttribute::get(mlir::Type type, llvm::ArrayRef<bool> values)
+{
+	assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<BooleanType>());
+	return Base::get(type.getContext(), type, values);
+}
+
+llvm::ArrayRef<bool> BooleanArrayAttribute::getValue() const
 {
 	return getImpl()->getValue();
 }
@@ -151,6 +297,28 @@ long IntegerAttribute::getValue() const
 	return getImpl()->getValue();
 }
 
+constexpr llvm::StringRef IntegerArrayAttribute::getAttrName()
+{
+	return "int[]";
+}
+
+IntegerArrayAttribute IntegerArrayAttribute::get(mlir::Type type, llvm::ArrayRef<long> values)
+{
+	assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<IntegerType>());
+	auto baseType = type.cast<PointerType>().getElementType().cast<IntegerType>();
+	llvm::SmallVector<llvm::APInt, 3> vals;
+
+	for (const auto& value : values)
+		vals.emplace_back(baseType.getBitWidth(), value, true);
+
+	return Base::get(type.getContext(), type, vals);
+}
+
+llvm::ArrayRef<llvm::APInt> IntegerArrayAttribute::getValue() const
+{
+	return getImpl()->getValue();
+}
+
 constexpr llvm::StringRef RealAttribute::getAttrName()
 {
 	return "real";
@@ -167,7 +335,25 @@ double RealAttribute::getValue() const
 	return getImpl()->getValue();
 }
 
-void modelica::printModelicaAttribute(mlir::Attribute attr, mlir::DialectAsmPrinter& printer) {
+constexpr llvm::StringRef RealArrayAttribute::getAttrName()
+{
+	return "real[]";
+}
+
+RealArrayAttribute RealArrayAttribute::get(mlir::Type type, llvm::ArrayRef<double> values)
+{
+	assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<RealType>());
+	llvm::SmallVector<llvm::APFloat, 3> vals(values.begin(), values.end());
+	return Base::get(type.getContext(), type, vals);
+}
+
+llvm::ArrayRef<llvm::APFloat> RealArrayAttribute::getValue() const
+{
+	return getImpl()->getValue();
+}
+
+void modelica::printModelicaAttribute(mlir::Attribute attr, mlir::DialectAsmPrinter& printer)
+{
 	auto& os = printer.getStream();
 
 	if (auto attribute = attr.dyn_cast<BooleanAttribute>()) {

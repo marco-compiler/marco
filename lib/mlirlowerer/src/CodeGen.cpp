@@ -10,7 +10,7 @@
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
 #include <modelica/frontend/AST.h>
-#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/LowerToLLVM.h>
 #include <modelica/mlirlowerer/passes/ModelicaConversionPass.h>
@@ -82,14 +82,14 @@ Reference Reference::memref(ModelicaBuilder* builder, mlir::Value value, bool in
 			});
 }
 
-MlirLowerer::MlirLowerer(mlir::MLIRContext& context, ModelicaOptions options)
+MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options)
 		: builder(&context, options.getBitWidth()), options(move(options))
 {
 	context.loadDialect<ModelicaDialect>();
 	context.loadDialect<mlir::StandardOpsDialect>();
 }
 
-mlir::Location MlirLowerer::loc(SourcePosition location)
+mlir::Location MLIRLowerer::loc(SourcePosition location)
 {
 	return mlir::FileLineColLoc::get(
 			builder.getIdentifier(*location.file),
@@ -97,7 +97,7 @@ mlir::Location MlirLowerer::loc(SourcePosition location)
 			location.column);
 }
 
-llvm::Optional<mlir::ModuleOp> MlirLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer> classes)
+llvm::Optional<mlir::ModuleOp> MLIRLowerer::lower(llvm::ArrayRef<const modelica::ClassContainer> classes)
 {
 	mlir::ModuleOp module = mlir::ModuleOp::create(builder.getUnknownLoc());
 
@@ -115,12 +115,12 @@ llvm::Optional<mlir::ModuleOp> MlirLowerer::lower(llvm::ArrayRef<const modelica:
 	return module;
 }
 
-mlir::Operation* MlirLowerer::lower(const modelica::Class& cls)
+mlir::Operation* MLIRLowerer::lower(const modelica::Class& cls)
 {
 	return nullptr;
 }
 
-mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
+mlir::FuncOp MLIRLowerer::lower(const modelica::Function& foo)
 {
 	// Create a scope in the symbol table to hold variable declarations.
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
@@ -205,7 +205,7 @@ mlir::FuncOp MlirLowerer::lower(const modelica::Function& foo)
 	return function;
 }
 
-mlir::Type MlirLowerer::lower(const modelica::Type& type)
+mlir::Type MLIRLowerer::lower(const modelica::Type& type)
 {
 	auto visitor = [&](auto& obj) -> mlir::Type
 	{
@@ -233,7 +233,7 @@ mlir::Type MlirLowerer::lower(const modelica::Type& type)
 	return type.visit(visitor);
 }
 
-mlir::Type MlirLowerer::lower(const modelica::BuiltInType& type)
+mlir::Type MLIRLowerer::lower(const modelica::BuiltInType& type)
 {
 	switch (type)
 	{
@@ -251,7 +251,7 @@ mlir::Type MlirLowerer::lower(const modelica::BuiltInType& type)
 	}
 }
 
-mlir::Type MlirLowerer::lower(const modelica::UserDefinedType& type)
+mlir::Type MLIRLowerer::lower(const modelica::UserDefinedType& type)
 {
 	llvm::SmallVector<mlir::Type, 3> types;
 
@@ -275,7 +275,7 @@ mlir::Type MlirLowerer::lower(const modelica::UserDefinedType& type)
  * memref unranked     -                heap (out param)       stack
  * @param member
  */
-void MlirLowerer::lower(const modelica::Member& member)
+void MLIRLowerer::lower(const modelica::Member& member)
 {
 	auto location = loc(member.getLocation());
 
@@ -342,18 +342,18 @@ void MlirLowerer::lower(const modelica::Member& member)
 	 */
 }
 
-void MlirLowerer::lower(const modelica::Algorithm& algorithm)
+void MLIRLowerer::lower(const modelica::Algorithm& algorithm)
 {
 	for (const auto& statement : algorithm)
 		lower(*statement);
 }
 
-void MlirLowerer::lower(const modelica::Statement& statement)
+void MLIRLowerer::lower(const modelica::Statement& statement)
 {
 	statement.visit([&](auto& obj) { lower(obj); });
 }
 
-void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
+void MLIRLowerer::lower(const modelica::AssignmentStatement& statement)
 {
 	auto location = loc(statement.getLocation());
 	auto destinations = statement.getDestinations();
@@ -389,7 +389,7 @@ void MlirLowerer::lower(const modelica::AssignmentStatement& statement)
 	}
 }
 
-void MlirLowerer::lower(const modelica::IfStatement& statement)
+void MLIRLowerer::lower(const modelica::IfStatement& statement)
 {
 	// Each conditional blocks creates an If operation, but we need to keep
 	// track of the first one in order to restore the insertion point right
@@ -436,7 +436,7 @@ void MlirLowerer::lower(const modelica::IfStatement& statement)
 	builder.setInsertionPointAfter(firstOp);
 }
 
-void MlirLowerer::lower(const modelica::ForStatement& statement)
+void MLIRLowerer::lower(const modelica::ForStatement& statement)
 {
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 
@@ -500,7 +500,7 @@ void MlirLowerer::lower(const modelica::ForStatement& statement)
 	builder.setInsertionPointAfter(forOp);
 }
 
-void MlirLowerer::lower(const modelica::WhileStatement& statement)
+void MLIRLowerer::lower(const modelica::WhileStatement& statement)
 {
 	auto location = loc(statement.getLocation());
 
@@ -543,23 +543,23 @@ void MlirLowerer::lower(const modelica::WhileStatement& statement)
 	builder.setInsertionPointAfter(whileOp);
 }
 
-void MlirLowerer::lower(const modelica::WhenStatement& statement)
+void MLIRLowerer::lower(const modelica::WhenStatement& statement)
 {
 
 }
 
-void MlirLowerer::lower(const modelica::BreakStatement& statement)
+void MLIRLowerer::lower(const modelica::BreakStatement& statement)
 {
 	assert(false && "Break statement encountered. BreakRemovingPass may have not been run before lowering the AST.");
 }
 
-void MlirLowerer::lower(const modelica::ReturnStatement& statement)
+void MLIRLowerer::lower(const modelica::ReturnStatement& statement)
 {
 	assert(false && "Return statement encountered. ReturnRemovingPass may have not been run before lowering the AST.");
 }
 
 template<>
-MlirLowerer::Container<Reference> MlirLowerer::lower<Expression>(const modelica::Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<Expression>(const modelica::Expression& expression)
 {
 	return expression.visit([&](auto& obj) {
 		using type = decltype(obj);
@@ -570,7 +570,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<Expression>(const modelica:
 }
 
 template<>
-MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const modelica::Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Operation>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::Operation>());
 	const auto& operation = expression.get<modelica::Operation>();
@@ -581,7 +581,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::negate)
 	{
 		auto arg = lower<modelica::Expression>(operation[0])[0].getReference();
-		mlir::Value result = builder.create<NegateOp>(location, arg);
+		mlir::Value result = builder.create<NotOp>(location, arg);
 		return { Reference::ssa(&builder, result) };
 	}
 
@@ -601,14 +601,28 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 	if (kind == OperationKind::subtract)
 	{
 		auto args = lowerOperationArgs(operation);
-		mlir::Value result = foldBinaryOperation(
-				args,
-				[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
-				{
-					return builder.create<SubOp>(location, resultType, lhs, rhs);
-				});
 
-		return { Reference::ssa(&builder, result) };
+		if (args.size() == 1)
+		{
+			// Special case for sign change (i.e "-x").
+			// TODO
+			// In future, when all the project will rely on MLIR, a different
+			// operation in the frontend should be created for this purpose.
+
+			mlir::Value result = builder.create<NegateOp>(location, resultType, args[0]);
+			return { Reference::ssa(&builder, result) };
+		}
+		else
+		{
+			mlir::Value result = foldBinaryOperation(
+					args,
+					[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
+					{
+						return builder.create<SubOp>(location, resultType, lhs, rhs);
+					});
+
+			return { Reference::ssa(&builder, result) };
+		}
 	}
 
 	if (kind == OperationKind::multiply)
@@ -760,7 +774,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const 
 }
 
 template<>
-MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Constant>(const modelica::Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Constant>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::Constant>());
 	const auto& constant = expression.get<modelica::Constant>();
@@ -773,7 +787,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Constant>(const m
 }
 
 template<>
-MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::ReferenceAccess>(const modelica::Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::ReferenceAccess>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::ReferenceAccess>());
 	const auto& reference = expression.get<modelica::ReferenceAccess>();
@@ -781,7 +795,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::ReferenceAccess>(
 }
 
 template<>
-MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Call>(const modelica::Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Call>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::Call>());
 	const auto& call = expression.get<modelica::Call>();
@@ -842,7 +856,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Call>(const model
 }
 
 template<>
-MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Tuple>(const modelica::Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Tuple>(const modelica::Expression& expression)
 {
 	assert(expression.isA<modelica::Tuple>());
 	const auto& tuple = expression.get<modelica::Tuple>();
@@ -862,7 +876,7 @@ MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Tuple>(const mode
 	return result;
 }
 
-mlir::Value MlirLowerer::foldBinaryOperation(llvm::ArrayRef<mlir::Value> args, std::function<mlir::Value(mlir::Value, mlir::Value)> callback)
+mlir::Value MLIRLowerer::foldBinaryOperation(llvm::ArrayRef<mlir::Value> args, std::function<mlir::Value(mlir::Value, mlir::Value)> callback)
 {
 	assert(args.size() >= 2);
 	mlir::Value result = callback(args[0], args[1]);
@@ -873,7 +887,7 @@ mlir::Value MlirLowerer::foldBinaryOperation(llvm::ArrayRef<mlir::Value> args, s
 	return result;
 }
 
-MlirLowerer::Container<mlir::Value> MlirLowerer::lowerOperationArgs(const modelica::Operation& operation)
+MLIRLowerer::Container<mlir::Value> MLIRLowerer::lowerOperationArgs(const modelica::Operation& operation)
 {
 	llvm::SmallVector<mlir::Value, 3> args;
 	llvm::SmallVector<mlir::Value, 3> castedArgs;

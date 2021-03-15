@@ -68,13 +68,13 @@ namespace modelica
 		std::function<mlir::Value(ModelicaBuilder* builder, mlir::Value ref)> reader;
 	};
 
-	class MlirLowerer
+	class MLIRLowerer
 	{
 		private:
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		explicit MlirLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
+		explicit MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
 
 		llvm::Optional<mlir::ModuleOp> lower(llvm::ArrayRef<const modelica::ClassContainer> classes);
 
@@ -177,20 +177,21 @@ namespace modelica
 	};
 
 	template<>
-	MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Expression>(const modelica::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Expression>(const modelica::Expression& expression);
 
 	template<>
-	MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Operation>(const modelica::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Operation>(const modelica::Expression& expression);
 
 	template<>
-	MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Constant>(const modelica::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Constant>(const modelica::Expression& expression);
 
 	template<>
-	MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::ReferenceAccess>(const modelica::Expression& expression);
+	MLIRLowerer::Container<Reference>
+	MLIRLowerer::lower<modelica::ReferenceAccess>(const modelica::Expression& expression);
 
 	template<>
-	MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Call>(const modelica::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Call>(const modelica::Expression& expression);
 
 	template<>
-	MlirLowerer::Container<Reference> MlirLowerer::lower<modelica::Tuple>(const modelica::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Tuple>(const modelica::Expression& expression);
 }

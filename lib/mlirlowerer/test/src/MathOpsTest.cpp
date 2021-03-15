@@ -2,13 +2,281 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <modelica/frontend/AST.h>
-#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
 #include <modelica/utils/SourceRange.hpp>
 
 using namespace modelica;
 using namespace std;
+
+TEST(MathOps, negateIntegerScalar)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   output Integer y;
+	 *
+	 *   algorithm
+	 *     y := -x;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::operation(location, makeType<int>(), OperationKind::subtract,
+														Expression::reference(location, makeType<int>(), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MLIRLowerer lowerer(context);
+	auto module = lowerer.lower(cls);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	array<int, 2> x = { 23, 57 };
+	array<int, 2> y = { 23, 57 };
+
+	Runner runner(*module);
+
+	for (const auto& [x, y] : llvm::zip(x, y))
+	{
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+		EXPECT_EQ(y, -1 * x);
+	}
+}
+
+TEST(MathOps, negateFloatScalar)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Real x;
+	 *   output Real y;
+	 *
+	 *   algorithm
+	 *     y := -x;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<float>(), "y"),
+			Expression::operation(location, makeType<float>(), OperationKind::subtract,
+														Expression::reference(location, makeType<float>(), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MLIRLowerer lowerer(context);
+	auto module = lowerer.lower(cls);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	array<float, 2> x = { 23, 57 };
+	array<float, 2> y = { 23, 57 };
+
+	Runner runner(*module);
+
+	for (const auto& [x, y] : llvm::zip(x, y))
+	{
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+		EXPECT_EQ(y, -1 * x);
+	}
+}
+
+TEST(MathOps, negateIntegerStaticArray)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[3] x;
+	 *   output Integer[3] y;
+	 *
+	 *   algorithm
+	 *     y := -x;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(3), "y"),
+			Expression::operation(location, makeType<int>(3), OperationKind::subtract,
+														Expression::reference(location, makeType<int>(3), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MLIRLowerer lowerer(context);
+	auto module = lowerer.lower(cls);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	array<int, 3> x = { 10, 23, 57 };
+	array<int, 3> y = { 10, 23, 57 };
+
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(yPtr))));
+
+	for (const auto& [x, y] : llvm::zip(xPtr, yPtr))
+		EXPECT_EQ(y, -1 * x);
+}
+
+TEST(MathOps, negateIntegerDynamicArray)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[:] x;
+	 *   output Integer[:] y;
+	 *
+	 *   algorithm
+	 *     y := -x;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(-1), "y"),
+			Expression::operation(location, makeType<int>(-1), OperationKind::subtract,
+														Expression::reference(location, makeType<int>(-1), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MLIRLowerer lowerer(context);
+	auto module = lowerer.lower(cls);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	array<int, 3> x = { 10, 23, 57 };
+	array<int, 3> y = { 10, 23, 57 };
+
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(yPtr))));
+
+	for (const auto& [x, y] : llvm::zip(xPtr, yPtr))
+		EXPECT_EQ(y, -1 * x);
+}
+
+TEST(MathOps, negateFloatStaticArray)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Real[3] x;
+	 *   output Real[3] y;
+	 *
+	 *   algorithm
+	 *     y := -x;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<float>(3), "y"),
+			Expression::operation(location, makeType<float>(3), OperationKind::subtract,
+														Expression::reference(location, makeType<float>(3), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MLIRLowerer lowerer(context);
+	auto module = lowerer.lower(cls);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	array<float, 3> x = { 10, 23, 57 };
+	array<float, 3> y = { 10, 23, 57 };
+
+	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
+
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(yPtr))));
+
+	for (const auto& [x, y] : llvm::zip(xPtr, yPtr))
+		EXPECT_EQ(y, -1 * x);
+}
+
+TEST(MathOps, negateFloatDynamicArray)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Real[:] x;
+	 *   output Real[:] y;
+	 *
+	 *   algorithm
+	 *     y := -x;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<float>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<float>(-1), "y"),
+			Expression::operation(location, makeType<float>(-1), OperationKind::subtract,
+														Expression::reference(location, makeType<float>(-1), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+	MLIRLowerer lowerer(context);
+	auto module = lowerer.lower(cls);
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	array<float, 3> x = { 10, 23, 57 };
+	array<float, 3> y = { 10, 23, 57 };
+
+	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
+
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(yPtr))));
+
+	for (const auto& [x, y] : llvm::zip(xPtr, yPtr))
+		EXPECT_FLOAT_EQ(y, -1 * x);
+}
 
 TEST(MathOps, sumOfIntegerScalars)	 // NOLINT
 {
@@ -41,7 +309,7 @@ TEST(MathOps, sumOfIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -89,7 +357,7 @@ TEST(MathOps, sumOfIntegerStaticArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -139,7 +407,7 @@ TEST(MathOps, sumOfIntegerDynamicArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -189,13 +457,13 @@ TEST(MathOps, sumOfFloatScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 2> x = { 23.2f, 57.5f };
-	array<float, 2> y = { 57.3f, -23.7f };
-	array<float, 2> z = { 0.0f, 0.0f };
+	array<float, 2> x = { 23.2, 57.5 };
+	array<float, 2> y = { 57.3, -23.7 };
+	array<float, 2> z = { 0, 0 };
 
 	Runner runner(*module);
 
@@ -237,13 +505,13 @@ TEST(MathOps, sumOfFloatStaticArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 3> x = { 10.1f, 23.3f, 57.8f };
-	array<float, 3> y = { 10.2f, 57.3f, -23.5f };
-	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+	array<float, 3> x = { 10.1, 23.3, 57.8 };
+	array<float, 3> y = { 10.2, 57.3, -23.5 };
+	array<float, 3> z = { 0, 0, 0 };
 
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
 	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
@@ -287,13 +555,13 @@ TEST(MathOps, sumOfFloatDynamicArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 3> x = { 10.1f, 23.3f, 57.8f };
-	array<float, 3> y = { 10.2f, 57.3f, -23.5f };
-	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+	array<float, 3> x = { 10.1, 23.3, 57.8 };
+	array<float, 3> y = { 10.2, 57.3, -23.5 };
+	array<float, 3> z = { 0, 0, 0 };
 
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
 	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
@@ -337,13 +605,13 @@ TEST(MathOps, sumIntegerScalarAndFloatScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 3> x = { 2, -3, -3 };
-	array<float, 3> y = { -3.5f, 5.2f, -2.0f };
-	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+	array<float, 3> y = { -3.5, 5.2, -2 };
+	array<float, 3> z = { 0, 0, 0 };
 
 	Runner runner(*module);
 
@@ -385,13 +653,13 @@ TEST(MathOps, sumIntegerArrayAndFloatArray)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 3> x = { 2, -3, -3 };
-	array<float, 3> y = { -3.5f, 5.2f, -2.0f };
-	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+	array<float, 3> y = { -3.5, 5.2, -2 };
+	array<float, 3> z = { 0, 0, 0 };
 
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
 	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
@@ -438,7 +706,7 @@ TEST(MathOps, sumMultipleIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -487,7 +755,7 @@ TEST(MathOps, subOfIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -535,7 +803,7 @@ TEST(MathOps, subOfIntegerStaticArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -585,7 +853,7 @@ TEST(MathOps, subOfIntegerDynamicArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -635,13 +903,13 @@ TEST(MathOps, subOfFloatScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 2> x = { 23.2f, 57.5f };
-	array<float, 2> y = { 57.3f, -23.7f };
-	array<float, 2> z = { 0.0f, 0.0f };
+	array<float, 2> x = { 23.2, 57.5 };
+	array<float, 2> y = { 57.3, -23.7 };
+	array<float, 2> z = { 0, 0 };
 
 	Runner runner(*module);
 
@@ -683,13 +951,13 @@ TEST(MathOps, subOfFloatStaticArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 3> x = { 10.1f, 23.3f, 57.8f };
-	array<float, 3> y = { 10.2f, 57.3f, -23.5f };
-	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+	array<float, 3> x = { 10.1, 23.3, 57.8 };
+	array<float, 3> y = { 10.2, 57.3, -23.5 };
+	array<float, 3> z = { 0, 0, 0 };
 
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
 	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
@@ -733,13 +1001,13 @@ TEST(MathOps, subOfFloatDynamicArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 3> x = { 10.1f, 23.3f, 57.8f };
-	array<float, 3> y = { 10.2f, 57.3f, -23.5f };
-	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+	array<float, 3> x = { 10.1, 23.3, 57.8 };
+	array<float, 3> y = { 10.2, 57.3, -23.5 };
+	array<float, 3> z = { 0, 0, 0 };
 
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
 	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
@@ -783,13 +1051,13 @@ TEST(MathOps, subIntegerScalarAndFloatScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 3> x = { 2, -3, -3 };
-	array<float, 3> y = { -3.5f, 5.2f, -2.0f };
-	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+	array<float, 3> y = { -3.5, 5.2, -2 };
+	array<float, 3> z = { 0, 0, 0 };
 
 	Runner runner(*module);
 
@@ -831,13 +1099,13 @@ TEST(MathOps, subIntegerArrayAndFloatArray)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 3> x = { 2, -3, -3 };
-	array<float, 3> y = { -3.5f, 5.2f, -2.0f };
-	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+	array<float, 3> y = { -3.5, 5.2, -2 };
+	array<float, 3> z = { 0, 0, 0 };
 
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
 	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
@@ -884,7 +1152,7 @@ TEST(MathOps, subMultipleIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -933,7 +1201,7 @@ TEST(MathOps, mulOfIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -981,13 +1249,13 @@ TEST(MathOps, mulOfFloatScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 2> x = { 2.3f, 5.7f };
-	array<float, 2> y = { 23.57f, -23.57f };
-	array<float, 2> z = { 0.0f, 0.0f };
+	array<float, 2> x = { 2.3, 5.7 };
+	array<float, 2> y = { 23.57, -23.57 };
+	array<float, 2> z = { 0, 0 };
 
 	Runner runner(*module);
 
@@ -1029,13 +1297,13 @@ TEST(MathOps, mulIntegerScalarAndFloatScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 3> x = { 2, -3, -3 };
-	array<float, 3> y = { -3.5f, 5.2f, -2.0f };
-	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+	array<float, 3> y = { -3.5, 5.2, -2 };
+	array<float, 3> z = { 0, 0, 0 };
 
 	Runner runner(*module);
 
@@ -1080,7 +1348,7 @@ TEST(MathOps, mulMultipleIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1129,7 +1397,7 @@ TEST(MathOps, mulIntegerScalarAndIntegerStaticArray)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1177,7 +1445,7 @@ TEST(MathOps, mulIntegerScalarAndIntegerDynamicArray)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1225,7 +1493,7 @@ TEST(MathOps, mulIntegerStaticArrayAndIntegerScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1273,7 +1541,7 @@ TEST(MathOps, mulIntegerDynamicArrayAndIntegerScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1321,7 +1589,7 @@ TEST(MathOps, mulCrossProductIntegerStaticArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1369,7 +1637,7 @@ TEST(MathOps, mulIntegerStaticVectorAndIntegerStaticMatrix)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1421,7 +1689,7 @@ TEST(MathOps, mulIntegerStaticMatrixAndIntegerStaticVector)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1474,7 +1742,7 @@ TEST(MathOps, mulIntegerStaticMatrixes)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1528,7 +1796,7 @@ TEST(MathOps, divOfIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1576,13 +1844,13 @@ TEST(MathOps, divOfFloatScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 2> x = { 10.8f, 10.0f };
-	array<float, 2> y = { 3.6f, -3.2f };
-	array<float, 2> z = { 0.0f, 0.0f };
+	array<float, 2> x = { 10.8, 10 };
+	array<float, 2> y = { 3.6, -3.2 };
+	array<float, 2> z = { 0, 0 };
 
 	Runner runner(*module);
 
@@ -1627,7 +1895,7 @@ TEST(MathOps, divMultipleIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1676,13 +1944,13 @@ TEST(MathOps, divIntegerScalarAndFloatScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 3> x = { 23, 10, -3 };
-	array<float, 3> y = { -3.5f, 3.2f, -2.0f };
-	array<float, 3> z = { 0.0f, 0.0f, 0.0f };
+	array<float, 3> y = { -3.5, 3.2, -2 };
+	array<float, 3> z = { 0, 0, 0 };
 
 	Runner runner(*module);
 
@@ -1724,7 +1992,7 @@ TEST(MathOps, divIntegerStaticArrayAndIntegerScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1772,7 +2040,7 @@ TEST(MathOps, divIntegerDynamicArrayAndIntegerScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1820,7 +2088,7 @@ TEST(MathOps, powScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -1868,7 +2136,7 @@ TEST(MathOps, powSquareMatrix)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 

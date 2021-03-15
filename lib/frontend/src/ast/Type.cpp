@@ -148,13 +148,13 @@ long ArrayDimension::getNumericSize() const
 	return get<long>(size);
 }
 
-Expression ArrayDimension::getExpression()
+Expression& ArrayDimension::getExpression()
 {
 	assert(hasExpression());
 	return *get<ArrayDimension::ExpressionPtr>(size);
 }
 
-Expression ArrayDimension::getExpression() const
+const Expression& ArrayDimension::getExpression() const
 {
 	assert(hasExpression());
 	return *get<ArrayDimension::ExpressionPtr>(size);

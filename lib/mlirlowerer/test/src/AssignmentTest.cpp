@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <mlir/IR/Dialect.h>
 #include <modelica/frontend/AST.h>
-#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
 #include <modelica/utils/SourceRange.hpp>
@@ -31,7 +31,7 @@ TEST(Assignment, constant)	 // NOLINT
 
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, assignment)));
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -69,7 +69,7 @@ TEST(Assignment, variableCopy)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -108,7 +108,7 @@ TEST(Assignment, implicitCastIntegerToFloat)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -147,7 +147,7 @@ TEST(Assignment, implicitCastFloatToInteger)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -208,7 +208,7 @@ TEST(Assignment, arraySliceAssignment)	 // NOLINT
 															Algorithm(location, { assignment1, assignment2, assignment3 })));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -260,7 +260,7 @@ TEST(Assignment, arrayCopy)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -334,7 +334,7 @@ TEST(Assignment, internalArrayElement)	 // NOLINT
 															algorithm));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 

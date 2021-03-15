@@ -4,7 +4,7 @@ modelicaAddLibrary(
         src/passes/LowerToLLVM.cpp
         src/passes/TypeConverter.cpp
         src/Attribute.cpp
-        src/MlirLowerer.cpp
+        src/CodeGen.cpp
         src/ModelicaBuilder.cpp
         src/ModelicaDialect.cpp
         src/Ops.cpp

@@ -1071,7 +1071,7 @@ class CastCommonOpLowering: public ModelicaOpConversion<CastCommonOp>
 /**
  * Negate a boolean scalar.
  */
-class NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
+class NotOpScalarLowering: public ModelicaOpConversion<NotOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
@@ -1082,7 +1082,7 @@ class NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
 		return mlir::success(type.isa<BooleanType>());
 	}
 
-	void rewrite(NegateOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	void rewrite(NotOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
 		Adaptor adaptor(operands);
@@ -1097,7 +1097,7 @@ class NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
 /**
  * Negate a boolean array.
  */
-class NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
+class NotOpArrayLowering: public ModelicaOpConversion<NotOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
@@ -1113,7 +1113,7 @@ class NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
 		return mlir::success(pointerType.getElementType().isa<BooleanType>());
 	}
 
-	void rewrite(NegateOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	void rewrite(NotOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
 		Adaptor adaptor(operands);
@@ -1124,7 +1124,7 @@ class NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
 		iterateArray(rewriter, location, op.operand(),
 								 [&](mlir::ValueRange position) {
 									 mlir::Value value = rewriter.create<LoadOp>(location, op.operand(), position);
-									 mlir::Value negated = rewriter.create<NegateOp>(location, value);
+									 mlir::Value negated = rewriter.create<NotOp>(location, value);
 									 rewriter.create<StoreOp>(location, negated, result, position);
 								 });
 	}
@@ -1425,6 +1425,87 @@ class LteOpLowering: public ModelicaOpConversion<LteOp>
 		}
 
 		return mlir::failure();
+	}
+};
+
+/**
+ * Negate a scalar value.
+ */
+class NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(NegateOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		// Check if the operand is compatible
+		if (!isNumeric(op.value()))
+			return rewriter.notifyMatchFailure(op, "Left-hand side value is not a scalar");
+
+		Adaptor adaptor(operands);
+		mlir::Type type = op.value().getType();
+
+		// Compute the result
+		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		{
+			mlir::Value zeroValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getZeroAttr(adaptor.value().getType()));
+			mlir::Value result = rewriter.create<mlir::SubIOp>(location, zeroValue, adaptor.value());
+			result = getTypeConverter()->materializeSourceConversion(rewriter, location, type, result);
+			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
+			return mlir::success();
+		}
+
+		if (type.isa<RealType>())
+		{
+			mlir::Value result = rewriter.create<mlir::NegFOp>(location, adaptor.value());
+			result = getTypeConverter()->materializeSourceConversion(rewriter, location, type, result);
+			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
+			return mlir::success();
+		}
+
+		return rewriter.notifyMatchFailure(op, "Unknown type");
+	}
+};
+
+/**
+ * Negate an array.
+ */
+class NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(NegateOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		// Check if the operand is compatible
+		if (!op.value().getType().isa<PointerType>())
+			return rewriter.notifyMatchFailure(op, "Value is not an array");
+
+		auto pointerType = op.value().getType().cast<PointerType>();
+
+		if (!isNumericType(pointerType.getElementType()))
+			return rewriter.notifyMatchFailure(op, "Array has not numeric elements");
+
+		// Allocate the result array
+		mlir::Type baseType = op.resultType().cast<PointerType>().getElementType();
+		auto shape = op.value().getType().cast<PointerType>().getShape();
+		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, location, op.value());
+		mlir::Value result = rewriter.create<AllocaOp>(location, baseType, shape, dynamicDimensions);
+
+		// Negate each element
+		iterateArray(rewriter, location, op.value(),
+								 [&](mlir::ValueRange position) {
+									 mlir::Value source = rewriter.create<LoadOp>(location, op.value(), position);
+
+									 Adaptor adaptor(source);
+									 mlir::Value value = rewriter.create<NegateOp>(location, baseType, adaptor.value());
+									 rewriter.create<StoreOp>(location, value, result, position);
+								 });
+
+		rewriter.replaceOp(op, result);
+		return mlir::success();
 	}
 };
 
@@ -2421,11 +2502,12 @@ void modelica::populateModelicaConversionPatterns(mlir::OwningRewritePatternList
 	patterns.insert<IfOpLowering, ForOpLowering, WhileOpLowering>(context, typeConverter);
 
 	// Logic operations
+	patterns.insert<NotOpScalarLowering, NotOpArrayLowering>(context, typeConverter);
 	patterns.insert<AndOpLowering, OrOpLowering>(context, typeConverter);
-	patterns.insert<NegateOpScalarLowering, NegateOpArrayLowering>(context, typeConverter);
 	patterns.insert<EqOpLowering, NotEqOpLowering, GtOpLowering, GteOpLowering, LtOpLowering, LteOpLowering>(context, typeConverter);
 
 	// Math operations
+	patterns.insert<NegateOpScalarLowering, NegateOpArrayLowering>(context, typeConverter);
 	patterns.insert<AddOpScalarLowering, AddOpArrayLowering>(context, typeConverter);
 	patterns.insert<SubOpScalarLowering, SubOpArrayLowering>(context, typeConverter);
 	patterns.insert<MulOpLowering, MulOpScalarProductLowering, MulOpCrossProductLowering, MulOpVectorMatrixLowering, MulOpMatrixVectorLowering, MulOpMatrixLowering>(context, typeConverter);

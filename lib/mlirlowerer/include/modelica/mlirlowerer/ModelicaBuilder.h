@@ -19,9 +19,17 @@ namespace modelica
 		PointerType getPointerType(bool heap, mlir::Type elementType, const PointerType::Shape& shape = {});
 
 		mlir::IntegerAttr getIndexAttribute(long value);
+
 		BooleanAttribute getBooleanAttribute(bool value);
+		BooleanArrayAttribute getBooleanArrayttribute(llvm::ArrayRef<bool> values);
+
 		IntegerAttribute getIntegerAttribute(long value);
+		IntegerArrayAttribute getIntegerArrayAttribute(llvm::ArrayRef<long> values);
+
 		RealAttribute getRealAttribute(double value);
+		RealArrayAttribute getRealArrayAttribute(llvm::ArrayRef<double> values);
+
+		mlir::Attribute getZeroAttribute(mlir::Type type);
 
 		private:
 		unsigned int bitWidth;

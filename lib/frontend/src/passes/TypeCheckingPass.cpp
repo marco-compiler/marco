@@ -26,14 +26,19 @@ llvm::Expected<Type> TypeChecker::typeFromSymbol(const Expression& exp)
 
 	const auto& name = acc.getName();
 
-	if (name == "der")
-		return Type::unknown();
-
-	if (name == "time")
-		return makeType<BuiltInType::Float>();
-
 	if (symbolTable.count(name) == 0)
+	{
+		if (name == "der")
+			return Type::unknown();
+
+		if (name == "size")
+			return makeType<int>();
+
+		if (name == "time")
+			return makeType<float>();
+
 		return llvm::make_error<NotImplemented>("Unknown variable name '" + name + "'");
+	}
 
 	auto symbol = symbolTable.lookup(name);
 
@@ -253,6 +258,11 @@ llvm::Error TypeChecker::run(Class& model)
 
 llvm::Error TypeChecker::run(Member& member)
 {
+	for (auto& dimension : member.getType().getDimensions())
+		if (dimension.hasExpression())
+			if (auto error = run<Expression>(dimension.getExpression()); error)
+				return error;
+
 	if (member.hasInitializer())
 		if (auto error = run<Expression>(member.getInitializer()); error)
 			return error;
@@ -374,6 +384,8 @@ llvm::Error TypeChecker::run(IfStatement& statement)
 llvm::Error TypeChecker::run(ForStatement& statement)
 {
 	auto& induction = statement.getInduction();
+
+	symbolTable.insert(induction.getName(), Symbol(induction));
 
 	if (auto error = run<Expression>(induction.getBegin()); error)
 		return error;

@@ -1,8 +1,7 @@
 #include <gtest/gtest.h>
-#include <mlir/ExecutionEngine/CRunnerUtils.h>
 #include <mlir/IR/Dialect.h>
 #include <modelica/frontend/AST.h>
-#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
 #include <modelica/utils/SourceRange.hpp>
@@ -35,7 +34,7 @@ TEST(Input, booleanScalar)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -72,7 +71,7 @@ TEST(Input, integerScalar)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -109,7 +108,7 @@ TEST(Input, floatScalar)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -152,7 +151,7 @@ TEST(Input, integerArray)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 	
@@ -197,7 +196,7 @@ TEST(Input, integerArrayUnknownSize)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -242,7 +241,7 @@ TEST(Input, floatArray)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -287,7 +286,7 @@ TEST(Input, floatArrayUnknownSize)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -358,7 +357,7 @@ TEST(Input, integerMatrix)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember, zMember }, Algorithm(location, { yAssignment, zAssignment })));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -414,7 +413,7 @@ TEST(Output, integerArray)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, { assignment0, assignment1 })));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -468,7 +467,7 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, forStatement)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -515,7 +514,7 @@ TEST(Output, floatArray)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, { assignment0, assignment1 })));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -566,7 +565,7 @@ TEST(Output, integerMatrix)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, assignments)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 

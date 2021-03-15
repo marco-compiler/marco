@@ -8,7 +8,7 @@
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/frontend/AST.h>
 #include <modelica/frontend/Passes.h>
-#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
@@ -52,7 +52,7 @@ TEST(Function, callNoArguments)	 // NOLINT
 	ClassContainer main(Function(location, "main", true, xMember, mainAlgorithm));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower({ foo, main });
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -112,7 +112,7 @@ TEST(Function, recursiveCall)	 // NOLINT
 			algorithm));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 

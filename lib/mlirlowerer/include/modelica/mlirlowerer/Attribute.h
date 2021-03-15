@@ -8,10 +8,14 @@ namespace modelica
 	class ModelicaDialect;
 
 	class BooleanAttributeStorage;
+	class BooleanArrayAttributeStorage;
 	class IntegerAttributeStorage;
+	class IntegerArrayAttributeStorage;
 	class RealAttributeStorage;
+	class RealArrayAttributeStorage;
 
-	class BooleanAttribute : public mlir::Attribute::AttrBase<BooleanAttribute, mlir::Attribute, BooleanAttributeStorage> {
+	class BooleanAttribute : public mlir::Attribute::AttrBase<BooleanAttribute, mlir::Attribute, BooleanAttributeStorage>
+	{
 		public:
 		using Base::Base;
 
@@ -20,7 +24,18 @@ namespace modelica
 		[[nodiscard]] bool getValue() const;
 	};
 
-	class IntegerAttribute : public mlir::Attribute::AttrBase<IntegerAttribute, mlir::Attribute, IntegerAttributeStorage> {
+	class BooleanArrayAttribute : public mlir::Attribute::AttrBase<BooleanArrayAttribute, mlir::Attribute, BooleanArrayAttributeStorage>
+	{
+		public:
+		using Base::Base;
+
+		static constexpr llvm::StringRef getAttrName();
+		static BooleanArrayAttribute get(mlir::Type type, llvm::ArrayRef<bool> values);
+		[[nodiscard]] llvm::ArrayRef<bool> getValue() const;
+	};
+
+	class IntegerAttribute : public mlir::Attribute::AttrBase<IntegerAttribute, mlir::Attribute, IntegerAttributeStorage>
+	{
 		public:
 		using Base::Base;
 
@@ -29,13 +44,34 @@ namespace modelica
 		[[nodiscard]] long getValue() const;
 	};
 
-	class RealAttribute : public mlir::Attribute::AttrBase<RealAttribute, mlir::Attribute, RealAttributeStorage> {
+	class IntegerArrayAttribute : public mlir::Attribute::AttrBase<IntegerArrayAttribute, mlir::Attribute, IntegerArrayAttributeStorage>
+	{
+		public:
+		using Base::Base;
+
+		static constexpr llvm::StringRef getAttrName();
+		static IntegerArrayAttribute get(mlir::Type type, llvm::ArrayRef<long> values);
+		[[nodiscard]] llvm::ArrayRef<llvm::APInt> getValue() const;
+	};
+
+	class RealAttribute : public mlir::Attribute::AttrBase<RealAttribute, mlir::Attribute, RealAttributeStorage>
+	{
 		public:
 		using Base::Base;
 
 		static constexpr llvm::StringRef getAttrName();
 		static RealAttribute get(mlir::Type type, double value);
 		[[nodiscard]] double getValue() const;
+	};
+
+	class RealArrayAttribute : public mlir::Attribute::AttrBase<RealArrayAttribute, mlir::Attribute, RealArrayAttributeStorage>
+	{
+		public:
+		using Base::Base;
+
+		static constexpr llvm::StringRef getAttrName();
+		static RealArrayAttribute get(mlir::Type type, llvm::ArrayRef<double> values);
+		[[nodiscard]] llvm::ArrayRef<llvm::APFloat> getValue() const;
 	};
 
 	void printModelicaAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& printer);

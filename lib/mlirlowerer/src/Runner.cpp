@@ -1,3 +1,5 @@
+#include <llvm/Support/TargetSelect.h>
+#include <mlir/ExecutionEngine/OptUtils.h>
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h>
 #include <modelica/mlirlowerer/Runner.h>
@@ -7,7 +9,7 @@ using namespace modelica;
 Runner::Runner(mlir::ModuleOp module, llvm::ArrayRef<mlir::StringRef> libraries, unsigned int speedOptimization, unsigned int sizeOptimization)
 		: module(std::move(module))
 {
-	// Register the conversion to LLVM IR
+	// Register the conversions to LLVM IR
 	mlir::registerLLVMDialectTranslation(*module->getContext());
 	mlir::registerOpenMPDialectTranslation(*module->getContext());
 

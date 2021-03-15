@@ -971,31 +971,31 @@ mlir::ValueRange CastCommonOp::operands()
 }
 
 //===----------------------------------------------------------------------===//
-// Modelica::NegateOp
+// Modelica::NotOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value NegateOpAdaptor::operand()
+mlir::Value NotOpAdaptor::operand()
 {
 	return getValues()[0];
 }
 
-llvm::StringRef NegateOp::getOperationName()
+llvm::StringRef NotOp::getOperationName()
 {
-	return "modelica.negate";
+	return "modelica.not";
 }
 
-void NegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value operand)
+void NotOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value operand)
 {
 	state.addOperands(operand);
 	state.addTypes(operand.getType());
 }
 
-void NegateOp::print(mlir::OpAsmPrinter& printer)
+void NotOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.neg " << getOperand() << " : " << getOperation()->getResultTypes();
+	printer << "modelica.not " << getOperand() << " : " << getOperation()->getResultTypes();
 }
 
-mlir::LogicalResult NegateOp::verify()
+mlir::LogicalResult NotOp::verify()
 {
 	if (!operand().getType().isa<BooleanType>())
 		if (auto pointerType = operand().getType().dyn_cast<PointerType>(); !pointerType || !pointerType.getElementType().isa<BooleanType>())
@@ -1004,7 +1004,7 @@ mlir::LogicalResult NegateOp::verify()
 	return mlir::success();
 }
 
-mlir::Value NegateOp::operand()
+mlir::Value NotOp::operand()
 {
 	return Adaptor(*this).operand();
 }
@@ -1437,6 +1437,41 @@ mlir::Value LteOp::lhs()
 mlir::Value LteOp::rhs()
 {
 	return Adaptor(*this).rhs();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::NegateOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value NegateOpAdaptor::value()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef NegateOp::getOperationName()
+{
+	return "modelica.neg";
+}
+
+void NegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value value)
+{
+	state.addTypes(resultType);
+	state.addOperands(value);
+}
+
+void NegateOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.neg " << value() << " : " << resultType();
+}
+
+mlir::Type NegateOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value NegateOp::value()
+{
+	return Adaptor(*this).value();
 }
 
 //===----------------------------------------------------------------------===//

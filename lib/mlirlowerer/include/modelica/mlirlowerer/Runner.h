@@ -1,9 +1,7 @@
 #pragma once
 
 #include <llvm/ADT/StringRef.h>
-#include <llvm/Support/TargetSelect.h>
 #include <mlir/ExecutionEngine/ExecutionEngine.h>
-#include <mlir/ExecutionEngine/OptUtils.h>
 #include <mlir/IR/BuiltinOps.h>
 
 namespace modelica

@@ -38,6 +38,8 @@ BooleanAttribute ModelicaBuilder::getBooleanAttribute(bool value)
 	return BooleanAttribute::get(getBooleanType(), value);
 }
 
+
+
 IntegerAttribute ModelicaBuilder::getIntegerAttribute(long value)
 {
 	return IntegerAttribute::get(getIntegerType(), value);
@@ -46,4 +48,18 @@ IntegerAttribute ModelicaBuilder::getIntegerAttribute(long value)
 RealAttribute ModelicaBuilder::getRealAttribute(double value)
 {
 	return RealAttribute::get(getRealType(), value);
+}
+
+mlir::Attribute ModelicaBuilder::getZeroAttribute(mlir::Type type)
+{
+	if (type.isa<BooleanType>())
+		return getBooleanAttribute(false);
+
+	if (type.isa<IntegerType>())
+		return getIntegerAttribute(0);
+
+	if (type.isa<RealType>())
+		return getRealAttribute(0);
+
+	return getZeroAttr(type);
 }

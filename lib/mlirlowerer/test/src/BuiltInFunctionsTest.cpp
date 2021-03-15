@@ -2,7 +2,7 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <modelica/frontend/AST.h>
-#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
 #include <modelica/utils/SourceRange.hpp>
@@ -39,7 +39,7 @@ TEST(BuiltInOps, ndims)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -83,7 +83,7 @@ TEST(BuiltInOps, sizeSpecificArrayDimension)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -126,7 +126,7 @@ TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 

@@ -2,7 +2,7 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <modelica/frontend/AST.h>
-#include <modelica/mlirlowerer/MlirLowerer.h>
+#include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/SourceRange.hpp>
 
@@ -40,7 +40,7 @@ TEST(Comparison, eqIntegers)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -88,12 +88,12 @@ TEST(Comparison, eqFloats)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 2> x = { 57.0f, 57.0f };
-	array<float, 2> y = { 57.0f, 23.0f };
+	array<float, 2> x = { 57, 57 };
+	array<float, 2> y = { 57, 23 };
 	array<bool, 2> z = { false, true };
 
 	Runner runner(*module);
@@ -136,12 +136,12 @@ TEST(Comparison, eqIntegerAndFloat)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 2> x = { 57, 57 };
-	array<float, 2> y = { 57.0f, 23.0f };
+	array<float, 2> y = { 57, 23 };
 	array<bool, 2> z = { false, true };
 
 	Runner runner(*module);
@@ -184,7 +184,7 @@ TEST(Comparison, notEqIntegers)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -232,12 +232,12 @@ TEST(Comparison, notEqFloats)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 2> x = { 57.0f, 57.0f };
-	array<float, 2> y = { 57.0f, 23.0f };
+	array<float, 2> x = { 57, 57 };
+	array<float, 2> y = { 57, 23 };
 	array<bool, 2> z = { true, false };
 
 	Runner runner(*module);
@@ -280,12 +280,12 @@ TEST(Comparison, notEqIntegerAndFloat)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 2> x = { 57, 57 };
-	array<float, 2> y = { 57.0f, 23.0f };
+	array<float, 2> y = { 57, 23 };
 	array<bool, 2> z = { true, false };
 
 	Runner runner(*module);
@@ -328,7 +328,7 @@ TEST(Comparison, gtIntegers)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -376,12 +376,12 @@ TEST(Comparison, gtFloats)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 3> x = { 23.0f, 57.0f, 57.0f };
-	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<float, 3> x = { 23, 57, 57 };
+	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { true, true, false };
 
 	Runner runner(*module);
@@ -424,12 +424,12 @@ TEST(Comparison, gtIntegerAndFloat)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 3> x = { 23, 57, 57 };
-	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { true, true, false };
 
 	Runner runner(*module);
@@ -472,7 +472,7 @@ TEST(Comparison, gteIntegers)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -520,12 +520,12 @@ TEST(Comparison, gteFloats)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 3> x = { 23.0f, 57.0f, 57.0f };
-	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<float, 3> x = { 23, 57, 57 };
+	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { true, false, false };
 
 	Runner runner(*module);
@@ -568,12 +568,12 @@ TEST(Comparison, gteIntegerAndFloat)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 3> x = { 23, 57, 57 };
-	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { true, false, false };
 
 	Runner runner(*module);
@@ -616,7 +616,7 @@ TEST(Comparison, ltIntegers)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -664,12 +664,12 @@ TEST(Comparison, ltFloats)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 3> x = { 23.0f, 57.0f, 57.0f };
-	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<float, 3> x = { 23, 57, 57 };
+	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { false, true, true };
 
 	Runner runner(*module);
@@ -712,12 +712,12 @@ TEST(Comparison, ltIntegerAndFloat)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 3> x = { 23, 57, 57 };
-	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { false, true, true };
 
 	Runner runner(*module);
@@ -760,7 +760,7 @@ TEST(Comparison, lteIntegers)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
@@ -808,12 +808,12 @@ TEST(Comparison, lteFloats)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
-	array<float, 3> x = { 23.0f, 57.0f, 57.0f };
-	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<float, 3> x = { 23, 57, 57 };
+	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { false, false, true };
 
 	Runner runner(*module);
@@ -856,12 +856,12 @@ TEST(Comparison, lteIntegerAndFloat)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MlirLowerer lowerer(context);
+	MLIRLowerer lowerer(context);
 	auto module = lowerer.lower(cls);
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 3> x = { 23, 57, 57 };
-	array<float, 3> y = { 57.0f, 57.0f, 23.0f };
+	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { false, false, true };
 
 	Runner runner(*module);
