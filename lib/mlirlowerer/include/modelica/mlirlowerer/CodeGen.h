@@ -54,7 +54,7 @@ namespace modelica
 		[[nodiscard]] bool isInitialized() const;
 
 		[[nodiscard]] static Reference ssa(ModelicaBuilder* builder, mlir::Value value);
-		[[nodiscard]] static Reference memref(ModelicaBuilder* builder, mlir::Value value, bool initialized);
+		[[nodiscard]] static Reference memory(ModelicaBuilder* builder, mlir::Value value, bool initialized);
 
 		private:
 		Reference(ModelicaBuilder* builder,

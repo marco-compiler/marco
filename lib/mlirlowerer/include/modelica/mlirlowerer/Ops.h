@@ -71,6 +71,62 @@ namespace modelica
 		mlir::Type getType();
 	};
 
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::CastOp
+	//===----------------------------------------------------------------------===//
+
+	class CastOp;
+
+	class CastOpAdaptor : public OpAdaptor<CastOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value value();
+	};
+
+	class CastOp : public mlir::Op<CastOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult> {
+		public:
+		using Op::Op;
+		using Adaptor = CastOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& Builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType);
+		void print(mlir::OpAsmPrinter &p);
+		mlir::LogicalResult verify();
+
+		mlir::Value value();
+		mlir::Type resultType();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::CastCommonOp
+	//===----------------------------------------------------------------------===//
+
+	class CastCommonOp;
+
+	class CastCommonOpAdaptor : public OpAdaptor<CastCommonOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::ValueRange operands();
+	};
+
+	class CastCommonOp : public mlir::Op<CastCommonOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::VariadicResults> {
+		public:
+		using Op::Op;
+		using Adaptor = CastCommonOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values);
+		void print(mlir::OpAsmPrinter &p);
+
+		mlir::Type resultType();
+		mlir::ValueRange operands();
+	};
+
 	//===----------------------------------------------------------------------===//
 	// Modelica::AssignmentOp
 	//===----------------------------------------------------------------------===//
@@ -93,10 +149,37 @@ namespace modelica
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination);
-		void print(mlir::OpAsmPrinter &p);
+		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Value source();
 		mlir::Value destination();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::CallOp
+	//===----------------------------------------------------------------------===//
+
+	class CallOp;
+
+	class CallOpAdaptor : public OpAdaptor<CallOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::ValueRange args();
+	};
+
+	class CallOp : public mlir::Op<CallOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicResults, mlir::OpTrait::VariadicOperands> {
+		public:
+		using Op::Op;
+		using Adaptor = CallOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef function, mlir::TypeRange results, mlir::ValueRange args);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::StringRef function();
+		mlir::ValueRange args();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -490,61 +573,6 @@ namespace modelica
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::ValueRange args();
-	};
-
-	//===----------------------------------------------------------------------===//
-	// Modelica::CastOp
-	//===----------------------------------------------------------------------===//
-
-	class CastOp;
-
-	class CastOpAdaptor : public OpAdaptor<CastOp>
-	{
-		public:
-		using OpAdaptor::OpAdaptor;
-
-		mlir::Value value();
-	};
-
-	class CastOp : public mlir::Op<CastOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult> {
-		public:
-		using Op::Op;
-		using Adaptor = CastOpAdaptor;
-
-		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& Builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType);
-		void print(mlir::OpAsmPrinter &p);
-		mlir::LogicalResult verify();
-
-		mlir::Value value();
-		mlir::Type resultType();
-	};
-
-	//===----------------------------------------------------------------------===//
-	// Modelica::CastCommonOp
-	//===----------------------------------------------------------------------===//
-
-	class CastCommonOp;
-
-	class CastCommonOpAdaptor : public OpAdaptor<CastCommonOp>
-	{
-		public:
-		using OpAdaptor::OpAdaptor;
-
-		mlir::ValueRange operands();
-	};
-
-	class CastCommonOp : public mlir::Op<CastCommonOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::VariadicResults> {
-		public:
-		using Op::Op;
-		using Adaptor = CastCommonOpAdaptor;
-
-		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values);
-		void print(mlir::OpAsmPrinter &p);
-
-		mlir::Type resultType();
-		mlir::ValueRange operands();
 	};
 
 	//===----------------------------------------------------------------------===//

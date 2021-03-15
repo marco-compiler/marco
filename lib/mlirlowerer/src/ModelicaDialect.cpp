@@ -9,10 +9,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute>();
 
 	// Basic operations
-	addOperations<ConstantOp>();
-	addOperations<AssignmentOp>();
-	addOperations<CastOp>();
-	addOperations<CastCommonOp>();
+	addOperations<ConstantOp, CastOp, CastCommonOp, AssignmentOp, CallOp>();
 
 	// MMemory operations
 	addOperations<AllocaOp, AllocOp>();

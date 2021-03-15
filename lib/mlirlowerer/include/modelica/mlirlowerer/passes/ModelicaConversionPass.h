@@ -41,6 +41,14 @@ namespace modelica
 		ModelicaConversionOptions options;
 	};
 
+	void populateModelicaBasicConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter);
+	void populateModelicaMemoryConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter);
+	void populateModelicaControlFlowConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter);
+	void populateModelicaLogicConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter);
+	void populateModelicaMathConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter);
+	void populateModelicaBuiltInConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter);
+
+
 	void populateModelicaConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter);
 
 	std::unique_ptr<mlir::Pass> createModelicaConversionPass(ModelicaConversionOptions options = ModelicaConversionOptions::getDefaultOptions());

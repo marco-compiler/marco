@@ -1,6 +1,3 @@
 modelicaAddLibrary(
 	runtime SHARED 
-	src/PrintFunctions.cpp) 
-
-
-
+	src/PrintFunctions.cpp)

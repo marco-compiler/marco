@@ -1403,9 +1403,10 @@ TEST(MathOps, mulIntegerScalarAndIntegerStaticArray)	 // NOLINT
 
 	int x = 2;
 	array<int, 3> y = { 3, -5, 0 };
+	array<int, 3> z = { 0, 0, 0 };
 
 	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(nullptr, { 3 });
+	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, yPtr, Runner::result(zPtr))));
@@ -1451,9 +1452,10 @@ TEST(MathOps, mulIntegerScalarAndIntegerDynamicArray)	 // NOLINT
 
 	int x = 2;
 	array<int, 3> y = { 3, -5, 0 };
+	array<int, 3> z = { 0, 0, 0 };
 
 	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(nullptr, { 3 });
+	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, yPtr, Runner::result(zPtr))));
@@ -1499,9 +1501,10 @@ TEST(MathOps, mulIntegerStaticArrayAndIntegerScalar)	 // NOLINT
 
 	array<int, 3> x = { 3, -5, 0 };
 	int y = 2;
+	array<int, 3> z = { 0, 0, 0 };
 
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(nullptr, { 3 });
+	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, Runner::result(zPtr))));
@@ -1547,9 +1550,10 @@ TEST(MathOps, mulIntegerDynamicArrayAndIntegerScalar)	 // NOLINT
 
 	array<int, 3> x = { 3, -5, 0 };
 	int y = 2;
+	array<int, 3> z = { 0, 0, 0 };
 
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(nullptr, { 3 });
+	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, Runner::result(zPtr))));
@@ -1643,10 +1647,11 @@ TEST(MathOps, mulIntegerStaticVectorAndIntegerStaticMatrix)	 // NOLINT
 
 	array<int, 4> x = { 1, 2, 3, 4 };
 	array<int, 12> y = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
+	array<int, 3> z = { 0, 0, 0 };
 
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 4 });
 	ArrayDescriptor<int, 2> yPtr(y.data(), { 4, 3 });
-	ArrayDescriptor<int, 1> zPtr(nullptr, { 1 });
+	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, Runner::result(zPtr))));
@@ -1695,10 +1700,11 @@ TEST(MathOps, mulIntegerStaticMatrixAndIntegerStaticVector)	 // NOLINT
 
 	array<int, 12> x = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
 	array<int, 3> y = { 1, 2, 3 };
+	array<int, 4> z = { 0, 0, 0, 0 };
 
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 4, 3 });
 	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(nullptr, { 1 });
+	ArrayDescriptor<int, 1> zPtr(z.data(), { 4 });
 
 	Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, Runner::result(zPtr))));
@@ -1748,10 +1754,11 @@ TEST(MathOps, mulIntegerStaticMatrixes)	 // NOLINT
 
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
 	array<int, 6> y = { 1, 2, 3, 4, 5, 6 };
+	array<int, 4> z = { 0, 0, 0, 0 };
 
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });
 	ArrayDescriptor<int, 2> yPtr(y.data(), { 3, 2 });
-	ArrayDescriptor<int, 2> zPtr(nullptr, { 1, 1 });
+	ArrayDescriptor<int, 2> zPtr(z.data(), { 2, 2 });
 
 	Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, Runner::result(zPtr))));
@@ -1998,9 +2005,10 @@ TEST(MathOps, divIntegerStaticArrayAndIntegerScalar)	 // NOLINT
 
 	array<int, 3> x = { 10, -5, 0 };
 	int y = 2;
+	array<int, 3> z = { 0, 0, 0 };
 
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(nullptr, { 3 });
+	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, Runner::result(zPtr))));
@@ -2013,9 +2021,9 @@ TEST(MathOps, divIntegerDynamicArrayAndIntegerScalar)	 // NOLINT
 {
 	/**
 	 * function main
-	 *   input Integer[-1] x;
+	 *   input Integer[:] x;
 	 *   input Integer y;
-	 *   output Integer[-1] z;
+	 *   output Integer[:] z;
 	 *
 	 *   algorithm
 	 *     z := x * y;
@@ -2142,9 +2150,10 @@ TEST(MathOps, powSquareMatrix)	 // NOLINT
 
 	array<int, 4> x = { 1, 2, 3, 4 };
 	int y = 3;
+	array<int, 4> z = { 0, 0, 0, 0 };
 
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 2 });
-	ArrayDescriptor<int, 2> zPtr(nullptr, { 1, 1 });
+	ArrayDescriptor<int, 2> zPtr(z.data(), { 2, 2 });
 
 	Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, Runner::result(zPtr))));

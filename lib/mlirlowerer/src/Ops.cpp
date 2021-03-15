@@ -41,6 +41,138 @@ mlir::Type ConstantOp::getType()
 }
 
 //===----------------------------------------------------------------------===//
+// Modelica::CastOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value CastOpAdaptor::value()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef CastOp::getOperationName()
+{
+	return "modelica.cast";
+}
+
+void CastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType)
+{
+	state.addOperands(value);
+	state.addTypes(resultType);
+}
+
+void CastOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.cast " << value() << " : " << resultType();
+}
+
+mlir::LogicalResult CastOp::verify()
+{
+	mlir::Type inputType = value().getType();
+
+	if (!inputType.isa<mlir::IndexType, BooleanType, IntegerType, RealType>())
+		return emitOpError("requires the value to be an index, boolean, integer or real");
+
+	if (!resultType().isa<mlir::IndexType, BooleanType, IntegerType, RealType>())
+		return emitOpError("requires the result type to be index, boolean, integer or real");
+
+	return mlir::success();
+}
+
+mlir::Value CastOp::value()
+{
+	return Adaptor(*this).value();
+}
+
+mlir::Type CastOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::CastCommonOp
+//===----------------------------------------------------------------------===//
+
+mlir::ValueRange CastCommonOpAdaptor::operands()
+{
+	return getValues();
+}
+
+llvm::StringRef CastCommonOp::getOperationName()
+{
+	return "modelica.cast_common";
+}
+
+void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
+{
+	state.addOperands(values);
+
+	mlir::Type resultType = nullptr;
+	mlir::Type resultBaseType = nullptr;
+
+	for (const auto& value : values)
+	{
+		mlir::Type type = value.getType();
+		mlir::Type baseType = type;
+
+		if (resultType == nullptr)
+		{
+			resultType = type;
+			resultBaseType = type;
+
+			while (resultBaseType.isa<PointerType>())
+				resultBaseType = resultBaseType.cast<PointerType>().getElementType();
+
+			continue;
+		}
+
+		if (type.isa<PointerType>())
+		{
+			while (baseType.isa<PointerType>())
+				baseType = baseType.cast<PointerType>().getElementType();
+		}
+
+		if (resultBaseType.isa<mlir::IndexType>() || baseType.isa<RealType>())
+		{
+			resultType = type;
+			resultBaseType = baseType;
+		}
+	}
+
+	llvm::SmallVector<mlir::Type, 3> types;
+
+	for (const auto& value : values)
+	{
+		mlir::Type type = value.getType();
+
+		if (type.isa<PointerType>())
+		{
+			auto pointerType = type.cast<PointerType>();
+			auto shape = pointerType.getShape();
+			types.emplace_back(PointerType::get(pointerType.getContext(), pointerType.isOnHeap(), resultBaseType, shape));
+		}
+		else
+			types.emplace_back(resultBaseType);
+	}
+
+	state.addTypes(types);
+}
+
+void CastCommonOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.cast_common " << operands() << " : " << resultType();
+}
+
+mlir::Type CastCommonOp::resultType()
+{
+	return getResultTypes()[0];
+}
+
+mlir::ValueRange CastCommonOp::operands()
+{
+	return Adaptor(*this).operands();
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::AssignmentOp
 //===----------------------------------------------------------------------===//
 
@@ -79,6 +211,42 @@ mlir::Value AssignmentOp::source()
 mlir::Value AssignmentOp::destination()
 {
 	return Adaptor(*this).destination();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::CallOp
+//===----------------------------------------------------------------------===//
+
+mlir::ValueRange CallOpAdaptor::args()
+{
+	return getValues();
+}
+
+llvm::StringRef CallOp::getOperationName()
+{
+	return "modelica.call";
+}
+
+void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef function, mlir::TypeRange results, mlir::ValueRange args)
+{
+	state.addAttribute("function", builder.getStringAttr(function));
+	state.addOperands(args);
+	state.addTypes(results);
+}
+
+void CallOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.call " << function() << "(" << args() << ") : " << getResultTypes();
+}
+
+mlir::StringRef CallOp::function()
+{
+	return getOperation()->getAttrOfType<mlir::StringAttr>("function").getValue();
+}
+
+mlir::ValueRange CallOp::args()
+{
+	return Adaptor(*this).args();
 }
 
 //===----------------------------------------------------------------------===//
@@ -836,138 +1004,6 @@ void YieldOp::print(mlir::OpAsmPrinter& printer)
 mlir::ValueRange YieldOp::args()
 {
 	return Adaptor(*this).args();
-}
-
-//===----------------------------------------------------------------------===//
-// Modelica::CastOp
-//===----------------------------------------------------------------------===//
-
-mlir::Value CastOpAdaptor::value()
-{
-	return getValues()[0];
-}
-
-llvm::StringRef CastOp::getOperationName()
-{
-	return "modelica.cast";
-}
-
-void CastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType)
-{
-	state.addOperands(value);
-	state.addTypes(resultType);
-}
-
-void CastOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.cast " << value() << " : " << resultType();
-}
-
-mlir::LogicalResult CastOp::verify()
-{
-	mlir::Type inputType = value().getType();
-
-	if (!inputType.isa<mlir::IndexType, BooleanType, IntegerType, RealType>())
-		return emitOpError("requires the value to be an index, boolean, integer or real");
-
-	if (!resultType().isa<mlir::IndexType, BooleanType, IntegerType, RealType>())
-		return emitOpError("requires the result type to be index, boolean, integer or real");
-
-	return mlir::success();
-}
-
-mlir::Value CastOp::value()
-{
-	return Adaptor(*this).value();
-}
-
-mlir::Type CastOp::resultType()
-{
-	return getOperation()->getResultTypes()[0];
-}
-
-//===----------------------------------------------------------------------===//
-// Modelica::CastCommonOp
-//===----------------------------------------------------------------------===//
-
-mlir::ValueRange CastCommonOpAdaptor::operands()
-{
-	return getValues();
-}
-
-llvm::StringRef CastCommonOp::getOperationName()
-{
-	return "modelica.cast_common";
-}
-
-void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
-{
-	state.addOperands(values);
-
-	mlir::Type resultType = nullptr;
-	mlir::Type resultBaseType = nullptr;
-
-	for (const auto& value : values)
-	{
-		mlir::Type type = value.getType();
-		mlir::Type baseType = type;
-
-		if (resultType == nullptr)
-		{
-			resultType = type;
-			resultBaseType = type;
-
-			while (resultBaseType.isa<PointerType>())
-				resultBaseType = resultBaseType.cast<PointerType>().getElementType();
-
-			continue;
-		}
-
-		if (type.isa<PointerType>())
-		{
-			while (baseType.isa<PointerType>())
-				baseType = baseType.cast<PointerType>().getElementType();
-		}
-
-		if (resultBaseType.isa<mlir::IndexType>() || baseType.isa<RealType>())
-		{
-			resultType = type;
-			resultBaseType = baseType;
-		}
-	}
-
-	llvm::SmallVector<mlir::Type, 3> types;
-
-	for (const auto& value : values)
-	{
-		mlir::Type type = value.getType();
-
-		if (type.isa<PointerType>())
-		{
-			auto pointerType = type.cast<PointerType>();
-			auto shape = pointerType.getShape();
-			types.emplace_back(PointerType::get(pointerType.getContext(), pointerType.isOnHeap(), resultBaseType, shape));
-		}
-		else
-			types.emplace_back(resultBaseType);
-	}
-
-	state.addTypes(types);
-}
-
-void CastCommonOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.cast_common " << operands() << " : " << resultType();
-}
-
-mlir::Type CastCommonOp::resultType()
-{
-	return getResultTypes()[0];
-}
-
-mlir::ValueRange CastCommonOp::operands()
-{
-	return Adaptor(*this).operands();
 }
 
 //===----------------------------------------------------------------------===//

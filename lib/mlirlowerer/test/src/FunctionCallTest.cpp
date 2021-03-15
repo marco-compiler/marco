@@ -21,7 +21,7 @@ TEST(Function, callNoArguments)	 // NOLINT
 {
 	/**
 	 * function foo
-	 *   output x;
+	 *   output Integer x;
 	 *
 	 *   algorithm
 	 *   	 x := 1;
@@ -131,4 +131,71 @@ TEST(Function, recursiveCall)	 // NOLINT
 		expected += value;
 
 	EXPECT_EQ(y, expected);
+}
+
+TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
+{
+	/**
+	 * function foo
+	 *   output Integer[3] x;
+	 *
+	 *   algorithm
+	 *   	 x[1] := 1;
+	 *   	 x[2] := 2;
+	 *   	 x[3] := 3;
+	 * end foo
+	 *
+	 * function main
+	 *   output Integer[3] x;
+	 *
+	 *   algorithm
+	 *     x := foo();
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+	Member xMember(location, "x", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression xRef = Expression::reference(location, makeType<int>(3), "x");
+
+	Algorithm fooAlgorithm = Algorithm(
+			location,
+			{
+					AssignmentStatement(location,
+															Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																										xRef,
+																										Expression::constant(location, makeType<int>(), 0)),
+															Expression::constant(location, makeType<int>(), 1)),
+					AssignmentStatement(location,
+															Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																										xRef,
+																										Expression::constant(location, makeType<int>(), 1)),
+															Expression::constant(location, makeType<int>(), 2)),
+					AssignmentStatement(location,
+															Expression::operation(location, makeType<int>(), OperationKind::subscription,
+																										xRef,
+																										Expression::constant(location, makeType<int>(), 2)),
+															Expression::constant(location, makeType<int>(), 3))
+	});
+
+	ClassContainer foo(Function(location, "foo", true, xMember, fooAlgorithm));
+
+	Algorithm mainAlgorithm = Algorithm(location, {
+			AssignmentStatement(location, xRef, Expression::call(location, makeType<int>(3), Expression::reference(location, makeType<int>(3), "foo")))
+	});
+
+	ClassContainer main(Function(location, "main", true, xMember, mainAlgorithm));
+
+	mlir::MLIRContext context;
+	MLIRLowerer lowerer(context);
+	auto module = lowerer.lower({ foo, main });
+	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	array<int, 3> y = { 0, 0, 0};
+	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(yPtr))));
+	EXPECT_EQ(yPtr[0], 1);
+	EXPECT_EQ(yPtr[1], 2);
+	EXPECT_EQ(yPtr[2], 3);
 }

@@ -1,7 +1,6 @@
 #include <mlir/Conversion/Passes.h>
 #include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
 #include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
-#include <mlir/Dialect/Affine/IR/AffineOps.h>
 #include <mlir/Dialect/LLVMIR/FunctionCallUtils.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/Math/IR/Math.h>
@@ -364,6 +363,54 @@ class AssignmentOpArrayLowering: public ModelicaOpConversion<AssignmentOp>
 								 });
 
 		rewriter.eraseOp(op);
+	}
+};
+
+class CallOpLowering: public ModelicaOpConversion<CallOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(CallOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op->getLoc();
+
+		llvm::SmallVector<mlir::Value, 3> args;
+		llvm::SmallVector<mlir::Value, 3> arrays;
+		llvm::SmallVector<mlir::Type, 3> resultTypes;
+
+		for (mlir::Value arg : op.args())
+			args.push_back(arg);
+
+		for (mlir::Type type : op->getResultTypes())
+		{
+			if (auto pointerType = type.dyn_cast<PointerType>(); pointerType && pointerType.hasConstantShape())
+			{
+				mlir::Value array = rewriter.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape());
+				args.push_back(array);
+				arrays.push_back(array);
+			}
+			else
+			{
+				resultTypes.push_back(type);
+			}
+		}
+
+		auto call = rewriter.create<mlir::CallOp>(location, op.function(), resultTypes, args);
+
+		llvm::SmallVector<mlir::Value, 3> results;
+		size_t i = 0;
+		size_t j = 0;
+
+		for (mlir::Type type : op.getResultTypes())
+		{
+			if (auto pointerType = type.dyn_cast<PointerType>(); pointerType && pointerType.hasConstantShape())
+				results.push_back(arrays[i++]);
+			else
+				results.push_back(call.getResult(j++));
+		}
+
+		rewriter.replaceOp(op, results);
+		return mlir::success();
 	}
 };
 
@@ -2485,38 +2532,93 @@ void ModelicaConversionPass::runOnOperation()
 	}
 }
 
+void modelica::populateModelicaBasicConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter)
+{
+	patterns.insert<
+	    ConstantOpLowering,
+			CastOpIndexLowering,
+			CastOpBooleanLowering,
+			CastOpIntegerLowering,
+			CastOpRealLowering,
+			CastCommonOpLowering,
+			AssignmentOpScalarLowering,
+			AssignmentOpArrayLowering,
+			CallOpLowering>(context, typeConverter);
+}
+
+void modelica::populateModelicaMemoryConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter)
+{
+	patterns.insert<
+	    AllocaOpLowering,
+			AllocOpLowering,
+			FreeOpLowering,
+			SubscriptOpLowering,
+			DimOpLowering,
+			LoadOpLowering,
+			StoreOpLowering,
+			ArrayCopyOpLowering>(context, typeConverter);
+}
+
+void modelica::populateModelicaControlFlowConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter)
+{
+	patterns.insert<
+	    IfOpLowering,
+	    ForOpLowering,
+			WhileOpLowering>(context, typeConverter);
+}
+
+void modelica::populateModelicaLogicConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter)
+{
+	patterns.insert<
+	    NotOpScalarLowering,
+			NotOpArrayLowering,
+			AndOpLowering,
+			OrOpLowering,
+			EqOpLowering,
+			NotEqOpLowering,
+			GtOpLowering,
+			GteOpLowering,
+			LtOpLowering,
+			LteOpLowering>(context, typeConverter);
+}
+
+void modelica::populateModelicaMathConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter)
+{
+	patterns.insert<
+	    NegateOpScalarLowering,
+			NegateOpArrayLowering,
+			AddOpScalarLowering,
+			AddOpArrayLowering,
+			SubOpScalarLowering,
+			SubOpArrayLowering,
+			MulOpLowering,
+			MulOpScalarProductLowering,
+			MulOpCrossProductLowering,
+			MulOpVectorMatrixLowering,
+			MulOpMatrixVectorLowering,
+			MulOpMatrixLowering,
+			DivOpLowering,
+			DivOpArrayLowering,
+			PowOpLowering,
+			PowOpMatrixLowering>(context, typeConverter);
+}
+
+void modelica::populateModelicaBuiltInConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter)
+{
+	patterns.insert<
+	    NDimsOpLowering,
+			SizeOpDimensionLowering,
+			SizeOpArrayLowering>(context, typeConverter);
+}
+
 void modelica::populateModelicaConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, modelica::TypeConverter& typeConverter)
 {
-	// Basic operations
-	patterns.insert<ConstantOpLowering>(context, typeConverter);
-	patterns.insert<AssignmentOpScalarLowering, AssignmentOpArrayLowering>(context, typeConverter);
-	patterns.insert<CastOpIndexLowering, CastOpBooleanLowering, CastOpIntegerLowering, CastOpRealLowering, CastCommonOpLowering>(context, typeConverter);
-
-	// Memory operations
-	patterns.insert<AllocaOpLowering, AllocOpLowering, FreeOpLowering>(context, typeConverter);
-	patterns.insert<SubscriptOpLowering, DimOpLowering>(context, typeConverter);
-	patterns.insert<LoadOpLowering, StoreOpLowering>(context, typeConverter);
-	patterns.insert<ArrayCopyOpLowering>(context, typeConverter);
-
-	// Control flow operations
-	patterns.insert<IfOpLowering, ForOpLowering, WhileOpLowering>(context, typeConverter);
-
-	// Logic operations
-	patterns.insert<NotOpScalarLowering, NotOpArrayLowering>(context, typeConverter);
-	patterns.insert<AndOpLowering, OrOpLowering>(context, typeConverter);
-	patterns.insert<EqOpLowering, NotEqOpLowering, GtOpLowering, GteOpLowering, LtOpLowering, LteOpLowering>(context, typeConverter);
-
-	// Math operations
-	patterns.insert<NegateOpScalarLowering, NegateOpArrayLowering>(context, typeConverter);
-	patterns.insert<AddOpScalarLowering, AddOpArrayLowering>(context, typeConverter);
-	patterns.insert<SubOpScalarLowering, SubOpArrayLowering>(context, typeConverter);
-	patterns.insert<MulOpLowering, MulOpScalarProductLowering, MulOpCrossProductLowering, MulOpVectorMatrixLowering, MulOpMatrixVectorLowering, MulOpMatrixLowering>(context, typeConverter);
-	patterns.insert<DivOpLowering, DivOpArrayLowering>(context, typeConverter);
-	patterns.insert<PowOpLowering, PowOpMatrixLowering>(context, typeConverter);
-
-	// Builtin operations
-	patterns.insert<NDimsOpLowering>(context, typeConverter);
-	patterns.insert<SizeOpDimensionLowering, SizeOpArrayLowering>(context, typeConverter);
+	populateModelicaBasicConversionPatterns(patterns, context, typeConverter);
+	populateModelicaMemoryConversionPatterns(patterns, context, typeConverter);
+	populateModelicaControlFlowConversionPatterns(patterns, context, typeConverter);
+	populateModelicaLogicConversionPatterns(patterns, context, typeConverter);
+	populateModelicaMathConversionPatterns(patterns, context, typeConverter);
+	populateModelicaBuiltInConversionPatterns(patterns, context, typeConverter);
 }
 
 std::unique_ptr<mlir::Pass> modelica::createModelicaConversionPass(ModelicaConversionOptions options)

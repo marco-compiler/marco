@@ -131,9 +131,10 @@ TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
 	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
 
 	array<int, 12> x = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
-	ArrayDescriptor<int, 2> xPtr(x.data(), { 4, 3 });
+	array<int, 2> y = { 0, 0 };
 
-	ArrayDescriptor<int, 1> yPtr(nullptr, { 1 });
+	ArrayDescriptor<int, 2> xPtr(x.data(), { 4, 3 });
+	ArrayDescriptor<int, 1> yPtr(y.data(), { 1 });
 
 	Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(yPtr))));
