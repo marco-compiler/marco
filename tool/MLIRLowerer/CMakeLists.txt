@@ -1,5 +1,5 @@
 modelicaAddTool(
-        FunctionLowerer
+        MLIRLowerer
         modelica::frontend
         modelica::mlirlowerer
 )

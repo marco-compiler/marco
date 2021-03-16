@@ -38,9 +38,16 @@ TEST(MathOps, negateIntegerScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 2> x = { 23, 57 };
 	array<int, 2> y = { 23, 57 };
@@ -82,9 +89,16 @@ TEST(MathOps, negateFloatScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 2> x = { 23, 57 };
 	array<float, 2> y = { 23, 57 };
@@ -126,9 +140,16 @@ TEST(MathOps, negateIntegerStaticArray)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
 	array<int, 3> y = { 10, 23, 57 };
@@ -171,9 +192,16 @@ TEST(MathOps, negateIntegerDynamicArray)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
 	array<int, 3> y = { 10, 23, 57 };
@@ -216,9 +244,16 @@ TEST(MathOps, negateFloatStaticArray)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 3> x = { 10, 23, 57 };
 	array<float, 3> y = { 10, 23, 57 };
@@ -261,9 +296,16 @@ TEST(MathOps, negateFloatDynamicArray)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 3> x = { 10, 23, 57 };
 	array<float, 3> y = { 10, 23, 57 };
@@ -309,9 +351,16 @@ TEST(MathOps, sumOfIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 2> x = { 23, 57 };
 	array<int, 2> y = { 57, -23 };
@@ -357,9 +406,16 @@ TEST(MathOps, sumOfIntegerStaticArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
 	array<int, 3> y = { 10, 57, -23 };
@@ -407,9 +463,16 @@ TEST(MathOps, sumOfIntegerDynamicArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
 	array<int, 3> y = { 10, 57, -23 };
@@ -457,9 +520,16 @@ TEST(MathOps, sumOfFloatScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 2> x = { 23.2, 57.5 };
 	array<float, 2> y = { 57.3, -23.7 };
@@ -505,9 +575,16 @@ TEST(MathOps, sumOfFloatStaticArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 3> x = { 10.1, 23.3, 57.8 };
 	array<float, 3> y = { 10.2, 57.3, -23.5 };
@@ -555,9 +632,16 @@ TEST(MathOps, sumOfFloatDynamicArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 3> x = { 10.1, 23.3, 57.8 };
 	array<float, 3> y = { 10.2, 57.3, -23.5 };
@@ -605,9 +689,16 @@ TEST(MathOps, sumIntegerScalarAndFloatScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 2, -3, -3 };
 	array<float, 3> y = { -3.5, 5.2, -2 };
@@ -653,9 +744,16 @@ TEST(MathOps, sumIntegerArrayAndFloatArray)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 2, -3, -3 };
 	array<float, 3> y = { -3.5, 5.2, -2 };
@@ -706,9 +804,16 @@ TEST(MathOps, sumMultipleIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
 	array<int, 3> y = { 10, 57, -23 };
@@ -755,9 +860,16 @@ TEST(MathOps, subOfIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 2> x = { 23, 57 };
 	array<int, 2> y = { 57, -23 };
@@ -803,9 +915,16 @@ TEST(MathOps, subOfIntegerStaticArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
 	array<int, 3> y = { 10, 57, -23 };
@@ -853,9 +972,16 @@ TEST(MathOps, subOfIntegerDynamicArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
 	array<int, 3> y = { 10, 57, -23 };
@@ -903,9 +1029,16 @@ TEST(MathOps, subOfFloatScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 2> x = { 23.2, 57.5 };
 	array<float, 2> y = { 57.3, -23.7 };
@@ -951,9 +1084,16 @@ TEST(MathOps, subOfFloatStaticArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 3> x = { 10.1, 23.3, 57.8 };
 	array<float, 3> y = { 10.2, 57.3, -23.5 };
@@ -1001,9 +1141,16 @@ TEST(MathOps, subOfFloatDynamicArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 3> x = { 10.1, 23.3, 57.8 };
 	array<float, 3> y = { 10.2, 57.3, -23.5 };
@@ -1051,9 +1198,16 @@ TEST(MathOps, subIntegerScalarAndFloatScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 2, -3, -3 };
 	array<float, 3> y = { -3.5, 5.2, -2 };
@@ -1099,9 +1253,16 @@ TEST(MathOps, subIntegerArrayAndFloatArray)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 2, -3, -3 };
 	array<float, 3> y = { -3.5, 5.2, -2 };
@@ -1152,9 +1313,16 @@ TEST(MathOps, subMultipleIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
 	array<int, 3> y = { 10, 57, -23 };
@@ -1201,9 +1369,16 @@ TEST(MathOps, mulOfIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 2> x = { 2, 5 };
 	array<int, 2> y = { 3, -3 };
@@ -1249,9 +1424,16 @@ TEST(MathOps, mulOfFloatScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 2> x = { 2.3, 5.7 };
 	array<float, 2> y = { 23.57, -23.57 };
@@ -1297,9 +1479,16 @@ TEST(MathOps, mulIntegerScalarAndFloatScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 2, -3, -3 };
 	array<float, 3> y = { -3.5, 5.2, -2 };
@@ -1348,9 +1537,16 @@ TEST(MathOps, mulMultipleIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
 	array<int, 3> y = { 10, 57, -23 };
@@ -1397,9 +1593,16 @@ TEST(MathOps, mulIntegerScalarAndIntegerStaticArray)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int x = 2;
 	array<int, 3> y = { 3, -5, 0 };
@@ -1446,9 +1649,16 @@ TEST(MathOps, mulIntegerScalarAndIntegerDynamicArray)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int x = 2;
 	array<int, 3> y = { 3, -5, 0 };
@@ -1495,9 +1705,16 @@ TEST(MathOps, mulIntegerStaticArrayAndIntegerScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 3, -5, 0 };
 	int y = 2;
@@ -1544,9 +1761,16 @@ TEST(MathOps, mulIntegerDynamicArrayAndIntegerScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 3, -5, 0 };
 	int y = 2;
@@ -1593,9 +1817,16 @@ TEST(MathOps, mulCrossProductIntegerStaticArrays)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 3, 5, 2 };
 	array<int, 3> y = { 7, -2, 3 };
@@ -1641,9 +1872,16 @@ TEST(MathOps, mulIntegerStaticVectorAndIntegerStaticMatrix)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 4> x = { 1, 2, 3, 4 };
 	array<int, 12> y = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
@@ -1694,9 +1932,16 @@ TEST(MathOps, mulIntegerStaticMatrixAndIntegerStaticVector)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 12> x = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
 	array<int, 3> y = { 1, 2, 3 };
@@ -1748,9 +1993,16 @@ TEST(MathOps, mulIntegerStaticMatrixes)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
 	array<int, 6> y = { 1, 2, 3, 4, 5, 6 };
@@ -1803,9 +2055,16 @@ TEST(MathOps, divOfIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 2> x = { 6, 10 };
 	array<int, 2> y = { 3, -5 };
@@ -1851,9 +2110,16 @@ TEST(MathOps, divOfFloatScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 2> x = { 10.8, 10 };
 	array<float, 2> y = { 3.6, -3.2 };
@@ -1902,9 +2168,16 @@ TEST(MathOps, divMultipleIntegerScalars)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 120, 50, 0 };
 	array<int, 3> y = { 2, 5, 5 };
@@ -1951,9 +2224,16 @@ TEST(MathOps, divIntegerScalarAndFloatScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 23, 10, -3 };
 	array<float, 3> y = { -3.5, 3.2, -2 };
@@ -1999,9 +2279,16 @@ TEST(MathOps, divIntegerStaticArrayAndIntegerScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 10, -5, 0 };
 	int y = 2;
@@ -2048,9 +2335,16 @@ TEST(MathOps, divIntegerDynamicArrayAndIntegerScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 3, -5, 0 };
 	int y = 2;
@@ -2096,9 +2390,16 @@ TEST(MathOps, powScalar)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 2> x = { 3, 2 };
 	array<int, 2> y = { 4, 0 };
@@ -2144,9 +2445,16 @@ TEST(MathOps, powSquareMatrix)	 // NOLINT
 															Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 4> x = { 1, 2, 3, 4 };
 	int y = 3;

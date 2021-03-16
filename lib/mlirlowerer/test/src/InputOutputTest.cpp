@@ -34,9 +34,16 @@ TEST(Input, booleanScalar)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	bool x = true;
 	bool y = false;
@@ -71,9 +78,16 @@ TEST(Input, integerScalar)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int x = 57;
 	int y = 0;
@@ -108,9 +122,16 @@ TEST(Input, floatScalar)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	float x = 57;
 	float y = 0;
@@ -151,9 +172,16 @@ TEST(Input, integerArray)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 	
 	array<int, 2> x = { 23, 57 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
@@ -196,9 +224,16 @@ TEST(Input, integerArrayUnknownSize)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 5> x = { 23, 57, 10, -23, -10 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 5 });
@@ -241,9 +276,16 @@ TEST(Input, floatArray)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 2> x = { 23.0, 57.0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
@@ -286,9 +328,16 @@ TEST(Input, floatArrayUnknownSize)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, assignment)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 2> x = { 23.0, 57.0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
@@ -357,9 +406,16 @@ TEST(Input, integerMatrix)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember, zMember }, Algorithm(location, { yAssignment, zAssignment })));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });
@@ -413,9 +469,16 @@ TEST(Output, integerArray)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, { assignment0, assignment1 })));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 2> x = { 0, 0 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 2 });
@@ -467,9 +530,16 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, { xMember, yMember }, Algorithm(location, forStatement)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int x = 2;
 	ArrayDescriptor<int, 1> yPtr(nullptr, { 2 });
@@ -514,9 +584,16 @@ TEST(Output, floatArray)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, { assignment0, assignment1 })));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 2> x = { 0, 0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 2 });
@@ -565,9 +642,16 @@ TEST(Output, integerMatrix)	 // NOLINT
 	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, assignments)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 6> x = { 0, 0, 0, 0, 0, 0 };
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });

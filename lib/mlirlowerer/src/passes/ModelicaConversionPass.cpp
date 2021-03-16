@@ -2496,12 +2496,6 @@ void ModelicaConversionPass::getDependentDialects(mlir::DialectRegistry& registr
 	registry.insert<mlir::LLVM::LLVMDialect>();
 }
 
-ModelicaConversionPass::ModelicaConversionPass(
-		ModelicaConversionOptions options)
-		: options(std::move(options))
-{
-}
-
 void ModelicaConversionPass::runOnOperation()
 {
 	auto module = getOperation();
@@ -2515,7 +2509,6 @@ void ModelicaConversionPass::runOnOperation()
 	target.addLegalOp<mlir::FuncOp, mlir::ModuleOp, mlir::ModuleTerminatorOp, mlir::UnrealizedConversionCastOp>();
 
 	mlir::LowerToLLVMOptions llvmLoweringOptions;
-	llvmLoweringOptions.emitCWrappers = true;
 	TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
 	// Provide the set of patterns that will lower the Modelica operations
@@ -2621,7 +2614,7 @@ void modelica::populateModelicaConversionPatterns(mlir::OwningRewritePatternList
 	populateModelicaBuiltInConversionPatterns(patterns, context, typeConverter);
 }
 
-std::unique_ptr<mlir::Pass> modelica::createModelicaConversionPass(ModelicaConversionOptions options)
+std::unique_ptr<mlir::Pass> modelica::createModelicaConversionPass()
 {
-	return std::make_unique<ModelicaConversionPass>(options);
+	return std::make_unique<ModelicaConversionPass>();
 }

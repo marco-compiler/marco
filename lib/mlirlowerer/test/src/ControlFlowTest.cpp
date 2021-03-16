@@ -60,9 +60,16 @@ TEST(ControlFlow, thenBranchTaken)	 // NOLINT
 			Algorithm(location, ifStatement)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int x = 1;
 	int y = 0;
@@ -121,9 +128,16 @@ TEST(ControlFlow, elseBranchTaken)	 // NOLINT
 			Algorithm(location, ifStatement)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int x = -1;
 	int y = 0;
@@ -197,9 +211,16 @@ TEST(ControlFlow, elseIfBranchTaken)	 // NOLINT
 			Algorithm(location, ifStatement)));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int x = 1;
 	int y = 0;
@@ -256,9 +277,16 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 			algorithm));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int x = 10;
 	int y = 0;
@@ -315,9 +343,16 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 			algorithm));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int x = 1;
 	int y = 0;
@@ -376,9 +411,16 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 			algorithm));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int x = 10;
 	int y = 0;
@@ -429,9 +471,16 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int y = 0;
 
@@ -489,9 +538,16 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int y = 0;
 
@@ -541,9 +597,16 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int y = 0;
 
@@ -612,9 +675,16 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int y = 0;
 
@@ -671,9 +741,16 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int y = 0;
 
@@ -743,9 +820,16 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int y = 0;
 
@@ -792,9 +876,16 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
 	auto module = lowerer.lower(cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int y = 0;
 

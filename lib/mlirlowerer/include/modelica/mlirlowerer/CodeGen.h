@@ -6,14 +6,16 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
 #include <modelica/frontend/AST.h>
-#include <modelica/mlirlowerer/ModelicaBuilder.h>
 #include <modelica/utils/SourceRange.hpp>
+
+#include "ModelicaBuilder.h"
+#include "Passes.h"
 
 namespace modelica
 {
 	struct ModelicaOptions {
 
-		bool x64 = false;
+		bool x64 = true;
 
 		unsigned int getBitWidth()
 		{
@@ -34,15 +36,21 @@ namespace modelica
 		}
 	};
 
-	/**
-	 * Convert an MLIR module to the LLVM dialect.
-	 *
-	 * @param context MLIR context
-	 * @param module  module
-	 * @param options Modelica lowering options
-	 * @return success if the conversion was successful
-	 */
-	[[nodiscard]] mlir::LogicalResult convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
+	struct ModelicaConversionOptions : public ModelicaToLLVMConversionOptions
+	{
+		bool openmp = false;
+		bool debug = true;
+
+		/**
+		 * Get a statically allocated copy of the default options.
+		 *
+		 * @return default options
+		 */
+		static const ModelicaConversionOptions& getDefaultOptions() {
+			static ModelicaConversionOptions options;
+			return options;
+		}
+	};
 
 	class Reference
 	{
@@ -76,27 +84,29 @@ namespace modelica
 		public:
 		explicit MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
 
-		llvm::Optional<mlir::ModuleOp> lower(llvm::ArrayRef<const modelica::ClassContainer> classes);
+		mlir::LogicalResult convertToLLVMDialect(mlir::ModuleOp& module, ModelicaConversionOptions options = ModelicaConversionOptions::getDefaultOptions());
+
+		llvm::Optional<mlir::ModuleOp> lower(llvm::ArrayRef<modelica::ClassContainer> classes);
 
 		private:
-		mlir::Operation* lower(const modelica::Class& cls);
-		mlir::FuncOp lower(const modelica::Function& function);
-		mlir::Type lower(const modelica::Type& type);
-		mlir::Type lower(const modelica::BuiltInType& type);
-		mlir::Type lower(const modelica::UserDefinedType& type);
-		void lower(const modelica::Member& member);
-		void lower(const modelica::Algorithm& algorithm);
-		void lower(const modelica::Statement& statement);
-		void lower(const modelica::AssignmentStatement& statement);
-		void lower(const modelica::IfStatement& statement);
-		void lower(const modelica::ForStatement& statement);
-		void lower(const modelica::WhileStatement& statement);
-		void lower(const modelica::WhenStatement& statement);
-		void lower(const modelica::BreakStatement& statement);
-		void lower(const modelica::ReturnStatement& statement);
+		mlir::Operation* lower(const Class& cls);
+		mlir::FuncOp lower(const Function& function);
+		mlir::Type lower(const Type& type);
+		mlir::Type lower(const BuiltInType& type);
+		mlir::Type lower(const UserDefinedType& type);
+		void lower(const Member& member);
+		void lower(const Algorithm& algorithm);
+		void lower(const Statement& statement);
+		void lower(const AssignmentStatement& statement);
+		void lower(const IfStatement& statement);
+		void lower(const ForStatement& statement);
+		void lower(const WhileStatement& statement);
+		void lower(const WhenStatement& statement);
+		void lower(const BreakStatement& statement);
+		void lower(const ReturnStatement& statement);
 
 		template<typename T>
-		Container<Reference> lower(const modelica::Expression& expression);
+		Container<Reference> lower(const Expression& expression);
 
 		/**
 		 * The builder is a helper class to create IR inside a function. The
@@ -114,11 +124,6 @@ namespace modelica
 		 */
 		llvm::ScopedHashTable<llvm::StringRef, Reference> symbolTable;
 
-		/**
-		 * Options for the lowerer.
-		 */
-		 ModelicaOptions options;
-
 		 /**
 		  * Apply a binary operation to a list of values.
 		  *
@@ -134,7 +139,7 @@ namespace modelica
 		 * @param operation operation whose arguments have to be lowered
 		 * @return lowered args
  		 */
-		Container<mlir::Value> lowerOperationArgs(const modelica::Operation& operation);
+		Container<mlir::Value> lowerOperationArgs(const Operation& operation);
 
 		/**
 		 * Helper to convert an AST location to a MLIR location.
@@ -177,21 +182,20 @@ namespace modelica
 	};
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Expression>(const modelica::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Expression>(const Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Operation>(const modelica::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Constant>(const modelica::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Constant>(const Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference>
-	MLIRLowerer::lower<modelica::ReferenceAccess>(const modelica::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ReferenceAccess>(const Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Call>(const modelica::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<modelica::Tuple>(const modelica::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(const Expression& expression);
 }

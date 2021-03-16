@@ -12,25 +12,9 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/mlirlowerer/passes/LowerToLLVM.h>
-#include <modelica/mlirlowerer/passes/ModelicaConversionPass.h>
 
 using namespace modelica;
 using namespace std;
-
-mlir::LogicalResult modelica::convertToLLVMDialect(mlir::MLIRContext* context, mlir::ModuleOp module, ModelicaOptions options)
-{
-	mlir::PassManager passManager(context);
-
-	ModelicaConversionOptions modelicaToLLVMOptions;
-	passManager.addPass(createModelicaConversionPass(modelicaToLLVMOptions));
-
-	//passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
-	passManager.addPass(mlir::createLowerToCFGPass());
-	passManager.addPass(createLLVMLoweringPass());
-
-	return passManager.run(module);
-}
 
 Reference::Reference() : builder(nullptr), value(nullptr), reader(nullptr)
 {
@@ -83,10 +67,28 @@ Reference Reference::memory(ModelicaBuilder* builder, mlir::Value value, bool in
 }
 
 MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options)
-		: builder(&context, options.getBitWidth()), options(move(options))
+		: builder(&context, options.getBitWidth())
 {
 	context.loadDialect<ModelicaDialect>();
 	context.loadDialect<mlir::StandardOpsDialect>();
+}
+
+mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, ModelicaConversionOptions options)
+{
+	mlir::PassManager passManager(builder.getContext());
+
+	passManager.addPass(modelica::createModelicaConversionPass());
+
+	if (options.openmp)
+		passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
+
+	passManager.addPass(mlir::createLowerToCFGPass());
+	passManager.addPass(modelica::createLLVMLoweringPass(options));
+
+	if (!options.debug)
+		passManager.addPass(mlir::createStripDebugInfoPass());
+
+	return passManager.run(module);
 }
 
 mlir::Location MLIRLowerer::loc(SourcePosition location)
@@ -97,7 +99,7 @@ mlir::Location MLIRLowerer::loc(SourcePosition location)
 			location.column);
 }
 
-llvm::Optional<mlir::ModuleOp> MLIRLowerer::lower(llvm::ArrayRef<const ClassContainer> classes)
+llvm::Optional<mlir::ModuleOp> MLIRLowerer::lower(llvm::ArrayRef<ClassContainer> classes)
 {
 	mlir::ModuleOp module = mlir::ModuleOp::create(builder.getUnknownLoc());
 

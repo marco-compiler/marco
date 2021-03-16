@@ -25,7 +25,8 @@ struct UnrealizedCastOpLowering : public mlir::OpRewritePattern<mlir::Unrealized
 	}
 };
 
-LLVMLoweringPass::LLVMLoweringPass()
+LLVMLoweringPass::LLVMLoweringPass(ModelicaToLLVMConversionOptions options)
+		: options(std::move(options))
 {
 }
 
@@ -40,9 +41,10 @@ mlir::LogicalResult LLVMLoweringPass::stdToLLVMConversionPass(mlir::ModuleOp mod
 	target.addLegalOp<mlir::UnrealizedConversionCastOp>();
 	target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
 
-	mlir::LowerToLLVMOptions llvmLoweringOptions;
-	llvmLoweringOptions.emitCWrappers = true;
-	modelica::TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+	mlir::LowerToLLVMOptions llvmOptions;
+	llvmOptions.emitCWrappers = options.emitCWrappers;
+	
+	modelica::TypeConverter typeConverter(&getContext(), llvmOptions);
 
 	target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });
 	target.addLegalOp<mlir::omp::TerminatorOp, mlir::omp::TaskyieldOp, mlir::omp::FlushOp, mlir::omp::BarrierOp, mlir::omp::TaskwaitOp>();
@@ -86,7 +88,7 @@ void LLVMLoweringPass::runOnOperation()
 	}
 }
 
-std::unique_ptr<mlir::Pass> modelica::createLLVMLoweringPass()
+std::unique_ptr<mlir::Pass> modelica::createLLVMLoweringPass(ModelicaToLLVMConversionOptions options)
 {
-	return std::make_unique<LLVMLoweringPass>();
+	return std::make_unique<LLVMLoweringPass>(options);
 }
