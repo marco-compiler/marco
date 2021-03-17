@@ -1,3 +1,4 @@
+#include <mlir/Conversion/Passes.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/OpImplementation.h>
 #include <modelica/mlirlowerer/Ops.h>
@@ -295,6 +296,11 @@ mlir::LogicalResult AllocaOp::verify()
 	return mlir::success();
 }
 
+void AllocaOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+}
+
 PointerType AllocaOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<PointerType>();
@@ -351,6 +357,11 @@ mlir::LogicalResult AllocOp::verify()
 	return mlir::success();
 }
 
+void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+}
+
 PointerType AllocOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<PointerType>();
@@ -396,6 +407,11 @@ mlir::LogicalResult FreeOp::verify()
 	}
 
 	return emitOpError("requires operand to be a pointer to heap allocated memory");
+}
+
+void FreeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Free::get(), memory(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::Value FreeOp::memory()
@@ -495,9 +511,7 @@ void SubscriptionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 
 void SubscriptionOp::print(mlir::OpAsmPrinter& printer)
 {
- 	printer << "modelica.subscript " << source() << "[" << indexes() << "] : ";
-	printer << indexes();
-	printer << "] : " << resultType();
+ 	printer << "modelica.subscript " << source() << "[" << indexes() << "] : " << resultType();
 }
 
 PointerType SubscriptionOp::resultType()
@@ -560,6 +574,11 @@ mlir::LogicalResult LoadOp::verify()
 											 std::to_string(pointerType.getRank()) + ")");
 
 	return mlir::success();
+}
+
+void LoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), memory(), mlir::SideEffects::DefaultResource::get());
 }
 
 PointerType LoadOp::getPointerType()
@@ -632,6 +651,11 @@ mlir::LogicalResult StoreOp::verify()
 	return mlir::success();
 }
 
+void StoreOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), memory(), mlir::SideEffects::DefaultResource::get());
+}
+
 PointerType StoreOp::getPointerType()
 {
 	return memory().getType().cast<PointerType>();
@@ -676,6 +700,13 @@ void ArrayCopyOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, m
 void ArrayCopyOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.array_copy " << source() << " : " << getPointerType();
+}
+
+void ArrayCopyOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), source(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
 PointerType ArrayCopyOp::getPointerType()
@@ -1479,7 +1510,7 @@ mlir::Value LteOp::rhs()
 // Modelica::NegateOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value NegateOpAdaptor::value()
+mlir::Value NegateOpAdaptor::operand()
 {
 	return getValues()[0];
 }
@@ -1497,7 +1528,17 @@ void NegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir
 
 void NegateOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.neg " << value() << " : " << resultType();
+	printer << "modelica.neg " << operand() << " : " << resultType();
+}
+
+void NegateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (resultType().isa<PointerType>())
+	{
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
 }
 
 mlir::Type NegateOp::resultType()
@@ -1505,9 +1546,9 @@ mlir::Type NegateOp::resultType()
 	return getOperation()->getResultTypes()[0];
 }
 
-mlir::Value NegateOp::value()
+mlir::Value NegateOp::operand()
 {
-	return Adaptor(*this).value();
+	return Adaptor(*this).operand();
 }
 
 //===----------------------------------------------------------------------===//
@@ -1538,6 +1579,17 @@ void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 void AddOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.add " << lhs() << ", " << rhs() << " : " << resultType();
+}
+
+void AddOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (resultType().isa<PointerType>())
+	{
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
 }
 
 mlir::Type AddOp::resultType()
@@ -1585,6 +1637,17 @@ void SubOp::print(mlir::OpAsmPrinter& printer)
 	printer << "modelica.sub " << lhs() << ", " << rhs() << " : " << resultType();
 }
 
+void SubOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (resultType().isa<PointerType>())
+	{
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
+}
+
 mlir::Type SubOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -1628,6 +1691,21 @@ void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 void MulOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.mul " << lhs() << ", " << rhs() << " : " << resultType();
+}
+
+void MulOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (lhs().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (rhs().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (resultType().isa<PointerType>())
+	{
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
 }
 
 mlir::Type MulOp::resultType()
@@ -1675,6 +1753,21 @@ void DivOp::print(mlir::OpAsmPrinter& printer)
 	printer << "modelica.div " << lhs() << ", " << rhs() << " : " << resultType();
 }
 
+void DivOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (lhs().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (rhs().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (resultType().isa<PointerType>())
+	{
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
+}
+
 mlir::Type DivOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -1718,6 +1811,21 @@ void PowOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 void PowOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.pow " << base() << ", " << exponent() << " : " << resultType();
+}
+
+void PowOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (base().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), base(), mlir::SideEffects::DefaultResource::get());
+
+	if (exponent().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), exponent(), mlir::SideEffects::DefaultResource::get());
+
+	if (resultType().isa<PointerType>())
+	{
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
 }
 
 mlir::Type PowOp::resultType()

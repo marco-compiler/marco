@@ -10,6 +10,7 @@ namespace modelica
 	class IntegerTypeStorage;
 	class RealTypeStorage;
 	class PointerTypeStorage;
+	class UnrankedPointerTypeStorage;
 
 	class BooleanType : public mlir::Type::TypeBase<BooleanType, mlir::Type, mlir::TypeStorage> {
 		public:
@@ -55,6 +56,31 @@ namespace modelica
 
 		[[nodiscard]] bool hasConstantShape() const;
 	};
+
+	/*
+	class UnrankedPointerType : public mlir::Type::TypeBase<UnrankedPointerType, mlir::Type, UnrankedPointerTypeStorage> {
+		public:
+		using Base::Base;
+		using Shape = llvm::SmallVector<long, 3>;
+
+		/// Return a sequence type with the specified shape and element type
+		static UnrankedPointerType get(mlir::MLIRContext* context, bool heap, mlir::Type elementType, llvm::ArrayRef<long> shape = {});
+
+		/// The element type of this sequence
+		[[nodiscard]] mlir::Type getElementType() const;
+
+		/// The shape of the sequence. If the sequence has an unknown shape, the shape
+		/// returned will be empty.
+		[[nodiscard]] Shape getShape() const;
+
+		[[nodiscard]] unsigned int getRank() const;
+
+		[[nodiscard]] unsigned int getConstantDimensions() const;
+		[[nodiscard]] unsigned int getDynamicDimensions() const;
+
+		[[nodiscard]] bool hasConstantShape() const;
+	};
+	 */
 
 	void printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer);
 }

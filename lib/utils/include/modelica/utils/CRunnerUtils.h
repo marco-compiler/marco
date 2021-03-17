@@ -65,6 +65,11 @@ namespace modelica
 		long sizes[Rank];
 	};
 
+	struct UnrankedArrayDescriptor {
+		long rank;
+		void* descriptor;
+	};
+
 	template <typename T, int Rank>
 	class ArrayDescriptorIterator {
 		public:

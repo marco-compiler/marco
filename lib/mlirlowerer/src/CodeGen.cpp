@@ -77,6 +77,9 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 {
 	mlir::PassManager passManager(builder.getContext());
 
+	if (options.cse)
+		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
+
 	passManager.addPass(modelica::createModelicaConversionPass());
 
 	if (options.openmp)

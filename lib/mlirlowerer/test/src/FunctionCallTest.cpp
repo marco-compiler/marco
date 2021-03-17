@@ -53,16 +53,21 @@ TEST(Function, callNoArguments)	 // NOLINT
 
 	mlir::MLIRContext context;
 
-	/*
-	auto module = getModuleFromAST(context, cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower({ foo, main });
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int y = 0;
 
 	Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
 	EXPECT_EQ(y, 1);
-	 */
 }
 
 TEST(Function, recursiveCall)	 // NOLINT
@@ -196,9 +201,15 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 
 	mlir::MLIRContext context;
 
-	/*
-	auto module = getModuleFromAST(context, cls);
-	ASSERT_TRUE(module && !failed(convertToLLVMDialect(&context, *module)));
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower({ foo, main });
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> y = { 0, 0, 0};
 	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
@@ -208,5 +219,4 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 	EXPECT_EQ(yPtr[0], 1);
 	EXPECT_EQ(yPtr[1], 2);
 	EXPECT_EQ(yPtr[2], 3);
-	 */
 }

@@ -28,6 +28,7 @@ static cl::OptionCategory optionCategory("MLIR lowerer options");
 static cl::opt<string> inputFile(cl::Positional, cl::desc("<input-file>"), cl::init("-"), cl::cat(optionCategory));
 static cl::opt<string> outputFile("o", cl::desc("<output-file>"), cl::init("-"), cl::cat(optionCategory));
 static cl::opt<bool> x86("32", cl::desc("Use 32-bit values instead of 64-bit ones"), cl::init(false), cl::cat(optionCategory));
+static cl::opt<bool> cse("no-cse", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(optionCategory));
 static cl::opt<bool> openmp("omp", cl::desc("Enable OpenMP usage"), cl::init(false), cl::cat(optionCategory));
 
 enum OptLevel {
@@ -45,7 +46,7 @@ static cl::opt<OptLevel> optimizationLevel(cl::desc("Optimization level:"),
 
 static cl::opt<bool> printParsedAST("print-parsed-ast", cl::desc("Print the AST right after being parsed"), cl::init(false), cl::cat(optionCategory));
 static cl::opt<bool> printLegalizedAST("print-legalized-ast", cl::desc("Print the AST after it has been legalized"), cl::init(false), cl::cat(optionCategory));
-static cl::opt<bool> printModelicaDialectIR("print-modelica", cl::desc("Print the Modelica dialect IR"), cl::init(false), cl::cat(optionCategory));
+static cl::opt<bool> printModelicaDialectIR("print-modelica", cl::desc("Print the Modelica dialect IR obtained right after the AST lowering"), cl::init(false), cl::cat(optionCategory));
 static cl::opt<bool> printLLVMDialectIR("print-llvm", cl::desc("Print the LLVM dialect IR"), cl::init(false), cl::cat(optionCategory));
 
 static cl::opt<bool> debug("d", cl::desc("Keep debug information in the final IR"), cl::init(false), cl::cat(optionCategory));
@@ -105,6 +106,7 @@ int main(int argc, char* argv[])
 
 	// Convert to LLVM dialect
 	modelica::ModelicaConversionOptions conversionOptions;
+	conversionOptions.cse = !cse;
 	conversionOptions.openmp = openmp;
 	conversionOptions.debug = debug;
 

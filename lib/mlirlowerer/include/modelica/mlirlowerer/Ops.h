@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mlir/Interfaces/SideEffectInterfaces.h>
 #include <mlir/IR/OpDefinition.h>
 
 #include "Type.h"
@@ -57,7 +58,7 @@ namespace modelica
 		using OpAdaptor::OpAdaptor;
 	};
 
-	class ConstantOp : public mlir::Op<ConstantOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneResult, mlir::OpTrait::ZeroOperands> {
+	class ConstantOp : public mlir::Op<ConstantOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneResult, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ConstantLike> {
 		public:
 		using Op::Op;
 		using Adaptor = ConstantOpAdaptor;
@@ -70,7 +71,6 @@ namespace modelica
 		mlir::Attribute value();
 		mlir::Type getType();
 	};
-
 
 	//===----------------------------------------------------------------------===//
 	// Modelica::CastOp
@@ -196,7 +196,7 @@ namespace modelica
 		mlir::ValueRange dynamicDimensions();
 	};
 
-	class AllocaOp : public mlir::Op<AllocaOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
+	class AllocaOp : public mlir::Op<AllocaOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -206,6 +206,7 @@ namespace modelica
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		PointerType resultType();
 		mlir::ValueRange dynamicDimensions();
@@ -225,7 +226,7 @@ namespace modelica
 		mlir::ValueRange dynamicDimensions();
 	};
 
-	class AllocOp : public mlir::Op<AllocOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
+	class AllocOp : public mlir::Op<AllocOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -235,6 +236,7 @@ namespace modelica
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		PointerType resultType();
 		mlir::ValueRange dynamicDimensions();
@@ -254,7 +256,7 @@ namespace modelica
 		mlir::Value memory();
 	};
 
-	class FreeOp : public mlir::Op<FreeOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::ZeroResult>
+	class FreeOp : public mlir::Op<FreeOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::ZeroResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -264,6 +266,7 @@ namespace modelica
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Value memory();
 	};
@@ -344,7 +347,7 @@ namespace modelica
 		mlir::ValueRange indexes();
 	};
 
-	class LoadOp : public mlir::Op<LoadOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<1>::Impl, mlir::OpTrait::OneResult>
+	class LoadOp : public mlir::Op<LoadOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<1>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -354,6 +357,7 @@ namespace modelica
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::ValueRange indexes = {});
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		PointerType getPointerType();
 		mlir::Value memory();
@@ -376,7 +380,7 @@ namespace modelica
 		mlir::ValueRange indexes();
 	};
 
-	class StoreOp :public mlir::Op<StoreOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::ZeroResult>
+	class StoreOp :public mlir::Op<StoreOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::ZeroResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -386,6 +390,7 @@ namespace modelica
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory, mlir::ValueRange indexes = {});
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		PointerType getPointerType();
 		mlir::Value value();
@@ -407,7 +412,7 @@ namespace modelica
 		mlir::Value source();
 	};
 
-	class ArrayCopyOp :public mlir::Op<ArrayCopyOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult>
+	class ArrayCopyOp :public mlir::Op<ArrayCopyOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -416,6 +421,7 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, bool heap);
 		void print(mlir::OpAsmPrinter& printer);
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		PointerType getPointerType();
 		mlir::Value source();
@@ -426,6 +432,7 @@ namespace modelica
 	//===----------------------------------------------------------------------===//
 
 	class IfOp;
+	class YieldOp;
 
 	class IfOpAdaptor : public OpAdaptor<IfOp>
 	{
@@ -435,7 +442,7 @@ namespace modelica
 		mlir::Value condition();
 	};
 
-	class IfOp : public mlir::Op<IfOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::OneOperand> {
+	class IfOp : public mlir::Op<IfOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::OneOperand, mlir::OpTrait::SingleBlockImplicitTerminator<YieldOp>::Impl> {
 		public:
 		using Op::Op;
 		using Adaptor = IfOpAdaptor;
@@ -618,7 +625,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class AndOp : public mlir::Op<AndOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
+	class AndOp : public mlir::Op<AndOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::IsCommutative, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -650,7 +657,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class OrOp : public mlir::Op<OrOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
+	class OrOp : public mlir::Op<OrOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::IsCommutative, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -682,7 +689,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class EqOp : public mlir::Op<EqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
+	class EqOp : public mlir::Op<EqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::IsCommutative, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -712,7 +719,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class NotEqOp : public mlir::Op<NotEqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
+	class NotEqOp : public mlir::Op<NotEqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::IsCommutative, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -863,10 +870,10 @@ namespace modelica
 		public:
 		using OpAdaptor::OpAdaptor;
 
-		mlir::Value value();
+		mlir::Value operand();
 	};
 
-	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult>
+	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -875,9 +882,10 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value value);
 		void print(mlir::OpAsmPrinter& printer);
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Type resultType();
-		mlir::Value value();
+		mlir::Value operand();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -895,7 +903,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class AddOp : public mlir::Op<AddOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
+	class AddOp : public mlir::Op<AddOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -904,6 +912,7 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -925,7 +934,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class SubOp : public mlir::Op<SubOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative>
+	class SubOp : public mlir::Op<SubOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -934,6 +943,7 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -955,7 +965,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class MulOp : public mlir::Op<MulOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
+	class MulOp : public mlir::Op<MulOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -964,6 +974,7 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -985,7 +996,7 @@ namespace modelica
 		mlir::Value rhs();
 	};
 
-	class DivOp : public mlir::Op<DivOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
+	class DivOp : public mlir::Op<DivOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -994,6 +1005,7 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -1015,7 +1027,7 @@ namespace modelica
 		mlir::Value exponent();
 	};
 
-	class PowOp : public mlir::Op<PowOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
+	class PowOp : public mlir::Op<PowOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1024,6 +1036,7 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value base, mlir::Value exponent);
 		void print(mlir::OpAsmPrinter& printer);
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Type resultType();
 		mlir::Value base();

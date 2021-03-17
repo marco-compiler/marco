@@ -1487,17 +1487,17 @@ class NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
 		mlir::Location location = op.getLoc();
 
 		// Check if the operand is compatible
-		if (!isNumeric(op.value()))
+		if (!isNumeric(op.operand()))
 			return rewriter.notifyMatchFailure(op, "Left-hand side value is not a scalar");
 
 		Adaptor adaptor(operands);
-		mlir::Type type = op.value().getType();
+		mlir::Type type = op.operand().getType();
 
 		// Compute the result
 		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
 		{
-			mlir::Value zeroValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getZeroAttr(adaptor.value().getType()));
-			mlir::Value result = rewriter.create<mlir::SubIOp>(location, zeroValue, adaptor.value());
+			mlir::Value zeroValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getZeroAttr(adaptor.operand().getType()));
+			mlir::Value result = rewriter.create<mlir::SubIOp>(location, zeroValue, adaptor.operand());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, location, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -1505,7 +1505,7 @@ class NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::NegFOp>(location, adaptor.value());
+			mlir::Value result = rewriter.create<mlir::NegFOp>(location, adaptor.operand());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, location, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -1527,27 +1527,27 @@ class NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
 		mlir::Location location = op.getLoc();
 
 		// Check if the operand is compatible
-		if (!op.value().getType().isa<PointerType>())
+		if (!op.operand().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Value is not an array");
 
-		auto pointerType = op.value().getType().cast<PointerType>();
+		auto pointerType = op.operand().getType().cast<PointerType>();
 
 		if (!isNumericType(pointerType.getElementType()))
 			return rewriter.notifyMatchFailure(op, "Array has not numeric elements");
 
 		// Allocate the result array
 		mlir::Type baseType = op.resultType().cast<PointerType>().getElementType();
-		auto shape = op.value().getType().cast<PointerType>().getShape();
-		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, location, op.value());
+		auto shape = op.operand().getType().cast<PointerType>().getShape();
+		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, location, op.operand());
 		mlir::Value result = rewriter.create<AllocaOp>(location, baseType, shape, dynamicDimensions);
 
 		// Negate each element
-		iterateArray(rewriter, location, op.value(),
+		iterateArray(rewriter, location, op.operand(),
 								 [&](mlir::ValueRange position) {
-									 mlir::Value source = rewriter.create<LoadOp>(location, op.value(), position);
+									 mlir::Value source = rewriter.create<LoadOp>(location, op.operand(), position);
 
 									 Adaptor adaptor(source);
-									 mlir::Value value = rewriter.create<NegateOp>(location, baseType, adaptor.value());
+									 mlir::Value value = rewriter.create<NegateOp>(location, baseType, adaptor.operand());
 									 rewriter.create<StoreOp>(location, value, result, position);
 								 });
 
