@@ -77,6 +77,9 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 {
 	mlir::PassManager passManager(builder.getContext());
 
+	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
+
+	/*
 	if (options.cse)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
 
@@ -90,6 +93,7 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 
 	if (!options.debug)
 		passManager.addPass(mlir::createStripDebugInfoPass());
+	 */
 
 	return passManager.run(module);
 }
@@ -138,7 +142,7 @@ mlir::FuncOp MLIRLowerer::lower(const Function& foo)
 	for (const auto& member : foo.getArgs())
 	{
 		argNames.emplace_back(member->getName());
-		argTypes.emplace_back(lower(member->getType()));
+		argTypes.emplace_back(lower(member->getType(), BufferAllocationScope::unknown));
 	}
 
 	llvm::SmallVector<llvm::StringRef, 3> returnNames;
@@ -147,20 +151,20 @@ mlir::FuncOp MLIRLowerer::lower(const Function& foo)
 
 	for (const auto& member : outputMembers)
 	{
-		mlir::Type type = lower(member->getType());
+		const auto& frontendType = member->getType();
 
-		if (auto pointerType = type.dyn_cast<PointerType>(); pointerType && pointerType.hasConstantShape())
+		if (!frontendType.isScalar() && frontendType.hasConstantShape())
 		{
+			mlir::Type type = lower(member->getType(), BufferAllocationScope::unknown);
 			argNames.emplace_back(member->getName());
 			argTypes.emplace_back(type);
-			continue;
 		}
-
-		if (type.isa<PointerType>())
-			type = builder.getPointerType(true, type.cast<PointerType>().getElementType(), type.cast<PointerType>().getShape());
-
-		returnNames.emplace_back(member->getName());
-		returnTypes.emplace_back(type);
+		else
+		{
+			mlir::Type type = lower(member->getType(), BufferAllocationScope::heap);
+			returnNames.emplace_back(member->getName());
+			returnTypes.emplace_back(type);
+		}
 	}
 
 	auto functionType = builder.getFunctionType(argTypes, returnTypes);
@@ -173,7 +177,7 @@ mlir::FuncOp MLIRLowerer::lower(const Function& foo)
 	// Start the body of the function.
 	// In MLIR the entry block of the function is special: it must have the same
 	// argument list as the function itself.
-	auto &entryBlock = *function.addEntryBlock();
+	auto& entryBlock = *function.addEntryBlock();
 
 	// Declare all the function arguments in the symbol table
 	for (const auto& pair : llvm::zip(argNames, entryBlock.getArguments())) {
@@ -217,11 +221,11 @@ mlir::FuncOp MLIRLowerer::lower(const Function& foo)
 	return function;
 }
 
-mlir::Type MLIRLowerer::lower(const Type& type)
+mlir::Type MLIRLowerer::lower(const Type& type, BufferAllocationScope allocationScope)
 {
 	auto visitor = [&](auto& obj) -> mlir::Type
 	{
-		auto baseType = lower(obj);
+		auto baseType = lower(obj, allocationScope);
 
 		if (!type.isScalar())
 		{
@@ -236,7 +240,7 @@ mlir::Type MLIRLowerer::lower(const Type& type)
 					shape.emplace_back(dimension.getNumericSize());
 			}
 
-			return builder.getPointerType(false, baseType, shape);
+			return builder.getPointerType(allocationScope, baseType, shape);
 		}
 
 		return baseType;
@@ -245,7 +249,7 @@ mlir::Type MLIRLowerer::lower(const Type& type)
 	return type.visit(visitor);
 }
 
-mlir::Type MLIRLowerer::lower(const BuiltInType& type)
+mlir::Type MLIRLowerer::lower(const BuiltInType& type, BufferAllocationScope allocationScope)
 {
 	switch (type)
 	{
@@ -263,12 +267,12 @@ mlir::Type MLIRLowerer::lower(const BuiltInType& type)
 	}
 }
 
-mlir::Type MLIRLowerer::lower(const UserDefinedType& type)
+mlir::Type MLIRLowerer::lower(const UserDefinedType& type, BufferAllocationScope allocationScope)
 {
 	llvm::SmallVector<mlir::Type, 3> types;
 
 	for (auto& subType : type)
-		types.push_back(lower(subType));
+		types.push_back(lower(subType, allocationScope));
 
 	return builder.getTupleType(move(types));
 }
@@ -296,10 +300,11 @@ void MLIRLowerer::lower(const Member& member)
 	if (member.isInput())
 		return;
 
-	mlir::Type type = lower(member.getType());
+	mlir::Type type = lower(member.getType(), member.isOutput() ? BufferAllocationScope::heap : BufferAllocationScope::stack);
 
 	if (!member.isOutput() || !type.isa<PointerType>() || !type.cast<PointerType>().hasConstantShape())
 	{
+		/*
 		if (type.isa<PointerType>())
 		{
 			auto pointerType = type.cast<PointerType>();
@@ -307,6 +312,7 @@ void MLIRLowerer::lower(const Member& member)
 			if (member.isOutput())
 				type = builder.getPointerType(true, pointerType.getElementType(), pointerType.getShape());
 		}
+		 */
 
 		mlir::Value ptr = builder.create<AllocaOp>(location, type);
 		bool initialized = false;
@@ -329,18 +335,38 @@ void MLIRLowerer::lower(const Member& member)
 				// All the dynamic dimensions have an expression to determine their values.
 				// So we can instantiate the array.
 
-				if (pointerType.isOnHeap())
+				auto allocationScope = pointerType.getAllocationScope();
+				assert(allocationScope != unknown);
+
+				if (allocationScope == heap)
 				{
 					mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), sizes);
 					builder.create<StoreOp>(location, var, ptr);
 				}
-				else
+				else if (allocationScope == stack)
 				{
 					mlir::Value var = builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape(), sizes);
 					builder.create<StoreOp>(location, var, ptr);
 				}
 
 				initialized = true;
+			}
+			else
+			{
+				if (pointerType.getAllocationScope() == heap)
+				{
+					// We need to allocate a fake array in order to allow the first
+					// free operation to operate on a valid memory area.
+
+					llvm::SmallVector<long, 1> shape;
+
+					for (size_t i = 0, rank = pointerType.getRank(); i < rank; ++i)
+						shape.push_back(1);
+
+					mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), shape);
+					var = builder.create<PtrCastOp>(location, var, pointerType);
+					builder.create<StoreOp>(location, var, ptr);
+				}
 			}
 		}
 
@@ -389,11 +415,13 @@ void MLIRLowerer::lower(const AssignmentStatement& statement)
 			else
 			{
 				auto pointer = destinationPointer.getElementType().cast<PointerType>();
+				mlir::Value copy = builder.create<ArrayCopyOp>(location, *value, pointer.getAllocationScope() == heap);
 
-				// Copy source on stack
+				// Free the previously allocated memory
+				if (pointer.getAllocationScope() == heap)
+					builder.create<FreeOp>(location, *destination);
+
 				// Save the descriptor of the new copy into the destination using StoreOp
-
-				mlir::Value copy = builder.create<ArrayCopyOp>(location, *value, pointer.isOnHeap());
 				builder.create<StoreOp>(location, copy, destination.getReference());
 			}
 		}
@@ -592,11 +620,11 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 	assert(expression.isA<Operation>());
 	const auto& operation = expression.get<Operation>();
 	auto kind = operation.getKind();
-	mlir::Type resultType = lower(expression.getType());
 	mlir::Location location = loc(expression.getLocation());
 
 	if (kind == OperationKind::negate)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		auto arg = lower<Expression>(operation[0])[0].getReference();
 		mlir::Value result = builder.create<NotOp>(location, arg);
 		return { Reference::ssa(&builder, result) };
@@ -604,7 +632,9 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::add)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		auto args = lowerOperationArgs(operation);
+
 		mlir::Value result = foldBinaryOperation(
 				args,
 				[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
@@ -617,6 +647,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::subtract)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		auto args = lowerOperationArgs(operation);
 
 		if (args.size() == 1)
@@ -644,7 +675,9 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::multiply)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		auto args = lowerOperationArgs(operation);
+
 		mlir::Value result = foldBinaryOperation(
 				args,
 				[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
@@ -657,7 +690,9 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::divide)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		auto args = lowerOperationArgs(operation);
+
 		mlir::Value result = foldBinaryOperation(
 				args,
 				[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
@@ -670,6 +705,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::powerOf)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		mlir::Value base = *lower<Expression>(operation[0])[0];
 		mlir::Value exponent = *lower<Expression>(operation[1])[0];
 
@@ -689,6 +725,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::equal)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		auto args = lowerOperationArgs(operation);
 		mlir::Value result = builder.create<EqOp>(location, resultType, args[0], args[1]);
 		return { Reference::ssa(&builder, result) };
@@ -696,6 +733,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::different)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		auto args = lowerOperationArgs(operation);
 		mlir::Value result = builder.create<NotEqOp>(location, resultType, args[0], args[1]);
 		return { Reference::ssa(&builder, result) };
@@ -703,6 +741,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::greater)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		auto args = lowerOperationArgs(operation);
 		mlir::Value result = builder.create<GtOp>(location, resultType, args[0], args[1]);
 		return { Reference::ssa(&builder, result) };
@@ -710,6 +749,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::greaterEqual)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		auto args = lowerOperationArgs(operation);
 		mlir::Value result = builder.create<GteOp>(location, resultType, args[0], args[1]);
 		return { Reference::ssa(&builder, result) };
@@ -717,6 +757,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::less)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		auto args = lowerOperationArgs(operation);
 		mlir::Value result = builder.create<LtOp>(location, resultType, args[0], args[1]);
 		return { Reference::ssa(&builder, result) };
@@ -724,6 +765,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::lessEqual)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		auto args = lowerOperationArgs(operation);
 		mlir::Value result = builder.create<LteOp>(location, resultType, args[0], args[1]);
 		return { Reference::ssa(&builder, result) };
@@ -731,6 +773,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::ifelse)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		mlir::Value condition = *lower<Expression>(operation[0])[0];
 
 		mlir::Value trueValue = *lower<Expression>(operation[1])[0];
@@ -746,6 +789,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::land)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		mlir::Value lhs = *lower<Expression>(operation[0])[0];
 		mlir::Value rhs = *lower<Expression>(operation[1])[0];
 
@@ -755,6 +799,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::lor)
 	{
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		mlir::Value lhs = *lower<Expression>(operation[0])[0];
 		mlir::Value rhs = *lower<Expression>(operation[1])[0];
 
@@ -794,13 +839,25 @@ template<>
 MLIRLowerer::Container<Reference> MLIRLowerer::lower<Constant>(const Expression& expression)
 {
 	assert(expression.isA<Constant>());
+	const auto& type = expression.getType();
 	const auto& constant = expression.get<Constant>();
 
-	auto value = builder.create<ConstantOp>(
-			loc(expression.getLocation()),
-			constant.visit([&](const auto& obj) { return getAttribute(obj); }));
+	assert(type.isA<BuiltInType>() && "Constants can be made only of built-in typed values");
+	auto builtInType = type.get<BuiltInType>();
 
-	return { Reference::ssa(&builder, value) };
+	mlir::Attribute attribute;
+
+	if (builtInType == BuiltInType::Boolean)
+		attribute = builder.getBooleanAttribute(constant.as<BuiltInType::Boolean>());
+	else if (builtInType == BuiltInType::Integer)
+		attribute = builder.getIntegerAttribute(constant.as<BuiltInType::Integer>());
+	else if (builtInType == BuiltInType::Float)
+		attribute = builder.getRealAttribute(constant.as<BuiltInType::Float>());
+	else
+		assert(false && "Unsupported constant type");
+
+	auto result = builder.create<ConstantOp>(loc(expression.getLocation()), attribute);
+	return { Reference::ssa(&builder, result) };
 }
 
 template<>
@@ -834,14 +891,14 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	if (functionName == "ndims")
 	{
 		assert(args.size() == 1);
-		mlir::Type resultType = lower(expression.getType());
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<NDimsOp>(location, resultType, args[0]);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "size")
 	{
 		assert(args.size() == 1 || args.size() == 2);
-		mlir::Type resultType = lower(expression.getType());
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 
 		if (args.size() == 1)
 		{
@@ -861,7 +918,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		auto op = builder.create<CallOp>(
 				loc(expression.getLocation()),
 				function.get<ReferenceAccess>().getName(),
-				lower(function.getType()),
+				lower(function.getType(), BufferAllocationScope::heap),
 				args);
 
 		for (auto result : op.getResults())

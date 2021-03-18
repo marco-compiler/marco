@@ -100,6 +100,8 @@ namespace modelica
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
 
+		[[nodiscard]] bool hasConstantShape() const;
+
 		[[nodiscard]] size_t size() const;
 
 		[[nodiscard]] iterator begin();
@@ -220,6 +222,8 @@ namespace modelica
 
 		[[nodiscard]] size_t dimensionsCount() const;
 		[[nodiscard]] size_t size() const;
+
+		[[nodiscard]] bool hasConstantShape() const;
 
 		[[nodiscard]] bool isScalar() const;
 

@@ -92,9 +92,9 @@ namespace modelica
 		private:
 		mlir::Operation* lower(const Class& cls);
 		mlir::FuncOp lower(const Function& function);
-		mlir::Type lower(const Type& type);
-		mlir::Type lower(const BuiltInType& type);
-		mlir::Type lower(const UserDefinedType& type);
+		mlir::Type lower(const Type& type, BufferAllocationScope allocationScope);
+		mlir::Type lower(const BuiltInType& type, BufferAllocationScope allocationScope);
+		mlir::Type lower(const UserDefinedType& type, BufferAllocationScope allocationScope);
 		void lower(const Member& member);
 		void lower(const Algorithm& algorithm);
 		void lower(const Statement& statement);
@@ -149,37 +149,6 @@ namespace modelica
 		 * @return MLIR location
 		 */
 		mlir::Location loc(SourcePosition location);
-
-		mlir::Type constantToType(const Constant& constant)
-		{
-			if (constant.isA<BuiltInType::Boolean>())
-				return builder.getBooleanType();
-
-			if (constant.isA<BuiltInType::Integer>())
-				return builder.getIntegerType();
-
-			if (constant.isA<BuiltInType::Float>())
-				return builder.getRealType();
-
-			assert(false && "Unreachable");
-			return builder.getNoneType();
-		}
-
-		template<typename T>
-		constexpr mlir::Attribute getAttribute(const T& value)
-		{
-			constexpr BuiltInType type = typeToFrontendType<T>();
-
-			if constexpr (type == BuiltInType::Boolean)
-				return builder.getBooleanAttribute(value);
-			else if constexpr (type == BuiltInType::Integer)
-				return builder.getIntegerAttribute(value);
-			else if constexpr (type == BuiltInType::Float)
-				return builder.getRealAttribute(value);
-
-			assert(false && "Unknown type");
-			return builder.getZeroAttr(builder.getNoneType());
-		}
 	};
 
 	template<>

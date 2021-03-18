@@ -1,6 +1,7 @@
 #include <mlir/Conversion/Passes.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/OpImplementation.h>
+#include <modelica/mlirlowerer/Attribute.h>
 #include <modelica/mlirlowerer/Ops.h>
 
 using namespace modelica;
@@ -149,7 +150,7 @@ void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 		{
 			auto pointerType = type.cast<PointerType>();
 			auto shape = pointerType.getShape();
-			types.emplace_back(PointerType::get(pointerType.getContext(), pointerType.isOnHeap(), resultBaseType, shape));
+			types.emplace_back(PointerType::get(pointerType.getContext(), pointerType.getAllocationScope(), resultBaseType, shape));
 		}
 		else
 			types.emplace_back(resultBaseType);
@@ -240,6 +241,17 @@ void CallOp::print(mlir::OpAsmPrinter& printer)
 	printer << "modelica.call " << function() << "(" << args() << ") : " << getResultTypes();
 }
 
+void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	mlir::TypeRange types = getOperation()->getResultTypes();
+
+	for (size_t i = 0, e = types.size(); i < e; ++i)
+	{
+		if (auto pointerType = types[i].dyn_cast<PointerType>(); pointerType && pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(i), mlir::SideEffects::DefaultResource::get());
+	}
+}
+
 mlir::StringRef CallOp::function()
 {
 	return getOperation()->getAttrOfType<mlir::StringAttr>("function").getValue();
@@ -266,7 +278,7 @@ llvm::StringRef AllocaOp::getOperationName()
 
 void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions)
 {
-	state.addTypes(PointerType::get(state.getContext(), false, elementType, shape));
+	state.addTypes(PointerType::get(state.getContext(), BufferAllocationScope::stack, elementType, shape));
 	state.addOperands(dimensions);
 }
 
@@ -296,11 +308,6 @@ mlir::LogicalResult AllocaOp::verify()
 	return mlir::success();
 }
 
-void AllocaOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-}
-
 PointerType AllocaOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<PointerType>();
@@ -327,7 +334,7 @@ llvm::StringRef AllocOp::getOperationName()
 
 void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions)
 {
-	state.addTypes(PointerType::get(state.getContext(), true, elementType, shape));
+	state.addTypes(PointerType::get(state.getContext(), BufferAllocationScope::heap, elementType, shape));
 	state.addOperands(dimensions);
 }
 
@@ -357,10 +364,12 @@ mlir::LogicalResult AllocOp::verify()
 	return mlir::success();
 }
 
+/*
 void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
+ */
 
 PointerType AllocOp::resultType()
 {
@@ -400,7 +409,7 @@ mlir::LogicalResult FreeOp::verify()
 {
 	if (auto pointerType = memory().getType().dyn_cast<PointerType>(); pointerType)
 	{
-		if (pointerType.isOnHeap())
+		if (pointerType.getAllocationScope() == heap)
 			return mlir::success();
 
 		return emitOpError("requires the memory to be allocated on the heap");
@@ -417,6 +426,60 @@ void FreeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 mlir::Value FreeOp::memory()
 {
 	return Adaptor(*this).memory();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::PtrCastOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value PtrCastOpAdaptor::memory()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef PtrCastOp::getOperationName()
+{
+	return "modelica.ptr_cast";
+}
+
+void PtrCastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::Type resultType)
+{
+	state.addOperands(memory);
+	state.addTypes(resultType);
+}
+
+void PtrCastOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.ptr_cast " << memory() << " : " << resultType();
+}
+
+mlir::LogicalResult PtrCastOp::verify()
+{
+	if (!memory().getType().isa<PointerType>())
+		return emitOpError("requires operand to be a pointer");
+
+	auto pointerType = memory().getType().cast<PointerType>();
+
+	if (!resultType().isa<PointerType>())
+		return emitOpError("requires the result type to be a pointer");
+
+	if (pointerType.getElementType() != resultType().cast<PointerType>().getElementType())
+		return emitOpError("requires the result pointer type to have the same element type of the operand");
+
+	if (pointerType.getRank() != resultType().cast<PointerType>().getRank())
+		return emitOpError("requires the result pointer type to have the same rank as the operand");
+
+	return mlir::success();
+}
+
+mlir::Value PtrCastOp::memory()
+{
+	return Adaptor(*this).memory();
+}
+
+PointerType PtrCastOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<PointerType>();
 }
 
 //===----------------------------------------------------------------------===//
@@ -505,7 +568,7 @@ void SubscriptionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 	for (size_t i = indexes.size(), e = shape.size(); i < e; ++i)
 		resultShape.push_back(shape[i]);
 
-	mlir::Type resultType = PointerType::get(builder.getContext(), false, sourcePointerType.getElementType(), resultShape);
+	mlir::Type resultType = PointerType::get(builder.getContext(), sourcePointerType.getAllocationScope(), sourcePointerType.getElementType(), resultShape);
 	state.addTypes(resultType);
 }
 
@@ -694,7 +757,8 @@ void ArrayCopyOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, m
 {
 	state.addOperands(source);
 	auto sourceType = source.getType().cast<PointerType>();
-	state.addTypes(PointerType::get(builder.getContext(), heap, sourceType.getElementType(), sourceType.getShape()));
+	BufferAllocationScope allocationScope = heap ? BufferAllocationScope::heap : BufferAllocationScope::stack;
+	state.addTypes(PointerType::get(builder.getContext(), allocationScope, sourceType.getElementType(), sourceType.getShape()));
 }
 
 void ArrayCopyOp::print(mlir::OpAsmPrinter& printer)
@@ -769,6 +833,44 @@ mlir::LogicalResult IfOp::verify()
 		return emitOpError("requires the condition to be a boolean");
 
 	return mlir::success();
+}
+
+void IfOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
+{
+	// The "then" and the "else" region branch back to the parent operation
+	if (index.hasValue())
+	{
+		regions.push_back(mlir::RegionSuccessor(getOperation()->getResults()));
+		return;
+	}
+
+	// Don't consider the else region if it is empty
+	mlir::Region* elseRegion = &this->elseRegion();
+
+	if (elseRegion->empty())
+		elseRegion = nullptr;
+
+	// Otherwise, the successor is dependent on the condition
+	bool condition = false;
+
+	if (auto condAttr = operands.front().dyn_cast_or_null<BooleanAttribute>())
+	{
+		condition = condAttr.getValue() == true;
+	}
+	else
+	{
+		// If the condition isn't constant, both regions may be executed
+		regions.push_back(mlir::RegionSuccessor(&thenRegion()));
+
+		// If the else region does not exist, it is not a viable successor
+		if (elseRegion)
+			regions.push_back(mlir::RegionSuccessor(elseRegion));
+
+		return;
+	}
+
+	// Add the successor regions using the condition
+	regions.push_back(mlir::RegionSuccessor(condition ? &thenRegion() : elseRegion));
 }
 
 mlir::Value IfOp::condition()
@@ -852,6 +954,31 @@ mlir::LogicalResult ForOp::verify()
 		return emitOpError("requires the return condition to be a pointer to a single boolean value");
 
 	return mlir::success();
+}
+
+void ForOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
+{
+	if (!index.hasValue())
+	{
+		regions.push_back(mlir::RegionSuccessor(&condition(), condition().getArguments()));
+		return;
+	}
+
+	assert(*index < 3 && "There are only three regions in a ForOp");
+
+	if (*index == 0)
+	{
+		regions.emplace_back(&body(), body().getArguments());
+		regions.emplace_back(getOperation()->getResults());
+	}
+	else if (*index == 1)
+	{
+		regions.emplace_back(&step(), step().getArguments());
+	}
+	else if (*index == 2)
+	{
+		regions.emplace_back(&condition(), condition().getArguments());
+	}
 }
 
 mlir::Region& ForOp::condition()
@@ -938,6 +1065,27 @@ mlir::LogicalResult WhileOp::verify()
 		return emitOpError("requires the return condition to be a pointer to a single boolean value");
 
 	return mlir::success();
+}
+
+void WhileOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
+{
+	if (!index.hasValue())
+	{
+		regions.emplace_back(&condition(), condition().getArguments());
+		return;
+	}
+
+	assert(*index < 2 && "There are only two regions in a WhileOp");
+
+	if (*index == 0)
+	{
+		regions.emplace_back(&body(), body().getArguments());
+		regions.emplace_back(getOperation()->getResults());
+	}
+	else if (*index == 1)
+	{
+		regions.emplace_back(&condition(), condition().getArguments());
+	}
 }
 
 mlir::Region& WhileOp::condition()

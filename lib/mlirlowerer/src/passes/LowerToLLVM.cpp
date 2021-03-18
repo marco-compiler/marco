@@ -25,68 +25,76 @@ struct UnrealizedCastOpLowering : public mlir::OpRewritePattern<mlir::Unrealized
 	}
 };
 
-LLVMLoweringPass::LLVMLoweringPass(ModelicaToLLVMConversionOptions options)
-		: options(std::move(options))
+class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>>
 {
-}
-
-mlir::LogicalResult LLVMLoweringPass::stdToLLVMConversionPass(mlir::ModuleOp module)
-{
-	mlir::ConversionTarget target(getContext());
-	target.addIllegalDialect<ModelicaDialect, mlir::StandardOpsDialect>();
-	target.addIllegalOp<mlir::FuncOp>();
-
-	target.addLegalDialect<mlir::LLVM::LLVMDialect>();
-	target.addIllegalOp<mlir::LLVM::DialectCastOp>();
-	target.addLegalOp<mlir::UnrealizedConversionCastOp>();
-	target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
-
-	mlir::LowerToLLVMOptions llvmOptions;
-	llvmOptions.emitCWrappers = options.emitCWrappers;
-	
-	modelica::TypeConverter typeConverter(&getContext(), llvmOptions);
-
-	target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });
-	target.addLegalOp<mlir::omp::TerminatorOp, mlir::omp::TaskyieldOp, mlir::omp::FlushOp, mlir::omp::BarrierOp, mlir::omp::TaskwaitOp>();
-
-	mlir::OwningRewritePatternList patterns;
-	mlir::populateStdToLLVMConversionPatterns(typeConverter, patterns);
-	mlir::populateOpenMPToLLVMConversionPatterns(typeConverter, patterns);
-
-	return applyPartialConversion(module, target, std::move(patterns));
-}
-
-mlir::LogicalResult LLVMLoweringPass::castsFolderPass(mlir::ModuleOp module)
-{
-	mlir::ConversionTarget target(getContext());
-	target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
-	target.addLegalDialect<mlir::omp::OpenMPDialect>();
-	target.addLegalDialect<mlir::LLVM::LLVMDialect>();
-	target.addIllegalOp<mlir::UnrealizedConversionCastOp>();
-
-	mlir::OwningRewritePatternList patterns;
-	patterns.insert<UnrealizedCastOpLowering>(&getContext());
-
-	return applyFullConversion(module, target, std::move(patterns));
-}
-
-void LLVMLoweringPass::runOnOperation()
-{
-	auto module = getOperation();
-
-	if (failed(stdToLLVMConversionPass(module)))
+	public:
+	explicit LLVMLoweringPass(ModelicaToLLVMConversionOptions options)
+			: options(std::move(options))
 	{
-		mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
-		signalPassFailure();
-		return;
 	}
 
-	if (failed(castsFolderPass(module)))
+	mlir::LogicalResult stdToLLVMConversionPass(mlir::ModuleOp module)
 	{
-		mlir::emitError(module.getLoc(), "Error in folding the casts operations\n");
-		signalPassFailure();
+		mlir::ConversionTarget target(getContext());
+		target.addIllegalDialect<ModelicaDialect, mlir::StandardOpsDialect>();
+		target.addIllegalOp<mlir::FuncOp>();
+
+		target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+		target.addIllegalOp<mlir::LLVM::DialectCastOp>();
+		target.addLegalOp<mlir::UnrealizedConversionCastOp>();
+		target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
+
+		mlir::LowerToLLVMOptions llvmOptions;
+		llvmOptions.emitCWrappers = options.emitCWrappers;
+
+		modelica::TypeConverter typeConverter(&getContext(), llvmOptions);
+
+		target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });
+		target.addLegalOp<mlir::omp::TerminatorOp, mlir::omp::TaskyieldOp, mlir::omp::FlushOp, mlir::omp::BarrierOp, mlir::omp::TaskwaitOp>();
+
+		mlir::OwningRewritePatternList patterns;
+		mlir::populateStdToLLVMConversionPatterns(typeConverter, patterns);
+		mlir::populateOpenMPToLLVMConversionPatterns(typeConverter, patterns);
+
+		return applyPartialConversion(module, target, std::move(patterns));
 	}
-}
+
+	mlir::LogicalResult castsFolderPass(mlir::ModuleOp module)
+	{
+		mlir::ConversionTarget target(getContext());
+		target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
+		target.addLegalDialect<mlir::omp::OpenMPDialect>();
+		target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+		target.addIllegalOp<mlir::UnrealizedConversionCastOp>();
+
+		mlir::OwningRewritePatternList patterns;
+		patterns.insert<UnrealizedCastOpLowering>(&getContext());
+
+		return applyFullConversion(module, target, std::move(patterns));
+	}
+
+	void runOnOperation() override
+	{
+		auto module = getOperation();
+
+		if (failed(stdToLLVMConversionPass(module)))
+		{
+			mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
+			signalPassFailure();
+			return;
+		}
+
+		if (failed(castsFolderPass(module)))
+		{
+			mlir::emitError(module.getLoc(), "Error in folding the casts operations\n");
+			signalPassFailure();
+		}
+	}
+
+	private:
+	ModelicaToLLVMConversionOptions options;
+};
+
 
 std::unique_ptr<mlir::Pass> modelica::createLLVMLoweringPass(ModelicaToLLVMConversionOptions options)
 {

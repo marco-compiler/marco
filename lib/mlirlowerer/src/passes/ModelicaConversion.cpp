@@ -8,7 +8,7 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinOps.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/mlirlowerer/passes/ModelicaConversionPass.h>
+#include <modelica/mlirlowerer/passes/ModelicaConversion.h>
 #include <modelica/mlirlowerer/passes/TypeConverter.h>
 
 using namespace modelica;
@@ -374,19 +374,40 @@ class CallOpLowering: public ModelicaOpConversion<CallOp>
 	{
 		mlir::Location location = op->getLoc();
 
+		// Search for the callee inside the module
+		auto module = op->getParentOfType<mlir::ModuleOp>();
+		auto callee = module.lookupSymbol<mlir::FuncOp>(op.function());
+		auto calleeArgsTypes = callee.getArgumentTypes();
+
 		llvm::SmallVector<mlir::Value, 3> args;
 		llvm::SmallVector<mlir::Value, 3> arrays;
 		llvm::SmallVector<mlir::Type, 3> resultTypes;
 
-		for (mlir::Value arg : op.args())
+		// Cast the original arguments to the types requested by the callee
+		auto originalArgs = op.args();
+
+		for (size_t i = 0, e = originalArgs.size(); i < e; ++i)
+		{
+			assert(i < calleeArgsTypes.size());
+			mlir::Value arg = originalArgs[i];
+
+			if (arg.getType() != calleeArgsTypes[i])
+			{
+				if (arg.getType().isa<PointerType>())
+					arg = rewriter.create<PtrCastOp>(location, arg, calleeArgsTypes[i]);
+				else
+					arg = rewriter.create<CastOp>(location, arg, calleeArgsTypes[i]);
+			}
+
 			args.push_back(arg);
+		}
 
 		for (mlir::Type type : op->getResultTypes())
 		{
 			if (auto pointerType = type.dyn_cast<PointerType>(); pointerType && pointerType.hasConstantShape())
 			{
 				mlir::Value array = rewriter.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape());
-				args.push_back(array);
+				args.push_back(rewriter.create<PtrCastOp>(location, array, PointerType::get(rewriter.getContext(), BufferAllocationScope::unknown, pointerType.getElementType(), pointerType.getShape())));
 				arrays.push_back(array);
 			}
 			else
@@ -545,6 +566,16 @@ class FreeOpLowering: public ModelicaOpConversion<FreeOp>
 	}
 };
 
+struct PtrCastOpLowering : public mlir::OpRewritePattern<PtrCastOp>
+{
+	using mlir::OpRewritePattern<PtrCastOp>::OpRewritePattern;
+
+	mlir::LogicalResult matchAndRewrite(PtrCastOp op, mlir::PatternRewriter& rewriter) const override {
+		rewriter.replaceOpWithNewOp<mlir::UnrealizedConversionCastOp>(op, op.resultType(), op.memory());
+		return mlir::success();
+	}
+};
+
 class DimOpLowering: public ModelicaOpConversion<DimOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
@@ -688,7 +719,7 @@ class ArrayCopyOpLowering: public ModelicaOpConversion<ArrayCopyOp>
 		Adaptor adaptor(operands);
 
 		auto pointerType = op.getPointerType();
-		mlir::Value copy = allocateSameTypeArray(rewriter, location, op.source(), pointerType.isOnHeap());
+		mlir::Value copy = allocateSameTypeArray(rewriter, location, op.source(), pointerType.getAllocationScope() == heap);
 		rewriter.replaceOp(op, copy);
 
 		auto copyCallback = [&](mlir::ValueRange indexes)
@@ -2489,41 +2520,47 @@ class SizeOpArrayLowering: public ModelicaOpConversion<SizeOp>
 	}
 };
 
-void ModelicaConversionPass::getDependentDialects(mlir::DialectRegistry& registry) const {
-	registry.insert<mlir::StandardOpsDialect>();
-	registry.insert<mlir::math::MathDialect>();
-	registry.insert<mlir::scf::SCFDialect>();
-	registry.insert<mlir::LLVM::LLVMDialect>();
-}
-
-void ModelicaConversionPass::runOnOperation()
+class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, mlir::OperationPass<mlir::ModuleOp>>
 {
-	auto module = getOperation();
+	public:
 
-	mlir::ConversionTarget target(getContext());
-
-	target.addLegalDialect<mlir::StandardOpsDialect>();
-	target.addLegalDialect<mlir::math::MathDialect>();
-	target.addLegalDialect<mlir::scf::SCFDialect>();
-	target.addLegalDialect<mlir::LLVM::LLVMDialect>();
-	target.addLegalOp<mlir::FuncOp, mlir::ModuleOp, mlir::ModuleTerminatorOp, mlir::UnrealizedConversionCastOp>();
-
-	mlir::LowerToLLVMOptions llvmLoweringOptions;
-	TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
-
-	// Provide the set of patterns that will lower the Modelica operations
-	mlir::OwningRewritePatternList patterns;
-	populateModelicaConversionPatterns(patterns, &getContext(), typeConverter);
-
-	// With the target and rewrite patterns defined, we can now attempt the
-	// conversion. The conversion will signal failure if any of our "illegal"
-	// operations were not converted successfully.
-	if (failed(applyPartialConversion(module, target, std::move(patterns))))
+	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
-		mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
-		signalPassFailure();
+		registry.insert<mlir::StandardOpsDialect>();
+		registry.insert<mlir::math::MathDialect>();
+		registry.insert<mlir::scf::SCFDialect>();
+		registry.insert<mlir::LLVM::LLVMDialect>();
 	}
-}
+
+	void runOnOperation() override
+	{
+		auto module = getOperation();
+
+		mlir::ConversionTarget target(getContext());
+
+		target.addLegalDialect<mlir::StandardOpsDialect>();
+		target.addLegalDialect<mlir::math::MathDialect>();
+		target.addLegalDialect<mlir::scf::SCFDialect>();
+		target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+		target.addLegalOp<mlir::FuncOp, mlir::ModuleOp, mlir::ModuleTerminatorOp, mlir::UnrealizedConversionCastOp>();
+
+		mlir::LowerToLLVMOptions llvmLoweringOptions;
+		TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+
+		// Provide the set of patterns that will lower the Modelica operations
+		mlir::OwningRewritePatternList patterns;
+		populateModelicaConversionPatterns(patterns, &getContext(), typeConverter);
+
+		// With the target and rewrite patterns defined, we can now attempt the
+		// conversion. The conversion will signal failure if any of our "illegal"
+		// operations were not converted successfully.
+		if (failed(applyPartialConversion(module, target, std::move(patterns))))
+		{
+			mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
+			signalPassFailure();
+		}
+	}
+};
 
 void modelica::populateModelicaBasicConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter)
 {
@@ -2550,6 +2587,8 @@ void modelica::populateModelicaMemoryConversionPatterns(mlir::OwningRewritePatte
 			LoadOpLowering,
 			StoreOpLowering,
 			ArrayCopyOpLowering>(context, typeConverter);
+
+	patterns.insert<PtrCastOpLowering>(context);
 }
 
 void modelica::populateModelicaControlFlowConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter)

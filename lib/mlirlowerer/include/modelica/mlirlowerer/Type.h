@@ -32,15 +32,17 @@ namespace modelica
 		[[nodiscard]] unsigned int getBitWidth() const;
 	};
 
+	enum BufferAllocationScope { unknown, stack, heap };
+
 	class PointerType : public mlir::Type::TypeBase<PointerType, mlir::Type, PointerTypeStorage> {
 		public:
 		using Base::Base;
 		using Shape = llvm::SmallVector<long, 3>;
 
 		/// Return a sequence type with the specified shape and element type
-		static PointerType get(mlir::MLIRContext* context, bool heap, mlir::Type elementType, llvm::ArrayRef<long> shape = {});
+		static PointerType get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape = {});
 
-		[[nodiscard]] bool isOnHeap() const;
+		[[nodiscard]] BufferAllocationScope getAllocationScope() const;
 
 		/// The element type of this sequence
 		[[nodiscard]] mlir::Type getElementType() const;

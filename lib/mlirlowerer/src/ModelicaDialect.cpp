@@ -12,8 +12,8 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<ConstantOp, CastOp, CastCommonOp, AssignmentOp, CallOp>();
 
 	// MMemory operations
-	addOperations<AllocaOp, AllocOp>();
-	addOperations<FreeOp, DimOp, SubscriptionOp>();
+	addOperations<AllocaOp, AllocOp, FreeOp>();
+	addOperations<PtrCastOp, DimOp, SubscriptionOp>();
 	addOperations<LoadOp, StoreOp>();
 	addOperations<ArrayCopyOp>();
 

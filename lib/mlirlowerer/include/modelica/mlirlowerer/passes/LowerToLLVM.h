@@ -25,18 +25,5 @@ namespace modelica
 		}
 	};
 
-	class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>> {
-		public:
-		explicit LLVMLoweringPass(ModelicaToLLVMConversionOptions options);
-
-		mlir::LogicalResult stdToLLVMConversionPass(mlir::ModuleOp module);
-		mlir::LogicalResult castsFolderPass(mlir::ModuleOp module);
-
-		void runOnOperation() final;
-
-		private:
-		ModelicaToLLVMConversionOptions options;
-	};
-
 	std::unique_ptr<mlir::Pass> createLLVMLoweringPass(ModelicaToLLVMConversionOptions options = ModelicaToLLVMConversionOptions::getDefaultOptions());
 }

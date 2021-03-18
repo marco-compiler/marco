@@ -75,6 +75,15 @@ void UserDefinedType::dump(raw_ostream& os, size_t indents) const
 	os << toString(*this);
 }
 
+bool UserDefinedType::hasConstantShape() const
+{
+	for (const auto& type : types)
+		if (!type->hasConstantShape())
+			return false;
+
+	return true;
+}
+
 size_t UserDefinedType::size() const { return types.size(); }
 
 UserDefinedType::iterator UserDefinedType::begin()
@@ -242,6 +251,18 @@ size_t Type::size() const
 	}
 
 	return result;
+}
+
+bool Type::hasConstantShape() const
+{
+	for (const auto& dimension : dimensions)
+		if (dimension.isDynamic())
+			return false;
+
+	if (isA<UserDefinedType>())
+		return get<UserDefinedType>().hasConstantShape();
+
+	return true;
 }
 
 bool Type::isScalar() const

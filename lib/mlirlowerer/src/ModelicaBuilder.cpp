@@ -23,9 +23,9 @@ RealType ModelicaBuilder::getRealType()
 	return RealType::get(getContext(), bitWidth);
 }
 
-PointerType ModelicaBuilder::getPointerType(bool heap, mlir::Type elementType, const PointerType::Shape& shape)
+PointerType ModelicaBuilder::getPointerType(BufferAllocationScope allocationScope, mlir::Type elementType, const PointerType::Shape& shape)
 {
-	return PointerType::get(getContext(), heap, elementType, shape);
+	return PointerType::get(getContext(), allocationScope, elementType, shape);
 }
 
 mlir::IntegerAttr ModelicaBuilder::getIndexAttribute(long value)
@@ -37,8 +37,6 @@ BooleanAttribute ModelicaBuilder::getBooleanAttribute(bool value)
 {
 	return BooleanAttribute::get(getBooleanType(), value);
 }
-
-
 
 IntegerAttribute ModelicaBuilder::getIntegerAttribute(long value)
 {

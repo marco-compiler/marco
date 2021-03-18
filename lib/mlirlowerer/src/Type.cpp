@@ -80,23 +80,28 @@ llvm::hash_code hash_value(const PointerType::Shape& shape) {
 
 class modelica::PointerTypeStorage : public mlir::TypeStorage {
 	public:
-	using KeyTy = std::tuple<bool, mlir::Type, PointerType::Shape>;
+	using KeyTy = std::tuple<BufferAllocationScope, mlir::Type, PointerType::Shape>;
 
 	PointerTypeStorage() = delete;
 
 	bool operator==(const KeyTy& key) const {
-		return key == KeyTy{isOnHeap(), getElementType(), getShape()};
+		return key == KeyTy{getAllocationScope(), getElementType(), getShape()};
 	}
 
 	static unsigned int hashKey(const KeyTy& key) {
 		auto shapeHash{hash_value(std::get<PointerType::Shape>(key))};
 		shapeHash = llvm::hash_combine(shapeHash, std::get<mlir::Type>(key));
-		return llvm::hash_combine(std::get<bool>(key), std::get<mlir::Type>(key), shapeHash);
+		return llvm::hash_combine(std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), shapeHash);
 	}
 
 	static PointerTypeStorage *construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key) {
 		auto *storage = allocator.allocate<PointerTypeStorage>();
-		return new (storage) PointerTypeStorage{std::get<bool>(key), std::get<mlir::Type>(key), std::get<PointerType::Shape>(key)};
+		return new (storage) PointerTypeStorage{std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), std::get<PointerType::Shape>(key)};
+	}
+
+	[[nodiscard]] BufferAllocationScope getAllocationScope() const
+	{
+		return allocationScope;
 	}
 
 	[[nodiscard]] PointerType::Shape getShape() const
@@ -109,20 +114,15 @@ class modelica::PointerTypeStorage : public mlir::TypeStorage {
 		return elementType;
 	}
 
-	[[nodiscard]] bool isOnHeap() const
-	{
-		return heap;
-	}
-
 	private:
-	PointerTypeStorage(bool heap, mlir::Type elementType, const PointerType::Shape& shape)
-			: heap(heap),
+	PointerTypeStorage(BufferAllocationScope allocationScope, mlir::Type elementType, const PointerType::Shape& shape)
+			: allocationScope(allocationScope),
 				elementType(elementType),
 				shape(std::move(shape))
 	{
 	}
 
-	bool heap;
+	BufferAllocationScope allocationScope;
 	mlir::Type elementType;
 	PointerType::Shape shape;
 };
@@ -152,14 +152,14 @@ unsigned int RealType::getBitWidth() const
 	return getImpl()->getBitWidth();
 }
 
-PointerType PointerType::get(mlir::MLIRContext* context, bool heap, mlir::Type elementType, llvm::ArrayRef<long> shape)
+PointerType PointerType::get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape)
 {
-	return Base::get(context, heap, elementType, Shape(shape.begin(), shape.end()));
+	return Base::get(context, allocationScope, elementType, Shape(shape.begin(), shape.end()));
 }
 
-bool PointerType::isOnHeap() const
+BufferAllocationScope PointerType::getAllocationScope() const
 {
-	return getImpl()->isOnHeap();
+	return getImpl()->getAllocationScope();
 }
 
 mlir::Type PointerType::getElementType() const
@@ -233,7 +233,13 @@ void modelica::printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& print
 	}
 
 	if (auto pointerType = type.dyn_cast<PointerType>()) {
-		os << "ptr<" << (pointerType.isOnHeap() ? "true" : "false") << ", ";
+		os << "ptr<";
+
+		if (pointerType.getAllocationScope() == stack)
+			os << "stack, ";
+		else if (pointerType.getAllocationScope() == heap)
+			os << "heap, ";
+
 		auto dimensions = pointerType.getShape();
 
 		for (const auto& dimension : dimensions)

@@ -205,13 +205,15 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower({ foo, main });
+	auto module = lowerer.lower({ main, foo });
+	module->dump();
 
 	ModelicaConversionOptions conversionOptions;
 	conversionOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	module->dump();
 
-	array<int, 3> y = { 0, 0, 0};
+	array<int, 3> y = { 0, 0, 0 };
 	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
 
 	Runner runner(*module);
@@ -219,4 +221,95 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 	EXPECT_EQ(yPtr[0], 1);
 	EXPECT_EQ(yPtr[1], 2);
 	EXPECT_EQ(yPtr[2], 3);
+}
+
+TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
+{
+	/**
+	 * function foo
+	 *   input Real x;
+	 *   input Integer n;
+	 *   output Real y[n];
+	 *
+	 *   algorithm
+	 *     for i in 1:n loop
+	 *   	 	 y[i] := x * i;
+	 *   	 end for;
+	 * end foo
+	 *
+	 * function main
+	 *   input
+	 *   output Real[3] x;
+	 *
+	 *   algorithm
+	 *     x := foo(2, 3);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	llvm::SmallVector<Member, 3> fooMembers;
+	fooMembers.emplace_back(location, "x", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	fooMembers.emplace_back(location, "n", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	fooMembers.emplace_back(location, "y", makeType<float>(Expression::reference(location, makeType<int>(), "n")), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Induction induction("i", Expression::constant(location, makeType<int>(), 1), Expression::reference(location, makeType<int>(), "n"));
+
+	Algorithm fooAlgorithm = Algorithm(
+			location,
+			{
+					ForStatement(location, induction,
+											 {
+													 AssignmentStatement(location,
+																							 Expression::operation(location, makeType<float>(), OperationKind::subscription,
+																																		 Expression::reference(location, makeType<float>(-1), "y"),
+																																		 Expression::operation(location, makeType<int>(), OperationKind::subtract,
+																																													 Expression::reference(location, makeType<int>(), "i"),
+																																													 Expression::constant(location, makeType<int>(), 1))),
+																							 Expression::operation(location, makeType<float>(), OperationKind::multiply,
+																																		 Expression::reference(location, makeType<float>(), "x"),
+																																		 Expression::reference(location, makeType<int>(), "i")))
+											 })
+			});
+
+	ClassContainer foo(Function(location, "foo", true, fooMembers, fooAlgorithm));
+
+	llvm::SmallVector<Member, 3> mainMembers;
+	mainMembers.emplace_back(location, "x", makeType<float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Algorithm mainAlgorithm = Algorithm(
+			location,
+			{
+					AssignmentStatement(location,
+															Expression::reference(location, makeType<float>(-1), "x"),
+															Expression::call(location, makeType<float>(-1),
+															    						 Expression::reference(location, makeType<float>(-1), "foo"),
+																							 Expression::constant(location, makeType<float>(), 2),
+																							 Expression::constant(location, makeType<int>(), 3)))
+			});
+
+	ClassContainer main(Function(location, "main", true, mainMembers, mainAlgorithm));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower({ foo, main });
+	module->dump();
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	module->dump();
+
+	array<float, 3> x = { 0, 0, 0 };
+	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
+
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(xPtr))));
+	EXPECT_FLOAT_EQ(xPtr[0], 2);
+	EXPECT_FLOAT_EQ(xPtr[1], 4);
+	EXPECT_FLOAT_EQ(xPtr[2], 6);
 }
