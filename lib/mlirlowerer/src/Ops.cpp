@@ -229,27 +229,40 @@ llvm::StringRef CallOp::getOperationName()
 	return "modelica.call";
 }
 
-void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef function, mlir::TypeRange results, mlir::ValueRange args)
+void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef function, mlir::TypeRange results, mlir::ValueRange args, unsigned int movedResults)
 {
 	state.addAttribute("function", builder.getStringAttr(function));
 	state.addOperands(args);
 	state.addTypes(results);
+	state.addAttribute("movedResults", builder.getUI32IntegerAttr(movedResults));
 }
 
 void CallOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.call " << function() << "(" << args() << ") : " << getResultTypes();
+	printer << "modelica.call @" << function() << "(" << args() << ")";
+	auto resultTypes = getResultTypes();
+
+	if (resultTypes.size() != 0)
+		printer << " : " << getResultTypes();
 }
 
 void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
+	unsigned int movedResultsCount = movedResults();
+	unsigned int nativeArgsCount = args().size() - movedResultsCount;
+
+	for (size_t i = 0; i < nativeArgsCount; ++i)
+		if (args()[i].getType().isa<PointerType>())
+			effects.emplace_back(mlir::MemoryEffects::Read::get(), args()[i], mlir::SideEffects::DefaultResource::get());
+
+	for (size_t i = 0; i < movedResultsCount; ++i)
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), args()[nativeArgsCount + i], mlir::SideEffects::DefaultResource::get());
+
 	mlir::TypeRange types = getOperation()->getResultTypes();
 
 	for (size_t i = 0, e = types.size(); i < e; ++i)
-	{
 		if (auto pointerType = types[i].dyn_cast<PointerType>(); pointerType && pointerType.getAllocationScope() == heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(i), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::StringRef CallOp::function()
@@ -260,6 +273,12 @@ mlir::StringRef CallOp::function()
 mlir::ValueRange CallOp::args()
 {
 	return Adaptor(*this).args();
+}
+
+unsigned int CallOp::movedResults()
+{
+	mlir::IntegerAttr attr = getOperation()->getAttrOfType<mlir::IntegerAttr>("movedResults");
+	return attr.getUInt();
 }
 
 //===----------------------------------------------------------------------===//
@@ -768,7 +787,6 @@ void ArrayCopyOp::print(mlir::OpAsmPrinter& printer)
 
 void ArrayCopyOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), source(), mlir::SideEffects::DefaultResource::get());
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
@@ -1683,7 +1701,7 @@ void NegateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstanc
 {
 	if (resultType().isa<PointerType>())
 	{
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
@@ -1733,7 +1751,7 @@ void AddOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 {
 	if (resultType().isa<PointerType>())
 	{
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -1789,7 +1807,7 @@ void SubOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 {
 	if (resultType().isa<PointerType>())
 	{
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -1851,7 +1869,7 @@ void MulOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 	if (resultType().isa<PointerType>())
 	{
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
 }
@@ -1911,7 +1929,7 @@ void DivOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 	if (resultType().isa<PointerType>())
 	{
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
 }
@@ -1971,7 +1989,7 @@ void PowOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 	if (resultType().isa<PointerType>())
 	{
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
 }

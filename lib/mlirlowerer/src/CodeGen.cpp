@@ -79,7 +79,6 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 
 	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
 
-	/*
 	if (options.cse)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
 
@@ -93,7 +92,6 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 
 	if (!options.debug)
 		passManager.addPass(mlir::createStripDebugInfoPass());
-	 */
 
 	return passManager.run(module);
 }
@@ -304,16 +302,6 @@ void MLIRLowerer::lower(const Member& member)
 
 	if (!member.isOutput() || !type.isa<PointerType>() || !type.cast<PointerType>().hasConstantShape())
 	{
-		/*
-		if (type.isa<PointerType>())
-		{
-			auto pointerType = type.cast<PointerType>();
-
-			if (member.isOutput())
-				type = builder.getPointerType(true, pointerType.getElementType(), pointerType.getShape());
-		}
-		 */
-
 		mlir::Value ptr = builder.create<AllocaOp>(location, type);
 		bool initialized = false;
 
@@ -915,13 +903,52 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	}
 	else
 	{
+		auto resultType = function.getType();
+		llvm::SmallVector<Type, 3> frontendResultTypes;
+
+		llvm::SmallVector<mlir::Value, 3> callArgs;
+		llvm::SmallVector<mlir::Type, 3> callResultsTypes;
+		llvm::SmallVector<mlir::Value, 3> callExtraResults;
+
+		for (auto arg : args)
+			callArgs.push_back(arg);
+
+		// TODO: change to PackedType, to differentiate from record types
+		if (resultType.isA<UserDefinedType>())
+		{
+			for (auto& type : resultType.get<UserDefinedType>())
+				frontendResultTypes.push_back(type);
+		}
+		else
+			frontendResultTypes.push_back(resultType);
+
+		for (auto& type : frontendResultTypes)
+		{
+			if (!type.isScalar() && type.hasConstantShape())
+			{
+				mlir::Type t = lower(type, BufferAllocationScope::unknown);
+				auto pointerType = t.cast<PointerType>();
+				mlir::Value array = builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape());
+				callArgs.push_back(array);
+				callExtraResults.push_back(array);
+			}
+			else
+			{
+				callResultsTypes.push_back(lower(resultType, BufferAllocationScope::heap));
+			}
+		}
+
 		auto op = builder.create<CallOp>(
-				loc(expression.getLocation()),
-				function.get<ReferenceAccess>().getName(),
-				lower(function.getType(), BufferAllocationScope::heap),
-				args);
+			loc(expression.getLocation()),
+			function.get<ReferenceAccess>().getName(),
+			callResultsTypes,
+			callArgs,
+			callExtraResults.size());
 
 		for (auto result : op.getResults())
+			results.emplace_back(Reference::ssa(&builder, result));
+
+		for (auto result : callExtraResults)
 			results.emplace_back(Reference::ssa(&builder, result));
 	}
 

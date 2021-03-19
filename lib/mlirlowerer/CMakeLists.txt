@@ -3,6 +3,7 @@ modelicaAddLibrary(
         src/passes/BufferDeallocation.cpp
         src/passes/ModelicaConversion.cpp
         src/passes/LowerToLLVM.cpp
+        src/passes/ResultBuffersToArgs.cpp
         src/passes/TypeConverter.cpp
         src/Attribute.cpp
         src/CodeGen.cpp

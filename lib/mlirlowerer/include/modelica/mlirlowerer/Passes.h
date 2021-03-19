@@ -5,3 +5,4 @@
 #include "passes/BufferDeallocation.h"
 #include "passes/LowerToLLVM.h"
 #include "passes/ModelicaConversion.h"
+#include "passes/ResultBuffersToArgs.h"

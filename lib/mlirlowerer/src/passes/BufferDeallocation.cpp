@@ -125,7 +125,10 @@ namespace modelica
 			// loops.
 
 			for (Region& region : op->getRegions())
-				recurse(region.front(), current);
+			{
+				if (!region.empty())
+					recurse(region.front(), current);
+			}
 		}
 
 		/// Recurses into explicit control-flow structures that are given by
@@ -508,7 +511,6 @@ class BufferDeallocationPass : public PassWrapper<BufferDeallocationPass, Operat
 	public:
 	void runOnOperation() override {
 		// Ensure that there are supported loops only
-		/*
 		Backedges backedges(getOperation());
 
 		if (backedges.size() > 0) {
@@ -521,7 +523,6 @@ class BufferDeallocationPass : public PassWrapper<BufferDeallocationPass, Operat
 		if (!validateSupportedControlFlow(getOperation().getRegion())) {
 			return signalPassFailure();
 		}
-		 */
 
 		// Place all required temporary alloc, copy and dealloc nodes
 		BufferDeallocation deallocation(getOperation());

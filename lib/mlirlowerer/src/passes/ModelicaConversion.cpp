@@ -381,7 +381,6 @@ class CallOpLowering: public ModelicaOpConversion<CallOp>
 
 		llvm::SmallVector<mlir::Value, 3> args;
 		llvm::SmallVector<mlir::Value, 3> arrays;
-		llvm::SmallVector<mlir::Type, 3> resultTypes;
 
 		// Cast the original arguments to the types requested by the callee
 		auto originalArgs = op.args();
@@ -402,35 +401,7 @@ class CallOpLowering: public ModelicaOpConversion<CallOp>
 			args.push_back(arg);
 		}
 
-		for (mlir::Type type : op->getResultTypes())
-		{
-			if (auto pointerType = type.dyn_cast<PointerType>(); pointerType && pointerType.hasConstantShape())
-			{
-				mlir::Value array = rewriter.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape());
-				args.push_back(rewriter.create<PtrCastOp>(location, array, PointerType::get(rewriter.getContext(), BufferAllocationScope::unknown, pointerType.getElementType(), pointerType.getShape())));
-				arrays.push_back(array);
-			}
-			else
-			{
-				resultTypes.push_back(type);
-			}
-		}
-
-		auto call = rewriter.create<mlir::CallOp>(location, op.function(), resultTypes, args);
-
-		llvm::SmallVector<mlir::Value, 3> results;
-		size_t i = 0;
-		size_t j = 0;
-
-		for (mlir::Type type : op.getResultTypes())
-		{
-			if (auto pointerType = type.dyn_cast<PointerType>(); pointerType && pointerType.hasConstantShape())
-				results.push_back(arrays[i++]);
-			else
-				results.push_back(call.getResult(j++));
-		}
-
-		rewriter.replaceOp(op, results);
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, op.function(), op->getResultTypes(), args);
 		return mlir::success();
 	}
 };

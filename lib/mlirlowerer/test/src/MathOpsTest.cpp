@@ -198,6 +198,7 @@ TEST(MathOps, negateIntegerDynamicArray)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 
 	auto module = lowerer.lower(cls);
+	module->dump();
 
 	ModelicaConversionOptions conversionOptions;
 	conversionOptions.emitCWrappers = true;
@@ -412,6 +413,7 @@ TEST(MathOps, sumOfIntegerStaticArrays)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 
 	auto module = lowerer.lower(cls);
+	module->dump();
 
 	ModelicaConversionOptions conversionOptions;
 	conversionOptions.emitCWrappers = true;
