@@ -248,6 +248,13 @@ void CallOp::print(mlir::OpAsmPrinter& printer)
 
 void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
+	// The callee may have no arguments and no results, but still have side
+	// effects (i.e. an external function writing elsewhere). Thus we need to
+	// consider the call itself as if it is has side effects and prevent the
+	// CSE pass to erase it.
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+
+	// Declare the side effects on the array arguments.
 	unsigned int movedResultsCount = movedResults();
 	unsigned int nativeArgsCount = args().size() - movedResultsCount;
 
@@ -255,8 +262,15 @@ void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 		if (args()[i].getType().isa<PointerType>())
 			effects.emplace_back(mlir::MemoryEffects::Read::get(), args()[i], mlir::SideEffects::DefaultResource::get());
 
+	// Declare the side effects on the static array results that have been
+	// promoted to arguments.
+
 	for (size_t i = 0; i < movedResultsCount; ++i)
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), args()[nativeArgsCount + i], mlir::SideEffects::DefaultResource::get());
+
+	// The result arrays, which will be allocated by the callee on the heap,
+	// must be seen as if they were allocated by the function call. This way,
+	// the deallocation pass can free them.
 
 	mlir::TypeRange types = getOperation()->getResultTypes();
 
@@ -382,13 +396,6 @@ mlir::LogicalResult AllocOp::verify()
 
 	return mlir::success();
 }
-
-/*
-void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-}
- */
 
 PointerType AllocOp::resultType()
 {
@@ -762,17 +769,17 @@ mlir::ValueRange StoreOp::indexes()
 // Modelica::ArrayCopyOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value ArrayCopyOpAdaptor::source()
+mlir::Value ArrayCloneOpAdaptor::source()
 {
 	return getValues()[0];
 }
 
-llvm::StringRef ArrayCopyOp::getOperationName()
+llvm::StringRef ArrayCloneOp::getOperationName()
 {
-	return "modelica.array_copy";
+	return "modelica.array_clone";
 }
 
-void ArrayCopyOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, bool heap)
+void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, bool heap)
 {
 	state.addOperands(source);
 	auto sourceType = source.getType().cast<PointerType>();
@@ -780,23 +787,23 @@ void ArrayCopyOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, m
 	state.addTypes(PointerType::get(builder.getContext(), allocationScope, sourceType.getElementType(), sourceType.getShape()));
 }
 
-void ArrayCopyOp::print(mlir::OpAsmPrinter& printer)
+void ArrayCloneOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.array_copy " << source() << " : " << getPointerType();
+	printer << "modelica.array_clone " << source() << " : " << getPointerType();
 }
 
-void ArrayCopyOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+void ArrayCloneOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), source(), mlir::SideEffects::DefaultResource::get());
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
-PointerType ArrayCopyOp::getPointerType()
+PointerType ArrayCloneOp::getPointerType()
 {
 	return getOperation()->getResultTypes()[0].cast<PointerType>();
 }
 
-mlir::Value ArrayCopyOp::source()
+mlir::Value ArrayCloneOp::source()
 {
 	return Adaptor(*this).source();
 }

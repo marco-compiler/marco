@@ -15,7 +15,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<AllocaOp, AllocOp, FreeOp>();
 	addOperations<PtrCastOp, DimOp, SubscriptionOp>();
 	addOperations<LoadOp, StoreOp>();
-	addOperations<ArrayCopyOp>();
+	addOperations<ArrayCloneOp>();
 
 	// Math operations
 	addOperations<NegateOp, AddOp, SubOp, MulOp, DivOp, PowOp>();

@@ -231,7 +231,7 @@ namespace modelica
 		mlir::ValueRange dynamicDimensions();
 	};
 
-	class AllocOp : public mlir::Op<AllocOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>//, mlir::MemoryEffectOpInterface::Trait>
+	class AllocOp : public mlir::Op<AllocOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -241,7 +241,6 @@ namespace modelica
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
-		//void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		PointerType resultType();
 		mlir::ValueRange dynamicDimensions();
@@ -435,12 +434,12 @@ namespace modelica
 	};
 
 	//===----------------------------------------------------------------------===//
-	// Modelica::ArrayCopyOp
+	// Modelica::ArrayCloneOp
 	//===----------------------------------------------------------------------===//
 
-	class ArrayCopyOp;
+	class ArrayCloneOp;
 
-	class ArrayCopyOpAdaptor : public OpAdaptor<ArrayCopyOp>
+	class ArrayCloneOpAdaptor : public OpAdaptor<ArrayCloneOp>
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
@@ -448,11 +447,11 @@ namespace modelica
 		mlir::Value source();
 	};
 
-	class ArrayCopyOp :public mlir::Op<ArrayCopyOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class ArrayCloneOp :public mlir::Op<ArrayCloneOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
-		using Adaptor = ArrayCopyOpAdaptor;
+		using Adaptor = ArrayCloneOpAdaptor;
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, bool heap);

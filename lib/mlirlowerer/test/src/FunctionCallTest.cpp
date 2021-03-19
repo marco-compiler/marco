@@ -171,7 +171,6 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 	Member xMember(location, "x", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 	Expression xRef = Expression::reference(location, makeType<int>(3), "x");
 
-	/*
 	Algorithm fooAlgorithm = Algorithm(
 			location,
 			{
@@ -191,17 +190,6 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 																										Expression::constant(location, makeType<int>(), 2)),
 															Expression::constant(location, makeType<int>(), 3))
 	});
-	 */
-
-	Algorithm fooAlgorithm = Algorithm(
-			location,
-			{
-					AssignmentStatement(location,
-															Expression::operation(location, makeType<int>(), OperationKind::subscription,
-																										xRef,
-																										Expression::constant(location, makeType<int>(), 0)),
-															Expression::constant(location, makeType<int>(), 1))
-			});
 
 	ClassContainer foo(Function(location, "foo", true, xMember, fooAlgorithm));
 
@@ -218,12 +206,10 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 
 	auto module = lowerer.lower({ main, foo });
-	module->dump();
 
 	ModelicaConversionOptions conversionOptions;
 	conversionOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
-	module->dump();
 
 	array<int, 3> x = { 0, 0, 0 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
@@ -231,8 +217,8 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 	Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(xPtr))));
 	EXPECT_EQ(xPtr[0], 1);
-	//EXPECT_EQ(xPtr[1], 2);
-	//EXPECT_EQ(xPtr[2], 3);
+	EXPECT_EQ(xPtr[1], 2);
+	EXPECT_EQ(xPtr[2], 3);
 }
 
 TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
@@ -309,12 +295,10 @@ TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 
 	auto module = lowerer.lower({ foo, main });
-	module->dump();
 
 	ModelicaConversionOptions conversionOptions;
 	conversionOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
-	module->dump();
 
 	array<float, 3> x = { 0, 0, 0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });

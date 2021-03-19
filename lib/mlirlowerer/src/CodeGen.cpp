@@ -298,7 +298,8 @@ void MLIRLowerer::lower(const Member& member)
 	if (member.isInput())
 		return;
 
-	mlir::Type type = lower(member.getType(), member.isOutput() ? BufferAllocationScope::heap : BufferAllocationScope::stack);
+	const auto& frontendType = member.getType();
+	mlir::Type type = lower(frontendType, member.isOutput() ? BufferAllocationScope::heap : BufferAllocationScope::stack);
 
 	if (!member.isOutput() || !type.isa<PointerType>() || !type.cast<PointerType>().hasConstantShape())
 	{
@@ -399,13 +400,28 @@ void MLIRLowerer::lower(const AssignmentStatement& statement)
 		if (destinationPointer.getElementType().isa<PointerType>())
 		{
 			if (destination.isInitialized())
+			{
+				// The array size has been specified (note that it also may be
+				// dependant on a parameter), and the array itself has been allocated.
+				// So we can proceed by copying the source values into the
+				// destination array.
+
 				builder.create<AssignmentOp>(location, *value, *destination);
+			}
 			else
 			{
-				auto pointer = destinationPointer.getElementType().cast<PointerType>();
-				mlir::Value copy = builder.create<ArrayCopyOp>(location, *value, pointer.getAllocationScope() == heap);
+				// The destination array has dynamic and unknown sizes. Thus the
+				// buffer has not been allocated yet and we need to create a copy
+				// of the source one.
 
-				// Free the previously allocated memory
+				auto pointer = destinationPointer.getElementType().cast<PointerType>();
+				mlir::Value copy = builder.create<ArrayCloneOp>(location, *value, pointer.getAllocationScope() == heap);
+
+				// Free the previously allocated memory. This is only apparently in
+				// contrast with the above statements: unknown-sized arrays pointers
+				// are initialized with a pointer to a 1-element sized array, so that
+				// the initial free always operates on valid memory.
+
 				if (pointer.getAllocationScope() == heap)
 					builder.create<FreeOp>(location, *destination);
 
@@ -820,7 +836,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 	}
 
 	assert(false && "Unexpected operation");
-	return { Reference::ssa(&builder, nullptr) };
+	return { Reference::ssa(&builder, mlir::Value()) };
 }
 
 template<>
@@ -908,12 +924,9 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 
 		llvm::SmallVector<mlir::Value, 3> callArgs;
 		llvm::SmallVector<mlir::Type, 3> callResultsTypes;
-		llvm::SmallVector<mlir::Value, 3> callExtraResults;
+		llvm::SmallVector<mlir::Value, 3> callerArrays;
 
-		for (auto arg : args)
-			callArgs.push_back(arg);
-
-		// TODO: change to PackedType, to differentiate from record types
+		// TODO: change to "PackedType", to differentiate from record types
 		if (resultType.isA<UserDefinedType>())
 		{
 			for (auto& type : resultType.get<UserDefinedType>())
@@ -921,6 +934,13 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		}
 		else
 			frontendResultTypes.push_back(resultType);
+
+		// Preserve the original call arguments
+		for (auto arg : args)
+			callArgs.push_back(arg);
+
+		// If possible, move the statically shaped results to input arguments
+		// and allocate them on the stack.
 
 		for (auto& type : frontendResultTypes)
 		{
@@ -930,7 +950,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 				auto pointerType = t.cast<PointerType>();
 				mlir::Value array = builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape());
 				callArgs.push_back(array);
-				callExtraResults.push_back(array);
+				callerArrays.push_back(array);
 			}
 			else
 			{
@@ -943,13 +963,32 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 			function.get<ReferenceAccess>().getName(),
 			callResultsTypes,
 			callArgs,
-			callExtraResults.size());
+			callerArrays.size());
 
-		for (auto result : op.getResults())
-			results.emplace_back(Reference::ssa(&builder, result));
+		// We need to preserve the original results order, thus we have to iterate
+		// among the original result types and pick the value from either the
+		// call results or from the list of the arrays allocated by the caller.
 
-		for (auto result : callExtraResults)
-			results.emplace_back(Reference::ssa(&builder, result));
+		size_t i = 0;
+		size_t j = 0;
+
+		for (auto& type : frontendResultTypes)
+		{
+			if (!type.isScalar() && type.hasConstantShape())
+			{
+				assert(j < callerArrays.size());
+				results.emplace_back(Reference::ssa(&builder, callerArrays[j++]));
+			}
+			else
+			{
+				assert(i < op->getNumResults());
+				results.emplace_back(Reference::ssa(&builder, op.getResult(i++)));
+			}
+		}
+
+		// Ensure that all the results have been used
+		assert(i == op->getNumResults() && j == callerArrays.size());
+		assert(frontendResultTypes.size() == results.size());
 	}
 
 	return results;
@@ -989,7 +1028,7 @@ mlir::Value MLIRLowerer::foldBinaryOperation(llvm::ArrayRef<mlir::Value> args, s
 
 MLIRLowerer::Container<mlir::Value> MLIRLowerer::lowerOperationArgs(const Operation& operation)
 {
-	llvm::SmallVector<mlir::Value, 3> args;
+	Container<mlir::Value> args;
 
 	for (const auto& arg : operation)
 		args.push_back(*lower<Expression>(arg)[0]);

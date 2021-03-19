@@ -680,11 +680,11 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 	}
 };
 
-class ArrayCopyOpLowering: public ModelicaOpConversion<ArrayCopyOp>
+class ArrayCloneOpLowering: public ModelicaOpConversion<ArrayCloneOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(ArrayCopyOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(ArrayCloneOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op->getLoc();
 		Adaptor adaptor(operands);
@@ -2557,7 +2557,7 @@ void modelica::populateModelicaMemoryConversionPatterns(mlir::OwningRewritePatte
 			DimOpLowering,
 			LoadOpLowering,
 			StoreOpLowering,
-			ArrayCopyOpLowering>(context, typeConverter);
+			ArrayCloneOpLowering>(context, typeConverter);
 
 	patterns.insert<PtrCastOpLowering>(context);
 }
