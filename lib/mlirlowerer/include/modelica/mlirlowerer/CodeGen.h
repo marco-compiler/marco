@@ -38,6 +38,7 @@ namespace modelica
 
 	struct ModelicaConversionOptions : public ModelicaToLLVMConversionOptions
 	{
+		bool inlining = true;
 		bool cse = true;
 		bool openmp = false;
 		bool debug = true;

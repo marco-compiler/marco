@@ -1,12 +1,48 @@
+#include <mlir/IR/BuiltinOps.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/Transforms/InliningUtils.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 
 using namespace modelica;
+
+class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
+{
+	public:
+	using mlir::DialectInlinerInterface::DialectInlinerInterface;
+
+	bool isLegalToInline(mlir::Operation* call, mlir::Operation* callable, bool wouldBeCloned) const final
+	{
+		auto function = mlir::cast<mlir::FuncOp>(callable);
+
+		if (!function->hasAttr("inline"))
+			return false;
+
+		auto inlineAttribute = function->getAttrOfType<BooleanAttribute>("inline");
+		return inlineAttribute.getValue();
+	}
+
+	bool isLegalToInline(mlir::Operation* op, mlir::Region* dest, bool wouldBeCloned, mlir::BlockAndValueMapping &valueMapping) const final
+	{
+		return true;
+	}
+
+	void handleTerminator(mlir::Operation* op, llvm::ArrayRef<mlir::Value> valuesToReplace) const final {
+		auto returnOp = mlir::cast<mlir::ReturnOp>(op);
+
+		// Replace the values directly with the return operands
+		assert(returnOp.getNumOperands() == valuesToReplace.size());
+
+		for (const auto& it : llvm::enumerate(returnOp.getOperands()))
+			valuesToReplace[it.index()].replaceAllUsesWith(it.value());
+	}
+};
 
 ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 		: Dialect("modelica", context, mlir::TypeID::get<ModelicaDialect>())
 {
 	addTypes<BooleanType, IntegerType, RealType, PointerType>();
 	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute>();
+	addInterfaces<ModelicaInlinerInterface>();
 
 	// Basic operations
 	addOperations<ConstantOp, CastOp, CastCommonOp, AssignmentOp, CallOp>();

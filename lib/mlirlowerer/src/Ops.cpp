@@ -6,6 +6,16 @@
 
 using namespace modelica;
 
+static bool isNumeric(mlir::Type type)
+{
+	return type.isa<mlir::IndexType, BooleanType, IntegerType, RealType>();
+}
+
+static bool isNumeric(mlir::Value value)
+{
+	return isNumeric(value.getType());
+}
+
 //===----------------------------------------------------------------------===//
 // Modelica::ConstantOp
 //===----------------------------------------------------------------------===//
@@ -229,9 +239,9 @@ llvm::StringRef CallOp::getOperationName()
 	return "modelica.call";
 }
 
-void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef function, mlir::TypeRange results, mlir::ValueRange args, unsigned int movedResults)
+void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::TypeRange results, mlir::ValueRange args, unsigned int movedResults)
 {
-	state.addAttribute("function", builder.getStringAttr(function));
+	state.addAttribute("callee", builder.getSymbolRefAttr(callee));
 	state.addOperands(args);
 	state.addTypes(results);
 	state.addAttribute("movedResults", builder.getUI32IntegerAttr(movedResults));
@@ -239,7 +249,7 @@ void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 
 void CallOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.call @" << function() << "(" << args() << ")";
+	printer << "modelica.call @" << callee() << "(" << args() << ")";
 	auto resultTypes = getResultTypes();
 
 	if (resultTypes.size() != 0)
@@ -279,9 +289,18 @@ void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(i), mlir::SideEffects::DefaultResource::get());
 }
 
-mlir::StringRef CallOp::function()
+mlir::CallInterfaceCallable CallOp::getCallableForCallee() {
+	return (*this)->getAttrOfType<mlir::SymbolRefAttr>("callee");
+}
+
+mlir::Operation::operand_range CallOp::getArgOperands()
 {
-	return getOperation()->getAttrOfType<mlir::StringAttr>("function").getValue();
+	return getOperands();
+}
+
+mlir::StringRef CallOp::callee()
+{
+	return getOperation()->getAttrOfType<mlir::FlatSymbolRefAttr>("callee").getValue();
 }
 
 mlir::ValueRange CallOp::args()
@@ -603,6 +622,11 @@ void SubscriptionOp::print(mlir::OpAsmPrinter& printer)
  	printer << "modelica.subscript " << source() << "[" << indexes() << "] : " << resultType();
 }
 
+mlir::Value SubscriptionOp::getViewSource()
+{
+	return source();
+}
+
 PointerType SubscriptionOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<PointerType>();
@@ -766,7 +790,7 @@ mlir::ValueRange StoreOp::indexes()
 }
 
 //===----------------------------------------------------------------------===//
-// Modelica::ArrayCopyOp
+// Modelica::ArrayCloneOp
 //===----------------------------------------------------------------------===//
 
 mlir::Value ArrayCloneOpAdaptor::source()
@@ -1165,10 +1189,7 @@ void ConditionOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult ConditionOp::verify()
 {
-	if (!condition().getType().isa<BooleanType>())
-		return emitOpError("requires the condition to be a boolean");
-
-	return mlir::success();
+	return mlir::success(isNumeric(condition()));
 }
 
 mlir::Value ConditionOp::condition()
@@ -1387,9 +1408,8 @@ void EqOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult EqOp::verify()
 {
-	for (auto operand : getOperands())
-		if (operand.getType().isa<mlir::ShapedType>())
-			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+	if (!isNumeric(lhs()) || !isNumeric(rhs()))
+		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
 }
@@ -1442,9 +1462,8 @@ void NotEqOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult NotEqOp::verify()
 {
-	for (auto operand : getOperands())
-		if (operand.getType().isa<mlir::ShapedType>())
-			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+	if (!isNumeric(lhs()) || !isNumeric(rhs()))
+		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
 }
@@ -1497,9 +1516,8 @@ void GtOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult GtOp::verify()
 {
-	for (auto operand : getOperands())
-		if (operand.getType().isa<mlir::ShapedType>())
-			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+	if (!isNumeric(lhs()) || !isNumeric(rhs()))
+		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
 }
@@ -1552,9 +1570,8 @@ void GteOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult GteOp::verify()
 {
-	for (auto operand : getOperands())
-		if (operand.getType().isa<mlir::ShapedType>())
-			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+	if (!isNumeric(lhs()) || !isNumeric(rhs()))
+		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
 }
@@ -1607,9 +1624,8 @@ void LtOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult LtOp::verify()
 {
-	for (auto operand : getOperands())
-		if (operand.getType().isa<mlir::ShapedType>())
-			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+	if (!isNumeric(lhs()) || !isNumeric(rhs()))
+		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
 }
@@ -1662,9 +1678,8 @@ void LteOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult LteOp::verify()
 {
-	for (auto operand : getOperands())
-		if (operand.getType().isa<mlir::ShapedType>())
-			return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+	if (!isNumeric(lhs()) || !isNumeric(rhs()))
+		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
 }

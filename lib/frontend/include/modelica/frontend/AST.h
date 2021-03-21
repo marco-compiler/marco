@@ -14,6 +14,7 @@
 #include "ast/Function.h"
 #include "ast/Induction.h"
 #include "ast/Member.h"
+#include "ast/Modification.h"
 #include "ast/Operation.h"
 #include "ast/ReferenceAccess.h"
 #include "ast/Statement.h"

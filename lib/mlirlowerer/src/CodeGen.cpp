@@ -1,11 +1,5 @@
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/Conversion/Passes.h>
-#include <mlir/Dialect/Affine/IR/AffineOps.h>
-#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
-#include <mlir/Dialect/Linalg/Passes.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/Dialect/StandardOps/Transforms/Passes.h>
-#include <mlir/Dialect/Vector/VectorOps.h>
 #include <mlir/IR/Verifier.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
@@ -76,6 +70,11 @@ MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options)
 mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, ModelicaConversionOptions options)
 {
 	mlir::PassManager passManager(builder.getContext());
+
+	passManager.addPass(createExplicitCastInsertionPass());
+
+	if (options.inlining)
+		passManager.addPass(mlir::createInlinerPass());
 
 	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
 
@@ -166,7 +165,11 @@ mlir::FuncOp MLIRLowerer::lower(const Function& foo)
 	}
 
 	auto functionType = builder.getFunctionType(argTypes, returnTypes);
-	auto function = mlir::FuncOp::create(location, foo.getName(), functionType);
+
+	llvm::SmallVector<mlir::NamedAttribute, 3> attributes;
+	attributes.push_back(builder.getNamedAttr("inline", builder.getBooleanAttribute(foo.getAnnotation().getInlineProperty())));
+
+	auto function = mlir::FuncOp::create(location, foo.getName(), functionType, static_cast<llvm::ArrayRef<mlir::NamedAttribute>>(attributes));
 
 	// If the function doesn't have a body, it means it is just a declaration
 	if (foo.getAlgorithms().empty())
@@ -820,8 +823,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 		for (size_t i = 1; i < operation.argumentsCount(); i++)
 		{
-			auto subscript = *lower<Expression>(operation[i])[0];
-			mlir::Value index = builder.create<CastOp>(subscript.getLoc(), subscript, builder.getIndexType());
+			mlir::Value index = *lower<Expression>(operation[i])[0];
 			indexes.push_back(index);
 		}
 
@@ -888,7 +890,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		args.push_back(*reference);
 	}
 
-	auto& functionName = function.get<ReferenceAccess>().getName();
+	const auto& functionName = function.get<ReferenceAccess>().getName();
 
 	Container<Reference> results;
 

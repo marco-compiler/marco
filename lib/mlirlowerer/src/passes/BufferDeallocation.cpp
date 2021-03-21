@@ -1,11 +1,7 @@
-#include <llvm/ADT/SetOperations.h>
-#include <mlir/Conversion/Passes.h>
-#include <mlir/IR/BuiltinOps.h>
-#include <mlir/Pass/Pass.h>
 #include <mlir/Transforms/BufferUtils.h>
 #include <mlir/Transforms/Passes.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/BufferDeallocation.h>
+#include <modelica/mlirlowerer/ModelicaDialect.h>
 
 using namespace mlir;
 using namespace modelica;
@@ -27,7 +23,7 @@ namespace modelica
 			{
 				Value alloc = std::get<0>(entry);
 				auto aliasesSet = aliases.resolve(alloc);
-				assert(aliasesSet.size() > 0 && "must contain at least one alias");
+				assert(!aliasesSet.empty() && "must contain at least one alias");
 
 				// Determine the actual block to place the dealloc and get liveness
 				// information.

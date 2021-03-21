@@ -12,10 +12,16 @@
 
 namespace modelica
 {
+	class Argument;
+	class ClassModification;
+	class ElementModification;
+	class ElementRedeclaration;
+	class ElementReplaceable;
 	class Statement;
 	class AssignmentStatement;
 	class IfStatement;
 	class ForStatement;
+	class Modification;
 	class WhileStatement;
 	class WhenStatement;
 
@@ -39,9 +45,10 @@ namespace modelica
 		[[nodiscard]] Token getCurrentToken() const;
 
 		llvm::Expected<ClassContainer> classDefinition();
+
 		llvm::Expected<Expression> primary();
 		llvm::Expected<Expression> factor();
-		llvm::Expected<std::optional<Expression>> modification();
+		llvm::Expected<std::optional<Expression>> termModification();
 		llvm::Expected<Expression> term();
 		llvm::Expected<Type> typeSpecifier();
 		llvm::Expected<llvm::SmallVector<ForEquation, 3>> forEquationBody(
@@ -81,7 +88,14 @@ namespace modelica
 
 		llvm::Expected<Tuple> outputExpressionList();
 		llvm::Expected<std::vector<Expression>> arraySubscript();
-		llvm::Expected<Expression> subscript();
+
+		llvm::Expected<Annotation> annotation();
+		llvm::Expected<Modification> modification();
+		llvm::Expected<ClassModification> classModification();
+		llvm::Expected<Argument> argument();
+		llvm::Expected<ElementModification> elementModification(bool each, bool final);
+		llvm::Expected<ElementRedeclaration> elementRedeclaration();
+		llvm::Expected<ElementReplaceable> elementReplaceable(bool each, bool final);
 
 		private:
 		/**

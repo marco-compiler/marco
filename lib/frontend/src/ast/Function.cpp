@@ -13,10 +13,12 @@ Function::Function(
 		string name,
 		bool pure,
 		ArrayRef<Member> members,
-		ArrayRef<Algorithm> algorithms)
+		ArrayRef<Algorithm> algorithms,
+		Annotation annotation)
 		: location(move(location)),
 			name(move(name)),
 			pure(pure),
+			annotation(move(annotation)),
 			type(Type::unknown())
 {
 	assert(!this->name.empty());
@@ -117,6 +119,11 @@ Container<Algorithm>& Function::getAlgorithms() { return algorithms; }
 const Container<Algorithm>& Function::getAlgorithms() const
 {
 	return algorithms;
+}
+
+Annotation Function::getAnnotation() const
+{
+	return annotation;
 }
 
 modelica::Type& Function::getType() { return type; }

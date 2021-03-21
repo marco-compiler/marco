@@ -1,6 +1,7 @@
 modelicaAddLibrary(
         frontend SHARED
 		src/ast/Algorithm.cpp
+		src/ast/Annotation.cpp
 		src/ast/Call.cpp
 		src/ast/Class.cpp
 		src/ast/ClassContainer.cpp
@@ -11,6 +12,7 @@ modelicaAddLibrary(
 		src/ast/Function.cpp
 		src/ast/Induction.cpp
 		src/ast/Member.cpp
+		src/ast/Modification.cpp
 		src/ast/Operation.cpp
 		src/ast/ReferenceAccess.cpp
 		src/ast/Statement.cpp

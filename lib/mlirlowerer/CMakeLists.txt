@@ -1,6 +1,7 @@
 modelicaAddLibrary(
         mlirlowerer SHARED
         src/passes/BufferDeallocation.cpp
+        src/passes/ExplicitCastInsertion.cpp
         src/passes/ModelicaConversion.cpp
         src/passes/LowerToLLVM.cpp
         src/passes/ResultBuffersToArgs.cpp

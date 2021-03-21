@@ -152,7 +152,7 @@ llvm::Expected<ClassContainer> Parser::classDefinition()
 	// encountered.
 	bool firstElementListParsable = true;
 
-	while (current != Token::EndKeyword)
+	while (current != Token::EndKeyword && current != Token::AnnotationKeyword)
 	{
 		if (current == Token::EquationKeyword)
 		{
@@ -213,6 +213,15 @@ llvm::Expected<ClassContainer> Parser::classDefinition()
 		}
 	}
 
+	Annotation clsAnnotation;
+
+	if (current == Token::AnnotationKeyword)
+	{
+		TRY(ann, annotation());
+		clsAnnotation = *ann;
+		EXPECT(Token::Semicolons);
+	}
+
 	EXPECT(Token::EndKeyword);
 	auto endName = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
@@ -223,7 +232,7 @@ llvm::Expected<ClassContainer> Parser::classDefinition()
 	switch (classType)
 	{
 		case ClassType::Function:
-			return ClassContainer(Function(location, move(name), pure, std::move(members), std::move(algorithms)));
+			return ClassContainer(Function(location, move(name), pure, std::move(members), std::move(algorithms), clsAnnotation));
 
 		case ClassType::Model:
 			return ClassContainer(Class(location, move(name), std::move(members), std::move(equations), std::move(forEquations), std::move(algorithms), std::move(innerClasses)));
@@ -286,7 +295,7 @@ llvm::Expected<Member> Parser::element(bool publicSection)
 
 	if (current == Token::LPar)
 	{
-		TRY(start, modification());
+		TRY(start, termModification());
 
 		if (start->has_value())
 			startOverload = std::move(**start);
@@ -307,7 +316,7 @@ llvm::Expected<Member> Parser::element(bool publicSection)
 			location, move(name), std::move(*type), std::move(*prefix), publicSection, startOverload);
 }
 
-llvm::Expected<std::optional<Expression>> Parser::modification()
+llvm::Expected<std::optional<Expression>> Parser::termModification()
 {
 	EXPECT(Token::LPar);
 
@@ -1088,4 +1097,89 @@ llvm::Expected<std::vector<Expression>> Parser::arraySubscript()
 
 	EXPECT(Token::RSquare);
 	return expressions;
+}
+
+llvm::Expected<Annotation> Parser::annotation()
+{
+	EXPECT(Token::AnnotationKeyword);
+	TRY(mod, classModification());
+	return Annotation(*mod);
+}
+
+llvm::Expected<Modification> Parser::modification()
+{
+	if (accept<Token::Equal>() || accept<Token::Assignment>())
+	{
+		TRY(exp, expression());
+		return Modification(*exp);
+	}
+
+	TRY(mod, classModification());
+
+	if (accept<Token::Equal>())
+	{
+		TRY(exp, expression());
+		return Modification(*mod, *exp);
+	}
+
+	return Modification(*mod);
+}
+
+llvm::Expected<ClassModification> Parser::classModification()
+{
+	EXPECT(Token::LPar);
+	llvm::SmallVector<Argument, 3> arguments;
+
+	do
+	{
+		TRY(arg, argument());
+		arguments.push_back(*arg);
+	} while (accept<Token::Comma>());
+
+	EXPECT(Token::RPar);
+
+	return ClassModification(arguments);
+}
+
+llvm::Expected<Argument> Parser::argument()
+{
+	if (current == Token::RedeclareKeyword)
+	{
+		TRY(el, elementRedeclaration());
+		return Argument(*el);
+	}
+
+	bool each = accept<Token::EachKeyword>();
+	bool final = accept<Token::FinalKeyword>();
+
+	if (current == Token::ReplaceableKeyword)
+	{
+		TRY(el, elementReplaceable(each, final));
+		return Argument(*el);
+	}
+
+	TRY(el, elementModification(each, final));
+	return Argument(*el);
+}
+
+llvm::Expected<ElementModification> Parser::elementModification(bool each, bool final)
+{
+	auto name = lexer.getLastIdentifier();
+	EXPECT(Token::Ident);
+
+	if (current != Token::LPar && current != Token::Equal && current != Token::Assignment)
+		return ElementModification(each, final, name);
+
+	TRY(mod, modification());
+	return ElementModification(each, final, name, *mod);
+}
+
+llvm::Expected<ElementRedeclaration> Parser::elementRedeclaration()
+{
+	return llvm::make_error<NotImplemented>("element-redeclaration not implemented yet");
+}
+
+llvm::Expected<ElementReplaceable> Parser::elementReplaceable(bool each, bool final)
+{
+	return llvm::make_error<NotImplemented>("element-replaceable not implemented yet");
 }

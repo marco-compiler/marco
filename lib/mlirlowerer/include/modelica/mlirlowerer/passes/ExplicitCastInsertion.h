@@ -4,5 +4,5 @@
 
 namespace modelica
 {
-	std::unique_ptr<mlir::Pass> createBufferDeallocationPass();
+	std::unique_ptr<mlir::Pass> createExplicitCastInsertionPass();
 }

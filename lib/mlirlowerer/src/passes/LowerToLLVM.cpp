@@ -1,17 +1,9 @@
 #include <mlir/Conversion/Passes.h>
-#include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
-#include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
-#include <mlir/Dialect/Affine/IR/AffineOps.h>
-#include <mlir/Dialect/LLVMIR/FunctionCallUtils.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
-#include <mlir/Dialect/Math/IR/Math.h>
 #include <mlir/Dialect/OpenMP/OpenMPDialect.h>
-#include <mlir/Dialect/SCF/Transforms.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/BuiltinOps.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/LowerToLLVM.h>
 #include <modelica/mlirlowerer/passes/TypeConverter.h>
+#include <modelica/mlirlowerer/ModelicaDialect.h>
 
 using namespace modelica;
 

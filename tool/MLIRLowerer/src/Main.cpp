@@ -28,6 +28,7 @@ static cl::OptionCategory optionCategory("MLIR lowerer options");
 static cl::opt<string> inputFile(cl::Positional, cl::desc("<input-file>"), cl::init("-"), cl::cat(optionCategory));
 static cl::opt<string> outputFile("o", cl::desc("<output-file>"), cl::init("-"), cl::cat(optionCategory));
 static cl::opt<bool> x86("32", cl::desc("Use 32-bit values instead of 64-bit ones"), cl::init(false), cl::cat(optionCategory));
+static cl::opt<bool> inlining("no-inlining", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(optionCategory));
 static cl::opt<bool> cse("no-cse", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(optionCategory));
 static cl::opt<bool> openmp("omp", cl::desc("Enable OpenMP usage"), cl::init(false), cl::cat(optionCategory));
 
@@ -106,6 +107,7 @@ int main(int argc, char* argv[])
 
 	// Convert to LLVM dialect
 	modelica::ModelicaConversionOptions conversionOptions;
+	conversionOptions.inlining = !inlining;
 	conversionOptions.cse = !cse;
 	conversionOptions.openmp = openmp;
 	conversionOptions.debug = debug;

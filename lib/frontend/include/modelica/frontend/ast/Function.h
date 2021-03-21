@@ -8,6 +8,7 @@
 #include <string>
 
 #include "Algorithm.h"
+#include "Annotation.h"
 #include "Member.h"
 
 namespace modelica
@@ -22,7 +23,8 @@ namespace modelica
 						 std::string name,
 						 bool pure,
 						 llvm::ArrayRef<Member> members,
-						 llvm::ArrayRef<Algorithm> algorithms);
+						 llvm::ArrayRef<Algorithm> algorithms,
+						 Annotation annotation = Annotation());
 
 		Member& operator[](llvm::StringRef name);
 		const Member& operator[](llvm::StringRef name) const;
@@ -49,6 +51,8 @@ namespace modelica
 		[[nodiscard]] Container<Algorithm>& getAlgorithms();
 		[[nodiscard]] const Container<Algorithm>& getAlgorithms() const;
 
+		[[nodiscard]] Annotation getAnnotation() const;
+
 		[[nodiscard]] Type& getType();
 		[[nodiscard]] const Type& getType() const;
 		void setType(Type type);
@@ -59,6 +63,7 @@ namespace modelica
 		bool pure;
 		Container<Member> members;
 		Container<Algorithm> algorithms;
+		Annotation annotation;
 		Type type;
 	};
 }	 // namespace modelica

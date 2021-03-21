@@ -172,18 +172,20 @@ namespace modelica
 		mlir::ValueRange args();
 	};
 
-	class CallOp : public mlir::Op<CallOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicResults, mlir::OpTrait::VariadicOperands, mlir::MemoryEffectOpInterface::Trait>
+	class CallOp : public mlir::Op<CallOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicResults, mlir::OpTrait::VariadicOperands, mlir::MemoryEffectOpInterface::Trait, mlir::CallOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
 		using Adaptor = CallOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef function, mlir::TypeRange results, mlir::ValueRange args, unsigned int movedResults);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::TypeRange results, mlir::ValueRange args, unsigned int movedResults);
 		void print(mlir::OpAsmPrinter& printer);
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+		mlir::CallInterfaceCallable getCallableForCallee();
+		mlir::Operation::operand_range getArgOperands();
 
-		mlir::StringRef function();
+		mlir::StringRef callee();
 		mlir::ValueRange args();
 		unsigned int movedResults();
 	};
@@ -359,8 +361,7 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::ValueRange indexes);
 		void print(mlir::OpAsmPrinter& printer);
-
-		mlir::Value getViewSource() { return source(); }
+		mlir::Value getViewSource();
 
 		PointerType resultType();
 		mlir::Value source();
