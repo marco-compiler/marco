@@ -205,13 +205,21 @@ unsigned int PointerType::getDynamicDimensions() const
 
 bool PointerType::hasConstantShape() const
 {
-	auto dimensions = getShape();
+	auto shape = getShape();
+	return std::all_of(shape.begin(), shape.end(),
+										 [](long size) { return size != -1; });
+}
 
-	for (auto dimension : dimensions)
-		if (dimension == -1)
-			return false;
+PointerType PointerType::slice(unsigned int subscriptsAmount)
+{
+	auto shape = getShape();
+	assert(subscriptsAmount <= shape.size() && "Too many subscriptions");
+	llvm::SmallVector<long, 3> resultShape;
 
-	return true;
+	for (size_t i = subscriptsAmount, e = shape.size(); i < e; ++i)
+		resultShape.push_back(shape[i]);
+
+	return PointerType::get(getContext(), getAllocationScope(), getElementType(), resultShape);
 }
 
 void modelica::printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer) {

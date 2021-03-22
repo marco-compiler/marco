@@ -19,7 +19,7 @@ namespace modelica
 		using args_iterator = boost::indirect_iterator<Container<Expression>::iterator>;
 		using args_const_iterator = boost::indirect_iterator<Container<Expression>::const_iterator>;
 
-		Call(SourcePosition location, Expression function, llvm::ArrayRef<Expression> args = {});
+		Call(SourcePosition location, Expression function, llvm::ArrayRef<Expression> args = {}, unsigned int elementWiseRank = 0);
 
 		[[nodiscard]] bool operator==(const Call& other) const;
 		[[nodiscard]] bool operator!=(const Call& other) const;
@@ -43,10 +43,15 @@ namespace modelica
 		[[nodiscard]] args_iterator end();
 		[[nodiscard]] args_const_iterator end() const;
 
+		[[nodiscard]] bool isElementWise() const;
+		[[nodiscard]] unsigned int getElementWiseRank() const;
+		void setElementWiseRank(unsigned int rank);
+
 		private:
 		SourcePosition location;
 		std::shared_ptr<Expression> function;
 		Container<Expression> args;
+		unsigned int elementWiseRank;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Call& obj);

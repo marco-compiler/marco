@@ -376,29 +376,7 @@ class CallOpLowering: public ModelicaOpConversion<CallOp>
 		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
 		auto calleeArgsTypes = callee.getArgumentTypes();
 
-		llvm::SmallVector<mlir::Value, 3> args;
-		llvm::SmallVector<mlir::Value, 3> arrays;
-
-		// Cast the original arguments to the types requested by the callee
-		auto originalArgs = op.args();
-
-		for (size_t i = 0, e = originalArgs.size(); i < e; ++i)
-		{
-			assert(i < calleeArgsTypes.size());
-			mlir::Value arg = originalArgs[i];
-
-			if (arg.getType() != calleeArgsTypes[i])
-			{
-				if (arg.getType().isa<PointerType>())
-					arg = rewriter.create<PtrCastOp>(location, arg, calleeArgsTypes[i]);
-				else
-					arg = rewriter.create<CastOp>(location, arg, calleeArgsTypes[i]);
-			}
-
-			args.push_back(arg);
-		}
-
-		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, op.callee(), op->getResultTypes(), args);
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, op.callee(), op->getResultTypes(), op.args());
 		return mlir::success();
 	}
 };

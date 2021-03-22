@@ -204,7 +204,7 @@ namespace modelica
 		mlir::ValueRange dynamicDimensions();
 	};
 
-	class AllocaOp : public mlir::Op<AllocaOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
+	class AllocaOp : public mlir::Op<AllocaOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -214,6 +214,7 @@ namespace modelica
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		PointerType resultType();
 		mlir::ValueRange dynamicDimensions();
@@ -233,16 +234,17 @@ namespace modelica
 		mlir::ValueRange dynamicDimensions();
 	};
 
-	class AllocOp : public mlir::Op<AllocOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
+	class AllocOp : public mlir::Op<AllocOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
 		using Adaptor = AllocOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {});
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {}, bool shouldBeFreed = true);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		PointerType resultType();
 		mlir::ValueRange dynamicDimensions();

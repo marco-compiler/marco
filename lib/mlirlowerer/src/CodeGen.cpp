@@ -332,7 +332,7 @@ void MLIRLowerer::lower(const Member& member)
 
 				if (allocationScope == heap)
 				{
-					mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), sizes);
+					mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), sizes, false);
 					builder.create<StoreOp>(location, var, ptr);
 				}
 				else if (allocationScope == stack)
@@ -355,7 +355,7 @@ void MLIRLowerer::lower(const Member& member)
 					for (size_t i = 0, rank = pointerType.getRank(); i < rank; ++i)
 						shape.push_back(1);
 
-					mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), shape);
+					mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), shape, llvm::None, false);
 					var = builder.create<PtrCastOp>(location, var, pointerType);
 					builder.create<StoreOp>(location, var, ptr);
 				}
@@ -946,17 +946,52 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 
 		for (auto& type : frontendResultTypes)
 		{
-			if (!type.isScalar() && type.hasConstantShape())
+			if (call.isElementWise())
 			{
-				mlir::Type t = lower(type, BufferAllocationScope::unknown);
-				auto pointerType = t.cast<PointerType>();
-				mlir::Value array = builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape());
-				callArgs.push_back(array);
-				callerArrays.push_back(array);
+				bool move = false;
+
+				if (!type.isScalar())
+				{
+					auto reduced = type.subscript(call.getElementWiseRank());
+					move = !reduced.isScalar() && type.hasConstantShape();
+				}
+
+				if (move)
+				{
+					mlir::Type t = lower(type, BufferAllocationScope::stack);
+					auto pointerType = t.cast<PointerType>();
+					llvm::SmallVector<mlir::Value, 3> dynamicSizes;
+
+					for (size_t i = 0; i < call.getElementWiseRank(); ++i)
+					{
+						mlir::Value index = builder.create<ConstantOp>(location, builder.getIndexAttribute(i));
+						dynamicSizes.push_back(builder.create<DimOp>(location, args[i], index));
+					}
+
+					mlir::Value array = builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape(), dynamicSizes);
+					callArgs.push_back(array);
+					callerArrays.push_back(array);
+				}
+				else
+				{
+					callResultsTypes.push_back(lower(resultType, BufferAllocationScope::heap));
+				}
 			}
 			else
 			{
-				callResultsTypes.push_back(lower(resultType, BufferAllocationScope::heap));
+				if (!type.isScalar() && type.hasConstantShape())
+				{
+					mlir::Type t = lower(type, BufferAllocationScope::stack);
+					auto pointerType = t.cast<PointerType>();
+
+					mlir::Value array = builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape());
+					callArgs.push_back(array);
+					callerArrays.push_back(array);
+				}
+				else
+				{
+					callResultsTypes.push_back(lower(resultType, BufferAllocationScope::heap));
+				}
 			}
 		}
 

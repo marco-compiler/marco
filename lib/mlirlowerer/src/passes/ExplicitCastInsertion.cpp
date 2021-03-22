@@ -1,14 +1,52 @@
+#include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/ExplicitCastInsertion.h>
 
 using namespace modelica;
 
-struct CallOpPattern : public mlir::OpRewritePattern<CallOp>
+static bool isNumeric(mlir::Type type)
+{
+	return type.isa<mlir::IndexType, BooleanType, IntegerType, RealType>();
+}
+
+static bool isNumeric(mlir::Value value)
+{
+	return isNumeric(value.getType());
+}
+
+struct CallOpScalarPattern : public mlir::OpRewritePattern<CallOp>
 {
 	using mlir::OpRewritePattern<CallOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(CallOp op, mlir::PatternRewriter& rewriter) const override
+	mlir::LogicalResult match(CallOp op) const override
+	{
+		auto module = op->getParentOfType<mlir::ModuleOp>();
+		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
+		assert(op.args().size() == callee.getArgumentTypes().size());
+		auto pairs = llvm::zip(op.args(), callee.getArgumentTypes());
+
+		for (auto [ arg, type ] : pairs)
+		{
+			mlir::Type actualType = arg.getType();
+
+			if (!actualType.isa<PointerType>() && !type.isa<PointerType>())
+				continue;
+
+			if (!actualType.isa<PointerType>() && type.isa<PointerType>())
+				return mlir::failure();
+
+			if (actualType.isa<PointerType>() && !type.isa<PointerType>())
+				return mlir::failure();
+
+			if (actualType.cast<PointerType>().getRank() != type.cast<PointerType>().getRank())
+				return mlir::failure();
+		}
+
+		return mlir::success();
+	}
+
+	void rewrite(CallOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op->getLoc();
 
@@ -31,7 +69,87 @@ struct CallOpPattern : public mlir::OpRewritePattern<CallOp>
 		}
 
 		rewriter.replaceOpWithNewOp<CallOp>(op, op.callee(), op.getResultTypes(), args, op.movedResults());
+	}
+};
+
+struct CallOpElementWisePattern : public mlir::OpRewritePattern<CallOp>
+{
+	using mlir::OpRewritePattern<CallOp>::OpRewritePattern;
+
+	mlir::LogicalResult match(CallOp op) const override
+	{
+		auto module = op->getParentOfType<mlir::ModuleOp>();
+		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
+		assert(op.args().size() == callee.getArgumentTypes().size());
+		auto pairs = llvm::zip(op.args(), callee.getArgumentTypes());
+
+		unsigned int rankDifference = 0;
+
+		for (auto [ arg, type ] : pairs)
+		{
+			mlir::Type actualType = arg.getType();
+
+			if (!actualType.isa<PointerType>())
+				return mlir::failure();
+
+			unsigned int typeRank = 0;
+
+			if (type.isa<PointerType>())
+				typeRank = type.cast<PointerType>().getRank();
+
+			if (actualType.cast<PointerType>().getRank() == typeRank)
+				return mlir::failure();
+
+			unsigned int currentDifference = actualType.cast<PointerType>().getRank() - typeRank;
+
+			if (rankDifference == 0)
+				rankDifference = currentDifference;
+			else if (currentDifference != rankDifference)
+				return mlir::failure();
+		}
+
 		return mlir::success();
+	}
+
+	void rewrite(CallOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op->getLoc();
+
+		auto module = op->getParentOfType<mlir::ModuleOp>();
+		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
+		auto pairs = llvm::zip(op.args(), callee.getArgumentTypes());
+
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		assert(op.args().size() - op.movedResults() > 0);
+		auto pointerType = op.args()[0].getType().cast<PointerType>();
+
+		llvm::SmallVector<long, 3> shape;
+		llvm::SmallVector<mlir::Value, 3> dims;
+
+		for (size_t i = 0, e = pointerType.getRank(); i < e; ++i)
+		{
+			auto size = pointerType.getShape()[i];
+			shape.push_back(size);
+
+			if (size == -1)
+			{
+				mlir::Value index = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(i));
+				dims.push_back(rewriter.create<DimOp>(location, op.args()[0], index));
+			}
+		}
+
+		for (size_t i = 0, e = op.args().size() - op.movedResults(); i < e; ++i)
+		{
+			auto pair = *std::next(pairs.begin(), i);
+			mlir::Value arg = std::get<0>(pair);
+			auto pointerType = arg.getType().cast<PointerType>();
+			mlir::Type type = std::get<1>(pair);
+
+			//for ()
+		}
+
+		rewriter.replaceOpWithNewOp<CallOp>(op, op.callee(), op.getResultTypes(), args, op.movedResults());
 	}
 };
 
@@ -87,7 +205,8 @@ struct ConditionOpPattern : public mlir::OpRewritePattern<ConditionOp>
 void populateExplicitCastInsertionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context)
 {
 	patterns.insert<
-	    CallOpPattern,
+	    CallOpScalarPattern,
+			CallOpElementWisePattern,
 			SubscriptionOpPattern,
 			StoreOpPattern,
 			ConditionOpPattern>(context);
@@ -148,6 +267,7 @@ class ExplicitCastInsertionPass: public mlir::PassWrapper<ExplicitCastInsertionP
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
 		registry.insert<ModelicaDialect>();
+		registry.insert<mlir::scf::SCFDialect>();
 	}
 
 	void runOnOperation() override

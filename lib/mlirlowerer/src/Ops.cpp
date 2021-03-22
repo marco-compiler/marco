@@ -360,6 +360,11 @@ mlir::LogicalResult AllocaOp::verify()
 	return mlir::success();
 }
 
+void AllocaOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+}
+
 PointerType AllocaOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<PointerType>();
@@ -384,10 +389,12 @@ llvm::StringRef AllocOp::getOperationName()
 	return "modelica.alloc";
 }
 
-void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions)
+void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool shouldBeFreed)
 {
 	state.addTypes(PointerType::get(state.getContext(), BufferAllocationScope::heap, elementType, shape));
 	state.addOperands(dimensions);
+
+	state.addAttribute("shouldBeFreed", builder.getBoolAttr(shouldBeFreed));
 }
 
 void AllocOp::print(mlir::OpAsmPrinter& printer)
@@ -414,6 +421,12 @@ mlir::LogicalResult AllocOp::verify()
 											 std::to_string(unknownSizes) + ")");
 
 	return mlir::success();
+}
+
+void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (getOperation()->getAttrOfType<mlir::BoolAttr>("shouldBeFreed").getValue())
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
 PointerType AllocOp::resultType()
@@ -605,15 +618,7 @@ void SubscriptionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 	state.addOperands(indexes);
 
 	auto sourcePointerType = source.getType().cast<PointerType>();
-	auto shape = sourcePointerType.getShape();
-
-	assert(indexes.size() <= shape.size() && "Too many subscription indexes");
-	llvm::SmallVector<long, 3> resultShape;
-
-	for (size_t i = indexes.size(), e = shape.size(); i < e; ++i)
-		resultShape.push_back(shape[i]);
-
-	mlir::Type resultType = PointerType::get(builder.getContext(), sourcePointerType.getAllocationScope(), sourcePointerType.getElementType(), resultShape);
+	mlir::Type resultType = sourcePointerType.slice(indexes.size());
 	state.addTypes(resultType);
 }
 

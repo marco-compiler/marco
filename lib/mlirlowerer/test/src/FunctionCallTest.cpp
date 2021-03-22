@@ -295,10 +295,12 @@ TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 
 	auto module = lowerer.lower({ foo, main });
+	module->dump();
 
 	ModelicaConversionOptions conversionOptions;
 	conversionOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	module->dump();
 
 	array<float, 3> x = { 0, 0, 0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
@@ -308,4 +310,86 @@ TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
 	EXPECT_FLOAT_EQ(xPtr[0], 2);
 	EXPECT_FLOAT_EQ(xPtr[1], 4);
 	EXPECT_FLOAT_EQ(xPtr[2], 6);
+}
+
+TEST(Function, callElementWise)	 // NOLINT
+{
+	/**
+	 * function foo
+	 *   input Integer x;
+	 *   output Integer y;
+	 *
+	 *   algorithm
+	 *   	 y := -x;
+	 * end foo
+	 *
+	 * function main
+	 *   input Integer[3] x;
+	 *   output Integer[3] y;
+	 *
+	 *   algorithm
+	 *     y := foo(x);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Algorithm fooAlgorithm = Algorithm(
+			location,
+			{
+					AssignmentStatement(location,
+															Expression::reference(location, makeType<int>(), "y"),
+															Expression::operation(location, makeType<int>(), OperationKind::subtract,
+																										Expression::reference(location, makeType<int>(), "x")))
+			});
+
+	ClassContainer foo(Function(location, "foo", true,
+															{
+																	Member(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input)),
+																	Member(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output))
+															},
+															fooAlgorithm));
+
+	Algorithm mainAlgorithm = Algorithm(
+			location,
+			{
+					AssignmentStatement(location,
+															Expression::reference(location, makeType<int>(3), "y"),
+															Expression::callElementWise(location, makeType<int>(3), 1,
+															    												Expression::reference(location, makeType<int>(), "foo"),
+																													Expression::reference(location, makeType<int>(3), "x")))
+	});
+
+	ClassContainer main(Function(location, "main", true,
+															 {
+																	 Member(location, "x", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input)),
+																	 Member(location, "y", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output))
+															 },
+															 mainAlgorithm));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower({ main, foo });
+	module->dump();
+
+	/*
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+
+	array<int, 3> x = { 1, 0, 0 };
+	array<int, 3> y = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(yPtr))));
+	EXPECT_EQ(yPtr[0], -1 * xPtr[0]);
+	EXPECT_EQ(yPtr[1], -1 * xPtr[1]);
+	EXPECT_EQ(yPtr[2], -1 * xPtr[2]);
+	 */
 }
