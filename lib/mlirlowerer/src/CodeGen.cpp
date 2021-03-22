@@ -911,7 +911,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	}
 	else
 	{
-		auto resultType = function.getType();
+		auto resultType = expression.getType();
 		llvm::SmallVector<Type, 3> frontendResultTypes;
 		llvm::SmallVector<mlir::Type, 3> callResultsTypes;
 
@@ -928,10 +928,11 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 			callResultsTypes.push_back(lower(resultType, BufferAllocationScope::heap));
 
 		auto op = builder.create<CallOp>(
-			loc(expression.getLocation()),
-			function.get<ReferenceAccess>().getName(),
-			callResultsTypes,
-			args);
+				loc(expression.getLocation()),
+				function.get<ReferenceAccess>().getName(),
+				callResultsTypes,
+				args,
+				call.getElementWiseRank());
 
 		for (auto result : op->getResults())
 			results.push_back(Reference::ssa(&builder, result));

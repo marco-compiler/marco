@@ -239,11 +239,12 @@ llvm::StringRef CallOp::getOperationName()
 	return "modelica.call";
 }
 
-void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::TypeRange results, mlir::ValueRange args, unsigned int movedResults)
+void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::TypeRange results, mlir::ValueRange args, unsigned int elementWiseRank, unsigned int movedResults)
 {
 	state.addAttribute("callee", builder.getSymbolRefAttr(callee));
 	state.addOperands(args);
 	state.addTypes(results);
+	state.addAttribute("elementWiseRank", builder.getUI32IntegerAttr(elementWiseRank));
 	state.addAttribute("movedResults", builder.getUI32IntegerAttr(movedResults));
 }
 
@@ -308,9 +309,15 @@ mlir::ValueRange CallOp::args()
 	return Adaptor(*this).args();
 }
 
+unsigned int CallOp::elementWiseRank()
+{
+	auto attr = getOperation()->getAttrOfType<mlir::IntegerAttr>("elementWiseRank");
+	return attr.getUInt();
+}
+
 unsigned int CallOp::movedResults()
 {
-	mlir::IntegerAttr attr = getOperation()->getAttrOfType<mlir::IntegerAttr>("movedResults");
+	auto attr = getOperation()->getAttrOfType<mlir::IntegerAttr>("movedResults");
 	return attr.getUInt();
 }
 

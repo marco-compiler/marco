@@ -139,7 +139,8 @@ static mlir::LogicalResult updateCalls(mlir::ModuleOp module) {
 		auto newResultTypes = llvm::to_vector<6>(llvm::map_range(
 				replaceWithNewCallResults, [](mlir::Value v) { return v.getType(); }));
 
-		auto newCall = builder.create<CallOp>(op.getLoc(), op.callee(), newResultTypes, newOperands, 0);
+		assert(op.elementWiseRank() == 0);
+		auto newCall = builder.create<CallOp>(op.getLoc(), op.callee(), newResultTypes, newOperands, 0, replaceWithOutParams.size());
 
 		for (auto t : llvm::zip(replaceWithNewCallResults, newCall.getResults()))
 			std::get<0>(t).replaceAllUsesWith(std::get<1>(t));

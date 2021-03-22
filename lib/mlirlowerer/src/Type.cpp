@@ -222,6 +222,11 @@ PointerType PointerType::slice(unsigned int subscriptsAmount)
 	return PointerType::get(getContext(), getAllocationScope(), getElementType(), resultShape);
 }
 
+PointerType PointerType::toUnknownAllocationScope()
+{
+	return PointerType::get(getContext(), BufferAllocationScope::unknown, getElementType(), getShape());
+}
+
 void modelica::printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer) {
 	auto& os = printer.getStream();
 

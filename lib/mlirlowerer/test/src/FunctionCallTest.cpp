@@ -373,7 +373,6 @@ TEST(Function, callElementWise)	 // NOLINT
 
 	auto module = lowerer.lower({ main, foo });
 
-	/*
 	ModelicaConversionOptions conversionOptions;
 	conversionOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
@@ -388,5 +387,4 @@ TEST(Function, callElementWise)	 // NOLINT
 	EXPECT_EQ(yPtr[0], -1 * xPtr[0]);
 	EXPECT_EQ(yPtr[1], -1 * xPtr[1]);
 	EXPECT_EQ(yPtr[2], -1 * xPtr[2]);
-	 */
 }

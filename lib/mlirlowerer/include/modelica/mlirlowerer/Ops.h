@@ -179,7 +179,7 @@ namespace modelica
 		using Adaptor = CallOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::TypeRange results, mlir::ValueRange args, unsigned int movedResults = 0);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::TypeRange results, mlir::ValueRange args, unsigned int elementWiseRank = 0, unsigned int movedResults = 0);
 		void print(mlir::OpAsmPrinter& printer);
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 		mlir::CallInterfaceCallable getCallableForCallee();
@@ -187,6 +187,7 @@ namespace modelica
 
 		mlir::StringRef callee();
 		mlir::ValueRange args();
+		unsigned int elementWiseRank();
 		unsigned int movedResults();
 	};
 

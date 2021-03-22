@@ -1,4 +1,5 @@
 #include <mlir/Dialect/SCF/SCF.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/ExplicitCastInsertion.h>
@@ -114,42 +115,96 @@ struct CallOpElementWisePattern : public mlir::OpRewritePattern<CallOp>
 	void rewrite(CallOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op->getLoc();
-		assert(false);
+
+		// Get the calle
 		auto module = op->getParentOfType<mlir::ModuleOp>();
 		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
-		auto pairs = llvm::zip(op.args(), callee.getArgumentTypes());
 
-		llvm::SmallVector<mlir::Value, 3> args;
-
+		// Ensure that the call has at least an argument. If not, we can't
+		// determine the result arrays sizes.
 		assert(op.args().size() - op.movedResults() > 0);
-		auto pointerType = op.args()[0].getType().cast<PointerType>();
 
-		llvm::SmallVector<long, 3> shape;
-		llvm::SmallVector<mlir::Value, 3> dims;
+		// Allocate the result arrays
+		llvm::SmallVector<mlir::Value, 3> results;
 
-		for (size_t i = 0, e = pointerType.getRank(); i < e; ++i)
+		for (mlir::Type resultType : op->getResultTypes())
 		{
-			auto size = pointerType.getShape()[i];
-			shape.push_back(size);
+			assert(resultType.isa<PointerType>());
+			llvm::SmallVector<long, 3> shape;
+			llvm::SmallVector<mlir::Value, 3> dims;
 
-			if (size == -1)
+			for (auto size : llvm::enumerate(resultType.cast<PointerType>().getShape()))
 			{
-				mlir::Value index = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(i));
-				dims.push_back(rewriter.create<DimOp>(location, op.args()[0], index));
+				shape.push_back(size.value());
+
+				if (size.value() == -1)
+				{
+					// Get the actual size from the first operand. Others should have
+					// the same size by construction.
+
+					mlir::Value index = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(size.index()));
+					dims.push_back(rewriter.create<DimOp>(location, op.args()[0], index));
+				}
 			}
+
+			mlir::Value array = rewriter.create<AllocOp>(location, resultType.cast<PointerType>().getElementType(), shape, dims);
+			results.push_back(array);
 		}
 
-		for (size_t i = 0, e = op.args().size() - op.movedResults(); i < e; ++i)
+		// Iterate on the indexes
+		mlir::Value zero = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(0));
+		mlir::Value one = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(1));
+
+		assert(op.elementWiseRank() != 0);
+		llvm::SmallVector<mlir::Value, 3> lowerBounds(op.elementWiseRank(), zero);
+		llvm::SmallVector<mlir::Value, 3> upperBounds;
+		llvm::SmallVector<mlir::Value, 3> steps(op.elementWiseRank(), one);
+
+		for (unsigned int i = 0, e = op.elementWiseRank(); i < e; ++i)
 		{
-			auto pair = *std::next(pairs.begin(), i);
-			mlir::Value arg = std::get<0>(pair);
-			auto pointerType = arg.getType().cast<PointerType>();
-			mlir::Type type = std::get<1>(pair);
-
-			//for ()
+			mlir::Value dim = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(i));
+			upperBounds.push_back(rewriter.create<DimOp>(location, op.args()[0], dim));
 		}
 
-		rewriter.replaceOpWithNewOp<CallOp>(op, op.callee(), op.getResultTypes(), args, op.movedResults());
+		mlir::scf::buildLoopNest(
+				rewriter, location, lowerBounds, upperBounds, steps, llvm::None,
+				[&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
+					llvm::SmallVector<mlir::Value, 3> scalarArgs;
+
+					for (mlir::Value arg : op.args())
+					{
+						assert(arg.getType().isa<PointerType>());
+
+						if (arg.getType().cast<PointerType>().getRank() == op.elementWiseRank())
+							scalarArgs.push_back(rewriter.create<LoadOp>(location, arg, position));
+						else
+							scalarArgs.push_back(rewriter.create<SubscriptionOp>(location, arg, position));
+					}
+
+					llvm::SmallVector<mlir::Type, 3> scalarResultTypes;
+
+					for (mlir::Type type : op.getResultTypes())
+					{
+						type = type.cast<PointerType>().slice(op.elementWiseRank());
+
+						if (type.cast<PointerType>().getRank() == 0)
+							type = type.cast<PointerType>().getElementType();
+
+						scalarResultTypes.push_back(type);
+					}
+
+					auto scalarCall = rewriter.create<CallOp>(location, op.callee(), scalarResultTypes, scalarArgs);
+
+					for (auto result : llvm::enumerate(scalarCall->getResults()))
+					{
+						mlir::Value subscript = rewriter.create<SubscriptionOp>(location, results[result.index()], position);
+						rewriter.create<AssignmentOp>(location, result.value(), subscript);
+					}
+
+					return std::vector<mlir::Value>();
+				});
+
+		rewriter.replaceOp(op, results);
 	}
 };
 
@@ -275,7 +330,8 @@ class ExplicitCastInsertionPass: public mlir::PassWrapper<ExplicitCastInsertionP
 		auto module = getOperation();
 
 		ExplicitCastInsertionTarget target(getContext());
-		target.addLegalOp<CastOp, CastCommonOp, PtrCastOp>();
+		target.addLegalDialect<ModelicaDialect>();
+		target.addLegalDialect<mlir::scf::SCFDialect>();
 
 		mlir::OwningRewritePatternList patterns;
 		populateExplicitCastInsertionPatterns(patterns, &getContext());

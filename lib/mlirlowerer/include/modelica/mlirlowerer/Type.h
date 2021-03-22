@@ -59,6 +59,7 @@ namespace modelica
 		[[nodiscard]] bool hasConstantShape() const;
 
 		[[nodiscard]] PointerType slice(unsigned int subscriptsAmount);
+		[[nodiscard]] PointerType toUnknownAllocationScope();
 	};
 
 	/*
