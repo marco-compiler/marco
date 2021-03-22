@@ -93,7 +93,8 @@ namespace modelica
 class BufferDeallocationPass : public PassWrapper<BufferDeallocationPass, OperationPass<FuncOp>>
 {
 	public:
-	void runOnOperation() override {
+	void runOnOperation() override
+	{
 		BufferDeallocation deallocation(getOperation());
 		deallocation.deallocate();
 	}

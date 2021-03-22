@@ -76,6 +76,9 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 	if (options.inlining)
 		passManager.addPass(mlir::createInlinerPass());
 
+	if (options.resultBuffersToArgs)
+		passManager.addPass(createResultBuffersToArgsPass());
+
 	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
 
 	if (options.cse)
@@ -149,19 +152,9 @@ mlir::FuncOp MLIRLowerer::lower(const Function& foo)
 	for (const auto& member : outputMembers)
 	{
 		const auto& frontendType = member->getType();
-
-		if (!frontendType.isScalar() && frontendType.hasConstantShape())
-		{
-			mlir::Type type = lower(member->getType(), BufferAllocationScope::unknown);
-			argNames.emplace_back(member->getName());
-			argTypes.emplace_back(type);
-		}
-		else
-		{
-			mlir::Type type = lower(member->getType(), BufferAllocationScope::heap);
-			returnNames.emplace_back(member->getName());
-			returnTypes.emplace_back(type);
-		}
+		mlir::Type type = lower(member->getType(), BufferAllocationScope::heap);
+		returnNames.emplace_back(member->getName());
+		returnTypes.emplace_back(type);
 	}
 
 	auto functionType = builder.getFunctionType(argTypes, returnTypes);
@@ -304,66 +297,63 @@ void MLIRLowerer::lower(const Member& member)
 	const auto& frontendType = member.getType();
 	mlir::Type type = lower(frontendType, member.isOutput() ? BufferAllocationScope::heap : BufferAllocationScope::stack);
 
-	if (!member.isOutput() || !type.isa<PointerType>() || !type.cast<PointerType>().hasConstantShape())
+	mlir::Value ptr = builder.create<AllocaOp>(location, type);
+	bool initialized = false;
+
+	if (type.isa<PointerType>())
 	{
-		mlir::Value ptr = builder.create<AllocaOp>(location, type);
-		bool initialized = false;
+		auto pointerType = type.cast<PointerType>();
+		llvm::SmallVector<mlir::Value, 3> sizes;
 
-		if (type.isa<PointerType>())
-		{
-			auto pointerType = type.cast<PointerType>();
-			llvm::SmallVector<mlir::Value, 3> sizes;
-
-			for (const auto& dimension : member.getType().getDimensions())
-				if (dimension.hasExpression())
-				{
-					mlir::Value size = *lower<Expression>(dimension.getExpression())[0];
-					size = builder.create<CastOp>(location, size, builder.getIndexType());
-					sizes.push_back(size);
-				}
-
-			if (sizes.size() == pointerType.getDynamicDimensions())
+		for (const auto& dimension : member.getType().getDimensions())
+			if (dimension.hasExpression())
 			{
-				// All the dynamic dimensions have an expression to determine their values.
-				// So we can instantiate the array.
-
-				auto allocationScope = pointerType.getAllocationScope();
-				assert(allocationScope != unknown);
-
-				if (allocationScope == heap)
-				{
-					mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), sizes, false);
-					builder.create<StoreOp>(location, var, ptr);
-				}
-				else if (allocationScope == stack)
-				{
-					mlir::Value var = builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape(), sizes);
-					builder.create<StoreOp>(location, var, ptr);
-				}
-
-				initialized = true;
+				mlir::Value size = *lower<Expression>(dimension.getExpression())[0];
+				size = builder.create<CastOp>(location, size, builder.getIndexType());
+				sizes.push_back(size);
 			}
-			else
+
+		if (sizes.size() == pointerType.getDynamicDimensions())
+		{
+			// All the dynamic dimensions have an expression to determine their values.
+			// So we can instantiate the array.
+
+			auto allocationScope = pointerType.getAllocationScope();
+			assert(allocationScope != unknown);
+
+			if (allocationScope == heap)
 			{
-				if (pointerType.getAllocationScope() == heap)
-				{
-					// We need to allocate a fake array in order to allow the first
-					// free operation to operate on a valid memory area.
+				mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), sizes, false);
+				builder.create<StoreOp>(location, var, ptr);
+			}
+			else if (allocationScope == stack)
+			{
+				mlir::Value var = builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape(), sizes);
+				builder.create<StoreOp>(location, var, ptr);
+			}
 
-					llvm::SmallVector<long, 1> shape;
+			initialized = true;
+		}
+		else
+		{
+			if (pointerType.getAllocationScope() == heap)
+			{
+				// We need to allocate a fake array in order to allow the first
+				// free operation to operate on a valid memory area.
 
-					for (size_t i = 0, rank = pointerType.getRank(); i < rank; ++i)
-						shape.push_back(1);
+				llvm::SmallVector<long, 1> shape;
 
-					mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), shape, llvm::None, false);
-					var = builder.create<PtrCastOp>(location, var, pointerType);
-					builder.create<StoreOp>(location, var, ptr);
-				}
+				for (size_t i = 0, rank = pointerType.getRank(); i < rank; ++i)
+					shape.push_back(1);
+
+				mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), shape, llvm::None, false);
+				var = builder.create<PtrCastOp>(location, var, pointerType);
+				builder.create<StoreOp>(location, var, ptr);
 			}
 		}
-
-		symbolTable.insert(member.getName(), Reference::memory(&builder, ptr, initialized));
 	}
+
+	symbolTable.insert(member.getName(), Reference::memory(&builder, ptr, initialized));
 
 	/*
 	if (member.hasInitializer())
@@ -923,10 +913,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	{
 		auto resultType = function.getType();
 		llvm::SmallVector<Type, 3> frontendResultTypes;
-
-		llvm::SmallVector<mlir::Value, 3> callArgs;
 		llvm::SmallVector<mlir::Type, 3> callResultsTypes;
-		llvm::SmallVector<mlir::Value, 3> callerArrays;
 
 		// TODO: change to "PackedType", to differentiate from record types
 		if (resultType.isA<UserDefinedType>())
@@ -937,95 +924,17 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		else
 			frontendResultTypes.push_back(resultType);
 
-		// Preserve the original call arguments
-		for (auto arg : args)
-			callArgs.push_back(arg);
-
-		// If possible, move the statically shaped results to input arguments
-		// and allocate them on the stack.
-
 		for (auto& type : frontendResultTypes)
-		{
-			if (call.isElementWise())
-			{
-				bool move = false;
-
-				if (!type.isScalar())
-				{
-					auto reduced = type.subscript(call.getElementWiseRank());
-					move = !reduced.isScalar() && type.hasConstantShape();
-				}
-
-				if (move)
-				{
-					mlir::Type t = lower(type, BufferAllocationScope::stack);
-					auto pointerType = t.cast<PointerType>();
-					llvm::SmallVector<mlir::Value, 3> dynamicSizes;
-
-					for (size_t i = 0; i < call.getElementWiseRank(); ++i)
-					{
-						mlir::Value index = builder.create<ConstantOp>(location, builder.getIndexAttribute(i));
-						dynamicSizes.push_back(builder.create<DimOp>(location, args[i], index));
-					}
-
-					mlir::Value array = builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape(), dynamicSizes);
-					callArgs.push_back(array);
-					callerArrays.push_back(array);
-				}
-				else
-				{
-					callResultsTypes.push_back(lower(resultType, BufferAllocationScope::heap));
-				}
-			}
-			else
-			{
-				if (!type.isScalar() && type.hasConstantShape())
-				{
-					mlir::Type t = lower(type, BufferAllocationScope::stack);
-					auto pointerType = t.cast<PointerType>();
-
-					mlir::Value array = builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape());
-					callArgs.push_back(array);
-					callerArrays.push_back(array);
-				}
-				else
-				{
-					callResultsTypes.push_back(lower(resultType, BufferAllocationScope::heap));
-				}
-			}
-		}
+			callResultsTypes.push_back(lower(resultType, BufferAllocationScope::heap));
 
 		auto op = builder.create<CallOp>(
 			loc(expression.getLocation()),
 			function.get<ReferenceAccess>().getName(),
 			callResultsTypes,
-			callArgs,
-			callerArrays.size());
+			args);
 
-		// We need to preserve the original results order, thus we have to iterate
-		// among the original result types and pick the value from either the
-		// call results or from the list of the arrays allocated by the caller.
-
-		size_t i = 0;
-		size_t j = 0;
-
-		for (auto& type : frontendResultTypes)
-		{
-			if (!type.isScalar() && type.hasConstantShape())
-			{
-				assert(j < callerArrays.size());
-				results.emplace_back(Reference::ssa(&builder, callerArrays[j++]));
-			}
-			else
-			{
-				assert(i < op->getNumResults());
-				results.emplace_back(Reference::ssa(&builder, op.getResult(i++)));
-			}
-		}
-
-		// Ensure that all the results have been used
-		assert(i == op->getNumResults() && j == callerArrays.size());
-		assert(frontendResultTypes.size() == results.size());
+		for (auto result : op->getResults())
+			results.push_back(Reference::ssa(&builder, result));
 	}
 
 	return results;

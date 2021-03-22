@@ -5,6 +5,7 @@
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
 #include <modelica/utils/SourceRange.hpp>
+#include <mlir/IR/Verifier.h>
 
 using namespace modelica;
 using namespace std;
@@ -484,7 +485,7 @@ TEST(Output, integerArray)	 // NOLINT
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 2 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(xPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
 
 	EXPECT_EQ(xPtr[0], 23);
 	EXPECT_EQ(xPtr[1], 57);
@@ -599,7 +600,7 @@ TEST(Output, floatArray)	 // NOLINT
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 2 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(xPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
 
 	EXPECT_FLOAT_EQ(xPtr[0], 23.0);
 	EXPECT_FLOAT_EQ(xPtr[1], 57.0);
@@ -657,7 +658,7 @@ TEST(Output, integerMatrix)	 // NOLINT
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(xPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
 
 	for (int i = 0; i < 2; i++)
 		for (int j = 0; j < 3; j++)

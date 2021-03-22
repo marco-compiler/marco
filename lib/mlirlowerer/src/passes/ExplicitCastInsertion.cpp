@@ -114,7 +114,7 @@ struct CallOpElementWisePattern : public mlir::OpRewritePattern<CallOp>
 	void rewrite(CallOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op->getLoc();
-
+		assert(false);
 		auto module = op->getParentOfType<mlir::ModuleOp>();
 		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
 		auto pairs = llvm::zip(op.args(), callee.getArgumentTypes());

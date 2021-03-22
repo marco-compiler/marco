@@ -158,7 +158,7 @@ TEST(MathOps, negateIntegerStaticArray)	 // NOLINT
 	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(yPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr)));
 
 	for (const auto& [x, y] : llvm::zip(xPtr, yPtr))
 		EXPECT_EQ(y, -1 * x);
@@ -302,12 +302,10 @@ TEST(MathOps, negateFloatDynamicArray)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 
 	auto module = lowerer.lower(cls);
-	module->dump();
 
 	ModelicaConversionOptions conversionOptions;
 	conversionOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
-	module->dump();
 
 	array<float, 3> x = { 10, 23, 57 };
 	array<float, 3> y = { 10, 23, 57 };
@@ -414,12 +412,10 @@ TEST(MathOps, sumOfIntegerStaticArrays)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 
 	auto module = lowerer.lower(cls);
-	module->dump();
 
 	ModelicaConversionOptions conversionOptions;
 	conversionOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
-	module->dump();
 
 	array<int, 3> x = { 10, 23, 57 };
 	array<int, 3> y = { 10, 57, -23 };
@@ -430,7 +426,7 @@ TEST(MathOps, sumOfIntegerStaticArrays)	 // NOLINT
 	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
 	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))
 		EXPECT_EQ(z, x + y);
@@ -599,7 +595,7 @@ TEST(MathOps, sumOfFloatStaticArrays)	 // NOLINT
 	ArrayDescriptor<float, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
 	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))
 		EXPECT_FLOAT_EQ(z, x + y);
@@ -768,7 +764,7 @@ TEST(MathOps, sumIntegerArrayAndFloatArray)	 // NOLINT
 	ArrayDescriptor<float, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
 	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))
 		EXPECT_FLOAT_EQ(z, x + y);
@@ -939,7 +935,7 @@ TEST(MathOps, subOfIntegerStaticArrays)	 // NOLINT
 	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
 	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))
 		EXPECT_EQ(z, x - y);
@@ -1108,7 +1104,7 @@ TEST(MathOps, subOfFloatStaticArrays)	 // NOLINT
 	ArrayDescriptor<float, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
 	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))
 		EXPECT_FLOAT_EQ(z, x - y);
@@ -1118,9 +1114,9 @@ TEST(MathOps, subOfFloatDynamicArrays)	 // NOLINT
 {
 	/**
 	 * function main
-	 *   input Real[-1] x;
-	 *   input Real[-1] y;
-	 *   output Real[-1] z;
+	 *   input Real[:] x;
+	 *   input Real[:] y;
+	 *   output Real[:] z;
 	 *
 	 *   algorithm
 	 *     z := x - y;
@@ -1277,7 +1273,7 @@ TEST(MathOps, subIntegerArrayAndFloatArray)	 // NOLINT
 	ArrayDescriptor<float, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
 	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))
 		EXPECT_FLOAT_EQ(z, x - y);
@@ -1616,7 +1612,7 @@ TEST(MathOps, mulIntegerScalarAndIntegerStaticArray)	 // NOLINT
 	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, yPtr, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, yPtr, zPtr)));
 
 	for (const auto& [y, z] : llvm::zip(yPtr, zPtr))
 		EXPECT_EQ(z, x * y);
@@ -1627,8 +1623,8 @@ TEST(MathOps, mulIntegerScalarAndIntegerDynamicArray)	 // NOLINT
 	/**
 	 * function main
 	 *   input Integer x;
-	 *   input Integer[-1] y;
-	 *   output Integer[-1] z;
+	 *   input Integer[:] y;
+	 *   output Integer[:] z;
 	 *
 	 *   algorithm
 	 *     z := x * y;
@@ -1728,7 +1724,7 @@ TEST(MathOps, mulIntegerStaticArrayAndIntegerScalar)	 // NOLINT
 	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, zPtr)));
 
 	for (const auto& [x, z] : llvm::zip(xPtr, zPtr))
 		EXPECT_EQ(z, x * y);
@@ -1738,9 +1734,9 @@ TEST(MathOps, mulIntegerDynamicArrayAndIntegerScalar)	 // NOLINT
 {
 	/**
 	 * function main
-	 *   input Integer[-1] x;
+	 *   input Integer[:] x;
 	 *   input Integer y;
-	 *   output Integer[-1] z;
+	 *   output Integer[:] z;
 	 *
 	 *   algorithm
 	 *     z := x * y;
@@ -1896,7 +1892,7 @@ TEST(MathOps, mulIntegerStaticVectorAndIntegerStaticMatrix)	 // NOLINT
 	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
 	EXPECT_EQ(zPtr.getSize(0), 3);
 
@@ -1956,7 +1952,7 @@ TEST(MathOps, mulIntegerStaticMatrixAndIntegerStaticVector)	 // NOLINT
 	ArrayDescriptor<int, 1> zPtr(z.data(), { 4 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
 	EXPECT_EQ(zPtr.getSize(0), 4);
 
@@ -2017,7 +2013,7 @@ TEST(MathOps, mulIntegerStaticMatrixes)	 // NOLINT
 	ArrayDescriptor<int, 2> zPtr(z.data(), { 2, 2 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
 	EXPECT_EQ(zPtr.getSize(0), 2);
 	EXPECT_EQ(zPtr.getSize(1), 2);
@@ -2302,7 +2298,7 @@ TEST(MathOps, divIntegerStaticArrayAndIntegerScalar)	 // NOLINT
 	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, zPtr)));
 
 	for (const auto& [x, z] : llvm::zip(xPtr, zPtr))
 		EXPECT_EQ(z, x / y);
@@ -2468,7 +2464,7 @@ TEST(MathOps, powSquareMatrix)	 // NOLINT
 	ArrayDescriptor<int, 2> zPtr(z.data(), { 2, 2 });
 
 	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, Runner::result(zPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, zPtr)));
 
 	EXPECT_EQ(zPtr.get(0, 0), 37);
 	EXPECT_EQ(zPtr.get(0, 1), 54);

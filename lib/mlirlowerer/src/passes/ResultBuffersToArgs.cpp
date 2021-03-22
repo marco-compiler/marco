@@ -16,27 +16,27 @@ static void updateFuncOp(mlir::FuncOp func, llvm::SmallVectorImpl<mlir::BlockArg
 	llvm::SmallVector<unsigned int, 6> erasedResultIndices;
 
 	for (auto resultType : llvm::enumerate(functionType.getResults())) {
-		if (auto pointerType = resultType.value().cast<PointerType>(); pointerType && pointerType.hasConstantShape()) {
+		if (auto pointerType = resultType.value().dyn_cast<PointerType>(); pointerType && pointerType.hasConstantShape()) {
 			erasedResultIndices.push_back(resultType.index());
 			erasedResultTypes.push_back(PointerType::get(pointerType.getContext(), BufferAllocationScope::unknown, pointerType.getElementType(), pointerType.getShape()));
 		}
 	}
 
-	// Add the new arguments to the function type.
+	// Add the new arguments to the function type
 	auto newArgTypes = llvm::to_vector<6>(
 			llvm::concat<const mlir::Type>(functionType.getInputs(), erasedResultTypes));
 	auto newFunctionType = mlir::FunctionType::get(func.getContext(), newArgTypes, functionType.getResults());
 	func.setType(newFunctionType);
 
-	// Transfer the result attributes to arg attributes.
+	// Transfer the result attributes to arg attributes
 	for (int i = 0, e = erasedResultTypes.size(); i < e; i++)
 		func.setArgAttrs(functionType.getNumInputs() + i,
 										 func.getResultAttrs(erasedResultIndices[i]));
 
-	// Erase the results.
+	// Erase the results
 	func.eraseResults(erasedResultIndices);
 
-	// Add the new arguments to the entry block if the function is not external.
+	// Add the new arguments to the entry block if the function is not external
 	if (func.isExternal())
 		return;
 
@@ -46,87 +46,54 @@ static void updateFuncOp(mlir::FuncOp func, llvm::SmallVectorImpl<mlir::BlockArg
 
 static void updateReturnOps(mlir::FuncOp func, llvm::ArrayRef<mlir::BlockArgument> appendedEntryArgs) {
 	func.walk([&](mlir::ReturnOp op) {
-		llvm::SmallVector<mlir::Value, 6> copyIntoOutParams;
-		llvm::SmallVector<mlir::Value, 6> keepAsReturnOperands;
-
+		size_t entryArgCounter = 0;
+		llvm::SmallVector<mlir::Value, 6> returnOperands;
 
 		for (mlir::Value operand : op.getOperands())
 		{
-			if (auto pointerType = operand.getType().cast<PointerType>(); pointerType && pointerType.hasConstantShape())
+			if (auto pointerType = operand.getType().dyn_cast<PointerType>(); pointerType && pointerType.hasConstantShape())
 			{
-				copyIntoOutParams.push_back(operand);
-
-				/*
 				auto allocaOp = operand.getDefiningOp<LoadOp>().memory().getDefiningOp<AllocaOp>();
 
-				builder.setInsertionPointAfter(allocaOp);
-				auto newOp = builder.create<AllocaOp>(op.getLoc(),
-																							PointerType::get(op->getContext(), BufferAllocationScope::stack, pointerType.getElementType(), pointerType.getShape()));
-				allocaOp->replaceAllUsesWith(newOp);
-				 */
-
-				/*
-				llvm::SmallVector<StoreOp, 3> storeOps;
-
-				for (auto user : allocaOp->getUsers())
+				for (auto* user : allocaOp->getUsers())
 				{
-					llvm::errs() << "AAA ";
-					user->dump();
-					user->erase();
-
-					user->walk([&](mlir::StoreOp storeOp) {
-						llvm::errs() << "BBB ";
-						storeOp->dump();
-					});
+					if (mlir::isa<LoadOp>(user))
+					{
+						user->replaceAllUsesWith(mlir::ValueRange(appendedEntryArgs[entryArgCounter]));
+						user->erase();
+					}
+					else if (mlir::isa<StoreOp>(user))
+					{
+						auto allocOp = mlir::cast<StoreOp>(user).value().getDefiningOp<AllocOp>();
+						allocOp->remove();
+						user->remove();
+					}
 				}
-				allocaOp->erase();
-				 */
+
+				allocaOp->remove();
+				entryArgCounter++;
 			}
 			else
 			{
-				keepAsReturnOperands.push_back(operand);
+				returnOperands.push_back(operand);
 			}
 		}
 
 		mlir::OpBuilder builder(op);
-
-		for (auto t : llvm::zip(copyIntoOutParams, appendedEntryArgs))
-		{
-			auto source = std::get<0>(t);
-			auto dest = std::get<0>(t);
-			auto pointerType = dest.getType().cast<PointerType>();
-
-			mlir::Value zero = builder.create<mlir::ConstantOp>(op.getLoc(), builder.getIndexAttr(0));
-			mlir::Value one = builder.create<mlir::ConstantOp>(op.getLoc(), builder.getIndexAttr(1));
-
-			llvm::SmallVector<mlir::Value, 3> lowerBounds(pointerType.getRank(), zero);
-			llvm::SmallVector<mlir::Value, 3> upperBounds;
-			llvm::SmallVector<mlir::Value, 3> steps(pointerType.getRank(), one);
-
-			for (unsigned int i = 0, e = pointerType.getRank(); i < e; ++i)
-			{
-				mlir::Value dim = builder.create<mlir::ConstantOp>(op->getLoc(), builder.getIndexAttr(i));
-				upperBounds.push_back(builder.create<DimOp>(op.getLoc(), dest, dim));
-			}
-
-			// Create nested loops in order to iterate on each dimension of the array
-			mlir::scf::buildLoopNest(
-					builder, op.getLoc(), lowerBounds, upperBounds, steps, llvm::None,
-					[&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
-						mlir::Value val = builder.create<LoadOp>(op->getLoc(), source, position);
-						builder.create<StoreOp>(op.getLoc(), val, dest, position);
-						return std::vector<mlir::Value>();
-					});
-		}
-
-
-		/*
-			builder.create<linalg::CopyOp>(op.getLoc(), std::get<0>(t),std::get<1>(t));
-		 */
-
-		builder.setInsertionPointAfter(op);
-		builder.create<mlir::ReturnOp>(op.getLoc(), keepAsReturnOperands);
+		builder.create<mlir::ReturnOp>(op.getLoc(), returnOperands);
 		op.erase();
+	});
+}
+
+static void updateSubscriptionOps(mlir::FuncOp func) {
+	func.walk([&](SubscriptionOp op) {
+		if (op.resultType().getAllocationScope() != op.source().getType().cast<PointerType>().getAllocationScope())
+		{
+			mlir::OpBuilder builder(op);
+			mlir::Value newOp = builder.create<SubscriptionOp>(op->getLoc(), op.source(), op.indexes());
+			op.replaceAllUsesWith(newOp);
+			op->erase();
+		}
 	});
 }
 
@@ -138,7 +105,7 @@ static mlir::LogicalResult updateCalls(mlir::ModuleOp module) {
 		llvm::SmallVector<mlir::Value, 6> replaceWithOutParams;
 
 		for (mlir::OpResult result : op.getResults()) {
-			if (auto pointerType = result.getType().cast<PointerType>(); pointerType && pointerType.hasConstantShape())
+			if (auto pointerType = result.getType().dyn_cast<PointerType>(); pointerType && pointerType.hasConstantShape())
 				replaceWithOutParams.push_back(result);
 			else
 				replaceWithNewCallResults.push_back(result);
@@ -158,6 +125,11 @@ static mlir::LogicalResult updateCalls(mlir::ModuleOp module) {
 
 			mlir::Value outParam = builder.create<AllocaOp>(op.getLoc(), pointerType.getElementType(), pointerType.getShape());
 			ptr.replaceAllUsesWith(outParam);
+
+			outParam = builder.create<PtrCastOp>(
+					op->getLoc(), outParam,
+					PointerType::get(pointerType.getContext(), BufferAllocationScope::unknown, pointerType.getElementType(), pointerType.getShape()));
+
 			outParams.push_back(outParam);
 		}
 
@@ -198,6 +170,7 @@ class ResultBuffersToArgsPass: public mlir::PassWrapper<ResultBuffersToArgsPass,
 				continue;
 
 			updateReturnOps(func, appendedEntryArgs);
+			updateSubscriptionOps(func);
 		}
 
 		if (failed(updateCalls(module)))
