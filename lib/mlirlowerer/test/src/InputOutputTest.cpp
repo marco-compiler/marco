@@ -664,3 +664,82 @@ TEST(Output, integerMatrix)	 // NOLINT
 		for (int j = 0; j < 3; j++)
 			EXPECT_EQ(xPtr.get(i, j), i * 3 + j + 1);
 }
+
+TEST(Output, defaultScalarValue)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   output Integer x = 1;
+	 *
+	 *   algorithm
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output), Expression::constant(location, makeType<int>(), 1));
+	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, { })));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+
+	int x = 0;
+
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(x))));
+
+	EXPECT_EQ(x, 1);
+}
+
+TEST(Output, defaultArrayValue)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   output Integer[3] x = { 1, 2, 3 };
+	 *
+	 *   algorithm
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output),
+								 Expression::array(location, makeType<int>(3),
+								     							 Expression::constant(location, makeType<int>(), 1),
+																	 Expression::constant(location, makeType<int>(), 2),
+																	 Expression::constant(location, makeType<int>(), 3)));
+
+	ClassContainer cls(Function(location, "main", true, xMember, Algorithm(location, { })));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+	module->dump();
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+
+	array<int, 3> x = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
+
+	EXPECT_EQ(xPtr[0], 1);
+	EXPECT_EQ(xPtr[1], 2);
+	EXPECT_EQ(xPtr[2], 3);
+}

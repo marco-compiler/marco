@@ -179,7 +179,7 @@ namespace modelica
 		[[nodiscard]] bool operator!=(const Type& other) const;
 
 		[[nodiscard]] ArrayDimension& operator[](int index);
-		[[nodiscard]] ArrayDimension operator[](int index) const;
+		[[nodiscard]] const ArrayDimension& operator[](int index) const;
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os, size_t indents = 0) const;

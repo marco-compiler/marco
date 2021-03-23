@@ -250,9 +250,9 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 				});
 	}
 
-	[[nodiscard]] mlir::Value allocateSameTypeArray(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array, bool heap) const
+	[[nodiscard]] mlir::Value allocateSameSizeArray(mlir::OpBuilder& builder, mlir::Location location, mlir::Value source, mlir::Type elementType, bool heap) const
 	{
-		mlir::Type type = array.getType();
+		mlir::Type type = source.getType();
 		assert(type.isa<PointerType>() && "Not an array");
 
 		auto pointerType = type.cast<PointerType>();
@@ -265,14 +265,14 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 			if (shape[i] == -1)
 			{
 				mlir::Value dimension = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(i));
-				dynamicDimensions.push_back(builder.create<DimOp>(location, array, dimension));
+				dynamicDimensions.push_back(builder.create<DimOp>(location, source, dimension));
 			}
 		}
 
 		if (heap)
-			return builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions);
+			return builder.create<AllocOp>(location, elementType, pointerType.getShape(), dynamicDimensions);
 
-		return builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions);
+		return builder.create<AllocaOp>(location, elementType, pointerType.getShape(), dynamicDimensions);
 	}
 };
 
@@ -356,6 +356,7 @@ class AssignmentOpArrayLowering: public ModelicaOpConversion<AssignmentOp>
 		iterateArray(rewriter, location, op.source(),
 								 [&](mlir::ValueRange position) {
 									 mlir::Value value = rewriter.create<LoadOp>(location, op.source(), position);
+									 value = rewriter.create<CastOp>(location, value, op.destination().getType().cast<PointerType>().getElementType());
 									 rewriter.create<StoreOp>(location, value, op.destination(), position);
 								 });
 
@@ -658,8 +659,8 @@ class ArrayCloneOpLowering: public ModelicaOpConversion<ArrayCloneOp>
 		mlir::Location location = op->getLoc();
 		Adaptor adaptor(operands);
 
-		auto pointerType = op.getPointerType();
-		mlir::Value copy = allocateSameTypeArray(rewriter, location, op.source(), pointerType.getAllocationScope() == heap);
+		auto pointerType = op.type();
+		mlir::Value copy = allocateSameSizeArray(rewriter, location, op.source(), pointerType.getElementType(), pointerType.getAllocationScope() == heap);
 		rewriter.replaceOp(op, copy);
 
 		auto copyCallback = [&](mlir::ValueRange indexes)
@@ -1108,7 +1109,9 @@ class NotOpScalarLowering: public ModelicaOpConversion<NotOp>
 		// There is no native negate operation in LLVM IR, so we need to leverage
 		// a property of the XOR operation: x XOR true = NOT x
 		mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getBoolAttr(true));
-		rewriter.replaceOpWithNewOp<mlir::XOrOp>(op, trueValue, adaptor.operand());
+		mlir::Value result = rewriter.create<mlir::XOrOp>(location, trueValue, adaptor.operand());
+		result = getTypeConverter()->materializeSourceConversion(rewriter, location, BooleanType::get(op->getContext()), result);
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 	}
 };
 
@@ -1134,15 +1137,17 @@ class NotOpArrayLowering: public ModelicaOpConversion<NotOp>
 	void rewrite(NotOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
-		Adaptor adaptor(operands);
 
-		mlir::Value result = allocateSameTypeArray(rewriter, location, op.operand(), false);
+		Adaptor adaptor(operands);
+		auto resultType = op.resultType().cast<PointerType>();
+
+		mlir::Value result = allocateSameSizeArray(rewriter, location, op.operand(), resultType.getElementType(), resultType.getAllocationScope() == heap);
 		rewriter.replaceOp(op, result);
 
 		iterateArray(rewriter, location, op.operand(),
 								 [&](mlir::ValueRange position) {
 									 mlir::Value value = rewriter.create<LoadOp>(location, op.operand(), position);
-									 mlir::Value negated = rewriter.create<NotOp>(location, value);
+									 mlir::Value negated = rewriter.create<NotOp>(location, resultType.getElementType(), value);
 									 rewriter.create<StoreOp>(location, negated, result, position);
 								 });
 	}

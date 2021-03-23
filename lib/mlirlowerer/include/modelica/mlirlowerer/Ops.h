@@ -457,11 +457,12 @@ namespace modelica
 		using Adaptor = ArrayCloneOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, bool heap);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		PointerType getPointerType();
+		PointerType type();
 		mlir::Value source();
 	};
 
@@ -644,10 +645,11 @@ namespace modelica
 		using Adaptor = NotOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Value operand);
+		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
+		mlir::Type resultType();
 		mlir::Value operand();
 	};
 

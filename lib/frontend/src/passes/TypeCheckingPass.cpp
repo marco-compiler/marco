@@ -716,6 +716,54 @@ llvm::Error TypeChecker::run<Tuple>(Expression& expression)
 	return llvm::Error::success();
 }
 
+template<>
+llvm::Error TypeChecker::run<Array>(Expression& expression)
+{
+	assert(expression.isA<Array>());
+	auto& array = expression.get<Array>();
+
+	Type type = makeType<bool>();
+	llvm::SmallVector<long, 3> sizes;
+
+	for (auto& value : array)
+	{
+		if (auto error = run<Expression>(value); error)
+			return error;
+
+		if (value.getType() >= type)
+			type = value.getType();
+
+		auto& valueType = value.getType();
+		unsigned int rank = valueType.dimensionsCount();
+
+		if (!valueType.isScalar())
+		{
+			if (sizes.empty())
+			{
+				for (size_t i = 0; i < rank; ++i)
+				{
+					assert(!valueType[i].hasExpression());
+					sizes.push_back(valueType[i].getNumericSize());
+				}
+			}
+			else
+			{
+				assert(sizes.size() == rank);
+			}
+		}
+	}
+
+	llvm::SmallVector<ArrayDimension, 3> dimensions;
+	dimensions.emplace_back(array.size());
+
+	for (auto size : sizes)
+		dimensions.emplace_back(size);
+
+	type.setDimensions(dimensions);
+	expression.setType(type);
+	return llvm::Error::success();
+}
+
 template<class T>
 string getTemporaryVariableName(T& cls)
 {

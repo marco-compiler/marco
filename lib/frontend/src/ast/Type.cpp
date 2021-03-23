@@ -210,7 +210,7 @@ bool Type::operator!=(const Type& other) const { return !(*this == other); }
 
 ArrayDimension& Type::operator[](int index) { return dimensions[index]; }
 
-ArrayDimension Type::operator[](int index) const
+const ArrayDimension& Type::operator[](int index) const
 {
 	return dimensions[index];
 }

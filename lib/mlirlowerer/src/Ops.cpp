@@ -808,17 +808,25 @@ llvm::StringRef ArrayCloneOp::getOperationName()
 	return "modelica.array_clone";
 }
 
-void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, bool heap)
+void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType)
 {
 	state.addOperands(source);
-	auto sourceType = source.getType().cast<PointerType>();
-	BufferAllocationScope allocationScope = heap ? BufferAllocationScope::heap : BufferAllocationScope::stack;
-	state.addTypes(PointerType::get(builder.getContext(), allocationScope, sourceType.getElementType(), sourceType.getShape()));
+	state.addTypes(resultType);
 }
 
 void ArrayCloneOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.array_clone " << source() << " : " << getPointerType();
+	printer << "modelica.array_clone " << source() << " : " << type();
+}
+
+mlir::LogicalResult ArrayCloneOp::verify()
+{
+	auto pointerType = type();
+
+	if (pointerType.getAllocationScope() != stack && pointerType.getAllocationScope() != heap)
+		return emitOpError(" requires the result array type to be stack or heap allocated");
+
+	return mlir::success();
 }
 
 void ArrayCloneOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
@@ -827,7 +835,7 @@ void ArrayCloneOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectIns
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
-PointerType ArrayCloneOp::getPointerType()
+PointerType ArrayCloneOp::type()
 {
 	return getOperation()->getResultTypes()[0].cast<PointerType>();
 }
@@ -1250,10 +1258,10 @@ llvm::StringRef NotOp::getOperationName()
 	return "modelica.not";
 }
 
-void NotOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value operand)
+void NotOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
 {
+	state.addTypes(resultType);
 	state.addOperands(operand);
-	state.addTypes(operand.getType());
 }
 
 void NotOp::print(mlir::OpAsmPrinter& printer)
@@ -1268,6 +1276,11 @@ mlir::LogicalResult NotOp::verify()
 			return emitOpError("requires the operand to be a boolean or an array of booleans");
 
 	return mlir::success();
+}
+
+mlir::Type NotOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
 }
 
 mlir::Value NotOp::operand()

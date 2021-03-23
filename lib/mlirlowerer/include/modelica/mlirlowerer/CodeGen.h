@@ -108,6 +108,8 @@ namespace modelica
 		void lower(const BreakStatement& statement);
 		void lower(const ReturnStatement& statement);
 
+		void assign(mlir::Location location, Reference memory, mlir::Value value);
+
 		template<typename T>
 		Container<Reference> lower(const Expression& expression);
 
@@ -170,4 +172,7 @@ namespace modelica
 
 	template<>
 	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(const Expression& expression);
+
+	template<>
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(const Expression& expression);
 }

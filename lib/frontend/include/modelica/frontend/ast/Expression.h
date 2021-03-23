@@ -8,6 +8,7 @@
 #include <variant>
 #include <vector>
 
+#include "Array.h"
 #include "Call.h"
 #include "Constant.h"
 #include "Operation.h"
@@ -25,6 +26,7 @@ namespace modelica
 		Expression(Type type, Operation operation);
 		Expression(Type type, Call call);
 		Expression(Type type, Tuple tuple);
+		Expression(Type type, Array array);
 
 		[[nodiscard]] bool operator==(const Expression& other) const;
 		[[nodiscard]] bool operator!=(const Expression& other) const;
@@ -107,8 +109,15 @@ namespace modelica
 			return Expression(type, std::move(content));
 		}
 
+		template<typename... Args>
+		[[nodiscard]] static Expression array(SourcePosition location, Type type, Args&&... args)
+		{
+			Array content(location, { std::forward<Args>(args)... });
+			return Expression(type, std::move(content));
+		}
+
 		private:
-		std::variant<Constant, ReferenceAccess, Operation, Call, Tuple> content;
+		std::variant<Constant, ReferenceAccess, Operation, Call, Tuple, Array> content;
 		Type type;
 	};
 

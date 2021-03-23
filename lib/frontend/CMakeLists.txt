@@ -2,6 +2,7 @@ modelicaAddLibrary(
         frontend SHARED
 		src/ast/Algorithm.cpp
 		src/ast/Annotation.cpp
+		src/ast/Array.cpp
 		src/ast/Call.cpp
 		src/ast/Class.cpp
 		src/ast/ClassContainer.cpp

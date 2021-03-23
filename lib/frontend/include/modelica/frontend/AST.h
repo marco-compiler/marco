@@ -3,6 +3,8 @@
 // Just a convenience header file to include the AST nodes declarations
 
 #include "ast/Algorithm.h"
+#include "ast/Annotation.h"
+#include "ast/Array.h"
 #include "ast/Call.h"
 #include "ast/Class.h"
 #include "ast/ClassContainer.h"

@@ -1,6 +1,7 @@
 modelicaAddTest(
         frontend
         src/AlgorithmTest.cpp
+        src/ArrayTest.cpp
         src/AnnotationTest.cpp
         src/BreakRemoverTest.cpp
         src/ConstantFolderTest.cpp

@@ -957,6 +957,20 @@ llvm::Expected<Expression> Parser::primary()
 		return Expression(Type::unknown(), std::move(*exp));
 	}
 
+	if (accept<Token::LCurly>())
+	{
+		llvm::SmallVector<Expression, 3> values;
+
+		do
+		{
+			TRY(argument, expression());
+			values.push_back(std::move(*argument));
+		} while (accept<Token::Comma>());
+
+		EXPECT(Token::RCurly);
+		return Expression(Type::unknown(), Array(location, values));
+	}
+
 	if (accept<Token::DerKeyword>())
 	{
 		TRY(args, functionCallArguments());

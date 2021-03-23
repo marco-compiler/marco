@@ -82,5 +82,8 @@ namespace modelica
 	template<>
 	llvm::Error TypeChecker::run<Tuple>(Expression& expression);
 
+	template<>
+	llvm::Error TypeChecker::run<Array>(Expression& expression);
+
 	std::unique_ptr<Pass> createTypeCheckingPass();
 }	 // namespace modelica

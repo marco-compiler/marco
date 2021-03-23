@@ -356,14 +356,12 @@ void MLIRLowerer::lower(const Member& member)
 
 	symbolTable.insert(member.getName(), Reference::memory(&builder, ptr, initialized));
 
-	/*
 	if (member.hasInitializer())
 	{
-		mlir::Value reference = symbolTable.lookup(member.getName()).getReference();
-		mlir::Value value = lower<modelica::Expression>(member.getInitializer())[0].getReference();
-		builder.create<AssignmentOp>(loc(member.getInitializer().getLocation()), value, reference);
+		Reference memory = symbolTable.lookup(member.getName());
+		mlir::Value value = *lower<modelica::Expression>(member.getInitializer())[0];
+		assign(location, memory, value);
 	}
-	 */
 }
 
 void MLIRLowerer::lower(const Algorithm& algorithm)
@@ -388,45 +386,7 @@ void MLIRLowerer::lower(const AssignmentStatement& statement)
 	{
 		auto destination = lower<Expression>(get<0>(pair))[0];
 		auto value = get<1>(pair);
-
-		auto destinationPointer = destination.getReference().getType().cast<PointerType>();
-
-		if (destinationPointer.getElementType().isa<PointerType>())
-		{
-			if (destination.isInitialized())
-			{
-				// The array size has been specified (note that it also may be
-				// dependant on a parameter), and the array itself has been allocated.
-				// So we can proceed by copying the source values into the
-				// destination array.
-
-				builder.create<AssignmentOp>(location, *value, *destination);
-			}
-			else
-			{
-				// The destination array has dynamic and unknown sizes. Thus the
-				// buffer has not been allocated yet and we need to create a copy
-				// of the source one.
-
-				auto pointer = destinationPointer.getElementType().cast<PointerType>();
-				mlir::Value copy = builder.create<ArrayCloneOp>(location, *value, pointer.getAllocationScope() == heap);
-
-				// Free the previously allocated memory. This is only apparently in
-				// contrast with the above statements: unknown-sized arrays pointers
-				// are initialized with a pointer to a 1-element sized array, so that
-				// the initial free always operates on valid memory.
-
-				if (pointer.getAllocationScope() == heap)
-					builder.create<FreeOp>(location, *destination);
-
-				// Save the descriptor of the new copy into the destination using StoreOp
-				builder.create<StoreOp>(location, copy, destination.getReference());
-			}
-		}
-		else
-		{
-			builder.create<AssignmentOp>(location, *value, destination.getReference());
-		}
+		assign(location, destination, *value);
 	}
 }
 
@@ -624,7 +584,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 	{
 		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		auto arg = lower<Expression>(operation[0])[0].getReference();
-		mlir::Value result = builder.create<NotOp>(location, arg);
+		mlir::Value result = builder.create<NotOp>(location, resultType, arg);
 		return { Reference::ssa(&builder, result) };
 	}
 
@@ -954,6 +914,68 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(const Expression& ex
 	}
 
 	return result;
+}
+
+template<>
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(const Expression& expression)
+{
+	assert(expression.isA<Array>());
+	const auto& array = expression.get<Array>();
+	mlir::Location location = loc(array.getLocation());
+	auto type = lower(expression.getType(), BufferAllocationScope::stack).cast<PointerType>();
+
+	mlir::Value result = builder.create<AllocaOp>(location, type.getElementType(), type.getShape());
+
+	for (auto& value : llvm::enumerate(array))
+	{
+		mlir::Value index = builder.create<ConstantOp>(location, builder.getIndexAttribute(value.index()));
+		mlir::Value slice = builder.create<SubscriptionOp>(location, result, index);
+		builder.create<AssignmentOp>(location, *lower<Expression>(value.value())[0], slice);
+	}
+
+	return { Reference::ssa(&builder, result) };
+}
+
+void MLIRLowerer::assign(mlir::Location location, Reference memory, mlir::Value value)
+{
+	auto destinationPointer = memory.getReference().getType().cast<PointerType>();
+
+	if (destinationPointer.getElementType().isa<PointerType>())
+	{
+		if (memory.isInitialized())
+		{
+			// The array size has been specified (note that it also may be
+			// dependant on a parameter), and the array itself has been allocated.
+			// So we can proceed by copying the source values into the
+			// destination array.
+
+			builder.create<AssignmentOp>(location, value, *memory);
+		}
+		else
+		{
+			// The destination array has dynamic and unknown sizes. Thus the
+			// buffer has not been allocated yet and we need to create a copy
+			// of the source one.
+
+			auto arrayPointer = destinationPointer.getElementType().cast<PointerType>();
+			mlir::Value copy = builder.create<ArrayCloneOp>(location, value, arrayPointer);
+
+			// Free the previously allocated memory. This is only apparently in
+			// contrast with the above statements: unknown-sized arrays pointers
+			// are initialized with a pointer to a 1-element sized array, so that
+			// the initial free always operates on valid memory.
+
+			if (arrayPointer.getAllocationScope() == heap)
+				builder.create<FreeOp>(location, *memory);
+
+			// Save the descriptor of the new copy into the destination using StoreOp
+			builder.create<StoreOp>(location, copy, memory.getReference());
+		}
+	}
+	else
+	{
+		builder.create<AssignmentOp>(location, value, memory.getReference());
+	}
 }
 
 mlir::Value MLIRLowerer::foldBinaryOperation(llvm::ArrayRef<mlir::Value> args, std::function<mlir::Value(mlir::Value, mlir::Value)> callback)

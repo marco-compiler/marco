@@ -12,6 +12,7 @@ struct LValueVisitor
 	bool operator()(const Operation& obj) const { return obj.isLValue(); }
 	bool operator()(const Call& obj) const { return false; }
 	bool operator()(const Tuple& obj) const { return false; }
+	bool operator()(const Array& obj) const { return false; }
 };
 
 Expression::Expression(Type type, Constant constant)
@@ -40,6 +41,12 @@ Expression::Expression(Type type, Call call)
 
 Expression::Expression(Type type, Tuple tuple)
 		: content(move(tuple)),
+			type(move(type))
+{
+}
+
+Expression::Expression(Type type, Array array)
+		: content(move(array)),
 			type(move(type))
 {
 }

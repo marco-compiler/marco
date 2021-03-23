@@ -41,6 +41,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 		: Dialect("modelica", context, mlir::TypeID::get<ModelicaDialect>())
 {
 	addTypes<BooleanType, IntegerType, RealType, PointerType>();
+	//addTypes<UnrankedPointerType>();
 	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute>();
 	addInterfaces<ModelicaInlinerInterface>();
 
