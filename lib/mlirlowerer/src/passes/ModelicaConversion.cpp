@@ -192,7 +192,7 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 
 	[[nodiscard]] bool isNumericType(mlir::Type type) const
 	{
-		return type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>() || type.isa<RealType>();
+		return type.isa<mlir::IndexType, BooleanType, IntegerType, RealType>();
 	}
 
 	[[nodiscard]] llvm::SmallVector<mlir::Value, 3> getArrayDynamicDimensions(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array) const
@@ -1209,7 +1209,7 @@ class EqOpLowering: public ModelicaOpConversion<EqOp>
 		Adaptor adaptor(transformed);
 		mlir::Type type = castOp.resultType();
 
-		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(location, mlir::LLVM::ICmpPredicate::eq, adaptor.lhs(), adaptor.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, location, BooleanType::get(op->getContext()), result);
@@ -1251,7 +1251,7 @@ class NotEqOpLowering: public ModelicaOpConversion<NotEqOp>
 		Adaptor adaptor(transformed);
 		mlir::Type type = castOp.resultType();
 
-		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(location, mlir::LLVM::ICmpPredicate::ne, adaptor.lhs(), adaptor.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, location, BooleanType::get(op->getContext()), result);
@@ -1296,7 +1296,7 @@ class GtOpLowering: public ModelicaOpConversion<GtOp>
 		Adaptor adaptor(transformed);
 		mlir::Type type = castOp.resultType();
 
-		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(location, mlir::LLVM::ICmpPredicate::sgt, adaptor.lhs(), adaptor.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, location, BooleanType::get(op->getContext()), result);
@@ -1341,7 +1341,7 @@ class GteOpLowering: public ModelicaOpConversion<GteOp>
 		Adaptor adaptor(transformed);
 		mlir::Type type = castOp.resultType();
 
-		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(location, mlir::LLVM::ICmpPredicate::sge, adaptor.lhs(), adaptor.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, location, BooleanType::get(op->getContext()), result);
@@ -1386,7 +1386,7 @@ class LtOpLowering: public ModelicaOpConversion<LtOp>
 		Adaptor adaptor(transformed);
 		mlir::Type type = castOp.resultType();
 
-		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(location, mlir::LLVM::ICmpPredicate::slt, adaptor.lhs(), adaptor.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, location, BooleanType::get(op->getContext()), result);
@@ -1431,7 +1431,7 @@ class LteOpLowering: public ModelicaOpConversion<LteOp>
 		Adaptor adaptor(transformed);
 		mlir::Type type = castOp.resultType();
 
-		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(location, mlir::LLVM::ICmpPredicate::sle, adaptor.lhs(), adaptor.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, location, BooleanType::get(op->getContext()), result);
@@ -1472,7 +1472,7 @@ class NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
 		mlir::Type type = op.operand().getType();
 
 		// Compute the result
-		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value zeroValue = rewriter.create<mlir::ConstantOp>(location, rewriter.getZeroAttr(adaptor.operand().getType()));
 			mlir::Value result = rewriter.create<mlir::SubIOp>(location, zeroValue, adaptor.operand());
@@ -1563,7 +1563,7 @@ class AddOpScalarLowering: public ModelicaOpConversion<AddOp>
 		mlir::Type type = castOp.resultType();
 
 		// Compute the result
-		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::AddIOp>(location, adaptor.lhs(), adaptor.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, location, type, result);
@@ -1670,7 +1670,7 @@ class SubOpScalarLowering: public ModelicaOpConversion<SubOp>
 		mlir::Type type = castOp.resultType();
 
 		// Compute the result
-		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::SubIOp>(location, adaptor.lhs(), adaptor.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, location, type, result);
@@ -1777,7 +1777,7 @@ class MulOpLowering: public ModelicaOpConversion<MulOp>
 		mlir::Type type = castOp.resultType();
 
 		// Compute the result
-		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::MulIOp>(location, adaptor.lhs(), adaptor.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, location, type, result);
@@ -2254,7 +2254,7 @@ class DivOpLowering: public ModelicaOpConversion<DivOp>
 		mlir::Type type = castOp.resultType();
 
 		// Compute the result
-		if (type.isa<mlir::IndexType>() || type.isa<BooleanType>() || type.isa<IntegerType>())
+		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::SignedDivIOp>(location, adaptor.lhs(), adaptor.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, location, type, result);

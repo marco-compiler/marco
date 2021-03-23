@@ -96,14 +96,7 @@ namespace modelica
 		template<typename... Args>
 		[[nodiscard]] static Expression call(SourcePosition location, Type type, Expression function, Args&&... args)
 		{
-			Call content(location, std::move(function), { std::forward<Args>(args)... }, 0);
-			return Expression(type, std::move(content));
-		}
-
-		template<typename... Args>
-		[[nodiscard]] static Expression callElementWise(SourcePosition location, Type type, unsigned int elementWiseRank, Expression function, Args&&... args)
-		{
-			Call content(location, std::move(function), { std::forward<Args>(args)... }, elementWiseRank);
+			Call content(location, std::move(function), { std::forward<Args>(args)... });
 			return Expression(type, std::move(content));
 		}
 

@@ -353,9 +353,9 @@ TEST(Function, callElementWise)	 // NOLINT
 			{
 					AssignmentStatement(location,
 															Expression::reference(location, makeType<int>(3), "y"),
-															Expression::callElementWise(location, makeType<int>(3), 1,
-															    												Expression::reference(location, makeType<int>(), "foo"),
-																													Expression::reference(location, makeType<int>(3), "x")))
+															Expression::call(location, makeType<int>(3),
+																							 Expression::reference(location, makeType<int>(), "foo"),
+																							 Expression::reference(location, makeType<int>(3), "x")))
 	});
 
 	ClassContainer main(Function(location, "main", true,

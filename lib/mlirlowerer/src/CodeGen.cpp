@@ -657,17 +657,15 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 			mlir::Value result = builder.create<NegateOp>(location, resultType, args[0]);
 			return { Reference::ssa(&builder, result) };
 		}
-		else
-		{
-			mlir::Value result = foldBinaryOperation(
-					args,
-					[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
-					{
-						return builder.create<SubOp>(location, resultType, lhs, rhs);
-					});
 
-			return { Reference::ssa(&builder, result) };
-		}
+		mlir::Value result = foldBinaryOperation(
+				args,
+				[&](mlir::Value lhs, mlir::Value rhs) -> mlir::Value
+				{
+					return builder.create<SubOp>(location, resultType, lhs, rhs);
+				});
+
+		return { Reference::ssa(&builder, result) };
 	}
 
 	if (kind == OperationKind::multiply)
@@ -912,27 +910,22 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else
 	{
 		auto resultType = expression.getType();
-		llvm::SmallVector<Type, 3> frontendResultTypes;
 		llvm::SmallVector<mlir::Type, 3> callResultsTypes;
 
 		// TODO: change to "PackedType", to differentiate from record types
 		if (resultType.isA<UserDefinedType>())
 		{
 			for (auto& type : resultType.get<UserDefinedType>())
-				frontendResultTypes.push_back(type);
+				callResultsTypes.push_back(lower(type, BufferAllocationScope::heap));
 		}
 		else
-			frontendResultTypes.push_back(resultType);
-
-		for (auto& type : frontendResultTypes)
 			callResultsTypes.push_back(lower(resultType, BufferAllocationScope::heap));
 
 		auto op = builder.create<CallOp>(
 				loc(expression.getLocation()),
 				function.get<ReferenceAccess>().getName(),
 				callResultsTypes,
-				args,
-				call.getElementWiseRank());
+				args);
 
 		for (auto result : op->getResults())
 			results.push_back(Reference::ssa(&builder, result));

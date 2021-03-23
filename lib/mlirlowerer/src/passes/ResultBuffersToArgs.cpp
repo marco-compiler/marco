@@ -1,7 +1,4 @@
 #include <mlir/Conversion/Passes.h>
-#include <mlir/Dialect/SCF/Transforms.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
-#include <mlir/IR/BuiltinOps.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/ResultBuffersToArgs.h>
 
@@ -139,8 +136,7 @@ static mlir::LogicalResult updateCalls(mlir::ModuleOp module) {
 		auto newResultTypes = llvm::to_vector<6>(llvm::map_range(
 				replaceWithNewCallResults, [](mlir::Value v) { return v.getType(); }));
 
-		assert(op.elementWiseRank() == 0);
-		auto newCall = builder.create<CallOp>(op.getLoc(), op.callee(), newResultTypes, newOperands, 0, replaceWithOutParams.size());
+		auto newCall = builder.create<CallOp>(op.getLoc(), op.callee(), newResultTypes, newOperands, replaceWithOutParams.size());
 
 		for (auto t : llvm::zip(replaceWithNewCallResults, newCall.getResults()))
 			std::get<0>(t).replaceAllUsesWith(std::get<1>(t));

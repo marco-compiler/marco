@@ -5,11 +5,9 @@ using namespace modelica;
 
 Call::Call(SourcePosition location,
 					 Expression function,
-					 llvm::ArrayRef<Expression> args,
-					 unsigned int elementWiseRank)
+					 llvm::ArrayRef<Expression> args)
 		: location(std::move(location)),
-			function(std::make_shared<Expression>(std::move(function))),
-			elementWiseRank(elementWiseRank)
+			function(std::make_shared<Expression>(std::move(function)))
 {
 	for (const auto& arg : args)
 		this->args.emplace_back(std::make_shared<Expression>(arg));
@@ -83,21 +81,6 @@ Call::args_iterator Call::end() { return args.end(); }
 Call::args_const_iterator Call::end() const
 {
 	return args.end();
-}
-
-bool Call::isElementWise() const
-{
-	return elementWiseRank != 0;
-}
-
-unsigned int Call::getElementWiseRank() const
-{
-	return elementWiseRank;
-}
-
-void Call::setElementWiseRank(unsigned int rank)
-{
-	elementWiseRank = rank;
 }
 
 llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Call& obj)

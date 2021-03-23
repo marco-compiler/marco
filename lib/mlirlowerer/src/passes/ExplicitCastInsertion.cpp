@@ -6,16 +6,6 @@
 
 using namespace modelica;
 
-static bool isNumeric(mlir::Type type)
-{
-	return type.isa<mlir::IndexType, BooleanType, IntegerType, RealType>();
-}
-
-static bool isNumeric(mlir::Value value)
-{
-	return isNumeric(value.getType());
-}
-
 struct CallOpScalarPattern : public mlir::OpRewritePattern<CallOp>
 {
 	using mlir::OpRewritePattern<CallOp>::OpRewritePattern;
@@ -120,6 +110,11 @@ struct CallOpElementWisePattern : public mlir::OpRewritePattern<CallOp>
 		auto module = op->getParentOfType<mlir::ModuleOp>();
 		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
 
+		unsigned int rankDifference = op.args()[0].getType().cast<PointerType>().getRank();
+
+		if (auto pointerType = callee.getArgument(0).getType().dyn_cast<PointerType>(); pointerType)
+			rankDifference -= pointerType.getRank();
+
 		// Ensure that the call has at least an argument. If not, we can't
 		// determine the result arrays sizes.
 		assert(op.args().size() - op.movedResults() > 0);
@@ -151,60 +146,70 @@ struct CallOpElementWisePattern : public mlir::OpRewritePattern<CallOp>
 			results.push_back(array);
 		}
 
+		rewriter.replaceOp(op, results);
+
 		// Iterate on the indexes
-		mlir::Value zero = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(0));
-		mlir::Value one = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(1));
+		assert(rankDifference != 0);
+		llvm::SmallVector<mlir::Value, 3> indexes;
 
-		assert(op.elementWiseRank() != 0);
-		llvm::SmallVector<mlir::Value, 3> lowerBounds(op.elementWiseRank(), zero);
-		llvm::SmallVector<mlir::Value, 3> upperBounds;
-		llvm::SmallVector<mlir::Value, 3> steps(op.elementWiseRank(), one);
-
-		for (unsigned int i = 0, e = op.elementWiseRank(); i < e; ++i)
+		for (unsigned int i = 0, e = rankDifference; i < e; ++i)
 		{
-			mlir::Value dim = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(i));
-			upperBounds.push_back(rewriter.create<DimOp>(location, op.args()[0], dim));
+			mlir::Value zero = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(0));
+			mlir::Value one = rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(1));
+			mlir::Value size = rewriter.create<DimOp>(location, op.args()[0], rewriter.create<ConstantOp>(location, rewriter.getIndexAttr(i)));
+
+			if (i == 0)
+			{
+				// Build a parallel outermost loop, so that the whole process can be
+				// parallelized.
+
+				auto loop = rewriter.create<mlir::scf::ParallelOp>(location, zero, size, one);
+				indexes.push_back(loop.getInductionVars()[0]);
+				rewriter.setInsertionPointToStart(loop.getBody());
+			}
+			else
+			{
+				auto loop = rewriter.create<mlir::scf::ForOp>(location, zero, size, one);
+				indexes.push_back(loop.getInductionVar());
+				rewriter.setInsertionPointToStart(loop.getBody());
+			}
 		}
 
-		mlir::scf::buildLoopNest(
-				rewriter, location, lowerBounds, upperBounds, steps, llvm::None,
-				[&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
-					llvm::SmallVector<mlir::Value, 3> scalarArgs;
+		// Extract the arguments to be passed to the scalar call
+		llvm::SmallVector<mlir::Value, 3> scalarArgs;
 
-					for (mlir::Value arg : op.args())
-					{
-						assert(arg.getType().isa<PointerType>());
+		for (mlir::Value arg : op.args())
+		{
+			assert(arg.getType().isa<PointerType>());
 
-						if (arg.getType().cast<PointerType>().getRank() == op.elementWiseRank())
-							scalarArgs.push_back(rewriter.create<LoadOp>(location, arg, position));
-						else
-							scalarArgs.push_back(rewriter.create<SubscriptionOp>(location, arg, position));
-					}
+			if (arg.getType().cast<PointerType>().getRank() == rankDifference)
+				scalarArgs.push_back(rewriter.create<LoadOp>(location, arg, indexes));
+			else
+				scalarArgs.push_back(rewriter.create<SubscriptionOp>(location, arg, indexes));
+		}
 
-					llvm::SmallVector<mlir::Type, 3> scalarResultTypes;
+		// Result types of the scalar call
+		llvm::SmallVector<mlir::Type, 3> scalarResultTypes;
 
-					for (mlir::Type type : op.getResultTypes())
-					{
-						type = type.cast<PointerType>().slice(op.elementWiseRank());
+		for (mlir::Type type : op.getResultTypes())
+		{
+			type = type.cast<PointerType>().slice(rankDifference);
 
-						if (type.cast<PointerType>().getRank() == 0)
-							type = type.cast<PointerType>().getElementType();
+			if (type.cast<PointerType>().getRank() == 0)
+				type = type.cast<PointerType>().getElementType();
 
-						scalarResultTypes.push_back(type);
-					}
+			scalarResultTypes.push_back(type);
+		}
 
-					auto scalarCall = rewriter.create<CallOp>(location, op.callee(), scalarResultTypes, scalarArgs);
+		// Create the new call
+		auto scalarCall = rewriter.create<CallOp>(location, op.callee(), scalarResultTypes, scalarArgs);
 
-					for (auto result : llvm::enumerate(scalarCall->getResults()))
-					{
-						mlir::Value subscript = rewriter.create<SubscriptionOp>(location, results[result.index()], position);
-						rewriter.create<AssignmentOp>(location, result.value(), subscript);
-					}
-
-					return std::vector<mlir::Value>();
-				});
-
-		rewriter.replaceOp(op, results);
+		// Copy the (not necessarily) scalar results into the result array
+		for (auto result : llvm::enumerate(scalarCall->getResults()))
+		{
+			mlir::Value subscript = rewriter.create<SubscriptionOp>(location, results[result.index()], indexes);
+			rewriter.create<AssignmentOp>(location, result.value(), subscript);
+		}
 	}
 };
 
