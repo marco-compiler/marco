@@ -369,13 +369,6 @@ class CallOpLowering: public ModelicaOpConversion<CallOp>
 
 	mlir::LogicalResult matchAndRewrite(CallOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		mlir::Location location = op->getLoc();
-
-		// Search for the callee inside the module
-		auto module = op->getParentOfType<mlir::ModuleOp>();
-		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
-		auto calleeArgsTypes = callee.getArgumentTypes();
-
 		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, op.callee(), op->getResultTypes(), op.args());
 		return mlir::success();
 	}

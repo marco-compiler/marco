@@ -2401,16 +2401,120 @@ TEST(MathOps, powScalar)	 // NOLINT
 	conversionOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
-	array<int, 2> x = { 3, 2 };
-	array<int, 2> y = { 4, 0 };
-	array<int, 2> z = { 0, 0 };
+	array<int, 4> x = { 3, 2, 4, 0 };
+	array<int, 4> y = { 4, 0, 2, 3 };
+	array<int, 4> z = { 0, 0, 0, 1 };
 
 	Runner runner(*module);
 
-	for (const auto& [x, y, z] : llvm::zip(x, y, z))
+	for (const auto& [ x, y, z ] : llvm::zip(x, y, z))
 	{
 		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, Runner::result(z))));
 		EXPECT_EQ(z, pow(x, y));
+	}
+}
+
+TEST(MathOps, powOneExponent)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   output Integer y;
+	 *
+	 *   algorithm
+	 *     y := x ^ 1;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::operation(location, makeType<int>(), OperationKind::powerOf,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::constant(location, makeType<int>(), 1)));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+
+	array<int, 4> x = { 3, 2, 4, 0 };
+	array<int, 4> y = { 0, 0, 0, 1 };
+
+	Runner runner(*module);
+
+	for (const auto& [ x, y ] : llvm::zip(x, y))
+	{
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+		EXPECT_EQ(y, pow(x, 1));
+	}
+}
+
+TEST(MathOps, powSquare)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   output Integer y;
+	 *
+	 *   algorithm
+	 *     y := x ^ 2;
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::operation(location, makeType<int>(), OperationKind::powerOf,
+														Expression::reference(location, makeType<int>(), "x"),
+														Expression::constant(location, makeType<int>(), 2)));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+
+	array<int, 4> x = { 3, 2, 4, 0 };
+	array<int, 4> y = { 0, 0, 0, 1 };
+
+	Runner runner(*module);
+
+	for (const auto& [ x, y ] : llvm::zip(x, y))
+	{
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+		EXPECT_EQ(y, pow(x, 2));
 	}
 }
 

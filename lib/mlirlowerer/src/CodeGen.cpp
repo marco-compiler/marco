@@ -72,6 +72,7 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 	mlir::PassManager passManager(builder.getContext());
 
 	passManager.addPass(createExplicitCastInsertionPass());
+	passManager.addPass(mlir::createCanonicalizerPass());
 
 	if (options.inlining)
 		passManager.addPass(mlir::createInlinerPass());

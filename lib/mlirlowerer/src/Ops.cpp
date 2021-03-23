@@ -1980,6 +1980,62 @@ mlir::Value DivOp::rhs()
 // Modelica::PowOp
 //===----------------------------------------------------------------------===//
 
+/**
+ * Pow optimizations:
+ *  - if the exponent is 1, the result is just the base value.
+ *  - if the exponent is 2, change the pow operation into a multiplication.
+ */
+struct PowOpOptimizationPattern : public mlir::OpRewritePattern<PowOp>
+{
+	using OpRewritePattern<PowOp>::OpRewritePattern;
+
+	mlir::LogicalResult matchAndRewrite(PowOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		auto* exponentOp = op.exponent().getDefiningOp();
+
+		// If the exponent is a block argument, then it has no defining op
+		// and the method will return a nullptr.
+
+		while (exponentOp != nullptr && mlir::isa<CastOp>(exponentOp))
+			exponentOp = mlir::cast<CastOp>(exponentOp).value().getDefiningOp();
+
+		if (exponentOp == nullptr || !mlir::isa<ConstantOp>(exponentOp))
+			return rewriter.notifyMatchFailure(op, "Exponent is not a constant");
+
+		auto constant = mlir::cast<ConstantOp>(exponentOp);
+		mlir::Attribute attribute = constant.value();
+		long exponent = -1;
+
+		if (attribute.isa<mlir::IntegerAttr>())
+			exponent = attribute.cast<mlir::IntegerAttr>().getSInt();
+		else if (attribute.isa<BooleanAttribute>())
+			exponent = attribute.cast<BooleanAttribute>().getValue() ? 1 : 0;
+		else if (attribute.isa<IntegerAttribute>())
+			exponent = attribute.cast<IntegerAttribute>().getValue();
+		else if (attribute.isa<RealAttribute>())
+		{
+			double value = attribute.cast<RealAttribute>().getValue();
+
+			if (auto ceiled = ceil(value); ceiled == value)
+				exponent = ceiled;
+		}
+
+		if (exponent == 1)
+		{
+			rewriter.replaceOpWithNewOp<CastOp>(op, op.base(), op.resultType());
+			return mlir::success();
+		}
+
+		if (exponent == 2)
+		{
+			rewriter.replaceOpWithNewOp<MulOp>(op, op.resultType(), op.base(), op.base());
+			return mlir::success();
+		}
+
+		return rewriter.notifyMatchFailure(op, "No optimization can be applied");
+	}
+};
+
 mlir::Value PowOpAdaptor::base()
 {
 	return getValues()[0];
@@ -2004,6 +2060,11 @@ void PowOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 void PowOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.pow " << base() << ", " << exponent() << " : " << resultType();
+}
+
+void PowOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context)
+{
+	patterns.insert<PowOpOptimizationPattern>(context);
 }
 
 void PowOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)

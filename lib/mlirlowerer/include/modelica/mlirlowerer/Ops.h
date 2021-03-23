@@ -1077,6 +1077,7 @@ namespace modelica
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value base, mlir::Value exponent);
 		void print(mlir::OpAsmPrinter& printer);
+		static void getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context);
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Type resultType();
