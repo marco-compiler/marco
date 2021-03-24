@@ -98,6 +98,7 @@ namespace modelica
 		static void build(mlir::OpBuilder& Builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType);
 		void print(mlir::OpAsmPrinter &p);
 		mlir::LogicalResult verify();
+		mlir::OpFoldResult fold(mlir::ArrayRef<mlir::Attribute> operands);
 
 		mlir::Value value();
 		mlir::Type resultType();
@@ -333,6 +334,7 @@ namespace modelica
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::Value dimension);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+		mlir::OpFoldResult fold(mlir::ArrayRef<mlir::Attribute> operands);
 
 		PointerType getPointerType();
 		mlir::Value memory();

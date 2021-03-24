@@ -295,6 +295,9 @@ class ConstantOpLowering: public ModelicaOpConversion<ConstantOp>
 	}
 
 	llvm::Optional<mlir::Attribute> convertAttribute(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Attribute attribute) const {
+		if (attribute.getType().isa<mlir::IndexType>())
+			return attribute;
+
 		if (attribute.isa<BooleanAttribute>())
 			return builder.getBoolAttr(attribute.cast<BooleanAttribute>().getValue());
 

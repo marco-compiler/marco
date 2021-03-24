@@ -727,7 +727,6 @@ TEST(Output, defaultArrayValue)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 
 	auto module = lowerer.lower(cls);
-	module->dump();
 
 	ModelicaConversionOptions conversionOptions;
 	conversionOptions.emitCWrappers = true;

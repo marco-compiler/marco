@@ -90,6 +90,14 @@ mlir::LogicalResult CastOp::verify()
 	return mlir::success();
 }
 
+mlir::OpFoldResult CastOp::fold(mlir::ArrayRef<mlir::Attribute> operands)
+{
+	if (value().getType() == resultType())
+		return value();
+
+	return nullptr;
+}
+
 mlir::Value CastOp::value()
 {
 	return Adaptor(*this).value();
@@ -576,6 +584,22 @@ mlir::LogicalResult DimOp::verify()
 		return emitOpError("requires the operand to be a pointer to an array");
 
 	return mlir::success();
+}
+
+mlir::OpFoldResult DimOp::fold(mlir::ArrayRef<mlir::Attribute> operands)
+{
+	if (auto attribute = operands[1].dyn_cast<mlir::IntegerAttr>(); attribute)
+	{
+		auto pointerType = memory().getType().cast<PointerType>();
+		auto shape = pointerType.getShape();
+
+		size_t index = attribute.getInt();
+
+		if (shape[index] != -1)
+			return mlir::IntegerAttr::get(mlir::IndexType::get(getContext()), shape[index]);
+	}
+
+	return nullptr;
 }
 
 PointerType DimOp::getPointerType()

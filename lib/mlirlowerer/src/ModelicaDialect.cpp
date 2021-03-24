@@ -89,3 +89,8 @@ void ModelicaDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& printe
 void ModelicaDialect::printAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& printer) const {
 	return printModelicaAttribute(attribute, printer);
 }
+
+mlir::Operation* ModelicaDialect::materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value, mlir::Type type, mlir::Location loc)
+{
+	return builder.create<ConstantOp>(loc, value);
+}

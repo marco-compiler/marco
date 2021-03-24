@@ -16,5 +16,6 @@ namespace modelica
 		static llvm::StringRef getDialectNamespace();
 		void printType(mlir::Type type, mlir::DialectAsmPrinter& printer) const override;
 		void printAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& printer) const override;
+		mlir::Operation* materializeConstant(mlir::OpBuilder& builder, mlir::Attribute value, mlir::Type type, mlir::Location loc) override;
 	};
 }

@@ -72,7 +72,6 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 	mlir::PassManager passManager(builder.getContext());
 
 	passManager.addPass(createExplicitCastInsertionPass());
-	passManager.addPass(mlir::createCanonicalizerPass());
 
 	if (options.inlining)
 		passManager.addPass(mlir::createInlinerPass());
@@ -80,6 +79,7 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 	if (options.resultBuffersToArgs)
 		passManager.addPass(createResultBuffersToArgsPass());
 
+	passManager.addPass(mlir::createCanonicalizerPass());
 	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
 
 	if (options.cse)
@@ -96,7 +96,10 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 	if (!options.debug)
 		passManager.addPass(mlir::createStripDebugInfoPass());
 
-	return passManager.run(module);
+	//llvm::DebugFlag = true;
+	auto result = passManager.run(module);
+	llvm::DebugFlag = false;
+	return result;
 }
 
 mlir::Location MLIRLowerer::loc(SourcePosition location)
