@@ -1344,10 +1344,18 @@ void AndOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult AndOp::verify()
 {
-	if (!lhs().getType().isa<BooleanType>() || !rhs().getType().isa<BooleanType>())
-		return emitOpError("requires the operands to be booleans");
+	mlir::Type lhsType = lhs().getType();
+	mlir::Type rhsType = rhs().getType();
 
-	return mlir::success();
+	if (lhsType.isa<BooleanType>() && rhsType.isa<BooleanType>())
+		return mlir::success();
+
+	if (lhsType.isa<PointerType>() && rhsType.isa<PointerType>())
+		if (lhsType.cast<PointerType>().getElementType().isa<BooleanType>() &&
+		    rhsType.cast<PointerType>().getElementType().isa<BooleanType>())
+			return mlir::success();
+
+	return emitOpError("requires the operands to be booleans or arrays of booleans");
 }
 
 mlir::Type AndOp::resultType()
@@ -1397,10 +1405,18 @@ void OrOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult OrOp::verify()
 {
-	if (!lhs().getType().isa<BooleanType>() || !rhs().getType().isa<BooleanType>())
-		return emitOpError("requires the operands to be booleans");
+	mlir::Type lhsType = lhs().getType();
+	mlir::Type rhsType = rhs().getType();
 
-	return mlir::success();
+	if (lhsType.isa<BooleanType>() && rhsType.isa<BooleanType>())
+		return mlir::success();
+
+	if (lhsType.isa<PointerType>() && rhsType.isa<PointerType>())
+		if (lhsType.cast<PointerType>().getElementType().isa<BooleanType>() &&
+				rhsType.cast<PointerType>().getElementType().isa<BooleanType>())
+			return mlir::success();
+
+	return emitOpError("requires the operands to be booleans or arrays of booleans");
 }
 
 mlir::Type OrOp::resultType()

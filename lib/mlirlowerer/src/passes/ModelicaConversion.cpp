@@ -1090,9 +1090,6 @@ class CastCommonOpLowering: public ModelicaOpConversion<CastCommonOp>
 	}
 };
 
-/**
- * Negate a boolean scalar.
- */
 class NotOpScalarLowering: public ModelicaOpConversion<NotOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
@@ -1118,9 +1115,6 @@ class NotOpScalarLowering: public ModelicaOpConversion<NotOp>
 	}
 };
 
-/**
- * Negate a boolean array.
- */
 class NotOpArrayLowering: public ModelicaOpConversion<NotOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
@@ -1156,11 +1150,19 @@ class NotOpArrayLowering: public ModelicaOpConversion<NotOp>
 	}
 };
 
-class AndOpLowering: public ModelicaOpConversion<AndOp>
+class AndOpScalarLowering: public ModelicaOpConversion<AndOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(AndOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		return mlir::success(adaptor.lhs().getType().isa<BooleanType>() &&
+		    adaptor.rhs().getType().isa<BooleanType>());
+	}
+
+	void rewrite(AndOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
 		Adaptor adaptor(operands);
@@ -1169,15 +1171,61 @@ class AndOpLowering: public ModelicaOpConversion<AndOp>
 		result = rewriter.create<CastOp>(location, result, op.resultType());
 		result = materializeTargetConversion(rewriter, location, result);
 		rewriter.replaceOp(op, result);
-		return mlir::success();
 	}
 };
 
-class OrOpLowering: public ModelicaOpConversion<OrOp>
+class AndOpArrayLowering: public ModelicaOpConversion<AndOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(OrOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		if (auto lhsPointer = adaptor.lhs().getType().dyn_cast<PointerType>();
+				!lhsPointer || !lhsPointer.getElementType().isa<BooleanType>())
+			return mlir::failure();
+
+		if (auto rhsPointer = adaptor.rhs().getType().dyn_cast<PointerType>();
+				!rhsPointer || !rhsPointer.getElementType().isa<BooleanType>())
+			return mlir::failure();
+
+		return mlir::success();
+	}
+
+	void rewrite(AndOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		Adaptor adaptor(operands);
+		auto resultType = op.resultType().cast<PointerType>();
+
+		mlir::Value result = allocateSameSizeArray(rewriter, location, op.lhs(), resultType.getElementType(), resultType.getAllocationScope() == heap);
+		rewriter.replaceOp(op, result);
+
+		iterateArray(rewriter, location, result,
+								 [&](mlir::ValueRange position) {
+									 mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), position);
+									 mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), position);
+									 mlir::Value scalarResult = rewriter.create<AndOp>(location, resultType.getElementType(), lhs, rhs);
+									 rewriter.create<StoreOp>(location, scalarResult, result, position);
+								 });
+	}
+};
+
+class OrOpScalarLowering: public ModelicaOpConversion<OrOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		return mlir::success(adaptor.lhs().getType().isa<BooleanType>() &&
+												 adaptor.rhs().getType().isa<BooleanType>());
+	}
+
+	void rewrite(OrOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
 		Adaptor adaptor(operands);
@@ -1186,7 +1234,45 @@ class OrOpLowering: public ModelicaOpConversion<OrOp>
 		result = rewriter.create<CastOp>(location, result, op.resultType());
 		result = materializeTargetConversion(rewriter, location, result);
 		rewriter.replaceOp(op, result);
+	}
+};
+
+class OrOpArrayLowering: public ModelicaOpConversion<OrOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult match(mlir::Operation* op) const override
+	{
+		Adaptor adaptor(op->getOperands());
+
+		if (auto lhsPointer = adaptor.lhs().getType().dyn_cast<PointerType>();
+				!lhsPointer || !lhsPointer.getElementType().isa<BooleanType>())
+			return mlir::failure();
+
+		if (auto rhsPointer = adaptor.rhs().getType().dyn_cast<PointerType>();
+				!rhsPointer || !rhsPointer.getElementType().isa<BooleanType>())
+			return mlir::failure();
+
 		return mlir::success();
+	}
+
+	void rewrite(OrOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		Adaptor adaptor(operands);
+		auto resultType = op.resultType().cast<PointerType>();
+
+		mlir::Value result = allocateSameSizeArray(rewriter, location, op.lhs(), resultType.getElementType(), resultType.getAllocationScope() == heap);
+		rewriter.replaceOp(op, result);
+
+		iterateArray(rewriter, location, result,
+								 [&](mlir::ValueRange position) {
+									 mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), position);
+									 mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), position);
+									 mlir::Value scalarResult = rewriter.create<OrOp>(location, resultType.getElementType(), lhs, rhs);
+									 rewriter.create<StoreOp>(location, scalarResult, result, position);
+								 });
 	}
 };
 
@@ -2510,8 +2596,10 @@ static void populateModelicaLogicConversionPatterns(mlir::OwningRewritePatternLi
 	patterns.insert<
 	    NotOpScalarLowering,
 			NotOpArrayLowering,
-			AndOpLowering,
-			OrOpLowering,
+			AndOpScalarLowering,
+			AndOpArrayLowering,
+			OrOpScalarLowering,
+			OrOpArrayLowering,
 			EqOpLowering,
 			NotEqOpLowering,
 			GtOpLowering,
