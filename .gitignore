@@ -89,3 +89,4 @@ fabric.properties
 
 # VS Code
 .vscode
+dist

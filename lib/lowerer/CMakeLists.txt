@@ -6,14 +6,10 @@ modelicaAddLibrary(
    	src/CallLowerer.cpp
    	src/OperationLowerer.cpp)
 
-llvm_map_components_to_libnames(llvm_lowerer_libs
-   	core
-	bitwriter
-   	${LLVM_TARGETS_TO_BUILD})
+modelica_link_llvm_libs(lowerer core bitwriter)
 
 target_link_libraries(
 	lowerer PUBLIC 
-	${llvm_lowerer_libs}
    	modelica::utils
    	modelica::passes)
 
