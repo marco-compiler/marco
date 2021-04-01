@@ -179,10 +179,10 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 		return typeConverter().convertType(type);
 	}
 
-	[[nodiscard]] mlir::Value materializeTargetConversion(mlir::OpBuilder& builder, mlir::Location location, mlir::Value value) const
+	[[nodiscard]] mlir::Value materializeTargetConversion(mlir::OpBuilder& builder, mlir::Value value) const
 	{
 		mlir::Type type = this->getTypeConverter()->convertType(value.getType());
-		return this->getTypeConverter()->materializeTargetConversion(builder, location, type, value);
+		return this->getTypeConverter()->materializeTargetConversion(builder, value.getLoc(), type, value);
 	}
 
 	[[nodiscard]] bool isNumeric(mlir::Value value) const
@@ -276,6 +276,49 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 	}
 };
 
+class SimulationOpLowering: public ModelicaOpConversion<SimulationOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(SimulationOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor transformed(operands);
+
+		mlir::Value startTime = rewriter.create<ConstantOp>(location, op.startTime());
+		mlir::Value endTime = rewriter.create<ConstantOp>(location, op.endTime());
+		mlir::Value timeStep = rewriter.create<ConstantOp>(location, op.timeStep());
+
+		rewriter.create<StoreOp>(location, startTime, op.time());
+		auto loop = rewriter.create<mlir::scf::WhileOp>(location, llvm::None, llvm::None);
+
+		{
+			// Condition
+			rewriter.createBlock(&loop.before());
+			rewriter.setInsertionPointToStart(&loop.before().front());
+
+			mlir::Value time = rewriter.create<LoadOp>(location, op.time());
+			mlir::Value condition = rewriter.create<LteOp>(location, BooleanType::get(op.getContext()), time, endTime);
+			condition = materializeTargetConversion(rewriter, condition);
+			rewriter.create<mlir::scf::ConditionOp>(location, condition, llvm::None);
+		}
+
+		// Body
+		rewriter.inlineRegionBefore(op.body(), loop.after(), loop.after().begin());
+
+		auto yieldOp = mlir::cast<YieldOp>(loop.after().front().getTerminator());
+		rewriter.setInsertionPointAfter(yieldOp);
+		rewriter.eraseOp(yieldOp);
+		mlir::Value time = rewriter.create<LoadOp>(location, op.time());
+		time = rewriter.create<AddOp>(location, time.getType(), time, timeStep);
+		rewriter.create<StoreOp>(location, time, op.time());
+		rewriter.create<mlir::scf::YieldOp>(location);
+
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
 class ConstantOpLowering: public ModelicaOpConversion<ConstantOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
@@ -308,6 +351,28 @@ class ConstantOpLowering: public ModelicaOpConversion<ConstantOp>
 			return builder.getFloatAttr(resultType, attribute.cast<RealAttribute>().getValue());
 
 		return llvm::None;
+	}
+};
+
+class RecordOpLowering: public ModelicaOpConversion<RecordOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(RecordOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op->getLoc();
+		Adaptor transformed(operands);
+
+		RecordType recordType = op.resultType();
+		mlir::Type descriptorType = getTypeConverter()->convertType(recordType);
+
+		mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(location, descriptorType);
+
+		for (auto& value : llvm::enumerate(transformed.values()))
+			result = rewriter.create<mlir::LLVM::InsertValueOp>(location, descriptorType, result, value.value(), rewriter.getIndexArrayAttr(value.index()));
+
+		rewriter.replaceOp(op, result);
+		return mlir::success();
 	}
 };
 
@@ -777,10 +842,10 @@ class ForOpLowering: public ModelicaOpConversion<ForOp>
 		rewriter.setInsertionPointToStart(conditionBlock);
 
 		mlir::Value breakCondition = rewriter.create<LoadOp>(location, op.breakCondition());
-		breakCondition = materializeTargetConversion(rewriter, location, breakCondition);
+		breakCondition = materializeTargetConversion(rewriter, breakCondition);
 
 		mlir::Value returnCondition = rewriter.create<LoadOp>(location, op.returnCondition());
-		returnCondition = materializeTargetConversion(rewriter, location, returnCondition);
+		returnCondition = materializeTargetConversion(rewriter, returnCondition);
 
 		mlir::Value stopCondition = rewriter.create<mlir::OrOp>(location, breakCondition, returnCondition);
 
@@ -800,7 +865,7 @@ class ForOpLowering: public ModelicaOpConversion<ForOp>
 		rewriter.mergeBlocks(originalCondition, &ifOp.elseRegion().front(), llvm::None);
 		rewriter.setInsertionPointToEnd(&ifOp.elseRegion().front());
 		auto conditionOp = mlir::cast<ConditionOp>(ifOp.elseRegion().front().getTerminator());
-		rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(conditionOp, materializeTargetConversion(rewriter, location, conditionOp.condition()));
+		rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(conditionOp, materializeTargetConversion(rewriter, conditionOp.condition()));
 
 		// The original condition operation is converted to the SCF one and takes
 		// as condition argument the result of the If operation, which is false
@@ -854,10 +919,10 @@ class WhileOpLowering: public ModelicaOpConversion<WhileOp>
 		rewriter.setInsertionPointToStart(&whileOp.before().front());
 
 		mlir::Value breakCondition = rewriter.create<LoadOp>(location, op.breakCondition());
-		breakCondition = materializeTargetConversion(rewriter, location, breakCondition);
+		breakCondition = materializeTargetConversion(rewriter, breakCondition);
 
 		mlir::Value returnCondition = rewriter.create<LoadOp>(location, op.returnCondition());
-		returnCondition = materializeTargetConversion(rewriter, location, returnCondition);
+		returnCondition = materializeTargetConversion(rewriter, returnCondition);
 
 		mlir::Value stopCondition = rewriter.create<mlir::OrOp>(location, breakCondition, returnCondition);
 
@@ -876,7 +941,7 @@ class WhileOpLowering: public ModelicaOpConversion<WhileOp>
 		rewriter.mergeBlocks(&op.condition().front(), &ifOp.elseRegion().front(), llvm::None);
 		rewriter.setInsertionPointToEnd(&ifOp.elseRegion().front());
 		auto conditionOp = mlir::cast<ConditionOp>(ifOp.elseRegion().front().getTerminator());
-		rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(conditionOp, materializeTargetConversion(rewriter, location, conditionOp.condition()));
+		rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(conditionOp, materializeTargetConversion(rewriter, conditionOp.condition()));
 
 		// The original condition operation is converted to the SCF one and takes
 		// as condition argument the result of the If operation, which is false
@@ -886,7 +951,7 @@ class WhileOpLowering: public ModelicaOpConversion<WhileOp>
 		llvm::SmallVector<mlir::Value, 3> conditionOpArgs;
 
 		for (mlir::Value arg : conditionOp.args())
-			conditionOpArgs.push_back(materializeTargetConversion(rewriter, location, arg));
+			conditionOpArgs.push_back(materializeTargetConversion(rewriter, arg));
 
 		rewriter.create<mlir::scf::ConditionOp>(location, ifOp.getResult(0), conditionOpArgs);
 
@@ -925,7 +990,7 @@ class CastOpIndexLowering: public ModelicaOpConversion<CastOp>
 		{
 			unsigned int destinationBitWidth = destination.cast<RealType>().getBitWidth();
 			mlir::Value value = rewriter.create<mlir::IndexCastOp>(location, op.value(), convertType(IntegerType::get(rewriter.getContext(), destinationBitWidth)));
-			value = materializeTargetConversion(rewriter, location, value);
+			value = materializeTargetConversion(rewriter, value);
 			rewriter.replaceOpWithNewOp<mlir::LLVM::SIToFPOp>(op, convertType(destination), value);
 			return mlir::success();
 		}
@@ -1169,7 +1234,7 @@ class AndOpScalarLowering: public ModelicaOpConversion<AndOp>
 		mlir::Value result = rewriter.create<mlir::AndOp>(location, adaptor.lhs(), adaptor.rhs());
 		result = getTypeConverter()->materializeSourceConversion(rewriter, location, BooleanType::get(op.getContext()), result);
 		result = rewriter.create<CastOp>(location, result, op.resultType());
-		result = materializeTargetConversion(rewriter, location, result);
+		result = materializeTargetConversion(rewriter, result);
 		rewriter.replaceOp(op, result);
 	}
 };
@@ -1232,7 +1297,7 @@ class OrOpScalarLowering: public ModelicaOpConversion<OrOp>
 		mlir::Value result = rewriter.create<mlir::OrOp>(location, adaptor.lhs(), adaptor.rhs());
 		result = getTypeConverter()->materializeSourceConversion(rewriter, location, BooleanType::get(op.getContext()), result);
 		result = rewriter.create<CastOp>(location, result, op.resultType());
-		result = materializeTargetConversion(rewriter, location, result);
+		result = materializeTargetConversion(rewriter, result);
 		rewriter.replaceOp(op, result);
 	}
 };
@@ -1291,7 +1356,7 @@ class EqOpLowering: public ModelicaOpConversion<EqOp>
 		llvm::SmallVector<mlir::Value, 3> transformed;
 
 		for (const auto& operand : castOp.getResults())
-			transformed.push_back(materializeTargetConversion(rewriter, location, operand));
+			transformed.push_back(materializeTargetConversion(rewriter, operand));
 
 		Adaptor adaptor(transformed);
 		mlir::Type type = castOp.resultType();
@@ -1333,7 +1398,7 @@ class NotEqOpLowering: public ModelicaOpConversion<NotEqOp>
 		llvm::SmallVector<mlir::Value, 3> transformed;
 
 		for (const auto& operand : castOp.getResults())
-			transformed.push_back(materializeTargetConversion(rewriter, location, operand));
+			transformed.push_back(materializeTargetConversion(rewriter, operand));
 
 		Adaptor adaptor(transformed);
 		mlir::Type type = castOp.resultType();
@@ -1644,7 +1709,7 @@ class AddOpScalarLowering: public ModelicaOpConversion<AddOp>
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (mlir::Value operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, location, operand));
+			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
 		Adaptor adaptor(castedOperands);
 		mlir::Type type = castOp.resultType();
@@ -1751,7 +1816,7 @@ class SubOpScalarLowering: public ModelicaOpConversion<SubOp>
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (mlir::Value operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, location, operand));
+			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
 		Adaptor adaptor(castedOperands);
 		mlir::Type type = castOp.resultType();
@@ -1858,7 +1923,7 @@ class MulOpLowering: public ModelicaOpConversion<MulOp>
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (mlir::Value operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, location, operand));
+			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
 		Adaptor adaptor(castedOperands);
 		mlir::Type type = castOp.resultType();
@@ -1997,7 +2062,7 @@ class MulOpCrossProductLowering: public ModelicaOpConversion<MulOp>
 		mlir::Value product = rewriter.create<MulOp>(location, type, lhs, rhs);
 		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, location, type, loop.getRegionIterArgs()[0]);
 		sum = rewriter.create<AddOp>(location, type, product, sum);
-		sum = materializeTargetConversion(rewriter, location, sum);
+		sum = materializeTargetConversion(rewriter, sum);
 		rewriter.create<mlir::scf::YieldOp>(location, sum);
 
 		rewriter.setInsertionPointAfter(loop);
@@ -2088,7 +2153,7 @@ class MulOpVectorMatrixLowering: public ModelicaOpConversion<MulOp>
 		mlir::Value product = rewriter.create<MulOp>(location, type, lhs, rhs);
 		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, location, type, innerLoop.getRegionIterArgs()[0]);
 		sum = rewriter.create<AddOp>(location, type, product, sum);
-		sum = materializeTargetConversion(rewriter, location, sum);
+		sum = materializeTargetConversion(rewriter, sum);
 		rewriter.create<mlir::scf::YieldOp>(location, sum);
 
 		// Store the product in the result array
@@ -2185,7 +2250,7 @@ class MulOpMatrixVectorLowering: public ModelicaOpConversion<MulOp>
 		mlir::Value product = rewriter.create<MulOp>(location, type, lhs, rhs);
 		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, location, type, innerLoop.getRegionIterArgs()[0]);
 		sum = rewriter.create<AddOp>(location, type, product, sum);
-		sum = materializeTargetConversion(rewriter, location, sum);
+		sum = materializeTargetConversion(rewriter, sum);
 		rewriter.create<mlir::scf::YieldOp>(location, sum);
 
 		// Store the product in the result array
@@ -2296,7 +2361,7 @@ class MulOpMatrixLowering: public ModelicaOpConversion<MulOp>
 		mlir::Value product = rewriter.create<MulOp>(location, type, lhs, rhs);
 		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, location, type, innerLoop.getRegionIterArgs()[0]);
 		sum = rewriter.create<AddOp>(location, type, product, sum);
-		sum = materializeTargetConversion(rewriter, location, sum);
+		sum = materializeTargetConversion(rewriter, sum);
 		rewriter.create<mlir::scf::YieldOp>(location, sum);
 
 		// Store the product in the result array
@@ -2335,7 +2400,7 @@ class DivOpLowering: public ModelicaOpConversion<DivOp>
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (mlir::Value operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, location, operand));
+			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
 		Adaptor adaptor(castedOperands);
 		mlir::Type type = castOp.resultType();
@@ -2540,7 +2605,7 @@ class SizeOpArrayLowering: public ModelicaOpConversion<SizeOp>
 		rewriter.setInsertionPointToStart(loop.getBody());
 
 		// Get the size of the current dimension
-		mlir::Value dimensionSize = descriptor.getSize(rewriter, location, materializeTargetConversion(rewriter, location, loop.getInductionVar()));
+		mlir::Value dimensionSize = descriptor.getSize(rewriter, location, materializeTargetConversion(rewriter, loop.getInductionVar()));
 		dimensionSize = getTypeConverter()->materializeSourceConversion(rewriter, location, rewriter.getIndexType(), dimensionSize);
 
 		// Cast it to the result base type and store it into the result array
@@ -2558,6 +2623,7 @@ static void populateModelicaBasicConversionPatterns(mlir::OwningRewritePatternLi
 {
 	patterns.insert<
 	    ConstantOpLowering,
+			RecordOpLowering,
 			CastOpIndexLowering,
 			CastOpBooleanLowering,
 			CastOpIntegerLowering,
@@ -2678,6 +2744,8 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 		// Provide the set of patterns that will lower the Modelica operations
 		mlir::OwningRewritePatternList patterns;
 		populateModelicaConversionPatterns(patterns, &getContext(), typeConverter);
+
+		patterns.insert<SimulationOpLowering>(&getContext(), typeConverter);
 
 		// With the target and rewrite patterns defined, we can now attempt the
 		// conversion. The conversion will signal failure if any of our "illegal"

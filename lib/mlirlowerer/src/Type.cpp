@@ -168,6 +168,39 @@ class modelica::UnrankedPointerTypeStorage : public mlir::TypeStorage {
 };
  */
 
+class modelica::RecordTypeStorage : public mlir::TypeStorage {
+	public:
+	using KeyTy = llvm::ArrayRef<mlir::Type>;
+
+	RecordTypeStorage() = delete;
+
+	bool operator==(const KeyTy& key) const {
+		return key == KeyTy{getElementTypes()};
+	}
+
+	static unsigned int hashKey(const KeyTy& key) {
+		return llvm::hash_combine(key);
+	}
+
+	static RecordTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy& key) {
+		llvm::ArrayRef<mlir::Type> elementTypes = allocator.copyInto(key);
+		return new (allocator.allocate<RecordTypeStorage>()) RecordTypeStorage(elementTypes);
+	}
+
+	[[nodiscard]] llvm::ArrayRef<mlir::Type> getElementTypes() const
+	{
+		return elementTypes;
+	}
+
+	private:
+	RecordTypeStorage(llvm::ArrayRef<mlir::Type> elementTypes)
+			: elementTypes(elementTypes)
+	{
+	}
+
+	llvm::ArrayRef<mlir::Type> elementTypes;
+};
+
 BooleanType BooleanType::get(mlir::MLIRContext* context)
 {
 	return Base::get(context);
@@ -263,14 +296,24 @@ PointerType PointerType::slice(unsigned int subscriptsAmount)
 	return PointerType::get(getContext(), getAllocationScope(), getElementType(), resultShape);
 }
 
+PointerType PointerType::toAllocationScope(BufferAllocationScope scope)
+{
+	return PointerType::get(getContext(), scope, getElementType(), getShape());
+}
+
 PointerType PointerType::toUnknownAllocationScope()
 {
-	return PointerType::get(getContext(), BufferAllocationScope::unknown, getElementType(), getShape());
+	return toAllocationScope(unknown);
 }
 
 PointerType PointerType::toElementType(mlir::Type type)
 {
 	return PointerType::get(getContext(), getAllocationScope(), type, getShape());
+}
+
+bool PointerType::canBeOnStack() const
+{
+	return hasConstantShape();
 }
 
 /*
@@ -290,25 +333,39 @@ unsigned int UnrankedPointerType::getRank() const
 }
 */
 
+RecordType RecordType::get(mlir::MLIRContext* context, llvm::ArrayRef<mlir::Type> elementTypes)
+{
+	return Base::get(context, elementTypes);
+}
+
+llvm::ArrayRef<mlir::Type> RecordType::getElementTypes()
+{
+	return getImpl()->getElementTypes();
+}
+
 void modelica::printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer) {
 	auto& os = printer.getStream();
 
-	if (type.isa<BooleanType>()) {
+	if (type.isa<BooleanType>())
+	{
 		os << "bool";
 		return;
 	}
 
-	if (type.isa<IntegerType>()) {
+	if (type.isa<IntegerType>())
+	{
 		os << "int";
 		return;
 	}
 
-	if (type.dyn_cast<RealType>()) {
+	if (type.dyn_cast<RealType>())
+	{
 		os << "real";
 		return;
 	}
 
-	if (auto pointerType = type.dyn_cast<PointerType>()) {
+	if (auto pointerType = type.dyn_cast<PointerType>())
+	{
 		os << "ptr<";
 
 		if (pointerType.getAllocationScope() == stack)
@@ -327,9 +384,25 @@ void modelica::printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& print
 	}
 
 	/*
-	if (auto pointerType = type.dyn_cast<UnrankedPointerType>()) {
+	if (auto pointerType = type.dyn_cast<UnrankedPointerType>())
+	{
 		os << "ptr<*x" << pointerType.getElementType() << ">";
 		return;
 	}
 	*/
+
+	if (auto recordType = type.dyn_cast<RecordType>())
+	{
+		os << "record<";
+
+		for (auto subtype : llvm::enumerate(recordType.getElementTypes()))
+		{
+			if (subtype.index() != 0)
+				os << ", ";
+
+			os << subtype.value();
+		}
+
+		os << ">";
+	}
 }

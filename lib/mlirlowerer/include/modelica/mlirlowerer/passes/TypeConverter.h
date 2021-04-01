@@ -23,6 +23,7 @@ namespace modelica
 		mlir::Type convertIntegerType(IntegerType type);
 		mlir::Type convertRealType(RealType type);
 		mlir::Type convertPointerType(PointerType type);
+		mlir::Type convertRecordType(RecordType type);
 
 		llvm::SmallVector<mlir::Type, 3> getPointerDescriptorFields(PointerType type);
 	};

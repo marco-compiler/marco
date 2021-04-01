@@ -8,6 +8,8 @@ namespace modelica
 	class Function;
 	class Induction;
 	class Member;
+	class Package;
+	class Record;
 
 	class Symbol
 	{
@@ -15,6 +17,8 @@ namespace modelica
 		Symbol();
 		explicit Symbol(Function& function);
 		explicit Symbol(Class& model);
+		explicit Symbol(Package& package);
+		explicit Symbol(Record& record);
 		explicit Symbol(Member& member);
 		explicit Symbol(Induction& induction);
 
@@ -32,6 +36,6 @@ namespace modelica
 		}
 
 		private:
-		std::variant<Function*, Class*, Member*, Induction*> content;
+		std::variant<Function*, Class*, Package*, Record*, Member*, Induction*> content;
 	};
 }

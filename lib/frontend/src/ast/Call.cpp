@@ -21,11 +21,16 @@ bool Call::operator==(const Call& other) const
 	if (*function != *other.function)
 		return false;
 
-	auto pairs = llvm::zip(args, other.args);
+	if (args.size() != other.args.size())
+		return false;
 
-	return std::all_of(
-			pairs.begin(), pairs.end(),
-			[](const auto& pair) { return *std::get<0>(pair) == *std::get<1>(pair); });
+	auto pairs = llvm::zip(args, other.args);
+	return std::all_of(pairs.begin(), pairs.end(),
+										 [](const auto& pair)
+										 {
+											 const auto& [x, y] = pair;
+											 return *x == *y;
+										 });
 }
 
 bool Call::operator!=(const Call& other) const { return !(*this == other); }

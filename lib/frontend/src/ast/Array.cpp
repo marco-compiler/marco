@@ -15,19 +15,22 @@ bool Array::operator==(const Array& other) const
 	if (size() != other.size())
 		return false;
 
+	if (values.size() != other.values.size())
+		return false;
+
 	auto pairs = llvm::zip(values, other.values);
-
-	for (auto [ x, y ] : pairs)
-		if (x != y)
-			return false;
-
-	return true;
-
-	//return std::all_of(pairs.begin(), pairs.end(),
-	//									 [](auto& x, auto& y) { return x == y; });
+	return std::all_of(pairs.begin(), pairs.end(),
+										 [](const auto& pair)
+										 {
+											 const auto& [x, y] = pair;
+											 return *x == *y;
+										 });
 }
 
-bool Array::operator!=(const Array& other) const { return !(*this == other); }
+bool Array::operator!=(const Array& other) const
+{
+	return !(*this == other);
+}
 
 Expression& Array::operator[](size_t index)
 {
@@ -87,7 +90,7 @@ llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Array& 
 std::string modelica::toString(const Array& obj)
 {
 	return "(" +
-				 accumulate(++obj.begin(), obj.end(), std::string(),
+				 accumulate(obj.begin(), obj.end(), std::string(),
 										[](const std::string& result, const Expression& element)
 										{
 											std::string str = toString(element);

@@ -2,9 +2,13 @@
 
 using namespace modelica;
 
+ClassContainer::ClassContainer(Class cls) : content(cls) {}
+
 ClassContainer::ClassContainer(Function function) : content(function) {}
 
-ClassContainer::ClassContainer(Class model) : content(model) {}
+ClassContainer::ClassContainer(Package package) : content(package) {}
+
+ClassContainer::ClassContainer(Record record) : content(record) {}
 
 void ClassContainer::dump() const { dump(llvm::outs(), 0); }
 

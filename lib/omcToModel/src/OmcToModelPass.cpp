@@ -24,7 +24,7 @@ using namespace llvm;
 
 Error OmcToModelPass::lower(ClassContainer& cl, const SymbolTable& table)
 {
-	return cl.visit([&](auto& obj) {return lower(obj, table); });
+	return cl.visit([&](auto& obj) { return lower(obj, table); });
 }
 
 Error OmcToModelPass::lower(Class& cl, const SymbolTable& table)
@@ -56,6 +56,22 @@ Error OmcToModelPass::lower(Class& cl, const SymbolTable& table)
 }
 
 Error OmcToModelPass::lower(Function& cl, const SymbolTable& table)
+{
+	return Error::success();
+}
+
+Error OmcToModelPass::lower(Package& cl, const SymbolTable& table)
+{
+	SymbolTable t(cl, &table);
+
+	for (auto& cls : cl)
+		if (auto error = lower(cls, t); error)
+			return error;
+
+	return Error::success();
+}
+
+Error OmcToModelPass::lower(Record& cl, const SymbolTable& table)
 {
 	return Error::success();
 }
@@ -191,7 +207,7 @@ Expected<ModEquation> OmcToModelPass::lower(
 			move(l),
 			move(r),
 			"eq_" + to_string(model.getEquations().size()),
-			MultiDimInterval(move(dimensions)));
+			MultiDimInterval(dimensions));
 }
 
 Expected<ModEquation> OmcToModelPass::lower(
@@ -227,7 +243,7 @@ Expected<ModEquation> OmcToModelPass::lower(
 			interval.emplace_back(0, i.getNumericSize());
 		}
 
-	modEq->setInductionVars(MultiDimInterval(move(interval)));
+	modEq->setInductionVars(MultiDimInterval(interval));
 	return modEq;
 }
 

@@ -22,6 +22,20 @@ llvm::Error BreakRemover::run(Function& function)
 	return llvm::Error::success();
 }
 
+llvm::Error BreakRemover::run(Package& package)
+{
+	for (auto& cls : package)
+		if (auto error = run(cls); error)
+			return error;
+
+	return llvm::Error::success();
+}
+
+llvm::Error BreakRemover::run(Record& record)
+{
+	return llvm::Error::success();
+}
+
 llvm::Error BreakRemover::run(Algorithm& algorithm)
 {
 	for (auto& statement : algorithm)

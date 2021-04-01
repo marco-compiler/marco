@@ -2,16 +2,14 @@
 #include <modelica/frontend/AST.h>
 #include <numeric>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
-raw_ostream& modelica::operator<<(raw_ostream& stream, const BuiltInType& obj)
+llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const BuiltInType& obj)
 {
 	return stream << toString(obj);
 }
 
-string modelica::toString(BuiltInType type)
+std::string modelica::toString(BuiltInType type)
 {
 	switch (type)
 	{
@@ -32,7 +30,100 @@ string modelica::toString(BuiltInType type)
 	assert(false && "Unexpected type");
 }
 
-UserDefinedType::UserDefinedType(ArrayRef<Type> types)
+PackedType::PackedType(llvm::ArrayRef<Type> types)
+{
+	for (const auto& type : types)
+		this->types.emplace_back(std::make_shared<Type>(type));
+}
+
+bool PackedType::operator==(const PackedType& other) const
+{
+	if (types.size() != other.types.size())
+		return false;
+
+	auto pairs = llvm::zip(types, other.types);
+	return std::all_of(pairs.begin(), pairs.end(),
+										 [](const auto& pair)
+										 {
+											 const auto& [x, y] = pair;
+											 return *x == *y;
+										 });
+}
+
+bool PackedType::operator!=(const PackedType& other) const
+{
+	return !(*this == other);
+}
+
+Type& PackedType::operator[](size_t index)
+{
+	assert(index < types.size());
+	return *types[index];
+}
+
+Type PackedType::operator[](size_t index) const
+{
+	assert(index < types.size());
+	return *types[index];
+}
+
+void PackedType::dump() const { dump(llvm::outs(), 0); }
+
+void PackedType::dump(llvm::raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << toString(*this);
+}
+
+bool PackedType::hasConstantShape() const
+{
+	return std::all_of(types.begin(), types.end(),
+										 [](const auto& type) { return type->hasConstantShape(); });
+}
+
+size_t PackedType::size() const { return types.size(); }
+
+PackedType::iterator PackedType::begin()
+{
+    return types.begin();
+}
+
+PackedType::const_iterator PackedType::begin() const
+{
+	return types.begin();
+}
+
+PackedType::iterator PackedType::end()
+{
+    return types.end();
+}
+
+PackedType::const_iterator PackedType::end() const
+{
+	return types.end();
+}
+
+llvm::raw_ostream& modelica::operator<<(
+		llvm::raw_ostream& stream, const PackedType& obj)
+{
+	return stream << toString(obj);
+}
+
+std::string modelica::toString(PackedType obj)
+{
+	return "{" +
+				 accumulate(
+						 obj.begin(),
+						 obj.end(),
+						 std::string(),
+						 [](const std::string& a, const auto& b) -> std::string {
+							 return a + (a.length() > 0 ? ", " : "") + toString(b);
+						 }) +
+				 "}";
+}
+
+UserDefinedType::UserDefinedType(std::string name, llvm::ArrayRef<Type> types)
+		: name(std::move(name))
 {
 	for (const auto& type : types)
 		this->types.emplace_back(std::make_shared<Type>(type));
@@ -40,14 +131,16 @@ UserDefinedType::UserDefinedType(ArrayRef<Type> types)
 
 bool UserDefinedType::operator==(const UserDefinedType& other) const
 {
-	return std::equal(
-			begin(),
-			end(),
-			other.begin(),
-			other.end(),
-			[](const Type& lhs, const Type& rhs) {
-				return lhs == rhs;
-			});
+	if (types.size() != other.types.size())
+		return false;
+
+	auto pairs = llvm::zip(types, other.types);
+	return std::all_of(pairs.begin(), pairs.end(),
+										 [](const auto& pair)
+										 {
+											 const auto& [x, y] = pair;
+											 return *x == *y;
+										 });
 }
 
 bool UserDefinedType::operator!=(const UserDefinedType& other) const
@@ -67,28 +160,30 @@ Type UserDefinedType::operator[](size_t index) const
 	return *types[index];
 }
 
-void UserDefinedType::dump() const { dump(outs(), 0); }
+void UserDefinedType::dump() const { dump(llvm::outs(), 0); }
 
-void UserDefinedType::dump(raw_ostream& os, size_t indents) const
+void UserDefinedType::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << toString(*this);
 }
 
+llvm::StringRef UserDefinedType::getName() const
+{
+	return name;
+}
+
 bool UserDefinedType::hasConstantShape() const
 {
-	for (const auto& type : types)
-		if (!type->hasConstantShape())
-			return false;
-
-	return true;
+	return std::all_of(types.begin(), types.end(),
+										 [](const auto& type) { return type->hasConstantShape(); });
 }
 
 size_t UserDefinedType::size() const { return types.size(); }
 
 UserDefinedType::iterator UserDefinedType::begin()
 {
-    return types.begin();
+	return types.begin();
 }
 
 UserDefinedType::const_iterator UserDefinedType::begin() const
@@ -98,7 +193,7 @@ UserDefinedType::const_iterator UserDefinedType::begin() const
 
 UserDefinedType::iterator UserDefinedType::end()
 {
-    return types.end();
+	return types.end();
 }
 
 UserDefinedType::const_iterator UserDefinedType::end() const
@@ -106,20 +201,20 @@ UserDefinedType::const_iterator UserDefinedType::end() const
 	return types.end();
 }
 
-raw_ostream& modelica::operator<<(
-		raw_ostream& stream, const UserDefinedType& obj)
+llvm::raw_ostream& modelica::operator<<(
+		llvm::raw_ostream& stream, const UserDefinedType& obj)
 {
 	return stream << toString(obj);
 }
 
-string modelica::toString(UserDefinedType obj)
+std::string modelica::toString(UserDefinedType obj)
 {
 	return "{" +
 				 accumulate(
 						 obj.begin(),
 						 obj.end(),
-						 string(),
-						 [](const string& a, const auto& b) -> string {
+						 std::string(),
+						 [](const std::string& a, const auto& b) -> std::string {
 							 return a + (a.length() > 0 ? ", " : "") + toString(b);
 						 }) +
 				 "}";
@@ -130,7 +225,7 @@ ArrayDimension::ArrayDimension(long size) : size(size)
 }
 
 ArrayDimension::ArrayDimension(Expression size)
-		: size(std::make_shared<Expression>(move(size)))
+		: size(std::make_shared<Expression>(std::move(size)))
 {
 }
 
@@ -153,52 +248,57 @@ bool ArrayDimension::isDynamic() const
 
 long ArrayDimension::getNumericSize() const
 {
-	assert(holds_alternative<long>(size));
-	return get<long>(size);
+	assert(std::holds_alternative<long>(size));
+	return std::get<long>(size);
 }
 
 Expression& ArrayDimension::getExpression()
 {
 	assert(hasExpression());
-	return *get<ArrayDimension::ExpressionPtr>(size);
+	return *std::get<ArrayDimension::ExpressionPtr>(size);
 }
 
 const Expression& ArrayDimension::getExpression() const
 {
 	assert(hasExpression());
-	return *get<ArrayDimension::ExpressionPtr>(size);
+	return *std::get<ArrayDimension::ExpressionPtr>(size);
 }
 
-raw_ostream& modelica::operator<<(raw_ostream& stream, const ArrayDimension& obj)
+llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const ArrayDimension& obj)
 {
 	return stream << toString(obj);
 }
 
-string modelica::toString(const ArrayDimension& obj)
+std::string modelica::toString(const ArrayDimension& obj)
 {
 	if (obj.hasExpression())
 		return toString(obj.getExpression());
 
-	return to_string(obj.getNumericSize());
+	return std::to_string(obj.getNumericSize());
 }
 
-Type::Type(BuiltInType type, ArrayRef<ArrayDimension> dim)
-		: content(move(type)), dimensions(dim.begin(), dim.end())
+Type::Type(BuiltInType type, llvm::ArrayRef<ArrayDimension> dim)
+		: content(std::move(type)),
+			dimensions(dim.begin(), dim.end())
 {
-	assert(holds_alternative<BuiltInType>(content));
+	assert(std::holds_alternative<BuiltInType>(content));
 	assert(!dimensions.empty());
 }
 
-Type::Type(UserDefinedType type, ArrayRef<ArrayDimension> dim)
-		: content(move(type)), dimensions(dim.begin(), dim.end())
+Type::Type(PackedType type, llvm::ArrayRef<ArrayDimension> dim)
+		: content(std::move(type)),
+			dimensions(dim.begin(), dim.end())
 {
-	assert(holds_alternative<UserDefinedType>(content));
+	assert(std::holds_alternative<PackedType>(content));
 	assert(!dimensions.empty());
 }
 
-Type::Type(llvm::ArrayRef<Type> members, ArrayRef<ArrayDimension> dim)
-		: Type(UserDefinedType(move(members)), move(dim))
+Type::Type(UserDefinedType type, llvm::ArrayRef<ArrayDimension> dim)
+		: content(std::move(type)),
+			dimensions(dim.begin(), dim.end())
 {
+	assert(std::holds_alternative<UserDefinedType>(content));
+	assert(!dimensions.empty());
 }
 
 bool Type::operator==(const Type& other) const
@@ -215,17 +315,17 @@ const ArrayDimension& Type::operator[](int index) const
 	return dimensions[index];
 }
 
-void Type::dump() const { dump(outs(), 0); }
+void Type::dump() const { dump(llvm::outs(), 0); }
 
-void Type::dump(raw_ostream& os, size_t indents) const
+void Type::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << toString(*this);
 }
 
-SmallVectorImpl<ArrayDimension>& Type::getDimensions() { return dimensions; }
+llvm::SmallVectorImpl<ArrayDimension>& Type::getDimensions() { return dimensions; }
 
-const SmallVectorImpl<ArrayDimension>& Type::getDimensions() const
+const llvm::SmallVectorImpl<ArrayDimension>& Type::getDimensions() const
 {
 	return dimensions;
 }
@@ -259,8 +359,8 @@ bool Type::hasConstantShape() const
 		if (dimension.isDynamic())
 			return false;
 
-	if (isA<UserDefinedType>())
-		return get<UserDefinedType>().hasConstantShape();
+	if (isA<PackedType>())
+		return get<PackedType>().hasConstantShape();
 
 	return true;
 }
@@ -294,18 +394,18 @@ Type Type::subscript(size_t times) const
 	assert(!isScalar());
 
 	if (dimensions.size() == times)
-		return visit([](const auto& t) { return Type(t); });
+		return visit([&](const auto& t) { return Type(t); });
 
 	assert(times > dimensions.size());
 
-	return visit([&](const auto& t) {
+	return visit([&](const auto& type) {
 		return Type(
-				t,
-				SmallVector<ArrayDimension, 3>(dimensions.begin() + times, dimensions.end()));
+				type,
+				llvm::SmallVector<ArrayDimension, 3>(dimensions.begin() + times, dimensions.end()));
 	});
 }
 
-raw_ostream& modelica::operator<<(raw_ostream& stream, const Type& obj)
+llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Type& obj)
 {
 	return stream << toString(obj);
 }
@@ -313,25 +413,25 @@ raw_ostream& modelica::operator<<(raw_ostream& stream, const Type& obj)
 class ArrayDimensionToStringVisitor
 {
 	public:
-	string operator()(const long& value) { return to_string(value); }
-	string operator()(const ArrayDimension::ExpressionPtr& expression) { return toString(*expression); };
+	std::string operator()(const long& value) { return std::to_string(value); }
+	std::string operator()(const ArrayDimension::ExpressionPtr& expression) { return toString(*expression); };
 };
 
-string modelica::toString(Type obj)
+std::string modelica::toString(Type obj)
 {
 	auto visitor = [](const auto& t) { return toString(t); };
 
-	auto dimensionsToStringLambda = [](const string& a, ArrayDimension& b) -> string {
+	auto dimensionsToStringLambda = [](const std::string& a, ArrayDimension& b) -> std::string {
 		return a + (a.length() > 0 ? "," : "") + b.visit(ArrayDimensionToStringVisitor());
 	};
 
 	auto& dimensions = obj.getDimensions();
-	string size = obj.isScalar() ? ""
+	std::string size = obj.isScalar() ? ""
 															 : "[" +
 																		 accumulate(
 																				 dimensions.begin(),
 																				 dimensions.end(),
-																				 string(),
+																				 std::string(),
 																				 dimensionsToStringLambda) +
 																		 "] ";
 	return size + obj.visit(visitor);

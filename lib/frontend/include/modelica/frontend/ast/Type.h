@@ -79,7 +79,7 @@ namespace modelica
 	template<BuiltInType T>
 	using frontendTypeToType_v = typename frontendTypeToType<T>::value;
 
-	class UserDefinedType
+	class PackedType
 	{
 		private:
 		using TypePtr = std::shared_ptr<Type>;
@@ -89,10 +89,10 @@ namespace modelica
 		using iterator = boost::indirect_iterator<Container::iterator>;
 		using const_iterator = boost::indirect_iterator<Container::const_iterator>;
 
-		explicit UserDefinedType(llvm::ArrayRef<Type> types);
+		explicit PackedType(llvm::ArrayRef<Type> types);
 
-		[[nodiscard]] bool operator==(const UserDefinedType& other) const;
-		[[nodiscard]] bool operator!=(const UserDefinedType& other) const;
+		[[nodiscard]] bool operator==(const PackedType& other) const;
+		[[nodiscard]] bool operator!=(const PackedType& other) const;
 
 		[[nodiscard]] Type& operator[](size_t index);
 		[[nodiscard]] Type operator[](size_t index) const;
@@ -111,6 +111,49 @@ namespace modelica
 		[[nodiscard]] const_iterator end() const;
 
 		private:
+		Container types;
+	};
+
+	llvm::raw_ostream& operator<<(
+			llvm::raw_ostream& stream, const PackedType& obj);
+
+	std::string toString(PackedType obj);
+
+	class UserDefinedType
+	{
+		private:
+		using TypePtr = std::shared_ptr<Type>;
+		using Container = llvm::SmallVector<TypePtr, 3>;
+
+		public:
+		using iterator = boost::indirect_iterator<Container::iterator>;
+		using const_iterator = boost::indirect_iterator<Container::const_iterator>;
+
+		UserDefinedType(std::string name, llvm::ArrayRef<Type> types);
+
+		[[nodiscard]] bool operator==(const UserDefinedType& other) const;
+		[[nodiscard]] bool operator!=(const UserDefinedType& other) const;
+
+		[[nodiscard]] Type& operator[](size_t index);
+		[[nodiscard]] Type operator[](size_t index) const;
+
+		void dump() const;
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+
+		[[nodiscard]] llvm::StringRef getName() const;
+
+		[[nodiscard]] bool hasConstantShape() const;
+
+		[[nodiscard]] size_t size() const;
+
+		[[nodiscard]] iterator begin();
+		[[nodiscard]] const_iterator begin() const;
+
+		[[nodiscard]] iterator end();
+		[[nodiscard]] const_iterator end() const;
+
+		private:
+		std::string name;
 		Container types;
 	};
 
@@ -172,8 +215,8 @@ namespace modelica
 		using dimensions_const_iterator = llvm::SmallVectorImpl<ArrayDimension>::const_iterator;
 
 		Type(BuiltInType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
+		Type(PackedType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
 		Type(UserDefinedType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
-		Type(llvm::ArrayRef<Type> members, llvm::ArrayRef<ArrayDimension> dim = { 1 });
 
 		[[nodiscard]] bool operator==(const Type& other) const;
 		[[nodiscard]] bool operator!=(const Type& other) const;
@@ -238,7 +281,7 @@ namespace modelica
 		[[nodiscard]] static Type unknown();
 
 		private:
-		std::variant<BuiltInType, UserDefinedType> content;
+		std::variant<BuiltInType, PackedType, UserDefinedType> content;
 		llvm::SmallVector<ArrayDimension, 3> dimensions;
 	};
 

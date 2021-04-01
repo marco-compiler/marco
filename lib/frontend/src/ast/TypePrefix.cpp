@@ -1,16 +1,14 @@
 #include <modelica/frontend/AST.h>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
-raw_ostream& modelica::operator<<(
-		raw_ostream& stream, const ParameterQualifier& obj)
+llvm::raw_ostream& modelica::operator<<(
+		llvm::raw_ostream& stream, const ParameterQualifier& obj)
 {
 	return stream << toString(obj);
 }
 
-string modelica::toString(ParameterQualifier qualifier)
+std::string modelica::toString(ParameterQualifier qualifier)
 {
 	switch (qualifier)
 	{
@@ -27,12 +25,12 @@ string modelica::toString(ParameterQualifier qualifier)
 	return "unexpected";
 }
 
-raw_ostream& modelica::operator<<(raw_ostream& stream, const IOQualifier& obj)
+llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const IOQualifier& obj)
 {
 	return stream << toString(obj);
 }
 
-string modelica::toString(IOQualifier qualifier)
+std::string modelica::toString(IOQualifier qualifier)
 {
 	switch (qualifier)
 	{
@@ -53,9 +51,9 @@ TypePrefix::TypePrefix(
 {
 }
 
-void TypePrefix::dump() const { dump(outs(), 0); }
+void TypePrefix::dump() const { dump(llvm::outs(), 0); }
 
-void TypePrefix::dump(raw_ostream& os, size_t indents) const
+void TypePrefix::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os << "Prefix: ";
 

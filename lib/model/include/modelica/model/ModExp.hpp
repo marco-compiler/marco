@@ -1030,6 +1030,11 @@ namespace modelica
 		/**
 		 * \return The type in which this expression will be casted into.
 		 */
+		[[nodiscard]] ModType& getModType() { return returnModType; }
+
+		/**
+		 * \return The type in which this expression will be casted into.
+		 */
 		[[nodiscard]] const ModType& getModType() const { return returnModType; }
 
 		/**

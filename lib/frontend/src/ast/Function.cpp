@@ -1,24 +1,22 @@
 #include <algorithm>
 #include <modelica/frontend/AST.h>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
 template<typename T>
 using Container = Function::Container<T>;
 
 Function::Function(
 		SourcePosition location,
-		string name,
+		std::string name,
 		bool pure,
-		ArrayRef<Member> members,
-		ArrayRef<Algorithm> algorithms,
+		llvm::ArrayRef<Member> members,
+		llvm::ArrayRef<Algorithm> algorithms,
 		Annotation annotation)
-		: location(move(location)),
-			name(move(name)),
+		: location(std::move(location)),
+			name(std::move(name)),
 			pure(pure),
-			annotation(move(annotation)),
+			annotation(std::move(annotation)),
 			type(Type::unknown())
 {
 	assert(!this->name.empty());
@@ -48,9 +46,9 @@ const Member& Function::operator[](llvm::StringRef str) const
 	assert(false && "Not found");
 }
 
-void Function::dump() const { dump(outs(), 0); }
+void Function::dump() const { dump(llvm::outs(), 0); }
 
-void Function::dump(raw_ostream& os, size_t indents) const
+void Function::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "function " << name << "\n";
@@ -64,9 +62,9 @@ void Function::dump(raw_ostream& os, size_t indents) const
 
 SourcePosition Function::getLocation() const { return location; }
 
-string& Function::getName() { return name; }
+std::string& Function::getName() { return name; }
 
-const string& Function::getName() const { return name; }
+const std::string& Function::getName() const { return name; }
 
 bool Function::isPure() const
 {
@@ -111,7 +109,7 @@ Container<Member> Function::getProtectedMembers() const
 }
 
 void Function::addMember(Member member) {
-	members.emplace_back(std::make_shared<Member>(move(member)));
+	members.emplace_back(std::make_shared<Member>(std::move(member)));
 }
 
 Container<Algorithm>& Function::getAlgorithms() { return algorithms; }
@@ -130,4 +128,4 @@ modelica::Type& Function::getType() { return type; }
 
 const Type& Function::getType() const { return type; }
 
-void Function::setType(Type t) { type = move(t); }
+void Function::setType(Type t) { type = std::move(t); }

@@ -15,6 +15,8 @@ modelicaAddLibrary(
 		src/ast/Member.cpp
 		src/ast/Modification.cpp
 		src/ast/Operation.cpp
+		src/ast/Package.cpp
+		src/ast/Record.cpp
 		src/ast/ReferenceAccess.cpp
 		src/ast/Statement.cpp
 		src/ast/Tuple.cpp

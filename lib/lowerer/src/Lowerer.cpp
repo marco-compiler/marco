@@ -25,6 +25,7 @@
 using namespace std;
 using namespace modelica;
 using namespace llvm;
+
 constexpr auto internalLinkage = GlobalValue::LinkageTypes::InternalLinkage;
 
 template<typename... T>
@@ -75,6 +76,7 @@ Error Lowerer::simExpToGlobalVar(
 	global->setInitializer(ConstantAggregateZero::get(type));
 	return Error::success();
 }
+
 static Expected<Function*> populateMain(
 		LowererContext& info,
 		StringRef entryPointName,
@@ -95,17 +97,19 @@ static Expected<Function*> populateMain(
 	IRBuilder<>& builder = info.getBuilder();
 	builder.SetInsertPoint(&main->getEntryBlock());
 	info.setFunction(main);
+
 	// call init
 	builder.CreateCall(init);
 	builder.CreateCall(printValues);
+
 	// creates a for with simulationStop iterations what invokes
 	// update and print values each time
-	//
-	//
+
 	const auto& loopBody = [&](Value* index) {
 		builder.CreateCall(update);
 		builder.CreateCall(printValues);
 	};
+
 	const auto loopRange = Interval(0, simulationStop);
 	auto* loopExit = info.createForCycle(loopRange, loopBody, true);
 
@@ -174,8 +178,10 @@ static Error shortCallInit(LowererContext& ctx, const ModVariable& var)
 {
 	auto* loc = ctx.getModule().getGlobalVariable(var.getName(), true);
 	auto res = lowerCall(loc, ctx, var.getInit().getCall());
+
 	if (!res)
 		return res.takeError();
+
 	return Error::success();
 }
 
@@ -400,7 +406,7 @@ static void createPrintOfVar(
 		if (t->isDoubleTy())
 			return "modelicaPrintDVector";
 
-		assert(false && "unrechable");
+		assert(false && "unreachable");
 		return "UKNOWN TYPE";
 	};
 
@@ -442,18 +448,22 @@ Error Lowerer::lower()
 {
 	IRBuilder<> builder(module.getContext());
 	LowererContext ctx(builder, module, useDoubles);
+
 	if (auto e = createAllGlobals(ctx, getVarLinkage()); e)
 		return e;
 
 	auto initFunction = initializeGlobals(ctx, variables);
+
 	if (!initFunction)
 		return initFunction.takeError();
 
 	auto updateFunction = createUpdates(ctx, updates, variables);
+
 	if (!updateFunction)
 		return updateFunction.takeError();
 
 	auto printFunction = populatePrint(ctx, variables);
+
 	if (!printFunction)
 		return printFunction.takeError();
 
@@ -464,6 +474,7 @@ Error Lowerer::lower()
 			*updateFunction,
 			*printFunction,
 			stopTime);
+
 	if (!e)
 		return e.takeError();
 

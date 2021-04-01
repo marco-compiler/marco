@@ -17,17 +17,18 @@ namespace modelica
 		IntegerType getIntegerType();
 		RealType getRealType();
 		PointerType getPointerType(BufferAllocationScope allocationScope, mlir::Type elementType, const PointerType::Shape& shape = {});
+		RecordType getRecordType(llvm::ArrayRef<mlir::Type> types);
 
 		mlir::IntegerAttr getIndexAttribute(long value);
 
 		BooleanAttribute getBooleanAttribute(bool value);
-		BooleanArrayAttribute getBooleanArrayttribute(llvm::ArrayRef<bool> values);
+		//BooleanArrayAttribute getBooleanArrayttribute(llvm::ArrayRef<bool> values);
 
 		IntegerAttribute getIntegerAttribute(long value);
-		IntegerArrayAttribute getIntegerArrayAttribute(llvm::ArrayRef<long> values);
+		//IntegerArrayAttribute getIntegerArrayAttribute(llvm::ArrayRef<long> values);
 
 		RealAttribute getRealAttribute(double value);
-		RealArrayAttribute getRealArrayAttribute(llvm::ArrayRef<double> values);
+		//RealArrayAttribute getRealArrayAttribute(llvm::ArrayRef<double> values);
 
 		mlir::Attribute getZeroAttribute(mlir::Type type);
 

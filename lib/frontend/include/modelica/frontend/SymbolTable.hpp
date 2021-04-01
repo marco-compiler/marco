@@ -18,6 +18,8 @@ namespace modelica
 		explicit SymbolTable(const SymbolTable* parent);
 		explicit SymbolTable(Function& cls, const SymbolTable* parent = nullptr);
 		explicit SymbolTable(Class& cls, const SymbolTable* parent = nullptr);
+		explicit SymbolTable(Package& cls, const SymbolTable* parent = nullptr);
+		explicit SymbolTable(Record& cls, const SymbolTable* parent = nullptr);
 
 		[[nodiscard]] const Symbol& operator[](llvm::StringRef name) const
 		{

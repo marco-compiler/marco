@@ -1,8 +1,8 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "modelica/frontend/Passes.h"
 #include "modelica/frontend/Parser.hpp"
+#include "modelica/frontend/Passes.h"
 #include "modelica/frontend/SymbolTable.hpp"
 #include "modelica/frontend/passes/TypeCheckingPass.h"
 #include "modelica/lowerer/Lowerer.hpp"
@@ -13,7 +13,7 @@
 #include "modelica/model/ModVariable.hpp"
 #include "modelica/omcToModel/OmcToModelPass.hpp"
 #include "modelica/passes/ConstantFold.hpp"
-#include "modelica/passes/SolveDerivatives.hpp"
+#include "modelica/passes/SolveModel.hpp"
 
 using namespace modelica;
 using namespace llvm;

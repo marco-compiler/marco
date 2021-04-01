@@ -31,6 +31,22 @@ class ClassVisitor
 			cls->visit(*this);
 	}
 
+	void operator()(Package& package)
+	{
+		table->addSymbol(package);
+
+		for (auto& cls : package)
+			cls.visit(*this);
+	}
+
+	void operator()(Record& record)
+	{
+		table->addSymbol(record);
+
+		for (auto& member : record)
+			table->addSymbol(member);
+	}
+
 	private:
 	SymbolTable* table;
 };
@@ -58,6 +74,25 @@ SymbolTable::SymbolTable(Class& model, const SymbolTable* parent)
 
 	for (auto& cls : model.getInnerClasses())
 		cls->visit(ClassVisitor(this));
+}
+
+SymbolTable::SymbolTable(Package& package, const SymbolTable* parent)
+		: parentTable(parent)
+{
+	addSymbol(package);
+
+	for (auto& cls : package)
+		cls.visit(ClassVisitor(this));
+}
+
+
+SymbolTable::SymbolTable(Record& record, const SymbolTable* parent)
+		: parentTable(parent)
+{
+	addSymbol(record);
+
+	for (auto& member : record)
+		addSymbol(member);
 }
 
 bool SymbolTable::hasSymbol(llvm::StringRef name) const

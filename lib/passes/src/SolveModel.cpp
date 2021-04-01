@@ -1,4 +1,4 @@
-#include "modelica/passes/SolveDerivatives.hpp"
+#include "modelica/passes/SolveModel.hpp"
 
 #include <memory>
 

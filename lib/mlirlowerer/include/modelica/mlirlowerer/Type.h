@@ -11,6 +11,7 @@ namespace modelica
 	class RealTypeStorage;
 	class PointerTypeStorage;
 	//class UnrankedPointerTypeStorage;
+	class RecordTypeStorage;
 
 	class BooleanType : public mlir::Type::TypeBase<BooleanType, mlir::Type, mlir::TypeStorage> {
 		public:
@@ -55,8 +56,11 @@ namespace modelica
 		[[nodiscard]] bool hasConstantShape() const;
 
 		[[nodiscard]] PointerType slice(unsigned int subscriptsAmount);
+		[[nodiscard]] PointerType toAllocationScope(BufferAllocationScope scope);
 		[[nodiscard]] PointerType toUnknownAllocationScope();
 		[[nodiscard]] PointerType toElementType(mlir::Type type);
+
+		[[nodiscard]] bool canBeOnStack() const;
 	};
 
 	/*
@@ -70,6 +74,16 @@ namespace modelica
 		[[nodiscard]] unsigned int getRank() const;
 	};
 	 */
+
+	class RecordType : public mlir::Type::TypeBase<RecordType, mlir::Type, RecordTypeStorage>
+	    {
+		public:
+		using Base::Base;
+
+		static RecordType get(mlir::MLIRContext* context, llvm::ArrayRef<mlir::Type> elementTypes);
+
+		llvm::ArrayRef<mlir::Type> getElementTypes();
+	};
 
 	void printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer);
 }

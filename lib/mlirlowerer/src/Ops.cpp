@@ -17,6 +17,222 @@ static bool isNumeric(mlir::Value value)
 }
 
 //===----------------------------------------------------------------------===//
+// Modelica::SimulationOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value SimulationOpAdaptor::time()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef SimulationOp::getOperationName()
+{
+	return "modelica.simulation";
+}
+
+void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value time, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep)
+{
+	state.addOperands(time);
+	state.addAttribute("startTime", startTime);
+	state.addAttribute("endTime", endTime);
+	state.addAttribute("timeStep", timeStep);
+
+	auto insertionPoint = builder.saveInsertionPoint();
+
+	// Body block
+	builder.createBlock(state.addRegion());
+
+	builder.restoreInsertionPoint(insertionPoint);
+}
+
+void SimulationOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.simulation (time: " << time()
+					<< ", start: " << startTime().getValue()
+					<< ", end: " << endTime().getValue()
+					<< ", step: " << timeStep().getValue() << ")";
+
+	printer.printRegion(body(), false);
+}
+
+mlir::LogicalResult SimulationOp::verify()
+{
+	// TODO
+	return mlir::success();
+}
+
+void SimulationOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
+{
+	if (!index.hasValue())
+	{
+		regions.emplace_back(&body(), body().getArguments());
+		return;
+	}
+
+	assert(*index < 1 && "There is only one region in a SimulationOp");
+
+	if (*index == 0)
+	{
+		regions.emplace_back(&body(), body().getArguments());
+		regions.emplace_back(getOperation()->getResults());
+	}
+}
+
+mlir::Value SimulationOp::time()
+{
+	return Adaptor(*this).time();
+}
+
+RealAttribute SimulationOp::startTime()
+{
+	return getOperation()->getAttrOfType<RealAttribute>("startTime");
+}
+
+RealAttribute SimulationOp::endTime()
+{
+	return getOperation()->getAttrOfType<RealAttribute>("endTime");
+}
+
+RealAttribute SimulationOp::timeStep()
+{
+	return getOperation()->getAttrOfType<RealAttribute>("timeStep");
+}
+
+mlir::Region& SimulationOp::body()
+{
+	return getOperation()->getRegion(0);
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::EquationOp
+//===----------------------------------------------------------------------===//
+
+llvm::StringRef EquationOp::getOperationName()
+{
+	return "modelica.equation";
+}
+
+void EquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
+{
+	auto insertionPoint = builder.saveInsertionPoint();
+
+	builder.createBlock(state.addRegion()); // left-hand side of the equation
+	builder.createBlock(state.addRegion()); // right-hand side of the equation
+
+	builder.restoreInsertionPoint(insertionPoint);
+}
+
+void EquationOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.equation";
+
+	printer.printRegion(lhs(), false);
+	printer.printRegion(rhs(), false);
+}
+
+mlir::Region& EquationOp::lhs()
+{
+	return getRegion(0);
+}
+
+mlir::Region& EquationOp::rhs()
+{
+	return getRegion(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::InductionOp
+//===----------------------------------------------------------------------===//
+
+llvm::StringRef InductionOp::getOperationName()
+{
+	return "modelica.induction";
+}
+
+void InductionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, long start, long end)
+{
+	state.addAttribute("start", builder.getI64IntegerAttr(start));
+	state.addAttribute("end", builder.getI64IntegerAttr(end));
+
+	state.addTypes(builder.getIndexType());
+}
+
+void InductionOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.induction (from " << start() << " to " << end() << ")";
+}
+
+long InductionOp::start()
+{
+	return getOperation()->getAttrOfType<mlir::IntegerAttr>("start").getInt();
+}
+
+long InductionOp::end()
+{
+	return getOperation()->getAttrOfType<mlir::IntegerAttr>("end").getInt();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::ForEquationOp
+//===----------------------------------------------------------------------===//
+
+mlir::ValueRange ForEquationOpAdaptor::inductions()
+{
+	return getValues();
+}
+
+llvm::StringRef ForEquationOp::getOperationName()
+{
+	return "modelica.for_equation";
+}
+
+void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::ArrayRef<mlir::Value> inductions)
+{
+	state.addOperands(inductions);
+
+	auto insertionPoint = builder.saveInsertionPoint();
+
+	builder.createBlock(state.addRegion()); // left-hand side of the equation
+	builder.createBlock(state.addRegion()); // right-hand side of the equation
+
+	builder.restoreInsertionPoint(insertionPoint);
+}
+
+void ForEquationOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.for_equation " << inductions();
+	printer.printRegion(lhs(), false);
+	printer.printRegion(rhs(), false);
+}
+
+mlir::ValueRange ForEquationOp::inductions()
+{
+	return Adaptor(*this).inductions();
+}
+
+mlir::Region& ForEquationOp::lhs()
+{
+	return getRegion(0);
+}
+
+mlir::Region& ForEquationOp::rhs()
+{
+	return getRegion(1);
+}
+
+long ForEquationOp::getInductionIndex(mlir::Value induction)
+{
+	assert(mlir::isa<InductionOp>(induction.getDefiningOp()));
+
+	for (auto ind : llvm::enumerate(inductions()))
+		if (ind.value() == induction)
+			return ind.index();
+
+	assert(false && "Induction variable not found");
+	return -1;
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::ConstantOp
 //===----------------------------------------------------------------------===//
 
@@ -50,6 +266,49 @@ mlir::Attribute ConstantOp::value()
 mlir::Type ConstantOp::getType()
 {
 	return getOperation()->getResultTypes()[0];
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::RecordOp
+//===----------------------------------------------------------------------===//
+
+mlir::ValueRange RecordOpAdaptor::values()
+{
+	return getValues();
+}
+
+llvm::StringRef RecordOp::getOperationName()
+{
+	return "modelica.record";
+}
+
+void RecordOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values)
+{
+	state.addTypes(resultType);
+	state.addOperands(values);
+}
+
+void RecordOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.record " << values() << " : " << resultType();
+}
+
+mlir::LogicalResult RecordOp::verify()
+{
+	if (!getOperation()->getResultTypes()[0].isa<RecordType>())
+		return emitOpError(" requires the result type to be a record");
+
+	return mlir::success();
+}
+
+RecordType RecordOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<RecordType>();
+}
+
+mlir::ValueRange RecordOp::values()
+{
+	return Adaptor(*this).values();
 }
 
 //===----------------------------------------------------------------------===//
@@ -286,15 +545,21 @@ void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 	for (size_t i = 0; i < movedResultsCount; ++i)
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), args()[nativeArgsCount + i], mlir::SideEffects::DefaultResource::get());
 
-	// The result arrays, which will be allocated by the callee on the heap,
-	// must be seen as if they were allocated by the function call. This way,
-	// the deallocation pass can free them.
+	for (const auto& [value, type] : llvm::zip(getResults(), getResultTypes()))
+	{
+		// The result arrays, which will be allocated by the callee on the heap,
+		// must be seen as if they were allocated by the function call. This way,
+		// the deallocation pass can free them.
 
-	mlir::TypeRange types = getOperation()->getResultTypes();
+		if (auto pointerType = type.dyn_cast<PointerType>(); pointerType && pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
 
-	for (size_t i = 0, e = types.size(); i < e; ++i)
-		if (auto pointerType = types[i].dyn_cast<PointerType>(); pointerType && pointerType.getAllocationScope() == heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(i), mlir::SideEffects::DefaultResource::get());
+		// Records are considered as resources to be freed, because they
+		// potentially have subtypes that need to be freed.
+
+		if (type.isa<RecordType>())
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
+	}
 }
 
 mlir::CallInterfaceCallable CallOp::getCallableForCallee() {
@@ -336,10 +601,11 @@ llvm::StringRef AllocaOp::getOperationName()
 	return "modelica.alloca";
 }
 
-void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions)
+void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool constant)
 {
 	state.addTypes(PointerType::get(state.getContext(), BufferAllocationScope::stack, elementType, shape));
 	state.addOperands(dimensions);
+	state.addAttribute("constant", builder.getBoolAttr(constant));
 }
 
 void AllocaOp::print(mlir::OpAsmPrinter& printer)
@@ -383,6 +649,11 @@ mlir::ValueRange AllocaOp::dynamicDimensions()
 	return Adaptor(*this).dynamicDimensions();
 }
 
+bool AllocaOp::isConstant()
+{
+	return getOperation()->getAttrOfType<mlir::BoolAttr>("constant").getValue();
+}
+
 //===----------------------------------------------------------------------===//
 // Modelica::AllocOp
 //===----------------------------------------------------------------------===//
@@ -397,12 +668,13 @@ llvm::StringRef AllocOp::getOperationName()
 	return "modelica.alloc";
 }
 
-void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool shouldBeFreed)
+void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool shouldBeFreed, bool constant)
 {
 	state.addTypes(PointerType::get(state.getContext(), BufferAllocationScope::heap, elementType, shape));
 	state.addOperands(dimensions);
 
 	state.addAttribute("shouldBeFreed", builder.getBoolAttr(shouldBeFreed));
+	state.addAttribute("constant", builder.getBoolAttr(constant));
 }
 
 void AllocOp::print(mlir::OpAsmPrinter& printer)
@@ -445,6 +717,11 @@ PointerType AllocOp::resultType()
 mlir::ValueRange AllocOp::dynamicDimensions()
 {
 	return Adaptor(*this).dynamicDimensions();
+}
+
+bool AllocOp::isConstant()
+{
+	return getOperation()->getAttrOfType<mlir::BoolAttr>("constant").getValue();
 }
 
 //===----------------------------------------------------------------------===//
@@ -832,10 +1109,11 @@ llvm::StringRef ArrayCloneOp::getOperationName()
 	return "modelica.array_clone";
 }
 
-void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType)
+void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType, bool shouldBeFreed)
 {
 	state.addOperands(source);
 	state.addTypes(resultType);
+	state.addAttribute("shouldBeFreed", builder.getBoolAttr(shouldBeFreed));
 }
 
 void ArrayCloneOp::print(mlir::OpAsmPrinter& printer)
@@ -856,6 +1134,12 @@ mlir::LogicalResult ArrayCloneOp::verify()
 void ArrayCloneOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), source(), mlir::SideEffects::DefaultResource::get());
+
+	if (type().getAllocationScope() == heap && getOperation()->getAttrOfType<mlir::BoolAttr>("shouldBeFreed").getValue())
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	else if (type().getAllocationScope() == stack)
+		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -1302,6 +1586,22 @@ mlir::LogicalResult NotOp::verify()
 	return mlir::success();
 }
 
+void NotOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (operand().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	{
+		if (pointerType.getAllocationScope() == stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
+}
+
 mlir::Type NotOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -1356,6 +1656,25 @@ mlir::LogicalResult AndOp::verify()
 			return mlir::success();
 
 	return emitOpError("requires the operands to be booleans or arrays of booleans");
+}
+
+void AndOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (lhs().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (rhs().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	{
+		if (pointerType.getAllocationScope() == stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
 }
 
 mlir::Type AndOp::resultType()
@@ -1417,6 +1736,25 @@ mlir::LogicalResult OrOp::verify()
 			return mlir::success();
 
 	return emitOpError("requires the operands to be booleans or arrays of booleans");
+}
+
+void OrOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (lhs().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (rhs().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	{
+		if (pointerType.getAllocationScope() == stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
 }
 
 mlir::Type OrOp::resultType()
@@ -1501,12 +1839,6 @@ llvm::StringRef NotEqOp::getOperationName()
 	return "modelica.neq";
 }
 
-void NotEqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
-{
-	state.addTypes(builder.getI1Type());
-	state.addOperands({ lhs, rhs });
-}
-
 void NotEqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
@@ -1553,12 +1885,6 @@ mlir::Value GtOpAdaptor::rhs()
 llvm::StringRef GtOp::getOperationName()
 {
 	return "modelica.gt";
-}
-
-void GtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
-{
-	state.addTypes(builder.getI1Type());
-	state.addOperands({ lhs, rhs });
 }
 
 void GtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
@@ -1609,12 +1935,6 @@ llvm::StringRef GteOp::getOperationName()
 	return "modelica.gte";
 }
 
-void GteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
-{
-	state.addTypes(builder.getI1Type());
-	state.addOperands({ lhs, rhs });
-}
-
 void GteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
@@ -1663,12 +1983,6 @@ llvm::StringRef LtOp::getOperationName()
 	return "modelica.lt";
 }
 
-void LtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
-{
-	state.addTypes(builder.getI1Type());
-	state.addOperands({ lhs, rhs });
-}
-
 void LtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
@@ -1715,12 +2029,6 @@ mlir::Value LteOpAdaptor::rhs()
 llvm::StringRef LteOp::getOperationName()
 {
 	return "modelica.lte";
-}
-
-void LteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value lhs, mlir::Value rhs)
-{
-	state.addTypes(builder.getI1Type());
-	state.addOperands({ lhs, rhs });
 }
 
 void LteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
@@ -1779,10 +2087,16 @@ void NegateOp::print(mlir::OpAsmPrinter& printer)
 
 void NegateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (resultType().isa<PointerType>())
-	{
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+	if (operand().getType().isa<PointerType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
+
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	{
+		if (pointerType.getAllocationScope() == stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
 }
@@ -1829,11 +2143,19 @@ void AddOp::print(mlir::OpAsmPrinter& printer)
 
 void AddOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (resultType().isa<PointerType>())
-	{
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+	if (lhs().getType().isa<PointerType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (rhs().getType().isa<PointerType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	{
+		if (pointerType.getAllocationScope() == stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
 }
@@ -1885,11 +2207,19 @@ void SubOp::print(mlir::OpAsmPrinter& printer)
 
 void SubOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (resultType().isa<PointerType>())
-	{
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+	if (lhs().getType().isa<PointerType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (rhs().getType().isa<PointerType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	{
+		if (pointerType.getAllocationScope() == stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
 }
@@ -1947,9 +2277,13 @@ void MulOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	if (rhs().getType().isa<PointerType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (resultType().isa<PointerType>())
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
 	{
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		if (pointerType.getAllocationScope() == stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
 }
@@ -2007,9 +2341,13 @@ void DivOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	if (rhs().getType().isa<PointerType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (resultType().isa<PointerType>())
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
 	{
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		if (pointerType.getAllocationScope() == stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
 }
@@ -2128,9 +2466,13 @@ void PowOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	if (exponent().getType().isa<PointerType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), exponent(), mlir::SideEffects::DefaultResource::get());
 
-	if (resultType().isa<PointerType>())
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
 	{
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		if (pointerType.getAllocationScope() == stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
 }
@@ -2241,4 +2583,39 @@ mlir::Value SizeOp::memory()
 mlir::Value SizeOp::index()
 {
 	return Adaptor(*this).index();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::DerOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value DerOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef DerOp::getOperationName()
+{
+	return "modelica.der";
+}
+
+void DerOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+void DerOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.der " << operand() << " : " << resultType();
+}
+
+mlir::Type DerOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value DerOp::operand()
+{
+	return Adaptor(*this).operand();
 }

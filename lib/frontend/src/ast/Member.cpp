@@ -1,45 +1,43 @@
 #include <modelica/frontend/AST.h>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
 Member::Member(
 		SourcePosition location,
-		string name,
+		std::string name,
 		Type tp,
 		TypePrefix typePrefix,
 		Expression initializer,
 		bool isPublic,
-		optional<Expression> startOverload)
-		: location(move(location)),
-			name(move(name)),
-			type(move(tp)),
+		std::optional<Expression> startOverload)
+		: location(std::move(location)),
+			name(std::move(name)),
+			type(std::move(tp)),
 			typePrefix(typePrefix),
-			initializer(move(initializer)),
-			isPublicMember(isPublic),
-			startOverload(move(startOverload))
-{
-}
-
-Member::Member(
-		SourcePosition location,
-		string name,
-		Type tp,
-		TypePrefix typePrefix,
-		bool isPublic,
-		optional<Expression> startOverload)
-		: location(move(location)),
-			name(move(name)),
-			type(move(tp)),
-			typePrefix(typePrefix),
-			initializer(nullopt),
+			initializer(std::move(initializer)),
 			isPublicMember(isPublic),
 			startOverload(std::move(startOverload))
 {
 }
 
-void Member::dump() const { dump(outs(), 0); }
+Member::Member(
+		SourcePosition location,
+		std::string name,
+		Type tp,
+		TypePrefix typePrefix,
+		bool isPublic,
+		std::optional<Expression> startOverload)
+		: location(std::move(location)),
+			name(move(name)),
+			type(std::move(tp)),
+			typePrefix(typePrefix),
+			initializer(std::nullopt),
+			isPublicMember(isPublic),
+			startOverload(std::move(startOverload))
+{
+}
+
+void Member::dump() const { dump(llvm::outs(), 0); }
 
 void Member::dump(llvm::raw_ostream& os, size_t indents) const
 {
@@ -76,9 +74,9 @@ SourcePosition Member::getLocation() const
 	return location;
 }
 
-string& Member::getName() { return name; }
+std::string& Member::getName() { return name; }
 
-const string& Member::getName() const { return name; }
+const std::string& Member::getName() const { return name; }
 
 Type& Member::getType() { return type; }
 

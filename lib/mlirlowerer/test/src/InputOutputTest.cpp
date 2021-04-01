@@ -742,3 +742,47 @@ TEST(Output, defaultArrayValue)	 // NOLINT
 	EXPECT_EQ(xPtr[1], 2);
 	EXPECT_EQ(xPtr[2], 3);
 }
+
+TEST(Output, recordWithScalars)	 // NOLINT
+{
+	/**
+	 * record R
+	 *   Integer x;
+	 *   Real y;
+	 * end R
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::none));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::none));
+
+	ClassContainer cls(Record(location, "R", { xMember, yMember }));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaConversionOptions conversionOptions;
+	conversionOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+
+	int x = 1;
+	float y = 2;
+
+	struct
+	{
+		int a;
+		float b;
+	} record{0, 0};
+
+	Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("R", x, y, Runner::result(record))));
+
+	EXPECT_EQ(record.a, x);
+	EXPECT_EQ(record.b, y);
+}

@@ -1,40 +1,39 @@
 #include <modelica/frontend/AST.h>
 
 using namespace modelica;
-using namespace std;
 
 Constant::Constant(SourcePosition location, bool val)
-		: location(move(location)),
+		: location(std::move(location)),
 			content(val)
 {
 }
 
 Constant::Constant(SourcePosition location, int val)
-		: location(move(location)),
+		: location(std::move(location)),
 			content(val)
 {
 }
 
 Constant::Constant(SourcePosition location, float val)
-		: location(move(location)),
+		: location(std::move(location)),
 			content(val)
 {
 }
 
 Constant::Constant(SourcePosition location, double val)
-		: location(move(location)),
+		: location(std::move(location)),
 			content(static_cast<float>(val))
 {
 }
 
 Constant::Constant(SourcePosition location, char val)
-		: location(move(location)),
+		: location(std::move(location)),
 			content(val)
 {
 }
 
-Constant::Constant(SourcePosition location, string val)
-		: location(move(location)),
+Constant::Constant(SourcePosition location, std::string val)
+		: location(std::move(location)),
 			content(move(val))
 {
 }
@@ -69,10 +68,10 @@ llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Constan
 
 class ConstantToStringVisitor {
 	public:
-	string operator()(const bool& value) { return value ? "true" : "false"; }
-	string operator()(const int& value) { return to_string(value); }
-	string operator()(const double& value) { return to_string(value); }
-	string operator()(const string& value) { return value; }
+	std::string operator()(const bool& value) { return value ? "true" : "false"; }
+	std::string operator()(const int& value) { return std::to_string(value); }
+	std::string operator()(const double& value) { return std::to_string(value); }
+	std::string operator()(const std::string& value) { return value; }
 };
 
 std::string modelica::toString(const Constant& obj)

@@ -87,7 +87,6 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 	ModelicaToLLVMConversionOptions options;
 };
 
-
 std::unique_ptr<mlir::Pass> modelica::createLLVMLoweringPass(ModelicaToLLVMConversionOptions options)
 {
 	return std::make_unique<LLVMLoweringPass>(options);

@@ -1,21 +1,19 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/utils/IRange.hpp>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
-Induction::Induction(string indVar, Expression begin, Expression end)
-		: begin(move(begin)),
-			end(move(end)),
+Induction::Induction(std::string indVar, Expression begin, Expression end)
+		: begin(std::move(begin)),
+			end(std::move(end)),
 			inductionIndex(0),
 			inductionVar(move(indVar))
 {
 }
 
-void Induction::dump() const { dump(outs(), 0); }
+void Induction::dump() const { dump(llvm::outs(), 0); }
 
-void Induction::dump(raw_ostream& os, size_t indents) const
+void Induction::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "induction var " << inductionVar << "\n";
@@ -29,7 +27,7 @@ void Induction::dump(raw_ostream& os, size_t indents) const
 	end.dump(os, indents + 1);
 }
 
-const string& Induction::getName() const { return inductionVar; }
+const std::string& Induction::getName() const { return inductionVar; }
 
 Expression& Induction::getBegin() { return begin; }
 

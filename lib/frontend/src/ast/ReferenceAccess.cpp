@@ -1,12 +1,13 @@
 #include <modelica/frontend/AST.h>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
-ReferenceAccess::ReferenceAccess(SourcePosition location, string name, bool globalLookup, bool dummy)
-		: location(move(location)),
-			referencedName(move(name)),
+ReferenceAccess::ReferenceAccess(SourcePosition location,
+																 std::string name,
+																 bool globalLookup,
+																 bool dummy)
+		: location(std::move(location)),
+			referencedName(std::move(name)),
 			globalLookup(globalLookup),
 			dummyVariable(dummy)
 {
@@ -23,9 +24,9 @@ bool ReferenceAccess::operator!=(const ReferenceAccess& other) const
 	return !(*this == other);
 }
 
-void ReferenceAccess::dump() const { dump(outs(), 0); }
+void ReferenceAccess::dump() const { dump(llvm::outs(), 0); }
 
-void ReferenceAccess::dump(raw_ostream& os, size_t indents) const
+void ReferenceAccess::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "reference access: " << (globalLookup ? "." : "") << referencedName
@@ -37,9 +38,9 @@ SourcePosition ReferenceAccess::getLocation() const
 	return location;
 }
 
-string& ReferenceAccess::getName() { return referencedName; }
+std::string& ReferenceAccess::getName() { return referencedName; }
 
-const string& ReferenceAccess::getName() const { return referencedName; }
+const std::string& ReferenceAccess::getName() const { return referencedName; }
 
 void ReferenceAccess::setName(std::string name) { referencedName = name; }
 

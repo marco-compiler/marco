@@ -48,4 +48,4 @@ namespace modelica
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Array& obj);
 
 	std::string toString(const Array& obj);
-}
+}	 // namespace modelica

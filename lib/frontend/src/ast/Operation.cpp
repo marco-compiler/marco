@@ -3,18 +3,16 @@
 #include <modelica/utils/IRange.hpp>
 #include <numeric>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
 using Container = Operation::Container;
 
-raw_ostream& modelica::operator<<(raw_ostream& stream, const OperationKind& obj)
+llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const OperationKind& obj)
 {
 	return stream << toString(obj);
 }
 
-string modelica::toString(OperationKind operation)
+std::string modelica::toString(OperationKind operation)
 {
 	switch (operation)
 	{
@@ -58,7 +56,7 @@ string modelica::toString(OperationKind operation)
 }
 
 Operation::Operation(SourcePosition location, OperationKind kind, Container args)
-		: location(move(location)),
+		: location(std::move(location)),
 			arguments(std::move(args)),
 			kind(kind)
 {
@@ -87,9 +85,9 @@ const Expression& Operation::operator[](size_t index) const
 	return arguments[index];
 }
 
-void Operation::dump() const { dump(outs(), 0); }
+void Operation::dump() const { dump(llvm::outs(), 0); }
 
-void Operation::dump(raw_ostream& os, size_t indents) const
+void Operation::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "operation kind: " << kind << "\n";
@@ -155,40 +153,40 @@ std::string modelica::toString(const Operation& obj)
 
 		case OperationKind::add:
 			return "(" +
-						 accumulate(obj.begin(), obj.end(), string(),
-												[](const string& result, const Expression& element)
+						 accumulate(obj.begin(), obj.end(), std::string(),
+												[](const std::string& result, const Expression& element)
 												{
-													string str = toString(element);
+													std::string str = toString(element);
 													return result.empty() ? str : result + " + " + str;
 												})
 						 + ")";
 
 		case OperationKind::subtract:
 			return "(" +
-						 accumulate(obj.begin(), obj.end(), string(),
-												[](const string& result, const Expression& element)
+						 accumulate(obj.begin(), obj.end(), std::string(),
+												[](const std::string& result, const Expression& element)
 												{
-													string str = toString(element);
+													std::string str = toString(element);
 													return result.empty() ? str : result + " - " + str;
 												})
 						 + ")";
 
 		case OperationKind::multiply:
 			return "(" +
-						 accumulate(obj.begin(), obj.end(), string(),
-												[](const string& result, const Expression& element)
+						 accumulate(obj.begin(), obj.end(), std::string(),
+												[](const std::string& result, const Expression& element)
 												{
-													string str = toString(element);
+													std::string str = toString(element);
 													return result.empty() ? str : result + " * " + str;
 												})
 						 + ")";
 
 		case OperationKind::divide:
 			return "(" +
-						 accumulate(obj.begin(), obj.end(), string(),
-												[](const string& result, const Expression& element)
+						 accumulate(obj.begin(), obj.end(), std::string(),
+												[](const std::string& result, const Expression& element)
 												{
-													string str = toString(element);
+													std::string str = toString(element);
 													return result.empty() ? str : result + " / " + str;
 												})
 						 + ")";
@@ -222,10 +220,10 @@ std::string modelica::toString(const Operation& obj)
 
 		case OperationKind::subscription:
 			return "(" + toString(obj[0]) +
-						 accumulate(++obj.begin(), obj.end(), string(),
-												[](const string& result, const Expression& element)
+						 accumulate(++obj.begin(), obj.end(), std::string(),
+												[](const std::string& result, const Expression& element)
 												{
-													string str = toString(element);
+													std::string str = toString(element);
 													return result + "[" + str + "]";
 												}) +
 						 ")";

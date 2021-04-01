@@ -18,6 +18,8 @@ namespace modelica
 		[[nodiscard]] llvm::Error lower(ClassContainer& cl, const SymbolTable& table);
 		[[nodiscard]] llvm::Error lower(Class& cl, const SymbolTable& table);
 		[[nodiscard]] llvm::Error lower(Function& cl, const SymbolTable& table);
+		[[nodiscard]] llvm::Error lower(Package& cl, const SymbolTable& table);
+		[[nodiscard]] llvm::Error lower(Record& cl, const SymbolTable& table);
 		[[nodiscard]] llvm::Expected<ModEquation> lower(
 				Equation& eq, const SymbolTable& table, int nestingLevel);
 		[[nodiscard]] llvm::Expected<ModEquation> lower(

@@ -37,7 +37,7 @@ TEST(Assignment, constant)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 	
 	auto module = lowerer.lower(cls);
-	
+
 	ModelicaConversionOptions conversionOptions;
 	conversionOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));

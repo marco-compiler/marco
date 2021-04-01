@@ -1,19 +1,17 @@
 #include <modelica/frontend/AST.h>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
 Equation::Equation(SourcePosition location, Expression leftHand, Expression rightHand)
-		: location(move(location)),
+		: location(std::move(location)),
 			leftHand(std::move(leftHand)),
 			rightHand(std::move(rightHand))
 {
 }
 
-void Equation::dump() const { dump(outs(), 0); }
+void Equation::dump() const { dump(llvm::outs(), 0); }
 
-void Equation::dump(raw_ostream& os, size_t indents) const
+void Equation::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "equation\n";
@@ -32,7 +30,7 @@ const Expression& Equation::getLeftHand() const { return leftHand; }
 
 void Equation::setLeftHand(Expression expression)
 {
-	this->leftHand = move(expression);
+	this->leftHand = std::move(expression);
 }
 
 Expression& Equation::getRightHand() { return rightHand; }
@@ -41,5 +39,5 @@ const Expression& Equation::getRightHand() const { return rightHand; }
 
 void Equation::setRightHand(Expression expression)
 {
-	this->rightHand = move(expression);
+	this->rightHand = std::move(expression);
 }

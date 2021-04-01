@@ -6,6 +6,15 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
 #include <modelica/frontend/AST.h>
+#include <modelica/frontend/SymbolTable.hpp>
+#include <modelica/matching/Matching.hpp>
+#include <modelica/matching/SccCollapsing.hpp>
+#include <modelica/matching/Schedule.hpp>
+#include <modelica/model/ModType.hpp>
+#include <modelica/model/Model.hpp>
+#include <modelica/omcToModel/OmcToModelPass.hpp>
+#include <modelica/passes/ConstantFold.hpp>
+#include <modelica/passes/SolveModel.hpp>
 #include <modelica/utils/SourceRange.hpp>
 
 #include "ModelicaBuilder.h"
@@ -17,7 +26,7 @@ namespace modelica
 
 		bool x64 = true;
 
-		unsigned int getBitWidth()
+		[[nodiscard]] unsigned int getBitWidth() const
 		{
 			if (x64)
 				return 64;
@@ -89,29 +98,39 @@ namespace modelica
 
 		mlir::LogicalResult convertToLLVMDialect(mlir::ModuleOp& module, ModelicaConversionOptions options = ModelicaConversionOptions::getDefaultOptions());
 
-		llvm::Optional<mlir::ModuleOp> lower(llvm::ArrayRef<modelica::ClassContainer> classes);
+		llvm::Optional<mlir::ModuleOp> lower(llvm::ArrayRef<ClassContainer> classes);
 
 		private:
-		mlir::Operation* lower(const Class& cls);
-		mlir::FuncOp lower(const Function& function);
-		mlir::Type lower(const Type& type, BufferAllocationScope allocationScope);
-		mlir::Type lower(const BuiltInType& type, BufferAllocationScope allocationScope);
-		mlir::Type lower(const UserDefinedType& type, BufferAllocationScope allocationScope);
-		void lower(const Member& member);
-		void lower(const Algorithm& algorithm);
-		void lower(const Statement& statement);
-		void lower(const AssignmentStatement& statement);
-		void lower(const IfStatement& statement);
-		void lower(const ForStatement& statement);
-		void lower(const WhileStatement& statement);
-		void lower(const WhenStatement& statement);
-		void lower(const BreakStatement& statement);
-		void lower(const ReturnStatement& statement);
+		mlir::Operation* lower(Class& cls);
+		mlir::Operation* lower(Function& function);
+		mlir::Operation* lower(Package& package);
+		mlir::Operation* lower(Record& record);
+
+		mlir::Type lower(Type& type, BufferAllocationScope allocationScope);
+		mlir::Type lower(BuiltInType& type, BufferAllocationScope allocationScope);
+		mlir::Type lower(PackedType& type, BufferAllocationScope allocationScope);
+		mlir::Type lower(UserDefinedType& type, BufferAllocationScope allocationScope);
+
+		template<typename Context>
+		void lower(Member& member);
+
+		void lower(Equation& equation);
+		void lower(ForEquation& forEquation);
+
+		void lower(Algorithm& algorithm);
+		void lower(Statement& statement);
+		void lower(AssignmentStatement& statement);
+		void lower(IfStatement& statement);
+		void lower(ForStatement& statement);
+		void lower(WhileStatement& statement);
+		void lower(WhenStatement& statement);
+		void lower(BreakStatement& statement);
+		void lower(ReturnStatement& statement);
 
 		void assign(mlir::Location location, Reference memory, mlir::Value value);
 
 		template<typename T>
-		Container<Reference> lower(const Expression& expression);
+		Container<Reference> lower(Expression& expression);
 
 		/**
 		 * The builder is a helper class to create IR inside a function. The
@@ -129,6 +148,18 @@ namespace modelica
 		 */
 		llvm::ScopedHashTable<llvm::StringRef, Reference> symbolTable;
 
+		/**
+		 * The stack represent the list of the nested scope names in which the
+		 * lowerer currently is.
+		 */
+		std::deque<llvm::StringRef> scopes;
+
+		/**
+		 * Convert a local name to a fully qualified name, which is comprehensive
+		 * of the current scope.
+		 */
+		//std::string getScopedName(llvm::StringRef name);
+
 		 /**
 		  * Apply a binary operation to a list of values.
 		  *
@@ -144,7 +175,7 @@ namespace modelica
 		 * @param operation operation whose arguments have to be lowered
 		 * @return lowered args
  		 */
-		Container<mlir::Value> lowerOperationArgs(const Operation& operation);
+		Container<mlir::Value> lowerOperationArgs(Operation& operation);
 
 		/**
 		 * Helper to convert an AST location to a MLIR location.
@@ -156,23 +187,29 @@ namespace modelica
 	};
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Expression>(const Expression& expression);
+	void MLIRLowerer::lower<Class>(Member& member);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression& expression);
+	void MLIRLowerer::lower<Function>(Member& member);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Constant>(const Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Expression>(Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ReferenceAccess>(const Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Constant>(Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(const Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ReferenceAccess>(Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(const Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(Expression& expression);
+
+	template<>
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(Expression& expression);
+
+	template<>
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(Expression& expression);
 }

@@ -49,7 +49,7 @@ TEST(AST, expressionTupleCanBeBuilt)	 // NOLINT
 	SourcePosition location = SourcePosition::unknown();
 	Expression constant = Expression::constant(location, makeType<int>(), 3);
 
-	Type type({ makeType<int>(), makeType<float>() });
+	Type type(PackedType({ makeType<int>(), makeType<float>() }));
 	Expression exp = Expression::tuple(location, type,
 																		 Expression::reference(location, makeType<int>(), "x"),
 																		 Expression::reference(location, makeType<float>(), "y"));

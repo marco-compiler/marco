@@ -1,18 +1,16 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/utils/IRange.hpp>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
-ForEquation::ForEquation(ArrayRef<Induction> inductions, Equation equation)
-		: inductions(inductions.begin(), inductions.end()), equation(move(equation))
+ForEquation::ForEquation(llvm::ArrayRef<Induction> inductions, Equation equation)
+		: inductions(inductions.begin(), inductions.end()), equation(std::move(equation))
 {
 	for (auto i : irange(inductions.size()))
 		this->inductions[i].setInductionIndex(i);
 }
 
-void ForEquation::dump() const { dump(outs(), 0); }
+void ForEquation::dump() const { dump(llvm::outs(), 0); }
 
 void ForEquation::dump(llvm::raw_ostream& os, size_t indents) const
 {
@@ -27,9 +25,9 @@ void ForEquation::dump(llvm::raw_ostream& os, size_t indents) const
 	equation.dump(os, indents + 1);
 }
 
-SmallVectorImpl<Induction>& ForEquation::getInductions() { return inductions; }
+llvm::SmallVectorImpl<Induction>& ForEquation::getInductions() { return inductions; }
 
-const SmallVectorImpl<Induction>& ForEquation::getInductions() const
+const llvm::SmallVectorImpl<Induction>& ForEquation::getInductions() const
 {
 	return inductions;
 }

@@ -1,36 +1,34 @@
 #include <modelica/frontend/AST.h>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
 AssignmentStatement::AssignmentStatement(
 		SourcePosition location, Expression destination, Expression expression)
 		: location(location),
-			destinations(Tuple(location, move(destination))),
-			expression(move(expression))
+			destinations(Tuple(location, std::move(destination))),
+			expression(std::move(expression))
 {
 }
 
 AssignmentStatement::AssignmentStatement(
 		SourcePosition location, Tuple destinations, Expression expression)
-		: location(move(location)),
-			destinations(move(destinations)),
-			expression(move(expression))
+		: location(std::move(location)),
+			destinations(std::move(destinations)),
+			expression(std::move(expression))
 {
 }
 
 AssignmentStatement::AssignmentStatement(
-		SourcePosition location, initializer_list<Expression> destinations, Expression expression)
+		SourcePosition location, std::initializer_list<Expression> destinations, Expression expression)
 		: location(location),
 			destinations(Tuple(location, move(destinations))),
-			expression(move(expression))
+			expression(std::move(expression))
 {
 }
 
-void AssignmentStatement::dump() const { dump(outs(), 0); }
+void AssignmentStatement::dump() const { dump(llvm::outs(), 0); }
 
-void AssignmentStatement::dump(raw_ostream& os, size_t indents) const
+void AssignmentStatement::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "destinations:\n";
@@ -59,12 +57,12 @@ const Tuple& AssignmentStatement::getDestinations() const
 void AssignmentStatement::setDestination(Expression dest)
 {
 	auto loc = dest.getLocation();
-	destinations = Tuple(loc, move(dest));
+	destinations = Tuple(loc, std::move(dest));
 }
 
 void AssignmentStatement::setDestination(Tuple dest)
 {
-	destinations = move(dest);
+	destinations = std::move(dest);
 }
 
 Expression& AssignmentStatement::getExpression() { return expression; }
@@ -75,7 +73,7 @@ const Expression& AssignmentStatement::getExpression() const
 }
 
 IfStatement::IfStatement(SourcePosition location, llvm::ArrayRef<Block> blocks)
-		: location(move(location)),
+		: location(std::move(location)),
 			blocks(blocks.begin(), blocks.end())
 {
 	assert(!this->blocks.empty());
@@ -93,9 +91,9 @@ const IfStatement::Block& IfStatement::operator[](size_t index) const
 	return blocks[index];
 }
 
-void IfStatement::dump() const { dump(outs(), 0); }
+void IfStatement::dump() const { dump(llvm::outs(), 0); }
 
-void IfStatement::dump(raw_ostream& os, size_t indents) const
+void IfStatement::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "if statement\n";
@@ -133,8 +131,8 @@ IfStatement::blocks_const_iterator IfStatement::end() const
 
 ForStatement::ForStatement(
 		SourcePosition location, Induction induction, llvm::ArrayRef<Statement> statements)
-		: location(move(location)),
-			induction(move(induction))
+		: location(std::move(location)),
+			induction(std::move(induction))
 {
 	for (const auto& statement : statements)
 		this->statements.push_back(std::make_shared<Statement>(statement));
@@ -181,9 +179,9 @@ const Statement& ForStatement::operator[](size_t index) const
 	return *statements[index];
 }
 
-void ForStatement::dump() const { dump(outs(), 0); }
+void ForStatement::dump() const { dump(llvm::outs(), 0); }
 
-void ForStatement::dump(raw_ostream& os, size_t indents) const
+void ForStatement::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "induction:\n";
@@ -201,22 +199,22 @@ SourcePosition ForStatement::getLocation() const
 	return location;
 }
 
-const string& ForStatement::getBreakCheckName() const
+const std::string& ForStatement::getBreakCheckName() const
 {
 	return breakCheckName;
 }
 
-void ForStatement::setBreakCheckName(string name)
+void ForStatement::setBreakCheckName(std::string name)
 {
 	this->breakCheckName = name;
 }
 
-const string& ForStatement::getReturnCheckName() const
+const std::string& ForStatement::getReturnCheckName() const
 {
 	return returnCheckName;
 }
 
-void ForStatement::setReturnCheckName(string name)
+void ForStatement::setReturnCheckName(std::string name)
 {
 	this->returnCheckName = name;
 }
@@ -259,14 +257,14 @@ ForStatement::statements_const_iterator ForStatement::end() const
 
 WhileStatement::WhileStatement(
 		SourcePosition location, Expression condition, llvm::ArrayRef<Statement> body)
-		: ConditionalBlock<Statement>(move(condition), move(body)),
-			location(move(location))
+		: ConditionalBlock<Statement>(std::move(condition), std::move(body)),
+			location(std::move(location))
 {
 }
 
-void WhileStatement::dump() const { dump(outs(), 0); }
+void WhileStatement::dump() const { dump(llvm::outs(), 0); }
 
-void WhileStatement::dump(raw_ostream& os, size_t indents) const
+void WhileStatement::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "while:\n";
@@ -287,36 +285,36 @@ SourcePosition WhileStatement::getLocation() const
 	return location;
 }
 
-const string& WhileStatement::getBreakCheckName() const
+const std::string& WhileStatement::getBreakCheckName() const
 {
 	return breakCheckName;
 }
 
-void WhileStatement::setBreakCheckName(string name)
+void WhileStatement::setBreakCheckName(std::string name)
 {
 	this->breakCheckName = name;
 }
 
-const string& WhileStatement::getReturnCheckName() const
+const std::string& WhileStatement::getReturnCheckName() const
 {
 	return returnCheckName;
 }
 
-void WhileStatement::setReturnCheckName(string name)
+void WhileStatement::setReturnCheckName(std::string name)
 {
 	this->returnCheckName = name;
 }
 
 WhenStatement::WhenStatement(
 		SourcePosition location, Expression condition, llvm::ArrayRef<Statement> body)
-		: ConditionalBlock<Statement>(move(condition), move(body)),
-			location(move(location))
+		: ConditionalBlock<Statement>(std::move(condition), std::move(body)),
+			location(std::move(location))
 {
 }
 
-void WhenStatement::dump() const { dump(outs(), 0); }
+void WhenStatement::dump() const { dump(llvm::outs(), 0); }
 
-void WhenStatement::dump(raw_ostream& os, size_t indents) const
+void WhenStatement::dump(llvm::raw_ostream& os, size_t indents) const
 {
 }
 
@@ -326,13 +324,13 @@ SourcePosition WhenStatement::getLocation() const
 }
 
 BreakStatement::BreakStatement(SourcePosition location)
-		: location(move(location))
+		: location(std::move(location))
 {
 }
 
-void BreakStatement::dump() const { dump(outs(), 0); }
+void BreakStatement::dump() const { dump(llvm::outs(), 0); }
 
-void BreakStatement::dump(raw_ostream& os, size_t indents) const
+void BreakStatement::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "break\n";
@@ -344,13 +342,13 @@ SourcePosition BreakStatement::getLocation() const
 }
 
 ReturnStatement::ReturnStatement(SourcePosition location)
-		: location(move(location))
+		: location(std::move(location))
 {
 }
 
-void ReturnStatement::dump() const { dump(outs(), 0); }
+void ReturnStatement::dump() const { dump(llvm::outs(), 0); }
 
-void ReturnStatement::dump(raw_ostream& os, size_t indents) const
+void ReturnStatement::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "return\n";
@@ -362,43 +360,43 @@ SourcePosition ReturnStatement::getLocation() const
 }
 
 Statement::Statement(AssignmentStatement statement)
-		: content(move(statement))
+		: content(std::move(statement))
 {
 }
 
 Statement::Statement(IfStatement statement)
-		: content(move(statement))
+		: content(std::move(statement))
 {
 }
 
 Statement::Statement(ForStatement statement)
-		: content(move(statement))
+		: content(std::move(statement))
 {
 }
 
 Statement::Statement(WhileStatement statement)
-		: content(move(statement))
+		: content(std::move(statement))
 {
 }
 
 Statement::Statement(WhenStatement statement)
-		: content(move(statement))
+		: content(std::move(statement))
 {
 }
 
 Statement::Statement(BreakStatement statement)
-		: content(move(statement))
+		: content(std::move(statement))
 {
 }
 
 Statement::Statement(ReturnStatement statement)
-		: content(move(statement))
+		: content(std::move(statement))
 {
 }
 
-void Statement::dump() const { dump(outs(), 0); }
+void Statement::dump() const { dump(llvm::outs(), 0); }
 
-void Statement::dump(raw_ostream& os, size_t indents) const
+void Statement::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	visit([&](const auto& statement) { statement.dump(os, indents); });
 }

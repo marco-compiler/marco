@@ -98,6 +98,31 @@ Error ConstantFolder::run(Class& cls)
 
 Error ConstantFolder::run(Function& function)
 {
+	SymbolTableScope varScope(symbolTable);
+
+	// Populate the symbol table
+	symbolTable.insert(function.getName(), Symbol(function));
+
+	for (auto& member : function.getMembers())
+		if (auto error = run(*member); error)
+			return error;
+
+
+
+	return Error::success();
+}
+
+Error ConstantFolder::run(Package& package)
+{
+	for (auto& cls : package)
+		if (auto error = run(cls); error)
+			return error;
+
+	return Error::success();
+}
+
+Error ConstantFolder::run(Record& record)
+{
 	return Error::success();
 }
 

@@ -18,6 +18,8 @@
 #include "ast/Member.h"
 #include "ast/Modification.h"
 #include "ast/Operation.h"
+#include "ast/Package.h"
+#include "ast/Record.h"
 #include "ast/ReferenceAccess.h"
 #include "ast/Statement.h"
 #include "ast/Tuple.h"

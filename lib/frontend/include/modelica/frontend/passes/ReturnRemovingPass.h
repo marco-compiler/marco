@@ -13,6 +13,7 @@ namespace modelica
 	class Function;
 	class IfStatement;
 	class ForStatement;
+	class Package;
 	class ReturnStatement;
 	class Statement;
 	class WhenStatement;
@@ -24,6 +25,8 @@ namespace modelica
 		llvm::Error run(ClassContainer& cls) final;
 		llvm::Error run(Class& cls);
 		llvm::Error run(Function& function);
+		llvm::Error run(Package& package);
+		llvm::Error run(Record& record);
 		llvm::Error run(Algorithm& algorithm);
 
 		private:

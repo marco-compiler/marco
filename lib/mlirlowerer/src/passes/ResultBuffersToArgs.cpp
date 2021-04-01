@@ -13,9 +13,9 @@ static void updateFuncOp(mlir::FuncOp func, llvm::SmallVectorImpl<mlir::BlockArg
 	llvm::SmallVector<unsigned int, 6> erasedResultIndices;
 
 	for (auto resultType : llvm::enumerate(functionType.getResults())) {
-		if (auto pointerType = resultType.value().dyn_cast<PointerType>(); pointerType && pointerType.hasConstantShape()) {
+		if (auto pointerType = resultType.value().dyn_cast<PointerType>(); pointerType && pointerType.canBeOnStack()) {
 			erasedResultIndices.push_back(resultType.index());
-			erasedResultTypes.push_back(PointerType::get(pointerType.getContext(), BufferAllocationScope::unknown, pointerType.getElementType(), pointerType.getShape()));
+			erasedResultTypes.push_back(pointerType.toUnknownAllocationScope());
 		}
 	}
 
@@ -48,7 +48,7 @@ static void updateReturnOps(mlir::FuncOp func, llvm::ArrayRef<mlir::BlockArgumen
 
 		for (mlir::Value operand : op.getOperands())
 		{
-			if (auto pointerType = operand.getType().dyn_cast<PointerType>(); pointerType && pointerType.hasConstantShape())
+			if (auto pointerType = operand.getType().dyn_cast<PointerType>(); pointerType && pointerType.canBeOnStack())
 			{
 				auto allocaOp = operand.getDefiningOp<LoadOp>().memory().getDefiningOp<AllocaOp>();
 
@@ -102,7 +102,7 @@ static mlir::LogicalResult updateCalls(mlir::ModuleOp module) {
 		llvm::SmallVector<mlir::Value, 6> replaceWithOutParams;
 
 		for (mlir::OpResult result : op.getResults()) {
-			if (auto pointerType = result.getType().dyn_cast<PointerType>(); pointerType && pointerType.hasConstantShape())
+			if (auto pointerType = result.getType().dyn_cast<PointerType>(); pointerType && pointerType.canBeOnStack())
 				replaceWithOutParams.push_back(result);
 			else
 				replaceWithNewCallResults.push_back(result);
@@ -114,8 +114,7 @@ static mlir::LogicalResult updateCalls(mlir::ModuleOp module) {
 		for (mlir::Value ptr : replaceWithOutParams) {
 			auto pointerType = ptr.getType().cast<PointerType>();
 
-			if (!pointerType.hasConstantShape()) {
-				op.emitError() << "cannot create out param for dynamically shaped buffer";
+			if (!pointerType.canBeOnStack()) {
 				didFail = true;
 				return;
 			}

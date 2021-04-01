@@ -34,14 +34,16 @@ Tuple& Tuple::operator=(const Tuple& other)
 
 bool Tuple::operator==(const Tuple& other) const
 {
-	if (size() != other.size())
+	if (expressions.size() != other.expressions.size())
 		return false;
 
-	for (auto i : irange(size()))
-		if ((*this)[i] != other[i])
-			return false;
-
-	return true;
+	auto pairs = llvm::zip(expressions, other.expressions);
+	return std::all_of(pairs.begin(), pairs.end(),
+										 [](const auto& pair)
+										 {
+											 const auto& [x, y] = pair;
+											 return *x == *y;
+										 });
 }
 
 bool Tuple::operator!=(const Tuple& other) const { return !(*this == other); }

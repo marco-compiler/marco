@@ -1,10 +1,31 @@
 modelicaAddLibrary(
         mlirlowerer SHARED
+        src/passes/matching/Edge.cpp
+        src/passes/matching/Flow.cpp
+        src/passes/matching/Matching.cpp
+        src/passes/matching/SCCCollapsing.cpp
+        src/passes/matching/SCCDependencyGraph.cpp
+        src/passes/matching/SCCLookup.cpp
+        src/passes/matching/Schedule.cpp
+        src/passes/matching/SVarDependencyGraph.cpp
+        src/passes/matching/VVarDependencyGraph.cpp
+        src/passes/model/Constant.cpp
+        src/passes/model/Equation.cpp
+        src/passes/model/Expression.cpp
+        src/passes/model/Model.cpp
+        src/passes/model/ModelBuilder.cpp
+        src/passes/model/Operation.cpp
+        src/passes/model/Reference.cpp
+        src/passes/model/ReferenceMatcher.cpp
+        src/passes/model/SolveDer.cpp
+        src/passes/model/Variable.cpp
+        src/passes/model/VectorAccess.cpp
         src/passes/BufferDeallocation.cpp
         src/passes/ExplicitCastInsertion.cpp
         src/passes/ModelicaConversion.cpp
         src/passes/LowerToLLVM.cpp
         src/passes/ResultBuffersToArgs.cpp
+        src/passes/SolveModel.cpp
         src/passes/TypeConverter.cpp
         src/Attribute.cpp
         src/CodeGen.cpp
@@ -18,6 +39,9 @@ modelicaAddLibrary(
 target_link_libraries(
         mlirlowerer PUBLIC
         modelica::frontend
+        modelica::matching
+        modelica::omcToModel
+        modelica::passes
         modelica::utils
         MLIRIR
         MLIRAffineToStandard
@@ -33,4 +57,6 @@ target_link_libraries(
         MLIRTransforms
         MLIRTranslation
         MLIRExecutionEngine
+        pthread
+        boost
 )

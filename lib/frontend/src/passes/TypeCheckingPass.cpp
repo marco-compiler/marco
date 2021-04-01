@@ -56,13 +56,13 @@ llvm::Expected<Type> TypeChecker::typeFromSymbol(const Expression& exp)
 
 llvm::Error TypeChecker::run(ClassContainer& cls)
 {
+	SymbolTableScope varScope(symbolTable);
+
 	return cls.visit([&](auto& obj) { return run(obj); });
 }
 
 llvm::Error TypeChecker::run(Function& function)
 {
-	SymbolTableScope varScope(symbolTable);
-
 	// Populate the symbol table
 	symbolTable.insert(function.getName(), Symbol(function));
 
@@ -104,7 +104,7 @@ llvm::Error TypeChecker::run(Function& function)
 	if (types.size() == 1)
 		function.setType(move(types[0]));
 	else
-		function.setType(Type(types));
+		function.setType(Type(PackedType(types)));
 
 	auto& algorithms = function.getAlgorithms();
 
@@ -219,8 +219,6 @@ llvm::Error TypeChecker::run(Function& function)
 
 llvm::Error TypeChecker::run(Class& model)
 {
-	SymbolTableScope varScope(symbolTable);
-
 	// Populate the symbol table
 	symbolTable.insert(model.getName(), Symbol(model));
 
@@ -252,6 +250,36 @@ llvm::Error TypeChecker::run(Class& model)
 
 	if (auto error = resolveDummyReferences(model); error)
 		return error;
+
+	return llvm::Error::success();
+}
+
+llvm::Error TypeChecker::run(Package& package)
+{
+	// Populate the symbol table
+	symbolTable.insert(package.getName(), Symbol(package));
+
+	for (auto& cls : package)
+		cls.visit([&](auto& obj) { symbolTable.insert(obj.getName(), Symbol(obj)); });
+
+	for (auto& cls : package)
+		if (auto error = run(cls); error)
+			return error;
+
+	return llvm::Error::success();
+}
+
+llvm::Error TypeChecker::run(Record& record)
+{
+	// Populate the symbol table
+	symbolTable.insert(record.getName(), Symbol(record));
+
+	for (auto& member : record)
+		symbolTable.insert(member.getName(), Symbol(member));
+
+	for (auto& member : record)
+		if (auto error = run(member); error)
+			return error;
 
 	return llvm::Error::success();
 }
@@ -313,7 +341,7 @@ llvm::Error TypeChecker::run(AssignmentStatement& statement)
 	if (auto error = run<Expression>(expression); error)
 		return error;
 
-	if (destinations.size() > 1 && !expression.getType().isA<UserDefinedType>())
+	if (destinations.size() > 1 && !expression.getType().isA<PackedType>())
 		return llvm::make_error<IncompatibleType>(
 				"The expression must return at least " +
 				to_string(destinations.size()) + "values");
@@ -334,8 +362,8 @@ llvm::Error TypeChecker::run(AssignmentStatement& statement)
 		if (ref.isDummy())
 		{
 			auto& expressionType = expression.getType();
-			assert(expressionType.isA<UserDefinedType>());
-			auto& userDefType = expressionType.get<UserDefinedType>();
+			assert(expressionType.isA<PackedType>());
+			auto& userDefType = expressionType.get<PackedType>();
 			assert(userDefType.size() >= i);
 			destinations[i].setType(userDefType[i]);
 		}
@@ -344,9 +372,9 @@ llvm::Error TypeChecker::run(AssignmentStatement& statement)
 	// If the function call has more return values than the provided
 	// destinations, then we need to add more dummy references.
 
-	if (expression.getType().isA<UserDefinedType>())
+	if (expression.getType().isA<PackedType>())
 	{
-		auto& userDefType = expression.getType().get<UserDefinedType>();
+		auto& userDefType = expression.getType().get<PackedType>();
 		size_t returns = userDefType.size();
 
 		if (destinations.size() < returns)
@@ -449,14 +477,14 @@ llvm::Error TypeChecker::run(Equation& eq)
 	auto& rhsType = rhs.getType();
 
 	if (lhs.isA<Tuple>() && lhs.get<Tuple>().size() > 1)
-		if (!rhsType.isA<UserDefinedType>() ||
-				lhs.get<Tuple>().size() > rhsType.get<UserDefinedType>().size())
+		if (!rhsType.isA<PackedType>() ||
+				lhs.get<Tuple>().size() > rhsType.get<PackedType>().size())
 			return llvm::make_error<IncompatibleType>("Type dimension mismatch");
 
 	if (lhs.isA<Tuple>())
 	{
 		auto& tuple = lhs.get<Tuple>();
-		auto& types = rhsType.get<UserDefinedType>();
+		auto& types = rhsType.get<PackedType>();
 
 		// Assign type to dummy variables.
 		// The assignment can't be done earlier because the expression type would
@@ -482,9 +510,9 @@ llvm::Error TypeChecker::run(Equation& eq)
 	// If the function call has more return values than the provided
 	// destinations, then we need to add more dummy references.
 
-	if (rhsType.isA<UserDefinedType>())
+	if (rhsType.isA<PackedType>())
 	{
-		auto& types = rhsType.get<UserDefinedType>();
+		auto& types = rhsType.get<PackedType>();
 		size_t returns = types.size();
 
 		auto location = lhs.getLocation();
@@ -712,7 +740,7 @@ llvm::Error TypeChecker::run<Tuple>(Expression& expression)
 		types.push_back(exp.getType());
 	}
 
-	expression.setType(Type(types));
+	expression.setType(Type(PackedType(types)));
 	return llvm::Error::success();
 }
 

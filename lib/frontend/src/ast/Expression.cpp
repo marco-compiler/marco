@@ -1,9 +1,7 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/utils/IRange.hpp>
 
-using namespace llvm;
 using namespace modelica;
-using namespace std;
 
 struct LValueVisitor
 {
@@ -16,38 +14,38 @@ struct LValueVisitor
 };
 
 Expression::Expression(Type type, Constant constant)
-		: content(move(constant)),
-			type(move(type))
+		: content(std::move(constant)),
+			type(std::move(type))
 {
 }
 
 Expression::Expression(Type type, ReferenceAccess access)
-		: content(move(access)),
-			type(move(type))
+		: content(std::move(access)),
+			type(std::move(type))
 {
 }
 
 Expression::Expression(Type type, Operation operation)
-		: content(move(operation)),
-			type(move(type))
+		: content(std::move(operation)),
+			type(std::move(type))
 {
 }
 
 Expression::Expression(Type type, Call call)
-		: content(move(call)),
-			type(move(type))
+		: content(std::move(call)),
+			type(std::move(type))
 {
 }
 
 Expression::Expression(Type type, Tuple tuple)
-		: content(move(tuple)),
-			type(move(type))
+		: content(std::move(tuple)),
+			type(std::move(type))
 {
 }
 
 Expression::Expression(Type type, Array array)
-		: content(move(array)),
-			type(move(type))
+		: content(std::move(array)),
+			type(std::move(type))
 {
 }
 
@@ -61,9 +59,9 @@ bool Expression::operator!=(const Expression& other) const
 	return !(*this == other);
 }
 
-void Expression::dump() const { dump(outs(), 0); }
+void Expression::dump() const { dump(llvm::outs(), 0); }
 
-void Expression::dump(raw_ostream& os, size_t indents) const
+void Expression::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "type: ";
@@ -84,7 +82,7 @@ Type& Expression::getType() { return type; }
 
 const Type& Expression::getType() const { return type; }
 
-void Expression::setType(Type tp) { type = move(tp); }
+void Expression::setType(Type tp) { type = std::move(tp); }
 
 llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Expression& obj)
 {

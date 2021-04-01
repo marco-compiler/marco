@@ -42,6 +42,8 @@ namespace modelica
 		llvm::Error run(ClassContainer& cls);
 		llvm::Error run(Class& model);
 		llvm::Error run(Function& function);
+		llvm::Error run(Package& package);
+		llvm::Error run(Record& record);
 		llvm::Error run(Member& member);
 		llvm::Error run(Algorithm& algorithm);
 		llvm::Error run(Statement& statement);

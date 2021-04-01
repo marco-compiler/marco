@@ -74,171 +74,191 @@ void Parser::undoScan(Token t)
 
 #include <modelica/utils/ParserUtils.hpp>
 
-static llvm::Expected<BuiltInType> nameToBuiltin(const std::string& name)
-{
-	if (name == "int")
-		return BuiltInType::Integer;
-	if (name == "string")
-		return BuiltInType::String;
-	if (name == "Real")
-		return BuiltInType::Float;
-	if (name == "Integer")
-		return BuiltInType::Integer;
-	if (name == "float")
-		return BuiltInType::Float;
-	if (name == "bool")
-		return BuiltInType::Boolean;
-
-	return llvm::make_error<NotImplemented>(
-			"Only builtin types are supported, not " + name);
-}
-
 llvm::Expected<ClassContainer> Parser::classDefinition()
 {
-	auto location = getPosition();
+	llvm::SmallVector<ClassContainer, 3> classes;
 
-	ClassType classType = ClassType::Model;
+	while (current != Token::End)
+	{
+		auto location = getPosition();
 
-	bool partial = accept(Token::PartialKeyword);
-	bool op = accept(Token::OperatorKeyword);
-	bool pure = true;
+		ClassType classType = ClassType::Model;
 
-	if (op)
-	{
-		EXPECT(Token::FunctionKeyword);
-		classType = ClassType::Function;
-	}
-	else if (accept(Token::ModelKeyword))
-	{
-		classType = ClassType::Model;
-	}
-	else if (accept(Token::FunctionKeyword))
-	{
-		classType = ClassType::Function;
-	}
-	else if (accept(Token::PureKeyword))
-	{
-		pure = true;
-		op = accept(Token::OperatorKeyword);
-		EXPECT(Token::FunctionKeyword);
-		classType = ClassType::Function;
-	}
-	else if (accept(Token::ImpureKeyword))
-	{
-		pure = false;
-		op = accept(Token::OperatorKeyword);
-		EXPECT(Token::FunctionKeyword);
-		classType = ClassType::Function;
-	}
-	else
-	{
-		EXPECT(Token::ClassKeyword);
-	}
+		bool partial = accept(Token::PartialKeyword);
+		bool op = accept(Token::OperatorKeyword);
+		bool pure = true;
 
-	auto name = lexer.getLastIdentifier();
-	EXPECT(Token::Ident);
-	accept(Token::String);
-
-	llvm::SmallVector<Member, 3> members;
-	llvm::SmallVector<Equation, 3> equations;
-	llvm::SmallVector<ForEquation, 3> forEquations;
-	llvm::SmallVector<Algorithm, 3> algorithms;
-	llvm::SmallVector<ClassContainer, 3> innerClasses;
-
-	// Whether the first elements list is allowed to be encountered or not.
-	// In fact, the class definition allows a first elements list definition
-	// and then others more if preceded by "public" or "protected", but no more
-	// "lone" definitions are anymore allowed if any of those keywords are
-	// encountered.
-	bool firstElementListParsable = true;
-
-	while (current != Token::EndKeyword && current != Token::AnnotationKeyword)
-	{
-		if (current == Token::EquationKeyword)
+		if (op)
 		{
-			TRY(eq, equationSection());
-
-			for (auto& equation : eq->first)
-				equations.emplace_back(std::move(equation));
-
-			for (auto& forEquation : eq->second)
-				forEquations.emplace_back(std::move(forEquation));
-
-			continue;
+			if (accept<Token::RecordKeyword>())
+				classType = ClassType::Record;
+			else
+			{
+				EXPECT(Token::FunctionKeyword);
+				classType = ClassType::Function;
+			}
+		}
+		else if (accept<Token::ModelKeyword>())
+		{
+			classType = ClassType::Model;
+		}
+		else if (accept<Token::RecordKeyword>())
+		{
+			classType = ClassType::Record;
+		}
+		else if (accept<Token::PackageKeyword>())
+		{
+			classType = ClassType::Package;
+		}
+		else if (accept<Token::FunctionKeyword>())
+		{
+			classType = ClassType::Function;
+		}
+		else if (accept<Token::PureKeyword>())
+		{
+			pure = true;
+			op = accept(Token::OperatorKeyword);
+			EXPECT(Token::FunctionKeyword);
+			classType = ClassType::Function;
+		}
+		else if (accept<Token::ImpureKeyword>())
+		{
+			pure = false;
+			op = accept<Token::OperatorKeyword>();
+			EXPECT(Token::FunctionKeyword);
+			classType = ClassType::Function;
+		}
+		else
+		{
+			EXPECT(Token::ClassKeyword);
 		}
 
-		if (current == Token::AlgorithmKeyword)
+		std::string name = lexer.getLastIdentifier();
+		EXPECT(Token::Ident);
+
+		while (accept<Token::Dot>())
 		{
-			TRY(alg, algorithmSection());
-			algorithms.emplace_back(std::move(*alg));
-			continue;
+			name += "." + lexer.getLastIdentifier();
+			EXPECT(Token::Ident);
 		}
 
-		if (current == Token::FunctionKeyword)
+		accept(Token::String);
+
+		llvm::SmallVector<Member, 3> members;
+		llvm::SmallVector<Equation, 3> equations;
+		llvm::SmallVector<ForEquation, 3> forEquations;
+		llvm::SmallVector<Algorithm, 3> algorithms;
+		llvm::SmallVector<ClassContainer, 3> innerClasses;
+
+		// Whether the first elements list is allowed to be encountered or not.
+		// In fact, the class definition allows a first elements list definition
+		// and then others more if preceded by "public" or "protected", but no more
+		// "lone" definitions are anymore allowed if any of those keywords are
+		// encountered.
+		bool firstElementListParsable = true;
+
+		while (current != Token::EndKeyword && current != Token::AnnotationKeyword)
 		{
-			TRY(func, classDefinition());
-			innerClasses.emplace_back(std::move(*func));
+			if (current == Token::EquationKeyword)
+			{
+				TRY(eq, equationSection());
+
+				for (auto& equation : eq->first)
+					equations.emplace_back(std::move(equation));
+
+				for (auto& forEquation : eq->second)
+					forEquations.emplace_back(std::move(forEquation));
+
+				continue;
+			}
+
+			if (current == Token::AlgorithmKeyword)
+			{
+				TRY(alg, algorithmSection());
+				algorithms.emplace_back(std::move(*alg));
+				continue;
+			}
+
+			if (current == Token::ClassKeyword ||
+					current == Token::FunctionKeyword ||
+					current == Token::ModelKeyword ||
+					current == Token::RecordKeyword)
+			{
+				TRY(func, classDefinition());
+				innerClasses.emplace_back(std::move(*func));
+				continue;
+			}
+
+			if (accept(Token::PublicKeyword))
+			{
+				TRY(mem, elementList());
+				firstElementListParsable = false;
+
+				for (auto& member : *mem)
+					members.emplace_back(std::move(member));
+
+				continue;
+			}
+
+			if (accept(Token::ProtectedKeyword))
+			{
+				TRY(mem, elementList(false));
+				firstElementListParsable = false;
+
+				for (auto& member : *mem)
+					members.emplace_back(std::move(member));
+
+				continue;
+			}
+
+			if (firstElementListParsable)
+			{
+				TRY(mem, elementList());
+
+				for (auto& member : *mem)
+					members.emplace_back(std::move(member));
+			}
+		}
+
+		Annotation clsAnnotation;
+
+		if (current == Token::AnnotationKeyword)
+		{
+			TRY(ann, annotation());
+			clsAnnotation = *ann;
 			EXPECT(Token::Semicolons);
-			continue;
 		}
 
-		if (accept(Token::PublicKeyword))
+		EXPECT(Token::EndKeyword);
+
+		std::string endName = lexer.getLastIdentifier();
+		EXPECT(Token::Ident);
+
+		while (accept<Token::Dot>())
 		{
-			TRY(mem, elementList());
-			firstElementListParsable = false;
-
-			for (auto& member : *mem)
-				members.emplace_back(std::move(member));
-
-			continue;
+			endName += "." + lexer.getLastIdentifier();
+			EXPECT(Token::Ident);
 		}
 
-		if (accept(Token::ProtectedKeyword))
-		{
-			TRY(mem, elementList(false));
-			firstElementListParsable = false;
+		if (name != endName)
+			return llvm::make_error<UnexpectedIdentifier>(endName, name, getPosition());
 
-			for (auto& member : *mem)
-				members.emplace_back(std::move(member));
-
-			continue;
-		}
-
-		if (firstElementListParsable)
-		{
-			TRY(mem, elementList());
-
-			for (auto& member : *mem)
-				members.emplace_back(std::move(member));
-		}
-	}
-
-	Annotation clsAnnotation;
-
-	if (current == Token::AnnotationKeyword)
-	{
-		TRY(ann, annotation());
-		clsAnnotation = *ann;
 		EXPECT(Token::Semicolons);
+
+		if (classType == ClassType::Function)
+			classes.emplace_back(Function(location, std::move(name), pure, std::move(members), std::move(algorithms), clsAnnotation));
+		else if (classType == ClassType::Model)
+			classes.emplace_back(Class(location, std::move(name), std::move(members), std::move(equations), std::move(forEquations), std::move(algorithms), std::move(innerClasses)));
+		else if (classType == ClassType::Package)
+			classes.emplace_back(Package(location, std::move(name), std::move(innerClasses)));
+		else if (classType == ClassType::Record)
+			classes.emplace_back(Record(location, std::move(name), std::move(members)));
 	}
 
-	EXPECT(Token::EndKeyword);
-	auto endName = lexer.getLastIdentifier();
-	EXPECT(Token::Ident);
+	if (classes.size() != 1)
+		return ClassContainer(Package(SourcePosition::unknown(), "Main", classes));
 
-	if (name != endName)
-		return llvm::make_error<UnexpectedIdentifier>(endName, name, getPosition());
-
-	switch (classType)
-	{
-		case ClassType::Function:
-			return ClassContainer(Function(location, move(name), pure, std::move(members), std::move(algorithms), clsAnnotation));
-
-		case ClassType::Model:
-			return ClassContainer(Class(location, move(name), std::move(members), std::move(equations), std::move(forEquations), std::move(algorithms), std::move(innerClasses)));
-	}
-
-	assert(false && "Unreachable");
+	return classes[0];
 }
 
 llvm::Expected<llvm::SmallVector<Member, 3>> Parser::elementList(bool publicSection)
@@ -248,7 +268,10 @@ llvm::Expected<llvm::SmallVector<Member, 3>> Parser::elementList(bool publicSect
 	while (
 			current != Token::PublicKeyword && current != Token::ProtectedKeyword &&
 			current != Token::FunctionKeyword && current != Token::EquationKeyword &&
-			current != Token::AlgorithmKeyword && current != Token::EndKeyword)
+			current != Token::AlgorithmKeyword && current != Token::EndKeyword &&
+			current != Token::ClassKeyword && current != Token::FunctionKeyword &&
+			current != Token::ModelKeyword && current != Token::PackageKeyword &&
+			current != Token::RecordKeyword)
 	{
 		TRY(memb, element(publicSection));
 		EXPECT(Token::Semicolons);
@@ -265,7 +288,7 @@ llvm::Expected<Member> Parser::element(bool publicSection)
 	accept<Token::FinalKeyword>();
 	TRY(prefix, typePrefix());
 	TRY(type, typeSpecifier());
-	auto name = lexer.getLastIdentifier();
+	std::string name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
 
 	if (current == Token::LSquare)
@@ -379,13 +402,45 @@ llvm::Expected<Type> Parser::typeSpecifier()
 {
 	std::string name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
-	TRY(builtint, nameToBuiltin(name));
 
-	if (current == Token::Ident)
-		return Type(*builtint);
+	while (accept<Token::Dot>())
+	{
+		name += "." + lexer.getLastIdentifier();
+		EXPECT(Token::Ident);
+	}
 
-	TRY(sub, arrayDimensions());
-	return Type(*builtint, std::move(*sub));
+	llvm::SmallVector<ArrayDimension, 3> dimensions;
+
+	if (current != Token::Ident)
+	{
+		TRY(sub, arrayDimensions());
+
+		for (const auto& dim : *sub)
+			dimensions.push_back(dim);
+	}
+
+	if (dimensions.empty())
+		dimensions.emplace_back(1);
+
+	if (name == "int")
+		return Type(BuiltInType::Integer, dimensions);
+
+	if (name == "string")
+		return Type(BuiltInType::String, dimensions);
+
+	if (name == "Real")
+		return Type(BuiltInType::Float, dimensions);
+
+	if (name == "Integer")
+		return Type(BuiltInType::Integer, dimensions);
+
+	if (name == "float")
+		return Type(BuiltInType::Float, dimensions);
+
+	if (name == "bool")
+		return Type(BuiltInType::Boolean, dimensions);
+
+	return Type(UserDefinedType(name, {}), dimensions);
 }
 
 llvm::Expected<std::pair<llvm::SmallVector<Equation, 3>, llvm::SmallVector<ForEquation, 3>>> Parser::equationSection()
@@ -996,8 +1051,15 @@ llvm::Expected<Expression> Parser::componentReference()
 {
 	auto location = getPosition();
 	bool globalLookup = accept<Token::Dot>();
-	auto name = lexer.getLastIdentifier();
+
+	std::string name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
+
+	while (accept<Token::Dot>())
+	{
+		name += "." + lexer.getLastIdentifier();
+		EXPECT(Token::Ident);
+	}
 
 	Expression expression = Expression::reference(location, Type::unknown(), name, globalLookup);
 
@@ -1013,7 +1075,7 @@ llvm::Expected<Expression> Parser::componentReference()
 	{
 		location = getPosition();
 		Expression memberName = Expression::reference(location, makeType<std::string>(), lexer.getLastString());
-		EXPECT(Token::String);
+		EXPECT(Token::Ident);
 		expression = Expression::operation(location, Type::unknown(), OperationKind::memberLookup, std::move(expression), std::move(memberName));
 
 		if (current != Token::LSquare)

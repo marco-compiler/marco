@@ -86,6 +86,11 @@ namespace modelica
 		{
 		}
 
+		MultiDimInterval(llvm::ArrayRef<Interval> intervals)
+				: intervals(intervals.begin(), intervals.end())
+		{
+		}
+
 		MultiDimInterval(llvm::ArrayRef<size_t> point)
 		{
 			for (size_t p : point)

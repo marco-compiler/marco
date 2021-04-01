@@ -7,3 +7,4 @@
 #include "passes/LowerToLLVM.h"
 #include "passes/ModelicaConversion.h"
 #include "passes/ResultBuffersToArgs.h"
+#include "passes/SolveModel.h"
