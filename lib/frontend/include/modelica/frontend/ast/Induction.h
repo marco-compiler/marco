@@ -7,7 +7,7 @@
 #include "Equation.h"
 #include "Expression.h"
 
-namespace modelica
+namespace modelica::frontend
 {
 	/**
 	 * An induction is the in memory of a piece of code such as
@@ -42,4 +42,4 @@ namespace modelica
 		size_t inductionIndex;
 		std::string inductionVar;
 	};
-}	 // namespace modelica
+}

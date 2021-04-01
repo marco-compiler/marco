@@ -3,6 +3,7 @@
 #include "modelica/frontend/Parser.hpp"
 
 using namespace modelica;
+using namespace frontend;
 
 TEST(classTest, modelComment)	 // NOLINT
 {

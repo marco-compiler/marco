@@ -2,7 +2,7 @@
 #include <modelica/frontend/ast/Annotation.h>
 #include <modelica/frontend/ast/Modification.h>
 
-using namespace modelica;
+using namespace modelica::frontend;
 
 Annotation::Annotation()
 		: properties(std::make_shared<ClassModification>())

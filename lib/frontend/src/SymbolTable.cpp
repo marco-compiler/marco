@@ -1,7 +1,7 @@
 #include <modelica/frontend/SymbolTable.hpp>
 
 using namespace llvm;
-using namespace modelica;
+using namespace modelica::frontend;
 using namespace std;
 
 class ClassVisitor

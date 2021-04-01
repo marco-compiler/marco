@@ -1,6 +1,7 @@
 #include <modelica/frontend/AST.h>
 
 using namespace modelica;
+using namespace frontend;
 
 Equation::Equation(SourcePosition location, Expression leftHand, Expression rightHand)
 		: location(std::move(location)),

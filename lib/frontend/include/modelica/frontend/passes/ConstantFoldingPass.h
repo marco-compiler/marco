@@ -6,7 +6,7 @@
 #include <modelica/frontend/Pass.h>
 #include <modelica/frontend/SymbolTable.hpp>
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Call;
 	class Class;
@@ -48,4 +48,4 @@ namespace modelica
 	};
 
 	std::unique_ptr<Pass> createConstantFolderPass();
-}	 // namespace modelica
+}

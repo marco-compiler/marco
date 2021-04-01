@@ -1,7 +1,7 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/utils/IRange.hpp>
 
-using namespace modelica;
+using namespace modelica::frontend;
 
 ForEquation::ForEquation(llvm::ArrayRef<Induction> inductions, Equation equation)
 		: inductions(inductions.begin(), inductions.end()), equation(std::move(equation))

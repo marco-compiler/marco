@@ -1,6 +1,6 @@
 #include <modelica/mlirlowerer/passes/TypeConverter.h>
 
-using namespace modelica;
+using namespace modelica::codegen;
 
 TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options) : mlir::LLVMTypeConverter(context, options)
 {

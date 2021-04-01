@@ -4,10 +4,10 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 #include <string>
 
-namespace modelica
+namespace modelica::frontend
 {
 	class ClassContainer;
 
@@ -48,4 +48,4 @@ namespace modelica
 		std::string name;
 		Container<ClassContainer> innerClasses;
 	};
-}	 // namespace modelica
+}

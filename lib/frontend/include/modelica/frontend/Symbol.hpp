@@ -2,7 +2,7 @@
 
 #include <variant>
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Class;
 	class Function;

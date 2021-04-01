@@ -4,9 +4,9 @@
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 
 using namespace mlir;
-using namespace modelica;
+using namespace modelica::codegen;
 
-namespace modelica
+namespace modelica::codegen
 {
 	class BufferDeallocation : BufferPlacementTransformationBase
 	{
@@ -100,7 +100,7 @@ class BufferDeallocationPass : public PassWrapper<BufferDeallocationPass, Operat
 	}
 };
 
-std::unique_ptr<Pass> modelica::createBufferDeallocationPass()
+std::unique_ptr<Pass> modelica::codegen::createBufferDeallocationPass()
 {
 	return std::make_unique<BufferDeallocationPass>();
 }

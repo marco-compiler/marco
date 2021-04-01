@@ -2,7 +2,7 @@
 
 #include <mlir/Pass/Pass.h>
 
-namespace modelica
+namespace modelica::codegen
 {
 	/**
 	 * Create a pass to convert Modelica operations to a mix of Std,

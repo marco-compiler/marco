@@ -1,10 +1,10 @@
 #pragma once
 
 #include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 #include <string>
 
-namespace modelica
+namespace modelica::frontend
 {
 	/**
 	 * A reference access is pretty much any use of a variable at the moment.
@@ -49,4 +49,4 @@ namespace modelica
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const ReferenceAccess& obj);
 
 	std::string toString(const ReferenceAccess& obj);
-}	 // namespace modelica
+}

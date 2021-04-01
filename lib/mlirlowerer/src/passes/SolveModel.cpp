@@ -9,7 +9,7 @@
 #include <variant>
 
 using namespace modelica;
-using namespace modelica::codegen;
+using namespace codegen;
 using namespace model;
 
 /*
@@ -81,7 +81,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	}
 };
 
-std::unique_ptr<mlir::Pass> modelica::createSolveModelPass()
+std::unique_ptr<mlir::Pass> modelica::codegen::createSolveModelPass()
 {
 	return std::make_unique<SolveModelPass>();
 }

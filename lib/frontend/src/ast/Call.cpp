@@ -2,6 +2,7 @@
 #include <numeric>
 
 using namespace modelica;
+using namespace frontend;
 
 Call::Call(SourcePosition location,
 					 Expression function,
@@ -88,19 +89,22 @@ Call::args_const_iterator Call::end() const
 	return args.end();
 }
 
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Call& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Call& obj)
+	{
+		return stream << toString(obj);
+	}
 
-std::string modelica::toString(const Call& obj)
-{
-	return toString(obj.getFunction()) + "(" +
-				 accumulate(obj.begin(), obj.end(), std::string(),
-										[](const std::string& result, const Expression& argument)
-										{
-											std::string str = toString(argument);
-											return result.empty() ? str : result + "," + str;
-										}) +
-				 ")";
+	std::string toString(const Call& obj)
+	{
+		return toString(obj.getFunction()) + "(" +
+					 accumulate(obj.begin(), obj.end(), std::string(),
+											[](const std::string& result, const Expression& argument)
+											{
+												std::string str = toString(argument);
+												return result.empty() ? str : result + "," + str;
+											}) +
+					 ")";
+	}
 }

@@ -3,7 +3,7 @@
 #include <mlir/Transforms/InliningUtils.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 
-using namespace modelica;
+using namespace modelica::codegen;
 
 class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
 {

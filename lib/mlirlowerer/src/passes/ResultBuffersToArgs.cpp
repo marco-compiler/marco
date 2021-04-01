@@ -2,7 +2,7 @@
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/ResultBuffersToArgs.h>
 
-using namespace modelica;
+using namespace modelica::codegen;
 
 static void updateFuncOp(mlir::FuncOp func, llvm::SmallVectorImpl<mlir::BlockArgument>& appendedEntryArgs)
 {
@@ -174,7 +174,7 @@ class ResultBuffersToArgsPass: public mlir::PassWrapper<ResultBuffersToArgsPass,
 	}
 };
 
-std::unique_ptr<mlir::Pass> modelica::createResultBuffersToArgsPass()
+std::unique_ptr<mlir::Pass> modelica::codegen::createResultBuffersToArgsPass()
 {
 	return std::make_unique<ResultBuffersToArgsPass>();
 }

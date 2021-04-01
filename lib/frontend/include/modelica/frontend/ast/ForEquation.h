@@ -8,7 +8,7 @@
 #include "Expression.h"
 #include "Induction.h"
 
-namespace modelica
+namespace modelica::frontend
 {
 	/**
 	 * For equations are different with respect to regular equations
@@ -37,4 +37,4 @@ namespace modelica
 		llvm::SmallVector<Induction, 3> inductions;
 		Equation equation;
 	};
-}	 // namespace modelica
+}

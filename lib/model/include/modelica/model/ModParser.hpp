@@ -13,7 +13,7 @@
 #include "modelica/model/Model.hpp"
 #include "modelica/utils/Interval.hpp"
 #include "modelica/utils/Lexer.hpp"
-#include "modelica/utils/SourceRange.hpp"
+#include "modelica/utils/SourcePosition.h"
 
 namespace modelica
 {

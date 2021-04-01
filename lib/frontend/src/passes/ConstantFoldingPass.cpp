@@ -10,7 +10,7 @@
 #include <modelica/utils/IRange.hpp>
 
 using namespace llvm;
-using namespace modelica;
+using namespace modelica::frontend;
 using namespace std;
 
 Error ConstantFolder::run(Equation& equation)
@@ -503,7 +503,7 @@ Error ConstantFolder::run(Expression& expression)
 	return make_error<NotImplemented>("found a not handled type of expression");
 }
 
-std::unique_ptr<Pass> modelica::createConstantFolderPass()
+std::unique_ptr<Pass> modelica::frontend::createConstantFolderPass()
 {
 	return std::make_unique<ConstantFolder>();
 }

@@ -8,6 +8,7 @@
 #include <stack>
 
 using namespace modelica;
+using namespace frontend;
 using namespace std;
 
 llvm::Error resolveDummyReferences(Function& function);
@@ -899,7 +900,7 @@ llvm::Error resolveDummyReferences(Class& model)
 	return llvm::Error::success();
 }
 
-std::unique_ptr<Pass> modelica::createTypeCheckingPass()
+std::unique_ptr<Pass> modelica::frontend::createTypeCheckingPass()
 {
 	return std::make_unique<TypeChecker>();
 }

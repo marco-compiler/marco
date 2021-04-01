@@ -4,9 +4,9 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Expression;
 
@@ -52,4 +52,4 @@ namespace modelica
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Call& obj);
 
 	std::string toString(const Call& obj);
-}	 // namespace modelica
+}

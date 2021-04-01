@@ -11,7 +11,7 @@
 #include "Expression.h"
 #include "Induction.h"
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Statement;
 
@@ -466,5 +466,4 @@ namespace modelica
 				ReturnStatement>
 				content;
 	};
-
-}	 // namespace modelica
+}

@@ -1,6 +1,7 @@
 #include <modelica/frontend/AST.h>
 
 using namespace modelica;
+using namespace frontend;
 
 AssignmentStatement::AssignmentStatement(
 		SourcePosition location, Expression destination, Expression expression)

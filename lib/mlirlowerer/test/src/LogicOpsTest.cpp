@@ -6,9 +6,11 @@
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
+using namespace frontend;
+using namespace codegen;
 using namespace std;
 
 TEST(Logic, negateScalar)	 // NOLINT
@@ -53,11 +55,11 @@ TEST(Logic, negateScalar)	 // NOLINT
 	array<bool, 2> x = { true, false };
 	array<bool, 2> y = { true, false };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y] : llvm::zip(x, y))
 	{
-		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 		EXPECT_EQ(y, !x);
 	}
 }
@@ -107,7 +109,7 @@ TEST(Logic, negateArray)	 // NOLINT
 	ArrayDescriptor<bool, 1> xPtr(x.data(), { 2 });
 	ArrayDescriptor<bool, 1> yPtr(y.data(), { 2 });
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr)));
 
 	for (const auto& [x, y] : llvm::zip(xPtr, yPtr))
@@ -160,11 +162,11 @@ TEST(Logic, andScalars)	 // NOLINT
 	array<bool, 4> y = { false, true, false, true };
 	array<bool, 4> z = { true, true, true, false };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x && y);
 	}
 }
@@ -219,7 +221,7 @@ TEST(Logic, andArrays)	 // NOLINT
 	ArrayDescriptor<bool, 1> yPtr(y.data(), { 4 });
 	ArrayDescriptor<bool, 1> zPtr(z.data(), { 4 });
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
 	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))
@@ -272,11 +274,11 @@ TEST(Logic, orScalars)	 // NOLINT
 	array<bool, 4> y = { false, true, false, true };
 	array<bool, 4> z = { true, false, false, false };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x || y);
 	}
 }
@@ -331,7 +333,7 @@ TEST(Logic, orArrays)	 // NOLINT
 	ArrayDescriptor<bool, 1> yPtr(y.data(), { 4 });
 	ArrayDescriptor<bool, 1> zPtr(z.data(), { 4 });
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
 	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))

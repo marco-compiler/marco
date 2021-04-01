@@ -8,6 +8,7 @@
 #include <optional>
 
 using namespace modelica;
+using namespace frontend;
 
 Parser::Parser(std::string filename, const std::string& source)
 		: filename(move(filename)),

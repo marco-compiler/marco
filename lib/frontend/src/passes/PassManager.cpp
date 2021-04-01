@@ -1,6 +1,6 @@
 #include <modelica/frontend/PassManager.h>
 
-using namespace modelica;
+using namespace modelica::frontend;
 
 void PassManager::addPass(std::unique_ptr<Pass> pass)
 {

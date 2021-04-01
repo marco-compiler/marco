@@ -1,6 +1,6 @@
 #include <modelica/mlirlowerer/ModelicaBuilder.h>
 
-using namespace modelica;
+using namespace modelica::codegen;
 
 ModelicaBuilder::ModelicaBuilder(mlir::MLIRContext* context, unsigned int bitWidth)
 		: mlir::OpBuilder(context),

@@ -8,6 +8,7 @@
 using namespace llvm;
 using namespace std;
 using namespace modelica;
+using namespace frontend;
 
 TEST(OmcToModelTest, singleDeclaration)	 // NOLINT
 {

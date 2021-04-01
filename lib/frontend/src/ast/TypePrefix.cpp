@@ -1,48 +1,51 @@
 #include <modelica/frontend/AST.h>
 
-using namespace modelica;
+using namespace modelica::frontend;
 
-llvm::raw_ostream& modelica::operator<<(
-		llvm::raw_ostream& stream, const ParameterQualifier& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
-
-std::string modelica::toString(ParameterQualifier qualifier)
-{
-	switch (qualifier)
+	llvm::raw_ostream& operator<<(
+			llvm::raw_ostream& stream, const ParameterQualifier& obj)
 	{
-		case ParameterQualifier::discrete:
-			return "discrete";
-		case ParameterQualifier::parameter:
-			return "parameter";
-		case ParameterQualifier::constant:
-			return "constant";
-		case ParameterQualifier::none:
-			return "none";
+		return stream << toString(obj);
 	}
 
-	return "unexpected";
-}
-
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const IOQualifier& obj)
-{
-	return stream << toString(obj);
-}
-
-std::string modelica::toString(IOQualifier qualifier)
-{
-	switch (qualifier)
+	std::string toString(ParameterQualifier qualifier)
 	{
-		case IOQualifier::input:
-			return "input";
-		case IOQualifier::output:
-			return "output";
-		case IOQualifier::none:
-			return "none";
+		switch (qualifier)
+		{
+			case ParameterQualifier::discrete:
+				return "discrete";
+			case ParameterQualifier::parameter:
+				return "parameter";
+			case ParameterQualifier::constant:
+				return "constant";
+			case ParameterQualifier::none:
+				return "none";
+		}
+
+		return "unexpected";
 	}
 
-	return "unexpected";
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const IOQualifier& obj)
+	{
+		return stream << toString(obj);
+	}
+
+	std::string toString(IOQualifier qualifier)
+	{
+		switch (qualifier)
+		{
+			case IOQualifier::input:
+				return "input";
+			case IOQualifier::output:
+				return "output";
+			case IOQualifier::none:
+				return "none";
+		}
+
+		return "unexpected";
+	}
 }
 
 TypePrefix::TypePrefix(

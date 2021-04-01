@@ -8,7 +8,7 @@
 #include <modelica/mlirlowerer/Ops.h>
 #include <modelica/mlirlowerer/passes/TypeConverter.h>
 
-namespace modelica
+namespace modelica::codegen
 {
 	std::unique_ptr<mlir::Pass> createResultBuffersToArgsPass();
 }

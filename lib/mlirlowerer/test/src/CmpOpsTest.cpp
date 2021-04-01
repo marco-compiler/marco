@@ -4,9 +4,11 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
+using namespace frontend;
+using namespace codegen;
 using namespace std;
 
 TEST(Comparison, eqIntegers)	 // NOLINT
@@ -55,11 +57,11 @@ TEST(Comparison, eqIntegers)	 // NOLINT
 	array<int, 2> y = { 57, 23 };
 	array<bool, 2> z = { false, true };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x == y);
 	}
 }
@@ -110,11 +112,11 @@ TEST(Comparison, eqFloats)	 // NOLINT
 	array<float, 2> y = { 57, 23 };
 	array<bool, 2> z = { false, true };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x == y);
 	}
 }
@@ -165,11 +167,11 @@ TEST(Comparison, eqIntegerAndFloat)	 // NOLINT
 	array<float, 2> y = { 57, 23 };
 	array<bool, 2> z = { false, true };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x == y);
 	}
 }
@@ -220,11 +222,11 @@ TEST(Comparison, notEqIntegers)	 // NOLINT
 	array<int, 2> y = { 57, 23 };
 	array<bool, 2> z = { true, false };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x != y);
 	}
 }
@@ -275,11 +277,11 @@ TEST(Comparison, notEqFloats)	 // NOLINT
 	array<float, 2> y = { 57, 23 };
 	array<bool, 2> z = { true, false };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x != y);
 	}
 }
@@ -330,11 +332,11 @@ TEST(Comparison, notEqIntegerAndFloat)	 // NOLINT
 	array<float, 2> y = { 57, 23 };
 	array<bool, 2> z = { true, false };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x != y);
 	}
 }
@@ -385,11 +387,11 @@ TEST(Comparison, gtIntegers)	 // NOLINT
 	array<int, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { true, true, false };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x > y);
 	}
 }
@@ -440,11 +442,11 @@ TEST(Comparison, gtFloats)	 // NOLINT
 	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { true, true, false };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x > y);
 	}
 }
@@ -495,11 +497,11 @@ TEST(Comparison, gtIntegerAndFloat)	 // NOLINT
 	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { true, true, false };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x > y);
 	}
 }
@@ -550,11 +552,11 @@ TEST(Comparison, gteIntegers)	 // NOLINT
 	array<int, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { true, false, false };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x >= y);
 	}
 }
@@ -605,11 +607,11 @@ TEST(Comparison, gteFloats)	 // NOLINT
 	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { true, false, false };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x >= y);
 	}
 }
@@ -660,11 +662,11 @@ TEST(Comparison, gteIntegerAndFloat)	 // NOLINT
 	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { true, false, false };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x >= y);
 	}
 }
@@ -715,11 +717,11 @@ TEST(Comparison, ltIntegers)	 // NOLINT
 	array<int, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { false, true, true };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x < y);
 	}
 }
@@ -770,11 +772,11 @@ TEST(Comparison, ltFloats)	 // NOLINT
 	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { false, true, true };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x < y);
 	}
 }
@@ -825,11 +827,11 @@ TEST(Comparison, ltIntegerAndFloat)	 // NOLINT
 	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { false, true, true };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x < y);
 	}
 }
@@ -880,11 +882,11 @@ TEST(Comparison, lteIntegers)	 // NOLINT
 	array<int, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { false, false, true };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_FALSE(failed(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_FALSE(failed(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x <= y);
 	}
 }
@@ -935,11 +937,11 @@ TEST(Comparison, lteFloats)	 // NOLINT
 	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { false, false, true };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x <= y);
 	}
 }
@@ -990,11 +992,11 @@ TEST(Comparison, lteIntegerAndFloat)	 // NOLINT
 	array<float, 3> y = { 57, 57, 23 };
 	array<bool, 3> z = { false, false, true };
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 
 	for (const auto& [x, y, z] : llvm::zip(x, y, z))
 	{
-		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, Runner::result(z))));
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, jit::Runner::result(z))));
 		EXPECT_EQ(z, x <= y);
 	}
 }

@@ -124,10 +124,10 @@ int main(int argc, char* argv[])
 	}
 
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
-	Parser parser(buffer->getBufferStart());
+	frontend::Parser parser(buffer->getBufferStart());
 	auto ast = exitOnErr(parser.classDefinition());
 
-	TypeChecker checker;
+	frontend::TypeChecker checker;
 	exitOnErr(checker.run(ast));
 	if (dumpTypeChecked)
 	{
@@ -135,7 +135,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	modelica::ConstantFolder folder;
+	frontend::ConstantFolder folder;
 	exitOnErr(folder.run(ast));
 	if (dumpFolded)
 	{
@@ -145,7 +145,7 @@ int main(int argc, char* argv[])
 
 	Model model;
 	OmcToModelPass pass(model);
-	exitOnErr(pass.lower(ast, SymbolTable()));
+	exitOnErr(pass.lower(ast, frontend::SymbolTable()));
 	if (dumpModel)
 	{
 		model.dump(OS);

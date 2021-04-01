@@ -10,7 +10,7 @@
 
 #include "AST.h"
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Argument;
 	class ClassModification;
@@ -139,4 +139,4 @@ namespace modelica
 		Token current;
 		Token undo;
 	};
-}	 // namespace modelica
+}

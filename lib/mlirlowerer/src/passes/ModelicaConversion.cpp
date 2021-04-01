@@ -8,7 +8,7 @@
 #include <modelica/mlirlowerer/passes/ModelicaConversion.h>
 #include <modelica/mlirlowerer/passes/TypeConverter.h>
 
-using namespace modelica;
+using namespace modelica::codegen;
 
 /**
  * Helper class to produce LLVM dialect operations extracting or inserting
@@ -169,9 +169,9 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 	{
 	}
 
-	[[nodiscard]] modelica::TypeConverter& typeConverter() const
+	[[nodiscard]] modelica::codegen::TypeConverter& typeConverter() const
 	{
-		return *static_cast<modelica::TypeConverter *>(this->getTypeConverter());
+		return *static_cast<modelica::codegen::TypeConverter *>(this->getTypeConverter());
 	}
 
 	[[nodiscard]] mlir::Type convertType(mlir::Type type) const
@@ -2703,7 +2703,7 @@ static void populateModelicaBuiltInConversionPatterns(mlir::OwningRewritePattern
 			SizeOpArrayLowering>(context, typeConverter);
 }
 
-static void populateModelicaConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, modelica::TypeConverter& typeConverter)
+static void populateModelicaConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, modelica::codegen::TypeConverter& typeConverter)
 {
 	populateModelicaBasicConversionPatterns(patterns, context, typeConverter);
 	populateModelicaMemoryConversionPatterns(patterns, context, typeConverter);
@@ -2758,7 +2758,7 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 	}
 };
 
-std::unique_ptr<mlir::Pass> modelica::createModelicaConversionPass()
+std::unique_ptr<mlir::Pass> modelica::codegen::createModelicaConversionPass()
 {
 	return std::make_unique<ModelicaConversionPass>();
 }

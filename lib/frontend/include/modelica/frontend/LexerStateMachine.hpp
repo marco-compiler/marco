@@ -7,7 +7,7 @@
 #include <optional>
 #include <string>
 
-namespace modelica
+namespace modelica::frontend
 {
 	enum class Token
 	{
@@ -123,7 +123,7 @@ namespace modelica
 	class ModelicaStateMachine
 	{
 		public:
-		using Token = modelica::Token;
+		using Token = modelica::frontend::Token;
 
 		ModelicaStateMachine(char first);
 
@@ -246,4 +246,4 @@ namespace modelica
 		llvm::StringMap<Token> keywordMap;
 		std::map<char, Token> symbols;
 	};
-}	 // namespace modelica
+}

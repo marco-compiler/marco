@@ -8,7 +8,7 @@
 #include <modelica/frontend/Pass.h>
 #include <modelica/frontend/Symbol.hpp>
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Algorithm;
 	class AssignmentStatement;
@@ -88,4 +88,4 @@ namespace modelica
 	llvm::Error TypeChecker::run<Array>(Expression& expression);
 
 	std::unique_ptr<Pass> createTypeCheckingPass();
-}	 // namespace modelica
+}

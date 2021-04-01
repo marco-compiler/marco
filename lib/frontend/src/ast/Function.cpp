@@ -2,6 +2,7 @@
 #include <modelica/frontend/AST.h>
 
 using namespace modelica;
+using namespace frontend;
 
 template<typename T>
 using Container = Function::Container<T>;
@@ -124,7 +125,7 @@ Annotation Function::getAnnotation() const
 	return annotation;
 }
 
-modelica::Type& Function::getType() { return type; }
+Type& Function::getType() { return type; }
 
 const Type& Function::getType() const { return type; }
 

@@ -2,6 +2,7 @@
 #include <modelica/frontend/Parser.hpp>
 
 using namespace modelica;
+using namespace frontend;
 using namespace std;
 
 TEST(RecordTest, empty)	 // NOLINT

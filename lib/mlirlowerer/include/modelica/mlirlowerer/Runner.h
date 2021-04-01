@@ -4,7 +4,7 @@
 #include <mlir/ExecutionEngine/ExecutionEngine.h>
 #include <mlir/IR/BuiltinOps.h>
 
-namespace modelica
+namespace modelica::jit
 {
 	class Runner
 	{

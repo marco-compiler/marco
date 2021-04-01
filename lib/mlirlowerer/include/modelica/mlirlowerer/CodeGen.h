@@ -15,12 +15,12 @@
 #include <modelica/omcToModel/OmcToModelPass.hpp>
 #include <modelica/passes/ConstantFold.hpp>
 #include <modelica/passes/SolveModel.hpp>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 
 #include "ModelicaBuilder.h"
 #include "Passes.h"
 
-namespace modelica
+namespace modelica::codegen
 {
 	struct ModelicaOptions {
 
@@ -98,39 +98,39 @@ namespace modelica
 
 		mlir::LogicalResult convertToLLVMDialect(mlir::ModuleOp& module, ModelicaConversionOptions options = ModelicaConversionOptions::getDefaultOptions());
 
-		llvm::Optional<mlir::ModuleOp> lower(llvm::ArrayRef<ClassContainer> classes);
+		llvm::Optional<mlir::ModuleOp> lower(llvm::ArrayRef<frontend::ClassContainer> classes);
 
 		private:
-		mlir::Operation* lower(Class& cls);
-		mlir::Operation* lower(Function& function);
-		mlir::Operation* lower(Package& package);
-		mlir::Operation* lower(Record& record);
+		mlir::Operation* lower(frontend::Class& cls);
+		mlir::Operation* lower(frontend::Function& function);
+		mlir::Operation* lower(frontend::Package& package);
+		mlir::Operation* lower(frontend::Record& record);
 
-		mlir::Type lower(Type& type, BufferAllocationScope allocationScope);
-		mlir::Type lower(BuiltInType& type, BufferAllocationScope allocationScope);
-		mlir::Type lower(PackedType& type, BufferAllocationScope allocationScope);
-		mlir::Type lower(UserDefinedType& type, BufferAllocationScope allocationScope);
+		mlir::Type lower(frontend::Type& type, BufferAllocationScope allocationScope);
+		mlir::Type lower(frontend::BuiltInType& type, BufferAllocationScope allocationScope);
+		mlir::Type lower(frontend::PackedType& type, BufferAllocationScope allocationScope);
+		mlir::Type lower(frontend::UserDefinedType& type, BufferAllocationScope allocationScope);
 
 		template<typename Context>
-		void lower(Member& member);
+		void lower(frontend::Member& member);
 
-		void lower(Equation& equation);
-		void lower(ForEquation& forEquation);
+		void lower(frontend::Equation& equation);
+		void lower(frontend::ForEquation& forEquation);
 
-		void lower(Algorithm& algorithm);
-		void lower(Statement& statement);
-		void lower(AssignmentStatement& statement);
-		void lower(IfStatement& statement);
-		void lower(ForStatement& statement);
-		void lower(WhileStatement& statement);
-		void lower(WhenStatement& statement);
-		void lower(BreakStatement& statement);
-		void lower(ReturnStatement& statement);
+		void lower(frontend::Algorithm& algorithm);
+		void lower(frontend::Statement& statement);
+		void lower(frontend::AssignmentStatement& statement);
+		void lower(frontend::IfStatement& statement);
+		void lower(frontend::ForStatement& statement);
+		void lower(frontend::WhileStatement& statement);
+		void lower(frontend::WhenStatement& statement);
+		void lower(frontend::BreakStatement& statement);
+		void lower(frontend::ReturnStatement& statement);
 
 		void assign(mlir::Location location, Reference memory, mlir::Value value);
 
 		template<typename T>
-		Container<Reference> lower(Expression& expression);
+		Container<Reference> lower(frontend::Expression& expression);
 
 		/**
 		 * The builder is a helper class to create IR inside a function. The
@@ -175,7 +175,7 @@ namespace modelica
 		 * @param operation operation whose arguments have to be lowered
 		 * @return lowered args
  		 */
-		Container<mlir::Value> lowerOperationArgs(Operation& operation);
+		Container<mlir::Value> lowerOperationArgs(frontend::Operation& operation);
 
 		/**
 		 * Helper to convert an AST location to a MLIR location.
@@ -187,29 +187,29 @@ namespace modelica
 	};
 
 	template<>
-	void MLIRLowerer::lower<Class>(Member& member);
+	void MLIRLowerer::lower<frontend::Class>(frontend::Member& member);
 
 	template<>
-	void MLIRLowerer::lower<Function>(Member& member);
+	void MLIRLowerer::lower<frontend::Function>(frontend::Member& member);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Expression>(Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Expression>(frontend::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Operation>(frontend::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Constant>(Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Constant>(frontend::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<ReferenceAccess>(Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::ReferenceAccess>(frontend::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Call>(frontend::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Tuple>(frontend::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Array>(frontend::Expression& expression);
 }

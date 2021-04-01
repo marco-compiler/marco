@@ -2,32 +2,35 @@
 #include <modelica/frontend/AST.h>
 #include <numeric>
 
-using namespace modelica;
+using namespace modelica::frontend;
 
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const BuiltInType& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
-
-std::string modelica::toString(BuiltInType type)
-{
-	switch (type)
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const BuiltInType& obj)
 	{
-		case BuiltInType::None:
-			return "none";
-		case BuiltInType::Integer:
-			return "integer";
-		case BuiltInType::Float:
-			return "float";
-		case BuiltInType::String:
-			return "string";
-		case BuiltInType::Boolean:
-			return "boolean";
-		case BuiltInType::Unknown:
-			return "unknown";
+		return stream << toString(obj);
 	}
 
-	assert(false && "Unexpected type");
+	std::string toString(BuiltInType type)
+	{
+		switch (type)
+		{
+			case BuiltInType::None:
+				return "none";
+			case BuiltInType::Integer:
+				return "integer";
+			case BuiltInType::Float:
+				return "float";
+			case BuiltInType::String:
+				return "string";
+			case BuiltInType::Boolean:
+				return "boolean";
+			case BuiltInType::Unknown:
+				return "unknown";
+		}
+
+		assert(false && "Unexpected type");
+	}
 }
 
 PackedType::PackedType(llvm::ArrayRef<Type> types)
@@ -103,23 +106,26 @@ PackedType::const_iterator PackedType::end() const
 	return types.end();
 }
 
-llvm::raw_ostream& modelica::operator<<(
-		llvm::raw_ostream& stream, const PackedType& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
+	llvm::raw_ostream& operator<<(
+			llvm::raw_ostream& stream, const PackedType& obj)
+	{
+		return stream << toString(obj);
+	}
 
-std::string modelica::toString(PackedType obj)
-{
-	return "{" +
-				 accumulate(
-						 obj.begin(),
-						 obj.end(),
-						 std::string(),
-						 [](const std::string& a, const auto& b) -> std::string {
-							 return a + (a.length() > 0 ? ", " : "") + toString(b);
-						 }) +
-				 "}";
+	std::string toString(PackedType obj)
+	{
+		return "{" +
+					 accumulate(
+							 obj.begin(),
+							 obj.end(),
+							 std::string(),
+							 [](const std::string& a, const auto& b) -> std::string {
+								 return a + (a.length() > 0 ? ", " : "") + toString(b);
+							 }) +
+					 "}";
+	}
 }
 
 UserDefinedType::UserDefinedType(std::string name, llvm::ArrayRef<Type> types)
@@ -201,23 +207,26 @@ UserDefinedType::const_iterator UserDefinedType::end() const
 	return types.end();
 }
 
-llvm::raw_ostream& modelica::operator<<(
-		llvm::raw_ostream& stream, const UserDefinedType& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
+	llvm::raw_ostream& operator<<(
+			llvm::raw_ostream& stream, const UserDefinedType& obj)
+	{
+		return stream << toString(obj);
+	}
 
-std::string modelica::toString(UserDefinedType obj)
-{
-	return "{" +
-				 accumulate(
-						 obj.begin(),
-						 obj.end(),
-						 std::string(),
-						 [](const std::string& a, const auto& b) -> std::string {
-							 return a + (a.length() > 0 ? ", " : "") + toString(b);
-						 }) +
-				 "}";
+	std::string toString(UserDefinedType obj)
+	{
+		return "{" +
+					 accumulate(
+							 obj.begin(),
+							 obj.end(),
+							 std::string(),
+							 [](const std::string& a, const auto& b) -> std::string {
+								 return a + (a.length() > 0 ? ", " : "") + toString(b);
+							 }) +
+					 "}";
+	}
 }
 
 ArrayDimension::ArrayDimension(long size) : size(size)
@@ -264,17 +273,20 @@ const Expression& ArrayDimension::getExpression() const
 	return *std::get<ArrayDimension::ExpressionPtr>(size);
 }
 
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const ArrayDimension& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const ArrayDimension& obj)
+	{
+		return stream << toString(obj);
+	}
 
-std::string modelica::toString(const ArrayDimension& obj)
-{
-	if (obj.hasExpression())
-		return toString(obj.getExpression());
+	std::string toString(const ArrayDimension& obj)
+	{
+		if (obj.hasExpression())
+			return toString(obj.getExpression());
 
-	return std::to_string(obj.getNumericSize());
+		return std::to_string(obj.getNumericSize());
+	}
 }
 
 Type::Type(BuiltInType type, llvm::ArrayRef<ArrayDimension> dim)
@@ -405,11 +417,6 @@ Type Type::subscript(size_t times) const
 	});
 }
 
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Type& obj)
-{
-	return stream << toString(obj);
-}
-
 class ArrayDimensionToStringVisitor
 {
 	public:
@@ -417,24 +424,32 @@ class ArrayDimensionToStringVisitor
 	std::string operator()(const ArrayDimension::ExpressionPtr& expression) { return toString(*expression); };
 };
 
-std::string modelica::toString(Type obj)
+namespace modelica::frontend
 {
-	auto visitor = [](const auto& t) { return toString(t); };
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Type& obj)
+	{
+		return stream << toString(obj);
+	}
 
-	auto dimensionsToStringLambda = [](const std::string& a, ArrayDimension& b) -> std::string {
-		return a + (a.length() > 0 ? "," : "") + b.visit(ArrayDimensionToStringVisitor());
-	};
+	std::string toString(Type obj)
+	{
+		auto visitor = [](const auto& t) { return toString(t); };
 
-	auto& dimensions = obj.getDimensions();
-	std::string size = obj.isScalar() ? ""
-															 : "[" +
-																		 accumulate(
-																				 dimensions.begin(),
-																				 dimensions.end(),
-																				 std::string(),
-																				 dimensionsToStringLambda) +
-																		 "] ";
-	return size + obj.visit(visitor);
+		auto dimensionsToStringLambda = [](const std::string& a, ArrayDimension& b) -> std::string {
+			return a + (a.length() > 0 ? "," : "") + b.visit(ArrayDimensionToStringVisitor());
+		};
+
+		auto& dimensions = obj.getDimensions();
+		std::string size = obj.isScalar() ? ""
+																			: "[" +
+																				accumulate(
+																						dimensions.begin(),
+																						dimensions.end(),
+																						std::string(),
+																						dimensionsToStringLambda) +
+																				"] ";
+		return size + obj.visit(visitor);
+	}
 }
 
 Type Type::unknown() { return Type(BuiltInType::Unknown); }

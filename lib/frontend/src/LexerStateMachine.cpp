@@ -2,11 +2,12 @@
 
 using namespace llvm;
 using namespace modelica;
+using namespace frontend;
 using namespace std;
 
 using State = ModelicaStateMachine::State;
 
-namespace modelica
+namespace modelica::frontend
 {
 	raw_ostream& operator<<(raw_ostream& stream, const Token& obj)
 	{

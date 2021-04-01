@@ -71,18 +71,18 @@ int main(int argc, char* argv[])
 	}
 
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
-	Parser parser(buffer->getBufferStart());
+	frontend::Parser parser(buffer->getBufferStart());
 	auto ast = exitOnErr(parser.classDefinition());
 
 	if (printParsedAST)
 		ast.dump();
 
 	// Run frontend passes
-	modelica::PassManager frontendPassManager;
-	frontendPassManager.addPass(createTypeCheckingPass());
-	frontendPassManager.addPass(createConstantFolderPass());
-	frontendPassManager.addPass(createBreakRemovingPass());
-	frontendPassManager.addPass(createReturnRemovingPass());
+	frontend::PassManager frontendPassManager;
+	frontendPassManager.addPass(frontend::createTypeCheckingPass());
+	frontendPassManager.addPass(frontend::createConstantFolderPass());
+	frontendPassManager.addPass(frontend::createBreakRemovingPass());
+	frontendPassManager.addPass(frontend::createReturnRemovingPass());
 	exitOnErr(frontendPassManager.run(ast));
 
 	if (printLegalizedAST)
@@ -91,10 +91,10 @@ int main(int argc, char* argv[])
 	// Create the MLIR module
 	mlir::MLIRContext context;
 
-	ModelicaOptions modelicaOptions;
+	codegen::ModelicaOptions modelicaOptions;
 	modelicaOptions.x64 = !x86.getValue();
 
-	MLIRLowerer lowerer(context, modelicaOptions);
+	codegen::MLIRLowerer lowerer(context, modelicaOptions);
 	auto module = lowerer.lower(ast);
 
 	if (!module)
@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
 		module->dump();
 
 	// Convert to LLVM dialect
-	modelica::ModelicaConversionOptions conversionOptions;
+	codegen::ModelicaConversionOptions conversionOptions;
 	conversionOptions.inlining = !inlining;
 	conversionOptions.resultBuffersToArgs = !resultBuffersToArgs;
 	conversionOptions.cse = !cse;

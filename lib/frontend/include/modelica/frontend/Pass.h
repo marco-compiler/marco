@@ -2,7 +2,7 @@
 
 #include <llvm/Support/Error.h>
 
-namespace modelica
+namespace modelica::frontend
 {
 	class ClassContainer;
 

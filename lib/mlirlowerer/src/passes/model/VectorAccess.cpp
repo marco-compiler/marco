@@ -6,6 +6,7 @@
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <string>
 
+using namespace modelica::codegen;
 using namespace modelica::codegen::model;
 using namespace std;
 using namespace llvm;
@@ -304,13 +305,13 @@ static long getIntFromAttribute(mlir::Attribute attribute)
 	if (auto indexAttr = attribute.dyn_cast<mlir::IntegerAttr>())
 		return indexAttr.getInt();
 
-	if (auto booleanAttr = attribute.dyn_cast<modelica::BooleanAttribute>())
+	if (auto booleanAttr = attribute.dyn_cast<BooleanAttribute>())
 		return booleanAttr.getValue() ? 1 : 0;
 
-	if (auto integerAttr = attribute.dyn_cast<modelica::IntegerAttribute>())
+	if (auto integerAttr = attribute.dyn_cast<IntegerAttribute>())
 		return integerAttr.getValue();
 
-	if (auto realAttr = attribute.dyn_cast<modelica::RealAttribute>())
+	if (auto realAttr = attribute.dyn_cast<RealAttribute>())
 		return realAttr.getValue();
 
 	assert(false && "Unknown attribute type");

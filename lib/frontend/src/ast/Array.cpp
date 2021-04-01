@@ -2,6 +2,7 @@
 #include <numeric>
 
 using namespace modelica;
+using namespace frontend;
 
 Array::Array(SourcePosition location, llvm::ArrayRef<Expression> values)
 		: location(std::move(location))
@@ -82,19 +83,22 @@ Array::const_iterator Array::end() const
 	return values.end();
 }
 
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Array& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Array& obj)
+	{
+		return stream << toString(obj);
+	}
 
-std::string modelica::toString(const Array& obj)
-{
-	return "(" +
-				 accumulate(obj.begin(), obj.end(), std::string(),
-										[](const std::string& result, const Expression& element)
-										{
-											std::string str = toString(element);
-											return result.empty() ? str : result + "," + str;
-										}) +
-				 ")";
+	std::string toString(const Array& obj)
+	{
+		return "(" +
+					 accumulate(obj.begin(), obj.end(), std::string(),
+											[](const std::string& result, const Expression& element)
+											{
+												std::string str = toString(element);
+												return result.empty() ? str : result + "," + str;
+											}) +
+					 ")";
+	}
 }

@@ -2,6 +2,7 @@
 #include <modelica/utils/IRange.hpp>
 
 using namespace modelica;
+using namespace frontend;
 
 struct LValueVisitor
 {
@@ -84,12 +85,15 @@ const Type& Expression::getType() const { return type; }
 
 void Expression::setType(Type tp) { type = std::move(tp); }
 
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Expression& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Expression& obj)
+	{
+		return stream << toString(obj);
+	}
 
-std::string modelica::toString(const Expression& obj)
-{
-	return obj.visit([](const auto& obj) { return toString(obj); });
+	std::string toString(const Expression& obj)
+	{
+		return obj.visit([](const auto& obj) { return toString(obj); });
+	}
 }

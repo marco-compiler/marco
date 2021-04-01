@@ -19,6 +19,7 @@
 #include "modelica/utils/Interval.hpp"
 
 using namespace modelica;
+using namespace frontend;
 using namespace std;
 using namespace llvm;
 
@@ -80,15 +81,15 @@ static BultinModTypes builtinToBuiltin(BuiltInType type)
 {
 	switch (type)
 	{
-		case modelica::BuiltInType::Boolean:
+		case BuiltInType::Boolean:
 			return BultinModTypes::BOOL;
-		case modelica::BuiltInType::Integer:
+		case BuiltInType::Integer:
 			return BultinModTypes::INT;
-		case modelica::BuiltInType::Float:
+		case BuiltInType::Float:
 			return BultinModTypes::FLOAT;
-		case modelica::BuiltInType::String:
-		case modelica::BuiltInType::None:
-		case modelica::BuiltInType::Unknown:
+		case BuiltInType::String:
+		case BuiltInType::None:
+		case BuiltInType::Unknown:
 			assert(false && "not supported");
 			return BultinModTypes::BOOL;
 	}

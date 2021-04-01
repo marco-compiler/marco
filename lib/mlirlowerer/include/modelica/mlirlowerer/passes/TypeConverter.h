@@ -7,7 +7,7 @@
 #include <mlir/IR/MLIRContext.h>
 #include <modelica/mlirlowerer/Type.h>
 
-namespace modelica
+namespace modelica::codegen
 {
 	class TypeConverter : public mlir::LLVMTypeConverter
 	{

@@ -2,14 +2,14 @@
 
 #include <cassert>
 #include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 #include <string>
 #include <type_traits>
 #include <variant>
 
 #include "Type.h"
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Constant
 	{
@@ -87,4 +87,4 @@ namespace modelica
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Constant& obj);
 
 	std::string toString(const Constant& obj);
-}	 // namespace modelica
+}

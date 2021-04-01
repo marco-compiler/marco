@@ -8,6 +8,7 @@
 
 using namespace llvm;
 using namespace modelica;
+using namespace frontend;
 using namespace std;
 
 TEST(TypeCheckTest, sumOfIntShouldProduceInt)	 // NOLINT

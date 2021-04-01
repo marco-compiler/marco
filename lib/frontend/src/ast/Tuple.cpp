@@ -3,6 +3,7 @@
 #include <numeric>
 
 using namespace modelica;
+using namespace frontend;
 
 Tuple::Tuple(SourcePosition location, llvm::ArrayRef<Expression> expressions)
 		: location(std::move(location))
@@ -87,19 +88,22 @@ Tuple::const_iterator Tuple::end() const
 	return expressions.end();
 }
 
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Tuple& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Tuple& obj)
+	{
+		return stream << toString(obj);
+	}
 
-std::string modelica::toString(const Tuple& obj)
-{
-	return "(" +
-				 accumulate(++obj.begin(), obj.end(), std::string(),
-										[](const std::string& result, const Expression& element)
-										{
-											std::string str = toString(element);
-											return result.empty() ? str : result + "," + str;
-										}) +
-				 ")";
+	std::string toString(const Tuple& obj)
+	{
+		return "(" +
+					 accumulate(++obj.begin(), obj.end(), std::string(),
+											[](const std::string& result, const Expression& element)
+											{
+												std::string str = toString(element);
+												return result.empty() ? str : result + "," + str;
+											}) +
+					 ")";
+	}
 }

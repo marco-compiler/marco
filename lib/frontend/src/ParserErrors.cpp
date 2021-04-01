@@ -1,6 +1,6 @@
 #include <modelica/frontend/ParserErrors.hpp>
 
-using namespace modelica;
+using namespace modelica::frontend;
 
 ParserErrorCategory ParserErrorCategory::category;
 char UnexpectedToken::ID;
@@ -12,7 +12,7 @@ char BranchesTypeDoNotMatch::ID;
 char EmptyList::ID;
 char BadSemantic::ID;
 
-std::error_condition modelica::make_error_condition(ParserErrorCode errc)
+std::error_condition modelica::frontend::make_error_condition(ParserErrorCode errc)
 {
 	return std::error_condition(
 			static_cast<int>(errc), ParserErrorCategory::category);

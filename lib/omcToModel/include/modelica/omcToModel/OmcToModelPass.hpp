@@ -15,37 +15,37 @@ namespace modelica
 		public:
 		OmcToModelPass(Model& toPopulate): model(toPopulate) {}
 
-		[[nodiscard]] llvm::Error lower(ClassContainer& cl, const SymbolTable& table);
-		[[nodiscard]] llvm::Error lower(Class& cl, const SymbolTable& table);
-		[[nodiscard]] llvm::Error lower(Function& cl, const SymbolTable& table);
-		[[nodiscard]] llvm::Error lower(Package& cl, const SymbolTable& table);
-		[[nodiscard]] llvm::Error lower(Record& cl, const SymbolTable& table);
+		[[nodiscard]] llvm::Error lower(frontend::ClassContainer& cl, const frontend::SymbolTable& table);
+		[[nodiscard]] llvm::Error lower(frontend::Class& cl, const frontend::SymbolTable& table);
+		[[nodiscard]] llvm::Error lower(frontend::Function& cl, const frontend::SymbolTable& table);
+		[[nodiscard]] llvm::Error lower(frontend::Package& cl, const frontend::SymbolTable& table);
+		[[nodiscard]] llvm::Error lower(frontend::Record& cl, const frontend::SymbolTable& table);
 		[[nodiscard]] llvm::Expected<ModEquation> lower(
-				Equation& eq, const SymbolTable& table, int nestingLevel);
+				frontend::Equation& eq, const frontend::SymbolTable& table, int nestingLevel);
 		[[nodiscard]] llvm::Expected<ModEquation> lower(
-				ForEquation& eq, const SymbolTable& table);
+				frontend::ForEquation& eq, const frontend::SymbolTable& table);
 		[[nodiscard]] llvm::Expected<ModExp> lower(
-				Expression& exp, const SymbolTable& table);
+				frontend::Expression& exp, const frontend::SymbolTable& table);
 		[[nodiscard]] llvm::Expected<ModCall> lowerCall(
-				Expression& call, const SymbolTable& table);
+				frontend::Expression& call, const frontend::SymbolTable& table);
 
 		[[nodiscard]] llvm::Expected<ModExp> lowerOperation(
-				Expression& op, const SymbolTable& table);
-		[[nodiscard]] llvm::Error lower(Member& member, const SymbolTable& table);
+				frontend::Expression& op, const frontend::SymbolTable& table);
+		[[nodiscard]] llvm::Error lower(frontend::Member& member, const frontend::SymbolTable& table);
 		[[nodiscard]] llvm::Expected<ModType> lower(
-				const Type& tp, const SymbolTable& table);
+				const frontend::Type& tp, const frontend::SymbolTable& table);
 
 		[[nodiscard]] llvm::Expected<ModExp> lowerReference(
-				Expression& ref, const SymbolTable& table);
+				frontend::Expression& ref, const frontend::SymbolTable& table);
 
 		[[nodiscard]] llvm::Expected<ModExp> initializer(
-				Member& member, const SymbolTable& table);
+				frontend::Member& member, const frontend::SymbolTable& table);
 
 		[[nodiscard]] llvm::Expected<ModExp> lowerStart(
-				Member& member, const SymbolTable& table);
+				frontend::Member& member, const frontend::SymbolTable& table);
 
 		[[nodiscard]] llvm::Expected<ModExp> defaultInitializer(
-				const Member& mem, const SymbolTable& table);
+				const frontend::Member& mem, const frontend::SymbolTable& table);
 
 		private:
 		Model& model;

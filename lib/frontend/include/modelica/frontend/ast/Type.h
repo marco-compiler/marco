@@ -9,7 +9,7 @@
 #include <variant>
 #include <vector>
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Type;
 	class Expression;
@@ -310,5 +310,4 @@ namespace modelica
 
 		return Type(T, { static_cast<ArrayDimension>(args)... });
 	}
-
-}	 // namespace modelica
+}

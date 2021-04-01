@@ -4,7 +4,7 @@
 
 #include "Expression.h"
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Equation
 	{
@@ -29,4 +29,4 @@ namespace modelica
 		Expression leftHand;
 		Expression rightHand;
 	};
-}	 // namespace modelica
+}

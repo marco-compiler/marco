@@ -2,6 +2,7 @@
 #include <modelica/frontend/AST.h>
 
 using namespace modelica;
+using namespace frontend;
 
 TEST(AST, expressionConstantCanBeBuilt)	 // NOLINT
 {

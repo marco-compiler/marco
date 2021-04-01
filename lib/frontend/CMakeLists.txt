@@ -32,7 +32,6 @@ modelicaAddLibrary(
         src/ParserErrors.cpp
 		src/Symbol.cpp
 		src/SymbolTable.cpp
-
 )
 
 target_link_libraries(frontend PUBLIC modelica::model boost)

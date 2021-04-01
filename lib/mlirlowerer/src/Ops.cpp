@@ -4,7 +4,7 @@
 #include <modelica/mlirlowerer/Attribute.h>
 #include <modelica/mlirlowerer/Ops.h>
 
-using namespace modelica;
+using namespace modelica::codegen;
 
 static bool isNumeric(mlir::Type type)
 {

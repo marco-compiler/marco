@@ -1,6 +1,7 @@
 #include <modelica/frontend/AST.h>
 
 using namespace modelica;
+using namespace frontend;
 
 ReferenceAccess::ReferenceAccess(SourcePosition location,
 																 std::string name,
@@ -53,12 +54,15 @@ ReferenceAccess ReferenceAccess::dummy(SourcePosition location)
 	return ReferenceAccess(location, "", false, true);
 }
 
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const ReferenceAccess& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const ReferenceAccess& obj)
+	{
+		return stream << toString(obj);
+	}
 
-std::string modelica::toString(const ReferenceAccess& obj)
-{
-	return obj.getName();
+	std::string toString(const ReferenceAccess& obj)
+	{
+		return obj.getName();
+	}
 }

@@ -2,7 +2,7 @@
 
 #include <llvm/ADT/Optional.h>
 
-namespace modelica
+namespace modelica::frontend
 {
 	class ClassModification;
 

@@ -4,7 +4,7 @@
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/ExplicitCastInsertion.h>
 
-using namespace modelica;
+using namespace modelica::codegen;
 
 struct CallOpScalarPattern : public mlir::OpRewritePattern<CallOp>
 {
@@ -349,7 +349,7 @@ class ExplicitCastInsertionPass: public mlir::PassWrapper<ExplicitCastInsertionP
 	}
 };
 
-std::unique_ptr<mlir::Pass> modelica::createExplicitCastInsertionPass()
+std::unique_ptr<mlir::Pass> modelica::codegen::createExplicitCastInsertionPass()
 {
 	return std::make_unique<ExplicitCastInsertionPass>();
 }

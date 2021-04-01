@@ -5,7 +5,7 @@
 #include <string>
 #include <type_traits>
 
-namespace modelica
+namespace modelica::frontend
 {
 	enum class ParameterQualifier
 	{
@@ -50,4 +50,4 @@ namespace modelica
 		ParameterQualifier parameterQualifier;
 		IOQualifier ioQualifier;
 	};
-}	 // namespace modelica
+}

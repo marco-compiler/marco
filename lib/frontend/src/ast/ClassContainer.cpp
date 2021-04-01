@@ -1,6 +1,6 @@
 #include <modelica/frontend/AST.h>
 
-using namespace modelica;
+using namespace modelica::frontend;
 
 ClassContainer::ClassContainer(Class cls) : content(cls) {}
 

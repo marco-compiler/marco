@@ -5,6 +5,7 @@
 #include <modelica/utils/ErrorTest.hpp>
 
 using namespace modelica;
+using namespace frontend;
 
 TEST(Parser, functionName)	 // NOLINT
 {

@@ -5,6 +5,7 @@
 #include <modelica/frontend/SymbolTable.hpp>
 
 using namespace modelica;
+using namespace frontend;
 using namespace std;
 
 TEST(folderTest, sumShouldFold)

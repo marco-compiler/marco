@@ -5,7 +5,7 @@
 #include <modelica/mlirlowerer/passes/TypeConverter.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 
-using namespace modelica;
+using namespace modelica::codegen;
 
 struct UnrealizedCastOpLowering : public mlir::OpRewritePattern<mlir::UnrealizedConversionCastOp>
 {
@@ -39,7 +39,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		mlir::LowerToLLVMOptions llvmOptions;
 		llvmOptions.emitCWrappers = options.emitCWrappers;
 
-		modelica::TypeConverter typeConverter(&getContext(), llvmOptions);
+		modelica::codegen::TypeConverter typeConverter(&getContext(), llvmOptions);
 
 		target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });
 		target.addLegalOp<mlir::omp::TerminatorOp, mlir::omp::TaskyieldOp, mlir::omp::FlushOp, mlir::omp::BarrierOp, mlir::omp::TaskwaitOp>();
@@ -87,7 +87,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 	ModelicaToLLVMConversionOptions options;
 };
 
-std::unique_ptr<mlir::Pass> modelica::createLLVMLoweringPass(ModelicaToLLVMConversionOptions options)
+std::unique_ptr<mlir::Pass> modelica::codegen::createLLVMLoweringPass(ModelicaToLLVMConversionOptions options)
 {
 	return std::make_unique<LLVMLoweringPass>(options);
 }

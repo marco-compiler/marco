@@ -8,7 +8,7 @@
 #include "modelica/model/ModConst.hpp"
 #include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModLexerStateMachine.hpp"
-#include "modelica/utils/SourceRange.hpp"
+#include "modelica/utils/SourcePosition.h"
 
 namespace modelica
 {

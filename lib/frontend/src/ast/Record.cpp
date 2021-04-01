@@ -2,6 +2,7 @@
 #include <numeric>
 
 using namespace modelica;
+using namespace frontend;
 
 Record::Record(SourcePosition location,
 							 std::string name,
@@ -101,19 +102,22 @@ Record::const_iterator Record::end() const
 	return members.end();
 }
 
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Record& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Record& obj)
+	{
+		return stream << toString(obj);
+	}
 
-std::string modelica::toString(const Record& obj)
-{
-	return "(" +
-				 accumulate(++obj.begin(), obj.end(), std::string(),
-										[](const std::string& result, const Member& member)
-										{
-											std::string str = toString(member.getType()) + " " + member.getName();
-											return result.empty() ? str : result + "," + str;
-										}) +
-				 ")";
+	std::string toString(const Record& obj)
+	{
+		return "(" +
+					 accumulate(obj.begin(), obj.end(), std::string(),
+											[](const std::string& result, const Member& member)
+											{
+												std::string str = toString(member.getType()) + " " + member.getName();
+												return result.empty() ? str : result + "," + str;
+											}) +
+					 ")";
+	}
 }

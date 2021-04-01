@@ -4,9 +4,11 @@
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
+using namespace frontend;
+using namespace codegen;
 using namespace std;
 
 TEST(Assignment, constant)	 // NOLINT
@@ -44,8 +46,8 @@ TEST(Assignment, constant)	 // NOLINT
 
 	int x = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(x))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(x))));
 	EXPECT_EQ(x, 57);
 }
 
@@ -90,8 +92,8 @@ TEST(Assignment, variableCopy)	 // NOLINT
 	int x = 57;
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_EQ(y, x);
 }
 
@@ -136,8 +138,8 @@ TEST(Assignment, implicitCastIntegerToFloat)	 // NOLINT
 	int x = 57;
 	float y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_FLOAT_EQ(y, x);
 }
 
@@ -182,8 +184,8 @@ TEST(Assignment, implicitCastFloatToInteger)	 // NOLINT
 	float x = 1.8;
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_EQ(y, (int) x);
 }
 
@@ -257,8 +259,8 @@ TEST(Assignment, arraySliceAssignment)	 // NOLINT
 	ArrayDescriptor<int, 1> zPtr(z.data(), { 2 });
 	ArrayDescriptor<int, 2> tPtr(t.data(), { 3, 2 });
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr, Runner::result(tPtr))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr, jit::Runner::result(tPtr))));
 
 	EXPECT_EQ(tPtr.get(0, 0), x[0]);
 	EXPECT_EQ(tPtr.get(0, 1), x[1]);
@@ -312,8 +314,8 @@ TEST(Assignment, arrayCopy)	 // NOLINT
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 2 });
 	ArrayDescriptor<int, 1> yPtr(y.data(), { 2 });
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(yPtr))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
 
 	for (const auto& [x, y] : llvm::zip(xPtr, yPtr))
 		EXPECT_EQ(y, x);
@@ -390,7 +392,7 @@ TEST(Assignment, internalArrayElement)	 // NOLINT
 	int x = 57;
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_EQ(y, x * 2 + 1);
 }

@@ -1,14 +1,14 @@
 #pragma once
 
 #include <llvm/Support/Error.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 #include <string>
 #include <system_error>
 #include <utility>
 
 #include "LexerStateMachine.hpp"
 
-namespace modelica
+namespace modelica::frontend
 {
 	enum class ParserErrorCode
 	{
@@ -32,12 +32,12 @@ namespace std
 	 * used to represent errors.
 	 */
 	template<>
-	struct is_error_condition_enum<modelica::ParserErrorCode>: public true_type
+	struct is_error_condition_enum<modelica::frontend::ParserErrorCode>: public true_type
 	{
 	};
 };	// namespace std
 
-namespace modelica
+namespace modelica::frontend
 {
 	/**
 	 * A category is required to be compatible with std::error.
@@ -252,5 +252,4 @@ namespace modelica
 		private:
 		std::string mess;
 	};
-
-}	 // namespace modelica
+}

@@ -7,7 +7,7 @@
 #include "Package.h"
 #include "Record.h"
 
-namespace modelica
+namespace modelica::frontend
 {
 	enum class ClassType
 	{
@@ -69,4 +69,4 @@ namespace modelica
 		private:
 		std::variant<Function, Class, Package, Record> content;
 	};
-}	 // namespace modelica
+}

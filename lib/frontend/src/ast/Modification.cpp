@@ -1,6 +1,6 @@
 #include <modelica/frontend/ast/Modification.h>
 
-using namespace modelica;
+using namespace modelica::frontend;
 
 Modification::Modification(ClassModification classModification)
 		: classModification(std::make_shared<ClassModification>(classModification)),

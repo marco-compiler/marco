@@ -7,7 +7,7 @@
 
 #include "AST.h"
 
-namespace modelica
+namespace modelica::frontend
 {
 	class SymbolTable
 	{
@@ -43,4 +43,4 @@ namespace modelica
 		const SymbolTable* parentTable{ nullptr };
 		llvm::StringMap<Symbol> table;
 	};
-}	 // namespace modelica
+}

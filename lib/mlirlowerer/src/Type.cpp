@@ -1,133 +1,135 @@
 #include <mlir/IR/DialectImplementation.h>
 #include <modelica/mlirlowerer/Type.h>
 
-using namespace modelica;
+using namespace modelica::codegen;
 
-class modelica::IntegerTypeStorage : public mlir::TypeStorage {
-	public:
-	using KeyTy = unsigned int;
+namespace modelica::codegen
+{
+	class IntegerTypeStorage : public mlir::TypeStorage {
+		public:
+		using KeyTy = unsigned int;
 
-	IntegerTypeStorage() = delete;
+		IntegerTypeStorage() = delete;
 
-	bool operator==(const KeyTy& key) const
-	{
-		return key == getBitWidth();
+		bool operator==(const KeyTy& key) const
+		{
+			return key == getBitWidth();
+		}
+
+		static unsigned int hashKey(const KeyTy& key)
+		{
+			return llvm::hash_combine(key);
+		}
+
+		static IntegerTypeStorage* construct(mlir::TypeStorageAllocator&allocator, unsigned int bitWidth) {
+			auto* storage = allocator.allocate<PointerTypeStorage>();
+			return new (storage) IntegerTypeStorage(bitWidth);
+		}
+
+		[[nodiscard]] unsigned int getBitWidth() const
+		{
+			return bitWidth;
+		}
+
+		private:
+		explicit IntegerTypeStorage(unsigned int bitWidth) : bitWidth(bitWidth)
+		{
+		}
+
+		unsigned int bitWidth;
+	};
+
+	class RealTypeStorage : public mlir::TypeStorage {
+		public:
+		using KeyTy = unsigned int;
+
+		RealTypeStorage() = delete;
+
+		bool operator==(const KeyTy& key) const
+		{
+			return key == getBitWidth();
+		}
+
+		static unsigned int hashKey(const KeyTy& key)
+		{
+			return llvm::hash_combine(key);
+		}
+
+		static RealTypeStorage* construct(mlir::TypeStorageAllocator&allocator, unsigned int bitWidth) {
+			auto* storage = allocator.allocate<PointerTypeStorage>();
+			return new (storage) RealTypeStorage(bitWidth);
+		}
+
+		[[nodiscard]] unsigned int getBitWidth() const
+		{
+			return bitWidth;
+		}
+
+		private:
+		explicit RealTypeStorage(unsigned int bitWidth) : bitWidth(bitWidth)
+		{
+		}
+
+		unsigned int bitWidth;
+	};
+
+	llvm::hash_code hash_value(const PointerType::Shape& shape) {
+		if (shape.size()) {
+			return llvm::hash_combine_range(shape.begin(), shape.end());
+		}
+		return llvm::hash_combine(0);
 	}
 
-	static unsigned int hashKey(const KeyTy& key)
-	{
-		return llvm::hash_combine(key);
-	}
+	class PointerTypeStorage : public mlir::TypeStorage {
+		public:
+		using KeyTy = std::tuple<BufferAllocationScope, mlir::Type, PointerType::Shape>;
 
-	static IntegerTypeStorage* construct(mlir::TypeStorageAllocator&allocator, unsigned int bitWidth) {
-		auto* storage = allocator.allocate<PointerTypeStorage>();
-		return new (storage) IntegerTypeStorage(bitWidth);
-	}
+		PointerTypeStorage() = delete;
 
-	[[nodiscard]] unsigned int getBitWidth() const
-	{
-		return bitWidth;
-	}
+		bool operator==(const KeyTy& key) const {
+			return key == KeyTy{getAllocationScope(), getElementType(), getShape()};
+		}
 
-	private:
-	explicit IntegerTypeStorage(unsigned int bitWidth) : bitWidth(bitWidth)
-	{
-	}
+		static unsigned int hashKey(const KeyTy& key) {
+			auto shapeHash{hash_value(std::get<PointerType::Shape>(key))};
+			return llvm::hash_combine(std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), shapeHash);
+		}
 
-	unsigned int bitWidth;
-};
+		static PointerTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key) {
+			auto *storage = allocator.allocate<PointerTypeStorage>();
+			return new (storage) PointerTypeStorage{std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), std::get<PointerType::Shape>(key)};
+		}
 
-class modelica::RealTypeStorage : public mlir::TypeStorage {
-	public:
-	using KeyTy = unsigned int;
+		[[nodiscard]] BufferAllocationScope getAllocationScope() const
+		{
+			return allocationScope;
+		}
 
-	RealTypeStorage() = delete;
+		[[nodiscard]] PointerType::Shape getShape() const
+		{
+			return shape;
+		}
 
-	bool operator==(const KeyTy& key) const
-	{
-		return key == getBitWidth();
-	}
+		[[nodiscard]] mlir::Type getElementType() const
+		{
+			return elementType;
+		}
 
-	static unsigned int hashKey(const KeyTy& key)
-	{
-		return llvm::hash_combine(key);
-	}
+		private:
+		PointerTypeStorage(BufferAllocationScope allocationScope, mlir::Type elementType, const PointerType::Shape& shape)
+				: allocationScope(allocationScope),
+					elementType(elementType),
+					shape(std::move(shape))
+		{
+		}
 
-	static RealTypeStorage* construct(mlir::TypeStorageAllocator&allocator, unsigned int bitWidth) {
-		auto* storage = allocator.allocate<PointerTypeStorage>();
-		return new (storage) RealTypeStorage(bitWidth);
-	}
-
-	[[nodiscard]] unsigned int getBitWidth() const
-	{
-		return bitWidth;
-	}
-
-	private:
-	explicit RealTypeStorage(unsigned int bitWidth) : bitWidth(bitWidth)
-	{
-	}
-
-	unsigned int bitWidth;
-};
-
-llvm::hash_code hash_value(const PointerType::Shape& shape) {
-	if (shape.size()) {
-		return llvm::hash_combine_range(shape.begin(), shape.end());
-	}
-	return llvm::hash_combine(0);
-}
-
-class modelica::PointerTypeStorage : public mlir::TypeStorage {
-	public:
-	using KeyTy = std::tuple<BufferAllocationScope, mlir::Type, PointerType::Shape>;
-
-	PointerTypeStorage() = delete;
-
-	bool operator==(const KeyTy& key) const {
-		return key == KeyTy{getAllocationScope(), getElementType(), getShape()};
-	}
-
-	static unsigned int hashKey(const KeyTy& key) {
-		auto shapeHash{hash_value(std::get<PointerType::Shape>(key))};
-		return llvm::hash_combine(std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), shapeHash);
-	}
-
-	static PointerTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key) {
-		auto *storage = allocator.allocate<PointerTypeStorage>();
-		return new (storage) PointerTypeStorage{std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), std::get<PointerType::Shape>(key)};
-	}
-
-	[[nodiscard]] BufferAllocationScope getAllocationScope() const
-	{
-		return allocationScope;
-	}
-
-	[[nodiscard]] PointerType::Shape getShape() const
-	{
-		return shape;
-	}
-
-	[[nodiscard]] mlir::Type getElementType() const
-	{
-		return elementType;
-	}
-
-	private:
-	PointerTypeStorage(BufferAllocationScope allocationScope, mlir::Type elementType, const PointerType::Shape& shape)
-			: allocationScope(allocationScope),
-				elementType(elementType),
-				shape(std::move(shape))
-	{
-	}
-
-	BufferAllocationScope allocationScope;
-	mlir::Type elementType;
-	PointerType::Shape shape;
-};
+		BufferAllocationScope allocationScope;
+		mlir::Type elementType;
+		PointerType::Shape shape;
+	};
 
 /*
-class modelica::UnrankedPointerTypeStorage : public mlir::TypeStorage {
+class UnrankedPointerTypeStorage : public mlir::TypeStorage {
 	public:
 	using KeyTy = std::tuple<mlir::Type, unsigned int>;
 
@@ -168,38 +170,39 @@ class modelica::UnrankedPointerTypeStorage : public mlir::TypeStorage {
 };
  */
 
-class modelica::RecordTypeStorage : public mlir::TypeStorage {
-	public:
-	using KeyTy = llvm::ArrayRef<mlir::Type>;
+	class RecordTypeStorage : public mlir::TypeStorage {
+		public:
+		using KeyTy = llvm::ArrayRef<mlir::Type>;
 
-	RecordTypeStorage() = delete;
+		RecordTypeStorage() = delete;
 
-	bool operator==(const KeyTy& key) const {
-		return key == KeyTy{getElementTypes()};
-	}
+		bool operator==(const KeyTy& key) const {
+			return key == KeyTy{getElementTypes()};
+		}
 
-	static unsigned int hashKey(const KeyTy& key) {
-		return llvm::hash_combine(key);
-	}
+		static unsigned int hashKey(const KeyTy& key) {
+			return llvm::hash_combine(key);
+		}
 
-	static RecordTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy& key) {
-		llvm::ArrayRef<mlir::Type> elementTypes = allocator.copyInto(key);
-		return new (allocator.allocate<RecordTypeStorage>()) RecordTypeStorage(elementTypes);
-	}
+		static RecordTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy& key) {
+			llvm::ArrayRef<mlir::Type> elementTypes = allocator.copyInto(key);
+			return new (allocator.allocate<RecordTypeStorage>()) RecordTypeStorage(elementTypes);
+		}
 
-	[[nodiscard]] llvm::ArrayRef<mlir::Type> getElementTypes() const
-	{
-		return elementTypes;
-	}
+		[[nodiscard]] llvm::ArrayRef<mlir::Type> getElementTypes() const
+		{
+			return elementTypes;
+		}
 
-	private:
-	RecordTypeStorage(llvm::ArrayRef<mlir::Type> elementTypes)
-			: elementTypes(elementTypes)
-	{
-	}
+		private:
+		RecordTypeStorage(llvm::ArrayRef<mlir::Type> elementTypes)
+				: elementTypes(elementTypes)
+		{
+		}
 
-	llvm::ArrayRef<mlir::Type> elementTypes;
-};
+		llvm::ArrayRef<mlir::Type> elementTypes;
+	};
+}
 
 BooleanType BooleanType::get(mlir::MLIRContext* context)
 {
@@ -343,7 +346,7 @@ llvm::ArrayRef<mlir::Type> RecordType::getElementTypes()
 	return getImpl()->getElementTypes();
 }
 
-void modelica::printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer) {
+void modelica::codegen::printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer) {
 	auto& os = printer.getStream();
 
 	if (type.isa<BooleanType>())

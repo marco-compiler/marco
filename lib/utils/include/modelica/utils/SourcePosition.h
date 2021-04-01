@@ -18,8 +18,8 @@ namespace modelica
 		unsigned int column;
 	};
 
-    llvm::raw_ostream& operator<<(
-            llvm::raw_ostream& stream, const SourcePosition& obj);
+	llvm::raw_ostream& operator<<(
+			llvm::raw_ostream& stream, const SourcePosition& obj);
 
 	std::string toString(const SourcePosition& obj);
 
@@ -36,8 +36,8 @@ namespace modelica
 		SourcePosition end;
 	};
 
-    llvm::raw_ostream& operator<<(
-            llvm::raw_ostream& stream, const SourceRange& obj);
+	llvm::raw_ostream& operator<<(
+			llvm::raw_ostream& stream, const SourceRange& obj);
 
-    std::string toString(const SourceRange& obj);
-}	// namespace modelica
+	std::string toString(const SourceRange& obj);
+}

@@ -4,9 +4,9 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Statement;
 
@@ -48,4 +48,4 @@ namespace modelica
 		std::string returnCheckName;
 		Container<Statement> statements;
 	};
-}	 // namespace modelica
+}

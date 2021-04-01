@@ -1,7 +1,7 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/frontend/passes/ReturnRemovingPass.h>
 
-using namespace modelica;
+using namespace modelica::frontend;
 
 llvm::Error ReturnRemover::run(ClassContainer& cls)
 {
@@ -227,7 +227,7 @@ bool ReturnRemover::run<ReturnStatement>(Statement& statement)
 	return true;
 }
 
-std::unique_ptr<Pass> modelica::createReturnRemovingPass()
+std::unique_ptr<Pass> modelica::frontend::createReturnRemovingPass()
 {
 	return std::make_unique<ReturnRemover>();
 }

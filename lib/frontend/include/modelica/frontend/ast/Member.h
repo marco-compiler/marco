@@ -8,7 +8,7 @@
 #include "Type.h"
 #include "TypePrefix.h"
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Member
 	{
@@ -67,5 +67,4 @@ namespace modelica
 
 		std::optional<Expression> startOverload;
 	};
-
-}	 // namespace modelica
+}

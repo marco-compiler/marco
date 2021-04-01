@@ -5,9 +5,11 @@
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
+using namespace frontend;
+using namespace codegen;
 using namespace std;
 
 TEST(BuiltInOps, ndims)	 // NOLINT
@@ -55,8 +57,8 @@ TEST(BuiltInOps, ndims)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
 	EXPECT_EQ(y, xPtr.getRank());
 }
 
@@ -106,8 +108,8 @@ TEST(BuiltInOps, sizeSpecificArrayDimension)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
 	EXPECT_EQ(y, xPtr.getSize(1));
 }
 
@@ -157,8 +159,8 @@ TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 4, 3 });
 	ArrayDescriptor<int, 1> yPtr(y.data(), { 1 });
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(yPtr))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
 
 	EXPECT_EQ(yPtr[0], xPtr.getSize(0));
 	EXPECT_EQ(yPtr[1], xPtr.getSize(1));
@@ -207,14 +209,14 @@ TEST(BuiltInOps, sumOfIntegerStaticArrayValues)	 // NOLINT
 	conversionOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
-	Runner runner(module);
+	jit::Runner runner(module);
 
 	array<int, 3> x = { 1, 2, 3 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
 
 	int y = 0;
 
-	if (failed(runner.run("main", xPtr, Runner::result(y))))
+	if (failed(runner.run("main", xPtr, jit::Runner::result(y))))
 		FAIL();
 
 	EXPECT_EQ(y, x[0] + x[1] + x[2]);

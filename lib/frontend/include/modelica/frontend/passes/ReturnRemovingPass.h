@@ -3,7 +3,7 @@
 #include <memory>
 #include <modelica/frontend/Pass.h>
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Algorithm;
 	class AssignmentStatement;
@@ -59,4 +59,4 @@ namespace modelica
 	bool ReturnRemover::run<ReturnStatement>(Statement& statement);
 
 	std::unique_ptr<Pass> createReturnRemovingPass();
-}	 // namespace modelica
+}

@@ -12,9 +12,11 @@
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
+using namespace frontend;
+using namespace codegen;
 using namespace std;
 
 TEST(Function, callNoArguments)	 // NOLINT
@@ -65,8 +67,8 @@ TEST(Function, callNoArguments)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -136,8 +138,8 @@ TEST(Function, recursiveCall)	 // NOLINT
 
 	ArrayDescriptor<float, 1> xPtr(x.data(), { x.size() });
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, i, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, i, jit::Runner::result(y))));
 
 	float expected = 0;
 
@@ -214,7 +216,7 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 	array<int, 3> x = { 0, 0, 0 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
 	EXPECT_EQ(xPtr[0], 1);
 	EXPECT_EQ(xPtr[1], 2);
@@ -303,8 +305,8 @@ TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
 	array<float, 3> x = { 0, 0, 0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(xPtr))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(xPtr))));
 	EXPECT_FLOAT_EQ(xPtr[0], 2);
 	EXPECT_FLOAT_EQ(xPtr[1], 4);
 	EXPECT_FLOAT_EQ(xPtr[2], 6);
@@ -382,8 +384,8 @@ TEST(Function, callElementWise)	 // NOLINT
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
 	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(yPtr))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
 	EXPECT_EQ(yPtr[0], -1 * xPtr[0]);
 	EXPECT_EQ(yPtr[1], -1 * xPtr[1]);
 	EXPECT_EQ(yPtr[2], -1 * xPtr[2]);

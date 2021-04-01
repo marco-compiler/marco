@@ -18,6 +18,8 @@
 #include <numeric>
 
 using namespace modelica;
+using namespace frontend;
+using namespace codegen;
 using namespace std;
 
 Reference::Reference()
@@ -108,13 +110,13 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 	if (options.cse)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
 
-	passManager.addPass(modelica::createModelicaConversionPass());
+	passManager.addPass(createModelicaConversionPass());
 
 	if (options.openmp)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
 
 	passManager.addPass(mlir::createLowerToCFGPass());
-	passManager.addPass(modelica::createLLVMLoweringPass(options));
+	passManager.addPass(createLLVMLoweringPass(options));
 
 	if (!options.debug)
 		passManager.addPass(mlir::createStripDebugInfoPass());
@@ -574,7 +576,7 @@ void MLIRLowerer::lower<Function>(Member& member)
 		// if it was a regular assignment statement.
 
 		Reference memory = symbolTable.lookup(member.getName());
-		mlir::Value value = *lower<modelica::Expression>(member.getInitializer())[0];
+		mlir::Value value = *lower<Expression>(member.getInitializer())[0];
 		assign(location, memory, value);
 	}
 }

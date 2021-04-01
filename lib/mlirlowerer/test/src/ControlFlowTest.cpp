@@ -6,9 +6,11 @@
 #include <modelica/frontend/Passes.h>
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
+using namespace frontend;
+using namespace codegen;
 using namespace std;
 
 TEST(ControlFlow, thenBranchTaken)	 // NOLINT
@@ -74,8 +76,8 @@ TEST(ControlFlow, thenBranchTaken)	 // NOLINT
 	int x = 1;
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -142,8 +144,8 @@ TEST(ControlFlow, elseBranchTaken)	 // NOLINT
 	int x = -1;
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_EQ(y, 2);
 }
 
@@ -225,8 +227,8 @@ TEST(ControlFlow, elseIfBranchTaken)	 // NOLINT
 	int x = 1;
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_EQ(y, 2);
 }
 
@@ -291,8 +293,8 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 	int x = 10;
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_EQ(y, 55);
 }
 
@@ -357,8 +359,8 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 	int x = 1;
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -425,8 +427,8 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 	int x = 10;
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_EQ(y, 100);
 }
 
@@ -484,8 +486,8 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -551,8 +553,8 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -610,8 +612,8 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -688,8 +690,8 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -754,8 +756,8 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -833,8 +835,8 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }
 
@@ -889,7 +891,7 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(y))));
 	EXPECT_EQ(y, 1);
 }

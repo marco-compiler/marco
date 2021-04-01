@@ -4,7 +4,7 @@
 #include <modelica/frontend/Passes.h>
 #include <modelica/utils/ErrorTest.hpp>
 
-using namespace modelica;
+using namespace modelica::frontend;
 using namespace std;
 
 TEST(TypeChecking, arrayOfIntegers)	// NOLINT

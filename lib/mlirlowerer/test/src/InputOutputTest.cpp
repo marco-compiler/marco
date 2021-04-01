@@ -4,10 +4,11 @@
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/utils/CRunnerUtils.h>
-#include <modelica/utils/SourceRange.hpp>
-#include <mlir/IR/Verifier.h>
+#include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
+using namespace frontend;
+using namespace codegen;
 using namespace std;
 
 TEST(Input, booleanScalar)	 // NOLINT
@@ -49,8 +50,8 @@ TEST(Input, booleanScalar)	 // NOLINT
 	bool x = true;
 	bool y = false;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_EQ(y, x);
 }
 
@@ -93,8 +94,8 @@ TEST(Input, integerScalar)	 // NOLINT
 	int x = 57;
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_EQ(y, x);
 }
 
@@ -137,8 +138,8 @@ TEST(Input, floatScalar)	 // NOLINT
 	float x = 57;
 	float y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(y))));
 	EXPECT_FLOAT_EQ(y, x);
 }
 
@@ -189,8 +190,8 @@ TEST(Input, integerArray)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
 	EXPECT_EQ(y, x[0] + x[1]);
 }
 
@@ -241,8 +242,8 @@ TEST(Input, integerArrayUnknownSize)	 // NOLINT
 
 	int y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
 	EXPECT_EQ(y, x[0] + x[1]);
 }
 
@@ -293,8 +294,8 @@ TEST(Input, floatArray)	 // NOLINT
 
 	float y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
 	EXPECT_FLOAT_EQ(y, 80);
 }
 
@@ -345,8 +346,8 @@ TEST(Input, floatArrayUnknownSize)	 // NOLINT
 
 	float y = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(y))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
 	EXPECT_FLOAT_EQ(y, 80);
 }
 
@@ -426,8 +427,8 @@ TEST(Input, integerMatrix)	 // NOLINT
 		int z = 0;
 	} result;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, Runner::result(result))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(result))));
 
 	EXPECT_EQ(result.y, 6);
 	EXPECT_EQ(result.z, 15);
@@ -484,7 +485,7 @@ TEST(Output, integerArray)	 // NOLINT
 	array<int, 2> x = { 0, 0 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 2 });
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
 
 	EXPECT_EQ(xPtr[0], 23);
@@ -545,8 +546,8 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 	int x = 2;
 	ArrayDescriptor<int, 1> yPtr(nullptr, { 2 });
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, Runner::result(yPtr))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(yPtr))));
 
 	for (int i = 0; i < yPtr.getSize(0); i++)
 		EXPECT_EQ(yPtr[i], i + 1);
@@ -599,7 +600,7 @@ TEST(Output, floatArray)	 // NOLINT
 	array<float, 2> x = { 0, 0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 2 });
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
 
 	EXPECT_FLOAT_EQ(xPtr[0], 23.0);
@@ -657,7 +658,7 @@ TEST(Output, integerMatrix)	 // NOLINT
 	array<int, 6> x = { 0, 0, 0, 0, 0, 0 };
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
 
 	for (int i = 0; i < 2; i++)
@@ -694,8 +695,8 @@ TEST(Output, defaultScalarValue)	 // NOLINT
 
 	int x = 0;
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", Runner::result(x))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(x))));
 
 	EXPECT_EQ(x, 1);
 }
@@ -735,7 +736,7 @@ TEST(Output, defaultArrayValue)	 // NOLINT
 	array<int, 3> x = { 0, 0, 0 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
 
-	Runner runner(*module);
+	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
 
 	EXPECT_EQ(xPtr[0], 1);
@@ -780,8 +781,8 @@ TEST(Output, recordWithScalars)	 // NOLINT
 		float b;
 	} record{0, 0};
 
-	Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("R", x, y, Runner::result(record))));
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("R", x, y, jit::Runner::result(record))));
 
 	EXPECT_EQ(record.a, x);
 	EXPECT_EQ(record.b, y);

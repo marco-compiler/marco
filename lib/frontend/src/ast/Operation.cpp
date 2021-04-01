@@ -4,55 +4,59 @@
 #include <numeric>
 
 using namespace modelica;
+using namespace frontend;
 
 using Container = Operation::Container;
 
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const OperationKind& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
-
-std::string modelica::toString(OperationKind operation)
-{
-	switch (operation)
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const OperationKind& obj)
 	{
-		case OperationKind::negate:
-			return "negate";
-		case OperationKind::add:
-			return "add";
-		case OperationKind::subtract:
-			return "subtract";
-		case OperationKind::multiply:
-			return "multiply";
-		case OperationKind::divide:
-			return "divide";
-		case OperationKind::ifelse:
-			return "ifelse";
-		case OperationKind::greater:
-			return "greater";
-		case OperationKind::greaterEqual:
-			return "greaterEqual";
-		case OperationKind::equal:
-			return "equal";
-		case OperationKind::different:
-			return "different";
-		case OperationKind::lessEqual:
-			return "lessEqual";
-		case OperationKind::less:
-			return "less";
-		case OperationKind::land:
-			return "land";
-		case OperationKind::lor:
-			return "lor";
-		case OperationKind::subscription:
-			return "subscription";
-		case OperationKind::memberLookup:
-			return "memberLookup";
-		case OperationKind::powerOf:
-			return "powerOf";
+		return stream << toString(obj);
 	}
 
-	return "unexpected";
+	std::string toString(OperationKind operation)
+	{
+		switch (operation)
+		{
+			case OperationKind::negate:
+				return "negate";
+			case OperationKind::add:
+				return "add";
+			case OperationKind::subtract:
+				return "subtract";
+			case OperationKind::multiply:
+				return "multiply";
+			case OperationKind::divide:
+				return "divide";
+			case OperationKind::ifelse:
+				return "ifelse";
+			case OperationKind::greater:
+				return "greater";
+			case OperationKind::greaterEqual:
+				return "greaterEqual";
+			case OperationKind::equal:
+				return "equal";
+			case OperationKind::different:
+				return "different";
+			case OperationKind::lessEqual:
+				return "lessEqual";
+			case OperationKind::less:
+				return "less";
+			case OperationKind::land:
+				return "land";
+			case OperationKind::lor:
+				return "lor";
+			case OperationKind::subscription:
+				return "subscription";
+			case OperationKind::memberLookup:
+				return "memberLookup";
+			case OperationKind::powerOf:
+				return "powerOf";
+		}
+
+		return "unexpected";
+	}
 }
 
 Operation::Operation(SourcePosition location, OperationKind kind, Container args)
@@ -139,102 +143,105 @@ Operation::iterator Operation::end() { return arguments.end(); }
 
 Operation::const_iterator Operation::end() const { return arguments.end(); }
 
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Operation& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
-
-std::string modelica::toString(const Operation& obj)
-{
-	switch (obj.getKind())
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Operation& obj)
 	{
-		case OperationKind::negate:
-			return "(not" + toString(obj[0]) + ")";
+		return stream << toString(obj);
+	}
 
-		case OperationKind::add:
-			return "(" +
-						 accumulate(obj.begin(), obj.end(), std::string(),
-												[](const std::string& result, const Expression& element)
-												{
-													std::string str = toString(element);
-													return result.empty() ? str : result + " + " + str;
-												})
-						 + ")";
+	std::string toString(const Operation& obj)
+	{
+		switch (obj.getKind())
+		{
+			case OperationKind::negate:
+				return "(not" + toString(obj[0]) + ")";
 
-		case OperationKind::subtract:
-			return "(" +
-						 accumulate(obj.begin(), obj.end(), std::string(),
-												[](const std::string& result, const Expression& element)
-												{
-													std::string str = toString(element);
-													return result.empty() ? str : result + " - " + str;
-												})
-						 + ")";
+			case OperationKind::add:
+				return "(" +
+							 accumulate(obj.begin(), obj.end(), std::string(),
+													[](const std::string& result, const Expression& element)
+													{
+														std::string str = toString(element);
+														return result.empty() ? str : result + " + " + str;
+													})
+							 + ")";
 
-		case OperationKind::multiply:
-			return "(" +
-						 accumulate(obj.begin(), obj.end(), std::string(),
-												[](const std::string& result, const Expression& element)
-												{
-													std::string str = toString(element);
-													return result.empty() ? str : result + " * " + str;
-												})
-						 + ")";
+			case OperationKind::subtract:
+				return "(" +
+							 accumulate(obj.begin(), obj.end(), std::string(),
+													[](const std::string& result, const Expression& element)
+													{
+														std::string str = toString(element);
+														return result.empty() ? str : result + " - " + str;
+													})
+							 + ")";
 
-		case OperationKind::divide:
-			return "(" +
-						 accumulate(obj.begin(), obj.end(), std::string(),
-												[](const std::string& result, const Expression& element)
-												{
-													std::string str = toString(element);
-													return result.empty() ? str : result + " / " + str;
-												})
-						 + ")";
+			case OperationKind::multiply:
+				return "(" +
+							 accumulate(obj.begin(), obj.end(), std::string(),
+													[](const std::string& result, const Expression& element)
+													{
+														std::string str = toString(element);
+														return result.empty() ? str : result + " * " + str;
+													})
+							 + ")";
 
-		case OperationKind::ifelse:
-			return "(" + toString(obj[0]) + " ? " + toString(obj[1]) + " : " + toString(obj[2]) + ")";
+			case OperationKind::divide:
+				return "(" +
+							 accumulate(obj.begin(), obj.end(), std::string(),
+													[](const std::string& result, const Expression& element)
+													{
+														std::string str = toString(element);
+														return result.empty() ? str : result + " / " + str;
+													})
+							 + ")";
 
-		case OperationKind::greater:
-			return "(" + toString(obj[0]) + " > " + toString(obj[1]) + ")";
+			case OperationKind::ifelse:
+				return "(" + toString(obj[0]) + " ? " + toString(obj[1]) + " : " + toString(obj[2]) + ")";
 
-		case OperationKind::greaterEqual:
-			return "(" + toString(obj[0]) + " >= " + toString(obj[1]) + ")";
+			case OperationKind::greater:
+				return "(" + toString(obj[0]) + " > " + toString(obj[1]) + ")";
 
-		case OperationKind::equal:
-			return "(" + toString(obj[0]) + " == " + toString(obj[1]) + ")";
+			case OperationKind::greaterEqual:
+				return "(" + toString(obj[0]) + " >= " + toString(obj[1]) + ")";
 
-		case OperationKind::different:
-			return "(" + toString(obj[0]) + " != " + toString(obj[1]) + ")";
+			case OperationKind::equal:
+				return "(" + toString(obj[0]) + " == " + toString(obj[1]) + ")";
 
-		case OperationKind::lessEqual:
-			return "(" + toString(obj[0]) + " <= " + toString(obj[1]) + ")";
+			case OperationKind::different:
+				return "(" + toString(obj[0]) + " != " + toString(obj[1]) + ")";
 
-		case OperationKind::less:
-			return "(" + toString(obj[0]) + " < " + toString(obj[1]) + ")";
+			case OperationKind::lessEqual:
+				return "(" + toString(obj[0]) + " <= " + toString(obj[1]) + ")";
 
-		case OperationKind::land:
-			return "(" + toString(obj[0]) + " && " + toString(obj[1]) + ")";
+			case OperationKind::less:
+				return "(" + toString(obj[0]) + " < " + toString(obj[1]) + ")";
 
-		case OperationKind::lor:
-			return "(" + toString(obj[0]) + " || " + toString(obj[1]) + ")";
+			case OperationKind::land:
+				return "(" + toString(obj[0]) + " && " + toString(obj[1]) + ")";
 
-		case OperationKind::subscription:
-			return "(" + toString(obj[0]) +
-						 accumulate(++obj.begin(), obj.end(), std::string(),
-												[](const std::string& result, const Expression& element)
-												{
-													std::string str = toString(element);
-													return result + "[" + str + "]";
-												}) +
-						 ")";
+			case OperationKind::lor:
+				return "(" + toString(obj[0]) + " || " + toString(obj[1]) + ")";
 
-		case OperationKind::memberLookup:
-			return "unknown";
+			case OperationKind::subscription:
+				return "(" + toString(obj[0]) +
+							 accumulate(++obj.begin(), obj.end(), std::string(),
+													[](const std::string& result, const Expression& element)
+													{
+														std::string str = toString(element);
+														return result + "[" + str + "]";
+													}) +
+							 ")";
 
-		case OperationKind::powerOf:
-			return "(" + toString(obj[0]) + " ^ " + toString(obj[1]) + ")";
+			case OperationKind::memberLookup:
+				return "unknown";
 
-		default:
-			return "unknown";
+			case OperationKind::powerOf:
+				return "(" + toString(obj[0]) + " ^ " + toString(obj[1]) + ")";
+
+			default:
+				return "unknown";
+		}
 	}
 }

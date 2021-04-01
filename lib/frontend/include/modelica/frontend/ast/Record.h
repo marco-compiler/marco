@@ -3,10 +3,10 @@
 #include <boost/iterator/indirect_iterator.hpp>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 #include <memory>
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Member;
 
@@ -52,4 +52,4 @@ namespace modelica
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Record& obj);
 
 	std::string toString(const Record& obj);
-}	 // namespace modelica
+}

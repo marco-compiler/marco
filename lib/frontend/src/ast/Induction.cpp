@@ -1,7 +1,7 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/utils/IRange.hpp>
 
-using namespace modelica;
+using namespace modelica::frontend;
 
 Induction::Induction(std::string indVar, Expression begin, Expression end)
 		: begin(std::move(begin)),

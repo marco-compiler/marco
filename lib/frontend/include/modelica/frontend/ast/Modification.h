@@ -7,7 +7,7 @@
 
 #include "Expression.h"
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Argument;
 	class ClassModification;

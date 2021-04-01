@@ -1,6 +1,7 @@
 #include <modelica/frontend/AST.h>
 
 using namespace modelica;
+using namespace frontend;
 
 Constant::Constant(SourcePosition location, bool val)
 		: location(std::move(location)),
@@ -61,20 +62,23 @@ SourcePosition Constant::getLocation() const
 	return location;
 }
 
-llvm::raw_ostream& modelica::operator<<(llvm::raw_ostream& stream, const Constant& obj)
+namespace modelica::frontend
 {
-	return stream << toString(obj);
-}
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Constant& obj)
+	{
+		return stream << toString(obj);
+	}
 
-class ConstantToStringVisitor {
-	public:
-	std::string operator()(const bool& value) { return value ? "true" : "false"; }
-	std::string operator()(const int& value) { return std::to_string(value); }
-	std::string operator()(const double& value) { return std::to_string(value); }
-	std::string operator()(const std::string& value) { return value; }
-};
+	class ConstantToStringVisitor {
+		public:
+		std::string operator()(const bool& value) { return value ? "true" : "false"; }
+		std::string operator()(const int& value) { return std::to_string(value); }
+		std::string operator()(const double& value) { return std::to_string(value); }
+		std::string operator()(const std::string& value) { return value; }
+	};
 
-std::string modelica::toString(const Constant& obj)
-{
-	return obj.visit(ConstantToStringVisitor());
+	std::string toString(const Constant& obj)
+	{
+		return obj.visit(ConstantToStringVisitor());
+	}
 }

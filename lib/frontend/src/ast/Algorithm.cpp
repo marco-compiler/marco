@@ -1,6 +1,7 @@
 #include <modelica/frontend/AST.h>
 
 using namespace modelica;
+using namespace frontend;
 
 Algorithm::Algorithm(SourcePosition location, llvm::ArrayRef<Statement> statements)
 		: location(std::move(location))

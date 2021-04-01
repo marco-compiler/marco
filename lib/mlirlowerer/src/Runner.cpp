@@ -4,7 +4,7 @@
 #include <mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h>
 #include <modelica/mlirlowerer/Runner.h>
 
-using namespace modelica;
+using namespace modelica::jit;
 
 Runner::Runner(mlir::ModuleOp module, llvm::ArrayRef<mlir::StringRef> libraries, unsigned int speedOptimization, unsigned int sizeOptimization)
 		: module(std::move(module))

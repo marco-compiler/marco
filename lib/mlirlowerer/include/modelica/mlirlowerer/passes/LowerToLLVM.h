@@ -2,7 +2,7 @@
 
 #include <mlir/Pass/Pass.h>
 
-namespace modelica
+namespace modelica::codegen
 {
 	struct ModelicaToLLVMConversionOptions
 	{

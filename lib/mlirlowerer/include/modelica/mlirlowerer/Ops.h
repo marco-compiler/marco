@@ -8,7 +8,7 @@
 
 #include "Type.h"
 
-namespace modelica
+namespace modelica::codegen
 {
 	/**
 	 * Generic operation adaptor.

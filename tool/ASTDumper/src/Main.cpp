@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
 	cl::ParseCommandLineOptions(argc, argv);
 	auto errorOrBuffer = MemoryBuffer::getFileOrSTDIN(InputFileName);
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
-	Parser parser(buffer->getBufferStart());
+	frontend::Parser parser(buffer->getBufferStart());
 	auto ast = exitOnErr(parser.classDefinition());
 	ast.dump();
 

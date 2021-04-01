@@ -6,7 +6,7 @@
 
 #include "Pass.h"
 
-namespace modelica
+namespace modelica::frontend
 {
 	class ClassContainer;
 
@@ -19,4 +19,4 @@ namespace modelica
 		private:
 		llvm::SmallVector<std::unique_ptr<Pass>, 3> passes;
 	};
-}	 // namespace modelica
+}

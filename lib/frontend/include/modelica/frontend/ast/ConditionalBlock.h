@@ -7,7 +7,7 @@
 
 #include "Expression.h"
 
-namespace modelica
+namespace modelica::frontend
 {
 	template<typename T>
 	class ConditionalBlock
@@ -87,4 +87,4 @@ namespace modelica
 		Expression condition;
 		Container body;
 	};
-}	 // namespace modelica
+}

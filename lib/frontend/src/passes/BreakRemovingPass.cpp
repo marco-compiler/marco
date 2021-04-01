@@ -1,7 +1,7 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/frontend/passes/BreakRemovingPass.h>
 
-using namespace modelica;
+using namespace modelica::frontend;
 
 llvm::Error BreakRemover::run(ClassContainer& cls)
 {
@@ -209,7 +209,7 @@ bool BreakRemover::run<ReturnStatement>(Statement& statement)
 	return false;
 }
 
-std::unique_ptr<Pass> modelica::createBreakRemovingPass()
+std::unique_ptr<Pass> modelica::frontend::createBreakRemovingPass()
 {
 	return std::make_unique<BreakRemover>();
 }

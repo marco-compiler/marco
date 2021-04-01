@@ -3,6 +3,7 @@
 #include "modelica/frontend/ParserErrors.hpp"
 
 using namespace modelica;
+using namespace frontend;
 
 TEST(ParserErrorsTest, errorCodeShouldReturnCorrectMessage)
 {

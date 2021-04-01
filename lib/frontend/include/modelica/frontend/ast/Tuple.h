@@ -4,10 +4,10 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/SourceRange.hpp>
+#include <modelica/utils/SourcePosition.h>
 #include <memory>
 
-namespace modelica
+namespace modelica::frontend
 {
 	class Expression;
 
@@ -70,4 +70,4 @@ namespace modelica
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Tuple& obj);
 
 	std::string toString(const Tuple& obj);
-}	 // namespace modelica
+}
