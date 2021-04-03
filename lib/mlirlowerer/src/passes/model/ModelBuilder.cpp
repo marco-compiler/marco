@@ -17,9 +17,11 @@ ModelBuilder::ModelBuilder(Model& model) : model(model)
 
 void ModelBuilder::lower(EquationOp equation)
 {
+	auto& body = equation.body();
+	auto terminator = mlir::cast<EquationSidesOp>(body.front().getTerminator());
+
 	// Left-hand side of the equation
-	auto& lhsRegion = equation.lhs();
-	auto lhs = mlir::cast<YieldOp>(lhsRegion.front().getTerminator()).args();
+	mlir::ValueRange lhs = terminator.lhs();
 	assert(lhs.size() == 1);
 
 	llvm::SmallVector<Expression, 3> lhsExpr;
@@ -28,8 +30,7 @@ void ModelBuilder::lower(EquationOp equation)
 		lhsExpr.push_back(lower(value));
 
 	// Right-hand side of the equation
-	auto& rhsRegion = equation.rhs();
-	auto rhs = mlir::cast<YieldOp>(rhsRegion.front().getTerminator()).args();
+	mlir::ValueRange rhs = terminator.rhs();
 	assert(rhs.size() == 1);
 
 	llvm::SmallVector<Expression, 3> rhsExpr;
@@ -41,15 +42,18 @@ void ModelBuilder::lower(EquationOp equation)
 	assert(lhsExpr.size() == rhsExpr.size());
 
 	model.addEquation(Equation(
+			equation,
 			lhsExpr[0], rhsExpr[0],
 			"eq_" + std::to_string(model.getEquations().size())));
 }
 
 void ModelBuilder::lower(ForEquationOp forEquation)
 {
+	auto& body = forEquation.body();
+	auto terminator = mlir::cast<EquationSidesOp>(body.front().getTerminator());
+
 	// Left-hand side of the equation
-	auto& lhsRegion = forEquation.lhs();
-	auto lhs = mlir::cast<YieldOp>(lhsRegion.front().getTerminator()).args();
+	mlir::ValueRange lhs = terminator.lhs();
 	assert(lhs.size() == 1);
 
 	llvm::SmallVector<Expression, 3> lhsExpr;
@@ -58,8 +62,7 @@ void ModelBuilder::lower(ForEquationOp forEquation)
 		lhsExpr.push_back(lower(value));
 
 	// Right-hand side of the equation
-	auto& rhsRegion = forEquation.rhs();
-	auto rhs = mlir::cast<YieldOp>(rhsRegion.front().getTerminator()).args();
+	mlir::ValueRange rhs = terminator.rhs();
 	assert(rhs.size() == 1);
 
 	llvm::SmallVector<Expression, 3> rhsExpr;
@@ -79,6 +82,7 @@ void ModelBuilder::lower(ForEquationOp forEquation)
 	}
 
 	model.addEquation(Equation(
+			forEquation,
 			lhsExpr[0], rhsExpr[0],
 			"eq_" + std::to_string(model.getEquations().size()),
 			MultiDimInterval(intervals)));

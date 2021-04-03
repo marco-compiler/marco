@@ -13,8 +13,3 @@ mlir::Value Reference::getVar() const
 {
 	return var;
 }
-
-size_t Reference::childrenCount() const
-{
-	return 0;
-}

@@ -40,4 +40,4 @@ namespace modelica::codegen::model
 		size_t index;
 		ExpressionPath pathToExp;
 	};
-}	 // namespace modelica
+}

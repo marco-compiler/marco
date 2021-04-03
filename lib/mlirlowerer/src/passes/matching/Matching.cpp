@@ -67,16 +67,19 @@ MatchingGraph::const_edge_iterator MatchingGraph::end() const
 	return const_edge_iterator(*this, boost::edges(graph).second);
 }
 
-void MatchingGraph::match(int iterations)
+mlir::LogicalResult MatchingGraph::match(unsigned int maxIterations)
 {
-	for (auto _ : irange(0, iterations))
+	for (unsigned int i = 0; i < maxIterations; ++i)
 	{
 		AugmentingPath path(*this);
+
 		if (!path.valid())
-			return;
+			return mlir::success();
 
 		path.apply();
 	}
+
+	return mlir::failure();
 }
 
 size_t MatchingGraph::matchedCount() const
@@ -215,53 +218,38 @@ void MatchingGraph::emplaceEdge(const Equation& eq, ExpressionPath path, size_t 
 	boost::add_edge(eqDesc, varDesc, std::move(e), graph);
 }
 
-static llvm::Error insertEq(Edge& edge, const modelica::MultiDimInterval& inductionVars, Model& outModel)
+mlir::LogicalResult modelica::codegen::model::match(Model& model, size_t maxIterations)
 {
-	const auto& eq = edge.getEquation();
-	const auto& templ = eq.getTemplate();
-	auto newName = templ->getName() + "m" + std::to_string(outModel.getTemplates().size());
-	outModel.addEquation(eq.clone(std::move(newName)));
-	auto& justInserted = outModel.getEquations().back();
-	justInserted->setInductionVars(inductionVars);
-	justInserted->setMatchedExp(edge.getPath().getEqPath());
-	return llvm::Error::success();
-}
+	if (model.equationsCount() != model.nonStateNonConstCount())
+		return model.getOp()->emitError("Equations amount doesn't match the non state + non const variables amount");
 
-static llvm::Error insertAllEq(Edge& edge, Model& outModel)
-{
-	for (const auto& inductionVars : edge.getSet())
-	{
-		auto error = insertEq(edge, inductionVars, outModel);
-		if (error)
-			return error;
-	}
-	return llvm::Error::success();
-}
+	MatchingGraph graph(model);
 
-static llvm::Expected<Model> explicitateModel(Model& model, MatchingGraph& graph)
-{
-	Model toReturn(model.getVariables(), {});
+	if (failed(graph.match(maxIterations)))
+		return model.getOp()->emitError("Max iterations amount has been reached");
+
+	if (graph.matchedCount() != model.equationsCount())
+		return model.getOp()->emitError("Not all the equations have been matched");
+
+	Model result(model.getOp(), model.getVariables(), {});
 
 	for (auto& edge : graph)
 	{
 		if (edge.empty())
 			continue;
 
-		auto error = insertAllEq(edge, toReturn);
-		if (error)
-			return std::move(error);
+		for (const auto& inductionVars : edge.getSet())
+		{
+			const auto& eq = edge.getEquation();
+			const auto& templ = eq.getTemplate();
+			auto newName = templ->getName() + "m" + std::to_string(result.getTemplates().size());
+			result.addEquation(eq.clone(std::move(newName)));
+			auto& justInserted = result.getEquations().back();
+			justInserted->setInductionVars(inductionVars);
+			justInserted->setMatchedExp(edge.getPath().getEqPath());
+		}
 	}
 
-	return toReturn;
-}
-
-llvm::Expected<Model> modelica::codegen::model::match(Model entryModel, size_t maxIterations)
-{
-	assert(entryModel.equationsCount() == entryModel.nonStateNonConstCount());
-
-	MatchingGraph graph(entryModel);
-	graph.match(maxIterations);
-
-	assert(graph.matchedCount() == entryModel.equationsCount());
-	return explicitateModel(entryModel, graph);
+	model = result;
+	return mlir::success();
 }

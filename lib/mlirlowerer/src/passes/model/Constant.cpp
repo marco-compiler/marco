@@ -7,8 +7,3 @@ Constant::Constant(mlir::Value value) : value(value)
 {
 	assert(mlir::isa<ConstantOp>(value.getDefiningOp()));
 }
-
-size_t Constant::childrenCount() const
-{
-	return 0;
-}

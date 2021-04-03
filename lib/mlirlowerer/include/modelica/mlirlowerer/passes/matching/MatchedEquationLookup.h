@@ -105,4 +105,4 @@ namespace modelica::codegen::model
 		private:
 		Map variables;
 	};
-}	 // namespace modelica
+}

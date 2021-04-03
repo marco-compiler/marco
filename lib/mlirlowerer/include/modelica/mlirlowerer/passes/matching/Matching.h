@@ -13,6 +13,7 @@
 namespace modelica::codegen::model
 {
 	class Edge;
+	class ExpressionPath;
 
 	class MatchingGraph
 	{
@@ -123,7 +124,7 @@ namespace modelica::codegen::model
 		[[nodiscard]] edge_iterator end();
 		[[nodiscard]] const_edge_iterator end() const;
 
-		void match(int maxIterations);
+		[[nodiscard]] mlir::LogicalResult match(unsigned int maxIterations);
 
 		[[nodiscard]] size_t matchedCount() const;
 		[[nodiscard]] size_t edgesCount() const;
@@ -161,6 +162,5 @@ namespace modelica::codegen::model
 		const Model& model;
 	};
 
-	llvm::Expected<Model> match(Model entryModel, size_t maxIterations);
-
-}	 // namespace modelica
+	mlir::LogicalResult match(Model& model, size_t maxIterations);
+}

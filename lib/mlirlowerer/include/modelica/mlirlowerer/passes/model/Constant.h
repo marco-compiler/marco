@@ -9,8 +9,6 @@ namespace modelica::codegen::model
 		public:
 		Constant(mlir::Value value);
 
-		[[nodiscard]] size_t childrenCount() const;
-
 		private:
 		mlir::Value value;
 	};

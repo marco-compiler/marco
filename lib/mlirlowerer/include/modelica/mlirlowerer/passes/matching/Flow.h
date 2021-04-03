@@ -114,4 +114,4 @@ namespace modelica::codegen::model
 		MatchingGraph& graph;
 		llvm::SmallVector<FlowCandidates, 2> frontier;
 	};
-}	 // namespace modelica
+}

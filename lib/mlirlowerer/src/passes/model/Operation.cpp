@@ -8,16 +8,16 @@ Operation::Operation(llvm::ArrayRef<Expression> args)
 		this->args.push_back(std::make_shared<Expression>(arg));
 }
 
-Expression& Operation::operator[](size_t index)
+Operation::ExpressionPtr Operation::operator[](size_t index)
 {
 	assert(index < size());
-	return *args[index];
+	return args[index];
 }
 
-const Expression& Operation::operator[](size_t index) const
+const Operation::ExpressionPtr Operation::operator[](size_t index) const
 {
 	assert(index < size());
-	return *args[index];
+	return args[index];
 }
 
 size_t Operation::size() const

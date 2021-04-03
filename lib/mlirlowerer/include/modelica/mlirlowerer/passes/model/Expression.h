@@ -10,30 +10,29 @@
 
 namespace modelica::codegen::model
 {
+	class Expression;
+
 	class Expression
 	{
+		private:
+		using ExpressionPtr = std::shared_ptr<Expression>;
+
 		public:
 		Expression(mlir::Operation* op, Constant content);
 		Expression(mlir::Operation* op, Reference content);
 		Expression(mlir::Operation* op, Operation content);
 
 		template<typename T>
-		[[nodiscard]] bool isA() const
-		{
-			return std::holds_alternative<T>(content);
-		}
-
-		template<typename T>
 		[[nodiscard]] T& get()
 		{
-			assert(isA<T>());
+			assert(std::holds_alternative<T>(content));
 			return std::get<T>(content);
 		}
 
 		template<typename T>
 		[[nodiscard]] const T& get() const
 		{
-			assert(isA<T>());
+			assert(std::holds_alternative<T>(content));
 			return std::get<T>(content);
 		}
 
@@ -52,10 +51,17 @@ namespace modelica::codegen::model
 		[[nodiscard]] mlir::Operation* getOp();
 		[[nodiscard]] mlir::Operation* getOp() const;
 
+		[[nodiscard]] bool isConstant() const;
+		[[nodiscard]] bool isReference() const;
+		[[nodiscard]] bool isReferenceAccess() const;
+		[[nodiscard]] bool isOperation() const;
+
 		[[nodiscard]] size_t childrenCount() const;
 
-		[[nodiscard]] Expression& getChild(size_t index);
-		[[nodiscard]] const Expression& getChild(size_t index) const;
+		[[nodiscard]] ExpressionPtr getChild(size_t index) const;
+
+		[[nodiscard]] Expression& getReferredVectorAccessExp();
+		[[nodiscard]] const Expression& getReferredVectorAccessExp() const;
 
 		static Expression constant(mlir::Value value);
 		static Expression reference(mlir::Value value);
@@ -70,6 +76,7 @@ namespace modelica::codegen::model
 		private:
 		mlir::Operation* op;
 		std::variant<Constant, Reference, Operation> content;
+		std::string name;
 	};
 
 	class ExpressionPath

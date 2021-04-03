@@ -115,29 +115,31 @@ llvm::StringRef EquationOp::getOperationName()
 void EquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
 	auto insertionPoint = builder.saveInsertionPoint();
-
-	builder.createBlock(state.addRegion()); // left-hand side of the equation
-	builder.createBlock(state.addRegion()); // right-hand side of the equation
-
+	builder.createBlock(state.addRegion());
 	builder.restoreInsertionPoint(insertionPoint);
 }
 
 void EquationOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.equation";
-
-	printer.printRegion(lhs(), false);
-	printer.printRegion(rhs(), false);
+	printer.printRegion(body(), false);
 }
 
-mlir::Region& EquationOp::lhs()
+mlir::Region& EquationOp::body()
 {
-	return getRegion(0);
+	return getRegion();
 }
 
-mlir::Region& EquationOp::rhs()
+mlir::ValueRange EquationOp::lhs()
 {
-	return getRegion(1);
+	auto terminator = mlir::cast<EquationSidesOp>(body().front().getTerminator());
+	return terminator.lhs();
+}
+
+mlir::ValueRange EquationOp::rhs()
+{
+	auto terminator = mlir::cast<EquationSidesOp>(body().front().getTerminator());
+	return terminator.rhs();
 }
 
 //===----------------------------------------------------------------------===//
@@ -186,23 +188,19 @@ llvm::StringRef ForEquationOp::getOperationName()
 	return "modelica.for_equation";
 }
 
-void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::ArrayRef<mlir::Value> inductions)
+void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inductions)
 {
 	state.addOperands(inductions);
 
 	auto insertionPoint = builder.saveInsertionPoint();
-
-	builder.createBlock(state.addRegion()); // left-hand side of the equation
-	builder.createBlock(state.addRegion()); // right-hand side of the equation
-
+	builder.createBlock(state.addRegion());
 	builder.restoreInsertionPoint(insertionPoint);
 }
 
 void ForEquationOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.for_equation " << inductions();
-	printer.printRegion(lhs(), false);
-	printer.printRegion(rhs(), false);
+	printer.printRegion(body(), false);
 }
 
 mlir::ValueRange ForEquationOp::inductions()
@@ -210,14 +208,9 @@ mlir::ValueRange ForEquationOp::inductions()
 	return Adaptor(*this).inductions();
 }
 
-mlir::Region& ForEquationOp::lhs()
+mlir::Region& ForEquationOp::body()
 {
-	return getRegion(0);
-}
-
-mlir::Region& ForEquationOp::rhs()
-{
-	return getRegion(1);
+	return getRegion();
 }
 
 long ForEquationOp::getInductionIndex(mlir::Value induction)
@@ -230,6 +223,63 @@ long ForEquationOp::getInductionIndex(mlir::Value induction)
 
 	assert(false && "Induction variable not found");
 	return -1;
+}
+
+mlir::ValueRange ForEquationOp::lhs()
+{
+	auto terminator = mlir::cast<EquationSidesOp>(body().front().getTerminator());
+	return terminator.lhs();
+}
+
+mlir::ValueRange ForEquationOp::rhs()
+{
+	auto terminator = mlir::cast<EquationSidesOp>(body().front().getTerminator());
+	return terminator.rhs();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::EquationSidesOp
+//===----------------------------------------------------------------------===//
+
+mlir::ValueRange EquationSidesOpAdaptor::lhs()
+{
+	auto amount = getAttrs().get("lhs").cast<mlir::IntegerAttr>().getInt();
+	return mlir::ValueRange(getValues().begin(), std::next(getValues().begin(), amount));
+}
+
+mlir::ValueRange EquationSidesOpAdaptor::rhs()
+{
+	auto amount = getAttrs().get("rhs").cast<mlir::IntegerAttr>().getInt();
+	return mlir::ValueRange(std::next(getValues().begin(), getValues().size() - amount), getValues().end());
+}
+
+llvm::StringRef EquationSidesOp::getOperationName()
+{
+	return "modelica.equation_sides";
+}
+
+void EquationSidesOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange lhs, mlir::ValueRange rhs)
+{
+	state.addAttribute("lhs", builder.getI64IntegerAttr(lhs.size()));
+	state.addAttribute("rhs", builder.getI64IntegerAttr(rhs.size()));
+
+	state.addOperands(lhs);
+	state.addOperands(rhs);
+}
+
+void EquationSidesOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.equation_sides (" << lhs() << ") (" << rhs() << ")";
+}
+
+mlir::ValueRange EquationSidesOp::lhs()
+{
+	return Adaptor(*this).lhs();
+}
+
+mlir::ValueRange EquationSidesOp::rhs()
+{
+	return Adaptor(*this).rhs();
 }
 
 //===----------------------------------------------------------------------===//

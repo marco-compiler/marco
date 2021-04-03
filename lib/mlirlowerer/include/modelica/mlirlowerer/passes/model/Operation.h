@@ -11,16 +11,17 @@ namespace modelica::codegen::model
 	class Operation
 	{
 		private:
-		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
+		using ExpressionPtr = std::shared_ptr<Expression>;
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		using iterator = boost::indirect_iterator<Container<Expression>::iterator>;
-		using const_iterator = boost::indirect_iterator<Container<Expression>::const_iterator>;
+		using iterator = boost::indirect_iterator<Container<ExpressionPtr>::iterator>;
+		using const_iterator = boost::indirect_iterator<Container<ExpressionPtr>::const_iterator>;
 
 		Operation(llvm::ArrayRef<Expression> args);
 
-		Expression& operator[](size_t index);
-		const Expression& operator[](size_t index) const;
+		ExpressionPtr operator[](size_t index);
+		const ExpressionPtr operator[](size_t index) const;
 
 		[[nodiscard]] size_t size() const;
 
@@ -33,6 +34,6 @@ namespace modelica::codegen::model
 		[[nodiscard]] size_t childrenCount() const;
 
 		private:
-		Container<Expression> args;
+		Container<ExpressionPtr> args;
 	};
 }

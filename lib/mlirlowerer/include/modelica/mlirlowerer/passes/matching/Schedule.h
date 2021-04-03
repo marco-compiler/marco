@@ -4,5 +4,5 @@
 
 namespace modelica::codegen::model
 {
-	[[nodiscard]] Model schedule(const Model& model);
+	[[nodiscard]] mlir::LogicalResult schedule(Model& model);
 }

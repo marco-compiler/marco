@@ -3,12 +3,13 @@
 #include <modelica/mlirlowerer/passes/model/Variable.h>
 #include <modelica/mlirlowerer/passes/model/VectorAccess.h>
 
+using namespace modelica::codegen;
 using namespace modelica::codegen::model;
 
-Model::Model() = default;
-
-Model::Model(llvm::ArrayRef<std::shared_ptr<Variable>> variables,
-							 llvm::ArrayRef<std::shared_ptr<Equation>> equations)
+Model::Model(SimulationOp op,
+						 llvm::ArrayRef<std::shared_ptr<Variable>> variables,
+						 llvm::ArrayRef<std::shared_ptr<Equation>> equations)
+		: op(op)
 {
 	for (const auto& variable : variables)
 		this->variables.emplace_back(std::make_shared<Variable>(*variable));
@@ -35,6 +36,11 @@ Model::iterator Model::end()
 Model::const_iterator Model::end() const
 {
 	return equations.end();
+}
+
+SimulationOp Model::getOp() const
+{
+	return op;
 }
 
 bool Model::hasVariable(mlir::Value var) const
@@ -108,8 +114,8 @@ size_t Model::equationsCount() const
 {
 	size_t count = 0;
 
-	for (const auto& eq : equations)
-		count += eq->getInductions().size();
+	for (const auto& equation : equations)
+		count += equation->getInductions().size();
 
 	return count;
 }

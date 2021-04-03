@@ -5,5 +5,5 @@
 
 namespace modelica::codegen::model
 {
-	llvm::Expected<Model> solveScc(Model&& model, size_t maxIterations = 100);
+	mlir::LogicalResult solveSCC(Model& model, size_t maxIterations);
 }

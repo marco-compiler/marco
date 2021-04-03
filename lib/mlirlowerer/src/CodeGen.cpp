@@ -166,59 +166,6 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 {
 	double step = 0.1;
 
-	/*
-	Model model;
-	OmcToModelPass pass(model);
-
-	if (pass.lower(cls, SymbolTable()))
-	{
-		llvm::errs() << "Can't create model\n";
-		return nullptr;
-	}
-
-	auto foldedModel = constantFold(move(model));
-
-	if (!foldedModel)
-	{
-		llvm::errs() << "Can't fold\n";
-		return nullptr;
-	}
-
-	if (solveDer(*foldedModel))
-	{
-		llvm::errs() << "Can't solv der\n";
-		return nullptr;
-	}
-
-	auto matchedModel = match(move(*foldedModel), 1000);
-
-	if (!matchedModel)
-	{
-		llvm::errs() << "Can't match\n";
-		return nullptr;
-	}
-
-	auto collapsed = solveScc(move(*matchedModel), 1000);
-
-	if (!collapsed)
-	{
-		llvm::errs() << "Can't solve scc\n";
-		return nullptr;
-	}
-
-	auto scheduled = schedule(move(*collapsed));
-
-	auto assModel = addAproximation(scheduled, step);
-
-	if (!assModel)
-	{
-		llvm::errs() << "Can't add approximations\n";
-		return nullptr;
-	}
-	 */
-
-	//assModel->dump();
-
 	// Create a scope in the symbol table to hold variable declarations.
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 
@@ -585,35 +532,30 @@ void MLIRLowerer::lower(Equation& equation)
 {
 	mlir::Location location = loc(equation.getLocation());
 	auto result = builder.create<EquationOp>(location);
+	builder.setInsertionPointToStart(&result.body().front());
+
+	llvm::SmallVector<mlir::Value, 1> lhs;
+	llvm::SmallVector<mlir::Value, 1> rhs;
 
 	{
 		// Left-hand side
-		builder.setInsertionPointToStart(&result.lhs().front());
 		auto& expression = equation.getLeftHand();
-
-		llvm::SmallVector<mlir::Value, 3> yieldValues;
 		auto references = lower<Expression>(expression);
 
 		for (auto& reference : references)
-			yieldValues.push_back(*reference);
-
-		builder.create<YieldOp>(location, yieldValues);
+			lhs.push_back(*reference);
 	}
 
 	{
 		// Right-hand side
-		builder.setInsertionPointToStart(&result.rhs().front());
 		auto& expression = equation.getRightHand();
-
-		llvm::SmallVector<mlir::Value, 3> yieldValues;
 		auto references = lower<Expression>(expression);
 
 		for (auto& reference : references)
-			yieldValues.push_back(*reference);
-
-		builder.create<YieldOp>(location, yieldValues);
+			rhs.push_back(*reference);
 	}
 
+	builder.create<EquationSidesOp>(location, lhs, rhs);
 	builder.setInsertionPointAfter(result);
 }
 
@@ -642,34 +584,28 @@ void MLIRLowerer::lower(ForEquation& forEquation)
 	auto result = builder.create<ForEquationOp>(location, inductions);
 	auto& equation = forEquation.getEquation();
 
+	llvm::SmallVector<mlir::Value, 1> lhs;
+	llvm::SmallVector<mlir::Value, 1> rhs;
+
 	{
 		// Left-hand side
-		builder.setInsertionPointToStart(&result.lhs().front());
 		auto& expression = equation.getLeftHand();
-
-		llvm::SmallVector<mlir::Value, 3> yieldValues;
 		auto references = lower<Expression>(expression);
 
 		for (auto& reference : references)
-			yieldValues.push_back(*reference);
-
-		builder.create<YieldOp>(location, yieldValues);
+			lhs.push_back(*reference);
 	}
 
 	{
 		// Right-hand side
-		builder.setInsertionPointToStart(&result.rhs().front());
 		auto& expression = equation.getRightHand();
-
-		llvm::SmallVector<mlir::Value, 3> yieldValues;
 		auto references = lower<Expression>(expression);
 
 		for (auto& reference : references)
-			yieldValues.push_back(*reference);
-
-		builder.create<YieldOp>(location, yieldValues);
+			rhs.push_back(*reference);
 	}
 
+	builder.create<EquationSidesOp>(location, lhs, rhs);
 	builder.setInsertionPointAfter(result);
 }
 
@@ -1318,17 +1254,6 @@ void MLIRLowerer::assign(mlir::Location location, Reference memory, mlir::Value 
 		builder.create<AssignmentOp>(location, value, memory.getReference());
 	}
 }
-
-/*
-std::string MLIRLowerer::getScopedName(llvm::StringRef name)
-{
-	return accumulate(scopes.begin(), scopes.end(), std::string(),
-										[](const std::string& result, const std::string& scope)
-										{
-											return (result.empty() ? scope + "." : scope + "." + result);
-										}) + name.str();
-}
- */
 
 mlir::Value MLIRLowerer::foldBinaryOperation(llvm::ArrayRef<mlir::Value> args, std::function<mlir::Value(mlir::Value, mlir::Value)> callback)
 {

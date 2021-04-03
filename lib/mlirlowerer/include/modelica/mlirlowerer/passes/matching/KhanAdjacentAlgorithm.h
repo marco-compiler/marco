@@ -170,4 +170,4 @@ namespace modelica::codegen::model
 		if (s.getDirection() != khanNextPreferred::cannotBeOptimized)
 			onGroupFinish(s.getLastScheduled(), s.getDirection());
 	}
-}	 // namespace modelica
+}

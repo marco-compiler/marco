@@ -263,10 +263,10 @@ SmallVector<size_t, 3> VectorAccess::map(llvm::ArrayRef<size_t> interval) const
 
 bool VectorAccess::isCanonical(const Expression& expression)
 {
-	if (expression.isA<Reference>())
+	if (expression.isReference())
 		return true;
 
-	if (!expression.isA<Operation>())
+	if (!expression.isReferenceAccess())
 		return false;
 
 	mlir::Operation* op = expression.getOp();
@@ -277,7 +277,7 @@ bool VectorAccess::isCanonical(const Expression& expression)
 	if (!SingleDimensionAccess::isCanonical(expression))
 		return false;
 
-	return isCanonical(expression.get<Operation>()[0]);
+	return isCanonical(*expression.get<Operation>()[0]);
 }
 
 AccessToVar::AccessToVar(VectorAccess access, mlir::Value var)
@@ -322,7 +322,7 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 {
 	assert(VectorAccess::isCanonical(expression));
 
-	if (expression.isA<Reference>())
+	if (expression.isReference())
 		return AccessToVar(VectorAccess(), expression.get<Reference>().getVar());
 
 	// Until the expression is composed by nested access into each other,
@@ -401,10 +401,10 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 			assert(false && "Invalid access pattern");
 		}
 
-		ptr = &(ptr->get<Operation>()[0]);
+		ptr = ptr->get<Operation>()[0].get();
 	}
 
-	assert(ptr->isA<Reference>());
+	assert(ptr->isReference());
 	reverse(begin(access), end(access));
 	return AccessToVar(VectorAccess(move(access)), ptr->get<Reference>().getVar());
 }

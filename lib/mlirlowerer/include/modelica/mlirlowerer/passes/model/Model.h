@@ -5,6 +5,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <memory>
 #include <mlir/IR/Value.h>
+#include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <set>
 
 namespace modelica::codegen::model
@@ -23,14 +24,17 @@ namespace modelica::codegen::model
 		using iterator = boost::indirect_iterator<Container<Equation>::iterator>;
 		using const_iterator = boost::indirect_iterator<Container<Equation>::const_iterator>;
 
-		Model();
-		Model(llvm::ArrayRef<std::shared_ptr<Variable>> variables, llvm::ArrayRef<std::shared_ptr<Equation>> equations);
+		Model(SimulationOp op,
+					llvm::ArrayRef<std::shared_ptr<Variable>> variables,
+					llvm::ArrayRef<std::shared_ptr<Equation>> equations);
 
 		[[nodiscard]] iterator begin();
 		[[nodiscard]] const_iterator begin() const;
 
 		[[nodiscard]] iterator end();
 		[[nodiscard]] const_iterator end() const;
+
+		[[nodiscard]] SimulationOp getOp() const;
 
 		[[nodiscard]] bool hasVariable(mlir::Value var) const;
 		Variable& getVariable(mlir::Value var);
@@ -56,6 +60,7 @@ namespace modelica::codegen::model
 		[[nodiscard]] size_t nonStateNonConstCount() const;
 
 		private:
+		SimulationOp op;
 		Container<Variable> variables;
 		Container<Equation> equations;
 		TemplateMap templates;

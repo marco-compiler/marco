@@ -11,8 +11,6 @@ namespace modelica::codegen::model
 
 		[[nodiscard]] mlir::Value getVar() const;
 
-		[[nodiscard]] size_t childrenCount() const;
-
 		private:
 		mlir::Value var;
 	};

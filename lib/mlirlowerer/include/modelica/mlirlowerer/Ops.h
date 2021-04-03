@@ -95,7 +95,7 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 	};
 
-	class EquationOp : public mlir::Op<EquationOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult>
+	class EquationOp : public mlir::Op<EquationOp, mlir::OpTrait::OneRegion, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult>
 	{
 		public:
 		using Op::Op;
@@ -105,8 +105,10 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
 		void print(mlir::OpAsmPrinter& printer);
 
-		mlir::Region& lhs();
-		mlir::Region& rhs();
+		mlir::Region& body();
+
+		mlir::ValueRange lhs();
+		mlir::ValueRange rhs();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -149,21 +151,52 @@ namespace modelica::codegen
 		mlir::ValueRange inductions();
 	};
 
-	class ForEquationOp : public mlir::Op<ForEquationOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult>
+	class ForEquationOp : public mlir::Op<ForEquationOp, mlir::OpTrait::OneRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult>
 	{
 		public:
 		using Op::Op;
 		using Adaptor = ForEquationOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::ArrayRef<mlir::Value> inductions);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inductions);
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::ValueRange inductions();
-		mlir::Region& lhs();
-		mlir::Region& rhs();
+		mlir::Region& body();
 
 		long getInductionIndex(mlir::Value induction);
+
+		mlir::ValueRange lhs();
+		mlir::ValueRange rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::EquationSidesOp
+	//===----------------------------------------------------------------------===//
+
+	class EquationSidesOp;
+
+	class EquationSidesOpAdaptor : public OpAdaptor<EquationSidesOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::ValueRange lhs();
+		mlir::ValueRange rhs();
+	};
+
+	class EquationSidesOp : public mlir::Op<EquationSidesOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<EquationOp, ForEquationOp>::Impl, mlir::OpTrait::IsTerminator>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = EquationSidesOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange lhs, mlir::ValueRange rhs);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange lhs();
+		mlir::ValueRange rhs();
 	};
 
 	//===----------------------------------------------------------------------===//

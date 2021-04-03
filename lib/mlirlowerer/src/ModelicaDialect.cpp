@@ -76,7 +76,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	// Builtin operations
 	addOperations<NDimsOp, SizeOp>();
 
-	addOperations<SimulationOp, EquationOp, InductionOp, ForEquationOp, DerOp>();
+	addOperations<SimulationOp, EquationOp, InductionOp, ForEquationOp, EquationSidesOp, DerOp>();
 }
 
 mlir::StringRef ModelicaDialect::getDialectNamespace()

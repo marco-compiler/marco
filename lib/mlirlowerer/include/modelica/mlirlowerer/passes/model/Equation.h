@@ -1,11 +1,15 @@
 #pragma once
 
+#include <llvm/Support/Error.h>
+#include <mlir/IR/Operation.h>
 #include <modelica/utils/IndexSet.hpp>
 
 namespace modelica::codegen::model
 {
 	class AccessToVar;
 	class Expression;
+	class ExpressionPath;
+	class VectorAccess;
 
 	class EquationTemplate
 	{
@@ -21,6 +25,8 @@ namespace modelica::codegen::model
 		[[nodiscard]] std::string& getName();
 		[[nodiscard]] const std::string& getName() const;
 		void setName(std::string newName);
+
+		void swapLeftRight();
 
 		private:
 		std::shared_ptr<Expression> left;
@@ -56,22 +62,28 @@ namespace modelica::codegen::model
 	class Equation
 	{
 		public:
-		Equation(Expression left,
+		Equation(mlir::Operation* op,
+						 Expression left,
 						 Expression right,
 						 std::string templateName = "",
 						 MultiDimInterval inductions = {},
 						 bool isForward = true,
 						 std::optional<EquationPath> path = std::nullopt);
 
-		Equation(std::shared_ptr<EquationTemplate> templ,
+		Equation(mlir::Operation* op,
+						 std::shared_ptr<EquationTemplate> templ,
 						 MultiDimInterval interval,
 						 bool isForward);
+
+		[[nodiscard]] mlir::Operation* getOp() const;
 
 		[[nodiscard]] Expression& lhs();
 		[[nodiscard]] const Expression& lhs() const;
 
 		[[nodiscard]] Expression& rhs();
 		[[nodiscard]] const Expression& rhs() const;
+
+		[[nodiscard]] size_t amount() const;
 
 		[[nodiscard]] std::shared_ptr<EquationTemplate>& getTemplate();
 		[[nodiscard]] const std::shared_ptr<EquationTemplate>& getTemplate() const;
@@ -92,7 +104,20 @@ namespace modelica::codegen::model
 
 		[[nodiscard]] AccessToVar getDeterminedVariable() const;
 
+		[[nodiscard]] ExpressionPath getMatchedExpressionPath() const;
+
+
+		[[nodiscard]] Equation normalized() const;
+
+		[[nodiscard]] Equation normalizeMatched() const;
+
+		mlir::LogicalResult explicitate(size_t argumentIndex, bool left);
+		mlir::LogicalResult explicitate(const ExpressionPath& path);
+		mlir::LogicalResult explicitate();
+
 		[[nodiscard]] Equation clone(std::string newName) const;
+
+		[[nodiscard]] Equation composeAccess(const VectorAccess& transformation) const;
 
 		template<typename Path>
 		[[nodiscard]] Expression& reachExp(Path& path)
@@ -107,6 +132,9 @@ namespace modelica::codegen::model
 		}
 
 		private:
+		void getEquationsAmount(mlir::ValueRange values, llvm::SmallVectorImpl<long>& amounts) const;
+
+		mlir::Operation* op;
 		std::shared_ptr<EquationTemplate> body;
 		MultiDimInterval inductions;
 		bool isForCycle;

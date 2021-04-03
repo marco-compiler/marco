@@ -10,13 +10,17 @@
 #include <numeric>
 #include <vector>
 
-template<typename Graph>
-void renumber_vertex_indices(const Graph& graph)
+namespace modelica::codegen::model
 {
-	assert(
-			false && "YOU CANNOT USE THIS ALGORITHM BECAUSE RENUMBER_VERTEX_INDICES "
-							 "IS NOT SUPPORTED");
+	template<typename Graph>
+	void renumber_vertex_indices(const Graph& graph)
+	{
+		assert(
+				false && "YOU CANNOT USE THIS ALGORITHM BECAUSE RENUMBER_VERTEX_INDICES "
+								 "IS NOT SUPPORTED");
+	}
 }
+
 #include "boost/graph/lookup_edge.hpp"
 #include "boost/graph/tiernan_all_cycles.hpp"
 #include "modelica/matching/SccLookup.hpp"
@@ -121,7 +125,8 @@ static InexSetVector cyclicDependetSets(
 }
 
 static int a = 0;
-static llvm::Expected<bool> extractEquationWithDependencies(
+
+static mlir::LogicalResult extractEquationWithDependencies(
 		EqVector& source,
 		EqVector& filtered,
 		EqVector& untouched,
@@ -130,28 +135,33 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 {
 	auto c = cycleToEdgeVec(cycle, g);
 	auto vecSet = cyclicDependetSets(c, g);
+
 	if (vecSet[0].empty())
-		return false;
+		return mlir::failure();
 
 	// for each equation in the cycle
 	for (auto i : modelica::irange(cycle.size()))
 	{
-		/*
 		const auto& eq = g[boost::source(c[i], g.getImpl())].getEquation();
+
 		// copy the equation
 		auto toFuseEq =
 				eq.clone(eq.getTemplate()->getName() + "merged" + std::to_string(a++));
+
 		// set induction to those that generate the circular dependency
 		assert(toFuseEq.getInductions().contains(vecSet[i]));
 		toFuseEq.setInductionVars(vecSet[i]);
-		if (auto error = toFuseEq.explicitate(); error)
-			return std::move(error);
-		// add it to the list of filterd with normalized body
+
+		if (auto res = toFuseEq.explicitate(); failed(res))
+			return res;
+
+		// add it to the list of filtered with normalized body
 		filtered.emplace_back(toFuseEq.normalizeMatched());
 
 		// then for all other index set that
 		// are not in the circular set
 		auto nonUsed = remove(eq.getInductions(), vecSet[i]);
+
 		for (auto set : nonUsed)
 		{
 			// add the equation to the untouched set
@@ -159,7 +169,6 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 			// and set the inductions to the ones  that have no circular dependencies
 			untouched.back().setInductionVars(set);
 		}
-		 */
 	}
 
 	// for all equations that were not in the circular set, add it to the
@@ -169,7 +178,8 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 		if (llvm::find(cycle, i) == cycle.end())
 			untouched.emplace_back(std::move(source[i]));
 	}
-	return true;
+
+	return mlir::success();
 }
 
 class CycleFuser
@@ -180,7 +190,7 @@ class CycleFuser
 			EqVector& equs,
 			const Model& model,
 			const VVarDependencyGraph& graph,
-			llvm::Error* e)
+			mlir::LogicalResult* e)
 			: foundOne(&f), equs(&equs), model(&model), graph(&graph), error(e)
 	{
 	}
@@ -194,20 +204,22 @@ class CycleFuser
 
 		EqVector newEqus;
 		EqVector filtered;
-		auto err = extractEquationWithDependencies(
-				*equs, filtered, newEqus, cycle, *graph);
-		if (!err)
+
+		auto err = extractEquationWithDependencies(*equs, filtered, newEqus, cycle, *graph);
+
+		if (succeeded(err))
 		{
-			*error = err.takeError();
+			*error = err;
 			*foundOne = true;
 			return;
 		}
 
-		if (!*err)
+		if (succeeded(err))
 			return;
 
 		/*
-		auto e = modelica::linearySolve(filtered, *model);
+		auto e = linearySolve(filtered, *model);
+
 		if (e)
 		{
 			*error = std::move(e);
@@ -216,10 +228,10 @@ class CycleFuser
 		}
 		for (auto& eq : filtered)
 			newEqus.emplace_back(std::move(eq));
-		 */
 
 		*foundOne = true;
 		*equs = std::move(newEqus);
+		 */
 	}
 
 	private:
@@ -227,36 +239,37 @@ class CycleFuser
 	EqVector* equs;
 	const Model* model;
 	const VVarDependencyGraph* graph;
-	llvm::Error* error;
+	mlir::LogicalResult* error;
 };
 
-static llvm::Error fuseEquations(
+static mlir::LogicalResult fuseEquations(
 		EqVector& equs, const Model& sourceModel, size_t maxIterations)
 {
-	/*
 	bool atLeastOneCollapse = false;
 	size_t currIterations = 0;
+
 	do
 	{
 		atLeastOneCollapse = false;
 		VVarDependencyGraph vectorGraph(sourceModel, equs);
-		llvm::Error e(llvm::Error::success());
-		if (e)
-			return e;
+		mlir::LogicalResult e = mlir::success();
+
 		tiernan_all_cycles(
 				vectorGraph.getImpl(),
 				CycleFuser(atLeastOneCollapse, equs, sourceModel, vectorGraph, &e));
-		if (e)
+
+		if (failed(e))
 			return e;
 
 		if (++currIterations == maxIterations)
-			return llvm::Error::success();
+			return mlir::failure();
+
 	} while (atLeastOneCollapse);
-	 */
-	return llvm::Error::success();
+
+	return mlir::success();
 }
 
-static llvm::Error fuseScc(
+static mlir::LogicalResult fuseScc(
 		const modelica::Scc<VVarDependencyGraph>& scc,
 		const VVarDependencyGraph& vectorGraph,
 		EqVector& out,
@@ -267,33 +280,30 @@ static llvm::Error fuseScc(
 	for (const auto& eq : scc.range(vectorGraph))
 		out.push_back(eq.getEquation());
 
-	if (auto error = fuseEquations(out, vectorGraph.getModel(), maxIterations);
-			error)
-		return error;
+	if (auto res = fuseEquations(out, vectorGraph.getModel(), maxIterations); failed(res))
+		return res;
 
-	return llvm::Error::success();
+	return mlir::success();
 }
 
-llvm::Expected<Model> modelica::codegen::model::solveScc(Model&& model, size_t maxIterations)
+mlir::LogicalResult modelica::codegen::model::solveSCC(Model& model, size_t maxIterations)
 {
-	/*
 	VVarDependencyGraph vectorGraph(model);
-	SccLookup sccs(vectorGraph);
+	SccLookup SCCs(vectorGraph);
 
-	llvm::SmallVector<EqVector, 3> possibleEq(sccs.count());
+	llvm::SmallVector<EqVector, 3> possibleEquations(SCCs.count());
 
-	for (auto i : irange(sccs.count()))
-		if (auto error =
-						fuseScc(sccs[i], vectorGraph, possibleEq[i], maxIterations);
-				error)
-			return std::move(error);
+	for (size_t i = 0, e = SCCs.count(); i < e; ++i)
+	{
+		if (failed(fuseScc(SCCs[i], vectorGraph, possibleEquations[i], maxIterations)))
+			return mlir::failure();
+	}
 
-	Model outModel({}, std::move(model.getVars()));
-	for (auto& eqList : possibleEq)
-		for (auto& eq : eqList)
-			outModel.addEquation(std::move(eq));
+	Model result(model.getOp(), model.getVariables(), {});
 
-	return outModel;
-	 */
-	return model;
+	for (auto& equationsList : possibleEquations)
+		for (auto& equation : equationsList)
+			result.addEquation(equation);
+
+	return mlir::success();
 }

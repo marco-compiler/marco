@@ -81,7 +81,7 @@ void ReferenceMatcher::visit(const Equation& equation, bool ignoreMatched)
 
 void ReferenceMatcher::visit(const Expression& exp, bool isLeft, size_t index)
 {
-	if (exp.isA<Reference>())
+	if (exp.isReferenceAccess())
 	{
 		vars.emplace_back(exp, currentPath, isLeft);
 		return;
@@ -91,7 +91,7 @@ void ReferenceMatcher::visit(const Expression& exp, bool isLeft, size_t index)
 	{
 		currentPath.push_back(i);
 		auto g = makeGuard(std::bind(&ReferenceMatcher::removeBack, this));
-		visit(exp.getChild(i), isLeft, i);
+		visit(*exp.getChild(i), isLeft, i);
 	}
 }
 

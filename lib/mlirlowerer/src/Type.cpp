@@ -280,6 +280,21 @@ unsigned int PointerType::getDynamicDimensions() const
 	return count;
 }
 
+long PointerType::rawSize() const
+{
+	long result = 1;
+
+	for (long size : getShape())
+	{
+		if (size == -1)
+			return -1;
+
+		result *= size;
+	}
+
+	return result;
+}
+
 bool PointerType::hasConstantShape() const
 {
 	auto shape = getShape();

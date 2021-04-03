@@ -36,7 +36,7 @@ static llvm::SmallVector<Equation, 3> collapseEquations(
 		const auto& eq = currentNode.getCollapsedVertex();
 
 		for (const auto& set : currentSet)
-			out.emplace_back(eq.getTemplate(), set, !backward);
+			out.emplace_back(eq.getOp(), eq.getTemplate(), set, !backward);
 
 		currentSet = modelica::IndexSet();
 	};
@@ -112,8 +112,8 @@ static ResultVector parallelMap(
 		const VVarDependencyGraph& vectorGraph, const SortedScc& sortedScc)
 {
 	ResultVector results(sortedScc.size(), {});
-
 	modelica::ThreadPool pool;
+
 	for (size_t i : modelica::irange(sortedScc.size()))
 		pool.addTask([i, &sortedScc, &vectorGraph, &results]() {
 			results[i] = sched(*sortedScc[i], vectorGraph);
@@ -122,7 +122,7 @@ static ResultVector parallelMap(
 	return results;
 }
 
-Model modelica::codegen::model::schedule(const Model& model)
+mlir::LogicalResult modelica::codegen::model::schedule(Model& model)
 {
 	VVarDependencyGraph vectorGraph(model);
 	SCCDependencyGraph sccDependency(vectorGraph);
@@ -131,11 +131,12 @@ Model modelica::codegen::model::schedule(const Model& model)
 
 	auto results = parallelMap(vectorGraph, sortedScc);
 
-	Model scheduledModel(model.getVariables(), {});
+	Model result(model.getOp(), model.getVariables(), {});
 
 	for (const auto& res : results)
 		for (const auto& eq : res)
-			scheduledModel.addEquation(std::move(eq));
+			result.addEquation(std::move(eq));
 
-	return scheduledModel;
+	model = result;
+	return mlir::success();
 }

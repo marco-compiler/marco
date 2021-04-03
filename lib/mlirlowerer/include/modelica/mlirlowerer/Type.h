@@ -53,6 +53,8 @@ namespace modelica::codegen
 		[[nodiscard]] unsigned int getConstantDimensions() const;
 		[[nodiscard]] unsigned int getDynamicDimensions() const;
 
+		[[nodiscard]] long rawSize() const;
+
 		[[nodiscard]] bool hasConstantShape() const;
 
 		[[nodiscard]] PointerType slice(unsigned int subscriptsAmount);
