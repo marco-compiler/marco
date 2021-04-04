@@ -75,7 +75,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<YieldOp>();
 
 	// Builtin operations
-	addOperations<NDimsOp, SizeOp>();
+	addOperations<NDimsOp, SizeOp, FillOp>();
 
 	addOperations<SimulationOp, EquationOp, InductionOp, ForEquationOp, EquationSidesOp, DerOp>();
 }

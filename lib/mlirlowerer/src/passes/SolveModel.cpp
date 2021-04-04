@@ -166,8 +166,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			DerSolver solver(simulation, model);
 			solver.solve();
 
-			// Variable initialization
-
 			// Match
 			if (failed(match(model, 1000)))
 				return signalPassFailure();

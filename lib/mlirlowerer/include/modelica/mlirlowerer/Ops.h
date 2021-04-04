@@ -1360,6 +1360,35 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::FillOp
+	//===----------------------------------------------------------------------===//
+
+	class FillOp;
+
+	class FillOpAdaptor : public OpAdaptor<FillOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value value();
+		mlir::Value memory();
+	};
+
+	class FillOp : public mlir::Op<FillOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::ZeroResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = FillOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Value value, mlir::Value memory);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Value value();
+		mlir::Value memory();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::DerOp
 	//===----------------------------------------------------------------------===//
 

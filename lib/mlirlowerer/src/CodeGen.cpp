@@ -176,9 +176,6 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 	auto& entryBlock = *function.addEntryBlock();
 	builder.setInsertionPointToStart(&entryBlock);
 
-	//for (auto& entry : assModel->getVars())
-	//	lower(entry.second);
-
 	for (auto& member : cls.getMembers())
 		lower<Class>(*member);
 
@@ -433,6 +430,28 @@ void MLIRLowerer::lower<Class>(Member& member)
 	{
 		mlir::Value ptr = builder.create<AllocaOp>(location, type);
 		symbolTable.insert(member.getName(), Reference::memory(&builder, ptr, true));
+	}
+
+	mlir::Value destination = symbolTable.lookup(member.getName()).getReference();
+
+	if (member.hasStartOverload())
+	{
+		auto values = lower<Expression>(member.getStartOverload());
+		assert(values.size() == 1);
+		builder.create<AssignmentOp>(location, *values[0], destination);
+	}
+	else
+	{
+		if (auto pointerType = type.dyn_cast<PointerType>())
+		{
+			mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(pointerType.getElementType()));
+			builder.create<FillOp>(location, zero, destination);
+		}
+		else
+		{
+			mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(type));
+			builder.create<AssignmentOp>(location, zero, destination);
+		}
 	}
 }
 

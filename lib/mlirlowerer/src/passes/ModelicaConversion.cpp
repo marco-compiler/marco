@@ -2666,6 +2666,28 @@ class SizeOpArrayLowering: public ModelicaOpConversion<SizeOp>
 	}
 };
 
+class FillOpLowering: public ModelicaOpConversion<FillOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(FillOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+
+		mlir::Value value = op.value();
+		value = rewriter.create<CastOp>(location, value, op.memory().getType().cast<PointerType>().getElementType());
+
+		iterateArray(rewriter, location, op.memory(),
+								 [&](mlir::ValueRange position)
+								 {
+									 rewriter.create<StoreOp>(location, value, op.memory(), position);
+								 });
+
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
 static void populateModelicaBasicConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter)
 {
 	patterns.insert<
@@ -2748,7 +2770,8 @@ static void populateModelicaBuiltInConversionPatterns(mlir::OwningRewritePattern
 	patterns.insert<
 	    NDimsOpLowering,
 			SizeOpDimensionLowering,
-			SizeOpArrayLowering>(context, typeConverter);
+			SizeOpArrayLowering,
+			FillOpLowering>(context, typeConverter);
 }
 
 static void populateModelicaConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, modelica::codegen::TypeConverter& typeConverter)

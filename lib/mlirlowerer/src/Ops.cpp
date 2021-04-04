@@ -2724,6 +2724,47 @@ mlir::Value SizeOp::index()
 }
 
 //===----------------------------------------------------------------------===//
+// Modelica::FillOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value FillOpAdaptor::value()
+{
+	return getValues()[0];
+}
+
+mlir::Value FillOpAdaptor::memory()
+{
+	return getValues()[1];
+}
+
+llvm::StringRef FillOp::getOperationName()
+{
+	return "modelica.fill";
+}
+
+void FillOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory)
+{
+	state.addOperands(value);
+	state.addOperands(memory);
+}
+
+void FillOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.fill " << value() << ", " << memory();
+	printer << " : " << memory().getType();
+}
+
+mlir::Value FillOp::value()
+{
+	return Adaptor(*this).value();
+}
+
+mlir::Value FillOp::memory()
+{
+	return Adaptor(*this).memory();
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::DerOp
 //===----------------------------------------------------------------------===//
 
