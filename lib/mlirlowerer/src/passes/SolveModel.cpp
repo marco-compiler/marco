@@ -83,8 +83,54 @@ struct ForEquationOpScalarizePattern : public mlir::OpRewritePattern<ForEquation
 	mlir::LogicalResult matchAndRewrite(ForEquationOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op->getLoc();
-		// TODO
-		return mlir::failure();
+		auto sides = mlir::cast<EquationSidesOp>(op.body().front().getTerminator());
+		assert(sides.lhs().size() == 1 && sides.rhs().size() == 1);
+
+		auto lhs = sides.lhs()[0];
+		auto rhs = sides.rhs()[0];
+
+		auto lhsPointerType = lhs.getType().cast<PointerType>();
+		auto rhsPointerType = rhs.getType().cast<PointerType>();
+
+		llvm::SmallVector<mlir::Value, 3> inductions;
+		llvm::SmallVector<mlir::Value, 3> newInductions;
+
+		for (const auto& [left, right] : llvm::zip(lhsPointerType.getShape(), rhsPointerType.getShape()))
+		{
+			assert(left != -1 || right != -1);
+
+			if (left != -1 && right != -1)
+				assert(left == right);
+
+			long size = std::max(left, right);
+			mlir::Value induction = rewriter.create<InductionOp>(location, 1, size);
+			inductions.push_back(induction);
+			newInductions.push_back(induction);
+		}
+
+		for (auto induction : op.inductions())
+			inductions.push_back(induction);
+
+		auto forEquation = rewriter.create<ForEquationOp>(location, inductions);
+		rewriter.mergeBlocks(&op.body().front(), &forEquation.body().front());
+		rewriter.setInsertionPoint(sides);
+
+		llvm::SmallVector<mlir::Value, 1> newLhs;
+		llvm::SmallVector<mlir::Value, 1> newRhs;
+
+		for (auto [lhs, rhs] : llvm::zip(sides.lhs(), sides.rhs()))
+		{
+			auto leftSubscription = rewriter.create<SubscriptionOp>(location, lhs, newInductions);
+			newLhs.push_back(rewriter.create<LoadOp>(location, leftSubscription));
+
+			auto rightSubscription = rewriter.create<SubscriptionOp>(location, rhs, newInductions);
+			newRhs.push_back(rewriter.create<LoadOp>(location, rightSubscription));
+		}
+
+		rewriter.setInsertionPointAfter(sides);
+		rewriter.replaceOpWithNewOp<EquationSidesOp>(sides, newLhs, newRhs);
+		rewriter.eraseOp(op);
+		return mlir::success();
 	}
 };
 
@@ -173,7 +219,6 @@ struct ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp>
 
 	mlir::LogicalResult matchAndRewrite(ForEquationOp op, mlir::PatternRewriter& rewriter) const override
 	{
-
 		// Create the assignment
 		auto sides = mlir::cast<EquationSidesOp>(op.body().front().getTerminator());
 		rewriter.setInsertionPoint(sides);
