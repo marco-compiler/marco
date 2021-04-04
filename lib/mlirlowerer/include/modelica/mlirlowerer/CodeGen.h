@@ -25,6 +25,9 @@ namespace modelica::codegen
 	struct ModelicaOptions {
 
 		bool x64 = true;
+		double startTime = 0;
+		double endTime = 10;
+		double timeStep = 0.1;
 
 		[[nodiscard]] unsigned int getBitWidth() const
 		{
@@ -154,12 +157,6 @@ namespace modelica::codegen
 		 */
 		std::deque<llvm::StringRef> scopes;
 
-		/**
-		 * Convert a local name to a fully qualified name, which is comprehensive
-		 * of the current scope.
-		 */
-		//std::string getScopedName(llvm::StringRef name);
-
 		 /**
 		  * Apply a binary operation to a list of values.
 		  *
@@ -184,6 +181,8 @@ namespace modelica::codegen
 		 * @return MLIR location
 		 */
 		mlir::Location loc(SourcePosition location);
+
+		ModelicaOptions options;
 	};
 
 	template<>

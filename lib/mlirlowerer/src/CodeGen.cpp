@@ -85,7 +85,8 @@ Reference Reference::memory(ModelicaBuilder* builder, mlir::Value value, bool in
 }
 
 MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options)
-		: builder(&context, options.getBitWidth())
+		: builder(&context, options.getBitWidth()),
+			options(options)
 {
 	context.loadDialect<ModelicaDialect>();
 	context.loadDialect<mlir::StandardOpsDialect>();
@@ -164,8 +165,6 @@ llvm::Optional<mlir::ModuleOp> MLIRLowerer::lower(llvm::ArrayRef<ClassContainer>
 
 mlir::Operation* MLIRLowerer::lower(Class& cls)
 {
-	double step = 0.1;
-
 	// Create a scope in the symbol table to hold variable declarations.
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 
@@ -188,9 +187,9 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 	auto simulation = builder.create<SimulationOp>(
 			location,
 			time,
-			builder.getRealAttribute(0.0),
-			builder.getRealAttribute(10.0),
-			builder.getRealAttribute(step));
+			builder.getRealAttribute(options.startTime),
+			builder.getRealAttribute(options.endTime),
+			builder.getRealAttribute(options.timeStep));
 
 	builder.setInsertionPointToStart(&simulation.body().front());
 

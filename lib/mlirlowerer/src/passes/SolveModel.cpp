@@ -183,6 +183,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (failed(explicitateEquations(model)))
 				return signalPassFailure();
 
+			// Print the variables
+			if (failed(printVariables(model)))
+				return signalPassFailure();
+
 			// Calculate the values that the state variables will have in the next
 			// iteration.
 			if (failed(updateStates(model)))
@@ -213,6 +217,12 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (auto res = equation->explicitate(); failed(res))
 				return res;
 
+		return mlir::success();
+	}
+
+	mlir::LogicalResult printVariables(Model& model)
+	{
+		// TODO
 		return mlir::success();
 	}
 

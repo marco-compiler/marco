@@ -23,15 +23,15 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
-static cl::OptionCategory optionCategory("MLIR lowerer options");
+static cl::OptionCategory codeGenOptions("Code generation options");
 
-static cl::opt<string> inputFile(cl::Positional, cl::desc("<input-file>"), cl::init("-"), cl::cat(optionCategory));
-static cl::opt<string> outputFile("o", cl::desc("<output-file>"), cl::init("-"), cl::cat(optionCategory));
-static cl::opt<bool> x86("32", cl::desc("Use 32-bit values instead of 64-bit ones"), cl::init(false), cl::cat(optionCategory));
-static cl::opt<bool> inlining("no-inlining", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(optionCategory));
-static cl::opt<bool> resultBuffersToArgs("no-result-buffers-to-args", cl::desc("Don't move the static output buffer to input arguments"), cl::init(false), cl::cat(optionCategory));
-static cl::opt<bool> cse("no-cse", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(optionCategory));
-static cl::opt<bool> openmp("omp", cl::desc("Enable OpenMP usage"), cl::init(false), cl::cat(optionCategory));
+static cl::opt<string> inputFile(cl::Positional, cl::desc("<input-file>"), cl::init("-"), cl::cat(codeGenOptions));
+static cl::opt<string> outputFile("o", cl::desc("<output-file>"), cl::init("-"), cl::cat(codeGenOptions));
+static cl::opt<bool> x86("32", cl::desc("Use 32-bit values instead of 64-bit ones"), cl::init(false), cl::cat(codeGenOptions));
+static cl::opt<bool> inlining("no-inlining", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(codeGenOptions));
+static cl::opt<bool> resultBuffersToArgs("no-result-buffers-to-args", cl::desc("Don't move the static output buffer to input arguments"), cl::init(false), cl::cat(codeGenOptions));
+static cl::opt<bool> cse("no-cse", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(codeGenOptions));
+static cl::opt<bool> openmp("omp", cl::desc("Enable OpenMP usage"), cl::init(false), cl::cat(codeGenOptions));
 
 enum OptLevel {
 	O0, O1, O2, O3
@@ -43,21 +43,34 @@ static cl::opt<OptLevel> optimizationLevel(cl::desc("Optimization level:"),
 																							 clEnumValN(O1, "O1", "Trivial optimizations"),
 																							 clEnumValN(O2, "O2", "Default optimizations"),
 																							 clEnumValN(O3, "O3", "Expensive optimizations")),
-																					 cl::cat(optionCategory),
+																					 cl::cat(codeGenOptions),
 																					 cl::init(O2));
 
-static cl::opt<bool> printParsedAST("print-parsed-ast", cl::desc("Print the AST right after being parsed"), cl::init(false), cl::cat(optionCategory));
-static cl::opt<bool> printLegalizedAST("print-legalized-ast", cl::desc("Print the AST after it has been legalized"), cl::init(false), cl::cat(optionCategory));
-static cl::opt<bool> printModelicaDialectIR("print-modelica", cl::desc("Print the Modelica dialect IR obtained right after the AST lowering"), cl::init(false), cl::cat(optionCategory));
-static cl::opt<bool> printLLVMDialectIR("print-llvm", cl::desc("Print the LLVM dialect IR"), cl::init(false), cl::cat(optionCategory));
+static cl::OptionCategory debugOptions("Debug options");
 
-static cl::opt<bool> debug("d", cl::desc("Keep debug information in the final IR"), cl::init(false), cl::cat(optionCategory));
+static cl::opt<bool> printParsedAST("print-parsed-ast", cl::desc("Print the AST right after being parsed"), cl::init(false), cl::cat(debugOptions));
+static cl::opt<bool> printLegalizedAST("print-legalized-ast", cl::desc("Print the AST after it has been legalized"), cl::init(false), cl::cat(debugOptions));
+static cl::opt<bool> printModelicaDialectIR("print-modelica", cl::desc("Print the Modelica dialect IR obtained right after the AST lowering"), cl::init(false), cl::cat(debugOptions));
+static cl::opt<bool> printLLVMDialectIR("print-llvm", cl::desc("Print the LLVM dialect IR"), cl::init(false), cl::cat(debugOptions));
+
+static cl::opt<bool> debug("d", cl::desc("Keep debug information in the final IR"), cl::init(false), cl::cat(debugOptions));
+
+static cl::OptionCategory simulationOptions("Simulation options");
+
+static cl::opt<double> startTime("start-time", cl::desc("Start time (in seconds) (default: 0)"), cl::init(0), cl::cat(simulationOptions));
+static cl::opt<double> endTime("end-time", cl::desc("End time (in seconds) (default: 10)"), cl::init(10), cl::cat(simulationOptions));
+static cl::opt<double> timeStep("time-step", cl::desc("Time step (in seconds) (default: 0.1)"), cl::init(0.1), cl::cat(simulationOptions));
 
 static llvm::ExitOnError exitOnErr;
 
 int main(int argc, char* argv[])
 {
-	HideUnrelatedOptions(optionCategory);
+	llvm::SmallVector<const cl::OptionCategory*> categories;
+	categories.push_back(&codeGenOptions);
+	categories.push_back(&debugOptions);
+	categories.push_back(&simulationOptions);
+	HideUnrelatedOptions(categories);
+
 	cl::ParseCommandLineOptions(argc, argv);
 
 	auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(inputFile);
@@ -93,6 +106,9 @@ int main(int argc, char* argv[])
 
 	codegen::ModelicaOptions modelicaOptions;
 	modelicaOptions.x64 = !x86.getValue();
+	modelicaOptions.startTime = startTime;
+	modelicaOptions.endTime = endTime;
+	modelicaOptions.timeStep = timeStep;
 
 	codegen::MLIRLowerer lowerer(context, modelicaOptions);
 	auto module = lowerer.lower(ast);
