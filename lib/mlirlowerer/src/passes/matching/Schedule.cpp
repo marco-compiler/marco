@@ -133,9 +133,16 @@ mlir::LogicalResult modelica::codegen::model::schedule(Model& model)
 
 	Model result(model.getOp(), model.getVariables(), {});
 
+	assert(model.getOp().body().getBlocks().size() == 1);
+	mlir::Operation* op = model.getOp().body().front().getTerminator();
+
 	for (const auto& res : results)
-		for (const auto& eq : res)
-			result.addEquation(std::move(eq));
+		for (const auto& equation : res)
+		{
+			equation.getOp()->moveBefore(op);
+			op = equation.getOp();
+			result.addEquation(std::move(equation));
+		}
 
 	model = result;
 	return mlir::success();

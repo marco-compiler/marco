@@ -1312,19 +1312,9 @@ mlir::Region& IfOp::elseRegion()
 // Modelica::ForOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value ForOpAdaptor::breakCondition()
-{
-	return getValues()[0];
-}
-
-mlir::Value ForOpAdaptor::returnCondition()
-{
-	return getValues()[1];
-}
-
 mlir::ValueRange ForOpAdaptor::args()
 {
-	return mlir::ValueRange(std::next(getValues().begin(), 2), getValues().end());
+	return getValues();
 }
 
 llvm::StringRef ForOp::getOperationName()
@@ -1332,10 +1322,8 @@ llvm::StringRef ForOp::getOperationName()
 	return "modelica.for";
 }
 
-void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args)
+void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args)
 {
-	state.addOperands(breakCondition);
-	state.addOperands(returnCondition);
 	state.addOperands(args);
 
 	auto insertionPoint = builder.saveInsertionPoint();
@@ -1354,26 +1342,13 @@ void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 
 void ForOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.for (break on " << breakCondition() << ", return on " << returnCondition() << ") " << args();
-	printer << " condition";
+	printer << "modelica.for " << args();
+	printer << "condition";
 	printer.printRegion(condition(), true);
 	printer << " body";
 	printer.printRegion(body(), true);
 	printer << " step";
 	printer.printRegion(step(), true);
-}
-
-mlir::LogicalResult ForOp::verify()
-{
-	if (auto breakPtr = breakCondition().getType().dyn_cast<PointerType>();
-			!breakPtr || !breakPtr.getElementType().isa<BooleanType>() || breakPtr.getRank() != 0)
-		return emitOpError("requires the break condition to be a pointer to a single boolean value");
-
-	if (auto returnPtr = breakCondition().getType().dyn_cast<PointerType>();
-			!returnPtr || !returnPtr.getElementType().isa<BooleanType>() || returnPtr.getRank() != 0)
-		return emitOpError("requires the return condition to be a pointer to a single boolean value");
-
-	return mlir::success();
 }
 
 void ForOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
@@ -1416,41 +1391,154 @@ mlir::Region& ForOp::body()
 	return getOperation()->getRegion(2);
 }
 
-mlir::Value ForOp::breakCondition()
-{
-	return Adaptor(*this).breakCondition();
-}
-
-mlir::Value ForOp::returnCondition()
-{
-	return Adaptor(*this).returnCondition();
-}
-
 mlir::ValueRange ForOp::args()
 {
 	return Adaptor(*this).args();
 }
 
 //===----------------------------------------------------------------------===//
-// Modelica::WhileOp
+// Modelica::BreakableForOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value WhileOpAdaptor::breakCondition()
+mlir::Value BreakableForOpAdaptor::breakCondition()
 {
 	return getValues()[0];
 }
 
-mlir::Value WhileOpAdaptor::returnCondition()
+mlir::Value BreakableForOpAdaptor::returnCondition()
 {
 	return getValues()[1];
 }
 
-llvm::StringRef WhileOp::getOperationName()
+mlir::ValueRange BreakableForOpAdaptor::args()
 {
-	return "modelica.while";
+	return mlir::ValueRange(std::next(getValues().begin(), 2), getValues().end());
 }
 
-void WhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition)
+llvm::StringRef BreakableForOp::getOperationName()
+{
+	return "modelica.breakable_for";
+}
+
+void BreakableForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args)
+{
+	state.addOperands(breakCondition);
+	state.addOperands(returnCondition);
+	state.addOperands(args);
+
+	auto insertionPoint = builder.saveInsertionPoint();
+
+	// Condition block
+	builder.createBlock(state.addRegion(), {}, args.getTypes());
+
+	// Step block
+	builder.createBlock(state.addRegion(), {}, args.getTypes());
+
+	// Body block
+	builder.createBlock(state.addRegion(), {}, args.getTypes());
+
+	builder.restoreInsertionPoint(insertionPoint);
+}
+
+void BreakableForOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.breakable_for (break on " << breakCondition() << ", return on " << returnCondition() << ") " << args();
+	printer << "condition";
+	printer.printRegion(condition(), true);
+	printer << " body";
+	printer.printRegion(body(), true);
+	printer << " step";
+	printer.printRegion(step(), true);
+}
+
+mlir::LogicalResult BreakableForOp::verify()
+{
+	if (auto breakPtr = breakCondition().getType().dyn_cast<PointerType>();
+			!breakPtr || !breakPtr.getElementType().isa<BooleanType>() || breakPtr.getRank() != 0)
+		return emitOpError("requires the break condition to be a pointer to a single boolean value");
+
+	if (auto returnPtr = breakCondition().getType().dyn_cast<PointerType>();
+			!returnPtr || !returnPtr.getElementType().isa<BooleanType>() || returnPtr.getRank() != 0)
+		return emitOpError("requires the return condition to be a pointer to a single boolean value");
+
+	return mlir::success();
+}
+
+void BreakableForOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
+{
+	if (!index.hasValue())
+	{
+		regions.push_back(mlir::RegionSuccessor(&condition(), condition().getArguments()));
+		return;
+	}
+
+	assert(*index < 3 && "There are only three regions in a BreakableForOp");
+
+	if (*index == 0)
+	{
+		regions.emplace_back(&body(), body().getArguments());
+		regions.emplace_back(getOperation()->getResults());
+	}
+	else if (*index == 1)
+	{
+		regions.emplace_back(&step(), step().getArguments());
+	}
+	else if (*index == 2)
+	{
+		regions.emplace_back(&condition(), condition().getArguments());
+	}
+}
+
+mlir::Region& BreakableForOp::condition()
+{
+	return getOperation()->getRegion(0);
+}
+
+mlir::Region& BreakableForOp::step()
+{
+	return getOperation()->getRegion(1);
+}
+
+mlir::Region& BreakableForOp::body()
+{
+	return getOperation()->getRegion(2);
+}
+
+mlir::Value BreakableForOp::breakCondition()
+{
+	return Adaptor(*this).breakCondition();
+}
+
+mlir::Value BreakableForOp::returnCondition()
+{
+	return Adaptor(*this).returnCondition();
+}
+
+mlir::ValueRange BreakableForOp::args()
+{
+	return Adaptor(*this).args();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::BreakableWhileOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value BreakableWhileOpAdaptor::breakCondition()
+{
+	return getValues()[0];
+}
+
+mlir::Value BreakableWhileOpAdaptor::returnCondition()
+{
+	return getValues()[1];
+}
+
+llvm::StringRef BreakableWhileOp::getOperationName()
+{
+	return "modelica.breakable_while";
+}
+
+void BreakableWhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition)
 {
 	state.addOperands(breakCondition);
 	state.addOperands(returnCondition);
@@ -1466,15 +1554,15 @@ void WhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 	builder.restoreInsertionPoint(insertionPoint);
 }
 
-void WhileOp::print(mlir::OpAsmPrinter& printer)
+void BreakableWhileOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.while (break on " << breakCondition() << ", return on " << returnCondition() << ")";
+	printer << "modelica.breakable_while (break on " << breakCondition() << ", return on " << returnCondition() << ")";
 	printer.printRegion(condition(), false);
 	printer << " do";
 	printer.printRegion(body(), false);
 }
 
-mlir::LogicalResult WhileOp::verify()
+mlir::LogicalResult BreakableWhileOp::verify()
 {
 	if (auto breakPtr = breakCondition().getType().dyn_cast<PointerType>();
 			!breakPtr || !breakPtr.getElementType().isa<BooleanType>() || breakPtr.getRank() != 0)
@@ -1487,7 +1575,7 @@ mlir::LogicalResult WhileOp::verify()
 	return mlir::success();
 }
 
-void WhileOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
+void BreakableWhileOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
 {
 	if (!index.hasValue())
 	{
@@ -1495,7 +1583,7 @@ void WhileOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::Arra
 		return;
 	}
 
-	assert(*index < 2 && "There are only two regions in a WhileOp");
+	assert(*index < 2 && "There are only two regions in a BreakableWhileOp");
 
 	if (*index == 0)
 	{
@@ -1508,22 +1596,22 @@ void WhileOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::Arra
 	}
 }
 
-mlir::Region& WhileOp::condition()
+mlir::Region& BreakableWhileOp::condition()
 {
 	return getOperation()->getRegion(0);
 }
 
-mlir::Region& WhileOp::body()
+mlir::Region& BreakableWhileOp::body()
 {
 	return getOperation()->getRegion(1);
 }
 
-mlir::Value WhileOp::breakCondition()
+mlir::Value BreakableWhileOp::breakCondition()
 {
 	return Adaptor(*this).breakCondition();
 }
 
-mlir::Value WhileOp::returnCondition()
+mlir::Value BreakableWhileOp::returnCondition()
 {
 	return Adaptor(*this).returnCondition();
 }

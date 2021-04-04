@@ -807,18 +807,19 @@ class IfOpLowering: public ModelicaOpConversion<IfOp>
 	}
 };
 
-class ForOpLowering: public ModelicaOpConversion<ForOp>
+
+class BreakableForOpLowering: public ModelicaOpConversion<BreakableForOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(ForOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(BreakableForOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
 		Adaptor transformed(operands);
 
 		// Split the current block
-		mlir::Block* currentBlock = rewriter.getInsertionBlock(); // initBlock
-		mlir::Block* continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint()); // endBlock
+		mlir::Block* currentBlock = rewriter.getInsertionBlock();
+		mlir::Block* continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
 
 		// Inline regions
 		mlir::Block* conditionBlock = &op.condition().front();
@@ -888,11 +889,57 @@ class ForOpLowering: public ModelicaOpConversion<ForOp>
 	}
 };
 
-class WhileOpLowering: public ModelicaOpConversion<WhileOp>
+class ForOpLowering: public ModelicaOpConversion<ForOp>
 {
 	using ModelicaOpConversion::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(WhileOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(ForOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op.getLoc();
+		Adaptor transformed(operands);
+
+		// Split the current block
+		mlir::Block* currentBlock = rewriter.getInsertionBlock();
+		mlir::Block* continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
+
+		// Inline regions
+		mlir::Block* conditionBlock = &op.condition().front();
+		mlir::Block* bodyBlock = &op.body().front();
+		mlir::Block* stepBlock = &op.step().front();
+
+		rewriter.inlineRegionBefore(op.step(), continuation);
+		rewriter.inlineRegionBefore(op.body(), stepBlock);
+		rewriter.inlineRegionBefore(op.condition(), bodyBlock);
+
+		// Start the for loop by branching to the "condition" region
+		rewriter.setInsertionPointToEnd(currentBlock);
+		rewriter.create<mlir::BranchOp>(location, conditionBlock, op.args());
+
+		// Check the condition
+		auto conditionOp = mlir::cast<ConditionOp>(conditionBlock->getTerminator());
+		rewriter.setInsertionPoint(conditionOp);
+		rewriter.replaceOpWithNewOp<mlir::CondBranchOp>(conditionOp, materializeTargetConversion(rewriter, conditionOp.condition()), bodyBlock, conditionOp.args(), continuation, llvm::None);
+
+		// Replace "body" block terminator with a branch to the "step" block
+		rewriter.setInsertionPointToEnd(bodyBlock);
+		auto bodyYieldOp = mlir::cast<YieldOp>(bodyBlock->getTerminator());
+		rewriter.replaceOpWithNewOp<mlir::BranchOp>(bodyYieldOp, stepBlock, bodyYieldOp.args());
+
+		// Branch to the condition check after incrementing the induction variable
+		rewriter.setInsertionPointToEnd(stepBlock);
+		auto stepYieldOp = mlir::cast<YieldOp>(stepBlock->getTerminator());
+		rewriter.replaceOpWithNewOp<mlir::BranchOp>(stepYieldOp, conditionBlock, stepYieldOp.args());
+
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
+class BreakableWhileOpLowering: public ModelicaOpConversion<BreakableWhileOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(BreakableWhileOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op.getLoc();
 		Adaptor transformed(operands);
@@ -2653,8 +2700,9 @@ static void populateModelicaControlFlowConversionPatterns(mlir::OwningRewritePat
 {
 	patterns.insert<
 	    IfOpLowering,
-	    ForOpLowering,
-			WhileOpLowering>(context, typeConverter);
+			ForOpLowering,
+			BreakableForOpLowering,
+			BreakableWhileOpLowering>(context, typeConverter);
 }
 
 static void populateModelicaLogicConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter)

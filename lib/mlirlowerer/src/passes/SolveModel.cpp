@@ -7,11 +7,15 @@
 #include <modelica/mlirlowerer/passes/matching/Matching.h>
 #include <modelica/mlirlowerer/passes/matching/SCCCollapsing.h>
 #include <modelica/mlirlowerer/passes/matching/Schedule.h>
+#include <modelica/mlirlowerer/passes/matching/SCCDependencyGraph.h>
+#include <modelica/mlirlowerer/passes/matching/SVarDependencyGraph.h>
+#include <modelica/mlirlowerer/passes/matching/VVarDependencyGraph.h>
 #include <modelica/mlirlowerer/passes/model/Equation.h>
 #include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
 #include <modelica/mlirlowerer/passes/model/ModelBuilder.h>
 #include <modelica/mlirlowerer/passes/model/SolveDer.h>
+#include <modelica/mlirlowerer/passes/model/Variable.h>
 #include <modelica/utils/Interval.hpp>
 #include <variant>
 
@@ -59,77 +63,68 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 		rewriter.create<StoreOp>(location, startTime, op.time());
 		mlir::Value timeStep = rewriter.create<ConstantOp>(location, op.timeStep());
 
-		// Split the current block
-		mlir::Block* currentBlock = rewriter.getInsertionBlock(); // initBlock
-		mlir::Block* conditionBlock = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
-		mlir::Block* continuationBlock = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
+		// Create the loop
+		auto loop = rewriter.create<ForOp>(location);
 
 		{
-			// Inline the body and increment the time at its end
-			mlir::Block* body = &op.body().front();
-			rewriter.inlineRegionBefore(op.body(), continuationBlock);
-			rewriter.setInsertionPointToEnd(body);
+			// Condition
+			rewriter.setInsertionPointToStart(&loop.condition().front());
+			mlir::Value currentTime = rewriter.create<LoadOp>(location, op.time());
+			mlir::Value endTime = rewriter.create<ConstantOp>(location, op.endTime());
+			mlir::Value condition = rewriter.create<LtOp>(location, BooleanType::get(op.getContext()), currentTime, endTime);
+			rewriter.create<ConditionOp>(location, condition);
+		}
+
+		{
+			// Body
+			assert(op.body().getBlocks().size() == 1);
+			rewriter.mergeBlocks(&op.body().front(), &loop.body().front());
+		}
+
+		{
+			// Step
+			rewriter.setInsertionPointToStart(&loop.step().front());
 			mlir::Value currentTime = rewriter.create<LoadOp>(location, op.time());
 			mlir::Value increasedTime = rewriter.create<AddOp>(location, currentTime.getType(), currentTime, timeStep);
 			rewriter.create<StoreOp>(location, increasedTime, op.time());
-			rewriter.create<mlir::BranchOp>(location, conditionBlock);
+			rewriter.create<YieldOp>(location);
 		}
 
-		// Start the for loop by branching to the "condition" region
-		rewriter.setInsertionPointToEnd(currentBlock);
-		rewriter.create<mlir::BranchOp>(location, conditionBlock);
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
 
+struct EquationOpPattern : public mlir::OpRewritePattern<EquationOp>
+{
+	using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
+
+	mlir::LogicalResult matchAndRewrite(EquationOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		mlir::Location location = op->getLoc();
+
+		// Create the assignment
+		auto terminator = mlir::cast<EquationSidesOp>(op.body().front().getTerminator());
+		rewriter.setInsertionPoint(terminator);
+
+		for (auto [lhs, rhs] : llvm::zip(terminator.lhs(), terminator.rhs()))
 		{
-			// Check the condition
-			rewriter.setInsertionPointToStart(conditionBlock);
-			mlir::Value currentTime = rewriter.create<LoadOp>(location, op.time());
-		}
-
-		// Create the model
-		Model model(op, {}, {});
-		ModelBuilder builder(model);
-
-		op.walk([&](EquationOp equation) {
-			builder.lower(equation);
-		});
-
-		op.walk([&](ForEquationOp forEquation) {
-			builder.lower(forEquation);
-		});
-
-		// Remove the derivative operations and allocate the appropriate buffers
-		DerSolver solver(op, model);
-		solver.solve();
-
-		// Match
-		if (auto res = modelica::codegen::model::match(model, 1000); failed(res))
-			return res;
-
-		// Solve SCC
-		if (auto res = solveSCC(model, 1000); failed(res))
-			return res;
-
-		// Schedule
-		if (auto res = schedule(model); failed(res))
-			return res;
-
-		// Create the sequential code
-		for (auto& equation : model.getEquations())
-		{
-			if (auto equationOp = mlir::dyn_cast<EquationOp>(equation->getOp()))
+			if (auto loadOp = mlir::dyn_cast<LoadOp>(lhs.getDefiningOp()))
 			{
-				//rewriter.eraseOp(equationOp.lhs().front().getTerminator());
-				//rewriter.eraseOp(equationOp.rhs().front().getTerminator());
-				//rewriter.mergeBlockBefore(&equationOp.lhs().front(), equationOp);
-				//rewriter.mergeBlockBefore(&equationOp.rhs().front(), equationOp);
+				assert(loadOp.indexes().empty());
+				rewriter.create<AssignmentOp>(location, rhs, loadOp.memory());
 			}
-
-			rewriter.eraseOp(equation->getOp());
+			else
+			{
+				rewriter.create<AssignmentOp>(location, rhs, lhs);
+			}
 		}
 
+		rewriter.eraseOp(terminator);
 
-
-		op->getParentOp()->dump();
+		// Inline the equation body
+		rewriter.setInsertionPoint(op);
+		rewriter.mergeBlockBefore(&op.body().front(), op);
 
 		rewriter.eraseOp(op);
 		return mlir::success();
@@ -154,18 +149,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	{
 		auto module = getOperation();
 
-		/*
-		mlir::ConversionTarget target(getContext());
-		target.addLegalDialect<ModelicaDialect>();
-		target.addIllegalOp<SimulationOp>();
-
-		mlir::OwningRewritePatternList patterns;
-		patterns.insert<SimulationOpPattern>(&getContext());
-
-		if (failed(applyPartialConversion(module, target, std::move(patterns))))
-			return signalPassFailure();
-		 */
-
 		module->walk([&](SimulationOp simulation) {
 			// Create the model
 			Model model(simulation, {}, {});
@@ -183,6 +166,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			DerSolver solver(simulation, model);
 			solver.solve();
 
+			// Variable initialization
+
 			// Match
 			if (failed(match(model, 1000)))
 				return signalPassFailure();
@@ -195,25 +180,63 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (failed(schedule(model)))
 				return signalPassFailure();
 
-			module->dump();
+			// Explicitate the equations so that the updated variable is the only
+			// one on the left side of the equation.
+			if (failed(explicitateEquations(model)))
+				return signalPassFailure();
 
-			// Create the sequential code
-			if (failed(addApproximation(model)))
+			// Calculate the values that the state variables will have in the next
+			// iteration.
+			if (failed(updateStates(model)))
 				return signalPassFailure();
 
 			module->dump();
 		});
+
+		// The model has been solved and we can now proceed to inline the
+		// equations body and create the main simulation loop.
+
+		mlir::ConversionTarget target(getContext());
+		target.addLegalDialect<ModelicaDialect>();
+		target.addIllegalOp<SimulationOp, EquationOp, ForEquationOp>();
+
+		mlir::OwningRewritePatternList patterns;
+		patterns.insert<SimulationOpPattern, EquationOpPattern>(&getContext());
+
+		if (failed(applyPartialConversion(module, target, std::move(patterns))))
+			return signalPassFailure();
+
+		module->dump();
 	}
 
-	mlir::LogicalResult addApproximation(Model& model)
+	mlir::LogicalResult explicitateEquations(Model& model)
+	{
+		for (auto& equation : model.getEquations())
+			if (auto res = equation->explicitate(); failed(res))
+				return res;
+
+		return mlir::success();
+	}
+
+	mlir::LogicalResult updateStates(Model& model)
 	{
 		mlir::OpBuilder builder(model.getOp());
 		mlir::Location location = model.getOp()->getLoc();
 		mlir::Value timeStep = builder.create<ConstantOp>(location, model.getOp().timeStep());
 
-		for (auto& equation : model.getEquations())
-			if (auto res = equation->explicitate(); failed(res))
-				return res;
+		builder.setInsertionPoint(model.getOp().body().back().getTerminator());
+
+		for (auto& variable : model.getVariables())
+		{
+			if (!variable->isState())
+				continue;
+
+			mlir::Value var = builder.create<LoadOp>(location, variable->getReference());
+			mlir::Value der = builder.create<LoadOp>(location, variable->getDer());
+			mlir::Value newValue = builder.create<MulOp>(location, der.getType(), der, timeStep);
+			newValue = builder.create<AddOp>(location, var.getType(), newValue, var);
+			builder.create<StoreOp>(location, newValue, variable->getReference());
+		}
 
 		return mlir::success();
 	}

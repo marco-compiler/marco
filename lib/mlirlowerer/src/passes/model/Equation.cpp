@@ -459,7 +459,15 @@ mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
 	}
 
 	if (!path.isOnEquationLeftHand())
+	{
 		getTemplate()->swapLeftRight();
+
+		assert(getOp()->getNumRegions() == 1);
+		auto terminator = mlir::cast<EquationSidesOp>(getOp()->getRegion(0).front().getTerminator());
+		mlir::OpBuilder builder(terminator);
+		builder.create<EquationSidesOp>(terminator->getLoc(), terminator.rhs(), terminator.lhs());
+		terminator->erase();
+	}
 
 	matchedExpPath = std::nullopt;
 	return mlir::success();

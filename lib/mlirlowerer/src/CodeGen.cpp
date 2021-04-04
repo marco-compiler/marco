@@ -703,7 +703,7 @@ void MLIRLowerer::lower(ForStatement& statement)
 	mlir::Value lowerBound = *lower<Expression>(induction.getBegin())[0];
 	lowerBound = builder.create<CastOp>(lowerBound.getLoc(), lowerBound, builder.getIndexType());
 
-	auto forOp = builder.create<ForOp>(location, breakCondition, returnCondition, lowerBound);
+	auto forOp = builder.create<BreakableForOp>(location, breakCondition, returnCondition, lowerBound);
 
 	{
 		// Check the loop condition
@@ -762,7 +762,7 @@ void MLIRLowerer::lower(WhileStatement& statement)
 	mlir::Value returnCondition = symbolTable.lookup(statement.getReturnCheckName()).getReference();
 
 	// Create the operation
-	auto whileOp = builder.create<WhileOp>(location, breakCondition, returnCondition);
+	auto whileOp = builder.create<BreakableWhileOp>(location, breakCondition, returnCondition);
 
 	{
 		// Condition

@@ -690,16 +690,48 @@ namespace modelica::codegen
 		public:
 		using OpAdaptor::OpAdaptor;
 
+		mlir::ValueRange args();
+	};
+
+	class ForOp : public mlir::Op<ForOp, mlir::OpTrait::NRegions<3>::Impl, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = ForOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args = {});
+		void print(mlir::OpAsmPrinter& printer);
+		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
+
+		mlir::Region& condition();
+		mlir::Region& step();
+		mlir::Region& body();
+
+		mlir::ValueRange args();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::BreakableForOp
+	//===----------------------------------------------------------------------===//
+
+	class BreakableForOp;
+
+	class BreakableForOpAdaptor : public OpAdaptor<BreakableForOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
 		mlir::Value breakCondition();
 		mlir::Value returnCondition();
 		mlir::ValueRange args();
 	};
 
-	class ForOp : public mlir::Op<ForOp, mlir::OpTrait::NRegions<3>::Impl, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
+	class BreakableForOp : public mlir::Op<BreakableForOp, mlir::OpTrait::NRegions<3>::Impl, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
-		using Adaptor = ForOpAdaptor;
+		using Adaptor = BreakableForOpAdaptor;
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args = {});
@@ -717,12 +749,12 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
-	// Modelica::WhileOp
+	// Modelica::BreakableWhileOp
 	//===----------------------------------------------------------------------===//
 
-	class WhileOp;
+	class BreakableWhileOp;
 
-	class WhileOpAdaptor : public OpAdaptor<WhileOp>
+	class BreakableWhileOpAdaptor : public OpAdaptor<BreakableWhileOp>
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
@@ -731,11 +763,11 @@ namespace modelica::codegen
 		mlir::Value returnCondition();
 	};
 
-	class WhileOp : public mlir::Op<WhileOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
+	class BreakableWhileOp : public mlir::Op<BreakableWhileOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
-		using Adaptor = WhileOpAdaptor;
+		using Adaptor = BreakableWhileOpAdaptor;
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition);
@@ -765,7 +797,7 @@ namespace modelica::codegen
 		mlir::ValueRange args();
 	};
 
-	class ConditionOp : public mlir::Op<ConditionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::HasParent<ForOp, WhileOp>::Impl, mlir::OpTrait::IsTerminator> {
+	class ConditionOp : public mlir::Op<ConditionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::HasParent<ForOp, BreakableForOp, BreakableWhileOp>::Impl, mlir::OpTrait::IsTerminator> {
 		public:
 		using Op::Op;
 		using Adaptor = ConditionOpAdaptor;
@@ -793,7 +825,7 @@ namespace modelica::codegen
 		mlir::ValueRange args();
 	};
 
-	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<IfOp, ForOp, WhileOp, SimulationOp, EquationOp, ForEquationOp>::Impl, mlir::OpTrait::IsTerminator>
+	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<IfOp, ForOp, BreakableForOp, BreakableWhileOp, SimulationOp>::Impl, mlir::OpTrait::IsTerminator>
 	{
 		public:
 		using Op::Op;
