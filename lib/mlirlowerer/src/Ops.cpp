@@ -1343,6 +1343,10 @@ void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 void ForOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.for " << args();
+
+	if (!args().empty())
+		printer << " ";
+
 	printer << "condition";
 	printer.printRegion(condition(), true);
 	printer << " body";
@@ -1443,6 +1447,10 @@ void BreakableForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 void BreakableForOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.breakable_for (break on " << breakCondition() << ", return on " << returnCondition() << ") " << args();
+
+	if (!args().empty())
+		printer << " ";
+
 	printer << "condition";
 	printer.printRegion(condition(), true);
 	printer << " body";
