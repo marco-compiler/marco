@@ -64,4 +64,34 @@ extern "C"
 	float modelicaPow(float b, float exp) { return pow(b, exp); }
 
 	double modelicaPowD(double b, double exp) { return pow(b, exp); }
+
+	void printString(char* str)
+	{
+		printf("%s", str);
+	}
+
+	void printI1(bool value)
+	{
+		printf("%d", value);
+	}
+
+	void printI32(int value)
+	{
+		printf("%d", value);
+	}
+
+	void printI64(long value)
+	{
+		printf("%ld", value);
+	}
+
+	void printF32(float value)
+	{
+		printf("%.12f", value);
+	}
+
+	void printF64(double value)
+	{
+		printf("%.12f", value);
+	}
 }

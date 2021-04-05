@@ -315,9 +315,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	{
 		auto module = getOperation();
 
-		// Scalarize the vector assignments
+		// Scalarize the equations consisting in array assignments
 		if (failed(scalarizeArrayEquations()))
 			return signalPassFailure();
+
+		module.dump();
 
 		module->walk([&](SimulationOp simulation) {
 			// Create the model
@@ -335,6 +337,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			// Remove the derivative operations and allocate the appropriate buffers
 			DerSolver solver(simulation, model);
 			solver.solve();
+
+			module.dump();
 
 			// Match
 			if (failed(match(model, 1000)))
@@ -354,7 +358,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				return signalPassFailure();
 
 			// Print the variables
-			if (failed(printVariables(model)))
+			if (failed(printVariables(simulation)))
 				return signalPassFailure();
 
 			// Calculate the values that the state variables will have in the next
@@ -428,9 +432,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	mlir::LogicalResult printVariables(Model& model)
+	mlir::LogicalResult printVariables(SimulationOp simulation)
 	{
-		// TODO
+		mlir::OpBuilder builder(simulation.body().back().getTerminator());
+		auto variablesToBePrinted = simulation.variablesToBePrinted();
+		builder.create<PrintOp>(simulation->getLoc(), variablesToBePrinted);
 		return mlir::success();
 	}
 
@@ -451,10 +457,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			mlir::Value der = variable->getDer();
 
 			if (auto pointerType = var.getType().cast<PointerType>(); pointerType.getRank() == 0)
-				var = builder.create<LoadOp>(location, variable->getReference());
+				var = builder.create<LoadOp>(location, var);
 
 			if (auto pointerType = der.getType().cast<PointerType>(); pointerType.getRank() == 0)
-				der = builder.create<LoadOp>(location, variable->getReference());
+				der = builder.create<LoadOp>(location, der);
 
 			mlir::Value newValue = builder.create<MulOp>(location, der.getType(), der, timeStep);
 			newValue = builder.create<AddOp>(location, var.getType(), newValue, var);

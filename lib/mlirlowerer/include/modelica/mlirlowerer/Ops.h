@@ -61,16 +61,17 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 
 		mlir::Value time();
+		mlir::ValueRange variablesToBePrinted();
 	};
 
-	class SimulationOp : public mlir::Op<SimulationOp, mlir::OpTrait::OneRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
+	class SimulationOp : public mlir::Op<SimulationOp, mlir::OpTrait::OneRegion, mlir::OpTrait::AtLeastNOperands<1>::Impl, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
 		using Adaptor = SimulationOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value time, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value time, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::ValueRange variablesToBePrinted = {});
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
@@ -79,6 +80,7 @@ namespace modelica::codegen
 		RealAttribute startTime();
 		RealAttribute endTime();
 		RealAttribute timeStep();
+		mlir::ValueRange variablesToBePrinted();
 
 		mlir::Region& body();
 	};
@@ -324,7 +326,7 @@ namespace modelica::codegen
 		mlir::Value destination();
 	};
 
-	class AssignmentOp : public mlir::Op<AssignmentOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::VariadicOperands> {
+	class AssignmentOp : public mlir::Op<AssignmentOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::VariadicOperands, mlir::MemoryEffectOpInterface::Trait> {
 		public:
 		using Op::Op;
 		using Adaptor = AssignmentOpAdaptor;
@@ -332,6 +334,7 @@ namespace modelica::codegen
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination);
 		void print(mlir::OpAsmPrinter& printer);
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Value source();
 		mlir::Value destination();
@@ -1414,5 +1417,33 @@ namespace modelica::codegen
 
 		mlir::Type resultType();
 		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::PrintOp
+	//===----------------------------------------------------------------------===//
+
+	class PrintOp;
+
+	class PrintOpAdaptor : public OpAdaptor<PrintOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::ValueRange values();
+	};
+
+	class PrintOp : public mlir::Op<PrintOp, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = PrintOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::ValueRange values);
+		void print(mlir::OpAsmPrinter& printer);
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::ValueRange values();
 	};
 }

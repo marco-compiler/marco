@@ -7,6 +7,7 @@
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/ModelicaConversion.h>
 #include <modelica/mlirlowerer/passes/TypeConverter.h>
+#include <queue>
 
 using namespace modelica::codegen;
 
@@ -440,6 +441,124 @@ class CallOpLowering: public ModelicaOpConversion<CallOp>
 	{
 		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, op.callee(), op->getResultTypes(), op.args());
 		return mlir::success();
+	}
+};
+
+class PrintOpLowering: public ModelicaOpConversion<PrintOp>
+{
+	using ModelicaOpConversion::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(PrintOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		auto module = op->getParentOfType<mlir::ModuleOp>();
+
+		auto printfRef = getOrInsertPrintf(rewriter, module);
+		mlir::Value semicolonCst = getOrCreateGlobalString(op->getLoc(), rewriter, "semicolon", mlir::StringRef(";\0", 2), module);
+		mlir::Value newLineCst = getOrCreateGlobalString(op->getLoc(), rewriter, "newline", mlir::StringRef("\n\0", 2), module);
+
+		auto sourceValues = op.values();
+		unsigned int index = 0;
+
+		for (auto pair : llvm::zip(op.values(), Adaptor(operands).values()))
+		{
+			mlir::Value source = std::get<0>(pair);
+			mlir::Value transformed = std::get<1>(pair);
+
+			if (auto pointerType = source.getType().dyn_cast<PointerType>())
+			{
+				if (pointerType.getRank() > 0)
+				{
+					iterateArray(rewriter, source.getLoc(), source,
+											 [&](mlir::ValueRange position) {
+												 mlir::Value value = rewriter.create<LoadOp>(source.getLoc(), source, position);
+												 value = materializeTargetConversion(rewriter, value);
+												 printElement(rewriter, value, index++, semicolonCst, module);
+											 });
+				}
+				else
+				{
+					mlir::Value value = rewriter.create<LoadOp>(source.getLoc(), source);
+					value = materializeTargetConversion(rewriter, value);
+					printElement(rewriter, value, index++, semicolonCst, module);
+				}
+			}
+			else
+			{
+				printElement(rewriter, transformed, index++, semicolonCst, module);
+			}
+		}
+
+		rewriter.create<mlir::LLVM::CallOp>(op.getLoc(), printfRef, newLineCst);
+
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+
+	mlir::Value getOrCreateGlobalString(mlir::Location loc, mlir::OpBuilder &builder, mlir::StringRef name, mlir::StringRef value, mlir::ModuleOp module) const
+	{
+		// Create the global at the entry of the module
+		mlir::LLVM::GlobalOp global;
+
+		if (!(global = module.lookupSymbol<mlir::LLVM::GlobalOp>(name)))
+		{
+			mlir::OpBuilder::InsertionGuard insertGuard(builder);
+			builder.setInsertionPointToStart(module.getBody());
+			auto type = mlir::LLVM::LLVMArrayType::get(mlir::IntegerType::get(builder.getContext(), 8), value.size());
+			global = builder.create<mlir::LLVM::GlobalOp>(loc, type, true, mlir::LLVM::Linkage::Internal, name, builder.getStringAttr(value));
+		}
+
+		// Get the pointer to the first character in the global string
+		mlir::Value globalPtr = builder.create<mlir::LLVM::AddressOfOp>(loc, global);
+
+		mlir::Value cst0 = builder.create<mlir::LLVM::ConstantOp>(
+				loc,
+				mlir::IntegerType::get(builder.getContext(), 64),
+				builder.getIntegerAttr(builder.getIndexType(), 0));
+
+		return builder.create<mlir::LLVM::GEPOp>(
+				loc,
+				mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(builder.getContext(), 8)),
+				globalPtr, llvm::ArrayRef<mlir::Value>({cst0, cst0}));
+	}
+
+	mlir::LLVM::LLVMFuncOp getOrInsertPrintf(mlir::OpBuilder& rewriter, mlir::ModuleOp module) const
+	{
+		auto *context = module.getContext();
+
+		if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>("printf"))
+			return foo;
+
+		// Create a function declaration for printf, the signature is:
+		//   * `i32 (i8*, ...)`
+		auto llvmI32Ty = mlir::IntegerType::get(context, 32);
+		auto llvmI8PtrTy = mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(context, 8));
+		auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmI8PtrTy, true);
+
+		// Insert the printf function into the body of the parent module.
+		mlir::PatternRewriter::InsertionGuard insertGuard(rewriter);
+		rewriter.setInsertionPointToStart(module.getBody());
+		return rewriter.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), "printf", llvmFnType);
+	}
+
+	void printElement(mlir::OpBuilder& builder, mlir::Value value, unsigned int index, mlir::Value separator, mlir::ModuleOp module) const
+	{
+		auto printfRef = getOrInsertPrintf(builder, module);
+
+		mlir::Type type = value.getType();
+
+		if (index != 0)
+			builder.create<mlir::LLVM::CallOp>(value.getLoc(), printfRef, separator);
+
+		mlir::Value formatSpecifier;
+
+		if (type.isa<mlir::IntegerType>())
+			formatSpecifier = getOrCreateGlobalString(value.getLoc(), builder, "frmt_spec_int", mlir::StringRef("%ld\0", 4), module);
+		else if (type.isa<mlir::FloatType>())
+			formatSpecifier = getOrCreateGlobalString(value.getLoc(), builder, "frmt_spec_float", mlir::StringRef("%.12f\0", 6), module);
+		else
+			assert(false && "Unknown type");
+
+		builder.create<mlir::LLVM::CallOp>(value.getLoc(), printfRef, mlir::ValueRange({ formatSpecifier, value }));
 	}
 };
 
@@ -2700,7 +2819,8 @@ static void populateModelicaBasicConversionPatterns(mlir::OwningRewritePatternLi
 			CastCommonOpLowering,
 			AssignmentOpScalarLowering,
 			AssignmentOpArrayLowering,
-			CallOpLowering>(context, typeConverter);
+			CallOpLowering,
+			PrintOpLowering>(context, typeConverter);
 }
 
 static void populateModelicaMemoryConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter)

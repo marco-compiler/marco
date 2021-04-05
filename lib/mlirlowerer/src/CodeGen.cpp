@@ -184,12 +184,18 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 	if (symbolTable.count("time") == 0)
 		symbolTable.insert("time", Reference::memory(&builder, time, true));
 
+	llvm::SmallVector<mlir::Value, 3> variablesToBePrinted;
+
+	for (auto& member : cls.getMembers())
+		variablesToBePrinted.push_back(symbolTable.lookup(member->getName()).getReference());
+
 	auto simulation = builder.create<SimulationOp>(
 			location,
 			time,
 			builder.getRealAttribute(options.startTime),
 			builder.getRealAttribute(options.endTime),
-			builder.getRealAttribute(options.timeStep));
+			builder.getRealAttribute(options.timeStep),
+			variablesToBePrinted);
 
 	builder.setInsertionPointToStart(&simulation.body().front());
 

@@ -25,17 +25,24 @@ mlir::Value SimulationOpAdaptor::time()
 	return getValues()[0];
 }
 
+mlir::ValueRange SimulationOpAdaptor::variablesToBePrinted()
+{
+	return mlir::ValueRange(std::next(getValues().begin()), getValues().end());
+}
+
 llvm::StringRef SimulationOp::getOperationName()
 {
 	return "modelica.simulation";
 }
 
-void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value time, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep)
+void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value time, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::ValueRange variablesToBePrinted)
 {
 	state.addOperands(time);
 	state.addAttribute("startTime", startTime);
 	state.addAttribute("endTime", endTime);
 	state.addAttribute("timeStep", timeStep);
+
+	state.addOperands(variablesToBePrinted);
 
 	auto insertionPoint = builder.saveInsertionPoint();
 
@@ -96,6 +103,11 @@ RealAttribute SimulationOp::endTime()
 RealAttribute SimulationOp::timeStep()
 {
 	return getOperation()->getAttrOfType<RealAttribute>("timeStep");
+}
+
+mlir::ValueRange SimulationOp::variablesToBePrinted()
+{
+	return Adaptor(*this).variablesToBePrinted();
 }
 
 mlir::Region& SimulationOp::body()
@@ -530,6 +542,15 @@ void AssignmentOp::print(mlir::OpAsmPrinter& printer)
 	mlir::Value source = this->source();
 	mlir::Value destination = this->destination();
 	printer << "modelica.assign " << source << " to " << destination << " : " << source.getType() << ", " << destination.getType();
+}
+
+void AssignmentOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (source().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), source(), mlir::SideEffects::DefaultResource::get());
+
+	if (destination().getType().isa<PointerType>())
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), source(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::Value AssignmentOp::source()
@@ -2805,4 +2826,42 @@ mlir::Type DerOp::resultType()
 mlir::Value DerOp::operand()
 {
 	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::PrintOp
+//===----------------------------------------------------------------------===//
+
+mlir::ValueRange PrintOpAdaptor::values()
+{
+	return getValues();
+}
+
+llvm::StringRef PrintOp::getOperationName()
+{
+	return "modelica.print";
+}
+
+void PrintOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
+{
+	state.addOperands(values);
+}
+
+void PrintOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.print " << values();
+}
+
+mlir::ValueRange PrintOp::values()
+{
+	return Adaptor(*this).values();
+}
+
+void PrintOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+
+	for (mlir::Value value : values())
+		if (value.getType().isa<PointerType>())
+			effects.emplace_back(mlir::MemoryEffects::Read::get(), value, mlir::SideEffects::DefaultResource::get());
 }

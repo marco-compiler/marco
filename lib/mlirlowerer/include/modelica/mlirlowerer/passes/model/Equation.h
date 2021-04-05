@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llvm/Support/Error.h>
+#include <mlir/IR/Builders.h>
 #include <mlir/IR/Operation.h>
 #include <modelica/utils/IndexSet.hpp>
 
@@ -111,7 +112,7 @@ namespace modelica::codegen::model
 
 		[[nodiscard]] Equation normalizeMatched() const;
 
-		mlir::LogicalResult explicitate(size_t argumentIndex, bool left);
+		mlir::LogicalResult explicitate(mlir::OpBuilder& builder, size_t argumentIndex, bool left);
 		mlir::LogicalResult explicitate(const ExpressionPath& path);
 		mlir::LogicalResult explicitate();
 

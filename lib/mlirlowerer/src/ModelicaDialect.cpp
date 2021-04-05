@@ -46,9 +46,9 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addInterfaces<ModelicaInlinerInterface>();
 
 	// Basic operations
-	addOperations<ConstantOp, RecordOp, CastOp, CastCommonOp, AssignmentOp, CallOp>();
+	addOperations<ConstantOp, RecordOp, CastOp, CastCommonOp, AssignmentOp, CallOp, PrintOp>();
 
-	// MMemory operations
+	// Memory operations
 	addOperations<AllocaOp, AllocOp, FreeOp>();
 	addOperations<PtrCastOp, DimOp, SubscriptionOp>();
 	addOperations<LoadOp, StoreOp>();
@@ -74,7 +74,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<ConditionOp>();
 	addOperations<YieldOp>();
 
-	// Builtin operations
+	// Built-in operations
 	addOperations<NDimsOp, SizeOp, FillOp>();
 
 	addOperations<SimulationOp, EquationOp, InductionOp, ForEquationOp, EquationSidesOp, DerOp>();

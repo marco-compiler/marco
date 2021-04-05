@@ -175,8 +175,6 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	llvm::errs() << *llvmModule << "\n";
-
 	llvm::WriteBitcodeToFile(*llvmModule, os);
 	return 0;
 }
