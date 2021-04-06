@@ -607,6 +607,7 @@ void MLIRLowerer::lower(ForEquation& forEquation)
 
 	auto result = builder.create<ForEquationOp>(location, inductions);
 	auto& equation = forEquation.getEquation();
+	builder.setInsertionPointToStart(&result.body().front());
 
 	llvm::SmallVector<mlir::Value, 1> lhs;
 	llvm::SmallVector<mlir::Value, 1> rhs;

@@ -75,11 +75,11 @@ void DerSolver::solve<Operation>(Expression& expression)
 
 		if (!var.isState())
 		{
-			if (auto pointerType = derOp.resultType().dyn_cast<PointerType>())
+			if (auto pointerType = var.getReference().getType().dyn_cast<PointerType>())
 				derVar = builder.create<AllocaOp>(derOp.getLoc(), pointerType.getElementType(), pointerType.getShape());
 			else
 			{
-				derVar = builder.create<AllocaOp>(derOp.getLoc(), derOp.resultType());
+				derVar = builder.create<AllocaOp>(derOp.getLoc(), var.getReference().getType());
 			}
 
 			model.addVariable(derVar);

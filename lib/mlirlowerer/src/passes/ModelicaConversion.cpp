@@ -456,8 +456,11 @@ class PrintOpLowering: public ModelicaOpConversion<PrintOp>
 		mlir::Value semicolonCst = getOrCreateGlobalString(op->getLoc(), rewriter, "semicolon", mlir::StringRef(";\0", 2), module);
 		mlir::Value newLineCst = getOrCreateGlobalString(op->getLoc(), rewriter, "newline", mlir::StringRef("\n\0", 2), module);
 
+		mlir::Value printSeparator = rewriter.create<AllocaOp>(op->getLoc(), BooleanType::get(rewriter.getContext()));
+		mlir::Value falseValue = rewriter.create<ConstantOp>(op->getLoc(), BooleanAttribute::get(BooleanType::get(rewriter.getContext()), false));
+		rewriter.create<StoreOp>(op->getLoc(), falseValue, printSeparator);
+
 		auto sourceValues = op.values();
-		unsigned int index = 0;
 
 		for (auto pair : llvm::zip(op.values(), Adaptor(operands).values()))
 		{
@@ -472,19 +475,19 @@ class PrintOpLowering: public ModelicaOpConversion<PrintOp>
 											 [&](mlir::ValueRange position) {
 												 mlir::Value value = rewriter.create<LoadOp>(source.getLoc(), source, position);
 												 value = materializeTargetConversion(rewriter, value);
-												 printElement(rewriter, value, index++, semicolonCst, module);
+												 printElement(rewriter, value, printSeparator, semicolonCst, module);
 											 });
 				}
 				else
 				{
 					mlir::Value value = rewriter.create<LoadOp>(source.getLoc(), source);
 					value = materializeTargetConversion(rewriter, value);
-					printElement(rewriter, value, index++, semicolonCst, module);
+					printElement(rewriter, value, printSeparator, semicolonCst, module);
 				}
 			}
 			else
 			{
-				printElement(rewriter, transformed, index++, semicolonCst, module);
+				printElement(rewriter, transformed, printSeparator, semicolonCst, module);
 			}
 		}
 
@@ -540,14 +543,19 @@ class PrintOpLowering: public ModelicaOpConversion<PrintOp>
 		return rewriter.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), "printf", llvmFnType);
 	}
 
-	void printElement(mlir::OpBuilder& builder, mlir::Value value, unsigned int index, mlir::Value separator, mlir::ModuleOp module) const
+	void printElement(mlir::OpBuilder& builder, mlir::Value value, mlir::Value printSeparator, mlir::Value separator, mlir::ModuleOp module) const
 	{
 		auto printfRef = getOrInsertPrintf(builder, module);
 
 		mlir::Type type = value.getType();
 
-		if (index != 0)
-			builder.create<mlir::LLVM::CallOp>(value.getLoc(), printfRef, separator);
+		// Check if the separator should be printed
+		mlir::Value shouldPrintSeparator = builder.create<LoadOp>(printSeparator.getLoc(), printSeparator);
+		shouldPrintSeparator = materializeTargetConversion(builder, shouldPrintSeparator);
+		auto ifOp = builder.create<mlir::scf::IfOp>(value.getLoc(), shouldPrintSeparator);
+		builder.setInsertionPointToStart(ifOp.getBody());
+		builder.create<mlir::LLVM::CallOp>(value.getLoc(), printfRef, separator);
+		builder.setInsertionPointAfter(ifOp);
 
 		mlir::Value formatSpecifier;
 
@@ -559,6 +567,10 @@ class PrintOpLowering: public ModelicaOpConversion<PrintOp>
 			assert(false && "Unknown type");
 
 		builder.create<mlir::LLVM::CallOp>(value.getLoc(), printfRef, mlir::ValueRange({ formatSpecifier, value }));
+
+		// Set the separator as to be printed before the next value
+		mlir::Value trueValue = builder.create<ConstantOp>(value.getLoc(), BooleanAttribute::get(BooleanType::get(builder.getContext()), true));
+		builder.create<StoreOp>(value.getLoc(), trueValue, printSeparator);
 	}
 };
 

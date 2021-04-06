@@ -250,8 +250,6 @@ struct ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp>
 
 			// Init value
 			mlir::Value start = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(inductionOp.start()));
-			start = rewriter.create<SubOp>(induction.getLoc(), start.getType(), start,
-																		 rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(1)));
 
 			auto loop = rewriter.create<ForOp>(induction.getLoc(), start);
 			bodies.push_back(&loop.body().front());
@@ -261,7 +259,8 @@ struct ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp>
 				// Condition
 				rewriter.setInsertionPointToStart(&loop.condition().front());
 				mlir::Value end = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(inductionOp.end()));
-				mlir::Value condition = rewriter.create<LtOp>(induction.getLoc(), BooleanType::get(op->getContext()), loop.condition().getArgument(0), end);
+				mlir::Value current = loop.condition().getArgument(0);
+				mlir::Value condition = rewriter.create<LteOp>(induction.getLoc(), BooleanType::get(op->getContext()), current, end);
 				rewriter.create<ConditionOp>(induction.getLoc(), condition, loop.condition().getArgument(0));
 			}
 
@@ -319,8 +318,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (failed(scalarizeArrayEquations()))
 			return signalPassFailure();
 
-		module.dump();
-
 		module->walk([&](SimulationOp simulation) {
 			// Create the model
 			Model model(simulation, {}, {});
@@ -337,8 +334,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			// Remove the derivative operations and allocate the appropriate buffers
 			DerSolver solver(simulation, model);
 			solver.solve();
-
-			module.dump();
 
 			// Match
 			if (failed(match(model, 1000)))
@@ -379,10 +374,12 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		if (failed(applyPartialConversion(module, target, std::move(patterns))))
 			return signalPassFailure();
+
+		module.dump();
 	}
 
 	/**
-	 * If and equation consists in an assignment between two arrays, then
+	 * If an equation consists in an assignment between two arrays, then
 	 * convert it into a for equation, in order to scalarize the assignments.
 	 */
 	mlir::LogicalResult scalarizeArrayEquations()
@@ -415,7 +412,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		});
 
 		mlir::OwningRewritePatternList patterns;
-		patterns.insert<EquationOpScalarizePattern, ForEquationOpScalarizePattern>(&getContext());
+
+		patterns.insert<
+		    EquationOpScalarizePattern,
+				ForEquationOpScalarizePattern>(&getContext());
 
 		if (auto res = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(res))
 			return res;
