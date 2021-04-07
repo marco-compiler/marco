@@ -1,3 +1,4 @@
+#include <llvm/ADT/STLExtras.h>
 #include <mlir/Support/LogicalResult.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/model/Equation.h>
@@ -8,17 +9,18 @@
 #include <modelica/mlirlowerer/ModelicaBuilder.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 
-using namespace modelica::codegen::model;
+using namespace modelica::codegen;
+using namespace model;
 
 Equation::Equation(mlir::Operation* op,
-									 Expression left,
-										 Expression right,
-										 std::string templateName,
-										 MultiDimInterval inds,
-										 bool isForward,
-										 std::optional<EquationPath> path)
+									 std::shared_ptr<Expression> left,
+									 std::shared_ptr<Expression> right,
+									 MultiDimInterval inds,
+									 bool isForward,
+									 std::optional<EquationPath> path)
 		: op(op),
-			body(std::make_shared<EquationTemplate>(left, right, templateName)),
+			left(std::move(left)),
+			right(std::move(right)),
 			inductions(std::move(inds)),
 			isForCycle(!inductions.empty()),
 			isForwardDirection(isForward),
@@ -28,19 +30,72 @@ Equation::Equation(mlir::Operation* op,
 		inductions = { { 0, 1 } };
 }
 
-Equation::Equation(mlir::Operation* op,
-									 std::shared_ptr<EquationTemplate> templ,
-										 MultiDimInterval interval,
-										 bool isForward)
-		: op(op),
-			body(std::move(templ)),
-			inductions(std::move(interval)),
-			isForCycle(!inductions.empty()),
-			isForwardDirection(isForward)
+std::shared_ptr<Equation> Equation::build(EquationOp op)
 {
-	if (!isForCycle)
-		inductions = { { 0, 1 } };
+	auto& body = op.body();
+	auto terminator = mlir::cast<EquationSidesOp>(body.front().getTerminator());
+
+	// Left-hand side of the equation
+	mlir::ValueRange lhs = terminator.lhs();
+	assert(lhs.size() == 1);
+
+	llvm::SmallVector<std::shared_ptr<Expression>, 3> lhsExpr;
+
+	for (auto value : lhs)
+		lhsExpr.push_back(Expression::build(value));
+
+	// Right-hand side of the equation
+	mlir::ValueRange rhs = terminator.rhs();
+	assert(rhs.size() == 1);
+
+	llvm::SmallVector<std::shared_ptr<Expression>, 3> rhsExpr;
+
+	for (auto value : rhs)
+		rhsExpr.push_back(Expression::build(value));
+
+	// Number of values of left-hand side and right-hand side must match
+	assert(lhsExpr.size() == rhsExpr.size());
+
+	return std::make_shared<Equation>(op, lhsExpr[0], rhsExpr[0]);
 }
+
+std::shared_ptr<Equation> Equation::build(ForEquationOp op)
+{
+	auto& body = op.body();
+	auto terminator = mlir::cast<EquationSidesOp>(body.front().getTerminator());
+
+	// Left-hand side of the equation
+	mlir::ValueRange lhs = terminator.lhs();
+	assert(lhs.size() == 1);
+
+	llvm::SmallVector<std::shared_ptr<Expression>, 3> lhsExpr;
+
+	for (auto value : lhs)
+		lhsExpr.push_back(Expression::build(value));
+
+	// Right-hand side of the equation
+	mlir::ValueRange rhs = terminator.rhs();
+	assert(rhs.size() == 1);
+
+	llvm::SmallVector<std::shared_ptr<Expression>, 3> rhsExpr;
+
+	for (auto value : rhs)
+		rhsExpr.push_back(Expression::build(value));
+
+	// Number of values of left-hand side and right-hand side must match
+	assert(lhsExpr.size() == rhsExpr.size());
+
+	llvm::SmallVector<Interval> intervals;
+
+	for (auto induction : op.inductions())
+	{
+		auto inductionOp = induction.getDefiningOp<InductionOp>();
+		intervals.emplace_back(inductionOp.start(), inductionOp.end() + 1);
+	}
+
+	return std::make_shared<Equation>(op, lhsExpr[0], rhsExpr[0], MultiDimInterval(intervals));
+}
+
 
 mlir::Operation* Equation::getOp() const
 {
@@ -49,22 +104,22 @@ mlir::Operation* Equation::getOp() const
 
 Expression& Equation::lhs()
 {
-	return body->lhs();
+	return *left;
 }
 
 const Expression& Equation::lhs() const
 {
-	return body->lhs();
+	return *left;
 }
 
 Expression& Equation::rhs()
 {
-	return body->rhs();
+	return *right;
 }
 
 const Expression& Equation::rhs() const
 {
-	return body->rhs();
+	return *right;
 }
 
 void Equation::getEquationsAmount(mlir::ValueRange values, llvm::SmallVectorImpl<long>& amounts) const
@@ -78,6 +133,16 @@ void Equation::getEquationsAmount(mlir::ValueRange values, llvm::SmallVectorImpl
 
 		amounts.push_back(amount);
 	}
+}
+
+EquationSidesOp Equation::getTerminator()
+{
+	if (auto equationOp = mlir::dyn_cast<EquationOp>(op))
+		return mlir::cast<EquationSidesOp>(equationOp.body().back().getTerminator());
+
+	assert(mlir::isa<ForEquationOp>(op));
+	auto forEquationOp = mlir::cast<ForEquationOp>(op);
+	return mlir::cast<EquationSidesOp>(forEquationOp.body().back().getTerminator());
 }
 
 size_t Equation::amount() const
@@ -151,16 +216,6 @@ size_t Equation::amount() const
 	}
 
 	return 0;
-}
-
-std::shared_ptr<EquationTemplate>& Equation::getTemplate()
-{
-	return body;
-}
-
-const std::shared_ptr<EquationTemplate>& Equation::getTemplate() const
-{
-	return body;
 }
 
 const modelica::MultiDimInterval& Equation::getInductions() const
@@ -260,7 +315,8 @@ namespace modelica::codegen::model
 			assert(toNest.getOp()->getNumResults() == 1);
 			mlir::Operation* right = builder.create<NegateOp>(op->getLoc(), op.operand().getType(),
 																												readValue(builder, toNest.getOp()->getResult(0)));
-			toNest = Expression::operation(right, toNest);
+
+			toNest = *Expression::operation(right, std::make_shared<Expression>(toNest));
 
 			op.getResult().replaceAllUsesWith(op.operand());
 			op->erase();
@@ -284,7 +340,8 @@ namespace modelica::codegen::model
 			mlir::Operation* right = builder.create<SubOp>(op->getLoc(), op.lhs().getType(),
 																										 readValue(builder, toNest.getOp()->getResult(0)),
 																										 op.rhs());
-			toNest = Expression::operation(right, toNest, *toExp.getChild(1));
+
+			toNest = *Expression::operation(right, std::make_shared<Expression>(toNest), toExp.getChild(1));
 
 			op.getResult().replaceAllUsesWith(op.lhs());
 			op.erase();
@@ -299,7 +356,8 @@ namespace modelica::codegen::model
 			mlir::Operation* right = builder.create<SubOp>(op->getLoc(), op.rhs().getType(),
 																										 readValue(builder, toNest.getOp()->getResult(0)),
 																										 op.lhs());
-			toNest = Expression::operation(right, toNest, *toExp.getChild(0));
+
+			toNest = *Expression::operation(right, std::make_shared<Expression>(toNest), toExp.getChild(0));
 
 			op.getResult().replaceAllUsesWith(op.rhs());
 			op->erase();
@@ -323,7 +381,7 @@ namespace modelica::codegen::model
 			mlir::Operation* right = builder.create<AddOp>(op->getLoc(), op.lhs().getType(),
 																										 readValue(builder, toNest.getOp()->getResult(0)),
 																										 op.rhs());
-			toNest = Expression::operation(right, toNest, *toExp.getChild(1));
+			toNest = *Expression::operation(right, std::make_shared<Expression>(toNest), toExp.getChild(1));
 
 			op.getResult().replaceAllUsesWith(op.lhs());
 			op->erase();
@@ -337,7 +395,8 @@ namespace modelica::codegen::model
 			assert(toNest.getOp()->getNumResults() == 1);
 			mlir::Operation* right = builder.create<SubOp>(op->getLoc(), op.rhs().getType(), op.lhs(),
 																										 readValue(builder, toNest.getOp()->getResult(0)));
-			toNest = Expression::operation(right, toNest, *toExp.getChild(0));
+
+			toNest = *Expression::operation(right, std::make_shared<Expression>(toNest), toExp.getChild(0));
 
 			op.getResult().replaceAllUsesWith(op.rhs());
 			op->erase();
@@ -414,7 +473,7 @@ static void composeAccess(Expression& exp, const VectorAccess& transformation)
 
 Equation Equation::composeAccess(const VectorAccess& transformation) const
 {
-	auto toReturn = clone(getTemplate()->getName() + "composed");
+	auto toReturn = clone();
 	auto inverted = transformation.invert();
 	toReturn.setInductionVars(inverted.map(getInductions()));
 
@@ -461,8 +520,7 @@ mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
 {
 	for (auto index : path)
 	{
-		assert(getOp()->getNumRegions() == 1);
-		auto terminator = mlir::cast<EquationSidesOp>(getOp()->getRegion(0).front().getTerminator());
+		auto terminator = getTerminator();
 		mlir::OpBuilder builder(terminator);
 
 		if (auto res = explicitate(builder, index, path.isOnEquationLeftHand()); failed(res))
@@ -485,7 +543,7 @@ mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
 
 	if (!path.isOnEquationLeftHand())
 	{
-		getTemplate()->swapLeftRight();
+		std::swap(left, right);
 
 		assert(getOp()->getNumRegions() == 1);
 		auto terminator = mlir::cast<EquationSidesOp>(getOp()->getRegion(0).front().getTerminator());
@@ -507,102 +565,225 @@ mlir::LogicalResult Equation::explicitate()
 	return mlir::success();
 }
 
-Equation Equation::clone(std::string newName) const
+Equation Equation::clone() const
 {
 	Equation clone = *this;
-	clone.body = std::make_shared<EquationTemplate>(*body);
-	clone.getTemplate()->setName(std::move(newName));
+
+	//mlir::OpBuilder builder(getOp());
+	//clone.op = builder.clone(*getOp());
+
 	return clone;
 }
 
-EquationTemplate::EquationTemplate(Expression left, Expression right, std::string name)
-		: left(std::make_shared<Expression>(left)),
-			right(std::make_shared<Expression>(right)),
-			name(std::move(name))
+using Mult = llvm::SmallVector<std::pair<Expression, bool>, 3>;
+using SumsOfMult = llvm::SmallVector<std::pair<Mult, bool>, 3>;
+
+namespace modelica::codegen::model
 {
+	/**
+	 * Replace a subtraction with a sum between the original first operand
+	 * and the negation of the second one.
+	 *
+	 * @param expression subtraction operation
+	 */
+	static void removeSubtraction(Expression& expression)
+	{
+		mlir::Operation* op = expression.getOp();
+		assert(mlir::isa<SubOp>(op));
+		auto subOp = mlir::cast<SubOp>(op);
+
+		mlir::OpBuilder builder(subOp);
+		auto negatedRhs = builder.create<NegateOp>(subOp->getLoc(), subOp.rhs().getType(), subOp.rhs());
+		auto addOp = builder.create<AddOp>(subOp->getLoc(), subOp.resultType(), subOp.lhs(), negatedRhs);
+		op->replaceAllUsesWith(addOp);
+		op->erase();
+
+		expression = *Expression::operation(
+				addOp,
+				expression.getChild(0),
+				Expression::operation(negatedRhs, expression.getChild(1)));
+	}
+
+	static Expression reorder(Expression& nonConstExp, Expression& constant)
+	{
+		std::array<Expression, 3> expressions = { *nonConstExp.getChild(0), *nonConstExp.getChild(1), constant };
+
+		// Put the constants last
+		std::stable_sort(
+				begin(expressions), end(expressions), [](const auto& l, const auto& r) {
+					return !l.isConstant();
+				});
+
+		// TODO
+		//Expression inner(kind, returnType, expressions[1], expressions[2]);
+
+		//return Expression(kind, returnType, expressions[0], inner);
+	}
+
+	static bool isCommutativeAndAssociative(Expression& expression)
+	{
+		mlir::Operation* op = expression.getOp();
+
+		// TODO: vector multiplication is neither associative nor commutative
+		return mlir::isa<AddOp, MulOp>(op);
+	}
+
+	static void foldExp(Expression& expression)
+	{
+		if (!expression.isOperation() || expression.childrenCount() != 2)
+			return;
+
+		if (!expression.getChild(0)->isConstant() &&
+				!expression.getChild(1)->isConstant())
+			return;
+
+		if (expression.getChild(0)->isConstant() &&
+				expression.getChild(1)->isConstant())
+			return;
+
+		if (mlir::isa<SubOp>(expression.getOp()))
+			removeSubtraction(expression);
+
+		// Check if the operation is associative and commutative
+		if (!isCommutativeAndAssociative(expression))
+			return;
+
+		// Here the expression is a binary operation and
+		// either left or right operands is a constant, but not both.
+		//
+		// If the operation is the same as the non constant child, and the
+		// operation is commutative and associative, we can push the constant
+		// towards the deeper expressions so that it can be
+		// folded there.
+
+		if (expression.getChild(1)->getOp()->getName() == expression.getOp()->getName())
+		{
+			expression = reorder(*expression.getChild(1), *expression.getChild(0));
+			return;
+		}
+
+		if (expression.getChild(0)->getOp()->getName() == expression.getOp()->getName())
+		{
+			expression = reorder(*expression.getChild(0), *expression.getChild(1));
+			return;
+		}
+	}
+
+	static void recursiveFold(Expression& expression)
+	{
+		for (size_t i = 0, e = expression.childrenCount(); i < e; ++i)
+			recursiveFold(*expression.getChild(i));
+
+		foldExp(expression);
+
+		// TODO expression.tryFoldConstant();
+	}
+
+	static void toMult(const Expression& exp, Mult& out, bool mul = true)
+	{
+		if (mlir::isa<MulOp>(exp.getOp()))
+		{
+			toMult(*exp.getChild(0), out, mul);
+			toMult(*exp.getChild(1), out, mul);
+			return;
+		}
+
+		if (mlir::isa<DivOp>(exp.getOp()))
+		{
+			toMult(*exp.getChild(0), out, mul);
+			toMult(*exp.getChild(1), out, !mul);
+			return;
+		}
+
+		assert(exp.isReferenceAccess() or exp.isConstant());
+
+		out.emplace_back(std::make_pair(exp, mul));
+	}
+
+	static void toSumsOfMult(const Expression& exp, SumsOfMult& out, bool sum = true)
+	{
+		if (mlir::isa<AddOp>(exp.getOp()))
+		{
+			toSumsOfMult(*exp.getChild(0), out, sum);
+			toSumsOfMult(*exp.getChild(1), out, sum);
+			return;
+		}
+
+		if (mlir::isa<SubOp>(exp.getOp()))
+		{
+			toSumsOfMult(*exp.getChild(0), out, sum);
+			toSumsOfMult(*exp.getChild(1), out, !sum);
+			return;
+		}
+
+		if (mlir::isa<NegateOp>(exp.getOp()))
+		{
+			toSumsOfMult(*exp.getChild(0), out, !sum);
+			return;
+		}
+
+		out.emplace_back();
+		out.back().second = sum;
+		toMult(exp, out.back().first);
+	}
+
 }
 
-Expression& EquationTemplate::lhs()
+static bool usesMember(const Mult& exp, mlir::Value var)
 {
-	return *left;
+	const auto& isReferenceToVar = [&](const std::pair<Expression, bool>& exp) {
+		if (!exp.first.isReferenceAccess())
+			return false;
+
+		return exp.first.getReferredVectorAccess() == var;
+	};
+
+	return llvm::find_if(exp, isReferenceToVar) != exp.end();
 }
 
-const Expression& EquationTemplate::lhs() const
+Equation Equation::groupLeftHand() const
 {
-	return *left;
-}
+	/*
+	auto copy = clone();
+	recursiveFold(copy.rhs());
+	copy.rhs().distributeMultiplications();
+	auto acc = AccessToVar::fromExp(lhs());
 
-Expression& EquationTemplate::rhs()
-{
-	return *right;
-}
+	SumsOfMult sums;
+	toSumsOfMult(copy.rhs(), sums);
 
-const Expression& EquationTemplate::rhs() const
-{
-	return *right;
-}
+	auto pos = llvm::partition(sums, [&](const auto& mult) {
+		return usesMember(mult.first, acc.getVar());
+	});
 
-std::string& EquationTemplate::getName()
-{
-	return name;
-}
+	if (pos == sums.begin())
+		return *this;
+	 */
 
-const std::string& EquationTemplate::getName() const
-{
-	return name;
-}
+	/*
+	if (pos == sums.end())
+	{
+		copy.getRight() = ModExp(ModConst(0), copy.lhs().getModType());
+		return copy;
+	}
 
-void EquationTemplate::setName(std::string newName)
-{
-	name = newName;
-}
+	for (auto& use : make_range(sums.begin(), pos))
+	{
+		use.second = !use.second;
+		removeOneUseOfVar(use.first, acc.getVarName());
+	}
 
-void EquationTemplate::swapLeftRight()
-{
-	std::swap(lhs(), rhs());
-}
+	auto rightHand =
+			accumulate(pos + 1, sums.end(), multToExp(*pos), sumOfMultToExp);
 
-EquationPath::EquationPath(llvm::SmallVector<size_t, 3> path, bool left)
-		: path(std::move(path)), left(left)
-{
-}
+	auto leftAccumulated =
+			accumulate(sums.begin(), pos, ModExp(ModConst(1.0)), sumOfMultToExp);
 
-EquationPath::const_iterator EquationPath::begin() const
-{
-	return path.begin();
-}
+	rightHand = move(rightHand) / move(leftAccumulated);
 
-EquationPath::const_iterator EquationPath::end() const
-{
-	return path.end();
-}
+	copy.rhs() = std::move(rightHand);
+	return copy;
+	 */
 
-size_t EquationPath::depth() const
-{
-	return path.size();
-}
-
-bool EquationPath::isOnEquationLeftHand() const
-{
-	return left;
-}
-
-Expression& EquationPath::reach(Expression& exp) const
-{
-	Expression* e = &exp;
-
-	for (auto i : path)
-		e = e->getChild(i).get();
-
-	return *e;
-}
-
-const Expression& EquationPath::reach(const Expression& exp) const
-{
-	const Expression* e = &exp;
-
-	for (auto i : path)
-		e = e->getChild(i).get();
-
-	return *e;
+	return *this;
 }

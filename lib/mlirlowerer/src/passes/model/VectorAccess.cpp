@@ -1,9 +1,12 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
+#include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
+#include <modelica/mlirlowerer/passes/model/Reference.h>
 #include <modelica/mlirlowerer/passes/model/VectorAccess.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <modelica/utils/IndexSet.hpp>
+#include <modelica/utils/Interval.hpp>
 #include <string>
 
 using namespace modelica::codegen;
@@ -277,7 +280,7 @@ bool VectorAccess::isCanonical(const Expression& expression)
 	if (!SingleDimensionAccess::isCanonical(expression))
 		return false;
 
-	return isCanonical(*expression.get<Operation>()[0]);
+	return isCanonical(*expression.getChild(0));
 }
 
 AccessToVar::AccessToVar(VectorAccess access, mlir::Value var)
@@ -401,7 +404,7 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 			assert(false && "Invalid access pattern");
 		}
 
-		ptr = ptr->get<Operation>()[0].get();
+		ptr = ptr->getChild(0).get();
 	}
 
 	assert(ptr->isReference());

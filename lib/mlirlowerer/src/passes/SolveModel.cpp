@@ -13,7 +13,6 @@
 #include <modelica/mlirlowerer/passes/model/Equation.h>
 #include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/ModelBuilder.h>
 #include <modelica/mlirlowerer/passes/model/SolveDer.h>
 #include <modelica/mlirlowerer/passes/model/Variable.h>
 #include <modelica/utils/Interval.hpp>
@@ -320,24 +319,19 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		module->walk([&](SimulationOp simulation) {
 			// Create the model
-			Model model(simulation, {}, {});
-			ModelBuilder builder(model);
-
-			simulation.walk([&](EquationOp equation) {
-				builder.lower(equation);
-			});
-
-			simulation.walk([&](ForEquationOp forEquation) {
-				builder.lower(forEquation);
-			});
+			Model model = Model::build(simulation);
 
 			// Remove the derivative operations and allocate the appropriate buffers
 			DerSolver solver(simulation, model);
 			solver.solve();
 
+			module.dump();
+
 			// Match
 			if (failed(match(model, 1000)))
 				return signalPassFailure();
+
+			module.dump();
 
 			// Solve SCC
 			if (failed(solveSCC(model, 1000)))
@@ -346,6 +340,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			// Schedule
 			if (failed(schedule(model)))
 				return signalPassFailure();
+
+			module.dump();
 
 			// Explicitate the equations so that the updated variable is the only
 			// one on the left side of the equation.
@@ -374,8 +370,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		if (failed(applyPartialConversion(module, target, std::move(patterns))))
 			return signalPassFailure();
-
-		module.dump();
 	}
 
 	/**

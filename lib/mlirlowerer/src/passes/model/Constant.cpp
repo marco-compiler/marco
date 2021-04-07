@@ -7,3 +7,8 @@ Constant::Constant(mlir::Value value) : value(value)
 {
 	assert(mlir::isa<ConstantOp>(value.getDefiningOp()));
 }
+
+mlir::Value Constant::getValue() const
+{
+	return value;
+}

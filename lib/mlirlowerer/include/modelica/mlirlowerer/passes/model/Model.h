@@ -28,6 +28,8 @@ namespace modelica::codegen::model
 					llvm::ArrayRef<std::shared_ptr<Variable>> variables,
 					llvm::ArrayRef<std::shared_ptr<Equation>> equations);
 
+		static Model build(SimulationOp op);
+
 		[[nodiscard]] iterator begin();
 		[[nodiscard]] const_iterator begin() const;
 

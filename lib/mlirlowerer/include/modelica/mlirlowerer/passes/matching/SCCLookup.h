@@ -8,16 +8,17 @@
 #include <iterator>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/iterator_range.h>
-#include <modelica/mlirlowerer/passes/matching/VVarDependencyGraph.h>
 #include <modelica/utils/GraphIterator.hpp>
 #include <type_traits>
+
+#include "VVarDependencyGraph.h"
 
 namespace modelica::codegen::model
 {
 	/**
-	 * a scc is a vector of vertex descriptors that are all reachable from each
-	 * other in the graph. It allows get a range to iterate over the vertex
-	 * properties of the indexes in this scc.
+	 * A SCC is a vector of vertex descriptors that are all reachable from each
+	 * other in the graph. It allows to get a range to iterate over the vertex
+	 * properties of the indexes in this SCC.
 	 */
 	template<typename Graph>
 	class Scc
@@ -28,8 +29,11 @@ namespace modelica::codegen::model
 		using Iter = typename Vector::iterator;
 		using ConstIter = typename Vector::const_iterator;
 
-		Scc(Vector indexes): indexes(std::move(indexes)) {}
 		Scc() = default;
+
+		Scc(Vector indexes): indexes(std::move(indexes))
+		{
+		}
 
 		[[nodiscard]] auto range(const Graph& toIterateOver) const
 		{
@@ -41,9 +45,15 @@ namespace modelica::codegen::model
 			return llvm::make_range<Iterator>(begin, end);
 		}
 
-		void push_back(VertexDesc index) { indexes.push_back(index); }
+		void push_back(VertexDesc index)
+		{
+			indexes.push_back(index);
+		}
 
-		[[nodiscard]] size_t size() const { return indexes.size(); }
+		[[nodiscard]] size_t size() const
+		{
+			return indexes.size();
+		}
 
 		[[nodiscard]] VertexDesc operator[](size_t index) const
 		{
@@ -61,18 +71,33 @@ namespace modelica::codegen::model
 			return llvm::make_range<Iterator>(begin, end);
 		}
 
-		[[nodiscard]] auto begin() const { return indexes.begin(); }
-		[[nodiscard]] auto begin() { return indexes.begin(); }
-		[[nodiscard]] auto end() const { return indexes.end(); }
-		[[nodiscard]] auto end() { return indexes.end(); }
+		[[nodiscard]] auto begin()
+		{
+			return indexes.begin();
+		}
+
+		[[nodiscard]] auto begin() const
+		{
+			return indexes.begin();
+		}
+
+		[[nodiscard]] auto end()
+		{
+			return indexes.end();
+		}
+
+		[[nodiscard]] auto end() const
+		{
+			return indexes.end();
+		}
 
 		private:
 		Vector indexes;
 	};
 
 	/**
-	 * A scc lookup is a map like object that given a vertex returns the scc it
-	 * belongs to or given a scc index returns the scc object at that index.
+	 * A SCC lookup is a map-like object that given a vertex returns the SCC it
+	 * belongs to, or given a SCC index returns the SCC object at that index.
 	 */
 	template<typename Graph>
 	class SccLookup
@@ -99,23 +124,43 @@ namespace modelica::codegen::model
 			}
 		}
 
-		[[nodiscard]] size_t count() const { return allScc.size(); }
-
-		[[nodiscard]] auto begin() const { return allScc.begin(); }
-		[[nodiscard]] auto end() const { return allScc.end(); }
-		[[nodiscard]] auto begin() { return allScc.begin(); }
-		[[nodiscard]] auto end() { return allScc.end(); }
-		[[nodiscard]] const SCC& sccOf(VertDesc vertexIndex) const
-		{
-			return allScc[vertToScc[vertexIndex]];
-		}
 		[[nodiscard]] const SCC& operator[](size_t index) const
 		{
 			return allScc[index];
+		}
+
+		[[nodiscard]] size_t count() const
+		{
+			return allScc.size();
+		}
+
+		[[nodiscard]] auto begin()
+		{
+			return allScc.begin();
+		}
+
+		[[nodiscard]] auto begin() const
+		{
+			return allScc.begin();
+		}
+
+		[[nodiscard]] auto end()
+		{
+			return allScc.end();
+		}
+
+		[[nodiscard]] auto end() const
+		{
+			return allScc.end();
+		}
+
+		[[nodiscard]] const SCC& sccOf(VertDesc vertexIndex) const
+		{
+			return allScc[vertToScc[vertexIndex]];
 		}
 
 		private:
 		SccVector allScc;
 		VertToSCC vertToScc;
 	};
-}	 // namespace modelica
+}

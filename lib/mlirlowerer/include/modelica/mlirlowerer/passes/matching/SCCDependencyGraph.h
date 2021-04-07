@@ -5,8 +5,9 @@
 #include <boost/graph/topological_sort.hpp>
 #include <llvm/ADT/SmallVector.h>
 #include <map>
-#include <modelica/mlirlowerer/passes/matching/SCCLookup.h>
-#include <modelica/mlirlowerer/passes/matching/VVarDependencyGraph.h>
+
+#include "SCCLookup.h"
+#include "VVarDependencyGraph.h"
 
 namespace modelica::codegen::model
 {

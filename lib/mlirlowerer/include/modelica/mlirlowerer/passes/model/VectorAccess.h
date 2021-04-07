@@ -3,6 +3,8 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/IR/Value.h>
+#include <modelica/utils/IndexSet.hpp>
+#include <modelica/utils/Interval.hpp>
 
 namespace modelica::codegen::model
 {

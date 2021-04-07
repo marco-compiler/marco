@@ -4,6 +4,7 @@
 
 #include "Expression.h"
 #include "Model.h"
+#include "Path.h"
 
 namespace modelica::codegen::model
 {

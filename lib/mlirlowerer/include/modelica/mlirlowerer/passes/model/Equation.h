@@ -3,7 +3,11 @@
 #include <llvm/Support/Error.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/Operation.h>
+#include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/utils/IndexSet.hpp>
+
+#include "Expression.h"
+#include "Path.h"
 
 namespace modelica::codegen::model
 {
@@ -15,7 +19,7 @@ namespace modelica::codegen::model
 	class EquationTemplate
 	{
 		public:
-		EquationTemplate(Expression left, Expression right, std::string name);
+		EquationTemplate(Expression::Ptr left, Expression::Ptr right, std::string name);
 
 		[[nodiscard]] Expression& lhs();
 		[[nodiscard]] const Expression& lhs() const;
@@ -30,51 +34,23 @@ namespace modelica::codegen::model
 		void swapLeftRight();
 
 		private:
-		std::shared_ptr<Expression> left;
-		std::shared_ptr<Expression> right;
+		Expression::Ptr left;
+		Expression::Ptr right;
 		std::string name;
-	};
-
-	class EquationPath
-	{
-		private:
-		template<typename T> using Container = llvm::SmallVector<T>;
-
-		public:
-		using iterator = Container<size_t>::iterator;
-		using const_iterator = Container<size_t>::const_iterator;
-
-		EquationPath(llvm::SmallVector<size_t, 3> path, bool left);
-
-		[[nodiscard]] const_iterator begin() const;
-		[[nodiscard]] const_iterator end() const;
-
-		[[nodiscard]] size_t depth() const;
-		[[nodiscard]] bool isOnEquationLeftHand() const;
-
-		[[nodiscard]] Expression& reach(Expression& exp) const;
-		[[nodiscard]] const Expression& reach(const Expression& exp) const;
-
-		private:
-		Container<size_t> path;
-		bool left;
 	};
 
 	class Equation
 	{
 		public:
 		Equation(mlir::Operation* op,
-						 Expression left,
-						 Expression right,
-						 std::string templateName = "",
+						 std::shared_ptr<Expression> left,
+						 std::shared_ptr<Expression> right,
 						 MultiDimInterval inductions = {},
 						 bool isForward = true,
 						 std::optional<EquationPath> path = std::nullopt);
 
-		Equation(mlir::Operation* op,
-						 std::shared_ptr<EquationTemplate> templ,
-						 MultiDimInterval interval,
-						 bool isForward);
+		static std::shared_ptr<Equation> build(EquationOp op);
+		static std::shared_ptr<Equation> build(ForEquationOp op);
 
 		[[nodiscard]] mlir::Operation* getOp() const;
 
@@ -85,9 +61,6 @@ namespace modelica::codegen::model
 		[[nodiscard]] const Expression& rhs() const;
 
 		[[nodiscard]] size_t amount() const;
-
-		[[nodiscard]] std::shared_ptr<EquationTemplate>& getTemplate();
-		[[nodiscard]] const std::shared_ptr<EquationTemplate>& getTemplate() const;
 
 		[[nodiscard]] const MultiDimInterval& getInductions() const;
 		void setInductionVars(MultiDimInterval inductions);
@@ -107,7 +80,6 @@ namespace modelica::codegen::model
 
 		[[nodiscard]] ExpressionPath getMatchedExpressionPath() const;
 
-
 		[[nodiscard]] Equation normalized() const;
 
 		[[nodiscard]] Equation normalizeMatched() const;
@@ -116,7 +88,7 @@ namespace modelica::codegen::model
 		mlir::LogicalResult explicitate(const ExpressionPath& path);
 		mlir::LogicalResult explicitate();
 
-		[[nodiscard]] Equation clone(std::string newName) const;
+		[[nodiscard]] Equation clone() const;
 
 		[[nodiscard]] Equation composeAccess(const VectorAccess& transformation) const;
 
@@ -132,11 +104,20 @@ namespace modelica::codegen::model
 			return path.isOnEquationLeftHand() ? path.reach(lhs()) : path.reach(rhs());
 		}
 
+		/**
+		 * Tries to bring all the usages of the variable in the left-hand side
+		 * of the equation to the left side of the equation.
+		 */
+		[[nodiscard]] Equation groupLeftHand() const;
+
 		private:
 		void getEquationsAmount(mlir::ValueRange values, llvm::SmallVectorImpl<long>& amounts) const;
 
+		EquationSidesOp getTerminator();
+
 		mlir::Operation* op;
-		std::shared_ptr<EquationTemplate> body;
+		std::shared_ptr<Expression> left;
+		std::shared_ptr<Expression> right;
 		MultiDimInterval inductions;
 		bool isForCycle;
 		bool isForwardDirection;

@@ -8,6 +8,7 @@
 #include <modelica/mlirlowerer/passes/matching/Schedule.h>
 #include <modelica/mlirlowerer/passes/matching/VVarDependencyGraph.h>
 #include <modelica/mlirlowerer/passes/model/Equation.h>
+#include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
 #include <modelica/utils/IndexSet.hpp>
 #include <modelica/utils/ThreadPool.hpp>
@@ -36,7 +37,7 @@ static llvm::SmallVector<Equation, 3> collapseEquations(
 		const auto& eq = currentNode.getCollapsedVertex();
 
 		for (const auto& set : currentSet)
-			out.emplace_back(eq.getOp(), eq.getTemplate(), set, !backward);
+			out.emplace_back(eq.getOp(), std::make_shared<Expression>(eq.lhs()), std::make_shared<Expression>(eq.rhs()), set, !backward);
 
 		currentSet = modelica::IndexSet();
 	};

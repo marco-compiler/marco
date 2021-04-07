@@ -1,6 +1,7 @@
 #pragma once
 
 #include <modelica/mlirlowerer/passes/model/Expression.h>
+#include <modelica/mlirlowerer/passes/model/Path.h>
 #include <modelica/mlirlowerer/passes/model/VectorAccess.h>
 #include <modelica/utils/IndexSet.hpp>
 

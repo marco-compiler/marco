@@ -1,21 +1,78 @@
 #include <modelica/mlirlowerer/passes/model/Equation.h>
+#include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
+#include <modelica/mlirlowerer/passes/model/Operation.h>
+#include <modelica/mlirlowerer/passes/model/Reference.h>
 #include <modelica/mlirlowerer/passes/model/Variable.h>
 #include <modelica/mlirlowerer/passes/model/VectorAccess.h>
+#include <modelica/mlirlowerer/ModelicaDialect.h>
 
 using namespace modelica::codegen;
 using namespace modelica::codegen::model;
 
+class VariablesFinder
+{
+	public:
+	VariablesFinder(llvm::SmallVector<std::shared_ptr<Variable>, 3>& variables)
+			: variables(&variables)
+	{
+	}
+
+	void operator()(const Constant& constant) const
+	{
+
+	}
+
+	void operator()(const Reference& reference) const
+	{
+		if (!contains(reference.getVar()))
+			variables->push_back(std::make_shared<Variable>(reference.getVar()));
+	}
+
+	void operator()(const Operation& operation) const
+	{
+		for (const auto& arg : operation)
+			arg->visit(*this);
+	}
+
+	private:
+	[[nodiscard]] bool contains(mlir::Value value) const
+	{
+		return std::any_of(variables->begin(), variables->end(),
+											 [&](const auto& var) {
+												 return var->getReference() == value;
+											 });
+	}
+
+	llvm::SmallVector<std::shared_ptr<Variable>, 3>* variables;
+};
+
 Model::Model(SimulationOp op,
 						 llvm::ArrayRef<std::shared_ptr<Variable>> variables,
 						 llvm::ArrayRef<std::shared_ptr<Equation>> equations)
-		: op(op)
+		: op(op),
+			variables(variables.begin(), variables.end()),
+			equations(equations.begin(), equations.end())
 {
-	for (const auto& variable : variables)
-		this->variables.emplace_back(std::make_shared<Variable>(*variable));
+}
+
+Model Model::build(SimulationOp op)
+{
+	llvm::SmallVector<std::shared_ptr<Variable>, 3> variables;
+	llvm::SmallVector<std::shared_ptr<Equation>, 3> equations;
+
+	op.walk([&](EquationOp equation) {
+		equations.push_back(Equation::build(equation));
+	});
+
+	op.walk([&](ForEquationOp forEquation) {
+		equations.push_back(Equation::build(forEquation));
+	});
 
 	for (const auto& equation : equations)
-		addEquation(*equation);
+		equation->lhs().visit(VariablesFinder(variables));
+
+	return Model(op, variables, equations);
 }
 
 Model::iterator Model::begin()
@@ -99,10 +156,6 @@ const Model::Container<Equation>& Model::getEquations() const
 void Model::addEquation(Equation equation)
 {
 	equations.push_back(std::make_shared<Equation>(equation));
-
-	if (!equation.getTemplate()->getName().empty())
-		if (templates.find(equation.getTemplate()) == templates.end())
-			templates.emplace(equation.getTemplate());
 }
 
 const Model::TemplateMap& Model::getTemplates() const

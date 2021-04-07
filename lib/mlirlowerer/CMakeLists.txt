@@ -5,7 +5,6 @@ modelicaAddLibrary(
         src/passes/matching/Matching.cpp
         src/passes/matching/SCCCollapsing.cpp
         src/passes/matching/SCCDependencyGraph.cpp
-        src/passes/matching/SCCLookup.cpp
         src/passes/matching/Schedule.cpp
         src/passes/matching/SVarDependencyGraph.cpp
         src/passes/matching/VVarDependencyGraph.cpp
@@ -13,7 +12,7 @@ modelicaAddLibrary(
         src/passes/model/Equation.cpp
         src/passes/model/Expression.cpp
         src/passes/model/Model.cpp
-        src/passes/model/ModelBuilder.cpp
+        src/passes/model/Path.cpp
         src/passes/model/Operation.cpp
         src/passes/model/Reference.cpp
         src/passes/model/ReferenceMatcher.cpp

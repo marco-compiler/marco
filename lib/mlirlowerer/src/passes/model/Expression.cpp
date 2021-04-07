@@ -1,5 +1,8 @@
+#include <llvm/ADT/SmallVector.h>
+#include <modelica/mlirlowerer/passes/model/Constant.h>
 #include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
+#include <modelica/mlirlowerer/passes/model/Operation.h>
 #include <modelica/mlirlowerer/passes/model/Reference.h>
 #include <modelica/mlirlowerer/passes/model/VectorAccess.h>
 
@@ -20,9 +23,69 @@ Expression::Expression(mlir::Operation* op, Operation content)
 {
 }
 
-mlir::Operation* Expression::getOp()
+Expression::Ptr Expression::build(mlir::Value value)
 {
-	return op;
+	mlir::Operation* definingOp = value.getDefiningOp();
+
+	if (auto op = mlir::dyn_cast<LoadOp>(definingOp))
+		return build(op.memory());
+
+	if ( mlir::isa<AllocaOp>(definingOp))
+		return Expression::reference(value);
+
+	if (mlir::isa<AllocOp>(definingOp))
+		return Expression::reference(value);
+
+	if (mlir::isa<ConstantOp>(definingOp))
+		return Expression::constant(value);
+
+	llvm::SmallVector<Expression::Ptr, 3> args;
+
+	if (auto op = mlir::dyn_cast<CallOp>(definingOp))
+	{
+		for (auto arg : op.args())
+			args.push_back(build(arg));
+
+		return Expression::operation(op, args);
+	}
+
+	if (auto op = mlir::dyn_cast<SubscriptionOp>(definingOp))
+		return Expression::operation(op, build(op.source()));
+
+	if (auto op = mlir::dyn_cast<DerOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<NegateOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<AddOp>(definingOp))
+		return Expression::operation(op, build(op.lhs()), build(op.rhs()));
+
+	if (auto op = mlir::dyn_cast<SubOp>(definingOp))
+		return Expression::operation(op, build(op.lhs()), build(op.rhs()));
+
+	if (auto op = mlir::dyn_cast<MulOp>(definingOp))
+		return Expression::operation(op, build(op.lhs()), build(op.rhs()));
+
+	if (auto op = mlir::dyn_cast<DivOp>(definingOp))
+		return Expression::operation(op, build(op.lhs()), build(op.rhs()));
+
+	assert(false && "Unexpected operation");
+}
+
+Expression::Ptr Expression::constant(mlir::Value value)
+{
+	return std::make_shared<Expression>(value.getDefiningOp(), Constant(value));
+}
+
+Expression::Ptr Expression::reference(mlir::Value value)
+{
+	return std::make_shared<Expression>(value.getDefiningOp(), Reference(value));
+}
+
+Expression::Ptr Expression::operation(mlir::Operation* op, llvm::ArrayRef<std::shared_ptr<Expression>> args)
+{
+	return std::make_shared<Expression>(op, Operation(args));
 }
 
 mlir::Operation* Expression::getOp() const
@@ -68,10 +131,15 @@ size_t Expression::childrenCount() const
 	return get<Operation>().size();
 }
 
-Expression::ExpressionPtr Expression::getChild(size_t index) const
+Expression::Ptr Expression::getChild(size_t index) const
 {
 	assert(index < childrenCount());
 	return get<Operation>()[index];
+}
+
+mlir::Value Expression::getReferredVectorAccess() const
+{
+	return getReferredVectorAccessExp().get<Reference>().getVar();
 }
 
 Expression& Expression::getReferredVectorAccessExp()
@@ -102,69 +170,4 @@ const Expression& Expression::getReferredVectorAccessExp() const
 		exp = exp->get<Operation>()[0].get();
 
 	return *exp;
-}
-
-Expression Expression::constant(mlir::Value value)
-{
-	return Expression(value.getDefiningOp(), Constant(value));
-}
-
-Expression Expression::reference(mlir::Value value)
-{
-	return Expression(value.getDefiningOp(), Reference(value));
-}
-
-Expression Expression::operation(mlir::Operation* op, llvm::ArrayRef<Expression> args)
-{
-	return Expression(op, Operation(args));
-}
-
-ExpressionPath::ExpressionPath(const Expression& exp, llvm::SmallVector<size_t, 3> path, bool left)
-		: path(std::move(path), left), exp(&exp)
-{
-}
-
-ExpressionPath::ExpressionPath(const Expression& exp, EquationPath path)
-		: path(std::move(path)), exp(&exp)
-{
-}
-
-EquationPath::const_iterator ExpressionPath::begin() const
-{
-	return path.begin();
-}
-
-EquationPath::const_iterator ExpressionPath::end() const
-{
-	return path.end();
-}
-
-size_t ExpressionPath::depth() const
-{
-	return path.depth();
-}
-
-const Expression& ExpressionPath::getExp() const
-{
-	return *exp;
-}
-
-const EquationPath& ExpressionPath::getEqPath() const
-{
-	return path;
-}
-
-bool ExpressionPath::isOnEquationLeftHand() const
-{
-	return path.isOnEquationLeftHand();
-}
-
-Expression& ExpressionPath::reach(Expression& exp) const
-{
-	return path.reach(exp);
-}
-
-const Expression& ExpressionPath::reach(const Expression& exp) const
-{
-	return path.reach(exp);
 }

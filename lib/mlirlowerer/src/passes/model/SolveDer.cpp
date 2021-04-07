@@ -90,14 +90,14 @@ void DerSolver::solve<Operation>(Expression& expression)
 			derVar = var.getDer();
 		}
 
-		expression = Expression::reference(derVar);
+		expression = *Expression::reference(derVar);
 		builder.setInsertionPoint(derOp);
 
 		if (!subscriptions.empty())
 		{
 			auto subscriptionOp = builder.create<SubscriptionOp>(derOp->getLoc(), derVar, subscriptions);
 			derVar = subscriptionOp.getResult();
-			expression = Expression::operation(subscriptionOp, expression);
+			expression = *Expression::operation(subscriptionOp, std::make_shared<Expression>(expression));
 		}
 
 		if (auto pointerType = derVar.getType().cast<PointerType>(); pointerType.getRank() == 0)
@@ -109,6 +109,6 @@ void DerSolver::solve<Operation>(Expression& expression)
 	else
 	{
 		for (auto& arg : expression.get<Operation>())
-			solve<Expression>(arg);
+			solve<Expression>(*arg);
 	}
 }

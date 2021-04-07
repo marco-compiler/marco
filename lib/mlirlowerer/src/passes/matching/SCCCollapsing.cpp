@@ -5,6 +5,7 @@
 #include <llvm/Support/Error.h>
 #include <modelica/mlirlowerer/passes/matching/SCCCollapsing.h>
 #include <modelica/mlirlowerer/passes/matching/VVarDependencyGraph.h>
+#include <modelica/mlirlowerer/passes/model/LinSolver.h>
 #include <modelica/utils/Interval.hpp>
 #include <modelica/utils/IRange.hpp>
 #include <numeric>
@@ -34,7 +35,7 @@ namespace modelica::codegen::model
 
 using namespace modelica::codegen::model;
 
-using EqVector = llvm::SmallVector<Equation, 3>;
+using EquationsVector = llvm::SmallVector<Equation, 3>;
 
 using EdDescVector = llvm::SmallVector<VVarDependencyGraph::EdgeDesc, 3>;
 using DendenciesVector = llvm::SmallVector<VectorAccess, 3>;
@@ -124,12 +125,10 @@ static InexSetVector cyclicDependetSets(
 	return v;
 }
 
-static int a = 0;
-
 static mlir::LogicalResult extractEquationWithDependencies(
-		EqVector& source,
-		EqVector& filtered,
-		EqVector& untouched,
+		EquationsVector& source,
+		EquationsVector& filtered,
+		EquationsVector& untouched,
 		const std::vector<VVarDependencyGraph::VertexDesc>& cycle,
 		const VVarDependencyGraph& g)
 {
@@ -145,8 +144,7 @@ static mlir::LogicalResult extractEquationWithDependencies(
 		const auto& eq = g[boost::source(c[i], g.getImpl())].getEquation();
 
 		// copy the equation
-		auto toFuseEq =
-				eq.clone(eq.getTemplate()->getName() + "merged" + std::to_string(a++));
+		auto toFuseEq = eq.clone();
 
 		// set induction to those that generate the circular dependency
 		assert(toFuseEq.getInductions().contains(vecSet[i]));
@@ -187,25 +185,24 @@ class CycleFuser
 	public:
 	CycleFuser(
 			bool& f,
-			EqVector& equs,
+			EquationsVector& equations,
 			const Model& model,
 			const VVarDependencyGraph& graph,
 			mlir::LogicalResult* e)
-			: foundOne(&f), equs(&equs), model(&model), graph(&graph), error(e)
+			: foundOne(&f), equations(&equations), model(&model), graph(&graph), error(e)
 	{
 	}
 
 	template<typename Graph>
-	void cycle(
-			const std::vector<VVarDependencyGraph::VertexDesc>& cycle, const Graph&)
+	void cycle(const std::vector<VVarDependencyGraph::VertexDesc>& cycle, const Graph&)
 	{
 		if (*foundOne)
 			return;
 
-		EqVector newEqus;
-		EqVector filtered;
+		EquationsVector newEqus;
+		EquationsVector filtered;
 
-		auto err = extractEquationWithDependencies(*equs, filtered, newEqus, cycle, *graph);
+		auto err = extractEquationWithDependencies(*equations, filtered, newEqus, cycle, *graph);
 
 		if (succeeded(err))
 		{
@@ -217,33 +214,32 @@ class CycleFuser
 		if (succeeded(err))
 			return;
 
-		/*
 		auto e = linearySolve(filtered, *model);
 
 		if (e)
 		{
-			*error = std::move(e);
+			//*error = std::move(e);
 			*foundOne = true;
 			return;
 		}
+
 		for (auto& eq : filtered)
 			newEqus.emplace_back(std::move(eq));
 
 		*foundOne = true;
-		*equs = std::move(newEqus);
-		 */
+		*equations = std::move(newEqus);
 	}
 
 	private:
 	bool* foundOne;
-	EqVector* equs;
+	EquationsVector* equations;
 	const Model* model;
 	const VVarDependencyGraph* graph;
 	mlir::LogicalResult* error;
 };
 
 static mlir::LogicalResult fuseEquations(
-		EqVector& equs, const Model& sourceModel, size_t maxIterations)
+		EquationsVector& equations, const Model& sourceModel, size_t maxIterations)
 {
 	bool atLeastOneCollapse = false;
 	size_t currIterations = 0;
@@ -251,12 +247,12 @@ static mlir::LogicalResult fuseEquations(
 	do
 	{
 		atLeastOneCollapse = false;
-		VVarDependencyGraph vectorGraph(sourceModel, equs);
+		VVarDependencyGraph vectorGraph(sourceModel, equations);
 		mlir::LogicalResult e = mlir::success();
 
 		tiernan_all_cycles(
 				vectorGraph.getImpl(),
-				CycleFuser(atLeastOneCollapse, equs, sourceModel, vectorGraph, &e));
+				CycleFuser(atLeastOneCollapse, equations, sourceModel, vectorGraph, &e));
 
 		if (failed(e))
 			return e;
@@ -270,14 +266,14 @@ static mlir::LogicalResult fuseEquations(
 }
 
 static mlir::LogicalResult fuseScc(
-		const modelica::Scc<VVarDependencyGraph>& scc,
+		const modelica::Scc<VVarDependencyGraph>& SCC,
 		const VVarDependencyGraph& vectorGraph,
-		EqVector& out,
+		EquationsVector& out,
 		size_t maxIterations)
 {
-	out.reserve(scc.size());
+	out.reserve(SCC.size());
 
-	for (const auto& eq : scc.range(vectorGraph))
+	for (const auto& eq : SCC.range(vectorGraph))
 		out.push_back(eq.getEquation());
 
 	if (auto res = fuseEquations(out, vectorGraph.getModel(), maxIterations); failed(res))
@@ -291,7 +287,7 @@ mlir::LogicalResult modelica::codegen::model::solveSCC(Model& model, size_t maxI
 	VVarDependencyGraph vectorGraph(model);
 	SccLookup SCCs(vectorGraph);
 
-	llvm::SmallVector<EqVector, 3> possibleEquations(SCCs.count());
+	llvm::SmallVector<EquationsVector, 3> possibleEquations(SCCs.count());
 
 	for (size_t i = 0, e = SCCs.count(); i < e; ++i)
 	{

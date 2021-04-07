@@ -241,9 +241,7 @@ mlir::LogicalResult modelica::codegen::model::match(Model& model, size_t maxIter
 		for (const auto& inductionVars : edge.getSet())
 		{
 			const auto& eq = edge.getEquation();
-			const auto& templ = eq.getTemplate();
-			auto newName = templ->getName() + "m" + std::to_string(result.getTemplates().size());
-			result.addEquation(eq.clone(std::move(newName)));
+			result.addEquation(eq.clone());
 			auto& justInserted = result.getEquations().back();
 			justInserted->setInductionVars(inductionVars);
 			justInserted->setMatchedExp(edge.getPath().getEqPath());

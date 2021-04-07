@@ -1,4 +1,6 @@
+#include <modelica/mlirlowerer/passes/model/Equation.h>
 #include <modelica/mlirlowerer/passes/model/ReferenceMatcher.h>
+#include <modelica/mlirlowerer/passes/model/Path.h>
 #include <modelica/utils/ScopeGuard.hpp>
 
 using namespace llvm;

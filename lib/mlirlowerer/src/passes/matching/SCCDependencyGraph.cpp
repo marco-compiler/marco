@@ -14,6 +14,7 @@ SCCDependencyGraph::SCCDependencyGraph(VVarDependencyGraph& originalGraph)
 		insertedVertex[&scc] = add_vertex(&scc, graph);
 
 	auto edgeIterator = make_iterator_range(edges(originalGraph.getImpl()));
+
 	for (const auto& edge : edgeIterator)
 	{
 		size_t targetVertex = target(edge, originalGraph.getImpl());

@@ -1,4 +1,5 @@
 #include <modelica/mlirlowerer/passes/matching/Edge.h>
+#include <modelica/mlirlowerer/passes/model/Equation.h>
 
 using namespace modelica::codegen::model;
 
