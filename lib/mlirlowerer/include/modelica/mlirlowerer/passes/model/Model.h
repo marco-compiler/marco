@@ -18,7 +18,6 @@ namespace modelica::codegen::model
 	{
 		private:
 		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
-		using TemplateMap = std::set<std::shared_ptr<EquationTemplate>>;
 
 		public:
 		using iterator = boost::indirect_iterator<Container<Equation>::iterator>;
@@ -49,8 +48,6 @@ namespace modelica::codegen::model
 		[[nodiscard]] const Container<Equation>& getEquations() const;
 		void addEquation(Equation equation);
 
-		[[nodiscard]] const TemplateMap& getTemplates() const;
-
 		/**
 		 * Get the number of the equations that will compose the final model.
 		 */
@@ -65,6 +62,5 @@ namespace modelica::codegen::model
 		SimulationOp op;
 		Container<Variable> variables;
 		Container<Equation> equations;
-		TemplateMap templates;
 	};
 }

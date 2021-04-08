@@ -2233,17 +2233,19 @@ class MulOpCrossProductLowering: public ModelicaOpConversion<MulOp>
 		// Iterate on the two arrays at the same time, and propagate the
 		// progressive result to the next loop iteration.
 		auto loop = rewriter.create<mlir::scf::ForOp>(location, lowerBound, upperBound, step, init);
-		rewriter.setInsertionPointToStart(loop.getBody());
 
-		mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), loop.getInductionVar());
-		mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), loop.getInductionVar());
-		mlir::Value product = rewriter.create<MulOp>(location, type, lhs, rhs);
-		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, location, type, loop.getRegionIterArgs()[0]);
-		sum = rewriter.create<AddOp>(location, type, product, sum);
-		sum = materializeTargetConversion(rewriter, sum);
-		rewriter.create<mlir::scf::YieldOp>(location, sum);
+		{
+			mlir::OpBuilder::InsertionGuard guard(rewriter);
+			rewriter.setInsertionPointToStart(loop.getBody());
 
-		rewriter.setInsertionPointAfter(loop);
+			mlir::Value lhs = rewriter.create<LoadOp>(location, op.lhs(), loop.getInductionVar());
+			mlir::Value rhs = rewriter.create<LoadOp>(location, op.rhs(), loop.getInductionVar());
+			mlir::Value product = rewriter.create<MulOp>(location, type, lhs, rhs);
+			mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, location, type, loop.getRegionIterArgs()[0]);
+			sum = rewriter.create<AddOp>(location, type, product, sum);
+			sum = materializeTargetConversion(rewriter, sum);
+			rewriter.create<mlir::scf::YieldOp>(location, sum);
+		}
 
 		rewriter.replaceOp(op, loop.getResult(0));
 		return mlir::success();
@@ -2698,10 +2700,13 @@ class PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 		mlir::Value step = rewriter.create<mlir::ConstantOp>(location, rewriter.getIndexAttr(1));
 
 		auto forLoop = rewriter.create<mlir::scf::ForOp>(location, lowerBound, exponent, step, op.base());
-		rewriter.setInsertionPointToStart(forLoop.getBody());
-		mlir::Value next = rewriter.create<MulOp>(location, op.base().getType(), forLoop.getRegionIterArgs()[0], op.base());
-		rewriter.create<mlir::scf::YieldOp>(location, next);
-		rewriter.setInsertionPointAfter(forLoop);
+
+		{
+			mlir::OpBuilder::InsertionGuard guard(rewriter);
+			rewriter.setInsertionPointToStart(forLoop.getBody());
+			mlir::Value next = rewriter.create<MulOp>(location, op.base().getType(), forLoop.getRegionIterArgs()[0], op.base());
+			rewriter.create<mlir::scf::YieldOp>(location, next);
+		}
 
 		rewriter.replaceOp(op, forLoop.getResult(0));
 		return mlir::success();
@@ -2780,17 +2785,18 @@ class SizeOpArrayLowering: public ModelicaOpConversion<SizeOp>
 
 		auto loop = rewriter.create<mlir::scf::ForOp>(location, zeroValue, rank, step);
 
-		rewriter.setInsertionPointToStart(loop.getBody());
+		{
+			mlir::OpBuilder::InsertionGuard guard(rewriter);
+			rewriter.setInsertionPointToStart(loop.getBody());
 
-		// Get the size of the current dimension
-		mlir::Value dimensionSize = descriptor.getSize(rewriter, location, materializeTargetConversion(rewriter, loop.getInductionVar()));
-		dimensionSize = getTypeConverter()->materializeSourceConversion(rewriter, location, rewriter.getIndexType(), dimensionSize);
+			// Get the size of the current dimension
+			mlir::Value dimensionSize = descriptor.getSize(rewriter, location, materializeTargetConversion(rewriter, loop.getInductionVar()));
+			dimensionSize = getTypeConverter()->materializeSourceConversion(rewriter, location, rewriter.getIndexType(), dimensionSize);
 
-		// Cast it to the result base type and store it into the result array
-		dimensionSize = rewriter.create<CastOp>(location, dimensionSize, resultBaseType);
-		rewriter.create<StoreOp>(location, dimensionSize, result, loop.getInductionVar());
-
-		rewriter.setInsertionPointAfter(loop);
+			// Cast it to the result base type and store it into the result array
+			dimensionSize = rewriter.create<CastOp>(location, dimensionSize, resultBaseType);
+			rewriter.create<StoreOp>(location, dimensionSize, result, loop.getInductionVar());
+		}
 
 		rewriter.replaceOp(op, result);
 		return mlir::success();

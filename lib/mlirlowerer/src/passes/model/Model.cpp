@@ -102,11 +102,8 @@ SimulationOp Model::getOp() const
 
 bool Model::hasVariable(mlir::Value var) const
 {
-	for (const auto& v : variables)
-		if (var == (*v).getReference())
-			return true;
-
-	return false;
+	return std::any_of(variables.begin(), variables.end(),
+										 [&](const auto& v) { return var == v->getReference(); });
 }
 
 Variable& Model::getVariable(mlir::Value var)
@@ -156,11 +153,6 @@ const Model::Container<Equation>& Model::getEquations() const
 void Model::addEquation(Equation equation)
 {
 	equations.push_back(std::make_shared<Equation>(equation));
-}
-
-const Model::TemplateMap& Model::getTemplates() const
-{
-	return templates;
 }
 
 size_t Model::equationsCount() const

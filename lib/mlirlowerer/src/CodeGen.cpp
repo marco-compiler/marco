@@ -556,6 +556,7 @@ void MLIRLowerer::lower(Equation& equation)
 {
 	mlir::Location location = loc(equation.getLocation());
 	auto result = builder.create<EquationOp>(location);
+	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPointToStart(&result.body().front());
 
 	llvm::SmallVector<mlir::Value, 1> lhs;
@@ -580,7 +581,6 @@ void MLIRLowerer::lower(Equation& equation)
 	}
 
 	builder.create<EquationSidesOp>(location, lhs, rhs);
-	builder.setInsertionPointAfter(result);
 }
 
 void MLIRLowerer::lower(ForEquation& forEquation)
@@ -606,6 +606,7 @@ void MLIRLowerer::lower(ForEquation& forEquation)
 	}
 
 	auto result = builder.create<ForEquationOp>(location, inductions);
+	mlir::OpBuilder::InsertionGuard guard(builder);
 	auto& equation = forEquation.getEquation();
 	builder.setInsertionPointToStart(&result.body().front());
 
@@ -631,7 +632,6 @@ void MLIRLowerer::lower(ForEquation& forEquation)
 	}
 
 	builder.create<EquationSidesOp>(location, lhs, rhs);
-	builder.setInsertionPointAfter(result);
 }
 
 void MLIRLowerer::lower(Algorithm& algorithm)
@@ -729,6 +729,7 @@ void MLIRLowerer::lower(ForStatement& statement)
 	lowerBound = builder.create<CastOp>(lowerBound.getLoc(), lowerBound, builder.getIndexType());
 
 	auto forOp = builder.create<BreakableForOp>(location, breakCondition, returnCondition, lowerBound);
+	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	{
 		// Check the loop condition
@@ -768,8 +769,6 @@ void MLIRLowerer::lower(ForStatement& statement)
 		mlir::Value incremented = builder.create<mlir::AddIOp>(location, *symbolTable.lookup(induction.getName()), step);
 		builder.create<YieldOp>(location, incremented);
 	}
-
-	builder.setInsertionPointAfter(forOp);
 }
 
 void MLIRLowerer::lower(WhileStatement& statement)
@@ -788,6 +787,7 @@ void MLIRLowerer::lower(WhileStatement& statement)
 
 	// Create the operation
 	auto whileOp = builder.create<BreakableWhileOp>(location, breakCondition, returnCondition);
+	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	{
 		// Condition
@@ -811,9 +811,6 @@ void MLIRLowerer::lower(WhileStatement& statement)
 
 		builder.create<YieldOp>(location);
 	}
-
-	// Keep populating after the while operation
-	builder.setInsertionPointAfter(whileOp);
 }
 
 void MLIRLowerer::lower(WhenStatement& statement)

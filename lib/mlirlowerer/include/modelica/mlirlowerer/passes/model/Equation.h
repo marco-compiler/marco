@@ -16,29 +16,6 @@ namespace modelica::codegen::model
 	class ExpressionPath;
 	class VectorAccess;
 
-	class EquationTemplate
-	{
-		public:
-		EquationTemplate(Expression::Ptr left, Expression::Ptr right, std::string name);
-
-		[[nodiscard]] Expression& lhs();
-		[[nodiscard]] const Expression& lhs() const;
-
-		[[nodiscard]] Expression& rhs();
-		[[nodiscard]] const Expression& rhs() const;
-
-		[[nodiscard]] std::string& getName();
-		[[nodiscard]] const std::string& getName() const;
-		void setName(std::string newName);
-
-		void swapLeftRight();
-
-		private:
-		Expression::Ptr left;
-		Expression::Ptr right;
-		std::string name;
-	};
-
 	class Equation
 	{
 		public:

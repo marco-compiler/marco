@@ -1,6 +1,5 @@
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/Support/LogicalResult.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/model/Equation.h>
 #include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
@@ -299,28 +298,29 @@ namespace modelica::codegen::model
 	}
 
 	template<typename Op>
-	static mlir::LogicalResult explicitate(mlir::OpBuilder& builder, Expression& toExp, size_t index, Expression& toNest)
+	static mlir::LogicalResult explicitate(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
 	{
-		return toExp.getOp()->emitError("Unexpected operation to be explicitated: " + toExp.getOp()->getName().getStringRef());
+		return toExp->emitError("Unexpected operation to be explicitated: " + toExp->getName().getStringRef());
 	}
 
 	template<>
-	mlir::LogicalResult explicitate<NegateOp>(mlir::OpBuilder& builder, Expression& toExp, size_t index, Expression& toNest)
+	mlir::LogicalResult explicitate<NegateOp>(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
 	{
-		assert(mlir::isa<NegateOp>(toExp.getOp()));
-		auto op = mlir::cast<NegateOp>(toExp.getOp());
+		assert(mlir::isa<NegateOp>(toExp));
+		auto op = mlir::cast<NegateOp>(toExp);
 
 		if (index == 0)
 		{
-			assert(toNest.getOp()->getNumResults() == 1);
-			mlir::Operation* right = builder.create<NegateOp>(op->getLoc(), op.operand().getType(),
-																												readValue(builder, toNest.getOp()->getResult(0)));
+			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
+			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			auto right = builder.create<NegateOp>(op->getLoc(), nestedOperand.getType(), nestedOperand);
 
-			toNest = *Expression::operation(right, std::make_shared<Expression>(toNest));
+			for (auto& use : toNest->getUses())
+				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+					use.set(right.getResult());
 
 			op.getResult().replaceAllUsesWith(op.operand());
 			op->erase();
-			toExp = *toExp.getChild(index);
 
 			return mlir::success();
 		}
@@ -329,39 +329,39 @@ namespace modelica::codegen::model
 	}
 
 	template<>
-	mlir::LogicalResult explicitate<AddOp>(mlir::OpBuilder& builder, Expression& toExp, size_t index, Expression& toNest)
+	mlir::LogicalResult explicitate<AddOp>(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
 	{
-		assert(mlir::isa<AddOp>(toExp.getOp()));
-		auto op = mlir::cast<AddOp>(toExp.getOp());
+		assert(mlir::isa<AddOp>(toExp));
+		auto op = mlir::cast<AddOp>(toExp);
 
 		if (index == 0)
 		{
-			assert(toNest.getOp()->getNumResults() == 1);
-			mlir::Operation* right = builder.create<SubOp>(op->getLoc(), op.lhs().getType(),
-																										 readValue(builder, toNest.getOp()->getResult(0)),
-																										 op.rhs());
+			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
+			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			auto right = builder.create<SubOp>(op->getLoc(), nestedOperand.getType(), nestedOperand, op.rhs());
 
-			toNest = *Expression::operation(right, std::make_shared<Expression>(toNest), toExp.getChild(1));
+			for (auto& use : toNest->getUses())
+				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+					use.set(right.getResult());
 
 			op.getResult().replaceAllUsesWith(op.lhs());
 			op.erase();
-			toExp = *toExp.getChild(index);
 
 			return mlir::success();
 		}
 
 		if (index == 1)
 		{
-			assert(toNest.getOp()->getNumResults() == 1);
-			mlir::Operation* right = builder.create<SubOp>(op->getLoc(), op.rhs().getType(),
-																										 readValue(builder, toNest.getOp()->getResult(0)),
-																										 op.lhs());
+			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
+			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			auto right = builder.create<SubOp>(op->getLoc(), nestedOperand.getType(), nestedOperand, op.lhs());
 
-			toNest = *Expression::operation(right, std::make_shared<Expression>(toNest), toExp.getChild(0));
+			for (auto& use : toNest->getUses())
+				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+					use.set(right.getResult());
 
 			op.getResult().replaceAllUsesWith(op.rhs());
 			op->erase();
-			toExp = *toExp.getChild(index);
 
 			return mlir::success();
 		}
@@ -370,37 +370,39 @@ namespace modelica::codegen::model
 	}
 
 	template<>
-	mlir::LogicalResult explicitate<SubOp>(mlir::OpBuilder& builder, Expression& toExp, size_t index, Expression& toNest)
+	mlir::LogicalResult explicitate<SubOp>(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
 	{
-		assert(mlir::isa<SubOp>(toExp.getOp()));
-		auto op = mlir::cast<SubOp>(toExp.getOp());
+		assert(mlir::isa<SubOp>(toExp));
+		auto op = mlir::cast<SubOp>(toExp);
 
 		if (index == 0)
 		{
-			assert(toNest.getOp()->getNumResults() == 1);
-			mlir::Operation* right = builder.create<AddOp>(op->getLoc(), op.lhs().getType(),
-																										 readValue(builder, toNest.getOp()->getResult(0)),
-																										 op.rhs());
-			toNest = *Expression::operation(right, std::make_shared<Expression>(toNest), toExp.getChild(1));
+			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
+			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			auto right = builder.create<AddOp>(op->getLoc(), nestedOperand.getType(), nestedOperand, op.rhs());
+
+			for (auto& use : toNest->getUses())
+				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+					use.set(right.getResult());
 
 			op.getResult().replaceAllUsesWith(op.lhs());
 			op->erase();
-			toExp = *toExp.getChild(index);
 
 			return mlir::success();
 		}
 
 		if (index == 1)
 		{
-			assert(toNest.getOp()->getNumResults() == 1);
-			mlir::Operation* right = builder.create<SubOp>(op->getLoc(), op.rhs().getType(), op.lhs(),
-																										 readValue(builder, toNest.getOp()->getResult(0)));
+			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
+			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			auto right = builder.create<SubOp>(op->getLoc(), nestedOperand.getType(), op.lhs(), nestedOperand);
 
-			toNest = *Expression::operation(right, std::make_shared<Expression>(toNest), toExp.getChild(0));
+			for (auto& use : toNest->getUses())
+				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+					use.set(right.getResult());
 
 			op.getResult().replaceAllUsesWith(op.rhs());
 			op->erase();
-			toExp = *toExp.getChild(index);
 
 			return mlir::success();
 		}
@@ -408,23 +410,108 @@ namespace modelica::codegen::model
 		return op->emitError("Index out of bounds: " + std::to_string(index));
 	}
 
-	static mlir::LogicalResult explicitateExpression(mlir::OpBuilder& builder, Expression& toExp, size_t index, Expression& toNest)
+	template<>
+	mlir::LogicalResult explicitate<MulOp>(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
 	{
-		mlir::Operation* op = toExp.getOp();
+		assert(mlir::isa<AddOp>(toExp));
+		auto op = mlir::cast<AddOp>(toExp);
 
-		if (mlir::isa<NegateOp>(op))
+		if (index == 0)
+		{
+			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
+			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			auto right = builder.create<DivOp>(op->getLoc(), nestedOperand.getType(), nestedOperand, op.rhs());
+
+			for (auto& use : toNest->getUses())
+				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+					use.set(right.getResult());
+
+			op.getResult().replaceAllUsesWith(op.lhs());
+			op.erase();
+
+			return mlir::success();
+		}
+
+		if (index == 1)
+		{
+			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
+			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			auto right = builder.create<DivOp>(op->getLoc(), nestedOperand.getType(), nestedOperand, op.lhs());
+
+			for (auto& use : toNest->getUses())
+				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+					use.set(right.getResult());
+
+			op.getResult().replaceAllUsesWith(op.rhs());
+			op->erase();
+
+			return mlir::success();
+		}
+
+		return op->emitError("Index out of bounds: " + std::to_string(index));
+	}
+
+	template<>
+	mlir::LogicalResult explicitate<DivOp>(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
+	{
+		assert(mlir::isa<AddOp>(toExp));
+		auto op = mlir::cast<AddOp>(toExp);
+
+		if (index == 0)
+		{
+			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
+			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			auto right = builder.create<MulOp>(op->getLoc(), nestedOperand.getType(), nestedOperand, op.rhs());
+
+			for (auto& use : toNest->getUses())
+				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+					use.set(right.getResult());
+
+			op.getResult().replaceAllUsesWith(op.lhs());
+			op.erase();
+
+			return mlir::success();
+		}
+
+		if (index == 1)
+		{
+			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
+			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			auto right = builder.create<DivOp>(op->getLoc(), nestedOperand.getType(), op.lhs(), nestedOperand);
+
+			for (auto& use : toNest->getUses())
+				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+					use.set(right.getResult());
+
+			op.getResult().replaceAllUsesWith(op.rhs());
+			op->erase();
+
+			return mlir::success();
+		}
+
+		return op->emitError("Index out of bounds: " + std::to_string(index));
+	}
+
+	static mlir::LogicalResult explicitateExpression(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
+	{
+		if (mlir::isa<NegateOp>(toExp))
 			return explicitate<NegateOp>(builder, toExp, index, toNest);
 
-		if (mlir::isa<AddOp>(op))
+		if (mlir::isa<AddOp>(toExp))
 			return explicitate<AddOp>(builder, toExp, index, toNest);
 
-		if (mlir::isa<SubOp>(op))
+		if (mlir::isa<SubOp>(toExp))
 			return explicitate<SubOp>(builder, toExp, index, toNest);
 
-		return toExp.getOp()->emitError("Unexpected operation to be explicitated: " + toExp.getOp()->getName().getStringRef());
+		if (mlir::isa<MulOp>(toExp))
+			return explicitate<MulOp>(builder, toExp, index, toNest);
+
+		if (mlir::isa<DivOp>(toExp))
+			return explicitate<DivOp>(builder, toExp, index, toNest);
+
+		return toExp->emitError("Unexpected operation to be explicitated: " + toExp->getName().getStringRef());
 	}
 }
-
 
 static Expression singleDimAccToExp(const SingleDimensionAccess& access, Expression exp)
 {
@@ -507,47 +594,35 @@ Equation Equation::normalizeMatched() const
 
 mlir::LogicalResult Equation::explicitate(mlir::OpBuilder& builder, size_t argumentIndex, bool left)
 {
-	auto& toExplicitate = left ? lhs() : rhs();
-	auto& otherExp = !left ? lhs() : rhs();
+	auto terminator = getTerminator();
+	assert(terminator.lhs().size() == 1);
+	assert(terminator.rhs().size() == 1);
 
-	assert(toExplicitate.isOperation());
-	assert(argumentIndex < toExplicitate.childrenCount());
+	mlir::Value toExplicitate = left ? terminator.lhs()[0] : terminator.rhs()[0];
+	mlir::Value otherExp = !left ? terminator.lhs()[0] : terminator.rhs()[0];
 
-	return explicitateExpression(builder, toExplicitate, argumentIndex, otherExp);
+	return explicitateExpression(builder, toExplicitate.getDefiningOp(), argumentIndex, otherExp.getDefiningOp());
 }
 
 mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
 {
+	auto terminator = getTerminator();
+	mlir::OpBuilder builder(terminator);
+
 	for (auto index : path)
 	{
-		auto terminator = getTerminator();
-		mlir::OpBuilder builder(terminator);
-
 		if (auto res = explicitate(builder, index, path.isOnEquationLeftHand()); failed(res))
 			return res;
 
-		builder.setInsertionPoint(terminator);
-
-		llvm::SmallVector<mlir::Value, 3> lhsValues;
-		llvm::SmallVector<mlir::Value, 3> rhsValues;
-
-		for (mlir::Value value : lhs().getOp()->getResults())
-			lhsValues.push_back(readValue(builder, value));
-
-		for (mlir::Value value : rhs().getOp()->getResults())
-			rhsValues.push_back(readValue(builder, value));
-
-		builder.create<EquationSidesOp>(terminator->getLoc(), lhsValues, rhsValues);
-		terminator->erase();
+		left = Expression::build(terminator.lhs()[0]);
+		right = Expression::build(terminator.rhs()[0]);
 	}
 
 	if (!path.isOnEquationLeftHand())
 	{
 		std::swap(left, right);
 
-		assert(getOp()->getNumRegions() == 1);
-		auto terminator = mlir::cast<EquationSidesOp>(getOp()->getRegion(0).front().getTerminator());
-		mlir::OpBuilder builder(terminator);
+		builder.setInsertionPointAfter(terminator);
 		builder.create<EquationSidesOp>(terminator->getLoc(), terminator.rhs(), terminator.lhs());
 		terminator->erase();
 	}
