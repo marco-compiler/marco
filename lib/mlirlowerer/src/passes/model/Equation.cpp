@@ -1,4 +1,5 @@
 #include <llvm/ADT/STLExtras.h>
+#include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Support/LogicalResult.h>
 #include <modelica/mlirlowerer/passes/model/Equation.h>
 #include <modelica/mlirlowerer/passes/model/Expression.h>
@@ -29,7 +30,7 @@ Equation::Equation(mlir::Operation* op,
 		inductions = { { 0, 1 } };
 }
 
-std::shared_ptr<Equation> Equation::build(EquationOp op)
+Equation::Ptr Equation::build(EquationOp op)
 {
 	auto& body = op.body();
 	auto terminator = mlir::cast<EquationSidesOp>(body.front().getTerminator());
@@ -58,7 +59,7 @@ std::shared_ptr<Equation> Equation::build(EquationOp op)
 	return std::make_shared<Equation>(op, lhsExpr[0], rhsExpr[0]);
 }
 
-std::shared_ptr<Equation> Equation::build(ForEquationOp op)
+Equation::Ptr Equation::build(ForEquationOp op)
 {
 	auto& body = op.body();
 	auto terminator = mlir::cast<EquationSidesOp>(body.front().getTerminator());
@@ -94,7 +95,6 @@ std::shared_ptr<Equation> Equation::build(ForEquationOp op)
 
 	return std::make_shared<Equation>(op, lhsExpr[0], rhsExpr[0], MultiDimInterval(intervals));
 }
-
 
 mlir::Operation* Equation::getOp() const
 {
@@ -515,18 +515,18 @@ namespace modelica::codegen::model
 
 static Expression singleDimAccToExp(const SingleDimensionAccess& access, Expression exp)
 {
-	modelica::codegen::ModelicaBuilder builder(exp.getOp()->getContext(), 64);
+	mlir::OpBuilder builder(exp.getOp());
 	mlir::Location location = exp.getOp()->getLoc();
 
-	/*
 	if (access.isDirecAccess())
 	{
 		builder.setInsertionPoint(exp.getOp());
-		mlir::Value index = builder.create<modelica::codegen::ConstantOp>(location, builder.getIndexAttribute(access.getOffset()));
+		mlir::Value index = builder.create<modelica::codegen::ConstantOp>(location, builder.getIndexAttr(access.getOffset()));
 		mlir::Value source = exp.getOp()->getResult(0);
 		auto subscription = builder.create<modelica::codegen::SubscriptionOp>(location, source, index);
 	}
 
+	/*
 	if (access.isDirecAccess())
 		return ModExp::at(
 				move(exp), ModExp(ModConst(static_cast<int>(access.getOffset()))));
@@ -536,7 +536,7 @@ static Expression singleDimAccToExp(const SingleDimensionAccess& access, Express
 	auto sum = move(ind) + ModExp(ModConst(static_cast<int>(access.getOffset())));
 
 	return ModExp::at(move(exp), move(sum));
-	*/
+	 */
 
 	return exp;
 }
@@ -558,24 +558,24 @@ static void composeAccess(Expression& exp, const VectorAccess& transformation)
 	exp = accessToExp(combinedAccess, newExps);
 }
 
-Equation Equation::composeAccess(const VectorAccess& transformation) const
+Equation::Ptr Equation::composeAccess(const VectorAccess& transformation) const
 {
-	auto toReturn = clone();
+	auto toReturn = std::make_shared<Equation>(*this);
 	auto inverted = transformation.invert();
-	toReturn.setInductionVars(inverted.map(getInductions()));
+	toReturn->setInductionVars(inverted.map(getInductions()));
 
-	ReferenceMatcher matcher(toReturn);
+	ReferenceMatcher matcher(*toReturn);
 
 	for (auto& matchedExp : matcher)
 	{
-		auto& exp = toReturn.reachExp(matchedExp);
+		auto& exp = toReturn->reachExp(matchedExp);
 		::composeAccess(exp, transformation);
 	}
 
 	return toReturn;
 }
 
-Equation Equation::normalized() const
+Equation::Ptr Equation::normalized() const
 {
 	assert(lhs().isReferenceAccess());
 	auto access = AccessToVar::fromExp(lhs()).getAccess();
@@ -584,7 +584,7 @@ Equation Equation::normalized() const
 	return composeAccess(invertedAccess);
 }
 
-Equation Equation::normalizeMatched() const
+Equation::Ptr Equation::normalizeMatched() const
 {
 	auto access = AccessToVar::fromExp(getMatchedExp()).getAccess();
 	auto invertedAccess = access.invert();
@@ -640,14 +640,37 @@ mlir::LogicalResult Equation::explicitate()
 	return mlir::success();
 }
 
-Equation Equation::clone() const
+Equation::Ptr Equation::clone() const
 {
-	Equation clone = *this;
+	Equation::Ptr result;
 
-	//mlir::OpBuilder builder(getOp());
-	//clone.op = builder.clone(*getOp());
+	mlir::OpBuilder builder(op);
 
-	return clone;
+	if (mlir::isa<EquationOp>(op))
+	{
+		auto* newOp = builder.clone(*op);
+		result = build(mlir::cast<EquationOp>(newOp));
+	}
+	else if (mlir::isa<ForEquationOp>(op))
+	{
+		// Create a copy of the inductions
+		mlir::BlockAndValueMapping mapper;
+
+		for (mlir::Value induction : mlir::cast<ForEquationOp>(op).inductions())
+		{
+			auto newInduction = mlir::cast<InductionOp>(builder.clone(*induction.getDefiningOp()));
+			mapper.map(induction, newInduction);
+		}
+
+		auto clone = mlir::cast<ForEquationOp>(builder.clone(*op, mapper));
+		result = build(clone);
+	}
+
+	auto copy = *this;
+	copy.left = result->left;
+	copy.right = result->right;
+
+	return std::make_shared<Equation>(copy);
 }
 
 using Mult = llvm::SmallVector<std::pair<Expression, bool>, 3>;

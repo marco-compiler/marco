@@ -26,7 +26,7 @@ namespace modelica::codegen::model
 
 		SingleEquationReference() = default;
 
-		[[nodiscard]] const auto& getCollapsedVertex() const
+		[[nodiscard]] auto getCollapsedVertex() const
 		{
 			return vertex->getEquation();
 		}

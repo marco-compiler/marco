@@ -34,7 +34,7 @@ void VVarDependencyGraph::populateEdge(const IndexesOfEquation& equation,
 																			 EqToVert& eqToVert)
 {
 	const auto& variable = model.getVariable(toVariable.getVar());
-	const auto usedIndexes = toVariable.getAccess().map(equation.getEquation().getInductions());
+	const auto usedIndexes = toVariable.getAccess().map(equation.getEquation()->getInductions());
 
 	for (const auto& var : lookUp.eqsDeterminingVar(variable))
 	{
@@ -44,8 +44,8 @@ void VVarDependencyGraph::populateEdge(const IndexesOfEquation& equation,
 			continue;
 
 		add_edge(
-				eqToVert[&equation.getEquation()],
-				eqToVert[&var.getEquation()],
+				eqToVert[equation.getEquation().get()],
+				eqToVert[var.getEquation().get()],
 				toVariable.getAccess(),
 				graph);
 	}
@@ -55,7 +55,7 @@ void VVarDependencyGraph::populateEq(const IndexesOfEquation& equation,
 																		 EqToVert& eqToVert)
 {
 	ReferenceMatcher rightHandMatcher;
-	rightHandMatcher.visit(equation.getEquation(), true);
+	rightHandMatcher.visit(*equation.getEquation(), true);
 
 	for (const auto& toVariable : rightHandMatcher)
 	{
@@ -70,13 +70,13 @@ void VVarDependencyGraph::create()
 	EqToVert eqToVert;
 
 	for (const auto& eq : lookUp)
-		eqToVert[&eq.getEquation()] = add_vertex(&eq, graph);
+		eqToVert[eq.getEquation().get()] = add_vertex(&eq, graph);
 
 	for (const auto& eq : lookUp)
 		populateEq(eq, eqToVert);
 }
 
-VVarDependencyGraph::VVarDependencyGraph(const Model& model, ArrayRef<Equation> equations)
+VVarDependencyGraph::VVarDependencyGraph(const Model& model, ArrayRef<Equation::Ptr> equations)
 		: model(model), lookUp(model, equations)
 {
 	create();

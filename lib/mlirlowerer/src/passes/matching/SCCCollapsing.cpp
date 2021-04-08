@@ -35,7 +35,7 @@ namespace modelica::codegen::model
 
 using namespace modelica::codegen::model;
 
-using EquationsVector = llvm::SmallVector<Equation, 3>;
+using EquationsVector = llvm::SmallVector<Equation::Ptr, 3>;
 
 using EdDescVector = llvm::SmallVector<VVarDependencyGraph::EdgeDesc, 3>;
 using DendenciesVector = llvm::SmallVector<VectorAccess, 3>;
@@ -119,7 +119,7 @@ static InexSetVector cyclicDependetSets(
 		const auto& edge = graph[c[i]];
 		const auto& eq = graph[source(c[i], graph.getImpl())];
 		v[i] = eq.getVarToEq().map(v[i]);
-		assert(eq.getEquation().getInductions().contains(v[i]));
+		assert(eq.getEquation()->getInductions().contains(v[i]));
 	}
 
 	return v;
@@ -144,28 +144,28 @@ static mlir::LogicalResult extractEquationWithDependencies(
 		const auto& eq = g[boost::source(c[i], g.getImpl())].getEquation();
 
 		// copy the equation
-		auto toFuseEq = eq.clone();
+		auto toFuseEq = eq->clone();
 
 		// set induction to those that generate the circular dependency
-		assert(toFuseEq.getInductions().contains(vecSet[i]));
-		toFuseEq.setInductionVars(vecSet[i]);
+		assert(toFuseEq->getInductions().contains(vecSet[i]));
+		toFuseEq->setInductionVars(vecSet[i]);
 
-		if (auto res = toFuseEq.explicitate(); failed(res))
+		if (auto res = toFuseEq->explicitate(); failed(res))
 			return res;
 
 		// add it to the list of filtered with normalized body
-		filtered.emplace_back(toFuseEq.normalizeMatched());
+		filtered.emplace_back(toFuseEq->normalizeMatched());
 
 		// then for all other index set that
 		// are not in the circular set
-		auto nonUsed = remove(eq.getInductions(), vecSet[i]);
+		auto nonUsed = remove(eq->getInductions(), vecSet[i]);
 
 		for (auto set : nonUsed)
 		{
 			// add the equation to the untouched set
 			untouched.emplace_back(eq);
 			// and set the inductions to the ones  that have no circular dependencies
-			untouched.back().setInductionVars(set);
+			untouched.back()->setInductionVars(set);
 		}
 	}
 
@@ -199,14 +199,13 @@ class CycleFuser
 		if (*foundOne)
 			return;
 
-		EquationsVector newEqus;
+		EquationsVector newEquations;
 		EquationsVector filtered;
 
-		auto err = extractEquationWithDependencies(*equations, filtered, newEqus, cycle, *graph);
+		auto err = extractEquationWithDependencies(*equations, filtered, newEquations, cycle, *graph);
 
 		if (succeeded(err))
 		{
-			*error = err;
 			*foundOne = true;
 			return;
 		}
@@ -214,20 +213,19 @@ class CycleFuser
 		if (succeeded(err))
 			return;
 
-		auto e = linearySolve(filtered, *model);
+		auto e = linearySolve(filtered);
 
 		if (e)
 		{
-			//*error = std::move(e);
 			*foundOne = true;
 			return;
 		}
 
 		for (auto& eq : filtered)
-			newEqus.emplace_back(std::move(eq));
+			newEquations.emplace_back(eq);
 
 		*foundOne = true;
-		*equations = std::move(newEqus);
+		*equations = newEquations;
 	}
 
 	private:
@@ -295,11 +293,13 @@ mlir::LogicalResult modelica::codegen::model::solveSCC(Model& model, size_t maxI
 			return mlir::failure();
 	}
 
-	Model result(model.getOp(), model.getVariables(), {});
+	llvm::SmallVector<Equation::Ptr, 3> equations;
 
 	for (auto& equationsList : possibleEquations)
 		for (auto& equation : equationsList)
-			result.addEquation(equation);
+			equations.push_back(equation);
+
+	Model result(model.getOp(), model.getVariables(), equations);
 
 	return mlir::success();
 }

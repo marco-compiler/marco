@@ -19,13 +19,13 @@ namespace modelica::codegen::model
 	class IndexesOfEquation
 	{
 		public:
-		IndexesOfEquation(const Model& model, const Equation& equation)
-				: access(equation.getDeterminedVariable()),
+		IndexesOfEquation(const Model& model, Equation::Ptr equation)
+				: access(equation->getDeterminedVariable()),
 					invertedAccess(access.getAccess().invert()),
-					indexSet(access.getAccess().map(equation.getInductions())),
+					indexSet(access.getAccess().map(equation->getInductions())),
 
 					variable(&model.getVariable(access.getVar())),
-					equation(&equation)
+					equation(equation)
 		{
 		}
 
@@ -34,7 +34,7 @@ namespace modelica::codegen::model
 			return indexSet;
 		}
 		[[nodiscard]] const Variable& getVariable() const { return *variable; }
-		[[nodiscard]] const Equation& getEquation() const { return *equation; }
+		[[nodiscard]] Equation::Ptr getEquation() const { return equation; }
 		[[nodiscard]] const VectorAccess& getEqToVar() const
 		{
 			return access.getAccess();
@@ -49,7 +49,7 @@ namespace modelica::codegen::model
 		VectorAccess invertedAccess;
 		MultiDimInterval indexSet;
 		const Variable* variable;
-		const Equation* equation;
+		Equation::Ptr equation;
 	};
 
 	/**
@@ -68,17 +68,17 @@ namespace modelica::codegen::model
 		public:
 		MatchedEquationLookup(const Model& model)
 		{
-			for (auto& equation : model)
+			for (const auto& equation : model.getEquations())
 				addEquation(equation, model);
 		}
 
-		MatchedEquationLookup(const Model& model, llvm::ArrayRef<Equation> equs)
+		MatchedEquationLookup(const Model& model, llvm::ArrayRef<Equation::Ptr> equs)
 		{
-			for (auto& equation : equs)
+			for (const auto& equation : equs)
 				addEquation(equation, model);
 		}
 
-		void addEquation(const Equation& equation, const Model& model)
+		void addEquation(Equation::Ptr equation, const Model& model)
 		{
 			IndexesOfEquation index(model, equation);
 			const Variable* var = &index.getVariable();

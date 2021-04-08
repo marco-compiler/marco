@@ -16,7 +16,6 @@ namespace modelica::codegen::model
 {
 	static void replaceUses(const Equation& newEq, Equation& original)
 	{
-		/*
 		auto var = newEq.getDeterminedVariable();
 		ReferenceMatcher matcher(original);
 
@@ -24,25 +23,24 @@ namespace modelica::codegen::model
 		{
 			auto pathToVar = AccessToVar::fromExp(acc.getExp());
 
-			if (pathToVar.getVarName() != var.getVarName())
+			if (pathToVar.getVar() != var.getVar())
 				continue;
 
 			auto composed = newEq.composeAccess(pathToVar.getAccess());
-			original.reachExp(acc) = composed.getRight();
+			original.reachExp(acc) = composed->rhs();
 		}
-		 */
 	}
 
-	inline llvm::Error linearySolve(llvm::SmallVectorImpl<Equation>& equations, const Model& model)
+	inline llvm::Error linearySolve(llvm::SmallVectorImpl<Equation::Ptr>& equations)
 	{
 		for (auto eq = equations.rbegin(); eq != equations.rend(); eq++)
 		{
 			for (auto eq2 = eq + 1; eq2 != equations.rend(); eq2++)
-				replaceUses(*eq, *eq2);
+				replaceUses(**eq, **eq2);
 		}
 
-		for (auto& eq : equations)
-			eq = eq.groupLeftHand();
+		//for (auto& eq : equations)
+		//	eq = eq->groupLeftHand();
 
 		return llvm::Error::success();
 	}

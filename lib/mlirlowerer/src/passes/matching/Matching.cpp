@@ -231,7 +231,7 @@ mlir::LogicalResult modelica::codegen::model::match(Model& model, size_t maxIter
 	if (graph.matchedCount() != model.equationsCount())
 		return model.getOp()->emitError("Not all the equations have been matched");
 
-	Model result(model.getOp(), model.getVariables(), {});
+	llvm::SmallVector<Equation::Ptr, 3> equations;
 
 	for (auto& edge : graph)
 	{
@@ -240,13 +240,17 @@ mlir::LogicalResult modelica::codegen::model::match(Model& model, size_t maxIter
 
 		for (const auto& inductionVars : edge.getSet())
 		{
-			const auto& eq = edge.getEquation();
-			result.addEquation(eq.clone());
-			auto& justInserted = result.getEquations().back();
-			justInserted->setInductionVars(inductionVars);
-			justInserted->setMatchedExp(edge.getPath().getEqPath());
+			// It is sufficient to make a copy of the equation descriptor, as we
+			// don't need to clone the whole equation IR.
+			auto equation = edge.getEquation();
+
+			equation.setInductionVars(inductionVars);
+			equation.setMatchedExp(edge.getPath().getEqPath());
+			equations.push_back(std::make_shared<Equation>(equation));
 		}
 	}
+
+	Model result(model.getOp(), model.getVariables(), equations);
 
 	model = result;
 	return mlir::success();

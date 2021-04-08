@@ -28,7 +28,7 @@ namespace modelica::codegen::model
 		using EdgeDesc = boost::graph_traits<GraphImp>::edge_descriptor;
 
 		VVarDependencyGraph(const Model& model);
-		VVarDependencyGraph(const Model& model, llvm::ArrayRef<Equation> equs);
+		VVarDependencyGraph(const Model& model, llvm::ArrayRef<Equation::Ptr> equs);
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		[[nodiscard]] size_t count() const { return graph.m_vertices.size(); }

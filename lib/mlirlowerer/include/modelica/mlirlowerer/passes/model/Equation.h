@@ -19,6 +19,8 @@ namespace modelica::codegen::model
 	class Equation
 	{
 		public:
+		using Ptr = std::shared_ptr<Equation>;
+
 		Equation(mlir::Operation* op,
 						 std::shared_ptr<Expression> left,
 						 std::shared_ptr<Expression> right,
@@ -26,8 +28,8 @@ namespace modelica::codegen::model
 						 bool isForward = true,
 						 std::optional<EquationPath> path = std::nullopt);
 
-		static std::shared_ptr<Equation> build(EquationOp op);
-		static std::shared_ptr<Equation> build(ForEquationOp op);
+		static Equation::Ptr build(EquationOp op);
+		static Equation::Ptr build(ForEquationOp op);
 
 		[[nodiscard]] mlir::Operation* getOp() const;
 
@@ -57,17 +59,17 @@ namespace modelica::codegen::model
 
 		[[nodiscard]] ExpressionPath getMatchedExpressionPath() const;
 
-		[[nodiscard]] Equation normalized() const;
+		[[nodiscard]] Equation::Ptr normalized() const;
 
-		[[nodiscard]] Equation normalizeMatched() const;
+		[[nodiscard]] Equation::Ptr normalizeMatched() const;
 
 		mlir::LogicalResult explicitate(mlir::OpBuilder& builder, size_t argumentIndex, bool left);
 		mlir::LogicalResult explicitate(const ExpressionPath& path);
 		mlir::LogicalResult explicitate();
 
-		[[nodiscard]] Equation clone() const;
+		[[nodiscard]] Equation::Ptr clone() const;
 
-		[[nodiscard]] Equation composeAccess(const VectorAccess& transformation) const;
+		[[nodiscard]] Equation::Ptr composeAccess(const VectorAccess& transformation) const;
 
 		template<typename Path>
 		[[nodiscard]] Expression& reachExp(Path& path)
@@ -93,8 +95,8 @@ namespace modelica::codegen::model
 		EquationSidesOp getTerminator();
 
 		mlir::Operation* op;
-		std::shared_ptr<Expression> left;
-		std::shared_ptr<Expression> right;
+		Expression::Ptr left;
+		Expression::Ptr right;
 		MultiDimInterval inductions;
 		bool isForCycle;
 		bool isForwardDirection;
