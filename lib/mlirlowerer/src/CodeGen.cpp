@@ -588,50 +588,65 @@ void MLIRLowerer::lower(ForEquation& forEquation)
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 	mlir::Location location = loc(forEquation.getEquation().getLocation());
 
-	llvm::SmallVector<mlir::Value, 3> inductions;
-
-	for (auto& induction : forEquation.getInductions())
-	{
-		auto& startExpression = induction.getBegin();
-		assert(startExpression.isA<Constant>());
-		long start = startExpression.get<Constant>().as<BuiltInType::Integer>();
-
-		auto& endExpression = induction.getEnd();
-		assert(endExpression.isA<Constant>());
-		long end = endExpression.get<Constant>().as<BuiltInType::Integer>();
-
-		mlir::Value ind = builder.create<InductionOp>(location, start, end);
-		inductions.push_back(ind);
-		symbolTable.insert(induction.getName(), Reference::ssa(&builder, ind));
-	}
-
-	auto result = builder.create<ForEquationOp>(location, inductions);
-	mlir::OpBuilder::InsertionGuard guard(builder);
-	auto& equation = forEquation.getEquation();
-	builder.setInsertionPointToStart(&result.body().front());
-
-	llvm::SmallVector<mlir::Value, 1> lhs;
-	llvm::SmallVector<mlir::Value, 1> rhs;
+	auto result = builder.create<ForEquationOp>(location, forEquation.getInductions().size());
 
 	{
-		// Left-hand side
-		auto& expression = equation.getLeftHand();
-		auto references = lower<Expression>(expression);
+		// Inductions
+		mlir::OpBuilder::InsertionGuard guard(builder);
+		builder.setInsertionPointToStart(result.inductionsBlock());
+		llvm::SmallVector<mlir::Value, 3> inductions;
 
-		for (auto& reference : references)
-			lhs.push_back(*reference);
+		for (auto& induction : forEquation.getInductions())
+		{
+			auto& startExpression = induction.getBegin();
+			assert(startExpression.isA<Constant>());
+			long start = startExpression.get<Constant>().as<BuiltInType::Integer>();
+
+			auto& endExpression = induction.getEnd();
+			assert(endExpression.isA<Constant>());
+			long end = endExpression.get<Constant>().as<BuiltInType::Integer>();
+
+			mlir::Value ind = builder.create<InductionOp>(location, start, end);
+			inductions.push_back(ind);
+		}
+
+		builder.create<YieldOp>(location, inductions);
 	}
 
 	{
-		// Right-hand side
-		auto& expression = equation.getRightHand();
-		auto references = lower<Expression>(expression);
+		// Body
+		mlir::OpBuilder::InsertionGuard guard(builder);
+		builder.setInsertionPointToStart(&result.body().front());
 
-		for (auto& reference : references)
-			rhs.push_back(*reference);
+		// Add the induction variables to the symbol table
+		for (auto [induction, var] : llvm::zip(forEquation.getInductions(), result.body().getArguments()))
+			symbolTable.insert(induction.getName(), Reference::ssa(&builder, var));
+
+		auto& equation = forEquation.getEquation();
+
+		llvm::SmallVector<mlir::Value, 1> lhs;
+		llvm::SmallVector<mlir::Value, 1> rhs;
+
+		{
+			// Left-hand side
+			auto& expression = equation.getLeftHand();
+			auto references = lower<Expression>(expression);
+
+			for (auto& reference : references)
+				lhs.push_back(*reference);
+		}
+
+		{
+			// Right-hand side
+			auto& expression = equation.getRightHand();
+			auto references = lower<Expression>(expression);
+
+			for (auto& reference : references)
+				rhs.push_back(*reference);
+		}
+
+		builder.create<EquationSidesOp>(location, lhs, rhs);
 	}
-
-	builder.create<EquationSidesOp>(location, lhs, rhs);
 }
 
 void MLIRLowerer::lower(Algorithm& algorithm)

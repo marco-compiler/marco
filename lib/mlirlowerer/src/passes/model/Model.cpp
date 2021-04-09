@@ -49,7 +49,7 @@ class VariablesFinder
 
 Model::Model(SimulationOp op,
 						 llvm::ArrayRef<std::shared_ptr<Variable>> variables,
-						 llvm::ArrayRef<std::shared_ptr<Equation>> equations)
+						 llvm::ArrayRef<Equation> equations)
 		: op(op),
 			variables(variables.begin(), variables.end()),
 			equations(equations.begin(), equations.end())
@@ -59,7 +59,7 @@ Model::Model(SimulationOp op,
 Model Model::build(SimulationOp op)
 {
 	llvm::SmallVector<std::shared_ptr<Variable>, 3> variables;
-	llvm::SmallVector<std::shared_ptr<Equation>, 3> equations;
+	llvm::SmallVector<Equation, 3> equations;
 
 	op.walk([&](EquationOp equation) {
 		equations.push_back(Equation::build(equation));
@@ -70,7 +70,7 @@ Model Model::build(SimulationOp op)
 	});
 
 	for (const auto& equation : equations)
-		equation->lhs().visit(VariablesFinder(variables));
+		equation.lhs().visit(VariablesFinder(variables));
 
 	return Model(op, variables, equations);
 }
@@ -124,12 +124,12 @@ const Variable& Model::getVariable(mlir::Value var) const
 	assert(false && "Not found");
 }
 
-Model::Container<Variable>& Model::getVariables()
+Model::Container<std::shared_ptr<Variable>>& Model::getVariables()
 {
 	return variables;
 }
 
-const Model::Container<Variable>& Model::getVariables() const
+const Model::Container<std::shared_ptr<Variable>>& Model::getVariables() const
 {
 	return variables;
 }
@@ -152,7 +152,7 @@ const Model::Container<Equation>& Model::getEquations() const
 
 void Model::addEquation(Equation equation)
 {
-	equations.push_back(std::make_shared<Equation>(equation));
+	equations.push_back(equation);
 }
 
 size_t Model::equationsCount() const
@@ -160,7 +160,7 @@ size_t Model::equationsCount() const
 	size_t count = 0;
 
 	for (const auto& equation : equations)
-		count += equation->getInductions().size();
+		count += equation.getInductions().size();
 
 	return count;
 }

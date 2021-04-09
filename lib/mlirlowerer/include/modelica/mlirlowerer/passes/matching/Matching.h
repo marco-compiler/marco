@@ -98,7 +98,7 @@ namespace modelica::codegen::model
 
 		using ConstOutEdgeIter = boost::graph_traits<const GraphImp>::out_edge_iterator;
 
-		using EquationLookup = std::map<const Equation*, VertexDesc>;
+		using EquationLookup = std::map<const Equation, VertexDesc>;
 		using VariableLookup = std::map<const Variable*, VertexDesc>;
 
 		using out_iterator = class MatchingGraphIterator<MatchingGraph, OutEdgeIter, Edge>;
@@ -150,8 +150,8 @@ namespace modelica::codegen::model
 		}
 
 		private:
-		void addEquation(const Equation& eq);
-		void emplaceEdge(const Equation& eq, ExpressionPath path, size_t index);
+		void addEquation(Equation eq);
+		void emplaceEdge(Equation eq, ExpressionPath path, size_t index);
 
 		VertexDesc getDesc(const Equation& eq);
 		VertexDesc getDesc(const Variable& var);

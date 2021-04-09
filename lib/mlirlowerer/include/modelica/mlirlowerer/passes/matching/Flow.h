@@ -25,7 +25,7 @@ namespace modelica::codegen::model
 		[[nodiscard]] const Edge& getEdge() const;
 
 		[[nodiscard]] const Variable& getVariable() const;
-		[[nodiscard]] const Equation& getEquation() const;
+		[[nodiscard]] Equation getEquation() const;
 
 		[[nodiscard]] const IndexSet& getSet() const;
 

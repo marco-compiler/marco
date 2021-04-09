@@ -18,26 +18,55 @@ namespace modelica::codegen::model
 
 	class Equation
 	{
-		public:
-		using Ptr = std::shared_ptr<Equation>;
+		private:
+		class Impl
+		{
+			public:
+			Impl(mlir::Operation* op,
+					 Expression left,
+					 Expression right,
+					 MultiDimInterval inductions = {},
+					 bool isForward = true,
+					 std::optional<EquationPath> path = std::nullopt);
 
+			friend class Equation;
+
+			private:
+			mlir::Operation* op;
+			Expression left;
+			Expression right;
+			MultiDimInterval inductions;
+			bool isForCycle;
+			bool isForwardDirection;
+			std::optional<EquationPath> matchedExpPath;
+		};
+
+		std::shared_ptr<Impl> impl;
+
+		public:
 		Equation(mlir::Operation* op,
-						 std::shared_ptr<Expression> left,
-						 std::shared_ptr<Expression> right,
+						 Expression left,
+						 Expression right,
 						 MultiDimInterval inductions = {},
 						 bool isForward = true,
 						 std::optional<EquationPath> path = std::nullopt);
 
-		static Equation::Ptr build(EquationOp op);
-		static Equation::Ptr build(ForEquationOp op);
+		static Equation build(mlir::Operation* op);
+		static Equation build(EquationOp op);
+		static Equation build(ForEquationOp op);
+
+		bool operator==(const Equation& rhs) const;
+		bool operator!=(const Equation& rhs) const;
+
+		bool operator<(const Equation& rhs) const;
+		bool operator>(const Equation& rhs) const;
+		bool operator<=(const Equation& rhs) const;
+		bool operator>=(const Equation& rhs) const;
 
 		[[nodiscard]] mlir::Operation* getOp() const;
 
-		[[nodiscard]] Expression& lhs();
-		[[nodiscard]] const Expression& lhs() const;
-
-		[[nodiscard]] Expression& rhs();
-		[[nodiscard]] const Expression& rhs() const;
+		[[nodiscard]] Expression lhs() const;
+		[[nodiscard]] Expression rhs() const;
 
 		[[nodiscard]] size_t amount() const;
 
@@ -51,34 +80,25 @@ namespace modelica::codegen::model
 		void setForward(bool isForward);
 
 		[[nodiscard]] bool isMatched() const;
-		[[nodiscard]] Expression& getMatchedExp();
-		[[nodiscard]] const Expression& getMatchedExp() const;
+		[[nodiscard]] Expression getMatchedExp() const;
 		void setMatchedExp(EquationPath path);
 
 		[[nodiscard]] AccessToVar getDeterminedVariable() const;
 
 		[[nodiscard]] ExpressionPath getMatchedExpressionPath() const;
 
-		[[nodiscard]] Equation::Ptr normalized() const;
-
-		[[nodiscard]] Equation::Ptr normalizeMatched() const;
+		[[nodiscard]] mlir::LogicalResult normalize();
 
 		mlir::LogicalResult explicitate(mlir::OpBuilder& builder, size_t argumentIndex, bool left);
 		mlir::LogicalResult explicitate(const ExpressionPath& path);
 		mlir::LogicalResult explicitate();
 
-		[[nodiscard]] Equation::Ptr clone() const;
+		[[nodiscard]] Equation clone() const;
 
-		[[nodiscard]] Equation::Ptr composeAccess(const VectorAccess& transformation) const;
-
-		template<typename Path>
-		[[nodiscard]] Expression& reachExp(Path& path)
-		{
-			return path.isOnEquationLeftHand() ? path.reach(lhs()) : path.reach(rhs());
-		}
+		[[nodiscard]] Equation composeAccess(const VectorAccess& transformation) const;
 
 		template<typename Path>
-		[[nodiscard]] const Expression& reachExp(const Path& path) const
+		[[nodiscard]] Expression reachExp(Path& path) const
 		{
 			return path.isOnEquationLeftHand() ? path.reach(lhs()) : path.reach(rhs());
 		}
@@ -93,13 +113,5 @@ namespace modelica::codegen::model
 		void getEquationsAmount(mlir::ValueRange values, llvm::SmallVectorImpl<long>& amounts) const;
 
 		EquationSidesOp getTerminator();
-
-		mlir::Operation* op;
-		Expression::Ptr left;
-		Expression::Ptr right;
-		MultiDimInterval inductions;
-		bool isForCycle;
-		bool isForwardDirection;
-		std::optional<EquationPath> matchedExpPath;
 	};
 }

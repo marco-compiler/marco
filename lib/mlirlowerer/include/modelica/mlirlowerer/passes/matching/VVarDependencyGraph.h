@@ -28,7 +28,7 @@ namespace modelica::codegen::model
 		using EdgeDesc = boost::graph_traits<GraphImp>::edge_descriptor;
 
 		VVarDependencyGraph(const Model& model);
-		VVarDependencyGraph(const Model& model, llvm::ArrayRef<Equation::Ptr> equs);
+		VVarDependencyGraph(const Model& model, llvm::ArrayRef<Equation> equs);
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		[[nodiscard]] size_t count() const { return graph.m_vertices.size(); }
@@ -71,12 +71,12 @@ namespace modelica::codegen::model
 		}
 
 		private:
-		using EqToVert = std::map<const Equation*, VertexDesc>;
+		using EqToVert = std::map<Equation, VertexDesc>;
 		void populateEdge(
-				const IndexesOfEquation& equation,
+				IndexesOfEquation& equation,
 				const AccessToVar& toVariable,
 				EqToVert& eqToVert);
-		void populateEq(const IndexesOfEquation& eq, EqToVert& eqToVert);
+		void populateEq(IndexesOfEquation& eq, EqToVert& eqToVert);
 		void create();
 
 		const Model& model;

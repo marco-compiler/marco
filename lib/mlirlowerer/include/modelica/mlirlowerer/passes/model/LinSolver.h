@@ -27,16 +27,16 @@ namespace modelica::codegen::model
 				continue;
 
 			auto composed = newEq.composeAccess(pathToVar.getAccess());
-			original.reachExp(acc) = composed->rhs();
+			original.reachExp(acc) = composed.rhs();
 		}
 	}
 
-	inline llvm::Error linearySolve(llvm::SmallVectorImpl<Equation::Ptr>& equations)
+	inline llvm::Error linearySolve(llvm::SmallVectorImpl<Equation>& equations)
 	{
 		for (auto eq = equations.rbegin(); eq != equations.rend(); eq++)
 		{
 			for (auto eq2 = eq + 1; eq2 != equations.rend(); eq2++)
-				replaceUses(**eq, **eq2);
+				replaceUses(*eq, *eq2);
 		}
 
 		//for (auto& eq : equations)

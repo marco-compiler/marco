@@ -19,7 +19,7 @@ namespace modelica::codegen::model
 		using iterator = Container<std::shared_ptr<Expression>>::iterator;
 		using const_iterator = Container<std::shared_ptr<Expression>>::const_iterator;
 
-		Operation(llvm::ArrayRef<std::shared_ptr<Expression>> args);
+		Operation(llvm::ArrayRef<Expression> args);
 
 		std::shared_ptr<Expression> operator[](size_t index);
 		std::shared_ptr<Expression> operator[](size_t index) const;

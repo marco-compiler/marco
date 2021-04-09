@@ -6,25 +6,29 @@
 
 using namespace modelica::codegen::model;
 
-DerSolver::DerSolver(SimulationOp simulation, Model& model)
-		: simulation(simulation), model(model)
+DerSolver::DerSolver(Model& model) : model(&model)
 {
 }
 
-void DerSolver::solve()
+mlir::LogicalResult DerSolver::solve()
 {
-	for (auto& equation : model.getEquations())
-		solve(*equation);
+	for (auto& equation : model->getEquations())
+	{
+		solve(equation);
+		equation = Equation::build(equation.getOp());
+	}
+
+	return mlir::success();
 }
 
-void DerSolver::solve(Equation& equation)
+void DerSolver::solve(Equation equation)
 {
 	solve<Expression>(equation.lhs());
 	solve<Expression>(equation.rhs());
 }
 
 template<>
-void DerSolver::solve<Expression>(Expression& expression)
+void DerSolver::solve<Expression>(Expression expression)
 {
 	return expression.visit([&](auto& obj) {
 		using type = decltype(obj);
@@ -34,25 +38,25 @@ void DerSolver::solve<Expression>(Expression& expression)
 }
 
 template<>
-void DerSolver::solve<Constant>(Expression& expression)
+void DerSolver::solve<Constant>(Expression expression)
 {
 	// Nothing to do here
 }
 
 template<>
-void DerSolver::solve<Reference>(Expression& expression)
+void DerSolver::solve<Reference>(Expression expression)
 {
 	// Nothing to do here
 }
 
 template<>
-void DerSolver::solve<Operation>(Expression& expression)
+void DerSolver::solve<Operation>(Expression expression)
 {
 	auto* op = expression.getOp();
 
 	if (auto derOp = mlir::dyn_cast<DerOp>(op))
 	{
-		mlir::OpBuilder builder(simulation);
+		mlir::OpBuilder builder(model->getOp());
 		mlir::Operation* definingOp = derOp.operand().getDefiningOp();
 		llvm::SmallVector<mlir::Value, 3> subscriptions;
 
@@ -70,7 +74,7 @@ void DerSolver::solve<Operation>(Expression& expression)
 		}
 
 		assert(definingOp->getNumResults() == 1);
-		auto& var = model.getVariable(definingOp->getResult(0));
+		auto& var = model->getVariable(definingOp->getResult(0));
 		mlir::Value derVar;
 
 		if (!var.isState())
@@ -82,7 +86,7 @@ void DerSolver::solve<Operation>(Expression& expression)
 				derVar = builder.create<AllocaOp>(derOp.getLoc(), var.getReference().getType());
 			}
 
-			model.addVariable(derVar);
+			model->addVariable(derVar);
 			var.setDer(derVar);
 		}
 		else
@@ -90,14 +94,14 @@ void DerSolver::solve<Operation>(Expression& expression)
 			derVar = var.getDer();
 		}
 
-		expression = *Expression::reference(derVar);
+		expression = Expression::reference(derVar);
 		builder.setInsertionPoint(derOp);
 
 		if (!subscriptions.empty())
 		{
 			auto subscriptionOp = builder.create<SubscriptionOp>(derOp->getLoc(), derVar, subscriptions);
 			derVar = subscriptionOp.getResult();
-			expression = *Expression::operation(subscriptionOp, std::make_shared<Expression>(expression));
+			expression = Expression::operation(subscriptionOp, expression);
 		}
 
 		if (auto pointerType = derVar.getType().cast<PointerType>(); pointerType.getRank() == 0)

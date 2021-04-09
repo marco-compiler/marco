@@ -28,7 +28,7 @@ const Variable& Flow::getVariable() const
 	return getEdge().getVariable();
 }
 
-const Equation& Flow::getEquation() const
+Equation Flow::getEquation() const
 {
 	return edge->getEquation();
 }

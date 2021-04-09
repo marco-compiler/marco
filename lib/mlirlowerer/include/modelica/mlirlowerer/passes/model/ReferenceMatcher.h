@@ -18,7 +18,7 @@ namespace modelica::codegen::model
 		using const_iterator = Container<ExpressionPath>::const_iterator;
 
 		ReferenceMatcher();
-		ReferenceMatcher(const Equation& eq);
+		ReferenceMatcher(Equation eq);
 
 		[[nodiscard]] ExpressionPath& operator[](size_t index);
 		[[nodiscard]] const ExpressionPath& operator[](size_t index) const;
@@ -34,10 +34,10 @@ namespace modelica::codegen::model
 		[[nodiscard]] ExpressionPath& at(size_t index);
 		[[nodiscard]] const ExpressionPath& at(size_t index) const;
 
-		[[nodiscard]] const Expression& getExp(size_t index) const;
+		[[nodiscard]] Expression getExp(size_t index) const;
 
-		void visit(const Expression& exp, bool isLeft, size_t index);
-		void visit(const Equation& equation, bool ignoreMatched = false);
+		void visit(Expression exp, bool isLeft, size_t index);
+		void visit(Equation equation, bool ignoreMatched = false);
 
 		private:
 		void removeBack();

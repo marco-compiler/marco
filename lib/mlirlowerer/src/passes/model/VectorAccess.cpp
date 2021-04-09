@@ -105,7 +105,7 @@ bool SingleDimensionAccess::isCanonical(const Expression& expression)
 		// and induction variable and a constant.
 		if (auto addOp = mlir::dyn_cast<AddOp>(index.getDefiningOp()))
 		{
-			if (mlir::isa<InductionOp>(addOp.lhs().getDefiningOp()) &&
+			if (addOp.lhs().isa<mlir::BlockArgument>() &&
 					mlir::isa<ConstantOp>(addOp.rhs().getDefiningOp()))
 				continue;
 		}
@@ -114,7 +114,7 @@ bool SingleDimensionAccess::isCanonical(const Expression& expression)
 		// of and induction variable and a constant.
 		if (auto subOp = mlir::dyn_cast<SubOp>(index.getDefiningOp()))
 		{
-			if (mlir::isa<InductionOp>(subOp.lhs().getDefiningOp()) &&
+			if (subOp.lhs().isa<mlir::BlockArgument>() &&
 					mlir::isa<ConstantOp>(subOp.rhs().getDefiningOp()))
 				continue;
 		}
@@ -264,7 +264,7 @@ SmallVector<size_t, 3> VectorAccess::map(llvm::ArrayRef<size_t> interval) const
 	return intervals;
 }
 
-bool VectorAccess::isCanonical(const Expression& expression)
+bool VectorAccess::isCanonical(Expression expression)
 {
 	if (expression.isReference())
 		return true;
@@ -280,7 +280,7 @@ bool VectorAccess::isCanonical(const Expression& expression)
 	if (!SingleDimensionAccess::isCanonical(expression))
 		return false;
 
-	return isCanonical(*expression.getChild(0));
+	return isCanonical(expression.getChild(0));
 }
 
 AccessToVar::AccessToVar(VectorAccess access, mlir::Value var)
@@ -333,11 +333,11 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 	// the accessed variable.
 
 	SmallVector<SingleDimensionAccess, 3> access;
-	const auto* ptr = &expression;
+	Expression ptr = expression;
 
-	while (auto subscription = mlir::dyn_cast<SubscriptionOp>(ptr->getOp()))
+	while (auto subscription = mlir::dyn_cast<SubscriptionOp>(ptr.getOp()))
 	{
-		assert(SingleDimensionAccess::isCanonical(*ptr));
+		assert(SingleDimensionAccess::isCanonical(ptr));
 		auto indexes = subscription.indexes();
 
 		for (size_t i = indexes.size(); i > 0; --i)
@@ -351,7 +351,7 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 				continue;
 			}
 
-			if (mlir::isa<InductionOp>(index.getDefiningOp()))
+			if (index.isa<mlir::BlockArgument>())
 			{
 				// for i in a:b loop x[i]
 				auto forEquation = subscription->getParentOfType<ForEquationOp>();
@@ -367,7 +367,7 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 				auto forEquation = subscription->getParentOfType<ForEquationOp>();
 
 				auto lhs = addOp.lhs();
-				assert(mlir::isa<InductionOp>(lhs.getDefiningOp()));
+				assert(lhs.isa<mlir::BlockArgument>());
 
 				auto rhs = addOp.rhs();
 				assert(mlir::isa<ConstantOp>(rhs.getDefiningOp()));
@@ -387,7 +387,7 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 				auto forEquation = subscription->getParentOfType<ForEquationOp>();
 
 				auto lhs = subOp.lhs();
-				assert(mlir::isa<InductionOp>(lhs.getDefiningOp()));
+				assert(lhs.isa<mlir::BlockArgument>());
 
 				auto rhs = subOp.rhs();
 				assert(mlir::isa<ConstantOp>(rhs.getDefiningOp()));
@@ -404,10 +404,10 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 			assert(false && "Invalid access pattern");
 		}
 
-		ptr = ptr->getChild(0).get();
+		ptr = ptr.getChild(0);
 	}
 
-	assert(ptr->isReference());
+	assert(ptr.isReference());
 	reverse(begin(access), end(access));
-	return AccessToVar(VectorAccess(move(access)), ptr->get<Reference>().getVar());
+	return AccessToVar(VectorAccess(move(access)), ptr.get<Reference>().getVar());
 }

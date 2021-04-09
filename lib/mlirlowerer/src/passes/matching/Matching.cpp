@@ -106,7 +106,7 @@ size_t MatchingGraph::matchedEdgesCount() const
 
 llvm::iterator_range<MatchingGraph::out_iterator> MatchingGraph::arcsOf(const Equation& equation)
 {
-	const auto iter = equationLookUp.find(&equation);
+	const auto iter = equationLookUp.find(equation);
 	assert(equationLookUp.end() != iter);
 	auto [begin, end] = boost::out_edges(iter->second, graph);
 	return llvm::make_range(out_iterator(*this, begin), out_iterator(*this, end));
@@ -114,7 +114,7 @@ llvm::iterator_range<MatchingGraph::out_iterator> MatchingGraph::arcsOf(const Eq
 
 llvm::iterator_range<MatchingGraph::const_out_iterator> MatchingGraph::arcsOf(const Equation& equation) const
 {
-	const auto iter = equationLookUp.find(&equation);
+	const auto iter = equationLookUp.find(equation);
 	assert(equationLookUp.end() != iter);
 	auto [begin, end] = boost::out_edges(iter->second, graph);
 	return llvm::make_range(const_out_iterator(*this, begin), const_out_iterator(*this, end));
@@ -171,11 +171,11 @@ modelica::IndexSet MatchingGraph::getMatchedSet(const Equation& eq) const
 
 MatchingGraph::VertexDesc MatchingGraph::getDesc(const Equation& eq)
 {
-	if (equationLookUp.find(&eq) != equationLookUp.end())
-		return equationLookUp[&eq];
+	if (equationLookUp.find(eq) != equationLookUp.end())
+		return equationLookUp[eq];
 
 	auto dec = boost::add_vertex(graph);
-	equationLookUp[&eq] = dec;
+	equationLookUp[eq] = dec;
 	return dec;
 }
 
@@ -189,7 +189,7 @@ MatchingGraph::VertexDesc MatchingGraph::getDesc(const Variable& var)
 	return dec;
 }
 
-void MatchingGraph::addEquation(const Equation& eq)
+void MatchingGraph::addEquation(Equation eq)
 {
 	ReferenceMatcher matcher(eq);
 
@@ -197,7 +197,7 @@ void MatchingGraph::addEquation(const Equation& eq)
 		emplaceEdge(eq, std::move(matcher[useIndex]), useIndex);
 }
 
-void MatchingGraph::emplaceEdge(const Equation& eq, ExpressionPath path, size_t useIndex)
+void MatchingGraph::emplaceEdge(Equation eq, ExpressionPath path, size_t useIndex)
 {
 	if (!VectorAccess::isCanonical(path.getExp()))
 		return;
@@ -231,7 +231,7 @@ mlir::LogicalResult modelica::codegen::model::match(Model& model, size_t maxIter
 	if (graph.matchedCount() != model.equationsCount())
 		return model.getOp()->emitError("Not all the equations have been matched");
 
-	llvm::SmallVector<Equation::Ptr, 3> equations;
+	llvm::SmallVector<Equation, 3> equations;
 
 	for (auto& edge : graph)
 	{
@@ -246,7 +246,7 @@ mlir::LogicalResult modelica::codegen::model::match(Model& model, size_t maxIter
 
 			equation.setInductionVars(inductionVars);
 			equation.setMatchedExp(edge.getPath().getEqPath());
-			equations.push_back(std::make_shared<Equation>(equation));
+			equations.push_back(equation);
 		}
 	}
 

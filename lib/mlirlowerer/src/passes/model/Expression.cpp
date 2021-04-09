@@ -8,22 +8,47 @@
 
 using namespace modelica::codegen::model;
 
-Expression::Expression(mlir::Operation* op, Constant content)
+Expression::Impl::Impl(mlir::Operation* op, Constant content)
 		: op(op), content(content), name(op->getName().getStringRef().str())
+{
+}
+
+Expression::Impl::Impl(mlir::Operation* op, Reference content)
+		: op(op), content(content), name(op->getName().getStringRef().str())
+{
+}
+
+Expression::Impl::Impl(mlir::Operation* op, Operation content)
+		: op(op), content(content), name(op->getName().getStringRef().str())
+{
+}
+
+Expression::Expression(mlir::Operation* op, Constant content)
+		: impl(std::make_shared<Impl>(op, content))
 {
 }
 
 Expression::Expression(mlir::Operation* op, Reference content)
-		: op(op), content(content), name(op->getName().getStringRef().str())
+		: impl(std::make_shared<Impl>(op, content))
 {
 }
 
 Expression::Expression(mlir::Operation* op, Operation content)
-		: op(op), content(content), name(op->getName().getStringRef().str())
+		: impl(std::make_shared<Impl>(op, content))
 {
 }
 
-Expression::Ptr Expression::build(mlir::Value value)
+bool Expression::operator==(const Expression& rhs) const
+{
+	return impl == rhs.impl;
+}
+
+bool Expression::operator!=(const Expression& rhs) const
+{
+	return !(rhs == *this);
+}
+
+Expression Expression::build(mlir::Value value)
 {
 	mlir::Operation* definingOp = value.getDefiningOp();
 
@@ -39,7 +64,7 @@ Expression::Ptr Expression::build(mlir::Value value)
 	if (mlir::isa<ConstantOp>(definingOp))
 		return Expression::constant(value);
 
-	llvm::SmallVector<Expression::Ptr, 3> args;
+	llvm::SmallVector<Expression, 3> args;
 
 	if (auto op = mlir::dyn_cast<CallOp>(definingOp))
 	{
@@ -73,34 +98,34 @@ Expression::Ptr Expression::build(mlir::Value value)
 	assert(false && "Unexpected operation");
 }
 
-Expression::Ptr Expression::constant(mlir::Value value)
+Expression Expression::constant(mlir::Value value)
 {
-	return std::make_shared<Expression>(value.getDefiningOp(), Constant(value));
+	return Expression(value.getDefiningOp(), Constant(value));
 }
 
-Expression::Ptr Expression::reference(mlir::Value value)
+Expression Expression::reference(mlir::Value value)
 {
-	return std::make_shared<Expression>(value.getDefiningOp(), Reference(value));
+	return Expression(value.getDefiningOp(), Reference(value));
 }
 
-Expression::Ptr Expression::operation(mlir::Operation* op, llvm::ArrayRef<std::shared_ptr<Expression>> args)
+Expression Expression::operation(mlir::Operation* op, llvm::ArrayRef<Expression> args)
 {
-	return std::make_shared<Expression>(op, Operation(args));
+	return Expression(op, Operation(args));
 }
 
 mlir::Operation* Expression::getOp() const
 {
-	return op;
+	return impl->op;
 }
 
 bool Expression::isConstant() const
 {
-	return std::holds_alternative<Constant>(content);
+	return std::holds_alternative<Constant>(impl->content);
 }
 
 bool Expression::isReference() const
 {
-	return std::holds_alternative<Reference>(content);
+	return std::holds_alternative<Reference>(impl->content);
 }
 
 bool Expression::isReferenceAccess() const
@@ -109,7 +134,7 @@ bool Expression::isReferenceAccess() const
 		return true;
 
 	if (isOperation())
-		if (mlir::isa<SubscriptionOp>(op))
+		if (mlir::isa<SubscriptionOp>(impl->op))
 			return get<Operation>()[0]->isReferenceAccess();
 
 	return false;
@@ -117,7 +142,7 @@ bool Expression::isReferenceAccess() const
 
 bool Expression::isOperation() const
 {
-	return std::holds_alternative<Operation>(content);
+	return std::holds_alternative<Operation>(impl->content);
 }
 
 size_t Expression::childrenCount() const
@@ -131,10 +156,10 @@ size_t Expression::childrenCount() const
 	return get<Operation>().size();
 }
 
-Expression::Ptr Expression::getChild(size_t index) const
+Expression Expression::getChild(size_t index) const
 {
 	assert(index < childrenCount());
-	return get<Operation>()[index];
+	return *get<Operation>()[index];
 }
 
 mlir::Value Expression::getReferredVectorAccess() const

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <modelica/mlirlowerer/passes/model/Equation.h>
 #include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Path.h>
 #include <modelica/mlirlowerer/passes/model/VectorAccess.h>
@@ -7,15 +8,14 @@
 
 namespace modelica::codegen::model
 {
-	class Equation;
 	class Variable;
 
 	class Edge
 	{
 		public:
-		Edge(const Equation& eq, const Variable& var, VectorAccess vAccess, ExpressionPath access, size_t index);
+		Edge(Equation eq, const Variable& var, VectorAccess vAccess, ExpressionPath access, size_t index);
 
-		[[nodiscard]] const Equation& getEquation() const;
+		[[nodiscard]] Equation getEquation() const;
 		[[nodiscard]] const Variable& getVariable() const;
 
 		[[nodiscard]] const VectorAccess& getVectorAccess() const;
@@ -33,7 +33,7 @@ namespace modelica::codegen::model
 		[[nodiscard]] const ExpressionPath& getPath() const;
 
 		private:
-		const Equation* equation;
+		Equation equation;
 		const Variable* variable;
 		VectorAccess vectorAccess;
 		VectorAccess invertedAccess;

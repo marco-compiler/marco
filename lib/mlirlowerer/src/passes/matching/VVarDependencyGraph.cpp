@@ -29,12 +29,12 @@ using namespace std;
 using namespace llvm;
 using namespace boost;
 
-void VVarDependencyGraph::populateEdge(const IndexesOfEquation& equation,
+void VVarDependencyGraph::populateEdge(IndexesOfEquation& equation,
 																			 const AccessToVar& toVariable,
 																			 EqToVert& eqToVert)
 {
 	const auto& variable = model.getVariable(toVariable.getVar());
-	const auto usedIndexes = toVariable.getAccess().map(equation.getEquation()->getInductions());
+	const auto usedIndexes = toVariable.getAccess().map(equation.getEquation().getInductions());
 
 	for (const auto& var : lookUp.eqsDeterminingVar(variable))
 	{
@@ -44,18 +44,18 @@ void VVarDependencyGraph::populateEdge(const IndexesOfEquation& equation,
 			continue;
 
 		add_edge(
-				eqToVert[equation.getEquation().get()],
-				eqToVert[var.getEquation().get()],
+				eqToVert[equation.getEquation()],
+				eqToVert[var.getEquation()],
 				toVariable.getAccess(),
 				graph);
 	}
 }
 
-void VVarDependencyGraph::populateEq(const IndexesOfEquation& equation,
+void VVarDependencyGraph::populateEq(IndexesOfEquation& equation,
 																		 EqToVert& eqToVert)
 {
 	ReferenceMatcher rightHandMatcher;
-	rightHandMatcher.visit(*equation.getEquation(), true);
+	rightHandMatcher.visit(equation.getEquation(), true);
 
 	for (const auto& toVariable : rightHandMatcher)
 	{
@@ -70,13 +70,13 @@ void VVarDependencyGraph::create()
 	EqToVert eqToVert;
 
 	for (const auto& eq : lookUp)
-		eqToVert[eq.getEquation().get()] = add_vertex(&eq, graph);
+		eqToVert[eq.getEquation()] = add_vertex(&eq, graph);
 
-	for (const auto& eq : lookUp)
+	for (auto& eq : lookUp)
 		populateEq(eq, eqToVert);
 }
 
-VVarDependencyGraph::VVarDependencyGraph(const Model& model, ArrayRef<Equation::Ptr> equations)
+VVarDependencyGraph::VVarDependencyGraph(const Model& model, ArrayRef<Equation> equations)
 		: model(model), lookUp(model, equations)
 {
 	create();

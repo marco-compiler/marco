@@ -29,33 +29,23 @@ bool EquationPath::isOnEquationLeftHand() const
 	return left;
 }
 
-Expression& EquationPath::reach(Expression& exp) const
+Expression EquationPath::reach(Expression exp) const
 {
-	Expression* e = &exp;
+	Expression e = exp;
 
 	for (auto i : path)
-		e = e->getChild(i).get();
+		e = e.getChild(i);
 
-	return *e;
+	return e;
 }
 
-const Expression& EquationPath::reach(const Expression& exp) const
-{
-	const Expression* e = &exp;
-
-	for (auto i : path)
-		e = e->getChild(i).get();
-
-	return *e;
-}
-
-ExpressionPath::ExpressionPath(const Expression& exp, llvm::SmallVector<size_t, 3> path, bool left)
-		: path(std::move(path), left), exp(&exp)
+ExpressionPath::ExpressionPath(Expression exp, llvm::SmallVector<size_t, 3> path, bool left)
+		: path(std::move(path), left), exp(std::make_shared<Expression>(exp))
 {
 }
 
-ExpressionPath::ExpressionPath(const Expression& exp, EquationPath path)
-		: path(std::move(path)), exp(&exp)
+ExpressionPath::ExpressionPath(Expression exp, EquationPath path)
+		: path(std::move(path)), exp(std::make_shared<Expression>(exp))
 {
 }
 
@@ -74,7 +64,7 @@ size_t ExpressionPath::depth() const
 	return path.depth();
 }
 
-const Expression& ExpressionPath::getExp() const
+Expression ExpressionPath::getExp() const
 {
 	return *exp;
 }
@@ -89,12 +79,7 @@ bool ExpressionPath::isOnEquationLeftHand() const
 	return path.isOnEquationLeftHand();
 }
 
-Expression& ExpressionPath::reach(Expression& exp) const
-{
-	return path.reach(exp);
-}
-
-const Expression& ExpressionPath::reach(const Expression& exp) const
+Expression ExpressionPath::reach(Expression exp) const
 {
 	return path.reach(exp);
 }

@@ -1,10 +1,12 @@
+#include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Operation.h>
 
 using namespace modelica::codegen::model;
 
-Operation::Operation(llvm::ArrayRef<std::shared_ptr<Expression>> args)
-		: args(args.begin(), args.end())
+Operation::Operation(llvm::ArrayRef<Expression> args)
 {
+	for (const auto& arg : args)
+		this->args.emplace_back(std::make_shared<Expression>(arg));
 }
 
 std::shared_ptr<Expression> Operation::operator[](size_t index)

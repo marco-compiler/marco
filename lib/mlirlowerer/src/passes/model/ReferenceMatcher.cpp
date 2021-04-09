@@ -8,7 +8,7 @@ using namespace std;
 using namespace modelica::codegen::model;
 
 ReferenceMatcher::ReferenceMatcher() = default;
-ReferenceMatcher::ReferenceMatcher(const Equation& eq)
+ReferenceMatcher::ReferenceMatcher(Equation eq)
 {
 	visit(eq);
 }
@@ -58,12 +58,12 @@ const ExpressionPath& ReferenceMatcher::at(size_t index) const
 	return vars[index];
 }
 
-const Expression& ReferenceMatcher::getExp(size_t index) const
+Expression ReferenceMatcher::getExp(size_t index) const
 {
 	return at(index).getExp();
 }
 
-void ReferenceMatcher::visit(const Equation& equation, bool ignoreMatched)
+void ReferenceMatcher::visit(Equation equation, bool ignoreMatched)
 {
 	assert(!ignoreMatched || equation.isMatched());
 	visit(equation.lhs(), true, 0);
@@ -72,16 +72,16 @@ void ReferenceMatcher::visit(const Equation& equation, bool ignoreMatched)
 	if (!ignoreMatched)
 		return;
 
-	const auto* match = &equation.getMatchedExp();
+	auto match = equation.getMatchedExp();
 
 	vars.erase(
 			remove_if(
 					vars,
-					[match](const ExpressionPath& path) { return &path.getExp() == match; }),
+					[match](const ExpressionPath& path) { return path.getExp() == match; }),
 			vars.end());
 }
 
-void ReferenceMatcher::visit(const Expression& exp, bool isLeft, size_t index)
+void ReferenceMatcher::visit(Expression exp, bool isLeft, size_t index)
 {
 	if (exp.isReferenceAccess())
 	{
@@ -93,7 +93,7 @@ void ReferenceMatcher::visit(const Expression& exp, bool isLeft, size_t index)
 	{
 		currentPath.push_back(i);
 		auto g = makeGuard(std::bind(&ReferenceMatcher::removeBack, this));
-		visit(*exp.getChild(i), isLeft, i);
+		visit(exp.getChild(i), isLeft, i);
 	}
 }
 

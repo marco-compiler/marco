@@ -35,7 +35,7 @@ namespace modelica::codegen::model
 
 using namespace modelica::codegen::model;
 
-using EquationsVector = llvm::SmallVector<Equation::Ptr, 3>;
+using EquationsVector = llvm::SmallVector<Equation, 3>;
 
 using EdDescVector = llvm::SmallVector<VVarDependencyGraph::EdgeDesc, 3>;
 using DendenciesVector = llvm::SmallVector<VectorAccess, 3>;
@@ -119,7 +119,7 @@ static InexSetVector cyclicDependetSets(
 		const auto& edge = graph[c[i]];
 		const auto& eq = graph[source(c[i], graph.getImpl())];
 		v[i] = eq.getVarToEq().map(v[i]);
-		assert(eq.getEquation()->getInductions().contains(v[i]));
+		assert(eq.getEquation().getInductions().contains(v[i]));
 	}
 
 	return v;
@@ -141,31 +141,34 @@ static mlir::LogicalResult extractEquationWithDependencies(
 	// for each equation in the cycle
 	for (auto i : modelica::irange(cycle.size()))
 	{
-		const auto& eq = g[boost::source(c[i], g.getImpl())].getEquation();
+		auto eq = g[boost::source(c[i], g.getImpl())].getEquation();
 
 		// copy the equation
-		auto toFuseEq = eq->clone();
+		auto toFuseEq = eq.clone();
 
 		// set induction to those that generate the circular dependency
-		assert(toFuseEq->getInductions().contains(vecSet[i]));
-		toFuseEq->setInductionVars(vecSet[i]);
+		assert(toFuseEq.getInductions().contains(vecSet[i]));
+		toFuseEq.setInductionVars(vecSet[i]);
 
-		if (auto res = toFuseEq->explicitate(); failed(res))
+		if (auto res = toFuseEq.explicitate(); failed(res))
 			return res;
 
 		// add it to the list of filtered with normalized body
-		filtered.emplace_back(toFuseEq->normalizeMatched());
+		if (auto res = toFuseEq.normalize(); failed(res))
+			return res;
+
+		filtered.emplace_back(toFuseEq);
 
 		// then for all other index set that
 		// are not in the circular set
-		auto nonUsed = remove(eq->getInductions(), vecSet[i]);
+		auto nonUsed = remove(eq.getInductions(), vecSet[i]);
 
 		for (auto set : nonUsed)
 		{
 			// add the equation to the untouched set
 			untouched.emplace_back(eq);
 			// and set the inductions to the ones  that have no circular dependencies
-			untouched.back()->setInductionVars(set);
+			untouched.back().setInductionVars(set);
 		}
 	}
 
@@ -204,14 +207,11 @@ class CycleFuser
 
 		auto err = extractEquationWithDependencies(*equations, filtered, newEquations, cycle, *graph);
 
-		if (succeeded(err))
+		if (failed(err))
 		{
 			*foundOne = true;
 			return;
 		}
-
-		if (succeeded(err))
-			return;
 
 		auto e = linearySolve(filtered);
 
@@ -293,7 +293,7 @@ mlir::LogicalResult modelica::codegen::model::solveSCC(Model& model, size_t maxI
 			return mlir::failure();
 	}
 
-	llvm::SmallVector<Equation::Ptr, 3> equations;
+	llvm::SmallVector<Equation, 3> equations;
 
 	for (auto& equationsList : possibleEquations)
 		for (auto& equation : equationsList)

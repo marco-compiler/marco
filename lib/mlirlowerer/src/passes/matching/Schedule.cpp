@@ -15,10 +15,10 @@
 
 using namespace modelica::codegen::model;
 
-static llvm::SmallVector<Equation::Ptr, 3> collapseEquations(
+static llvm::SmallVector<Equation, 3> collapseEquations(
 		const SVarDepencyGraph& originalGraph)
 {
-	llvm::SmallVector<Equation::Ptr, 3> out;
+	llvm::SmallVector<Equation, 3> out;
 
 	modelica::IndexSet currentSet;
 
@@ -37,8 +37,7 @@ static llvm::SmallVector<Equation::Ptr, 3> collapseEquations(
 		const auto& eq = currentNode.getCollapsedVertex();
 
 		for (const auto& set : currentSet)
-			out.emplace_back(std::make_shared<Equation>(
-					eq->getOp(), std::make_shared<Expression>(eq->lhs()), std::make_shared<Expression>(eq->rhs()), set, !backward));
+			out.emplace_back(eq.getOp(), eq.lhs(), eq.rhs(), set, !backward);
 
 		currentSet = modelica::IndexSet();
 	};
@@ -66,7 +65,7 @@ static bool isBacward(const VectorAccess* access)
 	return true;
 }
 
-static llvm::SmallVector<Equation::Ptr, 3> trivialScheduling(
+static llvm::SmallVector<Equation, 3> trivialScheduling(
 		const Scc<VVarDependencyGraph>& scc,
 		const VVarDependencyGraph& originalGraph)
 {
@@ -81,21 +80,21 @@ static llvm::SmallVector<Equation::Ptr, 3> trivialScheduling(
 	if (all_of(internalEdges, isForward))
 	{
 		auto eq = originalGraph[scc[0]].getEquation();
-		eq->setForward(true);
+		eq.setForward(true);
 		return { eq };
 	}
 
 	if (all_of(internalEdges, isBacward))
 	{
 		auto eq = originalGraph[scc[0]].getEquation();
-		eq->setForward(false);
+		eq.setForward(false);
 		return { eq };
 	}
 
 	return {};
 }
 
-static llvm::SmallVector<Equation::Ptr, 3> sched(
+static llvm::SmallVector<Equation, 3> sched(
 		const Scc<VVarDependencyGraph>& scc,
 		const VVarDependencyGraph& originalGraph)
 {
@@ -107,7 +106,7 @@ static llvm::SmallVector<Equation::Ptr, 3> sched(
 	return collapseEquations(scalarGraph);
 }
 
-using ResultVector = llvm::SmallVector<llvm::SmallVector<Equation::Ptr, 3>, 0>;
+using ResultVector = llvm::SmallVector<llvm::SmallVector<Equation, 3>, 0>;
 using SortedScc = llvm::SmallVector<const Scc<VVarDependencyGraph>*, 0>;
 
 static ResultVector parallelMap(
@@ -132,7 +131,7 @@ mlir::LogicalResult modelica::codegen::model::schedule(Model& model)
 	SortedScc sortedScc = sccDependency.topologicalSort();
 
 	auto results = parallelMap(vectorGraph, sortedScc);
-	llvm::SmallVector<Equation::Ptr, 3> equations;
+	llvm::SmallVector<Equation, 3> equations;
 
 	assert(model.getOp().body().getBlocks().size() == 1);
 	mlir::Operation* op = model.getOp().body().front().getTerminator();
@@ -140,8 +139,8 @@ mlir::LogicalResult modelica::codegen::model::schedule(Model& model)
 	for (const auto& res : results)
 		for (const auto& equation : res)
 		{
-			equation->getOp()->moveBefore(op);
-			op = equation->getOp();
+			equation.getOp()->moveBefore(op);
+			op = equation.getOp();
 			equations.push_back(equation);
 		}
 

@@ -88,7 +88,7 @@ namespace modelica::codegen::model
 		 * A canonical vector access is either a reference, a subscription
 		 * or a nested series of subscription operations.
 		 */
-		[[nodiscard]] static bool isCanonical(const Expression& expression);
+		[[nodiscard]] static bool isCanonical(Expression expression);
 
 		private:
 		Container<SingleDimensionAccess> vectorAccess;

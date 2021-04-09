@@ -10,14 +10,15 @@
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 
 using namespace modelica::codegen;
-using namespace model;
+using namespace modelica::codegen::model;
 
-Equation::Equation(mlir::Operation* op,
-									 std::shared_ptr<Expression> left,
-									 std::shared_ptr<Expression> right,
-									 MultiDimInterval inds,
-									 bool isForward,
-									 std::optional<EquationPath> path)
+
+Equation::Impl::Impl(mlir::Operation* op,
+										 Expression left,
+										 Expression right,
+										 MultiDimInterval inds,
+										 bool isForward,
+										 std::optional<EquationPath> path)
 		: op(op),
 			left(std::move(left)),
 			right(std::move(right)),
@@ -30,7 +31,56 @@ Equation::Equation(mlir::Operation* op,
 		inductions = { { 0, 1 } };
 }
 
-Equation::Ptr Equation::build(EquationOp op)
+Equation::Equation(mlir::Operation* op,
+									 Expression left,
+									 Expression right,
+									 MultiDimInterval inds,
+									 bool isForward,
+									 std::optional<EquationPath> path)
+		: impl(std::make_shared<Impl>(op, left, right, inds, isForward, path))
+{
+}
+
+bool Equation::operator==(const Equation& rhs) const
+{
+	return impl == rhs.impl;
+}
+
+bool Equation::operator!=(const Equation& rhs) const
+{
+	return !(rhs == *this);
+}
+
+bool Equation::operator<(const Equation& rhs) const
+{
+	return impl < rhs.impl;
+}
+
+bool Equation::operator>(const Equation& rhs) const
+{
+	return rhs < *this;
+}
+
+bool Equation::operator<=(const Equation& rhs) const
+{
+	return !(rhs < *this);
+}
+
+bool Equation::operator>=(const Equation& rhs) const
+{
+	return !(*this < rhs);
+}
+
+Equation Equation::build(mlir::Operation* op)
+{
+	if (auto equationOp = mlir::dyn_cast<EquationOp>(op))
+		return build(equationOp);
+
+	assert(mlir::isa<ForEquationOp>(op));
+	return build(mlir::cast<ForEquationOp>(op));
+}
+
+Equation Equation::build(EquationOp op)
 {
 	auto& body = op.body();
 	auto terminator = mlir::cast<EquationSidesOp>(body.front().getTerminator());
@@ -39,7 +89,7 @@ Equation::Ptr Equation::build(EquationOp op)
 	mlir::ValueRange lhs = terminator.lhs();
 	assert(lhs.size() == 1);
 
-	llvm::SmallVector<std::shared_ptr<Expression>, 3> lhsExpr;
+	llvm::SmallVector<Expression, 3> lhsExpr;
 
 	for (auto value : lhs)
 		lhsExpr.push_back(Expression::build(value));
@@ -48,7 +98,7 @@ Equation::Ptr Equation::build(EquationOp op)
 	mlir::ValueRange rhs = terminator.rhs();
 	assert(rhs.size() == 1);
 
-	llvm::SmallVector<std::shared_ptr<Expression>, 3> rhsExpr;
+	llvm::SmallVector<Expression, 3> rhsExpr;
 
 	for (auto value : rhs)
 		rhsExpr.push_back(Expression::build(value));
@@ -56,10 +106,10 @@ Equation::Ptr Equation::build(EquationOp op)
 	// Number of values of left-hand side and right-hand side must match
 	assert(lhsExpr.size() == rhsExpr.size());
 
-	return std::make_shared<Equation>(op, lhsExpr[0], rhsExpr[0]);
+	return Equation(op, lhsExpr[0], rhsExpr[0]);
 }
 
-Equation::Ptr Equation::build(ForEquationOp op)
+Equation Equation::build(ForEquationOp op)
 {
 	auto& body = op.body();
 	auto terminator = mlir::cast<EquationSidesOp>(body.front().getTerminator());
@@ -68,7 +118,7 @@ Equation::Ptr Equation::build(ForEquationOp op)
 	mlir::ValueRange lhs = terminator.lhs();
 	assert(lhs.size() == 1);
 
-	llvm::SmallVector<std::shared_ptr<Expression>, 3> lhsExpr;
+	llvm::SmallVector<Expression, 3> lhsExpr;
 
 	for (auto value : lhs)
 		lhsExpr.push_back(Expression::build(value));
@@ -77,7 +127,7 @@ Equation::Ptr Equation::build(ForEquationOp op)
 	mlir::ValueRange rhs = terminator.rhs();
 	assert(rhs.size() == 1);
 
-	llvm::SmallVector<std::shared_ptr<Expression>, 3> rhsExpr;
+	llvm::SmallVector<Expression, 3> rhsExpr;
 
 	for (auto value : rhs)
 		rhsExpr.push_back(Expression::build(value));
@@ -93,32 +143,22 @@ Equation::Ptr Equation::build(ForEquationOp op)
 		intervals.emplace_back(inductionOp.start(), inductionOp.end() + 1);
 	}
 
-	return std::make_shared<Equation>(op, lhsExpr[0], rhsExpr[0], MultiDimInterval(intervals));
+	return Equation(op, lhsExpr[0], rhsExpr[0], MultiDimInterval(intervals));
 }
 
 mlir::Operation* Equation::getOp() const
 {
-	return op;
+	return impl->op;
 }
 
-Expression& Equation::lhs()
+Expression Equation::lhs() const
 {
-	return *left;
+	return impl->left;
 }
 
-const Expression& Equation::lhs() const
+Expression Equation::rhs() const
 {
-	return *left;
-}
-
-Expression& Equation::rhs()
-{
-	return *right;
-}
-
-const Expression& Equation::rhs() const
-{
-	return *right;
+	return impl->right;
 }
 
 void Equation::getEquationsAmount(mlir::ValueRange values, llvm::SmallVectorImpl<long>& amounts) const
@@ -136,17 +176,17 @@ void Equation::getEquationsAmount(mlir::ValueRange values, llvm::SmallVectorImpl
 
 EquationSidesOp Equation::getTerminator()
 {
-	if (auto equationOp = mlir::dyn_cast<EquationOp>(op))
+	if (auto equationOp = mlir::dyn_cast<EquationOp>(getOp()))
 		return mlir::cast<EquationSidesOp>(equationOp.body().back().getTerminator());
 
-	assert(mlir::isa<ForEquationOp>(op));
-	auto forEquationOp = mlir::cast<ForEquationOp>(op);
+	assert(mlir::isa<ForEquationOp>(getOp()));
+	auto forEquationOp = mlir::cast<ForEquationOp>(getOp());
 	return mlir::cast<EquationSidesOp>(forEquationOp.body().back().getTerminator());
 }
 
 size_t Equation::amount() const
 {
-	if (auto equationOp = mlir::dyn_cast<EquationOp>(op))
+	if (auto equationOp = mlir::dyn_cast<EquationOp>(getOp()))
 	{
 		llvm::SmallVector<long, 3> lhsEquations;
 		llvm::SmallVector<long, 3> rhsEquations;
@@ -177,7 +217,7 @@ size_t Equation::amount() const
 		return result;
 	}
 
-	if (auto forEquationOp = mlir::dyn_cast<ForEquationOp>(op))
+	if (auto forEquationOp = mlir::dyn_cast<ForEquationOp>(getOp()))
 	{
 		llvm::SmallVector<long, 3> lhsEquations;
 		llvm::SmallVector<long, 3> rhsEquations;
@@ -219,60 +259,71 @@ size_t Equation::amount() const
 
 const modelica::MultiDimInterval& Equation::getInductions() const
 {
-	return inductions;
+	return impl->inductions;
 }
 
 void Equation::setInductionVars(MultiDimInterval inds)
 {
-	isForCycle = !inds.empty();
+	impl->isForCycle = !inds.empty();
 
-	if (isForCycle)
-		inductions = std::move(inds);
+	if (impl->isForCycle)
+	{
+		impl->inductions = std::move(inds);
+
+		auto forEquationOp = mlir::cast<ForEquationOp>(getOp());
+
+		mlir::OpBuilder builder(forEquationOp);
+		forEquationOp.inductionsBlock()->clear();
+		builder.setInsertionPointToStart(forEquationOp.inductionsBlock());
+
+		llvm::SmallVector<mlir::Value, 3> newInductions;
+
+		for (auto induction : impl->inductions)
+			newInductions.push_back(builder.create<InductionOp>(getOp()->getLoc(), induction.min(), induction.max() - 1));
+
+		builder.create<YieldOp>(forEquationOp.getLoc(), newInductions);
+	}
 	else
-		inductions = { { 0, 1 } };
+	{
+		impl->inductions = { { 0, 1 } };
+	}
 }
 
 bool Equation::isForEquation() const
 {
-	return isForCycle;
+	return impl->isForCycle;
 }
 
 size_t Equation::dimensions() const
 {
-	return isForCycle ? inductions.dimensions() : 0;
+	return impl->isForCycle ? impl->inductions.dimensions() : 0;
 }
 
 bool Equation::isForward() const
 {
-	return isForwardDirection;
+	return impl->isForwardDirection;
 }
 
 void Equation::setForward(bool isForward)
 {
-	isForwardDirection = isForward;
+	impl->isForwardDirection = isForward;
 }
 
 bool Equation::isMatched() const
 {
-	return matchedExpPath.has_value();
+	return impl->matchedExpPath.has_value();
 }
 
-Expression& Equation::getMatchedExp()
+Expression Equation::getMatchedExp() const
 {
 	assert(isMatched());
-	return reachExp(matchedExpPath.value());
-}
-
-const Expression& Equation::getMatchedExp() const
-{
-	assert(isMatched());
-	return reachExp(matchedExpPath.value());
+	return reachExp(impl->matchedExpPath.value());
 }
 
 void Equation::setMatchedExp(EquationPath path)
 {
 	assert(reachExp(path).isReferenceAccess());
-	matchedExpPath = path;
+	impl->matchedExpPath = path;
 }
 
 AccessToVar Equation::getDeterminedVariable() const
@@ -284,7 +335,7 @@ AccessToVar Equation::getDeterminedVariable() const
 ExpressionPath Equation::getMatchedExpressionPath() const
 {
 	assert(isMatched());
-	return ExpressionPath(getMatchedExp(), *matchedExpPath);
+	return ExpressionPath(getMatchedExp(), *impl->matchedExpPath);
 }
 
 namespace modelica::codegen::model
@@ -520,10 +571,10 @@ static Expression singleDimAccToExp(const SingleDimensionAccess& access, Express
 
 	if (access.isDirecAccess())
 	{
-		builder.setInsertionPoint(exp.getOp());
 		mlir::Value index = builder.create<modelica::codegen::ConstantOp>(location, builder.getIndexAttr(access.getOffset()));
 		mlir::Value source = exp.getOp()->getResult(0);
 		auto subscription = builder.create<modelica::codegen::SubscriptionOp>(location, source, index);
+		return Expression::build(subscription.getResult());
 	}
 
 	/*
@@ -558,38 +609,46 @@ static void composeAccess(Expression& exp, const VectorAccess& transformation)
 	exp = accessToExp(combinedAccess, newExps);
 }
 
-Equation::Ptr Equation::composeAccess(const VectorAccess& transformation) const
+Equation Equation::composeAccess(const VectorAccess& transformation) const
 {
-	auto toReturn = std::make_shared<Equation>(*this);
+	auto toReturn = Equation(*this);
 	auto inverted = transformation.invert();
-	toReturn->setInductionVars(inverted.map(getInductions()));
+	toReturn.setInductionVars(inverted.map(getInductions()));
 
-	ReferenceMatcher matcher(*toReturn);
+	ReferenceMatcher matcher(toReturn);
 
 	for (auto& matchedExp : matcher)
 	{
-		auto& exp = toReturn->reachExp(matchedExp);
+		auto exp = toReturn.reachExp(matchedExp);
 		::composeAccess(exp, transformation);
 	}
 
 	return toReturn;
 }
 
-Equation::Ptr Equation::normalized() const
+mlir::LogicalResult Equation::normalize()
 {
-	assert(lhs().isReferenceAccess());
-	auto access = AccessToVar::fromExp(lhs()).getAccess();
-	auto invertedAccess = access.invert();
+	mlir::OpBuilder builder(getTerminator());
 
-	return composeAccess(invertedAccess);
-}
-
-Equation::Ptr Equation::normalizeMatched() const
-{
+	// Get how the left-hand side variable is currently accessed
 	auto access = AccessToVar::fromExp(getMatchedExp()).getAccess();
-	auto invertedAccess = access.invert();
+
+	// Apply the transformation to the induction range
+	setInductionVars(access.map(getInductions()));
+
+	ReferenceMatcher matcher(*this);
+
+	/*
+	for (auto& matchedExp : matcher)
+	{
+		auto exp = toReturn.reachExp(matchedExp);
+		::composeAccess(exp, transformation);
+	}
 
 	return composeAccess(invertedAccess);
+	 */
+
+	return mlir::success();
 }
 
 mlir::LogicalResult Equation::explicitate(mlir::OpBuilder& builder, size_t argumentIndex, bool left)
@@ -613,21 +672,21 @@ mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
 	{
 		if (auto res = explicitate(builder, index, path.isOnEquationLeftHand()); failed(res))
 			return res;
-
-		left = Expression::build(terminator.lhs()[0]);
-		right = Expression::build(terminator.rhs()[0]);
 	}
+
+	impl->left = Expression::build(terminator.lhs()[0]);
+	impl->right = Expression::build(terminator.rhs()[0]);
 
 	if (!path.isOnEquationLeftHand())
 	{
-		std::swap(left, right);
+		std::swap(impl->left, impl->right);
 
 		builder.setInsertionPointAfter(terminator);
 		builder.create<EquationSidesOp>(terminator->getLoc(), terminator.rhs(), terminator.lhs());
 		terminator->erase();
 	}
 
-	matchedExpPath = std::nullopt;
+	impl->matchedExpPath = std::nullopt;
 	return mlir::success();
 }
 
@@ -636,41 +695,22 @@ mlir::LogicalResult Equation::explicitate()
 	if (auto res = explicitate(getMatchedExpressionPath()); failed(res))
 		return res;
 
-	matchedExpPath = EquationPath({}, true);
+	impl->matchedExpPath = EquationPath({}, true);
 	return mlir::success();
 }
 
-Equation::Ptr Equation::clone() const
+Equation Equation::clone() const
 {
-	Equation::Ptr result;
+	mlir::OpBuilder builder(getOp());
+	auto* newOp = builder.clone(*getOp());
+	Equation clone = build(newOp);
 
-	mlir::OpBuilder builder(op);
+	clone.impl->inductions = impl->inductions;
+	clone.impl->isForCycle = impl->isForCycle;
+	clone.impl->isForwardDirection = impl->isForwardDirection;
+	clone.impl->matchedExpPath = impl->matchedExpPath;
 
-	if (mlir::isa<EquationOp>(op))
-	{
-		auto* newOp = builder.clone(*op);
-		result = build(mlir::cast<EquationOp>(newOp));
-	}
-	else if (mlir::isa<ForEquationOp>(op))
-	{
-		// Create a copy of the inductions
-		mlir::BlockAndValueMapping mapper;
-
-		for (mlir::Value induction : mlir::cast<ForEquationOp>(op).inductions())
-		{
-			auto newInduction = mlir::cast<InductionOp>(builder.clone(*induction.getDefiningOp()));
-			mapper.map(induction, newInduction);
-		}
-
-		auto clone = mlir::cast<ForEquationOp>(builder.clone(*op, mapper));
-		result = build(clone);
-	}
-
-	auto copy = *this;
-	copy.left = result->left;
-	copy.right = result->right;
-
-	return std::make_shared<Equation>(copy);
+	return clone;
 }
 
 using Mult = llvm::SmallVector<std::pair<Expression, bool>, 3>;
@@ -696,15 +736,15 @@ namespace modelica::codegen::model
 		op->replaceAllUsesWith(addOp);
 		op->erase();
 
-		expression = *Expression::operation(
+		expression = Expression::operation(
 				addOp,
 				expression.getChild(0),
 				Expression::operation(negatedRhs, expression.getChild(1)));
 	}
 
-	static Expression reorder(Expression& nonConstExp, Expression& constant)
+	static Expression reorder(Expression nonConstExp, Expression constant)
 	{
-		std::array<Expression, 3> expressions = { *nonConstExp.getChild(0), *nonConstExp.getChild(1), constant };
+		std::array<Expression, 3> expressions = { nonConstExp.getChild(0), nonConstExp.getChild(1), constant };
 
 		// Put the constants last
 		std::stable_sort(
@@ -731,12 +771,12 @@ namespace modelica::codegen::model
 		if (!expression.isOperation() || expression.childrenCount() != 2)
 			return;
 
-		if (!expression.getChild(0)->isConstant() &&
-				!expression.getChild(1)->isConstant())
+		if (!expression.getChild(0).isConstant() &&
+				!expression.getChild(1).isConstant())
 			return;
 
-		if (expression.getChild(0)->isConstant() &&
-				expression.getChild(1)->isConstant())
+		if (expression.getChild(0).isConstant() &&
+				expression.getChild(1).isConstant())
 			return;
 
 		if (mlir::isa<SubOp>(expression.getOp()))
@@ -754,23 +794,23 @@ namespace modelica::codegen::model
 		// towards the deeper expressions so that it can be
 		// folded there.
 
-		if (expression.getChild(1)->getOp()->getName() == expression.getOp()->getName())
+		if (expression.getChild(1).getOp()->getName() == expression.getOp()->getName())
 		{
-			expression = reorder(*expression.getChild(1), *expression.getChild(0));
+			expression = reorder(expression.getChild(1), expression.getChild(0));
 			return;
 		}
 
-		if (expression.getChild(0)->getOp()->getName() == expression.getOp()->getName())
+		if (expression.getChild(0).getOp()->getName() == expression.getOp()->getName())
 		{
-			expression = reorder(*expression.getChild(0), *expression.getChild(1));
+			expression = reorder(expression.getChild(0), expression.getChild(1));
 			return;
 		}
 	}
 
-	static void recursiveFold(Expression& expression)
+	static void recursiveFold(Expression expression)
 	{
 		for (size_t i = 0, e = expression.childrenCount(); i < e; ++i)
-			recursiveFold(*expression.getChild(i));
+			recursiveFold(expression.getChild(i));
 
 		foldExp(expression);
 
@@ -781,15 +821,15 @@ namespace modelica::codegen::model
 	{
 		if (mlir::isa<MulOp>(exp.getOp()))
 		{
-			toMult(*exp.getChild(0), out, mul);
-			toMult(*exp.getChild(1), out, mul);
+			toMult(exp.getChild(0), out, mul);
+			toMult(exp.getChild(1), out, mul);
 			return;
 		}
 
 		if (mlir::isa<DivOp>(exp.getOp()))
 		{
-			toMult(*exp.getChild(0), out, mul);
-			toMult(*exp.getChild(1), out, !mul);
+			toMult(exp.getChild(0), out, mul);
+			toMult(exp.getChild(1), out, !mul);
 			return;
 		}
 
@@ -802,21 +842,21 @@ namespace modelica::codegen::model
 	{
 		if (mlir::isa<AddOp>(exp.getOp()))
 		{
-			toSumsOfMult(*exp.getChild(0), out, sum);
-			toSumsOfMult(*exp.getChild(1), out, sum);
+			toSumsOfMult(exp.getChild(0), out, sum);
+			toSumsOfMult(exp.getChild(1), out, sum);
 			return;
 		}
 
 		if (mlir::isa<SubOp>(exp.getOp()))
 		{
-			toSumsOfMult(*exp.getChild(0), out, sum);
-			toSumsOfMult(*exp.getChild(1), out, !sum);
+			toSumsOfMult(exp.getChild(0), out, sum);
+			toSumsOfMult(exp.getChild(1), out, !sum);
 			return;
 		}
 
 		if (mlir::isa<NegateOp>(exp.getOp()))
 		{
-			toSumsOfMult(*exp.getChild(0), out, !sum);
+			toSumsOfMult(exp.getChild(0), out, !sum);
 			return;
 		}
 

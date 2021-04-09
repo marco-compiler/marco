@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llvm/ADT/SmallVector.h>
+#include <memory>
 
 namespace modelica::codegen::model
 {
@@ -23,8 +24,7 @@ namespace modelica::codegen::model
 		[[nodiscard]] size_t depth() const;
 		[[nodiscard]] bool isOnEquationLeftHand() const;
 
-		[[nodiscard]] Expression& reach(Expression& exp) const;
-		[[nodiscard]] const Expression& reach(const Expression& exp) const;
+		[[nodiscard]] Expression reach(Expression exp) const;
 
 		private:
 		Container<size_t> path;
@@ -34,25 +34,24 @@ namespace modelica::codegen::model
 	class ExpressionPath
 	{
 		public:
-		ExpressionPath(const Expression& exp, llvm::SmallVector<size_t, 3> path, bool left);
-		ExpressionPath(const Expression& exp, EquationPath path);
+		ExpressionPath(Expression exp, llvm::SmallVector<size_t, 3> path, bool left);
+		ExpressionPath(Expression exp, EquationPath path);
 
 		[[nodiscard]] EquationPath::const_iterator begin() const;
 		[[nodiscard]] EquationPath::const_iterator end() const;
 
 		[[nodiscard]] size_t depth() const;
 
-		[[nodiscard]] const Expression& getExp() const;
+		[[nodiscard]] Expression getExp() const;
 
 		[[nodiscard]] const EquationPath& getEqPath() const;
 
 		[[nodiscard]] bool isOnEquationLeftHand() const;
 
-		[[nodiscard]] Expression& reach(Expression& exp) const;
-		[[nodiscard]] const Expression& reach(const Expression& exp) const;
+		[[nodiscard]] Expression reach(Expression exp) const;
 
 		private:
 		EquationPath path;
-		const Expression* exp;
+		std::shared_ptr<Expression> exp;
 	};
 }

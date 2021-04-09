@@ -17,21 +17,40 @@ namespace modelica::codegen::model
 
 	class Expression
 	{
-		public:
-		using Ptr = std::shared_ptr<Expression>;
+		private:
+		class Impl
+		{
+			public:
+			Impl(mlir::Operation* op, Constant content);
+			Impl(mlir::Operation* op, Reference content);
+			Impl(mlir::Operation* op, Operation content);
 
+			private:
+			friend class Expression;
+
+			mlir::Operation* op;
+			std::variant<Constant, Reference, Operation> content;
+			std::string name;
+		};
+
+		std::shared_ptr<Impl> impl;
+
+		public:
 		Expression(mlir::Operation* op, Constant content);
 		Expression(mlir::Operation* op, Reference content);
 		Expression(mlir::Operation* op, Operation content);
 
-		static Expression::Ptr build(mlir::Value value);
+		bool operator==(const Expression& rhs) const;
+		bool operator!=(const Expression& rhs) const;
 
-		static Expression::Ptr constant(mlir::Value value);
-		static Expression::Ptr reference(mlir::Value value);
-		static Expression::Ptr operation(mlir::Operation* operation, llvm::ArrayRef<Expression::Ptr> args);
+		static Expression build(mlir::Value value);
+
+		static Expression constant(mlir::Value value);
+		static Expression reference(mlir::Value value);
+		static Expression operation(mlir::Operation* operation, llvm::ArrayRef<Expression> args);
 
 		template<typename... Args>
-		static Expression::Ptr operation(mlir::Operation* operation, Args&&... args)
+		static Expression operation(mlir::Operation* operation, Args&&... args)
 		{
 			return Expression::operation(operation, { args... });
 		}
@@ -39,27 +58,27 @@ namespace modelica::codegen::model
 		template<typename T>
 		[[nodiscard]] T& get()
 		{
-			assert(std::holds_alternative<T>(content));
-			return std::get<T>(content);
+			assert(std::holds_alternative<T>(impl->content));
+			return std::get<T>(impl->content);
 		}
 
 		template<typename T>
 		[[nodiscard]] const T& get() const
 		{
-			assert(std::holds_alternative<T>(content));
-			return std::get<T>(content);
+			assert(std::holds_alternative<T>(impl->content));
+			return std::get<T>(impl->content);
 		}
 
 		template<class Visitor>
 		auto visit(Visitor&& vis)
 		{
-			return std::visit(std::forward<Visitor>(vis), content);
+			return std::visit(std::forward<Visitor>(vis), impl->content);
 		}
 
 		template<class Visitor>
 		auto visit(Visitor&& vis) const
 		{
-			return std::visit(std::forward<Visitor>(vis), content);
+			return std::visit(std::forward<Visitor>(vis), impl->content);
 		}
 
 		[[nodiscard]] mlir::Operation* getOp() const;
@@ -71,15 +90,10 @@ namespace modelica::codegen::model
 
 		[[nodiscard]] size_t childrenCount() const;
 
-		[[nodiscard]] Expression::Ptr getChild(size_t index) const;
+		[[nodiscard]] Expression getChild(size_t index) const;
 
 		[[nodiscard]] mlir::Value getReferredVectorAccess() const;
 		[[nodiscard]] Expression& getReferredVectorAccessExp();
 		[[nodiscard]] const Expression& getReferredVectorAccessExp() const;
-
-		private:
-		mlir::Operation* op;
-		std::variant<Constant, Reference, Operation> content;
-		std::string name;
 	};
 }

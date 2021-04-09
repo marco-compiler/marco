@@ -37,6 +37,8 @@ llvm::StringRef SimulationOp::getOperationName()
 
 void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value time, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::ValueRange variablesToBePrinted)
 {
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
 	state.addOperands(time);
 	state.addAttribute("startTime", startTime);
 	state.addAttribute("endTime", endTime);
@@ -44,12 +46,8 @@ void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 
 	state.addOperands(variablesToBePrinted);
 
-	auto insertionPoint = builder.saveInsertionPoint();
-
 	// Body block
 	builder.createBlock(state.addRegion());
-
-	builder.restoreInsertionPoint(insertionPoint);
 }
 
 void SimulationOp::print(mlir::OpAsmPrinter& printer)
@@ -126,9 +124,8 @@ llvm::StringRef EquationOp::getOperationName()
 
 void EquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
-	auto insertionPoint = builder.saveInsertionPoint();
+	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.createBlock(state.addRegion());
-	builder.restoreInsertionPoint(insertionPoint);
 }
 
 void EquationOp::print(mlir::OpAsmPrinter& printer)
@@ -155,6 +152,71 @@ mlir::ValueRange EquationOp::rhs()
 }
 
 //===----------------------------------------------------------------------===//
+// Modelica::ForEquationOp
+//===----------------------------------------------------------------------===//
+
+llvm::StringRef ForEquationOp::getOperationName()
+{
+	return "modelica.for_equation";
+}
+
+void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, size_t inductionsAmount)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.createBlock(state.addRegion());
+
+	llvm::SmallVector<mlir::Type, 3> inductionsTypes(inductionsAmount, builder.getIndexType());
+	builder.createBlock(state.addRegion(), {}, inductionsTypes);
+}
+
+void ForEquationOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.for_equation";
+	printer.printRegion(*inductionsBlock()->getParent(), false);
+	printer << " body";
+	printer.printRegion(body(), true);
+}
+
+mlir::Block* ForEquationOp::inductionsBlock()
+{
+	return &getRegion(0).front();
+}
+
+mlir::ValueRange ForEquationOp::inductions()
+{
+	return mlir::cast<YieldOp>(inductionsBlock()->getTerminator()).getOperands();
+}
+
+mlir::Region& ForEquationOp::body()
+{
+	return getRegion(1);
+}
+
+long ForEquationOp::getInductionIndex(mlir::Value induction)
+{
+	assert(induction.isa<mlir::BlockArgument>());
+
+	for (auto ind : llvm::enumerate(body().getArguments()))
+		if (ind.value() == induction)
+			return ind.index();
+
+	assert(false && "Induction variable not found");
+	return -1;
+}
+
+mlir::ValueRange ForEquationOp::lhs()
+{
+	auto terminator = mlir::cast<EquationSidesOp>(body().front().getTerminator());
+	return terminator.lhs();
+}
+
+mlir::ValueRange ForEquationOp::rhs()
+{
+	auto terminator = mlir::cast<EquationSidesOp>(body().front().getTerminator());
+	return terminator.rhs();
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::InductionOp
 //===----------------------------------------------------------------------===//
 
@@ -173,7 +235,7 @@ void InductionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, l
 
 void InductionOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.induction (from " << start() << " to " << end() << ")";
+	printer << "modelica.induction (from " << start() << " to " << end() << ") : " << getOperation()->getResultTypes();
 }
 
 long InductionOp::start()
@@ -184,69 +246,6 @@ long InductionOp::start()
 long InductionOp::end()
 {
 	return getOperation()->getAttrOfType<mlir::IntegerAttr>("end").getInt();
-}
-
-//===----------------------------------------------------------------------===//
-// Modelica::ForEquationOp
-//===----------------------------------------------------------------------===//
-
-mlir::ValueRange ForEquationOpAdaptor::inductions()
-{
-	return getValues();
-}
-
-llvm::StringRef ForEquationOp::getOperationName()
-{
-	return "modelica.for_equation";
-}
-
-void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inductions)
-{
-	state.addOperands(inductions);
-
-	auto insertionPoint = builder.saveInsertionPoint();
-	builder.createBlock(state.addRegion());
-	builder.restoreInsertionPoint(insertionPoint);
-}
-
-void ForEquationOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.for_equation " << inductions();
-	printer.printRegion(body(), false);
-}
-
-mlir::ValueRange ForEquationOp::inductions()
-{
-	return Adaptor(*this).inductions();
-}
-
-mlir::Region& ForEquationOp::body()
-{
-	return getRegion();
-}
-
-long ForEquationOp::getInductionIndex(mlir::Value induction)
-{
-	assert(mlir::isa<InductionOp>(induction.getDefiningOp()));
-
-	for (auto ind : llvm::enumerate(inductions()))
-		if (ind.value() == induction)
-			return ind.index();
-
-	assert(false && "Induction variable not found");
-	return -1;
-}
-
-mlir::ValueRange ForEquationOp::lhs()
-{
-	auto terminator = mlir::cast<EquationSidesOp>(body().front().getTerminator());
-	return terminator.lhs();
-}
-
-mlir::ValueRange ForEquationOp::rhs()
-{
-	auto terminator = mlir::cast<EquationSidesOp>(body().front().getTerminator());
-	return terminator.rhs();
 }
 
 //===----------------------------------------------------------------------===//
@@ -1240,8 +1239,8 @@ llvm::StringRef IfOp::getOperationName()
 
 void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value condition, bool withElseRegion)
 {
+	mlir::OpBuilder::InsertionGuard guard(builder);
 	state.addOperands(condition);
-	auto insertionPoint = builder.saveInsertionPoint();
 
 	// "Then" region
 	auto* thenRegion = state.addRegion();
@@ -1252,8 +1251,6 @@ void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Va
 
 	if (withElseRegion)
 		builder.createBlock(elseRegion);
-
-	builder.restoreInsertionPoint(insertionPoint);
 }
 
 void IfOp::print(mlir::OpAsmPrinter& printer)
@@ -1345,9 +1342,8 @@ llvm::StringRef ForOp::getOperationName()
 
 void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args)
 {
+	mlir::OpBuilder::InsertionGuard guard(builder);
 	state.addOperands(args);
-
-	auto insertionPoint = builder.saveInsertionPoint();
 
 	// Condition block
 	builder.createBlock(state.addRegion(), {}, args.getTypes());
@@ -1357,8 +1353,6 @@ void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::V
 
 	// Body block
 	builder.createBlock(state.addRegion(), {}, args.getTypes());
-
-	builder.restoreInsertionPoint(insertionPoint);
 }
 
 void ForOp::print(mlir::OpAsmPrinter& printer)
@@ -1447,11 +1441,11 @@ llvm::StringRef BreakableForOp::getOperationName()
 
 void BreakableForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args)
 {
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
 	state.addOperands(breakCondition);
 	state.addOperands(returnCondition);
 	state.addOperands(args);
-
-	auto insertionPoint = builder.saveInsertionPoint();
 
 	// Condition block
 	builder.createBlock(state.addRegion(), {}, args.getTypes());
@@ -1461,8 +1455,6 @@ void BreakableForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 
 	// Body block
 	builder.createBlock(state.addRegion(), {}, args.getTypes());
-
-	builder.restoreInsertionPoint(insertionPoint);
 }
 
 void BreakableForOp::print(mlir::OpAsmPrinter& printer)
@@ -1569,18 +1561,16 @@ llvm::StringRef BreakableWhileOp::getOperationName()
 
 void BreakableWhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition)
 {
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
 	state.addOperands(breakCondition);
 	state.addOperands(returnCondition);
-
-	auto insertionPoint = builder.saveInsertionPoint();
 
 	// Condition block
 	builder.createBlock(state.addRegion());
 
 	// Body block
 	builder.createBlock(state.addRegion());
-
-	builder.restoreInsertionPoint(insertionPoint);
 }
 
 void BreakableWhileOp::print(mlir::OpAsmPrinter& printer)

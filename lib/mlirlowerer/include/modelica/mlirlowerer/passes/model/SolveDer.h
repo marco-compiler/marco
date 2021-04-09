@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mlir/Support/LogicalResult.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 
@@ -19,29 +20,28 @@ namespace modelica::codegen::model
 	class DerSolver
 	{
 		public:
-		DerSolver(SimulationOp simulation, Model& model);
+		explicit DerSolver(Model& model);
 
-		void solve();
+		mlir::LogicalResult solve();
 
 		private:
-		void solve(Equation& equation);
+		void solve(Equation equation);
 
 		template<typename T>
-		void solve(Expression& expression);
+		void solve(Expression expression);
 
-		SimulationOp simulation;
-		Model& model;
+		Model* model;
 	};
 
 	template<>
-	void DerSolver::solve<Expression>(Expression& expression);
+	void DerSolver::solve<Expression>(Expression expression);
 
 	template<>
-	void DerSolver::solve<Constant>(Expression& expression);
+	void DerSolver::solve<Constant>(Expression expression);
 
 	template<>
-	void DerSolver::solve<Reference>(Expression& expression);
+	void DerSolver::solve<Reference>(Expression expression);
 
 	template<>
-	void DerSolver::solve<Operation>(Expression& expression);
+	void DerSolver::solve<Operation>(Expression expression);
 }

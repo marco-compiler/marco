@@ -114,6 +114,38 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::ForEquationOp
+	//===----------------------------------------------------------------------===//
+
+	class ForEquationOp;
+
+	class ForEquationOpAdaptor : public OpAdaptor<ForEquationOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+	};
+
+	class ForEquationOp : public mlir::Op<ForEquationOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = ForEquationOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, size_t inductionsAmount);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Block* inductionsBlock();
+		mlir::ValueRange inductions();
+		mlir::Region& body();
+
+		long getInductionIndex(mlir::Value induction);
+
+		mlir::ValueRange lhs();
+		mlir::ValueRange rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::InductionOp
 	//===----------------------------------------------------------------------===//
 
@@ -125,7 +157,7 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 	};
 
-	class InductionOp : public mlir::Op<InductionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroOperands, mlir::OpTrait::OneResult>
+	class InductionOp : public mlir::Op<InductionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroOperands, mlir::OpTrait::OneResult, mlir::OpTrait::HasParent<ForEquationOp>::Impl>
 	{
 		public:
 		using Op::Op;
@@ -137,39 +169,6 @@ namespace modelica::codegen
 
 		long start();
 		long end();
-	};
-
-	//===----------------------------------------------------------------------===//
-	// Modelica::ForEquationOp
-	//===----------------------------------------------------------------------===//
-
-	class ForEquationOp;
-
-	class ForEquationOpAdaptor : public OpAdaptor<ForEquationOp>
-	{
-		public:
-		using OpAdaptor::OpAdaptor;
-
-		mlir::ValueRange inductions();
-	};
-
-	class ForEquationOp : public mlir::Op<ForEquationOp, mlir::OpTrait::OneRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult>
-	{
-		public:
-		using Op::Op;
-		using Adaptor = ForEquationOpAdaptor;
-
-		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange inductions);
-		void print(mlir::OpAsmPrinter& printer);
-
-		mlir::ValueRange inductions();
-		mlir::Region& body();
-
-		long getInductionIndex(mlir::Value induction);
-
-		mlir::ValueRange lhs();
-		mlir::ValueRange rhs();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -828,7 +827,7 @@ namespace modelica::codegen
 		mlir::ValueRange args();
 	};
 
-	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<IfOp, ForOp, BreakableForOp, BreakableWhileOp, SimulationOp>::Impl, mlir::OpTrait::IsTerminator>
+	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<ForEquationOp, IfOp, ForOp, BreakableForOp, BreakableWhileOp, SimulationOp>::Impl, mlir::OpTrait::IsTerminator>
 	{
 		public:
 		using Op::Op;

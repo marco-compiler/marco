@@ -8,24 +8,24 @@
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <set>
 
+#include "Equation.h"
+
 namespace modelica::codegen::model
 {
-	class Equation;
-	class EquationTemplate;
 	class Variable;
 
 	class Model
 	{
 		private:
-		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		using iterator = boost::indirect_iterator<Container<Equation>::iterator>;
-		using const_iterator = boost::indirect_iterator<Container<Equation>::const_iterator>;
+		using iterator = Container<Equation>::iterator;
+		using const_iterator = Container<Equation>::const_iterator;
 
 		Model(SimulationOp op,
 					llvm::ArrayRef<std::shared_ptr<Variable>> variables,
-					llvm::ArrayRef<std::shared_ptr<Equation>> equations);
+					llvm::ArrayRef<Equation> equations);
 
 		static Model build(SimulationOp op);
 
@@ -40,8 +40,8 @@ namespace modelica::codegen::model
 		[[nodiscard]] bool hasVariable(mlir::Value var) const;
 		Variable& getVariable(mlir::Value var);
 		const Variable& getVariable(mlir::Value var) const;
-		Container<Variable>& getVariables();
-		const Container<Variable>& getVariables() const;
+		Container<std::shared_ptr<Variable>>& getVariables();
+		const Container<std::shared_ptr<Variable>>& getVariables() const;
 		void addVariable(mlir::Value var);
 
 		[[nodiscard]] Container<Equation>& getEquations();
@@ -60,7 +60,7 @@ namespace modelica::codegen::model
 
 		private:
 		SimulationOp op;
-		Container<Variable> variables;
+		Container<std::shared_ptr<Variable>> variables;
 		Container<Equation> equations;
 	};
 }
