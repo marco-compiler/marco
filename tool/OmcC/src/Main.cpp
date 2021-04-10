@@ -14,6 +14,7 @@
 #include "modelica/model/ModVariable.hpp"
 #include "modelica/omcToModel/OmcToModelPass.hpp"
 #include "modelica/passes/ConstantFold.hpp"
+#include "modelica/passes/ForwardEuler.hpp"
 #include "modelica/passes/SolveModel.hpp"
 
 using namespace modelica;
@@ -27,7 +28,7 @@ cl::opt<string> InputFileName(
 
 opt<bool> externalLinkage(
 		"publicSymbols",
-		cl::desc("globals symbols are set as extenal linkage"),
+		cl::desc("globals symbols are set as external linkage"),
 		cl::init(false),
 		cl::cat(omcCCat));
 
@@ -57,7 +58,7 @@ opt<bool> dumpSolvedModel(
 
 opt<bool> dumpSolvedDerModel(
 		"dd",
-		cl::desc("dump after having removed the derivitives"),
+		cl::desc("dump after having removed the derivatives"),
 		cl::init(false),
 		cl::cat(omcCCat));
 
@@ -97,6 +98,20 @@ opt<string> entryPointName(
 		cl::init("main"),
 		cl::cat(omcCCat));
 
+opt<string> solverName(
+		"solver",
+		cl::desc("name of solver among: forwardEuler, bruteDAE"),
+		cl::init("forwardEuler"),
+		cl::cat(omcCCat));
+
+Expected<AssignModel> selectSolver(Model scheduled)
+{
+	if (solverName == "forwardEuler")
+		return addApproximation(scheduled, timeStep);
+	return createStringError(
+			errc::executable_format_error, "Could not find the chosen solver");
+}
+
 SmallVector<Assigment, 2> toAssign(SmallVector<ModEquation, 2>&& equs)
 {
 	SmallVector<Assigment, 2> assign;
@@ -121,7 +136,6 @@ int main(int argc, char* argv[])
 	if (error)
 	{
 		errs() << error.message();
-		return -1;
 	}
 
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
@@ -182,7 +196,7 @@ int main(int argc, char* argv[])
 		return 0;
 	}
 
-	auto assModel = exitOnErr(addAproximation(scheduled, timeStep));
+	auto assModel = exitOnErr(selectSolver(scheduled));
 	if (dumpSolvedModel)
 	{
 		assModel.dump(OS);
