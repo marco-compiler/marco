@@ -211,6 +211,7 @@ class CycleFuser
 			*foundOne = true;
 			return;
 		}
+
 		for (auto& eq : filtered)
 			newEqus.emplace_back(std::move(eq));
 

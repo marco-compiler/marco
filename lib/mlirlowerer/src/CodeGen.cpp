@@ -557,7 +557,7 @@ void MLIRLowerer::lower(Equation& equation)
 	mlir::Location location = loc(equation.getLocation());
 	auto result = builder.create<EquationOp>(location);
 	mlir::OpBuilder::InsertionGuard guard(builder);
-	builder.setInsertionPointToStart(&result.body().front());
+	builder.setInsertionPointToStart(result.body());
 
 	llvm::SmallVector<mlir::Value, 1> lhs;
 	llvm::SmallVector<mlir::Value, 1> rhs;
@@ -616,10 +616,10 @@ void MLIRLowerer::lower(ForEquation& forEquation)
 	{
 		// Body
 		mlir::OpBuilder::InsertionGuard guard(builder);
-		builder.setInsertionPointToStart(&result.body().front());
+		builder.setInsertionPointToStart(result.body());
 
 		// Add the induction variables to the symbol table
-		for (auto [induction, var] : llvm::zip(forEquation.getInductions(), result.body().getArguments()))
+		for (auto [induction, var] : llvm::zip(forEquation.getInductions(), result.inductions()))
 			symbolTable.insert(induction.getName(), Reference::ssa(&builder, var));
 
 		auto& equation = forEquation.getEquation();

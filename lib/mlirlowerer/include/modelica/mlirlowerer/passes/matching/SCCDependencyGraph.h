@@ -14,9 +14,9 @@ namespace modelica::codegen::model
 	class SCCDependencyGraph
 	{
 		public:
-		using Scc = SccLookup<VVarDependencyGraph>::SCC;
+		using SCC = SCCLookup<VVarDependencyGraph>::scc;
 
-		using GraphImp = boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS, const Scc*>;
+		using GraphImp = boost::adjacency_list<boost::vecS, boost::vecS, boost::directedS, const SCC*>;
 
 		using VertexDesc = boost::graph_traits<GraphImp>::vertex_descriptor;
 
@@ -24,11 +24,11 @@ namespace modelica::codegen::model
 
 		[[nodiscard]] const VVarDependencyGraph& getVectorVarGraph() const;
 
-		[[nodiscard]] llvm::SmallVector<const Scc*, 0> topologicalSort() const;
+		[[nodiscard]] llvm::SmallVector<const SCC*, 0> topologicalSort() const;
 
 		private:
 		GraphImp graph;
-		SccLookup<VVarDependencyGraph> sccLookup;
+		SCCLookup<VVarDependencyGraph> sccLookup;
 		VVarDependencyGraph& originalGraph;
 	};
 }	 // namespace modelica

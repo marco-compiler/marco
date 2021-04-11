@@ -21,7 +21,7 @@ namespace modelica::codegen::model
 	 * properties of the indexes in this SCC.
 	 */
 	template<typename Graph>
-	class Scc
+	class SCC
 	{
 		public:
 		using VertexDesc = typename Graph::VertexDesc;
@@ -29,9 +29,9 @@ namespace modelica::codegen::model
 		using Iter = typename Vector::iterator;
 		using ConstIter = typename Vector::const_iterator;
 
-		Scc() = default;
+		SCC() = default;
 
-		Scc(Vector indexes): indexes(std::move(indexes))
+		SCC(Vector indexes): indexes(std::move(indexes))
 		{
 		}
 
@@ -100,15 +100,15 @@ namespace modelica::codegen::model
 	 * belongs to, or given a SCC index returns the SCC object at that index.
 	 */
 	template<typename Graph>
-	class SccLookup
+	class SCCLookup
 	{
 		public:
 		using VertDesc = typename Graph::VertexDesc;
-		using SCC = Scc<Graph>;
-		using SccVector = llvm::SmallVector<SCC, 3>;
+		using scc = SCC<Graph>;
+		using SccVector = llvm::SmallVector<SCC<Graph>, 3>;
 		using VertToSCC = llvm::SmallVector<size_t, 3>;
 
-		SccLookup(const Graph& graph): allScc(0), vertToScc(graph.count())
+		SCCLookup(const Graph& graph): allScc(0), vertToScc(graph.count())
 		{
 			auto componentsCount = boost::strong_components(
 					graph.getImpl(),
@@ -124,7 +124,7 @@ namespace modelica::codegen::model
 			}
 		}
 
-		[[nodiscard]] const SCC& operator[](size_t index) const
+		[[nodiscard]] const scc& operator[](size_t index) const
 		{
 			return allScc[index];
 		}
@@ -154,7 +154,7 @@ namespace modelica::codegen::model
 			return allScc.end();
 		}
 
-		[[nodiscard]] const SCC& sccOf(VertDesc vertexIndex) const
+		[[nodiscard]] const scc& sccOf(VertDesc vertexIndex) const
 		{
 			return allScc[vertToScc[vertexIndex]];
 		}

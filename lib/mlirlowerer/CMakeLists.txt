@@ -11,6 +11,7 @@ modelicaAddLibrary(
         src/passes/model/Constant.cpp
         src/passes/model/Equation.cpp
         src/passes/model/Expression.cpp
+        src/passes/model/LinSolver.cpp
         src/passes/model/Model.cpp
         src/passes/model/Path.cpp
         src/passes/model/Operation.cpp

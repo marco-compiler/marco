@@ -355,7 +355,7 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 			{
 				// for i in a:b loop x[i]
 				auto forEquation = subscription->getParentOfType<ForEquationOp>();
-				long inductionIndex = forEquation.getInductionIndex(index);
+				long inductionIndex = forEquation.inductionIndex(index);
 				assert(inductionIndex != -1);
 				access.push_back(SingleDimensionAccess::relative(0, inductionIndex));
 				continue;
@@ -372,7 +372,7 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 				auto rhs = addOp.rhs();
 				assert(mlir::isa<ConstantOp>(rhs.getDefiningOp()));
 
-				long inductionIndex = forEquation.getInductionIndex(lhs);
+				long inductionIndex = forEquation.inductionIndex(lhs);
 				assert(inductionIndex != -1);
 
 				int64_t offset = getIntFromAttribute(mlir::cast<ConstantOp>(rhs.getDefiningOp()).value());
@@ -392,7 +392,7 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 				auto rhs = subOp.rhs();
 				assert(mlir::isa<ConstantOp>(rhs.getDefiningOp()));
 
-				long inductionIndex = forEquation.getInductionIndex(lhs);
+				long inductionIndex = forEquation.inductionIndex(lhs);
 				assert(inductionIndex != -1);
 
 				int64_t offset = getIntFromAttribute(mlir::cast<ConstantOp>(rhs.getDefiningOp()).value());

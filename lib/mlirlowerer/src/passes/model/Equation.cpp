@@ -12,7 +12,6 @@
 using namespace modelica::codegen;
 using namespace modelica::codegen::model;
 
-
 Equation::Impl::Impl(mlir::Operation* op,
 										 Expression left,
 										 Expression right,
@@ -82,8 +81,8 @@ Equation Equation::build(mlir::Operation* op)
 
 Equation Equation::build(EquationOp op)
 {
-	auto& body = op.body();
-	auto terminator = mlir::cast<EquationSidesOp>(body.front().getTerminator());
+	auto body = op.body();
+	auto terminator = mlir::cast<EquationSidesOp>(body->getTerminator());
 
 	// Left-hand side of the equation
 	mlir::ValueRange lhs = terminator.lhs();
@@ -111,8 +110,8 @@ Equation Equation::build(EquationOp op)
 
 Equation Equation::build(ForEquationOp op)
 {
-	auto& body = op.body();
-	auto terminator = mlir::cast<EquationSidesOp>(body.front().getTerminator());
+	auto body = op.body();
+	auto terminator = mlir::cast<EquationSidesOp>(body->getTerminator());
 
 	// Left-hand side of the equation
 	mlir::ValueRange lhs = terminator.lhs();
@@ -137,7 +136,7 @@ Equation Equation::build(ForEquationOp op)
 
 	llvm::SmallVector<Interval> intervals;
 
-	for (auto induction : op.inductions())
+	for (auto induction : op.inductionsDefinitions())
 	{
 		auto inductionOp = induction.getDefiningOp<InductionOp>();
 		intervals.emplace_back(inductionOp.start(), inductionOp.end() + 1);
@@ -146,7 +145,7 @@ Equation Equation::build(ForEquationOp op)
 	return Equation(op, lhsExpr[0], rhsExpr[0], MultiDimInterval(intervals));
 }
 
-mlir::Operation* Equation::getOp() const
+EquationInterface Equation::getOp() const
 {
 	return impl->op;
 }
@@ -174,87 +173,47 @@ void Equation::getEquationsAmount(mlir::ValueRange values, llvm::SmallVectorImpl
 	}
 }
 
-EquationSidesOp Equation::getTerminator()
+EquationSidesOp Equation::getTerminator() const
 {
-	if (auto equationOp = mlir::dyn_cast<EquationOp>(getOp()))
-		return mlir::cast<EquationSidesOp>(equationOp.body().back().getTerminator());
-
-	assert(mlir::isa<ForEquationOp>(getOp()));
-	auto forEquationOp = mlir::cast<ForEquationOp>(getOp());
-	return mlir::cast<EquationSidesOp>(forEquationOp.body().back().getTerminator());
+	return mlir::cast<EquationSidesOp>(getOp().body()->getTerminator());
 }
 
 size_t Equation::amount() const
 {
-	if (auto equationOp = mlir::dyn_cast<EquationOp>(getOp()))
+	llvm::SmallVector<long, 3> lhsEquations;
+	llvm::SmallVector<long, 3> rhsEquations;
+
+	getEquationsAmount(getOp().lhs(), lhsEquations);
+	getEquationsAmount(getOp().rhs(), rhsEquations);
+
+	assert(lhsEquations.size() == rhsEquations.size());
+	auto pairs = llvm::zip(lhsEquations, rhsEquations);
+
+	size_t result = 0;
+
+	for (const auto& [l, r] : pairs)
 	{
-		llvm::SmallVector<long, 3> lhsEquations;
-		llvm::SmallVector<long, 3> rhsEquations;
+		assert(l != -1 || r != -1);
 
-		getEquationsAmount(equationOp.lhs(), lhsEquations);
-		getEquationsAmount(equationOp.rhs(), rhsEquations);
-
-		assert(lhsEquations.size() == rhsEquations.size());
-		auto pairs = llvm::zip(lhsEquations, rhsEquations);
-
-		size_t result = 0;
-
-		for (const auto& [l, r] : pairs)
+		if (l == -1)
+			result += r;
+		else if (r == -1)
+			result += l;
+		else
 		{
-			assert(l != -1 || r != -1);
-
-			if (l == -1)
-				result += r;
-			else if (r == -1)
-				result += l;
-			else
-			{
-				assert(l == r);
-				result += l;
-			}
+			assert(l == r);
+			result += l;
 		}
-
-		return result;
 	}
 
-	if (auto forEquationOp = mlir::dyn_cast<ForEquationOp>(getOp()))
+	for (size_t i = 0, e = getOp().inductions().size(); i < e; ++i)
 	{
-		llvm::SmallVector<long, 3> lhsEquations;
-		llvm::SmallVector<long, 3> rhsEquations;
-
-		getEquationsAmount(forEquationOp.lhs(), lhsEquations);
-		getEquationsAmount(forEquationOp.rhs(), rhsEquations);
-
-		assert(lhsEquations.size() == rhsEquations.size());
-		auto pairs = llvm::zip(lhsEquations, rhsEquations);
-
-		size_t result = 0;
-
-		for (const auto& [l, r] : pairs)
-		{
-			assert(l != -1 || r != -1);
-
-			if (l == -1)
-				result += r;
-			else if (r == -1)
-				result += l;
-			else
-			{
-				assert(l == r);
-				result += l;
-			}
-		}
-
-		for (auto induction : forEquationOp.inductions())
-		{
-			auto inductionOp = induction.getDefiningOp<InductionOp>();
-			result *= inductionOp.end() + 1 - inductionOp.start();
-		}
-
-		return result;
+		auto forEquationOp = mlir::cast<ForEquationOp>(getOp().getOperation());
+		auto inductionOp = forEquationOp.inductionsDefinitions()[i].getDefiningOp<InductionOp>();
+		result *= inductionOp.end() + 1 - inductionOp.start();
 	}
 
-	return 0;
+	return result;
 }
 
 const modelica::MultiDimInterval& Equation::getInductions() const
@@ -270,7 +229,7 @@ void Equation::setInductionVars(MultiDimInterval inds)
 	{
 		impl->inductions = std::move(inds);
 
-		auto forEquationOp = mlir::cast<ForEquationOp>(getOp());
+		auto forEquationOp = mlir::cast<ForEquationOp>(getOp().getOperation());
 
 		mlir::OpBuilder builder(forEquationOp);
 		forEquationOp.inductionsBlock()->clear();
@@ -564,54 +523,36 @@ namespace modelica::codegen::model
 	}
 }
 
-static Expression singleDimAccToExp(const SingleDimensionAccess& access, Expression exp)
-{
-	mlir::OpBuilder builder(exp.getOp());
-	mlir::Location location = exp.getOp()->getLoc();
-
-	if (access.isDirecAccess())
-	{
-		mlir::Value index = builder.create<modelica::codegen::ConstantOp>(location, builder.getIndexAttr(access.getOffset()));
-		mlir::Value source = exp.getOp()->getResult(0);
-		auto subscription = builder.create<modelica::codegen::SubscriptionOp>(location, source, index);
-		return Expression::build(subscription.getResult());
-	}
-
-	/*
-	if (access.isDirecAccess())
-		return ModExp::at(
-				move(exp), ModExp(ModConst(static_cast<int>(access.getOffset()))));
-
-	auto ind = ModExp::induction(
-			ModExp(ModConst(static_cast<int>(access.getInductionVar()))));
-	auto sum = move(ind) + ModExp(ModConst(static_cast<int>(access.getOffset())));
-
-	return ModExp::at(move(exp), move(sum));
-	 */
-
-	return exp;
-}
-
-static Expression accessToExp(const VectorAccess& access, Expression exp)
-{
-	for (const auto& singleDimAcc : access)
-		exp = singleDimAccToExp(singleDimAcc, exp);
-
-	return exp;
-}
-
 static void composeAccess(Expression& exp, const VectorAccess& transformation)
 {
 	auto access = AccessToVar::fromExp(exp);
 	auto combinedAccess = transformation * access.getAccess();
 
-	auto newExps = exp.getReferredVectorAccessExp();
-	exp = accessToExp(combinedAccess, newExps);
+	assert(mlir::isa<SubscriptionOp>(exp.getOp()));
+	auto op = mlir::cast<SubscriptionOp>(exp.getOp());
+	mlir::OpBuilder builder(op);
+	llvm::SmallVector<mlir::Value, 3> indexes;
+
+	for (const auto& singleDimensionAccess : llvm::enumerate(combinedAccess))
+	{
+		mlir::Value index;
+
+		if (singleDimensionAccess.value().isDirecAccess())
+			index = builder.create<modelica::codegen::ConstantOp>(op->getLoc(), builder.getIndexAttr(singleDimensionAccess.value().getOffset()));
+		else
+		{
+			mlir::Value inductionVar = exp.getOp()->getParentOfType<ForEquationOp>().body()->getArgument(singleDimensionAccess.value().getInductionVar());
+			mlir::Value offset = builder.create<ConstantOp>(op->getLoc(), builder.getIndexAttr(singleDimensionAccess.value().getOffset()));
+			index = builder.create<AddOp>(op->getLoc(), builder.getIndexType(), inductionVar, offset);
+		}
+
+		op.indexes()[singleDimensionAccess.index()].replaceAllUsesWith(index);
+	}
 }
 
 Equation Equation::composeAccess(const VectorAccess& transformation) const
 {
-	auto toReturn = Equation(*this);
+	auto toReturn = clone();
 	auto inverted = transformation.invert();
 	toReturn.setInductionVars(inverted.map(getInductions()));
 
@@ -628,25 +569,24 @@ Equation Equation::composeAccess(const VectorAccess& transformation) const
 
 mlir::LogicalResult Equation::normalize()
 {
-	mlir::OpBuilder builder(getTerminator());
-
 	// Get how the left-hand side variable is currently accessed
 	auto access = AccessToVar::fromExp(getMatchedExp()).getAccess();
 
 	// Apply the transformation to the induction range
 	setInductionVars(access.map(getInductions()));
 
+	auto invertedAccess = access.invert();
 	ReferenceMatcher matcher(*this);
 
-	/*
 	for (auto& matchedExp : matcher)
 	{
-		auto exp = toReturn.reachExp(matchedExp);
-		::composeAccess(exp, transformation);
+		auto exp = reachExp(matchedExp);
+		::composeAccess(exp, invertedAccess);
 	}
 
-	return composeAccess(invertedAccess);
-	 */
+	auto terminator = getTerminator();
+	impl->left = Expression::build(terminator.lhs()[0]);
+	impl->right = Expression::build(terminator.rhs()[0]);
 
 	return mlir::success();
 }
@@ -711,6 +651,13 @@ Equation Equation::clone() const
 	clone.impl->matchedExpPath = impl->matchedExpPath;
 
 	return clone;
+}
+
+void Equation::update()
+{
+	auto terminator = getTerminator();
+	impl->left = Expression::build(terminator.lhs()[0]);
+	impl->right = Expression::build(terminator.rhs()[0]);
 }
 
 using Mult = llvm::SmallVector<std::pair<Expression, bool>, 3>;

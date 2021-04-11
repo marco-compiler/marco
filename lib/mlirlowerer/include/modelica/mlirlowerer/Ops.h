@@ -6,6 +6,7 @@
 #include <mlir/Interfaces/ViewLikeInterface.h>
 #include <mlir/IR/OpDefinition.h>
 
+#include "Traits.h"
 #include "Type.h"
 
 namespace modelica::codegen
@@ -97,7 +98,7 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 	};
 
-	class EquationOp : public mlir::Op<EquationOp, mlir::OpTrait::OneRegion, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult>
+	class EquationOp : public mlir::Op<EquationOp, mlir::OpTrait::OneRegion, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, EquationInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -107,7 +108,10 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
 		void print(mlir::OpAsmPrinter& printer);
 
-		mlir::Region& body();
+		mlir::Block* body();
+		mlir::ValueRange inductions();
+		mlir::Value induction(size_t index);
+		long inductionIndex(mlir::Value induction);
 
 		mlir::ValueRange lhs();
 		mlir::ValueRange rhs();
@@ -125,7 +129,7 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 	};
 
-	class ForEquationOp : public mlir::Op<ForEquationOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult>
+	class ForEquationOp : public mlir::Op<ForEquationOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, EquationInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -134,12 +138,15 @@ namespace modelica::codegen
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, size_t inductionsAmount);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		mlir::Block* inductionsBlock();
-		mlir::ValueRange inductions();
-		mlir::Region& body();
+		mlir::ValueRange inductionsDefinitions();
 
-		long getInductionIndex(mlir::Value induction);
+		mlir::Block* body();
+		mlir::ValueRange inductions();
+		mlir::Value induction(size_t index);
+		long inductionIndex(mlir::Value induction);
 
 		mlir::ValueRange lhs();
 		mlir::ValueRange rhs();

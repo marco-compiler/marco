@@ -1,47 +1,23 @@
 #pragma once
 
-#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/IndexSet.hpp>
-
-#include "Equation.h"
-#include "Expression.h"
-#include "Model.h"
-#include "ReferenceMatcher.h"
-#include "Variable.h"
-#include "VectorAccess.h"
+#include <mlir/IR/Builders.h>
+#include <mlir/Support/LogicalResult.h>
 
 namespace modelica::codegen::model
 {
-	static void replaceUses(const Equation& newEq, Equation& original)
-	{
-		auto var = newEq.getDeterminedVariable();
-		ReferenceMatcher matcher(original);
+	class Equation;
 
-		for (auto& acc : matcher)
-		{
-			auto pathToVar = AccessToVar::fromExp(acc.getExp());
-
-			if (pathToVar.getVar() != var.getVar())
-				continue;
-
-			auto composed = newEq.composeAccess(pathToVar.getAccess());
-			original.reachExp(acc) = composed.rhs();
-		}
-	}
-
-	inline llvm::Error linearySolve(llvm::SmallVectorImpl<Equation>& equations)
-	{
-		for (auto eq = equations.rbegin(); eq != equations.rend(); eq++)
-		{
-			for (auto eq2 = eq + 1; eq2 != equations.rend(); eq2++)
-				replaceUses(*eq, *eq2);
-		}
-
-		//for (auto& eq : equations)
-		//	eq = eq->groupLeftHand();
-
-		return llvm::Error::success();
-	}
-}	 // namespace modelica
+	/**
+	 * Solve the linear system by using the variable elimination method.
+	 * Starting from the last equation eq_n (and its explicitated member x_n),
+	 * we replace in the all other equations the declarations of x_n with the
+	 * right-hand side of eq_n, which by design doesn't contain any other use
+	 * of x_n. Then proceed with the second-last equation and so on.
+	 *
+	 * @param builder		operation builder
+	 * @param equations system of equations
+	 * @return success if everything went right
+	 */
+	mlir::LogicalResult linearySolve(mlir::OpBuilder& builder, llvm::SmallVectorImpl<Equation>& equations);
+}

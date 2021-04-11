@@ -32,7 +32,7 @@ namespace modelica::codegen::model
 			friend class Equation;
 
 			private:
-			mlir::Operation* op;
+			EquationInterface op;
 			Expression left;
 			Expression right;
 			MultiDimInterval inductions;
@@ -63,7 +63,7 @@ namespace modelica::codegen::model
 		bool operator<=(const Equation& rhs) const;
 		bool operator>=(const Equation& rhs) const;
 
-		[[nodiscard]] mlir::Operation* getOp() const;
+		[[nodiscard]] EquationInterface getOp() const;
 
 		[[nodiscard]] Expression lhs() const;
 		[[nodiscard]] Expression rhs() const;
@@ -94,6 +94,7 @@ namespace modelica::codegen::model
 		mlir::LogicalResult explicitate();
 
 		[[nodiscard]] Equation clone() const;
+		void update();
 
 		[[nodiscard]] Equation composeAccess(const VectorAccess& transformation) const;
 
@@ -109,9 +110,9 @@ namespace modelica::codegen::model
 		 */
 		[[nodiscard]] Equation groupLeftHand() const;
 
+		[[nodiscard]] EquationSidesOp getTerminator() const;
+
 		private:
 		void getEquationsAmount(mlir::ValueRange values, llvm::SmallVectorImpl<long>& amounts) const;
-
-		EquationSidesOp getTerminator();
 	};
 }

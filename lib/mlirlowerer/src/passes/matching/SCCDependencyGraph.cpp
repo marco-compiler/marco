@@ -8,7 +8,7 @@ using namespace modelica::codegen::model;
 SCCDependencyGraph::SCCDependencyGraph(VVarDependencyGraph& originalGraph)
 		: sccLookup(originalGraph), originalGraph(originalGraph)
 {
-	std::map<const Scc*, VertexDesc> insertedVertex;
+	std::map<const SCC*, VertexDesc> insertedVertex;
 
 	for (const auto& scc : sccLookup)
 		insertedVertex[&scc] = add_vertex(&scc, graph);
@@ -35,11 +35,11 @@ const VVarDependencyGraph& SCCDependencyGraph::getVectorVarGraph() const
 	return originalGraph;
 }
 
-llvm::SmallVector<const Scc<VVarDependencyGraph>*, 0>
+llvm::SmallVector<const SCC<VVarDependencyGraph>*, 0>
 SCCDependencyGraph::topologicalSort() const
 {
 	llvm::SmallVector<size_t, 0> sorted(sccLookup.count(), 0);
-	llvm::SmallVector<const Scc*, 0> out(sccLookup.count(), nullptr);
+	llvm::SmallVector<const SCC*, 0> out(sccLookup.count(), nullptr);
 	topological_sort(graph, sorted.begin());
 
 	for (auto i : irange(sorted.size()))

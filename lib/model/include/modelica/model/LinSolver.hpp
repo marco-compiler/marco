@@ -24,7 +24,10 @@ namespace modelica
 				continue;
 
 			auto composed = newEq.composeAccess(pathToVar.getAccess());
-			original.reachExp(acc) = composed.getRight();
+			auto& reachExp = original.reachExp(acc);
+			auto& right = composed.getRight();
+			reachExp = right;
+			//original.reachExp(acc) = composed.getRight();
 		}
 	}
 

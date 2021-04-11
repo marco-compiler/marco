@@ -52,7 +52,7 @@ namespace modelica::codegen::model
 
 		using VertexDesc = boost::graph_traits<GraphImp>::vertex_descriptor;
 
-		using VVarScc = Scc<VVarDependencyGraph>;
+		using VVarScc = SCC<VVarDependencyGraph>;
 
 		using LookUp = std::map<const IndexesOfEquation*, std::map<size_t, size_t>>;
 

@@ -66,7 +66,7 @@ static bool isBacward(const VectorAccess* access)
 }
 
 static llvm::SmallVector<Equation, 3> trivialScheduling(
-		const Scc<VVarDependencyGraph>& scc,
+		const SCC<VVarDependencyGraph>& scc,
 		const VVarDependencyGraph& originalGraph)
 {
 	if (scc.size() != 1)
@@ -95,7 +95,7 @@ static llvm::SmallVector<Equation, 3> trivialScheduling(
 }
 
 static llvm::SmallVector<Equation, 3> sched(
-		const Scc<VVarDependencyGraph>& scc,
+		const SCC<VVarDependencyGraph>& scc,
 		const VVarDependencyGraph& originalGraph)
 {
 	if (auto sched = trivialScheduling(scc, originalGraph); !sched.empty())
@@ -107,7 +107,7 @@ static llvm::SmallVector<Equation, 3> sched(
 }
 
 using ResultVector = llvm::SmallVector<llvm::SmallVector<Equation, 3>, 0>;
-using SortedScc = llvm::SmallVector<const Scc<VVarDependencyGraph>*, 0>;
+using SortedScc = llvm::SmallVector<const SCC<VVarDependencyGraph>*, 0>;
 
 static ResultVector parallelMap(
 		const VVarDependencyGraph& vectorGraph, const SortedScc& sortedScc)

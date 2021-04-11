@@ -131,23 +131,40 @@ void EquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 void EquationOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.equation";
-	printer.printRegion(body(), false);
+	printer.printRegion(*body()->getParent(), false);
 }
 
-mlir::Region& EquationOp::body()
+mlir::Block* EquationOp::body()
 {
-	return getRegion();
+	return &getRegion().front();
+}
+
+mlir::ValueRange EquationOp::inductions()
+{
+	return mlir::ValueRange();
+}
+
+mlir::Value EquationOp::induction(size_t index)
+{
+	assert(false && "EquationOp doesn't have induction variables");
+	return mlir::Value();
+}
+
+long EquationOp::inductionIndex(mlir::Value induction)
+{
+	assert(false && "EquationOp doesn't have induction variables");
+	return -1;
 }
 
 mlir::ValueRange EquationOp::lhs()
 {
-	auto terminator = mlir::cast<EquationSidesOp>(body().front().getTerminator());
+	auto terminator = mlir::cast<EquationSidesOp>(body()->getTerminator());
 	return terminator.lhs();
 }
 
 mlir::ValueRange EquationOp::rhs()
 {
-	auto terminator = mlir::cast<EquationSidesOp>(body().front().getTerminator());
+	auto terminator = mlir::cast<EquationSidesOp>(body()->getTerminator());
 	return terminator.rhs();
 }
 
@@ -174,7 +191,16 @@ void ForEquationOp::print(mlir::OpAsmPrinter& printer)
 	printer << "modelica.for_equation";
 	printer.printRegion(*inductionsBlock()->getParent(), false);
 	printer << " body";
-	printer.printRegion(body(), true);
+	printer.printRegion(*body()->getParent(), true);
+}
+
+mlir::LogicalResult ForEquationOp::verify()
+{
+	for (auto value : inductionsDefinitions())
+		if (!mlir::isa<InductionOp>(value.getDefiningOp()))
+			return emitOpError(" requires the inductions to be defined by InductionOp operations");
+
+	return mlir::success();
 }
 
 mlir::Block* ForEquationOp::inductionsBlock()
@@ -182,21 +208,33 @@ mlir::Block* ForEquationOp::inductionsBlock()
 	return &getRegion(0).front();
 }
 
-mlir::ValueRange ForEquationOp::inductions()
+mlir::ValueRange ForEquationOp::inductionsDefinitions()
 {
 	return mlir::cast<YieldOp>(inductionsBlock()->getTerminator()).getOperands();
 }
 
-mlir::Region& ForEquationOp::body()
+mlir::Block* ForEquationOp::body()
 {
-	return getRegion(1);
+	return &getRegion(1).front();
 }
 
-long ForEquationOp::getInductionIndex(mlir::Value induction)
+mlir::ValueRange ForEquationOp::inductions()
+{
+	return body()->getArguments();
+}
+
+mlir::Value ForEquationOp::induction(size_t index)
+{
+	auto allInductions = inductions();
+	assert(index < allInductions.size());
+	return allInductions[index];
+}
+
+long ForEquationOp::inductionIndex(mlir::Value induction)
 {
 	assert(induction.isa<mlir::BlockArgument>());
 
-	for (auto ind : llvm::enumerate(body().getArguments()))
+	for (auto ind : llvm::enumerate(body()->getArguments()))
 		if (ind.value() == induction)
 			return ind.index();
 
@@ -206,13 +244,13 @@ long ForEquationOp::getInductionIndex(mlir::Value induction)
 
 mlir::ValueRange ForEquationOp::lhs()
 {
-	auto terminator = mlir::cast<EquationSidesOp>(body().front().getTerminator());
+	auto terminator = mlir::cast<EquationSidesOp>(body()->getTerminator());
 	return terminator.lhs();
 }
 
 mlir::ValueRange ForEquationOp::rhs()
 {
-	auto terminator = mlir::cast<EquationSidesOp>(body().front().getTerminator());
+	auto terminator = mlir::cast<EquationSidesOp>(body()->getTerminator());
 	return terminator.rhs();
 }
 
