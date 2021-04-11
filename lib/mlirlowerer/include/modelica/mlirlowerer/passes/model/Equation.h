@@ -108,7 +108,7 @@ namespace modelica::codegen::model
 		 * Tries to bring all the usages of the variable in the left-hand side
 		 * of the equation to the left side of the equation.
 		 */
-		[[nodiscard]] Equation groupLeftHand() const;
+		void groupLeftHand() const;
 
 		[[nodiscard]] EquationSidesOp getTerminator() const;
 

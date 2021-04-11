@@ -5,10 +5,10 @@
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Error.h>
+#include <modelica/mlirlowerer/passes/matching/LinSolver.h>
 #include <modelica/mlirlowerer/passes/matching/SCCCollapsing.h>
 #include <modelica/mlirlowerer/passes/matching/SCCLookup.h>
 #include <modelica/mlirlowerer/passes/matching/VVarDependencyGraph.h>
-#include <modelica/mlirlowerer/passes/model/LinSolver.h>
 #include <modelica/utils/Interval.hpp>
 #include <modelica/utils/IRange.hpp>
 #include <numeric>

@@ -826,14 +826,15 @@ static bool usesMember(const Mult& exp, mlir::Value var)
 	return llvm::find_if(exp, isReferenceToVar) != exp.end();
 }
 
-Equation Equation::groupLeftHand() const
+void Equation::groupLeftHand() const
 {
 	/*
-	auto copy = clone();
-	recursiveFold(copy.rhs());
-	copy.rhs().distributeMultiplications();
+	recursiveFold(rhs());
+	rhs().distributeMultiplications();
 	auto acc = AccessToVar::fromExp(lhs());
+	 */
 
+	/*
 	SumsOfMult sums;
 	toSumsOfMult(copy.rhs(), sums);
 
@@ -869,6 +870,4 @@ Equation Equation::groupLeftHand() const
 	copy.rhs() = std::move(rightHand);
 	return copy;
 	 */
-
-	return *this;
 }

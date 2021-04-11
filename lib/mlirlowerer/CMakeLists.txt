@@ -2,6 +2,7 @@ modelicaAddLibrary(
         mlirlowerer SHARED
         src/passes/matching/Edge.cpp
         src/passes/matching/Flow.cpp
+        src/passes/matching/LinSolver.cpp
         src/passes/matching/Matching.cpp
         src/passes/matching/SCCCollapsing.cpp
         src/passes/matching/SCCDependencyGraph.cpp
@@ -11,7 +12,6 @@ modelicaAddLibrary(
         src/passes/model/Constant.cpp
         src/passes/model/Equation.cpp
         src/passes/model/Expression.cpp
-        src/passes/model/LinSolver.cpp
         src/passes/model/Model.cpp
         src/passes/model/Path.cpp
         src/passes/model/Operation.cpp
