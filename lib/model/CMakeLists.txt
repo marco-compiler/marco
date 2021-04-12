@@ -11,7 +11,10 @@ set(SOURCES
 		src/ModVariable.cpp
 		src/VectorAccess.cpp
 		src/ModConst.cpp
-		src/ModMatchers.cpp)
+		src/ModMatchers.cpp
+		src/ModJacobian.cpp
+		src/ModResidual.cpp
+		src/SymbolicDifferentiation.cpp)
 
 marco_add_library(model SHARED ${SOURCES})
 
