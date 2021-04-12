@@ -13,6 +13,7 @@
 #include "marco/model/AssignModel.hpp"
 #include "marco/model/ModVariable.hpp"
 #include "marco/omcToModel/OmcToModelPass.hpp"
+#include "modelica/passes/BruteDAE.hpp"
 #include "marco/passes/ConstantFold.hpp"
 #include "marco/passes/ForwardEuler.hpp"
 #include "marco/passes/SolveModel.hpp"
@@ -108,6 +109,8 @@ Expected<AssignModel> selectSolver(Model scheduled)
 {
 	if (solverName == "forwardEuler")
 		return addApproximation(scheduled, timeStep);
+	if (solverName == "bruteDAE")
+		return addJacobianAndResidual(scheduled);
 	return createStringError(
 			errc::executable_format_error, "Could not find the chosen solver");
 }

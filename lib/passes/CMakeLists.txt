@@ -1,7 +1,8 @@
 set(SOURCES
 		src/PassManager.cpp
 		src/SolveModel.cpp
-		src/ForwardEuler.cpp)
+		src/ForwardEuler.cpp
+		src/BruteDAE.cpp)
 
 marco_add_library(passes SHARED ${SOURCES})
 
