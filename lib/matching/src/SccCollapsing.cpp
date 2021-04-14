@@ -287,10 +287,5 @@ Expected<Model> modelica::solveScc(Model&& model, size_t maxIterations)
 		for (auto& eq : eqList)
 			outModel.addEquation(std::move(eq));
 
-	VVarDependencyGraph g(outModel);
-	g.dump(llvm::errs());
-
-	outModel.dump();
-
 	return outModel;
 }
