@@ -30,7 +30,9 @@ namespace modelica::codegen::model
 		VVarDependencyGraph(const Model& model);
 		VVarDependencyGraph(const Model& model, llvm::ArrayRef<Equation> equs);
 
-		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
+		void dump() const;
+		void dump(llvm::raw_ostream& os) const;
+
 		[[nodiscard]] size_t count() const { return graph.m_vertices.size(); }
 		[[nodiscard]] const GraphImp& getImpl() const { return graph; }
 		[[nodiscard]] GraphImp& getImpl() { return graph; }

@@ -3,8 +3,6 @@
 #include <mlir/IR/OpDefinition.h>
 
 struct EquationInterfaceTraits {
-	// Define a base concept class that specifies the virtual interface
-	// to be implemented.
 	struct Concept {
 		virtual mlir::Block* body(mlir::Operation* op) const = 0;
 		virtual mlir::ValueRange inductions(mlir::Operation* op) const = 0;
@@ -48,11 +46,8 @@ struct EquationInterfaceTraits {
 	};
 };
 
-// Define the main interface class that analyses and transformations will
-// interface with.
 class EquationInterface : public mlir::OpInterface<EquationInterface, EquationInterfaceTraits> {
 	public:
-	// Inherit the base class constructor to support LLVM-style casting
 	using OpInterface<EquationInterface, EquationInterfaceTraits>::OpInterface;
 
 	mlir::Block* body()
@@ -83,5 +78,101 @@ class EquationInterface : public mlir::OpInterface<EquationInterface, EquationIn
 	mlir::ValueRange rhs()
 	{
 		return getImpl()->rhs(getOperation());
+	}
+};
+
+struct DistributableInterfaceTraits {
+	struct Concept {
+		virtual mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const = 0;
+	};
+
+	template <typename ConcreteOp>
+	struct Model : public Concept {
+		mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const final
+		{
+			return mlir::cast<ConcreteOp>(op).distribute(builder);
+		}
+	};
+};
+
+class DistributableInterface : public mlir::OpInterface<DistributableInterface, DistributableInterfaceTraits> {
+	public:
+	using OpInterface<DistributableInterface, DistributableInterfaceTraits>::OpInterface;
+
+	mlir::Value distribute(mlir::OpBuilder& builder)
+	{
+		return getImpl()->distribute(getOperation(), builder);
+	}
+};
+
+struct NegateOpDistributionInterfaceTraits {
+	struct Concept {
+		virtual mlir::Value distributeNegateOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType) const = 0;
+	};
+
+	template <typename ConcreteOp>
+	struct Model : public Concept {
+		mlir::Value distributeNegateOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType) const final
+		{
+			return mlir::cast<ConcreteOp>(op).distributeNegateOp(builder, resultType);
+		}
+	};
+};
+
+class NegateOpDistributionInterface : public mlir::OpInterface<NegateOpDistributionInterface, NegateOpDistributionInterfaceTraits> {
+	public:
+	using OpInterface<NegateOpDistributionInterface, NegateOpDistributionInterfaceTraits>::OpInterface;
+
+	mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
+	{
+		return getImpl()->distributeNegateOp(getOperation(), builder, resultType);
+	}
+};
+
+struct MulOpDistributionInterfaceTraits {
+	struct Concept {
+		virtual mlir::Value distributeMulOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const = 0;
+	};
+
+	template <typename ConcreteOp>
+	struct Model : public Concept {
+		mlir::Value distributeMulOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
+		{
+			return mlir::cast<ConcreteOp>(op).distributeMulOp(builder, resultType, value);
+		}
+	};
+};
+
+class MulOpDistributionInterface : public mlir::OpInterface<MulOpDistributionInterface, MulOpDistributionInterfaceTraits> {
+	public:
+	using OpInterface<MulOpDistributionInterface, MulOpDistributionInterfaceTraits>::OpInterface;
+
+	mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+	{
+		return getImpl()->distributeMulOp(getOperation(), builder, resultType, value);
+	}
+};
+
+struct DivOpDistributionInterfaceTraits {
+	struct Concept {
+		virtual mlir::Value distributeDivOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const = 0;
+	};
+
+	template <typename ConcreteOp>
+	struct Model : public Concept {
+		mlir::Value distributeDivOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
+		{
+			return mlir::cast<ConcreteOp>(op).distributeDivOp(builder, resultType, value);
+		}
+	};
+};
+
+class DivOpDistributionInterface : public mlir::OpInterface<DivOpDistributionInterface, DivOpDistributionInterfaceTraits> {
+	public:
+	using OpInterface<DivOpDistributionInterface, DivOpDistributionInterfaceTraits>::OpInterface;
+
+	mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+	{
+		return getImpl()->distributeDivOp(getOperation(), builder, resultType, value);
 	}
 };

@@ -104,12 +104,6 @@ namespace modelica::codegen::model
 			return path.isOnEquationLeftHand() ? path.reach(lhs()) : path.reach(rhs());
 		}
 
-		/**
-		 * Tries to bring all the usages of the variable in the left-hand side
-		 * of the equation to the left side of the equation.
-		 */
-		void groupLeftHand() const;
-
 		[[nodiscard]] EquationSidesOp getTerminator() const;
 
 		private:

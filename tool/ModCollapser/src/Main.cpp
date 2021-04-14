@@ -33,6 +33,9 @@ opt<bool> dumpModel(
 		init(false),
 		cat(mSchedCat));
 
+opt<bool> dumpGraphEarly(
+		"dumpGraphEarly", desc("dump graph before running matching"), init(false), cat(mSchedCat));
+
 opt<bool> dumpGraph(
 		"dumpGraph", desc("dump graph"), init(false), cat(mSchedCat));
 
@@ -60,6 +63,13 @@ int main(int argc, char* argv[])
 	{
 		errs() << error.message();
 		return -1;
+	}
+
+	if (dumpGraphEarly)
+	{
+		VVarDependencyGraph graph(model);
+		graph.dump(OS);
+		return 0;
 	}
 
 	auto outM = exitOnErr(solveScc(move(model), maxIterations));

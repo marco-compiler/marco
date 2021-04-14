@@ -73,6 +73,7 @@ static llvm::SmallVector<Equation, 3> trivialScheduling(
 		return {};
 
 	llvm::SmallVector<const VectorAccess*, 3> internalEdges;
+
 	for (const auto& edge : originalGraph.outEdges(scc[0]))
 		if (originalGraph.target(edge) == scc[0])
 			internalEdges.push_back(&originalGraph[edge]);
@@ -116,9 +117,9 @@ static ResultVector parallelMap(
 	modelica::ThreadPool pool;
 
 	for (size_t i : modelica::irange(sortedScc.size()))
-		pool.addTask([i, &sortedScc, &vectorGraph, &results]() {
+		//pool.addTask([i, &sortedScc, &vectorGraph, &results]() {
 			results[i] = sched(*sortedScc[i], vectorGraph);
-		});
+		//});
 
 	return results;
 }

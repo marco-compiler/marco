@@ -163,6 +163,27 @@ llvm::Optional<mlir::ModuleOp> MLIRLowerer::lower(llvm::ArrayRef<ClassContainer>
 	return module;
 }
 
+static mlir::Operation* distributeMultiplications(mlir::OpBuilder& builder, mlir::Operation* op)
+{
+	if (op == nullptr)
+		return op;
+
+	for (auto operand : op->getOperands())
+		distributeMultiplications(builder, operand.getDefiningOp());
+
+	if (auto distributableOp = mlir::dyn_cast<DistributableInterface>(op))
+	{
+		mlir::Operation* result = distributableOp.distribute(builder).getDefiningOp();
+
+		if (result != op)
+			op->replaceAllUsesWith(result);
+
+		return result;
+	}
+
+	return op;
+}
+
 mlir::Operation* MLIRLowerer::lower(Class& cls)
 {
 	// Create a scope in the symbol table to hold variable declarations.
@@ -204,6 +225,27 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 
 	for (auto& forEquation : cls.getForEquations())
 		lower(*forEquation);
+
+	/*
+	mlir::Value x = builder.create<AllocaOp>(location, builder.getIntegerType());
+	mlir::Value a = builder.create<ConstantOp>(location, builder.getIntegerAttribute(3));
+	mlir::Value b = builder.create<ConstantOp>(location, builder.getIntegerAttribute(4));
+
+	auto op1 = builder.create<MulOp>(location, builder.getIntegerType(), a, x);
+	auto op2 = builder.create<AddOp>(location, builder.getIntegerType(), op1, x);
+	auto op3 = builder.create<MulOp>(location, builder.getIntegerType(), op2, b);
+	auto op4 = builder.create<AddOp>(location, builder.getIntegerType(), op3, x);
+
+	simulation->dump();
+
+	llvm::errs() << "aa\n";
+
+	distributeMultiplications(builder, op4)->dump();
+
+	//op3.distribute(builder).dump();
+
+	simulation.dump();
+	 */
 
 	builder.create<YieldOp>(location);
 

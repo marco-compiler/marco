@@ -119,9 +119,9 @@ static ResultVector parallelMap(
 
 	ThreadPool pool;
 	for (size_t i : irange(sortedScc.size()))
-		pool.addTask([i, &sortedScc, &vectorGraph, &results]() {
+		//pool.addTask([i, &sortedScc, &vectorGraph, &results]() {
 			results[i] = sched(*sortedScc[i], vectorGraph);
-		});
+		//});
 
 	return results;
 }

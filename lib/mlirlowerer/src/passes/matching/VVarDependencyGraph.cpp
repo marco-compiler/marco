@@ -29,6 +29,31 @@ using namespace std;
 using namespace llvm;
 using namespace boost;
 
+void VVarDependencyGraph::dump() const
+{
+	dump(llvm::outs());
+}
+
+void VVarDependencyGraph::dump(llvm::raw_ostream& os) const
+{
+	os << "digraph G {";
+
+	for (auto vertex : make_iterator_range(vertices(graph)))
+		os << vertex << "[label=\"" << vertex << "\"]";
+
+	for (auto edge : make_iterator_range(edges(graph)))
+	{
+		auto from = source(edge);
+		auto to = target(edge);
+
+		os << from << "->" << to << "[label=\"";
+		graph[edge].dump(os);
+		os << "\"];\n";
+	}
+
+	os << "}";
+}
+
 void VVarDependencyGraph::populateEdge(IndexesOfEquation& equation,
 																			 const AccessToVar& toVariable,
 																			 EqToVert& eqToVert)

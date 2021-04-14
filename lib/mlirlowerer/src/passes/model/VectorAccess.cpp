@@ -35,6 +35,23 @@ bool SingleDimensionAccess::operator==(const SingleDimensionAccess& other) const
 	return value == other.value && inductionVar == other.inductionVar;
 }
 
+void SingleDimensionAccess::dump() const
+{
+	dump(llvm::outs());
+}
+
+void SingleDimensionAccess::dump(llvm::raw_ostream& os) const
+{
+	os << "[";
+
+	if (isAbs)
+		os << value;
+	else
+		os << "I" << inductionVar << " + " << value;
+
+	os << "]";
+}
+
 int64_t SingleDimensionAccess::getOffset() const
 {
 	return value;
@@ -149,6 +166,17 @@ VectorAccess VectorAccess::operator*(const VectorAccess& other) const
 modelica::IndexSet VectorAccess::operator*(const IndexSet& other) const
 {
 	return map(other);
+}
+
+void VectorAccess::dump() const
+{
+	dump(llvm::outs());
+}
+
+void VectorAccess::dump(llvm::raw_ostream& os) const
+{
+	for (const auto& access : vectorAccess)
+		access.dump(os);
 }
 
 VectorAccess::iterator VectorAccess::begin()
@@ -286,6 +314,16 @@ bool VectorAccess::isCanonical(Expression expression)
 AccessToVar::AccessToVar(VectorAccess access, mlir::Value var)
 		: access(std::move(access)), var(var)
 {
+}
+
+bool AccessToVar::operator==(const AccessToVar& other) const
+{
+	return access == other.access && var == other.var;
+}
+
+bool AccessToVar::operator!=(const AccessToVar& other) const
+{
+	return !(other == *this);
 }
 
 VectorAccess& AccessToVar::getAccess()

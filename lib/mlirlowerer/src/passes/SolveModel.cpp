@@ -371,6 +371,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (failed(schedule(model)))
 				return signalPassFailure();
 
+			module->dump();
+
 			// Explicitate the equations so that the updated variable is the only
 			// one on the left side of the equation.
 			if (failed(explicitateEquations(model)))

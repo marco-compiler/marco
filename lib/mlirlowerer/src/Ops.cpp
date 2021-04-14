@@ -2296,6 +2296,67 @@ void NegateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstanc
 	}
 }
 
+mlir::Value NegateOp::distribute(mlir::OpBuilder& builder)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	if (auto childOp = mlir::dyn_cast<NegateOpDistributionInterface>(operand().getDefiningOp()))
+		return childOp.distributeNegateOp(builder, resultType());
+
+	// The operation can't be propagated because the child doesn't
+	// know how to distribute the multiplication to its children.
+	return getResult();
+}
+
+mlir::Value NegateOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeNegateOp(builder, resultType);
+
+		return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
+	};
+
+	mlir::Value operand = distributeFn(this->operand());
+
+	return builder.create<NegateOp>(getLoc(), resultType, operand);
+}
+
+mlir::Value NegateOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value operand = distributeFn(this->operand());
+
+	return builder.create<NegateOp>(getLoc(), resultType, operand);
+}
+
+mlir::Value NegateOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value operand = distributeFn(this->operand());
+
+	return builder.create<NegateOp>(getLoc(), resultType, operand);
+}
+
 mlir::Type NegateOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -2353,6 +2414,57 @@ void AddOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
+}
+
+mlir::Value AddOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeNegateOp(builder, resultType);
+
+		return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = distributeFn(this->rhs());
+
+	return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value AddOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = distributeFn(this->rhs());
+
+	return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value AddOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = distributeFn(this->rhs());
+
+	return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
 }
 
 mlir::Type AddOp::resultType()
@@ -2419,6 +2531,57 @@ void SubOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	}
 }
 
+mlir::Value SubOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeNegateOp(builder, resultType);
+
+		return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = distributeFn(this->rhs());
+
+	return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value SubOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = distributeFn(this->rhs());
+
+	return builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value SubOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = distributeFn(this->rhs());
+
+	return builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
+}
+
 mlir::Type SubOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -2483,6 +2646,79 @@ void MulOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	}
 }
 
+mlir::Value MulOp::distribute(mlir::OpBuilder& builder)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	if (!mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) &&
+			!mlir::isa<MulOpDistributionInterface>(rhs().getDefiningOp()))
+	{
+		// The operation can't be propagated because none of the children
+		// know how to distribute the multiplication to their children.
+		return getResult();
+	}
+
+	MulOpDistributionInterface childOp = mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) ?
+	    mlir::cast<MulOpDistributionInterface>(lhs().getDefiningOp()) :
+	        mlir::cast<MulOpDistributionInterface>(rhs().getDefiningOp());
+
+	mlir::Value toDistribute = mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) ? rhs() : lhs();
+
+	return childOp.distributeMulOp(builder, resultType(), toDistribute);
+}
+
+mlir::Value MulOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeNegateOp(builder, resultType);
+
+		return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = this->rhs();
+
+	return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value MulOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = this->rhs();
+
+	return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value MulOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = this->rhs();
+
+	return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+}
+
 mlir::Type MulOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -2545,6 +2781,79 @@ void DivOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
+}
+
+mlir::Value DivOp::distribute(mlir::OpBuilder& builder)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	if (!mlir::isa<DivOpDistributionInterface>(lhs().getDefiningOp()) &&
+			!mlir::isa<DivOpDistributionInterface>(rhs().getDefiningOp()))
+	{
+		// The operation can't be propagated because none of the children
+		// know how to distribute the multiplication to their children.
+		return getResult();
+	}
+
+	DivOpDistributionInterface childOp = mlir::isa<DivOpDistributionInterface>(lhs().getDefiningOp()) ?
+																			 mlir::cast<DivOpDistributionInterface>(lhs().getDefiningOp()) :
+																			 mlir::cast<DivOpDistributionInterface>(rhs().getDefiningOp());
+
+	mlir::Value toDistribute = mlir::isa<DivOpDistributionInterface>(lhs().getDefiningOp()) ? rhs() : lhs();
+
+	return childOp.distributeDivOp(builder, resultType(), toDistribute);
+}
+
+mlir::Value DivOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeNegateOp(builder, resultType);
+
+		return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = this->rhs();
+
+	return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value DivOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = this->rhs();
+
+	return builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value DivOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = this->rhs();
+
+	return builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
 }
 
 mlir::Type DivOp::resultType()

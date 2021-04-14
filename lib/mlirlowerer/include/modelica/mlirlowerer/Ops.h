@@ -1137,7 +1137,7 @@ namespace modelica::codegen
 		mlir::Value operand();
 	};
 
-	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait, DistributableInterface::Trait, NegateOpDistributionInterface::Trait, MulOpDistributionInterface::Trait, DivOpDistributionInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1147,6 +1147,11 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value value);
 		void print(mlir::OpAsmPrinter& printer);
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Value distribute(mlir::OpBuilder& builder);
+		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
+		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -1167,7 +1172,7 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class AddOp : public mlir::Op<AddOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative, mlir::MemoryEffectOpInterface::Trait>
+	class AddOp : public mlir::Op<AddOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative, mlir::MemoryEffectOpInterface::Trait, NegateOpDistributionInterface::Trait, MulOpDistributionInterface::Trait, DivOpDistributionInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1177,6 +1182,10 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
+		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -1198,7 +1207,7 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class SubOp : public mlir::Op<SubOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class SubOp : public mlir::Op<SubOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait, NegateOpDistributionInterface::Trait, MulOpDistributionInterface::Trait, DivOpDistributionInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1208,6 +1217,10 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
+		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -1229,7 +1242,7 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class MulOp : public mlir::Op<MulOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class MulOp : public mlir::Op<MulOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait, DistributableInterface::Trait, NegateOpDistributionInterface::Trait, MulOpDistributionInterface::Trait, DivOpDistributionInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1239,6 +1252,11 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Value distribute(mlir::OpBuilder& builder);
+		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
+		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -1260,7 +1278,7 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class DivOp : public mlir::Op<DivOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class DivOp : public mlir::Op<DivOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait,DistributableInterface::Trait, NegateOpDistributionInterface::Trait, MulOpDistributionInterface::Trait, DivOpDistributionInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1270,6 +1288,11 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Value distribute(mlir::OpBuilder& builder);
+		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
+		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
 		mlir::Type resultType();
 		mlir::Value lhs();

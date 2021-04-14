@@ -17,6 +17,9 @@ namespace modelica::codegen::model
 
 		bool operator==(const SingleDimensionAccess& other) const;
 
+		void dump() const;
+		void dump(llvm::raw_ostream& os) const;
+
 		[[nodiscard]] int64_t getOffset() const;
 		[[nodiscard]] size_t getInductionVar() const;
 
@@ -63,6 +66,9 @@ namespace modelica::codegen::model
 		[[nodiscard]] VectorAccess operator*(const VectorAccess& other) const;
 		[[nodiscard]] IndexSet operator*(const IndexSet& other) const;
 
+		void dump() const;
+		void dump(llvm::raw_ostream& os) const;
+
 		[[nodiscard]] iterator begin();
 		[[nodiscard]] const_iterator begin() const;
 
@@ -98,6 +104,9 @@ namespace modelica::codegen::model
 	{
 		public:
 		AccessToVar(VectorAccess acc, mlir::Value var);
+
+		bool operator==(const AccessToVar& other) const;
+		bool operator!=(const AccessToVar& other) const;
 
 		[[nodiscard]] VectorAccess& getAccess();
 		[[nodiscard]] const VectorAccess& getAccess() const;
