@@ -49,7 +49,7 @@ TEST(BuiltInOps, ndims)	 // NOLINT
 	auto module = lowerer.lower(cls);
 
 	ModelicaConversionOptions conversionOptions;
-	conversionOptions.emitCWrappers = true;
+	conversionOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 10, 23, -57 };
@@ -100,7 +100,7 @@ TEST(BuiltInOps, sizeSpecificArrayDimension)	 // NOLINT
 	auto module = lowerer.lower(cls);
 
 	ModelicaConversionOptions conversionOptions;
-	conversionOptions.emitCWrappers = true;
+	conversionOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
@@ -150,7 +150,7 @@ TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
 	auto module = lowerer.lower(cls);
 
 	ModelicaConversionOptions conversionOptions;
-	conversionOptions.emitCWrappers = true;
+	conversionOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 12> x = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
@@ -206,7 +206,7 @@ TEST(BuiltInOps, sumOfIntegerStaticArrayValues)	 // NOLINT
 	auto module = lowerer.lower(cls);
 	
 	ModelicaConversionOptions conversionOptions;
-	conversionOptions.emitCWrappers = true;
+	conversionOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	jit::Runner runner(module);

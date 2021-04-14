@@ -334,6 +334,11 @@ struct ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp>
 class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
+	explicit SolveModelPass(SolveModelOptions options)
+			: options(std::move(options))
+	{
+	}
+
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
 		registry.insert<ModelicaDialect>();
@@ -358,23 +363,19 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				return signalPassFailure();
 
 			// Match
-			if (failed(match(model, 1000)))
+			if (failed(match(model, options.matchingMaxIterations)))
 				return signalPassFailure();
 
 			// Solve circular dependencies
-			if (failed(solveSCCs(builder, model, 1000)))
+			if (failed(solveSCCs(builder, model, options.sccMaxIterations)))
 				return signalPassFailure();
-
-			module->dump();
 
 			// Schedule
 			if (failed(schedule(model)))
 				return signalPassFailure();
 
-			module->dump();
-
 			// Explicitate the equations so that the updated variable is the only
-			// one on the left side of the equation.
+			// one on the left-hand side of the equation.
 			if (failed(explicitateEquations(model)))
 				return signalPassFailure();
 
@@ -501,9 +502,12 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		return mlir::success();
 	}
+
+	private:
+	SolveModelOptions options;
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createSolveModelPass()
+std::unique_ptr<mlir::Pass> modelica::codegen::createSolveModelPass(SolveModelOptions options)
 {
-	return std::make_unique<SolveModelPass>();
+	return std::make_unique<SolveModelPass>(options);
 }

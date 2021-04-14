@@ -92,34 +92,34 @@ MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options)
 	context.loadDialect<mlir::StandardOpsDialect>();
 }
 
-mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, ModelicaConversionOptions options)
+mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, ModelicaConversionOptions conversionOptions)
 {
 	mlir::PassManager passManager(builder.getContext());
 
-	passManager.addPass(createSolveModelPass());
+	passManager.addPass(createSolveModelPass(conversionOptions.solveModelOptions));
 	passManager.addPass(createExplicitCastInsertionPass());
 
-	if (options.inlining)
+	if (conversionOptions.inlining)
 		passManager.addPass(mlir::createInlinerPass());
 
-	if (options.resultBuffersToArgs)
+	if (conversionOptions.resultBuffersToArgs)
 		passManager.addPass(createResultBuffersToArgsPass());
 
 	passManager.addPass(mlir::createCanonicalizerPass());
 	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
 
-	if (options.cse)
+	if (conversionOptions.cse)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
 
 	passManager.addPass(createModelicaConversionPass());
 
-	if (options.openmp)
+	if (conversionOptions.openmp)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
 
 	passManager.addPass(mlir::createLowerToCFGPass());
-	passManager.addPass(createLLVMLoweringPass(options));
+	passManager.addPass(createLLVMLoweringPass(conversionOptions.llvmOptions));
 
-	if (!options.debug)
+	if (!conversionOptions.debug)
 		passManager.addPass(mlir::createStripDebugInfoPass());
 
 	return passManager.run(module);
@@ -225,27 +225,6 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 
 	for (auto& forEquation : cls.getForEquations())
 		lower(*forEquation);
-
-	/*
-	mlir::Value x = builder.create<AllocaOp>(location, builder.getIntegerType());
-	mlir::Value a = builder.create<ConstantOp>(location, builder.getIntegerAttribute(3));
-	mlir::Value b = builder.create<ConstantOp>(location, builder.getIntegerAttribute(4));
-
-	auto op1 = builder.create<MulOp>(location, builder.getIntegerType(), a, x);
-	auto op2 = builder.create<AddOp>(location, builder.getIntegerType(), op1, x);
-	auto op3 = builder.create<MulOp>(location, builder.getIntegerType(), op2, b);
-	auto op4 = builder.create<AddOp>(location, builder.getIntegerType(), op3, x);
-
-	simulation->dump();
-
-	llvm::errs() << "aa\n";
-
-	distributeMultiplications(builder, op4)->dump();
-
-	//op3.distribute(builder).dump();
-
-	simulation.dump();
-	 */
 
 	builder.create<YieldOp>(location);
 

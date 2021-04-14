@@ -8,11 +8,6 @@ namespace modelica::codegen
 	{
 		bool emitCWrappers = false;
 
-		/**
-		 * Get a statically allocated copy of the default options.
-		 *
-		 * @return default options
-		 */
 		static const ModelicaToLLVMConversionOptions& getDefaultOptions() {
 			static ModelicaToLLVMConversionOptions options;
 			return options;

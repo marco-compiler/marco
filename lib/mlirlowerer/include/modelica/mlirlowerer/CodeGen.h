@@ -48,19 +48,16 @@ namespace modelica::codegen
 		}
 	};
 
-	struct ModelicaConversionOptions : public ModelicaToLLVMConversionOptions
+	struct ModelicaConversionOptions
 	{
+		SolveModelOptions solveModelOptions = SolveModelOptions::getDefaultOptions();
 		bool inlining = true;
 		bool resultBuffersToArgs = true;
 		bool cse = true;
 		bool openmp = false;
+		ModelicaToLLVMConversionOptions llvmOptions = ModelicaToLLVMConversionOptions::getDefaultOptions();
 		bool debug = true;
 
-		/**
-		 * Get a statically allocated copy of the default options.
-		 *
-		 * @return default options
-		 */
 		static const ModelicaConversionOptions& getDefaultOptions() {
 			static ModelicaConversionOptions options;
 			return options;

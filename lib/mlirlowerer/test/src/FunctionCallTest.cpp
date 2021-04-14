@@ -62,7 +62,7 @@ TEST(Function, callNoArguments)	 // NOLINT
 	auto module = lowerer.lower({ foo, main });
 
 	ModelicaConversionOptions conversionOptions;
-	conversionOptions.emitCWrappers = true;
+	conversionOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	int y = 0;
@@ -129,7 +129,7 @@ TEST(Function, recursiveCall)	 // NOLINT
 	auto module = lowerer.lower(cls);
 
 	ModelicaConversionOptions conversionOptions;
-	conversionOptions.emitCWrappers = true;
+	conversionOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 3> x = { 1, 2, 3 };
@@ -210,7 +210,7 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 	auto module = lowerer.lower({ main, foo });
 
 	ModelicaConversionOptions conversionOptions;
-	conversionOptions.emitCWrappers = true;
+	conversionOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 0, 0, 0 };
@@ -299,7 +299,7 @@ TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
 	auto module = lowerer.lower({ foo, main });
 
 	ModelicaConversionOptions conversionOptions;
-	conversionOptions.emitCWrappers = true;
+	conversionOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<float, 3> x = { 0, 0, 0 };
@@ -376,7 +376,7 @@ TEST(Function, callElementWise)	 // NOLINT
 	auto module = lowerer.lower({ main, foo });
 
 	ModelicaConversionOptions conversionOptions;
-	conversionOptions.emitCWrappers = true;
+	conversionOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
 
 	array<int, 3> x = { 1, 0, 0 };

@@ -23,6 +23,11 @@ using namespace llvm;
 using namespace modelica;
 using namespace std;
 
+static cl::OptionCategory modelSolvingOptions("Model solving options");
+
+static cl::opt<int> matchingMaxIterations("matching-max-iterations", cl::desc("Maximum number of iterations for the matching phase (default: 1000)"), cl::init(100), cl::cat(modelSolvingOptions));
+static cl::opt<int> sccMaxIterations("scc-max-iterations", cl::desc("Maximum number of iterations for the SCC resolution phase (default: 1000)"), cl::init(100), cl::cat(modelSolvingOptions));
+
 static cl::OptionCategory codeGenOptions("Code generation options");
 
 static cl::opt<string> inputFile(cl::Positional, cl::desc("<input-file>"), cl::init("-"), cl::cat(codeGenOptions));
@@ -66,6 +71,7 @@ static llvm::ExitOnError exitOnErr;
 int main(int argc, char* argv[])
 {
 	llvm::SmallVector<const cl::OptionCategory*> categories;
+	categories.push_back(&modelSolvingOptions);
 	categories.push_back(&codeGenOptions);
 	categories.push_back(&debugOptions);
 	categories.push_back(&simulationOptions);
@@ -124,6 +130,8 @@ int main(int argc, char* argv[])
 
 	// Convert to LLVM dialect
 	codegen::ModelicaConversionOptions conversionOptions;
+	conversionOptions.solveModelOptions.matchingMaxIterations = matchingMaxIterations;
+	conversionOptions.solveModelOptions.sccMaxIterations = sccMaxIterations;
 	conversionOptions.inlining = !inlining;
 	conversionOptions.resultBuffersToArgs = !resultBuffersToArgs;
 	conversionOptions.cse = !cse;
