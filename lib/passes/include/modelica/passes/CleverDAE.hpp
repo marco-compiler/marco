@@ -4,5 +4,5 @@
 
 namespace modelica
 {
-	llvm::Expected<AssignModel> addJacobianAndResidual(Model& model);
+	llvm::Expected<AssignModel> addBLTBlocks(Model& model);
 }	 // namespace modelica

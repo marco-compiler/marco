@@ -42,7 +42,7 @@ static auto makeModel()
 			{ { 2, 4 } });
 	return model;
 }
-TEST(SCCcollapsingTest, ThreeDepthNormalization)
+TEST(SccCollapsingTest, ThreeDepthNormalization)
 {
 	auto exp = ModExp::at(
 			ModExp::at(
@@ -54,7 +54,11 @@ TEST(SCCcollapsingTest, ThreeDepthNormalization)
 	ModEquation eq(
 			exp, exp, "", MultiDimInterval({ { 1, 2 }, { 1, 5 }, { 1, 5 } }));
 
-	auto e = eq.normalized();
+	auto norm = eq.normalized();
+	if (!norm)
+		FAIL();
+	auto e = *norm;
+
 	auto acc = AccessToVar::fromExp(e.getLeft());
 	EXPECT_TRUE(acc.getAccess().isIdentity());
 	auto acc2 = AccessToVar::fromExp(e.getRight());
@@ -63,10 +67,12 @@ TEST(SCCcollapsingTest, ThreeDepthNormalization)
 			e.getInductions(), MultiDimInterval({ { 0, 1 }, { 0, 4 }, { 0, 4 } }));
 }
 
-TEST(SCCcollapsingTest, EquationShoudlBeNormalizable)
+TEST(SccCollapsingTest, EquationShouldBeNormalizable)
 {
 	auto model = makeModel();
 	auto norm = model.getEquation(1).normalized();
+	if (!norm)
+		FAIL();
 	EXPECT_EQ(
 			model.getEquation(1).getInductions(), MultiDimInterval({ { 2, 4 } }));
 	auto acc = AccessToVar::fromExp(model.getEquation(0).getLeft());

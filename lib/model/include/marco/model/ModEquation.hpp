@@ -126,17 +126,17 @@ namespace marco
 
 		/**
 		 * return a copy of the equation so that the single variables access on the
-		 * left side of the equation becomes indentity vector access. Crea
+		 * left side of the equation becomes indentity vector access.
 		 */
-		[[nodiscard]] ModEquation normalized() const;
+		[[nodiscard]] llvm::Expected<ModEquation> normalized() const;
 
-		[[nodiscard]] ModEquation normalizeMatched() const;
+		[[nodiscard]] llvm::Expected<ModEquation> normalizeMatched() const;
 
 		/**
 		 * the induction range is multiplied by the transformation
 		 * the vector access are modified to be equivalent
 		 */
-		[[nodiscard]] ModEquation composeAccess(
+		[[nodiscard]] llvm::Expected<ModEquation> composeAccess(
 				const VectorAccess& transformation) const;
 
 		template<typename Path>

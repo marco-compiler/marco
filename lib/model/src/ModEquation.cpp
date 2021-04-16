@@ -369,17 +369,26 @@ static ModExp accessToExp(const VectorAccess& access, ModExp exp)
 	return exp;
 }
 
-static void composeAccess(ModExp& exp, const VectorAccess& transformation)
+static llvm::Error composeAccess(
+		ModExp& exp, const VectorAccess& transformation)
 {
 	auto access = AccessToVar::fromExp(exp);
 	auto combinedAccess = transformation * access.getAccess();
 
 	auto newExps = exp.getReferredVectorAccessExp();
 
+	// If exp is a scalar, it means that the Scc Collapsing cannot procede
+	// beacause there is an actual Algebraic Loop; it would fail ModExp::at().
+	if (newExps.getModType().isScalar())
+		return llvm::make_error<FailedSccCollapsing>(std::move(exp));
+
 	exp = accessToExp(combinedAccess, move(newExps));
+
+	return Error::success();
 }
 
-ModEquation ModEquation::composeAccess(const VectorAccess& transformation) const
+Expected<ModEquation> ModEquation::composeAccess(
+		const VectorAccess& transformation) const
 {
 	auto toReturn = clone(getTemplate()->getName() + "composed");
 	auto inverted = transformation.invert();
@@ -389,13 +398,14 @@ ModEquation ModEquation::composeAccess(const VectorAccess& transformation) const
 	for (auto& matchedExp : matcher)
 	{
 		auto& exp = toReturn.reachExp(matchedExp);
-		::composeAccess(exp, transformation);
+		if (auto error = ::composeAccess(exp, transformation); error)
+			return move(error);
 	}
 
 	return toReturn;
 }
 
-ModEquation ModEquation::normalizeMatched() const
+Expected<ModEquation> ModEquation::normalizeMatched() const
 {
 	auto access = AccessToVar::fromExp(getMatchedExp()).getAccess();
 	auto invertedAccess = access.invert();
@@ -403,7 +413,7 @@ ModEquation ModEquation::normalizeMatched() const
 	return composeAccess(invertedAccess);
 }
 
-ModEquation ModEquation::normalized() const
+Expected<ModEquation> ModEquation::normalized() const
 {
 	assert(getLeft().isReferenceAccess());
 	auto access = AccessToVar::fromExp(getLeft()).getAccess();
@@ -466,7 +476,7 @@ static bool usesMember(const Mult& exp, llvm::StringRef varName)
 	const auto& isReferenceToVar = [&](const pair<ModExp, bool>& exp) {
 		if (!exp.first.isReferenceAccess())
 			return false;
-		return exp.first.getReferredVectorAccesss() == varName;
+		return exp.first.getReferredVectorAccess() == varName;
 	};
 
 	return llvm::find_if(exp, isReferenceToVar) != exp.end();
@@ -477,7 +487,7 @@ static void removeOneUseOfVar(Mult& exp, llvm::StringRef varName)
 	const auto& isReferenceToVar = [&](const pair<ModExp, bool>& exp) {
 		if (!exp.first.isReferenceAccess())
 			return false;
-		return exp.first.getReferredVectorAccesss() == varName;
+		return exp.first.getReferredVectorAccess() == varName;
 	};
 
 	exp.erase(remove_if(exp, isReferenceToVar), exp.end());
@@ -524,7 +534,7 @@ ModEquation ModEquation::groupLeftHand() const
 {
 	auto copy = clone(getTemplate()->getName() + "grouped");
 	recursiveFold(copy.getRight());
-	copy.getRight().distribuiteMultiplications();
+	copy.getRight().distributeMultiplications();
 	auto acc = AccessToVar::fromExp(getLeft());
 
 	SumsOfMult sums;

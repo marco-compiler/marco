@@ -21,8 +21,8 @@ namespace marco
 		functionAlreadyExists,
 		typeConstantSizeMissMatch,
 		unexpectedModToken,
-		failedExplicitation
-
+		failedExplicitation,
+		failedSccCollapsing
 	};
 }
 
@@ -45,15 +45,15 @@ namespace marco
 	 * All this standard and has to be done this way, look for a
 	 * guide regarding how to make error category if you need to change this.
 	 *
-	 * When you add a new error kind you must add that choise to message in the
+	 * When you add a new error kind you must add that choice to message in the
 	 * cpp file.
 	 */
 	class LowererErrorCategory: public std::error_category
 	{
 		public:
 		static LowererErrorCategory category;
-		[[nodiscard]] std::error_condition default_error_condition(int ev) const
-				noexcept override;
+		[[nodiscard]] std::error_condition default_error_condition(
+				int ev) const noexcept override;
 
 		[[nodiscard]] const char* name() const noexcept override
 		{
@@ -261,4 +261,38 @@ namespace marco
 		ModExp toExplicitate;
 		size_t argumentIndex;
 	};
+<<<<<<< HEAD:lib/model/include/marco/model/ModErrors.hpp
 }	 // namespace marco
+=======
+
+	/**
+	 * Error caused by the presence of an Algebraic Loop during the SccCollapsing
+	 * pass.
+	 */
+	class FailedSccCollapsing: public llvm::ErrorInfo<FailedSccCollapsing>
+	{
+		public:
+		static char ID;
+		FailedSccCollapsing(ModExp leftExp): leftExp(std::move(leftExp)) {}
+
+		void log(llvm::raw_ostream& OS) const override
+		{
+			OS << "Could not solve the SCC because expression: ";
+			leftExp.dump(OS);
+			OS << "is not a constant, therefore there is an algebraic loop.";
+		}
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(LowererErrorCode::failedSccCollapsing),
+					LowererErrorCategory::category);
+		}
+
+		[[nodiscard]] const ModExp& getExp() const { return leftExp; }
+
+		private:
+		ModExp leftExp;
+	};
+}	 // namespace modelica
+>>>>>>> Identification of Algebraic Loops inside SccCollapsing:lib/model/include/modelica/model/ModErrors.hpp
