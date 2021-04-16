@@ -21,6 +21,7 @@ void renumber_vertex_indices(const Graph& graph)
 #include "marco/matching/VVarDependencyGraph.hpp"
 #include "marco/model/LinSolver.hpp"
 #include "marco/model/ModEquation.hpp"
+#include "modelica/model/ModLoop.hpp"
 #include "marco/model/Model.hpp"
 #include "marco/model/VectorAccess.hpp"
 #include "marco/utils/IndexSet.hpp"
@@ -33,8 +34,8 @@ using namespace llvm;
 using EqVector = SmallVector<ModEquation, 3>;
 
 using EdDescVector = SmallVector<VVarDependencyGraph::EdgeDesc, 3>;
-using DendenciesVector = SmallVector<VectorAccess, 3>;
-using InexSetVector = SmallVector<MultiDimInterval, 3>;
+using DependenciesVector = SmallVector<VectorAccess, 3>;
+using IndexSetVector = SmallVector<MultiDimInterval, 3>;
 
 static EdDescVector cycleToEdgeVec(
 		vector<VVarDependencyGraph::VertexDesc> c, const VVarDependencyGraph& graph)
@@ -52,10 +53,10 @@ static EdDescVector cycleToEdgeVec(
 	return v;
 }
 
-static DendenciesVector cycleToDependencieVector(
+static DependenciesVector cycleToDependenciesVector(
 		const EdDescVector& c, const VVarDependencyGraph& graph)
 {
-	DendenciesVector v;
+	DependenciesVector v;
 
 	for (auto e : c)
 	{
@@ -69,7 +70,7 @@ static DendenciesVector cycleToDependencieVector(
 static bool cycleHasIndentityDependency(
 		const EdDescVector& c,
 		const VVarDependencyGraph& graph,
-		const DendenciesVector& dep)
+		const DependenciesVector& dep)
 {
 	auto fin = std::accumulate(
 			dep.begin() + 1, dep.end(), dep[0], [](const auto& l, const auto& r) {
@@ -79,10 +80,10 @@ static bool cycleHasIndentityDependency(
 	return fin.isIdentity();
 }
 
-static MultiDimInterval cyclicDependetSet(
+static MultiDimInterval cyclicDependentSet(
 		const EdDescVector& c,
 		const VVarDependencyGraph& graph,
-		const DendenciesVector& dep)
+		const DependenciesVector& dep)
 {
 	const auto& firstEq = graph[source(c[0], graph.getImpl())];
 	auto set = firstEq.getInterval();
@@ -97,12 +98,12 @@ static MultiDimInterval cyclicDependetSet(
 	return set;
 }
 
-static InexSetVector cyclicDependetSets(
+static IndexSetVector cyclicDependetSets(
 		const EdDescVector& c, const VVarDependencyGraph& graph)
 {
-	auto dep = cycleToDependencieVector(c, graph);
-	auto cyclicSet = cyclicDependetSet(c, graph, dep);
-	InexSetVector v({ cyclicSet });
+	auto dep = cycleToDependenciesVector(c, graph);
+	auto cyclicSet = cyclicDependentSet(c, graph, dep);
+	IndexSetVector v({ cyclicSet });
 	if (!cycleHasIndentityDependency(c, graph, dep))
 		return v;
 
@@ -140,13 +141,18 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 		// copy the equation
 		auto toFuseEq =
 				eq.clone(eq.getTemplate()->getName() + "merged" + to_string(a++));
+
 		// set induction to those that generate the circular dependency
 		assert(toFuseEq.getInductions().contains(vecSet[i]));
 		toFuseEq.setInductionVars(vecSet[i]);
 		if (auto error = toFuseEq.explicitate(); error)
 			return move(error);
-		// add it to the list of filterd with normalized body
-		filtered.emplace_back(toFuseEq.normalizeMatched());
+
+		// add it to the list of filtered with normalized body if there is no loop
+		auto normEq = toFuseEq.normalizeMatched();
+		if (!normEq)
+			return normEq.takeError();
+		filtered.emplace_back(*normEq);
 
 		// then for all other index set that
 		// are not in the circular set
@@ -160,7 +166,7 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 		}
 	}
 
-	// for all equations that were not in the circluar set, add it to the
+	// for all equations that were not in the circular set, add it to the
 	// untouched set.
 	for (auto i : irange(source.size()))
 	{
@@ -275,12 +281,19 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 	SccLookup sccs(vectorGraph);
 
 	SmallVector<EqVector, 3> possibleEq(sccs.count());
+	SmallVector<ModLoop, 3> algebraicLoops;
 
+	// For each Scc, try to collapse it, otherwise add it to the loop list
 	for (auto i : irange(sccs.count()))
+	{
 		if (auto error =
 						fuseScc(sccs[i], vectorGraph, possibleEq[i], maxIterations);
 				error)
-			return move(error);
+		{
+			assert(false && "Not yet implemented");
+			algebraicLoops.push_back(ModLoop(/* TODO: Add required information*/));
+		}
+	}
 
 	Model outModel({}, std::move(model.getVars()));
 	for (auto& eqList : possibleEq)

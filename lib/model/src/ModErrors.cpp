@@ -9,6 +9,7 @@ char GlobalVariableCreationFailure::ID;
 char UnexpectedModToken::ID;
 char TypeConstantSizeMissMatch::ID;
 char FailedExplicitation::ID;
+char FailedSccCollapsing::ID;
 
 std::error_condition marco::make_error_condition(LowererErrorCode errc)
 {
@@ -40,6 +41,8 @@ LowererErrorCategory::default_error_condition(int ev) const noexcept
 		return std::error_condition(LowererErrorCode::unexpectedModToken);
 	if (ev == 7)
 		return std::error_condition(LowererErrorCode::failedExplicitation);
+	if (ev == 8)
+		return std::error_condition(LowererErrorCode::failedSccCollapsing);
 
 	return std::error_condition(LowererErrorCode::unkownVariable);
 }
@@ -55,7 +58,7 @@ LowererErrorCategory::default_error_condition(int ev) const noexcept
 
 /**
  * Decides the messaged based upon the type.
- * This is done for compatibilty with std::error, but when writing
+ * This is done for compatibility with std::error, but when writing
  * tools code you should report error with ExitOnError and that will use
  * the string provided by the class extending ErrorInfo.
  */
@@ -79,6 +82,8 @@ LowererErrorCategory::default_error_condition(int ev) const noexcept
 			return "Unexpected sim token";
 		case 7:
 			return "Failed Explicitation";
+		case 8:
+			return "Failed SccCollapsing";
 
 		default:
 			return "Unkown Error";

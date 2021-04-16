@@ -13,7 +13,7 @@
 #include "marco/model/AssignModel.hpp"
 #include "marco/model/ModVariable.hpp"
 #include "marco/omcToModel/OmcToModelPass.hpp"
-#include "modelica/passes/BruteDAE.hpp"
+#include "modelica/passes/CleverDAE.hpp"
 #include "marco/passes/ConstantFold.hpp"
 #include "marco/passes/ForwardEuler.hpp"
 #include "marco/passes/SolveModel.hpp"
@@ -101,7 +101,7 @@ opt<string> entryPointName(
 
 opt<string> solverName(
 		"solver",
-		cl::desc("name of solver among: forwardEuler, bruteDAE"),
+		cl::desc("name of solver among: forwardEuler, cleverDAE"),
 		cl::init("forwardEuler"),
 		cl::cat(omcCCat));
 
@@ -109,8 +109,8 @@ Expected<AssignModel> selectSolver(Model scheduled)
 {
 	if (solverName == "forwardEuler")
 		return addApproximation(scheduled, timeStep);
-	if (solverName == "bruteDAE")
-		return addJacobianAndResidual(scheduled);
+	if (solverName == "cleverDAE")
+		return addBLTBlocks(scheduled);
 	return createStringError(
 			errc::executable_format_error, "Could not find the chosen solver");
 }
@@ -177,7 +177,6 @@ int main(int argc, char* argv[])
 		foldedModel.dump(OS);
 		return 0;
 	}
-
 	auto matchedModel = exitOnErr(match(move(foldedModel), 1000));
 	if (dumpMatched)
 	{

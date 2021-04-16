@@ -35,11 +35,11 @@ namespace marco
 		elevation,
 		module,
 
-		conditional	 // thernary expressions
+		conditional	 // ternary expressions
 	};
 
 	/**
-	 * This is a compile time polimorfic class that can be any kind of expression
+	 * This is a compile time polymorphic class that can be any kind of expression
 	 * costants, references, calls...
 	 *
 	 * There is no need to perform manual dynamic cast, all the informations
@@ -57,7 +57,7 @@ namespace marco
 		friend class ModParser;
 		/**
 		 * An operation is a class that holds all the informations regarding how to
-		 * calculate the value of an expression that cointains subexpressions.
+		 * calculate the value of an expression that contains subexpressions.
 		 */
 		class Operation
 		{
@@ -127,7 +127,7 @@ namespace marco
 			/**
 			 * \return the first sub expression, that is the only
 			 * expression of a unary expression and the left argument
-			 * of binary and thernary operations.
+			 * of binary and ternary operations.
 			 */
 			[[nodiscard]] const ModExp& getLeftHand() const
 			{
@@ -161,7 +161,7 @@ namespace marco
 			/**
 			 * \require isTernay()
 			 *
-			 * \return the conditional expression in a if esle expression
+			 * \return the conditional expression in a if else expression
 			 */
 			[[nodiscard]] ModExp& getCondition()
 			{
@@ -354,7 +354,7 @@ namespace marco
 		 *We cannot default the move assigment operator because
 		 * we might want to assign a node to the moved value of one of its own
 		 *subexpressions. like exp = move(exp.getLeftHand()). If we default the
-		 *operator exp would be deleated before the content of the children will be
+		 *operator exp would be deleted before the content of the children will be
 		 *moved, therefore we must ensure we move out the content of the child
 		 *before destorying the old value.
 		 */
@@ -419,7 +419,7 @@ namespace marco
 		}
 
 		[[nodiscard]] bool isReferenceAccess() const;
-		[[nodiscard]] const std::string& getReferredVectorAccesss() const;
+		[[nodiscard]] const std::string& getReferredVectorAccess() const;
 		[[nodiscard]] ModExp& getReferredVectorAccessExp();
 		[[nodiscard]] const ModExp& getReferredVectorAccessExp() const;
 
@@ -802,7 +802,7 @@ namespace marco
 
 		/**
 		 * \pre isConstant<C>()
-		 * \return the constant holded by this expression.
+		 * \return the constant held by this expression.
 		 */
 		[[nodiscard]] const ModConst& getConstant() const
 		{
@@ -812,7 +812,7 @@ namespace marco
 
 		/**
 		 * \pre isConstant<C>()
-		 * \return the constant holded by this expression.
+		 * \return the constant held by this expression.
 		 */
 		[[nodiscard]] ModConst& getConstant()
 		{
@@ -930,14 +930,14 @@ namespace marco
 
 		/**
 		 * Every time a multiplication contains a add or a subtract as a member,
-		 * distribuite that multiplication to the members
+		 * distribute that multiplication to the members
 		 */
-		void distribuiteMultiplications();
+		void distributeMultiplications();
 		/**
-		 * behaves as if it was (mult exp this) but tries to distribuite exp to all
+		 * behaves as if it was (mult exp this) but tries to distribute exp to all
 		 * sub expressions of this.
 		 */
-		void distribuite(ModExp exp, bool multiplication);
+		void distribute(ModExp exp, bool multiplication);
 
 		/**
 		 * \pre isOperation()
