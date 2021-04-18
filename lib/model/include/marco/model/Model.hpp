@@ -7,6 +7,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/iterator_range.h"
 #include "marco/model/Assigment.hpp"
+#include "modelica/model/ModBltBlock.hpp"
 #include "marco/model/ModEqTemplate.hpp"
 #include "marco/model/ModEquation.hpp"
 #include "marco/model/ModExp.hpp"
@@ -134,6 +135,29 @@ namespace marco
 			return count;
 		}
 
+		auto bltBlocksBegin() { return bltBlocks.begin(); }
+		auto bltBlocksEnd() { return bltBlocks.end(); };
+
+		[[nodiscard]] auto bltBlocksBegin() const { return bltBlocks.begin(); }
+		[[nodiscard]] auto bltBlocksEnd() const { return bltBlocks.end(); };
+
+		[[nodiscard]] ModBltBlock& getBltBlock(size_t index)
+		{
+			return bltBlocks[index];
+		}
+		[[nodiscard]] const ModBltBlock& getBltBlock(size_t index) const
+		{
+			return bltBlocks[index];
+		}
+
+		void addBltBlock(ModBltBlock bltBlock)
+		{
+			bltBlocks.push_back(std::move(bltBlock));
+		}
+
+		[[nodiscard]] auto& getBltBlocks() { return bltBlocks; }
+		[[nodiscard]] const auto& getBltBlocks() const { return bltBlocks; }
+
 		using TemplateMap = std::set<std::shared_ptr<ModEqTemplate>>;
 
 		[[nodiscard]] TemplateMap& getTemplates() { return templates; }
@@ -146,6 +170,7 @@ namespace marco
 		void addTemplate(const ModEquation& eq);
 		llvm::SmallVector<ModEquation, 3> equations;
 		llvm::StringMap<ModVariable> vars;
+		llvm::SmallVector<ModBltBlock, 3> bltBlocks;
 		TemplateMap templates;
 	};
 

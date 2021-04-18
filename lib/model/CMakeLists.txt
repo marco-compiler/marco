@@ -14,7 +14,7 @@ set(SOURCES
 		src/ModMatchers.cpp
 		src/ModJacobian.cpp
 		src/ModResidual.cpp
-		src/ModLoop.cpp
+		src/ModBltBlock.cpp
 		src/SymbolicDifferentiation.cpp)
 
 marco_add_library(model SHARED ${SOURCES})
