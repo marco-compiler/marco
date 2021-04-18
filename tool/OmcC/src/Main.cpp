@@ -2,20 +2,20 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "marco/frontend/Parser.h"
-#include "marco/frontend/Passes.h"
-#include "marco/frontend/SymbolTable.hpp"
-#include "marco/frontend/passes/TypeCheckingPass.h"
-#include "marco/lowerer/Lowerer.hpp"
-#include "marco/matching/Matching.hpp"
-#include "marco/matching/SccCollapsing.hpp"
-#include "marco/matching/Schedule.hpp"
-#include "marco/model/AssignModel.hpp"
-#include "marco/model/ModVariable.hpp"
-#include "marco/omcToModel/OmcToModelPass.hpp"
-#include "marco/passes/ConstantFold.hpp"
-#include "marco/passes/ForwardEuler.hpp"
-#include "marco/passes/SolveModel.hpp"
+#include "modelica/frontend/Parser.hpp"
+#include "modelica/frontend/Passes.h"
+#include "modelica/frontend/SymbolTable.hpp"
+#include "modelica/frontend/passes/TypeCheckingPass.h"
+#include "modelica/lowerer/Lowerer.hpp"
+#include "modelica/matching/Matching.hpp"
+#include "modelica/matching/SccCollapsing.hpp"
+#include "modelica/matching/Schedule.hpp"
+#include "modelica/model/AssignModel.hpp"
+#include "modelica/model/ModVariable.hpp"
+#include "modelica/omcToModel/OmcToModelPass.hpp"
+#include "modelica/passes/ConstantFold.hpp"
+#include "modelica/passes/SolveModel.hpp"
+#include "modelica/frontend/LexerVariableFilter.h"
 
 using namespace marco;
 using namespace llvm;
@@ -138,6 +138,11 @@ int main(int argc, char* argv[])
 		errs() << error.message();
 	}
 
+	//======= TEMPORARY CODE ====/
+	std:string test = "varX,y,Z123,_tau";
+	LexerVariableFilter lvf(test);
+	lvf.split();
+	//===========================
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	frontend::Parser parser(buffer->getBufferStart());
 	auto ast = exitOnErr(parser.classDefinition());
