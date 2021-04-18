@@ -14,13 +14,13 @@ namespace modelica
 	 * pass. This must be solved with the Substitution method or with a solver
 	 * like IDA.
 	 */
-	class ModLoop
+	class ModBltBlock
 	{
 		public:
-		ModLoop(
+		ModBltBlock(
 				llvm::SmallVector<ModEquation, 3> equs,
-				llvm::StringMap<ModVariable> vars);
-		ModLoop() = default;
+				llvm::SmallVector<ModVariable, 3> vars);
+		ModBltBlock() = default;
 
 		auto begin() { return equations.begin(); }
 		auto end() { return equations.end(); };
@@ -61,12 +61,48 @@ namespace modelica
 			return vars.find(name)->second;
 		}
 
+		void addEquation(ModEquation equation)
+		{
+			equations.push_back(std::move(equation));
+			addTemplate(equations.back());
+		}
+
+		void emplaceEquation(
+				ModExp left,
+				ModExp right,
+				std::string templateName,
+				MultiDimInterval vars,
+				std::optional<EquationPath> path = std::nullopt)
+		{
+			equations.emplace_back(
+					std::move(left),
+					std::move(right),
+					std::move(templateName),
+					std::move(vars),
+					true,
+					std::move(path));
+			addTemplate(equations.back());
+		}
+
+		bool addVar(ModVariable exp);
+
+		template<typename... Args>
+		bool emplaceVar(std::string name, Args&&... args)
+		{
+			if (vars.find(name) != vars.end())
+				return false;
+
+			vars.try_emplace(name, name, std::forward<Args>(args)...);
+			return true;
+		}
+
 		[[nodiscard]] const llvm::StringMap<ModVariable>& getVars() const
 		{
 			return vars;
 		}
 
 		[[nodiscard]] llvm::StringMap<ModVariable>& getVars() { return vars; }
+		[[nodiscard]] size_t startingIndex(const std::string& varName) const;
 
 		[[nodiscard]] auto& getEquations() { return equations; }
 		[[nodiscard]] const auto& getEquations() const { return equations; }
@@ -77,6 +113,24 @@ namespace modelica
 			for (const auto& eq : equations)
 				count += eq.getInductions().size();
 
+			return count;
+		}
+
+		[[nodiscard]] size_t stateCount() const
+		{
+			size_t count = 0;
+			for (const auto& var : vars)
+				if (var.second.isState())
+					count += var.second.toIndexSet().size();
+			return count;
+		}
+
+		[[nodiscard]] size_t nonStateNonConstCount() const
+		{
+			size_t count = 0;
+			for (const auto& var : vars)
+				if (!var.second.isState() && !var.second.isConstant())
+					count += var.second.toIndexSet().size();
 			return count;
 		}
 

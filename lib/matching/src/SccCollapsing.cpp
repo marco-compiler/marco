@@ -20,8 +20,9 @@ void renumber_vertex_indices(const Graph& graph)
 #include "marco/matching/SccLookup.hpp"
 #include "marco/matching/VVarDependencyGraph.hpp"
 #include "marco/model/LinSolver.hpp"
+#include "modelica/model/ModBltBlock.hpp"
 #include "marco/model/ModEquation.hpp"
-#include "modelica/model/ModLoop.hpp"
+#include "marco/model/ModVariable.hpp"
 #include "marco/model/Model.hpp"
 #include "marco/model/VectorAccess.hpp"
 #include "marco/utils/IndexSet.hpp"
@@ -281,7 +282,7 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 	SccLookup sccs(vectorGraph);
 
 	SmallVector<EqVector, 3> possibleEq(sccs.count());
-	SmallVector<ModLoop, 3> algebraicLoops;
+	SmallVector<ModBltBlock, 3> algebraicLoops;
 
 	// For each Scc, try to collapse it, otherwise add it to the loop list
 	for (auto i : irange(sccs.count()))
@@ -290,8 +291,19 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 						fuseScc(sccs[i], vectorGraph, possibleEq[i], maxIterations);
 				error)
 		{
-			assert(false && "Not yet implemented");
-			algebraicLoops.push_back(ModLoop(/* TODO: Add required information*/));
+			// If the Scc Collapsing algorithm fails, it means that we have
+			// an Algebraic Loop, which must be handled by a solver afterwards.
+			ModBltBlock newBltBlock;
+
+			for (auto& eq : sccs[i].range(vectorGraph))
+			{
+				newBltBlock.addVar(eq.getVariable());
+				newBltBlock.addEquation(eq.getEquation());
+			}
+			algebraicLoops.push_back(newBltBlock);
+
+			possibleEq[i].clear();
+			consumeError(move(error));
 		}
 	}
 
@@ -299,6 +311,8 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 	for (auto& eqList : possibleEq)
 		for (auto& eq : eqList)
 			outModel.addEquation(std::move(eq));
+	for (auto& algebraicLoop : algebraicLoops)
+		outModel.addBltBlock(algebraicLoop);
 
 	return outModel;
 }

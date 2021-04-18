@@ -1,10 +1,10 @@
-#include "marco/model/Model.hpp"
+#include "modelica/model/ModBltBlock.hpp"
 
 using namespace std;
-using namespace marco;
+using namespace modelica;
 using namespace llvm;
 
-[[nodiscard]] size_t Model::startingIndex(const string& varName) const
+[[nodiscard]] size_t ModBltBlock::startingIndex(const string& varName) const
 {
 	auto varIterator = vars.find(varName);
 	assert(varIterator != vars.end());
@@ -16,21 +16,24 @@ using namespace llvm;
 	return count;
 }
 
-Model::Model(SmallVector<ModEquation, 3> equs, StringMap<ModVariable> vars)
-		: equations(std::move(equs)), vars(std::move(vars))
+ModBltBlock::ModBltBlock(
+		SmallVector<ModEquation, 3> equs, SmallVector<ModVariable, 3> vars)
+		: equations(std::move(equs))
 {
+	for (const auto& v : vars)
+		addVar(v);
 	for (const auto& eq : equations)
 		addTemplate(eq);
 }
 
-void Model::addTemplate(const ModEquation& eq)
+void ModBltBlock::addTemplate(const ModEquation& eq)
 {
 	if (!eq.getTemplate()->getName().empty())
 		if (templates.find(eq.getTemplate()) == templates.end())
 			templates.emplace(eq.getTemplate());
 }
 
-bool Model::addVar(ModVariable exp)
+bool ModBltBlock::addVar(ModVariable exp)
 {
 	auto name = exp.getName();
 	if (vars.find(name) != vars.end())
@@ -40,29 +43,28 @@ bool Model::addVar(ModVariable exp)
 	return true;
 }
 
-void Model::dump(llvm::raw_ostream& OS) const
+void ModBltBlock::dump(llvm::raw_ostream& OS) const
 {
-	OS << "init\n";
+	OS << "\tinit\n";
 	for (const auto& var : getVars())
+	{
+		OS << "\t";
 		var.second.dump(OS);
+	}
 
 	if (!getTemplates().empty())
-		OS << "template\n";
+		OS << "\ttemplate\n";
 	for (const auto& temp : getTemplates())
 	{
+		OS << "\t";
 		temp->dump(true, OS);
 		OS << "\n";
 	}
 
-	if (!getBltBlocks().empty())
-		OS << "blt-blocks\n";
-	for (auto i : irange(getBltBlocks().size()))
-	{
-		OS << "blt-block " << i + 1 << "\n";
-		getBltBlock(i).dump(OS);
-	}
-
-	OS << "update\n";
+	OS << "\tupdate\n";
 	for (const auto& update : *this)
+	{
+		OS << "\t";
 		update.dump(OS);
+	}
 }
