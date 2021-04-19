@@ -17,7 +17,7 @@ namespace modelica::codegen
 		IntegerType getIntegerType();
 		RealType getRealType();
 		PointerType getPointerType(BufferAllocationScope allocationScope, mlir::Type elementType, const PointerType::Shape& shape = {});
-		RecordType getRecordType(llvm::ArrayRef<mlir::Type> types);
+		StructType getStructType(llvm::ArrayRef<mlir::Type> types);
 
 		mlir::IntegerAttr getIndexAttribute(long value);
 

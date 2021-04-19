@@ -14,16 +14,12 @@ namespace modelica::codegen
 		public:
 		TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options);
 
-		[[nodiscard]] mlir::Type indexType();
-
-		[[nodiscard]] mlir::Type voidPtrType();
-
 		private:
 		mlir::Type convertBooleanType(BooleanType type);
 		mlir::Type convertIntegerType(IntegerType type);
 		mlir::Type convertRealType(RealType type);
 		mlir::Type convertPointerType(PointerType type);
-		mlir::Type convertRecordType(RecordType type);
+		mlir::Type convertStructType(StructType type);
 
 		llvm::SmallVector<mlir::Type, 3> getPointerDescriptorFields(PointerType type);
 	};

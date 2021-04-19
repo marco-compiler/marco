@@ -8,7 +8,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 	addConversion([&](IntegerType type) { return convertIntegerType(type); });
 	addConversion([&](RealType type) { return convertRealType(type); });
 	addConversion([&](PointerType type) { return convertPointerType(type); });
-	addConversion([&](RecordType type) { return convertRecordType(type); });
+	addConversion([&](StructType type) { return convertStructType(type); });
 
 	addTargetMaterialization(
 	[&](mlir::OpBuilder &builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
@@ -40,7 +40,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 				if (inputs.size() != 1)
 					return llvm::None;
 
-				if (!inputs[0].getType().isa<PointerType>() && !inputs[0].getType().isa<RecordType>())
+				if (!inputs[0].getType().isa<PointerType>() && !inputs[0].getType().isa<StructType>())
 					return llvm::None;
 
 				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
@@ -95,7 +95,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 			});
 
 	addSourceMaterialization(
-			[&](mlir::OpBuilder &builder, RecordType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
+			[&](mlir::OpBuilder &builder, StructType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
 			{
 				if (inputs.size() != 1)
 					return llvm::None;
@@ -105,16 +105,6 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 
 				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
 			});
-}
-
-mlir::Type TypeConverter::indexType()
-{
-	return convertType(mlir::IndexType::get(&getContext()));
-}
-
-mlir::Type TypeConverter::voidPtrType()
-{
-	return mlir::LLVM::LLVMPointerType::get(convertType(IntegerType::get(&getContext(), 8)));
 }
 
 mlir::Type TypeConverter::convertBooleanType(BooleanType type)
@@ -150,7 +140,7 @@ mlir::Type TypeConverter::convertPointerType(PointerType type)
 	return mlir::LLVM::LLVMStructType::getLiteral(type.getContext(), types);
 }
 
-mlir::Type TypeConverter::convertRecordType(RecordType type)
+mlir::Type TypeConverter::convertStructType(StructType type)
 {
 	llvm::SmallVector<mlir::Type, 3> subtypes;
 

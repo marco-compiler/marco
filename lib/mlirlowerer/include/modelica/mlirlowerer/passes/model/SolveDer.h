@@ -22,26 +22,26 @@ namespace modelica::codegen::model
 		public:
 		explicit DerSolver(Model& model);
 
-		mlir::LogicalResult solve();
+		mlir::LogicalResult solve(mlir::OpBuilder& builder);
 
 		private:
-		void solve(Equation equation);
+		void solve(mlir::OpBuilder& builder, Equation equation);
 
 		template<typename T>
-		void solve(Expression expression);
+		void solve(mlir::OpBuilder& builder, Expression expression);
 
 		Model* model;
 	};
 
 	template<>
-	void DerSolver::solve<Expression>(Expression expression);
+	void DerSolver::solve<Expression>(mlir::OpBuilder& builder, Expression expression);
 
 	template<>
-	void DerSolver::solve<Constant>(Expression expression);
+	void DerSolver::solve<Constant>(mlir::OpBuilder& builder, Expression expression);
 
 	template<>
-	void DerSolver::solve<Reference>(Expression expression);
+	void DerSolver::solve<Reference>(mlir::OpBuilder& builder, Expression expression);
 
 	template<>
-	void DerSolver::solve<Operation>(Expression expression);
+	void DerSolver::solve<Operation>(mlir::OpBuilder& builder, Expression expression);
 }

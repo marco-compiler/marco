@@ -51,6 +51,64 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::PackOp
+	//===----------------------------------------------------------------------===//
+
+	class PackOp;
+
+	class PackOpAdaptor : public OpAdaptor<PackOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::ValueRange values();
+	};
+
+	class PackOp : public mlir::Op<PackOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = PackOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values);
+		void print(mlir::OpAsmPrinter& printer);
+
+		StructType resultType();
+		mlir::ValueRange values();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::ExtractOp
+	//===----------------------------------------------------------------------===//
+
+	class ExtractOp;
+
+	class ExtractOpAdaptor : public OpAdaptor<ExtractOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value packedValue();
+	};
+
+	class ExtractOp : public mlir::Op<ExtractOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = ExtractOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value packedValue, unsigned int index);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		mlir::Type resultType();
+		mlir::Value packedValue();
+		unsigned int index();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::SimulationOp
 	//===----------------------------------------------------------------------===//
 
@@ -60,30 +118,31 @@ namespace modelica::codegen
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
-
-		mlir::Value time();
-		mlir::ValueRange variablesToBePrinted();
 	};
 
-	class SimulationOp : public mlir::Op<SimulationOp, mlir::OpTrait::OneRegion, mlir::OpTrait::AtLeastNOperands<1>::Impl, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
+	class SimulationOp : public mlir::Op<SimulationOp, mlir::OpTrait::NRegions<3>::Impl, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
 		using Adaptor = SimulationOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value time, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::ValueRange variablesToBePrinted = {});
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
 
-		mlir::Value time();
 		RealAttribute startTime();
 		RealAttribute endTime();
 		RealAttribute timeStep();
-		mlir::ValueRange variablesToBePrinted();
 
+		mlir::Region& init();
 		mlir::Region& body();
+		mlir::Region& print();
+
+		mlir::Value getVariableAllocation(mlir::Value var);
+
+		mlir::Value time();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -230,35 +289,7 @@ namespace modelica::codegen
 		mlir::OpFoldResult fold(llvm::ArrayRef<mlir::Attribute> operands);
 
 		mlir::Attribute value();
-		mlir::Type getType();
-	};
-
-	//===----------------------------------------------------------------------===//
-	// Modelica::RecordOp
-	//===----------------------------------------------------------------------===//
-
-	class RecordOp;
-
-	class RecordOpAdaptor : public OpAdaptor<RecordOp>
-	{
-		public:
-		using OpAdaptor::OpAdaptor;
-
-		mlir::ValueRange values();
-	};
-
-	class RecordOp : public mlir::Op<RecordOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneResult, mlir::OpTrait::VariadicOperands> {
-		public:
-		using Op::Op;
-		using Adaptor = RecordOpAdaptor;
-
-		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values);
-		void print(mlir::OpAsmPrinter& printer);
-		mlir::LogicalResult verify();
-
-		RecordType resultType();
-		mlir::ValueRange values();
+		mlir::Type resultType();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -435,6 +466,7 @@ namespace modelica::codegen
 		mlir::LogicalResult verify();
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
+		bool shouldBeFreed();
 		PointerType resultType();
 		mlir::ValueRange dynamicDimensions();
 		bool isConstant();
@@ -473,6 +505,11 @@ namespace modelica::codegen
 	// Modelica::PtrCastOp
 	//===----------------------------------------------------------------------===//
 
+	/**
+	 * This operation should be used only in combination with function calls,
+	 * to remove the allocation scope before passing the array pointers as
+	 * arguments to the functions.
+	 */
 	class PtrCastOp;
 
 	class PtrCastOpAdaptor : public OpAdaptor<PtrCastOp>
@@ -653,7 +690,8 @@ namespace modelica::codegen
 		mlir::LogicalResult verify();
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		PointerType type();
+		bool shouldBeFreed();
+		PointerType resultType();
 		mlir::Value source();
 	};
 
@@ -672,17 +710,19 @@ namespace modelica::codegen
 		mlir::Value condition();
 	};
 
-	class IfOp : public mlir::Op<IfOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::OneOperand, mlir::RegionBranchOpInterface::Trait, mlir::OpTrait::SingleBlockImplicitTerminator<YieldOp>::Impl> {
+	class IfOp : public mlir::Op<IfOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::VariadicResults, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::OneOperand, mlir::RegionBranchOpInterface::Trait, mlir::OpTrait::SingleBlockImplicitTerminator<YieldOp>::Impl> {
 		public:
 		using Op::Op;
 		using Adaptor = IfOpAdaptor;
 
 		static ::llvm::StringRef getOperationName();
-		static void build(::mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Value cond, bool withElseRegion = false);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::TypeRange resultTypes, mlir::Value cond, bool withElseRegion = false);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value cond, bool withElseRegion = false);
 		void print(::mlir::OpAsmPrinter &p);
 		mlir::LogicalResult verify();
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
 
+		mlir::TypeRange resultTypes();
 		mlir::Value condition();
 		mlir::Region& thenRegion();
 		mlir::Region& elseRegion();
@@ -969,6 +1009,7 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
+		mlir::Type resultType();
 		mlir::Value lhs();
 		mlir::Value rhs();
 	};
@@ -999,6 +1040,7 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
+		mlir::Type resultType();
 		mlir::Value lhs();
 		mlir::Value rhs();
 	};
@@ -1029,6 +1071,7 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
+		mlir::Type resultType();
 		mlir::Value lhs();
 		mlir::Value rhs();
 	};
@@ -1059,6 +1102,7 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
+		mlir::Type resultType();
 		mlir::Value lhs();
 		mlir::Value rhs();
 	};
@@ -1089,6 +1133,7 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
+		mlir::Type resultType();
 		mlir::Value lhs();
 		mlir::Value rhs();
 	};
@@ -1119,6 +1164,7 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
+		mlir::Type resultType();
 		mlir::Value lhs();
 		mlir::Value rhs();
 	};

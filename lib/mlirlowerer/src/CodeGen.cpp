@@ -106,17 +106,17 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 		passManager.addPass(createResultBuffersToArgsPass());
 
 	passManager.addPass(mlir::createCanonicalizerPass());
-	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
 
 	if (conversionOptions.cse)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
 
 	passManager.addPass(createModelicaConversionPass());
+	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
 
 	if (conversionOptions.openmp)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
 
-	passManager.addPass(mlir::createLowerToCFGPass());
+	passManager.addPass(createLowerToCFGPass());
 	passManager.addPass(createLLVMLoweringPass(conversionOptions.llvmOptions));
 
 	if (!conversionOptions.debug)
@@ -186,51 +186,89 @@ static mlir::Operation* distributeMultiplications(mlir::OpBuilder& builder, mlir
 
 mlir::Operation* MLIRLowerer::lower(Class& cls)
 {
-	// Create a scope in the symbol table to hold variable declarations.
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 
 	auto location = loc(cls.getLocation());
 
-	auto functionType = builder.getFunctionType(llvm::None, llvm::None);
-	auto function = mlir::FuncOp::create(location, "main", functionType);
-	auto& entryBlock = *function.addEntryBlock();
-	builder.setInsertionPointToStart(&entryBlock);
+	llvm::SmallVector<mlir::Type, 3> args;
+
+	// Time variable
+	args.push_back(builder.getPointerType(BufferAllocationScope::unknown, builder.getRealType()));
 
 	for (auto& member : cls.getMembers())
-		lower<Class>(*member);
+	{
+		mlir::Type type = lower(member->getType(), BufferAllocationScope::unknown);
 
-	// Simulation variables
-	mlir::Value time = builder.create<AllocaOp>(location, builder.getRealType());
+		if (!type.isa<PointerType>())
+			type = builder.getPointerType(BufferAllocationScope::unknown, type);
 
-	if (symbolTable.count("time") == 0)
-		symbolTable.insert("time", Reference::memory(&builder, time, true));
-
-	llvm::SmallVector<mlir::Value, 3> variablesToBePrinted;
-
-	for (auto& member : cls.getMembers())
-		variablesToBePrinted.push_back(symbolTable.lookup(member->getName()).getReference());
+		args.push_back(type);
+	}
 
 	auto simulation = builder.create<SimulationOp>(
 			location,
-			time,
 			builder.getRealAttribute(options.startTime),
 			builder.getRealAttribute(options.endTime),
 			builder.getRealAttribute(options.timeStep),
-			variablesToBePrinted);
+			args);
 
-	builder.setInsertionPointToStart(&simulation.body().front());
+	{
+		// Simulation variables
+		mlir::OpBuilder::InsertionGuard guard(builder);
+		builder.setInsertionPointToStart(&simulation.init().front());
+		llvm::SmallVector<mlir::Value, 3> vars;
 
-	for (auto& equation : cls.getEquations())
-		lower(*equation);
+		mlir::Value time = builder.create<AllocOp>(location, builder.getRealType(), llvm::None, llvm::None, false);
+		vars.push_back(time);
 
-	for (auto& forEquation : cls.getForEquations())
-		lower(*forEquation);
+		for (auto& member : cls.getMembers())
+		{
+			lower<Class>(*member);
+			vars.push_back(symbolTable.lookup(member->getName()).getReference());
+		}
 
-	builder.create<YieldOp>(location);
+		builder.create<YieldOp>(location, vars);
+	}
 
-	builder.setInsertionPointAfter(simulation);
-	builder.create<mlir::ReturnOp>(location);
-	return function;
+	{
+		// Body
+		mlir::OpBuilder::InsertionGuard guard(builder);
+		builder.setInsertionPointToStart(&simulation.body().front());
+
+		mlir::Value time = simulation.time();
+		symbolTable.insert("time", Reference::memory(&builder, time, true));
+
+		for (auto& member : llvm::enumerate(cls.getMembers()))
+			symbolTable.insert(member.value()->getName(), Reference::memory(&builder, simulation.body().getArgument(member.index() + 1), true));
+
+		for (auto& equation : cls.getEquations())
+			lower(*equation);
+
+		for (auto& forEquation : cls.getForEquations())
+			lower(*forEquation);
+
+		builder.create<YieldOp>(location);
+	}
+
+	{
+		// Print
+		mlir::OpBuilder::InsertionGuard guard(builder);
+		builder.setInsertionPointToStart(&simulation.print().front());
+
+		llvm::SmallVector<mlir::Value, 3> variablesToBePrinted;
+
+		variablesToBePrinted.push_back(simulation.print().getArgument(0));
+
+		for (auto& member : cls.getMembers())
+		{
+			unsigned int index = symbolTable.lookup(member->getName()).getReference().cast<mlir::BlockArgument>().getArgNumber();
+			variablesToBePrinted.push_back(simulation.print().getArgument(index));
+		}
+
+		builder.create<YieldOp>(location, variablesToBePrinted);
+	}
+
+	return simulation;
 }
 
 mlir::Operation* MLIRLowerer::lower(Function& foo)
@@ -246,7 +284,13 @@ mlir::Operation* MLIRLowerer::lower(Function& foo)
 	for (const auto& member : foo.getArgs())
 	{
 		argNames.emplace_back(member->getName());
-		argTypes.emplace_back(lower(member->getType(), BufferAllocationScope::unknown));
+
+		mlir::Type type = lower(member->getType(), BufferAllocationScope::unknown);
+
+		if (auto pointerType = type.dyn_cast<PointerType>())
+			type = pointerType.toUnknownAllocationScope();
+
+		argTypes.emplace_back(type);
 	}
 
 	llvm::SmallVector<llvm::StringRef, 3> returnNames;
@@ -257,6 +301,10 @@ mlir::Operation* MLIRLowerer::lower(Function& foo)
 	{
 		const auto& frontendType = member->getType();
 		mlir::Type type = lower(member->getType(), BufferAllocationScope::heap);
+
+		if (auto pointerType = type.dyn_cast<PointerType>())
+			type = pointerType.toAllocationScope(BufferAllocationScope::heap);
+
 		returnNames.emplace_back(member->getName());
 		returnTypes.emplace_back(type);
 	}
@@ -333,6 +381,7 @@ mlir::Operation* MLIRLowerer::lower(Package& package)
 
 mlir::Operation* MLIRLowerer::lower(Record& record)
 {
+	/*
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 	auto location = loc(record.getLocation());
 
@@ -371,13 +420,16 @@ mlir::Operation* MLIRLowerer::lower(Record& record)
 	builder.create<mlir::ReturnOp>(location, result);
 
 	return { function };
+	 */
+
+	return nullptr;
 }
 
-mlir::Type MLIRLowerer::lower(Type& type, BufferAllocationScope allocationScope)
+mlir::Type MLIRLowerer::lower(Type& type, BufferAllocationScope desiredAllocationScope)
 {
 	auto visitor = [&](auto& obj) -> mlir::Type
 	{
-		auto baseType = lower(obj, allocationScope);
+		auto baseType = lower(obj, desiredAllocationScope);
 
 		if (!type.isScalar())
 		{
@@ -392,7 +444,7 @@ mlir::Type MLIRLowerer::lower(Type& type, BufferAllocationScope allocationScope)
 					shape.emplace_back(dimension.getNumericSize());
 			}
 
-			return builder.getPointerType(allocationScope, baseType, shape);
+			return builder.getPointerType(desiredAllocationScope, baseType, shape).toMinAllowedAllocationScope();
 		}
 
 		return baseType;
@@ -401,7 +453,7 @@ mlir::Type MLIRLowerer::lower(Type& type, BufferAllocationScope allocationScope)
 	return type.visit(visitor);
 }
 
-mlir::Type MLIRLowerer::lower(BuiltInType& type, BufferAllocationScope allocationScope)
+mlir::Type MLIRLowerer::lower(BuiltInType& type, BufferAllocationScope desiredAllocationScope)
 {
 	switch (type)
 	{
@@ -419,22 +471,22 @@ mlir::Type MLIRLowerer::lower(BuiltInType& type, BufferAllocationScope allocatio
 	}
 }
 
-mlir::Type MLIRLowerer::lower(PackedType& type, BufferAllocationScope allocationScope)
+mlir::Type MLIRLowerer::lower(PackedType& type, BufferAllocationScope desiredAllocationScope)
 {
 	llvm::SmallVector<mlir::Type, 3> types;
 
 	for (auto& subType : type)
-		types.push_back(lower(subType, allocationScope));
+		types.push_back(lower(subType, desiredAllocationScope));
 
 	return builder.getTupleType(move(types));
 }
 
-mlir::Type MLIRLowerer::lower(UserDefinedType& type, BufferAllocationScope allocationScope)
+mlir::Type MLIRLowerer::lower(UserDefinedType& type, BufferAllocationScope desiredAllocationScope)
 {
 	llvm::SmallVector<mlir::Type, 3> types;
 
 	for (auto& subType : type)
-		types.push_back(lower(subType, allocationScope));
+		types.push_back(lower(subType, desiredAllocationScope));
 
 	return builder.getTupleType(move(types));
 }
@@ -445,16 +497,16 @@ void MLIRLowerer::lower<Class>(Member& member)
 	auto location = loc(member.getLocation());
 
 	auto& frontendType = member.getType();
-	mlir::Type type = lower(frontendType, BufferAllocationScope::stack);
+	mlir::Type type = lower(frontendType, BufferAllocationScope::heap);
 
 	if (auto pointerType = type.dyn_cast<PointerType>())
 	{
-		mlir::Value ptr = builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape());
+		mlir::Value ptr = builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), llvm::None, false);
 		symbolTable.insert(member.getName(), Reference::memory(&builder, ptr, true));
 	}
 	else
 	{
-		mlir::Value ptr = builder.create<AllocaOp>(location, type);
+		mlir::Value ptr = builder.create<AllocOp>(location, type, llvm::None, llvm::None, false);
 		symbolTable.insert(member.getName(), Reference::memory(&builder, ptr, true));
 	}
 
@@ -470,8 +522,12 @@ void MLIRLowerer::lower<Class>(Member& member)
 	{
 		if (auto pointerType = type.dyn_cast<PointerType>())
 		{
-			mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(pointerType.getElementType()));
-			builder.create<FillOp>(location, zero, destination);
+			if (member.getName() == "x")
+			{
+				// TODO remove if
+				mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(pointerType.getElementType()));
+				builder.create<FillOp>(location, zero, destination);
+			}
 		}
 		else
 		{

@@ -10,92 +10,118 @@ DerSolver::DerSolver(Model& model) : model(&model)
 {
 }
 
-mlir::LogicalResult DerSolver::solve()
+mlir::LogicalResult DerSolver::solve(mlir::OpBuilder& builder)
 {
 	for (auto& equation : model->getEquations())
 	{
-		solve(equation);
+		solve(builder, equation);
 		equation = Equation::build(equation.getOp());
 	}
 
 	return mlir::success();
 }
 
-void DerSolver::solve(Equation equation)
+void DerSolver::solve(mlir::OpBuilder& builder, Equation equation)
 {
-	solve<Expression>(equation.lhs());
-	solve<Expression>(equation.rhs());
+	solve<Expression>(builder, equation.lhs());
+	solve<Expression>(builder, equation.rhs());
 }
 
 template<>
-void DerSolver::solve<Expression>(Expression expression)
+void DerSolver::solve<Expression>(mlir::OpBuilder& builder, Expression expression)
 {
 	return expression.visit([&](auto& obj) {
 		using type = decltype(obj);
 		using deref = typename std::remove_reference<type>::type;
-		return solve<deref>(expression);
+		return solve<deref>(builder, expression);
 	});
 }
 
 template<>
-void DerSolver::solve<Constant>(Expression expression)
+void DerSolver::solve<Constant>(mlir::OpBuilder& builder, Expression expression)
 {
 	// Nothing to do here
 }
 
 template<>
-void DerSolver::solve<Reference>(Expression expression)
+void DerSolver::solve<Reference>(mlir::OpBuilder& builder, Expression expression)
 {
 	// Nothing to do here
 }
 
 template<>
-void DerSolver::solve<Operation>(Expression expression)
+void DerSolver::solve<Operation>(mlir::OpBuilder& builder, Expression expression)
 {
+	mlir::OpBuilder::InsertionGuard guard(builder);
 	auto* op = expression.getOp();
 
 	if (auto derOp = mlir::dyn_cast<DerOp>(op))
 	{
-		mlir::OpBuilder builder(model->getOp());
-		mlir::Operation* definingOp = derOp.operand().getDefiningOp();
+		mlir::Value operand = derOp.operand();
 		llvm::SmallVector<mlir::Value, 3> subscriptions;
 
-		while (!mlir::isa<AllocaOp, AllocOp>(definingOp))
+		while (!operand.isa<mlir::BlockArgument>())
 		{
+			mlir::Operation* definingOp = operand.getDefiningOp();
+
 			if (auto subscription = mlir::dyn_cast<SubscriptionOp>(definingOp))
 			{
 				for (auto index : subscription.indexes())
 					subscriptions.push_back(index);
 
-				definingOp = subscription.source().getDefiningOp();
+				operand = subscription.source();
 			}
 			else
 				assert(false && "Unexpected operation");
 		}
 
-		assert(definingOp->getNumResults() == 1);
-		auto& var = model->getVariable(definingOp->getResult(0));
+		auto simulation = op->getParentOfType<SimulationOp>();
+		mlir::Value var = simulation.getVariableAllocation(operand);
+		auto& variable = model->getVariable(var);
 		mlir::Value derVar;
 
-		if (!var.isState())
+		if (!variable.isState())
 		{
-			if (auto pointerType = var.getReference().getType().dyn_cast<PointerType>())
-				derVar = builder.create<AllocaOp>(derOp.getLoc(), pointerType.getElementType(), pointerType.getShape());
+			auto terminator = mlir::cast<YieldOp>(var.getParentBlock()->getTerminator());
+			builder.setInsertionPointAfter(terminator);
+
+			llvm::SmallVector<mlir::Value, 3> args;
+
+			for (mlir::Value arg : terminator.args())
+				args.push_back(arg);
+
+			if (auto pointerType = variable.getReference().getType().dyn_cast<PointerType>())
+				derVar = builder.create<AllocOp>(derOp.getLoc(), pointerType.getElementType(), pointerType.getShape(), llvm::None, false);
 			else
 			{
-				derVar = builder.create<AllocaOp>(derOp.getLoc(), var.getReference().getType());
+				derVar = builder.create<AllocOp>(derOp.getLoc(), variable.getReference().getType(), llvm::None, llvm::None, false);
 			}
 
 			model->addVariable(derVar);
-			var.setDer(derVar);
+			variable.setDer(derVar);
+
+			args.push_back(derVar);
+			builder.create<YieldOp>(terminator.getLoc(), args);
+			terminator.erase();
+
+			auto newArgumentType = derVar.getType().cast<PointerType>().toUnknownAllocationScope();
+			simulation.body().addArgument(newArgumentType);
+			simulation.print().addArgument(newArgumentType);
 		}
 		else
 		{
-			derVar = var.getDer();
+			derVar = variable.getDer();
 		}
 
 		expression = Expression::reference(derVar);
 		builder.setInsertionPoint(derOp);
+
+		// Get argument index
+		for (auto [declaration, arg] : llvm::zip(
+						 mlir::cast<YieldOp>(simulation.init().front().getTerminator()).args(),
+						 simulation.body().getArguments()))
+			if (declaration == derVar)
+				derVar = arg;
 
 		if (!subscriptions.empty())
 		{
@@ -113,6 +139,6 @@ void DerSolver::solve<Operation>(Expression expression)
 	else
 	{
 		for (auto& arg : expression.get<Operation>())
-			solve<Expression>(*arg);
+			solve<Expression>(builder, *arg);
 	}
 }

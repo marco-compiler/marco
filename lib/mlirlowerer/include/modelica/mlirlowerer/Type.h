@@ -11,7 +11,7 @@ namespace modelica::codegen
 	class RealTypeStorage;
 	class PointerTypeStorage;
 	//class UnrankedPointerTypeStorage;
-	class RecordTypeStorage;
+	class StructTypeStorage;
 
 	class BooleanType : public mlir::Type::TypeBase<BooleanType, mlir::Type, mlir::TypeStorage> {
 		public:
@@ -60,6 +60,7 @@ namespace modelica::codegen
 		[[nodiscard]] PointerType slice(unsigned int subscriptsAmount);
 		[[nodiscard]] PointerType toAllocationScope(BufferAllocationScope scope);
 		[[nodiscard]] PointerType toUnknownAllocationScope();
+		[[nodiscard]] PointerType toMinAllowedAllocationScope();
 		[[nodiscard]] PointerType toElementType(mlir::Type type);
 
 		[[nodiscard]] bool canBeOnStack() const;
@@ -77,12 +78,12 @@ namespace modelica::codegen
 	};
 	 */
 
-	class RecordType : public mlir::Type::TypeBase<RecordType, mlir::Type, RecordTypeStorage>
+	class StructType : public mlir::Type::TypeBase<StructType, mlir::Type, StructTypeStorage>
 	    {
 		public:
 		using Base::Base;
 
-		static RecordType get(mlir::MLIRContext* context, llvm::ArrayRef<mlir::Type> elementTypes);
+		static StructType get(mlir::MLIRContext* context, llvm::ArrayRef<mlir::Type> elementTypes);
 
 		llvm::ArrayRef<mlir::Type> getElementTypes();
 	};

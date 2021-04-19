@@ -52,14 +52,11 @@ Expression Expression::build(mlir::Value value)
 {
 	mlir::Operation* definingOp = value.getDefiningOp();
 
+	if (value.isa<mlir::BlockArgument>())
+		return Expression::reference(value.getParentRegion()->getParentOfType<SimulationOp>().getVariableAllocation(value));
+
 	if (auto op = mlir::dyn_cast<LoadOp>(definingOp))
 		return build(op.memory());
-
-	if ( mlir::isa<AllocaOp>(definingOp))
-		return Expression::reference(value);
-
-	if (mlir::isa<AllocOp>(definingOp))
-		return Expression::reference(value);
 
 	if (mlir::isa<ConstantOp>(definingOp))
 		return Expression::constant(value);

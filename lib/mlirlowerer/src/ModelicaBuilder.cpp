@@ -28,9 +28,9 @@ PointerType ModelicaBuilder::getPointerType(BufferAllocationScope allocationScop
 	return PointerType::get(getContext(), allocationScope, elementType, shape);
 }
 
-RecordType ModelicaBuilder::getRecordType(llvm::ArrayRef<mlir::Type> types)
+StructType ModelicaBuilder::getStructType(llvm::ArrayRef<mlir::Type> types)
 {
-	return RecordType::get(getContext(), types);
+	return StructType::get(getContext(), types);
 }
 
 mlir::IntegerAttr ModelicaBuilder::getIndexAttribute(long value)

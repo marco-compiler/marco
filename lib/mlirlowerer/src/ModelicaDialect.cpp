@@ -40,13 +40,13 @@ class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
 ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 		: Dialect("modelica", context, mlir::TypeID::get<ModelicaDialect>())
 {
-	addTypes<BooleanType, IntegerType, RealType, PointerType, RecordType>();
+	addTypes<BooleanType, IntegerType, RealType, PointerType, StructType>();
 	//addTypes<UnrankedPointerType>();
 	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute>();
 	addInterfaces<ModelicaInlinerInterface>();
 
 	// Basic operations
-	addOperations<ConstantOp, RecordOp, CastOp, CastCommonOp, AssignmentOp, CallOp, PrintOp>();
+	addOperations<ConstantOp, PackOp, ExtractOp, CastOp, CastCommonOp, AssignmentOp, CallOp, PrintOp>();
 
 	// Memory operations
 	addOperations<AllocaOp, AllocOp, FreeOp>();

@@ -295,9 +295,6 @@ static mlir::LogicalResult groupLeftHand(mlir::OpBuilder& builder, Equation& equ
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
-	llvm::errs() << "BEFORE\n";
-	equation.getOp()->dump();
-
 	if (auto status = removeSubtractions(equation.getOp()); failed(status))
 		return status;
 
@@ -369,10 +366,6 @@ static mlir::LogicalResult groupLeftHand(mlir::OpBuilder& builder, Equation& equ
 	terminator->erase();
 
 	equation.update();
-
-	llvm::errs() << "AFTER\n";
-	equation.getOp()->dump();
-
 	return mlir::success();
 }
 

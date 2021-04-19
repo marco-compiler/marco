@@ -17,47 +17,139 @@ static bool isNumeric(mlir::Value value)
 }
 
 //===----------------------------------------------------------------------===//
-// Modelica::SimulationOp
+// Modelica::PackOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value SimulationOpAdaptor::time()
+mlir::ValueRange PackOpAdaptor::values()
+{
+	return getValues();
+}
+
+llvm::StringRef PackOp::getOperationName()
+{
+	return "modelica.pack";
+}
+
+void PackOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
+{
+	llvm::SmallVector<mlir::Type, 3> types;
+
+	for (mlir::Value value : values)
+		types.push_back(value.getType());
+
+	state.addTypes(StructType::get(state.getContext(), types));
+	state.addOperands(values);
+}
+
+void PackOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.pack " << values() << " : " << resultType();
+}
+
+StructType PackOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<StructType>();
+}
+
+mlir::ValueRange PackOp::values()
+{
+	return Adaptor(*this).values();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::ExtractOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value ExtractOpAdaptor::packedValue()
 {
 	return getValues()[0];
 }
 
-mlir::ValueRange SimulationOpAdaptor::variablesToBePrinted()
+llvm::StringRef ExtractOp::getOperationName()
 {
-	return mlir::ValueRange(std::next(getValues().begin()), getValues().end());
+	return "modelica.extract";
 }
+
+void ExtractOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value packedValue, unsigned int index)
+{
+	state.addTypes(resultType);
+	state.addOperands(packedValue);
+	state.addAttribute("index", builder.getIndexAttr(index));
+}
+
+void ExtractOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.extract " << packedValue() << ", " << index() << " : " << resultType();
+}
+
+mlir::LogicalResult ExtractOp::verify()
+{
+	if (!packedValue().getType().isa<StructType>())
+		return emitOpError(" requires the operand to be a struct");
+
+	if (auto structType = packedValue().getType().cast<StructType>(); index() >= structType.getElementTypes().size())
+		return emitOpError(" has an out of bounds index");
+
+	return mlir::success();
+}
+
+mlir::Type ExtractOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value ExtractOp::packedValue()
+{
+	return Adaptor(*this).packedValue();
+}
+
+unsigned int ExtractOp::index()
+{
+	return getOperation()->getAttrOfType<mlir::IntegerAttr>("index").getInt();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::SimulationOp
+//===----------------------------------------------------------------------===//
 
 llvm::StringRef SimulationOp::getOperationName()
 {
 	return "modelica.simulation";
 }
 
-void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value time, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::ValueRange variablesToBePrinted)
+void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
-	state.addOperands(time);
 	state.addAttribute("startTime", startTime);
 	state.addAttribute("endTime", endTime);
 	state.addAttribute("timeStep", timeStep);
 
-	state.addOperands(variablesToBePrinted);
+	// Init block
+	builder.createBlock(state.addRegion());
 
 	// Body block
-	builder.createBlock(state.addRegion());
+	builder.createBlock(state.addRegion(), {}, vars);
+
+	// Print block
+	builder.createBlock(state.addRegion(), {}, vars);
 }
 
 void SimulationOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.simulation (time: " << time()
-					<< ", start: " << startTime().getValue()
+	printer << "modelica.simulation ("
+					<< "start: " << startTime().getValue()
 					<< ", end: " << endTime().getValue()
 					<< ", step: " << timeStep().getValue() << ")";
 
-	printer.printRegion(body(), false);
+	printer << " init";
+	printer.printRegion(init(), false);
+
+	printer << " step";
+	printer.printRegion(body(), true);
+
+	printer << " print";
+	printer.printRegion(print(), true);
 }
 
 mlir::LogicalResult SimulationOp::verify()
@@ -83,11 +175,6 @@ void SimulationOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm:
 	}
 }
 
-mlir::Value SimulationOp::time()
-{
-	return Adaptor(*this).time();
-}
-
 RealAttribute SimulationOp::startTime()
 {
 	return getOperation()->getAttrOfType<RealAttribute>("startTime");
@@ -103,14 +190,30 @@ RealAttribute SimulationOp::timeStep()
 	return getOperation()->getAttrOfType<RealAttribute>("timeStep");
 }
 
-mlir::ValueRange SimulationOp::variablesToBePrinted()
+mlir::Region& SimulationOp::init()
 {
-	return Adaptor(*this).variablesToBePrinted();
+	return getOperation()->getRegion(0);
 }
 
 mlir::Region& SimulationOp::body()
 {
-	return getOperation()->getRegion(0);
+	return getOperation()->getRegion(1);
+}
+
+mlir::Region& SimulationOp::print()
+{
+	return getOperation()->getRegion(2);
+}
+
+mlir::Value SimulationOp::getVariableAllocation(mlir::Value var)
+{
+	unsigned int index = var.dyn_cast<mlir::BlockArgument>().getArgNumber();
+	return mlir::cast<YieldOp>(init().back().getTerminator()).getOperand(index);
+}
+
+mlir::Value SimulationOp::time()
+{
+	return body().getArgument(0);
 }
 
 //===----------------------------------------------------------------------===//
@@ -362,52 +465,9 @@ mlir::Attribute ConstantOp::value()
 	return getOperation()->getAttr("value");
 }
 
-mlir::Type ConstantOp::getType()
+mlir::Type ConstantOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
-}
-
-//===----------------------------------------------------------------------===//
-// Modelica::RecordOp
-//===----------------------------------------------------------------------===//
-
-mlir::ValueRange RecordOpAdaptor::values()
-{
-	return getValues();
-}
-
-llvm::StringRef RecordOp::getOperationName()
-{
-	return "modelica.record";
-}
-
-void RecordOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values)
-{
-	state.addTypes(resultType);
-	state.addOperands(values);
-}
-
-void RecordOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.record " << values() << " : " << resultType();
-}
-
-mlir::LogicalResult RecordOp::verify()
-{
-	if (!getOperation()->getResultTypes()[0].isa<RecordType>())
-		return emitOpError(" requires the result type to be a record");
-
-	return mlir::success();
-}
-
-RecordType RecordOp::resultType()
-{
-	return getOperation()->getResultTypes()[0].cast<RecordType>();
-}
-
-mlir::ValueRange RecordOp::values()
-{
-	return Adaptor(*this).values();
 }
 
 //===----------------------------------------------------------------------===//
@@ -662,11 +722,13 @@ void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 		if (auto pointerType = type.dyn_cast<PointerType>(); pointerType && pointerType.getAllocationScope() == heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
 
+		/*
 		// Records are considered as resources to be freed, because they
 		// potentially have subtypes that need to be freed.
 
-		if (type.isa<RecordType>())
+		if (type.isa<StructType>())
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
+		 */
 	}
 }
 
@@ -813,8 +875,23 @@ mlir::LogicalResult AllocOp::verify()
 
 void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (getOperation()->getAttrOfType<mlir::BoolAttr>("shouldBeFreed").getValue())
+	if (shouldBeFreed())
 		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	else
+	{
+		// If the buffer is marked as manually freed, then we need to set the
+		// operation to have a generic side effect, or the CSE pass would
+		// otherwise consider all the allocs with the same structure as equal,
+		// and thus would replace all the subsequent buffers with the first
+		// allocated one.
+
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+	}
+}
+
+bool AllocOp::shouldBeFreed()
+{
+	return getOperation()->getAttrOfType<mlir::BoolAttr>("shouldBeFreed").getValue();
 }
 
 PointerType AllocOp::resultType()
@@ -920,6 +997,9 @@ mlir::LogicalResult PtrCastOp::verify()
 	if (pointerType.getRank() != resultType().cast<PointerType>().getRank())
 		return emitOpError("requires the result pointer type to have the same rank as the operand");
 
+	if (resultType().getAllocationScope() != unknown)
+		return emitWarning("PtrCastOp should be used only to cast to unknown allocation scope");
+
 	return mlir::success();
 }
 
@@ -973,6 +1053,8 @@ mlir::LogicalResult DimOp::verify()
 
 mlir::OpFoldResult DimOp::fold(mlir::ArrayRef<mlir::Attribute> operands)
 {
+	// TODO
+	/*
 	if (auto attribute = operands[1].dyn_cast<mlir::IntegerAttr>(); attribute)
 	{
 		auto pointerType = memory().getType().cast<PointerType>();
@@ -983,6 +1065,7 @@ mlir::OpFoldResult DimOp::fold(mlir::ArrayRef<mlir::Attribute> operands)
 		if (shape[index] != -1)
 			return mlir::IntegerAttr::get(mlir::IndexType::get(getContext()), shape[index]);
 	}
+	 */
 
 	return nullptr;
 }
@@ -1226,12 +1309,12 @@ void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 
 void ArrayCloneOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.array_clone " << source() << " : " << type();
+	printer << "modelica.array_clone " << source() << " : " << resultType();
 }
 
 mlir::LogicalResult ArrayCloneOp::verify()
 {
-	auto pointerType = type();
+	auto pointerType = resultType();
 
 	if (pointerType.getAllocationScope() != stack && pointerType.getAllocationScope() != heap)
 		return emitOpError(" requires the result array type to be stack or heap allocated");
@@ -1243,15 +1326,20 @@ void ArrayCloneOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectIns
 {
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), source(), mlir::SideEffects::DefaultResource::get());
 
-	if (type().getAllocationScope() == heap && getOperation()->getAttrOfType<mlir::BoolAttr>("shouldBeFreed").getValue())
+	if (resultType().getAllocationScope() == heap && shouldBeFreed())
 		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	else if (type().getAllocationScope() == stack)
+	else if (resultType().getAllocationScope() == stack)
 		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
-PointerType ArrayCloneOp::type()
+bool ArrayCloneOp::shouldBeFreed()
+{
+	return getOperation()->getAttrOfType<mlir::BoolAttr>("shouldBeFreed").getValue();
+}
+
+PointerType ArrayCloneOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<PointerType>();
 }
@@ -1275,9 +1363,10 @@ llvm::StringRef IfOp::getOperationName()
 	return "modelica.if";
 }
 
-void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value condition, bool withElseRegion)
+void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::TypeRange resultTypes, mlir::Value condition, bool withElseRegion)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
+	state.addTypes(resultTypes);
 	state.addOperands(condition);
 
 	// "Then" region
@@ -1291,9 +1380,14 @@ void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Va
 		builder.createBlock(elseRegion);
 }
 
+void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value condition, bool withElseRegion)
+{
+	build(builder, state, llvm::None, condition, withElseRegion);
+}
+
 void IfOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.if " << condition();
+	printer << "modelica.if (" << condition() << ") -> (" << resultTypes() << ")";
 	printer.printRegion(thenRegion());
 
 	if (!elseRegion().empty())
@@ -1347,6 +1441,11 @@ void IfOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRe
 
 	// Add the successor regions using the condition
 	regions.push_back(mlir::RegionSuccessor(condition ? &thenRegion() : elseRegion));
+}
+
+mlir::TypeRange IfOp::resultTypes()
+{
+	return getResultTypes();
 }
 
 mlir::Value IfOp::condition()
@@ -2005,6 +2104,11 @@ mlir::LogicalResult EqOp::verify()
 	return mlir::success();
 }
 
+mlir::Type EqOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
 mlir::Value EqOp::lhs()
 {
 	return Adaptor(*this).lhs();
@@ -2051,6 +2155,11 @@ mlir::LogicalResult NotEqOp::verify()
 		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
+}
+
+mlir::Type NotEqOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
 }
 
 mlir::Value NotEqOp::lhs()
@@ -2101,6 +2210,11 @@ mlir::LogicalResult GtOp::verify()
 	return mlir::success();
 }
 
+mlir::Type GtOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
 mlir::Value GtOp::lhs()
 {
 	return Adaptor(*this).lhs();
@@ -2147,6 +2261,11 @@ mlir::LogicalResult GteOp::verify()
 		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
+}
+
+mlir::Type GteOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
 }
 
 mlir::Value GteOp::lhs()
@@ -2197,6 +2316,11 @@ mlir::LogicalResult LtOp::verify()
 	return mlir::success();
 }
 
+mlir::Type LtOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
 mlir::Value LtOp::lhs()
 {
 	return Adaptor(*this).lhs();
@@ -2243,6 +2367,11 @@ mlir::LogicalResult LteOp::verify()
 		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
 
 	return mlir::success();
+}
+
+mlir::Type LteOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
 }
 
 mlir::Value LteOp::lhs()
@@ -2388,6 +2517,10 @@ llvm::StringRef AddOp::getOperationName()
 
 void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
+	if (auto pointerType = resultType.dyn_cast<PointerType>())
+		if (pointerType.getAllocationScope() == unknown)
+			resultType = pointerType.toMinAllowedAllocationScope();
+
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
 }
@@ -2503,6 +2636,10 @@ llvm::StringRef SubOp::getOperationName()
 
 void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
+	if (auto pointerType = resultType.dyn_cast<PointerType>())
+		if (pointerType.getAllocationScope() == unknown)
+			resultType = pointerType.toMinAllowedAllocationScope();
+
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
 }
@@ -2618,6 +2755,10 @@ llvm::StringRef MulOp::getOperationName()
 
 void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
+	if (auto pointerType = resultType.dyn_cast<PointerType>())
+		if (pointerType.getAllocationScope() == unknown)
+			resultType = pointerType.toMinAllowedAllocationScope();
+
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
 }
@@ -2755,6 +2896,10 @@ llvm::StringRef DivOp::getOperationName()
 
 void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
+	if (auto pointerType = resultType.dyn_cast<PointerType>())
+		if (pointerType.getAllocationScope() == unknown)
+			resultType = pointerType.toMinAllowedAllocationScope();
+
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
 }
@@ -2948,6 +3093,10 @@ llvm::StringRef PowOp::getOperationName()
 
 void PowOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value base, mlir::Value exponent)
 {
+	if (auto pointerType = resultType.dyn_cast<PointerType>())
+		if (pointerType.getAllocationScope() == unknown)
+			resultType = pointerType.toMinAllowedAllocationScope();
+
 	state.addTypes(resultType);
 	state.addOperands({ base, exponent });
 }

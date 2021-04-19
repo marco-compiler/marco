@@ -25,13 +25,14 @@ using namespace std;
 
 static cl::OptionCategory modelSolvingOptions("Model solving options");
 
-static cl::opt<int> matchingMaxIterations("matching-max-iterations", cl::desc("Maximum number of iterations for the matching phase (default: 1000)"), cl::init(100), cl::cat(modelSolvingOptions));
-static cl::opt<int> sccMaxIterations("scc-max-iterations", cl::desc("Maximum number of iterations for the SCC resolution phase (default: 1000)"), cl::init(100), cl::cat(modelSolvingOptions));
+static cl::opt<int> matchingMaxIterations("matching-max-iterations", cl::desc("Maximum number of iterations for the matching phase (default: 1000)"), cl::init(1000), cl::cat(modelSolvingOptions));
+static cl::opt<int> sccMaxIterations("scc-max-iterations", cl::desc("Maximum number of iterations for the SCC resolution phase (default: 1000)"), cl::init(1000), cl::cat(modelSolvingOptions));
 
 static cl::OptionCategory codeGenOptions("Code generation options");
 
 static cl::opt<string> inputFile(cl::Positional, cl::desc("<input-file>"), cl::init("-"), cl::cat(codeGenOptions));
 static cl::opt<string> outputFile("o", cl::desc("<output-file>"), cl::init("-"), cl::cat(codeGenOptions));
+static cl::opt<bool> emitMain("emit-main", cl::desc("Whether to emit the main function that will start the simulation (default: true)"), cl::init(true), cl::cat(codeGenOptions));
 static cl::opt<bool> x86("32", cl::desc("Use 32-bit values instead of 64-bit ones"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> inlining("no-inlining", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> resultBuffersToArgs("no-result-buffers-to-args", cl::desc("Don't move the static output buffer to input arguments"), cl::init(false), cl::cat(codeGenOptions));
@@ -130,6 +131,7 @@ int main(int argc, char* argv[])
 
 	// Convert to LLVM dialect
 	codegen::ModelicaConversionOptions conversionOptions;
+	conversionOptions.solveModelOptions.emitMain = emitMain;
 	conversionOptions.solveModelOptions.matchingMaxIterations = matchingMaxIterations;
 	conversionOptions.solveModelOptions.sccMaxIterations = sccMaxIterations;
 	conversionOptions.inlining = !inlining;

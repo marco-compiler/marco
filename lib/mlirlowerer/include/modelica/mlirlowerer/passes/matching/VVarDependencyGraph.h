@@ -24,11 +24,11 @@ namespace modelica::codegen::model
 				VectorAccess>;
 
 		using VertexDesc = boost::graph_traits<GraphImp>::vertex_descriptor;
-
 		using EdgeDesc = boost::graph_traits<GraphImp>::edge_descriptor;
+		using edge_iterator = llvm::iterator_range<GraphImp::out_edge_iterator>;
 
 		VVarDependencyGraph(const Model& model);
-		VVarDependencyGraph(const Model& model, llvm::ArrayRef<Equation> equs);
+		VVarDependencyGraph(const Model& model, llvm::ArrayRef<Equation> equations);
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os) const;
@@ -41,12 +41,12 @@ namespace modelica::codegen::model
 			return *graph[index];
 		}
 
-		[[nodiscard]] auto outEdges(VertexDesc vertex)
+		[[nodiscard]] edge_iterator outEdges(VertexDesc vertex)
 		{
 			return llvm::make_range(boost::out_edges(vertex, graph));
 		}
 
-		[[nodiscard]] auto outEdges(VertexDesc vertex) const
+		[[nodiscard]] edge_iterator outEdges(VertexDesc vertex) const
 		{
 			return llvm::make_range(boost::out_edges(vertex, graph));
 		}

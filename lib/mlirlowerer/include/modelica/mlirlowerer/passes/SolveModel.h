@@ -6,6 +6,7 @@ namespace modelica::codegen
 {
 	struct SolveModelOptions
 	{
+		bool emitMain = true;
 		int matchingMaxIterations = 1000;
 		int sccMaxIterations = 1000;
 

@@ -164,7 +164,6 @@ static mlir::LogicalResult extractEquationWithDependencies(
 		}
 
 		original.getOp()->erase();
-		toFuseEq.getOp()->getParentOp()->dump();
 	}
 
 	// for all equations that were not in the circular set, add it to the

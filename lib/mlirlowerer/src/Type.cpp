@@ -170,11 +170,11 @@ class UnrankedPointerTypeStorage : public mlir::TypeStorage {
 };
  */
 
-	class RecordTypeStorage : public mlir::TypeStorage {
+	class StructTypeStorage : public mlir::TypeStorage {
 		public:
 		using KeyTy = llvm::ArrayRef<mlir::Type>;
 
-		RecordTypeStorage() = delete;
+		StructTypeStorage() = delete;
 
 		bool operator==(const KeyTy& key) const {
 			return key == KeyTy{getElementTypes()};
@@ -184,9 +184,9 @@ class UnrankedPointerTypeStorage : public mlir::TypeStorage {
 			return llvm::hash_combine(key);
 		}
 
-		static RecordTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy& key) {
+		static StructTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy& key) {
 			llvm::ArrayRef<mlir::Type> elementTypes = allocator.copyInto(key);
-			return new (allocator.allocate<RecordTypeStorage>()) RecordTypeStorage(elementTypes);
+			return new (allocator.allocate<StructTypeStorage>()) StructTypeStorage(elementTypes);
 		}
 
 		[[nodiscard]] llvm::ArrayRef<mlir::Type> getElementTypes() const
@@ -195,7 +195,7 @@ class UnrankedPointerTypeStorage : public mlir::TypeStorage {
 		}
 
 		private:
-		RecordTypeStorage(llvm::ArrayRef<mlir::Type> elementTypes)
+		StructTypeStorage(llvm::ArrayRef<mlir::Type> elementTypes)
 				: elementTypes(elementTypes)
 		{
 		}
@@ -324,6 +324,17 @@ PointerType PointerType::toUnknownAllocationScope()
 	return toAllocationScope(unknown);
 }
 
+PointerType PointerType::toMinAllowedAllocationScope()
+{
+	if (getAllocationScope() == heap)
+		return *this;
+
+	if (canBeOnStack())
+		return toAllocationScope(stack);
+
+	return toAllocationScope(heap);
+}
+
 PointerType PointerType::toElementType(mlir::Type type)
 {
 	return PointerType::get(getContext(), getAllocationScope(), type, getShape());
@@ -351,12 +362,12 @@ unsigned int UnrankedPointerType::getRank() const
 }
 */
 
-RecordType RecordType::get(mlir::MLIRContext* context, llvm::ArrayRef<mlir::Type> elementTypes)
+StructType StructType::get(mlir::MLIRContext* context, llvm::ArrayRef<mlir::Type> elementTypes)
 {
 	return Base::get(context, elementTypes);
 }
 
-llvm::ArrayRef<mlir::Type> RecordType::getElementTypes()
+llvm::ArrayRef<mlir::Type> StructType::getElementTypes()
 {
 	return getImpl()->getElementTypes();
 }
@@ -409,11 +420,11 @@ void modelica::codegen::printModelicaType(mlir::Type type, mlir::DialectAsmPrint
 	}
 	*/
 
-	if (auto recordType = type.dyn_cast<RecordType>())
+	if (auto structType = type.dyn_cast<StructType>())
 	{
-		os << "record<";
+		os << "struct<";
 
-		for (auto subtype : llvm::enumerate(recordType.getElementTypes()))
+		for (auto subtype : llvm::enumerate(structType.getElementTypes()))
 		{
 			if (subtype.index() != 0)
 				os << ", ";

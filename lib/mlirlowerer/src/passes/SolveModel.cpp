@@ -1,5 +1,7 @@
+#include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
+#include <mlir/IR/BuiltinDialect.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/mlirlowerer/ModelicaBuilder.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
@@ -169,47 +171,210 @@ struct ForEquationOpScalarizePattern : public mlir::OpRewritePattern<ForEquation
 
 struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 {
-	using mlir::OpRewritePattern<SimulationOp>::OpRewritePattern;
+	SimulationOpPattern(mlir::MLIRContext* context, SolveModelOptions options)
+			: mlir::OpRewritePattern<SimulationOp>(context),
+				options(options)
+	{
+	}
 
 	mlir::LogicalResult matchAndRewrite(SimulationOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op->getLoc();
 
-		// Initiate the time variable
-		mlir::Value startTime = rewriter.create<ConstantOp>(location, op.startTime());
-		rewriter.create<StoreOp>(location, startTime, op.time());
-		mlir::Value timeStep = rewriter.create<ConstantOp>(location, op.timeStep());
-
-		// Create the loop
-		auto loop = rewriter.create<ForOp>(location);
+		llvm::SmallVector<mlir::Type, 3> varTypes;
 
 		{
-			// Condition
-			rewriter.setInsertionPointToStart(&loop.condition().front());
-			mlir::Value currentTime = rewriter.create<LoadOp>(location, op.time());
+			auto terminator = mlir::cast<YieldOp>(op.init().back().getTerminator());
+
+			varTypes.push_back(terminator.args()[0].getType().cast<PointerType>().toUnknownAllocationScope());
+
+			// Add the time step as second argument
+			varTypes.push_back(op.timeStep().getType());
+
+			for (auto it = ++terminator.args().begin(); it != terminator.args().end(); ++it)
+				varTypes.push_back((*it).getType().cast<PointerType>().toUnknownAllocationScope());
+		}
+
+		auto structType = StructType::get(op->getContext(), varTypes);
+
+		{
+			// Init function
+			auto functionType = rewriter.getFunctionType(llvm::None, structType);
+			auto function = rewriter.create<mlir::FuncOp>(location, "init", functionType);
+			auto* entryBlock = function.addEntryBlock();
+
+			mlir::OpBuilder::InsertionGuard guard(rewriter);
+			rewriter.setInsertionPointToStart(entryBlock);
+
+			rewriter.mergeBlocks(&op.init().front(), &function.body().front());
+
+			llvm::SmallVector<mlir::Value, 3> values;
+			auto terminator = mlir::cast<YieldOp>(entryBlock->getTerminator());
+
+			auto removeAllocationScopeFn = [&](mlir::Value value) -> mlir::Value {
+				return rewriter.create<PtrCastOp>(
+						value.getLoc(), value,
+						value.getType().cast<PointerType>().toUnknownAllocationScope());
+			};
+
+			// Time variable
+			mlir::Value time = terminator.args()[0];
+			values.push_back(removeAllocationScopeFn(time));
+
+			// Time step
+			mlir::Value timeStep = rewriter.create<ConstantOp>(op.getLoc(), op.timeStep());
+			values.push_back(timeStep);
+
+			// Add the remaining variables to the struct. Time and time step
+			// variables have already been managed, but only the time one was in the
+			// yield operation, so we need to start from its second argument.
+
+			for (auto it = ++terminator.args().begin(); it != terminator.args().end(); ++it)
+				values.push_back(removeAllocationScopeFn(*it));
+
+			// Set the start time
+			mlir::Value startTime = rewriter.create<ConstantOp>(location, op.startTime());
+			rewriter.create<StoreOp>(op->getLoc(), startTime, values[0]);
+
+			mlir::Value structValue = rewriter.create<PackOp>(terminator->getLoc(), values);
+
+			rewriter.eraseOp(terminator);
+			rewriter.create<mlir::ReturnOp>(location, structValue);
+		}
+
+		{
+			// Step function
+			auto functionType = rewriter.getFunctionType(structType, BooleanType::get(op.getContext()));
+			auto function = rewriter.create<mlir::FuncOp>(location, "step", functionType);
+			auto* entryBlock = function.addEntryBlock();
+
+			mlir::OpBuilder::InsertionGuard guard(rewriter);
+			rewriter.setInsertionPointToStart(entryBlock);
+
+			mlir::Value structValue = function.getArgument(0);
+			llvm::SmallVector<mlir::Value, 3> args;
+
+			args.push_back(rewriter.create<ExtractOp>(structValue.getLoc(), varTypes[0], structValue, 0));
+
+			for (size_t i = 2, e = structType.getElementTypes().size(); i < e; ++i)
+				args.push_back(rewriter.create<ExtractOp>(structValue.getLoc(), varTypes[i], structValue, i));
+
+			// Check if the current time is less than the end time
+			mlir::Value currentTime = args[0];
+			currentTime = rewriter.create<LoadOp>(currentTime.getLoc(), currentTime);
 			mlir::Value endTime = rewriter.create<ConstantOp>(location, op.endTime());
 			mlir::Value condition = rewriter.create<LtOp>(location, BooleanType::get(op.getContext()), currentTime, endTime);
-			rewriter.create<ConditionOp>(location, condition);
+
+			auto ifOp = rewriter.create<IfOp>(function->getLoc(), BooleanType::get(rewriter.getContext()), condition, true);
+
+			{
+				// If we didn't reach the end time update the variables and return
+				// true to continue the simulation;
+				mlir::OpBuilder::InsertionGuard g(rewriter);
+				rewriter.setInsertionPointToStart(&ifOp.thenRegion().front());
+
+				mlir::Value trueValue = rewriter.create<ConstantOp>(function.getLoc(), BooleanAttribute::get(BooleanType::get(op.getContext()), true));
+				auto terminator = rewriter.create<YieldOp>(ifOp.getLoc(), trueValue);
+
+				rewriter.eraseOp(op.body().front().getTerminator());
+				rewriter.mergeBlockBefore(&op.body().front(), terminator, args);
+			}
+
+			{
+				// Otherwise, return false to stop the simulation
+				mlir::OpBuilder::InsertionGuard g(rewriter);
+				rewriter.setInsertionPointToStart(&ifOp.elseRegion().front());
+
+				mlir::Value falseValue = rewriter.create<ConstantOp>(function.getLoc(), BooleanAttribute::get(BooleanType::get(op.getContext()), false));
+				rewriter.create<YieldOp>(ifOp.getLoc(), falseValue);
+			}
+
+			auto returnOp = rewriter.create<mlir::ReturnOp>(function->getLoc(), ifOp.getResult(0));
 		}
 
 		{
-			// Body
-			assert(op.body().getBlocks().size() == 1);
-			rewriter.mergeBlocks(&op.body().front(), &loop.body().front());
+			// Print function
+			auto functionType = rewriter.getFunctionType(structType, llvm::None);
+			auto function = rewriter.create<mlir::FuncOp>(location, "print", functionType);
+			auto* entryBlock = function.addEntryBlock();
+
+			mlir::OpBuilder::InsertionGuard guard(rewriter);
+			rewriter.setInsertionPointToStart(entryBlock);
+
+			mlir::Value structValue = function.getArgument(0);
+			mlir::BlockAndValueMapping mapping;
+
+			mapping.map(op.print().getArgument(0), rewriter.create<ExtractOp>(structValue.getLoc(), varTypes[0], structValue, 0));
+
+			for (size_t i = 2, e = structType.getElementTypes().size(); i < e; ++i)
+				mapping.map(op.print().getArgument(i - 1), rewriter.create<ExtractOp>(structValue.getLoc(), varTypes[i], structValue, i));
+
+			auto terminator = mlir::cast<YieldOp>(op.print().front().getTerminator());
+			llvm::SmallVector<mlir::Value, 3> valuesToBePrinted;
+
+			for (mlir::Value value : terminator.args())
+				valuesToBePrinted.push_back(mapping.lookup(value));
+
+			rewriter.create<PrintOp>(function.getLoc(), valuesToBePrinted);
+
+			rewriter.create<mlir::ReturnOp>(function->getLoc());
 		}
 
+		if (options.emitMain)
 		{
-			// Step
-			rewriter.setInsertionPointToStart(&loop.step().front());
-			mlir::Value currentTime = rewriter.create<LoadOp>(location, op.time());
-			mlir::Value increasedTime = rewriter.create<AddOp>(location, currentTime.getType(), currentTime, timeStep);
-			rewriter.create<StoreOp>(location, increasedTime, op.time());
-			rewriter.create<YieldOp>(location);
+			auto functionType = rewriter.getFunctionType(llvm::None, llvm::None);
+			auto function = rewriter.create<mlir::FuncOp>(location, "main", functionType);
+			auto* entryBlock = function.addEntryBlock();
+
+			mlir::OpBuilder::InsertionGuard guard(rewriter);
+			rewriter.setInsertionPointToStart(entryBlock);
+
+			mlir::Value data = rewriter.create<CallOp>(function.getLoc(), "init", structType, llvm::None).getResult(0);
+			rewriter.create<CallOp>(function->getLoc(), "print", llvm::None, data);
+
+			// Create the simulation loop
+			auto loop = rewriter.create<ForOp>(function.getLoc());
+
+			{
+				mlir::OpBuilder::InsertionGuard g(rewriter);
+
+				rewriter.setInsertionPointToStart(&loop.condition().front());
+				mlir::Value stepResult = rewriter.create<CallOp>(function->getLoc(), "step", BooleanType::get(rewriter.getContext()), data).getResult(0);
+				rewriter.create<ConditionOp>(loop->getLoc(), stepResult);
+
+				// The body contains just the print call, because the update is
+				// already done by the step function in the condition region.
+				rewriter.setInsertionPointToStart(&loop.body().front());
+				rewriter.create<CallOp>(function->getLoc(), "print", llvm::None, data);
+				rewriter.create<YieldOp>(loop->getLoc());
+
+				// Increment the time
+				rewriter.setInsertionPointToStart(&loop.step().front());
+				mlir::Value structValue = data;
+
+				mlir::Value time = rewriter.create<ExtractOp>(
+						location,
+						structValue.getType().cast<StructType>().getElementTypes()[0],
+						structValue, 0);
+
+				mlir::Value timeStep = rewriter.create<ExtractOp>(location, op.timeStep().getType(), structValue, 1);
+				mlir::Value currentTime = rewriter.create<LoadOp>(location, time);
+
+				mlir::Value increasedTime = rewriter.create<AddOp>(location, currentTime.getType(), currentTime, timeStep);
+				rewriter.create<StoreOp>(location, increasedTime, time);
+
+				rewriter.create<YieldOp>(location);
+			}
+
+			rewriter.create<mlir::ReturnOp>(function.getLoc());
 		}
 
 		rewriter.eraseOp(op);
 		return mlir::success();
 	}
+
+	private:
+	SolveModelOptions options;
 };
 
 struct EquationOpPattern : public mlir::OpRewritePattern<EquationOp>
@@ -359,7 +524,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			Model model = Model::build(simulation);
 
 			// Remove the derivative operations and allocate the appropriate buffers
-			if (failed(solveDer(model)))
+			if (failed(solveDer(builder, model)))
 				return signalPassFailure();
 
 			// Match
@@ -379,13 +544,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (failed(explicitateEquations(model)))
 				return signalPassFailure();
 
-			// Print the variables
-			if (failed(printVariables(simulation)))
-				return signalPassFailure();
-
 			// Calculate the values that the state variables will have in the next
 			// iteration.
-			if (failed(updateStates(model)))
+			if (failed(updateStates(builder, model)))
 				return signalPassFailure();
 		});
 
@@ -393,16 +554,18 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		// equations body and create the main simulation loop.
 
 		mlir::ConversionTarget target(getContext());
+		target.addLegalDialect<mlir::BuiltinDialect, mlir::StandardOpsDialect>();
 		target.addLegalDialect<ModelicaDialect>();
 		target.addIllegalOp<SimulationOp, EquationOp, ForEquationOp>();
 
 		mlir::OwningRewritePatternList patterns;
-		patterns.insert<SimulationOpPattern, EquationOpPattern, ForEquationOpPattern>(&getContext());
-
-		module->dump();
+		patterns.insert<SimulationOpPattern>(&getContext(), options);
+		patterns.insert<EquationOpPattern, ForEquationOpPattern>(&getContext());
 
 		if (failed(applyPartialConversion(module, target, std::move(patterns))))
 			return signalPassFailure();
+
+		module.dump();
 	}
 
 	/**
@@ -450,10 +613,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	mlir::LogicalResult solveDer(Model& model)
+	mlir::LogicalResult solveDer(mlir::OpBuilder& builder, Model& model)
 	{
 		DerSolver solver(model);
-		return solver.solve();
+		return solver.solve(builder);
 	}
 
 	mlir::LogicalResult explicitateEquations(Model& model)
@@ -465,21 +628,13 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	mlir::LogicalResult printVariables(SimulationOp simulation)
+	mlir::LogicalResult updateStates(mlir::OpBuilder& builder, Model& model)
 	{
-		mlir::OpBuilder builder(simulation.body().back().getTerminator());
-		auto variablesToBePrinted = simulation.variablesToBePrinted();
-		builder.create<PrintOp>(simulation->getLoc(), variablesToBePrinted);
-		return mlir::success();
-	}
-
-	mlir::LogicalResult updateStates(Model& model)
-	{
-		mlir::OpBuilder builder(model.getOp());
+		mlir::OpBuilder::InsertionGuard guard(builder);
 		mlir::Location location = model.getOp()->getLoc();
-		mlir::Value timeStep = builder.create<ConstantOp>(location, model.getOp().timeStep());
 
 		builder.setInsertionPoint(model.getOp().body().back().getTerminator());
+		mlir::Value timeStep = builder.create<ConstantOp>(location, model.getOp().timeStep());
 
 		for (auto& variable : model.getVariables())
 		{
@@ -489,6 +644,19 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			mlir::Value var = variable->getReference();
 			mlir::Value der = variable->getDer();
 
+			auto terminator = mlir::cast<YieldOp>(model.getOp().init().front().getTerminator());
+
+			for (auto value : llvm::enumerate(terminator.args()))
+			{
+				if (value.value() == var)
+					var = model.getOp().body().front().getArgument(value.index());
+
+				if (value.value() == der)
+					der = model.getOp().body().front().getArgument(value.index());
+			}
+
+			mlir::Value varReference = var;
+
 			if (auto pointerType = var.getType().cast<PointerType>(); pointerType.getRank() == 0)
 				var = builder.create<LoadOp>(location, var);
 
@@ -497,7 +665,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 			mlir::Value newValue = builder.create<MulOp>(location, der.getType(), der, timeStep);
 			newValue = builder.create<AddOp>(location, var.getType(), newValue, var);
-			builder.create<AssignmentOp>(location, newValue, variable->getReference());
+			builder.create<AssignmentOp>(location, newValue, varReference);
 		}
 
 		return mlir::success();
