@@ -433,6 +433,7 @@ struct NotOpArrayLowering: public ModelicaOpConversion<NotOp>
 
 	mlir::LogicalResult matchAndRewrite(NotOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		// Check if the operand is compatible
 		if (!op.operand().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Operand is not an array");
 
@@ -441,20 +442,20 @@ struct NotOpArrayLowering: public ModelicaOpConversion<NotOp>
 
 		mlir::Location loc = op.getLoc();
 		Adaptor adaptor(operands);
-		auto resultType = op.resultType().cast<PointerType>();
 
+		// Allocate the result array
+		auto resultType = op.resultType().cast<PointerType>();
 		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.operand());
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
-		mlir::Type baseType =resultType.getElementType();
+		rewriter.replaceOp(op, result);
 
 		iterateArray(rewriter, loc, op.operand(),
 								 [&](mlir::ValueRange position) {
 									 mlir::Value value = rewriter.create<LoadOp>(loc, op.operand(), position);
-									 mlir::Value negated = rewriter.create<NotOp>(loc, baseType, value);
+									 mlir::Value negated = rewriter.create<NotOp>(loc, resultType.getElementType(), value);
 									 rewriter.create<StoreOp>(loc, negated, result, position);
 								 });
 
-		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
@@ -465,12 +466,14 @@ struct AndOpScalarLowering: public ModelicaOpConversion<AndOp>
 
 	mlir::LogicalResult matchAndRewrite(AndOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not a boolean");
 
 		if (!op.rhs().getType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Right-hand side operand is not a boolean");
 
+		// Compute the result
 		mlir::Location loc = op->getLoc();
 		Adaptor adaptor(operands);
 
@@ -488,6 +491,7 @@ struct AndOpArrayLowering: public ModelicaOpConversion<AndOp>
 
 	mlir::LogicalResult matchAndRewrite(AndOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not an array");
 
@@ -502,21 +506,22 @@ struct AndOpArrayLowering: public ModelicaOpConversion<AndOp>
 
 		mlir::Location loc = op.getLoc();
 		Adaptor adaptor(operands);
-		auto resultType = op.resultType().cast<PointerType>();
 
+		// Allocate the result array
+		auto resultType = op.resultType().cast<PointerType>();
 		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.lhs());
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
-		mlir::Type baseType = resultType.getElementType();
+		rewriter.replaceOp(op, result);
 
+		// Apply the operation on each element
 		iterateArray(rewriter, op.getLoc(), result,
 								 [&](mlir::ValueRange position) {
 									 mlir::Value lhs = rewriter.create<LoadOp>(loc, op.lhs(), position);
 									 mlir::Value rhs = rewriter.create<LoadOp>(loc, op.rhs(), position);
-									 mlir::Value scalarResult = rewriter.create<AndOp>(loc, baseType, lhs, rhs);
+									 mlir::Value scalarResult = rewriter.create<AndOp>(loc, resultType.getElementType(), lhs, rhs);
 									 rewriter.create<StoreOp>(loc, scalarResult, result, position);
 								 });
 
-		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
@@ -527,12 +532,14 @@ struct OrOpScalarLowering: public ModelicaOpConversion<OrOp>
 
 	mlir::LogicalResult matchAndRewrite(OrOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not a boolean");
 
 		if (!op.rhs().getType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Right-hand side operand is not a boolean");
 
+		// Compute the result
 		mlir::Location loc = op.getLoc();
 		Adaptor adaptor(operands);
 
@@ -550,6 +557,7 @@ struct OrOpArrayLowering: public ModelicaOpConversion<OrOp>
 
 	mlir::LogicalResult matchAndRewrite(OrOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not an array");
 
@@ -564,21 +572,22 @@ struct OrOpArrayLowering: public ModelicaOpConversion<OrOp>
 
 		mlir::Location loc = op.getLoc();
 		Adaptor adaptor(operands);
-		auto resultType = op.resultType().cast<PointerType>();
 
+		// Allocate the result array
+		auto resultType = op.resultType().cast<PointerType>();
 		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.lhs());
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
-		mlir::Type baseType = resultType.getElementType();
+		rewriter.replaceOp(op, result);
 
+		// Apply the operation on each element
 		iterateArray(rewriter, loc, result,
 								 [&](mlir::ValueRange position) {
 									 mlir::Value lhs = rewriter.create<LoadOp>(loc, op.lhs(), position);
 									 mlir::Value rhs = rewriter.create<LoadOp>(loc, op.rhs(), position);
-									 mlir::Value scalarResult = rewriter.create<OrOp>(loc, baseType, lhs, rhs);
+									 mlir::Value scalarResult = rewriter.create<OrOp>(loc, resultType.getElementType(), lhs, rhs);
 									 rewriter.create<StoreOp>(loc, scalarResult, result, position);
 								 });
 
-		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
@@ -589,9 +598,12 @@ struct EqOpLowering: public ModelicaOpConversion<EqOp>
 
 	mlir::LogicalResult matchAndRewrite(EqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
+		// Cast the operands to the most generic type, in order to avoid
+		// information loss.
 		auto castOp = rewriter.create<CastCommonOp>(op.getLoc(), op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> transformed;
 
@@ -628,9 +640,12 @@ struct NotEqOpLowering: public ModelicaOpConversion<NotEqOp>
 
 	mlir::LogicalResult matchAndRewrite(NotEqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
+		// Cast the operands to the most generic type, in order to avoid
+		// information loss.
 		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> transformed;
 
@@ -667,9 +682,12 @@ struct GtOpLowering: public ModelicaOpConversion<GtOp>
 
 	mlir::LogicalResult matchAndRewrite(GtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
+		// Cast the operands to the most generic type, in order to avoid
+		// information loss.
 		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> transformed;
 
@@ -709,9 +727,12 @@ struct GteOpLowering: public ModelicaOpConversion<GteOp>
 
 	mlir::LogicalResult matchAndRewrite(GteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
+		// Cast the operands to the most generic type, in order to avoid
+		// information loss.
 		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> transformed;
 
@@ -751,9 +772,12 @@ struct LtOpLowering: public ModelicaOpConversion<LtOp>
 
 	mlir::LogicalResult matchAndRewrite(LtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
+		// Cast the operands to the most generic type, in order to avoid
+		// information loss.
 		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> transformed;
 
@@ -793,9 +817,12 @@ struct LteOpLowering: public ModelicaOpConversion<LteOp>
 
 	mlir::LogicalResult matchAndRewrite(LteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
+		// Cast the operands to the most generic type, in order to avoid
+		// information loss.
 		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> transformed;
 
@@ -846,7 +873,6 @@ struct NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
 		Adaptor adaptor(operands);
 		mlir::Type type = op.operand().getType();
 
-		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value zeroValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getZeroAttr(adaptor.operand().getType()));
@@ -886,19 +912,16 @@ struct NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
 			return rewriter.notifyMatchFailure(op, "Array has not numeric elements");
 
 		mlir::Location loc = op.getLoc();
+		auto resultType = op.resultType().cast<PointerType>();
 
-		// Allocate the result array
 		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.operand());
-		mlir::Value result = allocate(rewriter, loc, op.resultType().cast<PointerType>(), dynamicDimensions);
-		mlir::Type baseType = op.resultType().cast<PointerType>().getElementType();
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
+		mlir::Type baseType = resultType.getElementType();
 
-		// Negate each element
 		iterateArray(rewriter, op->getLoc(), op.operand(),
 								 [&](mlir::ValueRange position) {
 									 mlir::Value source = rewriter.create<LoadOp>(loc, op.operand(), position);
-
-									 Adaptor adaptor(source);
-									 mlir::Value value = rewriter.create<NegateOp>(loc, baseType, adaptor.operand());
+									 mlir::Value value = rewriter.create<NegateOp>(loc, baseType, source);
 									 rewriter.create<StoreOp>(loc, value, result, position);
 								 });
 

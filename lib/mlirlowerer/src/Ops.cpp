@@ -997,8 +997,13 @@ mlir::LogicalResult PtrCastOp::verify()
 	if (pointerType.getRank() != resultType().cast<PointerType>().getRank())
 		return emitOpError("requires the result pointer type to have the same rank as the operand");
 
-	if (resultType().getAllocationScope() != unknown)
-		return emitWarning("PtrCastOp should be used only to cast to unknown allocation scope");
+	if (resultType().getAllocationScope() != unknown &&
+			resultType().getAllocationScope() != memory().getType().cast<PointerType>().getAllocationScope())
+		return emitOpError("can change the allocation scope only to the unknown one");
+
+	for (auto [source, destination] : llvm::zip(memory().getType().cast<PointerType>().getShape(), resultType().getShape()))
+		if (destination != -1 && source != destination)
+			return emitOpError("can change the dimensions size only to an unknown one");
 
 	return mlir::success();
 }

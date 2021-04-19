@@ -508,7 +508,10 @@ namespace modelica::codegen
 	/**
 	 * This operation should be used only in combination with function calls,
 	 * to remove the allocation scope before passing the array pointers as
-	 * arguments to the functions.
+	 * arguments to the functions, or to generalize the sizes to unknown ones.
+	 * It must NOT be used to change the allocation scope (i.e. stack -> heap
+	 * or heap -> stack), to cast the element type to a different one or to
+	 * to specialize the shape to a fixed one.
 	 */
 	class PtrCastOp;
 
