@@ -289,7 +289,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 				rewriter.create<YieldOp>(ifOp.getLoc(), falseValue);
 			}
 
-			auto returnOp = rewriter.create<mlir::ReturnOp>(function->getLoc(), ifOp.getResult(0));
+			rewriter.create<mlir::ReturnOp>(function->getLoc(), ifOp.getResult(0));
 		}
 
 		{
@@ -564,8 +564,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		if (failed(applyPartialConversion(module, target, std::move(patterns))))
 			return signalPassFailure();
-
-		module.dump();
 	}
 
 	/**

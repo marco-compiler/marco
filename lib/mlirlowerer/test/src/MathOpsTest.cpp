@@ -308,7 +308,6 @@ TEST(MathOps, negateFloatDynamicArray)	 // NOLINT
 	ModelicaConversionOptions conversionOptions;
 	conversionOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
-	module->dump();
 
 	array<float, 3> x = { 10, 23, 57 };
 	array<float, 3> y = { 10, 23, 57 };

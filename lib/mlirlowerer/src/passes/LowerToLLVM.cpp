@@ -3,11 +3,153 @@
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/OpenMP/OpenMPDialect.h>
 #include <modelica/mlirlowerer/passes/LowerToLLVM.h>
-#include <modelica/mlirlowerer/passes/MemoryDescriptor.h>
 #include <modelica/mlirlowerer/passes/TypeConverter.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 
 using namespace modelica::codegen;
+
+/**
+ * Helper class to produce LLVM dialect operations extracting or inserting
+ * values to a struct.
+ */
+class MemoryDescriptor {
+	public:
+	explicit MemoryDescriptor(mlir::Value value)
+			: value(value),
+				descriptorType(value.getType())
+	{
+		assert(value != nullptr && "Value cannot be null");
+		assert(descriptorType.isa<mlir::LLVM::LLVMStructType>() && "Expected LLVM struct type");
+
+		indexType = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[1];
+	}
+
+	/**
+	 * Allocate an empty descriptor.
+	 *
+	 * @param builder					operation builder
+	 * @param location  			source location
+	 * @param descriptorType	descriptor type
+	 * @return descriptor
+	 */
+	static MemoryDescriptor undef(mlir::OpBuilder& builder, mlir::Location location, mlir::Type descriptorType)
+	{
+		mlir::Value descriptor = builder.create<mlir::LLVM::UndefOp>(location, descriptorType);
+		return MemoryDescriptor(descriptor);
+	}
+
+	[[nodiscard]] mlir::Value operator*()
+	{
+		return value;
+	}
+
+	/**
+	 * Build IR to extract the pointer to the memory buffer.
+	 *
+	 * @param builder   operation builder
+	 * @param location  source location
+	 * @return memory pointer
+	 */
+	[[nodiscard]] mlir::Value getPtr(mlir::OpBuilder& builder, mlir::Location location)
+	{
+		mlir::Type type = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[0];
+		return builder.create<mlir::LLVM::ExtractValueOp>(location, type, value, builder.getIndexArrayAttr(0));
+	}
+
+	/**
+	 * Build IR to set the pointer to the memory buffer.
+	 *
+	 * @param builder   operation builder
+	 * @param location  source location
+	 * @param ptr       pointer to be set
+	 */
+	void setPtr(mlir::OpBuilder& builder, mlir::Location location, mlir::Value ptr)
+	{
+		value = builder.create<mlir::LLVM::InsertValueOp>(location, descriptorType, value, ptr, builder.getIndexArrayAttr(0));
+	}
+
+	/**
+	 * Build IR to extract the rank.
+	 *
+	 * @param builder   operation builder
+	 * @param location  source location
+	 * @return rank
+	 */
+	[[nodiscard]] mlir::Value getRank(mlir::OpBuilder& builder, mlir::Location location)
+	{
+		mlir::Type type = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[1];
+		return builder.create<mlir::LLVM::ExtractValueOp>(location, type, value, builder.getIndexArrayAttr(1));
+	}
+
+	/**
+	 * Build IR to set the rank
+	 *
+	 * @param builder   operation builder
+	 * @param location  source location
+	 * @param rank		  rank to be set
+	 */
+	void setRank(mlir::OpBuilder& builder, mlir::Location location, mlir::Value rank)
+	{
+		value = builder.create<mlir::LLVM::InsertValueOp>(location, descriptorType, value, rank, builder.getIndexArrayAttr(1));
+	}
+
+	/**
+	 * Build IR to extract the size of a dimension.
+	 *
+	 * @param builder    operation builder
+	 * @param location   source location
+	 * @param dimension  dimension
+	 * @return memory pointer
+	 */
+	[[nodiscard]] mlir::Value getSize(mlir::OpBuilder& builder, mlir::Location location, unsigned int dimension)
+	{
+		mlir::Type type = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[2];
+		type = type.cast<mlir::LLVM::LLVMArrayType>().getElementType();
+		return builder.create<mlir::LLVM::ExtractValueOp>(location, type, value, builder.getIndexArrayAttr({ 2, dimension }));
+	}
+
+	/**
+	 * Build IR to extract the size of a dimension.
+	 *
+	 * @param builder    operation builder
+	 * @param location   source location
+	 * @param dimension  dimension
+	 * @return memory pointer
+	 */
+	[[nodiscard]] mlir::Value getSize(mlir::OpBuilder& builder, mlir::Location location, mlir::Value dimension)
+	{
+		mlir::Type sizesContainerType = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[2];
+		mlir::Value sizes = builder.create<mlir::LLVM::ExtractValueOp>(location, sizesContainerType, value, builder.getIndexArrayAttr(2));
+
+		// Copy size values to stack-allocated memory
+		mlir::Value one = builder.create<mlir::LLVM::ConstantOp>(location, indexType, builder.getIntegerAttr(indexType, 1));
+		mlir::Value sizesPtr = builder.create<mlir::LLVM::AllocaOp>(location, mlir::LLVM::LLVMPointerType::get(sizesContainerType), one, 0);
+		builder.create<mlir::LLVM::StoreOp>(location, sizes, sizesPtr);
+
+		// Load an return size value of interest
+		mlir::Type sizeType = sizesContainerType.cast<mlir::LLVM::LLVMArrayType>().getElementType();
+		mlir::Value zero = builder.create<mlir::LLVM::ConstantOp>(location, indexType, builder.getIntegerAttr(indexType, 0));
+		mlir::Value resultPtr = builder.create<mlir::LLVM::GEPOp>(location, mlir::LLVM::LLVMPointerType::get(sizeType), sizesPtr, mlir::ValueRange({ zero, dimension }));
+		return builder.create<mlir::LLVM::LoadOp>(location, resultPtr);
+	}
+
+	/**
+	 * Build IR to set the size of a dimension.
+	 *
+	 * @param builder   operation builder
+	 * @param location  source location
+	 * @param ptr       pointer to be set
+	 */
+	void setSize(mlir::OpBuilder& builder, mlir::Location location, unsigned int dimension, mlir::Value size)
+	{
+		value = builder.create<mlir::LLVM::InsertValueOp>(location, descriptorType, value, size, builder.getIndexArrayAttr({ 2, dimension }));
+	}
+
+	private:
+	mlir::Value value;
+	mlir::Type descriptorType;
+	mlir::Type indexType;
+};
 
 /**
  * Generic conversion pattern that provides some utility functions.
@@ -51,8 +193,8 @@ struct AllocLikeOpLowering : public ModelicaOpConversion<FromOp>
 	private:
 	mlir::LogicalResult matchAndRewrite(FromOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
 		auto pointerType = getResultType(op);
-		mlir::Location location = op->getLoc();
 
 		mlir::Type indexType = this->convertType(rewriter.getIndexType());
 		auto shape = pointerType.getShape();
@@ -62,7 +204,7 @@ struct AllocLikeOpLowering : public ModelicaOpConversion<FromOp>
 		// For example, v[s1][s2][s3] becomes v[s1 * s2 * s3] and the access rule is that
 		// v[i][j][k] = v[(i * s1 + j) * s2 + k].
 
-		mlir::Value totalSize = createIndexConstant(rewriter, location, 1);
+		mlir::Value totalSize = createIndexConstant(rewriter, loc, 1);
 
 		for (size_t i = 0, dynamicDimensions = 0, end = shape.size(); i < end; ++i)
 		{
@@ -72,33 +214,33 @@ struct AllocLikeOpLowering : public ModelicaOpConversion<FromOp>
 				sizes.push_back(operands[dynamicDimensions++]);
 			else
 			{
-				mlir::Value size = createIndexConstant(rewriter, location, dimension);
+				mlir::Value size = createIndexConstant(rewriter, loc, dimension);
 				sizes.push_back(size);
 			}
 
-			totalSize = rewriter.create<mlir::LLVM::MulOp>(location, indexType, totalSize, sizes[i]);
+			totalSize = rewriter.create<mlir::LLVM::MulOp>(loc, indexType, totalSize, sizes[i]);
 		}
 
 		// Buffer size in bytes
 		mlir::Type elementPtrType = mlir::LLVM::LLVMPointerType::get(this->convertType(pointerType.getElementType()));
-		mlir::Value nullPtr = rewriter.create<mlir::LLVM::NullOp>(location, elementPtrType);
+		mlir::Value nullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, elementPtrType);
 		mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(
-				location, elementPtrType, llvm::ArrayRef<mlir::Value>{nullPtr, totalSize});
-		mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(location, indexType, gepPtr);
+				loc, elementPtrType, llvm::ArrayRef<mlir::Value>{nullPtr, totalSize});
+		mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, indexType, gepPtr);
 
 		// Allocate the underlying buffer
-		mlir::Value buffer = allocateBuffer(rewriter, location, op, sizeBytes);
+		mlir::Value buffer = allocateBuffer(rewriter, loc, op, sizeBytes);
 
 		// Create the descriptor
-		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(location, indexType, rewriter.getI64IntegerAttr(pointerType.getRank()));
+		mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getI64IntegerAttr(pointerType.getRank()));
 		auto descriptorType = this->convertType(pointerType);
-		auto descriptor = MemoryDescriptor::undef(rewriter, location, descriptorType);
+		auto descriptor = MemoryDescriptor::undef(rewriter, loc, descriptorType);
 
-		descriptor.setPtr(rewriter, location, buffer);
-		descriptor.setRank(rewriter, location, rank);
+		descriptor.setPtr(rewriter, loc, buffer);
+		descriptor.setRank(rewriter, loc, rank);
 
 		for (size_t i = 0; i < sizes.size(); ++i)
-			descriptor.setSize(rewriter, location, i, sizes[i]);
+			descriptor.setSize(rewriter, loc, i, sizes[i]);
 
 		rewriter.replaceOp(op, *descriptor);
 		return mlir::success();
@@ -239,7 +381,7 @@ class LoadOpLowering: public ModelicaOpConversion<LoadOp>
 
 	mlir::LogicalResult matchAndRewrite(LoadOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		mlir::Location location = op->getLoc();
+		mlir::Location loc = op->getLoc();
 		Adaptor adaptor(operands);
 		auto indexes = adaptor.indexes();
 
@@ -250,17 +392,17 @@ class LoadOpLowering: public ModelicaOpConversion<LoadOp>
 		MemoryDescriptor memoryDescriptor(adaptor.memory());
 
 		auto indexType = convertType(rewriter.getIndexType());
-		mlir::Value index = indexes.empty() ? rewriter.create<mlir::LLVM::ConstantOp>(location, indexType, rewriter.getIndexAttr(0)) : indexes[0];
+		mlir::Value index = indexes.empty() ? rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(0)) : indexes[0];
 
 		for (size_t i = 1, e = indexes.size(); i < e; ++i)
 		{
-			mlir::Value size = memoryDescriptor.getSize(rewriter, location, i);
-			index = rewriter.create<mlir::LLVM::MulOp>(location, indexType, index, size);
-			index = rewriter.create<mlir::LLVM::AddOp>(location, indexType, index, indexes[i]);
+			mlir::Value size = memoryDescriptor.getSize(rewriter, loc, i);
+			index = rewriter.create<mlir::LLVM::MulOp>(loc, indexType, index, size);
+			index = rewriter.create<mlir::LLVM::AddOp>(loc, indexType, index, indexes[i]);
 		}
 
-		mlir::Value base = memoryDescriptor.getPtr(rewriter, location);
-		mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(location, base.getType(), base, index);
+		mlir::Value base = memoryDescriptor.getPtr(rewriter, loc);
+		mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, base.getType(), base, index);
 
 		// Load the value
 		rewriter.replaceOpWithNewOp<mlir::LLVM::LoadOp>(op, ptr);
@@ -275,7 +417,7 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 
 	mlir::LogicalResult matchAndRewrite(StoreOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		mlir::Location location = op->getLoc();
+		mlir::Location loc = op->getLoc();
 		Adaptor adaptor(operands);
 		auto indexes = adaptor.indexes();
 
@@ -286,19 +428,19 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 		MemoryDescriptor memoryDescriptor(adaptor.memory());
 
 		auto indexType = convertType(rewriter.getIndexType());
-		mlir::Value index = indexes.empty() ? rewriter.create<mlir::LLVM::ConstantOp>(location, indexType, rewriter.getIndexAttr(0)) : indexes[0];
+		mlir::Value index = indexes.empty() ? rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(0)) : indexes[0];
 
 		for (size_t i = 1, e = indexes.size(); i < e; ++i)
 		{
-			mlir::Value size = memoryDescriptor.getSize(rewriter, location, i);
-			index = rewriter.create<mlir::LLVM::MulOp>(location, indexType, index, size);
-			index = rewriter.create<mlir::LLVM::AddOp>(location, indexType, index, indexes[i]);
+			mlir::Value size = memoryDescriptor.getSize(rewriter, loc, i);
+			index = rewriter.create<mlir::LLVM::MulOp>(loc, indexType, index, size);
+			index = rewriter.create<mlir::LLVM::AddOp>(loc, indexType, index, indexes[i]);
 
 			//rewriter.create<PrintOp>(location, index); // TODO remove
 		}
 
-		mlir::Value base = memoryDescriptor.getPtr(rewriter, location);
-		mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(location, base.getType(), base, index);
+		mlir::Value base = memoryDescriptor.getPtr(rewriter, loc);
+		mlir::Value ptr = rewriter.create<mlir::LLVM::GEPOp>(loc, base.getType(), base, index);
 
 		// Store the value
 		rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(op, adaptor.value(), ptr);
@@ -313,20 +455,15 @@ class PrintOpLowering: public ModelicaOpConversion<PrintOp>
 
 	mlir::LogicalResult matchAndRewrite(PrintOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
 		auto module = op->getParentOfType<mlir::ModuleOp>();
 
 		auto printfRef = getOrInsertPrintf(rewriter, module);
-		mlir::Value semicolonCst = getOrCreateGlobalString(op->getLoc(), rewriter, "semicolon", mlir::StringRef(";\0", 2), module);
-		mlir::Value newLineCst = getOrCreateGlobalString(op->getLoc(), rewriter, "newline", mlir::StringRef("\n\0", 2), module);
+		mlir::Value semicolonCst = getOrCreateGlobalString(loc, rewriter, "semicolon", mlir::StringRef(";\0", 2), module);
+		mlir::Value newLineCst = getOrCreateGlobalString(loc, rewriter, "newline", mlir::StringRef("\n\0", 2), module);
 
-		auto sourceValues = op.values();
-
-		for (auto pair : llvm::zip(op.values(), Adaptor(operands).values()))
-		{
-			mlir::Value source = std::get<0>(pair);
-			mlir::Value transformed = std::get<1>(pair);
-			printElement(rewriter, transformed, semicolonCst, module);
-		}
+		for (auto value : Adaptor(operands).values())
+			printElement(rewriter, value, semicolonCst, module);
 
 		rewriter.create<mlir::LLVM::CallOp>(op.getLoc(), printfRef, newLineCst);
 
@@ -708,6 +845,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		{
 			mlir::emitError(module.getLoc(), "Error in folding the casts operations\n");
 			signalPassFailure();
+			return;
 		}
 	}
 

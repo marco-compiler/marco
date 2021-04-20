@@ -159,16 +159,17 @@ struct PackOpLowering: public ModelicaOpConversion<PackOp>
 
 	mlir::LogicalResult matchAndRewrite(PackOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
 		Adaptor transformed(operands);
 
 		StructType structType = op.resultType();
 		mlir::Type descriptorType = getTypeConverter()->convertType(structType);
 
-		mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(op->getLoc(), descriptorType);
+		mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, descriptorType);
 
 		for (auto& element : llvm::enumerate(transformed.values()))
 			result = rewriter.create<mlir::LLVM::InsertValueOp>(
-					op->getLoc(), descriptorType, result, element.value(), rewriter.getIndexArrayAttr(element.index()));
+					loc, descriptorType, result, element.value(), rewriter.getIndexArrayAttr(element.index()));
 
 		rewriter.replaceOp(op, result);
 		return mlir::success();
@@ -181,11 +182,12 @@ struct ExtractOpLowering: public ModelicaOpConversion<ExtractOp>
 
 	mlir::LogicalResult matchAndRewrite(ExtractOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
 		Adaptor transformed(operands);
 
 		mlir::Type descriptorType = getTypeConverter()->convertType(op.packedValue().getType());
 		mlir::Type type = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[op.index()];
-		mlir::Value result = rewriter.create<mlir::LLVM::ExtractValueOp>(op->getLoc(), type, transformed.packedValue(), rewriter.getIndexArrayAttr(op.index()));
+		mlir::Value result = rewriter.create<mlir::LLVM::ExtractValueOp>(loc, type, transformed.packedValue(), rewriter.getIndexArrayAttr(op.index()));
 		result = getTypeConverter()->materializeSourceConversion(rewriter, result.getLoc(), op.resultType(), result);
 		rewriter.replaceOp(op, result);
 		return mlir::success();
@@ -201,10 +203,10 @@ struct AssignmentOpScalarLowering: public ModelicaOpConversion<AssignmentOp>
 
 	mlir::LogicalResult matchAndRewrite(AssignmentOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		if (!isNumeric(op.source()))
 			return rewriter.notifyMatchFailure(op, "Source value has not a numeric type");
-
-		mlir::Location loc = op->getLoc();
 
 		auto destinationBaseType = op.destination().getType().cast<PointerType>().getElementType();
 		mlir::Value value = rewriter.create<CastOp>(loc, op.source(), destinationBaseType);
@@ -223,11 +225,10 @@ struct AssignmentOpArrayLowering: public ModelicaOpConversion<AssignmentOp>
 
 	mlir::LogicalResult matchAndRewrite(AssignmentOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		if (!op.source().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Source value is not an array");
-
-		Adaptor adaptor(operands);
-		mlir::Location loc = op->getLoc();
 
 		iterateArray(rewriter, op.getLoc(), op.source(),
 								 [&](mlir::ValueRange position) {
@@ -258,17 +259,16 @@ struct PrintOpLowering: public ModelicaOpConversion<PrintOp>
 
 	mlir::LogicalResult matchAndRewrite(PrintOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
 		auto module = op->getParentOfType<mlir::ModuleOp>();
 
 		auto printfRef = getOrInsertPrintf(rewriter, module);
-		mlir::Value semicolonCst = getOrCreateGlobalString(op->getLoc(), rewriter, "semicolon", mlir::StringRef(";\0", 2), module);
-		mlir::Value newLineCst = getOrCreateGlobalString(op->getLoc(), rewriter, "newline", mlir::StringRef("\n\0", 2), module);
+		mlir::Value semicolonCst = getOrCreateGlobalString(loc, rewriter, "semicolon", mlir::StringRef(";\0", 2), module);
+		mlir::Value newLineCst = getOrCreateGlobalString(loc, rewriter, "newline", mlir::StringRef("\n\0", 2), module);
 
-		mlir::Value printSeparator = rewriter.create<AllocaOp>(op->getLoc(), BooleanType::get(op->getContext()));
-		mlir::Value falseValue = rewriter.create<ConstantOp>(op->getLoc(), BooleanAttribute::get(BooleanType::get(op->getContext()), false));
-		rewriter.create<StoreOp>(op->getLoc(), falseValue, printSeparator);
-
-		auto sourceValues = op.values();
+		mlir::Value printSeparator = rewriter.create<AllocaOp>(loc, BooleanType::get(op->getContext()));
+		mlir::Value falseValue = rewriter.create<ConstantOp>(loc, BooleanAttribute::get(BooleanType::get(op->getContext()), false));
+		rewriter.create<StoreOp>(loc, falseValue, printSeparator);
 
 		for (auto pair : llvm::zip(op.values(), Adaptor(operands).values()))
 		{
@@ -410,16 +410,17 @@ struct NotOpScalarLowering: public ModelicaOpConversion<NotOp>
 
 	mlir::LogicalResult matchAndRewrite(NotOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+		Adaptor transformed(operands);
+
+		// Check if the operand is compatible
 		if (!op.operand().getType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Operand is not a boolean");
-
-		mlir::Location loc = op.getLoc();
-		Adaptor adaptor(operands);
 
 		// There is no native negate operation in LLVM IR, so we need to leverage
 		// a property of the XOR operation: x XOR true = NOT x
 		mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getBoolAttr(true));
-		mlir::Value result = rewriter.create<mlir::XOrOp>(loc, trueValue, adaptor.operand());
+		mlir::Value result = rewriter.create<mlir::XOrOp>(loc, trueValue, transformed.operand());
 		result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 		rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 
@@ -433,6 +434,9 @@ struct NotOpArrayLowering: public ModelicaOpConversion<NotOp>
 
 	mlir::LogicalResult matchAndRewrite(NotOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+		Adaptor transformed(operands);
+
 		// Check if the operand is compatible
 		if (!op.operand().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Operand is not an array");
@@ -440,15 +444,13 @@ struct NotOpArrayLowering: public ModelicaOpConversion<NotOp>
 		if (auto pointerType = op.operand().getType().cast<PointerType>(); !pointerType.getElementType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Operand is not an array of booleans");
 
-		mlir::Location loc = op.getLoc();
-		Adaptor adaptor(operands);
-
 		// Allocate the result array
 		auto resultType = op.resultType().cast<PointerType>();
 		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.operand());
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
 		rewriter.replaceOp(op, result);
 
+		// Apply the operation on each array position
 		iterateArray(rewriter, loc, op.operand(),
 								 [&](mlir::ValueRange position) {
 									 mlir::Value value = rewriter.create<LoadOp>(loc, op.operand(), position);
@@ -466,6 +468,9 @@ struct AndOpScalarLowering: public ModelicaOpConversion<AndOp>
 
 	mlir::LogicalResult matchAndRewrite(AndOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+		Adaptor transformed(operands);
+
 		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not a boolean");
@@ -474,10 +479,7 @@ struct AndOpScalarLowering: public ModelicaOpConversion<AndOp>
 			return rewriter.notifyMatchFailure(op, "Right-hand side operand is not a boolean");
 
 		// Compute the result
-		mlir::Location loc = op->getLoc();
-		Adaptor adaptor(operands);
-
-		mlir::Value result = rewriter.create<mlir::AndOp>(loc, adaptor.lhs(), adaptor.rhs());
+		mlir::Value result = rewriter.create<mlir::AndOp>(loc, transformed.lhs(), transformed.rhs());
 		result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 		rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 
@@ -491,6 +493,8 @@ struct AndOpArrayLowering: public ModelicaOpConversion<AndOp>
 
 	mlir::LogicalResult matchAndRewrite(AndOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
 		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not an array");
@@ -504,16 +508,13 @@ struct AndOpArrayLowering: public ModelicaOpConversion<AndOp>
 		if (auto pointerType = op.rhs().getType().cast<PointerType>(); !pointerType.getElementType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not an array of booleans");
 
-		mlir::Location loc = op.getLoc();
-		Adaptor adaptor(operands);
-
 		// Allocate the result array
 		auto resultType = op.resultType().cast<PointerType>();
 		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.lhs());
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
 		rewriter.replaceOp(op, result);
 
-		// Apply the operation on each element
+		// Apply the operation on each array position
 		iterateArray(rewriter, op.getLoc(), result,
 								 [&](mlir::ValueRange position) {
 									 mlir::Value lhs = rewriter.create<LoadOp>(loc, op.lhs(), position);
@@ -532,6 +533,9 @@ struct OrOpScalarLowering: public ModelicaOpConversion<OrOp>
 
 	mlir::LogicalResult matchAndRewrite(OrOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+		Adaptor transformed(operands);
+
 		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not a boolean");
@@ -540,10 +544,7 @@ struct OrOpScalarLowering: public ModelicaOpConversion<OrOp>
 			return rewriter.notifyMatchFailure(op, "Right-hand side operand is not a boolean");
 
 		// Compute the result
-		mlir::Location loc = op.getLoc();
-		Adaptor adaptor(operands);
-
-		mlir::Value result = rewriter.create<mlir::OrOp>(loc, adaptor.lhs(), adaptor.rhs());
+		mlir::Value result = rewriter.create<mlir::OrOp>(loc, transformed.lhs(), transformed.rhs());
 		result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 		rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 
@@ -557,6 +558,8 @@ struct OrOpArrayLowering: public ModelicaOpConversion<OrOp>
 
 	mlir::LogicalResult matchAndRewrite(OrOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
 		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not an array");
@@ -570,16 +573,13 @@ struct OrOpArrayLowering: public ModelicaOpConversion<OrOp>
 		if (auto pointerType = op.rhs().getType().cast<PointerType>(); !pointerType.getElementType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not an array of booleans");
 
-		mlir::Location loc = op.getLoc();
-		Adaptor adaptor(operands);
-
 		// Allocate the result array
 		auto resultType = op.resultType().cast<PointerType>();
 		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.lhs());
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
 		rewriter.replaceOp(op, result);
 
-		// Apply the operation on each element
+		// Apply the operation on each array position
 		iterateArray(rewriter, loc, result,
 								 [&](mlir::ValueRange position) {
 									 mlir::Value lhs = rewriter.create<LoadOp>(loc, op.lhs(), position);
@@ -598,25 +598,27 @@ struct EqOpLowering: public ModelicaOpConversion<EqOp>
 
 	mlir::LogicalResult matchAndRewrite(EqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
 		// Cast the operands to the most generic type, in order to avoid
 		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(op.getLoc(), op->getOperands());
-		llvm::SmallVector<mlir::Value, 3> transformed;
+		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
+		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (const auto& operand : castOp.getResults())
-			transformed.push_back(materializeTargetConversion(rewriter, operand));
+			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
-		mlir::Location loc = op->getLoc();
-		Adaptor adaptor(transformed);
 		mlir::Type type = castOp.resultType();
+		Adaptor transformed(castedOperands);
 
+		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::eq, adaptor.lhs(), adaptor.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::eq, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -624,7 +626,7 @@ struct EqOpLowering: public ModelicaOpConversion<EqOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::oeq, adaptor.lhs(), adaptor.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::oeq, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -640,25 +642,27 @@ struct NotEqOpLowering: public ModelicaOpConversion<NotEqOp>
 
 	mlir::LogicalResult matchAndRewrite(NotEqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
 		// Cast the operands to the most generic type, in order to avoid
 		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
-		llvm::SmallVector<mlir::Value, 3> transformed;
+		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
+		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (const auto& operand : castOp.getResults())
-			transformed.push_back(materializeTargetConversion(rewriter, operand));
+			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
-		mlir::Location loc = op.getLoc();
-		Adaptor adaptor(transformed);
+		Adaptor transformed(castedOperands);
 		mlir::Type type = castOp.resultType();
 
+		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::ne, adaptor.lhs(), adaptor.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::ne, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -666,7 +670,7 @@ struct NotEqOpLowering: public ModelicaOpConversion<NotEqOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::one, adaptor.lhs(), adaptor.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::one, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -682,28 +686,27 @@ struct GtOpLowering: public ModelicaOpConversion<GtOp>
 
 	mlir::LogicalResult matchAndRewrite(GtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
 		// Cast the operands to the most generic type, in order to avoid
 		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
-		llvm::SmallVector<mlir::Value, 3> transformed;
+		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
+		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (const auto& operand : castOp.getResults())
-		{
-			mlir::Type resultType = typeConverter().convertType(operand.getType());
-			transformed.push_back(typeConverter().materializeTargetConversion(rewriter, op->getLoc(), resultType, operand));
-		}
+			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
-		mlir::Location loc = op.getLoc();
-		Adaptor adaptor(transformed);
+		Adaptor transformed(castedOperands);
 		mlir::Type type = castOp.resultType();
 
+		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::sgt, adaptor.lhs(), adaptor.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::sgt, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -711,7 +714,7 @@ struct GtOpLowering: public ModelicaOpConversion<GtOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::ogt, adaptor.lhs(), adaptor.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::ogt, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -727,28 +730,27 @@ struct GteOpLowering: public ModelicaOpConversion<GteOp>
 
 	mlir::LogicalResult matchAndRewrite(GteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
 		// Cast the operands to the most generic type, in order to avoid
 		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
-		llvm::SmallVector<mlir::Value, 3> transformed;
+		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
+		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (const auto& operand : castOp.getResults())
-		{
-			mlir::Type resultType = typeConverter().convertType(operand.getType());
-			transformed.push_back(typeConverter().materializeTargetConversion(rewriter, op->getLoc(), resultType, operand));
-		}
+			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
-		mlir::Location loc = op.getLoc();
-		Adaptor adaptor(transformed);
+		Adaptor transformed(castedOperands);
 		mlir::Type type = castOp.resultType();
 
+		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::sge, adaptor.lhs(), adaptor.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::sge, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -756,7 +758,7 @@ struct GteOpLowering: public ModelicaOpConversion<GteOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::oge, adaptor.lhs(), adaptor.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::oge, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -772,28 +774,27 @@ struct LtOpLowering: public ModelicaOpConversion<LtOp>
 
 	mlir::LogicalResult matchAndRewrite(LtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
 		// Cast the operands to the most generic type, in order to avoid
 		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
-		llvm::SmallVector<mlir::Value, 3> transformed;
+		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
+		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (const auto& operand : castOp.getResults())
-		{
-			mlir::Type resultType = typeConverter().convertType(operand.getType());
-			transformed.push_back(typeConverter().materializeTargetConversion(rewriter, op->getLoc(), resultType, operand));
-		}
+			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
-		mlir::Location loc = op.getLoc();
-		Adaptor adaptor(transformed);
+		Adaptor transformed(castedOperands);
 		mlir::Type type = castOp.resultType();
 
+		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::slt, adaptor.lhs(), adaptor.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::slt, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -801,7 +802,7 @@ struct LtOpLowering: public ModelicaOpConversion<LtOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::olt, adaptor.lhs(), adaptor.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::olt, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -817,28 +818,27 @@ struct LteOpLowering: public ModelicaOpConversion<LteOp>
 
 	mlir::LogicalResult matchAndRewrite(LteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
 		// Cast the operands to the most generic type, in order to avoid
 		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
-		llvm::SmallVector<mlir::Value, 3> transformed;
+		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
+		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (const auto& operand : castOp.getResults())
-		{
-			mlir::Type resultType = typeConverter().convertType(operand.getType());
-			transformed.push_back(typeConverter().materializeTargetConversion(rewriter, op->getLoc(), resultType, operand));
-		}
+			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
-		mlir::Location loc = op->getLoc();
-		Adaptor adaptor(transformed);
+		Adaptor transformed(castedOperands);
 		mlir::Type type = castOp.resultType();
 
+		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::sle, adaptor.lhs(), adaptor.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::sle, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -846,7 +846,7 @@ struct LteOpLowering: public ModelicaOpConversion<LteOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::ole, adaptor.lhs(), adaptor.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::ole, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -865,18 +865,20 @@ struct NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
 
 	mlir::LogicalResult matchAndRewrite(NegateOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
 		// Check if the operand is compatible
 		if (!isNumeric(op.operand()))
 			return rewriter.notifyMatchFailure(op, "Left-hand side value is not a scalar");
 
-		mlir::Location loc = op.getLoc();
-		Adaptor adaptor(operands);
+		Adaptor transformed(operands);
 		mlir::Type type = op.operand().getType();
 
+		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value zeroValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getZeroAttr(adaptor.operand().getType()));
-			mlir::Value result = rewriter.create<mlir::SubIOp>(loc, zeroValue, adaptor.operand());
+			mlir::Value zeroValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getZeroAttr(transformed.operand().getType()));
+			mlir::Value result = rewriter.create<mlir::SubIOp>(loc, zeroValue, transformed.operand());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -884,7 +886,7 @@ struct NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::NegFOp>(loc, adaptor.operand());
+			mlir::Value result = rewriter.create<mlir::NegFOp>(loc, transformed.operand());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -903,6 +905,9 @@ struct NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
 
 	mlir::LogicalResult matchAndRewrite(NegateOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
+		// Check if the operand is compatible
 		if (!op.operand().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Value is not an array");
 
@@ -911,21 +916,20 @@ struct NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
 		if (!isNumericType(pointerType.getElementType()))
 			return rewriter.notifyMatchFailure(op, "Array has not numeric elements");
 
-		mlir::Location loc = op.getLoc();
+		// Allocate the result array
 		auto resultType = op.resultType().cast<PointerType>();
-
 		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.operand());
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
-		mlir::Type baseType = resultType.getElementType();
+		rewriter.replaceOp(op, result);
 
-		iterateArray(rewriter, op->getLoc(), op.operand(),
+		// Apply the operation on each array position
+		iterateArray(rewriter, loc, op.operand(),
 								 [&](mlir::ValueRange position) {
 									 mlir::Value source = rewriter.create<LoadOp>(loc, op.operand(), position);
-									 mlir::Value value = rewriter.create<NegateOp>(loc, baseType, source);
+									 mlir::Value value = rewriter.create<NegateOp>(loc, resultType.getElementType(), source);
 									 rewriter.create<StoreOp>(loc, value, result, position);
 								 });
 
-		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
@@ -939,6 +943,8 @@ struct AddOpScalarLowering: public ModelicaOpConversion<AddOp>
 
 	mlir::LogicalResult matchAndRewrite(AddOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()))
 			return rewriter.notifyMatchFailure(op, "Left-hand side value is not a scalar");
@@ -947,28 +953,28 @@ struct AddOpScalarLowering: public ModelicaOpConversion<AddOp>
 			return rewriter.notifyMatchFailure(op, "Right-hand side value is not a scalar");
 
 		// Cast the operands to the most generic type
-		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
+		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (mlir::Value operand : castOp.getResults())
 			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
-		Adaptor adaptor(castedOperands);
+		Adaptor transformed(castedOperands);
 		mlir::Type type = castOp.resultType();
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::AddIOp>(op->getLoc(), adaptor.lhs(), adaptor.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, result);
+			mlir::Value result = rewriter.create<mlir::AddIOp>(loc, transformed.lhs(), transformed.rhs());
+			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::AddFOp>(op->getLoc(), adaptor.lhs(), adaptor.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, result);
+			mlir::Value result = rewriter.create<mlir::AddFOp>(loc, transformed.lhs(), transformed.rhs());
+			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
@@ -986,6 +992,8 @@ struct AddOpArrayLowering: public ModelicaOpConversion<AddOp>
 
 	mlir::LogicalResult matchAndRewrite(AddOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side value is not an array");
@@ -1012,22 +1020,20 @@ struct AddOpArrayLowering: public ModelicaOpConversion<AddOp>
 			return rewriter.notifyMatchFailure(op, "Right-hand side array has not numeric elements");
 
 		// Allocate the result array
-		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, op->getLoc(), op.lhs());
-		mlir::Value result = allocate(rewriter, op.getLoc(), op.resultType().cast<PointerType>(), dynamicDimensions);
-		mlir::Type baseType = op.resultType().cast<PointerType>().getElementType();
+		auto resultType = op.resultType().cast<PointerType>();
+		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.lhs());
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
 
-		// Sum each element
-		iterateArray(rewriter, op->getLoc(), op.lhs(),
+		// Apply the operation on each array position
+		iterateArray(rewriter, loc, op.lhs(),
 								 [&](mlir::ValueRange position) {
-									 mlir::Value lhs = rewriter.create<LoadOp>(op->getLoc(), op.lhs(), position);
-									 mlir::Value rhs = rewriter.create<LoadOp>(op->getLoc(), op.rhs(), position);
-
-									 Adaptor adaptor({ lhs, rhs });
-									 mlir::Value value = rewriter.create<AddOp>(op->getLoc(), baseType, adaptor.lhs(), adaptor.rhs());
-									 rewriter.create<StoreOp>(op->getLoc(), value, result, position);
+									 mlir::Value lhs = rewriter.create<LoadOp>(loc, op.lhs(), position);
+									 mlir::Value rhs = rewriter.create<LoadOp>(loc, op.rhs(), position);
+									 mlir::Value value = rewriter.create<AddOp>(loc, resultType.getElementType(), lhs, rhs);
+									 rewriter.create<StoreOp>(loc, value, result, position);
 								 });
 
-		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
@@ -1041,6 +1047,8 @@ struct SubOpScalarLowering: public ModelicaOpConversion<SubOp>
 
 	mlir::LogicalResult matchAndRewrite(SubOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()))
 			return rewriter.notifyMatchFailure(op, "Left-hand side value is not a scalar");
@@ -1049,28 +1057,28 @@ struct SubOpScalarLowering: public ModelicaOpConversion<SubOp>
 			return rewriter.notifyMatchFailure(op, "Right-hand side value is not a scalar");
 
 		// Cast the operands to the most generic type
-		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
+		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (mlir::Value operand : castOp.getResults())
 			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
-		Adaptor adaptor(castedOperands);
+		Adaptor transformed(castedOperands);
 		mlir::Type type = castOp.resultType();
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::SubIOp>(op->getLoc(), adaptor.lhs(), adaptor.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, result);
+			mlir::Value result = rewriter.create<mlir::SubIOp>(loc, transformed.lhs(), transformed.rhs());
+			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::SubFOp>(op->getLoc(), adaptor.lhs(), adaptor.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, result);
+			mlir::Value result = rewriter.create<mlir::SubFOp>(loc, transformed.lhs(), transformed.rhs());
+			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
@@ -1088,6 +1096,8 @@ struct SubOpArrayLowering: public ModelicaOpConversion<SubOp>
 
 	mlir::LogicalResult matchAndRewrite(SubOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side value is not an array");
@@ -1114,28 +1124,26 @@ struct SubOpArrayLowering: public ModelicaOpConversion<SubOp>
 			return rewriter.notifyMatchFailure(op, "Right-hand side array has not numeric elements");
 
 		// Allocate the result array
-		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, op->getLoc(), op.lhs());
-		mlir::Value result = allocate(rewriter, op.getLoc(), op.resultType().cast<PointerType>(), dynamicDimensions);
-		mlir::Type baseType = op.resultType().cast<PointerType>().getElementType();
+		auto resultType = op.resultType().cast<PointerType>();
+		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.lhs());
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
 
-		// Sum each element
-		iterateArray(rewriter, op->getLoc(), op.lhs(),
+		// Apply the operation on each array position
+		iterateArray(rewriter, loc, op.lhs(),
 								 [&](mlir::ValueRange position) {
-									 mlir::Value lhs = rewriter.create<LoadOp>(op->getLoc(), op.lhs(), position);
-									 mlir::Value rhs = rewriter.create<LoadOp>(op->getLoc(), op.rhs(), position);
-
-									 Adaptor adaptor({ lhs, rhs });
-									 mlir::Value value = rewriter.create<SubOp>(op->getLoc(), baseType, adaptor.lhs(), adaptor.rhs());
-									 rewriter.create<StoreOp>(op->getLoc(), value, result, position);
+									 mlir::Value lhs = rewriter.create<LoadOp>(loc, op.lhs(), position);
+									 mlir::Value rhs = rewriter.create<LoadOp>(loc, op.rhs(), position);
+									 mlir::Value value = rewriter.create<SubOp>(loc, resultType.getElementType(), lhs, rhs);
+									 rewriter.create<StoreOp>(loc, value, result, position);
 								 });
 
-		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
 
 /**
- * Product between two scalar values
+ * Product between two scalar values.
  */
 struct MulOpLowering: public ModelicaOpConversion<MulOp>
 {
@@ -1143,6 +1151,8 @@ struct MulOpLowering: public ModelicaOpConversion<MulOp>
 
 	mlir::LogicalResult matchAndRewrite(MulOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()))
 			return rewriter.notifyMatchFailure(op, "Scalar-scalar product: left-hand side value is not a scalar");
@@ -1150,29 +1160,30 @@ struct MulOpLowering: public ModelicaOpConversion<MulOp>
 		if (!isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Scalar-scalar product: right-hand side value is not a scalar");
 
-		// Cast the operands to the most generic type
-		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
+		// Cast the operands to the most generic type, in order to avoid
+		// information loss.
+		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (mlir::Value operand : castOp.getResults())
 			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
-		Adaptor adaptor(castedOperands);
+		Adaptor transformed(castedOperands);
 		mlir::Type type = castOp.resultType();
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::MulIOp>(op->getLoc(), adaptor.lhs(), adaptor.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, result);
+			mlir::Value result = rewriter.create<mlir::MulIOp>(loc, transformed.lhs(), transformed.rhs());
+			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::MulFOp>(op->getLoc(), adaptor.lhs(), adaptor.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, result);
+			mlir::Value result = rewriter.create<mlir::MulFOp>(loc, transformed.lhs(), transformed.rhs());
+			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
@@ -1182,7 +1193,7 @@ struct MulOpLowering: public ModelicaOpConversion<MulOp>
 };
 
 /**
- * Product between a scalar and an array
+ * Product between a scalar and an array.
  */
 struct MulOpScalarProductLowering: public ModelicaOpConversion<MulOp>
 {
@@ -1190,6 +1201,8 @@ struct MulOpScalarProductLowering: public ModelicaOpConversion<MulOp>
 
 	mlir::LogicalResult matchAndRewrite(MulOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()) && !isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Scalar-array product: none of the operands is a scalar");
@@ -1216,19 +1229,19 @@ struct MulOpScalarProductLowering: public ModelicaOpConversion<MulOp>
 		mlir::Value array = isNumeric(op.rhs()) ? op.lhs() : op.rhs();
 
 		// Allocate the result array
-		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, op->getLoc(), array);
-		mlir::Value result = allocate(rewriter, op.getLoc(), op.resultType().cast<PointerType>(), dynamicDimensions);
-		mlir::Type baseType = op.resultType().cast<PointerType>().getElementType();
+		auto resultType = op.resultType().cast<PointerType>();
+		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, array);
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
 
 		// Multiply each array element by the scalar value
-		iterateArray(rewriter, op->getLoc(), array,
+		iterateArray(rewriter, loc, array,
 								 [&](mlir::ValueRange position) {
-									 mlir::Value arrayValue = rewriter.create<LoadOp>(op->getLoc(), array, position);
-									 mlir::Value value = rewriter.create<MulOp>(op->getLoc(), baseType, scalar, arrayValue);
-									 rewriter.create<StoreOp>(op->getLoc(), value, result, position);
+									 mlir::Value arrayValue = rewriter.create<LoadOp>(loc, array, position);
+									 mlir::Value value = rewriter.create<MulOp>(loc, resultType.getElementType(), scalar, arrayValue);
+									 rewriter.create<StoreOp>(loc, value, result, position);
 								 });
 
-		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
@@ -1244,6 +1257,8 @@ struct MulOpCrossProductLowering: public ModelicaOpConversion<MulOp>
 
 	mlir::LogicalResult matchAndRewrite(MulOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
 		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Cross product: left-hand side value is not an array");
@@ -1272,29 +1287,30 @@ struct MulOpCrossProductLowering: public ModelicaOpConversion<MulOp>
 		assert(lhsPointerType.getRank() == 1);
 		assert(rhsPointerType.getRank() == 1);
 
-		mlir::Value lowerBound = rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0));
-		mlir::Value upperBound = rewriter.create<DimOp>(op->getLoc(), op.lhs(), rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0)));
-		mlir::Value step = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
-		mlir::Value init = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getZeroAttr(convertType(type)));
+		mlir::Value lowerBound = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
+		mlir::Value upperBound = rewriter.create<DimOp>(loc, op.lhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0)));
+		mlir::Value step = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
+		mlir::Value init = rewriter.create<mlir::ConstantOp>(loc, rewriter.getZeroAttr(convertType(type)));
 
 		// Iterate on the two arrays at the same time, and propagate the
 		// progressive result to the next loop iteration.
-		auto loop = rewriter.create<mlir::scf::ForOp>(op->getLoc(), lowerBound, upperBound, step, init);
+		auto loop = rewriter.create<mlir::scf::ForOp>(loc, lowerBound, upperBound, step, init);
 
 		{
 			mlir::OpBuilder::InsertionGuard guard(rewriter);
 			rewriter.setInsertionPointToStart(loop.getBody());
 
-			mlir::Value lhs = rewriter.create<LoadOp>(op->getLoc(), op.lhs(), loop.getInductionVar());
-			mlir::Value rhs = rewriter.create<LoadOp>(op->getLoc(), op.rhs(), loop.getInductionVar());
-			mlir::Value product = rewriter.create<MulOp>(op->getLoc(), type, lhs, rhs);
-			mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, loop.getRegionIterArgs()[0]);
-			sum = rewriter.create<AddOp>(op->getLoc(), type, product, sum);
+			mlir::Value lhs = rewriter.create<LoadOp>(loc, op.lhs(), loop.getInductionVar());
+			mlir::Value rhs = rewriter.create<LoadOp>(loc, op.rhs(), loop.getInductionVar());
+			mlir::Value product = rewriter.create<MulOp>(loc, type, lhs, rhs);
+			mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, loop.getRegionIterArgs()[0]);
+			sum = rewriter.create<AddOp>(loc, type, product, sum);
 			sum = materializeTargetConversion(rewriter, sum);
-			rewriter.create<mlir::scf::YieldOp>(op->getLoc(), sum);
+			rewriter.create<mlir::scf::YieldOp>(loc, sum);
 		}
 
-		rewriter.replaceOp(op, loop.getResult(0));
+		mlir::Value result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, loop.getResult(0));
+		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
@@ -1312,6 +1328,8 @@ struct MulOpVectorMatrixLowering: public ModelicaOpConversion<MulOp>
 
 	mlir::LogicalResult matchAndRewrite(MulOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Vector-matrix product: left-hand side value is not an array");
@@ -1339,53 +1357,51 @@ struct MulOpVectorMatrixLowering: public ModelicaOpConversion<MulOp>
 		assert(lhsPointerType.getRank() == 1);
 		assert(rhsPointerType.getRank() == 2);
 
-		mlir::Type type = op.resultType().cast<PointerType>().getElementType();
-
-		llvm::SmallVector<long, 1> shape;
-		shape.push_back(rhsPointerType.getShape()[1]);
+		auto resultType = op.resultType().cast<PointerType>();
+		auto shape = resultType.getShape();
+		assert(shape.size() == 1);
 
 		llvm::SmallVector<mlir::Value, 1> dynamicDimensions;
 
 		if (shape[0] == -1)
 			dynamicDimensions.push_back(rewriter.create<DimOp>(
-					op->getLoc(), op.rhs(), rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1))));
+					loc, op.rhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1))));
 
-		mlir::Value result = rewriter.create<AllocaOp>(op->getLoc(), type, shape, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
 
 		// Iterate on the columns
-		mlir::Value columnsLowerBound = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0));
-		mlir::Value columnsUpperBound = rewriter.create<DimOp>(op->getLoc(), op.rhs(), rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1)));
-		mlir::Value columnsStep = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
+		mlir::Value columnsLowerBound = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(0));
+		mlir::Value columnsUpperBound = rewriter.create<DimOp>(loc, op.rhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1)));
+		mlir::Value columnsStep = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
 
-		auto outerLoop = rewriter.create<mlir::scf::ForOp>(op->getLoc(), columnsLowerBound, columnsUpperBound, columnsStep);
+		auto outerLoop = rewriter.create<mlir::scf::ForOp>(loc, columnsLowerBound, columnsUpperBound, columnsStep);
 		rewriter.setInsertionPointToStart(outerLoop.getBody());
 
 		// Product between the vector and the current column
-		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0));
-		mlir::Value upperBound = rewriter.create<DimOp>(op->getLoc(), op.lhs(), rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0)));
-		mlir::Value step = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
-		mlir::Value init = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getZeroAttr(convertType(type)));
+		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(0));
+		mlir::Value upperBound = rewriter.create<DimOp>(loc, op.lhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0)));
+		mlir::Value step = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
+		mlir::Value init = rewriter.create<mlir::ConstantOp>(loc, rewriter.getZeroAttr(convertType(resultType.getElementType())));
 
-		auto innerLoop = rewriter.create<mlir::scf::ForOp>(op->getLoc(), lowerBound, upperBound, step, init);
+		auto innerLoop = rewriter.create<mlir::scf::ForOp>(loc, lowerBound, upperBound, step, init);
 		rewriter.setInsertionPointToStart(innerLoop.getBody());
 
-		mlir::Value lhs = rewriter.create<LoadOp>(op->getLoc(), op.lhs(), innerLoop.getInductionVar());
-		mlir::Value rhs = rewriter.create<LoadOp>(op->getLoc(), op.rhs(), mlir::ValueRange({ innerLoop.getInductionVar(), outerLoop.getInductionVar() }));
-		mlir::Value product = rewriter.create<MulOp>(op->getLoc(), type, lhs, rhs);
-		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, innerLoop.getRegionIterArgs()[0]);
-		sum = rewriter.create<AddOp>(op->getLoc(), type, product, sum);
+		mlir::Value lhs = rewriter.create<LoadOp>(loc, op.lhs(), innerLoop.getInductionVar());
+		mlir::Value rhs = rewriter.create<LoadOp>(loc, op.rhs(), mlir::ValueRange({ innerLoop.getInductionVar(), outerLoop.getInductionVar() }));
+		mlir::Value product = rewriter.create<MulOp>(loc, resultType.getElementType(), lhs, rhs);
+		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType.getElementType(), innerLoop.getRegionIterArgs()[0]);
+		sum = rewriter.create<AddOp>(loc, resultType.getElementType(), product, sum);
 		sum = materializeTargetConversion(rewriter, sum);
-		rewriter.create<mlir::scf::YieldOp>(op->getLoc(), sum);
+		rewriter.create<mlir::scf::YieldOp>(loc, sum);
 
 		// Store the product in the result array
 		rewriter.setInsertionPointAfter(innerLoop);
 		mlir::Value productResult = innerLoop.getResult(0);
-		productResult = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, productResult);
-		rewriter.create<StoreOp>(op->getLoc(), productResult, result, outerLoop.getInductionVar());
+		productResult = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType.getElementType(), productResult);
+		rewriter.create<StoreOp>(loc, productResult, result, outerLoop.getInductionVar());
 
 		rewriter.setInsertionPointAfter(outerLoop);
-
-		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
@@ -1403,6 +1419,8 @@ struct MulOpMatrixVectorLowering: public ModelicaOpConversion<MulOp>
 
 	mlir::LogicalResult matchAndRewrite(MulOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Matrix-vector product: left-hand side value is not an array");
@@ -1430,49 +1448,47 @@ struct MulOpMatrixVectorLowering: public ModelicaOpConversion<MulOp>
 		assert(lhsPointerType.getRank() == 2);
 		assert(rhsPointerType.getRank() == 1);
 
-		mlir::Type type = op.resultType().cast<PointerType>().getElementType();
-
-		llvm::SmallVector<long, 1> shape;
-		shape.push_back(lhsPointerType.getShape()[0]);
+		auto resultType = op.resultType().cast<PointerType>();
+		auto shape = resultType.getShape();
 
 		llvm::SmallVector<mlir::Value, 1> dynamicDimensions;
 
 		if (shape[0] == -1)
 			dynamicDimensions.push_back(rewriter.create<DimOp>(
-					op->getLoc(), op.lhs(), rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0))));
+					loc, op.lhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0))));
 
-		mlir::Value result = rewriter.create<AllocaOp>(op->getLoc(), type, shape, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
 
 		// Iterate on the rows
-		mlir::Value rowsLowerBound = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0));
-		mlir::Value rowsUpperBound = rewriter.create<DimOp>(op->getLoc(), op.lhs(), rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0)));
-		mlir::Value rowsStep = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
+		mlir::Value rowsLowerBound = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(0));
+		mlir::Value rowsUpperBound = rewriter.create<DimOp>(loc, op.lhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0)));
+		mlir::Value rowsStep = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
 
-		auto outerLoop = rewriter.create<mlir::scf::ParallelOp>(op->getLoc(), rowsLowerBound, rowsUpperBound, rowsStep);
+		auto outerLoop = rewriter.create<mlir::scf::ParallelOp>(loc, rowsLowerBound, rowsUpperBound, rowsStep);
 		rewriter.setInsertionPointToStart(outerLoop.getBody());
 
 		// Product between the current row and the vector
-		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0));
-		mlir::Value upperBound = rewriter.create<DimOp>(op->getLoc(), op.rhs(), rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0)));
-		mlir::Value step = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
-		mlir::Value init = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getZeroAttr(convertType(type)));
+		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(0));
+		mlir::Value upperBound = rewriter.create<DimOp>(loc, op.rhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0)));
+		mlir::Value step = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
+		mlir::Value init = rewriter.create<mlir::ConstantOp>(loc, rewriter.getZeroAttr(convertType(resultType.getElementType())));
 
-		auto innerLoop = rewriter.create<mlir::scf::ForOp>(op->getLoc(), lowerBound, upperBound, step, init);
+		auto innerLoop = rewriter.create<mlir::scf::ForOp>(loc, lowerBound, upperBound, step, init);
 		rewriter.setInsertionPointToStart(innerLoop.getBody());
 
-		mlir::Value lhs = rewriter.create<LoadOp>(op->getLoc(), op.lhs(), mlir::ValueRange({ outerLoop.getInductionVars()[0], innerLoop.getInductionVar() }));
-		mlir::Value rhs = rewriter.create<LoadOp>(op->getLoc(), op.rhs(), innerLoop.getInductionVar());
-		mlir::Value product = rewriter.create<MulOp>(op->getLoc(), type, lhs, rhs);
-		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, innerLoop.getRegionIterArgs()[0]);
-		sum = rewriter.create<AddOp>(op->getLoc(), type, product, sum);
+		mlir::Value lhs = rewriter.create<LoadOp>(loc, op.lhs(), mlir::ValueRange({ outerLoop.getInductionVars()[0], innerLoop.getInductionVar() }));
+		mlir::Value rhs = rewriter.create<LoadOp>(loc, op.rhs(), innerLoop.getInductionVar());
+		mlir::Value product = rewriter.create<MulOp>(loc, resultType.getElementType(), lhs, rhs);
+		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType.getElementType(), innerLoop.getRegionIterArgs()[0]);
+		sum = rewriter.create<AddOp>(loc, resultType.getElementType(), product, sum);
 		sum = materializeTargetConversion(rewriter, sum);
-		rewriter.create<mlir::scf::YieldOp>(op->getLoc(), sum);
+		rewriter.create<mlir::scf::YieldOp>(loc, sum);
 
 		// Store the product in the result array
 		rewriter.setInsertionPointAfter(innerLoop);
 		mlir::Value productResult = innerLoop.getResult(0);
-		productResult = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, productResult);
-		rewriter.create<StoreOp>(op->getLoc(), productResult, result, outerLoop.getInductionVars()[0]);
+		productResult = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType.getElementType(), productResult);
+		rewriter.create<StoreOp>(loc, productResult, result, outerLoop.getInductionVars()[0]);
 
 		rewriter.setInsertionPointAfter(outerLoop);
 
@@ -1495,6 +1511,8 @@ struct MulOpMatrixLowering: public ModelicaOpConversion<MulOp>
 
 	mlir::LogicalResult matchAndRewrite(MulOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
 		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Matrix product: left-hand side value is not an array");
@@ -1522,74 +1540,69 @@ struct MulOpMatrixLowering: public ModelicaOpConversion<MulOp>
 		assert(lhsPointerType.getRank() == 2);
 		assert(rhsPointerType.getRank() == 2);
 
-		mlir::Type type = op.resultType().cast<PointerType>().getElementType();
-
-		llvm::SmallVector<long, 2> shape;
-		shape.push_back(lhsPointerType.getShape()[0]);
-		shape.push_back(rhsPointerType.getShape()[1]);
+		auto resultType = op.resultType().cast<PointerType>();
+		auto shape = resultType.getShape();
 
 		llvm::SmallVector<mlir::Value, 2> dynamicDimensions;
 
 		if (shape[0] == -1)
 			dynamicDimensions.push_back(rewriter.create<DimOp>(
-					op->getLoc(), op.lhs(), rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0))));
+					loc, op.lhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0))));
 
 		if (shape[1] == -1)
 			dynamicDimensions.push_back(rewriter.create<DimOp>(
-					op->getLoc(), op.rhs(), rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1))));
+					loc, op.rhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1))));
 
-		auto pointerType = op.resultType().cast<PointerType>();
-		pointerType = PointerType::get(rewriter.getContext(), pointerType.getAllocationScope(), pointerType.getElementType(), shape);
-		mlir::Value result = allocate(rewriter, op->getLoc(), pointerType, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
 
 		// Iterate on the rows
-		mlir::Value rowsLowerBound = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0));
-		mlir::Value rowsUpperBound = rewriter.create<DimOp>(op->getLoc(), op.lhs(), rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0)));
-		mlir::Value rowsStep = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
+		mlir::Value rowsLowerBound = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(0));
+		mlir::Value rowsUpperBound = rewriter.create<DimOp>(loc, op.lhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0)));
+		mlir::Value rowsStep = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
 
-		auto rowsLoop = rewriter.create<mlir::scf::ForOp>(op->getLoc(), rowsLowerBound, rowsUpperBound, rowsStep);
+		auto rowsLoop = rewriter.create<mlir::scf::ForOp>(loc, rowsLowerBound, rowsUpperBound, rowsStep);
 		rewriter.setInsertionPointToStart(rowsLoop.getBody());
 
 		// Iterate on the columns
-		mlir::Value columnsLowerBound = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0));
-		mlir::Value columnsUpperBound = rewriter.create<DimOp>(op->getLoc(), op.rhs(), rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1)));
-		mlir::Value columnsStep = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
+		mlir::Value columnsLowerBound = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(0));
+		mlir::Value columnsUpperBound = rewriter.create<DimOp>(loc, op.rhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1)));
+		mlir::Value columnsStep = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
 
-		auto columnsLoop = rewriter.create<mlir::scf::ForOp>(op->getLoc(), columnsLowerBound, columnsUpperBound, columnsStep);
+		auto columnsLoop = rewriter.create<mlir::scf::ForOp>(loc, columnsLowerBound, columnsUpperBound, columnsStep);
 		rewriter.setInsertionPointToStart(columnsLoop.getBody());
 
 		// Product between the current row and the current column
-		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0));
-		mlir::Value upperBound = rewriter.create<DimOp>(op->getLoc(), op.rhs(), rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0)));
-		mlir::Value step = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
-		mlir::Value init = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getZeroAttr(convertType(type)));
+		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(0));
+		mlir::Value upperBound = rewriter.create<DimOp>(loc, op.rhs(), rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0)));
+		mlir::Value step = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
+		mlir::Value init = rewriter.create<mlir::ConstantOp>(loc, rewriter.getZeroAttr(convertType(resultType.getElementType())));
 
-		auto innerLoop = rewriter.create<mlir::scf::ForOp>(op->getLoc(), lowerBound, upperBound, step, init);
+		auto innerLoop = rewriter.create<mlir::scf::ForOp>(loc, lowerBound, upperBound, step, init);
 		rewriter.setInsertionPointToStart(innerLoop.getBody());
 
-		mlir::Value lhs = rewriter.create<LoadOp>(op->getLoc(), op.lhs(), mlir::ValueRange({ rowsLoop.getInductionVar(), innerLoop.getInductionVar() }));
-		mlir::Value rhs = rewriter.create<LoadOp>(op->getLoc(), op.rhs(), mlir::ValueRange({ innerLoop.getInductionVar(), columnsLoop.getInductionVar() }));
-		mlir::Value product = rewriter.create<MulOp>(op->getLoc(), type, lhs, rhs);
-		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, innerLoop.getRegionIterArgs()[0]);
-		sum = rewriter.create<AddOp>(op->getLoc(), type, product, sum);
+		mlir::Value lhs = rewriter.create<LoadOp>(loc, op.lhs(), mlir::ValueRange({ rowsLoop.getInductionVar(), innerLoop.getInductionVar() }));
+		mlir::Value rhs = rewriter.create<LoadOp>(loc, op.rhs(), mlir::ValueRange({ innerLoop.getInductionVar(), columnsLoop.getInductionVar() }));
+		mlir::Value product = rewriter.create<MulOp>(loc, resultType.getElementType(), lhs, rhs);
+		mlir::Value sum = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType.getElementType(), innerLoop.getRegionIterArgs()[0]);
+		sum = rewriter.create<AddOp>(loc, resultType.getElementType(), product, sum);
 		sum = materializeTargetConversion(rewriter, sum);
-		rewriter.create<mlir::scf::YieldOp>(op->getLoc(), sum);
+		rewriter.create<mlir::scf::YieldOp>(loc, sum);
 
 		// Store the product in the result array
 		rewriter.setInsertionPointAfter(innerLoop);
 		mlir::Value productResult = innerLoop.getResult(0);
-		productResult = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, productResult);
-		rewriter.create<StoreOp>(op->getLoc(), productResult, result, mlir::ValueRange({ rowsLoop.getInductionVar(), columnsLoop.getInductionVar() }));
+		productResult = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType.getElementType(), productResult);
+		rewriter.create<StoreOp>(loc, productResult, result, mlir::ValueRange({ rowsLoop.getInductionVar(), columnsLoop.getInductionVar() }));
 
 		rewriter.setInsertionPointAfter(rowsLoop);
 
-		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
 
 /**
- * Division between two scalar values
+ * Division between two scalar values.
  */
 struct DivOpLowering: public ModelicaOpConversion<DivOp>
 {
@@ -1597,6 +1610,8 @@ struct DivOpLowering: public ModelicaOpConversion<DivOp>
 
 	mlir::LogicalResult matchAndRewrite(DivOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()))
 			return rewriter.notifyMatchFailure(op, "Scalar-scalar division: left-hand side value is not a scalar");
@@ -1605,28 +1620,28 @@ struct DivOpLowering: public ModelicaOpConversion<DivOp>
 			return rewriter.notifyMatchFailure(op, "Scalar-scalar division: right-hand side value is not a scalar");
 
 		// Cast the operands to the most generic type
-		auto castOp = rewriter.create<CastCommonOp>(op->getLoc(), op->getOperands());
+		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
 
 		for (mlir::Value operand : castOp.getResults())
 			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
 
-		Adaptor adaptor(castedOperands);
+		Adaptor transformed(castedOperands);
 		mlir::Type type = castOp.resultType();
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::SignedDivIOp>(op->getLoc(), adaptor.lhs(), adaptor.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, result);
+			mlir::Value result = rewriter.create<mlir::SignedDivIOp>(loc, transformed.lhs(), transformed.rhs());
+			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::DivFOp>(op->getLoc(), adaptor.lhs(), adaptor.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), type, result);
+			mlir::Value result = rewriter.create<mlir::DivFOp>(loc, transformed.lhs(), transformed.rhs());
+			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
@@ -1636,7 +1651,7 @@ struct DivOpLowering: public ModelicaOpConversion<DivOp>
 };
 
 /**
- * Product between a scalar and an array
+ * Division between an array and a scalar value.
  */
 struct DivOpArrayLowering: public ModelicaOpConversion<DivOp>
 {
@@ -1644,6 +1659,8 @@ struct DivOpArrayLowering: public ModelicaOpConversion<DivOp>
 
 	mlir::LogicalResult matchAndRewrite(DivOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
 		// Check if the operands are compatible
 		if (!op.lhs().getType().isa<PointerType>())
 			return rewriter.notifyMatchFailure(op, "Array-scalar division: left-hand size value is not an array");
@@ -1655,29 +1672,34 @@ struct DivOpArrayLowering: public ModelicaOpConversion<DivOp>
 			return rewriter.notifyMatchFailure(op, "Array-scalar division: right-hand size value is not a scalar");
 
 		// Allocate the result array
-		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, op->getLoc(), op.lhs());
-		mlir::Value result = allocate(rewriter, op.getLoc(), op.resultType().cast<PointerType>(), dynamicDimensions);
-		mlir::Type baseType = op.resultType().cast<PointerType>().getElementType();
+		auto resultType = op.resultType().cast<PointerType>();
+		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.lhs());
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
 
 		// Divide each array element by the scalar value
-		iterateArray(rewriter, op->getLoc(), op.lhs(),
+		iterateArray(rewriter, loc, op.lhs(),
 								 [&](mlir::ValueRange position) {
-									 mlir::Value arrayValue = rewriter.create<LoadOp>(op->getLoc(), op.lhs(), position);
-									 mlir::Value value = rewriter.create<DivOp>(op->getLoc(), baseType, arrayValue, op.rhs());
-									 rewriter.create<StoreOp>(op->getLoc(), value, result, position);
+									 mlir::Value arrayValue = rewriter.create<LoadOp>(loc, op.lhs(), position);
+									 mlir::Value value = rewriter.create<DivOp>(loc, resultType.getElementType(), arrayValue, op.rhs());
+									 rewriter.create<StoreOp>(loc, value, result, position);
 								 });
 
-		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
 
+/**
+ * Exponentiation of a scalar value.
+ */
 struct PowOpLowering: public ModelicaOpConversion<PowOp>
 {
 	using ModelicaOpConversion<PowOp>::ModelicaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(PowOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
+
 		// Check if the operands are compatible
 		if (!isNumeric(op.base()))
 			return rewriter.notifyMatchFailure(op, "Base is not a scalar");
@@ -1687,19 +1709,24 @@ struct PowOpLowering: public ModelicaOpConversion<PowOp>
 
 		// Compute the result
 		Adaptor adaptor(operands);
-		mlir::Value result = rewriter.create<mlir::math::PowFOp>(op->getLoc(), adaptor.base(), adaptor.exponent());
-		result = getTypeConverter()->materializeSourceConversion(rewriter, op->getLoc(), op.base().getType(), result);
+		mlir::Value result = rewriter.create<mlir::math::PowFOp>(loc, adaptor.base(), adaptor.exponent());
+		result = getTypeConverter()->materializeSourceConversion(rewriter, loc, op.base().getType(), result);
 		rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
+
 		return mlir::success();
 	}
 };
 
+/**
+ * Exponentiation of a square matrix.
+ */
 struct PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 {
 	using ModelicaOpConversion<PowOp>::ModelicaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(PowOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
 		Adaptor transformed(operands);
 
 		// Check if the operands are compatible
@@ -1718,85 +1745,36 @@ struct PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 		if (!op.exponent().getType().isa<IntegerType>())
 			return rewriter.notifyMatchFailure(op, "Exponent is not an integer");
 
-		// Compute the result
-		mlir::Value exponent = rewriter.create<CastOp>(op->getLoc(), op.exponent(), mlir::IndexType::get(op->getContext()));
-		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
-		mlir::Value step = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
-
+		// Allocate the result array
 		auto resultPointerType = op.resultType().cast<PointerType>();
-		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, op->getLoc(), op.base());
-		mlir::Value result = allocate(rewriter, op.getLoc(), resultPointerType, dynamicDimensions);
-
-		auto intermediateResultType = op.base().getType().cast<PointerType>().toAllocationScope(BufferAllocationScope::heap);
-		mlir::Value current = rewriter.create<ArrayCloneOp>(op.getLoc(), op.base(), intermediateResultType);
-
-		auto forLoop = rewriter.create<mlir::scf::ForOp>(op->getLoc(), lowerBound, exponent, step);
-
-		{
-			mlir::OpBuilder::InsertionGuard guard(rewriter);
-			rewriter.setInsertionPointToStart(forLoop.getBody());
-
-			// We need to allocate the intermediate results on the heap, in order
-			// to avoid a potentially big allocation on the stack (due to the
-			// iteration).
-			mlir::Value next = rewriter.create<MulOp>(op->getLoc(), intermediateResultType, current, op.base());
-
-			rewriter.create<AssignmentOp>(op.getLoc(), next, current);
-		}
-
-		rewriter.create<AssignmentOp>(op.getLoc(), current, result);
+		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.base());
+		mlir::Value result = allocate(rewriter, loc, resultPointerType, dynamicDimensions);
 		rewriter.replaceOp(op, result);
-		return mlir::success();
-	}
-};
-
-/*
-struct PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
-{
-	using ModelicaOpConversion<PowOp>::ModelicaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(PowOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		Adaptor transformed(operands);
-
-		// Check if the operands are compatible
-		if (!op.base().getType().isa<PointerType>())
-			return rewriter.notifyMatchFailure(op, "Base is not an array");
-
-		auto basePointerType = op.base().getType().cast<PointerType>();
-
-		if (basePointerType.getRank() != 2)
-			return rewriter.notifyMatchFailure(op, "Base array is not 2-D");
-
-		if (basePointerType.getShape()[0] != -1 && basePointerType.getShape()[1] != -1)
-			if (basePointerType.getShape()[0] != basePointerType.getShape()[1])
-				return rewriter.notifyMatchFailure(op, "Base is not a square matrix");
-
-		if (!op.exponent().getType().isa<IntegerType>())
-			return rewriter.notifyMatchFailure(op, "Exponent is not an integer");
 
 		// Compute the result
-		mlir::Value exponent = rewriter.create<CastOp>(op->getLoc(), op.exponent(), mlir::IndexType::get(op->getContext()));
-		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
-		mlir::Value step = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
+		mlir::Value exponent = rewriter.create<CastOp>(loc, op.exponent(), mlir::IndexType::get(op->getContext()));
+		mlir::Value lowerBound = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
+		mlir::Value step = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
 
-		auto forLoop = rewriter.create<mlir::scf::ForOp>(op->getLoc(), lowerBound, exponent, step, op.base());
+		// The intermediate results must be allocated on the heap, in order
+		// to avoid a potentially big allocation on the stack (due to the
+		// iteration).
+		auto intermediateResultType = op.base().getType().cast<PointerType>().toAllocationScope(BufferAllocationScope::heap);
+		mlir::Value current = rewriter.create<ArrayCloneOp>(loc, op.base(), intermediateResultType);
+
+		auto forLoop = rewriter.create<mlir::scf::ForOp>(loc, lowerBound, exponent, step);
 
 		{
 			mlir::OpBuilder::InsertionGuard guard(rewriter);
 			rewriter.setInsertionPointToStart(forLoop.getBody());
-			mlir::Value current = forLoop.getRegionIterArgs()[0];
-			mlir::Value next = rewriter.create<MulOp>(op->getLoc(), op.base().getType(), current, op.base());
-			rewriter.create<mlir::scf::YieldOp>(op->getLoc(), next);
+			mlir::Value next = rewriter.create<MulOp>(loc, intermediateResultType, current, op.base());
+			rewriter.create<AssignmentOp>(loc, next, current);
 		}
 
-		mlir::Value result = forLoop.getResult(0);
-		// TODO remove result = rewriter.create<PtrCastOp>(location, result, op.resultType());
-		rewriter.replaceOp(op, result);
+		rewriter.create<AssignmentOp>(loc, current, result);
 		return mlir::success();
 	}
 };
-*/
 
 struct NDimsOpLowering: public ModelicaOpConversion<NDimsOp>
 {
@@ -1804,9 +1782,10 @@ struct NDimsOpLowering: public ModelicaOpConversion<NDimsOp>
 
 	mlir::LogicalResult matchAndRewrite(NDimsOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
 		auto pointerType = op.memory().getType().cast<PointerType>();
-		mlir::Value rank = rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(pointerType.getRank()));
-		rank = rewriter.create<CastOp>(op->getLoc(), rank, op.resultType());
+		mlir::Value rank = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(pointerType.getRank()));
+		rank = rewriter.create<CastOp>(loc, rank, op.resultType());
 		rewriter.replaceOp(op, rank);
 		return mlir::success();
 	}
@@ -1821,11 +1800,13 @@ struct SizeOpDimensionLowering: public ModelicaOpConversion<SizeOp>
 
 	mlir::LogicalResult matchAndRewrite(SizeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+
 		if (!op.hasIndex())
 			return rewriter.notifyMatchFailure(op, "No index specified");
 
-		mlir::Value result = rewriter.create<DimOp>(op->getLoc(), op.memory(), op.index());
-		result = rewriter.create<CastOp>(op->getLoc(), result, op.resultType());
+		mlir::Value result = rewriter.create<DimOp>(loc, op.memory(), op.index());
+		result = rewriter.create<CastOp>(loc, result, op.resultType());
 		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
@@ -1840,34 +1821,35 @@ struct SizeOpArrayLowering: public ModelicaOpConversion<SizeOp>
 
 	mlir::LogicalResult matchAndRewrite(SizeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
+		Adaptor transformed(operands);
+
 		if (op.hasIndex())
 			return rewriter.notifyMatchFailure(op, "Index specified");
-
-		Adaptor transformed(operands);
 
 		assert(op.resultType().isa<PointerType>());
 		auto pointerType = op.memory().getType().cast<PointerType>();
 		mlir::Type resultBaseType = op.resultType().cast<PointerType>().getElementType();
-		mlir::Value result = rewriter.create<AllocaOp>(op->getLoc(), resultBaseType, pointerType.getRank());
+		mlir::Value result = rewriter.create<AllocaOp>(loc, resultBaseType, pointerType.getRank());
 
 		// Iterate on each dimension
-		mlir::Value zeroValue = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(0));
+		mlir::Value zeroValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(0));
 
-		mlir::Value rank = rewriter.create<ConstantOp>(op->getLoc(), rewriter.getIndexAttr(pointerType.getRank()));
-		mlir::Value step = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getIndexAttr(1));
+		mlir::Value rank = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(pointerType.getRank()));
+		mlir::Value step = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
 
-		auto loop = rewriter.create<mlir::scf::ForOp>(op->getLoc(), zeroValue, rank, step);
+		auto loop = rewriter.create<mlir::scf::ForOp>(loc, zeroValue, rank, step);
 
 		{
 			mlir::OpBuilder::InsertionGuard guard(rewriter);
 			rewriter.setInsertionPointToStart(loop.getBody());
 
 			// Get the size of the current dimension
-			mlir::Value dimensionSize = rewriter.create<DimOp>(op->getLoc(), op.memory(), loop.getInductionVar());
+			mlir::Value dimensionSize = rewriter.create<DimOp>(loc, op.memory(), loop.getInductionVar());
 
 			// Cast it to the result base type and store it into the result array
-			dimensionSize = rewriter.create<CastOp>(op->getLoc(), dimensionSize, resultBaseType);
-			rewriter.create<StoreOp>(op->getLoc(), dimensionSize, result, loop.getInductionVar());
+			dimensionSize = rewriter.create<CastOp>(loc, dimensionSize, resultBaseType);
+			rewriter.create<StoreOp>(loc, dimensionSize, result, loop.getInductionVar());
 		}
 
 		rewriter.replaceOp(op, result);
@@ -1881,13 +1863,13 @@ struct FillOpLowering: public ModelicaOpConversion<FillOp>
 
 	mlir::LogicalResult matchAndRewrite(FillOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
 		mlir::Value value = op.value();
-		value = rewriter.create<CastOp>(op->getLoc(), value, op.memory().getType().cast<PointerType>().getElementType());
+		value = rewriter.create<CastOp>(loc, value, op.memory().getType().cast<PointerType>().getElementType());
 
-		iterateArray(rewriter, op->getLoc(), op.memory(),
-								 [&](mlir::ValueRange position)
-								 {
-									 rewriter.create<StoreOp>(op->getLoc(), value, op.memory(), position);
+		iterateArray(rewriter, loc, op.memory(),
+								 [&](mlir::ValueRange position) {
+									 rewriter.create<StoreOp>(loc, value, op.memory(), position);
 								 });
 
 		rewriter.eraseOp(op);
@@ -1965,6 +1947,7 @@ struct BreakableForOpLowering: public ModelicaOpConversion<BreakableForOp>
 
 	mlir::LogicalResult matchAndRewrite(BreakableForOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
 		Adaptor transformed(operands);
 
 		// Split the current block
@@ -1982,7 +1965,7 @@ struct BreakableForOpLowering: public ModelicaOpConversion<BreakableForOp>
 
 		// Start the for loop by branching to the "condition" region
 		rewriter.setInsertionPointToEnd(currentBlock);
-		rewriter.create<mlir::BranchOp>(op->getLoc(), conditionBlock, op.args());
+		rewriter.create<mlir::BranchOp>(loc, conditionBlock, op.args());
 
 		// The loop is supposed to be breakable. Thus, before checking the normal
 		// condition, we first need to check if the break condition variable has
@@ -1992,25 +1975,25 @@ struct BreakableForOpLowering: public ModelicaOpConversion<BreakableForOp>
 
 		rewriter.setInsertionPointToStart(conditionBlock);
 
-		mlir::Value breakCondition = rewriter.create<LoadOp>(op->getLoc(), op.breakCondition());
+		mlir::Value breakCondition = rewriter.create<LoadOp>(loc, op.breakCondition());
 		breakCondition = materializeTargetConversion(rewriter, breakCondition);
 
-		mlir::Value returnCondition = rewriter.create<LoadOp>(op->getLoc(), op.returnCondition());
+		mlir::Value returnCondition = rewriter.create<LoadOp>(loc, op.returnCondition());
 		returnCondition = materializeTargetConversion(rewriter, returnCondition);
 
-		mlir::Value stopCondition = rewriter.create<mlir::OrOp>(op->getLoc(), breakCondition, returnCondition);
+		mlir::Value stopCondition = rewriter.create<mlir::OrOp>(loc, breakCondition, returnCondition);
 
-		mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getBoolAttr(true));
-		mlir::Value condition = rewriter.create<mlir::CmpIOp>(op->getLoc(), mlir::CmpIPredicate::eq, stopCondition, trueValue);
+		mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getBoolAttr(true));
+		mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, stopCondition, trueValue);
 
-		auto ifOp = rewriter.create<mlir::scf::IfOp>(op->getLoc(), rewriter.getI1Type(), condition, true);
+		auto ifOp = rewriter.create<mlir::scf::IfOp>(loc, rewriter.getI1Type(), condition, true);
 		mlir::Block* originalCondition = rewriter.splitBlock(conditionBlock, rewriter.getInsertionPoint());
 
 		// If the break condition variable is set to true, return false from the
 		// condition block in order to stop the loop execution.
 		rewriter.setInsertionPointToStart(&ifOp.thenRegion().front());
-		mlir::Value falseValue = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getBoolAttr(false));
-		rewriter.create<mlir::scf::YieldOp>(op->getLoc(), falseValue);
+		mlir::Value falseValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getBoolAttr(false));
+		rewriter.create<mlir::scf::YieldOp>(loc, falseValue);
 
 		// Move the original condition check in the "else" branch
 		rewriter.mergeBlocks(originalCondition, &ifOp.elseRegion().front(), llvm::None);
@@ -2022,7 +2005,7 @@ struct BreakableForOpLowering: public ModelicaOpConversion<BreakableForOp>
 		// as condition argument the result of the If operation, which is false
 		// if a break must be executed or the intended condition value otherwise.
 		rewriter.setInsertionPointAfter(ifOp);
-		rewriter.create<mlir::CondBranchOp>(op->getLoc(), ifOp.getResult(0), bodyBlock, conditionOp.args(), continuation, llvm::None);
+		rewriter.create<mlir::CondBranchOp>(loc, ifOp.getResult(0), bodyBlock, conditionOp.args(), continuation, llvm::None);
 
 		// Replace "body" block terminator with a branch to the "step" block
 		rewriter.setInsertionPointToEnd(bodyBlock);
@@ -2045,6 +2028,7 @@ struct ForOpLowering: public ModelicaOpConversion<ForOp>
 
 	mlir::LogicalResult matchAndRewrite(ForOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op.getLoc();
 		Adaptor transformed(operands);
 
 		// Split the current block
@@ -2062,7 +2046,7 @@ struct ForOpLowering: public ModelicaOpConversion<ForOp>
 
 		// Start the for loop by branching to the "condition" region
 		rewriter.setInsertionPointToEnd(currentBlock);
-		rewriter.create<mlir::BranchOp>(op->getLoc(), conditionBlock, op.args());
+		rewriter.create<mlir::BranchOp>(loc, conditionBlock, op.args());
 
 		// Check the condition
 		auto conditionOp = mlir::cast<ConditionOp>(conditionBlock->getTerminator());
@@ -2090,9 +2074,10 @@ struct BreakableWhileOpLowering: public ModelicaOpConversion<BreakableWhileOp>
 
 	mlir::LogicalResult matchAndRewrite(BreakableWhileOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		mlir::Location loc = op->getLoc();
 		Adaptor transformed(operands);
 
-		auto whileOp = rewriter.create<mlir::scf::WhileOp>(op->getLoc(), llvm::None, llvm::None);
+		auto whileOp = rewriter.create<mlir::scf::WhileOp>(loc, llvm::None, llvm::None);
 
 		// The body block requires no modification apart from the change of the
 		// terminator to the SCF dialect one.
@@ -2113,24 +2098,24 @@ struct BreakableWhileOpLowering: public ModelicaOpConversion<BreakableWhileOp>
 		rewriter.createBlock(&whileOp.before());
 		rewriter.setInsertionPointToStart(&whileOp.before().front());
 
-		mlir::Value breakCondition = rewriter.create<LoadOp>(op->getLoc(), op.breakCondition());
+		mlir::Value breakCondition = rewriter.create<LoadOp>(loc, op.breakCondition());
 		breakCondition = materializeTargetConversion(rewriter, breakCondition);
 
-		mlir::Value returnCondition = rewriter.create<LoadOp>(op->getLoc(), op.returnCondition());
+		mlir::Value returnCondition = rewriter.create<LoadOp>(loc, op.returnCondition());
 		returnCondition = materializeTargetConversion(rewriter, returnCondition);
 
-		mlir::Value stopCondition = rewriter.create<mlir::OrOp>(op->getLoc(), breakCondition, returnCondition);
+		mlir::Value stopCondition = rewriter.create<mlir::OrOp>(loc, breakCondition, returnCondition);
 
-		mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getBoolAttr(true));
-		mlir::Value condition = rewriter.create<mlir::CmpIOp>(op->getLoc(), mlir::CmpIPredicate::eq, stopCondition, trueValue);
+		mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getBoolAttr(true));
+		mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, stopCondition, trueValue);
 
-		auto ifOp = rewriter.create<mlir::scf::IfOp>(op->getLoc(), rewriter.getI1Type(), condition, true);
+		auto ifOp = rewriter.create<mlir::scf::IfOp>(loc, rewriter.getI1Type(), condition, true);
 
 		// If the break condition variable is set to true, return false from the
 		// condition block in order to stop the loop execution.
 		rewriter.setInsertionPointToStart(&ifOp.thenRegion().front());
-		mlir::Value falseValue = rewriter.create<mlir::ConstantOp>(op->getLoc(), rewriter.getBoolAttr(false));
-		rewriter.create<mlir::scf::YieldOp>(op->getLoc(), falseValue);
+		mlir::Value falseValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getBoolAttr(false));
+		rewriter.create<mlir::scf::YieldOp>(loc, falseValue);
 
 		// Move the original condition check in the "else" branch
 		rewriter.mergeBlocks(&op.condition().front(), &ifOp.elseRegion().front(), llvm::None);
@@ -2148,7 +2133,7 @@ struct BreakableWhileOpLowering: public ModelicaOpConversion<BreakableWhileOp>
 		for (mlir::Value arg : conditionOp.args())
 			conditionOpArgs.push_back(materializeTargetConversion(rewriter, arg));
 
-		rewriter.create<mlir::scf::ConditionOp>(op->getLoc(), ifOp.getResult(0), conditionOpArgs);
+		rewriter.create<mlir::scf::ConditionOp>(loc, ifOp.getResult(0), conditionOpArgs);
 
 		rewriter.eraseOp(op);
 		return mlir::success();
@@ -2254,11 +2239,9 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 
 		if (failed(applyPartialConversion(module, target, std::move(patterns))))
 		{
-			mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
+			mlir::emitError(module.getLoc(), "Error in converting the Modelica operations\n");
 			signalPassFailure();
 		}
-
-		module.dump();
 	}
 };
 
@@ -2294,7 +2277,7 @@ class LowerToCFGPass: public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPa
 
 		if (failed(applyPartialConversion(module, target, std::move(patterns))))
 		{
-			mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
+			mlir::emitError(module.getLoc(), "Error in converting the control flow operations\n");
 			signalPassFailure();
 		}
 	}
