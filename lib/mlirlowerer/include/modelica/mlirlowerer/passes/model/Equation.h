@@ -35,8 +35,6 @@ namespace modelica::codegen::model
 			EquationInterface op;
 			Expression left;
 			Expression right;
-			MultiDimInterval inductions;
-			bool isForCycle;
 			bool isForwardDirection;
 			std::optional<EquationPath> matchedExpPath;
 		};
@@ -70,10 +68,9 @@ namespace modelica::codegen::model
 
 		[[nodiscard]] size_t amount() const;
 
-		[[nodiscard]] const MultiDimInterval& getInductions() const;
-		void setInductionVars(MultiDimInterval inductions);
+		[[nodiscard]] MultiDimInterval getInductions() const;
+		void setInductions(MultiDimInterval inductions);
 
-		[[nodiscard]] bool isForEquation() const;
 		[[nodiscard]] size_t dimensions() const;
 
 		[[nodiscard]] bool isForward() const;

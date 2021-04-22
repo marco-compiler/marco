@@ -15,19 +15,15 @@ using namespace modelica::codegen::model;
 Equation::Impl::Impl(mlir::Operation* op,
 										 Expression left,
 										 Expression right,
-										 MultiDimInterval inds,
+										 MultiDimInterval inductions,
 										 bool isForward,
 										 std::optional<EquationPath> path)
 		: op(op),
 			left(std::move(left)),
 			right(std::move(right)),
-			inductions(std::move(inds)),
-			isForCycle(!inductions.empty()),
 			isForwardDirection(isForward),
 			matchedExpPath(std::move(path))
 {
-	if (!isForCycle)
-		inductions = { { 0, 1 } };
 }
 
 Equation::Equation(mlir::Operation* op,
@@ -216,46 +212,42 @@ size_t Equation::amount() const
 	return result;
 }
 
-const modelica::MultiDimInterval& Equation::getInductions() const
+modelica::MultiDimInterval Equation::getInductions() const
 {
-	return impl->inductions;
+	auto forEquationOp = mlir::cast<ForEquationOp>(getOp().getOperation());
+	llvm::SmallVector<Interval, 3> intervals;
+
+	for (auto induction : forEquationOp.inductionsDefinitions())
+	{
+		auto inductionOp = induction.getDefiningOp<InductionOp>();
+		intervals.emplace_back(inductionOp.start(), inductionOp.end() + 1);
+	}
+
+	return MultiDimInterval(intervals);
 }
 
-void Equation::setInductionVars(MultiDimInterval inds)
+void Equation::setInductions(MultiDimInterval inductions)
 {
-	impl->isForCycle = !inds.empty();
+	if (inductions.empty())
+		inductions = { { 0, 1 } };
 
-	if (impl->isForCycle)
-	{
-		impl->inductions = std::move(inds);
+	auto forEquationOp = mlir::cast<ForEquationOp>(getOp().getOperation());
 
-		auto forEquationOp = mlir::cast<ForEquationOp>(getOp().getOperation());
+	mlir::OpBuilder builder(forEquationOp);
+	forEquationOp.inductionsBlock()->clear();
+	builder.setInsertionPointToStart(forEquationOp.inductionsBlock());
 
-		mlir::OpBuilder builder(forEquationOp);
-		forEquationOp.inductionsBlock()->clear();
-		builder.setInsertionPointToStart(forEquationOp.inductionsBlock());
+	llvm::SmallVector<mlir::Value, 3> newInductions;
 
-		llvm::SmallVector<mlir::Value, 3> newInductions;
+	for (auto induction : inductions)
+		newInductions.push_back(builder.create<InductionOp>(getOp()->getLoc(), induction.min(), induction.max() - 1));
 
-		for (auto induction : impl->inductions)
-			newInductions.push_back(builder.create<InductionOp>(getOp()->getLoc(), induction.min(), induction.max() - 1));
-
-		builder.create<YieldOp>(forEquationOp.getLoc(), newInductions);
-	}
-	else
-	{
-		impl->inductions = { { 0, 1 } };
-	}
-}
-
-bool Equation::isForEquation() const
-{
-	return impl->isForCycle;
+	builder.create<YieldOp>(forEquationOp.getLoc(), newInductions);
 }
 
 size_t Equation::dimensions() const
 {
-	return impl->isForCycle ? impl->inductions.dimensions() : 0;
+	return getInductions().dimensions();
 }
 
 bool Equation::isForward() const
@@ -554,7 +546,7 @@ Equation Equation::composeAccess(const VectorAccess& transformation) const
 {
 	auto toReturn = clone();
 	auto inverted = transformation.invert();
-	toReturn.setInductionVars(inverted.map(getInductions()));
+	toReturn.setInductions(inverted.map(getInductions()));
 
 	ReferenceMatcher matcher(toReturn);
 
@@ -573,7 +565,7 @@ mlir::LogicalResult Equation::normalize()
 	auto access = AccessToVar::fromExp(getMatchedExp()).getAccess();
 
 	// Apply the transformation to the induction range
-	setInductionVars(access.map(getInductions()));
+	setInductions(access.map(getInductions()));
 
 	auto invertedAccess = access.invert();
 	ReferenceMatcher matcher(*this);
@@ -645,8 +637,6 @@ Equation Equation::clone() const
 	auto* newOp = builder.clone(*getOp());
 	Equation clone = build(newOp);
 
-	clone.impl->inductions = impl->inductions;
-	clone.impl->isForCycle = impl->isForCycle;
 	clone.impl->isForwardDirection = impl->isForwardDirection;
 	clone.impl->matchedExpPath = impl->matchedExpPath;
 

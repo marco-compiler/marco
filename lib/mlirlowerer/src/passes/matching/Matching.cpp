@@ -208,6 +208,9 @@ void MatchingGraph::emplaceEdge(Equation eq, ExpressionPath path, size_t useInde
 	if (var.isState() || var.isConstant())
 		return;
 
+	auto mappableDimensions = access.getAccess().mappableDimensions();
+	auto dimensions = eq.dimensions();
+
 	if (access.getAccess().mappableDimensions() < eq.dimensions())
 		return;
 
@@ -244,7 +247,7 @@ mlir::LogicalResult modelica::codegen::model::match(Model& model, size_t maxIter
 			// don't need to clone the whole equation IR.
 			auto equation = edge.getEquation();
 
-			equation.setInductionVars(inductionVars);
+			equation.setInductions(inductionVars);
 			equation.setMatchedExp(edge.getPath().getEqPath());
 			equations.push_back(equation);
 		}

@@ -522,12 +522,8 @@ void MLIRLowerer::lower<Class>(Member& member)
 	{
 		if (auto pointerType = type.dyn_cast<PointerType>())
 		{
-			if (member.getName() == "x")
-			{
-				// TODO remove if
-				mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(pointerType.getElementType()));
-				builder.create<FillOp>(location, zero, destination);
-			}
+			mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(pointerType.getElementType()));
+			builder.create<FillOp>(location, zero, destination);
 		}
 		else
 		{

@@ -140,7 +140,7 @@ static mlir::LogicalResult extractEquationWithDependencies(
 
 		// set induction to those that generate the circular dependency
 		assert(toFuseEq.getInductions().contains(vecSet[i]));
-		toFuseEq.setInductionVars(vecSet[i]);
+		toFuseEq.setInductions(vecSet[i]);
 
 		if (auto res = toFuseEq.explicitate(); failed(res))
 			return res;
@@ -160,7 +160,7 @@ static mlir::LogicalResult extractEquationWithDependencies(
 			// add the equation to the untouched set
 			untouched.emplace_back(original.clone());
 			// and set the inductions to the ones  that have no circular dependencies
-			untouched.back().setInductionVars(set);
+			untouched.back().setInductions(set);
 		}
 
 		original.getOp()->erase();

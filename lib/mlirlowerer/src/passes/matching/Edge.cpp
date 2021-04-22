@@ -14,8 +14,7 @@ Edge::Edge(Equation eq,
 			pathToExp(std::move(access)),
 			index(index)
 {
-	if (eq.isForEquation())
-		invertedAccess = vectorAccess.invert();
+	invertedAccess = vectorAccess.invert();
 }
 
 Equation Edge::getEquation() const

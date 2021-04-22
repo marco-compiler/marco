@@ -24,6 +24,131 @@ using namespace modelica;
 using namespace codegen;
 using namespace model;
 
+struct LoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
+{
+	using mlir::OpRewritePattern<SimulationOp>::OpRewritePattern;
+
+	mlir::LogicalResult matchAndRewrite(SimulationOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		auto terminator = mlir::cast<YieldOp>(op.init().back().getTerminator());
+		rewriter.eraseOp(terminator);
+
+		llvm::SmallVector<mlir::Value, 3> newVars;
+		newVars.push_back(terminator.args()[0]);
+
+		unsigned int index = 1;
+
+		std::map<ForEquationOp, mlir::Value> inductions;
+
+		for (auto it = std::next(terminator.args().begin()); it != terminator.args().end(); ++it)
+		{
+			mlir::Value value = *it;
+
+			if (auto pointerType = value.getType().dyn_cast<PointerType>(); pointerType && pointerType.getRank() == 0)
+			{
+				{
+					mlir::OpBuilder::InsertionGuard guard(rewriter);
+					rewriter.setInsertionPoint(value.getDefiningOp());
+					mlir::Value newVar = rewriter.create<AllocOp>(value.getLoc(), pointerType.getElementType(), 1, llvm::None, false);
+					mlir::Value zeroValue = rewriter.create<ConstantOp>(value.getLoc(), rewriter.getIndexAttr(0));
+					mlir::Value subscription = rewriter.create<SubscriptionOp>(value.getLoc(), newVar, zeroValue);
+
+					value.replaceAllUsesWith(subscription);
+					rewriter.eraseOp(value.getDefiningOp());
+					value = newVar;
+				}
+
+				{
+					// Fix body argument
+					mlir::OpBuilder::InsertionGuard guard(rewriter);
+
+					auto originalArgument = op.body().getArgument(index);
+					auto newArgument = op.body().insertArgument(index + 1, value.getType().cast<PointerType>().toUnknownAllocationScope());
+
+					for (auto useIt = originalArgument.use_begin(); useIt != originalArgument.use_end();)
+					{
+						auto& use = *useIt;
+						++useIt;
+						rewriter.setInsertionPoint(use.getOwner());
+
+						auto* parentEquation = use.getOwner()->getParentWithTrait<EquationInterface::Trait>();
+
+						if (auto equationOp = mlir::dyn_cast<EquationOp>(parentEquation))
+						{
+							auto forEquationOp = convertToForEquation(equationOp, rewriter, equationOp.getLoc());
+							inductions[forEquationOp] = forEquationOp.body()->getArgument(0);
+							parentEquation = forEquationOp;
+						}
+
+						auto forEquation = mlir::cast<ForEquationOp>(parentEquation);
+
+						if (inductions.find(forEquation) == inductions.end())
+						{
+							mlir::Value i = rewriter.create<ConstantOp>(use.get().getLoc(), rewriter.getIndexAttr(0));
+							mlir::Value subscription = rewriter.create<SubscriptionOp>(use.get().getLoc(), newArgument, i);
+							use.set(subscription);
+						}
+						else
+						{
+							mlir::Value i = inductions[forEquation];
+							i = rewriter.create<SubOp>(i.getLoc(), i.getType(), i, rewriter.create<ConstantOp>(i.getLoc(), rewriter.getIndexAttr(1)));
+							mlir::Value subscription = rewriter.create<SubscriptionOp>(use.get().getLoc(), newArgument, i);
+							use.set(subscription);
+						}
+					}
+
+					op.body().eraseArgument(index);
+				}
+
+				{
+					// Fix print argument
+					auto originalArgument = op.print().getArgument(index);
+					auto newArgument = op.print().insertArgument(index + 1, value.getType().cast<PointerType>().toUnknownAllocationScope());
+					originalArgument.replaceAllUsesWith(newArgument);
+					op.print().eraseArgument(index);
+				}
+			}
+
+			newVars.push_back(value);
+			++index;
+		}
+
+		{
+			mlir::OpBuilder::InsertionGuard guard(rewriter);
+			rewriter.setInsertionPointToEnd(&op.init().back());
+			rewriter.create<YieldOp>(terminator.getLoc(), newVars);
+		}
+
+		// Replace operation with a new one
+		auto result = rewriter.replaceOpWithNewOp<SimulationOp>(op, op.startTime(), op.endTime(), op.timeStep(), op.body().getArgumentTypes());
+		rewriter.mergeBlocks(&op.init().front(), &result.init().front(), result.init().getArguments());
+		rewriter.mergeBlocks(&op.body().front(), &result.body().front(), result.body().getArguments());
+		rewriter.mergeBlocks(&op.print().front(), &result.print().front(), result.print().getArguments());
+
+		return mlir::success();
+	}
+
+	private:
+	ForEquationOp convertToForEquation(EquationOp equation, mlir::PatternRewriter& rewriter, mlir::Location loc) const
+	{
+		mlir::OpBuilder::InsertionGuard guard(rewriter);
+		rewriter.setInsertionPoint(equation);
+
+		auto forEquation = rewriter.create<ForEquationOp>(loc, 1);
+
+		// Inductions
+		rewriter.setInsertionPointToStart(forEquation.inductionsBlock());
+		mlir::Value induction = rewriter.create<InductionOp>(loc, 1, 1);
+		rewriter.create<YieldOp>(loc, induction);
+
+		// Body
+		rewriter.mergeBlocks(equation.body(), forEquation.body());
+
+		rewriter.eraseOp(equation);
+		return forEquation;
+	}
+};
+
 struct EquationOpScalarizePattern : public mlir::OpRewritePattern<EquationOp>
 {
 	using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
@@ -511,13 +636,16 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 	void runOnOperation() override
 	{
-		auto module = getOperation();
+		// Convert the scalar values into arrays of one element
+		if (failed(loopify()))
+			return signalPassFailure();
 
-		// Scalarize the equations consisting in array assignments
+		// Scalarize the equations consisting in array assignments, by adding
+		// the required inductions.
 		if (failed(scalarizeArrayEquations()))
 			return signalPassFailure();
 
-		module->walk([&](SimulationOp simulation) {
+		getOperation()->walk([&](SimulationOp simulation) {
 			mlir::OpBuilder builder(simulation);
 
 			// Create the model
@@ -554,16 +682,48 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		// equations body and create the main simulation loop.
 
 		mlir::ConversionTarget target(getContext());
-		target.addLegalDialect<mlir::BuiltinDialect, mlir::StandardOpsDialect>();
-		target.addLegalDialect<ModelicaDialect>();
+		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 		target.addIllegalOp<SimulationOp, EquationOp, ForEquationOp>();
 
 		mlir::OwningRewritePatternList patterns;
 		patterns.insert<SimulationOpPattern>(&getContext(), options);
 		patterns.insert<EquationOpPattern, ForEquationOpPattern>(&getContext());
 
-		if (failed(applyPartialConversion(module, target, std::move(patterns))))
+		if (failed(applyPartialConversion(getOperation(), target, std::move(patterns))))
 			return signalPassFailure();
+	}
+
+	/**
+	 * Convert the scalar variables to arrays with just one element and the
+	 * scalar equations to for equations with a one-sized induction. This
+	 * allows the subsequent transformation to ignore whether it was a scalar
+	 * or a loop equation, and a later optimization pass can easily remove
+	 * the new useless induction.
+	 */
+	mlir::LogicalResult loopify()
+	{
+		mlir::ConversionTarget target(getContext());
+		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
+
+		target.addDynamicallyLegalOp<SimulationOp>([](SimulationOp op) {
+			auto terminator = mlir::cast<YieldOp>(op.init().back().getTerminator());
+			mlir::ValueRange args = terminator.args();
+
+			for (auto it = std::next(args.begin()), end = args.end(); it != end; ++it)
+				if (auto pointerType = (*it).getType().dyn_cast<PointerType>())
+					if (pointerType.getRank() == 0)
+						return false;
+
+			return true;
+		});
+
+		mlir::OwningRewritePatternList patterns;
+		patterns.insert<LoopifyPattern>(&getContext());
+
+		if (auto res = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(res))
+			return res;
+
+		return mlir::success();
 	}
 
 	/**
@@ -573,7 +733,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	mlir::LogicalResult scalarizeArrayEquations()
 	{
 		mlir::ConversionTarget target(getContext());
-		target.addLegalDialect<ModelicaDialect>();
+		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 
 		target.addDynamicallyLegalOp<EquationOp>([](EquationOp op) {
 			auto sides = mlir::cast<EquationSidesOp>(op.body()->getTerminator());
