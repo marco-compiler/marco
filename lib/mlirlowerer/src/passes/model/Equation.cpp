@@ -12,27 +12,38 @@
 using namespace modelica::codegen;
 using namespace modelica::codegen::model;
 
-Equation::Impl::Impl(mlir::Operation* op,
-										 Expression left,
-										 Expression right,
-										 MultiDimInterval inductions,
-										 bool isForward,
-										 std::optional<EquationPath> path)
-		: op(op),
-			left(std::move(left)),
-			right(std::move(right)),
-			isForwardDirection(isForward),
-			matchedExpPath(std::move(path))
+class Equation::Impl
 {
-}
+	public:
+	Impl(mlir::Operation* op,
+			 Expression left,
+			 Expression right,
+			 bool isForward = true,
+			 std::optional<EquationPath> path = std::nullopt)
+			: op(op),
+				left(std::move(left)),
+				right(std::move(right)),
+				isForwardDirection(isForward),
+				matchedExpPath(std::move(path))
+	{
+	}
+
+	friend class Equation;
+
+	private:
+	EquationInterface op;
+	Expression left;
+	Expression right;
+	bool isForwardDirection;
+	std::optional<EquationPath> matchedExpPath;
+};
 
 Equation::Equation(mlir::Operation* op,
 									 Expression left,
 									 Expression right,
-									 MultiDimInterval inds,
 									 bool isForward,
 									 std::optional<EquationPath> path)
-		: impl(std::make_shared<Impl>(op, left, right, inds, isForward, path))
+		: impl(std::make_shared<Impl>(op, left, right, isForward, path))
 {
 }
 
@@ -130,15 +141,7 @@ Equation Equation::build(ForEquationOp op)
 	// Number of values of left-hand side and right-hand side must match
 	assert(lhsExpr.size() == rhsExpr.size());
 
-	llvm::SmallVector<Interval> intervals;
-
-	for (auto induction : op.inductionsDefinitions())
-	{
-		auto inductionOp = induction.getDefiningOp<InductionOp>();
-		intervals.emplace_back(inductionOp.start(), inductionOp.end() + 1);
-	}
-
-	return Equation(op, lhsExpr[0], rhsExpr[0], MultiDimInterval(intervals));
+	return Equation(op, lhsExpr[0], rhsExpr[0]);
 }
 
 EquationInterface Equation::getOp() const
@@ -602,8 +605,8 @@ mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
 
 	for (auto index : path)
 	{
-		if (auto res = explicitate(builder, index, path.isOnEquationLeftHand()); failed(res))
-			return res;
+		if (auto status = explicitate(builder, index, path.isOnEquationLeftHand()); failed(status))
+			return status;
 	}
 
 	impl->left = Expression::build(terminator.lhs()[0]);
@@ -624,8 +627,8 @@ mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
 
 mlir::LogicalResult Equation::explicitate()
 {
-	if (auto res = explicitate(getMatchedExpressionPath()); failed(res))
-		return res;
+	if (auto status = explicitate(getMatchedExpressionPath()); failed(status))
+		return status;
 
 	impl->matchedExpPath = EquationPath({}, true);
 	return mlir::success();

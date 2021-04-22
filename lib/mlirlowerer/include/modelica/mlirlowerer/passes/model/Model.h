@@ -38,8 +38,7 @@ namespace modelica::codegen::model
 		[[nodiscard]] SimulationOp getOp() const;
 
 		[[nodiscard]] bool hasVariable(mlir::Value var) const;
-		Variable& getVariable(mlir::Value var);
-		const Variable& getVariable(mlir::Value var) const;
+		[[nodiscard]] Variable getVariable(mlir::Value var) const;
 		Container<std::shared_ptr<Variable>>& getVariables();
 		const Container<std::shared_ptr<Variable>>& getVariables() const;
 		void addVariable(mlir::Value var);

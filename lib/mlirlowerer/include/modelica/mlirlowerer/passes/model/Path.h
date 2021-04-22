@@ -13,10 +13,9 @@ namespace modelica::codegen::model
 		template<typename T> using Container = llvm::SmallVector<T>;
 
 		public:
-		using iterator = Container<size_t>::iterator;
 		using const_iterator = Container<size_t>::const_iterator;
 
-		EquationPath(llvm::SmallVector<size_t, 3> path, bool left);
+		EquationPath(llvm::ArrayRef<size_t> path, bool left);
 
 		[[nodiscard]] const_iterator begin() const;
 		[[nodiscard]] const_iterator end() const;

@@ -1,3 +1,4 @@
+#include <llvm/ADT/STLExtras.h>
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -284,20 +285,18 @@ struct ExplicitCastInsertionTarget : public mlir::ConversionTarget
 					assert(op.args().size() == callee.getArgumentTypes().size());
 					auto pairs = llvm::zip(op.args(), callee.getArgumentTypes());
 
-					return std::all_of(pairs.begin(), pairs.end(),
-														 [&](const auto& pair)
-														 {
-															 return std::get<0>(pair).getType() == std::get<1>(pair);
-														 });
+					return llvm::all_of(pairs, [&](const auto& pair) {
+						return std::get<0>(pair).getType() == std::get<1>(pair);
+					});
 				});
 
 		addDynamicallyLegalOp<SubscriptionOp>(
 				[](SubscriptionOp op)
 				{
 					auto indexes = op.indexes();
-					return std::all_of(indexes.begin(), indexes.end(),
-														 [](mlir::Value index)
-														 { return index.getType().isa<mlir::IndexType>(); });
+					return llvm::all_of(indexes, [](mlir::Value index) {
+						return index.getType().isa<mlir::IndexType>();
+					});
 				});
 
 		addDynamicallyLegalOp<StoreOp>(

@@ -117,6 +117,6 @@ namespace modelica::codegen::model
 
 		private:
 		VectorAccess access;
-		const mlir::Value var;
+		mlir::Value var;
 	};
 }	 // namespace modelica

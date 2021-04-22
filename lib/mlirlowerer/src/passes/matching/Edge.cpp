@@ -3,18 +3,18 @@
 
 using namespace modelica::codegen::model;
 
-Edge::Edge(Equation eq,
-					 const Variable& var,
-					 VectorAccess vAccess,
+Edge::Edge(Equation equation,
+					 Variable variable,
+					 VectorAccess vectorAccess,
 					 ExpressionPath access,
 					 size_t index)
-		: vectorAccess(std::move(vAccess)),
-			equation(eq),
-			variable(&var),
-			pathToExp(std::move(access)),
-			index(index)
+		: equation(std::move(equation)),
+			variable(std::move(variable)),
+			vectorAccess(vectorAccess),
+			invertedAccess(vectorAccess.invert()),
+			index(index),
+			pathToExp(std::move(access))
 {
-	invertedAccess = vectorAccess.invert();
 }
 
 Equation Edge::getEquation() const
@@ -22,9 +22,9 @@ Equation Edge::getEquation() const
 	return equation;
 }
 
-const Variable& Edge::getVariable() const
+Variable Edge::getVariable() const
 {
-	return *variable;
+	return variable;
 }
 
 const VectorAccess& Edge::getVectorAccess() const

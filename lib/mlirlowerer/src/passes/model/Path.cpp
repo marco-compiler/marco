@@ -2,10 +2,11 @@
 #include <modelica/mlirlowerer/passes/model/Path.h>
 
 using namespace modelica::codegen;
-using namespace model;
+using namespace modelica::codegen::model;
 
-EquationPath::EquationPath(llvm::SmallVector<size_t, 3> path, bool left)
-		: path(std::move(path)), left(left)
+EquationPath::EquationPath(llvm::ArrayRef<size_t> path, bool left)
+		: path(path.begin(), path.end()),
+			left(left)
 {
 }
 

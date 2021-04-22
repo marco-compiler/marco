@@ -19,25 +19,7 @@ namespace modelica::codegen::model
 	class Equation
 	{
 		private:
-		class Impl
-		{
-			public:
-			Impl(mlir::Operation* op,
-					 Expression left,
-					 Expression right,
-					 MultiDimInterval inductions = {},
-					 bool isForward = true,
-					 std::optional<EquationPath> path = std::nullopt);
-
-			friend class Equation;
-
-			private:
-			EquationInterface op;
-			Expression left;
-			Expression right;
-			bool isForwardDirection;
-			std::optional<EquationPath> matchedExpPath;
-		};
+		class Impl;
 
 		std::shared_ptr<Impl> impl;
 
@@ -45,7 +27,6 @@ namespace modelica::codegen::model
 		Equation(mlir::Operation* op,
 						 Expression left,
 						 Expression right,
-						 MultiDimInterval inductions = {},
 						 bool isForward = true,
 						 std::optional<EquationPath> path = std::nullopt);
 

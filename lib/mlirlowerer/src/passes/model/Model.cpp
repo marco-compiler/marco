@@ -106,16 +106,7 @@ bool Model::hasVariable(mlir::Value var) const
 										 [&](const auto& v) { return var == v->getReference(); });
 }
 
-Variable& Model::getVariable(mlir::Value var)
-{
-	for (const auto& v : variables)
-		if (var == (*v).getReference())
-			return *v;
-
-	assert(false && "Not found");
-}
-
-const Variable& Model::getVariable(mlir::Value var) const
+Variable Model::getVariable(mlir::Value var) const
 {
 	for (const auto& v : variables)
 		if (var == (*v).getReference())

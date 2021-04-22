@@ -77,7 +77,7 @@ void DerSolver::solve<Operation>(mlir::OpBuilder& builder, Expression expression
 
 		auto simulation = op->getParentOfType<SimulationOp>();
 		mlir::Value var = simulation.getVariableAllocation(operand);
-		auto& variable = model->getVariable(var);
+		auto variable = model->getVariable(var);
 		mlir::Value derVar;
 
 		if (!variable.isState())

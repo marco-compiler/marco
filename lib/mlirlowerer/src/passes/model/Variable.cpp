@@ -3,47 +3,93 @@
 #include <modelica/mlirlowerer/passes/model/VectorAccess.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 
+using namespace modelica::codegen;
 using namespace modelica::codegen::model;
 
-Variable::Variable(mlir::Value memory)
-		: reference(memory), state(false)
+class Variable::Impl
 {
-	mlir::Operation* op = memory.getDefiningOp();
-	assert(mlir::isa<AllocaOp>(op) || mlir::isa<AllocOp>(op));
+	public:
+	Impl(mlir::Value memory) : reference(memory), state(false)
+	{
+		mlir::Operation* op = memory.getDefiningOp();
+		assert(mlir::isa<AllocaOp>(op) || mlir::isa<AllocOp>(op));
 
-	if (auto allocaOp = mlir::dyn_cast<AllocaOp>(op))
-		constant = allocaOp.isConstant();
+		if (auto allocaOp = mlir::dyn_cast<AllocaOp>(op))
+			constant = allocaOp.isConstant();
+		else if (auto allocOp = mlir::dyn_cast<AllocOp>(op))
+			constant = allocOp.isConstant();
+		else
+			constant = false;
+	}
 
-	if (auto allocOp = mlir::dyn_cast<AllocOp>(op))
-		constant = allocOp.isConstant();
+	friend class Variable;
 
-	constant = false;
+	private:
+	mlir::Value reference;
+	bool state;
+	bool constant;
+	mlir::Value der;
+};
+
+Variable::Variable(mlir::Value memory)
+		: impl(std::make_shared<Impl>(memory))
+{
+}
+
+bool Variable::operator==(const Variable& rhs) const
+{
+	return impl == rhs.impl;
+}
+
+bool Variable::operator!=(const Variable& rhs) const
+{
+	return !(rhs == *this);
+}
+
+bool Variable::operator<(const Variable& rhs) const
+{
+	return impl < rhs.impl;
+}
+
+bool Variable::operator>(const Variable& rhs) const
+{
+	return rhs < *this;
+}
+
+bool Variable::operator<=(const Variable& rhs) const
+{
+	return !(rhs < *this);
+}
+
+bool Variable::operator>=(const Variable& rhs) const
+{
+	return !(*this < rhs);
 }
 
 mlir::Value Variable::getReference()
 {
-	return reference;
+	return impl->reference;
 }
 
 bool Variable::isState() const
 {
-	return state;
+	return impl->state;
 }
 
 bool Variable::isConstant() const
 {
-	return constant;
+	return impl->constant;
 }
 
 mlir::Value Variable::getDer()
 {
-	return der;
+	return impl->der;
 }
 
 void Variable::setDer(mlir::Value value)
 {
-	state = true;
-	der = value;
+	impl->state = true;
+	impl->der = value;
 }
 
 modelica::IndexSet Variable::toIndexSet() const
@@ -54,8 +100,8 @@ modelica::IndexSet Variable::toIndexSet() const
 modelica::MultiDimInterval Variable::toMultiDimInterval() const
 {
 	llvm::SmallVector<Interval, 2> intervals;
-	assert(reference.getType().isa<PointerType>());
-	auto pointerType = reference.getType().cast<PointerType>();
+	assert(impl->reference.getType().isa<PointerType>());
+	auto pointerType = impl->reference.getType().cast<PointerType>();
 
 	if (pointerType.getRank() == 0)
 		intervals.emplace_back(0, 1);
@@ -73,8 +119,8 @@ modelica::MultiDimInterval Variable::toMultiDimInterval() const
 
 size_t Variable::indexOfElement(llvm::ArrayRef<size_t> access) const
 {
-	assert(reference.getType().isa<PointerType>());
-	auto pointerType = reference.getType().cast<PointerType>();
+	assert(impl->reference.getType().isa<PointerType>());
+	auto pointerType = impl->reference.getType().cast<PointerType>();
 	assert(access.size() == pointerType.getRank());
 
 	auto shape = pointerType.getShape();

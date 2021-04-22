@@ -1,3 +1,4 @@
+#include <llvm/ADT/STLExtras.h>
 #include <mlir/IR/DialectImplementation.h>
 #include <modelica/mlirlowerer/Type.h>
 
@@ -297,9 +298,9 @@ long PointerType::rawSize() const
 
 bool PointerType::hasConstantShape() const
 {
-	auto shape = getShape();
-	return std::all_of(shape.begin(), shape.end(),
-										 [](long size) { return size != -1; });
+	return llvm::all_of(getShape(), [](long size) {
+		return size != -1;
+	});
 }
 
 PointerType PointerType::slice(unsigned int subscriptsAmount)

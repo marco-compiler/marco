@@ -122,7 +122,7 @@ llvm::iterator_range<MatchingGraph::const_out_iterator> MatchingGraph::arcsOf(co
 
 llvm::iterator_range<MatchingGraph::out_iterator> MatchingGraph::arcsOf(const Variable& var)
 {
-	const auto iter = variableLookUp.find(&var);
+	const auto iter = variableLookUp.find(var);
 	assert(variableLookUp.end() != iter);
 	auto [begin, end] = boost::out_edges(iter->second, graph);
 	return llvm::make_range(out_iterator(*this, begin), out_iterator(*this, end));
@@ -130,7 +130,7 @@ llvm::iterator_range<MatchingGraph::out_iterator> MatchingGraph::arcsOf(const Va
 
 llvm::iterator_range<MatchingGraph::const_out_iterator> MatchingGraph::arcsOf(const Variable& var) const
 {
-	const auto iter = variableLookUp.find(&var);
+	const auto iter = variableLookUp.find(var);
 	assert(variableLookUp.end() != iter);
 	auto [begin, end] = boost::out_edges(iter->second, graph);
 	return llvm::make_range(const_out_iterator(*this, begin), const_out_iterator(*this, end));
@@ -181,11 +181,11 @@ MatchingGraph::VertexDesc MatchingGraph::getDesc(const Equation& eq)
 
 MatchingGraph::VertexDesc MatchingGraph::getDesc(const Variable& var)
 {
-	if (variableLookUp.find(&var) != variableLookUp.end())
-		return variableLookUp[&var];
+	if (variableLookUp.find(var) != variableLookUp.end())
+		return variableLookUp[var];
 
 	auto dec = boost::add_vertex(graph);
-	variableLookUp[&var] = dec;
+	variableLookUp[var] = dec;
 	return dec;
 }
 

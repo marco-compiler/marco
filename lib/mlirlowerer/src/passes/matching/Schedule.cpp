@@ -28,7 +28,7 @@ static llvm::SmallVector<Equation, 3> collapseEquations(
 		currentSet.insert(currentNode.getIndexes());
 	};
 
-	const auto onGrupEnd = [&](size_t node,
+	const auto onGroupEnd = [&](size_t node,
 														 khanNextPreferred schedulingDirection) {
 		assert(schedulingDirection != khanNextPreferred::cannotBeOptimized);
 
@@ -37,32 +37,34 @@ static llvm::SmallVector<Equation, 3> collapseEquations(
 		const auto& eq = currentNode.getCollapsedVertex();
 
 		for (const auto& set : currentSet)
-			out.emplace_back(eq.getOp(), eq.lhs(), eq.rhs(), set, !backward);
+		{
+			Equation clone = eq.clone();
+			clone.setForward(!backward);
+			clone.setInductions(set);
+			out.emplace_back(clone);
+		}
 
+		eq.getOp()->erase();
 		currentSet = modelica::IndexSet();
 	};
 
-	originalGraph.topoOrder(onSched, onGrupEnd);
+	originalGraph.topoOrder(onSched, onGroupEnd);
 
 	return out;
 }
 
 static bool isForward(const VectorAccess* access)
 {
-	for (const auto& varAcc : *access)
-		if (varAcc.isOffset() && varAcc.getOffset() >= 0)
-			return false;
-
-	return true;
+	return llvm::none_of(*access, [](const SingleDimensionAccess& varAccess) {
+		return varAccess.isOffset() && varAccess.getOffset() >= 0;
+	});
 }
 
-static bool isBacward(const VectorAccess* access)
+static bool isBackward(const VectorAccess* access)
 {
-	for (const auto& varAcc : *access)
-		if (varAcc.isOffset() && varAcc.getOffset() <= 0)
-			return false;
-
-	return true;
+	return llvm::none_of(*access, [](const SingleDimensionAccess& varAccess) {
+		return varAccess.isOffset() && varAccess.getOffset() <= 0;
+	});
 }
 
 static llvm::SmallVector<Equation, 3> trivialScheduling(
@@ -78,18 +80,18 @@ static llvm::SmallVector<Equation, 3> trivialScheduling(
 		if (originalGraph.target(edge) == scc[0])
 			internalEdges.push_back(&originalGraph[edge]);
 
-	if (all_of(internalEdges, isForward))
+	if (llvm::all_of(internalEdges, isForward))
 	{
-		auto eq = originalGraph[scc[0]].getEquation();
-		eq.setForward(true);
-		return { eq };
+		Equation equation = originalGraph[scc[0]].getEquation();
+		equation.setForward(true);
+		return { equation };
 	}
 
-	if (all_of(internalEdges, isBacward))
+	if (llvm::all_of(internalEdges, isBackward))
 	{
-		auto eq = originalGraph[scc[0]].getEquation();
-		eq.setForward(false);
-		return { eq };
+		Equation equation = originalGraph[scc[0]].getEquation();
+		equation.setForward(false);
+		return { equation };
 	}
 
 	return {};

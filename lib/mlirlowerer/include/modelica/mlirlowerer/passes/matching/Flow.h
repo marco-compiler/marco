@@ -24,7 +24,7 @@ namespace modelica::codegen::model
 		[[nodiscard]] Edge& getEdge();
 		[[nodiscard]] const Edge& getEdge() const;
 
-		[[nodiscard]] const Variable& getVariable() const;
+		[[nodiscard]] Variable getVariable() const;
 		[[nodiscard]] Equation getEquation() const;
 
 		[[nodiscard]] const IndexSet& getSet() const;
@@ -75,7 +75,7 @@ namespace modelica::codegen::model
 		[[nodiscard]] Flow& getCurrent();
 		[[nodiscard]] const Flow& getCurrent() const;
 
-		[[nodiscard]] const Variable& getCurrentVariable() const;
+		[[nodiscard]] Variable getCurrentVariable() const;
 
 		void pop();
 

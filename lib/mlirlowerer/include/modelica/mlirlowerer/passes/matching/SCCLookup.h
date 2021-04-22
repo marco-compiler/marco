@@ -62,9 +62,9 @@ namespace modelica::codegen::model
 
 		[[nodiscard]] auto range(Graph& toIterateOver)
 		{
-			using VertexDesc =
+			using VertexDescriptor =
 					typename std::remove_reference<decltype(toIterateOver[0])>::type;
-			using Iterator = GraphIterator<Graph, Iter, VertexDesc>;
+			using Iterator = GraphIterator<Graph, Iter, VertexDescriptor>;
 
 			auto begin = Iterator(toIterateOver, indexes.begin());
 			auto end = Iterator(toIterateOver, indexes.end());
@@ -105,7 +105,7 @@ namespace modelica::codegen::model
 		public:
 		using VertDesc = typename Graph::VertexDesc;
 		using scc = SCC<Graph>;
-		using SccVector = llvm::SmallVector<SCC<Graph>, 3>;
+		using SCCVector = llvm::SmallVector<SCC<Graph>, 3>;
 		using VertToSCC = llvm::SmallVector<size_t, 3>;
 
 		SCCLookup(const Graph& graph): allScc(0), vertToScc(graph.count())
@@ -116,7 +116,7 @@ namespace modelica::codegen::model
 							vertToScc.begin(),
 							boost::get(boost::vertex_index, graph.getImpl())));
 
-			allScc = SccVector(componentsCount);
+			allScc = SCCVector(componentsCount);
 			for (auto i : irange(vertToScc.size()))
 			{
 				const auto scc = vertToScc[i];
@@ -160,7 +160,7 @@ namespace modelica::codegen::model
 		}
 
 		private:
-		SccVector allScc;
+		SCCVector allScc;
 		VertToSCC vertToScc;
 	};
 }

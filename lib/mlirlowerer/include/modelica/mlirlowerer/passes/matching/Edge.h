@@ -3,6 +3,7 @@
 #include <modelica/mlirlowerer/passes/model/Equation.h>
 #include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Path.h>
+#include <modelica/mlirlowerer/passes/model/Variable.h>
 #include <modelica/mlirlowerer/passes/model/VectorAccess.h>
 #include <modelica/utils/IndexSet.hpp>
 
@@ -13,10 +14,10 @@ namespace modelica::codegen::model
 	class Edge
 	{
 		public:
-		Edge(Equation eq, const Variable& var, VectorAccess vAccess, ExpressionPath access, size_t index);
+		Edge(Equation equation, Variable variable, VectorAccess vectorAccess, ExpressionPath access, size_t index);
 
 		[[nodiscard]] Equation getEquation() const;
-		[[nodiscard]] const Variable& getVariable() const;
+		[[nodiscard]] Variable getVariable() const;
 
 		[[nodiscard]] const VectorAccess& getVectorAccess() const;
 		[[nodiscard]] const VectorAccess& getInvertedAccess() const;
@@ -34,7 +35,7 @@ namespace modelica::codegen::model
 
 		private:
 		Equation equation;
-		const Variable* variable;
+		Variable variable;
 		VectorAccess vectorAccess;
 		VectorAccess invertedAccess;
 		IndexSet set;

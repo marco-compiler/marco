@@ -3,6 +3,7 @@ modelicaAddLibrary(
         src/passes/matching/Edge.cpp
         src/passes/matching/Flow.cpp
         src/passes/matching/LinSolver.cpp
+        src/passes/matching/MatchedEquationLookup.cpp
         src/passes/matching/Matching.cpp
         src/passes/matching/SCCCollapsing.cpp
         src/passes/matching/SCCDependencyGraph.cpp

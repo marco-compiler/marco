@@ -99,7 +99,7 @@ namespace modelica::codegen::model
 		using ConstOutEdgeIter = boost::graph_traits<const GraphImp>::out_edge_iterator;
 
 		using EquationLookup = std::map<const Equation, VertexDesc>;
-		using VariableLookup = std::map<const Variable*, VertexDesc>;
+		using VariableLookup = std::map<const Variable, VertexDesc>;
 
 		using out_iterator = class MatchingGraphIterator<MatchingGraph, OutEdgeIter, Edge>;
 

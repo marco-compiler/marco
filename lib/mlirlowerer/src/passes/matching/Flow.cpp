@@ -23,7 +23,7 @@ const Edge& Flow::getEdge() const
 	return *edge;
 }
 
-const Variable& Flow::getVariable() const
+Variable Flow::getVariable() const
 {
 	return getEdge().getVariable();
 }
@@ -158,7 +158,7 @@ const Flow& FlowCandidates::getCurrent() const
 	return choices.back();
 }
 
-const Variable& FlowCandidates::getCurrentVariable() const
+Variable FlowCandidates::getCurrentVariable() const
 {
 	return getCurrent().getEdge().getVariable();
 }

@@ -1,3 +1,4 @@
+#include <llvm/ADT/STLExtras.h>
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
@@ -18,7 +19,6 @@
 #include <modelica/mlirlowerer/passes/model/SolveDer.h>
 #include <modelica/mlirlowerer/passes/model/Variable.h>
 #include <modelica/utils/Interval.hpp>
-#include <variant>
 
 using namespace modelica;
 using namespace codegen;
@@ -739,7 +739,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			auto sides = mlir::cast<EquationSidesOp>(op.body()->getTerminator());
 			auto pairs = llvm::zip(sides.lhs(), sides.rhs());
 
-			return std::all_of(pairs.begin(), pairs.end(), [](const auto& pair) {
+			return llvm::all_of(pairs, [](const auto& pair) {
 				mlir::Type lhs = std::get<0>(pair).getType();
 				mlir::Type rhs = std::get<1>(pair).getType();
 
@@ -751,7 +751,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			auto sides = mlir::cast<EquationSidesOp>(op.body()->getTerminator());
 			auto pairs = llvm::zip(sides.lhs(), sides.rhs());
 
-			return std::all_of(pairs.begin(), pairs.end(), [](const auto& pair) {
+			return llvm::all_of(pairs, [](const auto& pair) {
 				mlir::Type lhs = std::get<0>(pair).getType();
 				mlir::Type rhs = std::get<1>(pair).getType();
 
