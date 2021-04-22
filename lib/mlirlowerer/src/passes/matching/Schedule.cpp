@@ -11,7 +11,6 @@
 #include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
 #include <modelica/utils/IndexSet.hpp>
-#include <modelica/utils/ThreadPool.hpp>
 
 using namespace modelica::codegen::model;
 
@@ -28,8 +27,7 @@ static llvm::SmallVector<Equation, 3> collapseEquations(
 		currentSet.insert(currentNode.getIndexes());
 	};
 
-	const auto onGroupEnd = [&](size_t node,
-														 khanNextPreferred schedulingDirection) {
+	const auto onGroupEnd = [&](size_t node, khanNextPreferred schedulingDirection) {
 		assert(schedulingDirection != khanNextPreferred::cannotBeOptimized);
 
 		const bool backward = schedulingDirection == khanNextPreferred::backwardPreferred;
@@ -97,7 +95,7 @@ static llvm::SmallVector<Equation, 3> trivialScheduling(
 	return {};
 }
 
-static llvm::SmallVector<Equation, 3> sched(
+static llvm::SmallVector<Equation, 3> schedule(
 		const SCC<VVarDependencyGraph>& scc,
 		const VVarDependencyGraph& originalGraph)
 {
@@ -105,35 +103,23 @@ static llvm::SmallVector<Equation, 3> sched(
 		return sched;
 
 	SVarDepencyGraph scalarGraph(originalGraph, scc);
-
 	return collapseEquations(scalarGraph);
 }
 
-using ResultVector = llvm::SmallVector<llvm::SmallVector<Equation, 3>, 0>;
-using SortedScc = llvm::SmallVector<const SCC<VVarDependencyGraph>*, 0>;
-
-static ResultVector parallelMap(
-		const VVarDependencyGraph& vectorGraph, const SortedScc& sortedScc)
-{
-	ResultVector results(sortedScc.size(), {});
-	modelica::ThreadPool pool;
-
-	for (size_t i : modelica::irange(sortedScc.size()))
-		//pool.addTask([i, &sortedScc, &vectorGraph, &results]() {
-			results[i] = sched(*sortedScc[i], vectorGraph);
-		//});
-
-	return results;
-}
+using ResultVector = llvm::SmallVector<llvm::SmallVector<Equation, 3>, 3>;
+using SortedSCC = llvm::SmallVector<const SCC<VVarDependencyGraph>*, 3>;
 
 mlir::LogicalResult modelica::codegen::model::schedule(Model& model)
 {
 	VVarDependencyGraph vectorGraph(model);
 	SCCDependencyGraph sccDependency(vectorGraph);
 
-	SortedScc sortedScc = sccDependency.topologicalSort();
+	SortedSCC sortedSCC = sccDependency.topologicalSort();
+	ResultVector results(sortedSCC.size(), {});
 
-	auto results = parallelMap(vectorGraph, sortedScc);
+	for (size_t i = 0, e = sortedSCC.size(); i < e; ++i)
+		results[i] = ::schedule(*sortedSCC[i], vectorGraph);
+
 	llvm::SmallVector<Equation, 3> equations;
 
 	assert(model.getOp().body().getBlocks().size() == 1);

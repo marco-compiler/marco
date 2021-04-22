@@ -199,10 +199,10 @@ void MatchingGraph::addEquation(Equation eq)
 
 void MatchingGraph::emplaceEdge(Equation eq, ExpressionPath path, size_t useIndex)
 {
-	if (!VectorAccess::isCanonical(path.getExp()))
+	if (!VectorAccess::isCanonical(path.getExpression()))
 		return;
 
-	auto access = AccessToVar::fromExp(path.getExp());
+	auto access = AccessToVar::fromExp(path.getExpression());
 	const auto& var = model.getVariable(access.getVar());
 
 	if (var.isState() || var.isConstant())
@@ -248,7 +248,7 @@ mlir::LogicalResult modelica::codegen::model::match(Model& model, size_t maxIter
 			auto equation = edge.getEquation();
 
 			equation.setInductions(inductionVars);
-			equation.setMatchedExp(edge.getPath().getEqPath());
+			equation.setMatchedExp(edge.getPath().getEquationPath());
 			equations.push_back(equation);
 		}
 	}

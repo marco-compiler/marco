@@ -41,9 +41,9 @@ namespace modelica::codegen::model
 
 		[[nodiscard]] size_t depth() const;
 
-		[[nodiscard]] Expression getExp() const;
+		[[nodiscard]] Expression getExpression() const;
 
-		[[nodiscard]] const EquationPath& getEqPath() const;
+		[[nodiscard]] const EquationPath& getEquationPath() const;
 
 		[[nodiscard]] bool isOnEquationLeftHand() const;
 

@@ -34,7 +34,7 @@ static void replaceUses(mlir::OpBuilder& builder, const Equation& source, Equati
 
 	for (auto& access : matcher)
 	{
-		auto pathToVar = AccessToVar::fromExp(access.getExp());
+		auto pathToVar = AccessToVar::fromExp(access.getExpression());
 
 		if (pathToVar.getVar() != var.getVar())
 			continue;

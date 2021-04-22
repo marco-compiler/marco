@@ -58,7 +58,7 @@ bool Flow::isForwardEdge() const
 	return isForward;
 }
 
-void Flow::addFLowAtEnd(IndexSet& set)
+void Flow::addFlowAtEnd(IndexSet& set)
 {
 	if (isForwardEdge())
 		edge->getSet().unite(set);
@@ -79,20 +79,20 @@ modelica::IndexSet Flow::applyAndInvert(IndexSet set)
 	if (isForwardEdge())
 		set = inverseMap(set);
 
-	addFLowAtEnd(set);
+	addFlowAtEnd(set);
 
 	if (!isForwardEdge())
 		set = inverseMap(set);
 	return set;
 }
 
-Flow Flow::forwardedge(Edge& edge, IndexSet set)
+Flow Flow::forwardEdge(Edge& edge, IndexSet set)
 {
 	IndexSet mapped = edge.map(set);
 	return Flow(std::move(set), std::move(mapped), edge, true);
 }
 
-Flow Flow::backedge(Edge& edge, IndexSet set)
+Flow Flow::backEdge(Edge& edge, IndexSet set)
 {
 	IndexSet mapped = edge.invertMap(set);
 	return Flow(std::move(mapped), std::move(set), edge, false);
@@ -242,7 +242,7 @@ FlowCandidates AugmentingPath::selectStartingEdge() const
 			continue;
 
 		for (Edge& e : graph.arcsOf(eq))
-			possibleStarts.emplace_back(Flow::forwardedge(e, eqUnmatched));
+			possibleStarts.emplace_back(Flow::forwardEdge(e, eqUnmatched));
 	}
 
 	return FlowCandidates(possibleStarts, graph);
@@ -323,7 +323,7 @@ FlowCandidates AugmentingPath::getBackwardMatchable() const
 			continue;
 		auto backFlow = possibleBackwardFlow(edge);
 		if (!backFlow.empty())
-			undoingMatch.emplace_back(Flow::backedge(edge, std::move(backFlow)));
+			undoingMatch.emplace_back(Flow::backEdge(edge, std::move(backFlow)));
 	}
 
 	return FlowCandidates(undoingMatch, graph);
@@ -341,7 +341,8 @@ FlowCandidates AugmentingPath::getForwardMatchable() const
 			continue;
 		auto possibleFlow = possibleForwardFlow(getCurrentFlow(), edge, graph);
 		if (!possibleFlow.empty())
-			directMatch.emplace_back(Flow::forwardedge(edge, std::move(possibleFlow)));
+			directMatch.emplace_back(
+					Flow::forwardEdge(edge, std::move(possibleFlow)));
 	}
 
 	return FlowCandidates(directMatch, graph);

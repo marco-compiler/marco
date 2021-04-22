@@ -84,8 +84,8 @@ void VVarDependencyGraph::populateEq(IndexesOfEquation& equation,
 
 	for (const auto& toVariable : rightHandMatcher)
 	{
-		assert(VectorAccess::isCanonical(toVariable.getExp()));
-		auto toAccess = AccessToVar::fromExp(toVariable.getExp());
+		assert(VectorAccess::isCanonical(toVariable.getExpression()));
+		auto toAccess = AccessToVar::fromExp(toVariable.getExpression());
 		populateEdge(equation, toAccess, eqToVert);
 	}
 }

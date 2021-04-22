@@ -60,7 +60,7 @@ const ExpressionPath& ReferenceMatcher::at(size_t index) const
 
 Expression ReferenceMatcher::getExp(size_t index) const
 {
-	return at(index).getExp();
+	return at(index).getExpression();
 }
 
 void ReferenceMatcher::visit(Equation equation, bool ignoreMatched)
@@ -77,7 +77,7 @@ void ReferenceMatcher::visit(Equation equation, bool ignoreMatched)
 	vars.erase(
 			remove_if(
 					vars,
-					[match](const ExpressionPath& path) { return path.getExp() == match; }),
+					[match](const ExpressionPath& path) { return path.getExpression() == match; }),
 			vars.end());
 }
 

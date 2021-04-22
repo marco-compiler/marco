@@ -36,14 +36,14 @@ namespace modelica::codegen::model
 
 		[[nodiscard]] bool isForwardEdge() const;
 
-		void addFLowAtEnd(IndexSet& set);
+		void addFlowAtEnd(IndexSet& set);
 
 		[[nodiscard]] IndexSet inverseMap(const IndexSet& set) const;
 
 		[[nodiscard]] IndexSet applyAndInvert(IndexSet set);
 
-		[[nodiscard]] static Flow forwardedge(Edge& edge, IndexSet set);
-		[[nodiscard]] static Flow backedge(Edge& edge, IndexSet set);
+		[[nodiscard]] static Flow forwardEdge(Edge& edge, IndexSet set);
+		[[nodiscard]] static Flow backEdge(Edge& edge, IndexSet set);
 
 		[[nodiscard]] static bool compare(const Flow& l, const Flow& r, const MatchingGraph& g);
 

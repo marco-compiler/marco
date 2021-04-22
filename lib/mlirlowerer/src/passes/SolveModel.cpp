@@ -294,6 +294,98 @@ struct ForEquationOpScalarizePattern : public mlir::OpRewritePattern<ForEquation
 	}
 };
 
+struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
+{
+	DerOpPattern(mlir::MLIRContext* context, Model& model)
+			: mlir::OpRewritePattern<DerOp>(context), model(&model)
+	{
+	}
+
+	mlir::LogicalResult matchAndRewrite(DerOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		mlir::Value operand = op.operand();
+		llvm::SmallVector<mlir::Value, 3> subscriptions;
+
+		while (!operand.isa<mlir::BlockArgument>())
+		{
+			mlir::Operation* definingOp = operand.getDefiningOp();
+
+			if (auto subscription = mlir::dyn_cast<SubscriptionOp>(definingOp))
+			{
+				for (auto index : subscription.indexes())
+					subscriptions.push_back(index);
+
+				operand = subscription.source();
+			}
+			else
+				assert(false && "Unexpected operation");
+		}
+
+		auto simulation = op->getParentOfType<SimulationOp>();
+		mlir::Value var = simulation.getVariableAllocation(operand);
+		auto variable = model->getVariable(var);
+		mlir::Value derVar;
+
+		if (!variable.isState())
+		{
+			auto terminator = mlir::cast<YieldOp>(var.getParentBlock()->getTerminator());
+			rewriter.setInsertionPointAfter(terminator);
+
+			llvm::SmallVector<mlir::Value, 3> args;
+
+			for (mlir::Value arg : terminator.args())
+				args.push_back(arg);
+
+			if (auto pointerType = variable.getReference().getType().dyn_cast<PointerType>())
+				derVar = rewriter.create<AllocOp>(op.getLoc(), pointerType.getElementType(), pointerType.getShape(), llvm::None, false);
+			else
+			{
+				derVar = rewriter.create<AllocOp>(op.getLoc(), variable.getReference().getType(), llvm::None, llvm::None, false);
+			}
+
+			model->addVariable(derVar);
+			variable.setDer(derVar);
+
+			args.push_back(derVar);
+			rewriter.create<YieldOp>(terminator.getLoc(), args);
+			rewriter.eraseOp(terminator);
+
+			auto newArgumentType = derVar.getType().cast<PointerType>().toUnknownAllocationScope();
+			simulation.body().addArgument(newArgumentType);
+			simulation.print().addArgument(newArgumentType);
+		}
+		else
+		{
+			derVar = variable.getDer();
+		}
+
+		rewriter.setInsertionPoint(op);
+
+		// Get argument index
+		for (auto [declaration, arg] : llvm::zip(
+				mlir::cast<YieldOp>(simulation.init().front().getTerminator()).args(),
+				simulation.body().getArguments()))
+			if (declaration == derVar)
+				derVar = arg;
+
+		if (!subscriptions.empty())
+		{
+			auto subscriptionOp = rewriter.create<SubscriptionOp>(op->getLoc(), derVar, subscriptions);
+			derVar = subscriptionOp.getResult();
+		}
+
+		if (auto pointerType = derVar.getType().cast<PointerType>(); pointerType.getRank() == 0)
+			derVar = rewriter.create<LoadOp>(op->getLoc(), derVar);
+
+		rewriter.replaceOp(op, derVar);
+
+		return mlir::success();
+	}
+
+	private:
+	Model* model;
+};
+
 struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 {
 	SimulationOpPattern(mlir::MLIRContext* context, SolveModelOptions options)
@@ -720,8 +812,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		mlir::OwningRewritePatternList patterns;
 		patterns.insert<LoopifyPattern>(&getContext());
 
-		if (auto res = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(res))
-			return res;
+		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
+			return status;
 
 		return mlir::success();
 	}
@@ -765,8 +857,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		    EquationOpScalarizePattern,
 				ForEquationOpScalarizePattern>(&getContext());
 
-		if (auto res = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(res))
-			return res;
+		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
+			return status;
 
 		return mlir::success();
 	}
@@ -775,6 +867,20 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	{
 		DerSolver solver(model);
 		return solver.solve(builder);
+
+		/*
+		mlir::ConversionTarget target(getContext());
+		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
+		target.addIllegalOp<DerOp>();
+
+		mlir::OwningRewritePatternList patterns;
+		patterns.insert<DerOpPattern>(&getContext(), model);
+
+		if (auto status = applyPartialConversion(model.getOp(), target, std::move(patterns)); failed(status))
+			return status;
+
+		return mlir::success();
+		 */
 	}
 
 	mlir::LogicalResult explicitateEquations(Model& model)

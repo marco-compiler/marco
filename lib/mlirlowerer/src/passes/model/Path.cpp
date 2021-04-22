@@ -65,12 +65,12 @@ size_t ExpressionPath::depth() const
 	return path.depth();
 }
 
-Expression ExpressionPath::getExp() const
+Expression ExpressionPath::getExpression() const
 {
 	return *exp;
 }
 
-const EquationPath& ExpressionPath::getEqPath() const
+const EquationPath& ExpressionPath::getEquationPath() const
 {
 	return path;
 }
