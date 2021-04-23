@@ -9,14 +9,14 @@ macro(addOmccTest INPUTFILE)
 	add_custom_command(OUTPUT ${INPUTFILE}.bc 
 		COMMAND $<TARGET_FILE:omcc> --simTime=10000 -o=${INPUTFILE}.bc ${CMAKE_CURRENT_BINARY_DIR}/${INPUTFILE}.mo
 		DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${INPUTFILE}.mo marco::omcc
-		COMMENT "generates flattenedThermalchp bc file"
+		COMMENT "generates ${INPUTFILE} bc file"
 		VERBATIM)
 
 
 	### Creates the command that will run clang to generate the Obj file.
 	add_custom_command(OUTPUT ${INPUTFILE}.o
 		COMMAND ${CLANGC} -o ${INPUTFILE}.o -fPIC -c ${INPUTFILE}.bc
-						COMMENT "generates flattendThermalChip simulation object file"
+						COMMENT "generates ${INPUTFILE} simulation object file"
 						DEPENDS ${INPUTFILE}.bc
 						VERBATIM)
 

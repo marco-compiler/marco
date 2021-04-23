@@ -221,7 +221,7 @@ TEST(ModelTest, modExpShouldDistribute)
 	ModExp exp = ModExp(ModConst(5));
 	exp.distribute(ModExp(ModConst(0.1)), true);
 	EXPECT_TRUE(exp.isOperation<ModExpKind::mult>());
-	EXPECT_NEAR(exp.getLeftHand().getConstant().get<double>(0), 0.1, 0.01);
+	EXPECT_NEAR(exp.getRightHand().getConstant().get<double>(0), 0.1, 0.01);
 }
 
 TEST(ModelTest, modExpShouldDistributeMultiplication)
@@ -233,4 +233,26 @@ TEST(ModelTest, modExpShouldDistributeMultiplication)
 	EXPECT_TRUE(exp.isOperation<ModExpKind::add>());
 	EXPECT_TRUE(exp.getLeftHand().isOperation<ModExpKind::mult>());
 	EXPECT_TRUE(exp.getRightHand().isOperation<ModExpKind::mult>());
+}
+
+TEST(ModelTest, modExpDistributeDivisionToRight)
+{
+	ModExp constant = ModExp(ModConst(5));
+	ModExp addition = ModExp::add(constant, constant);
+	ModExp exp = ModExp::divide(addition, constant);
+	exp.distributeMultiplications();
+	EXPECT_TRUE(exp.isOperation<ModExpKind::add>());
+	EXPECT_TRUE(exp.getLeftHand().isOperation<ModExpKind::divide>());
+	EXPECT_TRUE(exp.getRightHand().isOperation<ModExpKind::divide>());
+}
+
+TEST(ModelTest, modExpDoNotDistributeDivisionToLeft)
+{
+	ModExp constant = ModExp(ModConst(5));
+	ModExp addition = ModExp::add(constant, constant);
+	ModExp exp = ModExp::divide(constant, addition);
+	exp.distributeMultiplications();
+	EXPECT_TRUE(exp.isOperation<ModExpKind::divide>());
+	EXPECT_TRUE(exp.getLeftHand().isConstant());
+	EXPECT_TRUE(exp.getRightHand().isOperation<ModExpKind::add>());
 }

@@ -89,6 +89,9 @@ static void removeSubtraction(ModExp& exp)
 
 static void foldExp(ModExp& expression)
 {
+	if (expression.isOperation<ModExpKind::sub>())
+		removeSubtraction(expression);
+
 	if (!expression.isOperation() || !expression.isBinary())
 		return;
 
@@ -100,21 +103,21 @@ static void foldExp(ModExp& expression)
 			expression.getRightHand().isConstant())
 		return;
 
-	if (expression.isOperation<ModExpKind::sub>())
-		removeSubtraction(expression);
-
 	if (!isAssComm(expression.getKind()))
 		return;
 
 	// here expression is a binary operation and
 	// either left or right is a constant, but not both.
-	//
-	//
+	assert(expression.isBinary());
+	assert(
+			expression.getLeftHand().isConstant() xor
+			expression.getRightHand().isConstant());
+
 	// if the operation of the expression is the same as the non constant
 	// children, and the operation is commutative and associative we can push
 	// the operation constant torward the deeper expressions so that it can be
 	// folded there.
-	//
+
 	if (expression.getRightHand().isOperation(expression.getKind()))
 	{
 		expression = reorder(
@@ -378,10 +381,9 @@ static llvm::Error composeAccess(
 	auto newExps = exp.getReferredVectorAccessExp();
 
 	// If exp is a scalar, it means that the Scc Collapsing cannot procede
-	// beacause there is an actual Algebraic Loop; it would fail ModExp::at().
+	// because there is an actual Algebraic Loop; it would fail ModExp::at().
 	if (newExps.getModType().isScalar())
-		return llvm::make_error<FailedSccCollapsing>(std::move(exp));
-
+		return llvm::make_error<FailedSccCollapsing>();
 	exp = accessToExp(combinedAccess, move(newExps));
 
 	return Error::success();

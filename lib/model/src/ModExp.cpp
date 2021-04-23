@@ -320,15 +320,15 @@ void ModExp::distribute(ModExp exp, bool multiplication)
 	if (isReferenceAccess() or isConstant())
 	{
 		if (multiplication)
-			*this = move(exp) * move(*this);
+			*this = move(*this) * move(exp);
 		else
-			*this = move(exp) / move(*this);
+			*this = move(*this) / move(exp);
 		return;
 	}
 
 	if (isOperation<ModExpKind::mult>() or isOperation<ModExpKind::divide>())
 	{
-		getLeftHand().distribute(move(exp), multiplication);
+		getRightHand().distribute(move(exp), multiplication);
 		return;
 	}
 
@@ -352,16 +352,17 @@ void ModExp::distributeMultiplications()
 			not isOperation<ModExpKind::divide>())
 		return;
 
-	bool isDivision = isOperation<ModExpKind::divide>();
-	if (getLeftHand().isReferenceAccess() or getLeftHand().isConstant())
+	bool isMultiplication = isOperation<ModExpKind::mult>();
+
+	if (getRightHand().isReferenceAccess() or getRightHand().isConstant())
 	{
-		getRightHand().distribute(move(getLeftHand()), !isDivision);
-		*this = move(getRightHand());
-	}
-	else
-	{
-		getLeftHand().distribute(move(getRightHand()), !isDivision);
+		getLeftHand().distribute(move(getRightHand()), isMultiplication);
 		*this = move(getLeftHand());
+	}
+	else if (isMultiplication)
+	{
+		getRightHand().distribute(move(getLeftHand()), isMultiplication);
+		*this = move(getRightHand());
 	}
 }
 
