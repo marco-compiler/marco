@@ -70,9 +70,25 @@ Model Model::build(SimulationOp op)
 	});
 
 	for (const auto& equation : equations)
+	{
 		equation.lhs().visit(VariablesFinder(variables));
+		equation.rhs().visit(VariablesFinder(variables));
+	}
 
 	return Model(op, variables, equations);
+}
+
+void Model::reloadIR()
+{
+	equations.clear();
+
+	op.walk([&](EquationOp equation) {
+		equations.push_back(Equation::build(equation));
+	});
+
+	op.walk([&](ForEquationOp forEquation) {
+		equations.push_back(Equation::build(forEquation));
+	});
 }
 
 Model::iterator Model::begin()

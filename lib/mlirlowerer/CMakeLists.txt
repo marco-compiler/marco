@@ -18,7 +18,6 @@ modelicaAddLibrary(
         src/passes/model/Operation.cpp
         src/passes/model/Reference.cpp
         src/passes/model/ReferenceMatcher.cpp
-        src/passes/model/SolveDer.cpp
         src/passes/model/Variable.cpp
         src/passes/model/VectorAccess.cpp
         src/passes/BufferDeallocation.cpp

@@ -229,7 +229,7 @@ static bool usesMember(mlir::Value value, AccessToVar access)
 static mlir::Attribute getIntegerAttribute(mlir::OpBuilder& builder, mlir::Type type, int value)
 {
 	if (type.isa<BooleanType>())
-		return BooleanAttribute::get(type, value);
+		return BooleanAttribute::get(type, value > 0);
 
 	if (type.isa<IntegerType>())
 		return IntegerAttribute::get(type, value);
@@ -383,7 +383,6 @@ namespace modelica::codegen::model
 
 		// Erase the useless operations that are remains of the previous
 		// transformations.
-		// TODO: avoid this pass and erase the orphan operations asap
 		for (auto& equation : equations)
 		{
 			mlir::Block::reverse_iterator it(equation.getOp().body()->getTerminator());

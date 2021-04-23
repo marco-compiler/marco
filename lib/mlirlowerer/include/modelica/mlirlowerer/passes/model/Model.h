@@ -28,6 +28,7 @@ namespace modelica::codegen::model
 					llvm::ArrayRef<Equation> equations);
 
 		static Model build(SimulationOp op);
+		void reloadIR();
 
 		[[nodiscard]] iterator begin();
 		[[nodiscard]] const_iterator begin() const;

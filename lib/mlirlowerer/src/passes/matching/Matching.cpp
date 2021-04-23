@@ -208,9 +208,6 @@ void MatchingGraph::emplaceEdge(Equation eq, ExpressionPath path, size_t useInde
 	if (var.isState() || var.isConstant())
 		return;
 
-	auto mappableDimensions = access.getAccess().mappableDimensions();
-	auto dimensions = eq.dimensions();
-
 	if (access.getAccess().mappableDimensions() < eq.dimensions())
 		return;
 

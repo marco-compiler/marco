@@ -163,29 +163,9 @@ llvm::Optional<mlir::ModuleOp> MLIRLowerer::lower(llvm::ArrayRef<ClassContainer>
 	return module;
 }
 
-static mlir::Operation* distributeMultiplications(mlir::OpBuilder& builder, mlir::Operation* op)
-{
-	if (op == nullptr)
-		return op;
-
-	for (auto operand : op->getOperands())
-		distributeMultiplications(builder, operand.getDefiningOp());
-
-	if (auto distributableOp = mlir::dyn_cast<DistributableInterface>(op))
-	{
-		mlir::Operation* result = distributableOp.distribute(builder).getDefiningOp();
-
-		if (result != op)
-			op->replaceAllUsesWith(result);
-
-		return result;
-	}
-
-	return op;
-}
-
 mlir::Operation* MLIRLowerer::lower(Class& cls)
 {
+	mlir::OpBuilder::InsertionGuard guard(builder);
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 
 	auto location = loc(cls.getLocation());
@@ -214,7 +194,6 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 
 	{
 		// Simulation variables
-		mlir::OpBuilder::InsertionGuard guard(builder);
 		builder.setInsertionPointToStart(&simulation.init().front());
 		llvm::SmallVector<mlir::Value, 3> vars;
 
@@ -232,7 +211,6 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 
 	{
 		// Body
-		mlir::OpBuilder::InsertionGuard guard(builder);
 		builder.setInsertionPointToStart(&simulation.body().front());
 
 		mlir::Value time = simulation.time();
@@ -252,7 +230,6 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 
 	{
 		// Print
-		mlir::OpBuilder::InsertionGuard guard(builder);
 		builder.setInsertionPointToStart(&simulation.print().front());
 
 		llvm::SmallVector<mlir::Value, 3> variablesToBePrinted;
@@ -273,7 +250,7 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 
 mlir::Operation* MLIRLowerer::lower(Function& foo)
 {
-	// Create a scope in the symbol table to hold variable declarations.
+	mlir::OpBuilder::InsertionGuard guard(builder);
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 
 	auto location = loc(foo.getLocation());

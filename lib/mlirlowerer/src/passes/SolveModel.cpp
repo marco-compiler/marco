@@ -744,7 +744,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			Model model = Model::build(simulation);
 
 			// Remove the derivative operations and allocate the appropriate buffers
-			if (failed(solveDer(builder, model)))
+			if (failed(removeDerivatives(builder, model)))
 				return signalPassFailure();
 
 			// Match
@@ -770,18 +770,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				return signalPassFailure();
 		});
 
-		// The model has been solved and we can now proceed to inline the
-		// equations body and create the main simulation loop.
-
-		mlir::ConversionTarget target(getContext());
-		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
-		target.addIllegalOp<SimulationOp, EquationOp, ForEquationOp>();
-
-		mlir::OwningRewritePatternList patterns;
-		patterns.insert<SimulationOpPattern>(&getContext(), options);
-		patterns.insert<EquationOpPattern, ForEquationOpPattern>(&getContext());
-
-		if (failed(applyPartialConversion(getOperation(), target, std::move(patterns))))
+		// The model has been solved and we can now proceed to create the update
+		// functions and, if requested, the main simulation loop.
+		if (auto status = createSimulationFunctions(); failed(status))
 			return signalPassFailure();
 	}
 
@@ -863,12 +854,16 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	mlir::LogicalResult solveDer(mlir::OpBuilder& builder, Model& model)
+	/**
+	 * Remove the derivative operations by replacing them with appropriate
+	 * buffers, and set the derived variables as state variables.
+	 *
+	 * @param builder operation builder
+	 * @param model   model
+	 * @return conversion result
+	 */
+	mlir::LogicalResult removeDerivatives(mlir::OpBuilder& builder, Model& model)
 	{
-		DerSolver solver(model);
-		return solver.solve(builder);
-
-		/*
 		mlir::ConversionTarget target(getContext());
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 		target.addIllegalOp<DerOp>();
@@ -879,8 +874,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (auto status = applyPartialConversion(model.getOp(), target, std::move(patterns)); failed(status))
 			return status;
 
+		model.reloadIR();
 		return mlir::success();
-		 */
 	}
 
 	mlir::LogicalResult explicitateEquations(Model& model)
@@ -931,6 +926,22 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			newValue = builder.create<AddOp>(location, var.getType(), newValue, var);
 			builder.create<AssignmentOp>(location, newValue, varReference);
 		}
+
+		return mlir::success();
+	}
+
+	mlir::LogicalResult createSimulationFunctions()
+	{
+		mlir::ConversionTarget target(getContext());
+		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
+		target.addIllegalOp<SimulationOp, EquationOp, ForEquationOp>();
+
+		mlir::OwningRewritePatternList patterns;
+		patterns.insert<SimulationOpPattern>(&getContext(), options);
+		patterns.insert<EquationOpPattern, ForEquationOpPattern>(&getContext());
+
+		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
+			return status;
 
 		return mlir::success();
 	}

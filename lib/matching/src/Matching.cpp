@@ -43,9 +43,6 @@ void MatchingGraph::emplaceEdge(
 	if (var.isState() || var.isConstant())
 		return;
 
-	auto mappableDimensions = access.getAccess().mappableDimensions();
-	auto dimensions = eq.dimensions();
-
 	if (access.getAccess().mappableDimensions() < eq.dimensions())
 		return;
 

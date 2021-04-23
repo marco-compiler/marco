@@ -101,6 +101,8 @@ namespace modelica::codegen
 		llvm::Optional<mlir::ModuleOp> lower(llvm::ArrayRef<frontend::ClassContainer> classes);
 
 		private:
+		void lower(mlir::ModuleOp module, llvm::ArrayRef<frontend::ClassContainer> classes);
+
 		mlir::Operation* lower(frontend::Class& cls);
 		mlir::Operation* lower(frontend::Function& function);
 		mlir::Operation* lower(frontend::Package& package);
