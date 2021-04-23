@@ -16,7 +16,6 @@
 #include <modelica/mlirlowerer/passes/model/Equation.h>
 #include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/SolveDer.h>
 #include <modelica/mlirlowerer/passes/model/Variable.h>
 #include <modelica/utils/Interval.hpp>
 
