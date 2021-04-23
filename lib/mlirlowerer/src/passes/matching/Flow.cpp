@@ -48,6 +48,7 @@ size_t Flow::size() const
 	return set.size();
 }
 
+/* IndexSet corrispondente nella variabile */
 const modelica::IndexSet& Flow::getMappedSet() const
 {
 	return mappedFlow;
@@ -70,7 +71,7 @@ modelica::IndexSet Flow::inverseMap(const IndexSet& set) const
 {
 	if (isForwardEdge())
 		return edge->invertMap(set);
-
+ 
 	return edge->map(set);
 }
 
@@ -79,6 +80,7 @@ modelica::IndexSet Flow::applyAndInvert(IndexSet set)
 	if (isForwardEdge())
 		set = inverseMap(set);
 
+	/* se edge avanti aggiunge, altrimenti toglie */
 	addFlowAtEnd(set);
 
 	if (!isForwardEdge())
@@ -158,7 +160,8 @@ const Flow& FlowCandidates::getCurrent() const
 	return choices.back();
 }
 
-Variable FlowCandidates::getCurrentVariable() const
+/* variabile corrisp. all'edge restituito da getCurrent */
+const Variable& FlowCandidates::getCurrentVariable() const
 {
 	return getCurrent().getEdge().getVariable();
 }
@@ -172,17 +175,24 @@ void FlowCandidates::pop()
 }
 
 AugmentingPath::AugmentingPath(MatchingGraph& graph, size_t maxDepth)
-		: graph(graph), frontier({ selectStartingEdge() })
+		: graph(graph), frontier({ /* cerca */ selectStartingEdge() })
 {
-	while (!valid() && frontier.size() < maxDepth)
+	while (!valid() && frontier.size() < maxDepth /* sempre vero */)
 	{
+		/* se non c'è niente da matchare nella frontiera restituita da selectStartingEdge()
+		prova ad aggiustare (?) */
+
 		// while the current siblings are
 		// not empty keep exploring
-		if (!getCurrentCandidates().empty())
+		// getCurrentCandidates == frontier.back
+		if (!getCurrentCandidates().empty() /* BUG QUANDO frontier È VUOTO??? */)
 		{
+			/* prendi un arco a caso e metticelo */
 			frontier.push_back(getBestCandidate());
 			continue;
 		}
+
+		/* getCurrentCandidates().empty() true */
 
 		// if they are empty remove the last siblings group
 		frontier.erase(frontier.end() - 1);
@@ -279,17 +289,29 @@ modelica::IndexSet AugmentingPath::possibleBackwardFlow(const Edge& backEdge) co
 	return alreadyAssigned;
 }
 
+/* restituisce true se c'è ancora roba da matchare in questo path */
 bool AugmentingPath::valid() const
 {
 	if (frontier.empty())
 		return false;
 	if (getCurrentCandidates().empty())
 		return false;
-	if ((frontier.size() % 2) != 1)
+
+	/* Teoria: FlowCandidates contiene archi tutti che vanno nella stessa
+	 * direzione
+	 * frontier alterna FlowCandidates avanti e flowcandidates indietro
+	 * Controllando che frontier sia pari verifichiamo che finisca con un FlowCandidates
+	 * avanti e non uno indietro.
+	 * Se non è pari vado da qualche parte, altrimenti no */
+	if ((frontier.size() % 2) == 0 /* numero di candidate è pari */)
 		return false;
 
+	/* Variable corrispondente all'ultimo arco nel FlowCandidates */
 	const auto& currentVar = getCurrentCandidates().getCurrentVariable();
-	auto set = getCurrentFlow().getMappedSet();
+	/* getCurrentCandidates().getCurrent() == getCurrentFlow() */
+	// ottieni l'IndexSet della variabile
+	IndexSet set = getCurrentFlow().getMappedSet();
+	/* togli gli indici già matchati */
 	set.remove(graph.getMatchedSet(currentVar));
 
 	return !set.empty();
@@ -299,7 +321,9 @@ void AugmentingPath::apply()
 {
 	assert(valid());
 
-	auto alreadyMatchedVars = graph.getMatchedSet(getCurrentFlow().getVariable());
+  // IndexSet di tutti gli indici di variabili già matchate
+	auto alreadyMatchedVars = graph.getMatchedSet(/* Variable */ getCurrentFlow().getVariable());
+	/* set: IndexSet delle cose che È POSSIBILE matchare con l'arco che stiamo considerando */ 
 	auto set = getCurrentFlow().getMappedSet();
 	set.remove(alreadyMatchedVars);
 

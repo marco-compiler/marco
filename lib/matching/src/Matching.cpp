@@ -57,6 +57,7 @@ void MatchingGraph::match(int iterations)
 {
 	for (auto _ : irange(0, iterations))
 	{
+		// il costruttore cerca anche i percorsi aumentanti
  		AugmentingPath path(*this);
 		if (!path.valid())
 			return;

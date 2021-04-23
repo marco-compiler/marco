@@ -12,11 +12,14 @@ namespace modelica
 {
 	/**
 	 * The flow class is used to search a augmenting path in the
-	 * the matching graph. It contains the refernce to the underlaying edge and
-	 * the direction the edge is followed. It keeps track of a index set and the
-	 * mapped set at the destination, so querying for both the from and the to
+	 * the matching graph. It contains the reference to the underlying edge and
+	 * the direction of the edge. It keeps track of a index set and the
+	 * mapped set at the destination, so querying for both the "from" and the "to"
 	 * index is a constant time operation.
 	 */
+
+	// UN ARCO TAGGATO NEL GRAFO RESIDUALE
+	
 	class Flow
 	{
 		public:
@@ -103,9 +106,10 @@ namespace modelica
 					isForward(isForward)
 		{
 		}
-		Edge* edge;
-		IndexSet set;
-		IndexSet mappedFlow;
+		Edge* edge; // arco
+		// parentesi quadre sugli archi nella tesi
+		IndexSet set; // GMIS nel mondo delle eq?
+		IndexSet mappedFlow; // GMIS nel mondo delle var?
 		bool isForward;
 	};
 

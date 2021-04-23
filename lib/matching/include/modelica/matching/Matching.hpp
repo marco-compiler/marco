@@ -175,10 +175,13 @@ namespace modelica
 			return set;
 		}
 
+		/* restituisce IndexSet relativo agli indici delle equazioni MATCHATE
+		 * (forse) */
 		[[nodiscard]] IndexSet getMatchedSet(const ModVariable& variable) const
 		{
 			IndexSet matched;
 
+			/* arcsOf(variables) restituisce SOLO GLI ARCHI MATCHATI */
 			for (const Edge& edge : arcsOf(variable))
 				matched.unite(edge.getVectorAccess().map(edge.getSet()));
 
