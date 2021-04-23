@@ -22,6 +22,7 @@ void renumber_vertex_indices(const Graph& graph)
 #include "marco/model/LinSolver.hpp"
 #include "modelica/model/ModBltBlock.hpp"
 #include "marco/model/ModEquation.hpp"
+#include "modelica/model/ModErrors.hpp"
 #include "marco/model/ModVariable.hpp"
 #include "marco/model/Model.hpp"
 #include "marco/model/VectorAccess.hpp"
@@ -99,17 +100,20 @@ static MultiDimInterval cyclicDependentSet(
 	return set;
 }
 
-static IndexSetVector cyclicDependetSets(
+static IndexSetVector cyclicDependentSets(
 		const EdDescVector& c, const VVarDependencyGraph& graph)
 {
 	auto dep = cycleToDependenciesVector(c, graph);
 	auto cyclicSet = cyclicDependentSet(c, graph, dep);
 	IndexSetVector v({ cyclicSet });
-	if (!cycleHasIndentityDependency(c, graph, dep))
-		return v;
 
 	for (auto i : irange(c.size() - 1))
 		v.emplace_back(dep[i].map(v.back()));
+
+	assert(dep.size() == c.size() && v.size() == c.size());
+
+	if (!cycleHasIndentityDependency(c, graph, dep))
+		return v;
 
 	for (auto i : irange(v.size()))
 	{
@@ -131,7 +135,7 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 		const VVarDependencyGraph& g)
 {
 	auto c = cycleToEdgeVec(cycle, g);
-	auto vecSet = cyclicDependetSets(c, g);
+	auto vecSet = cyclicDependentSets(c, g);
 	if (vecSet[0].empty())
 		return false;
 
@@ -144,7 +148,9 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 				eq.clone(eq.getTemplate()->getName() + "merged" + to_string(a++));
 
 		// set induction to those that generate the circular dependency
-		assert(toFuseEq.getInductions().contains(vecSet[i]));
+		if (!toFuseEq.getInductions().contains(vecSet[i]))
+			return make_error<FailedSccCollapsing>();
+
 		toFuseEq.setInductionVars(vecSet[i]);
 		if (auto error = toFuseEq.explicitate(); error)
 			return move(error);

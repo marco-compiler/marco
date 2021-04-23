@@ -266,20 +266,18 @@ namespace marco
 =======
 
 	/**
-	 * Error caused by the presence of an Algebraic Loop during the SccCollapsing
-	 * pass.
+	 * Error caused by the presence of an Algebraic Loop that could not be solved
+	 * during the SccCollapsing pass.
 	 */
 	class FailedSccCollapsing: public llvm::ErrorInfo<FailedSccCollapsing>
 	{
 		public:
 		static char ID;
-		FailedSccCollapsing(ModExp leftExp): leftExp(std::move(leftExp)) {}
+		FailedSccCollapsing() {}
 
 		void log(llvm::raw_ostream& OS) const override
 		{
-			OS << "Could not solve the SCC because expression: ";
-			leftExp.dump(OS);
-			OS << "is not a constant, therefore there is an algebraic loop.";
+			OS << "Some Algebraic Loops could not be solved by SccCollapsing.";
 		}
 
 		[[nodiscard]] std::error_code convertToErrorCode() const override
@@ -288,11 +286,6 @@ namespace marco
 					static_cast<int>(LowererErrorCode::failedSccCollapsing),
 					LowererErrorCategory::category);
 		}
-
-		[[nodiscard]] const ModExp& getExp() const { return leftExp; }
-
-		private:
-		ModExp leftExp;
 	};
 }	 // namespace modelica
 >>>>>>> Identification of Algebraic Loops inside SccCollapsing:lib/model/include/modelica/model/ModErrors.hpp

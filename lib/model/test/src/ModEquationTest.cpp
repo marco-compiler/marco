@@ -61,6 +61,22 @@ TEST(ModEquationTest, ModEquationConstantFolding)
 	EXPECT_EQ(eq.getRight(), rRes);
 }
 
+TEST(ModEquationTest, ModEquationConstantFoldingWithSub)
+{
+	ModExp lConst(ModConst(5));
+	ModExp lVar = ModExp("lVar", ModType(BultinModTypes::FLOAT, 1));
+	ModExp rVar = ModExp("rVar", ModType(BultinModTypes::FLOAT, 1));
+	MultiDimInterval vars{ { 0, 1 } };
+
+	ModEquation eq(lVar, ModExp::subtract(rVar, lConst), "", vars);
+	ModExp rRes(ModExp::add(rVar, ModExp::negate(lConst)));
+
+	eq.foldConstants();
+
+	EXPECT_EQ(eq.getLeft(), lVar);
+	EXPECT_EQ(eq.getRight(), rRes);
+}
+
 TEST(ModEquationTest, negateShouldBeInvertible)
 {
 	ModEquation eq(ModExp::negate(ModExp(ModConst(5))), ModExp(ModConst(4)));

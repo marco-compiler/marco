@@ -35,6 +35,9 @@ Expected<AssignModel> marco::addApproximation(Model& model, double deltaTime)
 {
 	AssignModel out;
 
+	if (!model.getBltBlocks().empty())
+		return make_error<FailedSccCollapsing>();
+
 	for (auto& var : model.getVars())
 	{
 		if (!out.addVar(move(var.second)))
