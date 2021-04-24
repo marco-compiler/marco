@@ -546,7 +546,6 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			rewriter.setInsertionPointToStart(entryBlock);
 
 			mlir::Value data = rewriter.create<CallOp>(function.getLoc(), "init", structType, llvm::None).getResult(0);
-			rewriter.create<CallOp>(function->getLoc(), "print", llvm::None, data);
 
 			// Create the simulation loop
 			auto loop = rewriter.create<ForOp>(function.getLoc());
@@ -891,7 +890,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		mlir::OpBuilder::InsertionGuard guard(builder);
 		mlir::Location location = model.getOp()->getLoc();
 
-		builder.setInsertionPoint(model.getOp().body().back().getTerminator());
+		builder.setInsertionPointToStart(&model.getOp().body().front());
+		//builder.setInsertionPoint(model.getOp().body().back().getTerminator());
 		mlir::Value timeStep = builder.create<ConstantOp>(location, model.getOp().timeStep());
 
 		for (auto& variable : model.getVariables())
