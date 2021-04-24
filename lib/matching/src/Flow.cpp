@@ -188,7 +188,10 @@ void AugmentingPath::apply()
 	auto alreadyMatchedVars = graph.getMatchedSet(getCurrentFlow().getVariable());
 	auto set = getCurrentFlow().getMappedSet();
 	set.remove(alreadyMatchedVars);
+  /* set adesso è il flusso da applicare */
 
+  /* fai il giochino di andare avanti e indietro nel grafo per applicare il
+   * flusso e nel contempo cancellarlo nei punti dove l'abbiamo assorbito */
 	auto reverseRange = make_range(rbegin(frontier), rend(frontier));
 	for (auto& edge : reverseRange)
 	{

@@ -20,6 +20,8 @@ namespace modelica
 
 	// UN ARCO TAGGATO NEL GRAFO RESIDUALE
 	
+    // ATTENZIONE: il flow è sempre riferito agli indici delle EQUAZIONI
+  
 	class Flow
 	{
 		public:
