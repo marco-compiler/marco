@@ -59,7 +59,7 @@ void MatchingGraph::match(int iterations)
 	{
 		// il costruttore cerca anche i percorsi aumentanti
  		AugmentingPath path(*this);
-		if (!path.valid())
+		if (!path.valid() /* path è invalida anche quando non c'è path */)
 			return;
 
 		path.apply();
