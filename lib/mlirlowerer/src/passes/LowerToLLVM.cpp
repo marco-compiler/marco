@@ -876,9 +876,8 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 	mlir::LogicalResult castsFolderPass(mlir::ModuleOp module)
 	{
 		mlir::ConversionTarget target(getContext());
-		target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
-		target.addLegalDialect<mlir::omp::OpenMPDialect>();
-		target.addLegalDialect<mlir::LLVM::LLVMDialect>();
+
+		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 		target.addIllegalOp<mlir::UnrealizedConversionCastOp>();
 
 		mlir::OwningRewritePatternList patterns;

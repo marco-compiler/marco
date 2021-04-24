@@ -1084,8 +1084,6 @@ mlir::LogicalResult DimOp::verify()
 
 mlir::OpFoldResult DimOp::fold(mlir::ArrayRef<mlir::Attribute> operands)
 {
-	// TODO
-	/*
 	if (auto attribute = operands[1].dyn_cast<mlir::IntegerAttr>(); attribute)
 	{
 		auto pointerType = memory().getType().cast<PointerType>();
@@ -1096,7 +1094,6 @@ mlir::OpFoldResult DimOp::fold(mlir::ArrayRef<mlir::Attribute> operands)
 		if (shape[index] != -1)
 			return mlir::IntegerAttr::get(mlir::IndexType::get(getContext()), shape[index]);
 	}
-	 */
 
 	return nullptr;
 }
