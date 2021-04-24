@@ -82,7 +82,7 @@ class MemoryDescriptor {
 	}
 
 	/**
-	 * Build IR to set the rank
+	 * Build IR to set the rank.
 	 *
 	 * @param builder   operation builder
 	 * @param location  source location
@@ -239,8 +239,8 @@ struct AllocLikeOpLowering : public ModelicaOpConversion<FromOp>
 		descriptor.setPtr(rewriter, loc, buffer);
 		descriptor.setRank(rewriter, loc, rank);
 
-		for (size_t i = 0; i < sizes.size(); ++i)
-			descriptor.setSize(rewriter, loc, i, sizes[i]);
+		for (auto size : llvm::enumerate(sizes))
+			descriptor.setSize(rewriter, loc, size.index(), size.value());
 
 		rewriter.replaceOp(op, *descriptor);
 		return mlir::success();
@@ -435,8 +435,6 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 			mlir::Value size = memoryDescriptor.getSize(rewriter, loc, i);
 			index = rewriter.create<mlir::LLVM::MulOp>(loc, indexType, index, size);
 			index = rewriter.create<mlir::LLVM::AddOp>(loc, indexType, index, indexes[i]);
-
-			//rewriter.create<PrintOp>(location, index); // TODO remove
 		}
 
 		mlir::Value base = memoryDescriptor.getPtr(rewriter, loc);
@@ -734,14 +732,74 @@ class CastCommonOpLowering: public ModelicaOpConversion<CastCommonOp>
 	}
 };
 
-struct PtrCastOpLowering : public mlir::OpRewritePattern<PtrCastOp>
+struct PtrCastOpLowering : public ModelicaOpConversion<PtrCastOp>
 {
-	using mlir::OpRewritePattern<PtrCastOp>::OpRewritePattern;
+	using ModelicaOpConversion<PtrCastOp>::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(PtrCastOp op, mlir::PatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(PtrCastOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		rewriter.replaceOpWithNewOp<mlir::UnrealizedConversionCastOp>(op, op.resultType(), op.memory());
-		return mlir::success();
+		mlir::Location loc = op->getLoc();
+		Adaptor transformed(operands);
+		mlir::Type source = op.memory().getType();
+		mlir::Type destination = op.resultType();
+
+		if (source.isa<PointerType>())
+		{
+			if (auto resultType = destination.dyn_cast<PointerType>())
+			{
+				rewriter.replaceOpWithNewOp<mlir::UnrealizedConversionCastOp>(op, resultType, op.memory());
+				return mlir::success();
+			}
+
+			if (auto resultType = destination.dyn_cast<OpaquePointerType>())
+			{
+				MemoryDescriptor descriptor(transformed.memory());
+				mlir::Value result = rewriter.create<mlir::LLVM::BitcastOp>(loc, convertType(resultType), descriptor.getPtr(rewriter, loc));
+				result = getTypeConverter()->materializeSourceConversion(rewriter, loc, resultType, result);
+				rewriter.replaceOp(op, result);
+				return mlir::success();
+			}
+		}
+
+		if (source.isa<OpaquePointerType>())
+		{
+			if (auto resultType = destination.dyn_cast<PointerType>())
+			{
+				mlir::Type indexType = convertType(rewriter.getIndexType());
+				MemoryDescriptor descriptor = MemoryDescriptor::undef(rewriter, loc, convertType(resultType));
+
+				mlir::Type ptrType = mlir::LLVM::LLVMPointerType::get(convertType(resultType.getElementType()));
+				mlir::Value ptr = rewriter.create<mlir::LLVM::BitcastOp>(loc, ptrType, op.memory());
+				descriptor.setPtr(rewriter, loc, ptr);
+
+				mlir::Value rank = rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getI64IntegerAttr(resultType.getRank()));
+				descriptor.setRank(rewriter, loc, rank);
+
+				auto shape = resultType.getShape();
+				llvm::SmallVector<mlir::Value, 3> sizes;
+
+				for (auto size : shape)
+				{
+					assert(size != -1);
+					sizes.push_back(rewriter.create<mlir::LLVM::ConstantOp>(
+							loc, indexType, rewriter.getI64IntegerAttr(resultType.getRank())));
+				}
+
+				for (auto size : llvm::enumerate(sizes))
+					descriptor.setSize(rewriter, loc, size.index(), size.value());
+
+				rewriter.replaceOp(op, *descriptor);
+				return mlir::success();
+			}
+
+			if (destination.isa<OpaquePointerType>())
+			{
+				rewriter.replaceOp(op, op.memory());
+				return mlir::success();
+			}
+		}
+
+		return rewriter.notifyMatchFailure(op, "Unknown conversion");
 	}
 };
 
@@ -770,9 +828,8 @@ static void populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatternL
 			CastOpIntegerLowering,
 			CastOpRealLowering,
 			CastCommonOpLowering,
-			PrintOpLowering>(typeConverter, context); // TODO remove
-
-	patterns.insert<PtrCastOpLowering>(context);
+			PtrCastOpLowering,
+			PrintOpLowering>(typeConverter, context);
 }
 
 class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>>

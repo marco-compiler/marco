@@ -89,6 +89,9 @@ void ReferenceMatcher::visit(Expression exp, bool isLeft, size_t index)
 		return;
 	}
 
+	if (mlir::isa<CallOp>(exp.getOp()))
+		return;
+
 	for (size_t i = 0; i < exp.childrenCount(); ++i)
 	{
 		currentPath.push_back(i);

@@ -412,10 +412,12 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 		}
 
 		auto structType = StructType::get(op->getContext(), varTypes);
+		auto structPtrType = PointerType::get(structType.getContext(), BufferAllocationScope::unknown, structType);
+		auto opaquePtrType = OpaquePointerType::get(structPtrType.getContext());
 
 		{
 			// Init function
-			auto functionType = rewriter.getFunctionType(llvm::None, structType);
+			auto functionType = rewriter.getFunctionType(llvm::None, opaquePtrType);
 			auto function = rewriter.create<mlir::FuncOp>(location, "init", functionType);
 			auto* entryBlock = function.addEntryBlock();
 
@@ -453,14 +455,17 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			rewriter.create<StoreOp>(op->getLoc(), startTime, values[0]);
 
 			mlir::Value structValue = rewriter.create<PackOp>(terminator->getLoc(), values);
+			mlir::Value result = rewriter.create<AllocOp>(structValue.getLoc(), structType, llvm::None, llvm::None, false);
+			rewriter.create<StoreOp>(result.getLoc(), structValue, result);
+			result = rewriter.create<PtrCastOp>(result.getLoc(), result, opaquePtrType);
 
 			rewriter.eraseOp(terminator);
-			rewriter.create<mlir::ReturnOp>(location, structValue);
+			rewriter.create<mlir::ReturnOp>(location, result);
 		}
 
 		{
 			// Step function
-			auto functionType = rewriter.getFunctionType(structType, BooleanType::get(op.getContext()));
+			auto functionType = rewriter.getFunctionType(opaquePtrType, BooleanType::get(op.getContext()));
 			auto function = rewriter.create<mlir::FuncOp>(location, "step", functionType);
 			auto* entryBlock = function.addEntryBlock();
 
@@ -468,6 +473,9 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			rewriter.setInsertionPointToStart(entryBlock);
 
 			mlir::Value structValue = function.getArgument(0);
+			structValue = rewriter.create<PtrCastOp>(structValue.getLoc(), structValue, structPtrType);
+			structValue = rewriter.create<LoadOp>(structValue.getLoc(), structValue);
+
 			llvm::SmallVector<mlir::Value, 3> args;
 
 			args.push_back(rewriter.create<ExtractOp>(structValue.getLoc(), varTypes[0], structValue, 0));
@@ -510,7 +518,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 
 		{
 			// Print function
-			auto functionType = rewriter.getFunctionType(structType, llvm::None);
+			auto functionType = rewriter.getFunctionType(opaquePtrType, llvm::None);
 			auto function = rewriter.create<mlir::FuncOp>(location, "print", functionType);
 			auto* entryBlock = function.addEntryBlock();
 
@@ -518,6 +526,9 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			rewriter.setInsertionPointToStart(entryBlock);
 
 			mlir::Value structValue = function.getArgument(0);
+			structValue = rewriter.create<PtrCastOp>(structValue.getLoc(), structValue, structPtrType);
+			structValue = rewriter.create<LoadOp>(structValue.getLoc(), structValue);
+
 			mlir::BlockAndValueMapping mapping;
 
 			mapping.map(op.print().getArgument(0), rewriter.create<ExtractOp>(structValue.getLoc(), varTypes[0], structValue, 0));
@@ -545,7 +556,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			mlir::OpBuilder::InsertionGuard guard(rewriter);
 			rewriter.setInsertionPointToStart(entryBlock);
 
-			mlir::Value data = rewriter.create<CallOp>(function.getLoc(), "init", structType, llvm::None).getResult(0);
+			mlir::Value data = rewriter.create<CallOp>(function.getLoc(), "init", opaquePtrType, llvm::None).getResult(0);
 
 			// Create the simulation loop
 			auto loop = rewriter.create<ForOp>(function.getLoc());
@@ -566,6 +577,8 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 				// Increment the time
 				rewriter.setInsertionPointToStart(&loop.step().front());
 				mlir::Value structValue = data;
+				structValue = rewriter.create<PtrCastOp>(structValue.getLoc(), structValue, structPtrType);
+				structValue = rewriter.create<LoadOp>(structValue.getLoc(), structValue);
 
 				mlir::Value time = rewriter.create<ExtractOp>(
 						location,

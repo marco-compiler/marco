@@ -8,6 +8,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 	addConversion([&](IntegerType type) { return convertIntegerType(type); });
 	addConversion([&](RealType type) { return convertRealType(type); });
 	addConversion([&](PointerType type) { return convertPointerType(type); });
+	addConversion([&](OpaquePointerType type) { return convertOpaquePointerType(type); });
 	addConversion([&](StructType type) { return convertStructType(type); });
 
 	addTargetMaterialization(
@@ -44,6 +45,18 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 					return llvm::None;
 
 				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+			});
+
+	addTargetMaterialization(
+			[&](mlir::OpBuilder &builder, mlir::LLVM::LLVMPointerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
+			{
+				if (inputs.size() != 1)
+					return llvm::None;
+
+				if (!inputs[0].getType().isa<OpaquePointerType>())
+					return llvm::None;
+
+				return builder.create<mlir::LLVM::BitcastOp>(loc, resultType, inputs[0]).getResult();
 			});
 
 	addSourceMaterialization(
@@ -138,6 +151,11 @@ mlir::Type TypeConverter::convertPointerType(PointerType type)
 {
 	auto types = getPointerDescriptorFields(type);
 	return mlir::LLVM::LLVMStructType::getLiteral(type.getContext(), types);
+}
+
+mlir::Type TypeConverter::convertOpaquePointerType(OpaquePointerType type)
+{
+	return mlir::LLVM::LLVMPointerType::get(convertType(IntegerType::get(type.getContext(), 8)));
 }
 
 mlir::Type TypeConverter::convertStructType(StructType type)

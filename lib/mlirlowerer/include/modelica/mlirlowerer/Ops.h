@@ -506,12 +506,15 @@ namespace modelica::codegen
 	//===----------------------------------------------------------------------===//
 
 	/**
-	 * This operation should be used only in combination with function calls,
-	 * to remove the allocation scope before passing the array pointers as
-	 * arguments to the functions, or to generalize the sizes to unknown ones.
-	 * It must NOT be used to change the allocation scope (i.e. stack -> heap
-	 * or heap -> stack), to cast the element type to a different one or to
-	 * to specialize the shape to a fixed one.
+	 * This operation should be used only for two purposes: the first one is
+	 * for function calls, to remove the allocation scope before passing the
+	 * array pointers as arguments to the functions, or to generalize the sizes
+	 * to unknown ones; the second one is to cast from / to opaque pointers.
+	 * The operation is NOT intended to be used to change the allocation scope
+	 * (i.e. stack -> heap or heap -> stack), to cast the element type to a
+	 * different one or to to specialize the shape to a fixed one. This last
+	 * case is a certain sense violated by the opaque pointer casting scenario,
+	 * and must be carefully checked by the user.
 	 */
 	class PtrCastOp;
 
@@ -534,7 +537,7 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
-		PointerType resultType();
+		mlir::Type resultType();
 		mlir::Value memory();
 	};
 

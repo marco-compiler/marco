@@ -28,6 +28,11 @@ PointerType ModelicaBuilder::getPointerType(BufferAllocationScope allocationScop
 	return PointerType::get(getContext(), allocationScope, elementType, shape);
 }
 
+OpaquePointerType ModelicaBuilder::getOpaquePointerType()
+{
+	return OpaquePointerType::get(getContext());
+}
+
 StructType ModelicaBuilder::getStructType(llvm::ArrayRef<mlir::Type> types)
 {
 	return StructType::get(getContext(), types);

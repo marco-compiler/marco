@@ -363,6 +363,11 @@ unsigned int UnrankedPointerType::getRank() const
 }
 */
 
+OpaquePointerType OpaquePointerType::get(mlir::MLIRContext* context)
+{
+	return Base::get(context);
+}
+
 StructType StructType::get(mlir::MLIRContext* context, llvm::ArrayRef<mlir::Type> elementTypes)
 {
 	return Base::get(context, elementTypes);
@@ -420,6 +425,12 @@ void modelica::codegen::printModelicaType(mlir::Type type, mlir::DialectAsmPrint
 		return;
 	}
 	*/
+
+	if (type.isa<OpaquePointerType>())
+	{
+		os << "opaque_ptr";
+    return;
+	}
 
 	if (auto structType = type.dyn_cast<StructType>())
 	{
