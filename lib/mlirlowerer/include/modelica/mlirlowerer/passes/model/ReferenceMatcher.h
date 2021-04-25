@@ -36,7 +36,7 @@ namespace modelica::codegen::model
 
 		[[nodiscard]] Expression getExp(size_t index) const;
 
-		void visit(Expression exp, bool isLeft, size_t index);
+		void visit(Expression exp, bool isLeft);
 		void visit(Equation equation, bool ignoreMatched = false);
 
 		private:

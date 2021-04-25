@@ -71,3 +71,8 @@ mlir::Attribute ModelicaBuilder::getZeroAttribute(mlir::Type type)
 
 	return getZeroAttr(type);
 }
+
+InverseFunctionAttribute ModelicaBuilder::getInverseFunctionAttribute(unsigned int invertedArgumentIndex, llvm::StringRef function, llvm::ArrayRef<unsigned int> args)
+{
+	return InverseFunctionAttribute::get(getContext(), invertedArgumentIndex, function, args);
+}

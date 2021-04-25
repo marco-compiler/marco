@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llvm/ADT/SmallVector.h>
+#include <map>
 #include <mlir/IR/Attributes.h>
 
 namespace modelica::codegen
@@ -13,6 +14,7 @@ namespace modelica::codegen
 	class IntegerArrayAttributeStorage;
 	class RealAttributeStorage;
 	class RealArrayAttributeStorage;
+	class InverseFunctionAttributeStorage;
 
 	class BooleanAttribute : public mlir::Attribute::AttrBase<BooleanAttribute, mlir::Attribute, BooleanAttributeStorage>
 	{
@@ -72,6 +74,19 @@ namespace modelica::codegen
 		static constexpr llvm::StringRef getAttrName();
 		static RealArrayAttribute get(mlir::Type type, llvm::ArrayRef<double> values);
 		[[nodiscard]] llvm::ArrayRef<llvm::APFloat> getValue() const;
+	};
+
+	class InverseFunctionAttribute : public mlir::Attribute::AttrBase<InverseFunctionAttribute, mlir::Attribute, InverseFunctionAttributeStorage>
+	{
+		public:
+		using Base::Base;
+
+		static constexpr llvm::StringRef getAttrName();
+		static InverseFunctionAttribute get(mlir::MLIRContext* context, unsigned int invertedArg, llvm::StringRef function, llvm::ArrayRef<unsigned int> args);
+
+		[[nodiscard]] unsigned int getInvertedArgumentIndex() const;
+		[[nodiscard]] llvm::StringRef getFunction() const;
+		[[nodiscard]] llvm::ArrayRef<unsigned int> getArgumentsIndexes() const;
 	};
 
 	void printModelicaAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& printer);

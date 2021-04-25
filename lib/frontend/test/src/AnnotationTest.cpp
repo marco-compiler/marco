@@ -6,7 +6,7 @@ using namespace frontend;
 
 TEST(Parser, inlineAnnotationTrue)	 // NOLINT
 {
-	Parser parser("annotation(Inline = true)");
+	Parser parser("annotation(inline = true)");
 
 	auto ast = parser.annotation();
 	ASSERT_FALSE(!ast);
@@ -16,7 +16,7 @@ TEST(Parser, inlineAnnotationTrue)	 // NOLINT
 
 TEST(Parser, inlineAnnotationFalse)	 // NOLINT
 {
-	Parser parser("annotation(Inline = false)");
+	Parser parser("annotation(inline = false)");
 
 	auto ast = parser.annotation();
 	ASSERT_FALSE(!ast);
@@ -28,11 +28,33 @@ TEST(Parser, inlinableFunction)	 // NOLINT
 {
 	Parser parser("function foo"
 								"  algorithm"
-								"  annotation(Inline = true);"
+								"  annotation(inline = true);"
 								"end foo;");
 
 	auto ast = parser.classDefinition();
 	ASSERT_FALSE(!ast);
 
 	EXPECT_TRUE(ast->get<Function>().getAnnotation().getInlineProperty());
+}
+
+TEST(Parser, inverseFunctionAnnotation)	 // NOLINT
+{
+	Parser parser("annotation(inverse(y = foo1(x, z), z = foo2(x, y)))");
+
+	auto ast = parser.annotation();
+	ASSERT_FALSE(!ast);
+
+	auto annotation = ast->getInverseFunctionAnnotation();
+
+	EXPECT_TRUE(annotation.isInvertible("y"));
+	EXPECT_EQ(annotation.getInverseFunction("y"), "foo1");
+	EXPECT_EQ(annotation.getInverseArgs("y").size(), 2);
+	EXPECT_EQ(annotation.getInverseArgs("y")[0], "x");
+	EXPECT_EQ(annotation.getInverseArgs("y")[1], "z");
+
+	EXPECT_TRUE(annotation.isInvertible("z"));
+	EXPECT_EQ(annotation.getInverseFunction("z"), "foo2");
+	EXPECT_EQ(annotation.getInverseArgs("z").size(), 2);
+	EXPECT_EQ(annotation.getInverseArgs("z")[0], "x");
+	EXPECT_EQ(annotation.getInverseArgs("z")[1], "y");
 }

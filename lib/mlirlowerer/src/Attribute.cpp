@@ -1,6 +1,7 @@
 #include <mlir/IR/DialectImplementation.h>
 #include <modelica/mlirlowerer/Attribute.h>
 #include <modelica/mlirlowerer/Type.h>
+#include <numeric>
 
 using namespace modelica::codegen;
 
@@ -250,6 +251,62 @@ namespace modelica::codegen
 		mlir::Type type;
 		llvm::SmallVector<llvm::APFloat, 3> values;
 	};
+
+	class InverseFunctionAttributeStorage : public mlir::AttributeStorage
+	{
+		public:
+		using KeyTy = std::tuple<unsigned int, llvm::StringRef, llvm::ArrayRef<unsigned int>>;
+
+		bool operator==(const KeyTy& key) const
+		{
+			return key == KeyTy(invertedArg, function, args);
+		}
+
+		static unsigned int hashKey(const KeyTy& key)
+		{
+			return llvm::hash_combine(std::get<0>(key), std::get<1>(key), std::get<2>(key));
+		}
+
+		static KeyTy getKey(unsigned int invertedArg, llvm::StringRef function, llvm::ArrayRef<unsigned int> args) {
+			return KeyTy(invertedArg, function, args);
+		}
+
+		static InverseFunctionAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, KeyTy key)
+		{
+			unsigned int invertedArg = std::get<0>(key);
+			llvm::StringRef function = allocator.copyInto(std::get<1>(key));
+			llvm::ArrayRef<unsigned int> args = allocator.copyInto(std::get<2>(key));
+
+			return new (allocator.allocate<InverseFunctionAttributeStorage>()) InverseFunctionAttributeStorage(invertedArg, function, args);
+		}
+
+		[[nodiscard]] unsigned int getInvertedArgumentIndex() const
+		{
+			return invertedArg;
+		}
+
+		[[nodiscard]] llvm::StringRef getFunction() const
+		{
+			return function;
+		}
+
+		[[nodiscard]] llvm::ArrayRef<unsigned int> getArgumentsIndexes() const
+		{
+			return args;
+		}
+
+		private:
+		InverseFunctionAttributeStorage(unsigned int invertedArg, llvm::StringRef function, llvm::ArrayRef<unsigned int> args)
+				: invertedArg(invertedArg),
+					function(function),
+					args(args)
+		{
+		}
+
+		unsigned int invertedArg;
+		llvm::StringRef function;
+		llvm::ArrayRef<unsigned int> args;
+	};
 }
 
 constexpr llvm::StringRef BooleanAttribute::getAttrName()
@@ -355,22 +412,73 @@ llvm::ArrayRef<llvm::APFloat> RealArrayAttribute::getValue() const
 	return getImpl()->getValue();
 }
 
+constexpr llvm::StringRef InverseFunctionAttribute::getAttrName()
+{
+	return "inverseFunction";
+}
+
+InverseFunctionAttribute InverseFunctionAttribute::get(
+		mlir::MLIRContext* context,
+		unsigned int invertedArg,
+		llvm::StringRef function,
+		llvm::ArrayRef<unsigned int> args)
+{
+	return Base::get(context, invertedArg, function, args);
+}
+
+unsigned int InverseFunctionAttribute::getInvertedArgumentIndex() const
+{
+	return getImpl()->getInvertedArgumentIndex();
+}
+
+llvm::StringRef InverseFunctionAttribute::getFunction() const
+{
+	return getImpl()->getFunction();
+}
+
+llvm::ArrayRef<unsigned int> InverseFunctionAttribute::getArgumentsIndexes() const
+{
+	return getImpl()->getArgumentsIndexes();
+}
+
 void modelica::codegen::printModelicaAttribute(mlir::Attribute attr, mlir::DialectAsmPrinter& printer)
 {
 	auto& os = printer.getStream();
 
-	if (auto attribute = attr.dyn_cast<BooleanAttribute>()) {
+	if (auto attribute = attr.dyn_cast<BooleanAttribute>())
+	{
 		os << (attribute.getValue() ? "true" : "false");
 		return;
 	}
 
-	if (auto attribute = attr.dyn_cast<IntegerAttribute>()) {
+	if (auto attribute = attr.dyn_cast<IntegerAttribute>())
+	{
 		os << "int<" << std::to_string(attribute.getValue()) << ">";
 		return;
 	}
 
-	if (auto attribute = attr.dyn_cast<RealAttribute>()) {
+	if (auto attribute = attr.dyn_cast<RealAttribute>())
+	{
 		os << "real<" << std::to_string(attribute.getValue()) << ">";
 		return;
+	}
+
+	if (auto attribute = attr.dyn_cast<InverseFunctionAttribute>())
+	{
+		os << "inverse: {";
+
+		os << attribute.getInvertedArgumentIndex() << ": ";
+		os << attribute.getFunction() << "(";
+
+		auto args = attribute.getArgumentsIndexes();
+
+		os << std::accumulate(
+				args.begin(), args.end(), std::string(),
+				[](const std::string& result, const unsigned int& index) {
+					std::string str = std::to_string(index);
+					return result.empty() ? str : result + ", " + str;
+				});
+
+		os << ")}";
 	}
 }

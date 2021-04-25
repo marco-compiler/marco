@@ -3,6 +3,7 @@
 #include <boost/range/join.hpp>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/StringMap.h>
 #include <llvm/Support/raw_ostream.h>
 #include <modelica/utils/SourcePosition.h>
 #include <string>
@@ -65,5 +66,22 @@ namespace modelica::frontend
 		Container<Algorithm> algorithms;
 		Annotation annotation;
 		Type type;
+	};
+
+	class InverseFunctionAnnotation
+	{
+		private:
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
+
+		public:
+		InverseFunctionAnnotation()= default;
+
+		[[nodiscard]] bool isInvertible(llvm::StringRef arg) const;
+		[[nodiscard]] llvm::StringRef getInverseFunction(llvm::StringRef invertibleArg) const;
+		[[nodiscard]] llvm::ArrayRef<std::string> getInverseArgs(llvm::StringRef invertibleArg) const;
+		void addInverse(llvm::StringRef invertedArg, llvm::StringRef inverseFunctionName, llvm::ArrayRef<std::string> args);
+
+		private:
+		llvm::StringMap<std::pair<std::string, Container<std::string>>> map;
 	};
 }

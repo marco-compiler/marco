@@ -287,28 +287,60 @@ mlir::Operation* MLIRLowerer::lower(Function& foo)
 	}
 
 	auto functionType = builder.getFunctionType(argTypes, returnTypes);
+	auto function = mlir::FuncOp::create(location, foo.getName(), functionType);
 
-	llvm::SmallVector<mlir::NamedAttribute, 3> attributes;
-	attributes.push_back(builder.getNamedAttr("inline", builder.getBooleanAttribute(foo.getAnnotation().getInlineProperty())));
+	// Inline attribute
+	function->setAttr("inline", builder.getBooleanAttribute(foo.getAnnotation().getInlineProperty()));
 
-	auto function = mlir::FuncOp::create(location, foo.getName(), functionType, static_cast<llvm::ArrayRef<mlir::NamedAttribute>>(attributes));
+	{
+		// Inverse functions attribute
+		auto inverseFunctionAnnotation = foo.getAnnotation().getInverseFunctionAnnotation();
+		llvm::SmallVector<mlir::Attribute, 3> inverseAttributes;
+
+		// Create a map of the function members indexes for faster retrieval
+		llvm::StringMap<unsigned int> indexes;
+
+		for (const auto& name : llvm::enumerate(argNames))
+			indexes[name.value()] = name.index();
+
+		for (const auto& name : llvm::enumerate(returnNames))
+			indexes[name.value()] = argNames.size() + name.index();
+
+		// Iterate over the input arguments and for each invertible one
+		// add the function to the inverse map.
+		for (const auto& arg : argNames)
+		{
+			if (!inverseFunctionAnnotation.isInvertible(arg))
+				continue;
+
+			auto inverseArgs = inverseFunctionAnnotation.getInverseArgs(arg);
+			llvm::SmallVector<unsigned int, 3> permutation;
+
+			for (const auto& inverseArg : inverseArgs)
+			{
+				assert(indexes.find(inverseArg) != indexes.end());
+				permutation.push_back(indexes[inverseArg]);
+			}
+
+			inverseAttributes.push_back(builder.getInverseFunctionAttribute(
+					indexes[arg], inverseFunctionAnnotation.getInverseFunction(arg), permutation));
+		}
+
+		auto inverseFunctionAttribute = builder.getArrayAttr(inverseAttributes);
+		function->setAttr("inverse", inverseFunctionAttribute);
+	}
 
 	// If the function doesn't have a body, it means it is just a declaration
 	if (foo.getAlgorithms().empty())
 		return { function };
 
 	// Start the body of the function.
-	// In MLIR the entry block of the function is special: it must have the same
-	// argument list as the function itself.
 	auto& entryBlock = *function.addEntryBlock();
 
 	// Declare all the function arguments in the symbol table
 	for (const auto& [name, value] : llvm::zip(argNames, entryBlock.getArguments()))
 		symbolTable.insert(name, Reference::ssa(&builder, value));
 
-	// Set the insertion point in the builder to the beginning of the function
-	// body, it will be used throughout the codegen to create operations in this
-	// function.
 	builder.setInsertionPointToStart(&entryBlock);
 
 	// Initialize members

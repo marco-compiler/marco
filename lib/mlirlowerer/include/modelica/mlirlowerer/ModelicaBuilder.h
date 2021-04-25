@@ -33,6 +33,8 @@ namespace modelica::codegen
 
 		mlir::Attribute getZeroAttribute(mlir::Type type);
 
+		InverseFunctionAttribute getInverseFunctionAttribute(unsigned int invertedArgumentIndex, llvm::StringRef function, llvm::ArrayRef<unsigned int> args);
+
 		private:
 		unsigned int bitWidth;
 	};

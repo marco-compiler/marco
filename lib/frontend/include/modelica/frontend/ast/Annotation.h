@@ -5,6 +5,7 @@
 namespace modelica::frontend
 {
 	class ClassModification;
+	class InverseFunctionAnnotation;
 
 	class Annotation
 	{
@@ -12,7 +13,8 @@ namespace modelica::frontend
 		Annotation();
 		explicit Annotation(ClassModification properties);
 
-		bool getInlineProperty();
+		[[nodiscard]] bool getInlineProperty() const;
+		[[nodiscard]] InverseFunctionAnnotation getInverseFunctionAnnotation() const;
 
 		private:
 		std::shared_ptr<ClassModification> properties;

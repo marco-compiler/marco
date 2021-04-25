@@ -130,3 +130,27 @@ Type& Function::getType() { return type; }
 const Type& Function::getType() const { return type; }
 
 void Function::setType(Type t) { type = std::move(t); }
+
+bool InverseFunctionAnnotation::isInvertible(llvm::StringRef arg) const
+{
+	return map.find(arg) != map.end();
+}
+
+llvm::StringRef InverseFunctionAnnotation::getInverseFunction(llvm::StringRef invertibleArg) const
+{
+	assert(isInvertible(invertibleArg));
+	return map.find(invertibleArg)->second.first;
+}
+
+llvm::ArrayRef<std::string> InverseFunctionAnnotation::getInverseArgs(llvm::StringRef invertibleArg) const
+{
+	assert(isInvertible(invertibleArg));
+	return map.find(invertibleArg)->second.second;
+}
+
+void InverseFunctionAnnotation::addInverse(llvm::StringRef invertedArg, llvm::StringRef inverseFunctionName, llvm::ArrayRef<std::string> args)
+{
+	assert(map.find(invertedArg) == map.end());
+	Container<std::string> c(args.begin(), args.end());
+	map[invertedArg] = std::make_pair(inverseFunctionName.str(), c);
+}

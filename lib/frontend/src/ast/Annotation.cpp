@@ -1,5 +1,6 @@
 #include <boost/algorithm/string.hpp>
 #include <modelica/frontend/ast/Annotation.h>
+#include <modelica/frontend/ast/Function.h>
 #include <modelica/frontend/ast/Modification.h>
 
 using namespace modelica::frontend;
@@ -26,11 +27,11 @@ Annotation::Annotation(ClassModification properties)
  *  element-modification
  *    /           \
  *  name        modification
- * Inline           |
+ * inline           |
  *              expression
  *                true
  */
-bool Annotation::getInlineProperty()
+bool Annotation::getInlineProperty() const
 {
 	for (const auto& argument : *properties)
 	{
@@ -38,7 +39,7 @@ bool Annotation::getInlineProperty()
 		{
 			const auto& elementModification = argument.get<ElementModification>();
 
-			if (boost::iequals(elementModification.getName(), "Inline") &&
+			if (boost::iequals(elementModification.getName(), "inline") &&
 					elementModification.hasModification())
 			{
 				const auto& modification = elementModification.getModification();
@@ -48,4 +49,39 @@ bool Annotation::getInlineProperty()
 	}
 
 	return false;
+}
+
+InverseFunctionAnnotation Annotation::getInverseFunctionAnnotation() const
+{
+	InverseFunctionAnnotation result;
+
+	for (const auto& argument : *properties)
+	{
+		const auto& elementModification = argument.get<ElementModification>();
+
+		if (boost::iequals(elementModification.getName(), "inverse"))
+		{
+			assert(elementModification.hasModification());
+			const auto& modification = elementModification.getModification();
+			assert(modification.hasClassModification());
+
+			for (const auto& inverseDeclaration : modification.getClassModification())
+			{
+				const auto& inverseDeclarationFullExpression = inverseDeclaration.get<ElementModification>();
+				assert(inverseDeclarationFullExpression.hasModification());
+				const auto& callExpression = inverseDeclarationFullExpression.getModification();
+				assert(callExpression.hasExpression());
+				const auto& call = callExpression.getExpression().get<Call>();
+
+				llvm::SmallVector<std::string, 3> args;
+
+				for (const auto& arg : call)
+					args.push_back(arg.get<ReferenceAccess>().getName());
+
+				result.addInverse(inverseDeclarationFullExpression.getName(), call.getFunction().get<ReferenceAccess>().getName(), args);
+			}
+		}
+	}
+
+	return result;
 }
