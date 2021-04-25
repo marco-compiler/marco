@@ -326,8 +326,11 @@ mlir::Operation* MLIRLowerer::lower(Function& foo)
 					indexes[arg], inverseFunctionAnnotation.getInverseFunction(arg), permutation));
 		}
 
-		auto inverseFunctionAttribute = builder.getArrayAttr(inverseAttributes);
-		function->setAttr("inverse", inverseFunctionAttribute);
+		if (!inverseAttributes.empty())
+		{
+			auto inverseFunctionAttribute = builder.getArrayAttr(inverseAttributes);
+			function->setAttr("inverse", inverseFunctionAttribute);
+		}
 	}
 
 	// If the function doesn't have a body, it means it is just a declaration

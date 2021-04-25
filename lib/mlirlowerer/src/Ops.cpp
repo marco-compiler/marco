@@ -1084,6 +1084,9 @@ mlir::LogicalResult DimOp::verify()
 
 mlir::OpFoldResult DimOp::fold(mlir::ArrayRef<mlir::Attribute> operands)
 {
+	if (operands[1] == nullptr)
+		return nullptr;
+
 	if (auto attribute = operands[1].dyn_cast<mlir::IntegerAttr>(); attribute)
 	{
 		auto pointerType = memory().getType().cast<PointerType>();
