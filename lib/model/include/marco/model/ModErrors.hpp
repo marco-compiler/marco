@@ -261,9 +261,6 @@ namespace marco
 		ModExp toExplicitate;
 		size_t argumentIndex;
 	};
-<<<<<<< HEAD:lib/model/include/marco/model/ModErrors.hpp
-}	 // namespace marco
-=======
 
 	/**
 	 * Error caused by the presence of an Algebraic Loop that could not be solved
@@ -287,5 +284,4 @@ namespace marco
 					LowererErrorCategory::category);
 		}
 	};
-}	 // namespace modelica
->>>>>>> Identification of Algebraic Loops inside SccCollapsing:lib/model/include/modelica/model/ModErrors.hpp
+}	 // namespace marco

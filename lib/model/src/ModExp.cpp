@@ -177,6 +177,29 @@ bool ModExp::tryFoldConstant()
 				return true;
 			}
 		}
+		if (getOperationKind() == ModExpKind::sub)
+		{
+			if (getLeftHand().isConstant() and
+					getLeftHand().getConstant().getModTypeOfLiteral().isScalar() and
+					getLeftHand().getConstant().as<double>().get<double>(0) == 0.0)
+			{
+				if (getRightHand().isConstant() and
+						getRightHand().getConstant().getModTypeOfLiteral().isScalar())
+					*this = ModExp(
+							ModConst::sub(ModConst(0.0), getRightHand().getConstant()),
+							getModType());
+				else
+					*this = ModExp::negate(move(getRightHand()));
+				return true;
+			}
+			if (getRightHand().isConstant() and
+					getRightHand().getConstant().getModTypeOfLiteral().isScalar() and
+					getRightHand().getConstant().as<double>().get<double>(0) == 0.0)
+			{
+				*this = move(getLeftHand());
+				return true;
+			}
+		}
 		if (getOperationKind() == ModExpKind::mult)
 		{
 			if (getLeftHand().isConstant() and
@@ -193,9 +216,6 @@ bool ModExp::tryFoldConstant()
 				*this = move(getLeftHand());
 				return true;
 			}
-		}
-		if (getOperationKind() == ModExpKind::mult)
-		{
 			if (getLeftHand().isConstant() and
 					getLeftHand().getConstant().getModTypeOfLiteral().isScalar() and
 					getLeftHand().getConstant().as<double>().get<double>(0) == 0.0)

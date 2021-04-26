@@ -237,22 +237,36 @@ TEST(ModelTest, modExpShouldDistributeMultiplication)
 
 TEST(ModelTest, modExpDistributeDivisionToRight)
 {
-	ModExp constant = ModExp(ModConst(5));
+	ModExp constant = ModConst(5.0);
 	ModExp addition = ModExp::add(constant, constant);
 	ModExp exp = ModExp::divide(addition, constant);
 	exp.distributeMultiplications();
 	EXPECT_TRUE(exp.isOperation<ModExpKind::add>());
 	EXPECT_TRUE(exp.getLeftHand().isOperation<ModExpKind::divide>());
 	EXPECT_TRUE(exp.getRightHand().isOperation<ModExpKind::divide>());
+
+	ModExp var = ModExp("var", ModType(BultinModTypes::FLOAT, 1));
+	ModExp res = ModConst(2.0);
+	MultiDimInterval vars{ { 0, 1 } };
+	ModEquation eq(var, exp, "", vars);
+	eq.foldConstants();
+	EXPECT_EQ(eq.getRight(), res);
 }
 
 TEST(ModelTest, modExpDoNotDistributeDivisionToLeft)
 {
-	ModExp constant = ModExp(ModConst(5));
+	ModExp constant = ModConst(5.0);
 	ModExp addition = ModExp::add(constant, constant);
 	ModExp exp = ModExp::divide(constant, addition);
 	exp.distributeMultiplications();
 	EXPECT_TRUE(exp.isOperation<ModExpKind::divide>());
 	EXPECT_TRUE(exp.getLeftHand().isConstant());
 	EXPECT_TRUE(exp.getRightHand().isOperation<ModExpKind::add>());
+	
+	ModExp var = ModExp("var", ModType(BultinModTypes::FLOAT, 1));
+	ModExp res = ModConst(0.5);
+	MultiDimInterval vars{ { 0, 1 } };
+	ModEquation eq(var, exp, "", vars);
+	eq.foldConstants();
+	EXPECT_EQ(eq.getRight(), res);
 }

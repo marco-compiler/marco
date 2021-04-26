@@ -5,7 +5,8 @@ set(SOURCES
 		src/ModMatchersTest.cpp
 		src/VectorAccessTest.cpp
 		src/ModEquationTest.cpp
-		src/ModConstTest.cpp)
+		src/ModConstTest.cpp
+		src/SymbolicDifferentiationTest.cpp)
 
 marco_add_unittest(MARCOTest ModelTest ${SOURCES})
 
