@@ -16,6 +16,14 @@ static bool isNumeric(mlir::Value value)
 	return isNumeric(value.getType());
 }
 
+static mlir::Value readValue(mlir::OpBuilder& builder, mlir::Value operand)
+{
+	if (auto pointerType = operand.getType().dyn_cast<PointerType>(); pointerType && pointerType.getRank() == 0)
+		return builder.create<LoadOp>(operand.getLoc(), operand);
+
+	return operand;
+}
+
 //===----------------------------------------------------------------------===//
 // Modelica::PackOp
 //===----------------------------------------------------------------------===//
@@ -739,6 +747,60 @@ mlir::CallInterfaceCallable CallOp::getCallableForCallee() {
 mlir::Operation::operand_range CallOp::getArgOperands()
 {
 	return getOperands();
+}
+
+mlir::LogicalResult CallOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	if (getNumResults() != 1)
+		return emitError("The callee must have one and only one result");
+
+	if (argumentIndex >= args().size())
+		return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+
+	if (auto size = currentResult.size(); size != 1)
+		return emitError("Invalid amount of values to be nested: " + std::to_string(size) + " (expected 1)");
+
+	mlir::Value toNest = currentResult[0];
+
+	auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
+	auto callee = module.lookupSymbol<mlir::FuncOp>(this->callee());
+
+	if (!callee->hasAttr("inverse"))
+		return emitError("Function " + callee->getName().getStringRef() + " is not invertible");
+
+	auto inverseAnnotation = callee->getAttrOfType<InverseFunctionsAttribute>("inverse");
+
+	if (!inverseAnnotation.isInvertible(argumentIndex))
+		return emitError("Function " + callee->getName().getStringRef() + " is not invertible for argument " + std::to_string(argumentIndex));
+
+	size_t argsSize = args().size();
+	llvm::SmallVector<mlir::Value, 3> args;
+
+	for (auto arg : inverseAnnotation.getArgumentsIndexes(argumentIndex))
+	{
+		if (arg < argsSize)
+		{
+			args.push_back(this->args()[arg]);
+		}
+		else
+		{
+			assert(arg == argsSize);
+			args.push_back(toNest);
+		}
+	}
+
+	auto invertedCall = builder.create<CallOp>(getLoc(), inverseAnnotation.getFunction(argumentIndex), this->args()[argumentIndex].getType(), args);
+
+	getResult(0).replaceAllUsesWith(this->args()[argumentIndex]);
+	erase();
+
+	for (auto& use : toNest.getUses())
+		if (use.getOwner() != invertedCall)
+			use.set(invertedCall.getResult(0));
+
+	return mlir::success();
 }
 
 mlir::StringRef CallOp::callee()
@@ -2456,6 +2518,31 @@ void NegateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstanc
 	}
 }
 
+mlir::LogicalResult NegateOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	if (argumentIndex > 0)
+		return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+
+	if (auto size = currentResult.size(); size != 1)
+		return emitError("Invalid amount of values to be nested: " + std::to_string(size) + " (expected 1)");
+
+	mlir::Value toNest = currentResult[0];
+
+	mlir::Value nestedOperand = readValue(builder, toNest);
+	auto right = builder.create<NegateOp>(getLoc(), nestedOperand.getType(), nestedOperand);
+
+	for (auto& use : toNest.getUses())
+		if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+			use.set(right.getResult());
+
+	replaceAllUsesWith(operand());
+	getOperation()->remove();
+
+	return mlir::success();
+}
+
 mlir::Value NegateOp::distribute(mlir::OpBuilder& builder)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
@@ -2580,6 +2667,48 @@ void AddOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	}
 }
 
+mlir::LogicalResult AddOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	if (auto size = currentResult.size(); size != 1)
+		return emitError("Invalid amount of values to be nested: " + std::to_string(size) + " (expected 1)");
+
+	mlir::Value toNest = currentResult[0];
+
+	if (argumentIndex == 0)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<SubOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		replaceAllUsesWith(lhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	if (argumentIndex == 1)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<SubOp>(getLoc(), nestedOperand.getType(), nestedOperand, lhs());
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		replaceAllUsesWith(rhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+}
+
 mlir::Value AddOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
@@ -2699,6 +2828,48 @@ void SubOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	}
 }
 
+mlir::LogicalResult SubOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	if (auto size = currentResult.size(); size != 1)
+		return emitError("Invalid amount of values to be nested: " + std::to_string(size) + " (expected 1)");
+
+	mlir::Value toNest = currentResult[0];
+
+	if (argumentIndex == 0)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<AddOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		replaceAllUsesWith(lhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	if (argumentIndex == 1)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<SubOp>(getLoc(), nestedOperand.getType(), lhs(), nestedOperand);
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		replaceAllUsesWith(rhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+}
+
 mlir::Value SubOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
@@ -2816,6 +2987,48 @@ void MulOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
+}
+
+mlir::LogicalResult MulOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	if (auto size = currentResult.size(); size != 1)
+		return emitError("Invalid amount of values to be nested: " + std::to_string(size) + " (expected 1)");
+
+	mlir::Value toNest = currentResult[0];
+
+	if (argumentIndex == 0)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<DivOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		replaceAllUsesWith(lhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	if (argumentIndex == 1)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<DivOp>(getLoc(), nestedOperand.getType(), nestedOperand, lhs());
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		getResult().replaceAllUsesWith(rhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	return emitError("Index out of bounds: " + std::to_string(argumentIndex));
 }
 
 mlir::Value MulOp::distribute(mlir::OpBuilder& builder)
@@ -2957,6 +3170,48 @@ void DivOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
+}
+
+mlir::LogicalResult DivOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	if (auto size = currentResult.size(); size != 1)
+		return emitError("Invalid amount of values to be nested: " + std::to_string(size) + " (expected 1)");
+
+	mlir::Value toNest = currentResult[0];
+
+	if (argumentIndex == 0)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<MulOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		getResult().replaceAllUsesWith(lhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	if (argumentIndex == 1)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<DivOp>(getLoc(), nestedOperand.getType(), lhs(), nestedOperand);
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		getResult().replaceAllUsesWith(rhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	return emitError("Index out of bounds: " + std::to_string(argumentIndex));
 }
 
 mlir::Value DivOp::distribute(mlir::OpBuilder& builder)

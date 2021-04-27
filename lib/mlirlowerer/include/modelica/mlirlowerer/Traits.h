@@ -81,6 +81,31 @@ class EquationInterface : public mlir::OpInterface<EquationInterface, EquationIn
 	}
 };
 
+struct InvertibleInterfaceTraits {
+	struct Concept {
+		// TODO: keep ValueRange or switch to Value?
+		virtual mlir::LogicalResult invert(mlir::Operation* op, mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult) const = 0;
+	};
+
+	template <typename ConcreteOp>
+	struct Model : public Concept {
+		mlir::LogicalResult invert(mlir::Operation* op, mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult) const final
+		{
+			return mlir::cast<ConcreteOp>(op).invert(builder, argumentIndex, currentResult);
+		}
+	};
+};
+
+class InvertibleInterface : public mlir::OpInterface<InvertibleInterface, InvertibleInterfaceTraits> {
+	public:
+	using OpInterface<InvertibleInterface, InvertibleInterfaceTraits>::OpInterface;
+
+	mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+	{
+		return getImpl()->invert(getOperation(), builder, argumentIndex, currentResult);
+	}
+};
+
 struct DistributableInterfaceTraits {
 	struct Concept {
 		virtual mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const = 0;

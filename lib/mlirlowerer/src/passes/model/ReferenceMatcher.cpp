@@ -88,29 +88,6 @@ void ReferenceMatcher::visit(Expression exp, bool isLeft)
 		return;
 	}
 
-	if (auto callOp = mlir::dyn_cast<CallOp>(exp.getOp()))
-	{
-		auto module = exp.getOp()->getParentOfType<mlir::ModuleOp>();
-		auto callee = module.lookupSymbol<mlir::FuncOp>(callOp.callee());
-
-		if (!callee->hasAttr("inverse"))
-			return;
-
-		auto inverseAttribute = callee->getAttrOfType<InverseFunctionsAttribute>("inverse");
-
-		for (size_t i = 0; i < exp.childrenCount(); ++i)
-		{
-			if (!inverseAttribute.isInvertible(i))
-				continue;
-
-			currentPath.push_back(i);
-			auto g = makeGuard([this] { removeBack(); });
-			visit(exp.getChild(i), isLeft);
-		}
-
-		return;
-	}
-
 	for (size_t i = 0; i < exp.childrenCount(); ++i)
 	{
 		currentPath.push_back(i);

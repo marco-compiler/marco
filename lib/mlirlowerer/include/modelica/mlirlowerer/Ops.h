@@ -64,7 +64,10 @@ namespace modelica::codegen
 		mlir::ValueRange values();
 	};
 
-	class PackOp : public mlir::Op<PackOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult>
+	class PackOp : public mlir::Op<PackOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::VariadicOperands,
+																mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -92,7 +95,10 @@ namespace modelica::codegen
 		mlir::Value packedValue();
 	};
 
-	class ExtractOp : public mlir::Op<ExtractOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult>
+	class ExtractOp : public mlir::Op<ExtractOp,
+																	 mlir::OpTrait::ZeroRegion,
+																	 mlir::OpTrait::OneOperand,
+																	 mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -120,7 +126,11 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 	};
 
-	class SimulationOp : public mlir::Op<SimulationOp, mlir::OpTrait::NRegions<3>::Impl, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
+	class SimulationOp : public mlir::Op<SimulationOp,
+																			mlir::OpTrait::NRegions<3>::Impl,
+																			mlir::OpTrait::ZeroOperands,
+																			mlir::OpTrait::ZeroResult,
+																			mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -157,7 +167,11 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 	};
 
-	class EquationOp : public mlir::Op<EquationOp, mlir::OpTrait::OneRegion, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, EquationInterface::Trait>
+	class EquationOp : public mlir::Op<EquationOp,
+																		mlir::OpTrait::OneRegion,
+																		mlir::OpTrait::ZeroOperands,
+																		mlir::OpTrait::ZeroResult,
+																		EquationInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -188,7 +202,11 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 	};
 
-	class ForEquationOp : public mlir::Op<ForEquationOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ZeroResult, EquationInterface::Trait>
+	class ForEquationOp : public mlir::Op<ForEquationOp,
+																			 mlir::OpTrait::NRegions<2>::Impl,
+																			 mlir::OpTrait::ZeroOperands,
+																			 mlir::OpTrait::ZeroResult,
+																			 EquationInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -223,7 +241,11 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 	};
 
-	class InductionOp : public mlir::Op<InductionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroOperands, mlir::OpTrait::OneResult, mlir::OpTrait::HasParent<ForEquationOp>::Impl>
+	class InductionOp : public mlir::Op<InductionOp,
+																		 mlir::OpTrait::ZeroRegion,
+																		 mlir::OpTrait::ZeroOperands,
+																		 mlir::OpTrait::OneResult,
+																		 mlir::OpTrait::HasParent<ForEquationOp>::Impl>
 	{
 		public:
 		using Op::Op;
@@ -252,7 +274,12 @@ namespace modelica::codegen
 		mlir::ValueRange rhs();
 	};
 
-	class EquationSidesOp : public mlir::Op<EquationSidesOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<EquationOp, ForEquationOp>::Impl, mlir::OpTrait::IsTerminator>
+	class EquationSidesOp : public mlir::Op<EquationSidesOp,
+																				 mlir::OpTrait::ZeroRegion,
+																				 mlir::OpTrait::VariadicOperands,
+																				 mlir::OpTrait::ZeroResult,
+																				 mlir::OpTrait::HasParent<EquationOp, ForEquationOp>::Impl,
+																				 mlir::OpTrait::IsTerminator>
 	{
 		public:
 		using Op::Op;
@@ -278,7 +305,12 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 	};
 
-	class ConstantOp : public mlir::Op<ConstantOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneResult, mlir::OpTrait::ZeroOperands, mlir::OpTrait::ConstantLike> {
+	class ConstantOp : public mlir::Op<ConstantOp,
+																		mlir::OpTrait::ZeroRegion,
+																		mlir::OpTrait::OneResult,
+																		mlir::OpTrait::ZeroOperands,
+																		mlir::OpTrait::ConstantLike>
+	{
 		public:
 		using Op::Op;
 		using Adaptor = ConstantOpAdaptor;
@@ -306,7 +338,11 @@ namespace modelica::codegen
 		mlir::Value value();
 	};
 
-	class CastOp : public mlir::Op<CastOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult> {
+	class CastOp : public mlir::Op<CastOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult>
+	{
 		public:
 		using Op::Op;
 		using Adaptor = CastOpAdaptor;
@@ -335,7 +371,11 @@ namespace modelica::codegen
 		mlir::ValueRange operands();
 	};
 
-	class CastCommonOp : public mlir::Op<CastCommonOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::VariadicResults> {
+	class CastCommonOp : public mlir::Op<CastCommonOp,
+																			mlir::OpTrait::ZeroRegion,
+																			mlir::OpTrait::VariadicOperands,
+																			mlir::OpTrait::VariadicResults>
+	{
 		public:
 		using Op::Op;
 		using Adaptor = CastCommonOpAdaptor;
@@ -363,7 +403,12 @@ namespace modelica::codegen
 		mlir::Value destination();
 	};
 
-	class AssignmentOp : public mlir::Op<AssignmentOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::ZeroResult, mlir::OpTrait::VariadicOperands, mlir::MemoryEffectOpInterface::Trait> {
+	class AssignmentOp : public mlir::Op<AssignmentOp,
+																			mlir::OpTrait::ZeroRegion,
+																			mlir::OpTrait::ZeroResult,
+																			mlir::OpTrait::VariadicOperands,
+																			mlir::MemoryEffectOpInterface::Trait>
+	{
 		public:
 		using Op::Op;
 		using Adaptor = AssignmentOpAdaptor;
@@ -391,7 +436,13 @@ namespace modelica::codegen
 		mlir::ValueRange args();
 	};
 
-	class CallOp : public mlir::Op<CallOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicResults, mlir::OpTrait::VariadicOperands, mlir::MemoryEffectOpInterface::Trait, mlir::CallOpInterface::Trait>
+	class CallOp : public mlir::Op<CallOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::VariadicResults,
+																mlir::OpTrait::VariadicOperands,
+																mlir::MemoryEffectOpInterface::Trait,
+																mlir::CallOpInterface::Trait,
+																InvertibleInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -400,9 +451,13 @@ namespace modelica::codegen
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::TypeRange results, mlir::ValueRange args, unsigned int movedResults = 0);
 		void print(mlir::OpAsmPrinter& printer);
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
 		mlir::CallInterfaceCallable getCallableForCallee();
 		mlir::Operation::operand_range getArgOperands();
+
+		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
 
 		mlir::StringRef callee();
 		mlir::ValueRange args();
@@ -423,7 +478,11 @@ namespace modelica::codegen
 		mlir::ValueRange dynamicDimensions();
 	};
 
-	class AllocaOp : public mlir::Op<AllocaOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class AllocaOp : public mlir::Op<AllocaOp,
+																	mlir::OpTrait::ZeroRegion,
+																	mlir::OpTrait::VariadicOperands,
+																	mlir::OpTrait::OneResult,
+																	mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -454,7 +513,11 @@ namespace modelica::codegen
 		mlir::ValueRange dynamicDimensions();
 	};
 
-	class AllocOp : public mlir::Op<AllocOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class AllocOp : public mlir::Op<AllocOp,
+																 mlir::OpTrait::ZeroRegion,
+																 mlir::OpTrait::VariadicOperands,
+																 mlir::OpTrait::OneResult,
+																 mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -486,7 +549,11 @@ namespace modelica::codegen
 		mlir::Value memory();
 	};
 
-	class FreeOp : public mlir::Op<FreeOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::ZeroResult, mlir::MemoryEffectOpInterface::Trait>
+	class FreeOp : public mlir::Op<FreeOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::ZeroResult,
+																mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -526,7 +593,10 @@ namespace modelica::codegen
 		mlir::Value memory();
 	};
 
-	class PtrCastOp : public mlir::Op<PtrCastOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult>
+	class PtrCastOp : public mlir::Op<PtrCastOp,
+																	 mlir::OpTrait::ZeroRegion,
+																	 mlir::OpTrait::OneOperand,
+																	 mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -556,7 +626,10 @@ namespace modelica::codegen
 		mlir::Value dimension();
 	};
 
-	class DimOp : public mlir::Op<DimOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
+	class DimOp : public mlir::Op<DimOp,
+															 mlir::OpTrait::ZeroRegion,
+															 mlir::OpTrait::NOperands<2>::Impl,
+															 mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -588,7 +661,11 @@ namespace modelica::codegen
 		mlir::ValueRange indexes();
 	};
 
-	class SubscriptionOp : public mlir::Op<SubscriptionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::ViewLikeOpInterface::Trait>
+	class SubscriptionOp : public mlir::Op<SubscriptionOp,
+																				mlir::OpTrait::ZeroRegion,
+																				mlir::OpTrait::AtLeastNOperands<2>::Impl,
+																				mlir::OpTrait::OneResult,
+																				mlir::ViewLikeOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -619,7 +696,11 @@ namespace modelica::codegen
 		mlir::ValueRange indexes();
 	};
 
-	class LoadOp : public mlir::Op<LoadOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<1>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class LoadOp : public mlir::Op<LoadOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::AtLeastNOperands<1>::Impl,
+																mlir::OpTrait::OneResult,
+																mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -652,7 +733,11 @@ namespace modelica::codegen
 		mlir::ValueRange indexes();
 	};
 
-	class StoreOp :public mlir::Op<StoreOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::ZeroResult, mlir::MemoryEffectOpInterface::Trait>
+	class StoreOp :public mlir::Op<StoreOp,
+																 mlir::OpTrait::ZeroRegion,
+																 mlir::OpTrait::AtLeastNOperands<2>::Impl,
+																 mlir::OpTrait::ZeroResult,
+																 mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -684,7 +769,11 @@ namespace modelica::codegen
 		mlir::Value source();
 	};
 
-	class ArrayCloneOp :public mlir::Op<ArrayCloneOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class ArrayCloneOp :public mlir::Op<ArrayCloneOp,
+																			mlir::OpTrait::ZeroRegion,
+																			mlir::OpTrait::OneOperand,
+																			mlir::OpTrait::OneResult,
+																			mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -716,7 +805,14 @@ namespace modelica::codegen
 		mlir::Value condition();
 	};
 
-	class IfOp : public mlir::Op<IfOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::VariadicResults, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::OneOperand, mlir::RegionBranchOpInterface::Trait, mlir::OpTrait::SingleBlockImplicitTerminator<YieldOp>::Impl> {
+	class IfOp : public mlir::Op<IfOp,
+															mlir::OpTrait::NRegions<2>::Impl,
+															mlir::OpTrait::VariadicResults,
+															mlir::OpTrait::ZeroSuccessor,
+															mlir::OpTrait::OneOperand,
+															mlir::RegionBranchOpInterface::Trait,
+															mlir::OpTrait::SingleBlockImplicitTerminator<YieldOp>::Impl>
+	{
 		public:
 		using Op::Op;
 		using Adaptor = IfOpAdaptor;
@@ -748,7 +844,11 @@ namespace modelica::codegen
 		mlir::ValueRange args();
 	};
 
-	class ForOp : public mlir::Op<ForOp, mlir::OpTrait::NRegions<3>::Impl, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
+	class ForOp : public mlir::Op<ForOp,
+															 mlir::OpTrait::NRegions<3>::Impl,
+															 mlir::OpTrait::VariadicOperands,
+															 mlir::OpTrait::ZeroResult,
+															 mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -782,7 +882,11 @@ namespace modelica::codegen
 		mlir::ValueRange args();
 	};
 
-	class BreakableForOp : public mlir::Op<BreakableForOp, mlir::OpTrait::NRegions<3>::Impl, mlir::OpTrait::AtLeastNOperands<2>::Impl, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
+	class BreakableForOp : public mlir::Op<BreakableForOp,
+																				mlir::OpTrait::NRegions<3>::Impl,
+																				mlir::OpTrait::AtLeastNOperands<2>::Impl,
+																				mlir::OpTrait::ZeroResult,
+																				mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -818,7 +922,11 @@ namespace modelica::codegen
 		mlir::Value returnCondition();
 	};
 
-	class BreakableWhileOp : public mlir::Op<BreakableWhileOp, mlir::OpTrait::NRegions<2>::Impl, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::ZeroResult, mlir::RegionBranchOpInterface::Trait>
+	class BreakableWhileOp : public mlir::Op<BreakableWhileOp,
+																					mlir::OpTrait::NRegions<2>::Impl,
+																					mlir::OpTrait::NOperands<2>::Impl,
+																					mlir::OpTrait::ZeroResult,
+																					mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -852,13 +960,20 @@ namespace modelica::codegen
 		mlir::ValueRange args();
 	};
 
-	class ConditionOp : public mlir::Op<ConditionOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::ZeroSuccessor, mlir::OpTrait::HasParent<ForOp, BreakableForOp, BreakableWhileOp>::Impl, mlir::OpTrait::IsTerminator> {
+	class ConditionOp : public mlir::Op<ConditionOp,
+																		 mlir::OpTrait::ZeroRegion,
+																		 mlir::OpTrait::VariadicOperands,
+																		 mlir::OpTrait::ZeroResult,
+																		 mlir::OpTrait::ZeroSuccessor,
+																		 mlir::OpTrait::HasParent<ForOp, BreakableForOp, BreakableWhileOp>::Impl,
+																		 mlir::OpTrait::IsTerminator>
+	{
 		public:
 		using Op::Op;
 		using Adaptor = ConditionOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder& builder, ::mlir::OperationState& state, mlir::Value condition, mlir::ValueRange args = {});
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value condition, mlir::ValueRange args = {});
 		void print(::mlir::OpAsmPrinter &p);
 		mlir::LogicalResult verify();
 
@@ -880,7 +995,12 @@ namespace modelica::codegen
 		mlir::ValueRange args();
 	};
 
-	class YieldOp : public mlir::Op<YieldOp, mlir::OpTrait::ZeroRegion, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::OpTrait::HasParent<ForEquationOp, IfOp, ForOp, BreakableForOp, BreakableWhileOp, SimulationOp>::Impl, mlir::OpTrait::IsTerminator>
+	class YieldOp : public mlir::Op<YieldOp,
+																 mlir::OpTrait::ZeroRegion,
+																 mlir::OpTrait::VariadicOperands,
+																 mlir::OpTrait::ZeroResult,
+																 mlir::OpTrait::HasParent<ForEquationOp, IfOp, ForOp, BreakableForOp, BreakableWhileOp, SimulationOp>::Impl,
+																 mlir::OpTrait::IsTerminator>
 	{
 		public:
 		using Op::Op;
@@ -907,7 +1027,10 @@ namespace modelica::codegen
 		mlir::Value operand();
 	};
 
-	class NotOp : public mlir::Op<NotOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class NotOp : public mlir::Op<NotOp,
+															 mlir::OpTrait::OneOperand,
+															 mlir::OpTrait::OneResult,
+															 mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -938,7 +1061,11 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class AndOp : public mlir::Op<AndOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::IsCommutative, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class AndOp : public mlir::Op<AndOp,
+															 mlir::OpTrait::NOperands<2>::Impl,
+															 mlir::OpTrait::IsCommutative,
+															 mlir::OpTrait::OneResult,
+															 mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -971,7 +1098,11 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class OrOp : public mlir::Op<OrOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::IsCommutative, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class OrOp : public mlir::Op<OrOp,
+															mlir::OpTrait::NOperands<2>::Impl,
+															mlir::OpTrait::IsCommutative,
+															mlir::OpTrait::OneResult,
+															mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1004,7 +1135,10 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class EqOp : public mlir::Op<EqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::IsCommutative, mlir::OpTrait::OneResult>
+	class EqOp : public mlir::Op<EqOp,
+															mlir::OpTrait::NOperands<2>::Impl,
+															mlir::OpTrait::IsCommutative,
+															mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -1035,7 +1169,10 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class NotEqOp : public mlir::Op<NotEqOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::IsCommutative, mlir::OpTrait::OneResult>
+	class NotEqOp : public mlir::Op<NotEqOp,
+																 mlir::OpTrait::NOperands<2>::Impl,
+																 mlir::OpTrait::IsCommutative,
+																 mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -1066,7 +1203,9 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class GtOp : public mlir::Op<GtOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
+	class GtOp : public mlir::Op<GtOp,
+															mlir::OpTrait::NOperands<2>::Impl,
+															mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -1097,7 +1236,9 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class GteOp : public mlir::Op<GteOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
+	class GteOp : public mlir::Op<GteOp,
+															 mlir::OpTrait::NOperands<2>::Impl,
+															 mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -1128,7 +1269,9 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class LtOp : public mlir::Op<LtOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
+	class LtOp : public mlir::Op<LtOp,
+															mlir::OpTrait::NOperands<2>::Impl,
+															mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -1159,7 +1302,9 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class LteOp : public mlir::Op<LteOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult>
+	class LteOp : public mlir::Op<LteOp,
+															 mlir::OpTrait::NOperands<2>::Impl,
+															 mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -1189,7 +1334,15 @@ namespace modelica::codegen
 		mlir::Value operand();
 	};
 
-	class NegateOp : public mlir::Op<NegateOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait, DistributableInterface::Trait, NegateOpDistributionInterface::Trait, MulOpDistributionInterface::Trait, DivOpDistributionInterface::Trait>
+	class NegateOp : public mlir::Op<NegateOp,
+																	mlir::OpTrait::OneOperand,
+																	mlir::OpTrait::OneResult,
+																	mlir::MemoryEffectOpInterface::Trait,
+																	InvertibleInterface::Trait,
+																	DistributableInterface::Trait,
+																	NegateOpDistributionInterface::Trait,
+																	MulOpDistributionInterface::Trait,
+																	DivOpDistributionInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1199,6 +1352,8 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value value);
 		void print(mlir::OpAsmPrinter& printer);
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
 
 		mlir::Value distribute(mlir::OpBuilder& builder);
 		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
@@ -1224,7 +1379,15 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class AddOp : public mlir::Op<AddOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::OpTrait::IsCommutative, mlir::MemoryEffectOpInterface::Trait, NegateOpDistributionInterface::Trait, MulOpDistributionInterface::Trait, DivOpDistributionInterface::Trait>
+	class AddOp : public mlir::Op<AddOp,
+															 mlir::OpTrait::NOperands<2>::Impl,
+															 mlir::OpTrait::OneResult,
+															 mlir::OpTrait::IsCommutative,
+															 mlir::MemoryEffectOpInterface::Trait,
+															 InvertibleInterface::Trait,
+															 NegateOpDistributionInterface::Trait,
+															 MulOpDistributionInterface::Trait,
+															 DivOpDistributionInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1233,7 +1396,10 @@ namespace modelica::codegen
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
 
 		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
@@ -1259,7 +1425,14 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class SubOp : public mlir::Op<SubOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait, NegateOpDistributionInterface::Trait, MulOpDistributionInterface::Trait, DivOpDistributionInterface::Trait>
+	class SubOp : public mlir::Op<SubOp,
+															 mlir::OpTrait::NOperands<2>::Impl,
+															 mlir::OpTrait::OneResult,
+															 mlir::MemoryEffectOpInterface::Trait,
+															 InvertibleInterface::Trait,
+															 NegateOpDistributionInterface::Trait,
+															 MulOpDistributionInterface::Trait,
+															 DivOpDistributionInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1269,6 +1442,8 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
 
 		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
@@ -1294,7 +1469,15 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class MulOp : public mlir::Op<MulOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait, DistributableInterface::Trait, NegateOpDistributionInterface::Trait, MulOpDistributionInterface::Trait, DivOpDistributionInterface::Trait>
+	class MulOp : public mlir::Op<MulOp,
+															 mlir::OpTrait::NOperands<2>::Impl,
+															 mlir::OpTrait::OneResult,
+															 mlir::MemoryEffectOpInterface::Trait,
+															 InvertibleInterface::Trait,
+															 DistributableInterface::Trait,
+															 NegateOpDistributionInterface::Trait,
+															 MulOpDistributionInterface::Trait,
+															 DivOpDistributionInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1304,6 +1487,8 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
 
 		mlir::Value distribute(mlir::OpBuilder& builder);
 		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
@@ -1330,7 +1515,15 @@ namespace modelica::codegen
 		mlir::Value rhs();
 	};
 
-	class DivOp : public mlir::Op<DivOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait,DistributableInterface::Trait, NegateOpDistributionInterface::Trait, MulOpDistributionInterface::Trait, DivOpDistributionInterface::Trait>
+	class DivOp : public mlir::Op<DivOp,
+															 mlir::OpTrait::NOperands<2>::Impl,
+															 mlir::OpTrait::OneResult,
+															 mlir::MemoryEffectOpInterface::Trait,
+															 InvertibleInterface::Trait,
+															 DistributableInterface::Trait,
+															 NegateOpDistributionInterface::Trait,
+															 MulOpDistributionInterface::Trait,
+															 DivOpDistributionInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1340,6 +1533,8 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
 
 		mlir::Value distribute(mlir::OpBuilder& builder);
 		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
@@ -1366,7 +1561,10 @@ namespace modelica::codegen
 		mlir::Value exponent();
 	};
 
-	class PowOp : public mlir::Op<PowOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::OneResult, mlir::MemoryEffectOpInterface::Trait>
+	class PowOp : public mlir::Op<PowOp,
+															 mlir::OpTrait::NOperands<2>::Impl,
+															 mlir::OpTrait::OneResult,
+															 mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1397,7 +1595,9 @@ namespace modelica::codegen
 		mlir::Value memory();
 	};
 
-	class NDimsOp : public mlir::Op<NDimsOp, mlir::OpTrait::AtLeastNOperands<1>::Impl, mlir::OpTrait::OneResult>
+	class NDimsOp : public mlir::Op<NDimsOp,
+																 mlir::OpTrait::AtLeastNOperands<1>::Impl,
+																 mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -1426,7 +1626,9 @@ namespace modelica::codegen
 		mlir::Value index();
 	};
 
-	class SizeOp : public mlir::Op<SizeOp, mlir::OpTrait::AtLeastNOperands<1>::Impl, mlir::OpTrait::OneResult>
+	class SizeOp : public mlir::Op<SizeOp,
+																mlir::OpTrait::AtLeastNOperands<1>::Impl,
+																mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -1458,7 +1660,9 @@ namespace modelica::codegen
 		mlir::Value memory();
 	};
 
-	class FillOp : public mlir::Op<FillOp, mlir::OpTrait::NOperands<2>::Impl, mlir::OpTrait::ZeroResult>
+	class FillOp : public mlir::Op<FillOp,
+																mlir::OpTrait::NOperands<2>::Impl,
+																mlir::OpTrait::ZeroResult>
 	{
 		public:
 		using Op::Op;
@@ -1486,7 +1690,9 @@ namespace modelica::codegen
 		mlir::Value operand();
 	};
 
-	class DerOp : public mlir::Op<DerOp, mlir::OpTrait::OneOperand, mlir::OpTrait::OneResult>
+	class DerOp : public mlir::Op<DerOp,
+															 mlir::OpTrait::OneOperand,
+															 mlir::OpTrait::OneResult>
 	{
 		public:
 		using Op::Op;
@@ -1514,7 +1720,10 @@ namespace modelica::codegen
 		mlir::ValueRange values();
 	};
 
-	class PrintOp : public mlir::Op<PrintOp, mlir::OpTrait::VariadicOperands, mlir::OpTrait::ZeroResult, mlir::MemoryEffectOpInterface::Trait>
+	class PrintOp : public mlir::Op<PrintOp,
+																 mlir::OpTrait::VariadicOperands,
+																 mlir::OpTrait::ZeroResult,
+																 mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
