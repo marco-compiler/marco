@@ -42,7 +42,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 {
 	addTypes<BooleanType, IntegerType, RealType, PointerType, OpaquePointerType, StructType>();
 	//addTypes<UnrankedPointerType>();
-	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute, InverseFunctionAttribute>();
+	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute, InverseFunctionsAttribute>();
 	addInterfaces<ModelicaInlinerInterface>();
 
 	// Basic operations

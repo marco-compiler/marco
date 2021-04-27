@@ -14,7 +14,7 @@ namespace modelica::codegen
 	class IntegerArrayAttributeStorage;
 	class RealAttributeStorage;
 	class RealArrayAttributeStorage;
-	class InverseFunctionAttributeStorage;
+	class InverseFunctionsAttributeStorage;
 
 	class BooleanAttribute : public mlir::Attribute::AttrBase<BooleanAttribute, mlir::Attribute, BooleanAttributeStorage>
 	{
@@ -76,17 +76,80 @@ namespace modelica::codegen
 		[[nodiscard]] llvm::ArrayRef<llvm::APFloat> getValue() const;
 	};
 
-	class InverseFunctionAttribute : public mlir::Attribute::AttrBase<InverseFunctionAttribute, mlir::Attribute, InverseFunctionAttributeStorage>
+	template<typename ValueType, typename BaseIterator>
+	class InvertibleArgumentsIterator
 	{
 		public:
+		using iterator_category = std::forward_iterator_tag;
+		using value_type = ValueType;
+		using difference_type = std::ptrdiff_t;
+		using pointer = ValueType*;
+		using reference = ValueType&;
+
+		InvertibleArgumentsIterator(BaseIterator iterator) : iterator(iterator)
+		{
+		}
+
+		operator bool() const { return iterator(); }
+
+		bool operator==(const InvertibleArgumentsIterator& it) const
+		{
+			return it.iterator == iterator;
+		}
+
+		bool operator!=(const InvertibleArgumentsIterator& it) const
+		{
+			return it.iterator != iterator;
+		}
+
+		InvertibleArgumentsIterator& operator++()
+		{
+			iterator++;
+			return *this;
+		}
+
+		InvertibleArgumentsIterator operator++(int)
+		{
+			auto temp = *this;
+			iterator++;
+			return temp;
+		}
+
+		value_type& operator*()
+		{
+			return iterator->first;
+		}
+
+		const value_type& operator*() const
+		{
+			return iterator->first;
+		}
+
+		private:
+		BaseIterator iterator;
+	};
+
+	class InverseFunctionsAttribute : public mlir::Attribute::AttrBase<InverseFunctionsAttribute, mlir::Attribute, InverseFunctionsAttributeStorage>
+	{
+		public:
+		using Map = std::map<unsigned int, std::pair<llvm::StringRef, llvm::ArrayRef<unsigned int>>>;
+		using iterator = InvertibleArgumentsIterator<unsigned int, Map::iterator>;
+		using const_iterator = InvertibleArgumentsIterator<const unsigned int, Map::const_iterator>;
+
 		using Base::Base;
 
 		static constexpr llvm::StringRef getAttrName();
-		static InverseFunctionAttribute get(mlir::MLIRContext* context, unsigned int invertedArg, llvm::StringRef function, llvm::ArrayRef<unsigned int> args);
+		static InverseFunctionsAttribute get(mlir::MLIRContext* context, Map inverseFunctionsList);
 
-		[[nodiscard]] unsigned int getInvertedArgumentIndex() const;
-		[[nodiscard]] llvm::StringRef getFunction() const;
-		[[nodiscard]] llvm::ArrayRef<unsigned int> getArgumentsIndexes() const;
+		[[nodiscard]] iterator begin();
+		[[nodiscard]] const_iterator cbegin() const;
+
+		[[nodiscard]] iterator end();
+		[[nodiscard]] const_iterator cend() const;
+
+		[[nodiscard]] bool isInvertible(unsigned int argumentIndex) const;
+		[[nodiscard]] llvm::StringRef getFunction(unsigned int argumentIndex) const;
+		[[nodiscard]] llvm::ArrayRef<unsigned int> getArgumentsIndexes(unsigned int argumentIndex) const;
 	};
 
 	void printModelicaAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& printer);

@@ -3,6 +3,7 @@
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/IR/Verifier.h>
 #include <mlir/Pass/PassManager.h>
+#include <mlir/Support/StorageUniquer.h>
 #include <mlir/Transforms/Passes.h>
 #include <modelica/frontend/AST.h>
 #include <modelica/frontend/SymbolTable.hpp>
@@ -295,7 +296,7 @@ mlir::Operation* MLIRLowerer::lower(Function& foo)
 	{
 		// Inverse functions attribute
 		auto inverseFunctionAnnotation = foo.getAnnotation().getInverseFunctionAnnotation();
-		llvm::SmallVector<mlir::Attribute, 3> inverseAttributes;
+		InverseFunctionsAttribute::Map map;
 
 		// Create a map of the function members indexes for faster retrieval
 		llvm::StringMap<unsigned int> indexes;
@@ -305,6 +306,8 @@ mlir::Operation* MLIRLowerer::lower(Function& foo)
 
 		for (const auto& name : llvm::enumerate(returnNames))
 			indexes[name.value()] = argNames.size() + name.index();
+
+		mlir::StorageUniquer::StorageAllocator allocator;
 
 		// Iterate over the input arguments and for each invertible one
 		// add the function to the inverse map.
@@ -322,13 +325,14 @@ mlir::Operation* MLIRLowerer::lower(Function& foo)
 				permutation.push_back(indexes[inverseArg]);
 			}
 
-			inverseAttributes.push_back(builder.getInverseFunctionAttribute(
-					indexes[arg], inverseFunctionAnnotation.getInverseFunction(arg), permutation));
+			map[indexes[arg]] = std::make_pair(
+					inverseFunctionAnnotation.getInverseFunction(arg),
+					allocator.copyInto(llvm::ArrayRef<unsigned int>(permutation)));
 		}
 
-		if (!inverseAttributes.empty())
+		if (!map.empty())
 		{
-			auto inverseFunctionAttribute = builder.getArrayAttr(inverseAttributes);
+			auto inverseFunctionAttribute = builder.getInverseFunctionsAttribute(map);
 			function->setAttr("inverse", inverseFunctionAttribute);
 		}
 	}

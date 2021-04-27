@@ -2,6 +2,7 @@
 #include <modelica/mlirlowerer/Attribute.h>
 #include <modelica/mlirlowerer/Type.h>
 #include <numeric>
+#include <set>
 
 using namespace modelica::codegen;
 
@@ -252,60 +253,79 @@ namespace modelica::codegen
 		llvm::SmallVector<llvm::APFloat, 3> values;
 	};
 
-	class InverseFunctionAttributeStorage : public mlir::AttributeStorage
+	class InverseFunctionsAttributeStorage : public mlir::AttributeStorage
 	{
 		public:
-		using KeyTy = std::tuple<unsigned int, llvm::StringRef, llvm::ArrayRef<unsigned int>>;
+		using KeyTy = InverseFunctionsAttribute::Map;
+		using iterator = InverseFunctionsAttribute::iterator;
+		using const_iterator = InverseFunctionsAttribute::const_iterator;
 
 		bool operator==(const KeyTy& key) const
 		{
-			return key == KeyTy(invertedArg, function, args);
+			return key == KeyTy(map);
 		}
 
 		static unsigned int hashKey(const KeyTy& key)
 		{
-			return llvm::hash_combine(std::get<0>(key), std::get<1>(key), std::get<2>(key));
+			return llvm::hash_combine_range(key.begin(), key.end());
 		}
 
-		static KeyTy getKey(unsigned int invertedArg, llvm::StringRef function, llvm::ArrayRef<unsigned int> args) {
-			return KeyTy(invertedArg, function, args);
-		}
-
-		static InverseFunctionAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, KeyTy key)
+		static InverseFunctionsAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, InverseFunctionsAttribute::Map map)
 		{
-			unsigned int invertedArg = std::get<0>(key);
-			llvm::StringRef function = allocator.copyInto(std::get<1>(key));
-			llvm::ArrayRef<unsigned int> args = allocator.copyInto(std::get<2>(key));
+			std::map<unsigned int, std::pair<llvm::StringRef, llvm::ArrayRef<unsigned int>>> copiedMap;
 
-			return new (allocator.allocate<InverseFunctionAttributeStorage>()) InverseFunctionAttributeStorage(invertedArg, function, args);
+			for (const auto& entry : map)
+			{
+				copiedMap[entry.first] = std::make_pair(
+						allocator.copyInto(entry.second.first),
+						allocator.copyInto(entry.second.second));
+			}
+
+			return new (allocator.allocate<InverseFunctionsAttributeStorage>()) InverseFunctionsAttributeStorage(copiedMap);
 		}
 
-		[[nodiscard]] unsigned int getInvertedArgumentIndex() const
+		[[nodiscard]] iterator begin()
 		{
-			return invertedArg;
+			return iterator(map.begin());
 		}
 
-		[[nodiscard]] llvm::StringRef getFunction() const
+		[[nodiscard]] const_iterator cbegin() const
 		{
-			return function;
+			return const_iterator(map.begin());
 		}
 
-		[[nodiscard]] llvm::ArrayRef<unsigned int> getArgumentsIndexes() const
+		[[nodiscard]] iterator end()
 		{
-			return args;
+			return iterator(map.end());
+		}
+
+		[[nodiscard]] const_iterator cend() const
+		{
+			return const_iterator(map.end());
+		}
+
+		[[nodiscard]] bool isInvertible(unsigned int argumentIndex) const
+		{
+			return map.find(argumentIndex) != map.end();
+		}
+
+		[[nodiscard]] llvm::StringRef getFunction(unsigned int argumentIndex) const
+		{
+			return map.find(argumentIndex)->second.first;
+		}
+
+		[[nodiscard]] llvm::ArrayRef<unsigned int> getArgumentsIndexes(unsigned int argumentIndex) const
+		{
+			return map.find(argumentIndex)->second.second;
 		}
 
 		private:
-		InverseFunctionAttributeStorage(unsigned int invertedArg, llvm::StringRef function, llvm::ArrayRef<unsigned int> args)
-				: invertedArg(invertedArg),
-					function(function),
-					args(args)
+		InverseFunctionsAttributeStorage(InverseFunctionsAttribute::Map map)
+				: map(std::move(map))
 		{
 		}
 
-		unsigned int invertedArg;
-		llvm::StringRef function;
-		llvm::ArrayRef<unsigned int> args;
+		InverseFunctionsAttribute::Map map;
 	};
 }
 
@@ -412,33 +432,51 @@ llvm::ArrayRef<llvm::APFloat> RealArrayAttribute::getValue() const
 	return getImpl()->getValue();
 }
 
-constexpr llvm::StringRef InverseFunctionAttribute::getAttrName()
+constexpr llvm::StringRef InverseFunctionsAttribute::getAttrName()
 {
 	return "inverseFunction";
 }
 
-InverseFunctionAttribute InverseFunctionAttribute::get(
+InverseFunctionsAttribute InverseFunctionsAttribute::get(
 		mlir::MLIRContext* context,
-		unsigned int invertedArg,
-		llvm::StringRef function,
-		llvm::ArrayRef<unsigned int> args)
+		InverseFunctionsAttribute::Map inverseFunctionsList)
 {
-	return Base::get(context, invertedArg, function, args);
+	return Base::get(context, inverseFunctionsList);
 }
 
-unsigned int InverseFunctionAttribute::getInvertedArgumentIndex() const
+InverseFunctionsAttribute::iterator InverseFunctionsAttribute::begin()
 {
-	return getImpl()->getInvertedArgumentIndex();
+	return getImpl()->begin();
 }
 
-llvm::StringRef InverseFunctionAttribute::getFunction() const
+InverseFunctionsAttribute::const_iterator InverseFunctionsAttribute::cbegin() const
 {
-	return getImpl()->getFunction();
+	return getImpl()->cbegin();
 }
 
-llvm::ArrayRef<unsigned int> InverseFunctionAttribute::getArgumentsIndexes() const
+InverseFunctionsAttribute::iterator InverseFunctionsAttribute::end()
 {
-	return getImpl()->getArgumentsIndexes();
+	return getImpl()->end();
+}
+
+InverseFunctionsAttribute::const_iterator InverseFunctionsAttribute::cend() const
+{
+	return getImpl()->cend();
+}
+
+bool InverseFunctionsAttribute::isInvertible(unsigned int argumentIndex) const
+{
+	return getImpl()->isInvertible(argumentIndex);
+}
+
+llvm::StringRef InverseFunctionsAttribute::getFunction(unsigned int argumentIndex) const
+{
+	return getImpl()->getFunction(argumentIndex);
+}
+
+llvm::ArrayRef<unsigned int> InverseFunctionsAttribute::getArgumentsIndexes(unsigned int argumentIndex) const
+{
+	return getImpl()->getArgumentsIndexes(argumentIndex);
 }
 
 void modelica::codegen::printModelicaAttribute(mlir::Attribute attr, mlir::DialectAsmPrinter& printer)
@@ -463,22 +501,29 @@ void modelica::codegen::printModelicaAttribute(mlir::Attribute attr, mlir::Diale
 		return;
 	}
 
-	if (auto attribute = attr.dyn_cast<InverseFunctionAttribute>())
+	if (auto attribute = attr.dyn_cast<InverseFunctionsAttribute>())
 	{
 		os << "inverse: {";
 
-		os << attribute.getInvertedArgumentIndex() << ": ";
-		os << attribute.getFunction() << "(";
-
-		auto args = attribute.getArgumentsIndexes();
-
 		os << std::accumulate(
-				args.begin(), args.end(), std::string(),
-				[](const std::string& result, const unsigned int& index) {
-					std::string str = std::to_string(index);
+				attribute.cbegin(), attribute.cend(), std::string(),
+				[&](const std::string& result, const unsigned int& invertibleArg) {
+					auto args = attribute.getArgumentsIndexes(invertibleArg);
+
+					std::string argsString = std::accumulate(
+							args.begin(), args.end(), std::string(),
+							[](const std::string& result, const unsigned int& index) {
+								std::string str = std::to_string(index);
+								return result.empty() ? str : result + ", " + str;
+							});
+
+					std::string str = std::to_string(invertibleArg) + ": " +
+														attribute.getFunction(invertibleArg).str() + "(" +
+														argsString + ")";
+
 					return result.empty() ? str : result + ", " + str;
 				});
 
-		os << ")}";
+		os << "}";
 	}
 }

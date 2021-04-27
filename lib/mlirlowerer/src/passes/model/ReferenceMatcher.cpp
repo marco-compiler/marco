@@ -1,3 +1,4 @@
+#include <mlir/IR/BuiltinOps.h>
 #include <modelica/mlirlowerer/passes/model/Equation.h>
 #include <modelica/mlirlowerer/passes/model/ReferenceMatcher.h>
 #include <modelica/utils/ScopeGuard.hpp>
@@ -87,9 +88,28 @@ void ReferenceMatcher::visit(Expression exp, bool isLeft)
 		return;
 	}
 
-	// TODO: to be modified in case of invertible functions
-	if (mlir::isa<CallOp>(exp.getOp()))
+	if (auto callOp = mlir::dyn_cast<CallOp>(exp.getOp()))
+	{
+		auto module = exp.getOp()->getParentOfType<mlir::ModuleOp>();
+		auto callee = module.lookupSymbol<mlir::FuncOp>(callOp.callee());
+
+		if (!callee->hasAttr("inverse"))
+			return;
+
+		auto inverseAttribute = callee->getAttrOfType<InverseFunctionsAttribute>("inverse");
+
+		for (size_t i = 0; i < exp.childrenCount(); ++i)
+		{
+			if (!inverseAttribute.isInvertible(i))
+				continue;
+
+			currentPath.push_back(i);
+			auto g = makeGuard([this] { removeBack(); });
+			visit(exp.getChild(i), isLeft);
+		}
+
 		return;
+	}
 
 	for (size_t i = 0; i < exp.childrenCount(); ++i)
 	{

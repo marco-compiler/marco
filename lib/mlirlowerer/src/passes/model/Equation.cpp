@@ -303,24 +303,69 @@ namespace modelica::codegen::model
 	}
 
 	template<typename Op>
-	static mlir::LogicalResult explicitate(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
+	static mlir::LogicalResult explicitate(mlir::OpBuilder& builder, mlir::Value toExp, size_t index, mlir::Value toNest)
 	{
-		return toExp->emitError("Unexpected operation to be explicitated: " + toExp->getName().getStringRef());
+		mlir::Operation* op = toExp.getDefiningOp();
+		return op->emitError("Unexpected operation to be explicitated: " + op->getName().getStringRef());
 	}
 
 	template<>
-	mlir::LogicalResult explicitate<NegateOp>(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
+	mlir::LogicalResult explicitate<CallOp>(mlir::OpBuilder& builder, mlir::Value toExp, size_t index, mlir::Value toNest)
 	{
-		assert(mlir::isa<NegateOp>(toExp));
-		auto op = mlir::cast<NegateOp>(toExp);
+		assert(mlir::isa<CallOp>(toExp.getDefiningOp()));
+		auto op = toExp.getDefiningOp<CallOp>();
+
+		auto module = toExp.getDefiningOp()->getParentOfType<mlir::ModuleOp>();
+		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
+
+		if (!callee->hasAttr("inverse"))
+			return op->emitError("Function " + callee->getName().getStringRef() + " is not invertible");
+
+		auto inverseAnnotation = callee->getAttrOfType<InverseFunctionsAttribute>("inverse");
+
+		if (!inverseAnnotation.isInvertible(index))
+			return op->emitError("Function " + callee->getName().getStringRef() + " is not invertible for argument " + std::to_string(index));
+
+		size_t argsSize = op.args().size();
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		for (auto arg : inverseAnnotation.getArgumentsIndexes(index))
+		{
+			if (arg < argsSize)
+			{
+				args.push_back(op.args()[arg]);
+			}
+			else
+			{
+				assert(index == args.size());
+				args.push_back(toNest);
+			}
+		}
+
+		auto invertedCall = builder.create<CallOp>(toExp.getLoc(), inverseAnnotation.getFunction(index), op.args()[index].getType(), args);
+
+		op->getResult(0).replaceAllUsesWith(op.args()[index]);
+		op->erase();
+
+		for (auto& use : toNest.getUses())
+			if (use.getOwner() != invertedCall)
+				use.set(invertedCall.getResult(0));
+
+		return mlir::success();
+	}
+
+	template<>
+	mlir::LogicalResult explicitate<NegateOp>(mlir::OpBuilder& builder, mlir::Value toExp, size_t index, mlir::Value toNest)
+	{
+		assert(mlir::isa<NegateOp>(toExp.getDefiningOp()));
+		auto op = toExp.getDefiningOp<NegateOp>();
 
 		if (index == 0)
 		{
-			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
-			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			mlir::Value nestedOperand = readValue(builder, toNest);
 			auto right = builder.create<NegateOp>(op->getLoc(), nestedOperand.getType(), nestedOperand);
 
-			for (auto& use : toNest->getUses())
+			for (auto& use : toNest.getUses())
 				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
 					use.set(right.getResult());
 
@@ -334,18 +379,17 @@ namespace modelica::codegen::model
 	}
 
 	template<>
-	mlir::LogicalResult explicitate<AddOp>(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
+	mlir::LogicalResult explicitate<AddOp>(mlir::OpBuilder& builder, mlir::Value toExp, size_t index, mlir::Value toNest)
 	{
-		assert(mlir::isa<AddOp>(toExp));
-		auto op = mlir::cast<AddOp>(toExp);
+		assert(mlir::isa<AddOp>(toExp.getDefiningOp()));
+		auto op = toExp.getDefiningOp<AddOp>();
 
 		if (index == 0)
 		{
-			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
-			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			mlir::Value nestedOperand = readValue(builder, toNest);
 			auto right = builder.create<SubOp>(op->getLoc(), nestedOperand.getType(), nestedOperand, op.rhs());
 
-			for (auto& use : toNest->getUses())
+			for (auto& use : toNest.getUses())
 				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
 					use.set(right.getResult());
 
@@ -357,11 +401,10 @@ namespace modelica::codegen::model
 
 		if (index == 1)
 		{
-			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
-			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			mlir::Value nestedOperand = readValue(builder, toNest);
 			auto right = builder.create<SubOp>(op->getLoc(), nestedOperand.getType(), nestedOperand, op.lhs());
 
-			for (auto& use : toNest->getUses())
+			for (auto& use : toNest.getUses())
 				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
 					use.set(right.getResult());
 
@@ -375,18 +418,17 @@ namespace modelica::codegen::model
 	}
 
 	template<>
-	mlir::LogicalResult explicitate<SubOp>(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
+	mlir::LogicalResult explicitate<SubOp>(mlir::OpBuilder& builder, mlir::Value toExp, size_t index, mlir::Value toNest)
 	{
-		assert(mlir::isa<SubOp>(toExp));
-		auto op = mlir::cast<SubOp>(toExp);
+		assert(mlir::isa<SubOp>(toExp.getDefiningOp()));
+		auto op = toExp.getDefiningOp<SubOp>();
 
 		if (index == 0)
 		{
-			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
-			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			mlir::Value nestedOperand = readValue(builder, toNest);
 			auto right = builder.create<AddOp>(op->getLoc(), nestedOperand.getType(), nestedOperand, op.rhs());
 
-			for (auto& use : toNest->getUses())
+			for (auto& use : toNest.getUses())
 				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
 					use.set(right.getResult());
 
@@ -398,11 +440,10 @@ namespace modelica::codegen::model
 
 		if (index == 1)
 		{
-			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
-			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			mlir::Value nestedOperand = readValue(builder, toNest);
 			auto right = builder.create<SubOp>(op->getLoc(), nestedOperand.getType(), op.lhs(), nestedOperand);
 
-			for (auto& use : toNest->getUses())
+			for (auto& use : toNest.getUses())
 				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
 					use.set(right.getResult());
 
@@ -416,18 +457,17 @@ namespace modelica::codegen::model
 	}
 
 	template<>
-	mlir::LogicalResult explicitate<MulOp>(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
+	mlir::LogicalResult explicitate<MulOp>(mlir::OpBuilder& builder, mlir::Value toExp, size_t index, mlir::Value toNest)
 	{
-		assert(mlir::isa<AddOp>(toExp));
-		auto op = mlir::cast<AddOp>(toExp);
+		assert(mlir::isa<AddOp>(toExp.getDefiningOp()));
+		auto op = toExp.getDefiningOp<MulOp>();
 
 		if (index == 0)
 		{
-			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
-			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			mlir::Value nestedOperand = readValue(builder, toNest);
 			auto right = builder.create<DivOp>(op->getLoc(), nestedOperand.getType(), nestedOperand, op.rhs());
 
-			for (auto& use : toNest->getUses())
+			for (auto& use : toNest.getUses())
 				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
 					use.set(right.getResult());
 
@@ -439,11 +479,10 @@ namespace modelica::codegen::model
 
 		if (index == 1)
 		{
-			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
-			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			mlir::Value nestedOperand = readValue(builder, toNest);
 			auto right = builder.create<DivOp>(op->getLoc(), nestedOperand.getType(), nestedOperand, op.lhs());
 
-			for (auto& use : toNest->getUses())
+			for (auto& use : toNest.getUses())
 				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
 					use.set(right.getResult());
 
@@ -457,18 +496,17 @@ namespace modelica::codegen::model
 	}
 
 	template<>
-	mlir::LogicalResult explicitate<DivOp>(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
+	mlir::LogicalResult explicitate<DivOp>(mlir::OpBuilder& builder, mlir::Value toExp, size_t index, mlir::Value toNest)
 	{
-		assert(mlir::isa<AddOp>(toExp));
-		auto op = mlir::cast<AddOp>(toExp);
+		assert(mlir::isa<AddOp>(toExp.getDefiningOp()));
+		auto op = toExp.getDefiningOp<DivOp>();
 
 		if (index == 0)
 		{
-			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
-			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			mlir::Value nestedOperand = readValue(builder, toNest);
 			auto right = builder.create<MulOp>(op->getLoc(), nestedOperand.getType(), nestedOperand, op.rhs());
 
-			for (auto& use : toNest->getUses())
+			for (auto& use : toNest.getUses())
 				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
 					use.set(right.getResult());
 
@@ -480,11 +518,10 @@ namespace modelica::codegen::model
 
 		if (index == 1)
 		{
-			assert(toNest->hasTrait<mlir::OpTrait::OneResult>());
-			mlir::Value nestedOperand = readValue(builder, toNest->getResult(0));
+			mlir::Value nestedOperand = readValue(builder, toNest);
 			auto right = builder.create<DivOp>(op->getLoc(), nestedOperand.getType(), op.lhs(), nestedOperand);
 
-			for (auto& use : toNest->getUses())
+			for (auto& use : toNest.getUses())
 				if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
 					use.set(right.getResult());
 
@@ -497,24 +534,28 @@ namespace modelica::codegen::model
 		return op->emitError("Index out of bounds: " + std::to_string(index));
 	}
 
-	static mlir::LogicalResult explicitateExpression(mlir::OpBuilder& builder, mlir::Operation* toExp, size_t index, mlir::Operation* toNest)
+	static mlir::LogicalResult explicitateExpression(mlir::OpBuilder& builder, mlir::Value toExp, size_t index, mlir::Value toNest)
 	{
-		if (mlir::isa<NegateOp>(toExp))
+		if (mlir::isa<CallOp>(toExp.getDefiningOp()))
+			return explicitate<CallOp>(builder, toExp, index, toNest);
+
+		if (mlir::isa<NegateOp>(toExp.getDefiningOp()))
 			return explicitate<NegateOp>(builder, toExp, index, toNest);
 
-		if (mlir::isa<AddOp>(toExp))
+		if (mlir::isa<AddOp>(toExp.getDefiningOp()))
 			return explicitate<AddOp>(builder, toExp, index, toNest);
 
-		if (mlir::isa<SubOp>(toExp))
+		if (mlir::isa<SubOp>(toExp.getDefiningOp()))
 			return explicitate<SubOp>(builder, toExp, index, toNest);
 
-		if (mlir::isa<MulOp>(toExp))
+		if (mlir::isa<MulOp>(toExp.getDefiningOp()))
 			return explicitate<MulOp>(builder, toExp, index, toNest);
 
-		if (mlir::isa<DivOp>(toExp))
+		if (mlir::isa<DivOp>(toExp.getDefiningOp()))
 			return explicitate<DivOp>(builder, toExp, index, toNest);
 
-		return toExp->emitError("Unexpected operation to be explicitated: " + toExp->getName().getStringRef());
+		mlir::Operation* op = toExp.getDefiningOp();
+		return op->emitError("Unexpected operation to be explicitated: " + op->getName().getStringRef());
 	}
 }
 
@@ -595,7 +636,7 @@ mlir::LogicalResult Equation::explicitate(mlir::OpBuilder& builder, size_t argum
 	mlir::Value toExplicitate = left ? terminator.lhs()[0] : terminator.rhs()[0];
 	mlir::Value otherExp = !left ? terminator.lhs()[0] : terminator.rhs()[0];
 
-	return explicitateExpression(builder, toExplicitate.getDefiningOp(), argumentIndex, otherExp.getDefiningOp());
+	return explicitateExpression(builder, toExplicitate, argumentIndex, otherExp);
 }
 
 mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
