@@ -46,7 +46,10 @@ namespace modelica
 			return edge->getEquation();
 		}
 		[[nodiscard]] const IndexSet& getSet() const { return set; }
+    
+    /* IndexSet corrispondente nella variabile */
 		[[nodiscard]] const IndexSet& getMappedSet() const { return mappedFlow; }
+    
 		[[nodiscard]] size_t size() const { return set.size(); }
 
 		[[nodiscard]] static bool compare(
@@ -89,6 +92,7 @@ namespace modelica
 			if (isForwardEdge())
 				set = inverseMap(set);
 
+      /* se edge avanti aggiunge, altrimenti toglie */
 			addFLowAtEnd(set);
 
 			if (!isForwardEdge())
@@ -139,6 +143,8 @@ namespace modelica
 			assert(!choises.empty());
 			return choises.back();
 		}
+    
+    /* variabile corrisp. all'edge restituito da getCurrent */
 		[[nodiscard]] const ModVariable& getCurrentVariable() const
 		{
 			return getCurrent().getEdge().getVariable();

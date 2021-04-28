@@ -48,17 +48,30 @@ FlowCandidates::FlowCandidates(SmallVector<Flow, 2> c, const MatchingGraph& g)
 	});
 }
 
+/* restituisce true se c'è ancora roba da matchare in questo path */
 bool AugmentingPath::valid() const
 {
 	if (frontier.empty())
 		return false;
 	if (getCurrentCandidates().empty())
 		return false;
+  
+  
+  /* Teoria: FlowCandidates contiene archi tutti che vanno nella stessa
+   * direzione
+   * frontier alterna FlowCandidates avanti e flowcandidates indietro
+   * Controllando che frontier sia pari verifichiamo che finisca con un FlowCandidates
+   * avanti e non uno indietro.
+   * Se non è pari vado da qualche parte, altrimenti no */
 	if ((frontier.size() % 2) != 1)
 		return false;
 
+  /* Variable corrispondente all'ultimo arco nel FlowCandidates */
 	const auto& currentVar = getCurrentCandidates().getCurrentVariable();
+  /* getCurrentCandidates().getCurrent() == getCurrentFlow() */
+  // ottieni l'IndexSet della variabile
 	auto set = getCurrentFlow().getMappedSet();
+  /* togli gli indici già matchati */
 	set.remove(graph.getMatchedSet(currentVar));
 
 	return !set.empty();
@@ -158,7 +171,7 @@ FlowCandidates AugmentingPath::getBestCandidate() const
 }
 
 AugmentingPath::AugmentingPath(MatchingGraph& graph, size_t maxDepth)
-		: graph(graph), frontier({ selectStartingEdge() })
+		: graph(graph), frontier({ /* cerca cose ovvie */ selectStartingEdge() })
 {
   /* se siamo qui e selectStartingEdge() non ha trovato nulla di ovvio da
    * matchare, valid() sarà false ed entriamo nel ciclo successivo che
@@ -168,11 +181,14 @@ AugmentingPath::AugmentingPath(MatchingGraph& graph, size_t maxDepth)
 	{
 		// while the current siblings are
 		// not empty keep exploring
-		if (!getCurrentCandidates().empty())
+    // getCurrentCandidates == frontier.back
+		if (!getCurrentCandidates().empty() /* BUG QUANDO frontier È VUOTO??? */)
 		{
 			frontier.push_back(getBestCandidate());
 			continue;
 		}
+  
+    /* getCurrentCandidates().empty() true */
 
 		// if they are empty remove the last siblings group
 		frontier.erase(frontier.end() - 1);
@@ -191,7 +207,9 @@ void AugmentingPath::apply()
 {
 	assert(valid());
 
+  // IndexSet di tutti gli indici di variabili già matchate
 	auto alreadyMatchedVars = graph.getMatchedSet(getCurrentFlow().getVariable());
+  /* set: IndexSet delle cose che È POSSIBILE matchare con l'arco che stiamo considerando */
 	auto set = getCurrentFlow().getMappedSet();
 	set.remove(alreadyMatchedVars);
   /* set adesso è il flusso da applicare */
