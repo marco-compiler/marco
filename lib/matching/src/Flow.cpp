@@ -64,6 +64,8 @@ bool AugmentingPath::valid() const
 	return !set.empty();
 }
 
+/* trova l'insieme di candidati "ovvi", cioè quelli forward che si trovano
+ * immediatamente a partire dalle equazioni e dagli archi liberi non matchati */
 FlowCandidates AugmentingPath::selectStartingEdge() const
 {
 	SmallVector<Flow, 2> possibleStarts;
@@ -158,6 +160,10 @@ FlowCandidates AugmentingPath::getBestCandidate() const
 AugmentingPath::AugmentingPath(MatchingGraph& graph, size_t maxDepth)
 		: graph(graph), frontier({ selectStartingEdge() })
 {
+  /* se siamo qui e selectStartingEdge() non ha trovato nulla di ovvio da
+   * matchare, valid() sarà false ed entriamo nel ciclo successivo che
+   * calcola il grafo residuale vero e proprio */
+   
 	while (!valid() && frontier.size() < maxDepth)
 	{
 		// while the current siblings are
