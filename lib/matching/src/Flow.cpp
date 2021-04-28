@@ -13,9 +13,10 @@ using namespace llvm;
 
 void FlowCandidates::dump(llvm::raw_ostream& OS) const
 {
-	OS << "CURRENT:";
-	for (const auto& c : make_range(rbegin(choises), rend(choises)))
+	OS << "Flows (first one is the best one):\n";
+	for (const auto& c : make_range(rbegin(choises), rend(choises))) {
 		c.dump(OS);
+  }
 }
 
 string FlowCandidates::toString() const
@@ -56,10 +57,7 @@ bool AugmentingPath::valid() const
 	if (getCurrentCandidates().empty())
 		return false;
   
-  
-  /* Teoria: FlowCandidates contiene archi tutti che vanno nella stessa
-   * direzione
-   * frontier alterna FlowCandidates avanti e flowcandidates indietro
+  /* frontier alterna FlowCandidates avanti e flowcandidates indietro
    * Controllando che frontier sia pari verifichiamo che finisca con un FlowCandidates
    * avanti e non uno indietro.
    * Se non è pari vado da qualche parte, altrimenti no */
@@ -78,7 +76,7 @@ bool AugmentingPath::valid() const
 }
 
 /* trova l'insieme di candidati "ovvi", cioè quelli forward che si trovano
- * immediatamente a partire dalle equazioni e dagli archi liberi non matchati */
+ * immediatamente a partire dalle equazioni e dal **flusso non matchato** */
 FlowCandidates AugmentingPath::selectStartingEdge() const
 {
 	SmallVector<Flow, 2> possibleStarts;
@@ -95,6 +93,7 @@ FlowCandidates AugmentingPath::selectStartingEdge() const
 
 	return FlowCandidates(possibleStarts, graph);
 }
+/* (perché questo non è un metodo d'istanza?) */
 static IndexSet possibleForwardFlow(
 		const Flow& backEdge, const Edge& forwadEdge, const MatchingGraph& graph)
 {
@@ -104,18 +103,25 @@ static IndexSet possibleForwardFlow(
 	return direct;
 }
 
+/* Crea la lista di archi che bisogna aggiungere al matching per far andare avanti
+ * il flusso assumendo che venga smatchato l'arco indietro getCurrentFlow()
+ * (attenzione: fa uno step solo! potrebbe restituire l'insieme vuoto) */
 FlowCandidates AugmentingPath::getForwardMatchable() const
 {
 	assert(!getCurrentFlow().isForwardEdge());
 	SmallVector<Flow, 2> directMatch;
 
+  /* calcola l'insieme di archi uscenti dall'equazione smatchata */
 	auto connectedEdges = graph.arcsOf(getCurrentFlow().getEquation());
 	for (Edge& edge : connectedEdges)
 	{
+    /* evita loop infiniti */
 		if (&edge == &getCurrentFlow().getEdge())
 			continue;
+    /* calcola gli indici dove si può far passare il flusso */
 		auto possibleFlow = possibleForwardFlow(getCurrentFlow(), edge, graph);
 		if (!possibleFlow.empty())
+      /* consideralo se ce ne sono */
 			directMatch.emplace_back(Flow::forwardedge(edge, move(possibleFlow)));
 	}
 
@@ -126,10 +132,12 @@ IndexSet AugmentingPath::possibleBackwardFlow(const Edge& backEdge) const
 {
 	const Flow& forwardEdge = getCurrentFlow();
 	assert(forwardEdge.isForwardEdge());
-	auto alreadyAssigned = backEdge.map(backEdge.getSet());
-	auto possibleFlow = forwardEdge.getMappedSet();
+	auto alreadyAssigned = backEdge.map(backEdge.getSet()); /* indici da togliere lato variabile */
+	auto possibleFlow = forwardEdge.getMappedSet(); /* indici assegnati lato variabile */
 	alreadyAssigned.intersecate(possibleFlow);
 
+  /* cerca se lo stesso arco è già stato smatchato e togli quello smatching da
+   * questo */
 	for (const auto& siblingSet : frontier)
 	{
 		const auto currentEdge = siblingSet.getCurrent();
@@ -144,24 +152,34 @@ IndexSet AugmentingPath::possibleBackwardFlow(const Edge& backEdge) const
 	return alreadyAssigned;
 }
 
+/* Crea la lista di archi che bisogna rimuovere dal matching assumendo che
+ * venga scelto l'arco in avanti getCurrentFlow() (attenzione: fa uno step solo!) */
 FlowCandidates AugmentingPath::getBackwardMatchable() const
 {
 	assert(getCurrentFlow().isForwardEdge());
 	SmallVector<Flow, 2> undoingMatch;
 
+  /* archi connessi alla variabile "matchata" */
 	auto connectedEdges = graph.arcsOf(getCurrentFlow().getVariable());
 	for (Edge& edge : connectedEdges)
 	{
+    /* ignora se si tratta dell'arco entrante che stiamo considerando
+     * (altrimenti entriamo in un ciclo infinito di matching/smatching dello
+     * stesso arco) */
 		if (&edge == &getCurrentFlow().getEdge())
 			continue;
+    /* calcola il flow che si può smatchare */
 		auto backFlow = possibleBackwardFlow(edge);
 		if (!backFlow.empty())
+      /* se c'è qualcosa da smatchare, consideralo */
 			undoingMatch.emplace_back(Flow::backedge(edge, move(backFlow)));
 	}
 
 	return FlowCandidates(undoingMatch, graph);
 }
 
+/* calcola il prossimo insieme di percorsi matchabili/smatchabili considerando
+ * che l'obiettivo è smatchare/matchare l'arco restituito da getCurrentFlow */
 FlowCandidates AugmentingPath::getBestCandidate() const
 {
 	if (!getCurrentFlow().isForwardEdge())
@@ -173,32 +191,44 @@ FlowCandidates AugmentingPath::getBestCandidate() const
 AugmentingPath::AugmentingPath(MatchingGraph& graph, size_t maxDepth)
 		: graph(graph), frontier({ /* cerca cose ovvie */ selectStartingEdge() })
 {
-  /* se siamo qui e selectStartingEdge() non ha trovato nulla di ovvio da
+  /* se siamo qui e selectStartingEdge() non ha trovato nulla che si possa
    * matchare, valid() sarà false ed entriamo nel ciclo successivo che
-   * calcola il grafo residuale vero e proprio */
+   * calcola il grafo residuale vero e proprio
+   *
+   * Se il matching non è completo e il sistema è propriamente specificato,
+   * qualcosa da matchare in frontier ci sarà sicuramente, ma probabilmente
+   * non è possibile matcharlo senza smatchare prima qualcos'altro */
    
 	while (!valid() && frontier.size() < maxDepth)
 	{
-		// while the current siblings are
-		// not empty keep exploring
-    // getCurrentCandidates == frontier.back
+		// in massimese: while the current siblings are not empty keep exploring
+    // in italiano: abbiamo scelto un arco da dove partire, fai la DFS per
+    //  capire cosa smatchare per matcharlo
+    // getCurrentCandidates == frontier.back == un'istanza di FlowCandidates
 		if (!getCurrentCandidates().empty() /* BUG QUANDO frontier È VUOTO??? */)
 		{
+      /* questo è un passo della DFS! */
 			frontier.push_back(getBestCandidate());
 			continue;
 		}
   
-    /* getCurrentCandidates().empty() true */
+    /* getCurrentCandidates().empty() == true e valid == false
+     * la DFS non è riuscita a trovare un flusso positivo
+     * Facciamo backtracking in modo da riprovare alla prossima iterazione */
 
 		// if they are empty remove the last siblings group
+    /* rimuovi il FlowCandidates vuoto aggiunto dall'ultimo passo fallito della DFS */
 		frontier.erase(frontier.end() - 1);
 
 		// if the frontier is now empty we are done
 		// there is no good path
+    /* AKA non ci sono più percorsi non provati */
 		if (frontier.empty())
 			return;
 
 		// else remove one of the siblings
+    /* elimina l'ultimo matching/smatching preso dalla DFS in modo da ricominciare
+     * dal successivo in ordine di priorità */
 		getCurrentCandidates().pop();
 	}
 }
@@ -226,10 +256,12 @@ void AugmentingPath::apply()
 
 void AugmentingPath::dump(llvm::raw_ostream& OS) const
 {
-	OS << "valid path = " << (valid() ? "true" : "false");
-	OS << '\n';
-	for (const auto& e : frontier)
+	OS << "valid path = " << (valid() ? "true" : "false") << '\n';
+	OS << "frontier (last item is the current one):";
+	for (const auto& e : frontier) {
+    OS << "****** SET " << &e << " ******\n";
 		e.dump(OS);
+  }
 }
 string AugmentingPath::toString() const
 {

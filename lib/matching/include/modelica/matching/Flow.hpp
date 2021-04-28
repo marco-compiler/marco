@@ -52,9 +52,13 @@ namespace modelica
     
 		[[nodiscard]] size_t size() const { return set.size(); }
 
+    /* Questa è la funzione usata per stabilire la priorità euristica dei flussi.
+     * Restituisce true se l è considerato < r, in termini di priorità, quindi r
+     * viene considerato migliore di l. */
 		[[nodiscard]] static bool compare(
 				const Flow& l, const Flow& r, const MatchingGraph& g)
 		{
+      /* preferisci il flusso uscente dal nodo con più flussi totali */
 			if (l.isForwardEdge())
 			{
 				auto lDeg = g.outDegree(l.getEquation());
@@ -70,6 +74,7 @@ namespace modelica
 					return lDeg < rDeg;
 			}
 
+      /* in caso di parità preferisco il flusso che copre di più */
 			return l.size() < r.size();
 		};
 		[[nodiscard]] bool isForwardEdge() const { return isForward; }
@@ -119,6 +124,7 @@ namespace modelica
 		bool isForward;
 	};
 
+  /* Un array, ordinato euristicamente, di possibili scelte di matching */
 	class FlowCandidates
 	{
 		public:
@@ -126,6 +132,7 @@ namespace modelica
 
 		[[nodiscard]] bool empty() const { return choises.empty(); }
 
+    /* remove the best choice */
 		void pop()
 		{
 			assert(choises.begin() != choises.end());
@@ -133,6 +140,7 @@ namespace modelica
 			last--;
 			choises.erase(last, choises.end());
 		}
+    /* get the current best choice */
 		[[nodiscard]] Flow& getCurrent()
 		{
 			assert(!choises.empty());
@@ -166,6 +174,13 @@ namespace modelica
 				size_t maxDepth = std::numeric_limits<size_t>::max());
 		[[nodiscard]] bool valid() const;
 		[[nodiscard]] FlowCandidates getBestCandidate() const;
+  
+    /* i metodi getCurrentXXX restituiscono il candidato "migliore" attuale,
+     * cioè l'opzione che verrebbe scelta se dovessi decidere in questo momento
+     * di terminare l'esplorazione e procedere con il matchine effettivo */
+  
+    /** Restituisci la prima lista di flussi da prendere, in ordine
+     * cronologico */
 		[[nodiscard]] const FlowCandidates& getCurrentCandidates() const
 		{
 			return frontier.back();
@@ -174,6 +189,7 @@ namespace modelica
 		{
 			return frontier.back();
 		}
+    /** Restituisci il flusso con la priorità maggiore */
 		[[nodiscard]] Flow& getCurrentFlow()
 		{
 			return getCurrentCandidates().getCurrent();
@@ -200,6 +216,9 @@ namespace modelica
 
 		[[nodiscard]] FlowCandidates getForwardMatchable() const;
 		MatchingGraph& graph;
+    /** In realtà non è una frontiera, è una lista di flussi candidati da
+     *  prendere, in ordine cronologico assumendo che a ogni step venga preso
+     *  il flusso di priorità euristica più elevata */
 		llvm::SmallVector<FlowCandidates, 2> frontier;
 	};
 }	 // namespace modelica

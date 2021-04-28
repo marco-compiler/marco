@@ -57,13 +57,31 @@ void MatchingGraph::match(int iterations)
 {
 	for (auto _ : irange(0, iterations))
 	{
+    dbgs() << "******************************\n";
+    dbgs() << "STEP " << _ << "\n";
+    dbgs() << "******************************\n";
+    
 		// il costruttore cerca anche i percorsi aumentanti
  		AugmentingPath path(*this);
-		if (!path.valid() /* path è invalida anche quando non c'è path */)
+		if (!path.valid() /* path è invalida anche quando non c'è path */) {
+      dbgs() << "******************************\n";
+      dbgs() << "FAILED!!!\n";
+      dbgs() << "******************************\n";
 			return;
+   }
 
+    dbgs() << "AUGMENTING PATH\n";
+    path.dump();
+    
+    dbgs() << "******************************\n";
+    dbgs() << "NEW STATE\n";
+    
 		path.apply();
+    this->dump();
 	}
+  dbgs() << "******************************\n";
+  dbgs() << "END\n";
+  dbgs() << "******************************\n";
 }
 
 size_t MatchingGraph::matchedEdgesCount() const

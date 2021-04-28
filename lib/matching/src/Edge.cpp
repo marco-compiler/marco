@@ -8,6 +8,7 @@ void Edge::dump(llvm::raw_ostream& OS) const
 {
 	OS << "EDGE: Eq_" << equation << " TO " << variable->getName();
 	OS << "\n";
+  equation->dump(OS);
 	OS << "\tForward Map: ";
 	vectorAccess.dump(OS);
 	OS << " -> Backward Map: ";
