@@ -30,6 +30,82 @@ const string s = "init "
 								 "INT[1] (at INT[10] varA, INT[1](ind INT[1]{0})) = INT[1] (+ "
 								 "INT[1] (at INT[10] varB, INT[1](+ INT[1](ind INT[1]{0}), "
 								 "INT[1]{2})), INT[1]{2}) ";
+         
+TEST(MatchingTest, example)
+{
+  /* attenzione:
+   * - l'argomento a (ind) è l'indice della variabile d'induzione non un offset
+   * - in un'espressione con la variabile di induzione, la costante va sempre
+   *   ultima se no salta tutto per aria*/
+  ModParser parser(
+    "init "
+      "varX = INT[5] {0, 1, 2, 3, 4} "
+      "varY = INT[4] {0, 0, 0, 0} "
+      "varZ = INT[5] {5, 6, 7, 8, 9} "
+    "update "
+      "INT[1] (at INT[5] varZ, INT[1]{4}) = "
+        "INT[1] (* "
+          "INT[1] (at INT[5] varX, INT[1]{4}), "
+          "INT[1]{2})"
+      "for [0,4] "
+        "INT[1] (at INT[5] varX, INT[1](ind INT[1]{0})) = "
+          "INT[1]{10} "
+      "for [0,3] "
+        "INT[1] (at INT[4] varY, INT[1](ind INT[1]{0})) = "
+          "INT[1] (at INT[5] varX, INT[1] (+ INT[1](ind INT[1]{0}), INT[1]{1})) "
+      "for [0,3] "
+        "INT[1] (at INT[5] varZ, INT[1](ind INT[1]{0})) = "
+          "INT[1] (+ "
+            "INT[1] (at INT[5] varX, INT[1](ind INT[1]{0})), "
+            "INT[1] (at INT[4] varY, INT[1](ind INT[1]{0})))"
+  );
+
+  auto model = parser.simulation();
+  if (!model)
+  {
+    outs() << model.takeError();
+    FAIL();
+  }
+
+  Model m(move(*model));
+  MatchingGraph graph(m);
+  graph.dump(llvm::outs());
+  graph.match(1000);
+}
+
+TEST(MatchingTest, thesisExample)
+{
+  /* attenzione:
+   * - l'argomento a (ind) è l'indice della variabile d'induzione non un offset
+   * - in un'espressione con la variabile di induzione, la costante va sempre
+   *   ultima se no salta tutto per aria*/
+  ModParser parser(
+    "init "
+      "varX = INT[2] {1, 2} "
+      "varY = INT[2] {3, 4} "
+    "update "
+      "for [0,1] "
+        "INT[1] (at INT[2] varX, INT[1](ind INT[1]{0})) = "
+          "INT[1] (* "
+            "INT[1]{2}, "
+            "INT[1] (at INT[2] varY, INT[1](ind INT[1]{0}))) "
+      "for [2,3] "
+        "INT[1] (at INT[2] varX, INT[1] (+ INT[1](ind INT[1]{0}), INT[1]{-2})) = "
+          "INT[1]{5}"
+  );
+
+  auto model = parser.simulation();
+  if (!model)
+  {
+    outs() << model.takeError();
+    FAIL();
+  }
+
+  Model m(move(*model));
+  MatchingGraph graph(m);
+  graph.dump(llvm::outs());
+  graph.match(1000);
+}
 
 TEST(MatchingTest, graphInizializationTest)
 {
