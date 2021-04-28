@@ -64,14 +64,14 @@ namespace modelica
 				auto lDeg = g.outDegree(l.getEquation());
 				auto rDeg = g.outDegree(r.getEquation());
 				if (lDeg != rDeg)
-					return lDeg < rDeg;
+					return lDeg > rDeg;
 			}
 			else
 			{
 				auto lDeg = g.outDegree(l.getVariable());
 				auto rDeg = g.outDegree(r.getVariable());
 				if (lDeg != rDeg)
-					return lDeg < rDeg;
+					return lDeg > rDeg;
 			}
 
       /* in caso di parità preferisco il flusso che copre di più */
