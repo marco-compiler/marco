@@ -58,12 +58,15 @@ bool AugmentingPath::valid() const
 		return false;
   
   /* frontier alterna FlowCandidates avanti e flowcandidates indietro
-   * Controllando che frontier sia pari verifichiamo che finisca con un FlowCandidates
+   * Controllando che frontier sia dispari verifichiamo che finisca con un FlowCandidates
    * avanti e non uno indietro.
-   * Se non è pari vado da qualche parte, altrimenti no */
+   * Se non è dispari vado da qualche parte, altrimenti nov*/
 	if ((frontier.size() % 2) != 1)
 		return false;
 
+  /* se siamo qui, sicuramente l'ultimo FlowCandidates sarà fatto di archi
+   * positivi (a causa del check pari/dispari) */
+   
   /* Variable corrispondente all'ultimo arco nel FlowCandidates */
 	const auto& currentVar = getCurrentCandidates().getCurrentVariable();
   /* getCurrentCandidates().getCurrent() == getCurrentFlow() */
@@ -198,6 +201,11 @@ AugmentingPath::AugmentingPath(MatchingGraph& graph, size_t maxDepth)
    * Se il matching non è completo e il sistema è propriamente specificato,
    * qualcosa da matchare in frontier ci sarà sicuramente, ma probabilmente
    * non è possibile matcharlo senza smatchare prima qualcos'altro */
+  if (!valid()) {
+    dbgs() << "*** MATCHING REQUIRES DFS\n";
+    dbgs() << "initial frontier:\n";
+    dump(errs());
+  }
    
 	while (!valid() && frontier.size() < maxDepth)
 	{
@@ -209,9 +217,12 @@ AugmentingPath::AugmentingPath(MatchingGraph& graph, size_t maxDepth)
 		{
       /* questo è un passo della DFS! */
 			frontier.push_back(getBestCandidate());
+      dbgs() << "*** DFS STEP\n";
+      dump(errs());
 			continue;
 		}
   
+    dbgs() << "*** BACKTRACKING\n";
     /* getCurrentCandidates().empty() == true e valid == false
      * la DFS non è riuscita a trovare un flusso positivo
      * Facciamo backtracking in modo da riprovare alla prossima iterazione */
@@ -230,6 +241,9 @@ AugmentingPath::AugmentingPath(MatchingGraph& graph, size_t maxDepth)
     /* elimina l'ultimo matching/smatching preso dalla DFS in modo da ricominciare
      * dal successivo in ordine di priorità */
 		getCurrentCandidates().pop();
+    
+    dbgs() << "backtracked frontier:\n";
+    dump(errs());
 	}
 }
 
@@ -237,19 +251,24 @@ void AugmentingPath::apply()
 {
 	assert(valid());
 
-  // IndexSet di tutti gli indici di variabili già matchate
+  // IndexSet degli indici matchati nella prima variabile da considerare
 	auto alreadyMatchedVars = graph.getMatchedSet(getCurrentFlow().getVariable());
-  /* set: IndexSet delle cose che È POSSIBILE matchare con l'arco che stiamo considerando */
+  /* set: IndexSet degli indici della variabile che È POSSIBILE matchare con
+   * l'arco che stiamo considerando */
 	auto set = getCurrentFlow().getMappedSet();
 	set.remove(alreadyMatchedVars);
-  /* set adesso è il flusso da applicare */
+  /* set adesso è il flusso da applicare, partendo dalla fine del percorso
+   * aumentante */
 
   /* fai il giochino di andare avanti e indietro nel grafo per applicare il
    * flusso e nel contempo cancellarlo nei punti dove l'abbiamo assorbito */
 	auto reverseRange = make_range(rbegin(frontier), rend(frontier));
 	for (auto& edge : reverseRange)
 	{
+    /* ottieni l'arco da matchare */
 		Flow& flow = edge.getCurrent();
+    /* aggiungi l'arco al matching e converti il flusso da variabile a
+     * equazione e viceversa */
 		set = flow.applyAndInvert(set);
 	}
 }
@@ -257,7 +276,7 @@ void AugmentingPath::apply()
 void AugmentingPath::dump(llvm::raw_ostream& OS) const
 {
 	OS << "valid path = " << (valid() ? "true" : "false") << '\n';
-	OS << "frontier (last item is the current one):";
+	OS << "frontier (last item is the current one):\n";
 	for (const auto& e : frontier) {
     OS << "****** SET " << &e << " ******\n";
 		e.dump(OS);

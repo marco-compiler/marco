@@ -63,9 +63,9 @@ void MatchingGraph::match(int iterations)
     
 		// il costruttore cerca anche i percorsi aumentanti
  		AugmentingPath path(*this);
-		if (!path.valid() /* path è invalida anche quando non c'è path */) {
+		if (!path.valid() /* path è invalida anche quando non c'è path e abbiamo finito normalmente */) {
       dbgs() << "******************************\n";
-      dbgs() << "FAILED!!!\n";
+      dbgs() << "Finished\n";
       dbgs() << "******************************\n";
 			return;
    }
@@ -80,7 +80,7 @@ void MatchingGraph::match(int iterations)
     this->dump();
 	}
   dbgs() << "******************************\n";
-  dbgs() << "END\n";
+  dbgs() << "Reached maximum iteration count\n";
   dbgs() << "******************************\n";
 }
 
