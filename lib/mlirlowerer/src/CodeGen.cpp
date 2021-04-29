@@ -93,34 +93,34 @@ MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options)
 	context.loadDialect<mlir::StandardOpsDialect>();
 }
 
-mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, ModelicaConversionOptions conversionOptions)
+mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, ModelicaLoweringOptions loweringOptions)
 {
 	mlir::PassManager passManager(builder.getContext());
 
-	passManager.addPass(createSolveModelPass(conversionOptions.solveModelOptions));
+	passManager.addPass(createSolveModelPass(loweringOptions.solveModelOptions));
 	passManager.addPass(createExplicitCastInsertionPass());
 
-	if (conversionOptions.inlining)
+	if (loweringOptions.inlining)
 		passManager.addPass(mlir::createInlinerPass());
 
-	if (conversionOptions.resultBuffersToArgs)
+	if (loweringOptions.resultBuffersToArgs)
 		passManager.addPass(createResultBuffersToArgsPass());
 
 	passManager.addPass(mlir::createCanonicalizerPass());
 
-	if (conversionOptions.cse)
+	if (loweringOptions.cse)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
 
-	passManager.addPass(createModelicaConversionPass());
+	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions));
 	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
 
-	if (conversionOptions.openmp)
+	if (loweringOptions.openmp)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
 
-	passManager.addPass(createLowerToCFGPass());
-	passManager.addPass(createLLVMLoweringPass(conversionOptions.llvmOptions));
+	passManager.addPass(createLowerToCFGPass(loweringOptions.conversionOptions));
+	passManager.addPass(createLLVMLoweringPass(loweringOptions.llvmOptions));
 
-	if (!conversionOptions.debug)
+	if (!loweringOptions.debug)
 		passManager.addPass(mlir::createStripDebugInfoPass());
 
 	return passManager.run(module);

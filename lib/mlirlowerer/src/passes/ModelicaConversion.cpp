@@ -6,6 +6,7 @@
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/ModelicaConversion.h>
 #include <modelica/mlirlowerer/passes/TypeConverter.h>
+#include <modelica/mlirlowerer/CodeGen.h>
 #include <numeric>
 
 using namespace modelica::codegen;
@@ -21,8 +22,9 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 	using Adaptor = typename FromOp::Adaptor;
 
 	public:
-	ModelicaOpConversion(mlir::MLIRContext* ctx, TypeConverter& typeConverter)
-			: mlir::OpConversionPattern<FromOp>(typeConverter, ctx, 1)
+	ModelicaOpConversion(mlir::MLIRContext* ctx, TypeConverter& typeConverter, ModelicaConversionOptions options)
+			: mlir::OpConversionPattern<FromOp>(typeConverter, ctx, 1),
+				options(std::move(options))
 	{
 	}
 
@@ -151,6 +153,9 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 					return result + "_" + typeMangler(type);
 				});
 	}
+
+	protected:
+	ModelicaConversionOptions options;
 };
 
 struct ConstantOpLowering: public ModelicaOpConversion<ConstantOp>
@@ -1898,34 +1903,33 @@ struct FillOpLowering: public ModelicaOpConversion<FillOp>
 
 	mlir::LogicalResult matchAndRewrite(FillOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		/*
 		mlir::Location loc = op.getLoc();
-		mlir::Value value = op.value();
-		value = rewriter.create<CastOp>(loc, value, op.memory().getType().cast<PointerType>().getElementType());
-
-		iterateArray(rewriter, loc, op.memory(),
-								 [&](mlir::ValueRange position) {
-									 rewriter.create<StoreOp>(loc, value, op.memory(), position);
-								 });
-
-		rewriter.eraseOp(op);
-		return mlir::success();
-		 */
-
-		mlir::Location loc = op.getLoc();
-
 		auto pointerType = op.memory().getType().cast<PointerType>();
-		mlir::Value memory = rewriter.create<PtrCastOp>(loc, op.memory(), pointerType.toUnsized());
-		mlir::Value value = rewriter.create<CastOp>(loc, op.value(), pointerType.getElementType());
 
-		auto callee = getOrDeclareFunction(
-				rewriter,
-				op->getParentOfType<mlir::ModuleOp>(),
-				getMangledFunctionName("fill", value.getType()),
-				llvm::None,
-				mlir::TypeRange({ memory.getType(), value.getType() }));
+		if (options.useRuntimeLibrary)
+		{
+			mlir::Value memory = rewriter.create<PtrCastOp>(loc, op.memory(), pointerType.toUnsized());
+			mlir::Value value = rewriter.create<CastOp>(loc, op.value(), pointerType.getElementType());
 
-		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, mlir::ValueRange({ memory, value }));
+			auto callee = getOrDeclareFunction(
+					rewriter,
+					op->getParentOfType<mlir::ModuleOp>(),
+					getMangledFunctionName("fill", value.getType()),
+					llvm::None,
+					mlir::TypeRange({ memory.getType(), value.getType() }));
+
+			rewriter.create<CallOp>(loc, callee.getName(), llvm::None, mlir::ValueRange({ memory, value }));
+		}
+		else
+		{
+			mlir::Value value = rewriter.create<CastOp>(loc, op.value(), pointerType.getElementType());
+
+			iterateArray(rewriter, loc, op.memory(),
+									 [&](mlir::ValueRange position) {
+										 rewriter.create<StoreOp>(loc, value, op.memory(), position);
+									 });
+		}
+
 		rewriter.eraseOp(op);
 		return mlir::success();
 	}
@@ -2194,16 +2198,24 @@ struct BreakableWhileOpLowering: public ModelicaOpConversion<BreakableWhileOp>
 	}
 };
 
-static void populateModelicaControlFlowConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, TypeConverter& typeConverter)
+static void populateModelicaControlFlowConversionPatterns(
+		mlir::OwningRewritePatternList& patterns,
+		mlir::MLIRContext* context,
+		TypeConverter& typeConverter,
+		ModelicaConversionOptions options)
 {
 	patterns.insert<
 	    IfOpLowering,
 			ForOpLowering,
 			BreakableForOpLowering,
-			BreakableWhileOpLowering>(context, typeConverter);
+			BreakableWhileOpLowering>(context, typeConverter, options);
 }
 
-static void populateModelicaConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, modelica::codegen::TypeConverter& typeConverter)
+static void populateModelicaConversionPatterns(
+		mlir::OwningRewritePatternList& patterns,
+		mlir::MLIRContext* context,
+		modelica::codegen::TypeConverter& typeConverter,
+		ModelicaConversionOptions options)
 {
 	patterns.insert<
 			ConstantOpLowering,
@@ -2245,12 +2257,17 @@ static void populateModelicaConversionPatterns(mlir::OwningRewritePatternList& p
 			NDimsOpLowering,
 			SizeOpDimensionLowering,
 			SizeOpArrayLowering,
-			FillOpLowering>(context, typeConverter);
+			FillOpLowering>(context, typeConverter, options);
 }
 
 class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
+	explicit ModelicaConversionPass(ModelicaConversionOptions options)
+			: options(std::move(options))
+	{
+	}
+
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
 		registry.insert<ModelicaDialect>();
@@ -2285,7 +2302,7 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 
 		// Provide the set of patterns that will lower the Modelica operations
 		mlir::OwningRewritePatternList patterns;
-		populateModelicaConversionPatterns(patterns, &getContext(), typeConverter);
+		populateModelicaConversionPatterns(patterns, &getContext(), typeConverter, options);
 
 		// With the target and rewrite patterns defined, we can now attempt the
 		// conversion. The conversion will signal failure if any of our "illegal"
@@ -2297,16 +2314,24 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 			signalPassFailure();
 		}
 	}
+
+	private:
+	ModelicaConversionOptions options;
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createModelicaConversionPass()
+std::unique_ptr<mlir::Pass> modelica::codegen::createModelicaConversionPass(ModelicaConversionOptions options)
 {
-	return std::make_unique<ModelicaConversionPass>();
+	return std::make_unique<ModelicaConversionPass>(options);
 }
 
 class LowerToCFGPass: public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
+	explicit LowerToCFGPass(ModelicaConversionOptions options)
+			: options(std::move(options))
+	{
+	}
+
 	void runOnOperation() override
 	{
 		auto module = getOperation();
@@ -2322,7 +2347,7 @@ class LowerToCFGPass: public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPa
 
 		// Provide the set of patterns that will lower the Modelica operations
 		mlir::OwningRewritePatternList patterns;
-		populateModelicaControlFlowConversionPatterns(patterns, &getContext(), typeConverter);
+		populateModelicaControlFlowConversionPatterns(patterns, &getContext(), typeConverter, options);
 		mlir::populateLoopToStdConversionPatterns(patterns, &getContext());
 
 		// With the target and rewrite patterns defined, we can now attempt the
@@ -2335,9 +2360,12 @@ class LowerToCFGPass: public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPa
 			signalPassFailure();
 		}
 	}
+
+	private:
+	ModelicaConversionOptions options;
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createLowerToCFGPass()
+std::unique_ptr<mlir::Pass> modelica::codegen::createLowerToCFGPass(ModelicaConversionOptions options)
 {
-	return std::make_unique<LowerToCFGPass>();
+	return std::make_unique<LowerToCFGPass>(options);
 }

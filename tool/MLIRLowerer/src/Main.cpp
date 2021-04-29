@@ -38,6 +38,7 @@ static cl::opt<bool> inlining("no-inlining", cl::desc("Disable CSE pass"), cl::i
 static cl::opt<bool> resultBuffersToArgs("no-result-buffers-to-args", cl::desc("Don't move the static output buffer to input arguments"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> cse("no-cse", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> openmp("omp", cl::desc("Enable OpenMP usage"), cl::init(false), cl::cat(codeGenOptions));
+static cl::opt<bool> disableRuntimeLibrary("disable-runtime-library", cl::desc("Avoid the calls to the external runtime library functions (only when a native implementation of the operation exists)"), cl::init(false), cl::cat(codeGenOptions));
 
 enum OptLevel {
 	O0, O1, O2, O3
@@ -130,17 +131,18 @@ int main(int argc, char* argv[])
 		module->dump();
 
 	// Convert to LLVM dialect
-	codegen::ModelicaConversionOptions conversionOptions;
-	conversionOptions.solveModelOptions.emitMain = emitMain;
-	conversionOptions.solveModelOptions.matchingMaxIterations = matchingMaxIterations;
-	conversionOptions.solveModelOptions.sccMaxIterations = sccMaxIterations;
-	conversionOptions.inlining = !inlining;
-	conversionOptions.resultBuffersToArgs = !resultBuffersToArgs;
-	conversionOptions.cse = !cse;
-	conversionOptions.openmp = openmp;
-	conversionOptions.debug = debug;
+	codegen::ModelicaLoweringOptions loweringOptions;
+	loweringOptions.solveModelOptions.emitMain = emitMain;
+	loweringOptions.solveModelOptions.matchingMaxIterations = matchingMaxIterations;
+	loweringOptions.solveModelOptions.sccMaxIterations = sccMaxIterations;
+	loweringOptions.inlining = !inlining;
+	loweringOptions.resultBuffersToArgs = !resultBuffersToArgs;
+	loweringOptions.cse = !cse;
+	loweringOptions.openmp = openmp;
+	loweringOptions.conversionOptions.useRuntimeLibrary = !disableRuntimeLibrary;
+	loweringOptions.debug = debug;
 
-	if (mlir::failed(lowerer.convertToLLVMDialect(*module, conversionOptions)))
+	if (mlir::failed(lowerer.convertToLLVMDialect(*module, loweringOptions)))
 	{
 		llvm::errs() << "Failed to convert module to LLVM\n";
 		return -1;

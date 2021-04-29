@@ -48,18 +48,19 @@ namespace modelica::codegen
 		}
 	};
 
-	struct ModelicaConversionOptions
+	struct ModelicaLoweringOptions
 	{
 		SolveModelOptions solveModelOptions = SolveModelOptions::getDefaultOptions();
 		bool inlining = true;
 		bool resultBuffersToArgs = true;
 		bool cse = true;
 		bool openmp = false;
+		ModelicaConversionOptions conversionOptions = ModelicaConversionOptions::getDefaultOptions();
 		ModelicaToLLVMConversionOptions llvmOptions = ModelicaToLLVMConversionOptions::getDefaultOptions();
 		bool debug = true;
 
-		static const ModelicaConversionOptions& getDefaultOptions() {
-			static ModelicaConversionOptions options;
+		static const ModelicaLoweringOptions& getDefaultOptions() {
+			static ModelicaLoweringOptions options;
 			return options;
 		}
 	};
@@ -96,7 +97,7 @@ namespace modelica::codegen
 		public:
 		explicit MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
 
-		mlir::LogicalResult convertToLLVMDialect(mlir::ModuleOp& module, ModelicaConversionOptions options = ModelicaConversionOptions::getDefaultOptions());
+		mlir::LogicalResult convertToLLVMDialect(mlir::ModuleOp& module, ModelicaLoweringOptions options = ModelicaLoweringOptions::getDefaultOptions());
 
 		llvm::Optional<mlir::ModuleOp> lower(llvm::ArrayRef<frontend::ClassContainer> classes);
 
