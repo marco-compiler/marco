@@ -48,9 +48,9 @@ TEST(Logic, negateScalar)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<bool, 2> x = { true, false };
 	array<bool, 2> y = { true, false };
@@ -99,9 +99,9 @@ TEST(Logic, negateArray)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<bool, 2> x = { true, false };
 	array<bool, 2> y = { true, false };
@@ -154,9 +154,9 @@ TEST(Logic, andScalars)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<bool, 4> x = { false, false, true, true };
 	array<bool, 4> y = { false, true, false, true };
@@ -209,9 +209,9 @@ TEST(Logic, andArrays)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<bool, 4> x = { false, false, true, true };
 	array<bool, 4> y = { false, true, false, true };
@@ -266,9 +266,9 @@ TEST(Logic, orScalars)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<bool, 4> x = { false, false, true, true };
 	array<bool, 4> y = { false, true, false, true };
@@ -321,9 +321,9 @@ TEST(Logic, orArrays)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<bool, 4> x = { false, false, true, true };
 	array<bool, 4> y = { false, true, false, true };

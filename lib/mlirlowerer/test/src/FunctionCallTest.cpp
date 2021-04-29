@@ -61,9 +61,9 @@ TEST(Function, callNoArguments)	 // NOLINT
 
 	auto module = lowerer.lower({ foo, main });
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	int y = 0;
 
@@ -128,9 +128,9 @@ TEST(Function, recursiveCall)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 3> x = { 1, 2, 3 };
 	int i = 1;
@@ -209,9 +209,9 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 
 	auto module = lowerer.lower({ main, foo });
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 0, 0, 0 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
@@ -298,9 +298,9 @@ TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
 
 	auto module = lowerer.lower({ foo, main });
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 3> x = { 0, 0, 0 };
 	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
@@ -375,9 +375,9 @@ TEST(Function, callElementWise)	 // NOLINT
 
 	auto module = lowerer.lower({ main, foo });
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 1, 0, 0 };
 	array<int, 3> y = { 0, 0, 0 };

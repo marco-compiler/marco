@@ -48,9 +48,9 @@ TEST(BuiltInOps, ndims)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 10, 23, -57 };
 	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
@@ -99,9 +99,9 @@ TEST(BuiltInOps, sizeSpecificArrayDimension)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 3, 2 });
@@ -149,9 +149,9 @@ TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 12> x = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
 	array<int, 2> y = { 0, 0 };
@@ -205,9 +205,9 @@ TEST(BuiltInOps, sumOfIntegerStaticArrayValues)	 // NOLINT
 	
 	auto module = lowerer.lower(cls);
 	
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	jit::Runner runner(module);
 

@@ -40,9 +40,9 @@ TEST(Assignment, constant)	 // NOLINT
 	
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	int x = 0;
 
@@ -85,9 +85,9 @@ TEST(Assignment, variableCopy)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	int x = 57;
 	int y = 0;
@@ -131,9 +131,9 @@ TEST(Assignment, implicitCastIntegerToFloat)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	int x = 57;
 	float y = 0;
@@ -177,9 +177,9 @@ TEST(Assignment, implicitCastFloatToInteger)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	float x = 1.8;
 	int y = 0;
@@ -245,9 +245,9 @@ TEST(Assignment, arraySliceAssignment)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 2> x = { 0, 1 };
 	array<int, 2> y = { 2, 3 };
@@ -304,9 +304,9 @@ TEST(Assignment, arrayCopy)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 2> x = { 23, 57 };
 	array<int, 2> y = { 0, 0 };
@@ -385,9 +385,9 @@ TEST(Assignment, internalArrayElement)	 // NOLINT
 
 	auto module = lowerer.lower(cls);
 
-	ModelicaConversionOptions conversionOptions;
-	conversionOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, conversionOptions)));
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	int x = 57;
 	int y = 0;
