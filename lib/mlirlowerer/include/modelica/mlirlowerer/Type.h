@@ -9,8 +9,8 @@ namespace modelica::codegen
 
 	class IntegerTypeStorage;
 	class RealTypeStorage;
+	class UnsizedPointerTypeStorage;
 	class PointerTypeStorage;
-	//class UnrankedPointerTypeStorage;
 	class StructTypeStorage;
 
 	class BooleanType : public mlir::Type::TypeBase<BooleanType, mlir::Type, mlir::TypeStorage> {
@@ -34,6 +34,7 @@ namespace modelica::codegen
 	};
 
 	enum BufferAllocationScope { unknown, stack, heap };
+	class UnsizedPointerType;
 
 	class PointerType : public mlir::Type::TypeBase<PointerType, mlir::Type, PointerTypeStorage> {
 		public:
@@ -61,22 +62,20 @@ namespace modelica::codegen
 		[[nodiscard]] PointerType toAllocationScope(BufferAllocationScope scope);
 		[[nodiscard]] PointerType toUnknownAllocationScope();
 		[[nodiscard]] PointerType toMinAllowedAllocationScope();
-		[[nodiscard]] PointerType toElementType(mlir::Type type);
+		[[nodiscard]] UnsizedPointerType toUnsized();
 
 		[[nodiscard]] bool canBeOnStack() const;
 	};
 
-	/*
-	class UnrankedPointerType : public mlir::Type::TypeBase<UnrankedPointerType, mlir::Type, UnrankedPointerTypeStorage> {
+	class UnsizedPointerType : public mlir::Type::TypeBase<UnsizedPointerType, mlir::Type, UnsizedPointerTypeStorage> {
 		public:
 		using Base::Base;
 
-		static UnrankedPointerType get(mlir::MLIRContext* context, mlir::Type elementType, unsigned int rank);
+		static UnsizedPointerType get(mlir::MLIRContext* context, mlir::Type elementType, unsigned int rank);
 
 		[[nodiscard]] mlir::Type getElementType() const;
 		[[nodiscard]] unsigned int getRank() const;
 	};
-	 */
 
 	class OpaquePointerType : public mlir::Type::TypeBase<OpaquePointerType, mlir::Type, mlir::TypeStorage> {
 		public:

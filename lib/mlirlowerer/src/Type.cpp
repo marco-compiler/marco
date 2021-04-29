@@ -129,47 +129,45 @@ namespace modelica::codegen
 		PointerType::Shape shape;
 	};
 
-/*
-class UnrankedPointerTypeStorage : public mlir::TypeStorage {
-	public:
-	using KeyTy = std::tuple<mlir::Type, unsigned int>;
+	class UnsizedPointerTypeStorage : public mlir::TypeStorage {
+		public:
+		using KeyTy = std::tuple<mlir::Type, unsigned int>;
 
-	UnrankedPointerTypeStorage() = delete;
+		UnsizedPointerTypeStorage() = delete;
 
-	bool operator==(const KeyTy& key) const {
-		return key == KeyTy{getElementType(), getRank()};
-	}
+		bool operator==(const KeyTy& key) const {
+			return key == KeyTy{getElementType(), getRank()};
+		}
 
-	static unsigned int hashKey(const KeyTy& key) {
-		return llvm::hash_combine(std::get<mlir::Type>(key), std::get<unsigned int>(key));
-	}
+		static unsigned int hashKey(const KeyTy& key) {
+			return llvm::hash_combine(std::get<mlir::Type>(key), std::get<unsigned int>(key));
+		}
 
-	static UnrankedPointerTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key) {
-		auto *storage = allocator.allocate<UnrankedPointerTypeStorage>();
-		return new (storage) UnrankedPointerTypeStorage{std::get<mlir::Type>(key), std::get<unsigned int>(key)};
-	}
+		static UnsizedPointerTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key) {
+			auto *storage = allocator.allocate<UnsizedPointerTypeStorage>();
+			return new (storage) UnsizedPointerTypeStorage{std::get<mlir::Type>(key), std::get<unsigned int>(key)};
+		}
 
-	[[nodiscard]] mlir::Type getElementType() const
-	{
-		return elementType;
-	}
+		[[nodiscard]] mlir::Type getElementType() const
+		{
+			return elementType;
+		}
 
-	[[nodiscard]] unsigned int getRank() const
-	{
-		return rank;
-	}
+		[[nodiscard]] unsigned int getRank() const
+		{
+			return rank;
+		}
 
-	private:
-	UnrankedPointerTypeStorage(mlir::Type elementType, unsigned int rank)
-			: elementType(elementType),
-				rank(rank)
-	{
-	}
+		private:
+		UnsizedPointerTypeStorage(mlir::Type elementType, unsigned int rank)
+				: elementType(elementType),
+					rank(rank)
+		{
+		}
 
-	mlir::Type elementType;
-	unsigned int rank;
-};
- */
+		mlir::Type elementType;
+		unsigned int rank;
+	};
 
 	class StructTypeStorage : public mlir::TypeStorage {
 		public:
@@ -336,9 +334,9 @@ PointerType PointerType::toMinAllowedAllocationScope()
 	return toAllocationScope(heap);
 }
 
-PointerType PointerType::toElementType(mlir::Type type)
+UnsizedPointerType PointerType::toUnsized()
 {
-	return PointerType::get(getContext(), getAllocationScope(), type, getShape());
+	return UnsizedPointerType::get(getContext(), getElementType(), getRank());
 }
 
 bool PointerType::canBeOnStack() const
@@ -346,22 +344,20 @@ bool PointerType::canBeOnStack() const
 	return hasConstantShape();
 }
 
-/*
-UnrankedPointerType UnrankedPointerType::get(mlir::MLIRContext* context, mlir::Type elementType, unsigned int rank)
+UnsizedPointerType UnsizedPointerType::get(mlir::MLIRContext* context, mlir::Type elementType, unsigned int rank)
 {
 	return Base::get(context, elementType, rank);
 }
 
-mlir::Type UnrankedPointerType::getElementType() const
+mlir::Type UnsizedPointerType::getElementType() const
 {
 	return getImpl()->getElementType();
 }
 
-unsigned int UnrankedPointerType::getRank() const
+unsigned int UnsizedPointerType::getRank() const
 {
 	return getImpl()->getRank();
 }
-*/
 
 OpaquePointerType OpaquePointerType::get(mlir::MLIRContext* context)
 {
@@ -418,18 +414,16 @@ void modelica::codegen::printModelicaType(mlir::Type type, mlir::DialectAsmPrint
 		return;
 	}
 
-	/*
-	if (auto pointerType = type.dyn_cast<UnrankedPointerType>())
+	if (auto pointerType = type.dyn_cast<UnsizedPointerType>())
 	{
 		os << "ptr<*x" << pointerType.getElementType() << ">";
 		return;
 	}
-	*/
 
 	if (type.isa<OpaquePointerType>())
 	{
 		os << "opaque_ptr";
-    return;
+		return;
 	}
 
 	if (auto structType = type.dyn_cast<StructType>())

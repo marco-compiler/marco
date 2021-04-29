@@ -130,7 +130,8 @@ namespace modelica::codegen
 																			mlir::OpTrait::NRegions<3>::Impl,
 																			mlir::OpTrait::ZeroOperands,
 																			mlir::OpTrait::ZeroResult,
-																			mlir::RegionBranchOpInterface::Trait>
+																			mlir::RegionBranchOpInterface::Trait,
+																			mlir::OpTrait::IsIsolatedFromAbove>
 	{
 		public:
 		using Op::Op;

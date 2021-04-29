@@ -8,6 +8,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 	addConversion([&](IntegerType type) { return convertIntegerType(type); });
 	addConversion([&](RealType type) { return convertRealType(type); });
 	addConversion([&](PointerType type) { return convertPointerType(type); });
+	addConversion([&](UnsizedPointerType type) { return convertUnsizedPointerType(type); });
 	addConversion([&](OpaquePointerType type) { return convertOpaquePointerType(type); });
 	addConversion([&](StructType type) { return convertStructType(type); });
 
@@ -41,7 +42,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 				if (inputs.size() != 1)
 					return llvm::None;
 
-				if (!inputs[0].getType().isa<PointerType>() && !inputs[0].getType().isa<StructType>())
+				if (!inputs[0].getType().isa<PointerType>() && !inputs[0].getType().isa<UnsizedPointerType>() && !inputs[0].getType().isa<StructType>())
 					return llvm::None;
 
 				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
@@ -101,10 +102,37 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 				if (inputs.size() != 1)
 					return llvm::None;
 
-				if (!inputs[0].getType().isa<mlir::LLVM::LLVMStructType>())
+				if (auto structType = inputs[0].getType().dyn_cast<mlir::LLVM::LLVMStructType>())
+				{
+					if (auto types = structType.getBody(); types.size() == 2)
+						if (types[0].isa<mlir::LLVM::LLVMPointerType>() &&
+								types[1].isa<mlir::IntegerType>())
+							return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+
+					if (auto types = structType.getBody(); types.size() == 3)
+						if (types[0].isa<mlir::LLVM::LLVMPointerType>() &&
+								types[1].isa<mlir::IntegerType>() &&
+								types[2].isa<mlir::LLVM::LLVMArrayType>() &&
+								types[2].cast<mlir::LLVM::LLVMArrayType>().getElementType().isa<mlir::IntegerType>())
+							return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+				}
+
+				return llvm::None;
+			});
+
+	addSourceMaterialization(
+			[&](mlir::OpBuilder &builder, UnsizedPointerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
+			{
+				if (inputs.size() != 1)
 					return llvm::None;
 
-				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+				if (auto structType = inputs[0].getType().dyn_cast<mlir::LLVM::LLVMStructType>())
+					if (auto types = structType.getBody(); types.size() == 2)
+						if (types[0].isa<mlir::IntegerType>() &&
+								types[1].isa<mlir::LLVM::LLVMPointerType>())
+							return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+
+				return llvm::None;
 			});
 
 	addSourceMaterialization(
@@ -153,6 +181,12 @@ mlir::Type TypeConverter::convertPointerType(PointerType type)
 	return mlir::LLVM::LLVMStructType::getLiteral(type.getContext(), types);
 }
 
+mlir::Type TypeConverter::convertUnsizedPointerType(UnsizedPointerType type)
+{
+	auto types = getUnsizedPointerDescriptorFields(type);
+	return mlir::LLVM::LLVMStructType::getLiteral(type.getContext(), types);
+}
+
 mlir::Type TypeConverter::convertOpaquePointerType(OpaquePointerType type)
 {
 	return mlir::LLVM::LLVMPointerType::get(convertType(IntegerType::get(type.getContext(), 8)));
@@ -182,5 +216,13 @@ llvm::SmallVector<mlir::Type, 3> TypeConverter::getPointerDescriptorFields(Point
 		return results;
 
 	results.insert(results.end(), 1, mlir::LLVM::LLVMArrayType::get(indexType, rank));
+	return results;
+}
+
+llvm::SmallVector<mlir::Type, 3> TypeConverter::getUnsizedPointerDescriptorFields(UnsizedPointerType type) {
+	auto indexType = getIndexType();
+	auto voidPtr = mlir::LLVM::LLVMPointerType::get(convertType(IntegerType::get(type.getContext(), 8)));
+
+	llvm::SmallVector<mlir::Type, 3> results = { indexType, voidPtr };
 	return results;
 }

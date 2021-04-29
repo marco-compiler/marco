@@ -6,6 +6,7 @@
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/ModelicaConversion.h>
 #include <modelica/mlirlowerer/passes/TypeConverter.h>
+#include <numeric>
 
 using namespace modelica::codegen;
 
@@ -115,6 +116,40 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 			return builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions);
 
 		return builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions, shouldBeFreed);
+	}
+
+	[[nodiscard]] mlir::FuncOp getOrDeclareFunction(mlir::OpBuilder& builder, mlir::ModuleOp module, llvm::StringRef name, mlir::TypeRange results, mlir::TypeRange args) const
+	{
+		if (auto foo = module.lookupSymbol<mlir::FuncOp>(name))
+			return foo;
+
+		mlir::PatternRewriter::InsertionGuard insertGuard(builder);
+		builder.setInsertionPointToStart(module.getBody());
+		auto foo = builder.create<mlir::FuncOp>(module.getLoc(), name, builder.getFunctionType(args, results));
+		foo.setPrivate();
+		return foo;
+	}
+
+	[[nodiscard]] std::string getMangledFunctionName(llvm::StringRef name, mlir::TypeRange types) const
+	{
+		auto typeMangler = [](mlir::Type type) -> std::string {
+			if (auto booleanType = type.dyn_cast<BooleanType>())
+				return "i1";
+
+			if (auto integerType = type.dyn_cast<IntegerType>())
+				return "i" + std::to_string(integerType.getBitWidth());
+
+			if (auto realType = type.dyn_cast<RealType>())
+				return "f" + std::to_string(realType.getBitWidth());
+
+			return "unknown";
+		};
+
+		return "_M" + name.str() + std::accumulate(
+				types.begin(), types.end(), std::string(),
+				[&typeMangler](const std::string& result, mlir::Type type) {
+					return result + "_" + typeMangler(type);
+				});
 	}
 };
 
@@ -1863,6 +1898,7 @@ struct FillOpLowering: public ModelicaOpConversion<FillOp>
 
 	mlir::LogicalResult matchAndRewrite(FillOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		/*
 		mlir::Location loc = op.getLoc();
 		mlir::Value value = op.value();
 		value = rewriter.create<CastOp>(loc, value, op.memory().getType().cast<PointerType>().getElementType());
@@ -1872,6 +1908,24 @@ struct FillOpLowering: public ModelicaOpConversion<FillOp>
 									 rewriter.create<StoreOp>(loc, value, op.memory(), position);
 								 });
 
+		rewriter.eraseOp(op);
+		return mlir::success();
+		 */
+
+		mlir::Location loc = op.getLoc();
+
+		auto pointerType = op.memory().getType().cast<PointerType>();
+		mlir::Value memory = rewriter.create<PtrCastOp>(loc, op.memory(), pointerType.toUnsized());
+		mlir::Value value = rewriter.create<CastOp>(loc, op.value(), pointerType.getElementType());
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("fill", value.getType()),
+				llvm::None,
+				mlir::TypeRange({ memory.getType(), value.getType() }));
+
+		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, mlir::ValueRange({ memory, value }));
 		rewriter.eraseOp(op);
 		return mlir::success();
 	}

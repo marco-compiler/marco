@@ -1,5 +1,5 @@
 modelicaAddTest(
-	runtime
-	src/RuntimeTest.cpp)
-
-
+		runtime
+		src/ArrayDescriptorTest.cpp
+		src/BuiltInFunctionsTest.cpp
+		src/RuntimeTest.cpp)

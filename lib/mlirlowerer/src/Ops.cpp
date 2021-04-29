@@ -1046,52 +1046,46 @@ void PtrCastOp::print(mlir::OpAsmPrinter& printer)
 mlir::LogicalResult PtrCastOp::verify()
 {
 	mlir::Type sourceType = memory().getType();
+	mlir::Type destinationType = resultType();
 
-	if (!sourceType.isa<PointerType, OpaquePointerType>())
-		return emitOpError("requires the source to be a pointer type or an opaque pointer type");
-
-	// Casting to an opaque pointer is always allowed, as it leads to
-	// information loss.
-	if (resultType().isa<OpaquePointerType>())
-		return mlir::success();
-
-	if (sourceType.isa<OpaquePointerType>())
+	if (auto source = sourceType.dyn_cast<PointerType>())
 	{
-		if (auto pointerType = resultType().dyn_cast<PointerType>())
+		if (auto destination = destinationType.dyn_cast<PointerType>())
+		{
+			if (source.getElementType() != resultType().cast<PointerType>().getElementType())
+				return emitOpError("requires the result pointer type to have the same element type of the operand");
+
+			if (source.getRank() != resultType().cast<PointerType>().getRank())
+				return emitOpError("requires the result pointer type to have the same rank as the operand");
+
+			if (destination.getAllocationScope() != unknown &&
+					destination.getAllocationScope() != source.getAllocationScope())
+				return emitOpError("can change the allocation scope only to the unknown one");
+
+			for (auto [source, destination] : llvm::zip(source.getShape(), destination.getShape()))
+				if (destination != -1 && source != destination)
+					return emitOpError("can change the dimensions size only to an unknown one");
+		}
+
+		if (auto destination = destinationType.dyn_cast<UnsizedPointerType>())
+		{
+			if (source.getElementType() != destination.getElementType())
+				return emitOpError("requires the result pointer type to have the same element type of the operand");
+		}
+	}
+
+	if (auto source = sourceType.dyn_cast<OpaquePointerType>())
+	{
+		if (auto destination = destinationType.dyn_cast<PointerType>())
 		{
 			// If the destination is a non-opaque pointer type, its shape must not
 			// contain dynamic sizes.
 
-			for (auto size : pointerType.getShape())
+			for (auto size : destination.getShape())
 				if (size == -1)
 					return emitOpError("requires the non-opaque pointer type to have fixed shape");
 		}
-
-		return mlir::success();
 	}
-
-	// PointerType -> PointerType conversion
-	assert(sourceType.isa<PointerType>());
-	auto sourcePointerType = memory().getType().cast<PointerType>();
-
-	if (!resultType().isa<PointerType>())
-		return emitOpError("requires the result type to be a pointer");
-
-	auto resultPointerType = resultType().cast<PointerType>();
-
-	if (sourcePointerType.getElementType() != resultType().cast<PointerType>().getElementType())
-		return emitOpError("requires the result pointer type to have the same element type of the operand");
-
-	if (sourcePointerType.getRank() != resultType().cast<PointerType>().getRank())
-		return emitOpError("requires the result pointer type to have the same rank as the operand");
-
-	if (resultPointerType.getAllocationScope() != unknown &&
-			resultPointerType.getAllocationScope() != sourcePointerType.getAllocationScope())
-		return emitOpError("can change the allocation scope only to the unknown one");
-
-	for (auto [source, destination] : llvm::zip(sourcePointerType.getShape(), resultPointerType.getShape()))
-		if (destination != -1 && source != destination)
-			return emitOpError("can change the dimensions size only to an unknown one");
 
 	return mlir::success();
 }

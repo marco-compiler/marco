@@ -60,3 +60,5 @@ target_link_libraries(
         pthread
         boost
 )
+
+add_compile_definitions(RUNTIME_LIBRARY="$<TARGET_FILE:runtime>")

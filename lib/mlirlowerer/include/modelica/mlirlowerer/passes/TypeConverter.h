@@ -19,9 +19,11 @@ namespace modelica::codegen
 		mlir::Type convertIntegerType(IntegerType type);
 		mlir::Type convertRealType(RealType type);
 		mlir::Type convertPointerType(PointerType type);
+		mlir::Type convertUnsizedPointerType(UnsizedPointerType type);
 		mlir::Type convertOpaquePointerType(OpaquePointerType type);
 		mlir::Type convertStructType(StructType type);
 
 		llvm::SmallVector<mlir::Type, 3> getPointerDescriptorFields(PointerType type);
+		llvm::SmallVector<mlir::Type, 3> getUnsizedPointerDescriptorFields(UnsizedPointerType type);
 	};
 }
