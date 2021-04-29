@@ -83,7 +83,7 @@ namespace modelica
 		}
 		int64_t value{ 0 };
 		size_t inductionVar{ std::numeric_limits<size_t>::max() };
-		bool isAbs{ true };
+		bool isAbs{ true };  // true se non c'è induction variable e l'accesso è a un indice costante
 	};
 
 	class VectorAccess

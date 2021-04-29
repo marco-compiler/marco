@@ -140,7 +140,7 @@ IndexSet AugmentingPath::possibleBackwardFlow(const Edge& backEdge) const
 	alreadyAssigned.intersecate(possibleFlow);
 
   /* cerca se lo stesso arco è già stato smatchato e togli quello smatching da
-   * questo */
+   * questo (questo ciclo rende l'algoritmo di ricerca del path quadratico) */
 	for (const auto& siblingSet : frontier)
 	{
 		const auto currentEdge = siblingSet.getCurrent();

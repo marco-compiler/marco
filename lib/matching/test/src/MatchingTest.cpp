@@ -44,17 +44,17 @@ TEST(MatchingTest, example)
       "varY = INT[4] {0, 0, 0, 0} "
       "varZ = INT[5] {5, 6, 7, 8, 9} "
     "update "
-      "INT[1] (at INT[5] varZ, INT[1]{4}) = "
+      "INT[1] (at INT[5] varZ, INT[1]{4}) = "  // z[4] = x[4] * 2;
         "INT[1] (* "
           "INT[1] (at INT[5] varX, INT[1]{4}), "
           "INT[1]{2})"
-      "for [0,5] "
+      "for [0,5] "  // for i in [0,5): x[i] = 10;
         "INT[1] (at INT[5] varX, INT[1](ind INT[1]{0})) = "
           "INT[1]{10} "
-      "for [0,4] "
+      "for [0,4] "  // for i in [0,4): y[i] = x[i+1];
         "INT[1] (at INT[4] varY, INT[1](ind INT[1]{0})) = "
           "INT[1] (at INT[5] varX, INT[1] (+ INT[1](ind INT[1]{0}), INT[1]{1})) "
-      "for [0,4] "
+      "for [0,4] "  // for i in [0,4): z[i] = x[i] + y[i];
         "INT[1] (at INT[5] varZ, INT[1](ind INT[1]{0})) = "
           "INT[1] (+ "
             "INT[1] (at INT[5] varX, INT[1](ind INT[1]{0})), "
