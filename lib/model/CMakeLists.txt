@@ -12,8 +12,6 @@ set(SOURCES
 		src/VectorAccess.cpp
 		src/ModConst.cpp
 		src/ModMatchers.cpp
-		src/ModJacobian.cpp
-		src/ModResidual.cpp
 		src/ModBltBlock.cpp
 		src/SymbolicDifferentiation.cpp)
 

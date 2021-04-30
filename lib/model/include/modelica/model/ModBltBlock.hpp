@@ -5,6 +5,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModEquation.hpp"
+#include "modelica/model/ModExp.hpp"
 #include "modelica/model/ModVariable.hpp"
 
 namespace modelica
@@ -135,17 +136,34 @@ namespace modelica
 		}
 
 		using TemplateMap = std::set<std::shared_ptr<ModEqTemplate>>;
+		using ResidualFunction = llvm::SmallVector<ModExp, 3>;
+		using JacobianMatrix = llvm::SmallVector<llvm::SmallVector<ModExp, 3>, 3>;
 
 		[[nodiscard]] TemplateMap& getTemplates() { return templates; }
-
 		[[nodiscard]] const TemplateMap& getTemplates() const { return templates; }
+
+		[[nodiscard]] ResidualFunction& getResidual() { return residualFunction; }
+		[[nodiscard]] const ResidualFunction& getResidual() const
+		{
+			return residualFunction;
+		}
+
+		[[nodiscard]] JacobianMatrix& getJacobian() { return jacobianMatrix; }
+		[[nodiscard]] const JacobianMatrix& getJacobian() const
+		{
+			return jacobianMatrix;
+		}
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
 		private:
 		void addTemplate(const ModEquation& eq);
+		void computeResidualFunction();
+		void computeJacobianMatrix();
 		llvm::SmallVector<ModEquation, 3> equations;
 		llvm::StringMap<ModVariable> vars;
 		TemplateMap templates;
+		ResidualFunction residualFunction;
+		JacobianMatrix jacobianMatrix;
 	};
 }	 // namespace modelica

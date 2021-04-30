@@ -29,9 +29,11 @@ TEST(SymbolicDifferentiationTest, DifferentiateScalarVariable)
 {
 	ModExp der1 = differentiate(varExp, var);
 	ModExp der2 = differentiate(varExp2, var);
+	ModExp der3 = differentiate(vVarExp, var);
 
 	EXPECT_EQ(der1, ModConst(1.0));
 	EXPECT_EQ(der2, ModConst(0.0));
+	EXPECT_EQ(der3, ModConst(0.0));
 }
 
 TEST(SymbolicDifferentiationTest, DifferentiateVectorConstant)
