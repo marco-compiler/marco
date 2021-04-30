@@ -299,14 +299,15 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 		{
 			// If the Scc Collapsing algorithm fails, it means that we have
 			// an Algebraic Loop, which must be handled by a solver afterwards.
-			ModBltBlock newBltBlock;
+			llvm::SmallVector<ModEquation, 3> bltEquations;
+			llvm::SmallVector<ModVariable, 3> bltVariables;
 
 			for (auto& eq : sccs[i].range(vectorGraph))
 			{
-				newBltBlock.addVar(eq.getVariable());
-				newBltBlock.addEquation(eq.getEquation());
+				bltEquations.push_back(eq.getEquation());
+				bltVariables.push_back(eq.getVariable());
 			}
-			algebraicLoops.push_back(newBltBlock);
+			algebraicLoops.push_back(ModBltBlock(bltEquations, bltVariables));
 
 			possibleEq[i].clear();
 			consumeError(move(error));

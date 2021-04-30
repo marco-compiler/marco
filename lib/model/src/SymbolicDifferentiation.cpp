@@ -11,6 +11,14 @@ using namespace std;
 ModExp differentiateVariableVector(
 		const ModExp& exp, const ModVariable& var, const ModExp& ind)
 {
+	assert(exp.isReferenceAccess());
+
+	// If the variable is scalar and the expression is not, return 0.
+	if (var.size() == 1)
+		return ModConst(0.0);
+
+	assert(VectorAccess::isCanonical(ind));
+
 	// If the expression is a variable different from the given one, return 0.
 	if (exp.getLeftHand().getReference() != var.getName())
 		return ModConst(0.0);

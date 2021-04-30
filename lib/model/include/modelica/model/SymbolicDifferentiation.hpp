@@ -16,7 +16,7 @@ namespace modelica
 	 * derivative is computed.
 	 * @return Derivative of the given expression.
 	 */
-	ModExp differentiate(
+	[[nodiscard]] ModExp differentiate(
 			const ModExp& expression,
 			const ModVariable& variable,
 			const ModExp& index = ModConst());
@@ -32,7 +32,7 @@ namespace modelica
 	 * derivative is computed.
 	 * @return Derivative of the given equation.
 	 */
-	ModEquation differentiate(
+	[[nodiscard]] ModEquation differentiate(
 			const ModEquation& equation,
 			const ModVariable& variable,
 			const ModExp& index = ModConst());
