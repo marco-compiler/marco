@@ -23,7 +23,7 @@ namespace modelica::frontend
 		using SymbolTable = llvm::ScopedHashTable<llvm::StringRef, Symbol>;
 		using SymbolTableScope = llvm::ScopedHashTableScope<llvm::StringRef, Symbol>;
 
-		llvm::Error run(ClassContainer& cls);
+		llvm::Error run(ClassContainer& cls) override;
 		llvm::Error run(Class& cls);
 		llvm::Error run(Function& function);
 		llvm::Error run(Package& package);

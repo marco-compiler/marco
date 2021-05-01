@@ -4,6 +4,13 @@
 
 struct EquationInterfaceTraits {
 	struct Concept {
+		Concept() = default;
+		Concept(const Concept& other) = default;
+		Concept(Concept&& other) = default;
+		Concept& operator=(Concept&& other) = default;
+		virtual ~Concept() = default;
+		Concept& operator=(const Concept& other) = default;
+
 		virtual mlir::Block* body(mlir::Operation* op) const = 0;
 		virtual mlir::ValueRange inductions(mlir::Operation* op) const = 0;
 		virtual mlir::Value induction(mlir::Operation* op, size_t index) const = 0;
@@ -83,6 +90,13 @@ class EquationInterface : public mlir::OpInterface<EquationInterface, EquationIn
 
 struct InvertibleInterfaceTraits {
 	struct Concept {
+		Concept() = default;
+		Concept(const Concept& other) = default;
+		Concept(Concept&& other) = default;
+		Concept& operator=(Concept&& other) = default;
+		virtual ~Concept() = default;
+		Concept& operator=(const Concept& other) = default;
+
 		// TODO: keep ValueRange or switch to Value?
 		virtual mlir::LogicalResult invert(mlir::Operation* op, mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult) const = 0;
 	};
@@ -108,6 +122,13 @@ class InvertibleInterface : public mlir::OpInterface<InvertibleInterface, Invert
 
 struct DistributableInterfaceTraits {
 	struct Concept {
+		Concept() = default;
+		Concept(const Concept& other) = default;
+		Concept(Concept&& other) = default;
+		Concept& operator=(Concept&& other) = default;
+		virtual ~Concept() = default;
+		Concept& operator=(const Concept& other) = default;
+
 		virtual mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const = 0;
 	};
 
@@ -132,6 +153,13 @@ class DistributableInterface : public mlir::OpInterface<DistributableInterface, 
 
 struct NegateOpDistributionInterfaceTraits {
 	struct Concept {
+		Concept() = default;
+		Concept(const Concept& other) = default;
+		Concept(Concept&& other) = default;
+		Concept& operator=(Concept&& other) = default;
+		virtual ~Concept() = default;
+		Concept& operator=(const Concept& other) = default;
+
 		virtual mlir::Value distributeNegateOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType) const = 0;
 	};
 
@@ -156,6 +184,13 @@ class NegateOpDistributionInterface : public mlir::OpInterface<NegateOpDistribut
 
 struct MulOpDistributionInterfaceTraits {
 	struct Concept {
+		Concept() = default;
+		Concept(const Concept& other) = default;
+		Concept(Concept&& other) = default;
+		Concept& operator=(Concept&& other) = default;
+		virtual ~Concept() = default;
+		Concept& operator=(const Concept& other) = default;
+
 		virtual mlir::Value distributeMulOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const = 0;
 	};
 
@@ -180,6 +215,13 @@ class MulOpDistributionInterface : public mlir::OpInterface<MulOpDistributionInt
 
 struct DivOpDistributionInterfaceTraits {
 	struct Concept {
+		Concept() = default;
+		Concept(const Concept& other) = default;
+		Concept(Concept&& other) = default;
+		Concept& operator=(Concept&& other) = default;
+		virtual ~Concept() = default;
+		Concept& operator=(const Concept& other) = default;
+
 		virtual mlir::Value distributeDivOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const = 0;
 	};
 
