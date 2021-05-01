@@ -166,6 +166,61 @@ TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
 	EXPECT_EQ(yPtr[1], xPtr.getSize(1));
 }
 
+TEST(BuiltInOps, identityMatrix)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   output Integer[:,:] y;
+	 *
+	 *   algorithm
+	 *     y := identity(x);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(-1, -1), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(-1, -1), "y"),
+			Expression::call(location, makeType<int>(-1, -1),
+											 Expression::reference(location, makeType<int>(-1, -1), "identity"),
+											 Expression::reference(location, makeType<int>(), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	int x = 3;
+	array<int, 3> y = { 2, 2, 2 };
+
+	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(yPtr))));
+
+	EXPECT_EQ(yPtr.getRank(), 2);
+
+	for (long i = 0; i < 3; ++i)
+		for (long j = 0; j < 3; ++j)
+			EXPECT_EQ(yPtr.get(i, j), i == j ? 1 : 0);
+}
+
 TEST(BuiltInOps, sumOfIntegerStaticArrayValues)	 // NOLINT
 {
 	/**

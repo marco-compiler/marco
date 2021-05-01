@@ -620,7 +620,7 @@ void MLIRLowerer::lower<Function>(Member& member)
 				// We need to allocate a fake buffer in order to allow the first
 				// free operation to operate on a valid memory area.
 
-				PointerType::Shape shape(1, pointerType.getRank());
+				PointerType::Shape shape(pointerType.getRank(), 1);
 				mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), shape, llvm::None, false);
 				var = builder.create<PtrCastOp>(location, var, pointerType);
 				builder.create<StoreOp>(location, var, ptr);
@@ -1199,7 +1199,7 @@ template<>
 MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(Expression& expression)
 {
 	assert(expression.isA<Call>());
-	const auto& call = expression.get<Call>();
+	auto& call = expression.get<Call>();
 	const auto& function = call.getFunction();
 	mlir::Location location = loc(expression.getLocation());
 
@@ -1263,6 +1263,14 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(Expression& expressio
 			mlir::Value result = builder.create<SizeOp>(location, resultType, args[0], index);
 			results.emplace_back(Reference::ssa(&builder, result));
 		}
+	}
+	else if (functionName == "identity")
+	{
+		assert(call.argumentsCount() == 1);
+		mlir::Value size = *lower<Expression>(call[0])[0];
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<IdentityOp>(location, resultType, size);
+		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else
 	{

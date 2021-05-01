@@ -1065,13 +1065,20 @@ mlir::LogicalResult PtrCastOp::verify()
 			for (auto [source, destination] : llvm::zip(source.getShape(), destination.getShape()))
 				if (destination != -1 && source != destination)
 					return emitOpError("can change the dimensions size only to an unknown one");
+
+			return mlir::success();
 		}
 
 		if (auto destination = destinationType.dyn_cast<UnsizedPointerType>())
 		{
 			if (source.getElementType() != destination.getElementType())
 				return emitOpError("requires the result pointer type to have the same element type of the operand");
+
+			return mlir::success();
 		}
+
+		if (destinationType.isa<OpaquePointerType>())
+			return mlir::success();
 	}
 
 	if (auto source = sourceType.dyn_cast<OpaquePointerType>())
@@ -1084,10 +1091,12 @@ mlir::LogicalResult PtrCastOp::verify()
 			for (auto size : destination.getShape())
 				if (size == -1)
 					return emitOpError("requires the non-opaque pointer type to have fixed shape");
+
+			return mlir::success();
 		}
 	}
 
-	return mlir::success();
+	return emitOpError("requires a compatible conversion");
 }
 
 mlir::Value PtrCastOp::memory()
@@ -3481,6 +3490,9 @@ llvm::StringRef SizeOp::getOperationName()
 
 void SizeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory, mlir::Value index)
 {
+	if (auto pointerType = resultType.dyn_cast<PointerType>())
+		resultType = pointerType.toAllocationScope(BufferAllocationScope::heap);
+
 	state.addTypes(resultType);
 	state.addOperands(memory);
 
@@ -3496,6 +3508,23 @@ void SizeOp::print(mlir::OpAsmPrinter& printer)
 		printer << "[" << index() << "]";
 
 	printer << " : " << resultType();
+}
+
+mlir::LogicalResult SizeOp::verify()
+{
+	if (!memory().getType().isa<PointerType>())
+		return emitOpError("requires the operand to be an array");
+
+	return mlir::success();
+}
+
+void SizeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+		if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), memory(), mlir::SideEffects::DefaultResource::get());
 }
 
 bool SizeOp::hasIndex()
@@ -3516,6 +3545,56 @@ mlir::Value SizeOp::memory()
 mlir::Value SizeOp::index()
 {
 	return Adaptor(*this).index();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::IdentityOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value IdentityOpAdaptor::size()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef IdentityOp::getOperationName()
+{
+	return "modelica.identity";
+}
+
+void IdentityOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value size)
+{
+	state.addTypes(resultType);
+	state.addOperands(size);
+}
+
+void IdentityOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.identity " << size() << " : " << resultType();
+}
+
+mlir::LogicalResult IdentityOp::verify()
+{
+	if (!size().getType().isa<IntegerType, mlir::IndexType>())
+		return emitOpError("requires the size to be an integer value");
+
+	return mlir::success();
+}
+
+void IdentityOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+		if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::Type IdentityOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value IdentityOp::size()
+{
+	return Adaptor(*this).size();
 }
 
 //===----------------------------------------------------------------------===//

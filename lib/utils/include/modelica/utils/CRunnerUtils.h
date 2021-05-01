@@ -33,7 +33,7 @@ namespace modelica
 		T get(Indexes... indexes)
 		{
 			llvm::SmallVector<long, 3> positions{ indexes... };
-			assert(positions.size() == Rank && "Wrong amount of indexes");
+			assert(positions.size() == rank && "Wrong amount of indexes");
 
 			unsigned int resultIndex = positions[0];
 

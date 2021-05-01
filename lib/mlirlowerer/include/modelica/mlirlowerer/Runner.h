@@ -9,6 +9,7 @@ namespace modelica::jit
 	class Runner
 	{
 		public:
+		template<typename T> using Argument = mlir::ExecutionEngine::Argument<T>;
 		template<typename T> using Result = mlir::ExecutionEngine::Result<T>;
 
 		Runner(mlir::ModuleOp module, llvm::ArrayRef<mlir::StringRef> libraries = {}, unsigned int speedOptimization = 0, unsigned int sizeOptimization = 0);

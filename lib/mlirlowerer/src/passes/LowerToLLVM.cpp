@@ -160,9 +160,7 @@ class ArrayDescriptor
 	 * @return descriptor size in bytes
 	 */
 	mlir::Value computeSize(mlir::OpBuilder& builder, mlir::Location loc, unsigned int pointerBitwidth) {
-		// Initialize shared constants
 		mlir::Value one = createIndexAttrConstant(builder, loc, indexType, 1);
-		mlir::Value two = createIndexAttrConstant(builder, loc, indexType, 2);
 
 		mlir::Value pointerSize = createIndexAttrConstant(builder, loc, indexType, 8);
 		mlir::Value indexSize = createIndexAttrConstant(builder, loc, indexType, 8);
@@ -269,6 +267,84 @@ class UnsizedArrayDescriptor
 	void setPtr(mlir::OpBuilder& builder, mlir::Location location, mlir::Value ptr)
 	{
 		value = builder.create<mlir::LLVM::InsertValueOp>(location, descriptorType, value, ptr, builder.getIndexArrayAttr(1));
+	}
+
+	private:
+	mlir::Value value;
+	mlir::Type descriptorType;
+};
+
+/**
+ * Helper class to produce LLVM dialect operations extracting or inserting
+ * values to a struct representing a dynamic array descriptor.
+ */
+class DynamicArrayDescriptor
+{
+	public:
+	explicit DynamicArrayDescriptor(mlir::Value value)
+			: value(value),
+				descriptorType(value.getType())
+	{
+		assert(value != nullptr && "Value cannot be null");
+		assert(descriptorType.isa<mlir::LLVM::LLVMStructType>() && "Expected LLVM struct type");
+	}
+
+	/**
+	 * Allocate an empty descriptor.
+	 *
+	 * @param builder					operation builder
+	 * @param location  			source location
+	 * @param descriptorType	descriptor type
+	 * @return descriptor
+	 */
+	static DynamicArrayDescriptor undef(mlir::OpBuilder& builder, mlir::Location location, mlir::Type descriptorType)
+	{
+		mlir::Value descriptor = builder.create<mlir::LLVM::UndefOp>(location, descriptorType);
+		return DynamicArrayDescriptor(descriptor);
+	}
+
+	[[nodiscard]] mlir::Value operator*()
+	{
+		return value;
+	}
+
+	/**
+	 * Build IR to extract the pointer to the memory buffer.
+	 *
+	 * @param builder   operation builder
+	 * @param location  source location
+	 * @return memory pointer
+	 */
+	[[nodiscard]] mlir::Value getDataPtr(mlir::OpBuilder& builder, mlir::Location location)
+	{
+		mlir::Type type = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[0];
+		return builder.create<mlir::LLVM::ExtractValueOp>(location, type, value, builder.getIndexArrayAttr(0));
+	}
+
+	/**
+	 * Build IR to extract the rank.
+	 *
+	 * @param builder   operation builder
+	 * @param location  source location
+	 * @return rank
+	 */
+	[[nodiscard]] mlir::Value getRank(mlir::OpBuilder& builder, mlir::Location location)
+	{
+		mlir::Type type = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[1];
+		return builder.create<mlir::LLVM::ExtractValueOp>(location, type, value, builder.getIndexArrayAttr(1));
+	}
+
+	/**
+	 * Build IR to extract the pointer to the sizes buffer.
+	 *
+	 * @param builder   operation builder
+	 * @param location  source location
+	 * @return memory pointer
+	 */
+	[[nodiscard]] mlir::Value getSizesPtr(mlir::OpBuilder& builder, mlir::Location location)
+	{
+		mlir::Type type = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[2];
+		return builder.create<mlir::LLVM::ExtractValueOp>(location, type, value, builder.getIndexArrayAttr(2));
 	}
 
 	private:
@@ -429,7 +505,7 @@ class FreeOpLowering: public ModelicaOpConversion<FreeOp>
 
 	mlir::LogicalResult matchAndRewrite(FreeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		mlir::Location location = op.getLoc();
+		mlir::Location loc = op.getLoc();
 		Adaptor adaptor(operands);
 
 		// Insert the "free" declaration if it is not already present in the module
@@ -437,8 +513,8 @@ class FreeOpLowering: public ModelicaOpConversion<FreeOp>
 
 		// Extract the buffer address and call the "free" function
 		ArrayDescriptor descriptor(adaptor.memory());
-		mlir::Value address = descriptor.getPtr(rewriter, location);
-		mlir::Value casted = rewriter.create<mlir::LLVM::BitcastOp>(location, voidPtrType(rewriter.getContext()), address);
+		mlir::Value address = descriptor.getPtr(rewriter, loc);
+		mlir::Value casted = rewriter.create<mlir::LLVM::BitcastOp>(loc, voidPtrType(rewriter.getContext()), address);
 		rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, llvm::None, rewriter.getSymbolRefAttr(freeFunc), casted);
 
 		return mlir::success();

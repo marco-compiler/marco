@@ -109,7 +109,7 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 				});
 	}
 
-	[[nodiscard]] mlir::Value allocate(mlir::OpBuilder& builder, mlir::Location location, PointerType pointerType, mlir::ValueRange dynamicDimensions, bool shouldBeFreed = true) const
+	[[nodiscard]] mlir::Value allocate(mlir::OpBuilder& builder, mlir::Location location, PointerType pointerType, mlir::ValueRange dynamicDimensions = llvm::None, bool shouldBeFreed = true) const
 	{
 		if (pointerType.getAllocationScope() == unknown)
 			pointerType = pointerType.toMinAllowedAllocationScope();
@@ -132,26 +132,45 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 		return foo;
 	}
 
+	[[nodiscard]] std::string getMangledFunctionName(llvm::StringRef name, mlir::ValueRange args) const
+	{
+		return getMangledFunctionName(name, args.getTypes());
+	}
+
 	[[nodiscard]] std::string getMangledFunctionName(llvm::StringRef name, mlir::TypeRange types) const
 	{
-		auto typeMangler = [](mlir::Type type) -> std::string {
-			if (auto booleanType = type.dyn_cast<BooleanType>())
-				return "i1";
-
-			if (auto integerType = type.dyn_cast<IntegerType>())
-				return "i" + std::to_string(integerType.getBitWidth());
-
-			if (auto realType = type.dyn_cast<RealType>())
-				return "f" + std::to_string(realType.getBitWidth());
-
-			return "unknown";
-		};
-
 		return "_M" + name.str() + std::accumulate(
 				types.begin(), types.end(), std::string(),
-				[&typeMangler](const std::string& result, mlir::Type type) {
-					return result + "_" + typeMangler(type);
+				[&](const std::string& result, mlir::Type type) {
+					return result + "_" + getMangledType(type);
 				});
+	}
+
+	private:
+	[[nodiscard]] std::string getMangledType(mlir::Type type) const
+	{
+		if (auto booleanType = type.dyn_cast<BooleanType>())
+			return "i1";
+
+		if (auto integerType = type.dyn_cast<IntegerType>())
+			return "i" + std::to_string(integerType.getBitWidth());
+
+		if (auto realType = type.dyn_cast<RealType>())
+			return "f" + std::to_string(realType.getBitWidth());
+
+		if (auto pointerType = type.dyn_cast<UnsizedPointerType>())
+			return "a" + getMangledType(pointerType.getElementType());
+
+		if (auto indexType = type.dyn_cast<mlir::IndexType>())
+			return getMangledType(this->getTypeConverter()->convertType(type));
+
+		if (auto integerType = type.dyn_cast<mlir::IntegerType>())
+			return "i" + std::to_string(integerType.getWidth());
+
+		if (auto floatType = type.dyn_cast<mlir::FloatType>())
+			return "f" + std::to_string(floatType.getWidth());
+
+		return "unknown";
 	}
 
 	protected:
@@ -1824,9 +1843,8 @@ struct NDimsOpLowering: public ModelicaOpConversion<NDimsOp>
 	{
 		mlir::Location loc = op->getLoc();
 		auto pointerType = op.memory().getType().cast<PointerType>();
-		mlir::Value rank = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(pointerType.getRank()));
-		rank = rewriter.create<CastOp>(loc, rank, op.resultType());
-		rewriter.replaceOp(op, rank);
+		mlir::Value result = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(pointerType.getRank()));
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 		return mlir::success();
 	}
 };
@@ -1845,9 +1863,9 @@ struct SizeOpDimensionLowering: public ModelicaOpConversion<SizeOp>
 		if (!op.hasIndex())
 			return rewriter.notifyMatchFailure(op, "No index specified");
 
-		mlir::Value result = rewriter.create<DimOp>(loc, op.memory(), op.index());
-		result = rewriter.create<CastOp>(loc, result, op.resultType());
-		rewriter.replaceOp(op, result);
+		mlir::Value index = rewriter.create<CastOp>(loc, op.index(), rewriter.getIndexType());
+		mlir::Value result = rewriter.create<DimOp>(loc, op.memory(), index);
+		rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 		return mlir::success();
 	}
 };
@@ -1868,13 +1886,13 @@ struct SizeOpArrayLowering: public ModelicaOpConversion<SizeOp>
 			return rewriter.notifyMatchFailure(op, "Index specified");
 
 		assert(op.resultType().isa<PointerType>());
-		auto pointerType = op.memory().getType().cast<PointerType>();
-		mlir::Type resultBaseType = op.resultType().cast<PointerType>().getElementType();
-		mlir::Value result = rewriter.create<AllocaOp>(loc, resultBaseType, pointerType.getRank());
+		auto resultType = op.resultType().cast<PointerType>();
+		mlir::Value result = allocate(rewriter, loc, resultType, llvm::None);
 
 		// Iterate on each dimension
 		mlir::Value zeroValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(0));
 
+		auto pointerType = op.memory().getType().cast<PointerType>();
 		mlir::Value rank = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(pointerType.getRank()));
 		mlir::Value step = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
 
@@ -1885,14 +1903,55 @@ struct SizeOpArrayLowering: public ModelicaOpConversion<SizeOp>
 			rewriter.setInsertionPointToStart(loop.getBody());
 
 			// Get the size of the current dimension
-			mlir::Value dimensionSize = rewriter.create<DimOp>(loc, op.memory(), loop.getInductionVar());
+			mlir::Value dimensionSize = rewriter.create<SizeOp>(loc, resultType.getElementType(), op.memory(), loop.getInductionVar());
 
 			// Cast it to the result base type and store it into the result array
-			dimensionSize = rewriter.create<CastOp>(loc, dimensionSize, resultBaseType);
+			dimensionSize = rewriter.create<CastOp>(loc, dimensionSize, resultType.getElementType());
 			rewriter.create<StoreOp>(loc, dimensionSize, result, loop.getInductionVar());
 		}
-
 		rewriter.replaceOp(op, result);
+		return mlir::success();
+	}
+};
+
+struct IdentityOpLowering: public ModelicaOpConversion<IdentityOp>
+{
+	using ModelicaOpConversion<IdentityOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(IdentityOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+		auto pointerType = op.resultType().cast<PointerType>();
+
+		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+		mlir::Value castedSize = nullptr;
+
+		for (const auto& size : pointerType.getShape())
+		{
+			if (size == -1)
+			{
+				if (castedSize == nullptr)
+					castedSize = rewriter.create<CastOp>(loc, op.size(), rewriter.getIndexType());
+
+				dynamicDimensions.push_back(castedSize);
+			}
+		}
+
+		mlir::Value result = allocate(rewriter, loc, pointerType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
+
+		mlir::Value arg = rewriter.create<PtrCastOp>(
+				loc, result,
+				result.getType().cast<PointerType>().toUnsized());
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("identity", arg),
+				llvm::None,
+				arg.getType());
+
+		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, arg);
 		return mlir::success();
 	}
 };
@@ -1908,17 +1967,18 @@ struct FillOpLowering: public ModelicaOpConversion<FillOp>
 
 		if (options.useRuntimeLibrary)
 		{
-			mlir::Value memory = rewriter.create<PtrCastOp>(loc, op.memory(), pointerType.toUnsized());
-			mlir::Value value = rewriter.create<CastOp>(loc, op.value(), pointerType.getElementType());
+			llvm::SmallVector<mlir::Value, 3> args;
+			args.push_back(rewriter.create<PtrCastOp>(loc, op.memory(), pointerType.toUnsized()));
+			args.push_back(rewriter.create<CastOp>(loc, op.value(), pointerType.getElementType()));
 
 			auto callee = getOrDeclareFunction(
 					rewriter,
 					op->getParentOfType<mlir::ModuleOp>(),
-					getMangledFunctionName("fill", value.getType()),
+					getMangledFunctionName("fill", args),
 					llvm::None,
-					mlir::TypeRange({ memory.getType(), value.getType() }));
+					mlir::ValueRange(args).getTypes());
 
-			rewriter.create<CallOp>(loc, callee.getName(), llvm::None, mlir::ValueRange({ memory, value }));
+			rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
 		}
 		else
 		{
@@ -2257,6 +2317,7 @@ static void populateModelicaConversionPatterns(
 			NDimsOpLowering,
 			SizeOpDimensionLowering,
 			SizeOpArrayLowering,
+			IdentityOpLowering,
 			FillOpLowering>(context, typeConverter, options);
 }
 
@@ -2293,7 +2354,7 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 				NotOp, AndOp, OrOp,
 				EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp,
 				NegateOp, AddOp, SubOp, MulOp, DivOp, PowOp,
-				NDimsOp, SizeOp, FillOp>();
+				NDimsOp, SizeOp, IdentityOp, FillOp>();
 
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 

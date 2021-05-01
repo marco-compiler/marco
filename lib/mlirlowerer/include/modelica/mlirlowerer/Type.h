@@ -13,22 +13,28 @@ namespace modelica::codegen
 	class PointerTypeStorage;
 	class StructTypeStorage;
 
-	class BooleanType : public mlir::Type::TypeBase<BooleanType, mlir::Type, mlir::TypeStorage> {
+	class BooleanType : public mlir::Type::TypeBase<BooleanType, mlir::Type, mlir::TypeStorage>
+	{
 		public:
 		using Base::Base;
+
 		static BooleanType get(mlir::MLIRContext* context);
 	};
 
-	class IntegerType : public mlir::Type::TypeBase<IntegerType, mlir::Type, IntegerTypeStorage> {
+	class IntegerType : public mlir::Type::TypeBase<IntegerType, mlir::Type, IntegerTypeStorage>
+	{
 		public:
 		using Base::Base;
+
 		static IntegerType get(mlir::MLIRContext* context, unsigned int bitWidth);
 		[[nodiscard]] unsigned int getBitWidth() const;
 	};
 
-	class RealType : public mlir::Type::TypeBase<RealType, mlir::Type, RealTypeStorage> {
+	class RealType : public mlir::Type::TypeBase<RealType, mlir::Type, RealTypeStorage>
+	{
 		public:
 		using Base::Base;
+
 		static RealType get(mlir::MLIRContext* context, unsigned int bitWidth);
 		[[nodiscard]] unsigned int getBitWidth() const;
 	};
@@ -36,7 +42,8 @@ namespace modelica::codegen
 	enum BufferAllocationScope { unknown, stack, heap };
 	class UnsizedPointerType;
 
-	class PointerType : public mlir::Type::TypeBase<PointerType, mlir::Type, PointerTypeStorage> {
+	class PointerType : public mlir::Type::TypeBase<PointerType, mlir::Type, PointerTypeStorage>
+	{
 		public:
 		using Base::Base;
 		using Shape = llvm::SmallVector<long, 3>;
@@ -67,7 +74,8 @@ namespace modelica::codegen
 		[[nodiscard]] bool canBeOnStack() const;
 	};
 
-	class UnsizedPointerType : public mlir::Type::TypeBase<UnsizedPointerType, mlir::Type, UnsizedPointerTypeStorage> {
+	class UnsizedPointerType : public mlir::Type::TypeBase<UnsizedPointerType, mlir::Type, UnsizedPointerTypeStorage>
+	{
 		public:
 		using Base::Base;
 
@@ -77,14 +85,15 @@ namespace modelica::codegen
 		[[nodiscard]] unsigned int getRank() const;
 	};
 
-	class OpaquePointerType : public mlir::Type::TypeBase<OpaquePointerType, mlir::Type, mlir::TypeStorage> {
+	class OpaquePointerType : public mlir::Type::TypeBase<OpaquePointerType, mlir::Type, mlir::TypeStorage>
+	{
 		public:
 		using Base::Base;
 		static OpaquePointerType get(mlir::MLIRContext* context);
 	};
 
 	class StructType : public mlir::Type::TypeBase<StructType, mlir::Type, StructTypeStorage>
-	    {
+	{
 		public:
 		using Base::Base;
 

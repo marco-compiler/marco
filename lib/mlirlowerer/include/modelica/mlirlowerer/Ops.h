@@ -1629,7 +1629,8 @@ namespace modelica::codegen
 
 	class SizeOp : public mlir::Op<SizeOp,
 																mlir::OpTrait::AtLeastNOperands<1>::Impl,
-																mlir::OpTrait::OneResult>
+																mlir::OpTrait::OneResult,
+																mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1638,12 +1639,49 @@ namespace modelica::codegen
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value memory, mlir::Value index = nullptr);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		bool hasIndex();
 
 		mlir::Type resultType();
 		mlir::Value memory();
 		mlir::Value index();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::IdentityOp
+	//===----------------------------------------------------------------------===//
+
+	class IdentityOp;
+
+	class IdentityOpAdaptor : public OpAdaptor<IdentityOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value size();
+	};
+
+	class IdentityOp : public mlir::Op<IdentityOp,
+																		mlir::OpTrait::OneOperand,
+																		mlir::OpTrait::OneResult,
+																		mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = IdentityOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value size);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::Value size();
 	};
 
 	//===----------------------------------------------------------------------===//

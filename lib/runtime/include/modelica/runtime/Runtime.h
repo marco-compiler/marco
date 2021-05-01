@@ -1,79 +1,114 @@
 #pragma once
 
 #include <llvm/ADT/ArrayRef.h>
-#include <iostream>
+#include <llvm/ADT/SmallVector.h>
 
-template <typename T, unsigned int Rank>
+template <typename T>
 class ArrayIterator;
 
+/**
+ * This class represents how the arrays are described inside the Modelica IR.
+ * Note that the Rank template argument is used only to allocate an
+ * appropriately sized array of sizes. It is not used during the elements
+ * access, where pointer arithmetics are used instead; this last point
+ * allows to instantiate iterators on descriptor whose rank is not known
+ * at compile time, and thus allows to iterate over descriptors received
+ * from the IR calls.
+ *
+ * @tparam T 	  data type
+ * @tparam Rank number of dimensions
+ */
 template<typename T, unsigned int Rank>
-struct ArrayDescriptor
+class ArrayDescriptor
 {
 	public:
-	using iterator = ArrayIterator<T, Rank>;
-	using const_iterator = ArrayIterator<const T, Rank>;
+	using iterator = ArrayIterator<T>;
+	using const_iterator = ArrayIterator<const T>;
 
+	/**
+	 * Utility constructor for tests.
+	 *
+	 * @param data  data pointer
+	 * @param sizes sizes of the array
+	 */
 	ArrayDescriptor(T* data, std::array<long, Rank>& sizes)
-			: data(data), rank(sizes.size())
+			: data(data), rank(sizes.size()), sizes({})
 	{
-		for (size_t i = 0, e = sizes.size(); i < e; ++i)
-			this->sizes[i] = sizes[i];
+		assert(Rank == rank);
+
+		for (auto size : llvm::enumerate(sizes))
+			this->sizes[size.index()] = size.value();
 	}
 
 	template<typename... Index>
 	T& get(Index... indexes)
 	{
 		llvm::SmallVector<long, 3> positions{ indexes... };
-		assert(positions.size() == rank && "Wrong amount of indexes");
-		assert(llvm::all_of(positions, [](const auto& index) { return index >= 0; }));
+		return get(positions);
+	}
 
-		long resultIndex = positions[0];
+	template<typename... Index>
+	T& get(llvm::ArrayRef<long> indexes)
+	{
+		assert(indexes.size() == rank && "Wrong amount of indexes");
+		assert(llvm::all_of(indexes, [](const auto& index) { return index >= 0; }));
 
-		for (size_t i = 1; i < positions.size(); ++i)
+		long resultIndex = indexes[0];
+
+		for (size_t i = 1; i < indexes.size(); ++i)
 		{
 			long size = getDimensionSize(i);
 			assert(size > 0);
-			resultIndex = resultIndex * size + positions[i];
+			resultIndex = resultIndex * size + indexes[i];
 		}
 
 		assert(data != nullptr);
 		return data[resultIndex];
 	}
 
-	T* getData()
+	[[nodiscard]] T* getData() const
 	{
 		return data;
 	}
 
-	long getRank()
+	[[nodiscard]] long getRank() const
 	{
 		return rank;
 	}
 
-	long getDimensionSize(size_t index)
+	[[nodiscard]] long getDimensionSize(size_t index) const
 	{
-		assert(index < rank);
+		assert(index >= 0 && index < rank);
 		return sizes[index];
 	}
 
-	iterator begin()
+	[[nodiscard]] iterator begin()
 	{
-		return ArrayIterator<T, Rank>(*this, 0);
+		return ArrayIterator<T>(*this, 0);
 	}
 
-	const_iterator begin() const
+	[[nodiscard]] const_iterator begin() const
 	{
-		return ArrayIterator<T, Rank>(*this, 0);
+		return ArrayIterator<T>(*this, 0);
 	}
 
-	iterator end()
+	[[nodiscard]] iterator end()
 	{
-		return ArrayIterator<T, Rank>(*this, -1);
+		return ArrayIterator<T>(*this, -1);
 	}
 
-	const_iterator end() const
+	[[nodiscard]] const_iterator end() const
 	{
-		return ArrayIterator<T, Rank>(*this, -1);
+		return ArrayIterator<T>(*this, -1);
+	}
+
+	[[nodiscard]] bool hasSameSizes() const
+	{
+		for (size_t i = 0; i < rank; ++i)
+			if (sizes[i] != sizes[0])
+				return false;
+
+		return true;
 	}
 
 	private:
@@ -82,12 +117,16 @@ struct ArrayDescriptor
 	long sizes[Rank];
 };
 
+/**
+ * This class allows to accept a generically sized array as input argument
+ * to a function.
+ *
+ * @tparam T data type
+ */
 template<typename T>
-struct UnsizedArrayDescriptor
+class UnsizedArrayDescriptor
 {
-	long rank;
-	void* descriptor;
-
+	public:
 	using iterator = typename ArrayDescriptor<T, 0>::iterator;
 	using const_iterator = typename ArrayDescriptor<T, 0>::const_iterator;
 
@@ -97,6 +136,19 @@ struct UnsizedArrayDescriptor
 	{
 	}
 
+	[[nodiscard]] T* getData() const
+	{
+		assert(descriptor != nullptr);
+		return getDescriptor()->getData();
+	}
+
+	[[nodiscard]] long getRank() const
+	{
+		assert(descriptor != nullptr);
+		assert(getDescriptor()->getRank() == rank);
+		return rank;
+	}
+
 	template<typename... Index>
 	T& get(Index... indexes)
 	{
@@ -104,62 +156,64 @@ struct UnsizedArrayDescriptor
 		return getDescriptor()->get(indexes...);
 	}
 
-	long getDimensionSize(size_t index)
+	[[nodiscard]] long getDimensionSize(size_t index) const
 	{
 		assert(descriptor != nullptr);
 		return getDescriptor()->getDimensionSize(index);
 	}
 
-	iterator begin()
+	[[nodiscard]] iterator begin()
 	{
 		return getDescriptor()->begin();
 	}
 
-	const_iterator begin() const
+	[[nodiscard]] const_iterator begin() const
 	{
 		return getDescriptor()->begin();
 	}
 
-	iterator end()
+	[[nodiscard]] iterator end()
 	{
 		return getDescriptor()->end();
 	}
 
-	const_iterator end() const
+	[[nodiscard]] const_iterator end() const
 	{
 		return getDescriptor()->end();
 	}
 
-	ArrayDescriptor<T, 0>* getDescriptor()
+	[[nodiscard]] bool hasSameSizes() const
 	{
+		return getDescriptor()->hasSameSizes();
+	}
+
+	private:
+	[[nodiscard]] ArrayDescriptor<T, 0>* getDescriptor() const
+	{
+		// In order to keep the iterator rank-agnostic we can cast the descriptor
+		// to a 0-ranked one. This works only under assumption that the
+		// descriptor uses pointer arithmetics to access its elements, and doesn't
+		// rely on the provided rank.
+
 		return (ArrayDescriptor<T, 0>*) descriptor;
 	}
+
+	long rank;
+	void* descriptor;
 };
 
-template <typename T>
-class DynamicArrayDescriptor {
-	public:
-	template<unsigned int Rank>
-	explicit DynamicArrayDescriptor(const ArrayDescriptor<T, Rank>& descriptor)
-			: rank(descriptor.rank),
-				data(descriptor.data),
-				sizes(descriptor.sizes)
-	{
-	}
-
-	explicit DynamicArrayDescriptor(const UnsizedArrayDescriptor<T>& descriptor)
-			: rank(descriptor.rank),
-				data(descriptor.getDescriptor()->data),
-				sizes(rank == 0 ? nullptr : descriptor.getDescriptor()->sizes)
-	{
-	}
-
-	unsigned int rank;
-	T* data;
-	const long* sizes;
-};
-
-template<typename T, unsigned int Rank>
+/**
+ * Iterate over all the elements of a multi-dimensional array as if it was
+ * a flat one.
+ *
+ * For example, an array declared as
+ *   v[3][2] = {{1, 2}, {3, 4}, {5, 6}}
+ * would have its elements visited in the order
+ *   1, 2, 3, 4, 5, 6.
+ *
+ * @tparam T 		data type
+ */
+template<typename T>
 class ArrayIterator
 {
 	public:
@@ -169,19 +223,21 @@ class ArrayIterator
 	using pointer = T*;
 	using reference = T&;
 
+	template<unsigned int Rank>
 	ArrayIterator(ArrayDescriptor<T, Rank>& descriptor, long offset = 0)
 			: offset(offset),
-				descriptor(&descriptor)
+				descriptor((ArrayDescriptor<T, 0>*) &descriptor)
 	{
-		for (long i = 0; i < descriptor.getRank(); ++i)
-			indices.push_back(0);
+		for (long i = 0, rank = descriptor.getRank(); i < rank; ++i)
+			indexes.push_back(0);
 	}
 
-	ArrayIterator<T, Rank>& operator++() {
+	ArrayIterator<T>& operator++()
+	{
 		int dim = descriptor->getRank() - 1;
 
-		while (dim >= 0 && indices[dim] == (descriptor->getDimensionSize(dim) - 1)) {
-			indices[dim] = 0;
+		while (dim >= 0 && indexes[dim] == (descriptor->getDimensionSize(dim) - 1)) {
+			indexes[dim] = 0;
 			--dim;
 		}
 
@@ -190,7 +246,7 @@ class ArrayIterator
 			return *this;
 		}
 
-		++indices[dim];
+		++indexes[dim];
 		offset += 1;
 
 		return *this;
@@ -216,18 +272,25 @@ class ArrayIterator
 		return &descriptor->getData()[offset];
 	}
 
-	bool operator==(const ArrayIterator &other) const {
+	bool operator==(const ArrayIterator &other) const
+	{
 		return other.offset == offset && other.descriptor == descriptor;
 	}
 
-	bool operator!=(const ArrayIterator &other) const {
+	bool operator!=(const ArrayIterator &other) const
+	{
 		return other.offset != offset || other.descriptor != descriptor;
+	}
+
+	llvm::ArrayRef<long> getCurrentIndexes() const
+	{
+		return indexes;
 	}
 
 	private:
 	long offset = 0;
-	llvm::SmallVector<long, 3> indices;
-	ArrayDescriptor<T, Rank>* descriptor;
+	llvm::SmallVector<long, 3> indexes;
+	const ArrayDescriptor<T, 0>* descriptor;
 };
 
 extern "C"
@@ -235,9 +298,7 @@ extern "C"
 	void modelicaPrint(char* name, float value);
 
 	void modelicaPrintFVector(char* name, float* value, int count);
-
 	void modelicaPrintBVector(char* name, char* value, int count);
-
 	void modelicaPrintIVector(char* name, int* value, int count);
 
 	void fill(float* out, long* outDim, float* filler, long* dim);
@@ -252,9 +313,27 @@ extern "C"
 	void printF32(float value);
 	void printF64(double value);
 
-	void _Mfill_i1(UnsizedArrayDescriptor<bool> descriptor, bool value);
-	void _Mfill_i32(UnsizedArrayDescriptor<int> descriptor, int value);
-	void _Mfill_i64(UnsizedArrayDescriptor<long> descriptor, long value);
-	void _Mfill_f32(UnsizedArrayDescriptor<float> descriptor, float value);
-	void _Mfill_f64(UnsizedArrayDescriptor<double> descriptor, double value);
+	[[maybe_unused]] void _Mfill_ai1_i1(UnsizedArrayDescriptor<bool> array, bool value);
+	[[maybe_unused]] void _Mfill_ai32_i32(UnsizedArrayDescriptor<int> array, int value);
+	[[maybe_unused]] void _Mfill_ai64_i64(UnsizedArrayDescriptor<long> array, long value);
+	[[maybe_unused]] void _Mfill_af32_f32(UnsizedArrayDescriptor<float> array, float value);
+	[[maybe_unused]] void _Mfill_af64_f64(UnsizedArrayDescriptor<double> array, double value);
+
+	[[maybe_unused]] void _mlir_ciface__Mfill_ai1_i1(UnsizedArrayDescriptor<bool> array, bool value);
+	[[maybe_unused]] void _mlir_ciface__Mfill_ai32_i32(UnsizedArrayDescriptor<int> array, int value);
+	[[maybe_unused]] void _mlir_ciface__Mfill_ai64_i64(UnsizedArrayDescriptor<long> array, long value);
+	[[maybe_unused]] void _mlir_ciface__Mfill_af32_f32(UnsizedArrayDescriptor<float> array, float value);
+	[[maybe_unused]] void _mlir_ciface__Mfill_af64_f64(UnsizedArrayDescriptor<double> array, double value);
+
+	[[maybe_unused]] void _Midentity_ai1(UnsizedArrayDescriptor<bool> array);
+	[[maybe_unused]] void _Midentity_ai32(UnsizedArrayDescriptor<int> array);
+	[[maybe_unused]] void _Midentity_ai64(UnsizedArrayDescriptor<long> array);
+	[[maybe_unused]] void _Midentity_af32(UnsizedArrayDescriptor<float> array);
+	[[maybe_unused]] void _Midentity_af64(UnsizedArrayDescriptor<double> array);
+
+	[[maybe_unused]] void _mlir_ciface__Midentity_ai1(UnsizedArrayDescriptor<bool> array);
+	[[maybe_unused]] void _mlir_ciface__Midentity_ai32(UnsizedArrayDescriptor<int> array);
+	[[maybe_unused]] void _mlir_ciface__Midentity_ai64(UnsizedArrayDescriptor<long> array);
+	[[maybe_unused]] void _mlir_ciface__Midentity_af32(UnsizedArrayDescriptor<float> array);
+	[[maybe_unused]] void _mlir_ciface__Midentity_af64(UnsizedArrayDescriptor<double> array);
 }

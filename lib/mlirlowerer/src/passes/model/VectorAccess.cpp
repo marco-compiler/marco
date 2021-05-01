@@ -115,8 +115,17 @@ bool SingleDimensionAccess::isCanonical(const Expression& expression)
 
 	for (auto index : subscription.indexes())
 	{
-		if (mlir::isa<ConstantOp, InductionOp>(index.getDefiningOp()))
+		if (index.isa<mlir::BlockArgument>())
+		{
+			// It's just and induction variable
 			continue;
+		}
+
+		if (mlir::isa<ConstantOp>(index.getDefiningOp()))
+		{
+			// Constant access
+			continue;
+		}
 
 		// Check whether the accessed position is determined by the sum of
 		// and induction variable and a constant.
@@ -382,13 +391,6 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 		{
 			auto index = indexes[i - 1];
 
-			if (auto constantOp = mlir::dyn_cast<ConstantOp>(index.getDefiningOp()))
-			{
-				// for x in a:b loop y[K]
-				access.push_back(SingleDimensionAccess::absolute(getIntFromAttribute(constantOp.value())));
-				continue;
-			}
-
 			if (index.isa<mlir::BlockArgument>())
 			{
 				// for i in a:b loop x[i]
@@ -396,6 +398,13 @@ AccessToVar AccessToVar::fromExp(const Expression& expression)
 				long inductionIndex = forEquation.inductionIndex(index);
 				assert(inductionIndex != -1);
 				access.push_back(SingleDimensionAccess::relative(0, inductionIndex));
+				continue;
+			}
+
+			if (auto constantOp = mlir::dyn_cast<ConstantOp>(index.getDefiningOp()))
+			{
+				// for x in a:b loop y[K]
+				access.push_back(SingleDimensionAccess::absolute(getIntFromAttribute(constantOp.value())));
 				continue;
 			}
 
