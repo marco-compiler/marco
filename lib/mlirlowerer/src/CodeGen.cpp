@@ -164,7 +164,7 @@ llvm::Optional<mlir::ModuleOp> MLIRLowerer::lower(llvm::ArrayRef<ClassContainer>
 	return module;
 }
 
-mlir::Operation* MLIRLowerer::lower(Class& cls)
+mlir::Operation* MLIRLowerer::lower(const Class& cls)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
@@ -176,7 +176,7 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 	// Time variable
 	args.push_back(builder.getPointerType(BufferAllocationScope::unknown, builder.getRealType()));
 
-	for (auto& member : cls.getMembers())
+	for (const auto& member : cls.getMembers())
 	{
 		mlir::Type type = lower(member->getType(), BufferAllocationScope::unknown);
 
@@ -201,7 +201,7 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 		mlir::Value time = builder.create<AllocOp>(location, builder.getRealType(), llvm::None, llvm::None, false);
 		vars.push_back(time);
 
-		for (auto& member : cls.getMembers())
+		for (const auto& member : cls.getMembers())
 		{
 			lower<Class>(*member);
 			vars.push_back(symbolTable.lookup(member->getName()).getReference());
@@ -217,13 +217,13 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 		mlir::Value time = simulation.time();
 		symbolTable.insert("time", Reference::memory(&builder, time, true));
 
-		for (auto& member : llvm::enumerate(cls.getMembers()))
+		for (const auto& member : llvm::enumerate(cls.getMembers()))
 			symbolTable.insert(member.value()->getName(), Reference::memory(&builder, simulation.body().getArgument(member.index() + 1), true));
 
-		for (auto& equation : cls.getEquations())
+		for (const auto& equation : cls.getEquations())
 			lower(*equation);
 
-		for (auto& forEquation : cls.getForEquations())
+		for (const auto& forEquation : cls.getForEquations())
 			lower(*forEquation);
 
 		builder.create<YieldOp>(location);
@@ -237,7 +237,7 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 
 		variablesToBePrinted.push_back(simulation.print().getArgument(0));
 
-		for (auto& member : cls.getMembers())
+		for (const auto& member : cls.getMembers())
 		{
 			unsigned int index = symbolTable.lookup(member->getName()).getReference().cast<mlir::BlockArgument>().getArgNumber();
 			variablesToBePrinted.push_back(simulation.print().getArgument(index));
@@ -249,7 +249,7 @@ mlir::Operation* MLIRLowerer::lower(Class& cls)
 	return simulation;
 }
 
-mlir::Operation* MLIRLowerer::lower(Function& foo)
+mlir::Operation* MLIRLowerer::lower(const Function& foo)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
@@ -380,13 +380,13 @@ mlir::Operation* MLIRLowerer::lower(Function& foo)
 	return function;
 }
 
-mlir::Operation* MLIRLowerer::lower(Package& package)
+mlir::Operation* MLIRLowerer::lower(const Package& package)
 {
 	mlir::ModuleOp module = mlir::ModuleOp::create(builder.getUnknownLoc());
 
-	for (auto& cls : package)
+	for (const auto& cls : package)
 	{
-		auto* op = cls.visit([&](auto& obj) { return lower(obj); });
+		auto* op = cls.visit([&](const auto& obj) { return lower(obj); });
 
 		if (op != nullptr)
 			module.push_back(op);
@@ -395,7 +395,7 @@ mlir::Operation* MLIRLowerer::lower(Package& package)
 	return module;
 }
 
-mlir::Operation* MLIRLowerer::lower(Record& record)
+mlir::Operation* MLIRLowerer::lower(const Record& record)
 {
 	/*
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
@@ -408,7 +408,7 @@ mlir::Operation* MLIRLowerer::lower(Record& record)
 	llvm::SmallVector<mlir::Type, 3> argsTypes;
 	llvm::SmallVector<mlir::Type, 3> recordTypes;
 
-	for (auto& member : record)
+	for (const auto& member : record)
 	{
 		argsTypes.push_back(lower(member.getType(), BufferAllocationScope::unknown));
 		recordTypes.push_back(lower(member.getType(), BufferAllocationScope::heap));
@@ -441,9 +441,9 @@ mlir::Operation* MLIRLowerer::lower(Record& record)
 	return nullptr;
 }
 
-mlir::Type MLIRLowerer::lower(Type& type, BufferAllocationScope desiredAllocationScope)
+mlir::Type MLIRLowerer::lower(const Type& type, BufferAllocationScope desiredAllocationScope)
 {
-	auto visitor = [&](auto& obj) -> mlir::Type
+	auto visitor = [&](const auto& obj) -> mlir::Type
 	{
 		auto baseType = lower(obj, desiredAllocationScope);
 
@@ -469,7 +469,7 @@ mlir::Type MLIRLowerer::lower(Type& type, BufferAllocationScope desiredAllocatio
 	return type.visit(visitor);
 }
 
-mlir::Type MLIRLowerer::lower(BuiltInType& type, BufferAllocationScope desiredAllocationScope)
+mlir::Type MLIRLowerer::lower(const BuiltInType& type, BufferAllocationScope desiredAllocationScope)
 {
 	switch (type)
 	{
@@ -487,32 +487,32 @@ mlir::Type MLIRLowerer::lower(BuiltInType& type, BufferAllocationScope desiredAl
 	}
 }
 
-mlir::Type MLIRLowerer::lower(PackedType& type, BufferAllocationScope desiredAllocationScope)
+mlir::Type MLIRLowerer::lower(const PackedType& type, BufferAllocationScope desiredAllocationScope)
 {
 	llvm::SmallVector<mlir::Type, 3> types;
 
-	for (auto& subType : type)
+	for (const auto& subType : type)
 		types.push_back(lower(subType, desiredAllocationScope));
 
 	return builder.getTupleType(move(types));
 }
 
-mlir::Type MLIRLowerer::lower(UserDefinedType& type, BufferAllocationScope desiredAllocationScope)
+mlir::Type MLIRLowerer::lower(const UserDefinedType& type, BufferAllocationScope desiredAllocationScope)
 {
 	llvm::SmallVector<mlir::Type, 3> types;
 
-	for (auto& subType : type)
+	for (const auto& subType : type)
 		types.push_back(lower(subType, desiredAllocationScope));
 
 	return builder.getTupleType(move(types));
 }
 
 template<>
-void MLIRLowerer::lower<Class>(Member& member)
+void MLIRLowerer::lower<Class>(const Member& member)
 {
 	auto location = loc(member.getLocation());
 
-	auto& frontendType = member.getType();
+	const auto& frontendType = member.getType();
 	mlir::Type type = lower(frontendType, BufferAllocationScope::heap);
 
 	if (auto pointerType = type.dyn_cast<PointerType>())
@@ -561,7 +561,7 @@ void MLIRLowerer::lower<Class>(Member& member)
  * TODO: protected variable should not always be on stack
  */
 template<>
-void MLIRLowerer::lower<Function>(Member& member)
+void MLIRLowerer::lower<Function>(const Member& member)
 {
 	auto location = loc(member.getLocation());
 
@@ -571,7 +571,7 @@ void MLIRLowerer::lower<Function>(Member& member)
 	if (member.isInput())
 		return;
 
-	auto& frontendType = member.getType();
+	const auto& frontendType = member.getType();
 	mlir::Type type = lower(frontendType, member.isOutput() ? BufferAllocationScope::heap : BufferAllocationScope::stack);
 
 	mlir::Value ptr = builder.create<AllocaOp>(location, type);
@@ -581,7 +581,7 @@ void MLIRLowerer::lower<Function>(Member& member)
 	{
 		llvm::SmallVector<mlir::Value, 3> sizes;
 
-		for (auto& dimension : member.getType().getDimensions())
+		for (const auto& dimension : member.getType().getDimensions())
 			if (dimension.hasExpression())
 			{
 				mlir::Value size = *lower<Expression>(dimension.getExpression())[0];
@@ -641,7 +641,7 @@ void MLIRLowerer::lower<Function>(Member& member)
 	}
 }
 
-void MLIRLowerer::lower(Equation& equation)
+void MLIRLowerer::lower(const Equation& equation)
 {
 	mlir::Location location = loc(equation.getLocation());
 	auto result = builder.create<EquationOp>(location);
@@ -653,7 +653,7 @@ void MLIRLowerer::lower(Equation& equation)
 
 	{
 		// Left-hand side
-		auto& expression = equation.getLeftHand();
+		const auto& expression = equation.getLeftHand();
 		auto references = lower<Expression>(expression);
 
 		for (auto& reference : references)
@@ -662,7 +662,7 @@ void MLIRLowerer::lower(Equation& equation)
 
 	{
 		// Right-hand side
-		auto& expression = equation.getRightHand();
+		const auto& expression = equation.getRightHand();
 		auto references = lower<Expression>(expression);
 
 		for (auto& reference : references)
@@ -672,7 +672,7 @@ void MLIRLowerer::lower(Equation& equation)
 	builder.create<EquationSidesOp>(location, lhs, rhs);
 }
 
-void MLIRLowerer::lower(ForEquation& forEquation)
+void MLIRLowerer::lower(const ForEquation& forEquation)
 {
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 	mlir::Location location = loc(forEquation.getEquation().getLocation());
@@ -685,13 +685,13 @@ void MLIRLowerer::lower(ForEquation& forEquation)
 		builder.setInsertionPointToStart(result.inductionsBlock());
 		llvm::SmallVector<mlir::Value, 3> inductions;
 
-		for (auto& induction : forEquation.getInductions())
+		for (const auto& induction : forEquation.getInductions())
 		{
-			auto& startExpression = induction.getBegin();
+			const auto& startExpression = induction.getBegin();
 			assert(startExpression.isA<Constant>());
 			long start = startExpression.get<Constant>().as<BuiltInType::Integer>();
 
-			auto& endExpression = induction.getEnd();
+			const auto& endExpression = induction.getEnd();
 			assert(endExpression.isA<Constant>());
 			long end = endExpression.get<Constant>().as<BuiltInType::Integer>();
 
@@ -711,14 +711,14 @@ void MLIRLowerer::lower(ForEquation& forEquation)
 		for (auto [induction, var] : llvm::zip(forEquation.getInductions(), result.inductions()))
 			symbolTable.insert(induction.getName(), Reference::ssa(&builder, var));
 
-		auto& equation = forEquation.getEquation();
+		const auto& equation = forEquation.getEquation();
 
 		llvm::SmallVector<mlir::Value, 1> lhs;
 		llvm::SmallVector<mlir::Value, 1> rhs;
 
 		{
 			// Left-hand side
-			auto& expression = equation.getLeftHand();
+			const auto& expression = equation.getLeftHand();
 			auto references = lower<Expression>(expression);
 
 			for (auto& reference : references)
@@ -727,7 +727,7 @@ void MLIRLowerer::lower(ForEquation& forEquation)
 
 		{
 			// Right-hand side
-			auto& expression = equation.getRightHand();
+			const auto& expression = equation.getRightHand();
 			auto references = lower<Expression>(expression);
 
 			for (auto& reference : references)
@@ -738,18 +738,18 @@ void MLIRLowerer::lower(ForEquation& forEquation)
 	}
 }
 
-void MLIRLowerer::lower(Algorithm& algorithm)
+void MLIRLowerer::lower(const Algorithm& algorithm)
 {
 	for (const auto& statement : algorithm)
 		lower(*statement);
 }
 
-void MLIRLowerer::lower(Statement& statement)
+void MLIRLowerer::lower(const Statement& statement)
 {
-	statement.visit([&](auto& obj) { lower(obj); });
+	statement.visit([&](const auto& obj) { lower(obj); });
 }
 
-void MLIRLowerer::lower(AssignmentStatement& statement)
+void MLIRLowerer::lower(const AssignmentStatement& statement)
 {
 	auto location = loc(statement.getLocation());
 	auto destinations = statement.getDestinations();
@@ -764,7 +764,7 @@ void MLIRLowerer::lower(AssignmentStatement& statement)
 	}
 }
 
-void MLIRLowerer::lower(IfStatement& statement)
+void MLIRLowerer::lower(const IfStatement& statement)
 {
 	// Each conditional blocks creates an If operation, but we need to keep
 	// track of the first one in order to restore the insertion point right
@@ -776,7 +776,7 @@ void MLIRLowerer::lower(IfStatement& statement)
 	for (size_t i = 0; i < blocks; i++)
 	{
 		llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
-		auto& conditionalBlock = statement[i];
+		const auto& conditionalBlock = statement[i];
 		auto condition = lower<Expression>(conditionalBlock.getCondition())[0];
 
 		// The last conditional block can be at most an originally equivalent
@@ -811,7 +811,7 @@ void MLIRLowerer::lower(IfStatement& statement)
 	builder.setInsertionPointAfter(firstOp);
 }
 
-void MLIRLowerer::lower(ForStatement& statement)
+void MLIRLowerer::lower(const ForStatement& statement)
 {
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 
@@ -827,7 +827,7 @@ void MLIRLowerer::lower(ForStatement& statement)
 	// Variable to be set when calling "return"
 	mlir::Value returnCondition = symbolTable.lookup(statement.getReturnCheckName()).getReference();
 
-	auto& induction = statement.getInduction();
+	const auto& induction = statement.getInduction();
 
 	mlir::Value lowerBound = *lower<Expression>(induction.getBegin())[0];
 	lowerBound = builder.create<CastOp>(lowerBound.getLoc(), lowerBound, builder.getIndexType());
@@ -875,7 +875,7 @@ void MLIRLowerer::lower(ForStatement& statement)
 	}
 }
 
-void MLIRLowerer::lower(WhileStatement& statement)
+void MLIRLowerer::lower(const WhileStatement& statement)
 {
 	auto location = loc(statement.getLocation());
 
@@ -898,7 +898,7 @@ void MLIRLowerer::lower(WhileStatement& statement)
 		llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 		mlir::Block* conditionBlock = &whileOp.condition().front();
 		builder.setInsertionPointToStart(conditionBlock);
-		auto& condition = statement.getCondition();
+		const auto& condition = statement.getCondition();
 
 		builder.create<ConditionOp>(
 				loc(condition.getLocation()),
@@ -917,38 +917,37 @@ void MLIRLowerer::lower(WhileStatement& statement)
 	}
 }
 
-void MLIRLowerer::lower(WhenStatement& statement)
+void MLIRLowerer::lower(const WhenStatement& statement)
 {
 
 }
 
-void MLIRLowerer::lower(BreakStatement& statement)
+void MLIRLowerer::lower(const BreakStatement& statement)
 {
 	assert(false && "Break statement encountered. BreakRemovingPass may have not been run before lowering the AST.");
 }
 
-void MLIRLowerer::lower(ReturnStatement& statement)
+void MLIRLowerer::lower(const ReturnStatement& statement)
 {
 	assert(false && "Return statement encountered. ReturnRemovingPass may have not been run before lowering the AST.");
 }
 
 template<>
-MLIRLowerer::Container<Reference> MLIRLowerer::lower<Expression>(Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<Expression>(const Expression& expression)
 {
-	return expression.visit([&](auto& obj) {
+	return expression.visit([&](const auto& obj) {
 		using type = decltype(obj);
 		using deref = typename std::remove_reference<type>::type;
-		//using deconst = typename std::remove_const<deref>::type;
-		//return lower<deconst>(expression);
-		return lower<deref>(expression);
+		using deconst = typename std::remove_const<deref>::type;
+		return lower<deconst>(expression);
 	});
 }
 
 template<>
-MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression& expression)
 {
 	assert(expression.isA<Operation>());
-	auto& operation = expression.get<Operation>();
+	const auto& operation = expression.get<Operation>();
 	auto kind = operation.getKind();
 	mlir::Location location = loc(expression.getLocation());
 
@@ -1163,7 +1162,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(Expression& expr
 }
 
 template<>
-MLIRLowerer::Container<Reference> MLIRLowerer::lower<Constant>(Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<Constant>(const Expression& expression)
 {
 	assert(expression.isA<Constant>());
 	const auto& type = expression.getType();
@@ -1188,7 +1187,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Constant>(Expression& expre
 }
 
 template<>
-MLIRLowerer::Container<Reference> MLIRLowerer::lower<ReferenceAccess>(Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<ReferenceAccess>(const Expression& expression)
 {
 	assert(expression.isA<ReferenceAccess>());
 	const auto& reference = expression.get<ReferenceAccess>();
@@ -1196,10 +1195,10 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<ReferenceAccess>(Expression
 }
 
 template<>
-MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& expression)
 {
 	assert(expression.isA<Call>());
-	auto& call = expression.get<Call>();
+	const auto& call = expression.get<Call>();
 	const auto& function = call.getFunction();
 	mlir::Location location = loc(expression.getLocation());
 
@@ -1211,7 +1210,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(Expression& expressio
 	{
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		for (auto& arg : call)
+		for (const auto& arg : call)
 		{
 			auto& reference = lower<Expression>(arg)[0];
 			args.push_back(reference.getReference());
@@ -1227,7 +1226,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(Expression& expressio
 	{
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		for (auto& arg : call)
+		for (const auto& arg : call)
 		{
 			auto& reference = lower<Expression>(arg)[0];
 			args.push_back(*reference);
@@ -1242,7 +1241,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(Expression& expressio
 	{
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		for (auto& arg : call)
+		for (const auto& arg : call)
 		{
 			auto& reference = lower<Expression>(arg)[0];
 			args.push_back(*reference);
@@ -1276,7 +1275,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(Expression& expressio
 	{
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		for (auto& arg : call)
+		for (const auto& arg : call)
 		{
 			auto& reference = lower<Expression>(arg)[0];
 			args.push_back(*reference);
@@ -1287,7 +1286,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(Expression& expressio
 
 		if (resultType.isA<PackedType>())
 		{
-			for (auto& type : resultType.get<PackedType>())
+			for (const auto& type : resultType.get<PackedType>())
 				callResultsTypes.push_back(lower(type, BufferAllocationScope::heap));
 		}
 		else
@@ -1307,13 +1306,13 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(Expression& expressio
 }
 
 template<>
-MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(const Expression& expression)
 {
 	assert(expression.isA<Tuple>());
 	const auto& tuple = expression.get<Tuple>();
 	Container<Reference> result;
 
-	for (auto& exp : tuple)
+	for (const auto& exp : tuple)
 	{
 		auto values = lower<Expression>(expression);
 
@@ -1328,7 +1327,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(Expression& expressi
 }
 
 template<>
-MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(Expression& expression)
+MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(const Expression& expression)
 {
 	assert(expression.isA<Array>());
 	const auto& array = expression.get<Array>();
@@ -1337,7 +1336,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(Expression& expressi
 
 	mlir::Value result = builder.create<AllocaOp>(location, type.getElementType(), type.getShape());
 
-	for (auto& value : llvm::enumerate(array))
+	for (const auto& value : llvm::enumerate(array))
 	{
 		mlir::Value index = builder.create<ConstantOp>(location, builder.getIndexAttribute(value.index()));
 		mlir::Value slice = builder.create<SubscriptionOp>(location, result, index);
@@ -1400,11 +1399,11 @@ mlir::Value MLIRLowerer::foldBinaryOperation(llvm::ArrayRef<mlir::Value> args, s
 	return result;
 }
 
-MLIRLowerer::Container<mlir::Value> MLIRLowerer::lowerOperationArgs(Operation& operation)
+MLIRLowerer::Container<mlir::Value> MLIRLowerer::lowerOperationArgs(const Operation& operation)
 {
 	Container<mlir::Value> args;
 
-	for (auto& arg : operation)
+	for (const auto& arg : operation)
 		args.push_back(*lower<Expression>(arg)[0]);
 
 	return args;
