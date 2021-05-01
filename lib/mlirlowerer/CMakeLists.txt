@@ -42,18 +42,16 @@ target_link_libraries(
         modelica::matching
         modelica::omcToModel
         modelica::passes
+        modelica::runtime
         modelica::utils
         MLIRIR
-        MLIRAffineToStandard
         MLIROpenMPToLLVM
         MLIROpenMPToLLVMIRTranslation
         MLIRSCF
         MLIRSCFToStandard
         MLIRSCFToOpenMP
-        MLIRSCFToGPU
         MLIRStandard
         MLIRStandardToLLVM
-        MLIRVectorToLLVM
         MLIRTransforms
         MLIRTranslation
         MLIRExecutionEngine

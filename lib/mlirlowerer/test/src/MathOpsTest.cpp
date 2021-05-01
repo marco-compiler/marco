@@ -4,7 +4,7 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
-#include <modelica/utils/CRunnerUtils.h>
+#include <modelica/runtime/ArrayDescriptor.h>
 #include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
@@ -1896,7 +1896,7 @@ TEST(MathOps, mulIntegerStaticVectorAndIntegerStaticMatrix)	 // NOLINT
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
-	EXPECT_EQ(zPtr.getSize(0), 3);
+	EXPECT_EQ(zPtr.getDimensionSize(0), 3);
 
 	EXPECT_EQ(zPtr[0], 70);
 	EXPECT_EQ(zPtr[1], 80);
@@ -1956,7 +1956,7 @@ TEST(MathOps, mulIntegerStaticMatrixAndIntegerStaticVector)	 // NOLINT
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
-	EXPECT_EQ(zPtr.getSize(0), 4);
+	EXPECT_EQ(zPtr.getDimensionSize(0), 4);
 
 	EXPECT_EQ(zPtr[0], 14);
 	EXPECT_EQ(zPtr[1], 32);
@@ -2017,8 +2017,8 @@ TEST(MathOps, mulIntegerStaticMatrixes)	 // NOLINT
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
 
-	EXPECT_EQ(zPtr.getSize(0), 2);
-	EXPECT_EQ(zPtr.getSize(1), 2);
+	EXPECT_EQ(zPtr.getDimensionSize(0), 2);
+	EXPECT_EQ(zPtr.getDimensionSize(1), 2);
 
 	EXPECT_EQ(zPtr.get(0, 0), 22);
 	EXPECT_EQ(zPtr.get(0, 1), 28);

@@ -4,7 +4,7 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
-#include <modelica/utils/CRunnerUtils.h>
+#include <modelica/runtime/ArrayDescriptor.h>
 #include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
@@ -110,7 +110,7 @@ TEST(BuiltInOps, sizeSpecificArrayDimension)	 // NOLINT
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
-	EXPECT_EQ(y, xPtr.getSize(1));
+	EXPECT_EQ(y, xPtr.getDimensionSize(1));
 }
 
 TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
@@ -162,8 +162,8 @@ TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
 
-	EXPECT_EQ(yPtr[0], xPtr.getSize(0));
-	EXPECT_EQ(yPtr[1], xPtr.getSize(1));
+	EXPECT_EQ(yPtr[0], xPtr.getDimensionSize(0));
+	EXPECT_EQ(yPtr[1], xPtr.getDimensionSize(1));
 }
 
 TEST(BuiltInOps, identityMatrix)	 // NOLINT

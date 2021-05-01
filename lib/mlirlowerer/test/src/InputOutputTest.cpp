@@ -3,7 +3,7 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
-#include <modelica/utils/CRunnerUtils.h>
+#include <modelica/runtime/ArrayDescriptor.h>
 #include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
@@ -549,7 +549,7 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(yPtr))));
 
-	for (int i = 0; i < yPtr.getSize(0); i++)
+	for (int i = 0; i < yPtr.getDimensionSize(0); i++)
 		EXPECT_EQ(yPtr[i], i + 1);
 }
 

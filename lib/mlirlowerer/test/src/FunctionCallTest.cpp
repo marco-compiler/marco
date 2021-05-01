@@ -11,7 +11,7 @@
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/Runner.h>
-#include <modelica/utils/CRunnerUtils.h>
+#include <modelica/runtime/ArrayDescriptor.h>
 #include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
