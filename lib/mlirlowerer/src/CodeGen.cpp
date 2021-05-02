@@ -1271,6 +1271,14 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		mlir::Value result = builder.create<IdentityOp>(location, resultType, size);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
+	else if (functionName == "diagonal")
+	{
+		assert(call.argumentsCount() == 1);
+		mlir::Value values = *lower<Expression>(call[0])[0];
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<DiagonalOp>(location, resultType, values);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
 	else
 	{
 		llvm::SmallVector<mlir::Value, 3> args;

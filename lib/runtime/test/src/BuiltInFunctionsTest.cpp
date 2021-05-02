@@ -79,7 +79,7 @@ TEST(Runtime, fill_f64)	 // NOLINT
 
 TEST(Runtime, identitySquareMatrix_i1)	 // NOLINT
 {
-	std::array<bool, 9> data = { false, false, false, false, false, false, false, false, false };
+	std::array<bool, 9> data = { false, true, true, true, false, true, true, true, false };
 	std::array<long, 2> sizes = { 3, 3 };
 
 	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
@@ -94,7 +94,7 @@ TEST(Runtime, identitySquareMatrix_i1)	 // NOLINT
 
 TEST(Runtime, identitySquareMatrix_i32)	 // NOLINT
 {
-	std::array<int, 9> data = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	std::array<int, 9> data = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 	std::array<long, 2> sizes = { 3, 3 };
 
 	ArrayDescriptor<int, 2> descriptor(data.data(), sizes);
@@ -109,7 +109,7 @@ TEST(Runtime, identitySquareMatrix_i32)	 // NOLINT
 
 TEST(Runtime, identitySquareMatrix_i64)	 // NOLINT
 {
-	std::array<long, 9> data = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	std::array<long, 9> data = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 	std::array<long, 2> sizes = { 3, 3 };
 
 	ArrayDescriptor<long, 2> descriptor(data.data(), sizes);
@@ -124,7 +124,7 @@ TEST(Runtime, identitySquareMatrix_i64)	 // NOLINT
 
 TEST(Runtime, identitySquareMatrix_f32)	 // NOLINT
 {
-	std::array<float, 9> data = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	std::array<float, 9> data = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 	std::array<long, 2> sizes = { 3, 3 };
 
 	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
@@ -139,7 +139,7 @@ TEST(Runtime, identitySquareMatrix_f32)	 // NOLINT
 
 TEST(Runtime, identitySquareMatrix_f64)	 // NOLINT
 {
-	std::array<double, 9> data = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	std::array<double, 9> data = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 	std::array<long, 2> sizes = { 3, 3 };
 
 	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
@@ -150,4 +150,529 @@ TEST(Runtime, identitySquareMatrix_f64)	 // NOLINT
 	for (size_t i = 0; i < 3; ++i)
 		for (size_t j = 0; j < 3; j++)
 			EXPECT_EQ(data[3 * i + j], i == j ? 1 : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i1_i1)	 // NOLINT
+{
+	std::array<bool, 9> destination = { false, true, true, true, false, true, true, true, false };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	std::array<bool, 3> values = { true, true, true };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<bool, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai1_ai1(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : false);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i1_i32)	 // NOLINT
+{
+	std::array<bool, 9> destination = { false, true, true, true, false, true, true, true, false };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	std::array<int, 3> values = { 2, 2, 2 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<int, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai1_ai32(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i1_i64)	 // NOLINT
+{
+	std::array<bool, 9> destination = { false, true, true, true, false, true, true, true, false };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	std::array<long, 3> values = { 2, 2, 2 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<long, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai1_ai64(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i1_f32)	 // NOLINT
+{
+	std::array<bool, 9> destination = { false, true, true, true, false, true, true, true, false };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	std::array<float, 3> values = { 2, 2, 2 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<float, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai1_af32(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i1_f64)	 // NOLINT
+{
+	std::array<bool, 9> destination = { false, true, true, true, false, true, true, true, false };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	std::array<double, 3> values = { 2, 2, 2 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<double, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai1_af64(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] > 0 : false);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i32_i1)	 // NOLINT
+{
+	std::array<int, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	std::array<bool, 3> values = { true, true, true };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<bool, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai32_ai1(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i32_i32)	 // NOLINT
+{
+	std::array<int, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	std::array<int, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<int, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai32_ai32(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i32_i64)	 // NOLINT
+{
+	std::array<int, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	std::array<long, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<long, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai32_ai64(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i32_f32)	 // NOLINT
+{
+	std::array<int, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	std::array<float, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<float, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai32_af32(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i32_f64)	 // NOLINT
+{
+	std::array<int, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	std::array<double, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<double, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai32_af64(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i64_i1)	 // NOLINT
+{
+	std::array<long, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	std::array<bool, 3> values = { true, true, true };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<bool, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai64_ai1(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i64_i32)	 // NOLINT
+{
+	std::array<long, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	std::array<int, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<int, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai64_ai32(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i64_i64)	 // NOLINT
+{
+	std::array<long, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	std::array<long, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<long, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai64_ai64(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i64_f32)	 // NOLINT
+{
+	std::array<long, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	std::array<float, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<float, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai64_af32(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_i64_f64)	 // NOLINT
+{
+	std::array<long, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	std::array<double, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<double, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_ai64_af64(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_f32_i1)	 // NOLINT
+{
+	std::array<float, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	std::array<bool, 3> values = { true, true, true };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<bool, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_af32_ai1(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_f32_i32)	 // NOLINT
+{
+	std::array<float, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	std::array<int, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<int, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_af32_ai32(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_f32_i64)	 // NOLINT
+{
+	std::array<float, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	std::array<long, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<long, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_af32_ai64(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_f32_f32)	 // NOLINT
+{
+	std::array<float, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	std::array<float, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<float, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_af32_af32(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_f32_f64)	 // NOLINT
+{
+	std::array<float, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	std::array<double, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<double, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_af32_af64(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_f64_i1)	 // NOLINT
+{
+	std::array<double, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	std::array<bool, 3> values = { true, true, true };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<bool, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_af64_ai1(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? (values[i] ? 1 : 0) : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_f64_i32)	 // NOLINT
+{
+	std::array<double, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	std::array<int, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<int, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_af64_ai32(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_f64_i64)	 // NOLINT
+{
+	std::array<double, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	std::array<long, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<long, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_af64_ai64(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_f64_f32)	 // NOLINT
+{
+	std::array<double, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	std::array<float, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<float, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_af64_af32(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
+}
+
+TEST(Runtime, diagonalSquareMatrix_f64_f64)	 // NOLINT
+{
+	std::array<double, 9> destination = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
+	std::array<long, 2> destinationSizes = { 3, 3 };
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), destinationSizes);
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	std::array<double, 3> values = { 1, 2, 3 };
+	std::array<long, 1> valuesSizes = { 3 };
+
+	ArrayDescriptor<double, 1> valuesDescriptor(values.data(), valuesSizes);
+	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
+
+	_Mdiagonal_af64_af64(unsizedDestination, unsizedValues);
+
+	for (size_t i = 0; i < 3; ++i)
+		for (size_t j = 0; j < 3; j++)
+			EXPECT_EQ(destination[3 * i + j], i == j ? values[i] : 0);
 }

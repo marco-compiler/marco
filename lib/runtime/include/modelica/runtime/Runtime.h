@@ -1,6 +1,49 @@
 #pragma once
 
 #include "ArrayDescriptor.h"
+#include "Mangling.h"
+
+RUNTIME_FUNC_DECL(fill, void, array(bool), bool)
+RUNTIME_FUNC_DECL(fill, void, array(int), int)
+RUNTIME_FUNC_DECL(fill, void, array(long), long)
+RUNTIME_FUNC_DECL(fill, void, array(float), float)
+RUNTIME_FUNC_DECL(fill, void, array(double), double)
+
+RUNTIME_FUNC_DECL(identity, void, array(bool))
+RUNTIME_FUNC_DECL(identity, void, array(int))
+RUNTIME_FUNC_DECL(identity, void, array(long))
+RUNTIME_FUNC_DECL(identity, void, array(float))
+RUNTIME_FUNC_DECL(identity, void, array(double))
+
+RUNTIME_FUNC_DECL(diagonal, void, array(bool), array(bool))
+RUNTIME_FUNC_DECL(diagonal, void, array(bool), array(int))
+RUNTIME_FUNC_DECL(diagonal, void, array(bool), array(long))
+RUNTIME_FUNC_DECL(diagonal, void, array(bool), array(float))
+RUNTIME_FUNC_DECL(diagonal, void, array(bool), array(double))
+
+RUNTIME_FUNC_DECL(diagonal, void, array(int), array(bool))
+RUNTIME_FUNC_DECL(diagonal, void, array(int), array(int))
+RUNTIME_FUNC_DECL(diagonal, void, array(int), array(long))
+RUNTIME_FUNC_DECL(diagonal, void, array(int), array(float))
+RUNTIME_FUNC_DECL(diagonal, void, array(int), array(double))
+
+RUNTIME_FUNC_DECL(diagonal, void, array(long), array(bool))
+RUNTIME_FUNC_DECL(diagonal, void, array(long), array(int))
+RUNTIME_FUNC_DECL(diagonal, void, array(long), array(long))
+RUNTIME_FUNC_DECL(diagonal, void, array(long), array(float))
+RUNTIME_FUNC_DECL(diagonal, void, array(long), array(double))
+
+RUNTIME_FUNC_DECL(diagonal, void, array(float), array(bool))
+RUNTIME_FUNC_DECL(diagonal, void, array(float), array(int))
+RUNTIME_FUNC_DECL(diagonal, void, array(float), array(long))
+RUNTIME_FUNC_DECL(diagonal, void, array(float), array(float))
+RUNTIME_FUNC_DECL(diagonal, void, array(float), array(double))
+
+RUNTIME_FUNC_DECL(diagonal, void, array(double), array(bool))
+RUNTIME_FUNC_DECL(diagonal, void, array(double), array(int))
+RUNTIME_FUNC_DECL(diagonal, void, array(double), array(long))
+RUNTIME_FUNC_DECL(diagonal, void, array(double), array(float))
+RUNTIME_FUNC_DECL(diagonal, void, array(double), array(double))
 
 extern "C"
 {
@@ -21,28 +64,4 @@ extern "C"
 	void printI64(long value);
 	void printF32(float value);
 	void printF64(double value);
-
-	[[maybe_unused]] void _Mfill_ai1_i1(UnsizedArrayDescriptor<bool> array, bool value);
-	[[maybe_unused]] void _Mfill_ai32_i32(UnsizedArrayDescriptor<int> array, int value);
-	[[maybe_unused]] void _Mfill_ai64_i64(UnsizedArrayDescriptor<long> array, long value);
-	[[maybe_unused]] void _Mfill_af32_f32(UnsizedArrayDescriptor<float> array, float value);
-	[[maybe_unused]] void _Mfill_af64_f64(UnsizedArrayDescriptor<double> array, double value);
-
-	[[maybe_unused]] void _mlir_ciface__Mfill_ai1_i1(UnsizedArrayDescriptor<bool> array, bool value);
-	[[maybe_unused]] void _mlir_ciface__Mfill_ai32_i32(UnsizedArrayDescriptor<int> array, int value);
-	[[maybe_unused]] void _mlir_ciface__Mfill_ai64_i64(UnsizedArrayDescriptor<long> array, long value);
-	[[maybe_unused]] void _mlir_ciface__Mfill_af32_f32(UnsizedArrayDescriptor<float> array, float value);
-	[[maybe_unused]] void _mlir_ciface__Mfill_af64_f64(UnsizedArrayDescriptor<double> array, double value);
-
-	[[maybe_unused]] void _Midentity_ai1(UnsizedArrayDescriptor<bool> array);
-	[[maybe_unused]] void _Midentity_ai32(UnsizedArrayDescriptor<int> array);
-	[[maybe_unused]] void _Midentity_ai64(UnsizedArrayDescriptor<long> array);
-	[[maybe_unused]] void _Midentity_af32(UnsizedArrayDescriptor<float> array);
-	[[maybe_unused]] void _Midentity_af64(UnsizedArrayDescriptor<double> array);
-
-	[[maybe_unused]] void _mlir_ciface__Midentity_ai1(UnsizedArrayDescriptor<bool> array);
-	[[maybe_unused]] void _mlir_ciface__Midentity_ai32(UnsizedArrayDescriptor<int> array);
-	[[maybe_unused]] void _mlir_ciface__Midentity_ai64(UnsizedArrayDescriptor<long> array);
-	[[maybe_unused]] void _mlir_ciface__Midentity_af32(UnsizedArrayDescriptor<float> array);
-	[[maybe_unused]] void _mlir_ciface__Midentity_af64(UnsizedArrayDescriptor<double> array);
 }

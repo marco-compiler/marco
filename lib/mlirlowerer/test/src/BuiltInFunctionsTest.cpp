@@ -221,6 +221,62 @@ TEST(BuiltInOps, identityMatrix)	 // NOLINT
 			EXPECT_EQ(yPtr.get(i, j), i == j ? 1 : 0);
 }
 
+TEST(BuiltInOps, diagonalMatrix)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[:] x;
+	 *   output Integer[:,:] y;
+	 *
+	 *   algorithm
+	 *     y := diagonal(x);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(-1, -1), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(-1, -1), "y"),
+			Expression::call(location, makeType<int>(-1, -1),
+											 Expression::reference(location, makeType<int>(-1, -1), "diagonal"),
+											 Expression::reference(location, makeType<int>(-1), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	array<int, 3> x = { 1, 2, 3 };
+	array<int, 3> y = { 2, 2, 2 };
+
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
+
+	EXPECT_EQ(yPtr.getRank(), 2);
+
+	for (long i = 0; i < 3; ++i)
+		for (long j = 0; j < 3; ++j)
+			EXPECT_EQ(yPtr.get(i, j), i == j ? x[i] : 0);
+}
+
 TEST(BuiltInOps, sumOfIntegerStaticArrayValues)	 // NOLINT
 {
 	/**

@@ -1674,7 +1674,7 @@ namespace modelica::codegen
 		using Adaptor = IdentityOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value size);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value size);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -1682,6 +1682,40 @@ namespace modelica::codegen
 
 		mlir::Type resultType();
 		mlir::Value size();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::DiagonalOp
+	//===----------------------------------------------------------------------===//
+
+	class DiagonalOp;
+
+	class DiagonalOpAdaptor : public OpAdaptor<DiagonalOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value values();
+	};
+
+	class DiagonalOp : public mlir::Op<DiagonalOp,
+																		mlir::OpTrait::OneOperand,
+																		mlir::OpTrait::OneResult,
+																		mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = DiagonalOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value values);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::Value values();
 	};
 
 	//===----------------------------------------------------------------------===//

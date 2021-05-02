@@ -95,7 +95,7 @@ class ArrayDescriptor
 		return data;
 	}
 
-	[[nodiscard]] long getRank() const
+	[[nodiscard]] unsigned long getRank() const
 	{
 		return rank;
 	}

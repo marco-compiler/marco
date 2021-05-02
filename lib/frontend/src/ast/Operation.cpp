@@ -239,9 +239,8 @@ namespace modelica::frontend
 
 			case OperationKind::powerOf:
 				return "(" + toString(obj[0]) + " ^ " + toString(obj[1]) + ")";
-
-			default:
-				return "unknown";
 		}
+
+		return "unknown";
 	}
 }

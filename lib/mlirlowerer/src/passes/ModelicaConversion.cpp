@@ -120,6 +120,11 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 		return builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions, shouldBeFreed);
 	}
 
+	[[nodiscard]] mlir::FuncOp getOrDeclareFunction(mlir::OpBuilder& builder, mlir::ModuleOp module, llvm::StringRef name, mlir::TypeRange results, mlir::ValueRange args) const
+	{
+		return getOrDeclareFunction(builder, module, name, results, args.getTypes());
+	}
+
 	[[nodiscard]] mlir::FuncOp getOrDeclareFunction(mlir::OpBuilder& builder, mlir::ModuleOp module, llvm::StringRef name, mlir::TypeRange results, mlir::TypeRange args) const
 	{
 		if (auto foo = module.lookupSymbol<mlir::FuncOp>(name))
@@ -1956,6 +1961,58 @@ struct IdentityOpLowering: public ModelicaOpConversion<IdentityOp>
 	}
 };
 
+struct DiagonalOpLowering: public ModelicaOpConversion<DiagonalOp>
+{
+	using ModelicaOpConversion<DiagonalOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(DiagonalOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+		auto pointerType = op.resultType().cast<PointerType>();
+
+		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+		mlir::Value castedSize = nullptr;
+
+		for (const auto& size : pointerType.getShape())
+		{
+			if (size == -1)
+			{
+				if (castedSize == nullptr)
+				{
+					assert(op.values().getType().cast<PointerType>().getRank() == 1);
+					mlir::Value zeroValue = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
+					castedSize = rewriter.create<DimOp>(loc, op.values(), zeroValue);
+				}
+
+				dynamicDimensions.push_back(castedSize);
+			}
+		}
+
+		mlir::Value result = allocate(rewriter, loc, pointerType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
+
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		args.push_back(rewriter.create<PtrCastOp>(
+				loc, result,
+				result.getType().cast<PointerType>().toUnsized()));
+
+		args.push_back(rewriter.create<PtrCastOp>(
+				loc, op.values(),
+				op.values().getType().cast<PointerType>().toUnsized()));
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("diagonal", args),
+				llvm::None,
+				args);
+
+		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
+		return mlir::success();
+	}
+};
+
 struct FillOpLowering: public ModelicaOpConversion<FillOp>
 {
 	using ModelicaOpConversion<FillOp>::ModelicaOpConversion;
@@ -2318,6 +2375,7 @@ static void populateModelicaConversionPatterns(
 			SizeOpDimensionLowering,
 			SizeOpArrayLowering,
 			IdentityOpLowering,
+			DiagonalOpLowering,
 			FillOpLowering>(context, typeConverter, options);
 }
 
@@ -2354,7 +2412,7 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 				NotOp, AndOp, OrOp,
 				EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp,
 				NegateOp, AddOp, SubOp, MulOp, DivOp, PowOp,
-				NDimsOp, SizeOp, IdentityOp, FillOp>();
+				NDimsOp, SizeOp, IdentityOp, DiagonalOp, FillOp>();
 
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 

@@ -14,55 +14,11 @@ inline void fill(UnsizedArrayDescriptor<T> array, T value)
 		element = value;
 }
 
-void _Mfill_ai1_i1(UnsizedArrayDescriptor<bool> array, bool value)
-{
-	fill(array, value);
-}
-
-void _Mfill_ai32_i32(UnsizedArrayDescriptor<int> array, int value)
-{
-	fill(array, value);
-}
-
-void _Mfill_ai64_i64(UnsizedArrayDescriptor<long> array, long value)
-{
-	fill(array, value);
-}
-
-void _Mfill_af32_f32(UnsizedArrayDescriptor<float> array, float value)
-{
-	fill(array, value);
-}
-
-void _Mfill_af64_f64(UnsizedArrayDescriptor<double> array, double value)
-{
-	fill(array, value);
-}
-
-void _mlir_ciface__Mfill_ai1_i1(UnsizedArrayDescriptor<bool> array, bool value)
-{
-	_Mfill_ai1_i1(array, value);
-}
-
-void _mlir_ciface__Mfill_ai32_i32(UnsizedArrayDescriptor<int> array, int value)
-{
-	_Mfill_ai32_i32(array, value);
-}
-
-void _mlir_ciface__Mfill_ai64_i64(UnsizedArrayDescriptor<long> array, long value)
-{
-	_Mfill_ai64_i64(array, value);
-}
-
-void _mlir_ciface__Mfill_af32_f32(UnsizedArrayDescriptor<float> array, float value)
-{
-	_Mfill_af32_f32(array, value);
-}
-
-void _mlir_ciface__Mfill_af64_f64(UnsizedArrayDescriptor<double> array, double value)
-{
-	_Mfill_af64_f64(array, value);
-}
+RUNTIME_FUNC_DEF(fill, void, array(bool), bool);
+RUNTIME_FUNC_DEF(fill, void, array(int), int);
+RUNTIME_FUNC_DEF(fill, void, array(long), long);
+RUNTIME_FUNC_DEF(fill, void, array(float), float);
+RUNTIME_FUNC_DEF(fill, void, array(double), double);
 
 /**
  * Set a multi-dimensional array to an identity like matrix.
@@ -96,52 +52,80 @@ inline void identity(UnsizedArrayDescriptor<T> array)
 	}
 }
 
-void _Midentity_ai1(UnsizedArrayDescriptor<bool> array)
+RUNTIME_FUNC_DEF(identity, void, array(bool))
+RUNTIME_FUNC_DEF(identity, void, array(int))
+RUNTIME_FUNC_DEF(identity, void, array(long))
+RUNTIME_FUNC_DEF(identity, void, array(float))
+RUNTIME_FUNC_DEF(identity, void, array(double))
+
+/**
+ * Place some values on the diagonal of a matrix, and set all the other
+ * elements to zero.
+ *
+ * @tparam T 					destination matrix type
+ * @tparam U 					source values type
+ * @param destination destination matrix
+ * @param values 			source values
+ */
+template<typename T, typename U>
+void diagonal(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> values)
 {
-	identity(array);
+	// Check that the array is square-like (all the dimensions have the same
+	// size). Note that the implementation is generalized to n-D dimensions,
+	// while the "identity" Modelica function is defined only for 2-D arrays.
+	// Still, the implementation complexity would be the same.
+
+	assert(destination.hasSameSizes());
+
+	// Check that the sizes of the matrix dimensions match with the amount of
+	// values to be set.
+
+	assert(destination.getRank() > 0);
+	assert(values.getRank() == 1);
+	assert(destination.getDimensionSize(0) == values.getDimensionSize(0));
+
+	// Directly use the iterators, as we need to determine the current indexes
+	// so that we can place a 1 if the access is on the matrix diagonal.
+
+	for (auto it = destination.begin(), end = destination.end(); it != end; ++it)
+	{
+		auto indexes = it.getCurrentIndexes();
+		assert(!indexes.empty());
+
+		bool isIdentityAccess = llvm::all_of(indexes, [&indexes](const auto& i) {
+			return i == indexes[0];
+		});
+
+		*it = isIdentityAccess ? values.get(indexes[0]) : 0;
+	}
 }
 
-void _Midentity_ai32(UnsizedArrayDescriptor<int> array)
-{
-	identity(array);
-}
+RUNTIME_FUNC_DEF(diagonal, void, array(bool), array(bool))
+RUNTIME_FUNC_DEF(diagonal, void, array(bool), array(int))
+RUNTIME_FUNC_DEF(diagonal, void, array(bool), array(long))
+RUNTIME_FUNC_DEF(diagonal, void, array(bool), array(float))
+RUNTIME_FUNC_DEF(diagonal, void, array(bool), array(double))
 
-void _Midentity_ai64(UnsizedArrayDescriptor<long> array)
-{
-	identity(array);
-}
+RUNTIME_FUNC_DEF(diagonal, void, array(int), array(bool))
+RUNTIME_FUNC_DEF(diagonal, void, array(int), array(int))
+RUNTIME_FUNC_DEF(diagonal, void, array(int), array(long))
+RUNTIME_FUNC_DEF(diagonal, void, array(int), array(float))
+RUNTIME_FUNC_DEF(diagonal, void, array(int), array(double))
 
-void _Midentity_af32(UnsizedArrayDescriptor<float> array)
-{
-	identity(array);
-}
+RUNTIME_FUNC_DEF(diagonal, void, array(long), array(bool))
+RUNTIME_FUNC_DEF(diagonal, void, array(long), array(int))
+RUNTIME_FUNC_DEF(diagonal, void, array(long), array(long))
+RUNTIME_FUNC_DEF(diagonal, void, array(long), array(float))
+RUNTIME_FUNC_DEF(diagonal, void, array(long), array(double))
 
-void _Midentity_af64(UnsizedArrayDescriptor<double> array)
-{
-	identity(array);
-}
+RUNTIME_FUNC_DEF(diagonal, void, array(float), array(bool))
+RUNTIME_FUNC_DEF(diagonal, void, array(float), array(int))
+RUNTIME_FUNC_DEF(diagonal, void, array(float), array(long))
+RUNTIME_FUNC_DEF(diagonal, void, array(float), array(float))
+RUNTIME_FUNC_DEF(diagonal, void, array(float), array(double))
 
-void _mlir_ciface__Midentity_ai1(UnsizedArrayDescriptor<bool> array)
-{
-	_Midentity_ai1(array);
-}
-
-void _mlir_ciface__Midentity_ai32(UnsizedArrayDescriptor<int> array)
-{
-	_Midentity_ai32(array);
-}
-
-void _mlir_ciface__Midentity_ai64(UnsizedArrayDescriptor<long> array)
-{
-	_Midentity_ai64(array);
-}
-
-void _mlir_ciface__Midentity_af32(UnsizedArrayDescriptor<float> array)
-{
-	_Midentity_af32(array);
-}
-
-void _mlir_ciface__Midentity_af64(UnsizedArrayDescriptor<double> array)
-{
-	_Midentity_af64(array);
-}
+RUNTIME_FUNC_DEF(diagonal, void, array(double), array(bool))
+RUNTIME_FUNC_DEF(diagonal, void, array(double), array(int))
+RUNTIME_FUNC_DEF(diagonal, void, array(double), array(long))
+RUNTIME_FUNC_DEF(diagonal, void, array(double), array(float))
+RUNTIME_FUNC_DEF(diagonal, void, array(double), array(double))

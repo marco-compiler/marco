@@ -3598,6 +3598,59 @@ mlir::Value IdentityOp::size()
 }
 
 //===----------------------------------------------------------------------===//
+// Modelica::DiagonalOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value DiagonalOpAdaptor::values()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef DiagonalOp::getOperationName()
+{
+	return "modelica.diagonal";
+}
+
+void DiagonalOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value values)
+{
+	state.addTypes(resultType);
+	state.addOperands(values);
+}
+
+void DiagonalOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.diagonal " << values() << " : " << resultType();
+}
+
+mlir::LogicalResult DiagonalOp::verify()
+{
+	if (!values().getType().isa<PointerType>())
+		return emitOpError("requires the values to be an array");
+
+	if (auto pointerType = values().getType().cast<PointerType>(); pointerType.getRank() != 1)
+		return emitOpError("requires the values array to have rank 1");
+
+	return mlir::success();
+}
+
+void DiagonalOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+		if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::Type DiagonalOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value DiagonalOp::values()
+{
+	return Adaptor(*this).values();
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::FillOp
 //===----------------------------------------------------------------------===//
 
