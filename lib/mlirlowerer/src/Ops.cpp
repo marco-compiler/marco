@@ -3651,6 +3651,81 @@ mlir::Value DiagonalOp::values()
 }
 
 //===----------------------------------------------------------------------===//
+// Modelica::LinspaceOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value LinspaceOpAdaptor::start()
+{
+	return getValues()[0];
+}
+
+mlir::Value LinspaceOpAdaptor::end()
+{
+	return getValues()[1];
+}
+
+mlir::Value LinspaceOpAdaptor::steps()
+{
+	return getValues()[2];
+}
+
+llvm::StringRef LinspaceOp::getOperationName()
+{
+	return "modelica.linspace";
+}
+
+void LinspaceOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value start, mlir::Value end, mlir::Value steps)
+{
+	state.addTypes(resultType);
+	state.addOperands(start);
+	state.addOperands(end);
+	state.addOperands(steps);
+}
+
+void LinspaceOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.linspace " << start() << ", " << end() << ", " << steps() << " : " << resultType();
+}
+
+mlir::LogicalResult LinspaceOp::verify()
+{
+	if (!resultType().isa<PointerType>())
+		return emitOpError("requires the result to be an array");
+
+	if (auto pointerType = resultType().cast<PointerType>(); pointerType.getRank() != 1)
+		return emitOpError("requires the result array to have rank 1");
+
+	return mlir::success();
+}
+
+void LinspaceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+		if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::Type LinspaceOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value LinspaceOp::start()
+{
+	return Adaptor(*this).start();
+}
+
+mlir::Value LinspaceOp::end()
+{
+	return Adaptor(*this).end();
+}
+
+mlir::Value LinspaceOp::steps()
+{
+	return Adaptor(*this).steps();
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::FillOp
 //===----------------------------------------------------------------------===//
 

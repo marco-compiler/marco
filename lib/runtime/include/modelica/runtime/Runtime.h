@@ -45,6 +45,17 @@ RUNTIME_FUNC_DECL(diagonal, void, array(double), array(long))
 RUNTIME_FUNC_DECL(diagonal, void, array(double), array(float))
 RUNTIME_FUNC_DECL(diagonal, void, array(double), array(double))
 
+RUNTIME_FUNC_DECL(linspace, void, array(bool), float, float)
+RUNTIME_FUNC_DECL(linspace, void, array(bool), double, double)
+RUNTIME_FUNC_DECL(linspace, void, array(int), float, float)
+RUNTIME_FUNC_DECL(linspace, void, array(int), double, double)
+RUNTIME_FUNC_DECL(linspace, void, array(long), float, float)
+RUNTIME_FUNC_DECL(linspace, void, array(long), double, double)
+RUNTIME_FUNC_DECL(linspace, void, array(float), float, float)
+RUNTIME_FUNC_DECL(linspace, void, array(float), double, double)
+RUNTIME_FUNC_DECL(linspace, void, array(double), float, float)
+RUNTIME_FUNC_DECL(linspace, void, array(double), double, double)
+
 extern "C"
 {
 	void modelicaPrint(char* name, float value);

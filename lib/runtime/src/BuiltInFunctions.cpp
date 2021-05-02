@@ -129,3 +129,34 @@ RUNTIME_FUNC_DEF(diagonal, void, array(double), array(int))
 RUNTIME_FUNC_DEF(diagonal, void, array(double), array(long))
 RUNTIME_FUNC_DEF(diagonal, void, array(double), array(float))
 RUNTIME_FUNC_DEF(diagonal, void, array(double), array(double))
+
+/**
+ * Populate a 1-D array with equally spaced elements.
+ *
+ * @tparam T 		 data type
+ * @param array  array to be populated
+ * @param start  start value
+ * @param end 	 end value
+ */
+template<typename T>
+void linspace(UnsizedArrayDescriptor<T> array, double start, double end)
+{
+	assert(array.getRank() == 1);
+
+	size_t n = array.getDimensionSize(0);
+	double step = (end - start) / ((double) n - 1);
+
+	for (size_t i = 0; i < n; ++i)
+		array.get(i) = start + i * step;
+}
+
+RUNTIME_FUNC_DEF(linspace, void, array(bool), float, float)
+RUNTIME_FUNC_DEF(linspace, void, array(bool), double, double)
+RUNTIME_FUNC_DEF(linspace, void, array(int), float, float)
+RUNTIME_FUNC_DEF(linspace, void, array(int), double, double)
+RUNTIME_FUNC_DEF(linspace, void, array(long), float, float)
+RUNTIME_FUNC_DEF(linspace, void, array(long), double, double)
+RUNTIME_FUNC_DEF(linspace, void, array(float), float, float)
+RUNTIME_FUNC_DEF(linspace, void, array(float), double, double)
+RUNTIME_FUNC_DEF(linspace, void, array(double), float, float)
+RUNTIME_FUNC_DEF(linspace, void, array(double), double, double)

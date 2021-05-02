@@ -277,6 +277,67 @@ TEST(BuiltInOps, diagonalMatrix)	 // NOLINT
 			EXPECT_EQ(yPtr.get(i, j), i == j ? x[i] : 0);
 }
 
+TEST(BuiltInOps, linspace)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer start;
+	 *   input Integer end;
+	 *   input Integer n;
+	 *   output Real[:] y;
+	 *
+	 *   algorithm
+	 *     y := linspace(start, end, n);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member startMember(location, "start", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member endMember(location, "end", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member nMember(location, "n", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<float>(-1), "y"),
+			Expression::call(location, makeType<float>(-1),
+											 Expression::reference(location, makeType<float>(-1), "linspace"),
+											 Expression::reference(location, makeType<int>(), "start"),
+											 Expression::reference(location, makeType<int>(), "end"),
+											 Expression::reference(location, makeType<int>(), "n")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ startMember, endMember, nMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	int start = 0;
+	int end = 1;
+	const int n = 23;
+
+	array<float, n> y = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+	ArrayDescriptor<float, 1> yPtr(y.data(), { 1 });
+
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", start, end, n, jit::Runner::result(yPtr))));
+
+	for (size_t i = 0; i < n; ++i)
+		EXPECT_FLOAT_EQ(yPtr[i], start +  i * ((float) (end - start) / (n - 1)));
+}
+
 TEST(BuiltInOps, sumOfIntegerStaticArrayValues)	 // NOLINT
 {
 	/**

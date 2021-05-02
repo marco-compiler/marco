@@ -20,7 +20,7 @@ namespace modelica::codegen
 	 *
 	 * @param options  conversion options
  	 */
-	std::unique_ptr<mlir::Pass> createModelicaConversionPass(ModelicaConversionOptions options = ModelicaConversionOptions::getDefaultOptions());
+	std::unique_ptr<mlir::Pass> createModelicaConversionPass(ModelicaConversionOptions options = ModelicaConversionOptions::getDefaultOptions(), unsigned int bitWidth = 64);
 
 	/**
 	 * Convert the control flow operations of the Modelica and the SCF

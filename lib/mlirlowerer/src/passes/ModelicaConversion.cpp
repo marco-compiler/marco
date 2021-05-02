@@ -2013,6 +2013,57 @@ struct DiagonalOpLowering: public ModelicaOpConversion<DiagonalOp>
 	}
 };
 
+struct LinspaceOpLowering: public ModelicaOpConversion<LinspaceOp>
+{
+	LinspaceOpLowering(mlir::MLIRContext* ctx, TypeConverter& typeConverter, ModelicaConversionOptions options, unsigned int bitWidth)
+			: ModelicaOpConversion<LinspaceOp>(ctx, typeConverter, options),
+				bitWidth(bitWidth)
+	{
+	}
+
+	mlir::LogicalResult matchAndRewrite(LinspaceOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+		auto pointerType = op.resultType().cast<PointerType>();
+
+		assert(pointerType.getRank() == 1);
+
+		mlir::Value size = rewriter.create<CastOp>(loc, op.steps(), rewriter.getIndexType());
+		//mlir::Value one = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
+		//mlir::Value size = rewriter.create<AddOp>(loc, rewriter.getIndexType(), op.steps(), one);
+
+		mlir::Value result = allocate(rewriter, loc, pointerType, size);
+		rewriter.replaceOp(op, result);
+
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		args.push_back(rewriter.create<PtrCastOp>(
+				loc, result,
+				result.getType().cast<PointerType>().toUnsized()));
+
+		args.push_back(rewriter.create<CastOp>(
+				loc, op.start(),
+				RealType::get(op->getContext(), bitWidth)));
+
+		args.push_back(rewriter.create<CastOp>(
+				loc, op.end(),
+				RealType::get(op->getContext(), bitWidth)));
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("linspace", args),
+				llvm::None,
+				args);
+
+		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
+		return mlir::success();
+	}
+
+	private:
+	unsigned int bitWidth;
+};
+
 struct FillOpLowering: public ModelicaOpConversion<FillOp>
 {
 	using ModelicaOpConversion<FillOp>::ModelicaOpConversion;
@@ -2332,7 +2383,8 @@ static void populateModelicaConversionPatterns(
 		mlir::OwningRewritePatternList& patterns,
 		mlir::MLIRContext* context,
 		modelica::codegen::TypeConverter& typeConverter,
-		ModelicaConversionOptions options)
+		ModelicaConversionOptions options,
+		unsigned int bitWidth)
 {
 	patterns.insert<
 			ConstantOpLowering,
@@ -2377,13 +2429,16 @@ static void populateModelicaConversionPatterns(
 			IdentityOpLowering,
 			DiagonalOpLowering,
 			FillOpLowering>(context, typeConverter, options);
+
+	patterns.insert<LinspaceOpLowering>(context, typeConverter, options, bitWidth);
 }
 
 class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
-	explicit ModelicaConversionPass(ModelicaConversionOptions options)
-			: options(std::move(options))
+	explicit ModelicaConversionPass(ModelicaConversionOptions options, unsigned int bitWidth)
+			: options(std::move(options)),
+				bitWidth(bitWidth)
 	{
 	}
 
@@ -2412,7 +2467,7 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 				NotOp, AndOp, OrOp,
 				EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp,
 				NegateOp, AddOp, SubOp, MulOp, DivOp, PowOp,
-				NDimsOp, SizeOp, IdentityOp, DiagonalOp, FillOp>();
+				NDimsOp, SizeOp, IdentityOp, DiagonalOp, LinspaceOp, FillOp>();
 
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 
@@ -2421,7 +2476,7 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 
 		// Provide the set of patterns that will lower the Modelica operations
 		mlir::OwningRewritePatternList patterns;
-		populateModelicaConversionPatterns(patterns, &getContext(), typeConverter, options);
+		populateModelicaConversionPatterns(patterns, &getContext(), typeConverter, options, bitWidth);
 
 		// With the target and rewrite patterns defined, we can now attempt the
 		// conversion. The conversion will signal failure if any of our "illegal"
@@ -2436,11 +2491,12 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 
 	private:
 	ModelicaConversionOptions options;
+	unsigned int bitWidth;
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createModelicaConversionPass(ModelicaConversionOptions options)
+std::unique_ptr<mlir::Pass> modelica::codegen::createModelicaConversionPass(ModelicaConversionOptions options, unsigned int bitWidth)
 {
-	return std::make_unique<ModelicaConversionPass>(options);
+	return std::make_unique<ModelicaConversionPass>(options, bitWidth);
 }
 
 class LowerToCFGPass: public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPass<mlir::ModuleOp>>

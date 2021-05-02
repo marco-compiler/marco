@@ -111,7 +111,7 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 	if (loweringOptions.cse)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
 
-	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions));
+	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions, options.getBitWidth()));
 	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
 
 	if (loweringOptions.openmp)
@@ -1277,6 +1277,16 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		mlir::Value values = *lower<Expression>(call[0])[0];
 		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<DiagonalOp>(location, resultType, values);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "linspace")
+	{
+		assert(call.argumentsCount() == 3);
+		mlir::Value start = *lower<Expression>(call[0])[0];
+		mlir::Value end = *lower<Expression>(call[1])[0];
+		mlir::Value steps = *lower<Expression>(call[2])[0];
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<LinspaceOp>(location, resultType, start, end, steps);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else

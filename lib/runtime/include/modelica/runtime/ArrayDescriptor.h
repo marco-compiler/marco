@@ -31,7 +31,7 @@ class ArrayDescriptor
 	 * @param data  data pointer
 	 * @param sizes sizes of the array
 	 */
-	ArrayDescriptor(T* data, llvm::ArrayRef<long> sizes)
+	ArrayDescriptor(T* data, llvm::ArrayRef<unsigned long> sizes)
 			: data(data), rank(sizes.size()), sizes{}
 	{
 		assert(Rank == rank);
@@ -46,7 +46,7 @@ class ArrayDescriptor
 	 * @param offset	 index of the flat array
 	 * @return value
 	 */
-	T& operator[](unsigned int offset)
+	T& operator[](size_t offset)
 	{
 		assert(data != nullptr);
 		return data[offset];
@@ -58,7 +58,7 @@ class ArrayDescriptor
 	 * @param offset	 index of the flat array
 	 * @return value
 	 */
-	const T& operator[](unsigned int offset) const
+	const T& operator[](size_t offset) const
 	{
 		assert(data != nullptr);
 		return data[offset];
@@ -67,17 +67,17 @@ class ArrayDescriptor
 	template<typename... Index>
 	T& get(Index... indexes)
 	{
-		llvm::SmallVector<long, 3> positions{ indexes... };
-		return get(static_cast<llvm::ArrayRef<long>>(positions));
+		llvm::SmallVector<size_t, 3> positions{ static_cast<size_t>(indexes)... };
+		return get(static_cast<llvm::ArrayRef<size_t>>(positions));
 	}
 
 	template<typename... Index>
-	T& get(llvm::ArrayRef<long> indexes)
+	T& get(llvm::ArrayRef<size_t> indexes)
 	{
 		assert(indexes.size() == rank && "Wrong amount of indexes");
 		assert(llvm::all_of(indexes, [](const auto& index) { return index >= 0; }));
 
-		long resultIndex = indexes[0];
+		size_t resultIndex = indexes[0];
 
 		for (size_t i = 1; i < indexes.size(); ++i)
 		{
@@ -100,7 +100,7 @@ class ArrayDescriptor
 		return rank;
 	}
 
-	[[nodiscard]] long getDimensionSize(size_t index) const
+	[[nodiscard]] unsigned long getDimensionSize(size_t index) const
 	{
 		assert(index >= 0 && index < rank);
 		return sizes[index];
@@ -128,7 +128,7 @@ class ArrayDescriptor
 
 	[[nodiscard]] bool hasSameSizes() const
 	{
-		for (size_t i = 0; i < rank; ++i)
+		for (size_t i = 1; i < rank; ++i)
 			if (sizes[i] != sizes[0])
 				return false;
 
@@ -138,7 +138,12 @@ class ArrayDescriptor
 	private:
 	T* data;
 	unsigned long rank;
-	long sizes[Rank];
+
+	// The sizes are stored as unsigned values. In fact, although arrays
+	// can have dynamic sizes, when their descriptor are instantiated they
+	// already have all the sizes determined, and thus a descriptor will
+	// never have a size with value -1.
+	unsigned long sizes[Rank];
 };
 
 /**
@@ -160,19 +165,6 @@ class UnsizedArrayDescriptor
 	{
 	}
 
-	[[nodiscard]] T* getData() const
-	{
-		assert(descriptor != nullptr);
-		return getDescriptor()->getData();
-	}
-
-	[[nodiscard]] long getRank() const
-	{
-		assert(descriptor != nullptr);
-		assert(getDescriptor()->getRank() == rank);
-		return rank;
-	}
-
 	template<typename... Index>
 	T& get(Index... indexes)
 	{
@@ -180,7 +172,20 @@ class UnsizedArrayDescriptor
 		return getDescriptor()->get(indexes...);
 	}
 
-	[[nodiscard]] long getDimensionSize(size_t index) const
+	[[nodiscard]] T* getData() const
+	{
+		assert(descriptor != nullptr);
+		return getDescriptor()->getData();
+	}
+
+	[[nodiscard]] unsigned long getRank() const
+	{
+		assert(descriptor != nullptr);
+		assert(getDescriptor()->getRank() == rank);
+		return rank;
+	}
+
+	[[nodiscard]] unsigned long getDimensionSize(size_t index) const
 	{
 		assert(descriptor != nullptr);
 		return getDescriptor()->getDimensionSize(index);
@@ -310,13 +315,13 @@ class ArrayIterator
 		return other.offset != offset || other.descriptor != descriptor;
 	}
 
-	[[nodiscard]] llvm::ArrayRef<long> getCurrentIndexes() const
+	[[nodiscard]] llvm::ArrayRef<size_t> getCurrentIndexes() const
 	{
 		return indexes;
 	}
 
 	private:
 	long offset = 0;
-	llvm::SmallVector<long, 3> indexes;
+	llvm::SmallVector<size_t, 3> indexes;
 	ArrayDescriptor<ArrayType, 0>* descriptor;
 };

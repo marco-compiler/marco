@@ -1719,6 +1719,44 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::LinspaceOp
+	//===----------------------------------------------------------------------===//
+
+	class LinspaceOp;
+
+	class LinspaceOpAdaptor : public OpAdaptor<LinspaceOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value start();
+		mlir::Value end();
+		mlir::Value steps();
+	};
+
+	class LinspaceOp : public mlir::Op<LinspaceOp,
+																		mlir::OpTrait::NOperands<3>::Impl,
+																		mlir::OpTrait::OneResult,
+																		mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = LinspaceOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value start, mlir::Value end, mlir::Value steps);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::Value start();
+		mlir::Value end();
+		mlir::Value steps();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::FillOp
 	//===----------------------------------------------------------------------===//
 
