@@ -691,7 +691,7 @@ TEST(Runtime, linspace_i1)	 // NOLINT
 	_Mlinspace_ai1_f64_f64(unsized, start, end);
 
 	for (size_t i = 0; i < sizes[0]; ++i)
-		EXPECT_EQ(data[i], (start + i * (end - start) / sizes[0]) > 0);
+		EXPECT_EQ(data[i], (start + i * (end - start) / (sizes[0] - 1)) > 0);
 }
 
 TEST(Runtime, linspace_i32)	 // NOLINT
@@ -708,7 +708,7 @@ TEST(Runtime, linspace_i32)	 // NOLINT
 	_Mlinspace_ai32_f64_f64(unsized, start, end);
 
 	for (size_t i = 0; i < sizes[0]; ++i)
-		EXPECT_EQ(data[i], (int) (start + i * (end - start) / sizes[0]));
+		EXPECT_EQ(data[i], (int) (start + i * (end - start) / (sizes[0] - 1)));
 }
 
 TEST(Runtime, linspace_i64)	 // NOLINT
@@ -725,7 +725,7 @@ TEST(Runtime, linspace_i64)	 // NOLINT
 	_Mlinspace_ai64_f64_f64(unsized, start, end);
 
 	for (size_t i = 0; i < sizes[0]; ++i)
-		EXPECT_EQ(data[i], (long) (start + i * (end - start) / sizes[0]));
+		EXPECT_EQ(data[i], (long) (start + i * (end - start) / (sizes[0] - 1)));
 }
 
 TEST(Runtime, linspace_f32)	 // NOLINT
@@ -742,7 +742,7 @@ TEST(Runtime, linspace_f32)	 // NOLINT
 	_Mlinspace_af32_f64_f64(unsized, start, end);
 
 	for (size_t i = 0; i < sizes[0]; ++i)
-		EXPECT_FLOAT_EQ(data[i], start +  i * (end - start) / sizes[0]);
+		EXPECT_FLOAT_EQ(data[i], start +  i * (end - start) / (sizes[0] - 1));
 }
 
 TEST(Runtime, linspace_f64)	 // NOLINT
@@ -759,5 +759,5 @@ TEST(Runtime, linspace_f64)	 // NOLINT
 	_Mlinspace_af64_f64_f64(unsized, start, end);
 
 	for (size_t i = 0; i < sizes[0]; ++i)
-		EXPECT_DOUBLE_EQ(data[i], start + i * (end - start) / sizes[0]);
+		EXPECT_DOUBLE_EQ(data[i], start + i * (end - start) / (sizes[0] - 1));
 }
