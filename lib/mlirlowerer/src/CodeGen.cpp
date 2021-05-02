@@ -1317,6 +1317,34 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		mlir::Value result = builder.create<OnesOp>(location, resultType, args);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
+	else if (functionName == "min")
+	{
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		for (const auto& arg : call)
+		{
+			auto& reference = lower<Expression>(arg)[0];
+			args.push_back(*reference);
+		}
+
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<MinOp>(location, resultType, args);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "max")
+	{
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		for (const auto& arg : call)
+		{
+			auto& reference = lower<Expression>(arg)[0];
+			args.push_back(*reference);
+		}
+
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<MaxOp>(location, resultType, args);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
 	else
 	{
 		llvm::SmallVector<mlir::Value, 3> args;

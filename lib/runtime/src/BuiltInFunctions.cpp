@@ -198,3 +198,51 @@ RUNTIME_FUNC_DEF(linspace, void, ARRAY(float), float, float)
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(float), double, double)
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), float, float)
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), double, double)
+
+template<typename T>
+T min(UnsizedArrayDescriptor<T> array)
+{
+	return *std::min_element(array.begin(), array.end());
+}
+
+RUNTIME_FUNC_DEF(min, bool, ARRAY(bool))
+RUNTIME_FUNC_DEF(min, int, ARRAY(int))
+RUNTIME_FUNC_DEF(min, long, ARRAY(long))
+RUNTIME_FUNC_DEF(min, float, ARRAY(float))
+RUNTIME_FUNC_DEF(min, double, ARRAY(double))
+
+template<typename T>
+T min(T x, T y)
+{
+	return std::min(x, y);
+}
+
+RUNTIME_FUNC_DEF(min, bool, bool, bool)
+RUNTIME_FUNC_DEF(min, int, int, int)
+RUNTIME_FUNC_DEF(min, long, long, long)
+RUNTIME_FUNC_DEF(min, float, float, float)
+RUNTIME_FUNC_DEF(min, double, double, double)
+
+template<typename T>
+T max(UnsizedArrayDescriptor<T> array)
+{
+	return *std::max_element(array.begin(), array.end());
+}
+
+RUNTIME_FUNC_DEF(max, bool, ARRAY(bool))
+RUNTIME_FUNC_DEF(max, int, ARRAY(int))
+RUNTIME_FUNC_DEF(max, long, ARRAY(long))
+RUNTIME_FUNC_DEF(max, float, ARRAY(float))
+RUNTIME_FUNC_DEF(max, double, ARRAY(double))
+
+template<typename T>
+T max(T x, T y)
+{
+	return std::max(x, y);
+}
+
+RUNTIME_FUNC_DEF(max, bool, bool, bool)
+RUNTIME_FUNC_DEF(max, int, int, int)
+RUNTIME_FUNC_DEF(max, long, long, long)
+RUNTIME_FUNC_DEF(max, float, float, float)
+RUNTIME_FUNC_DEF(max, double, double, double)

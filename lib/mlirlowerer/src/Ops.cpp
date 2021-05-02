@@ -3873,6 +3873,110 @@ mlir::Value FillOp::memory()
 }
 
 //===----------------------------------------------------------------------===//
+// Modelica::MinOp
+//===----------------------------------------------------------------------===//
+
+mlir::ValueRange MinOpAdaptor::values()
+{
+	return getValues();
+}
+
+llvm::StringRef MinOp::getOperationName()
+{
+	return "modelica.min";
+}
+
+void MinOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values)
+{
+	state.addTypes(resultType);
+	state.addOperands(values);
+}
+
+void MinOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.min " << values() << " : " << resultType();
+}
+
+mlir::LogicalResult MinOp::verify()
+{
+	if (getNumOperands() == 1)
+	{
+		if (auto pointerType = values()[0].getType().dyn_cast<PointerType>();
+				pointerType && isNumeric(pointerType.getElementType()))
+			return mlir::success();
+	}
+	else if (getNumOperands() == 2)
+	{
+		if (isNumeric(values()[0]) && isNumeric(values()[1]))
+			return mlir::success();
+	}
+
+	return emitOpError("requires the operands to be two scalars or one array");
+}
+
+mlir::Type MinOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::ValueRange MinOp::values()
+{
+	return Adaptor(*this).values();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::MaxOp
+//===----------------------------------------------------------------------===//
+
+mlir::ValueRange MaxOpAdaptor::values()
+{
+	return getValues();
+}
+
+llvm::StringRef MaxOp::getOperationName()
+{
+	return "modelica.max";
+}
+
+void MaxOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values)
+{
+	state.addTypes(resultType);
+	state.addOperands(values);
+}
+
+void MaxOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.max " << values() << " : " << resultType();
+}
+
+mlir::LogicalResult MaxOp::verify()
+{
+	if (getNumOperands() == 1)
+	{
+		if (auto pointerType = values()[0].getType().dyn_cast<PointerType>();
+				pointerType && isNumeric(pointerType.getElementType()))
+			return mlir::success();
+	}
+	else if (getNumOperands() == 2)
+	{
+		if (isNumeric(values()[0]) && isNumeric(values()[1]))
+			return mlir::success();
+	}
+
+	return emitOpError("requires the operands to be two scalars or one array");
+}
+
+mlir::Type MaxOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::ValueRange MaxOp::values()
+{
+	return Adaptor(*this).values();
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::DerOp
 //===----------------------------------------------------------------------===//
 

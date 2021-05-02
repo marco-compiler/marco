@@ -899,5 +899,205 @@ TEST(Runtime, linspace_f64)	 // NOLINT
 	_Mlinspace_af64_f64_f64(unsized, start, end);
 
 	for (size_t i = 0; i < sizes[0]; ++i)
-		EXPECT_DOUBLE_EQ(data[i], start + i * (end - start) / (sizes[0] - 1));
+		EXPECT_FLOAT_EQ(data[i], start +  i * (end - start) / (sizes[0] - 1));
+}
+
+TEST(Runtime, min_ai1)	 // NOLINT
+{
+	std::array<bool, 4> data = { false, true, true, false };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<bool> unsized(descriptor);
+
+	EXPECT_EQ(_Mmin_ai1(unsized), *std::min_element(data.begin(), data.end()));
+}
+
+TEST(Runtime, min_ai32)	 // NOLINT
+{
+	std::array<int, 4> data = { 5, 0, -3, 2 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<int, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<int> unsized(descriptor);
+
+	EXPECT_EQ(_Mmin_ai32(unsized), *std::min_element(data.begin(), data.end()));
+}
+
+TEST(Runtime, min_ai64)	 // NOLINT
+{
+	std::array<long, 4> data = { 5, 0, -3, 2 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<long, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<long> unsized(descriptor);
+
+	EXPECT_EQ(_Mmin_ai64(unsized), *std::min_element(data.begin(), data.end()));
+}
+
+TEST(Runtime, min_af32)	 // NOLINT
+{
+	std::array<float, 4> data = { 5, 0, -3, 2 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<float> unsized(descriptor);
+
+	EXPECT_FLOAT_EQ(_Mmin_af32(unsized), *std::min_element(data.begin(), data.end()));
+}
+
+TEST(Runtime, min_af64)	 // NOLINT
+{
+	std::array<double, 4> data = { 5, 0, -3, 2 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<double> unsized(descriptor);
+
+	EXPECT_DOUBLE_EQ(_Mmin_af64(unsized), *std::min_element(data.begin(), data.end()));
+}
+
+TEST(Runtime, min_i1_i1)	 // NOLINT
+{
+	std::array<bool, 4> x = { false, false, true, true };
+	std::array<bool, 4> y = { false, true, false, true };
+
+	for (const auto& [x, y] : llvm::zip(x, y))
+		ASSERT_EQ(_Mmin_i1_i1(x, y), std::min(x, y));
+}
+
+TEST(Runtime, min_i32_i32)	 // NOLINT
+{
+	std::array<int, 3> x = { 0, 1, 2 };
+	std::array<int, 4> y = { 0, 2, 1 };
+
+	for (const auto& [x, y] : llvm::zip(x, y))
+		ASSERT_EQ(_Mmin_i32_i32(x, y), std::min(x, y));
+}
+
+TEST(Runtime, min_i64_i64)	 // NOLINT
+{
+	std::array<long, 3> x = { 0, 1, 2 };
+	std::array<long, 4> y = { 0, 2, 1 };
+
+	for (const auto& [x, y] : llvm::zip(x, y))
+		ASSERT_EQ(_Mmin_i64_i64(x, y), std::min(x, y));
+}
+
+TEST(Runtime, min_f32_f32)	 // NOLINT
+{
+	std::array<float, 3> x = { 0, 1, 2 };
+	std::array<float, 4> y = { 0, 2, 1 };
+
+	for (const auto& [x, y] : llvm::zip(x, y))
+		ASSERT_FLOAT_EQ(_Mmin_f32_f32(x, y), std::min(x, y));
+}
+
+TEST(Runtime, min_f64_f64)	 // NOLINT
+{
+	std::array<double, 3> x = { 0, 1, 2 };
+	std::array<double, 4> y = { 0, 2, 1 };
+
+	for (const auto& [x, y] : llvm::zip(x, y))
+		ASSERT_DOUBLE_EQ(_Mmin_f64_f64(x, y), std::min(x, y));
+}
+
+TEST(Runtime, max_ai1)	 // NOLINT
+{
+	std::array<bool, 4> data = { false, true, true, false };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<bool> unsized(descriptor);
+
+	EXPECT_EQ(_Mmax_ai1(unsized), *std::max_element(data.begin(), data.end()));
+}
+
+TEST(Runtime, max_ai32)	 // NOLINT
+{
+	std::array<int, 4> data = { 5, 0, -3, 2 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<int, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<int> unsized(descriptor);
+
+	EXPECT_EQ(_Mmax_ai32(unsized), *std::max_element(data.begin(), data.end()));
+}
+
+TEST(Runtime, max_ai64)	 // NOLINT
+{
+	std::array<long, 4> data = { 5, 0, -3, 2 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<long, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<long> unsized(descriptor);
+
+	EXPECT_EQ(_Mmax_ai64(unsized), *std::max_element(data.begin(), data.end()));
+}
+
+TEST(Runtime, max_af32)	 // NOLINT
+{
+	std::array<float, 4> data = { 5, 0, -3, 2 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<float> unsized(descriptor);
+
+	EXPECT_FLOAT_EQ(_Mmax_af32(unsized), *std::max_element(data.begin(), data.end()));
+}
+
+TEST(Runtime, max_af64)	 // NOLINT
+{
+	std::array<double, 4> data = { 5, 0, -3, 2 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<double> unsized(descriptor);
+
+	EXPECT_DOUBLE_EQ(_Mmax_af64(unsized), *std::max_element(data.begin(), data.end()));
+}
+
+TEST(Runtime, max_i1_i1)	 // NOLINT
+{
+	std::array<bool, 4> x = { false, false, true, true };
+	std::array<bool, 4> y = { false, true, false, true };
+
+	for (const auto& [x, y] : llvm::zip(x, y))
+		ASSERT_EQ(_Mmax_i1_i1(x, y), std::max(x, y));
+}
+
+TEST(Runtime, max_i32_i32)	 // NOLINT
+{
+	std::array<int, 3> x = { 0, 1, 2 };
+	std::array<int, 4> y = { 0, 2, 1 };
+
+	for (const auto& [x, y] : llvm::zip(x, y))
+		ASSERT_EQ(_Mmax_i32_i32(x, y), std::max(x, y));
+}
+
+TEST(Runtime, max_i64_i64)	 // NOLINT
+{
+	std::array<long, 3> x = { 0, 1, 2 };
+	std::array<long, 4> y = { 0, 2, 1 };
+
+	for (const auto& [x, y] : llvm::zip(x, y))
+		ASSERT_EQ(_Mmax_i64_i64(x, y), std::max(x, y));
+}
+
+TEST(Runtime, max_f32_f32)	 // NOLINT
+{
+	std::array<float, 3> x = { 0, 1, 2 };
+	std::array<float, 4> y = { 0, 2, 1 };
+
+	for (const auto& [x, y] : llvm::zip(x, y))
+		ASSERT_FLOAT_EQ(_Mmax_f32_f32(x, y), std::max(x, y));
+}
+
+TEST(Runtime, max_f64_f64)	 // NOLINT
+{
+	std::array<double, 3> x = { 0, 1, 2 };
+	std::array<double, 4> y = { 0, 2, 1 };
+
+	for (const auto& [x, y] : llvm::zip(x, y))
+		ASSERT_DOUBLE_EQ(_Mmax_f64_f64(x, y), std::max(x, y));
 }

@@ -68,6 +68,30 @@ RUNTIME_FUNC_DECL(linspace, void, ARRAY(float), double, double)
 RUNTIME_FUNC_DECL(linspace, void, ARRAY(double), float, float)
 RUNTIME_FUNC_DECL(linspace, void, ARRAY(double), double, double)
 
+RUNTIME_FUNC_DECL(min, bool, ARRAY(bool))
+RUNTIME_FUNC_DECL(min, int, ARRAY(int))
+RUNTIME_FUNC_DECL(min, long, ARRAY(long))
+RUNTIME_FUNC_DECL(min, float, ARRAY(float))
+RUNTIME_FUNC_DECL(min, double, ARRAY(double))
+
+RUNTIME_FUNC_DECL(min, bool, bool, bool)
+RUNTIME_FUNC_DECL(min, int, int, int)
+RUNTIME_FUNC_DECL(min, long, long, long)
+RUNTIME_FUNC_DECL(min, float, float, float)
+RUNTIME_FUNC_DECL(min, double, double, double)
+
+RUNTIME_FUNC_DECL(max, bool, ARRAY(bool))
+RUNTIME_FUNC_DECL(max, int, ARRAY(int))
+RUNTIME_FUNC_DECL(max, long, ARRAY(long))
+RUNTIME_FUNC_DECL(max, float, ARRAY(float))
+RUNTIME_FUNC_DECL(max, double, ARRAY(double))
+
+RUNTIME_FUNC_DECL(max, bool, bool, bool)
+RUNTIME_FUNC_DECL(max, int, int, int)
+RUNTIME_FUNC_DECL(max, long, long, long)
+RUNTIME_FUNC_DECL(max, float, float, float)
+RUNTIME_FUNC_DECL(max, double, double, double)
+
 extern "C"
 {
 	void modelicaPrint(char* name, float value);

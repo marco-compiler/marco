@@ -1856,6 +1856,68 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::MinOp
+	//===----------------------------------------------------------------------===//
+
+	class MinOp;
+
+	class MinOpAdaptor : public OpAdaptor<MinOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::ValueRange values();
+	};
+
+	class MinOp : public mlir::Op<MinOp,
+															 mlir::OpTrait::AtLeastNOperands<1>::Impl,
+															 mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = MinOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		mlir::Type resultType();
+		mlir::ValueRange values();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::MaxOp
+	//===----------------------------------------------------------------------===//
+
+	class MaxOp;
+
+	class MaxOpAdaptor : public OpAdaptor<MaxOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::ValueRange values();
+	};
+
+	class MaxOp : public mlir::Op<MaxOp,
+															 mlir::OpTrait::AtLeastNOperands<1>::Impl,
+															 mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = MaxOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		mlir::Type resultType();
+		mlir::ValueRange values();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::DerOp
 	//===----------------------------------------------------------------------===//
 

@@ -449,9 +449,9 @@ TEST(BuiltInOps, linspace)	 // NOLINT
 
 	int start = 0;
 	int end = 1;
-	const int n = 23;
+	const int n = 17;
 
-	array<float, n> y = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+	array<float, n> y = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 	ArrayDescriptor<float, 1> yPtr(y.data(), { 1 });
 
@@ -460,6 +460,220 @@ TEST(BuiltInOps, linspace)	 // NOLINT
 
 	for (size_t i = 0; i < n; ++i)
 		EXPECT_FLOAT_EQ(yPtr[i], start +  i * ((float) (end - start) / (n - 1)));
+}
+
+TEST(BuiltInOps, minArray)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[:] x;
+	 *   output Integer y;
+	 *
+	 *   algorithm
+	 *     y := min(x);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::call(location, makeType<int>(),
+											 Expression::reference(location, makeType<int>(), "min"),
+											 Expression::reference(location, makeType<int>(), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	array<int, 5> x = { -1, 9, -3, 0, 4 };
+	int y = 0;
+
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 5 });
+
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
+
+	EXPECT_EQ(y, *std::min_element(x.begin(), x.end()));
+}
+
+TEST(BuiltInOps, minScalars)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   input Integer y;
+	 *   output Integer z;
+	 *
+	 *   algorithm
+	 *     z := min(x, y);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(), "z"),
+			Expression::call(location, makeType<int>(),
+											 Expression::reference(location, makeType<int>(), "min"),
+											 Expression::reference(location, makeType<int>(), "x"),
+											 Expression::reference(location, makeType<int>(), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	array<int, 3> x = { 1, 2 };
+	array<int, 3> y = { 2, 1 };
+	array<int, 3> z = { 2, 2 };
+
+	jit::Runner runner(*module);
+
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
+	{
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, jit::Runner::result(z))));
+		EXPECT_EQ(z, std::min(x, y));
+	}
+}
+
+TEST(BuiltInOps, maxArray)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[:] x;
+	 *   output Integer y;
+	 *
+	 *   algorithm
+	 *     y := max(x);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::call(location, makeType<int>(),
+											 Expression::reference(location, makeType<int>(), "max"),
+											 Expression::reference(location, makeType<int>(), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	array<int, 5> x = { -1, 9, -3, 0, 4 };
+	int y = 0;
+
+	ArrayDescriptor<int, 1> xPtr(x.data(), { 5 });
+
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
+
+	EXPECT_EQ(y, *std::max_element(x.begin(), x.end()));
+}
+
+TEST(BuiltInOps, maxScalars)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer x;
+	 *   input Integer y;
+	 *   output Integer z;
+	 *
+	 *   algorithm
+	 *     z := max(x, y);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member zMember(location, "z", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(), "z"),
+			Expression::call(location, makeType<int>(),
+											 Expression::reference(location, makeType<int>(), "max"),
+											 Expression::reference(location, makeType<int>(), "x"),
+											 Expression::reference(location, makeType<int>(), "y")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember, zMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	array<int, 3> x = { 1, 2 };
+	array<int, 3> y = { 2, 1 };
+	array<int, 3> z = { 1, 1 };
+
+	jit::Runner runner(*module);
+
+	for (const auto& [x, y, z] : llvm::zip(x, y, z))
+	{
+		ASSERT_TRUE(mlir::succeeded(runner.run("main", x, y, jit::Runner::result(z))));
+		EXPECT_EQ(z, std::max(x, y));
+	}
 }
 
 TEST(BuiltInOps, sumOfIntegerStaticArrayValues)	 // NOLINT

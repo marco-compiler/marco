@@ -6,7 +6,6 @@
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/ModelicaConversion.h>
 #include <modelica/mlirlowerer/passes/TypeConverter.h>
-#include <modelica/mlirlowerer/CodeGen.h>
 #include <numeric>
 
 using namespace modelica::codegen;
@@ -2099,10 +2098,7 @@ struct LinspaceOpLowering: public ModelicaOpConversion<LinspaceOp>
 		auto pointerType = op.resultType().cast<PointerType>();
 
 		assert(pointerType.getRank() == 1);
-
 		mlir::Value size = rewriter.create<CastOp>(loc, op.steps(), rewriter.getIndexType());
-		//mlir::Value one = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
-		//mlir::Value size = rewriter.create<AddOp>(loc, rewriter.getIndexType(), op.steps(), one);
 
 		mlir::Value result = allocate(rewriter, loc, pointerType, size);
 		rewriter.replaceOp(op, result);
@@ -2171,6 +2167,150 @@ struct FillOpLowering: public ModelicaOpConversion<FillOp>
 		}
 
 		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
+struct MinOpArrayLowering: public ModelicaOpConversion<MinOp>
+{
+	using ModelicaOpConversion<MinOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(MinOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+
+		if (op.getNumOperands() != 1)
+			return rewriter.notifyMatchFailure(op, "Operand is not an array");
+
+		mlir::Value operand = op.values()[0];
+
+		// If there is just one operand, then it is for sure an array, thanks
+		// to the operation verification.
+
+		assert(operand.getType().isa<PointerType>() &&
+				isNumericType(operand.getType().cast<PointerType>().getElementType()));
+
+		auto pointerType = operand.getType().cast<PointerType>();
+		operand = rewriter.create<PtrCastOp>(loc, operand, pointerType.toUnsized());
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("min", operand),
+				pointerType.getElementType(),
+				operand);
+
+		auto call = rewriter.create<CallOp>(loc, callee.getName(), pointerType.getElementType(), operand);
+		assert(call.getNumResults() == 1);
+		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
+
+		return mlir::success();
+	}
+};
+
+struct MinOpScalarsLowering: public ModelicaOpConversion<MinOp>
+{
+	using ModelicaOpConversion<MinOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(MinOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+
+		if (op.getNumOperands() != 2)
+			return rewriter.notifyMatchFailure(op, "Operands are not scalars");
+
+		// If there are two operands then they are for sure scalars, thanks
+		// to the operation verification.
+
+		mlir::ValueRange values = op.values();
+		assert(isNumeric(values[0]) && isNumeric(values[1]));
+
+		auto castOp = rewriter.create<CastCommonOp>(loc, values);
+		Adaptor adaptor(castOp->getResults());
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("min", adaptor.values()),
+				castOp.resultType(),
+				adaptor.values());
+
+		auto call = rewriter.create<CallOp>(loc, callee.getName(), castOp.resultType(), adaptor.values());
+		assert(call.getNumResults() == 1);
+		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
+
+		return mlir::success();
+	}
+};
+
+struct MaxOpArrayLowering: public ModelicaOpConversion<MaxOp>
+{
+	using ModelicaOpConversion<MaxOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(MaxOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+
+		if (op.getNumOperands() != 1)
+			return rewriter.notifyMatchFailure(op, "Operand is not an array");
+
+		mlir::Value operand = op.values()[0];
+
+		// If there is just one operand, then it is for sure an array, thanks
+		// to the operation verification.
+
+		assert(operand.getType().isa<PointerType>() &&
+					 isNumericType(operand.getType().cast<PointerType>().getElementType()));
+
+		auto pointerType = operand.getType().cast<PointerType>();
+		operand = rewriter.create<PtrCastOp>(loc, operand, pointerType.toUnsized());
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("max", operand),
+				pointerType.getElementType(),
+				operand);
+
+		auto call = rewriter.create<CallOp>(loc, callee.getName(), pointerType.getElementType(), operand);
+		assert(call.getNumResults() == 1);
+		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
+
+		return mlir::success();
+	}
+};
+
+struct MaxOpScalarsLowering: public ModelicaOpConversion<MaxOp>
+{
+	using ModelicaOpConversion<MaxOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(MaxOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+
+		if (op.getNumOperands() != 2)
+			return rewriter.notifyMatchFailure(op, "Operands are not scalars");
+
+		// If there are two operands then they are for sure scalars, thanks
+		// to the operation verification.
+
+		mlir::ValueRange values = op.values();
+		assert(isNumeric(values[0]) && isNumeric(values[1]));
+
+		auto castOp = rewriter.create<CastCommonOp>(loc, values);
+		Adaptor adaptor(castOp->getResults());
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("max", adaptor.values()),
+				castOp.resultType(),
+				adaptor.values());
+
+		auto call = rewriter.create<CallOp>(loc, callee.getName(), castOp.resultType(), adaptor.values());
+		assert(call.getNumResults() == 1);
+		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
+
 		return mlir::success();
 	}
 };
@@ -2502,7 +2642,11 @@ static void populateModelicaConversionPatterns(
 			DiagonalOpLowering,
 			ZerosOpLowering,
 			OnesOpLowering,
-			FillOpLowering>(context, typeConverter, options);
+			FillOpLowering,
+			MinOpArrayLowering,
+			MinOpScalarsLowering,
+			MaxOpArrayLowering,
+			MaxOpScalarsLowering>(context, typeConverter, options);
 
 	patterns.insert<LinspaceOpLowering>(context, typeConverter, options, bitWidth);
 }
@@ -2541,7 +2685,8 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 				NotOp, AndOp, OrOp,
 				EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp,
 				NegateOp, AddOp, SubOp, MulOp, DivOp, PowOp,
-				NDimsOp, SizeOp, IdentityOp, DiagonalOp, ZerosOp, OnesOp, LinspaceOp, FillOp>();
+				NDimsOp, SizeOp, IdentityOp, DiagonalOp, ZerosOp, OnesOp, LinspaceOp, FillOp,
+				MinOp, MaxOp>();
 
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 
