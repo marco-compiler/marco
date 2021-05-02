@@ -1719,6 +1719,74 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::ZerosOp
+	//===----------------------------------------------------------------------===//
+
+	class ZerosOp;
+
+	class ZerosOpAdaptor : public OpAdaptor<ZerosOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::ValueRange sizes();
+	};
+
+	class ZerosOp : public mlir::Op<ZerosOp,
+																 mlir::OpTrait::AtLeastNOperands<1>::Impl,
+																 mlir::OpTrait::OneResult,
+																 mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = ZerosOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange sizes);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::ValueRange sizes();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::OnesOp
+	//===----------------------------------------------------------------------===//
+
+	class OnesOp;
+
+	class OnesOpAdaptor : public OpAdaptor<OnesOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::ValueRange sizes();
+	};
+
+	class OnesOp : public mlir::Op<OnesOp,
+																 mlir::OpTrait::AtLeastNOperands<1>::Impl,
+																 mlir::OpTrait::OneResult,
+																 mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = OnesOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange sizes);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::ValueRange sizes();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::LinspaceOp
 	//===----------------------------------------------------------------------===//
 

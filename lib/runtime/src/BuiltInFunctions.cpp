@@ -14,11 +14,11 @@ inline void fill(UnsizedArrayDescriptor<T> array, T value)
 		element = value;
 }
 
-RUNTIME_FUNC_DEF(fill, void, array(bool), bool);
-RUNTIME_FUNC_DEF(fill, void, array(int), int);
-RUNTIME_FUNC_DEF(fill, void, array(long), long);
-RUNTIME_FUNC_DEF(fill, void, array(float), float);
-RUNTIME_FUNC_DEF(fill, void, array(double), double);
+RUNTIME_FUNC_DEF(fill, void, ARRAY(bool), bool)
+RUNTIME_FUNC_DEF(fill, void, ARRAY(int), int)
+RUNTIME_FUNC_DEF(fill, void, ARRAY(long), long)
+RUNTIME_FUNC_DEF(fill, void, ARRAY(float), float)
+RUNTIME_FUNC_DEF(fill, void, ARRAY(double), double)
 
 /**
  * Set a multi-dimensional array to an identity like matrix.
@@ -52,11 +52,11 @@ inline void identity(UnsizedArrayDescriptor<T> array)
 	}
 }
 
-RUNTIME_FUNC_DEF(identity, void, array(bool))
-RUNTIME_FUNC_DEF(identity, void, array(int))
-RUNTIME_FUNC_DEF(identity, void, array(long))
-RUNTIME_FUNC_DEF(identity, void, array(float))
-RUNTIME_FUNC_DEF(identity, void, array(double))
+RUNTIME_FUNC_DEF(identity, void, ARRAY(bool))
+RUNTIME_FUNC_DEF(identity, void, ARRAY(int))
+RUNTIME_FUNC_DEF(identity, void, ARRAY(long))
+RUNTIME_FUNC_DEF(identity, void, ARRAY(float))
+RUNTIME_FUNC_DEF(identity, void, ARRAY(double))
 
 /**
  * Place some values on the diagonal of a matrix, and set all the other
@@ -100,35 +100,73 @@ void diagonal(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> v
 	}
 }
 
-RUNTIME_FUNC_DEF(diagonal, void, array(bool), array(bool))
-RUNTIME_FUNC_DEF(diagonal, void, array(bool), array(int))
-RUNTIME_FUNC_DEF(diagonal, void, array(bool), array(long))
-RUNTIME_FUNC_DEF(diagonal, void, array(bool), array(float))
-RUNTIME_FUNC_DEF(diagonal, void, array(bool), array(double))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(bool), ARRAY(bool))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(bool), ARRAY(int))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(bool), ARRAY(long))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(bool), ARRAY(float))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(bool), ARRAY(double))
 
-RUNTIME_FUNC_DEF(diagonal, void, array(int), array(bool))
-RUNTIME_FUNC_DEF(diagonal, void, array(int), array(int))
-RUNTIME_FUNC_DEF(diagonal, void, array(int), array(long))
-RUNTIME_FUNC_DEF(diagonal, void, array(int), array(float))
-RUNTIME_FUNC_DEF(diagonal, void, array(int), array(double))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int), ARRAY(bool))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int), ARRAY(int))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int), ARRAY(long))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int), ARRAY(float))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int), ARRAY(double))
 
-RUNTIME_FUNC_DEF(diagonal, void, array(long), array(bool))
-RUNTIME_FUNC_DEF(diagonal, void, array(long), array(int))
-RUNTIME_FUNC_DEF(diagonal, void, array(long), array(long))
-RUNTIME_FUNC_DEF(diagonal, void, array(long), array(float))
-RUNTIME_FUNC_DEF(diagonal, void, array(long), array(double))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(long), ARRAY(bool))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(long), ARRAY(int))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(long), ARRAY(long))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(long), ARRAY(float))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(long), ARRAY(double))
 
-RUNTIME_FUNC_DEF(diagonal, void, array(float), array(bool))
-RUNTIME_FUNC_DEF(diagonal, void, array(float), array(int))
-RUNTIME_FUNC_DEF(diagonal, void, array(float), array(long))
-RUNTIME_FUNC_DEF(diagonal, void, array(float), array(float))
-RUNTIME_FUNC_DEF(diagonal, void, array(float), array(double))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(float), ARRAY(bool))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(float), ARRAY(int))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(float), ARRAY(long))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(float), ARRAY(float))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(float), ARRAY(double))
 
-RUNTIME_FUNC_DEF(diagonal, void, array(double), array(bool))
-RUNTIME_FUNC_DEF(diagonal, void, array(double), array(int))
-RUNTIME_FUNC_DEF(diagonal, void, array(double), array(long))
-RUNTIME_FUNC_DEF(diagonal, void, array(double), array(float))
-RUNTIME_FUNC_DEF(diagonal, void, array(double), array(double))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(bool))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(int))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(long))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(float))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(double))
+
+/**
+ * Set all the elements of an array to zero.
+ *
+ * @tparam T data type
+ * @param array   array to be populated
+ */
+template<typename T>
+void zeros(UnsizedArrayDescriptor<T> array)
+{
+	for (auto& element : array)
+		element = 0;
+}
+
+RUNTIME_FUNC_DEF(zeros, void, ARRAY(bool))
+RUNTIME_FUNC_DEF(zeros, void, ARRAY(int))
+RUNTIME_FUNC_DEF(zeros, void, ARRAY(long))
+RUNTIME_FUNC_DEF(zeros, void, ARRAY(float))
+RUNTIME_FUNC_DEF(zeros, void, ARRAY(double))
+
+/**
+ * Set all the elements of an array to ones.
+ *
+ * @tparam T data type
+ * @param array   array to be populated
+ */
+template<typename T>
+void ones(UnsizedArrayDescriptor<T> array)
+{
+	for (auto& element : array)
+		element = 1;
+}
+
+RUNTIME_FUNC_DEF(ones, void, ARRAY(bool))
+RUNTIME_FUNC_DEF(ones, void, ARRAY(int))
+RUNTIME_FUNC_DEF(ones, void, ARRAY(long))
+RUNTIME_FUNC_DEF(ones, void, ARRAY(float))
+RUNTIME_FUNC_DEF(ones, void, ARRAY(double))
 
 /**
  * Populate a 1-D array with equally spaced elements.
@@ -150,13 +188,13 @@ void linspace(UnsizedArrayDescriptor<T> array, double start, double end)
 		array.get(i) = start + i * step;
 }
 
-RUNTIME_FUNC_DEF(linspace, void, array(bool), float, float)
-RUNTIME_FUNC_DEF(linspace, void, array(bool), double, double)
-RUNTIME_FUNC_DEF(linspace, void, array(int), float, float)
-RUNTIME_FUNC_DEF(linspace, void, array(int), double, double)
-RUNTIME_FUNC_DEF(linspace, void, array(long), float, float)
-RUNTIME_FUNC_DEF(linspace, void, array(long), double, double)
-RUNTIME_FUNC_DEF(linspace, void, array(float), float, float)
-RUNTIME_FUNC_DEF(linspace, void, array(float), double, double)
-RUNTIME_FUNC_DEF(linspace, void, array(double), float, float)
-RUNTIME_FUNC_DEF(linspace, void, array(double), double, double)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(bool), float, float)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(bool), double, double)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(int), float, float)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(int), double, double)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(long), float, float)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(long), double, double)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(float), float, float)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(float), double, double)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), float, float)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), double, double)

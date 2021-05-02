@@ -3651,6 +3651,112 @@ mlir::Value DiagonalOp::values()
 }
 
 //===----------------------------------------------------------------------===//
+// Modelica::ZerosOp
+//===----------------------------------------------------------------------===//
+
+mlir::ValueRange ZerosOpAdaptor::sizes()
+{
+	return getValues();
+}
+
+llvm::StringRef ZerosOp::getOperationName()
+{
+	return "modelica.zeros";
+}
+
+void ZerosOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange sizes)
+{
+	state.addTypes(resultType);
+	state.addOperands(sizes);
+}
+
+void ZerosOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.zeros " << sizes() << " : " << resultType();
+}
+
+mlir::LogicalResult ZerosOp::verify()
+{
+	if (!resultType().isa<PointerType>())
+		return emitOpError("requires the result to be an array");
+
+	if (auto pointerType = resultType().cast<PointerType>(); pointerType.getRank() != sizes().size())
+		return emitOpError("requires the rank of the result array to match the sizes amount");
+
+	return mlir::success();
+}
+
+void ZerosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+		if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::Type ZerosOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::ValueRange ZerosOp::sizes()
+{
+	return Adaptor(*this).sizes();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::OnesOp
+//===----------------------------------------------------------------------===//
+
+mlir::ValueRange OnesOpAdaptor::sizes()
+{
+	return getValues();
+}
+
+llvm::StringRef OnesOp::getOperationName()
+{
+	return "modelica.ones";
+}
+
+void OnesOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange sizes)
+{
+	state.addTypes(resultType);
+	state.addOperands(sizes);
+}
+
+void OnesOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.ones " << sizes() << " : " << resultType();
+}
+
+mlir::LogicalResult OnesOp::verify()
+{
+	if (!resultType().isa<PointerType>())
+		return emitOpError("requires the result to be an array");
+
+	if (auto pointerType = resultType().cast<PointerType>(); pointerType.getRank() != sizes().size())
+		return emitOpError("requires the rank of the result array to match the sizes amount");
+
+	return mlir::success();
+}
+
+void OnesOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+		if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::Type OnesOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::ValueRange OnesOp::sizes()
+{
+	return Adaptor(*this).sizes();
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::LinspaceOp
 //===----------------------------------------------------------------------===//
 

@@ -277,6 +277,130 @@ TEST(BuiltInOps, diagonalMatrix)	 // NOLINT
 			EXPECT_EQ(yPtr.get(i, j), i == j ? x[i] : 0);
 }
 
+TEST(BuiltInOps, zerosMatrix)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer n1;
+	 *   input Integer n2;
+	 *   output Integer[:,:] y;
+	 *
+	 *   algorithm
+	 *     y := zeros(n1, n2);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member n1Member(location, "n1", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member n2Member(location, "n2", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(-1, -1), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(-1, -1), "y"),
+			Expression::call(location, makeType<int>(-1, -1),
+											 Expression::reference(location, makeType<int>(-1, -1), "zeros"),
+											 Expression::reference(location, makeType<int>(), "n1"),
+											 Expression::reference(location, makeType<int>(), "n2")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ n1Member, n2Member, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	int n1 = 3;
+	int n2 = 2;
+
+	array<int, 6> y = { 1, 1, 1, 1, 1, 1 };
+
+	ArrayDescriptor<int, 2> yPtr(y.data(), { 3, 2 });
+
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", n1, n2, jit::Runner::result(yPtr))));
+
+	EXPECT_EQ(yPtr.getRank(), 2);
+	EXPECT_EQ(yPtr.getDimensionSize(0), n1);
+	EXPECT_EQ(yPtr.getDimensionSize(1), n2);
+
+	for (size_t i = 0; i < yPtr.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < yPtr.getDimensionSize(1); ++j)
+			EXPECT_EQ(yPtr.get(i, j), 0);
+}
+
+TEST(BuiltInOps, onesMatrix)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer n1;
+	 *   input Integer n2;
+	 *   output Integer[:,:] y;
+	 *
+	 *   algorithm
+	 *     y := ones(n1, n2);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member n1Member(location, "n1", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member n2Member(location, "n2", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(-1, -1), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(-1, -1), "y"),
+			Expression::call(location, makeType<int>(-1, -1),
+											 Expression::reference(location, makeType<int>(-1, -1), "ones"),
+											 Expression::reference(location, makeType<int>(), "n1"),
+											 Expression::reference(location, makeType<int>(), "n2")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ n1Member, n2Member, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	int n1 = 3;
+	int n2 = 2;
+
+	array<int, 6> y = { 0, 0, 0, 0, 0, 0 };
+
+	ArrayDescriptor<int, 2> yPtr(y.data(), { 3, 2 });
+
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", n1, n2, jit::Runner::result(yPtr))));
+
+	EXPECT_EQ(yPtr.getRank(), 2);
+	EXPECT_EQ(yPtr.getDimensionSize(0), n1);
+	EXPECT_EQ(yPtr.getDimensionSize(1), n2);
+
+	for (size_t i = 0; i < yPtr.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < yPtr.getDimensionSize(1); ++j)
+			EXPECT_EQ(yPtr.get(i, j), 1);
+}
+
 TEST(BuiltInOps, linspace)	 // NOLINT
 {
 	/**

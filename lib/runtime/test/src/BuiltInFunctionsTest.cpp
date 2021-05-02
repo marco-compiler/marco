@@ -677,6 +677,146 @@ TEST(Runtime, diagonalSquareMatrix_f64_f64)	 // NOLINT
 			EXPECT_DOUBLE_EQ(destination[3 * i + j], i == j ? values[i] : 0);
 }
 
+TEST(Runtime, zeros_i1)	 // NOLINT
+{
+	std::array<bool, 4> data = { true, true, true, true };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<bool> unsized(descriptor);
+
+	_Mzeros_ai1(unsized);
+
+	for (const auto& element : data)
+		EXPECT_EQ(element, false);
+}
+
+TEST(Runtime, zeros_i32)	 // NOLINT
+{
+	std::array<int, 4> data = { 1, 1, 1, 1 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<int, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<int> unsized(descriptor);
+
+	_Mzeros_ai32(unsized);
+
+	for (const auto& element : data)
+		EXPECT_EQ(element, 0);
+}
+
+TEST(Runtime, zeros_i64)	 // NOLINT
+{
+	std::array<long, 4> data = { 1, 1, 1, 1 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<long, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<long> unsized(descriptor);
+
+	_Mzeros_ai64(unsized);
+
+	for (const auto& element : data)
+		EXPECT_EQ(element, 0);
+}
+
+TEST(Runtime, zeros_f32)	 // NOLINT
+{
+	std::array<float, 4> data = { 1, 1, 1, 1 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<float> unsized(descriptor);
+
+	_Mzeros_af32(unsized);
+
+	for (const auto& element : data)
+		EXPECT_EQ(element, 0);
+}
+
+TEST(Runtime, zeros_f64)	 // NOLINT
+{
+	std::array<double, 4> data = { 1, 1, 1, 1 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<double> unsized(descriptor);
+
+	_Mzeros_af64(unsized);
+
+	for (const auto& element : data)
+		EXPECT_EQ(element, 0);
+}
+
+TEST(Runtime, ones_i1)	 // NOLINT
+{
+	std::array<bool, 4> data = { false, false, false, false };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<bool> unsized(descriptor);
+
+	_Mones_ai1(unsized);
+
+	for (const auto& element : data)
+		EXPECT_EQ(element, true);
+}
+
+TEST(Runtime, ones_i32)	 // NOLINT
+{
+	std::array<int, 4> data = { 0, 0, 0, 0 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<int, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<int> unsized(descriptor);
+
+	_Mones_ai32(unsized);
+
+	for (const auto& element : data)
+		EXPECT_EQ(element, 1);
+}
+
+TEST(Runtime, ones_i64)	 // NOLINT
+{
+	std::array<long, 4> data = { 0, 0, 0, 0 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<long, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<long> unsized(descriptor);
+
+	_Mones_ai64(unsized);
+
+	for (const auto& element : data)
+		EXPECT_EQ(element, 1);
+}
+
+TEST(Runtime, ones_f32)	 // NOLINT
+{
+	std::array<float, 4> data = { 0, 0, 0, 0 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<float> unsized(descriptor);
+
+	_Mones_af32(unsized);
+
+	for (const auto& element : data)
+		EXPECT_FLOAT_EQ(element, 1);
+}
+
+TEST(Runtime, ones_f64)	 // NOLINT
+{
+	std::array<double, 4> data = { 0, 0, 0, 0 };
+	std::array<unsigned long, 2> sizes = { 2, 2 };
+
+	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
+	UnsizedArrayDescriptor<double> unsized(descriptor);
+
+	_Mones_af64(unsized);
+
+	for (const auto& element : data)
+		EXPECT_DOUBLE_EQ(element, 1);
+}
+
 TEST(Runtime, linspace_i1)	 // NOLINT
 {
 	std::array<bool, 4> data = { true, false, false, false };

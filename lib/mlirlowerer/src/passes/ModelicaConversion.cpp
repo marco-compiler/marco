@@ -2013,6 +2013,78 @@ struct DiagonalOpLowering: public ModelicaOpConversion<DiagonalOp>
 	}
 };
 
+struct ZerosOpLowering: public ModelicaOpConversion<ZerosOp>
+{
+	using ModelicaOpConversion<ZerosOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(ZerosOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+		auto pointerType = op.resultType().cast<PointerType>();
+
+		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+
+		for (auto size : llvm::enumerate(pointerType.getShape()))
+			if (size.value() == -1)
+				dynamicDimensions.push_back(rewriter.create<CastOp>(loc, op.sizes()[size.index()], rewriter.getIndexType()));
+
+		mlir::Value result = allocate(rewriter, loc, pointerType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
+
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		args.push_back(rewriter.create<PtrCastOp>(
+				loc, result,
+				result.getType().cast<PointerType>().toUnsized()));
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("zeros", args),
+				llvm::None,
+				args);
+
+		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
+		return mlir::success();
+	}
+};
+
+struct OnesOpLowering: public ModelicaOpConversion<OnesOp>
+{
+	using ModelicaOpConversion<OnesOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(OnesOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+		auto pointerType = op.resultType().cast<PointerType>();
+
+		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+
+		for (auto size : llvm::enumerate(pointerType.getShape()))
+			if (size.value() == -1)
+				dynamicDimensions.push_back(rewriter.create<CastOp>(loc, op.sizes()[size.index()], rewriter.getIndexType()));
+
+		mlir::Value result = allocate(rewriter, loc, pointerType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
+
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		args.push_back(rewriter.create<PtrCastOp>(
+				loc, result,
+				result.getType().cast<PointerType>().toUnsized()));
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("ones", args),
+				llvm::None,
+				args);
+
+		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
+		return mlir::success();
+	}
+};
+
 struct LinspaceOpLowering: public ModelicaOpConversion<LinspaceOp>
 {
 	LinspaceOpLowering(mlir::MLIRContext* ctx, TypeConverter& typeConverter, ModelicaConversionOptions options, unsigned int bitWidth)
@@ -2428,6 +2500,8 @@ static void populateModelicaConversionPatterns(
 			SizeOpArrayLowering,
 			IdentityOpLowering,
 			DiagonalOpLowering,
+			ZerosOpLowering,
+			OnesOpLowering,
 			FillOpLowering>(context, typeConverter, options);
 
 	patterns.insert<LinspaceOpLowering>(context, typeConverter, options, bitWidth);
@@ -2467,7 +2541,7 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 				NotOp, AndOp, OrOp,
 				EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp,
 				NegateOp, AddOp, SubOp, MulOp, DivOp, PowOp,
-				NDimsOp, SizeOp, IdentityOp, DiagonalOp, LinspaceOp, FillOp>();
+				NDimsOp, SizeOp, IdentityOp, DiagonalOp, ZerosOp, OnesOp, LinspaceOp, FillOp>();
 
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 

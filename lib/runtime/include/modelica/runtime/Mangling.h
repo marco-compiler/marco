@@ -27,7 +27,7 @@
 #define CONCAT_ALL_H2(n, ...) CONCAT_ALL_H3(n, __VA_ARGS__)
 #define CONCAT_ALL(...) CONCAT_ALL_H2(NUM_ARGS(__VA_ARGS__), __VA_ARGS__)
 
-#define array(type) array_ ##type
+#define ARRAY(type) ARRAY_ ##type
 
 #define bool_CPP bool
 #define int_CPP int
@@ -35,11 +35,11 @@
 #define float_CPP float
 #define double_CPP double
 
-#define array_bool_CPP UnsizedArrayDescriptor<bool_CPP>
-#define array_int_CPP UnsizedArrayDescriptor<int_CPP>
-#define array_long_CPP UnsizedArrayDescriptor<long_CPP>
-#define array_float_CPP UnsizedArrayDescriptor<float_CPP>
-#define array_double_CPP UnsizedArrayDescriptor<double_CPP>
+#define ARRAY_bool_CPP UnsizedArrayDescriptor<bool_CPP>
+#define ARRAY_int_CPP UnsizedArrayDescriptor<int_CPP>
+#define ARRAY_long_CPP UnsizedArrayDescriptor<long_CPP>
+#define ARRAY_float_CPP UnsizedArrayDescriptor<float_CPP>
+#define ARRAY_double_CPP UnsizedArrayDescriptor<double_CPP>
 
 #define TYPE_CPP(n, type) type ##_CPP
 #define TYPES_CPP(...) APPLY_ALL(TYPE_CPP, __VA_ARGS__)
@@ -50,11 +50,11 @@
 #define float_MANGLED _f32
 #define double_MANGLED _f64
 
-#define array_bool_MANGLED _ai1
-#define array_int_MANGLED _ai32
-#define array_long_MANGLED _ai64
-#define array_float_MANGLED _af32
-#define array_double_MANGLED _af64
+#define ARRAY_bool_MANGLED _ai1
+#define ARRAY_int_MANGLED _ai32
+#define ARRAY_long_MANGLED _ai64
+#define ARRAY_float_MANGLED _af32
+#define ARRAY_double_MANGLED _af64
 
 #define TYPE_MANGLED(n, type) type ##_MANGLED
 #define TYPES_MANGLED(...) APPLY_ALL(TYPE_MANGLED, __VA_ARGS__)
