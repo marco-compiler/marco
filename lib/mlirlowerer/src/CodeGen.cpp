@@ -1208,46 +1208,29 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 
 	if (functionName == "der")
 	{
-		llvm::SmallVector<mlir::Value, 3> args;
-
-		for (const auto& arg : call)
-		{
-			auto& reference = lower<Expression>(arg)[0];
-			args.push_back(reference.getReference());
-		}
-
-		assert(args.size() == 1);
-		assert(args[0].getType().isa<PointerType>());
+		assert(call.argumentsCount() == 1);
+		mlir::Value operand = *lower<Expression>(call[0])[0];
+		assert(operand.getType().isa<PointerType>());
 		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<DerOp>(location, resultType, args[0]);
+		mlir::Value result = builder.create<DerOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "ndims")
 	{
-		llvm::SmallVector<mlir::Value, 3> args;
-
-		for (const auto& arg : call)
-		{
-			auto& reference = lower<Expression>(arg)[0];
-			args.push_back(*reference);
-		}
-
-		assert(args.size() == 1);
+		assert(call.argumentsCount() == 1);
+		mlir::Value memory = *lower<Expression>(call[0])[0];
 		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<NDimsOp>(location, resultType, args[0]);
+		mlir::Value result = builder.create<NDimsOp>(location, resultType, memory);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "size")
 	{
+		assert(call.argumentsCount() == 1 || call.argumentsCount() == 2);
 		llvm::SmallVector<mlir::Value, 3> args;
 
 		for (const auto& arg : call)
-		{
-			auto& reference = lower<Expression>(arg)[0];
-			args.push_back(*reference);
-		}
+			args.push_back(*lower<Expression>(arg)[0]);
 
-		assert(args.size() == 1 || args.size() == 2);
 		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 
 		if (args.size() == 1)
@@ -1291,13 +1274,11 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	}
 	else if (functionName == "zeros")
 	{
+		// The number of operands is equal to the rank of the resulting array
 		llvm::SmallVector<mlir::Value, 3> args;
 
 		for (const auto& arg : call)
-		{
-			auto& reference = lower<Expression>(arg)[0];
-			args.push_back(*reference);
-		}
+			args.push_back(*lower<Expression>(arg)[0]);
 
 		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<ZerosOp>(location, resultType, args);
@@ -1305,13 +1286,11 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	}
 	else if (functionName == "ones")
 	{
+		// The number of operands is equal to the rank of the resulting array
 		llvm::SmallVector<mlir::Value, 3> args;
 
 		for (const auto& arg : call)
-		{
-			auto& reference = lower<Expression>(arg)[0];
-			args.push_back(*reference);
-		}
+			args.push_back(*lower<Expression>(arg)[0]);
 
 		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<OnesOp>(location, resultType, args);
@@ -1319,13 +1298,11 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	}
 	else if (functionName == "min")
 	{
+		// The min function can have either one array operand or two scalar operands
 		llvm::SmallVector<mlir::Value, 3> args;
 
 		for (const auto& arg : call)
-		{
-			auto& reference = lower<Expression>(arg)[0];
-			args.push_back(*reference);
-		}
+			args.push_back(*lower<Expression>(arg)[0]);
 
 		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<MinOp>(location, resultType, args);
@@ -1333,13 +1310,11 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	}
 	else if (functionName == "max")
 	{
+		// The min function can have either one array operand or two scalar operands
 		llvm::SmallVector<mlir::Value, 3> args;
 
 		for (const auto& arg : call)
-		{
-			auto& reference = lower<Expression>(arg)[0];
-			args.push_back(*reference);
-		}
+			args.push_back(*lower<Expression>(arg)[0]);
 
 		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<MaxOp>(location, resultType, args);

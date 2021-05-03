@@ -391,3 +391,92 @@ TEST(Function, callElementWise)	 // NOLINT
 	EXPECT_EQ(yPtr[1], -1 * xPtr[1]);
 	EXPECT_EQ(yPtr[2], -1 * xPtr[2]);
 }
+
+TEST(Function, callWithMultipleOutputs)	 // NOLINT
+{
+	/**
+	 * function foo
+	 *   input Integer x;
+	 *   output Integer y;
+	 *   output Integer z;
+	 *
+	 *   algorithm
+	 *   	 y := 2 * x;
+	 *   	 z = 3 * x;
+	 * end foo
+	 *
+	 * function main
+	 *   input Integer x;
+	 *   output Integer y;
+	 *   output Integer z;
+	 *
+	 *   algorithm
+	 *     (y, z) := foo(x);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Expression xRef = Expression::reference(location, makeType<int>(), "x");
+
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression yRef = Expression::reference(location, makeType<int>(), "y");
+
+	Member zMember(location, "z", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Expression zRef = Expression::reference(location, makeType<int>(), "z");
+
+	Algorithm fooAlgorithm = Algorithm(
+			location,
+			{
+					AssignmentStatement(location,
+															yRef,
+															Expression::operation(location, makeType<int>(), OperationKind::multiply,
+																										xRef,
+																										Expression::constant(location, makeType<int>(), 2))),
+					AssignmentStatement(location,
+															zRef,
+															Expression::operation(location, makeType<int>(), OperationKind::multiply,
+																										xRef,
+																										Expression::constant(location, makeType<int>(), 3)))
+			});
+
+	PackedType packedType({ makeType<int>(), makeType<int>() });
+
+	ClassContainer foo(Function(location, "foo", true, { xMember, yMember, zMember }, fooAlgorithm));
+
+	Algorithm mainAlgorithm = Algorithm(location, {
+		AssignmentStatement(location,
+												Tuple(location, { yRef, zRef }),
+												Expression::call(location, packedType,
+																					Expression::reference(location, packedType, "foo"),
+																					Expression::reference(location, makeType<int>(), "x")))
+	});
+
+	ClassContainer main(Function(location, "main", true, { xMember, yMember, zMember }, mainAlgorithm));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower({ main, foo });
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	int x = 1;
+
+	struct
+	{
+		int y = 0;
+		int z = 0;
+	} result;
+
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(result))));
+	EXPECT_EQ(result.y, x * 2);
+	EXPECT_EQ(result.z, x * 3);
+}
