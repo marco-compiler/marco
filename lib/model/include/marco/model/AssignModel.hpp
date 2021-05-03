@@ -1,8 +1,9 @@
 #pragma once
 #include <set>
-#include "llvm/ADT/StringMap.h"
 
+#include "llvm/ADT/StringMap.h"
 #include "marco/model/Assigment.hpp"
+#include "modelica/model/ModBltBlock.hpp"
 #include "marco/model/ModVariable.hpp"
 
 namespace marco
@@ -41,12 +42,16 @@ namespace marco
 		 * Add an update expression for a particular variable.
 		 * notice that if a expression is referring to a missing
 		 * variable then it's lower that will fail, not addUpdate
-		 *
 		 */
 		void addUpdate(Assigment assigment)
 		{
 			updates.push_back(std::move(assigment));
 			addTemplate(updates.back());
+		}
+
+		void addBltBlock(ModBltBlock bltBlock)
+		{
+			bltBlocks.push_back(std::move(bltBlock));
 		}
 
 		template<typename... T>
@@ -55,16 +60,12 @@ namespace marco
 			updates.emplace_back(std::forward<T>(args)...);
 			addTemplate(updates.back());
 		}
+
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const
 		{
 			OS << "init\n";
 			for (const auto& var : variables)
-			{
-				OS << var.first() << " = ";
-				var.second.getInit().dump(OS);
-
-				OS << "\n";
-			}
+				var.second.dump(OS);
 
 			if (!templates.empty())
 				OS << "templates\n";
@@ -74,15 +75,25 @@ namespace marco
 				OS << "\n";
 			}
 
+			if (!bltBlocks.empty())
+				OS << "blt-blocks\n";
+			for (auto i : irange(bltBlocks.size()))
+			{
+				OS << "blt-block " << i + 1 << "\n";
+				bltBlocks[i].dump(OS);
+			}
+
 			OS << "update\n";
 			for (const auto& update : updates)
 				update.dump(OS);
 		}
 
-		[[nodiscard]] const auto& getVars() const { return variables; }
 		[[nodiscard]] auto& getVars() { return variables; }
+		[[nodiscard]] const auto& getVars() const { return variables; }
 		[[nodiscard]] auto& getUpdates() { return updates; }
 		[[nodiscard]] const auto& getUpdates() const { return updates; }
+		[[nodiscard]] auto& getBltBlocks() { return bltBlocks; }
+		[[nodiscard]] const auto& getBltBlocks() const { return bltBlocks; }
 
 		private:
 		void addTemplate(const Assigment& assigment)
@@ -98,6 +109,7 @@ namespace marco
 
 		llvm::StringMap<ModVariable> variables;
 		llvm::SmallVector<Assigment, 2> updates;
+		llvm::SmallVector<ModBltBlock, 3> bltBlocks;
 		std::set<std::shared_ptr<ModEqTemplate>> templates;
 	};
 }	 // namespace marco

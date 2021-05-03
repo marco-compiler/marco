@@ -71,6 +71,11 @@ namespace marco
 			return reachExp(matchedExpPath.value());
 		}
 
+		[[nodiscard]] std::string getMatchedVarReference()
+		{
+			return getMatchedExp().getReferredVectorAccess();
+		}
+
 		[[nodiscard]] bool isForEquation() const { return isForCycle; }
 
 		[[nodiscard]] ModExpPath getMatchedModExpPath() const
@@ -87,6 +92,7 @@ namespace marco
 
 		llvm::Error explicitate(size_t argumentIndex, bool left);
 		llvm::Error explicitate(const ModExpPath& path);
+
 		/**
 		 * explicitate matched expression.
 		 */
@@ -99,6 +105,12 @@ namespace marco
 			matchedExpPath = EquationPath({}, true);
 			return llvm::Error::success();
 		}
+
+		/**
+		 * This method checks if the equation is implicit. Must be called after the
+		 * explicitate() function.
+		 */
+		bool isImplicit();
 
 		void setInductionVars(MultiDimInterval inds);
 
