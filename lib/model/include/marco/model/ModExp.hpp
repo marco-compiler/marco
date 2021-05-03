@@ -1083,6 +1083,8 @@ namespace marco
 
 		bool tryFoldConstant();
 
+		bool tryRecursiveFoldConstant();
+
 		ModExp(ModExpKind kind, ModType returnType, ModExp l, ModExp r)
 				: content(Operation(
 							kind,

@@ -8,7 +8,15 @@
 using namespace modelica;
 using namespace std;
 
-ModExp differentiateVariableVector(
+template<ModExpKind kind>
+static ModExp differentiateOp(
+		const ModExp& exp, const ModVariable& var, const ModExp& ind)
+{
+	assert(false && "Unreachable");
+}
+
+template<>
+ModExp differentiateOp<ModExpKind::at>(
 		const ModExp& exp, const ModVariable& var, const ModExp& ind)
 {
 	assert(exp.isReferenceAccess());
@@ -32,7 +40,8 @@ ModExp differentiateVariableVector(
 	return ModConst(1.0);
 }
 
-ModExp differentiateNegate(
+template<>
+ModExp differentiateOp<ModExpKind::negate>(
 		const ModExp& exp, const ModVariable& var, const ModExp& ind)
 {
 	// If the expression is constant, return 0.
@@ -47,7 +56,8 @@ ModExp differentiateNegate(
 	return result;
 }
 
-ModExp differentiateAddition(
+template<>
+ModExp differentiateOp<ModExpKind::add>(
 		const ModExp& exp, const ModVariable& var, const ModExp& ind)
 {
 	// If both sides are constants, return 0.
@@ -69,7 +79,8 @@ ModExp differentiateAddition(
 	return result;
 }
 
-ModExp differentiateSubtraction(
+template<>
+ModExp differentiateOp<ModExpKind::sub>(
 		const ModExp& exp, const ModVariable& var, const ModExp& ind)
 {
 	// If both sides are constants, return 0.
@@ -97,7 +108,8 @@ ModExp differentiateSubtraction(
 	return result;
 }
 
-ModExp differentiateMultiplication(
+template<>
+ModExp differentiateOp<ModExpKind::mult>(
 		const ModExp& exp, const ModVariable& var, const ModExp& ind)
 {
 	// If both sides are constants, return 0.
@@ -126,16 +138,15 @@ ModExp differentiateMultiplication(
 	ModExp rightDerivative = differentiate(exp.getRightHand(), var, ind);
 
 	ModExp leftHand = ModExp::multiply(exp.getLeftHand(), move(rightDerivative));
-	leftHand.tryFoldConstant();
 	ModExp rightHand = ModExp::multiply(exp.getRightHand(), move(leftDerivative));
-	rightHand.tryFoldConstant();
 
 	ModExp result = ModExp::add(move(leftHand), move(rightHand));
-	result.tryFoldConstant();
+	result.tryRecursiveFoldConstant();
 	return result;
 }
 
-ModExp differentiateDivision(
+template<>
+ModExp differentiateOp<ModExpKind::divide>(
 		const ModExp& exp, const ModVariable& var, const ModExp& ind)
 {
 	// If both sides are constants, return 0.
@@ -155,17 +166,12 @@ ModExp differentiateDivision(
 	if (exp.getLeftHand().isConstant())
 	{
 		ModExp rightDerivative = differentiate(exp.getRightHand(), var, ind);
-		ModExp dividend =
-				ModExp::multiply(exp.getLeftHand(), move(rightDerivative));
-		dividend.tryFoldConstant();
-		dividend = ModExp::negate(move(dividend));
-		dividend.tryFoldConstant();
-
+		ModExp dividend = ModExp::negate(
+				ModExp::multiply(exp.getLeftHand(), move(rightDerivative)));
 		ModExp divisor = ModExp::multiply(exp.getRightHand(), exp.getRightHand());
-		divisor.tryFoldConstant();
 
 		ModExp result = ModExp::divide(move(dividend), move(divisor));
-		result.tryFoldConstant();
+		result.tryRecursiveFoldConstant();
 		return result;
 	}
 
@@ -174,21 +180,18 @@ ModExp differentiateDivision(
 	ModExp rightDerivative = differentiate(exp.getRightHand(), var, ind);
 
 	ModExp lDividend = ModExp::multiply(exp.getRightHand(), move(leftDerivative));
-	lDividend.tryFoldConstant();
 	ModExp rDividend = ModExp::multiply(exp.getLeftHand(), move(rightDerivative));
-	rDividend.tryFoldConstant();
 
 	ModExp dividend = ModExp::subtract(move(lDividend), move(rDividend));
-	dividend.tryFoldConstant();
 	ModExp divisor = ModExp::multiply(exp.getRightHand(), exp.getRightHand());
-	divisor.tryFoldConstant();
 
 	ModExp result = ModExp::divide(move(dividend), move(divisor));
-	result.tryFoldConstant();
+	result.tryRecursiveFoldConstant();
 	return result;
 }
 
-ModExp differentiateElevation(
+template<>
+ModExp differentiateOp<ModExpKind::elevation>(
 		const ModExp& exp, const ModVariable& var, const ModExp& ind)
 {
 	assert(exp.getRightHand().isConstant());
@@ -209,23 +212,27 @@ ModExp differentiateElevation(
 	if (exponent == ModConst(2.0))
 	{
 		ModExp right = ModExp::multiply(exp.getLeftHand(), move(leftDerivative));
-		right.tryFoldConstant();
 
 		ModExp result = ModExp::multiply(ModConst(2.0), move(right));
-		result.tryFoldConstant();
+		result.tryRecursiveFoldConstant();
 		return result;
 	}
 
 	// Otherwise, return  (c * der(f(x))) * exp(f(x), (c-1)).
 	ModExp elevationResidual = ModExp::elevate(
 			exp.getLeftHand(), ModConst::sub(exponent, ModConst(1.0)));
-	elevationResidual.tryFoldConstant();
 	ModExp left = ModExp::multiply(exponent, move(leftDerivative));
-	left.tryFoldConstant();
 
 	ModExp result = ModExp::multiply(move(left), move(elevationResidual));
-	result.tryFoldConstant();
+	result.tryRecursiveFoldConstant();
 	return result;
+}
+
+template<>
+ModExp differentiateOp<ModExpKind::induction>(
+		const ModExp& exp, const ModVariable& var, const ModExp& ind)
+{
+	return ModConst(0.0);
 }
 
 ModExp modelica::differentiate(
@@ -249,19 +256,21 @@ ModExp modelica::differentiate(
 	switch (exp.getKind())
 	{
 		case ModExpKind::at:
-			return differentiateVariableVector(exp, var, ind);
+			return differentiateOp<ModExpKind::at>(exp, var, ind);
 		case ModExpKind::negate:
-			return differentiateNegate(exp, var, ind);
+			return differentiateOp<ModExpKind::negate>(exp, var, ind);
 		case ModExpKind::add:
-			return differentiateAddition(exp, var, ind);
+			return differentiateOp<ModExpKind::add>(exp, var, ind);
 		case ModExpKind::sub:
-			return differentiateSubtraction(exp, var, ind);
+			return differentiateOp<ModExpKind::sub>(exp, var, ind);
 		case ModExpKind::mult:
-			return differentiateMultiplication(exp, var, ind);
+			return differentiateOp<ModExpKind::mult>(exp, var, ind);
 		case ModExpKind::divide:
-			return differentiateDivision(exp, var, ind);
+			return differentiateOp<ModExpKind::divide>(exp, var, ind);
 		case ModExpKind::elevation:
-			return differentiateElevation(exp, var, ind);
+			return differentiateOp<ModExpKind::elevation>(exp, var, ind);
+		case ModExpKind::induction:
+			return differentiateOp<ModExpKind::induction>(exp, var, ind);
 		default:
 			assert(false && "Not differentiable expression");
 	}
