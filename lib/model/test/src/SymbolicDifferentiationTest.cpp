@@ -242,6 +242,24 @@ TEST(SymbolicDifferentiationTest, DifferentiateElevation)
 	EXPECT_EQ(der6, res6);
 }
 
+TEST(SymbolicDifferentiationTest, DifferentiateInduction)
+{
+	ModExp exp1 = ModExp::induction(ModConst(3));
+	ModExp exp2 = ModExp::multiply(varExp, ModExp::induction(ModConst(4)));
+	ModExp exp3 = ModExp::add(varExp2, ModExp::induction(ModConst(5)));
+	ModExp exp4 = ModExp::multiply(ModExp::induction(ModConst(6)), vAccess);
+
+	ModExp der1 = differentiate(exp1, var);
+	ModExp der2 = differentiate(exp2, var);
+	ModExp der3 = differentiate(exp3, var);
+	ModExp der4 = differentiate(exp4, vectorVar, vAccess);
+
+	EXPECT_EQ(der1, ModConst(0.0));
+	EXPECT_EQ(der2, ModExp::induction(ModConst(4)));
+	EXPECT_EQ(der3, ModConst(0.0));
+	EXPECT_EQ(der4, ModExp::induction(ModConst(6)));
+}
+
 TEST(SymbolicDifferentiationTest, DifferentiateEquation)
 {
 	ModExp left = ModExp::add(

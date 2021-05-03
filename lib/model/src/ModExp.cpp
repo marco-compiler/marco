@@ -303,6 +303,14 @@ bool ModExp::tryFoldConstant()
 	return false;
 }
 
+bool ModExp::tryRecursiveFoldConstant()
+{
+	for (auto i : irange(childCount()))
+		getChild(i).tryRecursiveFoldConstant();
+
+	return tryFoldConstant();
+}
+
 const string& ModExp::getReferredVectorAccess() const
 {
 	return getReferredVectorAccessExp().getReference();
