@@ -319,19 +319,19 @@ RUNTIME_FUNC_DEF(product, double, ARRAY(double))
 /**
  * Transpose a matrix.
  *
- * @tparam Dest 			 destination type
- * @tparam Source 		source type
+ * @tparam Destination destination type
+ * @tparam Source 		 source type
  * @param destination  destination matrix
  * @param source  		 source matrix
  */
-template<typename Dest, typename Source>
-void transpose(UnsizedArrayDescriptor<Dest> destination, UnsizedArrayDescriptor<Source> source)
+template<typename Destination, typename Source>
+void transpose(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDescriptor<Source> source)
 {
-	// The two arrays must have exactly two dimensions.
+	// The two arrays must have exactly two dimensions
 	assert(destination.getRank() == 2);
 	assert(source.getRank() == 2);
 
-	// The two matrixes must have transposed dimensions.
+	// The two matrixes must have transposed dimensions
 	assert(destination.getDimensionSize(0) == source.getDimensionSize(1));
 	assert(destination.getDimensionSize(1) == source.getDimensionSize(0));
 
@@ -381,3 +381,70 @@ RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(int))
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(long))
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(double))
+
+/**
+ * Populate the destination matrix so that it becomes the symmetric version
+ * of the source one, thus discarding the elements below the source diagonal.
+ *
+ * @tparam Destination	destination type
+ * @tparam Source				source type
+ * @param destination		destination matrix
+ * @param source				source matrix
+ */
+template<typename Destination, typename Source>
+void symmetric(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDescriptor<Source> source)
+{
+	// The two arrays must have exactly two dimensions
+	assert(destination.getRank() == 2);
+	assert(source.getRank() == 2);
+
+	// The two matrixes must have the same dimensions
+	assert(destination.getDimensionSize(0) == source.getDimensionSize(0));
+	assert(destination.getDimensionSize(1) == source.getDimensionSize(1));
+
+	size_t size = destination.getDimensionSize(0);
+
+	// Manually iterate on the dimensions, so that we can explore just half
+	// of the source matrix.
+
+	for (size_t i = 0; i < size; ++i)
+	{
+		for (size_t j = i; j < size; ++j)
+		{
+			destination.set({ i, j }, source.get(i, j));
+
+			if (i != j)
+				destination.set({ j, i }, source.get(i, j));
+		}
+	}
+}
+
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(bool))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(int))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(float))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(double))
+
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(bool))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(int))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(float))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(double))
+
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(bool))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(int))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(float))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(double))
+
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(bool))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(int))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(float))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(double))
+
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(bool))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(int))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(float))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(double))

@@ -134,6 +134,36 @@ RUNTIME_FUNC_DECL(transpose, void, ARRAY(double), ARRAY(long))
 RUNTIME_FUNC_DECL(transpose, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DECL(transpose, void, ARRAY(double), ARRAY(double))
 
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(bool), ARRAY(bool))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(bool), ARRAY(int))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(bool), ARRAY(long))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(bool), ARRAY(float))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(bool), ARRAY(double))
+
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(int), ARRAY(bool))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(int), ARRAY(int))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(int), ARRAY(long))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(int), ARRAY(float))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(int), ARRAY(double))
+
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(long), ARRAY(bool))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(long), ARRAY(int))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(long), ARRAY(long))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(long), ARRAY(float))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(long), ARRAY(double))
+
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(float), ARRAY(bool))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(float), ARRAY(int))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(float), ARRAY(long))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(float), ARRAY(float))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(float), ARRAY(double))
+
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(double), ARRAY(bool))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(double), ARRAY(int))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(double), ARRAY(long))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(double), ARRAY(float))
+RUNTIME_FUNC_DECL(symmetric, void, ARRAY(double), ARRAY(double))
+
 extern "C"
 {
 	void modelicaPrint(char* name, float value);

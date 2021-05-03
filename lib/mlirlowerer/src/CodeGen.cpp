@@ -1369,6 +1369,14 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		mlir::Value result = builder.create<TransposeOp>(location, resultType, memory);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
+	else if (functionName == "symmetric")
+	{
+		assert(call.argumentsCount() == 1);
+		mlir::Value source = *lower<Expression>(call[0])[0];
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<SymmetricOp>(location, resultType, source);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
 	else
 	{
 		llvm::SmallVector<mlir::Value, 3> args;

@@ -1562,3 +1562,528 @@ TEST(Runtime, transpose_af64_af64)	 // NOLINT
 		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
 }
+
+TEST(Runtime, symmetric_ai1_ai1)	 // NOLINT
+{
+	std::array<bool, 9> source = { true, false, true, true, false, true, true, false, true };
+	std::array<bool, 9> destination = { true, false, true, true, false, true, true, false, true };
+
+	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai1_ai1(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai1_ai32)	 // NOLINT
+{
+	std::array<int, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<bool, 9> destination = { true, false, true, true, false, true, true, false, true };
+
+	ArrayDescriptor<int, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<int> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai1_ai32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai1_ai64)	 // NOLINT
+{
+	std::array<long, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<bool, 9> destination = { true, false, true, true, false, true, true, false, true };
+
+	ArrayDescriptor<long, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<long> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai1_ai64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai1_af32)	 // NOLINT
+{
+	std::array<float, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<bool, 9> destination = { true, false, true, true, false, true, true, false, true };
+
+	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai1_af32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai1_af64)	 // NOLINT
+{
+	std::array<double, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<bool, 9> destination = { true, false, true, true, false, true, true, false, true };
+
+	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai1_af64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai32_ai1)	 // NOLINT
+{
+	std::array<bool, 9> source = { true, false, true, true, false, true, true, false, true };
+	std::array<int, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai32_ai1(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (int) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai32_ai32)	 // NOLINT
+{
+	std::array<int, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<int, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<int, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<int> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai32_ai32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (int) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai32_ai64)	 // NOLINT
+{
+	std::array<long, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<int, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<long, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<long> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai32_ai64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (int) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai32_af32)	 // NOLINT
+{
+	std::array<float, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<int, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai32_af32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (int) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai32_af64)	 // NOLINT
+{
+	std::array<double, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<int, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai32_af64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (int) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai64_ai1)	 // NOLINT
+{
+	std::array<bool, 9> source = { true, false, true, true, false, true, true, false, true };
+	std::array<long, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai64_ai1(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (long) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai64_ai32)	 // NOLINT
+{
+	std::array<int, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<long, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<int, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<int> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai64_ai32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (int) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai64_ai64)	 // NOLINT
+{
+	std::array<long, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<long, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<long, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<long> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai64_ai64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (long) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai64_af32)	 // NOLINT
+{
+	std::array<float, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<long, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai64_af32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (long) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_ai64_af64)	 // NOLINT
+{
+	std::array<double, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<long, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_ai64_af64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (long) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_af32_ai1)	 // NOLINT
+{
+	std::array<bool, 9> source = { true, false, true, true, false, true, true, false, true };
+	std::array<float, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_af32_ai1(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_af32_ai32)	 // NOLINT
+{
+	std::array<int, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<float, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<int, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<int> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_af32_ai32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_af32_ai64)	 // NOLINT
+{
+	std::array<long, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<float, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<long, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<long> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_af32_ai64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_af32_af32)	 // NOLINT
+{
+	std::array<float, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<float, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_af32_af32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_af32_af64)	 // NOLINT
+{
+	std::array<double, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<float, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_af32_af64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_af64_ai1)	 // NOLINT
+{
+	std::array<bool, 9> source = { true, false, true, true, false, true, true, false, true };
+	std::array<double, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_af64_ai1(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_af64_ai32)	 // NOLINT
+{
+	std::array<int, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<double, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<int, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<int> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_af64_ai32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_af64_ai64)	 // NOLINT
+{
+	std::array<long, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<double, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<long, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<long> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_af64_ai64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_af64_af32)	 // NOLINT
+{
+	std::array<float, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<double, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_af64_af32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+		}
+}
+
+TEST(Runtime, symmetric_af64_af64)	 // NOLINT
+{
+	std::array<double, 9> source = { 1, 0, 1, 0, 0, 1, 1, 0, 1 };
+	std::array<double, 9> destination = { 1, 0, 1, 1, 0, 1, 1, 0, 1 };
+
+	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 3, 3 });
+	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	_Msymmetric_af64_af64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+		{
+			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
+			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+		}
+}

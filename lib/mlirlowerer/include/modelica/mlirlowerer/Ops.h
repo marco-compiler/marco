@@ -2035,6 +2035,40 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::SymmetricOp
+	//===----------------------------------------------------------------------===//
+
+	class SymmetricOp;
+
+	class SymmetricOpAdaptor : public OpAdaptor<SymmetricOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value source();
+	};
+
+	class SymmetricOp : public mlir::Op<SymmetricOp,
+																			mlir::OpTrait::OneOperand,
+																			mlir::OpTrait::OneResult,
+																			mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = SymmetricOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value source);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::Value source();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::DerOp
 	//===----------------------------------------------------------------------===//
 

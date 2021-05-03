@@ -2418,6 +2418,52 @@ struct TransposeOpLowering: public ModelicaOpConversion<TransposeOp>
 	}
 };
 
+struct SymmetricOpLowering: public ModelicaOpConversion<SymmetricOp>
+{
+	using ModelicaOpConversion<SymmetricOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(SymmetricOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+		auto pointerType = op.resultType().cast<PointerType>();
+		auto shape = pointerType.getShape();
+
+		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+
+		for (auto size : llvm::enumerate(shape))
+		{
+			if (size.value() == -1)
+			{
+				mlir::Value index = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(size.index()));
+				dynamicDimensions.push_back(rewriter.create<DimOp>(loc, op.source(), index));
+			}
+		}
+
+		mlir::Value result = allocate(rewriter, loc, pointerType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
+
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		args.push_back(rewriter.create<PtrCastOp>(
+				loc, result,
+				result.getType().cast<PointerType>().toUnsized()));
+
+		args.push_back(rewriter.create<PtrCastOp>(
+				loc, op.source(),
+				op.source().getType().cast<PointerType>().toUnsized()));
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("symmetric", args),
+				llvm::None,
+				args);
+
+		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
+		return mlir::success();
+	}
+};
+
 struct IfOpLowering: public ModelicaOpConversion<IfOp>
 {
 	using ModelicaOpConversion<IfOp>::ModelicaOpConversion;
@@ -2752,7 +2798,8 @@ static void populateModelicaConversionPatterns(
 			MaxOpScalarsLowering,
 			SumOpLowering,
 			ProductOpLowering,
-			TransposeOpLowering>(context, typeConverter, options);
+			TransposeOpLowering,
+			SymmetricOpLowering>(context, typeConverter, options);
 
 	patterns.insert<LinspaceOpLowering>(context, typeConverter, options, bitWidth);
 }
@@ -2792,7 +2839,7 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 				EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp,
 				NegateOp, AddOp, SubOp, MulOp, DivOp, PowOp,
 				NDimsOp, SizeOp, IdentityOp, DiagonalOp, ZerosOp, OnesOp, LinspaceOp, FillOp,
-				MinOp, MaxOp, SumOp, ProductOp, TransposeOp>();
+				MinOp, MaxOp, SumOp, ProductOp, TransposeOp, SymmetricOp>();
 
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 
