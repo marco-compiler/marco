@@ -1209,7 +1209,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	if (functionName == "der")
 	{
 		assert(call.argumentsCount() == 1);
-		mlir::Value operand = *lower<Expression>(call[0])[0];
+		mlir::Value operand = lower<Expression>(call[0])[0].getReference();
 		assert(operand.getType().isa<PointerType>());
 		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<DerOp>(location, resultType, operand);
