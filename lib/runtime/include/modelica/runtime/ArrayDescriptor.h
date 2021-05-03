@@ -85,23 +85,18 @@ class ArrayDescriptor
 		return get(static_cast<llvm::ArrayRef<size_t>>(positions));
 	}
 
-	template<typename... Index>
 	T& get(llvm::ArrayRef<size_t> indexes)
 	{
-		assert(indexes.size() == rank && "Wrong amount of indexes");
-		assert(llvm::all_of(indexes, [](const auto& index) { return index >= 0; }));
-
-		size_t resultIndex = indexes[0];
-
-		for (size_t i = 1; i < indexes.size(); ++i)
-		{
-			long size = getDimensionSize(i);
-			assert(size > 0);
-			resultIndex = resultIndex * size + indexes[i];
-		}
-
 		assert(data != nullptr);
-		return (*this)[resultIndex];
+		size_t offset = computeOffset(indexes);
+		return (*this)[offset];
+	}
+
+	void set(llvm::ArrayRef<size_t> indexes, T value)
+	{
+		assert(data != nullptr);
+		size_t offset = computeOffset(indexes);
+		(*this)[offset] = value;
 	}
 
 	[[nodiscard]] T* getData() const
@@ -150,6 +145,23 @@ class ArrayDescriptor
 	}
 
 	private:
+	[[nodiscard]] size_t computeOffset(llvm::ArrayRef<size_t> indexes) const
+	{
+		assert(indexes.size() == rank && "Wrong amount of indexes");
+		assert(llvm::all_of(indexes, [](const auto& index) { return index >= 0; }));
+
+		size_t offset = indexes[0];
+
+		for (size_t i = 1; i < indexes.size(); ++i)
+		{
+			long size = getDimensionSize(i);
+			assert(size > 0);
+			offset = offset * size + indexes[i];
+		}
+
+		return offset;
+	}
+
 	T* data;
 	unsigned long rank;
 
@@ -186,22 +198,29 @@ class UnsizedArrayDescriptor
 		return getDescriptor()->get(indexes...);
 	}
 
+	T& get(llvm::ArrayRef<size_t> indexes)
+	{
+		return getDescriptor()->get(indexes);
+	}
+
+	void set(llvm::ArrayRef<size_t> indexes, T value)
+	{
+		getDescriptor()->set(indexes, value);
+	}
+
 	[[nodiscard]] T* getData() const
 	{
-		assert(descriptor != nullptr);
 		return getDescriptor()->getData();
 	}
 
 	[[nodiscard]] unsigned long getRank() const
 	{
-		assert(descriptor != nullptr);
 		assert(getDescriptor()->getRank() == rank);
 		return rank;
 	}
 
 	[[nodiscard]] unsigned long getDimensionSize(size_t index) const
 	{
-		assert(descriptor != nullptr);
 		return getDescriptor()->getDimensionSize(index);
 	}
 
@@ -233,6 +252,8 @@ class UnsizedArrayDescriptor
 	private:
 	[[nodiscard]] ArrayDescriptor<T, 0>* getDescriptor() const
 	{
+		assert(descriptor != nullptr);
+
 		// In order to keep the iterator rank-agnostic we can cast the descriptor
 		// to a 0-ranked one. This works only under assumption that the
 		// descriptor uses pointer arithmetics to access its elements, and doesn't

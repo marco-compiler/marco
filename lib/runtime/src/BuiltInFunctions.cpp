@@ -200,6 +200,13 @@ RUNTIME_FUNC_DEF(linspace, void, ARRAY(float), double, double)
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), float, float)
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), double, double)
 
+/**
+ * Get the min value of an array.
+ *
+ * @tparam T 		 data type
+ * @param array	 array
+ * @return minimum value
+ */
 template<typename T>
 inline T min(UnsizedArrayDescriptor<T> array)
 {
@@ -212,6 +219,14 @@ RUNTIME_FUNC_DEF(min, long, ARRAY(long))
 RUNTIME_FUNC_DEF(min, float, ARRAY(float))
 RUNTIME_FUNC_DEF(min, double, ARRAY(double))
 
+/**
+ * Get the min among two values.
+ *
+ * @tparam T  data type
+ * @param x   left-hand side value
+ * @param y   right-hand side value
+ * @return minimum value
+ */
 template<typename T>
 inline T min(T x, T y)
 {
@@ -224,6 +239,13 @@ RUNTIME_FUNC_DEF(min, long, long, long)
 RUNTIME_FUNC_DEF(min, float, float, float)
 RUNTIME_FUNC_DEF(min, double, double, double)
 
+/**
+ * Get the max value of an array.
+ *
+ * @tparam T 		 data type
+ * @param array	 array
+ * @return maximum value
+ */
 template<typename T>
 inline T max(UnsizedArrayDescriptor<T> array)
 {
@@ -236,6 +258,14 @@ RUNTIME_FUNC_DEF(max, long, ARRAY(long))
 RUNTIME_FUNC_DEF(max, float, ARRAY(float))
 RUNTIME_FUNC_DEF(max, double, ARRAY(double))
 
+/**
+ * Get the max among two values.
+ *
+ * @tparam T data type
+ * @param x  left-hand side value
+ * @param y  right-hand side value
+ * @return maximum value
+ */
 template<typename T>
 inline T max(T x, T y)
 {
@@ -248,6 +278,13 @@ RUNTIME_FUNC_DEF(max, long, long, long)
 RUNTIME_FUNC_DEF(max, float, float, float)
 RUNTIME_FUNC_DEF(max, double, double, double)
 
+/**
+ * Sum all the elements of an array.
+ *
+ * @tparam T 		 data type
+ * @param array  array
+ * @return sum of all the values
+ */
 template<typename T>
 inline T sum(UnsizedArrayDescriptor<T> array)
 {
@@ -260,6 +297,13 @@ RUNTIME_FUNC_DEF(sum, long, ARRAY(long))
 RUNTIME_FUNC_DEF(sum, float, ARRAY(float))
 RUNTIME_FUNC_DEF(sum, double, ARRAY(double))
 
+/**
+ * Multiply all the elements of an array.
+ *
+ * @tparam T 		 data type
+ * @param array  array
+ * @return product of all the values
+ */
 template<typename T>
 inline T product(UnsizedArrayDescriptor<T> array)
 {
@@ -271,3 +315,69 @@ RUNTIME_FUNC_DEF(product, int, ARRAY(int))
 RUNTIME_FUNC_DEF(product, long, ARRAY(long))
 RUNTIME_FUNC_DEF(product, float, ARRAY(float))
 RUNTIME_FUNC_DEF(product, double, ARRAY(double))
+
+/**
+ * Transpose a matrix.
+ *
+ * @tparam Dest 			 destination type
+ * @tparam Source 		source type
+ * @param destination  destination matrix
+ * @param source  		 source matrix
+ */
+template<typename Dest, typename Source>
+void transpose(UnsizedArrayDescriptor<Dest> destination, UnsizedArrayDescriptor<Source> source)
+{
+	// The two arrays must have exactly two dimensions.
+	assert(destination.getRank() == 2);
+	assert(source.getRank() == 2);
+
+	// The two matrixes must have transposed dimensions.
+	assert(destination.getDimensionSize(0) == source.getDimensionSize(1));
+	assert(destination.getDimensionSize(1) == source.getDimensionSize(0));
+
+	// Directly use the iterators, as we need to determine the current
+	// indexes and transpose them to access the other matrix.
+
+	for (auto it = source.begin(), end = source.end(); it != end; ++it)
+	{
+		auto indexes = it.getCurrentIndexes();
+		assert(indexes.size() == 2);
+
+		llvm::SmallVector<size_t, 2> transposedIndexes;
+
+		for (auto revIt = indexes.rbegin(), revEnd = indexes.rend(); revIt != revEnd; ++revIt)
+			transposedIndexes.push_back(*revIt);
+
+		destination.set(transposedIndexes, *it);
+	}
+}
+
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(bool), ARRAY(bool))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(bool), ARRAY(int))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(bool), ARRAY(long))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(bool), ARRAY(float))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(bool), ARRAY(double))
+
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int), ARRAY(bool))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int), ARRAY(int))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int), ARRAY(long))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int), ARRAY(float))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int), ARRAY(double))
+
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(long), ARRAY(bool))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(long), ARRAY(int))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(long), ARRAY(long))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(long), ARRAY(float))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(long), ARRAY(double))
+
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(float), ARRAY(bool))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(float), ARRAY(int))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(float), ARRAY(long))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(float), ARRAY(float))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(float), ARRAY(double))
+
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(bool))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(int))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(long))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(float))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(double))

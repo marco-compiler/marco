@@ -1112,3 +1112,453 @@ TEST(Runtime, product_af64)	 // NOLINT
 	UnsizedArrayDescriptor<double> unsized(descriptor);
 	EXPECT_DOUBLE_EQ(_Mproduct_af64(unsized), (double) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
 }
+
+TEST(Runtime, transpose_ai1_ai1)	 // NOLINT
+{
+	std::array<bool, 6> source = { false, false, false, true, true, true };
+	std::array<bool, 6> destination = { true, false, true, false, true, false };
+
+	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai1_ai1(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai1_ai32)	 // NOLINT
+{
+	std::array<int, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<bool, 6> destination = { true, false, true, false, true, false };
+
+	ArrayDescriptor<int, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<int> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai1_ai32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai1_ai64)	 // NOLINT
+{
+	std::array<long, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<bool, 6> destination = { true, false, true, false, true, false };
+
+	ArrayDescriptor<long, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<long> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai1_ai64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai1_af32)	 // NOLINT
+{
+	std::array<float, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<bool, 6> destination = { true, false, true, false, true, false };
+
+	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai1_af32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai1_af64)	 // NOLINT
+{
+	std::array<double, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<bool, 6> destination = { true, false, true, false, true, false };
+
+	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai1_af64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai32_ai1)	 // NOLINT
+{
+	std::array<bool, 6> source = { false, false, false, true, true, true };
+	std::array<int, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai32_ai1(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai32_ai32)	 // NOLINT
+{
+	std::array<int, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<int, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<int, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<int> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai32_ai32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai32_ai64)	 // NOLINT
+{
+	std::array<long, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<int, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<long, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<long> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai32_ai64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai32_af32)	 // NOLINT
+{
+	std::array<float, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<int, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai32_af32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai32_af64)	 // NOLINT
+{
+	std::array<double, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<int, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai32_af64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai64_ai1)	 // NOLINT
+{
+	std::array<bool, 6> source = { false, false, false, true, true, true };
+	std::array<long, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai64_ai1(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai64_ai32)	 // NOLINT
+{
+	std::array<int, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<long, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<int, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<int> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai64_ai32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai64_ai64)	 // NOLINT
+{
+	std::array<long, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<long, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<long, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<long> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai64_ai64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai64_af32)	 // NOLINT
+{
+	std::array<float, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<long, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai64_af32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_ai64_af64)	 // NOLINT
+{
+	std::array<double, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<long, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_ai64_af64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_af32_ai1)	 // NOLINT
+{
+	std::array<bool, 6> source = { false, false, false, true, true, true };
+	std::array<float, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_af32_ai1(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_af32_ai32)	 // NOLINT
+{
+	std::array<int, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<float, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<int, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<int> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_af32_ai32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_af32_ai64)	 // NOLINT
+{
+	std::array<long, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<float, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<long, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<long> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_af32_ai64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_af32_af32)	 // NOLINT
+{
+	std::array<float, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<float, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_af32_af32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_af32_af64)	 // NOLINT
+{
+	std::array<double, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<float, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_af32_af64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_af64_ai1)	 // NOLINT
+{
+	std::array<bool, 6> source = { false, false, false, true, true, true };
+	std::array<double, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<bool, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<bool> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_af64_ai1(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_af64_ai32)	 // NOLINT
+{
+	std::array<int, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<double, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<int, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<int> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_af64_ai32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_af64_ai64)	 // NOLINT
+{
+	std::array<long, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<double, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<long, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<long> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_af64_ai64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_af64_af32)	 // NOLINT
+{
+	std::array<float, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<double, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<float, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<float> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_af64_af32(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+}
+
+TEST(Runtime, transpose_af64_af64)	 // NOLINT
+{
+	std::array<double, 6> source = { 0, 0, 0, 1, 1, 1 };
+	std::array<double, 6> destination = { 1, 0, 1, 0, 1, 0 };
+
+	ArrayDescriptor<double, 2> sourceDescriptor(source.data(), { 2, 3 });
+	UnsizedArrayDescriptor<double> unsizedSource(sourceDescriptor);
+
+	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
+	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
+
+	_Mtranspose_af64_af64(unsizedDestination, unsizedSource);
+
+	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
+}

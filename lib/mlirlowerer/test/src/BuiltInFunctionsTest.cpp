@@ -877,3 +877,61 @@ TEST(BuiltInOps, productOfFloatArrayValues)	 // NOLINT
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
 	EXPECT_EQ(y, std::accumulate(x.begin(), x.end(), 1, std::multiplies<>()));
 }
+
+TEST(BuiltInOps, transpose)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[:,:] x;
+	 *   output Integer[:,:] y;
+	 *
+	 *   algorithm
+	 *     y := transpose(x);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(-1, -1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(-1, -1), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::call(location, makeType<int>(-1, -1),
+											 Expression::reference(location, makeType<int>(-1, -1), "transpose"),
+											 Expression::reference(location, makeType<int>(-1, -1), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	jit::Runner runner(*module);
+
+	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
+	ArrayDescriptor<int, 2> xPtr(x.data(), { 3, 2 });
+
+	array<int, 6> y = { 1, 2, 3, 4, 5, 6 };
+	ArrayDescriptor<int, 2> yPtr(y.data(), { 3, 2 });
+
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
+
+	EXPECT_EQ(yPtr.getDimensionSize(0), xPtr.getDimensionSize(1));
+	EXPECT_EQ(yPtr.getDimensionSize(1), xPtr.getDimensionSize(0));
+
+	for (size_t i = 0; i < xPtr.getDimensionSize(0); ++i)
+		for (size_t j = 0; j < xPtr.getDimensionSize(1); ++j)
+			EXPECT_EQ(yPtr.get(j, i), xPtr.get(i, j));
+}

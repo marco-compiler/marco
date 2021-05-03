@@ -4069,6 +4069,81 @@ mlir::Value ProductOp::memory()
 }
 
 //===----------------------------------------------------------------------===//
+// Modelica::TransposeOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value TransposeOpAdaptor::source()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef TransposeOp::getOperationName()
+{
+	return "modelica.transpose";
+}
+
+void TransposeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value source)
+{
+	state.addTypes(resultType);
+	state.addOperands(source);
+}
+
+void TransposeOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.transpose " << source() << " : " << resultType();
+}
+
+mlir::LogicalResult TransposeOp::verify()
+{
+	if (!source().getType().isa<PointerType>())
+		return emitOpError("requires the source to be an array");
+
+	auto sourceType = source().getType().cast<PointerType>();
+
+	if (sourceType.getRank() != 2)
+		return emitOpError("requires the source to have rank 2");
+
+	if (!resultType().isa<PointerType>())
+		return emitOpError("requires the result to be an array");
+
+	auto destinationType = resultType().cast<PointerType>();
+
+	if (destinationType.getRank() != 2)
+		return emitOpError("requires the destination to have rank 2");
+
+	// Check if the dimensions are compatible
+	auto sourceShape = sourceType.getShape();
+	auto destinationShape = destinationType.getShape();
+
+	if (sourceShape[0] != -1 && destinationShape[1] != -1 &&
+			sourceShape[0] != destinationShape[1])
+		return emitOpError("requires compatible shapes");
+
+	if (sourceShape[1] != -1 && destinationShape[0] != -1 &&
+			sourceShape[1] != destinationShape[0])
+		return emitOpError("requires compatible shapes");
+
+	return mlir::success();
+}
+
+void TransposeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (auto pointerType = resultType().dyn_cast<PointerType>())
+		if (pointerType.getAllocationScope() == heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::Type TransposeOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value TransposeOp::source()
+{
+	return Adaptor(*this).source();
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::DerOp
 //===----------------------------------------------------------------------===//
 

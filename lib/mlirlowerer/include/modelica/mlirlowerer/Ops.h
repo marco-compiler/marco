@@ -141,6 +141,7 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
 
 		RealAttribute startTime();
@@ -350,7 +351,7 @@ namespace modelica::codegen
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& Builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType);
-		void print(mlir::OpAsmPrinter &p);
+		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 		mlir::OpFoldResult fold(mlir::ArrayRef<mlir::Attribute> operands);
 
@@ -383,7 +384,7 @@ namespace modelica::codegen
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values);
-		void print(mlir::OpAsmPrinter &p);
+		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Type resultType();
 		mlir::ValueRange operands();
@@ -417,6 +418,7 @@ namespace modelica::codegen
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination);
 		void print(mlir::OpAsmPrinter& printer);
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Value source();
@@ -493,6 +495,7 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {}, bool constant = false);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		PointerType resultType();
@@ -528,6 +531,7 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {}, bool shouldBeFreed = true, bool isConstant = false);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		bool shouldBeFreed();
@@ -564,6 +568,7 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Value memory();
@@ -675,6 +680,7 @@ namespace modelica::codegen
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::ValueRange indexes);
 		void print(mlir::OpAsmPrinter& printer);
+
 		mlir::Value getViewSource();
 
 		PointerType resultType();
@@ -711,6 +717,7 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::ValueRange indexes = {});
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		PointerType getPointerType();
@@ -748,6 +755,7 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory, mlir::ValueRange indexes = {});
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		PointerType getPointerType();
@@ -784,6 +792,7 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType, bool shouldBeFreed = true);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		bool shouldBeFreed();
@@ -818,11 +827,12 @@ namespace modelica::codegen
 		using Op::Op;
 		using Adaptor = IfOpAdaptor;
 
-		static ::llvm::StringRef getOperationName();
+		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::TypeRange resultTypes, mlir::Value cond, bool withElseRegion = false);
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value cond, bool withElseRegion = false);
-		void print(::mlir::OpAsmPrinter &p);
+		void print(::mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
 
 		mlir::TypeRange resultTypes();
@@ -858,6 +868,7 @@ namespace modelica::codegen
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args = {});
 		void print(mlir::OpAsmPrinter& printer);
+
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
 
 		mlir::Region& condition();
@@ -897,6 +908,7 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args = {});
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
 
 		mlir::Region& condition();
@@ -937,6 +949,7 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
 
 		mlir::Region& condition();
@@ -975,7 +988,7 @@ namespace modelica::codegen
 
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value condition, mlir::ValueRange args = {});
-		void print(::mlir::OpAsmPrinter &p);
+		void print(::mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
 		mlir::Value condition();
@@ -1038,9 +1051,10 @@ namespace modelica::codegen
 		using Adaptor = NotOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Type resultType();
@@ -1073,9 +1087,10 @@ namespace modelica::codegen
 		using Adaptor = AndOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Type resultType();
@@ -1110,9 +1125,10 @@ namespace modelica::codegen
 		using Adaptor = OrOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Type resultType();
@@ -1352,6 +1368,7 @@ namespace modelica::codegen
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value value);
 		void print(mlir::OpAsmPrinter& printer);
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
@@ -1442,6 +1459,7 @@ namespace modelica::codegen
 		static llvm::StringRef getOperationName();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
@@ -1485,8 +1503,9 @@ namespace modelica::codegen
 		using Adaptor = MulOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
@@ -1531,8 +1550,9 @@ namespace modelica::codegen
 		using Adaptor = DivOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		void print(mlir::OpAsmPrinter& printer);
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
@@ -1572,9 +1592,10 @@ namespace modelica::codegen
 		using Adaptor = PowOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value base, mlir::Value exponent);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value base, mlir::Value exponent);
 		void print(mlir::OpAsmPrinter& printer);
 		static void getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context);
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Type resultType();
@@ -1605,7 +1626,7 @@ namespace modelica::codegen
 		using Adaptor = NDimsOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value memory);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory);
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Type resultType();
@@ -1637,7 +1658,7 @@ namespace modelica::codegen
 		using Adaptor = SizeOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value memory, mlir::Value index = nullptr);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory, mlir::Value index = nullptr);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -1848,7 +1869,7 @@ namespace modelica::codegen
 		using Adaptor = FillOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Value value, mlir::Value memory);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory);
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Value value();
@@ -1980,6 +2001,40 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::TransposeOp
+	//===----------------------------------------------------------------------===//
+
+	class TransposeOp;
+
+	class TransposeOpAdaptor : public OpAdaptor<TransposeOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value source();
+	};
+
+	class TransposeOp : public mlir::Op<TransposeOp,
+																		 mlir::OpTrait::OneOperand,
+																		 mlir::OpTrait::OneResult,
+																		 mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = TransposeOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value source);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::Value source();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::DerOp
 	//===----------------------------------------------------------------------===//
 
@@ -2002,7 +2057,7 @@ namespace modelica::codegen
 		using Adaptor = DerOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::Type resultType, mlir::Value operand);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Type resultType();
@@ -2033,8 +2088,9 @@ namespace modelica::codegen
 		using Adaptor = PrintOpAdaptor;
 
 		static llvm::StringRef getOperationName();
-		static void build(mlir::OpBuilder &builder, mlir::OperationState &state, mlir::ValueRange values);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values);
 		void print(mlir::OpAsmPrinter& printer);
+
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::ValueRange values();
