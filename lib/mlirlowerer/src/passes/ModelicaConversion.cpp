@@ -2315,6 +2315,62 @@ struct MaxOpScalarsLowering: public ModelicaOpConversion<MaxOp>
 	}
 };
 
+struct SumOpLowering: public ModelicaOpConversion<SumOp>
+{
+	using ModelicaOpConversion<SumOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(SumOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+		auto pointerType = op.memory().getType().cast<PointerType>();
+
+		mlir::Value arg = rewriter.create<PtrCastOp>(
+				loc, op.memory(),
+				op.memory().getType().cast<PointerType>().toUnsized());
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("sum", arg),
+				pointerType.getElementType(),
+				arg);
+
+		auto call = rewriter.create<CallOp>(loc, callee.getName(), pointerType.getElementType(), arg);
+		assert(call.getNumResults() == 1);
+		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
+
+		return mlir::success();
+	}
+};
+
+struct ProductOpLowering: public ModelicaOpConversion<ProductOp>
+{
+	using ModelicaOpConversion<ProductOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(ProductOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+		auto pointerType = op.memory().getType().cast<PointerType>();
+
+		mlir::Value arg = rewriter.create<PtrCastOp>(
+				loc, op.memory(),
+				op.memory().getType().cast<PointerType>().toUnsized());
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("product", arg),
+				pointerType.getElementType(),
+				arg);
+
+		auto call = rewriter.create<CallOp>(loc, callee.getName(), pointerType.getElementType(), arg);
+		assert(call.getNumResults() == 1);
+		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
+
+		return mlir::success();
+	}
+};
+
 struct IfOpLowering: public ModelicaOpConversion<IfOp>
 {
 	using ModelicaOpConversion<IfOp>::ModelicaOpConversion;
@@ -2646,7 +2702,9 @@ static void populateModelicaConversionPatterns(
 			MinOpArrayLowering,
 			MinOpScalarsLowering,
 			MaxOpArrayLowering,
-			MaxOpScalarsLowering>(context, typeConverter, options);
+			MaxOpScalarsLowering,
+			SumOpLowering,
+			ProductOpLowering>(context, typeConverter, options);
 
 	patterns.insert<LinspaceOpLowering>(context, typeConverter, options, bitWidth);
 }
@@ -2686,7 +2744,7 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 				EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp,
 				NegateOp, AddOp, SubOp, MulOp, DivOp, PowOp,
 				NDimsOp, SizeOp, IdentityOp, DiagonalOp, ZerosOp, OnesOp, LinspaceOp, FillOp,
-				MinOp, MaxOp>();
+				MinOp, MaxOp, SumOp, ProductOp>();
 
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 

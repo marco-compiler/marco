@@ -92,6 +92,18 @@ RUNTIME_FUNC_DECL(max, long, long, long)
 RUNTIME_FUNC_DECL(max, float, float, float)
 RUNTIME_FUNC_DECL(max, double, double, double)
 
+RUNTIME_FUNC_DECL(sum, bool, ARRAY(bool))
+RUNTIME_FUNC_DECL(sum, int, ARRAY(int))
+RUNTIME_FUNC_DECL(sum, long, ARRAY(long))
+RUNTIME_FUNC_DECL(sum, float, ARRAY(float))
+RUNTIME_FUNC_DECL(sum, double, ARRAY(double))
+
+RUNTIME_FUNC_DECL(product, bool, ARRAY(bool))
+RUNTIME_FUNC_DECL(product, int, ARRAY(int))
+RUNTIME_FUNC_DECL(product, long, ARRAY(long))
+RUNTIME_FUNC_DECL(product, float, ARRAY(float))
+RUNTIME_FUNC_DECL(product, double, ARRAY(double))
+
 extern "C"
 {
 	void modelicaPrint(char* name, float value);

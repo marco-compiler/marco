@@ -31,6 +31,20 @@ class ArrayDescriptor
 	 * @param data  data pointer
 	 * @param sizes sizes of the array
 	 */
+	template<unsigned long Size>
+	ArrayDescriptor(std::array<T, Size>& data)
+			: data(data.data()), rank(1), sizes{}
+	{
+		assert(Rank == rank);
+		this->sizes[0] = Size;
+	}
+
+	/**
+	 * Utility constructor for tests.
+	 *
+	 * @param data  data pointer
+	 * @param sizes sizes of the array
+	 */
 	ArrayDescriptor(T* data, llvm::ArrayRef<unsigned long> sizes)
 			: data(data), rank(sizes.size()), sizes{}
 	{

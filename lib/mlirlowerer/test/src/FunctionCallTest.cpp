@@ -133,10 +133,10 @@ TEST(Function, recursiveCall)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 3> x = { 1, 2, 3 };
+	ArrayDescriptor<float, 1> xPtr(x);
+
 	int i = 1;
 	float y = 0;
-
-	ArrayDescriptor<float, 1> xPtr(x.data(), { x.size() });
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, i, jit::Runner::result(y))));
@@ -214,7 +214,7 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 0, 0, 0 };
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<int, 1> xPtr(x);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
@@ -303,7 +303,7 @@ TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 3> x = { 0, 0, 0 };
-	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<float, 1> xPtr(x);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(xPtr))));
@@ -380,9 +380,10 @@ TEST(Function, callElementWise)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 1, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
+
 	array<int, 3> y = { 0, 0, 0 };
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+	ArrayDescriptor<int, 1> yPtr(y);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));

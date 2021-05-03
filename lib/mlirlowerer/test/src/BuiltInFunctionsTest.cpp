@@ -6,6 +6,7 @@
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/runtime/ArrayDescriptor.h>
 #include <modelica/utils/SourcePosition.h>
+#include <numeric>
 
 using namespace modelica;
 using namespace frontend;
@@ -53,7 +54,7 @@ TEST(BuiltInOps, ndims)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 10, 23, -57 };
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<int, 1> xPtr(x);
 
 	int y = 0;
 
@@ -154,10 +155,10 @@ TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 12> x = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
-	array<int, 2> y = { 0, 0 };
-
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 4, 3 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 1 });
+
+	array<int, 2> y = { 0, 0 };
+	ArrayDescriptor<int, 1> yPtr(y);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
@@ -207,9 +208,9 @@ TEST(BuiltInOps, identityMatrix)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	int x = 3;
-	array<int, 3> y = { 2, 2, 2 };
 
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+	array<int, 3> y = { 2, 2, 2 };
+	ArrayDescriptor<int, 1> yPtr(y);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(yPtr))));
@@ -262,10 +263,10 @@ TEST(BuiltInOps, diagonalMatrix)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 1, 2, 3 };
-	array<int, 3> y = { 2, 2, 2 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+	array<int, 3> y = { 2, 2, 2 };
+	ArrayDescriptor<int, 1> yPtr(y);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
@@ -320,12 +321,11 @@ TEST(BuiltInOps, zerosMatrix)	 // NOLINT
 	loweringOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
-	int n1 = 3;
-	int n2 = 2;
+	const unsigned long n1 = 3;
+	const unsigned long n2 = 2;
 
 	array<int, 6> y = { 1, 1, 1, 1, 1, 1 };
-
-	ArrayDescriptor<int, 2> yPtr(y.data(), { 3, 2 });
+	ArrayDescriptor<int, 2> yPtr(y.data(), { n1, n2 });
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", n1, n2, jit::Runner::result(yPtr))));
@@ -382,12 +382,11 @@ TEST(BuiltInOps, onesMatrix)	 // NOLINT
 	loweringOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
-	int n1 = 3;
-	int n2 = 2;
+	const unsigned long n1 = 3;
+	const unsigned long n2 = 2;
 
 	array<int, 6> y = { 0, 0, 0, 0, 0, 0 };
-
-	ArrayDescriptor<int, 2> yPtr(y.data(), { 3, 2 });
+	ArrayDescriptor<int, 2> yPtr(y.data(), { n1, n2 });
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", n1, n2, jit::Runner::result(yPtr))));
@@ -452,8 +451,7 @@ TEST(BuiltInOps, linspace)	 // NOLINT
 	const int n = 17;
 
 	array<float, n> y = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-
-	ArrayDescriptor<float, 1> yPtr(y.data(), { 1 });
+	ArrayDescriptor<float, 1> yPtr(y);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", start, end, n, jit::Runner::result(yPtr))));
@@ -503,9 +501,9 @@ TEST(BuiltInOps, minArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 5> x = { -1, 9, -3, 0, 4 };
-	int y = 0;
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 5 });
+	int y = 0;
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
@@ -610,9 +608,9 @@ TEST(BuiltInOps, maxArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 5> x = { -1, 9, -3, 0, 4 };
-	int y = 0;
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 5 });
+	int y = 0;
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
@@ -676,7 +674,7 @@ TEST(BuiltInOps, maxScalars)	 // NOLINT
 	}
 }
 
-TEST(BuiltInOps, sumOfIntegerStaticArrayValues)	 // NOLINT
+TEST(BuiltInOps, sumOfIntegerArrayValues)	 // NOLINT
 {
 	/**
 	 * function main
@@ -688,9 +686,6 @@ TEST(BuiltInOps, sumOfIntegerStaticArrayValues)	 // NOLINT
 	 * end main
 	 */
 
-	// TODO
-
-	/*
 	SourcePosition location = SourcePosition::unknown();
 
 	Member xMember(location, "x", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
@@ -719,16 +714,166 @@ TEST(BuiltInOps, sumOfIntegerStaticArrayValues)	 // NOLINT
 	loweringOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
-	jit::Runner runner(module);
+	jit::Runner runner(*module);
 
 	array<int, 3> x = { 1, 2, 3 };
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<int, 1> xPtr(x);
 
 	int y = 0;
 
-	if (failed(runner.run("main", xPtr, jit::Runner::result(y))))
-		FAIL();
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
+	EXPECT_EQ(y, std::accumulate(x.begin(), x.end(), 0, std::plus<>()));
+}
 
-	EXPECT_EQ(y, x[0] + x[1] + x[2]);
+TEST(BuiltInOps, sumOfFloatArrayValues)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Real[3] x;
+	 *   output Real y;
+	 *
+	 *   algorithm
+	 *     y := sum(x);
+	 * end main
 	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<float>(), "y"),
+			Expression::call(location, makeType<float>(),
+											 Expression::reference(location, makeType<float>(), "sum"),
+											 Expression::reference(location, makeType<float>(3), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	jit::Runner runner(*module);
+
+	array<float, 3> x = { 1, 2, 3 };
+	ArrayDescriptor<float, 1> xPtr(x);
+
+	float y = 0;
+
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
+	EXPECT_EQ(y, std::accumulate(x.begin(), x.end(), 0, std::plus<>()));
+}
+
+TEST(BuiltInOps, productOfIntegerArrayValues)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[3] x;
+	 *   output Integer y;
+	 *
+	 *   algorithm
+	 *     y := product(x);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<int>(), "y"),
+			Expression::call(location, makeType<int>(),
+											 Expression::reference(location, makeType<int>(), "product"),
+											 Expression::reference(location, makeType<int>(3), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	jit::Runner runner(*module);
+
+	array<int, 3> x = { 1, 2, 3 };
+	ArrayDescriptor<int, 1> xPtr(x);
+
+	int y = 0;
+
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
+	EXPECT_EQ(y, std::accumulate(x.begin(), x.end(), 1, std::multiplies<>()));
+}
+
+TEST(BuiltInOps, productOfFloatArrayValues)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Real[3] x;
+	 *   output Real y;
+	 *
+	 *   algorithm
+	 *     y := product(x);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+
+	Statement assignment = AssignmentStatement(
+			location,
+			Expression::reference(location, makeType<float>(), "y"),
+			Expression::call(location, makeType<float>(),
+											 Expression::reference(location, makeType<float>(), "product"),
+											 Expression::reference(location, makeType<float>(3), "x")));
+
+	ClassContainer cls(Function(location, "main", true,
+															{ xMember, yMember },
+															Algorithm(location, assignment)));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+
+	jit::Runner runner(*module);
+
+	array<float, 3> x = { 1, 2, 3 };
+	ArrayDescriptor<float, 1> xPtr(x);
+
+	float y = 0;
+
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
+	EXPECT_EQ(y, std::accumulate(x.begin(), x.end(), 1, std::multiplies<>()));
 }

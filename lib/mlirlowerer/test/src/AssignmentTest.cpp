@@ -250,13 +250,15 @@ TEST(Assignment, arraySliceAssignment)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 2> x = { 0, 1 };
-	array<int, 2> y = { 2, 3 };
-	array<int, 2> z = { 4, 5 };
-	array<int, 6> t = { 0, 0, 0, 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 2 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 2 });
-	ArrayDescriptor<int, 1> zPtr(z.data(), { 2 });
+	array<int, 2> y = { 2, 3 };
+	ArrayDescriptor<int, 1> yPtr(y);
+
+	array<int, 2> z = { 4, 5 };
+	ArrayDescriptor<int, 1> zPtr(z);
+
+	array<int, 6> t = { 0, 0, 0, 0, 0, 0 };
 	ArrayDescriptor<int, 2> tPtr(t.data(), { 3, 2 });
 
 	jit::Runner runner(*module);
@@ -309,10 +311,10 @@ TEST(Assignment, arrayCopy)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 2> x = { 23, 57 };
-	array<int, 2> y = { 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 2 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 2 });
+	array<int, 2> y = { 0, 0 };
+	ArrayDescriptor<int, 1> yPtr(y);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));

@@ -1918,6 +1918,68 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::SumOp
+	//===----------------------------------------------------------------------===//
+
+	class SumOp;
+
+	class SumOpAdaptor : public OpAdaptor<SumOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value memory();
+	};
+
+	class SumOp : public mlir::Op<SumOp,
+															 mlir::OpTrait::OneOperand,
+															 mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = SumOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		mlir::Type resultType();
+		mlir::Value memory();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::ProductOp
+	//===----------------------------------------------------------------------===//
+
+	class ProductOp;
+
+	class ProductOpAdaptor : public OpAdaptor<ProductOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value memory();
+	};
+
+	class ProductOp : public mlir::Op<ProductOp,
+																	 mlir::OpTrait::OneOperand,
+																	 mlir::OpTrait::OneResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = ProductOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		mlir::Type resultType();
+		mlir::Value memory();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::DerOp
 	//===----------------------------------------------------------------------===//
 

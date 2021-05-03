@@ -154,10 +154,10 @@ TEST(MathOps, negateIntegerStaticArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
-	array<int, 3> y = { 10, 23, 57 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+	array<int, 3> y = { 10, 23, 57 };
+	ArrayDescriptor<int, 1> yPtr(y);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr)));
@@ -206,10 +206,10 @@ TEST(MathOps, negateIntegerDynamicArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
-	array<int, 3> y = { 10, 23, 57 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+	array<int, 3> y = { 10, 23, 57 };
+	ArrayDescriptor<int, 1> yPtr(y);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
@@ -258,10 +258,10 @@ TEST(MathOps, negateFloatStaticArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 3> x = { 10, 23, 57 };
-	array<float, 3> y = { 10, 23, 57 };
+	ArrayDescriptor<float, 1> xPtr(x);
 
-	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
+	array<float, 3> y = { 10, 23, 57 };
+	ArrayDescriptor<float, 1> yPtr(y);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
@@ -310,10 +310,10 @@ TEST(MathOps, negateFloatDynamicArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 3> x = { 10, 23, 57 };
-	array<float, 3> y = { 10, 23, 57 };
+	ArrayDescriptor<float, 1> xPtr(x);
 
-	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
+	array<float, 3> y = { 10, 23, 57 };
+	ArrayDescriptor<float, 1> yPtr(y);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
@@ -420,12 +420,13 @@ TEST(MathOps, sumOfIntegerStaticArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
-	array<int, 3> y = { 10, 57, -23 };
-	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
+	array<int, 3> y = { 10, 57, -23 };
+	ArrayDescriptor<int, 1> yPtr(y);
+
+	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
@@ -477,12 +478,13 @@ TEST(MathOps, sumOfIntegerDynamicArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
-	array<int, 3> y = { 10, 57, -23 };
-	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
+	array<int, 3> y = { 10, 57, -23 };
+	ArrayDescriptor<int, 1> yPtr(y);
+
+	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, jit::Runner::result(zPtr))));
@@ -589,12 +591,13 @@ TEST(MathOps, sumOfFloatStaticArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 3> x = { 10.1, 23.3, 57.8 };
-	array<float, 3> y = { 10.2, 57.3, -23.5 };
-	array<float, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<float, 1> xPtr(x);
 
-	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<float, 1> zPtr(z.data(), { 3 });
+	array<float, 3> y = { 10.2, 57.3, -23.5 };
+	ArrayDescriptor<float, 1> yPtr(y);
+
+	array<float, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<float, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
@@ -646,12 +649,13 @@ TEST(MathOps, sumOfFloatDynamicArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 3> x = { 10.1, 23.3, 57.8 };
-	array<float, 3> y = { 10.2, 57.3, -23.5 };
-	array<float, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<float, 1> xPtr(x);
 
-	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<float, 1> zPtr(z.data(), { 3 });
+	array<float, 3> y = { 10.2, 57.3, -23.5 };
+	ArrayDescriptor<float, 1> yPtr(y);
+
+	array<float, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<float, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, jit::Runner::result(zPtr))));
@@ -758,12 +762,13 @@ TEST(MathOps, sumIntegerArrayAndFloatArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 2, -3, -3 };
-	array<float, 3> y = { -3.5, 5.2, -2 };
-	array<float, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<float, 1> zPtr(z.data(), { 3 });
+	array<float, 3> y = { -3.5, 5.2, -2 };
+	ArrayDescriptor<float, 1> yPtr(y);
+
+	array<float, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<float, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
@@ -929,12 +934,13 @@ TEST(MathOps, subOfIntegerStaticArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
-	array<int, 3> y = { 10, 57, -23 };
-	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
+	array<int, 3> y = { 10, 57, -23 };
+	ArrayDescriptor<int, 1> yPtr(y);
+
+	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
@@ -986,12 +992,13 @@ TEST(MathOps, subOfIntegerDynamicArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 10, 23, 57 };
-	array<int, 3> y = { 10, 57, -23 };
-	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
+	array<int, 3> y = { 10, 57, -23 };
+	ArrayDescriptor<int, 1> yPtr(y);
+
+	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, jit::Runner::result(zPtr))));
@@ -1098,12 +1105,13 @@ TEST(MathOps, subOfFloatStaticArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 3> x = { 10.1, 23.3, 57.8 };
-	array<float, 3> y = { 10.2, 57.3, -23.5 };
-	array<float, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<float, 1> xPtr(x);
 
-	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<float, 1> zPtr(z.data(), { 3 });
+	array<float, 3> y = { 10.2, 57.3, -23.5 };
+	ArrayDescriptor<float, 1> yPtr(y);
+
+	array<float, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<float, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
@@ -1155,12 +1163,13 @@ TEST(MathOps, subOfFloatDynamicArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 3> x = { 10.1, 23.3, 57.8 };
-	array<float, 3> y = { 10.2, 57.3, -23.5 };
-	array<float, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<float, 1> xPtr(x);
 
-	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<float, 1> zPtr(z.data(), { 3 });
+	array<float, 3> y = { 10.2, 57.3, -23.5 };
+	ArrayDescriptor<float, 1> yPtr(y);
+
+	array<float, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<float, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, jit::Runner::result(zPtr))));
@@ -1267,12 +1276,13 @@ TEST(MathOps, subIntegerArrayAndFloatArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 2, -3, -3 };
-	array<float, 3> y = { -3.5, 5.2, -2 };
-	array<float, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<float, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<float, 1> zPtr(z.data(), { 3 });
+	array<float, 3> y = { -3.5, 5.2, -2 };
+	ArrayDescriptor<float, 1> yPtr(y);
+
+	array<float, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<float, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
@@ -1607,11 +1617,12 @@ TEST(MathOps, mulIntegerScalarAndIntegerStaticArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	int x = 2;
-	array<int, 3> y = { 3, -5, 0 };
-	array<int, 3> z = { 0, 0, 0 };
 
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
+	array<int, 3> y = { 3, -5, 0 };
+	ArrayDescriptor<int, 1> yPtr(y);
+
+	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, yPtr, zPtr)));
@@ -1663,11 +1674,12 @@ TEST(MathOps, mulIntegerScalarAndIntegerDynamicArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	int x = 2;
-	array<int, 3> y = { 3, -5, 0 };
-	array<int, 3> z = { 0, 0, 0 };
 
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
+	array<int, 3> y = { 3, -5, 0 };
+	ArrayDescriptor<int, 1> yPtr(y);
+
+	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, yPtr, jit::Runner::result(zPtr))));
@@ -1719,11 +1731,12 @@ TEST(MathOps, mulIntegerStaticArrayAndIntegerScalar)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 3, -5, 0 };
-	int y = 2;
-	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
+	int y = 2;
+
+	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, zPtr)));
@@ -1775,11 +1788,12 @@ TEST(MathOps, mulIntegerDynamicArrayAndIntegerScalar)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 3, -5, 0 };
-	int y = 2;
-	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
+	int y = 2;
+
+	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, jit::Runner::result(zPtr))));
@@ -1831,11 +1845,12 @@ TEST(MathOps, mulCrossProductIntegerStaticArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 3, 5, 2 };
-	array<int, 3> y = { 7, -2, 3 };
-	int z = 0;
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
+	array<int, 3> y = { 7, -2, 3 };
+	ArrayDescriptor<int, 1> yPtr(y);
+
+	int z = 0;
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, jit::Runner::result(z))));
@@ -1886,12 +1901,13 @@ TEST(MathOps, mulIntegerStaticVectorAndIntegerStaticMatrix)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 4> x = { 1, 2, 3, 4 };
-	array<int, 12> y = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
-	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 4 });
+	array<int, 12> y = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
 	ArrayDescriptor<int, 2> yPtr(y.data(), { 4, 3 });
-	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
+
+	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
@@ -1946,12 +1962,13 @@ TEST(MathOps, mulIntegerStaticMatrixAndIntegerStaticVector)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 12> x = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12 };
-	array<int, 3> y = { 1, 2, 3 };
-	array<int, 4> z = { 0, 0, 0, 0 };
-
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 4, 3 });
-	ArrayDescriptor<int, 1> yPtr(y.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(z.data(), { 4 });
+
+	array<int, 3> y = { 1, 2, 3 };
+	ArrayDescriptor<int, 1> yPtr(y);
+
+	array<int, 4> z = { 0, 0, 0, 0 };
+	ArrayDescriptor<int, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
@@ -2007,11 +2024,12 @@ TEST(MathOps, mulIntegerStaticMatrixes)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
-	array<int, 6> y = { 1, 2, 3, 4, 5, 6 };
-	array<int, 4> z = { 0, 0, 0, 0 };
-
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });
+
+	array<int, 6> y = { 1, 2, 3, 4, 5, 6 };
 	ArrayDescriptor<int, 2> yPtr(y.data(), { 3, 2 });
+
+	array<int, 4> z = { 0, 0, 0, 0 };
 	ArrayDescriptor<int, 2> zPtr(z.data(), { 2, 2 });
 
 	jit::Runner runner(*module);
@@ -2293,11 +2311,12 @@ TEST(MathOps, divIntegerStaticArrayAndIntegerScalar)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 10, -5, 0 };
-	int y = 2;
-	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
-	ArrayDescriptor<int, 1> zPtr(z.data(), { 3 });
+	int y = 2;
+
+	array<int, 3> z = { 0, 0, 0 };
+	ArrayDescriptor<int, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, y, zPtr)));
@@ -2349,9 +2368,9 @@ TEST(MathOps, divIntegerDynamicArrayAndIntegerScalar)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 3, -5, 0 };
-	int y = 2;
+	ArrayDescriptor<int, 1> xPtr(x);
 
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	int y = 2;
 	ArrayDescriptor<int, 1> zPtr(nullptr, { 3 });
 
 	jit::Runner runner(*module);
@@ -2563,10 +2582,11 @@ TEST(MathOps, powSquareMatrix)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 4> x = { 1, 2, 3, 4 };
-	int y = 3;
-	array<int, 4> z = { 0, 0, 0, 0 };
-
 	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 2 });
+
+	int y = 3;
+
+	array<int, 4> z = { 0, 0, 0, 0 };
 	ArrayDescriptor<int, 2> zPtr(z.data(), { 2, 2 });
 
 	jit::Runner runner(*module);

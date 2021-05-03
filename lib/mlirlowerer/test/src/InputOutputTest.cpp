@@ -186,7 +186,7 @@ TEST(Input, integerArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 	
 	array<int, 2> x = { 23, 57 };
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<int, 1> xPtr(x);
 
 	int y = 0;
 
@@ -238,7 +238,7 @@ TEST(Input, integerArrayUnknownSize)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 5> x = { 23, 57, 10, -23, -10 };
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 5 });
+	ArrayDescriptor<int, 1> xPtr(x);
 
 	int y = 0;
 
@@ -290,7 +290,7 @@ TEST(Input, floatArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 2> x = { 23.0, 57.0 };
-	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<float, 1> xPtr(x);
 
 	float y = 0;
 
@@ -342,7 +342,7 @@ TEST(Input, floatArrayUnknownSize)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 2> x = { 23.0, 57.0 };
-	ArrayDescriptor<float, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<float, 1> xPtr(x);
 
 	float y = 0;
 
@@ -483,7 +483,7 @@ TEST(Output, integerArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 2> x = { 0, 0 };
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 2 });
+	ArrayDescriptor<int, 1> xPtr(x);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
@@ -598,7 +598,7 @@ TEST(Output, floatArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 2> x = { 0, 0 };
-	ArrayDescriptor<float, 1> xPtr(x.data(), { 2 });
+	ArrayDescriptor<float, 1> xPtr(x);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
@@ -734,7 +734,7 @@ TEST(Output, defaultArrayValue)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 0, 0, 0 };
-	ArrayDescriptor<int, 1> xPtr(x.data(), { 3 });
+	ArrayDescriptor<int, 1> xPtr(x);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));

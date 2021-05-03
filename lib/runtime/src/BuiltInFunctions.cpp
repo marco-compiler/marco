@@ -1,4 +1,5 @@
 #include <modelica/runtime/Runtime.h>
+#include <numeric>
 
 /**
  * Set all the elements of an array to a given value.
@@ -68,7 +69,7 @@ RUNTIME_FUNC_DEF(identity, void, ARRAY(double))
  * @param values 			source values
  */
 template<typename T, typename U>
-void diagonal(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> values)
+inline void diagonal(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> values)
 {
 	// Check that the array is square-like (all the dimensions have the same
 	// size). Note that the implementation is generalized to n-D dimensions,
@@ -137,7 +138,7 @@ RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(double))
  * @param array   array to be populated
  */
 template<typename T>
-void zeros(UnsizedArrayDescriptor<T> array)
+inline void zeros(UnsizedArrayDescriptor<T> array)
 {
 	for (auto& element : array)
 		element = 0;
@@ -156,7 +157,7 @@ RUNTIME_FUNC_DEF(zeros, void, ARRAY(double))
  * @param array   array to be populated
  */
 template<typename T>
-void ones(UnsizedArrayDescriptor<T> array)
+inline void ones(UnsizedArrayDescriptor<T> array)
 {
 	for (auto& element : array)
 		element = 1;
@@ -177,7 +178,7 @@ RUNTIME_FUNC_DEF(ones, void, ARRAY(double))
  * @param end 	 end value
  */
 template<typename T>
-void linspace(UnsizedArrayDescriptor<T> array, double start, double end)
+inline void linspace(UnsizedArrayDescriptor<T> array, double start, double end)
 {
 	assert(array.getRank() == 1);
 
@@ -200,7 +201,7 @@ RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), float, float)
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), double, double)
 
 template<typename T>
-T min(UnsizedArrayDescriptor<T> array)
+inline T min(UnsizedArrayDescriptor<T> array)
 {
 	return *std::min_element(array.begin(), array.end());
 }
@@ -212,7 +213,7 @@ RUNTIME_FUNC_DEF(min, float, ARRAY(float))
 RUNTIME_FUNC_DEF(min, double, ARRAY(double))
 
 template<typename T>
-T min(T x, T y)
+inline T min(T x, T y)
 {
 	return std::min(x, y);
 }
@@ -224,7 +225,7 @@ RUNTIME_FUNC_DEF(min, float, float, float)
 RUNTIME_FUNC_DEF(min, double, double, double)
 
 template<typename T>
-T max(UnsizedArrayDescriptor<T> array)
+inline T max(UnsizedArrayDescriptor<T> array)
 {
 	return *std::max_element(array.begin(), array.end());
 }
@@ -236,7 +237,7 @@ RUNTIME_FUNC_DEF(max, float, ARRAY(float))
 RUNTIME_FUNC_DEF(max, double, ARRAY(double))
 
 template<typename T>
-T max(T x, T y)
+inline T max(T x, T y)
 {
 	return std::max(x, y);
 }
@@ -246,3 +247,27 @@ RUNTIME_FUNC_DEF(max, int, int, int)
 RUNTIME_FUNC_DEF(max, long, long, long)
 RUNTIME_FUNC_DEF(max, float, float, float)
 RUNTIME_FUNC_DEF(max, double, double, double)
+
+template<typename T>
+inline T sum(UnsizedArrayDescriptor<T> array)
+{
+	return std::accumulate(array.begin(), array.end(), 0, std::plus<T>());
+}
+
+RUNTIME_FUNC_DEF(sum, bool, ARRAY(bool))
+RUNTIME_FUNC_DEF(sum, int, ARRAY(int))
+RUNTIME_FUNC_DEF(sum, long, ARRAY(long))
+RUNTIME_FUNC_DEF(sum, float, ARRAY(float))
+RUNTIME_FUNC_DEF(sum, double, ARRAY(double))
+
+template<typename T>
+inline T product(UnsizedArrayDescriptor<T> array)
+{
+	return std::accumulate(array.begin(), array.end(), 1, std::multiplies<T>());
+}
+
+RUNTIME_FUNC_DEF(product, bool, ARRAY(bool))
+RUNTIME_FUNC_DEF(product, int, ARRAY(int))
+RUNTIME_FUNC_DEF(product, long, ARRAY(long))
+RUNTIME_FUNC_DEF(product, float, ARRAY(float))
+RUNTIME_FUNC_DEF(product, double, ARRAY(double))

@@ -3977,6 +3977,98 @@ mlir::ValueRange MaxOp::values()
 }
 
 //===----------------------------------------------------------------------===//
+// Modelica::SumOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value SumOpAdaptor::memory()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef SumOp::getOperationName()
+{
+	return "modelica.sum";
+}
+
+void SumOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory)
+{
+	state.addTypes(resultType);
+	state.addOperands(memory);
+}
+
+void SumOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.sum " << memory() << " : " << resultType();
+}
+
+mlir::LogicalResult SumOp::verify()
+{
+	if (!memory().getType().isa<PointerType>())
+		return emitOpError("requires the operand to be an array");
+
+	if (!isNumeric(memory().getType().cast<PointerType>().getElementType()))
+		return emitOpError("requires the operand to be an array of numeric values");
+
+	return mlir::success();
+}
+
+mlir::Type SumOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value SumOp::memory()
+{
+	return Adaptor(*this).memory();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::ProductOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value ProductOpAdaptor::memory()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef ProductOp::getOperationName()
+{
+	return "modelica.product";
+}
+
+void ProductOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory)
+{
+	state.addTypes(resultType);
+	state.addOperands(memory);
+}
+
+void ProductOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.product " << memory() << " : " << resultType();
+}
+
+mlir::LogicalResult ProductOp::verify()
+{
+	if (!memory().getType().isa<PointerType>())
+		return emitOpError("requires the operand to be an array");
+
+	if (!isNumeric(memory().getType().cast<PointerType>().getElementType()))
+		return emitOpError("requires the operand to be an array of numeric values");
+
+	return mlir::success();
+}
+
+mlir::Type ProductOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value ProductOp::memory()
+{
+	return Adaptor(*this).memory();
+}
+
+//===----------------------------------------------------------------------===//
 // Modelica::DerOp
 //===----------------------------------------------------------------------===//
 

@@ -104,10 +104,10 @@ TEST(Logic, negateArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<bool, 2> x = { true, false };
-	array<bool, 2> y = { true, false };
+	ArrayDescriptor<bool, 1> xPtr(x);
 
-	ArrayDescriptor<bool, 1> xPtr(x.data(), { 2 });
-	ArrayDescriptor<bool, 1> yPtr(y.data(), { 2 });
+	array<bool, 2> y = { true, false };
+	ArrayDescriptor<bool, 1> yPtr(y);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr)));
@@ -214,12 +214,13 @@ TEST(Logic, andArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<bool, 4> x = { false, false, true, true };
-	array<bool, 4> y = { false, true, false, true };
-	array<bool, 4> z = { true, true, true, false };
+	ArrayDescriptor<bool, 1> xPtr(x);
 
-	ArrayDescriptor<bool, 1> xPtr(x.data(), { 4 });
-	ArrayDescriptor<bool, 1> yPtr(y.data(), { 4 });
-	ArrayDescriptor<bool, 1> zPtr(z.data(), { 4 });
+	array<bool, 4> y = { false, true, false, true };
+	ArrayDescriptor<bool, 1> yPtr(y);
+
+	array<bool, 4> z = { true, true, true, false };
+	ArrayDescriptor<bool, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
@@ -326,12 +327,13 @@ TEST(Logic, orArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<bool, 4> x = { false, false, true, true };
-	array<bool, 4> y = { false, true, false, true };
-	array<bool, 4> z = { true, false, false, false };
+	ArrayDescriptor<bool, 1> xPtr(x);
 
-	ArrayDescriptor<bool, 1> xPtr(x.data(), { 4 });
-	ArrayDescriptor<bool, 1> yPtr(y.data(), { 4 });
-	ArrayDescriptor<bool, 1> zPtr(z.data(), { 4 });
+	array<bool, 4> y = { false, true, false, true };
+	ArrayDescriptor<bool, 1> yPtr(y);
+
+	array<bool, 4> z = { true, false, false, false };
+	ArrayDescriptor<bool, 1> zPtr(z);
 
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));

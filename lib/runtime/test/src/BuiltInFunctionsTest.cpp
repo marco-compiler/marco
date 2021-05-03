@@ -1,13 +1,12 @@
 #include <gtest/gtest.h>
 #include <modelica/runtime/Runtime.h>
 #include <mlir/ExecutionEngine/CRunnerUtils.h>
+#include <numeric>
 
 TEST(Runtime, fill_i1)	 // NOLINT
 {
 	std::array<bool, 3> data = { false, false, false };
-	std::array<unsigned long, 1> sizes = { 3 };
-
-	ArrayDescriptor<bool, 1> descriptor(data.data(), sizes);
+	ArrayDescriptor<bool, 1> descriptor(data);
 	UnsizedArrayDescriptor<bool> unsized(descriptor);
 
 	bool value = true;
@@ -20,9 +19,7 @@ TEST(Runtime, fill_i1)	 // NOLINT
 TEST(Runtime, fill_i32)	 // NOLINT
 {
 	std::array<int, 3> data = { 0, 0, 0 };
-	std::array<unsigned long, 1> sizes = { 3 };
-
-	ArrayDescriptor<int, 1> descriptor(data.data(), sizes);
+	ArrayDescriptor<int, 1> descriptor(data);
 	UnsizedArrayDescriptor<int> unsized(descriptor);
 
 	int value = 1;
@@ -35,9 +32,7 @@ TEST(Runtime, fill_i32)	 // NOLINT
 TEST(Runtime, fill_i64)	 // NOLINT
 {
 	std::array<long, 3> data = { 0, 0, 0 };
-	std::array<unsigned long, 1> sizes = { 3 };
-
-	ArrayDescriptor<long, 1> descriptor(data.data(), sizes);
+	ArrayDescriptor<long, 1> descriptor(data);
 	UnsizedArrayDescriptor<long> unsized(descriptor);
 
 	long value = 1;
@@ -50,9 +45,7 @@ TEST(Runtime, fill_i64)	 // NOLINT
 TEST(Runtime, fill_f32)	 // NOLINT
 {
 	std::array<float, 3> data = { 0, 0, 0 };
-	std::array<unsigned long, 1> sizes = { 3 };
-
-	ArrayDescriptor<float, 1> descriptor(data.data(), sizes);
+	ArrayDescriptor<float, 1> descriptor(data);
 	UnsizedArrayDescriptor<float> unsized(descriptor);
 
 	float value = 1;
@@ -65,9 +58,7 @@ TEST(Runtime, fill_f32)	 // NOLINT
 TEST(Runtime, fill_f64)	 // NOLINT
 {
 	std::array<double, 3> data = { 0, 0, 0 };
-	std::array<unsigned long, 1> sizes = { 3 };
-
-	ArrayDescriptor<double, 1> descriptor(data.data(), sizes);
+	ArrayDescriptor<double, 1> descriptor(data);
 	UnsizedArrayDescriptor<double> unsized(descriptor);
 
 	double value = 1;
@@ -161,9 +152,7 @@ TEST(Runtime, diagonalSquareMatrix_i1_i1)	 // NOLINT
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
 	std::array<bool, 3> values = { true, true, true };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<bool, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<bool, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai1_ai1(unsizedDestination, unsizedValues);
@@ -182,9 +171,7 @@ TEST(Runtime, diagonalSquareMatrix_i1_i32)	 // NOLINT
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
 	std::array<int, 3> values = { 2, 2, 2 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<int, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<int, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai1_ai32(unsizedDestination, unsizedValues);
@@ -203,9 +190,7 @@ TEST(Runtime, diagonalSquareMatrix_i1_i64)	 // NOLINT
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
 	std::array<long, 3> values = { 2, 2, 2 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<long, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<long, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai1_ai64(unsizedDestination, unsizedValues);
@@ -224,9 +209,7 @@ TEST(Runtime, diagonalSquareMatrix_i1_f32)	 // NOLINT
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
 	std::array<float, 3> values = { 2, 2, 2 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<float, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<float, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai1_af32(unsizedDestination, unsizedValues);
@@ -245,9 +228,7 @@ TEST(Runtime, diagonalSquareMatrix_i1_f64)	 // NOLINT
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
 	std::array<double, 3> values = { 2, 2, 2 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<double, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<double, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai1_af64(unsizedDestination, unsizedValues);
@@ -266,9 +247,7 @@ TEST(Runtime, diagonalSquareMatrix_i32_i1)	 // NOLINT
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
 	std::array<bool, 3> values = { true, true, true };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<bool, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<bool, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai32_ai1(unsizedDestination, unsizedValues);
@@ -287,9 +266,7 @@ TEST(Runtime, diagonalSquareMatrix_i32_i32)	 // NOLINT
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
 	std::array<int, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<int, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<int, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai32_ai32(unsizedDestination, unsizedValues);
@@ -308,9 +285,7 @@ TEST(Runtime, diagonalSquareMatrix_i32_i64)	 // NOLINT
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
 	std::array<long, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<long, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<long, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai32_ai64(unsizedDestination, unsizedValues);
@@ -329,9 +304,7 @@ TEST(Runtime, diagonalSquareMatrix_i32_f32)	 // NOLINT
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
 	std::array<float, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<float, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<float, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai32_af32(unsizedDestination, unsizedValues);
@@ -350,9 +323,7 @@ TEST(Runtime, diagonalSquareMatrix_i32_f64)	 // NOLINT
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
 	std::array<double, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<double, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<double, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai32_af64(unsizedDestination, unsizedValues);
@@ -371,9 +342,7 @@ TEST(Runtime, diagonalSquareMatrix_i64_i1)	 // NOLINT
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
 	std::array<bool, 3> values = { true, true, true };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<bool, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<bool, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai64_ai1(unsizedDestination, unsizedValues);
@@ -392,9 +361,7 @@ TEST(Runtime, diagonalSquareMatrix_i64_i32)	 // NOLINT
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
 	std::array<int, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<int, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<int, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai64_ai32(unsizedDestination, unsizedValues);
@@ -413,9 +380,7 @@ TEST(Runtime, diagonalSquareMatrix_i64_i64)	 // NOLINT
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
 	std::array<long, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<long, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<long, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai64_ai64(unsizedDestination, unsizedValues);
@@ -434,9 +399,7 @@ TEST(Runtime, diagonalSquareMatrix_i64_f32)	 // NOLINT
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
 	std::array<float, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<float, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<float, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai64_af32(unsizedDestination, unsizedValues);
@@ -455,9 +418,7 @@ TEST(Runtime, diagonalSquareMatrix_i64_f64)	 // NOLINT
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
 	std::array<double, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<double, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<double, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_ai64_af64(unsizedDestination, unsizedValues);
@@ -476,9 +437,7 @@ TEST(Runtime, diagonalSquareMatrix_f32_i1)	 // NOLINT
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
 	std::array<bool, 3> values = { true, true, true };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<bool, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<bool, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_af32_ai1(unsizedDestination, unsizedValues);
@@ -497,9 +456,7 @@ TEST(Runtime, diagonalSquareMatrix_f32_i32)	 // NOLINT
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
 	std::array<int, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<int, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<int, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_af32_ai32(unsizedDestination, unsizedValues);
@@ -518,9 +475,7 @@ TEST(Runtime, diagonalSquareMatrix_f32_i64)	 // NOLINT
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
 	std::array<long, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<long, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<long, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_af32_ai64(unsizedDestination, unsizedValues);
@@ -539,9 +494,7 @@ TEST(Runtime, diagonalSquareMatrix_f32_f32)	 // NOLINT
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
 	std::array<float, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<float, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<float, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_af32_af32(unsizedDestination, unsizedValues);
@@ -560,9 +513,7 @@ TEST(Runtime, diagonalSquareMatrix_f32_f64)	 // NOLINT
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
 	std::array<double, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<double, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<double, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_af32_af64(unsizedDestination, unsizedValues);
@@ -581,9 +532,7 @@ TEST(Runtime, diagonalSquareMatrix_f64_i1)	 // NOLINT
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
 	std::array<bool, 3> values = { true, true, true };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<bool, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<bool, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_af64_ai1(unsizedDestination, unsizedValues);
@@ -602,9 +551,7 @@ TEST(Runtime, diagonalSquareMatrix_f64_i32)	 // NOLINT
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
 	std::array<int, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<int, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<int, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_af64_ai32(unsizedDestination, unsizedValues);
@@ -623,9 +570,7 @@ TEST(Runtime, diagonalSquareMatrix_f64_i64)	 // NOLINT
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
 	std::array<long, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<long, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<long, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_af64_ai64(unsizedDestination, unsizedValues);
@@ -644,9 +589,7 @@ TEST(Runtime, diagonalSquareMatrix_f64_f32)	 // NOLINT
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
 	std::array<float, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<float, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<float, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_af64_af32(unsizedDestination, unsizedValues);
@@ -665,9 +608,7 @@ TEST(Runtime, diagonalSquareMatrix_f64_f64)	 // NOLINT
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
 	std::array<double, 3> values = { 1, 2, 3 };
-	std::array<unsigned long, 1> valuesSizes = { 3 };
-
-	ArrayDescriptor<double, 1> valuesDescriptor(values.data(), valuesSizes);
+	ArrayDescriptor<double, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
 
 	_Mdiagonal_af64_af64(unsizedDestination, unsizedValues);
@@ -820,9 +761,7 @@ TEST(Runtime, ones_f64)	 // NOLINT
 TEST(Runtime, linspace_i1)	 // NOLINT
 {
 	std::array<bool, 4> data = { true, false, false, false };
-	std::array<unsigned long, 1> sizes = { 4 };
-
-	ArrayDescriptor<bool, 1> descriptor(data.data(), sizes);
+	ArrayDescriptor<bool, 1> descriptor(data);
 	UnsizedArrayDescriptor<bool> unsized(descriptor);
 
 	double start = 0;
@@ -830,16 +769,14 @@ TEST(Runtime, linspace_i1)	 // NOLINT
 
 	_Mlinspace_ai1_f64_f64(unsized, start, end);
 
-	for (size_t i = 0; i < sizes[0]; ++i)
-		EXPECT_EQ(data[i], (start + i * (end - start) / (sizes[0] - 1)) > 0);
+	for (size_t i = 0; i < data.size(); ++i)
+		EXPECT_EQ(data[i], (start + i * (end - start) / (data.size() - 1)) > 0);
 }
 
 TEST(Runtime, linspace_i32)	 // NOLINT
 {
 	std::array<int, 4> data = { -1, -1, -1, -1 };
-	std::array<unsigned long, 1> sizes = { 4 };
-
-	ArrayDescriptor<int, 1> descriptor(data.data(), sizes);
+	ArrayDescriptor<int, 1> descriptor(data);
 	UnsizedArrayDescriptor<int> unsized(descriptor);
 
 	double start = 0;
@@ -847,16 +784,14 @@ TEST(Runtime, linspace_i32)	 // NOLINT
 
 	_Mlinspace_ai32_f64_f64(unsized, start, end);
 
-	for (size_t i = 0; i < sizes[0]; ++i)
-		EXPECT_EQ(data[i], (int) (start + i * (end - start) / (sizes[0] - 1)));
+	for (size_t i = 0; i < data.size(); ++i)
+		EXPECT_EQ(data[i], (int) (start + i * (end - start) / (data.size() - 1)));
 }
 
 TEST(Runtime, linspace_i64)	 // NOLINT
 {
 	std::array<long, 4> data = { -1, -1, -1, -1 };
-	std::array<unsigned long, 1> sizes = { 4 };
-
-	ArrayDescriptor<long, 1> descriptor(data.data(), sizes);
+	ArrayDescriptor<long, 1> descriptor(data);
 	UnsizedArrayDescriptor<long> unsized(descriptor);
 
 	double start = 0;
@@ -864,16 +799,14 @@ TEST(Runtime, linspace_i64)	 // NOLINT
 
 	_Mlinspace_ai64_f64_f64(unsized, start, end);
 
-	for (size_t i = 0; i < sizes[0]; ++i)
-		EXPECT_EQ(data[i], (long) (start + i * (end - start) / (sizes[0] - 1)));
+	for (size_t i = 0; i < data.size(); ++i)
+		EXPECT_EQ(data[i], (long) (start + i * (end - start) / (data.size() - 1)));
 }
 
 TEST(Runtime, linspace_f32)	 // NOLINT
 {
 	std::array<float, 4> data = { -1, -1, -1, -1 };
-	std::array<unsigned long, 1> sizes = { 4 };
-
-	ArrayDescriptor<float, 1> descriptor(data.data(), sizes);
+	ArrayDescriptor<float, 1> descriptor(data);
 	UnsizedArrayDescriptor<float> unsized(descriptor);
 
 	double start = 0;
@@ -881,16 +814,14 @@ TEST(Runtime, linspace_f32)	 // NOLINT
 
 	_Mlinspace_af32_f64_f64(unsized, start, end);
 
-	for (size_t i = 0; i < sizes[0]; ++i)
-		EXPECT_FLOAT_EQ(data[i], start +  i * (end - start) / (sizes[0] - 1));
+	for (size_t i = 0; i < data.size(); ++i)
+		EXPECT_FLOAT_EQ(data[i], start +  i * (end - start) / (data.size() - 1));
 }
 
 TEST(Runtime, linspace_f64)	 // NOLINT
 {
 	std::array<double, 4> data = { -1, -1, -1, -1 };
-	std::array<unsigned long, 1> sizes = { 4 };
-
-	ArrayDescriptor<double, 1> descriptor(data.data(), sizes);
+	ArrayDescriptor<double, 1> descriptor(data);
 	UnsizedArrayDescriptor<double> unsized(descriptor);
 
 	double start = 0;
@@ -898,8 +829,8 @@ TEST(Runtime, linspace_f64)	 // NOLINT
 
 	_Mlinspace_af64_f64_f64(unsized, start, end);
 
-	for (size_t i = 0; i < sizes[0]; ++i)
-		EXPECT_FLOAT_EQ(data[i], start +  i * (end - start) / (sizes[0] - 1));
+	for (size_t i = 0; i < data.size(); ++i)
+		EXPECT_FLOAT_EQ(data[i], start +  i * (end - start) / (data.size() - 1));
 }
 
 TEST(Runtime, min_ai1)	 // NOLINT
@@ -1100,4 +1031,84 @@ TEST(Runtime, max_f64_f64)	 // NOLINT
 
 	for (const auto& [x, y] : llvm::zip(x, y))
 		ASSERT_DOUBLE_EQ(_Mmax_f64_f64(x, y), std::max(x, y));
+}
+
+TEST(Runtime, sum_ai1)	 // NOLINT
+{
+	std::array<bool, 3> data = { false, true, true };
+	ArrayDescriptor<bool, 1> descriptor(data);
+	UnsizedArrayDescriptor<bool> unsized(descriptor);
+	EXPECT_EQ(_Msum_ai1(unsized), (bool) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+}
+
+TEST(Runtime, sum_ai32)	 // NOLINT
+{
+	std::array<int, 3> data = { 1, 2, 3 };
+	ArrayDescriptor<int, 1> descriptor(data);
+	UnsizedArrayDescriptor<int> unsized(descriptor);
+	EXPECT_EQ(_Msum_ai32(unsized), (int) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+}
+
+TEST(Runtime, sum_ai64)	 // NOLINT
+{
+	std::array<long, 3> data = { 1, 2, 3 };
+	ArrayDescriptor<long, 1> descriptor(data);
+	UnsizedArrayDescriptor<long> unsized(descriptor);
+	EXPECT_EQ(_Msum_ai64(unsized), (long) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+}
+
+TEST(Runtime, sum_af32)	 // NOLINT
+{
+	std::array<float, 3> data = { 1, 2, 3 };
+	ArrayDescriptor<float, 1> descriptor(data);
+	UnsizedArrayDescriptor<float> unsized(descriptor);
+	EXPECT_FLOAT_EQ(_Msum_af32(unsized), (float) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+}
+
+TEST(Runtime, sum_af64)	 // NOLINT
+{
+	std::array<double, 3> data = { 1, 2, 3 };
+	ArrayDescriptor<double, 1> descriptor(data);
+	UnsizedArrayDescriptor<double> unsized(descriptor);
+	EXPECT_DOUBLE_EQ(_Msum_af64(unsized), (double) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+}
+
+TEST(Runtime, product_ai1)	 // NOLINT
+{
+	std::array<bool, 3> data = { false, true, true };
+	ArrayDescriptor<bool, 1> descriptor(data);
+	UnsizedArrayDescriptor<bool> unsized(descriptor);
+	EXPECT_EQ(_Mproduct_ai1(unsized), (bool) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+}
+
+TEST(Runtime, product_ai32)	 // NOLINT
+{
+	std::array<int, 3> data = { 1, 2, 3 };
+	ArrayDescriptor<int, 1> descriptor(data);
+	UnsizedArrayDescriptor<int> unsized(descriptor);
+	EXPECT_EQ(_Mproduct_ai32(unsized), (int) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+}
+
+TEST(Runtime, product_ai64)	 // NOLINT
+{
+	std::array<long, 3> data = { 1, 2, 3 };
+	ArrayDescriptor<long, 1> descriptor(data);
+	UnsizedArrayDescriptor<long> unsized(descriptor);
+	EXPECT_EQ(_Mproduct_ai64(unsized), (long) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+}
+
+TEST(Runtime, product_af32)	 // NOLINT
+{
+	std::array<float, 3> data = { 1, 2, 3 };
+	ArrayDescriptor<float, 1> descriptor(data);
+	UnsizedArrayDescriptor<float> unsized(descriptor);
+	EXPECT_FLOAT_EQ(_Mproduct_af32(unsized), (float) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+}
+
+TEST(Runtime, product_af64)	 // NOLINT
+{
+	std::array<double, 3> data = { 1, 2, 3 };
+	ArrayDescriptor<double, 1> descriptor(data);
+	UnsizedArrayDescriptor<double> unsized(descriptor);
+	EXPECT_DOUBLE_EQ(_Mproduct_af64(unsized), (double) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
 }

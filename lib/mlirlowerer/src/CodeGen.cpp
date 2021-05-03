@@ -1345,6 +1345,22 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		mlir::Value result = builder.create<MaxOp>(location, resultType, args);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
+	else if (functionName == "sum")
+	{
+		assert(call.argumentsCount() == 1);
+		mlir::Value memory = *lower<Expression>(call[0])[0];
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<SumOp>(location, resultType, memory);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "product")
+	{
+		assert(call.argumentsCount() == 1);
+		mlir::Value memory = *lower<Expression>(call[0])[0];
+		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<ProductOp>(location, resultType, memory);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
 	else
 	{
 		llvm::SmallVector<mlir::Value, 3> args;
