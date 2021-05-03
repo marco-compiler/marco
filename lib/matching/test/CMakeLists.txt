@@ -1,7 +1,8 @@
 set(SOURCES
 		src/MatchingTest.cpp
 		src/VVarDependencyGraphTest.cpp
-		src/SccCollapsingTest.cpp)
+		src/SccCollapsingTest.cpp
+		src/ModBltBlockTest.cpp)
 
 marco_add_unittest(MARCOTest MatchingTest ${SOURCES})
 

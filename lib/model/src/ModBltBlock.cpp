@@ -86,9 +86,10 @@ void ModBltBlock::computeResidualFunction()
 {
 	for (ModEquation& eq : equations)
 	{
-		ModExp newElement = ModExp::subtract(eq.getRight(), eq.getLeft());
+		ModExp newElement =
+				ModExp::subtract(ModExp(eq.getRight()), ModExp(eq.getLeft()));
 		newElement.tryFoldConstant();
-		residualFunction.push_back(newElement);
+		residualFunction.push_back(move(newElement));
 	}
 }
 
@@ -109,11 +110,12 @@ void ModBltBlock::computeJacobianMatrix()
 				index = ModExp::at(
 						ModExp(var.getName(), var.getInit().getModType()),
 						ModExp::index(ModConst(0)));
+
+			ModEquation eqDerivative = differentiate(eq, var, index);
 			ModExp newElement = ModExp::subtract(
-					differentiate(eq.getRight(), var, index),
-					differentiate(eq.getLeft(), var, index));
+					move(eqDerivative.getRight()), move(eqDerivative.getLeft()));
 			newElement.tryFoldConstant();
-			jacobianMatrix.back().push_back(newElement);
+			jacobianMatrix.back().push_back(move(newElement));
 		}
 	}
 }

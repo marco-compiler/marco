@@ -1,5 +1,6 @@
 set(SOURCES
-		src/PassesTest.cpp)
+		src/PassesTest.cpp
+		src/CleverDAETest.cpp)
 
 marco_add_unittest(MARCOTest PassesTest ${SOURCES})
 

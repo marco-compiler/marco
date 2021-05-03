@@ -107,13 +107,13 @@ static IndexSetVector cyclicDependentSets(
 	auto cyclicSet = cyclicDependentSet(c, graph, dep);
 	IndexSetVector v({ cyclicSet });
 
+	if (!cycleHasIndentityDependency(c, graph, dep))
+		return v;
+
 	for (auto i : irange(c.size() - 1))
 		v.emplace_back(dep[i].map(v.back()));
 
 	assert(dep.size() == c.size() && v.size() == c.size());
-
-	if (!cycleHasIndentityDependency(c, graph, dep))
-		return v;
 
 	for (auto i : irange(v.size()))
 	{
@@ -297,6 +297,9 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 						fuseScc(sccs[i], vectorGraph, possibleEq[i], maxIterations);
 				error)
 		{
+			if (!error.isA<FailedSccCollapsing>())
+				return move(error);
+
 			// If the Scc Collapsing algorithm fails, it means that we have
 			// an Algebraic Loop, which must be handled by a solver afterwards.
 			llvm::SmallVector<ModEquation, 3> bltEquations;

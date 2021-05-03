@@ -4,6 +4,7 @@
 #include <memory>
 #include <numeric>
 #include <optional>
+#include <queue>
 #include <utility>
 
 #include "llvm/ADT/STLExtras.h"
@@ -290,6 +291,25 @@ Error ModEquation::explicitate(const ModExpPath& path)
 		getTemplate()->swapLeftRight();
 	matchedExpPath = nullopt;
 	return Error::success();
+}
+
+bool ModEquation::isImplicit()
+{
+	assert(getLeft().isReferenceAccess());
+
+	std::queue<ModExp> expQueue({ getRight() });
+
+	while (!expQueue.empty())
+	{
+		if (expQueue.front() == getLeft())
+			return true;
+		if (!expQueue.front().isReferenceAccess())
+			for (auto& child : expQueue.front())
+				expQueue.push(child);
+		expQueue.pop();
+	}
+
+	return false;
 }
 
 void ModEquation::dump() const { dump(outs()); }

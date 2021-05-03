@@ -166,3 +166,20 @@ TEST(ModEquationTest, groupLeftTest)
 	auto e = eq.groupLeftHand();
 	EXPECT_EQ(e.getLeft(), eq.getLeft());
 }
+
+TEST(ModEquationTest, implicitEquations)
+{
+	ModExp varExp = ModExp("var", BultinModTypes::FLOAT);
+	ModExp vVarExp = ModExp("var3", ModType(BultinModTypes::FLOAT, 2));
+	ModExp varAcc = ModExp::at(ModExp(vVarExp), ModExp::index(ModConst(1)));
+
+	ModEquation eq1 = ModEquation(varExp, ModConst(2));
+	ModEquation eq2 = ModEquation(varAcc, ModConst(3));
+	ModEquation eq3 = ModEquation(varExp, ModExp::multiply(varExp, varExp));
+	ModEquation eq4 = ModEquation(varAcc, ModExp::divide(ModConst(1.0), varAcc));
+
+	EXPECT_FALSE(eq1.isImplicit());
+	EXPECT_FALSE(eq2.isImplicit());
+	EXPECT_TRUE(eq3.isImplicit());
+	EXPECT_TRUE(eq4.isImplicit());
+}
