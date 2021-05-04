@@ -28,7 +28,7 @@ ModExp differentiateOp<ModExpKind::at>(
 	assert(VectorAccess::isCanonical(ind));
 
 	// If the expression is a variable different from the given one, return 0.
-	if (exp.getLeftHand().getReference() != var.getName())
+	if (exp.getReferredVectorAccess() != var.getName())
 		return ModConst(0.0);
 
 	// If the expression have a different index from the given one, return 0.

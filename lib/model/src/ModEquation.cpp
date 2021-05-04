@@ -424,6 +424,7 @@ Expected<ModEquation> ModEquation::composeAccess(
 			return move(error);
 	}
 
+	toReturn.foldConstants();
 	return toReturn;
 }
 
@@ -588,6 +589,7 @@ ModEquation ModEquation::groupLeftHand() const
 	rightHand = move(rightHand) / move(leftAccumulated);
 
 	copy.getRight() = std::move(rightHand);
+	copy.foldConstants();
 	return copy;
 }
 

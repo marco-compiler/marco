@@ -31,30 +31,14 @@ TEST(CleverDAETest, AddDifferentialEqToBltBlock)
 
 	ModParser parser(stringModel);
 
-	auto model = parser.simulation();
-	if (!model)
+	auto scheduledModel = parser.simulation();
+	if (!scheduledModel)
 	{
-		outs() << model.takeError();
+		outs() << scheduledModel.takeError();
 		FAIL();
 	}
 
-	EXPECT_EQ(model->getVars().size(), 3);
-	EXPECT_EQ(model->getEquations().size(), 2);
-	EXPECT_EQ(model->getBltBlocks().size(), 0);
-
-	auto collapsedModel = solveScc(move(*model), 1000);
-	if (!collapsedModel)
-	{
-		outs() << collapsedModel.takeError();
-		FAIL();
-	}
-
-	EXPECT_EQ(collapsedModel->getVars().size(), 3);
-	EXPECT_EQ(collapsedModel->getEquations().size(), 2);
-	EXPECT_EQ(collapsedModel->getBltBlocks().size(), 0);
-
-	auto scheduled = schedule(move(*collapsedModel));
-	auto assignModel = addBLTBlocks(scheduled);
+	auto assignModel = addBLTBlocks(*scheduledModel);
 	if (!assignModel)
 	{
 		outs() << assignModel.takeError();
@@ -64,7 +48,7 @@ TEST(CleverDAETest, AddDifferentialEqToBltBlock)
 	EXPECT_EQ(assignModel->getVars().size(), 3);
 	EXPECT_EQ(assignModel->getUpdates().size(), 0);
 	EXPECT_EQ(assignModel->getBltBlocks().size(), 2);
-	for (auto& bltBlock : collapsedModel->getBltBlocks())
+	for (auto& bltBlock : assignModel->getBltBlocks())
 	{
 		EXPECT_EQ(bltBlock.getVars().size(), 1);
 		EXPECT_EQ(bltBlock.getEquations().size(), 1);
@@ -74,7 +58,86 @@ TEST(CleverDAETest, AddDifferentialEqToBltBlock)
 	}
 }
 
-TEST(CleverDAETest, AddImplicitEqToBltBlock)
+TEST(CleverDAETest, AddImplicitEqToBltBlock1)
 {
-	EXPECT_TRUE(true);	// TODO
+	const string stringModel =
+			"init "
+			"x = FLOAT[1]{0.000000e+00} "
+			"template "
+			"eq_0m0 FLOAT[1](+ FLOAT[1](* FLOAT[1]x, FLOAT[1]{-1.000000e+00}), "
+			"FLOAT[1](+ FLOAT[1](* FLOAT[1](* FLOAT[1]x, FLOAT[1]x), FLOAT[1]x), "
+			"FLOAT[1]{2.000000e+00})) = INT[1]{3} "
+			"update "
+			"for [0,1]template eq_0m0 matched [0,1,0,1] ";
+
+	ModParser parser(stringModel);
+
+	auto scheduledModel = parser.simulation();
+	if (!scheduledModel)
+	{
+		outs() << scheduledModel.takeError();
+		FAIL();
+	}
+
+	EXPECT_EQ(scheduledModel->getVars().size(), 1);
+	EXPECT_EQ(scheduledModel->getEquations().size(), 1);
+	EXPECT_EQ(scheduledModel->getBltBlocks().size(), 0);
+
+	auto assignModel = addBLTBlocks(*scheduledModel);
+	if (!assignModel)
+	{
+		outs() << assignModel.takeError();
+		FAIL();
+	}
+
+	EXPECT_EQ(assignModel->getVars().size(), 1);
+	EXPECT_EQ(assignModel->getUpdates().size(), 0);
+	EXPECT_EQ(assignModel->getBltBlocks().size(), 1);
+	EXPECT_EQ(assignModel->getBltBlocks()[0].getVars().size(), 1);
+	EXPECT_EQ(assignModel->getBltBlocks()[0].getEquations().size(), 1);
+	EXPECT_EQ(assignModel->getBltBlocks()[0].getResidual().size(), 1);
+	EXPECT_EQ(assignModel->getBltBlocks()[0].getJacobian().size(), 1);
+	EXPECT_EQ(assignModel->getBltBlocks()[0].getJacobian().front().size(), 1);
+}
+
+TEST(CleverDAETest, AddImplicitEqToBltBlock2)
+{
+	const string stringModel =
+			"init "
+			"x = FLOAT[1]{0.000000e+00} "
+			"template "
+			"eq_0m0 FLOAT[1](+ FLOAT[1](* FLOAT[1](/ FLOAT[1]{1.000000e+00}, "
+			"FLOAT[1]x), FLOAT[1]{-1.000000e+00}), FLOAT[1](+ FLOAT[1]x, "
+			"FLOAT[1]{2.000000e+00})) = INT[1]{3} "
+			"update "
+			"for [0,1]template eq_0m0 matched [0,1,0] ";
+
+	ModParser parser(stringModel);
+
+	auto scheduledModel = parser.simulation();
+	if (!scheduledModel)
+	{
+		outs() << scheduledModel.takeError();
+		FAIL();
+	}
+
+	EXPECT_EQ(scheduledModel->getVars().size(), 1);
+	EXPECT_EQ(scheduledModel->getEquations().size(), 1);
+	EXPECT_EQ(scheduledModel->getBltBlocks().size(), 0);
+
+	auto assignModel = addBLTBlocks(*scheduledModel);
+	if (!assignModel)
+	{
+		outs() << assignModel.takeError();
+		FAIL();
+	}
+
+	EXPECT_EQ(assignModel->getVars().size(), 1);
+	EXPECT_EQ(assignModel->getUpdates().size(), 0);
+	EXPECT_EQ(assignModel->getBltBlocks().size(), 1);
+	EXPECT_EQ(assignModel->getBltBlocks()[0].getVars().size(), 1);
+	EXPECT_EQ(assignModel->getBltBlocks()[0].getEquations().size(), 1);
+	EXPECT_EQ(assignModel->getBltBlocks()[0].getResidual().size(), 1);
+	EXPECT_EQ(assignModel->getBltBlocks()[0].getJacobian().size(), 1);
+	EXPECT_EQ(assignModel->getBltBlocks()[0].getJacobian().front().size(), 1);
 }
