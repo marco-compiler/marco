@@ -107,13 +107,13 @@ static IndexSetVector cyclicDependentSets(
 	auto cyclicSet = cyclicDependentSet(c, graph, dep);
 	IndexSetVector v({ cyclicSet });
 
-	if (!cycleHasIndentityDependency(c, graph, dep))
-		return v;
-
 	for (auto i : irange(c.size() - 1))
 		v.emplace_back(dep[i].map(v.back()));
 
 	assert(dep.size() == c.size() && v.size() == c.size());
+
+	if (!cycleHasIndentityDependency(c, graph, dep))
+		return v;
 
 	for (auto i : irange(v.size()))
 	{

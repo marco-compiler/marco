@@ -16,7 +16,7 @@ const ModExp varExp2 = ModExp("var2", BultinModTypes::FLOAT);
 const ModExp vDim = ModExp(ModConst(0, 1), ModType(BultinModTypes::FLOAT, 2));
 const ModVariable vectorVar = ModVariable("var3", vDim);
 const ModExp vVarExp = ModExp("var3", ModType(BultinModTypes::FLOAT, 2));
-const ModExp vAccess = ModExp::at(ModExp(vVarExp), ModExp::index(ModConst(1)));
+const ModExp vAccess = ModExp::at(ModExp(vVarExp), ModExp::index(ModConst(0)));
 
 TEST(SymbolicDifferentiationTest, DifferentiateScalarConstant)
 {
@@ -272,4 +272,23 @@ TEST(SymbolicDifferentiationTest, DifferentiateEquation)
 
 	EXPECT_EQ(der.getLeft(), differentiate(left, var));
 	EXPECT_EQ(der.getRight(), differentiate(right, var));
+}
+
+TEST(SymbolicDifferentiationTest, DifferentiateMultiDimVariables)
+{
+	ModExp multiDim =
+			ModExp(ModConst(0, 1, 2, 3), ModType(BultinModTypes::FLOAT, 2, 2));
+	ModVariable multiVectorVar = ModVariable("var4", multiDim);
+	ModExp multiVarExp = ModExp("var4", ModType(BultinModTypes::FLOAT, 2, 2));
+	ModExp multiDimAcc = ModExp::at(
+			ModExp::at(ModExp(multiVarExp), ModExp::index(ModConst(1))),
+			ModExp::index(ModConst(0)));
+
+	ModExp der1 = differentiate(multiDimAcc, multiVectorVar, multiDimAcc);
+	ModExp der2 = differentiate(multiDimAcc, vectorVar, vAccess);
+	ModExp der3 = differentiate(vAccess, multiVectorVar, multiDimAcc);
+
+	EXPECT_EQ(der1, ModConst(1.0));
+	EXPECT_EQ(der2, ModConst(0.0));
+	EXPECT_EQ(der3, ModConst(0.0));
 }

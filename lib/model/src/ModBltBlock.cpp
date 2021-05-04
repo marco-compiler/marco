@@ -102,9 +102,9 @@ void ModBltBlock::computeJacobianMatrix()
 	for (ModEquation& eq : equations)
 	{
 		jacobianMatrix.push_back(SmallVector<ModExp, 3>());
-		for (auto it = varbegin(); it != varend(); ++it)
+		for (ModEquation& eqIndex : equations)
 		{
-			ModVariable var = it->getValue();
+			ModVariable var = getVar(eqIndex.getMatchedVarReference());
 			ModExp index = ModConst();
 			if (var.size() != 1)
 				index = ModExp::at(
