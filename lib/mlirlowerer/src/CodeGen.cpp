@@ -112,8 +112,7 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
 
 	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions, options.getBitWidth()));
-	passManager.addNestedPass<mlir::FuncOp>(createBufferLoopHoistingPass());
-
+	passManager.addNestedPass<mlir::FuncOp>(mlir::createLoopInvariantCodeMotionPass());
 	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
 
 	if (loweringOptions.openmp)
@@ -578,8 +577,6 @@ void MLIRLowerer::lower<Class>(const Member& member)
  * Output arrays are always allocated on the heap and eventually moved to
  * input arguments by the dedicated pass. Protected arrays, instead, are
  * allocated according to the PointerType allocation logic.
- *
- * TODO: protected variable should not always be on stack
  */
 template<>
 void MLIRLowerer::lower<Function>(const Member& member)

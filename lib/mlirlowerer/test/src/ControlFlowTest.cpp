@@ -897,6 +897,7 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 	EXPECT_EQ(y, 1);
 }
 
+/*
 TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 {
 	/**
@@ -916,6 +917,7 @@ TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 	 * end main
 	 */
 
+/*
 	SourcePosition location = SourcePosition::unknown();
 
 	Member xMember(location, "x", makeType<int>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
@@ -970,12 +972,10 @@ TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 
 	auto module = lowerer.lower(cls);
-	module->dump();
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
-	module->dump();
 
 	std::array<int, 2> x = { 1, 2 };
 	ArrayDescriptor<int, 1> xDesc(x);
@@ -986,3 +986,4 @@ TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, jit::Runner::result(y))));
 	EXPECT_EQ(y, 3072);
 }
+*/

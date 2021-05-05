@@ -2615,6 +2615,12 @@ struct BreakableForOpLowering: public ModelicaOpConversion<BreakableForOp>
 		auto stepYieldOp = mlir::cast<YieldOp>(stepBlock->getTerminator());
 		rewriter.replaceOpWithNewOp<mlir::BranchOp>(stepYieldOp, conditionBlock, stepYieldOp.args());
 
+		// Create stack save & restore operations
+		rewriter.setInsertionPointToStart(bodyBlock);
+		mlir::Value stackSave = rewriter.create<mlir::LLVM::StackSaveOp>(loc, mlir::LLVM::LLVMPointerType::get(rewriter.getIntegerType(8)));
+		rewriter.setInsertionPoint(bodyBlock->getTerminator());
+		rewriter.create<mlir::LLVM::StackRestoreOp>(loc, stackSave);
+
 		rewriter.eraseOp(op);
 		return mlir::success();
 	}
@@ -2660,6 +2666,12 @@ struct ForOpLowering: public ModelicaOpConversion<ForOp>
 		rewriter.setInsertionPointToEnd(stepBlock);
 		auto stepYieldOp = mlir::cast<YieldOp>(stepBlock->getTerminator());
 		rewriter.replaceOpWithNewOp<mlir::BranchOp>(stepYieldOp, conditionBlock, stepYieldOp.args());
+
+		// Create stack save & restore operations
+		rewriter.setInsertionPointToStart(bodyBlock);
+		mlir::Value stackSave = rewriter.create<mlir::LLVM::StackSaveOp>(loc, mlir::LLVM::LLVMPointerType::get(rewriter.getIntegerType(8)));
+		rewriter.setInsertionPoint(bodyBlock->getTerminator());
+		rewriter.create<mlir::LLVM::StackRestoreOp>(loc, stackSave);
 
 		rewriter.eraseOp(op);
 		return mlir::success();
@@ -2732,6 +2744,12 @@ struct BreakableWhileOpLowering: public ModelicaOpConversion<BreakableWhileOp>
 			conditionOpArgs.push_back(materializeTargetConversion(rewriter, arg));
 
 		rewriter.create<mlir::scf::ConditionOp>(loc, ifOp.getResult(0), conditionOpArgs);
+
+		// Create stack save & restore operations
+		rewriter.setInsertionPointToStart(body);
+		mlir::Value stackSave = rewriter.create<mlir::LLVM::StackSaveOp>(loc, mlir::LLVM::LLVMPointerType::get(rewriter.getIntegerType(8)));
+		rewriter.setInsertionPoint(body->getTerminator());
+		rewriter.create<mlir::LLVM::StackRestoreOp>(loc, stackSave);
 
 		rewriter.eraseOp(op);
 		return mlir::success();
@@ -2870,8 +2888,6 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 			mlir::emitError(module.getLoc(), "Error in converting the Modelica operations\n");
 			signalPassFailure();
 		}
-
-		module.dump();
 	}
 
 	private:
