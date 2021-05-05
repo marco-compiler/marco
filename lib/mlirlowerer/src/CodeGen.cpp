@@ -112,6 +112,8 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
 
 	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions, options.getBitWidth()));
+	passManager.addNestedPass<mlir::FuncOp>(createBufferLoopHoistingPass());
+
 	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
 
 	if (loweringOptions.openmp)
@@ -366,6 +368,25 @@ mlir::Operation* MLIRLowerer::lower(const Function& foo)
 
 	// Lower the statements
 	lower(*foo.getAlgorithms()[0]);
+
+	// Free the protected members allocated on the heap
+	for (const auto& member : foo.getMembers())
+	{
+		if (!member->isInput() && !member->isOutput())
+		{
+			auto reference = symbolTable.lookup(member->getName());
+			mlir::Value container = reference.getReference();
+			assert(container.getType().isa<PointerType>());
+			auto memberType = container.getType().cast<PointerType>().getElementType();
+
+			if (auto pointerType = memberType.dyn_cast<PointerType>();
+					pointerType && pointerType.getAllocationScope() == heap)
+			{
+				mlir::Value buffer = *reference;
+				builder.create<FreeOp>(location, buffer);
+			}
+		}
+	}
 
 	// Return statement
 	llvm::SmallVector<mlir::Value, 3> results;

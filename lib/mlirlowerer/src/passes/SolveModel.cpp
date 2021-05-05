@@ -831,7 +831,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			return true;
 		});
 
-		mlir::OwningRewritePatternList patterns;
+		mlir::OwningRewritePatternList patterns(&getContext());
 		patterns.insert<LoopifyPattern>(&getContext());
 
 		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
@@ -873,7 +873,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			});
 		});
 
-		mlir::OwningRewritePatternList patterns;
+		mlir::OwningRewritePatternList patterns(&getContext());
 
 		patterns.insert<
 		    EquationOpScalarizePattern,
@@ -899,7 +899,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 		target.addIllegalOp<DerOp>();
 
-		mlir::OwningRewritePatternList patterns;
+		mlir::OwningRewritePatternList patterns(&getContext());
 		patterns.insert<DerOpPattern>(&getContext(), model);
 
 		if (auto status = applyPartialConversion(model.getOp(), target, std::move(patterns)); failed(status))
@@ -969,7 +969,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 		target.addIllegalOp<SimulationOp, EquationOp, ForEquationOp>();
 
-		mlir::OwningRewritePatternList patterns;
+		mlir::OwningRewritePatternList patterns(&getContext());
 		patterns.insert<SimulationOpPattern>(&getContext(), options);
 		patterns.insert<EquationOpPattern, ForEquationOpPattern>(&getContext());
 

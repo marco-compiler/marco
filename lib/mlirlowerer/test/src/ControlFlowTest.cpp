@@ -6,6 +6,7 @@
 #include <modelica/frontend/Passes.h>
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
+#include <modelica/runtime/ArrayDescriptor.h>
 #include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
@@ -894,4 +895,94 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 	jit::Runner runner(*module);
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(y))));
 	EXPECT_EQ(y, 1);
+}
+
+TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
+{
+	/**
+	 * function main
+	 *   input Integer[2] x;
+	 *   output Integer y;
+	 *
+	 *   protected
+	 *     Integer[:] z;
+	 *
+	 *   algorithm
+	 *     z := x;
+	 *     for i in 1:10 loop
+	 *       z := z * 2;
+	 *     end for;
+	 *     y := sum(z);
+	 * end main
+	 */
+
+	SourcePosition location = SourcePosition::unknown();
+
+	Member xMember(location, "x", makeType<int>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	Member zMember(location, "z", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::none));
+
+	Expression xRef = Expression::reference(location, makeType<int>(2), "x");
+	Expression yRef = Expression::reference(location, makeType<int>(), "y");
+	Expression zRef = Expression::reference(location, makeType<int>(2), "z");
+
+	Expression condition = Expression::operation(
+			location,
+			makeType<bool>(),
+			OperationKind::equal,
+			yRef,
+			Expression::constant(location, makeType<int>(), 0));
+
+	Statement ifStatement = IfStatement(location, IfStatement::Block(condition, {
+			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
+			BreakStatement(location)
+	}));
+
+	Statement forStatement = ForStatement(
+			location,
+			Induction(
+					"i",
+					Expression::constant(location, makeType<int>(), 1),
+					Expression::constant(location, makeType<int>(), 10)),
+			{
+					AssignmentStatement(location, zRef, Expression::operation(location, makeType<int>(-1), OperationKind::multiply, zRef, Expression::constant(location, makeType<int>(), 2)))
+			});
+
+	Algorithm algorithm = Algorithm(location, {
+			AssignmentStatement(location, zRef, xRef),
+			forStatement,
+			AssignmentStatement(location, yRef, Expression::call(location, makeType<int>(), Expression::reference(location, makeType<int>(), "sum"), zRef))
+	});
+
+	ClassContainer cls(Function(
+			location, "main", true,
+			{ xMember, yMember, zMember },
+			algorithm));
+
+	PassManager passManager;
+	passManager.addPass(createBreakRemovingPass());
+	EXPECT_TRUE(!passManager.run(cls));
+
+	mlir::MLIRContext context;
+
+	ModelicaOptions modelicaOptions;
+	modelicaOptions.x64 = false;
+	MLIRLowerer lowerer(context, modelicaOptions);
+
+	auto module = lowerer.lower(cls);
+	module->dump();
+
+	ModelicaLoweringOptions loweringOptions;
+	loweringOptions.llvmOptions.emitCWrappers = true;
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	module->dump();
+
+	std::array<int, 2> x = { 1, 2 };
+	ArrayDescriptor<int, 1> xDesc(x);
+
+	int y = 0;
+
+	jit::Runner runner(*module);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, jit::Runner::result(y))));
+	EXPECT_EQ(y, 3072);
 }

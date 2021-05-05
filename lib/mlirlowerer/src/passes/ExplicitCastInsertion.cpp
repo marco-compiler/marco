@@ -337,7 +337,7 @@ class ExplicitCastInsertionPass: public mlir::PassWrapper<ExplicitCastInsertionP
 		target.addLegalDialect<ModelicaDialect>();
 		target.addLegalDialect<mlir::scf::SCFDialect>();
 
-		mlir::OwningRewritePatternList patterns;
+		mlir::OwningRewritePatternList patterns(&getContext());
 		populateExplicitCastInsertionPatterns(patterns, &getContext());
 
 		if (failed(applyPartialConversion(module, target, std::move(patterns))))

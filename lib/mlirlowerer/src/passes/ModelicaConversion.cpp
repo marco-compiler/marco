@@ -454,7 +454,18 @@ struct ArrayCloneOpLowering: public ModelicaOpConversion<ArrayCloneOp>
 		mlir::Location loc = op.getLoc();
 		Adaptor adaptor(operands);
 
-		auto dynamicDimensions = getArrayDynamicDimensions(rewriter, loc, op.source());
+		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+
+		for (auto size : llvm::enumerate(op.resultType().getShape()))
+		{
+			if (size.value() == -1)
+			{
+				mlir::Value index = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(size.index()));
+				mlir::Value dim = rewriter.create<DimOp>(loc, op.source(), index);
+				dynamicDimensions.push_back(dim);
+			}
+		}
+
 		mlir::Value result = allocate(rewriter, loc, op.resultType(), dynamicDimensions, op.shouldBeFreed());
 
 		iterateArray(rewriter, loc, op.source(), [&](mlir::ValueRange indexes) {
@@ -681,7 +692,7 @@ struct EqOpLowering: public ModelicaOpConversion<EqOp>
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::eq, transformed.lhs(), transformed.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::ICmpPredicate::eq, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -689,7 +700,7 @@ struct EqOpLowering: public ModelicaOpConversion<EqOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::oeq, transformed.lhs(), transformed.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::FCmpPredicate::oeq, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -725,7 +736,7 @@ struct NotEqOpLowering: public ModelicaOpConversion<NotEqOp>
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::ne, transformed.lhs(), transformed.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::ICmpPredicate::ne, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -733,7 +744,7 @@ struct NotEqOpLowering: public ModelicaOpConversion<NotEqOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::one, transformed.lhs(), transformed.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::FCmpPredicate::one, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -769,7 +780,7 @@ struct GtOpLowering: public ModelicaOpConversion<GtOp>
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::sgt, transformed.lhs(), transformed.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::ICmpPredicate::sgt, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -777,7 +788,7 @@ struct GtOpLowering: public ModelicaOpConversion<GtOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::ogt, transformed.lhs(), transformed.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::FCmpPredicate::ogt, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -813,7 +824,7 @@ struct GteOpLowering: public ModelicaOpConversion<GteOp>
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::sge, transformed.lhs(), transformed.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::ICmpPredicate::sge, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -821,7 +832,7 @@ struct GteOpLowering: public ModelicaOpConversion<GteOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::oge, transformed.lhs(), transformed.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::FCmpPredicate::oge, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -857,7 +868,7 @@ struct LtOpLowering: public ModelicaOpConversion<LtOp>
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::slt, transformed.lhs(), transformed.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::ICmpPredicate::slt, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -865,7 +876,7 @@ struct LtOpLowering: public ModelicaOpConversion<LtOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::olt, transformed.lhs(), transformed.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::FCmpPredicate::olt, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -901,7 +912,7 @@ struct LteOpLowering: public ModelicaOpConversion<LteOp>
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, mlir::LLVM::ICmpPredicate::sle, transformed.lhs(), transformed.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::ICmpPredicate::sle, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -909,7 +920,7 @@ struct LteOpLowering: public ModelicaOpConversion<LteOp>
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, mlir::LLVM::FCmpPredicate::ole, transformed.lhs(), transformed.rhs());
+			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::FCmpPredicate::ole, transformed.lhs(), transformed.rhs());
 			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
@@ -2843,11 +2854,11 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 
-		mlir::LowerToLLVMOptions llvmLoweringOptions;
+		mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
 		TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
 		// Provide the set of patterns that will lower the Modelica operations
-		mlir::OwningRewritePatternList patterns;
+		mlir::OwningRewritePatternList patterns(&getContext());
 		populateModelicaConversionPatterns(patterns, &getContext(), typeConverter, options, bitWidth);
 
 		// With the target and rewrite patterns defined, we can now attempt the
@@ -2859,6 +2870,8 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 			mlir::emitError(module.getLoc(), "Error in converting the Modelica operations\n");
 			signalPassFailure();
 		}
+
+		module.dump();
 	}
 
 	private:
@@ -2879,6 +2892,11 @@ class LowerToCFGPass: public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPa
 	{
 	}
 
+	void getDependentDialects(mlir::DialectRegistry &registry) const override
+	{
+		registry.insert<mlir::LLVM::LLVMDialect>();
+	}
+
 	void runOnOperation() override
 	{
 		auto module = getOperation();
@@ -2889,13 +2907,13 @@ class LowerToCFGPass: public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPa
 		target.addIllegalOp<IfOp, ForOp, BreakableForOp, BreakableWhileOp>();
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 
-		mlir::LowerToLLVMOptions llvmLoweringOptions;
+		mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
 		TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
 
 		// Provide the set of patterns that will lower the Modelica operations
-		mlir::OwningRewritePatternList patterns;
+		mlir::OwningRewritePatternList patterns(&getContext());
 		populateModelicaControlFlowConversionPatterns(patterns, &getContext(), typeConverter, options);
-		mlir::populateLoopToStdConversionPatterns(patterns, &getContext());
+		mlir::populateLoopToStdConversionPatterns(patterns);
 
 		// With the target and rewrite patterns defined, we can now attempt the
 		// conversion. The conversion will signal failure if any of our "illegal"

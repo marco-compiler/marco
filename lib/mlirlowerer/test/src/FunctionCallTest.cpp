@@ -133,13 +133,13 @@ TEST(Function, recursiveCall)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 3> x = { 1, 2, 3 };
-	ArrayDescriptor<float, 1> xPtr(x);
+	ArrayDescriptor<float, 1> xDesc(x);
 
 	int i = 1;
 	float y = 0;
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, i, jit::Runner::result(y))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, i, jit::Runner::result(y))));
 
 	float expected = 0;
 
@@ -214,13 +214,13 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 0, 0, 0 };
-	ArrayDescriptor<int, 1> xPtr(x);
+	ArrayDescriptor<int, 1> xDesc(x);
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
-	EXPECT_EQ(xPtr[0], 1);
-	EXPECT_EQ(xPtr[1], 2);
-	EXPECT_EQ(xPtr[2], 3);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc)));
+	EXPECT_EQ(xDesc[0], 1);
+	EXPECT_EQ(xDesc[1], 2);
+	EXPECT_EQ(xDesc[2], 3);
 }
 
 TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
@@ -303,13 +303,13 @@ TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 3> x = { 0, 0, 0 };
-	ArrayDescriptor<float, 1> xPtr(x);
+	ArrayDescriptor<float, 1> xDesc(x);
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(xPtr))));
-	EXPECT_FLOAT_EQ(xPtr[0], 2);
-	EXPECT_FLOAT_EQ(xPtr[1], 4);
-	EXPECT_FLOAT_EQ(xPtr[2], 6);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc)));
+	EXPECT_FLOAT_EQ(xDesc[0], 2);
+	EXPECT_FLOAT_EQ(xDesc[1], 4);
+	EXPECT_FLOAT_EQ(xDesc[2], 6);
 }
 
 TEST(Function, callElementWise)	 // NOLINT
@@ -380,16 +380,16 @@ TEST(Function, callElementWise)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 1, 0, 0 };
-	ArrayDescriptor<int, 1> xPtr(x);
+	ArrayDescriptor<int, 1> xDesc(x);
 
 	array<int, 3> y = { 0, 0, 0 };
-	ArrayDescriptor<int, 1> yPtr(y);
+	ArrayDescriptor<int, 1> yDesc(y);
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
-	EXPECT_EQ(yPtr[0], -1 * xPtr[0]);
-	EXPECT_EQ(yPtr[1], -1 * xPtr[1]);
-	EXPECT_EQ(yPtr[2], -1 * xPtr[2]);
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, yDesc)));
+	EXPECT_EQ(yDesc[0], -1 * xDesc[0]);
+	EXPECT_EQ(yDesc[1], -1 * xDesc[1]);
+	EXPECT_EQ(yDesc[2], -1 * xDesc[2]);
 }
 
 TEST(Function, callWithMultipleOutputs)	 // NOLINT
@@ -475,8 +475,10 @@ TEST(Function, callWithMultipleOutputs)	 // NOLINT
 		int z = 0;
 	} result;
 
+	auto* resultPtr = &result;
+
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(result))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(resultPtr), x)));
 	EXPECT_EQ(result.y, x * 2);
 	EXPECT_EQ(result.z, x * 3);
 }

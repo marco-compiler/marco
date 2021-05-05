@@ -21,6 +21,7 @@ modelicaAddLibrary(
         src/passes/model/Variable.cpp
         src/passes/model/VectorAccess.cpp
         src/passes/BufferDeallocation.cpp
+        src/passes/BufferLoopHoisting.cpp
         src/passes/ExplicitCastInsertion.cpp
         src/passes/ModelicaConversion.cpp
         src/passes/LowerToLLVM.cpp

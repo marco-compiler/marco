@@ -7,11 +7,106 @@ namespace modelica::codegen
 {
 	class ModelicaDialect;
 
-	class IntegerTypeStorage;
-	class RealTypeStorage;
-	class UnsizedPointerTypeStorage;
-	class PointerTypeStorage;
-	class StructTypeStorage;
+	class IntegerTypeStorage : public mlir::TypeStorage
+	{
+		public:
+		using KeyTy = unsigned int;
+
+		IntegerTypeStorage() = delete;
+		bool operator==(const KeyTy& key) const;
+		static unsigned int hashKey(const KeyTy& key);
+		static IntegerTypeStorage* construct(mlir::TypeStorageAllocator&allocator, unsigned int bitWidth);
+
+		[[nodiscard]] unsigned int getBitWidth() const;
+
+		private:
+		explicit IntegerTypeStorage(unsigned int bitWidth);
+
+		unsigned int bitWidth;
+	};
+
+	class RealTypeStorage : public mlir::TypeStorage
+	{
+		public:
+		using KeyTy = unsigned int;
+
+		RealTypeStorage() = delete;
+		bool operator==(const KeyTy& key) const;
+		static unsigned int hashKey(const KeyTy& key);
+		static RealTypeStorage* construct(mlir::TypeStorageAllocator&allocator, unsigned int bitWidth);
+
+		[[nodiscard]] unsigned int getBitWidth() const;
+
+		private:
+		explicit RealTypeStorage(unsigned int bitWidth);
+
+		unsigned int bitWidth;
+	};
+
+	enum BufferAllocationScope { unknown, stack, heap };
+
+	class PointerTypeStorage : public mlir::TypeStorage
+	{
+		public:
+		using Shape = llvm::SmallVector<long, 3>;
+		using KeyTy = std::tuple<BufferAllocationScope, mlir::Type, Shape>;
+
+		PointerTypeStorage() = delete;
+
+		bool operator==(const KeyTy& key) const;
+		static unsigned int hashKey(const KeyTy& key);
+		static PointerTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key);
+
+		[[nodiscard]] BufferAllocationScope getAllocationScope() const;
+		[[nodiscard]] Shape getShape() const;
+		[[nodiscard]] mlir::Type getElementType() const;
+
+		private:
+		PointerTypeStorage(BufferAllocationScope allocationScope, mlir::Type elementType, const Shape& shape);
+
+		BufferAllocationScope allocationScope;
+		mlir::Type elementType;
+		Shape shape;
+	};
+
+	class UnsizedPointerTypeStorage : public mlir::TypeStorage
+	{
+		public:
+		using KeyTy = std::tuple<mlir::Type, unsigned int>;
+
+		UnsizedPointerTypeStorage() = delete;
+
+		bool operator==(const KeyTy& key) const;
+		static unsigned int hashKey(const KeyTy& key);
+		static UnsizedPointerTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key);
+
+		[[nodiscard]] mlir::Type getElementType() const;
+		[[nodiscard]] unsigned int getRank() const;
+
+		private:
+		UnsizedPointerTypeStorage(mlir::Type elementType, unsigned int rank);
+
+		mlir::Type elementType;
+		unsigned int rank;
+	};
+
+	class StructTypeStorage : public mlir::TypeStorage
+	{
+		public:
+		using KeyTy = llvm::ArrayRef<mlir::Type>;
+
+		StructTypeStorage() = delete;
+		bool operator==(const KeyTy& key) const;
+		static unsigned int hashKey(const KeyTy& key);
+		static StructTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy& key);
+
+		[[nodiscard]] llvm::ArrayRef<mlir::Type> getElementTypes() const;
+
+		private:
+		StructTypeStorage(llvm::ArrayRef<mlir::Type> elementTypes);
+
+		llvm::ArrayRef<mlir::Type> elementTypes;
+	};
 
 	class BooleanType : public mlir::Type::TypeBase<BooleanType, mlir::Type, mlir::TypeStorage>
 	{
@@ -39,14 +134,13 @@ namespace modelica::codegen
 		[[nodiscard]] unsigned int getBitWidth() const;
 	};
 
-	enum BufferAllocationScope { unknown, stack, heap };
 	class UnsizedPointerType;
 
 	class PointerType : public mlir::Type::TypeBase<PointerType, mlir::Type, PointerTypeStorage>
 	{
 		public:
 		using Base::Base;
-		using Shape = llvm::SmallVector<long, 3>;
+		using Shape = PointerTypeStorage::Shape;
 
 		static PointerType get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape = {});
 

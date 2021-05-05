@@ -186,12 +186,12 @@ TEST(Input, integerArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 	
 	array<int, 2> x = { 23, 57 };
-	ArrayDescriptor<int, 1> xPtr(x);
+	ArrayDescriptor<int, 1> xDesc(x);
 
 	int y = 0;
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, jit::Runner::result(y))));
 	EXPECT_EQ(y, x[0] + x[1]);
 }
 
@@ -238,12 +238,12 @@ TEST(Input, integerArrayUnknownSize)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 5> x = { 23, 57, 10, -23, -10 };
-	ArrayDescriptor<int, 1> xPtr(x);
+	ArrayDescriptor<int, 1> xDesc(x);
 
 	int y = 0;
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, jit::Runner::result(y))));
 	EXPECT_EQ(y, x[0] + x[1]);
 }
 
@@ -342,12 +342,12 @@ TEST(Input, floatArrayUnknownSize)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 2> x = { 23.0, 57.0 };
-	ArrayDescriptor<float, 1> xPtr(x);
+	ArrayDescriptor<float, 1> xDesc(x);
 
 	float y = 0;
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(y))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, jit::Runner::result(y))));
 	EXPECT_FLOAT_EQ(y, 80);
 }
 
@@ -420,15 +420,17 @@ TEST(Input, integerMatrix)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 6> x = { 1, 2, 3, 4, 5, 6 };
-	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });
+	ArrayDescriptor<int, 2> xDesc(x.data(), { 2, 3 });
 
 	struct {
 		int y = 0;
 		int z = 0;
 	} result;
 
+	auto* resultPtr = &result;
+
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(result))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(resultPtr), xDesc)));
 
 	EXPECT_EQ(result.y, 6);
 	EXPECT_EQ(result.z, 15);
@@ -483,13 +485,13 @@ TEST(Output, integerArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 2> x = { 0, 0 };
-	ArrayDescriptor<int, 1> xPtr(x);
+	ArrayDescriptor<int, 1> xDesc(x);
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc)));
 
-	EXPECT_EQ(xPtr[0], 23);
-	EXPECT_EQ(xPtr[1], 57);
+	EXPECT_EQ(xDesc[0], 23);
+	EXPECT_EQ(xDesc[1], 57);
 }
 
 TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
@@ -544,13 +546,14 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	int x = 2;
-	ArrayDescriptor<int, 1> yPtr(nullptr, { 2 });
+	ArrayDescriptor<int, 1> yDesc(nullptr, { 2 });
+	auto* yPtr = &yDesc;
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", x, jit::Runner::result(yPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(yPtr), x)));
 
-	for (size_t i = 0; i < yPtr.getDimensionSize(0); i++)
-		EXPECT_EQ(yPtr[i], i + 1);
+	for (size_t i = 0; i < yDesc.getDimensionSize(0); i++)
+		EXPECT_EQ(yDesc[i], i + 1);
 }
 
 TEST(Output, floatArray)	 // NOLINT
@@ -598,13 +601,13 @@ TEST(Output, floatArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<float, 2> x = { 0, 0 };
-	ArrayDescriptor<float, 1> xPtr(x);
+	ArrayDescriptor<float, 1> xDesc(x);
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc)));
 
-	EXPECT_FLOAT_EQ(xPtr[0], 23.0);
-	EXPECT_FLOAT_EQ(xPtr[1], 57.0);
+	EXPECT_FLOAT_EQ(xDesc[0], 23.0);
+	EXPECT_FLOAT_EQ(xDesc[1], 57.0);
 }
 
 TEST(Output, integerMatrix)	 // NOLINT
@@ -656,14 +659,14 @@ TEST(Output, integerMatrix)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 6> x = { 0, 0, 0, 0, 0, 0 };
-	ArrayDescriptor<int, 2> xPtr(x.data(), { 2, 3 });
+	ArrayDescriptor<int, 2> xDesc(x.data(), { 2, 3 });
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc)));
 
 	for (int i = 0; i < 2; i++)
 		for (int j = 0; j < 3; j++)
-			EXPECT_EQ(xPtr.get(i, j), i * 3 + j + 1);
+			EXPECT_EQ(xDesc.get(i, j), i * 3 + j + 1);
 }
 
 TEST(Output, defaultScalarValue)	 // NOLINT
@@ -734,12 +737,12 @@ TEST(Output, defaultArrayValue)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 3> x = { 0, 0, 0 };
-	ArrayDescriptor<int, 1> xPtr(x);
+	ArrayDescriptor<int, 1> xDesc(x);
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr)));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc)));
 
-	EXPECT_EQ(xPtr[0], 1);
-	EXPECT_EQ(xPtr[1], 2);
-	EXPECT_EQ(xPtr[2], 3);
+	EXPECT_EQ(xDesc[0], 1);
+	EXPECT_EQ(xDesc[1], 2);
+	EXPECT_EQ(xDesc[2], 3);
 }

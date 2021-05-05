@@ -1718,6 +1718,24 @@ mlir::LogicalResult BreakableForOp::verify()
 	return mlir::success();
 }
 
+bool BreakableForOp::isDefinedOutsideOfLoop(mlir::Value value)
+{
+	return !body().isAncestor(value.getParentRegion());
+}
+
+mlir::Region& BreakableForOp::getLoopBody()
+{
+	return body();
+}
+
+mlir::LogicalResult BreakableForOp::moveOutOfLoop(llvm::ArrayRef<mlir::Operation*> ops)
+{
+	for (auto* op : ops)
+		op->moveBefore(*this);
+
+	return mlir::success();
+}
+
 void BreakableForOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
 {
 	if (!index.hasValue())
@@ -1823,6 +1841,24 @@ mlir::LogicalResult BreakableWhileOp::verify()
 	if (auto returnPtr = breakCondition().getType().dyn_cast<PointerType>();
 			!returnPtr || !returnPtr.getElementType().isa<BooleanType>() || returnPtr.getRank() != 0)
 		return emitOpError("requires the return condition to be a pointer to a single boolean value");
+
+	return mlir::success();
+}
+
+bool BreakableWhileOp::isDefinedOutsideOfLoop(mlir::Value value)
+{
+	return !body().isAncestor(value.getParentRegion());
+}
+
+mlir::Region& BreakableWhileOp::getLoopBody()
+{
+	return body();
+}
+
+mlir::LogicalResult BreakableWhileOp::moveOutOfLoop(llvm::ArrayRef<mlir::Operation*> ops)
+{
+	for (auto* op : ops)
+		op->moveBefore(*this);
 
 	return mlir::success();
 }

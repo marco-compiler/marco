@@ -1087,9 +1087,9 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		target.addLegalDialect<mlir::LLVM::LLVMDialect>();
 		target.addIllegalOp<mlir::LLVM::DialectCastOp>();
 		target.addLegalOp<mlir::UnrealizedConversionCastOp>();
-		target.addLegalOp<mlir::ModuleOp, mlir::ModuleTerminatorOp>();
+		target.addLegalOp<mlir::ModuleOp>();
 
-		mlir::LowerToLLVMOptions llvmOptions;
+		mlir::LowerToLLVMOptions llvmOptions(&getContext());
 		llvmOptions.emitCWrappers = options.emitCWrappers;
 
 		modelica::codegen::TypeConverter typeConverter(&getContext(), llvmOptions);
@@ -1097,7 +1097,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });
 		target.addLegalOp<mlir::omp::TerminatorOp, mlir::omp::TaskyieldOp, mlir::omp::FlushOp, mlir::omp::BarrierOp, mlir::omp::TaskwaitOp>();
 
-		mlir::OwningRewritePatternList patterns;
+		mlir::OwningRewritePatternList patterns(&getContext());
 		populateModelicaToLLVMConversionPatterns(patterns, &getContext(), typeConverter);
 		mlir::populateStdToLLVMConversionPatterns(typeConverter, patterns);
 		mlir::populateOpenMPToLLVMConversionPatterns(typeConverter, patterns);
@@ -1112,7 +1112,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 		target.addIllegalOp<mlir::UnrealizedConversionCastOp>();
 
-		mlir::OwningRewritePatternList patterns;
+		mlir::OwningRewritePatternList patterns(&getContext());
 		patterns.insert<UnrealizedCastOpLowering>(&getContext());
 
 		return applyFullConversion(module, target, std::move(patterns));

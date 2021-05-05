@@ -171,7 +171,7 @@ static mlir::LogicalResult removeSubtractions(EquationInterface equation)
 	target.addLegalDialect<ModelicaDialect>();
 	target.addIllegalOp<SubOp>();
 
-	mlir::OwningRewritePatternList patterns;
+	mlir::OwningRewritePatternList patterns(equation->getContext());
 	patterns.insert<SubOpErasePattern>(equation->getContext());
 
 	if (auto status = applyPartialConversion(equation, target, std::move(patterns)); failed(status))

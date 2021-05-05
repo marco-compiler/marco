@@ -19,8 +19,44 @@ struct EquationInterfaceTraits {
 		virtual mlir::ValueRange rhs(mlir::Operation* op) const = 0;
 	};
 
-	template <typename ConcreteOp>
+	template<typename ConcreteOp>
 	struct Model : public Concept {
+		mlir::Block* body(mlir::Operation* op) const final
+		{
+			return mlir::cast<ConcreteOp>(op).body();
+		}
+
+		mlir::ValueRange inductions(mlir::Operation* op) const final
+		{
+			return mlir::cast<ConcreteOp>(op).inductions();
+		}
+
+		mlir::Value induction(mlir::Operation* op, size_t index) const final
+		{
+			return mlir::cast<ConcreteOp>(op).induction(index);
+		}
+
+		long inductionIndex(mlir::Operation* op, mlir::Value induction) const final
+		{
+			return mlir::cast<ConcreteOp>(op).inductionIndex(induction);
+		}
+
+		mlir::ValueRange lhs(mlir::Operation* op) const final
+		{
+			return mlir::cast<ConcreteOp>(op).lhs();
+		}
+
+		mlir::ValueRange rhs(mlir::Operation* op) const final
+		{
+			return mlir::cast<ConcreteOp>(op).rhs();
+		}
+	};
+
+	template<typename ConcreteOp>
+	class FallbackModel : public Concept {
+		public:
+		FallbackModel() = default;
+
 		mlir::Block* body(mlir::Operation* op) const final
 		{
 			return mlir::cast<ConcreteOp>(op).body();
@@ -55,7 +91,7 @@ struct EquationInterfaceTraits {
 
 class EquationInterface : public mlir::OpInterface<EquationInterface, EquationInterfaceTraits> {
 	public:
-	using OpInterface<EquationInterface, EquationInterfaceTraits>::OpInterface;
+	using mlir::OpInterface<EquationInterface, EquationInterfaceTraits>::OpInterface;
 
 	mlir::Block* body()
 	{
@@ -108,6 +144,17 @@ struct InvertibleInterfaceTraits {
 			return mlir::cast<ConcreteOp>(op).invert(builder, argumentIndex, currentResult);
 		}
 	};
+
+	template<typename ConcreteOp>
+	class FallbackModel : public Concept {
+		public:
+		FallbackModel() = default;
+
+		mlir::LogicalResult invert(mlir::Operation* op, mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult) const final
+		{
+			return mlir::cast<ConcreteOp>(op).invert(builder, argumentIndex, currentResult);
+		}
+	};
 };
 
 class InvertibleInterface : public mlir::OpInterface<InvertibleInterface, InvertibleInterfaceTraits> {
@@ -134,6 +181,17 @@ struct DistributableInterfaceTraits {
 
 	template <typename ConcreteOp>
 	struct Model : public Concept {
+		mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const final
+		{
+			return mlir::cast<ConcreteOp>(op).distribute(builder);
+		}
+	};
+
+	template<typename ConcreteOp>
+	class FallbackModel : public Concept {
+		public:
+		FallbackModel() = default;
+
 		mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const final
 		{
 			return mlir::cast<ConcreteOp>(op).distribute(builder);
@@ -170,6 +228,17 @@ struct NegateOpDistributionInterfaceTraits {
 			return mlir::cast<ConcreteOp>(op).distributeNegateOp(builder, resultType);
 		}
 	};
+
+	template<typename ConcreteOp>
+	class FallbackModel : public Concept {
+		public:
+		FallbackModel() = default;
+
+		mlir::Value distributeNegateOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType) const final
+		{
+			return mlir::cast<ConcreteOp>(op).distributeNegateOp(builder, resultType);
+		}
+	};
 };
 
 class NegateOpDistributionInterface : public mlir::OpInterface<NegateOpDistributionInterface, NegateOpDistributionInterfaceTraits> {
@@ -201,6 +270,17 @@ struct MulOpDistributionInterfaceTraits {
 			return mlir::cast<ConcreteOp>(op).distributeMulOp(builder, resultType, value);
 		}
 	};
+
+	template<typename ConcreteOp>
+	class FallbackModel : public Concept {
+		public:
+		FallbackModel() = default;
+
+		mlir::Value distributeMulOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
+		{
+			return mlir::cast<ConcreteOp>(op).distributeMulOp(builder, resultType, value);
+		}
+	};
 };
 
 class MulOpDistributionInterface : public mlir::OpInterface<MulOpDistributionInterface, MulOpDistributionInterfaceTraits> {
@@ -227,6 +307,17 @@ struct DivOpDistributionInterfaceTraits {
 
 	template <typename ConcreteOp>
 	struct Model : public Concept {
+		mlir::Value distributeDivOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
+		{
+			return mlir::cast<ConcreteOp>(op).distributeDivOp(builder, resultType, value);
+		}
+	};
+
+	template<typename ConcreteOp>
+	class FallbackModel : public Concept {
+		public:
+		FallbackModel() = default;
+
 		mlir::Value distributeDivOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
 		{
 			return mlir::cast<ConcreteOp>(op).distributeDivOp(builder, resultType, value);

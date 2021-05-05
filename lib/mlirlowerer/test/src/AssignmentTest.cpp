@@ -250,26 +250,26 @@ TEST(Assignment, arraySliceAssignment)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 2> x = { 0, 1 };
-	ArrayDescriptor<int, 1> xPtr(x);
+	ArrayDescriptor<int, 1> xDesc(x);
 
 	array<int, 2> y = { 2, 3 };
-	ArrayDescriptor<int, 1> yPtr(y);
+	ArrayDescriptor<int, 1> yDesc(y);
 
 	array<int, 2> z = { 4, 5 };
-	ArrayDescriptor<int, 1> zPtr(z);
+	ArrayDescriptor<int, 1> zDesc(z);
 
 	array<int, 6> t = { 0, 0, 0, 0, 0, 0 };
-	ArrayDescriptor<int, 2> tPtr(t.data(), { 3, 2 });
+	ArrayDescriptor<int, 2> tDesc(t.data(), { 3, 2 });
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr, jit::Runner::result(tPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, yDesc, zDesc, tDesc)));
 
-	EXPECT_EQ(tPtr.get(0, 0), x[0]);
-	EXPECT_EQ(tPtr.get(0, 1), x[1]);
-	EXPECT_EQ(tPtr.get(1, 0), y[0]);
-	EXPECT_EQ(tPtr.get(1, 1), y[1]);
-	EXPECT_EQ(tPtr.get(2, 0), z[0]);
-	EXPECT_EQ(tPtr.get(2, 1), z[1]);
+	EXPECT_EQ(tDesc.get(0, 0), x[0]);
+	EXPECT_EQ(tDesc.get(0, 1), x[1]);
+	EXPECT_EQ(tDesc.get(1, 0), y[0]);
+	EXPECT_EQ(tDesc.get(1, 1), y[1]);
+	EXPECT_EQ(tDesc.get(2, 0), z[0]);
+	EXPECT_EQ(tDesc.get(2, 1), z[1]);
 }
 
 TEST(Assignment, arrayCopy)	 // NOLINT
@@ -311,15 +311,15 @@ TEST(Assignment, arrayCopy)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<int, 2> x = { 23, 57 };
-	ArrayDescriptor<int, 1> xPtr(x);
+	ArrayDescriptor<int, 1> xDesc(x);
 
 	array<int, 2> y = { 0, 0 };
-	ArrayDescriptor<int, 1> yPtr(y);
+	ArrayDescriptor<int, 1> yDesc(y);
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, jit::Runner::result(yPtr))));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, yDesc)));
 
-	for (const auto& [x, y] : llvm::zip(xPtr, yPtr))
+	for (const auto& [x, y] : llvm::zip(xDesc, yDesc))
 		EXPECT_EQ(y, x);
 }
 

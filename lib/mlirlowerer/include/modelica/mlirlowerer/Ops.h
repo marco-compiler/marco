@@ -2,6 +2,7 @@
 
 #include <mlir/Interfaces/CallInterfaces.h>
 #include <mlir/Interfaces/ControlFlowInterfaces.h>
+#include <mlir/Interfaces/LoopLikeInterface.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
 #include <mlir/Interfaces/ViewLikeInterface.h>
 #include <mlir/IR/OpDefinition.h>
@@ -898,6 +899,7 @@ namespace modelica::codegen
 																				mlir::OpTrait::NRegions<3>::Impl,
 																				mlir::OpTrait::AtLeastNOperands<2>::Impl,
 																				mlir::OpTrait::ZeroResult,
+																				mlir::LoopLikeOpInterface::Trait,
 																				mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
@@ -908,6 +910,10 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args = {});
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
+		bool isDefinedOutsideOfLoop(mlir::Value value);
+		mlir::Region& getLoopBody();
+		mlir::LogicalResult moveOutOfLoop(llvm::ArrayRef<mlir::Operation*> ops);
 
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
 
@@ -939,6 +945,7 @@ namespace modelica::codegen
 																					mlir::OpTrait::NRegions<2>::Impl,
 																					mlir::OpTrait::NOperands<2>::Impl,
 																					mlir::OpTrait::ZeroResult,
+																					mlir::LoopLikeOpInterface::Trait,
 																					mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
@@ -949,6 +956,10 @@ namespace modelica::codegen
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
+		bool isDefinedOutsideOfLoop(mlir::Value value);
+		mlir::Region& getLoopBody();
+		mlir::LogicalResult moveOutOfLoop(llvm::ArrayRef<mlir::Operation*> ops);
 
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
 

@@ -104,15 +104,15 @@ TEST(Logic, negateArray)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<bool, 2> x = { true, false };
-	ArrayDescriptor<bool, 1> xPtr(x);
+	ArrayDescriptor<bool, 1> xDesc(x);
 
 	array<bool, 2> y = { true, false };
-	ArrayDescriptor<bool, 1> yPtr(y);
+	ArrayDescriptor<bool, 1> yDesc(y);
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr)));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, yDesc)));
 
-	for (const auto& [x, y] : llvm::zip(xPtr, yPtr))
+	for (const auto& [x, y] : llvm::zip(xDesc, yDesc))
 		EXPECT_EQ(y, !x);
 }
 
@@ -214,18 +214,18 @@ TEST(Logic, andArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<bool, 4> x = { false, false, true, true };
-	ArrayDescriptor<bool, 1> xPtr(x);
+	ArrayDescriptor<bool, 1> xDesc(x);
 
 	array<bool, 4> y = { false, true, false, true };
-	ArrayDescriptor<bool, 1> yPtr(y);
+	ArrayDescriptor<bool, 1> yDesc(y);
 
 	array<bool, 4> z = { true, true, true, false };
-	ArrayDescriptor<bool, 1> zPtr(z);
+	ArrayDescriptor<bool, 1> zDesc(z);
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, yDesc, zDesc)));
 
-	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))
+	for (const auto& [x, y, z] : llvm::zip(xDesc, yDesc, zDesc))
 		EXPECT_EQ(z, x && y);
 }
 
@@ -327,17 +327,17 @@ TEST(Logic, orArrays)	 // NOLINT
 	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
 
 	array<bool, 4> x = { false, false, true, true };
-	ArrayDescriptor<bool, 1> xPtr(x);
+	ArrayDescriptor<bool, 1> xDesc(x);
 
 	array<bool, 4> y = { false, true, false, true };
-	ArrayDescriptor<bool, 1> yPtr(y);
+	ArrayDescriptor<bool, 1> yDesc(y);
 
 	array<bool, 4> z = { true, false, false, false };
-	ArrayDescriptor<bool, 1> zPtr(z);
+	ArrayDescriptor<bool, 1> zDesc(z);
 
 	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xPtr, yPtr, zPtr)));
+	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, yDesc, zDesc)));
 
-	for (const auto& [x, y, z] : llvm::zip(xPtr, yPtr, zPtr))
+	for (const auto& [x, y, z] : llvm::zip(xDesc, yDesc, zDesc))
 		EXPECT_EQ(z, x || y);
 }

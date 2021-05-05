@@ -1,5 +1,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "modelica/frontend/Parser.hpp"
 #include "modelica/frontend/Passes.h"
