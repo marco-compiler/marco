@@ -1,21 +1,12 @@
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/Conversion/Passes.h>
-#include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/IR/Verifier.h>
 #include <mlir/Pass/PassManager.h>
-#include <mlir/Support/StorageUniquer.h>
 #include <mlir/Transforms/Passes.h>
 #include <modelica/frontend/AST.h>
 #include <modelica/frontend/SymbolTable.hpp>
-#include <modelica/matching/Matching.hpp>
-#include <modelica/matching/SccCollapsing.hpp>
-#include <modelica/matching/Schedule.hpp>
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/model/Model.hpp>
-#include <modelica/omcToModel/OmcToModelPass.hpp>
-#include <modelica/passes/ConstantFold.hpp>
-#include <modelica/passes/SolveModel.hpp>
 #include <numeric>
 
 using namespace modelica;
@@ -31,14 +22,16 @@ Reference::Reference()
 {
 }
 
-Reference::Reference(ModelicaBuilder* builder,
+Reference::Reference(mlir::OpBuilder* builder,
 										 mlir::Value value,
 										 bool initialized,
-										 std::function<mlir::Value(ModelicaBuilder*, mlir::Value)> reader)
+										 std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader,
+										 std::function<void(mlir::OpBuilder* builder, Reference&, mlir::Value)> writer)
 		: builder(builder),
 			value(std::move(value)),
 			initialized(initialized),
-			reader(std::move(reader))
+			reader(std::move(reader)),
+			writer(std::move(writer))
 {
 }
 
@@ -57,22 +50,28 @@ bool Reference::isInitialized() const
 	return initialized;
 }
 
-Reference Reference::ssa(ModelicaBuilder* builder, mlir::Value value)
+void Reference::set(mlir::Value v)
+{
+	writer(builder, *this, v);
+}
+
+Reference Reference::ssa(mlir::OpBuilder* builder, mlir::Value value)
 {
 	return Reference(
 			builder, value, true,
-			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value
-			{
+			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value {
 				return value;
+			},
+			[](mlir::OpBuilder* builder, Reference& destination, mlir::Value value) {
+				assert(false && "Can't assign value to SSA operand");
 			});
 }
 
-Reference Reference::memory(ModelicaBuilder* builder, mlir::Value value, bool initialized)
+Reference Reference::memory(mlir::OpBuilder* builder, mlir::Value value, bool initialized)
 {
 	return Reference(
 			builder, value, initialized,
-			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value
-			{
+			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value {
 				auto pointerType = value.getType().cast<PointerType>();
 
 				// We can load the value only if it's a pointer to a scalar.
@@ -82,6 +81,28 @@ Reference Reference::memory(ModelicaBuilder* builder, mlir::Value value, bool in
 					return builder->create<LoadOp>(value.getLoc(), value);
 
 				return value;
+			},
+			[&](mlir::OpBuilder* builder, Reference& destination, mlir::Value value) {
+				assert(destination.value.getType().isa<PointerType>());
+				builder->create<AssignmentOp>(value.getLoc(), value, destination.getReference());
+			});
+}
+
+Reference Reference::member(mlir::OpBuilder* builder, mlir::Value value, bool initialized)
+{
+	return Reference(
+			builder, value, initialized,
+			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value
+			{
+				auto memberType = value.getType().cast<MemberType>();
+
+				if (memberType.getShape().empty())
+					return builder->create<MemberLoadOp>(value.getLoc(), memberType.getElementType(), value);
+
+				return builder->create<MemberLoadOp>(value.getLoc(), memberType.toPointerType(), value);
+			},
+			[](mlir::OpBuilder* builder, Reference& destination, mlir::Value value) {
+				builder->create<MemberStoreOp>(value.getLoc(), destination.value, value);
 			});
 }
 
@@ -374,12 +395,8 @@ mlir::Operation* MLIRLowerer::lower(const Function& foo)
 		if (!member->isInput() && !member->isOutput())
 		{
 			auto reference = symbolTable.lookup(member->getName());
-			mlir::Value container = reference.getReference();
-			assert(container.getType().isa<PointerType>());
-			auto memberType = container.getType().cast<PointerType>().getElementType();
 
-			if (auto pointerType = memberType.dyn_cast<PointerType>();
-					pointerType && pointerType.getAllocationScope() == heap)
+			if (reference.getReference().getType().cast<MemberType>().getAllocationScope() == MemberAllocationScope::heap)
 			{
 				mlir::Value buffer = *reference;
 				builder.create<FreeOp>(location, buffer);
@@ -592,61 +609,46 @@ void MLIRLowerer::lower<Function>(const Member& member)
 	const auto& frontendType = member.getType();
 	mlir::Type type = lower(frontendType, member.isOutput() ? BufferAllocationScope::heap : BufferAllocationScope::stack);
 
-	mlir::Value ptr = builder.create<AllocaOp>(location, type);
-	bool initialized = false;
+	bool initialized = true;
+	llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+	MemberType::Shape shape;
 
 	if (auto pointerType = type.dyn_cast<PointerType>(); pointerType)
 	{
-		llvm::SmallVector<mlir::Value, 3> sizes;
+		for (auto dimension : pointerType.getShape())
+			shape.push_back(dimension);
 
-		for (const auto& dimension : member.getType().getDimensions())
-			if (dimension.hasExpression())
-			{
-				mlir::Value size = *lower<Expression>(dimension.getExpression())[0];
-				size = builder.create<CastOp>(location, size, builder.getIndexType());
-				sizes.push_back(size);
-			}
+		auto expressionsCount = llvm::count_if(
+				member.getType().getDimensions(),
+				[](const auto& dimension) {
+					return dimension.hasExpression();
+				});
 
-		if (sizes.size() == pointerType.getDynamicDimensions())
+		// If all the dynamic dimensions have an expression to determine their
+		// values, then the member can be instantiated from the beginning.
+
+		initialized = expressionsCount == pointerType.getDynamicDimensions();
+
+		if (initialized)
 		{
-			// All the dynamic dimensions have an expression to determine their
-			// values. So we can instantiate the array.
-
-			auto allocationScope = pointerType.getAllocationScope();
-			assert(allocationScope != unknown);
-
-			if (allocationScope == heap)
+			for (const auto& dimension : member.getType().getDimensions())
 			{
-				// Note that being a member, we will take care of manually freeing
-				// the buffer when needed.
-
-				mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), sizes, false);
-				builder.create<StoreOp>(location, var, ptr);
-			}
-			else if (allocationScope == stack)
-			{
-				mlir::Value var = builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape(), sizes);
-				builder.create<StoreOp>(location, var, ptr);
-			}
-
-			initialized = true;
-		}
-		else
-		{
-			if (pointerType.getAllocationScope() == heap)
-			{
-				// We need to allocate a fake buffer in order to allow the first
-				// free operation to operate on a valid memory area.
-
-				PointerType::Shape shape(pointerType.getRank(), 1);
-				mlir::Value var = builder.create<AllocOp>(location, pointerType.getElementType(), shape, llvm::None, false);
-				var = builder.create<PtrCastOp>(location, var, pointerType);
-				builder.create<StoreOp>(location, var, ptr);
+				if (dimension.hasExpression())
+				{
+					mlir::Value size = *lower<Expression>(dimension.getExpression())[0];
+					size = builder.create<CastOp>(location, size, builder.getIndexType());
+					dynamicDimensions.push_back(size);
+				}
 			}
 		}
 	}
 
-	symbolTable.insert(member.getName(), Reference::memory(&builder, ptr, initialized));
+	auto memberType = type.isa<PointerType>() ?
+	    MemberType::get(type.cast<PointerType>()) :
+			MemberType::get(builder.getContext(), MemberAllocationScope::stack, type);
+
+	mlir::Value var = builder.create<MemberCreateOp>(location, memberType, dynamicDimensions);
+	symbolTable.insert(member.getName(), Reference::member(&builder, var, initialized));
 
 	if (member.hasInitializer())
 	{
@@ -655,7 +657,7 @@ void MLIRLowerer::lower<Function>(const Member& member)
 
 		Reference memory = symbolTable.lookup(member.getName());
 		mlir::Value value = *lower<Expression>(member.getInitializer())[0];
-		assign(location, memory, value);
+		memory.set(value);
 	}
 }
 
@@ -778,7 +780,7 @@ void MLIRLowerer::lower(const AssignmentStatement& statement)
 	{
 		auto destination = lower<Expression>(get<0>(pair))[0];
 		auto value = get<1>(pair);
-		assign(location, destination, *value);
+		destination.set(*value);
 	}
 }
 
@@ -1443,48 +1445,6 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(const Expression& ex
 	}
 
 	return { Reference::ssa(&builder, result) };
-}
-
-void MLIRLowerer::assign(mlir::Location location, Reference memory, mlir::Value value)
-{
-	auto destinationPointer = memory.getReference().getType().cast<PointerType>();
-
-	if (destinationPointer.getElementType().isa<PointerType>())
-	{
-		if (memory.isInitialized())
-		{
-			// The array size has been specified (note that it also may be
-			// dependant on a parameter), and the array itself has been allocated.
-			// So we can proceed by copying the source values into the
-			// destination array.
-
-			builder.create<AssignmentOp>(location, value, *memory);
-		}
-		else
-		{
-			// The destination array has dynamic and unknown sizes. Thus the
-			// buffer has not been allocated yet and we need to create a copy
-			// of the source one.
-
-			auto arrayPointer = destinationPointer.getElementType().cast<PointerType>();
-			mlir::Value copy = builder.create<ArrayCloneOp>(location, value, arrayPointer, false);
-
-			// Free the previously allocated memory. This is only apparently in
-			// contrast with the above statements: unknown-sized arrays pointers
-			// are initialized with a pointer to a 1-element sized array, so that
-			// the initial free always operates on valid memory.
-
-			if (arrayPointer.getAllocationScope() == heap)
-				builder.create<FreeOp>(location, *memory);
-
-			// Save the descriptor of the new copy into the destination using StoreOp
-			builder.create<StoreOp>(location, copy, memory.getReference());
-		}
-	}
-	else
-	{
-		builder.create<AssignmentOp>(location, value, memory.getReference());
-	}
 }
 
 mlir::Value MLIRLowerer::foldBinaryOperation(llvm::ArrayRef<mlir::Value> args, std::function<mlir::Value(mlir::Value, mlir::Value)> callback)

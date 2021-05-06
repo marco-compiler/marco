@@ -74,19 +74,24 @@ namespace modelica::codegen
 		[[nodiscard]] mlir::Value getReference() const;
 		[[nodiscard]] bool isInitialized() const;
 
-		[[nodiscard]] static Reference ssa(ModelicaBuilder* builder, mlir::Value value);
-		[[nodiscard]] static Reference memory(ModelicaBuilder* builder, mlir::Value value, bool initialized);
+		void set(mlir::Value value);
+
+		[[nodiscard]] static Reference ssa(mlir::OpBuilder* builder, mlir::Value value);
+		[[nodiscard]] static Reference memory(mlir::OpBuilder* builder, mlir::Value value, bool initialized);
+		[[nodiscard]] static Reference member(mlir::OpBuilder* builder, mlir::Value value, bool initialized);
 
 		private:
-		Reference(ModelicaBuilder* builder,
+		Reference(mlir::OpBuilder* builder,
 							mlir::Value value,
 							bool initialized,
-							std::function<mlir::Value(ModelicaBuilder*, mlir::Value)> reader);
+							std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader,
+							std::function<void(mlir::OpBuilder* builder, Reference& destination, mlir::Value)> writer);
 
-		ModelicaBuilder* builder;
+		mlir::OpBuilder* builder;
 		mlir::Value value;
 		bool initialized;
-		std::function<mlir::Value(ModelicaBuilder* builder, mlir::Value ref)> reader;
+		std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader;
+		std::function<void(mlir::OpBuilder*, Reference&, mlir::Value)> writer;
 	};
 
 	class MLIRLowerer
@@ -127,8 +132,6 @@ namespace modelica::codegen
 		void lower(const frontend::WhenStatement& statement);
 		void lower(const frontend::BreakStatement& statement);
 		void lower(const frontend::ReturnStatement& statement);
-
-		void assign(mlir::Location location, Reference memory, mlir::Value value);
 
 		template<typename T>
 		Container<Reference> lower(const frontend::Expression& expression);

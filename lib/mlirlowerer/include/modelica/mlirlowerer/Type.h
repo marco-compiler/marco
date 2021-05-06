@@ -43,7 +43,42 @@ namespace modelica::codegen
 		unsigned int bitWidth;
 	};
 
-	enum BufferAllocationScope { unknown, stack, heap };
+	enum class MemberAllocationScope
+	{
+		stack,
+		heap
+	};
+
+	class MemberTypeStorage : public mlir::TypeStorage
+	{
+		public:
+		using Shape = llvm::SmallVector<long, 3>;
+		using KeyTy = std::tuple<MemberAllocationScope, mlir::Type, Shape>;
+
+		MemberTypeStorage() = delete;
+
+		bool operator==(const KeyTy& key) const;
+		static unsigned int hashKey(const KeyTy& key);
+		static MemberTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key);
+
+		[[nodiscard]] MemberAllocationScope getAllocationScope() const;
+		[[nodiscard]] Shape getShape() const;
+		[[nodiscard]] mlir::Type getElementType() const;
+
+		private:
+		MemberTypeStorage(MemberAllocationScope allocationScope, mlir::Type elementType, const Shape& shape);
+
+		MemberAllocationScope allocationScope;
+		mlir::Type elementType;
+		Shape shape;
+	};
+
+	enum class BufferAllocationScope
+	{
+		unknown,
+		stack,
+		heap
+	};
 
 	class PointerTypeStorage : public mlir::TypeStorage
 	{
@@ -134,6 +169,25 @@ namespace modelica::codegen
 		[[nodiscard]] unsigned int getBitWidth() const;
 	};
 
+	class PointerType;
+
+	class MemberType : public mlir::Type::TypeBase<MemberType, mlir::Type, MemberTypeStorage>
+	{
+		public:
+		using Base::Base;
+		using Shape = MemberTypeStorage::Shape;
+
+		static MemberType get(mlir::MLIRContext* context, MemberAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape = {});
+		static MemberType get(PointerType pointerType);
+
+		[[nodiscard]] MemberAllocationScope getAllocationScope() const;
+		[[nodiscard]] mlir::Type getElementType() const;
+		[[nodiscard]] Shape getShape() const;
+		[[nodiscard]] unsigned int getRank() const;
+
+		[[nodiscard]] PointerType toPointerType() const;
+	};
+
 	class UnsizedPointerType;
 
 	class PointerType : public mlir::Type::TypeBase<PointerType, mlir::Type, PointerTypeStorage>
@@ -158,6 +212,8 @@ namespace modelica::codegen
 		[[nodiscard]] long rawSize() const;
 
 		[[nodiscard]] bool hasConstantShape() const;
+
+		[[nodiscard]] bool isScalar() const;
 
 		[[nodiscard]] PointerType slice(unsigned int subscriptsAmount);
 		[[nodiscard]] PointerType toAllocationScope(BufferAllocationScope scope);

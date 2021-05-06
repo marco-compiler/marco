@@ -54,12 +54,51 @@ RealTypeStorage::RealTypeStorage(unsigned int bitWidth) : bitWidth(bitWidth)
 {
 }
 
-llvm::hash_code hash_value(const PointerType::Shape& shape)
+bool MemberTypeStorage::operator==(const KeyTy& key) const
 {
-	if (shape.size()) {
-		return llvm::hash_combine_range(shape.begin(), shape.end());
-	}
-	return llvm::hash_combine(0);
+	return key == KeyTy{getAllocationScope(), getElementType(), getShape()};
+}
+
+unsigned int MemberTypeStorage::hashKey(const KeyTy& key)
+{
+	auto hashValue = [](const MemberTypeStorage::Shape& s) -> llvm::hash_code
+	{
+		if (s.size()) {
+			return llvm::hash_combine_range(s.begin(), s.end());
+		}
+		return llvm::hash_combine(0);
+	};
+
+	auto shapeHash{hashValue(std::get<MemberTypeStorage::Shape>(key))};
+	return llvm::hash_combine(std::get<MemberAllocationScope>(key), std::get<mlir::Type>(key), shapeHash);
+}
+
+MemberTypeStorage* MemberTypeStorage::construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key)
+{
+	auto *storage = allocator.allocate<MemberTypeStorage>();
+	return new (storage) MemberTypeStorage{std::get<MemberAllocationScope>(key), std::get<mlir::Type>(key), std::get<PointerType::Shape>(key)};
+}
+
+MemberAllocationScope MemberTypeStorage::getAllocationScope() const
+{
+	return allocationScope;
+}
+
+MemberTypeStorage::Shape MemberTypeStorage::getShape() const
+{
+	return shape;
+}
+
+mlir::Type MemberTypeStorage::getElementType() const
+{
+	return elementType;
+}
+
+MemberTypeStorage::MemberTypeStorage(MemberAllocationScope allocationScope, mlir::Type elementType, const Shape& shape)
+		: allocationScope(allocationScope),
+			elementType(elementType),
+			shape(std::move(shape))
+{
 }
 
 bool PointerTypeStorage::operator==(const KeyTy& key) const
@@ -69,7 +108,15 @@ bool PointerTypeStorage::operator==(const KeyTy& key) const
 
 unsigned int PointerTypeStorage::hashKey(const KeyTy& key)
 {
-	auto shapeHash{hash_value(std::get<PointerType::Shape>(key))};
+	auto hashValue = [](const PointerTypeStorage::Shape& s) -> llvm::hash_code
+	{
+		if (s.size()) {
+			return llvm::hash_combine_range(s.begin(), s.end());
+		}
+		return llvm::hash_combine(0);
+	};
+
+	auto shapeHash{hashValue(std::get<PointerType::Shape>(key))};
 	return llvm::hash_combine(std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), shapeHash);
 }
 
@@ -184,6 +231,82 @@ unsigned int RealType::getBitWidth() const
 	return getImpl()->getBitWidth();
 }
 
+namespace modelica::codegen
+{
+	static BufferAllocationScope memberToBufferAllocationScope(MemberAllocationScope scope)
+	{
+		switch (scope)
+		{
+			case MemberAllocationScope::stack:
+				return BufferAllocationScope::stack;
+
+			case MemberAllocationScope::heap:
+				return BufferAllocationScope::heap;
+		}
+	}
+
+	static MemberAllocationScope bufferToMemberAllocationScope(BufferAllocationScope scope)
+	{
+		switch (scope)
+		{
+			case BufferAllocationScope::stack:
+				return MemberAllocationScope::stack;
+
+			case BufferAllocationScope::heap:
+				return MemberAllocationScope::heap;
+
+			case BufferAllocationScope::unknown:
+				assert(false && "Unexpected unknown allocation scope");
+				return MemberAllocationScope::heap;
+		}
+	}
+}
+
+MemberType MemberType::get(mlir::MLIRContext* context, MemberAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape)
+{
+	return Base::get(context, allocationScope, elementType, Shape(shape.begin(), shape.end()));
+}
+
+MemberType MemberType::get(PointerType pointerType)
+{
+	auto shape = pointerType.getShape();
+
+	return Base::get(
+			pointerType.getContext(),
+			bufferToMemberAllocationScope(pointerType.getAllocationScope()),
+			pointerType.getElementType(),
+			Shape(shape.begin(), shape.end()));
+}
+
+MemberAllocationScope MemberType::getAllocationScope() const
+{
+	return getImpl()->getAllocationScope();
+}
+
+mlir::Type MemberType::getElementType() const
+{
+	return getImpl()->getElementType();
+}
+
+MemberType::Shape MemberType::getShape() const
+{
+	return getImpl()->getShape();
+}
+
+unsigned int MemberType::getRank() const
+{
+	return getShape().size();
+}
+
+PointerType MemberType::toPointerType() const
+{
+	return PointerType::get(
+			getContext(),
+			memberToBufferAllocationScope(getAllocationScope()),
+			getElementType(),
+			getShape());
+}
+
 PointerType PointerType::get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape)
 {
 	return Base::get(context, allocationScope, elementType, Shape(shape.begin(), shape.end()));
@@ -257,6 +380,11 @@ bool PointerType::hasConstantShape() const
 	});
 }
 
+bool PointerType::isScalar() const
+{
+	return getRank() == 0;
+}
+
 PointerType PointerType::slice(unsigned int subscriptsAmount)
 {
 	auto shape = getShape();
@@ -276,18 +404,18 @@ PointerType PointerType::toAllocationScope(BufferAllocationScope scope)
 
 PointerType PointerType::toUnknownAllocationScope()
 {
-	return toAllocationScope(unknown);
+	return toAllocationScope(BufferAllocationScope::unknown);
 }
 
 PointerType PointerType::toMinAllowedAllocationScope()
 {
-	if (getAllocationScope() == heap)
+	if (getAllocationScope() == BufferAllocationScope::heap)
 		return *this;
 
 	if (canBeOnStack())
-		return toAllocationScope(stack);
+		return toAllocationScope(BufferAllocationScope::stack);
 
-	return toAllocationScope(heap);
+	return toAllocationScope(BufferAllocationScope::heap);
 }
 
 UnsizedPointerType PointerType::toUnsized()
@@ -351,13 +479,32 @@ void modelica::codegen::printModelicaType(mlir::Type type, mlir::DialectAsmPrint
 		return;
 	}
 
+	if (auto memberType = type.dyn_cast<MemberType>())
+	{
+		os << "member<";
+
+		if (memberType.getAllocationScope() == MemberAllocationScope::stack)
+			os << "stack, ";
+		else if (memberType.getAllocationScope() == MemberAllocationScope::heap)
+			os << "heap, ";
+
+		auto dimensions = memberType.getShape();
+
+		for (const auto& dimension : dimensions)
+			os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
+
+		printer.printType(memberType.getElementType());
+		os << ">";
+		return;
+	}
+
 	if (auto pointerType = type.dyn_cast<PointerType>())
 	{
 		os << "ptr<";
 
-		if (pointerType.getAllocationScope() == stack)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::stack)
 			os << "stack, ";
-		else if (pointerType.getAllocationScope() == heap)
+		else if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			os << "heap, ";
 
 		auto dimensions = pointerType.getShape();

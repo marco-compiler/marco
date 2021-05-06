@@ -39,6 +39,7 @@ TEST(Assignment, constant)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 	
 	auto module = lowerer.lower(cls);
+	module->dump();
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -244,6 +245,7 @@ TEST(Assignment, arraySliceAssignment)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 
 	auto module = lowerer.lower(cls);
+	module->dump();
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -305,6 +307,7 @@ TEST(Assignment, arrayCopy)	 // NOLINT
 	MLIRLowerer lowerer(context, modelicaOptions);
 
 	auto module = lowerer.lower(cls);
+	module->dump();
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;

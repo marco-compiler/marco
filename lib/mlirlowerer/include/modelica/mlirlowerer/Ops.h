@@ -469,6 +469,112 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::MemberCreateOp
+	//===----------------------------------------------------------------------===//
+
+	class MemberCreateOp;
+
+	class MemberCreateOpAdaptor : public OpAdaptor<MemberCreateOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::ValueRange dynamicDimensions();
+	};
+
+	class MemberCreateOp : public mlir::Op<MemberCreateOp,
+																				mlir::OpTrait::ZeroRegion,
+																				mlir::OpTrait::VariadicOperands,
+																				mlir::OpTrait::OneResult,
+																				mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = MemberCreateOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type type, mlir::ValueRange dynamicDimensions);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::ValueRange dynamicDimensions();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::MemberReadOp
+	//===----------------------------------------------------------------------===//
+
+	class MemberLoadOp;
+
+	class MemberLoadOpAdaptor : public OpAdaptor<MemberLoadOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value member();
+	};
+
+	class MemberLoadOp : public mlir::Op<MemberLoadOp,
+																			mlir::OpTrait::ZeroRegion,
+																			mlir::OpTrait::OneOperand,
+																			mlir::OpTrait::OneResult,
+																			mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = MemberLoadOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value member);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::Value member();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::MemberStoreOp
+	//===----------------------------------------------------------------------===//
+
+	class MemberStoreOp;
+
+	class MemberStoreOpAdaptor : public OpAdaptor<MemberStoreOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value member();
+		mlir::Value value();
+	};
+
+	class MemberStoreOp :public mlir::Op<MemberStoreOp,
+																			 mlir::OpTrait::ZeroRegion,
+																			 mlir::OpTrait::NOperands<2>::Impl,
+																			 mlir::OpTrait::ZeroResult,
+																			 mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = MemberStoreOpAdaptor;
+
+		static llvm::StringRef getOperationName();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value member, mlir::Value value);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Value member();
+		mlir::Value value();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::AllocaOp
 	//===----------------------------------------------------------------------===//
 

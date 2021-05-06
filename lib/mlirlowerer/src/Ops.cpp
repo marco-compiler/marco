@@ -727,7 +727,7 @@ void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 		// must be seen as if they were allocated by the function call. This way,
 		// the deallocation pass can free them.
 
-		if (auto pointerType = type.dyn_cast<PointerType>(); pointerType && pointerType.getAllocationScope() == heap)
+		if (auto pointerType = type.dyn_cast<PointerType>(); pointerType && pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
 
 		/*
@@ -817,6 +817,154 @@ unsigned int CallOp::movedResults()
 {
 	auto attr = getOperation()->getAttrOfType<mlir::IntegerAttr>("movedResults");
 	return attr.getUInt();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::MemberCreateOp
+//===----------------------------------------------------------------------===//
+
+mlir::ValueRange MemberCreateOpAdaptor::dynamicDimensions()
+{
+	return getValues();
+}
+
+llvm::StringRef MemberCreateOp::getOperationName()
+{
+	return "modelica.member_create";
+}
+
+void MemberCreateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type type, mlir::ValueRange dynamicDimensions)
+{
+	state.addTypes(type);
+	state.addOperands(dynamicDimensions);
+}
+
+void MemberCreateOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.member_create " << dynamicDimensions() << ": " << resultType();
+}
+
+mlir::LogicalResult MemberCreateOp::verify()
+{
+	if (!resultType().isa<MemberType>())
+		return emitOpError("requires the result to be a member type");
+
+
+
+	return mlir::success();
+}
+
+void MemberCreateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+}
+
+mlir::Type MemberCreateOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::ValueRange MemberCreateOp::dynamicDimensions()
+{
+	return Adaptor(*this).dynamicDimensions();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::MemberLoadOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value MemberLoadOpAdaptor::member()
+{
+	return getValues()[0];
+}
+
+llvm::StringRef MemberLoadOp::getOperationName()
+{
+	return "modelica.member_load";
+}
+
+void MemberLoadOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value member)
+{
+	state.addTypes(resultType);
+	state.addOperands(member);
+}
+
+void MemberLoadOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.member_load " << member() << ": " << resultType();
+}
+
+mlir::LogicalResult MemberLoadOp::verify()
+{
+	// TODO
+	return mlir::success();
+}
+
+void MemberLoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	// TODO
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::Type MemberLoadOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value MemberLoadOp::member()
+{
+	return Adaptor(*this).member();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::MemberStoreOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value MemberStoreOpAdaptor::member()
+{
+	return getValues()[0];
+}
+
+mlir::Value MemberStoreOpAdaptor::value()
+{
+	return getValues()[1];
+}
+
+llvm::StringRef MemberStoreOp::getOperationName()
+{
+	return "modelica.member_store";
+}
+
+void MemberStoreOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value member, mlir::Value value)
+{
+	state.addOperands(member);
+	state.addOperands(value);
+}
+
+void MemberStoreOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.member_store " << value() << ", " << member();
+}
+
+mlir::LogicalResult MemberStoreOp::verify()
+{
+	// TODO
+	return mlir::success();
+}
+
+void MemberStoreOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), member(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::Value MemberStoreOp::member()
+{
+	return Adaptor(*this).member();
+}
+
+mlir::Value MemberStoreOp::value()
+{
+	return Adaptor(*this).value();
 }
 
 //===----------------------------------------------------------------------===//
@@ -999,7 +1147,7 @@ mlir::LogicalResult FreeOp::verify()
 {
 	if (auto pointerType = memory().getType().dyn_cast<PointerType>(); pointerType)
 	{
-		if (pointerType.getAllocationScope() == heap)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			return mlir::success();
 
 		return emitOpError("requires the memory to be allocated on the heap");
@@ -1058,7 +1206,7 @@ mlir::LogicalResult PtrCastOp::verify()
 			if (source.getRank() != resultType().cast<PointerType>().getRank())
 				return emitOpError("requires the result pointer type to have the same rank as the operand");
 
-			if (destination.getAllocationScope() != unknown &&
+			if (destination.getAllocationScope() != BufferAllocationScope::unknown &&
 					destination.getAllocationScope() != source.getAllocationScope())
 				return emitOpError("can change the allocation scope only to the unknown one");
 
@@ -1412,7 +1560,8 @@ mlir::LogicalResult ArrayCloneOp::verify()
 {
 	auto pointerType = resultType();
 
-	if (pointerType.getAllocationScope() != stack && pointerType.getAllocationScope() != heap)
+	if (auto scope = pointerType.getAllocationScope();
+			scope != BufferAllocationScope::stack && scope != BufferAllocationScope::heap)
 		return emitOpError(" requires the result array type to be stack or heap allocated");
 
 	return mlir::success();
@@ -1422,9 +1571,11 @@ void ArrayCloneOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectIns
 {
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), source(), mlir::SideEffects::DefaultResource::get());
 
-	if (resultType().getAllocationScope() == heap && shouldBeFreed())
+	auto scope = resultType().getAllocationScope();
+
+	if (scope == BufferAllocationScope::heap && shouldBeFreed())
 		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	else if (resultType().getAllocationScope() == stack)
+	else if (scope == BufferAllocationScope::stack)
 		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -2019,9 +2170,9 @@ void NotOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
 	{
-		if (pointerType.getAllocationScope() == stack)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (pointerType.getAllocationScope() == heap)
+		else if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -2094,9 +2245,11 @@ void AndOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
 	{
-		if (pointerType.getAllocationScope() == stack)
+		auto scope = pointerType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (pointerType.getAllocationScope() == heap)
+		else if (scope == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -2174,9 +2327,11 @@ void OrOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<ml
 
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
 	{
-		if (pointerType.getAllocationScope() == stack)
+		auto scope = pointerType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (pointerType.getAllocationScope() == heap)
+		else if (scope == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -2548,9 +2703,11 @@ void NegateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstanc
 
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
 	{
-		if (pointerType.getAllocationScope() == stack)
+		auto scope = pointerType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (pointerType.getAllocationScope() == heap)
+		else if (scope == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -2675,7 +2832,7 @@ llvm::StringRef AddOp::getOperationName()
 void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	if (auto pointerType = resultType.dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == unknown)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::unknown)
 			resultType = pointerType.toMinAllowedAllocationScope();
 
 	state.addTypes(resultType);
@@ -2697,9 +2854,11 @@ void AddOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
 	{
-		if (pointerType.getAllocationScope() == stack)
+		auto scope = pointerType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (pointerType.getAllocationScope() == heap)
+		else if (scope == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -2836,7 +2995,7 @@ llvm::StringRef SubOp::getOperationName()
 void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	if (auto pointerType = resultType.dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == unknown)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::unknown)
 			resultType = pointerType.toMinAllowedAllocationScope();
 
 	state.addTypes(resultType);
@@ -2858,9 +3017,11 @@ void SubOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
 	{
-		if (pointerType.getAllocationScope() == stack)
+		auto scope = pointerType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (pointerType.getAllocationScope() == heap)
+		else if (scope == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -2997,7 +3158,7 @@ llvm::StringRef MulOp::getOperationName()
 void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	if (auto pointerType = resultType.dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == unknown)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::unknown)
 			resultType = pointerType.toMinAllowedAllocationScope();
 
 	state.addTypes(resultType);
@@ -3019,9 +3180,11 @@ void MulOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
 	{
-		if (pointerType.getAllocationScope() == stack)
+		auto scope = pointerType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (pointerType.getAllocationScope() == heap)
+		else if (scope == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -3180,7 +3343,7 @@ llvm::StringRef DivOp::getOperationName()
 void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	if (auto pointerType = resultType.dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == unknown)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::unknown)
 			resultType = pointerType.toMinAllowedAllocationScope();
 
 	state.addTypes(resultType);
@@ -3202,9 +3365,11 @@ void DivOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
 	{
-		if (pointerType.getAllocationScope() == stack)
+		auto scope = pointerType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (pointerType.getAllocationScope() == heap)
+		else if (scope == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -3419,7 +3584,7 @@ llvm::StringRef PowOp::getOperationName()
 void PowOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value base, mlir::Value exponent)
 {
 	if (auto pointerType = resultType.dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == unknown)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::unknown)
 			resultType = pointerType.toMinAllowedAllocationScope();
 
 	state.addTypes(resultType);
@@ -3446,9 +3611,11 @@ void PowOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
 	{
-		if (pointerType.getAllocationScope() == stack)
+		auto scope = pointerType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (pointerType.getAllocationScope() == heap)
+		else if (scope == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -3557,7 +3724,7 @@ mlir::LogicalResult SizeOp::verify()
 void SizeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == heap)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), memory(), mlir::SideEffects::DefaultResource::get());
@@ -3619,7 +3786,7 @@ mlir::LogicalResult IdentityOp::verify()
 void IdentityOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == heap)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -3672,7 +3839,7 @@ mlir::LogicalResult DiagonalOp::verify()
 void DiagonalOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == heap)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -3725,7 +3892,7 @@ mlir::LogicalResult ZerosOp::verify()
 void ZerosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == heap)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -3778,7 +3945,7 @@ mlir::LogicalResult OnesOp::verify()
 void OnesOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == heap)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -3843,7 +4010,7 @@ mlir::LogicalResult LinspaceOp::verify()
 void LinspaceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == heap)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -4165,7 +4332,7 @@ mlir::LogicalResult TransposeOp::verify()
 void TransposeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == heap)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -4240,7 +4407,7 @@ mlir::LogicalResult SymmetricOp::verify()
 void SymmetricOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == heap)
+		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 

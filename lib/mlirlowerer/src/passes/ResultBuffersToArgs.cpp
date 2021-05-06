@@ -8,7 +8,7 @@ static void updateFuncOp(mlir::FuncOp func, llvm::SmallVectorImpl<mlir::BlockArg
 {
 	auto functionType = func.getType();
 
-	// Collect information about the results will become appended arguments.
+	// Collect information about the results will become appended arguments
 	llvm::SmallVector<mlir::Type, 6> erasedResultTypes;
 	llvm::SmallVector<unsigned int, 6> erasedResultIndices;
 
@@ -44,30 +44,35 @@ static void updateFuncOp(mlir::FuncOp func, llvm::SmallVectorImpl<mlir::BlockArg
 static void updateReturnOps(mlir::FuncOp func, llvm::ArrayRef<mlir::BlockArgument> appendedEntryArgs) {
 	func.walk([&](mlir::ReturnOp op) {
 		size_t entryArgCounter = 0;
-		llvm::SmallVector<mlir::Value, 6> returnOperands;
+		llvm::SmallVector<mlir::Value, 3> returnOperands;
+
+		mlir::OpBuilder builder(op);
 
 		for (mlir::Value operand : op.getOperands())
 		{
 			if (auto pointerType = operand.getType().dyn_cast<PointerType>(); pointerType && pointerType.canBeOnStack())
 			{
-				auto allocaOp = operand.getDefiningOp<LoadOp>().memory().getDefiningOp<AllocaOp>();
+				auto createOp = operand.getDefiningOp<MemberLoadOp>().member().getDefiningOp<MemberCreateOp>();
 
-				for (auto* user : allocaOp->getUsers())
+				for (auto* user : createOp->getUsers())
 				{
-					if (mlir::isa<LoadOp>(user))
+					assert(mlir::isa<MemberLoadOp>(user) || mlir::isa<MemberStoreOp>(user));
+
+					if (mlir::isa<MemberLoadOp>(user))
 					{
 						user->replaceAllUsesWith(mlir::ValueRange(appendedEntryArgs[entryArgCounter]));
-						user->erase();
 					}
-					else if (mlir::isa<StoreOp>(user))
+					else if (auto storeOp = mlir::dyn_cast<MemberStoreOp>(user))
 					{
-						auto allocOp = mlir::cast<StoreOp>(user).value().getDefiningOp<AllocOp>();
-						allocOp->remove();
-						user->remove();
+						auto value = storeOp.value();
+						builder.setInsertionPoint(user);
+						builder.create<AssignmentOp>(value.getLoc(), value, appendedEntryArgs[entryArgCounter]);
 					}
+
+					user->erase();
 				}
 
-				allocaOp->remove();
+				createOp->erase();
 				entryArgCounter++;
 			}
 			else
@@ -76,7 +81,7 @@ static void updateReturnOps(mlir::FuncOp func, llvm::ArrayRef<mlir::BlockArgumen
 			}
 		}
 
-		mlir::OpBuilder builder(op);
+		builder.setInsertionPoint(op);
 		builder.create<mlir::ReturnOp>(op.getLoc(), returnOperands);
 		op.erase();
 	});
