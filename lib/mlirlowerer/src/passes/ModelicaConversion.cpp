@@ -201,71 +201,50 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 				assert(op.dynamicDimensions().empty());
 				assert(pointerType.getAllocationScope() == BufferAllocationScope::stack);
 
-				mlir::Value stackValue = rewriter.create<AllocaOp>(loc, pointerType.getElementType());
-
+				mlir::Value reference = rewriter.create<AllocaOp>(loc, pointerType.getElementType());
 				return std::make_pair<LoadReplacer, StoreReplacer>(
-						[&rewriter, stackValue](MemberLoadOp loadOp) -> void {
+						[&rewriter, reference](MemberLoadOp loadOp) -> void {
 							mlir::OpBuilder::InsertionGuard guard(rewriter);
 							rewriter.setInsertionPoint(loadOp);
-							rewriter.replaceOpWithNewOp<LoadOp>(loadOp, stackValue);
+							rewriter.replaceOpWithNewOp<LoadOp>(loadOp, reference);
 						},
-						[&rewriter, stackValue](MemberStoreOp storeOp) -> void {
+						[&rewriter, reference](MemberStoreOp storeOp) -> void {
 							mlir::OpBuilder::InsertionGuard guard(rewriter);
 							rewriter.setInsertionPoint(storeOp);
-							rewriter.replaceOpWithNewOp<AssignmentOp>(storeOp, storeOp.value(), stackValue);
+							rewriter.replaceOpWithNewOp<AssignmentOp>(storeOp, storeOp.value(), reference);
 						});
 			}
 
-			// If we are in the array case, then it is not sufficient to allocate
-			// the buffer. Instead, we need to also allocate a pointer to that
-			// buffer, so that we can eventually reassign it if the dimensions
-			// change.
-			mlir::Value stackValue = rewriter.create<AllocaOp>(loc, pointerType);
-			auto sizes = op.dynamicDimensions();
+			// If we are in the array case, then it may be not sufficient to
+			// allocate just the buffer. Instead, if the array has dynamic sizes
+			// and they are not initialized, then we need to also allocate a
+			// pointer to that buffer, so that we can eventually reassign it if
+			// the dimensions change.
 
-			bool initialized = op.dynamicDimensions().size() == pointerType.getDynamicDimensions();
+			bool hasStaticSize = op.dynamicDimensions().size() == pointerType.getDynamicDimensions();
 
-			if (initialized)
+			if (hasStaticSize)
 			{
-				// All the dynamic dimensions have an expression to determine their
-				// values. So we can instantiate the array.
-
-				auto allocationScope = pointerType.getAllocationScope();
-				assert(allocationScope != BufferAllocationScope::unknown);
-
-				if (allocationScope == BufferAllocationScope::heap)
-				{
-					// Note that being a member, we will take care of manually freeing
-					// the buffer when needed.
-
-					mlir::Value var = rewriter.create<AllocOp>(loc, pointerType.getElementType(), pointerType.getShape(), sizes, false);
-					rewriter.create<StoreOp>(loc, var, stackValue);
-				}
-				else if (allocationScope == BufferAllocationScope::stack)
-				{
-					mlir::Value var = rewriter.create<AllocaOp>(loc, pointerType.getElementType(), pointerType.getShape(), sizes);
-					rewriter.create<StoreOp>(loc, var, stackValue);
-				}
+				mlir::Value reference = allocate(rewriter, loc, pointerType, op.dynamicDimensions());
 
 				return std::make_pair<LoadReplacer, StoreReplacer>(
-						[&rewriter, stackValue](MemberLoadOp loadOp) -> void {
+						[&rewriter, reference](MemberLoadOp loadOp) -> void {
 							mlir::OpBuilder::InsertionGuard guard(rewriter);
 							rewriter.setInsertionPoint(loadOp);
-							rewriter.replaceOpWithNewOp<LoadOp>(loadOp, stackValue);
+							rewriter.replaceOp(loadOp, reference);
 						},
-						[&rewriter, loc, stackValue](MemberStoreOp storeOp) -> void {
+						[&rewriter, reference](MemberStoreOp storeOp) -> void {
 							mlir::OpBuilder::InsertionGuard guard(rewriter);
 							rewriter.setInsertionPoint(storeOp);
-
-							// The array size has been specified (note that it also may be
-							// dependant on a parameter), and the array itself has been allocated.
-							// So we can proceed by copying the source values into the
-							// destination array.
-
-							mlir::Value buffer = rewriter.create<LoadOp>(loc, stackValue);
-							rewriter.replaceOpWithNewOp<AssignmentOp>(storeOp, storeOp.value(), buffer);
+							rewriter.replaceOpWithNewOp<AssignmentOp>(storeOp, storeOp.value(), reference);
 						});
 			}
+
+			// The array can change sizes during at runtime. Thus we need to create
+			// a pointer to the array currently in use.
+
+			assert(op.dynamicDimensions().empty());
+			mlir::Value stackValue = rewriter.create<AllocaOp>(loc, pointerType);
 
 			if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
 			{
@@ -326,6 +305,21 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 
 		rewriter.eraseOp(op);
 		return mlir::success();
+	}
+
+	private:
+	static mlir::Value allocate(mlir::OpBuilder& builder, mlir::Location loc, PointerType pointerType, mlir::ValueRange dynamicDimensions)
+	{
+		auto scope = pointerType.getAllocationScope();
+		assert(scope != BufferAllocationScope::unknown);
+
+		if (scope == BufferAllocationScope::stack)
+			return builder.create<AllocaOp>(loc, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions);
+
+		// Note that being a member, we will take care of manually freeing
+		// the buffer when needed.
+
+		return builder.create<AllocOp>(loc, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions, false);
 	}
 };
 
@@ -3004,7 +2998,6 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 	void runOnOperation() override
 	{
 		auto module = getOperation();
-		module.dump();
 
 		mlir::ConversionTarget target(getContext());
 
@@ -3040,8 +3033,6 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 			mlir::emitError(module.getLoc(), "Error in converting the Modelica operations\n");
 			signalPassFailure();
 		}
-
-		module.dump();
 	}
 
 	private:
