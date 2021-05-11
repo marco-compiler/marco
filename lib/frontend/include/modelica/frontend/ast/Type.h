@@ -171,10 +171,8 @@ namespace modelica::frontend
 	class ArrayDimension
 	{
 		public:
-		using ExpressionPtr = std::shared_ptr<Expression>;
-
 		ArrayDimension(long size);
-		ArrayDimension(Expression size);
+		ArrayDimension(std::unique_ptr<Expression>& size);
 
 		[[nodiscard]] bool operator==(const ArrayDimension& other) const;
 		[[nodiscard]] bool operator!=(const ArrayDimension& other) const;
@@ -197,11 +195,11 @@ namespace modelica::frontend
 
 		[[nodiscard]] long getNumericSize() const;
 
-		[[nodiscard]] Expression& getExpression();
-		[[nodiscard]] const Expression& getExpression() const;
+		[[nodiscard]] Expression* getExpression();
+		[[nodiscard]] const Expression* getExpression() const;
 
 		private:
-		std::variant<long, ExpressionPtr> size;
+		std::variant<long, std::unique_ptr<Expression>> size;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const ArrayDimension& obj);
@@ -210,13 +208,26 @@ namespace modelica::frontend
 
 	class Type
 	{
+		private:
+		template <typename T> using Container = llvm::SmallVector<T, 3>;
+
 		public:
-		using dimensions_iterator = llvm::SmallVectorImpl<ArrayDimension>::iterator;
-		using dimensions_const_iterator = llvm::SmallVectorImpl<ArrayDimension>::const_iterator;
+		using dimensions_iterator = Container<ArrayDimension>::iterator;
+		using dimensions_const_iterator = Container<ArrayDimension>::const_iterator;
 
 		Type(BuiltInType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
 		Type(PackedType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
 		Type(UserDefinedType type, llvm::ArrayRef<ArrayDimension> dim = { 1 });
+
+		Type(const Type& other);
+		Type(Type&& other);
+
+		~Type() = default;
+
+		Type& operator=(const Type& other);
+		Type& operator=(Type&& other);
+
+		friend void swap(Type& first, Type& second);
 
 		[[nodiscard]] bool operator==(const Type& other) const;
 		[[nodiscard]] bool operator!=(const Type& other) const;

@@ -5,18 +5,49 @@ using namespace modelica;
 using namespace frontend;
 
 Record::Record(SourcePosition location,
-							 std::string name,
-							 llvm::ArrayRef<Member> members)
-		: location(std::move(location)),
-			name(std::move(name))
+							 llvm::StringRef name,
+							 llvm::ArrayRef<std::unique_ptr<Member>> members)
+		: ClassCRTP<Record>(ASTNodeKind::CLASS_RECORD, std::move(location), std::move(name))
 {
 	for (const auto& member : members)
-		this->members.emplace_back(std::make_shared<Member>(member));
+		this->members.push_back(member->clone());
+}
+
+Record::Record(const Record& other)
+		: ClassCRTP<Record>(static_cast<ClassCRTP<Record>&>(*this))
+{
+	for (const auto& member : other.members)
+		this->members.push_back(member->clone());
+}
+
+Record::Record(Record&& other) = default;
+
+Record::~Record() = default;
+
+Record& Record::operator=(const Record& other)
+{
+	Record result(other);
+	swap(*this, result);
+	return *this;
+}
+
+Record& Record::operator=(Record&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(Record& first, Record& second)
+	{
+		swap(static_cast<impl::ClassCRTP<Record>&>(first),
+				 static_cast<impl::ClassCRTP<Record>&>(second));
+
+		using std::swap;
+		impl::swap(first.members, second.members);
+	}
 }
 
 bool Record::operator==(const Record& other) const
 {
-	if (name != other.name)
+	if (getName() != other.getName())
 		return false;
 
 	if (members.size() != other.members.size())
@@ -36,45 +67,31 @@ bool Record::operator!=(const Record& other) const
 	return !(*this == other);
 }
 
-Member& Record::operator[](llvm::StringRef memberName)
+Member* Record::operator[](llvm::StringRef name)
 {
-	return **std::find_if(members.begin(), members.end(),
-												[&](const auto& member) { return member->getName() == memberName; });
+	return std::find_if(
+			members.begin(), members.end(),
+			[&](const auto& member) {
+				return member->getName() == name;
+			})->get();
 }
 
-const Member& Record::operator[](llvm::StringRef memberName) const
+const Member* Record::operator[](llvm::StringRef name) const
 {
-	return **std::find_if(members.begin(), members.end(),
-												[&](const auto& member) { return member->getName() == memberName; });
-}
-
-void Record::dump() const
-{
-	dump(llvm::outs(), 0);
+	return std::find_if(
+			members.begin(), members.end(),
+			[&](const auto& member) {
+				return member->getName() == name;
+			})->get();
 }
 
 void Record::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
-	os << "record: " << name << "\n";
+	os << "record: " << getName() << "\n";
 
 	for (const auto& member : members)
 		member->dump(os, indents + 1);
-}
-
-SourcePosition Record::getLocation() const
-{
-	return location;
-}
-
-std::string& Record::getName()
-{
-	return name;
-}
-
-const std::string& Record::getName() const
-{
-	return name;
 }
 
 size_t Record::size() const
@@ -113,9 +130,9 @@ namespace modelica::frontend
 	{
 		return "(" +
 					 accumulate(obj.begin(), obj.end(), std::string(),
-											[](const std::string& result, const Member& member)
+											[](const std::string& result, const std::unique_ptr<Member>& member)
 											{
-												std::string str = toString(member.getType()) + " " + member.getName();
+												std::string str = toString(member->getType()) + " " + member->getName().str();
 												return result.empty() ? str : result + "," + str;
 											}) +
 					 ")";

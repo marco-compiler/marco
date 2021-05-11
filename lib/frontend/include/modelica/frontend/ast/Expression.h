@@ -1,81 +1,45 @@
 #pragma once
 
 #include <initializer_list>
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/raw_ostream.h>
 #include <memory>
 #include <utility>
-#include <variant>
-#include <vector>
 
-#include "Array.h"
-#include "Call.h"
-#include "Constant.h"
-#include "Operation.h"
-#include "ReferenceAccess.h"
-#include "Tuple.h"
+#include "ASTNode.h"
 #include "Type.h"
 
 namespace modelica::frontend
 {
-	class Expression
+	class Expression : public impl::ASTNodeCRTP<Expression>
 	{
 		public:
-		Expression(Type type, Constant constant);
-		Expression(Type type, ReferenceAccess access);
-		Expression(Type type, Operation operation);
-		Expression(Type type, Call call);
-		Expression(Type type, Tuple tuple);
-		Expression(Type type, Array array);
+		Expression(ASTNodeKind kind, SourcePosition location, Type type);
 
-		[[nodiscard]] bool operator==(const Expression& other) const;
+		~Expression() override;
+
+		friend void swap(Expression& first, Expression& second);
+
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() >= ASTNodeKind::EXPRESSION &&
+						 node->getKind() <= ASTNodeKind::EXPRESSION_LAST_EXPRESSION;
+		}
+
+		[[nodiscard]] virtual std::unique_ptr<Expression> cloneExpression() const = 0;
+
+		[[nodiscard]] virtual bool operator==(const Expression& other) const = 0;
 		[[nodiscard]] bool operator!=(const Expression& other) const;
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
-
-		template<typename T>
-		[[nodiscard]] bool isA() const
-		{
-			return std::holds_alternative<T>(content);
-		}
-
-		template<typename T>
-		[[nodiscard]] T& get()
-		{
-			assert(isA<T>());
-			return std::get<T>(content);
-		}
-
-		template<typename T>
-		[[nodiscard]] const T& get() const
-		{
-			assert(isA<T>());
-			return std::get<T>(content);
-		}
-
-		template<class Visitor>
-		auto visit(Visitor&& vis)
-		{
-			return std::visit(std::forward<Visitor>(vis), content);
-		}
-
-		template<class Visitor>
-		auto visit(Visitor&& vis) const
-		{
-			return std::visit(std::forward<Visitor>(vis), content);
-		}
-
-		[[nodiscard]] SourcePosition getLocation() const;
-
-		[[nodiscard]] bool isLValue() const;
+		[[nodiscard]] virtual bool isLValue() const = 0;
 
 		[[nodiscard]] Type& getType();
 		[[nodiscard]] const Type& getType() const;
 		void setType(Type tp);
 
+		/*
 		template<typename Arg>
-		[[nodiscard]] static Expression constant(SourcePosition location, Type type, Arg&& arg)
+		[[nodiscard]] static Constant constant(SourcePosition location, Type type, Arg&& arg)
 		{
 			Constant content(std::move(location), std::forward<Arg>(arg));
 			return Expression(type, std::move(content));
@@ -115,11 +79,40 @@ namespace modelica::frontend
 			Array content(location, { std::forward<Args>(args)... });
 			return Expression(type, std::move(content));
 		}
+		 */
+
+		protected:
+		Expression(const Expression& other);
+		Expression(Expression&& other);
+
+		Expression& operator=(const Expression& other);
+		Expression& operator=(Expression&& other);
 
 		private:
-		std::variant<Constant, ReferenceAccess, Operation, Call, Tuple, Array> content;
 		Type type;
 	};
+
+	namespace impl
+	{
+		template<typename Derived>
+		struct ExpressionCRTP : public Expression
+		{
+			using Expression::Expression;
+
+			[[nodiscard]] bool operator==(const Expression& other) const override
+			{
+				if (auto* casted = other.template dyn_cast<Derived>())
+					return static_cast<const Derived&>(*this) == *casted;
+
+				return false;
+			}
+
+			[[nodiscard]] std::unique_ptr<Expression> cloneExpression() const override
+			{
+				return std::make_unique<Derived>(static_cast<const Derived&>(*this));
+			}
+		};
+	}
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Expression& obj);
 

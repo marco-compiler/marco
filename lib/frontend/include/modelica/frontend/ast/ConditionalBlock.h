@@ -13,17 +13,44 @@ namespace modelica::frontend
 	class ConditionalBlock
 	{
 		private:
-		using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
+		using Container = llvm::SmallVector<std::unique_ptr<T>, 3>;
 
 		public:
 		using iterator = typename Container::iterator;
 		using const_iterator = typename Container::const_iterator;
 
-		ConditionalBlock(Expression condition, llvm::ArrayRef<T> body)
-				: condition(std::move(condition))
+		ConditionalBlock(std::unique_ptr<Expression>& condition,
+										 llvm::ArrayRef<std::unique_ptr<T>> body)
+				: condition(condition->cloneExpression())
 		{
 			for (const auto& element : body)
-				this->body.emplace_back(std::make_shared<T>(element));
+				this->body.push_back(element->cloneStatement());
+		}
+
+		ConditionalBlock(const ConditionalBlock<T>& other)
+				: condition(other.condition->cloneExpression())
+		{
+			for (const auto& element : body)
+				this->body.push_back(element->cloneStatement());
+		}
+
+		ConditionalBlock(ConditionalBlock<T>&& other) = default;
+		~ConditionalBlock() = default;
+
+		ConditionalBlock<T>& operator=(const ConditionalBlock<T>& other)
+		{
+			ConditionalBlock<T> result(other);
+			swap(*this, result);
+			return *this;
+		}
+
+		ConditionalBlock& operator=(ConditionalBlock&& other) = default;
+
+		friend void swap(ConditionalBlock<T>& first, ConditionalBlock<T>& second)
+		{
+			using std::swap;
+			swap(first.breakCheckName, second.breakCheckName);
+			swap(first.returnCheckName, second.returnCheckName);
 		}
 
 		[[nodiscard]] T& operator[](size_t index)
@@ -44,7 +71,7 @@ namespace modelica::frontend
 		{
 			os.indent(indents);
 			os << "condition:\n";
-			condition.dump(os, indents + 1);
+			condition->dump(os, indents + 1);
 
 			os.indent(indents);
 			os << "body:\n";
@@ -53,9 +80,9 @@ namespace modelica::frontend
 				statement->dump(os, indents + 1);
 		}
 
-		[[nodiscard]] Expression& getCondition() { return condition; }
+		[[nodiscard]] Expression* getCondition() { return condition.get(); }
 
-		[[nodiscard]] const Expression& getCondition() const { return condition; }
+		[[nodiscard]] const Expression* getCondition() const { return condition.get(); }
 
 		[[nodiscard]] Container& getBody() { return body; }
 
@@ -84,7 +111,7 @@ namespace modelica::frontend
 		}
 
 		private:
-		Expression condition;
+		std::unique_ptr<Expression> condition;
 		Container body;
 	};
 }

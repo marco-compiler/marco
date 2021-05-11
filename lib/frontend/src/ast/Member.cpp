@@ -5,14 +5,14 @@ using namespace frontend;
 
 Member::Member(
 		SourcePosition location,
-		std::string name,
+		llvm::StringRef name,
 		Type tp,
 		TypePrefix typePrefix,
-		Expression initializer,
+		llvm::Optional<std::unique_ptr<Expression>> initializer,
 		bool isPublic,
-		std::optional<Expression> startOverload)
-		: location(std::move(location)),
-			name(std::move(name)),
+		llvm::Optional<std::unique_ptr<Expression>> startOverload)
+		: ASTNode(ASTNodeKind::MEMBER, std::move(location)),
+			name(name.str()),
 			type(std::move(tp)),
 			typePrefix(typePrefix),
 			initializer(std::move(initializer)),
@@ -21,24 +21,45 @@ Member::Member(
 {
 }
 
-Member::Member(
-		SourcePosition location,
-		std::string name,
-		Type tp,
-		TypePrefix typePrefix,
-		bool isPublic,
-		std::optional<Expression> startOverload)
-		: location(std::move(location)),
-			name(move(name)),
-			type(std::move(tp)),
-			typePrefix(typePrefix),
-			initializer(std::nullopt),
-			isPublicMember(isPublic),
-			startOverload(std::move(startOverload))
+Member::Member(const Member& other)
+		: ASTNode(static_cast<const ASTNode&>(other)),
+			name(other.name),
+			type(other.type),
+			typePrefix(other.typePrefix),
+			initializer(other.initializer),
+			isPublicMember(other.isPublicMember),
+			startOverload(other.startOverload)
 {
 }
 
-void Member::dump() const { dump(llvm::outs(), 0); }
+Member::Member(Member&& other) = default;
+
+Member::~Member() = default;
+
+Member& Member::operator=(const Member& other)
+{
+	Member result(other);
+	swap(*this, result);
+	return *this;
+}
+
+Member& Member::operator=(Member&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(Member& first, Member& second)
+	{
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
+
+		using std::swap;
+		swap(first.name, second.name);
+		swap(first.type, second.type);
+		swap(first.typePrefix, second.typePrefix);
+		swap(first.initializer, second.initializer);
+		swap(first.isPublicMember, second.isPublicMember);
+		swap(first.startOverload, second.startOverload);
+	}
+}
 
 void Member::dump(llvm::raw_ostream& os, size_t indents) const
 {
@@ -51,14 +72,14 @@ void Member::dump(llvm::raw_ostream& os, size_t indents) const
 	{
 		os.indent(indents + 1);
 		os << "initializer:\n";
-		initializer->dump(os, indents + 2);
+		initializer->get()->dump(os, indents + 2);
 	}
 
 	if (hasStartOverload())
 	{
 		os.indent(indents + 1);
 		os << "start overload:\n";
-		startOverload->dump(os, indents + 2);
+		startOverload->get()->dump(os, indents + 2);
 	}
 }
 
@@ -68,53 +89,70 @@ bool Member::operator==(const Member& other) const
 				 initializer == other.initializer;
 }
 
-bool Member::operator!=(const Member& other) const { return !(*this == other); }
-
-SourcePosition Member::getLocation() const
+bool Member::operator!=(const Member& other) const
 {
-	return location;
+	return !(*this == other);
 }
 
-std::string& Member::getName() { return name; }
-
-const std::string& Member::getName() const { return name; }
+llvm::StringRef Member::getName() const
+{
+	return name;
+}
 
 Type& Member::getType() { return type; }
 
 const Type& Member::getType() const { return type; }
 
-bool Member::hasInitializer() const { return initializer.has_value(); }
+bool Member::hasInitializer() const
+{
+	return initializer.hasValue();
+}
 
-const Expression& Member::getInitializer() const
+Expression* Member::getInitializer()
 {
 	assert(hasInitializer());
-	return *initializer;
+	return initializer->get();
 }
 
-Expression& Member::getInitializer()
+const Expression* Member::getInitializer() const
 {
 	assert(hasInitializer());
-	return *initializer;
+	return initializer->get();
 }
 
-bool Member::hasStartOverload() const { return startOverload.has_value(); }
+bool Member::hasStartOverload() const
+{
+	return startOverload.hasValue();
+}
 
-const Expression& Member::getStartOverload() const
+Expression* Member::getStartOverload()
 {
 	assert(hasStartOverload());
-	return startOverload.value();
+	return startOverload->get();
 }
 
-Expression& Member::getStartOverload()
+const Expression* Member::getStartOverload() const
 {
 	assert(hasStartOverload());
-	return startOverload.value();
+	return startOverload->get();
 }
 
-bool Member::isPublic() const { return isPublicMember; }
+bool Member::isPublic() const
+{
+	return isPublicMember;
+}
 
-bool Member::isParameter() const { return typePrefix.isParameter(); }
+bool Member::isParameter() const
+{
+	return typePrefix.isParameter();
+}
 
-bool Member::isInput() const { return typePrefix.isInput(); }
+bool Member::isInput() const
+{
+	return typePrefix.isInput();
+}
 
-bool Member::isOutput() const { return typePrefix.isOutput(); }
+bool Member::isOutput() const
+{
+	return typePrefix.isOutput();
+}

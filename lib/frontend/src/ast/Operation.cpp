@@ -3,10 +3,7 @@
 #include <modelica/utils/IRange.hpp>
 #include <numeric>
 
-using namespace modelica;
-using namespace frontend;
-
-using Container = Operation::Container;
+using namespace modelica::frontend;
 
 namespace modelica::frontend
 {
@@ -59,61 +56,75 @@ namespace modelica::frontend
 	}
 }
 
-Operation::Operation(SourcePosition location, OperationKind kind, Container args)
-		: location(std::move(location)),
-			arguments(std::move(args)),
+// TODO type
+Operation::Operation(SourcePosition location,
+										 OperationKind kind,
+										 llvm::ArrayRef<std::unique_ptr<Expression>> args)
+		: ExpressionCRTP<Operation>(
+					ASTNodeKind::EXPRESSION_OPERATION, std::move(location), Type::unknown()),
 			kind(kind)
 {
+	for (const auto& arg : args)
+		this->args.push_back(arg->cloneExpression());
 }
 
-bool Operation::operator==(const Operation& other) const
+Operation::Operation(const Operation& other)
+		: ExpressionCRTP<Operation>(static_cast<ExpressionCRTP&>(*this)),
+			kind(other.kind)
 {
-	if (kind != other.kind)
-		return false;
-
-	if (arguments.size() != other.arguments.size())
-		return false;
-
-	return arguments == other.arguments;
+	for (const auto& arg : other.args)
+		this->args.push_back(arg->cloneExpression());
 }
 
-bool Operation::operator!=(const Operation& other) const
+Operation::Operation(Operation&& other) = default;
+
+Operation::~Operation() = default;
+
+Operation& Operation::operator=(const Operation& other)
 {
-	return !(*this == other);
+	Operation result(other);
+	swap(*this, result);
+	return *this;
 }
 
-Expression& Operation::operator[](size_t index) { return arguments[index]; }
+Operation& Operation::operator=(Operation&& other) = default;
 
-const Expression& Operation::operator[](size_t index) const
+namespace modelica::frontend
 {
-	return arguments[index];
-}
+	void swap(Operation& first, Operation& second)
+	{
+		swap(static_cast<impl::ExpressionCRTP<Operation>&>(first),
+				 static_cast<impl::ExpressionCRTP<Operation>&>(second));
 
-void Operation::dump() const { dump(llvm::outs(), 0); }
+		using std::swap;
+		swap(first.kind, second.kind);
+		impl::swap(first.args, second.args);
+	}
+}
 
 void Operation::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
-	os << "operation kind: " << kind << "\n";
+	os << "operation kind: " << getOperationKind() << "\n";
+
+	os.indent(indents);
+	os << "type: ";
+	getType().dump(os);
+	os << "\n";
 
 	os.indent(indents);
 	os << "args:\n";
 
-	for (const auto& arg : arguments)
-		arg.dump(os, indents + 1);
-}
-
-SourcePosition Operation::getLocation() const
-{
-	return location;
+	for (const auto& arg : getArguments())
+		arg->dump(os, indents + 1);
 }
 
 bool Operation::isLValue() const
 {
-	switch (kind)
+	switch (getOperationKind())
 	{
 		case OperationKind::subscription:
-			return arguments[0].isLValue();
+			return args[0]->isLValue();
 
 		case OperationKind::memberLookup:
 			return true;
@@ -123,25 +134,81 @@ bool Operation::isLValue() const
 	}
 }
 
-OperationKind Operation::getKind() const { return kind; }
+bool Operation::operator==(const Operation& other) const
+{
+	if (kind != other.kind)
+		return false;
 
-void Operation::setKind(OperationKind k) { kind = k; }
+	if (args.size() != other.args.size())
+		return false;
 
-Container& Operation::getArguments() { return arguments; }
+	return args == other.args;
+}
 
-const Container& Operation::getArguments() const { return arguments; }
+bool Operation::operator!=(const Operation& other) const
+{
+	return !(*this == other);
+}
 
-size_t Operation::argumentsCount() const { return arguments.size(); }
+Expression* Operation::operator[](size_t index)
+{
+	return args[index].get();
+}
 
-size_t Operation::size() const { return arguments.size(); }
+const Expression* Operation::operator[](size_t index) const
+{
+	return args[index].get();
+}
 
-Operation::iterator Operation::begin() { return arguments.begin(); }
+OperationKind Operation::getOperationKind() const
+{
+	return kind;
+}
 
-Operation::const_iterator Operation::begin() const { return arguments.begin(); }
+void Operation::setOperationKind(OperationKind newKind)
+{
+	this->kind = newKind;
+}
 
-Operation::iterator Operation::end() { return arguments.end(); }
+llvm::MutableArrayRef<std::unique_ptr<Expression>> Operation::getArguments()
+{
+	return args;
+}
 
-Operation::const_iterator Operation::end() const { return arguments.end(); }
+llvm::ArrayRef<std::unique_ptr<Expression>> Operation::getArguments() const
+{
+	return args;
+}
+
+size_t Operation::argumentsCount() const
+{
+	return args.size();
+}
+
+size_t Operation::size() const
+{
+	return args.size();
+}
+
+Operation::iterator Operation::begin()
+{
+	return args.begin();
+}
+
+Operation::const_iterator Operation::begin() const
+{
+	return args.begin();
+}
+
+Operation::iterator Operation::end()
+{
+	return args.end();
+}
+
+Operation::const_iterator Operation::end() const
+{
+	return args.end();
+}
 
 namespace modelica::frontend
 {
@@ -152,17 +219,17 @@ namespace modelica::frontend
 
 	std::string toString(const Operation& obj)
 	{
-		switch (obj.getKind())
+		switch (obj.getOperationKind())
 		{
 			case OperationKind::negate:
-				return "(not" + toString(obj[0]) + ")";
+				return "(not" + toString(*obj[0]) + ")";
 
 			case OperationKind::add:
 				return "(" +
 							 accumulate(obj.begin(), obj.end(), std::string(),
-													[](const std::string& result, const Expression& element)
+													[](const std::string& result, const std::unique_ptr<Expression>& element)
 													{
-														std::string str = toString(element);
+														std::string str = toString(*element);
 														return result.empty() ? str : result + " + " + str;
 													})
 							 + ")";
@@ -170,9 +237,9 @@ namespace modelica::frontend
 			case OperationKind::subtract:
 				return "(" +
 							 accumulate(obj.begin(), obj.end(), std::string(),
-													[](const std::string& result, const Expression& element)
+													[](const std::string& result, const std::unique_ptr<Expression>& element)
 													{
-														std::string str = toString(element);
+														std::string str = toString(*element);
 														return result.empty() ? str : result + " - " + str;
 													})
 							 + ")";
@@ -180,9 +247,9 @@ namespace modelica::frontend
 			case OperationKind::multiply:
 				return "(" +
 							 accumulate(obj.begin(), obj.end(), std::string(),
-													[](const std::string& result, const Expression& element)
+													[](const std::string& result, const std::unique_ptr<Expression>& element)
 													{
-														std::string str = toString(element);
+														std::string str = toString(*element);
 														return result.empty() ? str : result + " * " + str;
 													})
 							 + ")";
@@ -190,46 +257,46 @@ namespace modelica::frontend
 			case OperationKind::divide:
 				return "(" +
 							 accumulate(obj.begin(), obj.end(), std::string(),
-													[](const std::string& result, const Expression& element)
+													[](const std::string& result, const std::unique_ptr<Expression>& element)
 													{
-														std::string str = toString(element);
+														std::string str = toString(*element);
 														return result.empty() ? str : result + " / " + str;
 													})
 							 + ")";
 
 			case OperationKind::ifelse:
-				return "(" + toString(obj[0]) + " ? " + toString(obj[1]) + " : " + toString(obj[2]) + ")";
+				return "(" + toString(*obj[0]) + " ? " + toString(*obj[1]) + " : " + toString(*obj[2]) + ")";
 
 			case OperationKind::greater:
-				return "(" + toString(obj[0]) + " > " + toString(obj[1]) + ")";
+				return "(" + toString(*obj[0]) + " > " + toString(*obj[1]) + ")";
 
 			case OperationKind::greaterEqual:
-				return "(" + toString(obj[0]) + " >= " + toString(obj[1]) + ")";
+				return "(" + toString(*obj[0]) + " >= " + toString(*obj[1]) + ")";
 
 			case OperationKind::equal:
-				return "(" + toString(obj[0]) + " == " + toString(obj[1]) + ")";
+				return "(" + toString(*obj[0]) + " == " + toString(*obj[1]) + ")";
 
 			case OperationKind::different:
-				return "(" + toString(obj[0]) + " != " + toString(obj[1]) + ")";
+				return "(" + toString(*obj[0]) + " != " + toString(*obj[1]) + ")";
 
 			case OperationKind::lessEqual:
-				return "(" + toString(obj[0]) + " <= " + toString(obj[1]) + ")";
+				return "(" + toString(*obj[0]) + " <= " + toString(*obj[1]) + ")";
 
 			case OperationKind::less:
-				return "(" + toString(obj[0]) + " < " + toString(obj[1]) + ")";
+				return "(" + toString(*obj[0]) + " < " + toString(*obj[1]) + ")";
 
 			case OperationKind::land:
-				return "(" + toString(obj[0]) + " && " + toString(obj[1]) + ")";
+				return "(" + toString(*obj[0]) + " && " + toString(*obj[1]) + ")";
 
 			case OperationKind::lor:
-				return "(" + toString(obj[0]) + " || " + toString(obj[1]) + ")";
+				return "(" + toString(*obj[0]) + " || " + toString(*obj[1]) + ")";
 
 			case OperationKind::subscription:
-				return "(" + toString(obj[0]) +
-							 accumulate(++obj.begin(), obj.end(), std::string(),
-													[](const std::string& result, const Expression& element)
+				return "(" + toString(*obj[0]) +
+							 accumulate(std::next(obj.begin()), obj.end(), std::string(),
+													[](const std::string& result, const std::unique_ptr<Expression>& element)
 													{
-														std::string str = toString(element);
+														std::string str = toString(*element);
 														return result + "[" + str + "]";
 													}) +
 							 ")";
@@ -238,7 +305,7 @@ namespace modelica::frontend
 				return "unknown";
 
 			case OperationKind::powerOf:
-				return "(" + toString(obj[0]) + " ^ " + toString(obj[1]) + ")";
+				return "(" + toString(*obj[0]) + " ^ " + toString(*obj[1]) + ")";
 		}
 
 		return "unknown";

@@ -2,63 +2,57 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/SourcePosition.h>
 #include <string>
+
+#include "ASTNode.h"
 
 namespace modelica::frontend
 {
-	class Member;
-	class Equation;
-	class ForEquation;
-	class Algorithm;
-	class ClassContainer;
-
-	class Class
+	class Class : public impl::ASTNodeCRTP<Class>
 	{
 		private:
-		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		Class(
-				SourcePosition location,
-				std::string name,
-				llvm::ArrayRef<Member> members,
-				llvm::ArrayRef<Equation> equations,
-				llvm::ArrayRef<ForEquation> forEquations,
-				llvm::ArrayRef<Algorithm> algorithms,
-				llvm::ArrayRef<ClassContainer> innerClasses);
+		Class(ASTNodeKind kind,
+					SourcePosition location,
+					llvm::StringRef name);
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+		Class(const Class& other);
+		Class(Class&& other);
 
-		[[nodiscard]] SourcePosition getLocation() const;
+		~Class() override;
 
-		[[nodiscard]] const std::string& getName() const;
+		Class& operator=(const Class& other);
+		Class& operator=(Class&& other);
 
-		[[nodiscard]] Container<Member>& getMembers();
-		[[nodiscard]] const Container<Member>& getMembers() const;
-		void addMember(Member member);
+		friend void swap(Class& first, Class& second);
 
-		[[nodiscard]] Container<Equation>& getEquations();
-		[[nodiscard]] const Container<Equation>& getEquations() const;
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() >= ASTNodeKind::CLASS &&
+						 node->getKind() <= ASTNodeKind::CLASS_LAST;
+		}
 
-		[[nodiscard]] Container<ForEquation>& getForEquations();
-		[[nodiscard]] const Container<ForEquation>& getForEquations() const;
+		[[nodiscard]] virtual std::unique_ptr<Class> cloneClass() const = 0;
 
-		[[nodiscard]] Container<Algorithm>& getAlgorithms();
-		[[nodiscard]] const Container<Algorithm>& getAlgorithms() const;
-
-		[[nodiscard]] Container<ClassContainer>& getInnerClasses();
-		[[nodiscard]] const Container<ClassContainer>& getInnerClasses() const;
+		[[nodiscard]] llvm::StringRef getName() const;
 
 		private:
-		SourcePosition location;
 		std::string name;
-		Container<Member> members;
-		Container<Equation> equations;
-		Container<ForEquation> forEquations;
-		Container<Algorithm> algorithms;
-		Container<ClassContainer> innerClasses;
 	};
+
+	namespace impl
+	{
+		template<typename Derived>
+		struct ClassCRTP : public Class
+		{
+			using Class::Class;
+
+			[[nodiscard]] std::unique_ptr<Class> cloneClass() const override
+			{
+				return std::make_unique<Derived>(static_cast<const Derived&>(*this));
+			}
+		};
+	}
 }

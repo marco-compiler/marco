@@ -9,11 +9,12 @@ namespace modelica::frontend
 	class AssignmentStatement;
 	class BreakStatement;
 	class Class;
-	class ClassContainer;
 	class Function;
 	class IfStatement;
 	class ForStatement;
+	class Model;
 	class Package;
+	class Record;
 	class ReturnStatement;
 	class Statement;
 	class WhenStatement;
@@ -22,41 +23,25 @@ namespace modelica::frontend
 	class ReturnRemover: public Pass
 	{
 		public:
-		llvm::Error run(ClassContainer& cls) final;
-		llvm::Error run(Class& cls);
+		llvm::Error run(Class& cls) final;
 		llvm::Error run(Function& function);
+		llvm::Error run(DerFunction& function);
+		llvm::Error run(StandardFunction& function);
+		llvm::Error run(Model& cls);
 		llvm::Error run(Package& package);
 		llvm::Error run(Record& record);
 		llvm::Error run(Algorithm& algorithm);
+		bool run(Statement& statement);
+		bool run(AssignmentStatement& statement);
+		bool run(BreakStatement& statement);
+		bool run(ForStatement& statement);
+		bool run(IfStatement& statement);
+		bool run(ReturnStatement& statement);
+		bool run(WhenStatement& statement);
+		bool run(WhileStatement& statement);
 
 		private:
-		template<typename T>
-		bool run(Statement& statement);
 	};
-
-	template<>
-	bool ReturnRemover::run<Statement>(Statement& statement);
-
-	template<>
-	bool ReturnRemover::run<AssignmentStatement>(Statement& statement);
-
-	template<>
-	bool ReturnRemover::run<IfStatement>(Statement& statement);
-
-	template<>
-	bool ReturnRemover::run<ForStatement>(Statement& statement);
-
-	template<>
-	bool ReturnRemover::run<WhileStatement>(Statement& statement);
-
-	template<>
-	bool ReturnRemover::run<WhenStatement>(Statement& statement);
-
-	template<>
-	bool ReturnRemover::run<BreakStatement>(Statement& statement);
-
-	template<>
-	bool ReturnRemover::run<ReturnStatement>(Statement& statement);
 
 	std::unique_ptr<Pass> createReturnRemovingPass();
 }

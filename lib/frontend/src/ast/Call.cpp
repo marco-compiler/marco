@@ -1,17 +1,72 @@
 #include <modelica/frontend/AST.h>
 #include <numeric>
 
-using namespace modelica;
-using namespace frontend;
+using namespace modelica::frontend;
 
 Call::Call(SourcePosition location,
-					 Expression function,
-					 llvm::ArrayRef<Expression> args)
-		: location(std::move(location)),
-			function(std::make_shared<Expression>(std::move(function)))
+					 std::unique_ptr<ReferenceAccess> function,
+					 llvm::ArrayRef<std::unique_ptr<Expression>> args,
+					 Type type)
+		: ExpressionCRTP<Call>(
+					ASTNodeKind::EXPRESSION_CALL, std::move(location), std::move(type)),
+			function(std::move(function))
 {
 	for (const auto& arg : args)
-		this->args.emplace_back(std::make_shared<Expression>(arg));
+		this->args.push_back(arg->cloneExpression());
+}
+
+Call::Call(const Call& other)
+		: ExpressionCRTP<Call>(static_cast<ExpressionCRTP<Call>&>(*this)),
+			function(other.function->clone())
+{
+	for (const auto& arg : other.args)
+		this->args.push_back(arg->cloneExpression());
+}
+
+Call::Call(Call&& other) = default;
+
+Call::~Call() = default;
+
+Call& Call::operator=(const Call& other)
+{
+	Call result(other);
+	swap(*this, result);
+	return *this;
+}
+
+Call& Call::operator=(Call&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(Call& first, Call& second)
+	{
+		swap(static_cast<impl::ExpressionCRTP<Call>&>(first),
+				 static_cast<impl::ExpressionCRTP<Call>&>(second));
+
+		std::swap(first.function, second.function);
+		impl::swap(first.args, second.args);
+	}
+}
+
+void Call::dump(llvm::raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "call\n";
+
+	os.indent(indents);
+	os << "type: ";
+	getType().dump(os);
+	os << "\n";
+
+	function->dump(os, indents + 1);
+
+	for (const auto& arg : *this)
+		arg->dump(os, indents + 1);
+}
+
+bool Call::isLValue() const
+{
+	return false;
 }
 
 bool Call::operator==(const Call& other) const
@@ -34,43 +89,37 @@ bool Call::operator==(const Call& other) const
 										 });
 }
 
-bool Call::operator!=(const Call& other) const { return !(*this == other); }
+bool Call::operator!=(const Call& other) const
+{
+	return !(*this == other);
+}
 
-Expression& Call::operator[](size_t index)
+Expression* Call::operator[](size_t index)
 {
 	assert(index < argumentsCount());
-	return *args[index];
+	return args[index].get();
 }
 
-const Expression& Call::operator[](size_t index) const
+const Expression* Call::operator[](size_t index) const
 {
 	assert(index < argumentsCount());
-	return *args[index];
+	return args[index].get();
 }
 
-void Call::dump() const { dump(llvm::outs(), 0); }
-
-void Call::dump(llvm::raw_ostream& os, size_t indents) const
+ReferenceAccess* Call::getFunction()
 {
-	os.indent(indents);
-	os << "call\n";
-
-	function->dump(os, indents + 1);
-
-	for (const auto& exp : args)
-		exp->dump(os, indents + 1);
+	return function.get();
 }
 
-SourcePosition Call::getLocation() const
+const ReferenceAccess* Call::getFunction() const
 {
-	return location;
+	return function.get();
 }
 
-Expression& Call::getFunction() { return *function; }
-
-const Expression& Call::getFunction() const { return *function; }
-
-size_t Call::argumentsCount() const { return args.size(); }
+size_t Call::argumentsCount() const
+{
+	return args.size();
+}
 
 Call::args_iterator Call::begin()
 {
@@ -82,7 +131,10 @@ Call::args_const_iterator Call::begin() const
 	return args.begin();
 }
 
-Call::args_iterator Call::end() { return args.end(); }
+Call::args_iterator Call::end()
+{
+	return args.end();
+}
 
 Call::args_const_iterator Call::end() const
 {
@@ -98,13 +150,13 @@ namespace modelica::frontend
 
 	std::string toString(const Call& obj)
 	{
-		return toString(obj.getFunction()) + "(" +
-					 accumulate(obj.begin(), obj.end(), std::string(),
-											[](const std::string& result, const Expression& argument)
-											{
-												std::string str = toString(argument);
-												return result.empty() ? str : result + "," + str;
-											}) +
+		return toString(*obj.getFunction()) + "(" +
+					 accumulate(
+							 obj.begin(), obj.end(), std::string(),
+							 [](const std::string& result, const std::unique_ptr<Expression>& argument) {
+								 std::string str = toString(*argument);
+								 return result.empty() ? str : result + "," + str;
+							 }) +
 					 ")";
 	}
 }

@@ -8,13 +8,13 @@
 
 namespace modelica::frontend
 {
-	class ClassContainer;
+	class Class;
 
 	class PassManager
 	{
 		public:
 		void addPass(std::unique_ptr<Pass> pass);
-		llvm::Error run(ClassContainer& cls);
+		llvm::Error run(Class& cls);
 
 		private:
 		llvm::SmallVector<std::unique_ptr<Pass>, 3> passes;

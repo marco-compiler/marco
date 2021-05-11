@@ -1,48 +1,63 @@
 #include <modelica/frontend/AST.h>
 
-using namespace modelica;
-using namespace frontend;
+using namespace modelica::frontend;
 
-Package::Package(
-		SourcePosition location,
-		std::string name,
-		llvm::ArrayRef<ClassContainer> innerClasses)
-		: location(std::move(location)),
-			name(std::move(name))
+Package::Package(SourcePosition location,
+								 llvm::StringRef name,
+								 llvm::ArrayRef<std::unique_ptr<Class>> innerClasses)
+		: ClassCRTP<Package>(ASTNodeKind::CLASS_PACKAGE, std::move(location), std::move(name))
 {
-	assert(!this->name.empty());
-
 	for (const auto& cls : innerClasses)
-		this->innerClasses.emplace_back(std::make_shared<ClassContainer>(cls));
+		this->innerClasses.push_back(cls->cloneClass());
 }
 
-void Package::dump() const { dump(llvm::outs(), 0); }
+Package::Package(const Package& other)
+		: ClassCRTP<Package>(static_cast<ClassCRTP<Package>&>(*this))
+{
+	for (const auto& cls : other.innerClasses)
+		this->innerClasses.push_back(cls->cloneClass());
+}
+
+Package::Package(Package&& other) = default;
+
+Package::~Package() = default;
+
+Package& Package::operator=(const Package& other)
+{
+	Package result(other);
+	swap(*this, result);
+	return *this;
+}
+
+Package& Package::operator=(Package&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(Package& first, Package& second)
+	{
+		swap(static_cast<impl::ClassCRTP<Package>&>(first),
+				 static_cast<impl::ClassCRTP<Package>&>(second));
+
+		using std::swap;
+		impl::swap(first.innerClasses, second.innerClasses);
+	}
+}
 
 void Package::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
-	os << "package " << name << "\n";
+	os << "package " << getName() << "\n";
 
 	for (const auto& cls : innerClasses)
 		cls->dump(os, indents + 1);
 }
 
-SourcePosition Package::getLocation() const
-{
-	return location;
-}
-
-const std::string& Package::getName() const
-{
-	return name;
-}
-
-Package::Container<ClassContainer>& Package::getInnerClasses()
+llvm::MutableArrayRef<std::unique_ptr<Class>> Package::getInnerClasses()
 {
 	return innerClasses;
 }
 
-const Package::Container<ClassContainer>& Package::getInnerClasses() const
+llvm::ArrayRef<std::unique_ptr<Class>> Package::getInnerClasses() const
 {
 	return innerClasses;
 }

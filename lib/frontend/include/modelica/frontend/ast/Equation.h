@@ -1,32 +1,48 @@
 #pragma once
 
-#include <llvm/Support/raw_ostream.h>
+#include <memory>
 
-#include "Expression.h"
+#include "ASTNode.h"
 
 namespace modelica::frontend
 {
+	class Expression;
+
 	class Equation
+			: public impl::ASTNodeCRTP<Equation>,
+				public impl::Cloneable<Equation>
 	{
 		public:
-		Equation(SourcePosition location, Expression leftHand, Expression rightHand);
+		Equation(SourcePosition location,
+						 std::unique_ptr<Expression> lhs,
+						 std::unique_ptr<Expression> rhs);
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+		Equation(const Equation& other);
+		Equation(Equation&& other);
+		~Equation() override;
 
-		[[nodiscard]] SourcePosition getLocation() const;
+		Equation& operator=(const Equation& other);
+		Equation& operator=(Equation&& other);
 
-		[[nodiscard]] Expression& getLeftHand();
-		[[nodiscard]] const Expression& getLeftHand() const;
-		void setLeftHand(Expression expression);
+		friend void swap(Equation& first, Equation& second);
 
-		[[nodiscard]] Expression& getRightHand();
-		[[nodiscard]] const Expression& getRightHand() const;
-		void setRightHand(Expression expression);
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::EQUATION;
+		}
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+
+		[[nodiscard]] Expression* getLhsExpression();
+		[[nodiscard]] const Expression* getLhsExpression() const;
+		void setLhsExpression(Expression* expression);
+
+		[[nodiscard]] Expression* getRhsExpression();
+		[[nodiscard]] const Expression* getRhsExpression() const;
+		void setRhsExpression(Expression* expression);
 
 		private:
-		SourcePosition location;
-		Expression leftHand;
-		Expression rightHand;
+		std::unique_ptr<Expression> lhs;
+		std::unique_ptr<Expression> rhs;
 	};
 }

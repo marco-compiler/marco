@@ -1,56 +1,85 @@
 #include <modelica/frontend/AST.h>
 
-using namespace modelica;
-using namespace frontend;
+using namespace modelica::frontend;
 
-Algorithm::Algorithm(SourcePosition location, llvm::ArrayRef<Statement> statements)
-		: location(std::move(location))
+Algorithm::Algorithm(SourcePosition location, llvm::ArrayRef<std::unique_ptr<Statement>> statements)
+		: ASTNodeCRTP<Algorithm>(ASTNodeKind::ALGORITHM, std::move(location))
 {
 	for (const auto& statement : statements)
-		this->statements.emplace_back(std::make_shared<Statement>(statement));
+		this->statements.push_back(statement->cloneStatement());
 }
 
-Statement& Algorithm::operator[](size_t index)
+Algorithm::Algorithm(const Algorithm& other)
+		: ASTNodeCRTP<Algorithm>(static_cast<const ASTNodeCRTP<Algorithm>&>(other))
 {
-	return *statements[index];
+	for (const auto& statement : other.statements)
+		this->statements.push_back(statement->cloneStatement());
 }
 
-const Statement& Algorithm::operator[](size_t index) const
+Algorithm::Algorithm(Algorithm&& other) = default;
+
+Algorithm::~Algorithm() = default;
+
+Algorithm& Algorithm::operator=(const Algorithm& other)
 {
-	return *statements[index];
+	Algorithm result(other);
+	swap(*this, result);
+	return *this;
 }
 
-void Algorithm::dump() const { dump(llvm::outs(), 0); }
+Algorithm& Algorithm::operator=(Algorithm&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(Algorithm& first, Algorithm& second)
+	{
+		swap(static_cast<impl::ASTNodeCRTP<Algorithm>&>(first),
+				 static_cast<impl::ASTNodeCRTP<Algorithm>&>(second));
+
+		std::swap(first.returnCheckName, second.returnCheckName);
+		impl::swap(first.statements, second.statements);
+
+		/*
+		Algorithm::Container<std::unique_ptr<Statement>> statementsTmp;
+
+		for (const auto& statement : first.statements)
+			statementsTmp.push_back(statement->cloneStatement());
+
+		first.statements = std::move(second.statements);
+		second.statements = std::move(statementsTmp);
+		 */
+	}
+}
 
 void Algorithm::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "algorithm\n";
 
-	for (const auto& statement : statements)
-		statement->visit([&](const auto& obj) { obj.dump(os, indents + 1); });
+	for (const auto& statement : *this)
+		statement->dump(os, indents + 1);
 }
 
-SourcePosition Algorithm::getLocation() const
+Statement* Algorithm::operator[](size_t index)
 {
-	return location;
+	assert(index < statements.size());
+	return statements[index].get();
 }
 
-const std::string& Algorithm::getReturnCheckName() const
+const Statement* Algorithm::operator[](size_t index) const
+{
+	assert(index < statements.size());
+	return statements[index].get();
+}
+
+llvm::StringRef Algorithm::getReturnCheckName() const
 {
 	return returnCheckName;
 }
 
-void Algorithm::setReturnCheckName(std::string name)
+void Algorithm::setReturnCheckName(llvm::StringRef name)
 {
-	this->returnCheckName = name;
-}
-
-Algorithm::Container<Statement>& Algorithm::getStatements() { return statements; }
-
-const Algorithm::Container<Statement>& Algorithm::getStatements() const
-{
-	return statements;
+	returnCheckName = name.str();
 }
 
 size_t Algorithm::size() const

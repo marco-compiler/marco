@@ -3,42 +3,82 @@
 using namespace modelica;
 using namespace frontend;
 
-Equation::Equation(SourcePosition location, Expression leftHand, Expression rightHand)
-		: location(std::move(location)),
-			leftHand(std::move(leftHand)),
-			rightHand(std::move(rightHand))
+Equation::Equation(SourcePosition location,
+									 std::unique_ptr<Expression> lhs,
+									 std::unique_ptr<Expression> rhs)
+		: ASTNodeCRTP<Equation>(ASTNodeKind::EQUATION, std::move(location)),
+			lhs(std::move(lhs)),
+			rhs(std::move(rhs))
 {
 }
 
-void Equation::dump() const { dump(llvm::outs(), 0); }
+Equation::Equation(const Equation& other)
+		: ASTNodeCRTP<Equation>(static_cast<const ASTNodeCRTP<Equation>&>(other)),
+			lhs(other.lhs->cloneExpression()),
+			rhs(other.rhs->cloneExpression())
+{
+}
+
+Equation::Equation(Equation&& other) = default;
+
+Equation::~Equation() = default;
+
+Equation& Equation::operator=(const Equation& other)
+{
+	Equation result(other);
+	swap(*this, result);
+	return *this;
+}
+
+Equation& Equation::operator=(Equation&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(Equation& first, Equation& second)
+	{
+		swap(static_cast<impl::ASTNodeCRTP<Equation>&>(first),
+				 static_cast<impl::ASTNodeCRTP<Equation>&>(second));
+
+		using std::swap;
+		swap(first.lhs, second.lhs);
+		swap(first.rhs, second.rhs);
+	}
+}
 
 void Equation::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "equation\n";
-	leftHand.dump(os, indents + 1);
-	rightHand.dump(os, indents + 1);
+	lhs->dump(os, indents + 1);
+	rhs->dump(os, indents + 1);
 }
 
-SourcePosition Equation::getLocation() const
+Expression* Equation::getLhsExpression()
 {
-	return location;
+	return lhs.get();
 }
 
-Expression& Equation::getLeftHand() { return leftHand; }
-
-const Expression& Equation::getLeftHand() const { return leftHand; }
-
-void Equation::setLeftHand(Expression expression)
+const Expression* Equation::getLhsExpression() const
 {
-	this->leftHand = std::move(expression);
+	return lhs.get();
 }
 
-Expression& Equation::getRightHand() { return rightHand; }
-
-const Expression& Equation::getRightHand() const { return rightHand; }
-
-void Equation::setRightHand(Expression expression)
+void Equation::setLhsExpression(Expression* expression)
 {
-	this->rightHand = std::move(expression);
+	this->lhs = expression->cloneExpression();
+}
+
+Expression* Equation::getRhsExpression()
+{
+	return rhs.get();
+}
+
+const Expression* Equation::getRhsExpression() const
+{
+	return rhs.get();
+}
+
+void Equation::setRhsExpression(Expression* expression)
+{
+	this->rhs = expression->cloneExpression();
 }

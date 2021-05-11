@@ -4,27 +4,47 @@
 #include <modelica/utils/SourcePosition.h>
 #include <string>
 
+#include "Expression.h"
+
 namespace modelica::frontend
 {
 	/**
 	 * A reference access is pretty much any use of a variable at the moment.
 	 */
 	class ReferenceAccess
+			: public impl::ExpressionCRTP<ReferenceAccess>,
+				public impl::Cloneable<ReferenceAccess>
 	{
 		public:
-		ReferenceAccess(SourcePosition location, std::string name, bool globalLookup = false, bool dummy = false);
+		ReferenceAccess(SourcePosition location,
+										Type type,
+										llvm::StringRef name,
+										bool globalLookup = false,
+										bool dummy = false);
+
+		ReferenceAccess(const ReferenceAccess& other);
+		ReferenceAccess(ReferenceAccess&& other);
+		~ReferenceAccess() override;
+
+		ReferenceAccess& operator=(const ReferenceAccess& other);
+		ReferenceAccess& operator=(ReferenceAccess&& other);
+
+		friend void swap(ReferenceAccess& first, ReferenceAccess& second);
+
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::EXPRESSION_REFERENCE_ACCESS;
+		}
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+
+		[[nodiscard]] bool isLValue() const override;
 
 		[[nodiscard]] bool operator==(const ReferenceAccess& other) const;
 		[[nodiscard]] bool operator!=(const ReferenceAccess& other) const;
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
-
-		[[nodiscard]] SourcePosition getLocation() const;
-
-		[[nodiscard]] std::string& getName();
-		[[nodiscard]] const std::string& getName() const;
-		void setName(std::string name);
+		[[nodiscard]] llvm::StringRef getName() const;
+		void setName(llvm::StringRef name);
 
 		[[nodiscard]] bool hasGlobalLookup() const;
 
@@ -40,10 +60,9 @@ namespace modelica::frontend
 		static ReferenceAccess dummy(SourcePosition location);
 
 		private:
-		SourcePosition location;
-		std::string referencedName;
+		std::string name;
 		bool globalLookup;
-		bool dummyVariable;
+		bool dummyVar;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const ReferenceAccess& obj);

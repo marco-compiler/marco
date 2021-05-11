@@ -1,39 +1,51 @@
 #pragma once
 
-#include <boost/iterator/indirect_iterator.hpp>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
-#include <modelica/utils/SourcePosition.h>
 #include <memory>
+
+#include "Class.h"
 
 namespace modelica::frontend
 {
 	class Member;
 
 	class Record
+			: public impl::ClassCRTP<Record>,
+				public impl::Cloneable<Record>
 	{
 		private:
-		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>>;
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		using iterator = boost::indirect_iterator<Container<Member>::iterator>;
-		using const_iterator = boost::indirect_iterator<Container<Member>::const_iterator>;
+		using iterator = Container<std::unique_ptr<Member>>::iterator;
+		using const_iterator = Container<std::unique_ptr<Member>>::const_iterator;
 
-		Record(SourcePosition location, std::string name, llvm::ArrayRef<Member> members);
+		Record(SourcePosition location,
+					 llvm::StringRef name,
+					 llvm::ArrayRef<std::unique_ptr<Member>> members);
+
+		Record(const Record& other);
+		Record(Record&& other);
+		~Record() override;
+
+		Record& operator=(const Record& other);
+		Record& operator=(Record&& other);
+
+		friend void swap(Record& first, Record& second);
+
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::CLASS_RECORD;
+		}
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] bool operator==(const Record& other) const;
 		[[nodiscard]] bool operator!=(const Record& other) const;
 
-		[[nodiscard]] Member& operator[](llvm::StringRef name);
-		[[nodiscard]] const Member& operator[](llvm::StringRef name) const;
-
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
-
-		[[nodiscard]] SourcePosition getLocation() const;
-
-		[[nodiscard]] std::string& getName();
-		[[nodiscard]] const std::string& getName() const;
+		[[nodiscard]] Member* operator[](llvm::StringRef name);
+		[[nodiscard]] const Member* operator[](llvm::StringRef name) const;
 
 		[[nodiscard]] size_t size() const;
 
@@ -44,9 +56,7 @@ namespace modelica::frontend
 		[[nodiscard]] const_iterator end() const;
 
 		private:
-		SourcePosition location;
-		std::string name;
-		Container<Member> members;
+		Container<std::unique_ptr<Member>> members;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Record& obj);

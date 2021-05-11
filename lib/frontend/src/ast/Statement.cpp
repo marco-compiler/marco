@@ -1,83 +1,202 @@
 #include <modelica/frontend/AST.h>
 
-using namespace modelica;
-using namespace frontend;
+using namespace modelica::frontend;
 
-AssignmentStatement::AssignmentStatement(
-		SourcePosition location, Expression destination, Expression expression)
-		: location(location),
-			destinations(Tuple(location, std::move(destination))),
+Statement::Statement(ASTNodeKind kind, SourcePosition location)
+		: ASTNodeCRTP<Statement>(kind, std::move(location))
+{
+}
+
+Statement::Statement(const Statement& other)
+		: ASTNodeCRTP<Statement>(static_cast<ASTNodeCRTP<Statement>&>(*this))
+{
+}
+
+Statement::Statement(Statement&& other) = default;
+
+Statement::~Statement() = default;
+
+Statement& Statement::operator=(const Statement& other)
+{
+	if (this != &other)
+	{
+		static_cast<ASTNodeCRTP<Statement>&>(*this) = static_cast<const ASTNodeCRTP<Statement>&>(other);
+	}
+
+	return *this;
+}
+
+Statement& Statement::operator=(Statement&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(Statement& first, Statement& second)
+	{
+		swap(static_cast<impl::ASTNodeCRTP<Statement>&>(first),
+				 static_cast<impl::ASTNodeCRTP<Statement>&>(second));
+
+		using std::swap;
+	}
+}
+
+Statement::assignments_iterator Statement::assignmentsBegin()
+{
+	return assignments_iterator(this, this);
+}
+
+Statement::assignments_const_iterator Statement::assignmentsBegin() const
+{
+	return assignments_const_iterator(this, this);
+}
+
+Statement::assignments_iterator Statement::assignmentsEnd()
+{
+	return assignments_iterator(this, nullptr);
+}
+
+Statement::assignments_const_iterator Statement::assignmentsEnd() const
+{
+	return assignments_const_iterator(this, nullptr);
+}
+
+
+AssignmentStatement::AssignmentStatement(SourcePosition location,
+																				 std::unique_ptr<Expression> destination,
+																				 std::unique_ptr<Expression> expression)
+		: StatementCRTP<AssignmentStatement>(ASTNodeKind::STATEMENT_ASSIGNMENT, std::move(location)),
+			destinations(std::make_unique<Tuple>(location, std::move(destination))),
 			expression(std::move(expression))
 {
 }
 
-AssignmentStatement::AssignmentStatement(
-		SourcePosition location, Tuple destinations, Expression expression)
-		: location(std::move(location)),
+AssignmentStatement::AssignmentStatement(SourcePosition location,
+																				 std::unique_ptr<Tuple> destinations,
+																				 std::unique_ptr<Expression> expression)
+		: StatementCRTP<AssignmentStatement>(ASTNodeKind::STATEMENT_ASSIGNMENT, std::move(location)),
 			destinations(std::move(destinations)),
 			expression(std::move(expression))
 {
 }
 
-AssignmentStatement::AssignmentStatement(
-		SourcePosition location, std::initializer_list<Expression> destinations, Expression expression)
-		: location(location),
-			destinations(Tuple(location, move(destinations))),
-			expression(std::move(expression))
+AssignmentStatement::AssignmentStatement(const AssignmentStatement& other)
+		: StatementCRTP<AssignmentStatement>(static_cast<StatementCRTP<AssignmentStatement>&>(*this)),
+			destinations(other.destinations->clone()),
+			expression(other.expression->cloneExpression())
 {
 }
 
-void AssignmentStatement::dump() const { dump(llvm::outs(), 0); }
+AssignmentStatement::AssignmentStatement(AssignmentStatement&& other) = default;
+
+AssignmentStatement::~AssignmentStatement() = default;
+
+AssignmentStatement& AssignmentStatement::operator=(const AssignmentStatement& other)
+{
+	AssignmentStatement result(other);
+	swap(*this, result);
+	return *this;
+}
+
+AssignmentStatement& AssignmentStatement::operator=(AssignmentStatement&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(AssignmentStatement& first, AssignmentStatement& second)
+	{
+		swap(static_cast<impl::StatementCRTP<AssignmentStatement>&>(first),
+				 static_cast<impl::StatementCRTP<AssignmentStatement>&>(second));
+
+		using std::swap;
+		swap(first.destinations, second.destinations);
+		swap(first.expression, second.expression);
+	}
+}
 
 void AssignmentStatement::dump(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "destinations:\n";
-	destinations.dump(os, indents + 1);
+	destinations->dump(os, indents + 1);
 
 	os.indent(indents);
 	os << "assigned expression:\n";
-	expression.dump(os, indents + 1);
+	expression->dump(os, indents + 1);
 }
 
-SourcePosition AssignmentStatement::getLocation() const
+Tuple* AssignmentStatement::getDestinations()
 {
-	return location;
+	return destinations.get();
 }
 
-Tuple& AssignmentStatement::getDestinations()
+const Tuple* AssignmentStatement::getDestinations() const
 {
-	return destinations;
+	return destinations.get();
 }
 
-const Tuple& AssignmentStatement::getDestinations() const
+void AssignmentStatement::setDestinations(Expression* dest)
 {
-	return destinations;
+	this->destinations = std::make_unique<Tuple>(dest->getLocation(), dest->cloneExpression());
 }
 
-void AssignmentStatement::setDestination(Expression dest)
+void AssignmentStatement::setDestinations(Tuple* dest)
 {
-	auto loc = dest.getLocation();
-	destinations = Tuple(loc, std::move(dest));
+	this->destinations = dest->clone();
 }
 
-void AssignmentStatement::setDestination(Tuple dest)
+Expression* AssignmentStatement::getExpression()
 {
-	destinations = std::move(dest);
+	return expression.get();
 }
 
-Expression& AssignmentStatement::getExpression() { return expression; }
-
-const Expression& AssignmentStatement::getExpression() const
+const Expression* AssignmentStatement::getExpression() const
 {
-	return expression;
+	return expression.get();
 }
 
 IfStatement::IfStatement(SourcePosition location, llvm::ArrayRef<Block> blocks)
-		: location(std::move(location)),
+		: StatementCRTP<IfStatement>(ASTNodeKind::STATEMENT_IF, std::move(location)),
 			blocks(blocks.begin(), blocks.end())
 {
 	assert(!this->blocks.empty());
+}
+
+IfStatement::IfStatement(const IfStatement& other)
+		: StatementCRTP<IfStatement>(static_cast<StatementCRTP<IfStatement>&>(*this)),
+			blocks(other.blocks.begin(), other.blocks.end())
+{
+}
+
+IfStatement::IfStatement(IfStatement&& other) = default;
+
+IfStatement::~IfStatement() = default;
+
+IfStatement& IfStatement::operator=(const IfStatement& other)
+{
+    IfStatement result(other);
+    swap(*this, result);
+    return *this;
+}
+
+IfStatement& IfStatement::operator=(IfStatement&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(IfStatement& first, IfStatement& second)
+	{
+		swap(static_cast<impl::StatementCRTP<IfStatement>&>(first),
+				 static_cast<impl::StatementCRTP<IfStatement>&>(second));
+
+		using std::swap;
+		swap(first.blocks, second.blocks);
+	}
+}
+
+void IfStatement::dump(llvm::raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "if statement\n";
+
+	for (const auto& block : blocks)
+		block.dump(os, indents + 1);
 }
 
 IfStatement::Block& IfStatement::operator[](size_t index)
@@ -92,23 +211,10 @@ const IfStatement::Block& IfStatement::operator[](size_t index) const
 	return blocks[index];
 }
 
-void IfStatement::dump() const { dump(llvm::outs(), 0); }
-
-void IfStatement::dump(llvm::raw_ostream& os, size_t indents) const
+size_t IfStatement::size() const
 {
-	os.indent(indents);
-	os << "if statement\n";
-
-	for (const auto& block : blocks)
-		block.dump(os, indents + 1);
+	return blocks.size();
 }
-
-SourcePosition IfStatement::getLocation() const
-{
-	return location;
-}
-
-size_t IfStatement::size() const { return blocks.size(); }
 
 IfStatement::blocks_iterator IfStatement::begin()
 {
@@ -130,42 +236,65 @@ IfStatement::blocks_const_iterator IfStatement::end() const
 	return blocks.end();
 }
 
-ForStatement::ForStatement(
-		SourcePosition location, Induction induction, llvm::ArrayRef<Statement> statements)
-		: location(std::move(location)),
-			induction(std::move(induction))
+ForStatement::ForStatement(SourcePosition location,
+                           std::unique_ptr<Induction>& induction,
+                           llvm::ArrayRef<std::unique_ptr<Statement>> statements)
+		: StatementCRTP<ForStatement>(ASTNodeKind::STATEMENT_FOR, std::move(location)),
+			induction(induction->clone())
 {
 	for (const auto& statement : statements)
-		this->statements.push_back(std::make_shared<Statement>(statement));
+		this->statements.push_back(statement->cloneStatement());
 }
 
 ForStatement::ForStatement(const ForStatement& other)
-		: location(other.location),
-			induction(other.induction),
+		: StatementCRTP<ForStatement>(static_cast<StatementCRTP<ForStatement>&>(*this)),
+			induction(other.induction->clone()),
 			breakCheckName(other.breakCheckName),
 			returnCheckName(other.returnCheckName)
 {
-	statements.clear();
-
 	for (const auto& statement : other.statements)
-		statements.push_back(std::make_shared<Statement>(*statement));
+		this->statements.push_back(statement->cloneStatement());
 }
+
+ForStatement::ForStatement(ForStatement&& other) = default;
+
+ForStatement::~ForStatement() = default;
 
 ForStatement& ForStatement::operator=(const ForStatement& other)
 {
-	if (this == &other)
-		return *this;
+    ForStatement result(other);
+    swap(*this, result);
+    return *this;
+}
 
-	location = other.location;
-	induction = other.induction;
-	statements.clear();
-	breakCheckName = other.breakCheckName;
-	returnCheckName = other.returnCheckName;
+ForStatement& ForStatement::operator=(ForStatement&& other) = default;
 
-	for (const auto& statement : other.statements)
-		statements.push_back(std::make_shared<Statement>(*statement));
+namespace modelica::frontend
+{
+    void swap(ForStatement& first, ForStatement& second)
+    {
+        swap(static_cast<impl::StatementCRTP<ForStatement>&>(first),
+             static_cast<impl::StatementCRTP<ForStatement>&>(second));
 
-	return *this;
+        using std::swap;
+        swap(first.induction, second.induction);
+        swap(first.statements, second.statements);
+        swap(first.breakCheckName, second.breakCheckName);
+        swap(first.returnCheckName, second.returnCheckName);
+    }
+}
+
+void ForStatement::dump(llvm::raw_ostream& os, size_t indents) const
+{
+    os.indent(indents);
+    os << "induction:\n";
+    induction->dump(os, indents + 1);
+
+    os.indent(indents);
+    os << "body:\n";
+
+    for (const auto& statement : statements)
+        statement->dump(os, indents + 1);
 }
 
 Statement& ForStatement::operator[](size_t index)
@@ -180,61 +309,50 @@ const Statement& ForStatement::operator[](size_t index) const
 	return *statements[index];
 }
 
-void ForStatement::dump() const { dump(llvm::outs(), 0); }
-
-void ForStatement::dump(llvm::raw_ostream& os, size_t indents) const
-{
-	os.indent(indents);
-	os << "induction:\n";
-	induction.dump(os, indents + 1);
-
-	os.indent(indents);
-	os << "body:\n";
-
-	for (const auto& statement : statements)
-		statement->dump(os, indents + 1);
-}
-
-SourcePosition ForStatement::getLocation() const
-{
-	return location;
-}
-
-const std::string& ForStatement::getBreakCheckName() const
+llvm::StringRef ForStatement::getBreakCheckName() const
 {
 	return breakCheckName;
 }
 
-void ForStatement::setBreakCheckName(std::string name)
+void ForStatement::setBreakCheckName(llvm::StringRef name)
 {
-	this->breakCheckName = name;
+	this->breakCheckName = name.str();
 }
 
-const std::string& ForStatement::getReturnCheckName() const
+llvm::StringRef ForStatement::getReturnCheckName() const
 {
 	return returnCheckName;
 }
 
-void ForStatement::setReturnCheckName(std::string name)
+void ForStatement::setReturnCheckName(llvm::StringRef name)
 {
-	this->returnCheckName = name;
+	this->returnCheckName = name.str();
 }
 
-Induction& ForStatement::getInduction() { return induction; }
+Induction* ForStatement::getInduction()
+{
+	return induction.get();
+}
 
-const Induction& ForStatement::getInduction() const { return induction; }
+const Induction* ForStatement::getInduction() const
+{
+	return induction.get();
+}
 
-ForStatement::Container& ForStatement::getBody()
+llvm::MutableArrayRef<std::unique_ptr<Statement>> ForStatement::getBody()
 {
 	return statements;
 }
 
-const ForStatement::Container& ForStatement::getBody() const
+llvm::ArrayRef<std::unique_ptr<Statement>> ForStatement::getBody() const
 {
 	return statements;
 }
 
-size_t ForStatement::size() const { return statements.size(); }
+size_t ForStatement::size() const
+{
+	return statements.size();
+}
 
 ForStatement::statements_iterator ForStatement::begin()
 {
@@ -256,14 +374,48 @@ ForStatement::statements_const_iterator ForStatement::end() const
 	return statements.end();
 }
 
-WhileStatement::WhileStatement(
-		SourcePosition location, Expression condition, llvm::ArrayRef<Statement> body)
-		: ConditionalBlock<Statement>(std::move(condition), std::move(body)),
-			location(std::move(location))
+WhileStatement::WhileStatement(SourcePosition location,
+                               std::unique_ptr<Expression>& condition,
+                               llvm::ArrayRef<std::unique_ptr<Statement>> body)
+		: StatementCRTP<WhileStatement>(ASTNodeKind::STATEMENT_WHILE, std::move(location)),
+			ConditionalBlock<Statement>(condition, body)
 {
 }
 
-void WhileStatement::dump() const { dump(llvm::outs(), 0); }
+WhileStatement::WhileStatement(const WhileStatement& other)
+		: StatementCRTP<WhileStatement>(static_cast<StatementCRTP<WhileStatement>&>(*this)),
+			ConditionalBlock<Statement>(static_cast<ConditionalBlock<Statement>&>(*this))
+{
+}
+
+WhileStatement::WhileStatement(WhileStatement&& other) = default;
+
+WhileStatement::~WhileStatement() = default;
+
+WhileStatement& WhileStatement::operator=(const WhileStatement& other)
+{
+	WhileStatement result(other);
+	swap(*this, result);
+	return *this;
+}
+
+WhileStatement& WhileStatement::operator=(WhileStatement&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(WhileStatement& first, WhileStatement& second)
+	{
+		swap(static_cast<impl::StatementCRTP<WhileStatement>&>(first),
+				 static_cast<impl::StatementCRTP<WhileStatement>&>(second));
+
+		swap(static_cast<ConditionalBlock<Statement>&>(first),
+				 static_cast<ConditionalBlock<Statement>&>(second));
+
+		using std::swap;
+		swap(first.breakCheckName, second.breakCheckName);
+		swap(first.returnCheckName, second.returnCheckName);
+	}
+}
 
 void WhileStatement::dump(llvm::raw_ostream& os, size_t indents) const
 {
@@ -272,7 +424,7 @@ void WhileStatement::dump(llvm::raw_ostream& os, size_t indents) const
 
 	os.indent(indents + 1);
 	os << "condition:\n";
-	getCondition().dump(os, indents + 2);
+	getCondition()->dump(os, indents + 2);
 
 	os.indent(indents + 1);
 	os << "body:\n";
@@ -281,55 +433,77 @@ void WhileStatement::dump(llvm::raw_ostream& os, size_t indents) const
 		statement->dump(os, indents + 2);
 }
 
-SourcePosition WhileStatement::getLocation() const
-{
-	return location;
-}
-
-const std::string& WhileStatement::getBreakCheckName() const
+llvm::StringRef WhileStatement::getBreakCheckName() const
 {
 	return breakCheckName;
 }
 
-void WhileStatement::setBreakCheckName(std::string name)
+void WhileStatement::setBreakCheckName(llvm::StringRef name)
 {
-	this->breakCheckName = name;
+	this->breakCheckName = name.str();
 }
 
-const std::string& WhileStatement::getReturnCheckName() const
+llvm::StringRef WhileStatement::getReturnCheckName() const
 {
 	return returnCheckName;
 }
 
-void WhileStatement::setReturnCheckName(std::string name)
+void WhileStatement::setReturnCheckName(llvm::StringRef name)
 {
-	this->returnCheckName = name;
+	this->returnCheckName = name.str();
 }
 
-WhenStatement::WhenStatement(
-		SourcePosition location, Expression condition, llvm::ArrayRef<Statement> body)
-		: ConditionalBlock<Statement>(std::move(condition), std::move(body)),
-			location(std::move(location))
+WhenStatement::WhenStatement(SourcePosition location,
+                               std::unique_ptr<Expression>& condition,
+                               llvm::ArrayRef<std::unique_ptr<Statement>> body)
+        : StatementCRTP<WhenStatement>(ASTNodeKind::STATEMENT_WHEN, std::move(location)),
+          ConditionalBlock<Statement>(condition, body)
 {
 }
 
-void WhenStatement::dump() const { dump(llvm::outs(), 0); }
+WhenStatement::WhenStatement(const WhenStatement& other)
+        : StatementCRTP<WhenStatement>(static_cast<StatementCRTP<WhenStatement>&>(*this)),
+          ConditionalBlock<Statement>(static_cast<ConditionalBlock<Statement>&>(*this))
+{
+}
 
 void WhenStatement::dump(llvm::raw_ostream& os, size_t indents) const
 {
 }
 
-SourcePosition WhenStatement::getLocation() const
-{
-	return location;
-}
-
 BreakStatement::BreakStatement(SourcePosition location)
-		: location(std::move(location))
+        : StatementCRTP<BreakStatement>(ASTNodeKind::STATEMENT_BREAK, std::move(location))
 {
 }
 
-void BreakStatement::dump() const { dump(llvm::outs(), 0); }
+BreakStatement::BreakStatement(const BreakStatement& other)
+		: StatementCRTP<BreakStatement>(static_cast<StatementCRTP<BreakStatement>&>(*this))
+{
+}
+
+BreakStatement::BreakStatement(BreakStatement&& other) = default;
+
+BreakStatement::~BreakStatement() = default;
+
+BreakStatement& BreakStatement::operator=(const BreakStatement& other)
+{
+	BreakStatement result(other);
+	swap(*this, result);
+	return *this;
+}
+
+BreakStatement& BreakStatement::operator=(BreakStatement&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(BreakStatement& first, BreakStatement& second)
+	{
+		swap(static_cast<impl::StatementCRTP<BreakStatement>&>(first),
+				 static_cast<impl::StatementCRTP<BreakStatement>&>(second));
+
+		using std::swap;
+	}
+}
 
 void BreakStatement::dump(llvm::raw_ostream& os, size_t indents) const
 {
@@ -337,17 +511,41 @@ void BreakStatement::dump(llvm::raw_ostream& os, size_t indents) const
 	os << "break\n";
 }
 
-SourcePosition BreakStatement::getLocation() const
-{
-	return location;
-}
-
 ReturnStatement::ReturnStatement(SourcePosition location)
-		: location(std::move(location))
+		: StatementCRTP<ReturnStatement>(ASTNodeKind::STATEMENT_RETURN, std::move(location))
 {
 }
 
-void ReturnStatement::dump() const { dump(llvm::outs(), 0); }
+ReturnStatement::ReturnStatement(const ReturnStatement& other)
+		: StatementCRTP<ReturnStatement>(static_cast<StatementCRTP<ReturnStatement>&>(*this)),
+			returnCheckName(other.returnCheckName)
+{
+}
+
+ReturnStatement::ReturnStatement(ReturnStatement&& other) = default;
+
+ReturnStatement::~ReturnStatement() = default;
+
+ReturnStatement& ReturnStatement::operator=(const ReturnStatement& other)
+{
+	ReturnStatement result(other);
+	swap(*this, result);
+	return *this;
+}
+
+ReturnStatement& ReturnStatement::operator=(ReturnStatement&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(ReturnStatement& first, ReturnStatement& second)
+	{
+		swap(static_cast<impl::StatementCRTP<ReturnStatement>&>(first),
+				 static_cast<impl::StatementCRTP<ReturnStatement>&>(second));
+
+		using std::swap;
+		swap(first.returnCheckName, second.returnCheckName);
+	}
+}
 
 void ReturnStatement::dump(llvm::raw_ostream& os, size_t indents) const
 {
@@ -355,63 +553,12 @@ void ReturnStatement::dump(llvm::raw_ostream& os, size_t indents) const
 	os << "return\n";
 }
 
-SourcePosition ReturnStatement::getLocation() const
+llvm::StringRef ReturnStatement::getReturnCheckName() const
 {
-	return location;
+	return returnCheckName;
 }
 
-Statement::Statement(AssignmentStatement statement)
-		: content(std::move(statement))
+void ReturnStatement::setReturnCheckName(llvm::StringRef name)
 {
-}
-
-Statement::Statement(IfStatement statement)
-		: content(std::move(statement))
-{
-}
-
-Statement::Statement(ForStatement statement)
-		: content(std::move(statement))
-{
-}
-
-Statement::Statement(WhileStatement statement)
-		: content(std::move(statement))
-{
-}
-
-Statement::Statement(WhenStatement statement)
-		: content(std::move(statement))
-{
-}
-
-Statement::Statement(BreakStatement statement)
-		: content(std::move(statement))
-{
-}
-
-Statement::Statement(ReturnStatement statement)
-		: content(std::move(statement))
-{
-}
-
-void Statement::dump() const { dump(llvm::outs(), 0); }
-
-void Statement::dump(llvm::raw_ostream& os, size_t indents) const
-{
-	visit([&](const auto& statement) { statement.dump(os, indents); });
-}
-
-Statement::assignments_iterator Statement::begin() { return assignments_iterator(this, this); }
-
-Statement::assignments_const_iterator Statement::begin() const
-{
-	return assignments_const_iterator(this, this);
-}
-
-Statement::assignments_iterator Statement::end() { return assignments_iterator(this, nullptr); }
-
-Statement::assignments_const_iterator Statement::end() const
-{
-	return assignments_const_iterator(this, nullptr);
+	this->returnCheckName = name.str();
 }

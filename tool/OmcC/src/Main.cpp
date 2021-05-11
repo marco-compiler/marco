@@ -129,24 +129,24 @@ int main(int argc, char* argv[])
 	auto ast = exitOnErr(parser.classDefinition());
 
 	frontend::TypeChecker checker;
-	exitOnErr(checker.run(ast));
+	exitOnErr(checker.run(*ast));
 	if (dumpTypeChecked)
 	{
-		ast.dump(OS);
+		ast->dump(OS);
 		return 0;
 	}
 
 	frontend::ConstantFolder folder;
-	exitOnErr(folder.run(ast));
+	exitOnErr(folder.run(*ast));
 	if (dumpFolded)
 	{
-		ast.dump(OS);
+		ast->dump(OS);
 		return 0;
 	}
 
 	Model model;
 	OmcToModelPass pass(model);
-	exitOnErr(pass.lower(ast, frontend::SymbolTable()));
+	exitOnErr(pass.lower(*ast, frontend::SymbolTable()));
 	if (dumpModel)
 	{
 		model.dump(OS);

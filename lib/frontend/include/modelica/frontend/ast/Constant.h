@@ -1,64 +1,77 @@
 #pragma once
 
 #include <cassert>
-#include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/SourcePosition.h>
 #include <string>
 #include <type_traits>
-#include <variant>
 
+#include "Expression.h"
 #include "Type.h"
 
 namespace modelica::frontend
 {
 	class Constant
+			: public impl::ExpressionCRTP<Constant>,
+				public impl::Cloneable<Constant>
 	{
 		public:
-		Constant(SourcePosition location, bool val);
-		Constant(SourcePosition location, int val);
-		Constant(SourcePosition location, float val);
-		Constant(SourcePosition location, double val);
-		Constant(SourcePosition location, char val);
-		Constant(SourcePosition location, std::string val);
+		Constant(SourcePosition location, Type type, bool val);
+		Constant(SourcePosition location, Type type, int val);
+		Constant(SourcePosition location, Type type, float val);
+		Constant(SourcePosition location, Type type, double val);
+		Constant(SourcePosition location, Type type, char val);
+		Constant(SourcePosition location, Type type, std::string val);
+
+		Constant(const Constant& other);
+		Constant(Constant&& other);
+		~Constant() override;
+
+		Constant& operator=(const Constant& other);
+		Constant& operator=(Constant&& other);
+
+		friend void swap(Constant& first, Constant& second);
+
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::EXPRESSION_CONSTANT;
+		}
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+
+		[[nodiscard]] bool isLValue() const override;
 
 		[[nodiscard]] bool operator==(const Constant& other) const;
 		[[nodiscard]] bool operator!=(const Constant& other) const;
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
-
-		[[nodiscard]] SourcePosition getLocation() const;
-
 		template<class Visitor>
 		auto visit(Visitor&& vis)
 		{
-			return std::visit(std::forward<Visitor>(vis), content);
+			return std::visit(std::forward<Visitor>(vis), value);
 		}
 
 		template<class Visitor>
 		auto visit(Visitor&& vis) const
 		{
-			return std::visit(std::forward<Visitor>(vis), content);
+			return std::visit(std::forward<Visitor>(vis), value);
 		}
 
 		template<BuiltInType T>
 		[[nodiscard]] bool isA() const
 		{
-			return std::holds_alternative<frontendTypeToType_v<T>>(content);
+			return std::holds_alternative<frontendTypeToType_v<T>>(value);
 		}
 
 		template<BuiltInType T>
 		[[nodiscard]] frontendTypeToType_v<T>& get()
 		{
 			assert(isA<T>());
-			return std::get<frontendTypeToType_v<T>>(content);
+			return std::get<frontendTypeToType_v<T>>(value);
 		}
 
 		template<BuiltInType T>
 		[[nodiscard]] const frontendTypeToType_v<T>& get() const
 		{
 			assert(isA<T>());
-			return std::get<frontendTypeToType_v<T>>(content);
+			return std::get<frontendTypeToType_v<T>>(value);
 		}
 
 		template<BuiltInType T>
@@ -80,8 +93,7 @@ namespace modelica::frontend
 		}
 
 		private:
-		SourcePosition location;
-		std::variant<bool, int, double, std::string> content;
+		std::variant<bool, int, double, std::string> value;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Constant& obj);

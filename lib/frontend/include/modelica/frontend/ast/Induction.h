@@ -3,6 +3,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
+#include <memory>
 
 #include "Equation.h"
 #include "Expression.h"
@@ -18,28 +19,41 @@ namespace modelica::frontend
 	 * of step one.
 	 */
 	class Induction
+			: public impl::ASTNodeCRTP<Induction>,
+				public impl::Cloneable<Induction>
 	{
 		public:
-		Induction(std::string indVar, Expression begin, Expression end);
+		Induction(SourcePosition location,
+							llvm::StringRef inductionVariable,
+							std::unique_ptr<Expression> begin,
+							std::unique_ptr<Expression> end);
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const;
+		Induction(const Induction& other);
+		Induction(Induction&& other);
+		~Induction() override;
 
-		[[nodiscard]] const std::string& getName() const;
+		Induction& operator=(const Induction& other);
+		Induction& operator=(Induction&& other);
 
-		[[nodiscard]] Expression& getBegin();
-		[[nodiscard]] const Expression& getBegin() const;
+		friend void swap(Induction& first, Induction& second);
 
-		[[nodiscard]] Expression& getEnd();
-		[[nodiscard]] const Expression& getEnd() const;
+		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const override;
+
+		[[nodiscard]] llvm::StringRef getName() const;
+
+		[[nodiscard]] Expression* getBegin();
+		[[nodiscard]] const Expression* getBegin() const;
+
+		[[nodiscard]] Expression* getEnd();
+		[[nodiscard]] const Expression* getEnd() const;
 
 		[[nodiscard]] size_t getInductionIndex() const;
 		void setInductionIndex(size_t index);
 
 		private:
-		Expression begin;
-		Expression end;
+		std::string inductionVariable;
+		std::unique_ptr<Expression> begin;
+		std::unique_ptr<Expression> end;
 		size_t inductionIndex;
-		std::string inductionVar;
 	};
 }

@@ -1,97 +1,55 @@
 #include <modelica/frontend/AST.h>
 
-using namespace modelica;
-using namespace frontend;
+using namespace modelica::frontend;
 
-Class::Class(
-		SourcePosition location,
-		std::string name,
-		llvm::ArrayRef<Member> members,
-		llvm::ArrayRef<Equation> equations,
-		llvm::ArrayRef<ForEquation> forEquations,
-		llvm::ArrayRef<Algorithm> algorithms,
-		llvm::ArrayRef<ClassContainer> innerClasses)
-		: location(std::move(location)),
-			name(std::move(name))
+Class::Class(ASTNodeKind kind,
+						 SourcePosition location,
+						 llvm::StringRef name)
+		: ASTNodeCRTP<Class>(kind, std::move(location)),
+			name(name.str())
 {
 	assert(!this->name.empty());
-
-	for (const auto& member : members)
-		this->members.emplace_back(std::make_shared<Member>(member));
-
-	for (const auto& equation : equations)
-		this->equations.emplace_back(std::make_shared<Equation>(equation));
-
-	for (const auto& forEquation : forEquations)
-		this->forEquations.emplace_back(std::make_shared<ForEquation>(forEquation));
-
-	for (const auto& algorithm : algorithms)
-		this->algorithms.emplace_back(std::make_shared<Algorithm>(algorithm));
-
-	for (const auto& cls : innerClasses)
-		this->innerClasses.emplace_back(std::make_shared<ClassContainer>(cls));
 }
 
-void Class::dump() const { dump(llvm::outs(), 0); }
-
-void Class::dump(llvm::raw_ostream& os, size_t indents) const
+Class::Class(const Class& other)
+		: ASTNodeCRTP<Class>(static_cast<ASTNodeCRTP<Class>&>(*this)),
+			name(other.name)
 {
-	os.indent(indents);
-	os << "model " << name << "\n";
-
-	for (const auto& member : members)
-		member->dump(os, indents + 1);
-
-	for (const auto& equation : equations)
-		equation->dump(os, indents + 1);
-
-	for (const auto& equation : forEquations)
-		equation->dump(os, indents + 1);
-
-	for (const auto& algorithm : algorithms)
-		algorithm->dump(os, indents + 1);
-
-	for (const auto& cls : innerClasses)
-		cls->dump(os, indents + 1);
+	assert(!this->name.empty());
 }
 
-SourcePosition Class::getLocation() const
+Class::Class(Class&& other) = default;
+
+Class::~Class() = default;
+
+Class& Class::operator=(const Class& other)
 {
-	return location;
+	if (this != &other)
+	{
+		static_cast<ASTNodeCRTP<Class>&>(*this) =
+				static_cast<const ASTNodeCRTP<Class>&>(other);
+
+		this->name = other.name;
+	}
+
+	return *this;
 }
 
-const std::string& Class::getName() const { return name; }
+Class& Class::operator=(Class&& other) = default;
 
-Class::Container<Member>& Class::getMembers() { return members; }
-
-const Class::Container<Member>& Class::getMembers() const { return members; }
-
-void Class::addMember(Member member)
+namespace modelica::frontend
 {
-	members.emplace_back(std::make_shared<Member>(std::move(member)));
+	void swap(Class& first, Class& second)
+	{
+		swap(static_cast<impl::ASTNodeCRTP<Class>&>(first),
+				 static_cast<impl::ASTNodeCRTP<Class>&>(second));
+
+		using std::swap;
+		swap(first.name, second.name);
+	}
 }
 
-Class::Container<Equation>& Class::getEquations() { return equations; }
-
-const Class::Container<Equation>& Class::getEquations() const
+llvm::StringRef Class::getName() const
 {
-	return equations;
+	return name;
 }
-
-Class::Container<ForEquation>& Class::getForEquations() { return forEquations; }
-
-const Class::Container<ForEquation>& Class::getForEquations() const
-{
-	return forEquations;
-}
-
-Class::Container<Algorithm>& Class::getAlgorithms() { return algorithms; }
-
-const Class::Container<Algorithm>& Class::getAlgorithms() const
-{
-	return algorithms;
-}
-
-Class::Container<ClassContainer>& Class::getInnerClasses() { return innerClasses; }
-
-const Class::Container<ClassContainer>& Class::getInnerClasses() const { return innerClasses; }

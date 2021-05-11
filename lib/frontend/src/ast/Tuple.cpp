@@ -2,35 +2,63 @@
 #include <modelica/utils/IRange.hpp>
 #include <numeric>
 
-using namespace modelica;
-using namespace frontend;
+using namespace modelica::frontend;
 
-Tuple::Tuple(SourcePosition location, llvm::ArrayRef<Expression> expressions)
-		: location(std::move(location))
+// TODO type
+Tuple::Tuple(SourcePosition location,
+						 llvm::ArrayRef<std::unique_ptr<Expression>> expressions)
+		: ExpressionCRTP<Tuple>(ASTNodeKind::EXPRESSION_TUPLE, std::move(location), Type::unknown())
 {
-	for (const auto& exp : expressions)
-		this->expressions.push_back(std::make_shared<Expression>(exp));
+	for (const auto& expression : expressions)
+		this->expressions.push_back(expression->cloneExpression());
 }
 
 Tuple::Tuple(const Tuple& other)
-		: location(other.location)
+		: ExpressionCRTP<Tuple>(static_cast<ExpressionCRTP&>(*this))
 {
-	for (const auto& exp : other.expressions)
-		this->expressions.push_back(std::make_shared<Expression>(*exp));
+	for (const auto& expression : other.expressions)
+		this->expressions.push_back(expression->cloneExpression());
 }
+
+Tuple::Tuple(Tuple&& other) = default;
+
+Tuple::~Tuple() = default;
 
 Tuple& Tuple::operator=(const Tuple& other)
 {
-	if (this == &other)
-		return *this;
-
-	location = other.location;
-	expressions.clear();
-
-	for (const auto& exp : other.expressions)
-		expressions.push_back(std::make_shared<Expression>(*exp));
-
+	Tuple result(other);
+	swap(*this, result);
 	return *this;
+}
+
+Tuple& Tuple::operator=(Tuple&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(Tuple& first, Tuple& second)
+	{
+		swap(static_cast<impl::ExpressionCRTP<Tuple>&>(first),
+				 static_cast<impl::ExpressionCRTP<Tuple>&>(second));
+
+		using std::swap;
+		swap(first.expressions, second.expressions);
+	}
+}
+
+void Tuple::dump(llvm::raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "type: ";
+	getType().dump(os);
+	os << "\n";
+
+	for (const auto& expression : *this)
+		expression.dump(os, indents);
+}
+
+bool Tuple::isLValue() const
+{
+	return false;
 }
 
 bool Tuple::operator==(const Tuple& other) const
@@ -39,37 +67,36 @@ bool Tuple::operator==(const Tuple& other) const
 		return false;
 
 	auto pairs = llvm::zip(expressions, other.expressions);
-	return std::all_of(pairs.begin(), pairs.end(),
-										 [](const auto& pair)
-										 {
-											 const auto& [x, y] = pair;
-											 return *x == *y;
-										 });
+
+	return std::all_of(
+			pairs.begin(), pairs.end(),
+			[](const auto& pair) {
+				const auto& [x, y] = pair;
+				return *x == *y;
+			});
 }
 
-bool Tuple::operator!=(const Tuple& other) const { return !(*this == other); }
-
-Expression& Tuple::operator[](size_t index) { return *expressions[index]; }
-
-const Expression& Tuple::operator[](size_t index) const
+bool Tuple::operator!=(const Tuple& other) const
 {
-	return *expressions[index];
+	return !(*this == other);
 }
 
-void Tuple::dump() const { dump(llvm::outs(), 0); }
-
-void Tuple::dump(llvm::raw_ostream& os, size_t indents) const
+Expression* Tuple::operator[](size_t index)
 {
-	for (const auto& exp : expressions)
-		exp->dump(os, indents);
+	assert(index < expressions.size());
+	return expressions[index].get();
 }
 
-SourcePosition Tuple::getLocation() const
+const Expression* Tuple::operator[](size_t index) const
 {
-	return location;
+	assert(index < expressions.size());
+	return expressions[index].get();
 }
 
-size_t Tuple::size() const { return expressions.size(); }
+size_t Tuple::size() const
+{
+	return expressions.size();
+}
 
 Tuple::iterator Tuple::begin()
 {
@@ -81,7 +108,10 @@ Tuple::const_iterator Tuple::begin() const
 	return expressions.begin();
 }
 
-Tuple::iterator Tuple::end() { return expressions.end(); }
+Tuple::iterator Tuple::end()
+{
+	return expressions.end();
+}
 
 Tuple::const_iterator Tuple::end() const
 {

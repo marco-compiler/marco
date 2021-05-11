@@ -8,7 +8,7 @@
 #include <optional>
 
 using namespace modelica;
-using namespace frontend;
+using namespace modelica::frontend;
 
 Parser::Parser(std::string filename, const std::string& source)
 		: filename(move(filename)),
@@ -75,9 +75,23 @@ void Parser::undoScan(Token t)
 
 #include <modelica/utils/ParserUtils.hpp>
 
-llvm::Expected<ClassContainer> Parser::classDefinition()
+llvm::Expected<std::string> Parser::identifier()
 {
-	llvm::SmallVector<ClassContainer, 3> classes;
+	std::string identifier = lexer.getLastIdentifier();
+	EXPECT(Token::Ident);
+
+	while (accept<Token::Dot>())
+	{
+		identifier += "." + lexer.getLastIdentifier();
+		EXPECT(Token::Ident);
+	}
+
+	return identifier;
+}
+
+llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
+{
+	llvm::SmallVector<std::unique_ptr<Class>, 3> classes;
 
 	while (current != Token::End)
 	{
@@ -134,22 +148,27 @@ llvm::Expected<ClassContainer> Parser::classDefinition()
 			EXPECT(Token::ClassKeyword);
 		}
 
-		std::string name = lexer.getLastIdentifier();
-		EXPECT(Token::Ident);
+		TRY(name, identifier());
 
-		while (accept<Token::Dot>())
+		if (accept<Token::Equal>())
 		{
-			name += "." + lexer.getLastIdentifier();
-			EXPECT(Token::Ident);
+			// Function derivative
+			assert(classType == ClassType::Function);
+			EXPECT(Token::DerKeyword);
+			EXPECT(Token::LPar);
+
+
+
+			EXPECT(Token::RPar);
 		}
 
 		accept(Token::String);
 
-		llvm::SmallVector<Member, 3> members;
-		llvm::SmallVector<Equation, 3> equations;
-		llvm::SmallVector<ForEquation, 3> forEquations;
-		llvm::SmallVector<Algorithm, 3> algorithms;
-		llvm::SmallVector<ClassContainer, 3> innerClasses;
+		llvm::SmallVector<std::unique_ptr<Member>, 3> members;
+		llvm::SmallVector<std::unique_ptr<Equation>, 3> equations;
+		llvm::SmallVector<std::unique_ptr<ForEquation>, 3> forEquations;
+		llvm::SmallVector<std::unique_ptr<Algorithm>, 3> algorithms;
+		llvm::SmallVector<std::unique_ptr<Class>, 3> innerClasses;
 
 		// Whether the first elements list is allowed to be encountered or not.
 		// In fact, the class definition allows a first elements list definition
@@ -162,14 +181,7 @@ llvm::Expected<ClassContainer> Parser::classDefinition()
 		{
 			if (current == Token::EquationKeyword)
 			{
-				TRY(eq, equationSection());
-
-				for (auto& equation : eq->first)
-					equations.emplace_back(std::move(equation));
-
-				for (auto& forEquation : eq->second)
-					forEquations.emplace_back(std::move(forEquation));
-
+				TRY(status, equationSection(equations, forEquations));
 				continue;
 			}
 
@@ -192,62 +204,55 @@ llvm::Expected<ClassContainer> Parser::classDefinition()
 
 			if (accept(Token::PublicKeyword))
 			{
-				TRY(mem, elementList());
+				if (auto error = elementList(members, true); error)
+					return std::move(error);
+
 				firstElementListParsable = false;
-
-				for (auto& member : *mem)
-					members.emplace_back(std::move(member));
-
 				continue;
 			}
 
 			if (accept(Token::ProtectedKeyword))
 			{
-				TRY(mem, elementList(false));
+				if (auto error = elementList(members, false); error)
+					return std::move(error);
+
 				firstElementListParsable = false;
-
-				for (auto& member : *mem)
-					members.emplace_back(std::move(member));
-
 				continue;
 			}
 
 			if (firstElementListParsable)
-			{
-				TRY(mem, elementList());
-
-				for (auto& member : *mem)
-					members.emplace_back(std::move(member));
-			}
+				if (auto error = elementList(members); error)
+					return std::move(error);
 		}
 
-		Annotation clsAnnotation;
+		llvm::Optional<std::unique_ptr<Annotation>> clsAnnotation;
 
 		if (current == Token::AnnotationKeyword)
 		{
 			TRY(ann, annotation());
-			clsAnnotation = *ann;
+			clsAnnotation = std::move(*ann);
 			EXPECT(Token::Semicolons);
+		}
+		else
+		{
+			clsAnnotation = llvm::None;
 		}
 
 		EXPECT(Token::EndKeyword);
 
-		std::string endName = lexer.getLastIdentifier();
-		EXPECT(Token::Ident);
+		TRY(endName, identifier());
 
-		while (accept<Token::Dot>())
-		{
-			endName += "." + lexer.getLastIdentifier();
-			EXPECT(Token::Ident);
-		}
-
-		if (name != endName)
-			return llvm::make_error<UnexpectedIdentifier>(endName, name, getPosition());
+		if (*name != *endName)
+			return llvm::make_error<UnexpectedIdentifier>(*endName, *name, getPosition());
 
 		EXPECT(Token::Semicolons);
 
 		if (classType == ClassType::Function)
-			classes.emplace_back(Function(location, std::move(name), pure, std::move(members), std::move(algorithms), clsAnnotation));
+		{
+			StandardFunction(location, pure, name, clsAnnotation, members, algorithms);
+			//classes.push_back(std::make_unique<StandardFunction>(
+			//		location, pure, name, clsAnnotation, members, algorithms));
+		}
 		else if (classType == ClassType::Model)
 			classes.emplace_back(Class(location, std::move(name), std::move(members), std::move(equations), std::move(forEquations), std::move(algorithms), std::move(innerClasses)));
 		else if (classType == ClassType::Package)
@@ -259,13 +264,12 @@ llvm::Expected<ClassContainer> Parser::classDefinition()
 	if (classes.size() != 1)
 		return ClassContainer(Package(SourcePosition::unknown(), "Main", classes));
 
-	return classes[0];
+	assert(classes.size() == 1);
+	return std::move(classes[0]);
 }
 
-llvm::Expected<llvm::SmallVector<Member, 3>> Parser::elementList(bool publicSection)
+llvm::Error Parser::elementList(llvm::SmallVectorImpl<std::unique_ptr<Member>>& members, bool publicSection)
 {
-	llvm::SmallVector<Member, 3> members;
-
 	while (
 			current != Token::PublicKeyword && current != Token::ProtectedKeyword &&
 			current != Token::FunctionKeyword && current != Token::EquationKeyword &&
@@ -279,10 +283,10 @@ llvm::Expected<llvm::SmallVector<Member, 3>> Parser::elementList(bool publicSect
 		members.emplace_back(std::move(*memb));
 	}
 
-	return members;
+	return llvm::Error::success();
 }
 
-llvm::Expected<Member> Parser::element(bool publicSection)
+llvm::Expected<bool> Parser::element(llvm::SmallVectorImpl<std::unique_ptr<Member>>& members, bool publicSection)
 {
 	auto location = getPosition();
 

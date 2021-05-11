@@ -96,7 +96,7 @@ int main(int argc, char* argv[])
 	auto ast = exitOnErr(parser.classDefinition());
 
 	if (printParsedAST)
-		ast.dump();
+		ast->dump();
 
 	// Run frontend passes
 	frontend::PassManager frontendPassManager;
@@ -104,10 +104,10 @@ int main(int argc, char* argv[])
 	frontendPassManager.addPass(frontend::createConstantFolderPass());
 	frontendPassManager.addPass(frontend::createBreakRemovingPass());
 	frontendPassManager.addPass(frontend::createReturnRemovingPass());
-	exitOnErr(frontendPassManager.run(ast));
+	exitOnErr(frontendPassManager.run(*ast));
 
 	if (printLegalizedAST)
-		ast.dump();
+		ast->dump();
 
 	// Create the MLIR module
 	mlir::MLIRContext context;

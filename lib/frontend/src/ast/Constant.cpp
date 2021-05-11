@@ -1,55 +1,89 @@
 #include <modelica/frontend/AST.h>
 
-using namespace modelica;
-using namespace frontend;
+using namespace modelica::frontend;
 
-Constant::Constant(SourcePosition location, bool val)
-		: location(std::move(location)),
-			content(val)
+Constant::Constant(SourcePosition location, Type type, bool value)
+		: ExpressionCRTP<Constant>(
+					ASTNodeKind::EXPRESSION_CONSTANT, std::move(location), std::move(type)),
+			value(value)
 {
 }
 
-Constant::Constant(SourcePosition location, int val)
-		: location(std::move(location)),
-			content(val)
+Constant::Constant(SourcePosition location, Type type, int value)
+		: ExpressionCRTP<Constant>(
+					ASTNodeKind::EXPRESSION_CONSTANT, std::move(location), std::move(type)),
+			value(value)
 {
 }
 
-Constant::Constant(SourcePosition location, float val)
-		: location(std::move(location)),
-			content(val)
+Constant::Constant(SourcePosition location, Type type, float value)
+		: ExpressionCRTP<Constant>(
+					ASTNodeKind::EXPRESSION_CONSTANT, std::move(location), std::move(type)),
+			value(value)
 {
 }
 
-Constant::Constant(SourcePosition location, double val)
-		: location(std::move(location)),
-			content(static_cast<float>(val))
+Constant::Constant(SourcePosition location, Type type, double value)
+		: ExpressionCRTP<Constant>(
+					ASTNodeKind::EXPRESSION_CONSTANT, std::move(location), std::move(type)),
+			value(value)
 {
 }
 
-Constant::Constant(SourcePosition location, char val)
-		: location(std::move(location)),
-			content(val)
+Constant::Constant(SourcePosition location, Type type, char value)
+		: ExpressionCRTP<Constant>(
+					ASTNodeKind::EXPRESSION_CONSTANT, std::move(location), std::move(type)),
+			value(value)
 {
 }
 
-Constant::Constant(SourcePosition location, std::string val)
-		: location(std::move(location)),
-			content(move(val))
+Constant::Constant(SourcePosition location, Type type, std::string value)
+		: ExpressionCRTP<Constant>(
+					ASTNodeKind::EXPRESSION_CONSTANT, std::move(location), std::move(type)),
+			value(value)
 {
+}
+
+Constant::Constant(const Constant& other)
+		: ExpressionCRTP<Constant>(static_cast<ExpressionCRTP&>(*this)),
+			value(other.value)
+{
+}
+
+Constant::Constant(Constant&& other) = default;
+
+Constant::~Constant() = default;
+
+Constant& Constant::operator=(const Constant& other)
+{
+	Constant result(other);
+	swap(*this, result);
+	return *this;
+}
+
+Constant& Constant::operator=(Constant&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(Constant& first, Constant& second)
+	{
+		swap(static_cast<impl::ExpressionCRTP<Constant>&>(first),
+				 static_cast<impl::ExpressionCRTP<Constant>&>(second));
+
+		using std::swap;
+		swap(first.value, second.value);
+	}
 }
 
 bool Constant::operator==(const Constant& other) const
 {
-	return content == other.content;
+	return value == other.value;
 }
 
 bool Constant::operator!=(const Constant& other) const
 {
-	return !(*this == other);
+	return value != other.value;
 }
-
-void Constant::dump() const { dump(llvm::outs(), 0); }
 
 void Constant::dump(llvm::raw_ostream& os, size_t indents) const
 {
@@ -57,9 +91,9 @@ void Constant::dump(llvm::raw_ostream& os, size_t indents) const
 	os << "constant: " << *this << "\n";
 }
 
-SourcePosition Constant::getLocation() const
+bool Constant::isLValue() const
 {
-	return location;
+	return false;
 }
 
 namespace modelica::frontend

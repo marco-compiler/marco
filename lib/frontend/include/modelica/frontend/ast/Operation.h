@@ -9,6 +9,8 @@
 #include <variant>
 #include <vector>
 
+#include "Expression.h"
+
 namespace modelica::frontend
 {
 	enum class OperationKind
@@ -37,43 +39,61 @@ namespace modelica::frontend
 
 	std::string toString(OperationKind operation);
 
-	class Expression;
-
 	class Operation
+			: public impl::ExpressionCRTP<Operation>,
+				public impl::Cloneable<Operation>
 	{
-		public:
-		using Container = std::vector<Expression>;
-		using iterator = Container::iterator;
-		using const_iterator = Container::const_iterator;
+		private:
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
+		public:
+		using iterator = Container<std::unique_ptr<Expression>>::iterator;
+		using const_iterator = Container<std::unique_ptr<Expression>>::const_iterator;
+
+		/*
 		template<typename... Args>
 		Operation(SourcePosition location, OperationKind kind, Args&&... args)
-				: location(std::move(location)),
+				: Expression(location, OPERATION),
 					arguments({ std::forward<Args>(args)... }),
 					kind(kind)
 		{
 		}
+		 */
 
-		Operation(SourcePosition location, OperationKind kind, Container args);
+		Operation(SourcePosition location,
+							OperationKind kind,
+							llvm::ArrayRef<std::unique_ptr<Expression>> args);
+
+		Operation(const Operation& other);
+		Operation(Operation&& other);
+		~Operation() override;
+
+		Operation& operator=(const Operation& other);
+		Operation& operator=(Operation&& other);
+
+		friend void swap(Operation& first, Operation& second);
+
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::EXPRESSION_OPERATION;
+		}
+
+		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t nestLevel = 0) const override;
+
+		[[nodiscard]] bool isLValue() const override;
 
 		[[nodiscard]] bool operator==(const Operation& other) const;
 		[[nodiscard]] bool operator!=(const Operation& other) const;
 
-		[[nodiscard]] Expression& operator[](size_t index);
-		[[nodiscard]] const Expression& operator[](size_t index) const;
+		[[nodiscard]] Expression* operator[](size_t index);
+		[[nodiscard]] const Expression* operator[](size_t index) const;
 
-		void dump() const;
-		void dump(llvm::raw_ostream& OS = llvm::outs(), size_t nestLevel = 0) const;
+		[[nodiscard]] OperationKind getOperationKind() const;
+		void setOperationKind(OperationKind k);
 
-		[[nodiscard]] SourcePosition getLocation() const;
+		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Expression>> getArguments();
+		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Expression>> getArguments() const;
 
-		[[nodiscard]] bool isLValue() const;
-
-		[[nodiscard]] OperationKind getKind() const;
-		void setKind(OperationKind k);
-
-		[[nodiscard]] Container& getArguments();
-		[[nodiscard]] const Container& getArguments() const;
 		[[nodiscard]] size_t argumentsCount() const;
 
 		[[nodiscard]] size_t size() const;
@@ -85,9 +105,8 @@ namespace modelica::frontend
 		[[nodiscard]] const_iterator end() const;
 
 		private:
-		SourcePosition location;
-		std::vector<Expression> arguments;
 		OperationKind kind;
+		Container<std::unique_ptr<Expression>> args;
 	};
 
 	template<OperationKind op, typename... Args>

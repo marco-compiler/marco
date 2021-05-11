@@ -23,12 +23,24 @@ using namespace frontend;
 using namespace std;
 using namespace llvm;
 
-Error OmcToModelPass::lower(ClassContainer& cl, const SymbolTable& table)
+Error OmcToModelPass::lower(Class& cl, const SymbolTable& table)
 {
-	return cl.visit([&](auto& obj) { return lower(obj, table); });
+	if (auto* mod = cl.dyn_cast<frontend::Model>())
+		return lower(*mod, table);
+
+	if (auto* fun = cl.dyn_cast<frontend::Function>())
+		return lower(*fun, table);
+
+	if (auto* package = cl.dyn_cast<frontend::Package>())
+		return lower(*package, table);
+
+	if (auto* record = cl.dyn_cast<frontend::Record>())
+		return lower(*record, table);
+
+	return Error::success();
 }
 
-Error OmcToModelPass::lower(Class& cl, const SymbolTable& table)
+Error OmcToModelPass::lower(frontend::Model& cl, const SymbolTable& table)
 {
 	SymbolTable t(cl, &table);
 	for (auto& member : cl.getMembers())
@@ -66,7 +78,7 @@ Error OmcToModelPass::lower(Package& cl, const SymbolTable& table)
 	SymbolTable t(cl, &table);
 
 	for (auto& cls : cl)
-		if (auto error = lower(cls, t); error)
+		if (auto error = lower(*cls, t); error)
 			return error;
 
 	return Error::success();
@@ -152,16 +164,16 @@ Expected<ModExp> OmcToModelPass::defaultInitializer(
 Expected<ModCall> OmcToModelPass::lowerCall(
 		Expression& call, const SymbolTable& table)
 {
-	assert(call.isA<Call>());
-	auto& c = call.get<Call>();
-	if (!c.getFunction().isA<ReferenceAccess>())
+	assert(call.isa<Call>());
+	auto* c = call.dyn_cast<Call>();
+	if (!c->getFunction()->isa<ReferenceAccess>())
 		return make_error<NotImplemented>(
 				"only direct function calls are supported");
 
-	const auto& ref = c.getFunction().get<ReferenceAccess>();
+	const auto* ref = c->getFunction()->cast<ReferenceAccess>();
 
 	ModCall::ArgsVec args;
-	for (size_t i : irange(c.argumentsCount()))
+	for (size_t i : irange(c->argumentsCount()))
 	{
 		auto larg = lower(c[i], table);
 		if (!larg)
@@ -171,24 +183,24 @@ Expected<ModCall> OmcToModelPass::lowerCall(
 	auto retType = lower(call.getType(), table);
 	if (!retType)
 		return retType.takeError();
-	return ModCall(ref.getName(), move(args), move(*retType));
+	return ModCall(ref->getName().str(), move(args), move(*retType));
 }
 
 Expected<ModEquation> OmcToModelPass::lower(
 		Equation& eq, const SymbolTable& table, int nestingLevel)
 {
-	auto left = lower(eq.getLeftHand(), table);
+	auto left = lower(*eq.getLhsExpression(), table);
 	if (!left)
 		return left.takeError();
 	ModExp l = move(*left);
 
-	auto right = lower(eq.getRightHand(), table);
+	auto right = lower(*eq.getRhsExpression(), table);
 	if (!right)
 		return left.takeError();
 	ModExp r = move(*right);
 
-	if (not eq.getLeftHand().getType().isScalar())
-		for (int i : irange(eq.getLeftHand().getType().dimensionsCount()))
+	if (not eq.getLhsExpression()->getType().isScalar())
+		for (int i : irange(eq.getLhsExpression()->getType().dimensionsCount()))
 		{
 			l = ModExp::at(
 					move(l), ModExp::induction(ModExp(ModConst(nestingLevel + i))));
@@ -197,8 +209,8 @@ Expected<ModEquation> OmcToModelPass::lower(
 		}
 
 	SmallVector<Interval, 3> dimensions;
-	if (not eq.getLeftHand().getType().isScalar())
-		for (const auto& i : eq.getLeftHand().getType())
+	if (not eq.getLhsExpression()->getType().isScalar())
+		for (const auto& i : eq.getLhsExpression()->getType())
 		{
 			assert(!i.hasExpression() && "not a numeric size");
 			dimensions.emplace_back(0, i.getNumericSize());
@@ -216,29 +228,29 @@ Expected<ModEquation> OmcToModelPass::lower(
 {
 	SymbolTable t(table);
 	for (auto& ind : eq.getInductions())
-		t.addSymbol(ind);
-	auto modEq = lower(eq.getEquation(), t, eq.getInductions().size());
+		t.addSymbol(*ind);
+	auto modEq = lower(*eq.getEquation(), t, eq.getInductions().size());
 	if (!modEq)
 		return modEq;
 
 	SmallVector<Interval, 3> interval;
 	for (auto& ind : eq.getInductions())
 	{
-		if (!ind.getBegin().isA<Constant>() ||
-				!ind.getBegin().get<Constant>().isA<BuiltInType::Integer>())
+		if (!ind->getBegin()->isa<Constant>() ||
+				!ind->getBegin()->cast<Constant>()->isA<BuiltInType::Integer>())
 			return make_error<NotImplemented>("induction var must be constant int");
 
-		if (!ind.getEnd().isA<Constant>() ||
-				!ind.getEnd().get<Constant>().isA<BuiltInType::Integer>())
+		if (!ind->getEnd()->isa<Constant>() ||
+				!ind->getEnd()->cast<Constant>()->isA<BuiltInType::Integer>())
 			return make_error<NotImplemented>("induction var must be constant int");
 
 		interval.emplace_back(
-				ind.getBegin().get<Constant>().get<BuiltInType::Integer>(),
-				ind.getEnd().get<Constant>().get<BuiltInType::Integer>() + 1);
+				ind->getBegin()->cast<Constant>()->get<BuiltInType::Integer>(),
+				ind->getEnd()->cast<Constant>()->get<BuiltInType::Integer>() + 1);
 	}
 
-	if (not eq.getEquation().getLeftHand().getType().isScalar())
-		for (const auto& i : eq.getEquation().getLeftHand().getType())
+	if (not eq.getEquation()->getLhsExpression()->getType().isScalar())
+		for (const auto& i : eq.getEquation()->getLhsExpression()->getType())
 		{
 			assert(!i.hasExpression() && "not a numeric size");
 			interval.emplace_back(0, i.getNumericSize());
@@ -250,13 +262,13 @@ Expected<ModEquation> OmcToModelPass::lower(
 
 static Expected<ModExp> lowerConstant(Expression& c, const SymbolTable table)
 {
-	assert(c.isA<Constant>());
+	assert(c.isa<Constant>());
 
-	if (c.get<Constant>().isA<BuiltInType::Integer>())
-		return ModExp(ModConst(c.get<Constant>().as<BuiltInType::Integer>()));
+	if (c.cast<Constant>()->isA<BuiltInType::Integer>())
+		return ModExp(ModConst(c.cast<Constant>()->as<BuiltInType::Integer>()));
 
-	if (c.get<Constant>().isA<BuiltInType::Float>())
-		return ModExp(ModConst(c.get<Constant>().as<BuiltInType::Float>()));
+	if (c.cast<Constant>()->isA<BuiltInType::Float>())
+		return ModExp(ModConst(c.cast<Constant>()->as<BuiltInType::Float>()));
 
 	return make_error<NotImplemented>("unlowerable constant");
 }
@@ -264,8 +276,8 @@ static Expected<ModExp> lowerConstant(Expression& c, const SymbolTable table)
 Expected<ModExp> OmcToModelPass::lowerReference(
 		Expression& ref, const SymbolTable& table)
 {
-	assert(ref.isA<ReferenceAccess>());
-	const auto& name = ref.get<ReferenceAccess>().getName();
+	assert(ref.isa<ReferenceAccess>());
+	const auto& name = ref.cast<ReferenceAccess>()->getName();
 	assert(table.hasSymbol(name));
 	auto& symbol = table[name];
 	if (symbol.isA<Member>())
@@ -273,7 +285,7 @@ Expected<ModExp> OmcToModelPass::lowerReference(
 		Expected<ModType> tp = lower(symbol.get<Member>().getType(), table);
 		if (!tp)
 			return tp.takeError();
-		return ModExp(name, move(*tp));
+		return ModExp(name.str(), move(*tp));
 	}
 
 	int induction = symbol.get<Induction>().getInductionIndex();
@@ -422,9 +434,9 @@ Expected<ModExp> OmcToModelPass::lowerOperation(
 		Expression& op, const SymbolTable& table)
 {
 	SmallVector<ModExp, 3> arguments;
-	for (auto& arg : op.get<Operation>())
+	for (auto& arg : *op.cast<Operation>())
 	{
-		auto newArg = lower(arg, table);
+		auto newArg = lower(*arg, table);
 		if (!newArg)
 			return newArg.takeError();
 
@@ -434,7 +446,7 @@ Expected<ModExp> OmcToModelPass::lowerOperation(
 	if (!tp)
 		return tp.takeError();
 
-	switch (op.get<Operation>().getKind())
+	switch (op.cast<Operation>()->getOperationKind())
 	{
 		case OperationKind::negate:
 			return lowerNegate(*tp, move(arguments));
@@ -478,16 +490,16 @@ Expected<ModExp> OmcToModelPass::lowerOperation(
 Expected<ModExp> OmcToModelPass::lower(
 		Expression& exp, const SymbolTable& table)
 {
-	if (exp.isA<Constant>())
+	if (exp.isa<Constant>())
 		return lowerConstant(exp, table);
 
-	if (exp.isA<Call>())
+	if (exp.isa<Call>())
 		return lowerCall(exp, table);
 
-	if (exp.isA<ReferenceAccess>())
+	if (exp.isa<ReferenceAccess>())
 		return lowerReference(exp, table);
 
-	if (exp.isA<Operation>())
+	if (exp.isa<Operation>())
 		return lowerOperation(exp, table);
 
 	assert(false && "unreachable");
@@ -500,12 +512,12 @@ Expected<ModExp> OmcToModelPass::lowerStart(
 	if (not member.hasStartOverload())
 		return defaultInitializer(member, table);
 
-	if (not member.getStartOverload().isA<Constant>())
+	if (not member.getStartOverload()->isa<Constant>())
 		return make_error<NotImplemented>(
-				"Start overload of member " + member.getName() +
+				"Start overload of member " + member.getName().str() +
 				" was not folded into a constant");
 
-	auto cst = lowerConstant(member.getStartOverload().get<Constant>());
+	auto cst = lowerConstant(*member.getStartOverload()->cast<Constant>());
 	if (!cst)
 		return cst.takeError();
 
@@ -525,7 +537,7 @@ Expected<ModExp> OmcToModelPass::initializer(
 	if (!member.hasInitializer())
 		return lowerStart(member, table);
 
-	return lower(member.getInitializer(), table);
+	return lower(*member.getInitializer(), table);
 }
 
 Error OmcToModelPass::lower(Member& member, const SymbolTable& table)
@@ -539,6 +551,6 @@ Error OmcToModelPass::lower(Member& member, const SymbolTable& table)
 		return initExp.takeError();
 
 	model.emplaceVar(
-			member.getName(), move(*initExp), false, member.isParameter());
+			member.getName().str(), move(*initExp), false, member.isParameter());
 	return Error::success();
 }

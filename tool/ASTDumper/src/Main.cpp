@@ -22,7 +22,7 @@ int main(int argc, char* argv[])
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	frontend::Parser parser(buffer->getBufferStart());
 	auto ast = exitOnErr(parser.classDefinition());
-	ast.dump();
+	ast->dump();
 
 	return 0;
 }

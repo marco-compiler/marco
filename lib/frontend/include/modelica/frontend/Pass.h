@@ -4,7 +4,7 @@
 
 namespace modelica::frontend
 {
-	class ClassContainer;
+	class Class;
 
 	class Pass
 	{
@@ -19,6 +19,6 @@ namespace modelica::frontend
 
 		Pass& operator=(const Pass& other) = default;
 
-		virtual llvm::Error run(ClassContainer& cls) = 0;
+		virtual llvm::Error run(Class& cls) = 0;
 	};
 }

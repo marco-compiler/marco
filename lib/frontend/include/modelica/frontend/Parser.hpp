@@ -17,6 +17,7 @@ namespace modelica::frontend
 	class ElementModification;
 	class ElementRedeclaration;
 	class ElementReplaceable;
+	class Expression;
 	class Statement;
 	class AssignmentStatement;
 	class IfStatement;
@@ -44,58 +45,74 @@ namespace modelica::frontend
 
 		[[nodiscard]] Token getCurrentToken() const;
 
-		llvm::Expected<ClassContainer> classDefinition();
+		llvm::Expected<std::string> identifier();
 
-		llvm::Expected<Expression> primary();
-		llvm::Expected<Expression> factor();
-		llvm::Expected<std::optional<Expression>> termModification();
-		llvm::Expected<Expression> term();
+		llvm::Expected<std::unique_ptr<Class>> classDefinition();
+
+		llvm::Expected<std::unique_ptr<Expression>> primary();
+		llvm::Expected<std::unique_ptr<Expression>> factor();
+		llvm::Expected<llvm::Optional<std::unique_ptr<Expression>>> termModification();
+		llvm::Expected<std::unique_ptr<Expression>> term();
 		llvm::Expected<Type> typeSpecifier();
-		llvm::Expected<llvm::SmallVector<ForEquation, 3>> forEquationBody(
-				int nestingLevel);
-		llvm::Expected<Expression> arithmeticExpression();
 
-		llvm::Expected<llvm::SmallVector<ArrayDimension, 3>> arrayDimensions();
-		llvm::Expected<llvm::SmallVector<Member, 3>> elementList(bool publicSection = true);
+		llvm::Expected<bool> forEquationBody(
+				llvm::SmallVectorImpl<std::unique_ptr<ForEquation>>& equations,
+				int nestingLevel);
+
+		llvm::Expected<std::unique_ptr<Expression>> arithmeticExpression();
+
+		llvm::Expected<bool> arrayDimensions(
+				llvm::SmallVectorImpl<std::unique_ptr<ArrayDimension>>& dimensions);
+
+		llvm::Error elementList(
+				llvm::SmallVectorImpl<std::unique_ptr<Member>>& members,
+				bool publicSection = true);
 
 		llvm::Expected<TypePrefix> typePrefix();
-		llvm::Expected<Member> element(bool publicSection = true);
+		llvm::Expected<std::unique_ptr<Member>> element(bool publicSection = true);
 		std::optional<OperationKind> relationalOperator();
 
-		llvm::Expected<Expression> logicalTerm();
-		llvm::Expected<Expression> logicalExpression();
+		llvm::Expected<std::unique_ptr<Expression>> logicalTerm();
+		llvm::Expected<std::unique_ptr<Expression>> logicalExpression();
 
-		llvm::Expected<Equation> equation();
-		llvm::Expected<llvm::SmallVector<ForEquation, 3>> forEquation(
+		llvm::Expected<std::unique_ptr<Equation>> equation();
+
+		llvm::Expected<bool> forEquation(
+				llvm::SmallVectorImpl<std::unique_ptr<ForEquation>>& equations,
 				int nestingLevel);
 
-		llvm::Expected<std::pair<llvm::SmallVector<Equation, 3>, llvm::SmallVector<ForEquation, 3>>> equationSection();
-		llvm::Expected<Expression> expression();
-		llvm::Expected<Expression> logicalFactor();
-		llvm::Expected<Expression> relation();
-		llvm::Expected<Expression> componentReference();
-		llvm::Expected<llvm::SmallVector<Expression, 3>> functionCallArguments();
+		llvm::Expected<bool> equationSection(
+				llvm::SmallVectorImpl<std::unique_ptr<Equation>>& equations,
+				llvm::SmallVectorImpl<std::unique_ptr<ForEquation>>& forEquations);
 
-		llvm::Expected<Algorithm> algorithmSection();
-		llvm::Expected<Statement> statement();
-		llvm::Expected<AssignmentStatement> assignmentStatement();
-		llvm::Expected<IfStatement> ifStatement();
-		llvm::Expected<ForStatement> forStatement();
-		llvm::Expected<WhileStatement> whileStatement();
-		llvm::Expected<WhenStatement> whenStatement();
-		llvm::Expected<BreakStatement> breakStatement();
-		llvm::Expected<ReturnStatement> returnStatement();
+		llvm::Expected<std::unique_ptr<Expression>> expression();
+		llvm::Expected<std::unique_ptr<Expression>> logicalFactor();
+		llvm::Expected<std::unique_ptr<Expression>> relation();
+		llvm::Expected<std::unique_ptr<Expression>> componentReference();
 
-		llvm::Expected<Tuple> outputExpressionList();
-		llvm::Expected<std::vector<Expression>> arraySubscript();
+		llvm::Expected<bool> functionCallArguments(llvm::SmallVectorImpl<std::unique_ptr<Expression>>& args);
 
-		llvm::Expected<Annotation> annotation();
-		llvm::Expected<Modification> modification();
-		llvm::Expected<ClassModification> classModification();
-		llvm::Expected<Argument> argument();
-		llvm::Expected<ElementModification> elementModification(bool each, bool final);
-		llvm::Expected<ElementRedeclaration> elementRedeclaration();
-		llvm::Expected<ElementReplaceable> elementReplaceable(bool each, bool final);
+		llvm::Expected<std::unique_ptr<Algorithm>> algorithmSection();
+		llvm::Expected<std::unique_ptr<Statement>> statement();
+		llvm::Expected<std::unique_ptr<AssignmentStatement>> assignmentStatement();
+		llvm::Expected<std::unique_ptr<IfStatement>> ifStatement();
+		llvm::Expected<std::unique_ptr<ForStatement>> forStatement();
+		llvm::Expected<std::unique_ptr<WhileStatement>> whileStatement();
+		llvm::Expected<std::unique_ptr<WhenStatement>> whenStatement();
+		llvm::Expected<std::unique_ptr<BreakStatement>> breakStatement();
+		llvm::Expected<std::unique_ptr<ReturnStatement>> returnStatement();
+
+		llvm::Expected<std::unique_ptr<Tuple>> outputExpressionList();
+
+		llvm::Expected<bool> arraySubscript(llvm::SmallVectorImpl<std::unique_ptr<Expression>>& subscripts);
+
+		llvm::Expected<std::unique_ptr<Annotation>> annotation();
+		llvm::Expected<std::unique_ptr<Modification>> modification();
+		llvm::Expected<std::unique_ptr<ClassModification>> classModification();
+		llvm::Expected<std::unique_ptr<Argument>> argument();
+		llvm::Expected<std::unique_ptr<ElementModification>> elementModification(bool each, bool final);
+		llvm::Expected<std::unique_ptr<ElementRedeclaration>> elementRedeclaration();
+		llvm::Expected<std::unique_ptr<ElementReplaceable>> elementReplaceable(bool each, bool final);
 
 		private:
 		/**

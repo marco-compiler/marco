@@ -233,8 +233,8 @@ ArrayDimension::ArrayDimension(long size) : size(size)
 {
 }
 
-ArrayDimension::ArrayDimension(Expression size)
-		: size(std::make_shared<Expression>(std::move(size)))
+ArrayDimension::ArrayDimension(std::unique_ptr<Expression>& size)
+		: size(size->cloneExpression())
 {
 }
 
@@ -247,7 +247,7 @@ bool ArrayDimension::operator!=(const ArrayDimension& other) const { return !(*t
 
 bool ArrayDimension::hasExpression() const
 {
-	return std::holds_alternative<ExpressionPtr>(size);
+	return std::holds_alternative<std::unique_ptr<Expression>>(size);
 }
 
 bool ArrayDimension::isDynamic() const
@@ -261,16 +261,16 @@ long ArrayDimension::getNumericSize() const
 	return std::get<long>(size);
 }
 
-Expression& ArrayDimension::getExpression()
+Expression* ArrayDimension::getExpression()
 {
 	assert(hasExpression());
-	return *std::get<ArrayDimension::ExpressionPtr>(size);
+	return std::get<std::unique_ptr<Expression>>(size).get();
 }
 
-const Expression& ArrayDimension::getExpression() const
+const Expression* ArrayDimension::getExpression() const
 {
 	assert(hasExpression());
-	return *std::get<ArrayDimension::ExpressionPtr>(size);
+	return std::get<std::unique_ptr<Expression>>(size).get();
 }
 
 namespace modelica::frontend
@@ -283,7 +283,7 @@ namespace modelica::frontend
 	std::string toString(const ArrayDimension& obj)
 	{
 		if (obj.hasExpression())
-			return toString(obj.getExpression());
+			return toString(*obj.getExpression());
 
 		return std::to_string(obj.getNumericSize());
 	}
@@ -311,6 +311,34 @@ Type::Type(UserDefinedType type, llvm::ArrayRef<ArrayDimension> dim)
 {
 	assert(std::holds_alternative<UserDefinedType>(content));
 	assert(!dimensions.empty());
+}
+
+Type::Type(const Type& other)
+		: content(other.content),
+			dimensions(other.dimensions.begin(), other.dimensions.end())
+{
+}
+
+Type::Type(Type&& other) = default;
+
+Type::~Type() = default;
+
+Type& Type::operator=(const Type& other)
+{
+	Type result(other);
+	swap(*this, result);
+	return *this;
+}
+
+Type& Type::operator=(Type&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(Type& first, Type& second)
+	{
+		std::swap(first.content, second.content);
+		std::swap(first.dimensions, second.dimensions);
+	}
 }
 
 bool Type::operator==(const Type& other) const
@@ -421,7 +449,7 @@ class ArrayDimensionToStringVisitor
 {
 	public:
 	std::string operator()(const long& value) { return std::to_string(value); }
-	std::string operator()(const ArrayDimension::ExpressionPtr& expression) { return toString(*expression); };
+	std::string operator()(const std::unique_ptr<Expression>& expression) { return toString(*expression); };
 };
 
 namespace modelica::frontend

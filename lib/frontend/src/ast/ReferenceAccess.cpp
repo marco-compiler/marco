@@ -1,23 +1,77 @@
 #include <modelica/frontend/AST.h>
 
-using namespace modelica;
-using namespace frontend;
+using namespace modelica::frontend;
 
+// TODO type
 ReferenceAccess::ReferenceAccess(SourcePosition location,
-																 std::string name,
+																 Type type,
+																 llvm::StringRef name,
 																 bool globalLookup,
 																 bool dummy)
-		: location(std::move(location)),
-			referencedName(std::move(name)),
+		: ExpressionCRTP<ReferenceAccess>(
+					ASTNodeKind::EXPRESSION_REFERENCE_ACCESS, std::move(location), std::move(type)),
+			name(name.str()),
 			globalLookup(globalLookup),
-			dummyVariable(dummy)
+			dummyVar(dummy)
 {
+}
+
+ReferenceAccess::ReferenceAccess(const ReferenceAccess& other)
+		: ExpressionCRTP<ReferenceAccess>(static_cast<ExpressionCRTP&>(*this)),
+			name(other.name),
+			globalLookup(other.globalLookup),
+			dummyVar(other.dummyVar)
+{
+}
+
+ReferenceAccess::ReferenceAccess(ReferenceAccess&& other) = default;
+
+ReferenceAccess::~ReferenceAccess() = default;
+
+ReferenceAccess& ReferenceAccess::operator=(const ReferenceAccess& other)
+{
+	ReferenceAccess result(other);
+	swap(*this, result);
+	return *this;
+}
+
+ReferenceAccess& ReferenceAccess::operator=(ReferenceAccess&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(ReferenceAccess& first, ReferenceAccess& second)
+	{
+		swap(static_cast<impl::ExpressionCRTP<ReferenceAccess>&>(first),
+				 static_cast<impl::ExpressionCRTP<ReferenceAccess>&>(second));
+
+		using std::swap;
+		swap(first.name, second.name);
+		swap(first.globalLookup, second.globalLookup);
+		swap(first.dummyVar, second.dummyVar);
+	}
+}
+
+void ReferenceAccess::dump(llvm::raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "reference access: " << (hasGlobalLookup() ? "." : "") << getName() << "\n";
+
+	os.indent(indents);
+	os << "type: ";
+	getType().dump(os);
+	os << "\n";
+}
+
+bool ReferenceAccess::isLValue() const
+{
+	return true;
 }
 
 bool ReferenceAccess::operator==(const ReferenceAccess& other) const
 {
 	return globalLookup == other.globalLookup &&
-				 referencedName == other.referencedName;
+				 name == other.name &&
+				 dummyVar == other.dummyVar;
 }
 
 bool ReferenceAccess::operator!=(const ReferenceAccess& other) const
@@ -25,29 +79,25 @@ bool ReferenceAccess::operator!=(const ReferenceAccess& other) const
 	return !(*this == other);
 }
 
-void ReferenceAccess::dump() const { dump(llvm::outs(), 0); }
-
-void ReferenceAccess::dump(llvm::raw_ostream& os, size_t indents) const
+llvm::StringRef ReferenceAccess::getName() const
 {
-	os.indent(indents);
-	os << "reference access: " << (globalLookup ? "." : "") << referencedName
-		 << "\n";
+	return name;
 }
 
-SourcePosition ReferenceAccess::getLocation() const
+void ReferenceAccess::setName(llvm::StringRef newName)
 {
-	return location;
+	this->name = newName.str();
 }
 
-std::string& ReferenceAccess::getName() { return referencedName; }
+bool ReferenceAccess::hasGlobalLookup() const
+{
+	return globalLookup;
+}
 
-const std::string& ReferenceAccess::getName() const { return referencedName; }
-
-void ReferenceAccess::setName(std::string name) { referencedName = name; }
-
-bool ReferenceAccess::hasGlobalLookup() const { return globalLookup; }
-
-bool ReferenceAccess::isDummy() const { return dummyVariable; }
+bool ReferenceAccess::isDummy() const
+{
+	return dummyVar;
+}
 
 ReferenceAccess ReferenceAccess::dummy(SourcePosition location)
 {
@@ -63,6 +113,6 @@ namespace modelica::frontend
 
 	std::string toString(const ReferenceAccess& obj)
 	{
-		return obj.getName();
+		return obj.getName().str();
 	}
 }

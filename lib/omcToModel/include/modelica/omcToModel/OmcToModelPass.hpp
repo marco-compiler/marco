@@ -15,8 +15,8 @@ namespace modelica
 		public:
 		OmcToModelPass(Model& toPopulate): model(toPopulate) {}
 
-		[[nodiscard]] llvm::Error lower(frontend::ClassContainer& cl, const frontend::SymbolTable& table);
 		[[nodiscard]] llvm::Error lower(frontend::Class& cl, const frontend::SymbolTable& table);
+		[[nodiscard]] llvm::Error lower(frontend::Model& cl, const frontend::SymbolTable& table);
 		[[nodiscard]] llvm::Error lower(frontend::Function& cl, const frontend::SymbolTable& table);
 		[[nodiscard]] llvm::Error lower(frontend::Package& cl, const frontend::SymbolTable& table);
 		[[nodiscard]] llvm::Error lower(frontend::Record& cl, const frontend::SymbolTable& table);

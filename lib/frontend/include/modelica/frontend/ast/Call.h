@@ -1,39 +1,57 @@
 #pragma once
 
-#include <boost/iterator/indirect_iterator.hpp>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/SourcePosition.h>
+#include <memory>
+
+#include "Expression.h"
 
 namespace modelica::frontend
 {
-	class Expression;
+	class ReferenceAccess;
 
 	class Call
+			: public impl::ExpressionCRTP<Call>,
+				public impl::Cloneable<Call>
 	{
 		private:
-		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		using args_iterator = boost::indirect_iterator<Container<Expression>::iterator>;
-		using args_const_iterator = boost::indirect_iterator<Container<Expression>::const_iterator>;
+		using args_iterator = Container<std::unique_ptr<Expression>>::iterator;
+		using args_const_iterator = Container<std::unique_ptr<Expression>>::const_iterator;
 
-		Call(SourcePosition location, Expression function, llvm::ArrayRef<Expression> args = {});
+		Call(SourcePosition location,
+				 std::unique_ptr<ReferenceAccess> function,
+				 llvm::ArrayRef<std::unique_ptr<Expression>> args,
+				 Type type);
+
+		Call(const Call& other);
+		Call(Call&& other);
+		~Call() override;
+
+		Call& operator=(const Call& other);
+		Call& operator=(Call&& other);
+
+		friend void swap(Call& first, Call& second);
+
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::EXPRESSION_CALL;
+		}
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+
+		[[nodiscard]] bool isLValue() const override;
 
 		[[nodiscard]] bool operator==(const Call& other) const;
 		[[nodiscard]] bool operator!=(const Call& other) const;
 
-		[[nodiscard]] Expression& operator[](size_t index);
-		[[nodiscard]] const Expression& operator[](size_t index) const;
+		[[nodiscard]] Expression* operator[](size_t index);
+		[[nodiscard]] const Expression* operator[](size_t index) const;
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
-
-		[[nodiscard]] SourcePosition getLocation() const;
-
-		[[nodiscard]] Expression& getFunction();
-		[[nodiscard]] const Expression& getFunction() const;
+		[[nodiscard]] ReferenceAccess* getFunction();
+		[[nodiscard]] const ReferenceAccess* getFunction() const;
 
 		[[nodiscard]] size_t argumentsCount() const;
 
@@ -44,9 +62,8 @@ namespace modelica::frontend
 		[[nodiscard]] args_const_iterator end() const;
 
 		private:
-		SourcePosition location;
-		std::shared_ptr<Expression> function;
-		Container<Expression> args;
+		std::unique_ptr<ReferenceAccess> function;
+		Container<std::unique_ptr<Expression>> args;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Call& obj);

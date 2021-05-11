@@ -1,31 +1,79 @@
+#include <memory>
 #include <modelica/frontend/AST.h>
 #include <numeric>
 
-using namespace modelica;
-using namespace frontend;
+using namespace modelica::frontend;
 
-Array::Array(SourcePosition location, llvm::ArrayRef<Expression> values)
-		: location(std::move(location))
+Array::Array(SourcePosition location,
+						 llvm::ArrayRef<std::unique_ptr<Expression>> values,
+						 Type type)
+		: ExpressionCRTP<Array>(
+					ASTNodeKind::EXPRESSION_ARRAY, std::move(location), std::move(type))
 {
 	for (const auto& value : values)
-		this->values.push_back(std::make_shared<Expression>(value));
+		this->values.push_back(value->cloneExpression());
+}
+
+Array::Array(const Array& other)
+		: ExpressionCRTP<Array>(static_cast<ExpressionCRTP<Array>&>(*this))
+{
+	for (const auto& value : other.values)
+		this->values.push_back(value->cloneExpression());
+}
+
+Array::Array(Array&& other) = default;
+
+Array::~Array() = default;
+
+Array& Array::operator=(const Array& other)
+{
+	Array result(other);
+	swap(*this, result);
+	return *this;
+}
+
+Array& Array::operator=(Array&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(Array& first, Array& second)
+	{
+		swap(static_cast<impl::ExpressionCRTP<Array>&>(first),
+				 static_cast<impl::ExpressionCRTP<Array>&>(second));
+
+		impl::swap(first.values, second.values);
+	}
+}
+
+void Array::dump(llvm::raw_ostream& os, size_t indents) const
+{
+	os.indent(indents);
+	os << "type: ";
+	getType().dump(os);
+	os << "\n";
+
+	for (const auto& value : values)
+		value->dump(os, indents);
+}
+
+bool Array::isLValue() const
+{
+	return false;
 }
 
 bool Array::operator==(const Array& other) const
 {
-	if (size() != other.size())
-		return false;
-
 	if (values.size() != other.values.size())
 		return false;
 
 	auto pairs = llvm::zip(values, other.values);
-	return std::all_of(pairs.begin(), pairs.end(),
-										 [](const auto& pair)
-										 {
-											 const auto& [x, y] = pair;
-											 return *x == *y;
-										 });
+
+	return std::all_of(
+			pairs.begin(), pairs.end(),
+			[](const auto& pair) {
+				const auto& [x, y] = pair;
+				return *x == *y;
+			});
 }
 
 bool Array::operator!=(const Array& other) const
@@ -33,29 +81,16 @@ bool Array::operator!=(const Array& other) const
 	return !(*this == other);
 }
 
-Expression& Array::operator[](size_t index)
+Expression* Array::operator[](size_t index)
 {
-	assert(index < size());
-	return *values[index];
+	assert(index < values.size());
+	return values[index].get();
 }
 
-const Expression& Array::operator[](size_t index) const
+const Expression* Array::operator[](size_t index) const
 {
-	assert(index < size());
-	return *values[index];
-}
-
-void Array::dump() const { dump(llvm::outs(), 0); }
-
-void Array::dump(llvm::raw_ostream& os, size_t indents) const
-{
-	for (const auto& value : values)
-		value->dump(os, indents);
-}
-
-SourcePosition Array::getLocation() const
-{
-	return location;
+	assert(index < values.size());
+	return values[index].get();
 }
 
 size_t Array::size() const
@@ -93,10 +128,11 @@ namespace modelica::frontend
 	std::string toString(const Array& obj)
 	{
 		return "(" +
-					 accumulate(obj.begin(), obj.end(), std::string(),
-											[](const std::string& result, const Expression& element)
+					 accumulate(
+							 obj.begin(), obj.end(), std::string(),
+							 [](const std::string& result, const std::unique_ptr<Expression>& element)
 											{
-												std::string str = toString(element);
+												std::string str = toString(*element);
 												return result.empty() ? str : result + "," + str;
 											}) +
 					 ")";

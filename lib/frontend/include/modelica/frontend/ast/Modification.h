@@ -17,109 +17,220 @@ namespace modelica::frontend
 	class Modification;
 
 	class Modification
+			: public impl::ASTNodeCRTP<Modification>,
+				public impl::Cloneable<Modification>
 	{
 		public:
-		explicit Modification(ClassModification classModification);
-		Modification(ClassModification classModification, Expression expression);
-		explicit Modification(Expression expression);
+		Modification(SourcePosition location,
+								 std::unique_ptr<ClassModification> classModification);
+
+		Modification(SourcePosition location,
+								 std::unique_ptr<ClassModification> classModification,
+								 std::unique_ptr<Expression> expression);
+
+		Modification(SourcePosition location,
+								 std::unique_ptr<Expression> expression);
+
+		Modification(const Modification& other);
+		Modification(Modification&& other);
+		~Modification() override;
+
+		Modification& operator=(const Modification& other);
+		Modification& operator=(Modification&& other);
+
+		friend void swap(Modification& first, Modification& second);
+
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::MODIFICATION;
+		}
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] bool hasClassModification() const;
-		[[nodiscard]] ClassModification& getClassModification();
-		[[nodiscard]] const ClassModification& getClassModification() const;
+		[[nodiscard]] ClassModification* getClassModification();
+		[[nodiscard]] const ClassModification* getClassModification() const;
 
 		[[nodiscard]] bool hasExpression() const;
-		[[nodiscard]] Expression& getExpression();
-		[[nodiscard]] const Expression& getExpression() const;
+		[[nodiscard]] Expression* getExpression();
+		[[nodiscard]] const Expression* getExpression() const;
 
 		private:
-		llvm::Optional<std::shared_ptr<ClassModification>> classModification;
-		llvm::Optional<std::shared_ptr<Expression>> expression;
+		llvm::Optional<std::unique_ptr<ClassModification>> classModification;
+		llvm::Optional<std::unique_ptr<Expression>> expression;
 	};
 
 	class ClassModification
+			: public impl::ASTNodeCRTP<ClassModification>,
+				public impl::Cloneable<ClassModification>
 	{
 		private:
-		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
-		template<typename T> using iterator = boost::indirect_iterator<typename Container<T>::iterator>;
-		template<typename T>  using const_iterator = boost::indirect_iterator<typename Container<T>::const_iterator>;
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		ClassModification(llvm::ArrayRef<Argument> arguments = {});
+		using iterator = Container<std::unique_ptr<Argument>>::iterator;
+		using const_iterator = Container<std::unique_ptr<Argument>>::const_iterator;
 
-		[[nodiscard]] iterator<Argument> begin();
-		[[nodiscard]] const_iterator<Argument> begin() const;
+		ClassModification(SourcePosition location,
+											llvm::ArrayRef<std::unique_ptr<Argument>> arguments = llvm::None);
 
-		[[nodiscard]] iterator<Argument> end();
-		[[nodiscard]] const_iterator<Argument> end() const;
+		ClassModification(const ClassModification& other);
+		ClassModification(ClassModification&& other);
+		~ClassModification() override;
+
+		ClassModification& operator=(const ClassModification& other);
+		ClassModification& operator=(ClassModification&& other);
+
+		friend void swap(ClassModification& first, ClassModification& second);
+
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::CLASS_MODIFICATION;
+		}
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+
+		[[nodiscard]] iterator begin();
+		[[nodiscard]] const_iterator begin() const;
+
+		[[nodiscard]] iterator end();
+		[[nodiscard]] const_iterator end() const;
 
 		private:
-		Container<Argument> arguments;
+		Container<std::unique_ptr<Argument>> arguments;
 	};
 
-	class Argument
+	class Argument : public impl::ASTNodeCRTP<Argument>
 	{
 		public:
-		explicit Argument(ElementModification content);
-		explicit Argument(ElementRedeclaration content);
-		explicit Argument(ElementReplaceable content);
+		Argument(ASTNodeKind kind, SourcePosition location);
 
-		template<typename T>
-		[[nodiscard]] bool isA() const
+		Argument(const Argument& other);
+		Argument(Argument&& other);
+		~Argument() override;
+
+		Argument& operator=(const Argument& other);
+		Argument& operator=(Argument&& other);
+
+		friend void swap(Argument& first, Argument& second);
+
+		[[maybe_unused]] static bool classof(const ASTNode* node)
 		{
-			return std::holds_alternative<std::shared_ptr<T>>(content);
+			return node->getKind() >= ASTNodeKind::ARGUMENT &&
+					   node->getKind() <= ASTNodeKind::ARGUMENT_LAST;
 		}
 
-		template<typename T>
-		[[nodiscard]] T& get()
-		{
-			assert(isA<T>());
-			return *std::get<std::shared_ptr<T>>(content);
-		}
-
-		template<typename T>
-		[[nodiscard]] const T& get() const
-		{
-			assert(isA<T>());
-			return *std::get<std::shared_ptr<T>>(content);
-		}
-
-		private:
-		std::variant<
-		    std::shared_ptr<ElementModification>,
-				std::shared_ptr<ElementRedeclaration>,
-				std::shared_ptr<ElementReplaceable>> content;
+		[[nodiscard]] virtual std::unique_ptr<Argument> cloneArgument() const = 0;
 	};
+
+	namespace impl
+	{
+		template<class Derived>
+		struct ArgumentCRTP : public Argument
+		{
+			public:
+			using Argument::Argument;
+
+			[[nodiscard]] std::unique_ptr<Argument> cloneArgument() const override
+			{
+				return std::make_unique<Derived>(static_cast<const Derived&>(*this));
+			}
+		};
+	}
 
 	class ElementModification
+			: public impl::ArgumentCRTP<ElementModification>,
+				public impl::Cloneable<ElementModification>
 	{
 		public:
-		ElementModification(bool each, bool final, std::string name, Modification modification);
-		ElementModification(bool each, bool final, std::string name);
+		ElementModification(SourcePosition location,
+												bool each,
+												bool final,
+												llvm::StringRef name,
+												std::unique_ptr<Modification>& modification);
+
+		ElementModification(SourcePosition location,
+												bool each,
+												bool final,
+												llvm::StringRef name);
+
+		ElementModification(const ElementModification& other);
+		ElementModification(ElementModification&& other);
+		~ElementModification() override;
+
+		ElementModification& operator=(const ElementModification& other);
+		ElementModification& operator=(ElementModification&& other);
+
+		friend void swap(ElementModification& first, ElementModification& second);
+
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::ARGUMENT_ELEMENT_MODIFICATION;
+		}
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] bool hasEachProperty() const;
 		[[nodiscard]] bool hasFinalProperty() const;
 
-		[[nodiscard]] std::string& getName();
-		[[nodiscard]] const std::string& getName() const;
+		[[nodiscard]] llvm::StringRef getName() const;
 
 		[[nodiscard]] bool hasModification() const;
-		[[nodiscard]] Modification& getModification();
-		[[nodiscard]] const Modification& getModification() const;
+		[[nodiscard]] Modification* getModification();
+		[[nodiscard]] const Modification* getModification() const;
 
 		private:
 		bool each;
 		bool final;
 		std::string name;
-		llvm::Optional<std::shared_ptr<Modification>> modification;
+		llvm::Optional<std::unique_ptr<Modification>> modification;
 	};
 
 	// TODO: ElementReplaceable
 	class ElementReplaceable
+			: public impl::ArgumentCRTP<ElementReplaceable>,
+				public impl::Cloneable<ElementReplaceable>
 	{
+		public:
+		explicit ElementReplaceable(SourcePosition location);
+		ElementReplaceable(const ElementReplaceable& other);
+		ElementReplaceable(ElementReplaceable&& other);
+		~ElementReplaceable() override;
+
+		ElementReplaceable& operator=(const ElementReplaceable& other);
+		ElementReplaceable& operator=(ElementReplaceable&& other);
+
+		friend void swap(ElementReplaceable& first, ElementReplaceable& second);
+
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::ARGUMENT_ELEMENT_REPLACEABLE;
+		}
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
 	};
 
 	// TODO: ElementRedeclaration
 	class ElementRedeclaration
+			: public impl::ArgumentCRTP<ElementRedeclaration>,
+				public impl::Cloneable<ElementRedeclaration>
 	{
+		public:
+		explicit ElementRedeclaration(SourcePosition location);
+		ElementRedeclaration(const ElementRedeclaration& other);
+		ElementRedeclaration(ElementRedeclaration&& other);
+		~ElementRedeclaration() override;
+
+		ElementRedeclaration& operator=(const ElementRedeclaration& other);
+		ElementRedeclaration& operator=(ElementRedeclaration&& other);
+
+		friend void swap(ElementRedeclaration& first, ElementRedeclaration& second);
+
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::ARGUMENT_ELEMENT_REDECLARATION;
+		}
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
 	};
 }

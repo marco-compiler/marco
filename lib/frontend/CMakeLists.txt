@@ -3,9 +3,10 @@ modelicaAddLibrary(
 		src/ast/Algorithm.cpp
 		src/ast/Annotation.cpp
 		src/ast/Array.cpp
+        src/ast/ASTNode.cpp
 		src/ast/Call.cpp
 		src/ast/Class.cpp
-		src/ast/ClassContainer.cpp
+        src/ast/Model.cpp
 		src/ast/Constant.cpp
 		src/ast/Equation.cpp
 		src/ast/Expression.cpp

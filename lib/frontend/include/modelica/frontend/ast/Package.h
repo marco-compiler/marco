@@ -1,39 +1,46 @@
 #pragma once
 
-#include <boost/iterator/indirect_iterator.hpp>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/SourcePosition.h>
-#include <string>
+#include <memory>
+
+#include "Class.h"
 
 namespace modelica::frontend
 {
-	class ClassContainer;
-
 	class Package
+			: public impl::ClassCRTP<Package>,
+				public impl::Cloneable<Package>
 	{
 		private:
-		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		using iterator = boost::indirect_iterator<Container<ClassContainer>::iterator>;
-		using const_iterator = boost::indirect_iterator<Container<ClassContainer>::const_iterator>;
+		using iterator = Container<std::unique_ptr<Class>>::iterator;
+		using const_iterator = Container<std::unique_ptr<Class>>::const_iterator;
 
-		Package(
-				SourcePosition location,
-				std::string name,
-				llvm::ArrayRef<ClassContainer> innerClasses);
+		Package(SourcePosition location,
+						llvm::StringRef name,
+						llvm::ArrayRef<std::unique_ptr<Class>> innerClasses);
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+		Package(const Package& other);
+		Package(Package&& other);
+		~Package() override;
 
-		[[nodiscard]] SourcePosition getLocation() const;
+		Package& operator=(const Package& other);
+		Package& operator=(Package&& other);
 
-		[[nodiscard]] const std::string& getName() const;
+		friend void swap(Package& first, Package& second);
 
-		[[nodiscard]] Container<ClassContainer>& getInnerClasses();
-		[[nodiscard]] const Container<ClassContainer>& getInnerClasses() const;
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::CLASS_PACKAGE;
+		}
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+
+		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Class>> getInnerClasses();
+		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Class>> getInnerClasses() const;
 
 		[[nodiscard]] size_t size() const;
 
@@ -44,8 +51,6 @@ namespace modelica::frontend
 		[[nodiscard]] const_iterator end() const;
 
 		private:
-		SourcePosition location;
-		std::string name;
-		Container<ClassContainer> innerClasses;
+		Container<std::unique_ptr<Class>> innerClasses;
 	};
 }

@@ -11,46 +11,45 @@
 namespace modelica::frontend
 {
 	class Member
+			: public ASTNode,
+				public impl::Cloneable<Member>
 	{
 		public:
 		Member(
 				SourcePosition location,
-				std::string name,
+				llvm::StringRef name,
 				Type tp,
 				TypePrefix prefix,
-				Expression initializer,
+				llvm::Optional<std::unique_ptr<Expression>> initializer,
 				bool isPublic = true,
-				std::optional<Expression> startOverload = std::nullopt);
+				llvm::Optional<std::unique_ptr<Expression>> startOverload = llvm::None);
 
-		Member(
-				SourcePosition location,
-				std::string name,
-				Type tp,
-				TypePrefix typePrefix,
-				bool isPublic = true,
-				std::optional<Expression> startOverload = std::nullopt);
+		Member(const Member& other);
+		Member(Member&& other);
+		~Member() override;
+
+		Member& operator=(const Member& other);
+		Member& operator=(Member&& other);
+
+		friend void swap(Member& first, Member& second);
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] bool operator==(const Member& other) const;
 		[[nodiscard]] bool operator!=(const Member& other) const;
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
-
-		[[nodiscard]] SourcePosition getLocation() const;
-
-		[[nodiscard]] std::string& getName();
-		[[nodiscard]] const std::string& getName() const;
+		[[nodiscard]] llvm::StringRef getName() const;
 
 		[[nodiscard]] Type& getType();
 		[[nodiscard]] const Type& getType() const;
 
 		[[nodiscard]] bool hasInitializer() const;
-		[[nodiscard]] Expression& getInitializer();
-		[[nodiscard]] const Expression& getInitializer() const;
+		[[nodiscard]] Expression* getInitializer();
+		[[nodiscard]] const Expression* getInitializer() const;
 
 		[[nodiscard]] bool hasStartOverload() const;
-		[[nodiscard]] Expression& getStartOverload();
-		[[nodiscard]] const Expression& getStartOverload() const;
+		[[nodiscard]] Expression* getStartOverload();
+		[[nodiscard]] const Expression* getStartOverload() const;
 
 		[[nodiscard]] bool isPublic() const;
 		[[nodiscard]] bool isParameter() const;
@@ -58,13 +57,11 @@ namespace modelica::frontend
 		[[nodiscard]] bool isOutput() const;
 
 		private:
-		SourcePosition location;
 		std::string name;
 		Type type;
 		TypePrefix typePrefix;
-		std::optional<Expression> initializer;
+	  llvm::Optional<std::unique_ptr<Expression>> initializer;
 		bool isPublicMember;
-
-		std::optional<Expression> startOverload;
+		llvm::Optional<std::unique_ptr<Expression>> startOverload;
 	};
 }

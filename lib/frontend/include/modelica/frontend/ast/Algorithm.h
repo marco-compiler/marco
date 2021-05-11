@@ -1,39 +1,51 @@
 #pragma once
 
-#include <boost/iterator/indirect_iterator.hpp>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/SourcePosition.h>
+#include <memory>
+
+#include "ASTNode.h"
 
 namespace modelica::frontend
 {
 	class Statement;
 
 	class Algorithm
+			: public impl::ASTNodeCRTP<Algorithm>,
+				public impl::Cloneable<Algorithm>
 	{
 		private:
-		template<typename T> using Container = llvm::SmallVector<std::shared_ptr<T>, 3>;
+		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		using statements_iterator = Container<Statement>::iterator;
-		using statements_const_iterator = Container<Statement>::const_iterator;
+		using statements_iterator = Container<std::unique_ptr<Statement>>::iterator;
+		using statements_const_iterator = Container<std::unique_ptr<Statement>>::const_iterator;
 
-		Algorithm(SourcePosition location, llvm::ArrayRef<Statement> statements);
+		Algorithm(SourcePosition location,
+							llvm::ArrayRef<std::unique_ptr<Statement>> statements);
 
-		Statement& operator[](size_t index);
-		const Statement& operator[](size_t index) const;
+		Algorithm(const Algorithm& other);
+		Algorithm(Algorithm&& other);
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+		~Algorithm() override;
 
-		[[nodiscard]] SourcePosition getLocation() const;
+		Algorithm& operator=(const Algorithm& other);
+		Algorithm& operator=(Algorithm&& other);
 
-		[[nodiscard]] const std::string& getReturnCheckName() const;
-		void setReturnCheckName(std::string name);
+		friend void swap(Algorithm& first, Algorithm& second);
 
-		[[nodiscard]] Container<Statement>& getStatements();
-		[[nodiscard]] const Container<Statement>& getStatements() const;
+		[[maybe_unused]] static bool classof(const ASTNode* node)
+		{
+			return node->getKind() == ASTNodeKind::ALGORITHM;
+		}
+
+		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+
+		Statement* operator[](size_t index);
+		const Statement* operator[](size_t index) const;
+
+		[[nodiscard]] llvm::StringRef getReturnCheckName() const;
+		void setReturnCheckName(llvm::StringRef name);
 
 		[[nodiscard]] size_t size() const;
 
@@ -44,8 +56,7 @@ namespace modelica::frontend
 		[[nodiscard]] statements_const_iterator end() const;
 
 		private:
-		SourcePosition location;
 		std::string returnCheckName;
-		Container<Statement> statements;
+		Container<std::unique_ptr<Statement>> statements;
 	};
 }
