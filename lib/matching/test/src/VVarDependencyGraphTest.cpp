@@ -61,7 +61,7 @@ static auto makeModel()
 	return model;
 }
 
-TEST(VVarDependencyGraphTest, paritionTest)
+TEST(VVarDependencyGraphTest, partitionTest)
 {
 	auto model = makeModel();
 	VVarDependencyGraph graph(model);
@@ -125,7 +125,10 @@ TEST(VVarDependencyGraphTest, scheduleTest)
 	VVarDependencyGraph graph(model);
 	SccLookup sccContent(graph);
 	auto scheduledModel = marco::schedule(std::move(model));
-	EXPECT_EQ(scheduledModel.getEquations().size(), 2);
-	for (const auto& ass : scheduledModel.getEquations())
-		EXPECT_EQ(ass.isForward(), true);
+	EXPECT_EQ(scheduledModel.getUpdates().size(), 2);
+	for (const auto& ass : scheduledModel.getUpdates())
+	{
+		EXPECT_TRUE(holds_alternative<ModEquation>(ass));
+		EXPECT_EQ(get<ModEquation>(ass).isForward(), true);
+	}
 }

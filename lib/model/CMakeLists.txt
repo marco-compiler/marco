@@ -13,6 +13,7 @@ set(SOURCES
 		src/ModConst.cpp
 		src/ModMatchers.cpp
 		src/ModBltBlock.cpp
+		src/ScheduledModel.cpp
 		src/SymbolicDifferentiation.cpp)
 
 marco_add_library(model SHARED ${SOURCES})

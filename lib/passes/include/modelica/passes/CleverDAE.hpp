@@ -1,6 +1,6 @@
 #pragma once
 #include "modelica/model/AssignModel.hpp"
-#include "modelica/model/Model.hpp"
+#include "modelica/model/ScheduledModel.hpp"
 
 namespace modelica
 {
@@ -12,5 +12,5 @@ namespace modelica
 	 * @param model The matched, collapsed and scheduled model.
 	 * @return The assigned model.
 	 */
-	llvm::Expected<AssignModel> addBLTBlocks(Model& model);
+	[[nodiscard]] llvm::Expected<AssignModel> addBltBlocks(ScheduledModel& model);
 }	 // namespace modelica

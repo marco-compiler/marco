@@ -31,12 +31,10 @@ static ModExp varToExp(const ModVariable& var)
 	return access;
 }
 
-Expected<AssignModel> marco::addApproximation(Model& model, double deltaTime)
+Expected<AssignModel> marco::addApproximation(
+		ScheduledModel& model, double deltaTime)
 {
 	AssignModel out;
-
-	if (!model.getBltBlocks().empty())
-		return make_error<FailedSccCollapsing>();
 
 	for (auto& var : model.getVars())
 	{
@@ -48,8 +46,12 @@ Expected<AssignModel> marco::addApproximation(Model& model, double deltaTime)
 		return make_error<GlobalVariableCreationFailure>(
 				"delta time was already present when solving derivatives");
 
-	for (auto& update : model.getEquations())
+	for (auto& content : model.getUpdates())
 	{
+		if (!holds_alternative<ModEquation>(content))
+			return make_error<FailedSccCollapsing>();
+
+		ModEquation update = get<ModEquation>(content);
 		auto u = update.clone(update.getTemplate()->getName() + "explicitated");
 		if (auto e = u.explicitate(); e)
 			return move(e);

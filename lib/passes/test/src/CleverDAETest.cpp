@@ -31,14 +31,20 @@ TEST(CleverDAETest, AddDifferentialEqToBltBlock)
 
 	ModParser parser(stringModel);
 
-	auto scheduledModel = parser.simulation();
-	if (!scheduledModel)
+	auto model = parser.simulation();
+	if (!model)
 	{
-		outs() << scheduledModel.takeError();
+		outs() << model.takeError();
 		FAIL();
 	}
 
-	auto assignModel = addBLTBlocks(*scheduledModel);
+	ScheduledModel scheduledModel = ScheduledModel(model->getVars());
+	for (ModEquation eq : model->getEquations())
+		scheduledModel.addEquation(eq);
+	for (ModBltBlock bltBlock : model->getBltBlocks())
+		scheduledModel.addBltBlock(bltBlock);
+
+	auto assignModel = addBltBlocks(scheduledModel);
 	if (!assignModel)
 	{
 		outs() << assignModel.takeError();
@@ -72,18 +78,24 @@ TEST(CleverDAETest, AddImplicitEqToBltBlock1)
 
 	ModParser parser(stringModel);
 
-	auto scheduledModel = parser.simulation();
-	if (!scheduledModel)
+	auto model = parser.simulation();
+	if (!model)
 	{
-		outs() << scheduledModel.takeError();
+		outs() << model.takeError();
 		FAIL();
 	}
 
-	EXPECT_EQ(scheduledModel->getVars().size(), 1);
-	EXPECT_EQ(scheduledModel->getEquations().size(), 1);
-	EXPECT_EQ(scheduledModel->getBltBlocks().size(), 0);
+	EXPECT_EQ(model->getVars().size(), 1);
+	EXPECT_EQ(model->getEquations().size(), 1);
+	EXPECT_EQ(model->getBltBlocks().size(), 0);
 
-	auto assignModel = addBLTBlocks(*scheduledModel);
+	ScheduledModel scheduledModel = ScheduledModel(model->getVars());
+	for (ModEquation eq : model->getEquations())
+		scheduledModel.addEquation(eq);
+	for (ModBltBlock bltBlock : model->getBltBlocks())
+		scheduledModel.addBltBlock(bltBlock);
+
+	auto assignModel = addBltBlocks(scheduledModel);
 	if (!assignModel)
 	{
 		outs() << assignModel.takeError();
@@ -114,18 +126,24 @@ TEST(CleverDAETest, AddImplicitEqToBltBlock2)
 
 	ModParser parser(stringModel);
 
-	auto scheduledModel = parser.simulation();
-	if (!scheduledModel)
+	auto model = parser.simulation();
+	if (!model)
 	{
-		outs() << scheduledModel.takeError();
+		outs() << model.takeError();
 		FAIL();
 	}
 
-	EXPECT_EQ(scheduledModel->getVars().size(), 1);
-	EXPECT_EQ(scheduledModel->getEquations().size(), 1);
-	EXPECT_EQ(scheduledModel->getBltBlocks().size(), 0);
+	EXPECT_EQ(model->getVars().size(), 1);
+	EXPECT_EQ(model->getEquations().size(), 1);
+	EXPECT_EQ(model->getBltBlocks().size(), 0);
 
-	auto assignModel = addBLTBlocks(*scheduledModel);
+	ScheduledModel scheduledModel = ScheduledModel(model->getVars());
+	for (ModEquation eq : model->getEquations())
+		scheduledModel.addEquation(eq);
+	for (ModBltBlock bltBlock : model->getBltBlocks())
+		scheduledModel.addBltBlock(bltBlock);
+
+	auto assignModel = addBltBlocks(scheduledModel);
 	if (!assignModel)
 	{
 		outs() << assignModel.takeError();
