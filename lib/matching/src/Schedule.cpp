@@ -1,16 +1,11 @@
 #include "marco/matching/Schedule.hpp"
 
-#include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/raw_ostream.h"
 #include "marco/matching/SCCDependencyGraph.hpp"
 #include "marco/matching/SVarDependencyGraph.hpp"
-#include "marco/matching/SccLookup.hpp"
 #include "marco/matching/VVarDependencyGraph.hpp"
-#include "marco/model/Assigment.hpp"
-#include "marco/model/AssignModel.hpp"
 #include "marco/model/ModEquation.hpp"
+#include "modelica/model/ScheduledModel.hpp"
 #include "marco/model/VectorAccess.hpp"
 #include "marco/utils/IndexSet.hpp"
 #include "marco/utils/ThreadPool.hpp"
@@ -31,8 +26,8 @@ static SmallVector<ModEquation, 3> collapseEquations(
 		currentSet.insert(currentNode.getIndexes());
 	};
 
-	const auto onGrupEnd = [&](size_t node,
-														 khanNextPreferred schedulingDirection) {
+	const auto onGroupEnd = [&](size_t node,
+															khanNextPreferred schedulingDirection) {
 		assert(schedulingDirection != khanNextPreferred::cannotBeOptimized);
 
 		const bool backward =
@@ -45,7 +40,7 @@ static SmallVector<ModEquation, 3> collapseEquations(
 		currentSet = IndexSet();
 	};
 
-	originalGraph.topoOrder(onSched, onGrupEnd);
+	originalGraph.topoOrder(onSched, onGroupEnd);
 
 	return out;
 }
@@ -59,7 +54,7 @@ static bool isForward(const VectorAccess* access)
 	return true;
 }
 
-static bool isBacward(const VectorAccess* access)
+static bool isBackward(const VectorAccess* access)
 {
 	for (const auto& varAcc : *access)
 		if (varAcc.isOffset() && varAcc.getOffset() <= 0)
@@ -87,7 +82,7 @@ static SmallVector<ModEquation, 3> trivialScheduling(
 		return { std::move(eq) };
 	}
 
-	if (all_of(internalEdges, isBacward))
+	if (all_of(internalEdges, isBackward))
 	{
 		auto eq = originalGraph[scc[0]].getEquation();
 		eq.setForward(false);
@@ -126,7 +121,7 @@ static ResultVector parallelMap(
 	return results;
 }
 
-Model marco::schedule(const Model& model)
+ScheduledModel marco::schedule(const Model& model)
 {
 	VVarDependencyGraph vectorGraph(model);
 	SCCDependencyGraph sccDependency(vectorGraph);
@@ -135,7 +130,7 @@ Model marco::schedule(const Model& model)
 
 	auto results = parallelMap(vectorGraph, sortedScc);
 
-	Model scheduledModel({}, std::move(model.getVars()));
+	ScheduledModel scheduledModel(std::move(model.getVars()));
 	for (const auto& res : results)
 		for (const auto& eq : res)
 			scheduledModel.addEquation(std::move(eq));

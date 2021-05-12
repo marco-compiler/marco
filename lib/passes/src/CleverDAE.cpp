@@ -13,12 +13,20 @@ using namespace modelica;
 using namespace std;
 using namespace llvm;
 
-Expected<AssignModel> modelica::addBLTBlocks(Model& model)
+Expected<AssignModel> modelica::addBltBlocks(ScheduledModel& model)
 {
 	AssignModel out;
 
-	for (ModEquation& update : model.getEquations())
+	for (auto& content : model.getUpdates())
 	{
+		// Add the algebraic loops, which are already in BLT blocks.
+		if (holds_alternative<ModBltBlock>(content))
+		{
+			out.addBltBlock(get<ModBltBlock>(content));
+			continue;
+		}
+
+		ModEquation update = get<ModEquation>(content);
 		ModEquation u =
 				update.clone(update.getTemplate()->getName() + "explicitated");
 		string matchedVar = u.getMatchedVarReference();
@@ -49,12 +57,6 @@ Expected<AssignModel> modelica::addBLTBlocks(Model& model)
 			out.emplaceUpdate(
 					templ, move(update.getInductions()), update.isForward());
 		}
-	}
-
-	// Add the algebraic loops, which are already in BLT blocks.
-	for (ModBltBlock& bltBlock : model.getBltBlocks())
-	{
-		out.addBltBlock(move(bltBlock));
 	}
 
 	// Add all the variables of the model to the assign model.

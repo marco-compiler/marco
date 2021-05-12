@@ -12,6 +12,7 @@
 #include "marco/matching/Schedule.hpp"
 #include "marco/model/AssignModel.hpp"
 #include "marco/model/ModVariable.hpp"
+#include "modelica/model/ScheduledModel.hpp"
 #include "marco/omcToModel/OmcToModelPass.hpp"
 #include "modelica/passes/CleverDAE.hpp"
 #include "marco/passes/ConstantFold.hpp"
@@ -105,12 +106,12 @@ opt<string> solverName(
 		cl::init("forwardEuler"),
 		cl::cat(omcCCat));
 
-Expected<AssignModel> selectSolver(Model scheduled)
+Expected<AssignModel> selectSolver(ScheduledModel scheduled)
 {
 	if (solverName == "forwardEuler")
 		return addApproximation(scheduled, timeStep);
 	if (solverName == "cleverDAE")
-		return addBLTBlocks(scheduled);
+		return addBltBlocks(scheduled);
 	return createStringError(
 			errc::executable_format_error, "Could not find the chosen solver");
 }
