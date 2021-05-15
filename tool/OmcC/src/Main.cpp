@@ -139,9 +139,10 @@ int main(int argc, char* argv[])
 	}
 
 	//======= TEMPORARY CODE ====/
-	std:string test = "varX,y,Z123,_tau";
+	string test = "ciao[3:10, 0:1, 55:$]";
 	LexerVariableFilter lvf(test);
-	lvf.split();
+	//lvf.split();
+	lvf.splitTest(test);
 	//===========================
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	frontend::Parser parser(buffer->getBufferStart());
