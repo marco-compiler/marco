@@ -108,8 +108,9 @@ namespace marco
 		}
 
 		llvm::StringMap<ModVariable> variables;
-		llvm::SmallVector<Assigment, 2> updates;
-		llvm::SmallVector<ModBltBlock, 3> bltBlocks;
+		llvm::SmallVector<Assigment, 2> updates;	// TODO: REMOVE
+		llvm::SmallVector<std::variant<Assigment, ModBltBlock>, 3> tmpUpdates;
+		llvm::SmallVector<ModBltBlock, 3> bltBlocks;	// TODO: REMOVE
 		std::set<std::shared_ptr<ModEqTemplate>> templates;
 	};
 }	 // namespace marco

@@ -6,22 +6,52 @@ using namespace llvm;
 using namespace std;
 using namespace marco;
 
-void ReferenceMatcher::visit(const ModEquation& equation, bool ingnoreMatched)
+void ReferenceMatcher::visit(
+		const std::variant<ModEquation, ModBltBlock>& content, bool ignoreMatched)
 {
-	assert(!ingnoreMatched || equation.isMatched());
-	visit(equation.getLeft(), true, 0);
-	visit(equation.getRight(), false, 0);
+	if (holds_alternative<ModEquation>(content))
+	{
+		const ModEquation& equation = get<ModEquation>(content);
+		assert(!ignoreMatched || equation.isMatched());
+		visit(equation.getLeft(), true, 0);
+		visit(equation.getRight(), false, 0);
 
-	if (!ingnoreMatched)
-		return;
+		if (!ignoreMatched)
+			return;
 
-	const auto* match = &equation.getMatchedExp();
+		const auto* match = &equation.getMatchedExp();
 
-	vars.erase(
-			remove_if(
-					vars,
-					[match](const ModExpPath& path) { return &path.getExp() == match; }),
-			vars.end());
+		vars.erase(
+				remove_if(
+						vars,
+						[match](const ModExpPath& path) {
+							return &path.getExp() == match;
+						}),
+				vars.end());
+	}
+	else	// TODO: Check if ModEquation/ModBltBlock is correctly differentiated
+	{
+		assert(false && "To be checked");
+		for (ModEquation equation : get<ModBltBlock>(content).getEquations())
+		{
+			assert(!ignoreMatched || equation.isMatched());
+			visit(equation.getLeft(), true, 0);
+			visit(equation.getRight(), false, 0);
+
+			if (!ignoreMatched)
+				return;
+
+			const auto* match = &equation.getMatchedExp();
+
+			vars.erase(
+					remove_if(
+							vars,
+							[match](const ModExpPath& path) {
+								return &path.getExp() == match;
+							}),
+					vars.end());
+		}
+	}
 }
 
 void ReferenceMatcher::visit(const ModExp& exp, bool isLeft, size_t index)

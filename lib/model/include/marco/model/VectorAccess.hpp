@@ -77,8 +77,8 @@ namespace marco
 		[[nodiscard]] static bool isCanonical(const ModExp& expression);
 
 		private:
-		SingleDimensionAccess(int64_t value, bool isAbs, size_t inductioVar = 0)
-				: value(value), inductionVar(inductioVar), isAbs(isAbs)
+		SingleDimensionAccess(int64_t value, bool isAbs, size_t inductionVar = 0)
+				: value(value), inductionVar(inductionVar), isAbs(isAbs)
 		{
 		}
 		int64_t value{ 0 };
@@ -167,7 +167,7 @@ namespace marco
 	class AccessToVar
 	{
 		public:
-		AccessToVar(VectorAccess acc, const std::string& ref)
+		AccessToVar(VectorAccess acc, std::string ref)
 				: access(std::move(acc)), reference(ref)
 		{
 		}
@@ -180,7 +180,7 @@ namespace marco
 
 		private:
 		VectorAccess access;
-		const std::string& reference;
+		std::string reference;
 	};
 
 }	 // namespace marco

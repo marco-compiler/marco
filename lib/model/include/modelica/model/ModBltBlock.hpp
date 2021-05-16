@@ -154,6 +154,9 @@ namespace modelica
 			return jacobianMatrix;
 		}
 
+		[[nodiscard]] bool isForward() const { return isForwardDirection; }
+		void setForward(bool isForward) { isForwardDirection = isForward; }
+
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
 		private:
@@ -165,5 +168,6 @@ namespace modelica
 		TemplateMap templates;
 		ResidualFunction residualFunction;
 		JacobianMatrix jacobianMatrix;
+		bool isForwardDirection = true;
 	};
 }	 // namespace modelica

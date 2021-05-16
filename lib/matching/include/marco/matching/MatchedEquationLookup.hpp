@@ -1,55 +1,140 @@
 #pragma once
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/SmallVector.h>
 #include <map>
+#include <variant>
 
 #include "llvm/ADT/iterator_range.h"
+<<<<<<< HEAD:lib/matching/include/marco/matching/MatchedEquationLookup.hpp
 #include "marco/model/ModEquation.hpp"
 #include "marco/model/Model.hpp"
 #include "marco/model/VectorAccess.hpp"
 #include "marco/utils/Interval.hpp"
 #include "marco/utils/MapIterator.hpp"
+=======
+#include "modelica/model/ModBltBlock.hpp"
+#include "modelica/model/ModEquation.hpp"
+#include "modelica/model/Model.hpp"
+#include "modelica/model/VectorAccess.hpp"
+#include "modelica/utils/Interval.hpp"
+#include "modelica/utils/MapIterator.hpp"
+>>>>>>> Started adding ModBltBlocks to Scheduling:lib/matching/include/modelica/matching/MatchedEquationLookup.hpp
 
 namespace marco
 {
 	/**
+	 * This class can be built with an equation or a BLT block.
 	 * Given a causalized equation, that is a equation with only a variable on it
 	 * left hand, IndexOfEquation is a helper class that extracts the pointer to
 	 * the causalized equation as well as the indexes of the variable.
+	 * Given a BLT block, IndexOfEquation extracts the pointers to all the
+	 * causalized equations inside the BLT block, along with the indexes of the
+	 * variable.
 	 */
 	class IndexesOfEquation
 	{
 		public:
 		IndexesOfEquation(const Model& model, const ModEquation& equation)
-				: access(equation.getDeterminedVariable()),
-					invertedAccess(access.getAccess().invert()),
-					indexSet(access.getAccess().map(equation.getInductions())),
-
-					variable(&model.getVar(access.getVarName())),
-					equation(&equation)
+				: content(equation),
+					accesses({ equation.getDeterminedVariable() }),
+					variables({ model.getVar(accesses.front().getVarName()) }),
+					directAccesses({ accesses.front().getAccess() }),
+					invertedAccesses({ accesses.front().getAccess().invert() }),
+					indexSets(
+							{ accesses.front().getAccess().map(equation.getInductions()) })
 		{
 		}
 
-		[[nodiscard]] const MultiDimInterval& getInterval() const
+		IndexesOfEquation(const Model& model, const ModBltBlock& bltBlock)
+				: content(bltBlock)
 		{
-			return indexSet;
+			for (const ModEquation& eq : bltBlock.getEquations())
+			{
+				accesses.push_back(eq.getDeterminedVariable());
+				variables.push_back(model.getVar(accesses.back().getVarName()));
+				directAccesses.push_back(accesses.back().getAccess());
+				invertedAccesses.push_back(accesses.back().getAccess().invert());
+				indexSets.push_back(directAccesses.back().map(eq.getInductions()));
+			}
 		}
-		[[nodiscard]] const ModVariable& getVariable() const { return *variable; }
-		[[nodiscard]] const ModEquation& getEquation() const { return *equation; }
+
+		[[nodiscard]] bool isEquation() const
+		{
+			return std::holds_alternative<ModEquation>(content);
+		}
+		[[nodiscard]] bool isBltBlock() const
+		{
+			return std::holds_alternative<ModBltBlock>(content);
+		}
+
+		[[nodiscard]] const std::variant<ModEquation, ModBltBlock>& getContent()
+				const
+		{
+			return content;
+		}
+
+		[[nodiscard]] const ModEquation& getEquation() const
+		{
+			assert(isEquation());
+			return std::get<ModEquation>(content);
+		}
+		[[nodiscard]] const ModBltBlock& getBltBlock() const
+		{
+			assert(isBltBlock());
+			return std::get<ModBltBlock>(content);
+		}
+
+		[[nodiscard]] const auto& getVariables() const
+		{
+			assert(isBltBlock());
+			return variables;
+		}
+		[[nodiscard]] const auto& getEqToVars() const
+		{
+			assert(isBltBlock());
+			return directAccesses;
+		}
+		[[nodiscard]] const auto& getVarToEqs() const
+		{
+			assert(isBltBlock());
+			return invertedAccesses;
+		}
+		[[nodiscard]] const auto& getIntervals() const
+		{
+			assert(isBltBlock());
+			return indexSets;
+		}
+
+		[[nodiscard]] const ModVariable& getVariable() const
+		{
+			assert(isEquation());
+			return variables.front();
+		}
 		[[nodiscard]] const VectorAccess& getEqToVar() const
 		{
-			return access.getAccess();
+			assert(isEquation());
+			return directAccesses.front();
 		}
 		[[nodiscard]] const VectorAccess& getVarToEq() const
 		{
-			return invertedAccess;
+			assert(isEquation());
+			return invertedAccesses.front();
+		}
+		[[nodiscard]] const MultiDimInterval& getInterval() const
+		{
+			assert(isEquation());
+			return indexSets.front();
 		}
 
+		[[nodiscard]] size_t size() const { return accesses.size(); }
+
 		private:
-		AccessToVar access;
-		VectorAccess invertedAccess;
-		MultiDimInterval indexSet;
-		const ModVariable* variable;
-		const ModEquation* equation;
+		const std::variant<ModEquation, ModBltBlock> content;
+		llvm::SmallVector<AccessToVar, 3> accesses;
+		llvm::SmallVector<ModVariable, 3> variables;
+		llvm::SmallVector<VectorAccess, 3> directAccesses;
+		llvm::SmallVector<VectorAccess, 3> invertedAccesses;
+		llvm::SmallVector<MultiDimInterval, 3> indexSets;
 	};
 
 	/**
@@ -71,10 +156,13 @@ namespace marco
 		{
 			for (auto& equation : model)
 				addEquation(equation, model);
+			for (auto& bltBlock : model.getBltBlocks())
+				addBltBlock(bltBlock, model);
 		}
 
 		MatchedEquationLookup(const Model& model, llvm::ArrayRef<ModEquation> equs)
 		{
+			assert(model.getBltBlocks().empty());
 			for (auto& equation : equs)
 				addEquation(equation, model);
 		}
@@ -82,8 +170,21 @@ namespace marco
 		void addEquation(const ModEquation& equation, const Model& model)
 		{
 			IndexesOfEquation index(model, equation);
+			assert(
+					index.isEquation() ||
+					index.isBltBlock());	// TODO: Remove this redundant for debugging
 			const ModVariable* var = &index.getVariable();
+			// variables.insert(std::pair<const ModVariable*, IndexesOfEquation>(
+			//		var, IndexesOfEquation(index)));
 			variables.emplace(var, std::move(index));
+		}
+
+		void addBltBlock(const ModBltBlock& bltBlock, const Model& model)
+		{
+			IndexesOfEquation index(model, bltBlock);
+			assert(false && "Need to be checked");
+			for (const ModVariable var : index.getVariables())
+				variables.emplace(&var, IndexesOfEquation(index));	// Check if var/&var
 		}
 
 		[[nodiscard]] const_iterator_range eqsDeterminingVar(

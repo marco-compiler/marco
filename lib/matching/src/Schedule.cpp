@@ -1,9 +1,12 @@
 #include "marco/matching/Schedule.hpp"
 
+#include <variant>
+
 #include "llvm/ADT/SmallVector.h"
 #include "marco/matching/SCCDependencyGraph.hpp"
 #include "marco/matching/SVarDependencyGraph.hpp"
 #include "marco/matching/VVarDependencyGraph.hpp"
+#include "modelica/model/ModBltBlock.hpp"
 #include "marco/model/ModEquation.hpp"
 #include "modelica/model/ScheduledModel.hpp"
 #include "marco/model/VectorAccess.hpp"
@@ -12,11 +15,12 @@
 
 using namespace marco;
 using namespace llvm;
+using namespace std;
 
-static SmallVector<ModEquation, 3> collapseEquations(
+static SmallVector<variant<ModEquation, ModBltBlock>, 3> collapseEquations(
 		const SVarDepencyGraph& originalGraph)
 {
-	SmallVector<ModEquation, 3> out;
+	SmallVector<variant<ModEquation, ModBltBlock>, 3> out;
 
 	IndexSet currentSet;
 
@@ -33,9 +37,20 @@ static SmallVector<ModEquation, 3> collapseEquations(
 		const bool backward =
 				schedulingDirection == khanNextPreferred::backwardPreferred;
 		const auto& currentNode = originalGraph[node];
-		const auto& eq = currentNode.getCollapsedVertex();
-		for (const auto& set : currentSet)
-			out.emplace_back(eq.getTemplate(), set, !backward);
+		const auto& content = currentNode.getCollapsedVertex();
+		if (holds_alternative<ModEquation>(content))
+		{
+			const ModEquation& eq = get<ModEquation>(content);
+			for (const auto& set : currentSet)
+				out.emplace_back(ModEquation(eq.getTemplate(), set, !backward));
+		}
+		else	// TODO: Check if ModEquation/ModBltBlock differentiation is correct
+		{
+			assert(false && "Need to be checked");
+			ModBltBlock bltBlock = get<ModBltBlock>(content);
+			bltBlock.setForward(!backward);
+			out.emplace_back(bltBlock);
+		}
 
 		currentSet = IndexSet();
 	};
@@ -63,7 +78,7 @@ static bool isBackward(const VectorAccess* access)
 	return true;
 }
 
-static SmallVector<ModEquation, 3> trivialScheduling(
+static SmallVector<variant<ModEquation, ModBltBlock>, 3> trivialScheduling(
 		const Scc<VVarDependencyGraph>& scc,
 		const VVarDependencyGraph& originalGraph)
 {
@@ -77,22 +92,28 @@ static SmallVector<ModEquation, 3> trivialScheduling(
 
 	if (all_of(internalEdges, isForward))
 	{
-		auto eq = originalGraph[scc[0]].getEquation();
-		eq.setForward(true);
-		return { std::move(eq) };
+		auto content = originalGraph[scc[0]].getContent();
+		if (holds_alternative<ModEquation>(content))
+			get<ModEquation>(content).setForward(true);
+		else
+			get<ModBltBlock>(content).setForward(true);
+		return { move(content) };
 	}
 
 	if (all_of(internalEdges, isBackward))
 	{
-		auto eq = originalGraph[scc[0]].getEquation();
-		eq.setForward(false);
-		return { std::move(eq) };
+		auto content = originalGraph[scc[0]].getContent();
+		if (holds_alternative<ModEquation>(content))
+			get<ModEquation>(content).setForward(false);
+		else
+			get<ModBltBlock>(content).setForward(false);
+		return { move(content) };
 	}
 
 	return {};
 }
 
-static SmallVector<ModEquation, 3> sched(
+static SmallVector<variant<ModEquation, ModBltBlock>, 3> sched(
 		const Scc<VVarDependencyGraph>& scc,
 		const VVarDependencyGraph& originalGraph)
 {
@@ -104,7 +125,8 @@ static SmallVector<ModEquation, 3> sched(
 	return collapseEquations(scalarGraph);
 }
 
-using ResultVector = SmallVector<SmallVector<ModEquation, 3>, 0>;
+using ResultVector =
+		SmallVector<SmallVector<variant<ModEquation, ModBltBlock>, 3>, 0>;
 using SortedScc = SmallVector<const Scc<VVarDependencyGraph>*, 0>;
 
 static ResultVector parallelMap(
@@ -130,10 +152,10 @@ ScheduledModel marco::schedule(const Model& model)
 
 	auto results = parallelMap(vectorGraph, sortedScc);
 
-	ScheduledModel scheduledModel(std::move(model.getVars()));
+	ScheduledModel scheduledModel(move(model.getVars()));
 	for (const auto& res : results)
 		for (const auto& eq : res)
-			scheduledModel.addEquation(std::move(eq));
+			scheduledModel.addUpdate(move(eq));
 
 	return scheduledModel;
 }
