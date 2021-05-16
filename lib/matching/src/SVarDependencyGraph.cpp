@@ -24,14 +24,36 @@ using namespace std;
 void SVarDepencyGraph::insertNode(LookUp& LookUp, size_t vertexIndex)
 {
 	const IndexesOfEquation& vertex = collapsedGraph[vertexIndex];
-	const auto& interval = vertex.getEquation().getInductions();
-	for (auto eqInds : interval.contentRange())
+	if (vertex.isEquation())
 	{
-		auto indicies = vertex.getEqToVar().map(eqInds);
-		auto vertexIndex =
-				add_vertex(SingleEquationReference(vertex, indicies), graph);
-		LookUp[&vertex][vertex.getVariable().indexOfElement(indicies)] =
-				vertexIndex;
+		const ModEquation& eq = vertex.getEquation();
+		const MultiDimInterval& interval = eq.getInductions();
+		for (auto eqInds : interval.contentRange())
+		{
+			auto indicies = vertex.getEqToVar().map(eqInds);
+			auto vertexIndex =
+					add_vertex(SingleEquationReference(vertex, indicies), graph);
+			LookUp[&vertex][vertex.getVariable().indexOfElement(indicies)] =
+					vertexIndex;
+		}
+	}
+	else	// TODO: Check if ModEquation/ModBltBlock is correctly differentiated
+	{
+		assert(false && "To be checked");
+		const ModBltBlock& bltBlock = vertex.getBltBlock();
+		for (auto i : irange(vertex.size()))
+		{
+			const ModEquation& eq = bltBlock.getEquation(i);
+			const MultiDimInterval& interval = eq.getInductions();
+			for (auto eqInds : interval.contentRange())
+			{
+				auto indicies = vertex.getEqToVars()[i].map(eqInds);
+				auto vertexIndex =
+						add_vertex(SingleEquationReference(vertex, indicies), graph);
+				LookUp[&vertex][vertex.getVariables()[i].indexOfElement(indicies)] =
+						vertexIndex;
+			}
+		}
 	}
 }
 
@@ -44,10 +66,24 @@ static Optional<size_t> indexOfScalarVar(
 	if (v == lookUp.end())
 		return {};
 
-	auto toReturn = v->second.find(var.getVariable().indexOfElement(access));
-	if (toReturn == v->second.end())
+	if (var.isEquation())
+	{
+		auto toReturn = v->second.find(var.getVariable().indexOfElement(access));
+		if (toReturn == v->second.end())
+			return {};
+		return toReturn->second;
+	}
+	else	// TODO: Check if ModEquation/ModBltBlock is correctly differentiated
+	{
+		assert(false && "To be checked");
+		for (auto& variable : var.getVariables())
+		{
+			auto toReturn = v->second.find(variable.indexOfElement(access));
+			if (toReturn != v->second.end())
+				return toReturn->second;
+		}
 		return {};
-	return toReturn->second;
+	}
 }
 
 void SVarDepencyGraph::insertEdge(
@@ -61,18 +97,43 @@ void SVarDepencyGraph::insertEdge(
 	const IndexesOfEquation& sourceNode = *collImpl()[sourceVertex];
 	const VectorAccess& varAccess = collImpl()[edge];
 
-	VectorAccess dependencies = targetNode.getVarToEq() * varAccess;
-
-	for (const auto& indecies : targetNode.getInterval().contentRange())
+	if (targetNode.isEquation())
 	{
-		auto sourceIndex = indexOfScalarVar(indecies, sourceNode, lookUp);
+		VectorAccess dependencies = targetNode.getVarToEq() * varAccess;
 
-		auto scalarVarInduction = dependencies.map(indecies);
-		auto targetIndex = indexOfScalarVar(scalarVarInduction, targetNode, lookUp);
-		if (!sourceIndex || !targetIndex)
-			continue;
+		for (const auto& indices : targetNode.getInterval().contentRange())
+		{
+			auto sourceIndex = indexOfScalarVar(indices, sourceNode, lookUp);
 
-		add_edge(*sourceIndex, *targetIndex, graph);
+			auto scalarVarInduction = dependencies.map(indices);
+			auto targetIndex =
+					indexOfScalarVar(scalarVarInduction, targetNode, lookUp);
+			if (!sourceIndex || !targetIndex)
+				continue;
+
+			add_edge(*sourceIndex, *targetIndex, graph);
+		}
+	}
+	else	// TODO: Check if ModEquation/ModBltBlock is correctly differentiated
+	{
+		assert(false && "To be checked");
+		for (auto i : irange(targetNode.size()))
+		{
+			VectorAccess dependencies = targetNode.getVarToEqs()[i] * varAccess;
+
+			for (const auto& indices : targetNode.getIntervals()[i].contentRange())
+			{
+				auto sourceIndex = indexOfScalarVar(indices, sourceNode, lookUp);
+
+				auto scalarVarInduction = dependencies.map(indices);
+				auto targetIndex =
+						indexOfScalarVar(scalarVarInduction, targetNode, lookUp);
+				if (!sourceIndex || !targetIndex)
+					continue;
+
+				add_edge(*sourceIndex, *targetIndex, graph);
+			}
+		}
 	}
 }
 
@@ -96,12 +157,16 @@ SVarDepencyGraph::SVarDepencyGraph(
 
 void SingleEquationReference::dump(llvm::raw_ostream& OS) const
 {
-	OS << vertex->getVariable().getName();
-	OS << "[";
-	for (size_t index : indexes)
-		OS << index << ",";
-
-	OS << "]";
+	for (auto i : irange(vertex->size()))
+	{
+		OS << vertex->getVariables()[i].getName();
+		OS << "[";
+		for (size_t index : indexes)
+			OS << index << ",";
+		OS << "]";
+		if (i < vertex->size() - 1)
+			OS << "&";
+	}
 }
 
 void SVarDepencyGraph::dumpGraph(llvm::raw_ostream& OS) const

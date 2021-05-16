@@ -5,7 +5,7 @@
 #include <boost/property_map/property_map.hpp>
 #include <boost/range/iterator_range_core.hpp>
 #if BOOST_VERSION >= 107300
-#include <boost/assert/source_location.hpp>
+#	include <boost/assert/source_location.hpp>
 #endif
 #include <exception>
 #include <llvm/ADT/ArrayRef.h>
@@ -15,6 +15,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
+<<<<<<< HEAD
 #include "marco/matching/MatchedEquationLookup.hpp"
 #include "marco/matching/SccLookup.hpp"
 #include "marco/model/ModEquation.hpp"
@@ -29,6 +30,23 @@
 #include "marco/utils/Interval.hpp"
 
 using namespace marco;
+=======
+#include "modelica/matching/MatchedEquationLookup.hpp"
+#include "modelica/matching/SccLookup.hpp"
+#include "modelica/model/ModBltBlock.hpp"
+#include "modelica/model/ModEquation.hpp"
+#include "modelica/model/ModExp.hpp"
+#include "modelica/model/ModExpPath.hpp"
+#include "modelica/model/ModMatchers.hpp"
+#include "modelica/model/ModVariable.hpp"
+#include "modelica/model/Model.hpp"
+#include "modelica/model/VectorAccess.hpp"
+#include "modelica/utils/IRange.hpp"
+#include "modelica/utils/IndexSet.hpp"
+#include "modelica/utils/Interval.hpp"
+
+using namespace modelica;
+>>>>>>> Started adding ModBltBlocks to Scheduling
 using namespace std;
 using namespace llvm;
 using namespace boost;
@@ -39,19 +57,47 @@ void VVarDependencyGraph::populateEdge(
 		EqToVert& eqToVert)
 {
 	const auto& variable = model.getVar(toVariable.getVarName());
-	const auto usedIndexes =
-			toVariable.getAccess().map(equation.getEquation().getInductions());
-	for (const auto& var : lookUp.eqsDeterminingVar(variable))
-	{
-		const auto& setOfVar = var.getInterval();
-		if (areDisjoint(usedIndexes, setOfVar))
-			continue;
 
-		add_edge(
-				eqToVert[&equation.getEquation()],
-				eqToVert[&var.getEquation()],
-				toVariable.getAccess(),
-				graph);
+	if (equation.isEquation())
+	{
+		const ModEquation& content = equation.getEquation();
+		const auto usedIndexes =
+				toVariable.getAccess().map(content.getInductions());
+		for (const auto& var : lookUp.eqsDeterminingVar(variable))
+		{
+			const auto& setOfVar = var.getInterval();
+			if (areDisjoint(usedIndexes, setOfVar))
+				continue;
+
+			add_edge(
+					eqToVert[&equation.getContent()],
+					eqToVert[&var.getContent()],
+					toVariable.getAccess(),
+					graph);
+		}
+	}
+	else	// TODO: Check if ModEquation/ModBltBlock is correctly differentiated
+	{
+		assert(false && "To be checked");
+		ModBltBlock content = equation.getBltBlock();
+		for (const IndexesOfEquation& var : lookUp.eqsDeterminingVar(variable))
+		{
+			for (auto i : modelica::irange(content.getEquations().size()))
+			{
+				const MultiDimInterval usedIndexes =
+						toVariable.getAccess().map(content.getEquation(i).getInductions());
+				const MultiDimInterval& setOfVar = var.getIntervals()[i];
+
+				if (areDisjoint(usedIndexes, setOfVar))
+					continue;
+
+				add_edge(
+						eqToVert[&equation.getContent()],
+						eqToVert[&var.getContent()],
+						toVariable.getAccess(),
+						graph);
+			}
+		}
 	}
 }
 
@@ -59,7 +105,7 @@ void VVarDependencyGraph::populateEq(
 		const IndexesOfEquation& equation, EqToVert& eqToVert)
 {
 	ReferenceMatcher rightHandMatcher;
-	rightHandMatcher.visit(equation.getEquation(), true);
+	rightHandMatcher.visit(equation.getContent(), true);
 	for (const auto& toVariable : rightHandMatcher)
 	{
 		assert(VectorAccess::isCanonical(toVariable.getExp()));
@@ -68,12 +114,12 @@ void VVarDependencyGraph::populateEq(
 	}
 }
 
-void VVarDependencyGraph::create(ArrayRef<ModEquation> equs)
+void VVarDependencyGraph::create()
 {
 	EqToVert eqToVert;
 
 	for (const auto& eq : lookUp)
-		eqToVert[&eq.getEquation()] = add_vertex(&eq, graph);
+		eqToVert[&eq.getContent()] = add_vertex(&eq, graph);
 
 	for (const auto& eq : lookUp)
 		populateEq(eq, eqToVert);
@@ -83,12 +129,12 @@ VVarDependencyGraph::VVarDependencyGraph(
 		const Model& m, ArrayRef<ModEquation> equs)
 		: model(m), lookUp(m, equs)
 {
-	create(equs);
+	create();
 }
 
 VVarDependencyGraph::VVarDependencyGraph(const Model& m): model(m), lookUp(m)
 {
-	create(model.getEquations());
+	create();
 }
 
 void VVarDependencyGraph::dump(llvm::raw_ostream& OS) const
@@ -120,7 +166,8 @@ void boost::throw_exception(const std::exception& e)
 
 #if BOOST_VERSION >= 107300 /* source_location only exists in boost >= 1.73 */
 
-void boost::throw_exception(const std::exception& e, const boost::source_location& loc)
+void boost::throw_exception(
+		const std::exception& e, const boost::source_location& loc)
 {
 	errs() << e.what();
 	abort();

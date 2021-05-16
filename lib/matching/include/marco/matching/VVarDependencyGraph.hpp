@@ -2,16 +2,26 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <map>
+#include <variant>
 
 #include "boost/graph/adjacency_list.hpp"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
+<<<<<<< HEAD:lib/matching/include/marco/matching/VVarDependencyGraph.hpp
 #include "marco/matching/MatchedEquationLookup.hpp"
 #include "marco/model/ModEquation.hpp"
 #include "marco/model/ModVariable.hpp"
 #include "marco/model/Model.hpp"
 #include "marco/model/VectorAccess.hpp"
+=======
+#include "modelica/matching/MatchedEquationLookup.hpp"
+#include "modelica/model/ModBltBlock.hpp"
+#include "modelica/model/ModEquation.hpp"
+#include "modelica/model/ModVariable.hpp"
+#include "modelica/model/Model.hpp"
+#include "modelica/model/VectorAccess.hpp"
+>>>>>>> Started adding ModBltBlocks to Scheduling:lib/matching/include/modelica/matching/VVarDependencyGraph.hpp
 
 namespace marco
 {
@@ -72,13 +82,14 @@ namespace marco
 		}
 
 		private:
-		using EqToVert = std::map<const ModEquation*, VertexDesc>;
+		using EqToVert =
+				std::map<const std::variant<ModEquation, ModBltBlock>*, VertexDesc>;
 		void populateEdge(
 				const IndexesOfEquation& equation,
 				const AccessToVar& toVariable,
 				EqToVert& eqToVert);
 		void populateEq(const IndexesOfEquation& eq, EqToVert& eqToVert);
-		void create(llvm::ArrayRef<ModEquation> equs);
+		void create();
 
 		const Model& model;
 		GraphImp graph;

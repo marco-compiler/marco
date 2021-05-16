@@ -11,7 +11,7 @@
 namespace marco
 {
 	/**
-	 * A reference to a scalr equation, that is a reference to a scalar equation
+	 * A reference to a scalar equation, that is a reference to a scalar equation
 	 * and a set of indicies that indicate which scalar equation we are reffering
 	 * to
 	 */
@@ -28,7 +28,7 @@ namespace marco
 
 		[[nodiscard]] const auto& getCollapsedVertex() const
 		{
-			return vertex->getEquation();
+			return vertex->getContent();	// TODO: Check this
 		}
 
 		[[nodiscard]] auto getIndexes() const { return indexes; }

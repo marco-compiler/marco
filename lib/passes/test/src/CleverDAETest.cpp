@@ -40,9 +40,9 @@ TEST(CleverDAETest, AddDifferentialEqToBltBlock)
 
 	ScheduledModel scheduledModel = ScheduledModel(model->getVars());
 	for (ModEquation eq : model->getEquations())
-		scheduledModel.addEquation(eq);
+		scheduledModel.addUpdate(eq);
 	for (ModBltBlock bltBlock : model->getBltBlocks())
-		scheduledModel.addBltBlock(bltBlock);
+		scheduledModel.addUpdate(bltBlock);
 
 	auto assignModel = addBltBlocks(scheduledModel);
 	if (!assignModel)
@@ -91,9 +91,9 @@ TEST(CleverDAETest, AddImplicitEqToBltBlock1)
 
 	ScheduledModel scheduledModel = ScheduledModel(model->getVars());
 	for (ModEquation eq : model->getEquations())
-		scheduledModel.addEquation(eq);
+		scheduledModel.addUpdate(eq);
 	for (ModBltBlock bltBlock : model->getBltBlocks())
-		scheduledModel.addBltBlock(bltBlock);
+		scheduledModel.addUpdate(bltBlock);
 
 	auto assignModel = addBltBlocks(scheduledModel);
 	if (!assignModel)
@@ -139,9 +139,9 @@ TEST(CleverDAETest, AddImplicitEqToBltBlock2)
 
 	ScheduledModel scheduledModel = ScheduledModel(model->getVars());
 	for (ModEquation eq : model->getEquations())
-		scheduledModel.addEquation(eq);
+		scheduledModel.addUpdate(eq);
 	for (ModBltBlock bltBlock : model->getBltBlocks())
-		scheduledModel.addBltBlock(bltBlock);
+		scheduledModel.addUpdate(bltBlock);
 
 	auto assignModel = addBltBlocks(scheduledModel);
 	if (!assignModel)

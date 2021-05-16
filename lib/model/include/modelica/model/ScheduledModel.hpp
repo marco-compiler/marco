@@ -43,15 +43,11 @@ namespace modelica
 			return true;
 		}
 
-		void addEquation(ModEquation equation)
+		void addUpdate(std::variant<ModEquation, ModBltBlock> update)
 		{
-			updates.push_back(std::move(equation));
-			addTemplate(std::get<ModEquation>(updates.back()));
-		}
-
-		void addBltBlock(ModBltBlock bltBlock)
-		{
-			updates.push_back(std::move(bltBlock));
+			updates.push_back(std::move(update));
+			if (std::holds_alternative<ModEquation>(updates.back()))
+				addTemplate(std::get<ModEquation>(updates.back()));
 		}
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;

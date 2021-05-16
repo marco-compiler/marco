@@ -1,14 +1,24 @@
 #pragma once
 #include <functional>
+#include <variant>
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
+<<<<<<< HEAD:lib/model/include/marco/model/ModMatchers.hpp
 #include "marco/model/ModEquation.hpp"
 #include "marco/model/ModExp.hpp"
 #include "marco/model/ModExpPath.hpp"
 #include "marco/utils/IRange.hpp"
 #include "marco/utils/ScopeGuard.hpp"
+=======
+#include "modelica/model/ModBltBlock.hpp"
+#include "modelica/model/ModEquation.hpp"
+#include "modelica/model/ModExp.hpp"
+#include "modelica/model/ModExpPath.hpp"
+#include "modelica/utils/IRange.hpp"
+#include "modelica/utils/ScopeGuard.hpp"
+>>>>>>> Started adding ModBltBlocks to Scheduling:lib/model/include/modelica/model/ModMatchers.hpp
 
 namespace marco
 {
@@ -16,11 +26,16 @@ namespace marco
 	{
 		public:
 		ReferenceMatcher() = default;
-		ReferenceMatcher(const ModEquation& eq) { visit(eq); }
+		ReferenceMatcher(const std::variant<ModEquation, ModBltBlock>& content)
+		{
+			visit(content);
+		}
 
 		void visit(const ModExp& exp, bool isLeft, size_t index);
 
-		void visit(const ModEquation& equation, bool ingnoreMatched = false);
+		void visit(
+				const std::variant<ModEquation, ModBltBlock>& content,
+				bool ignoreMatched = false);
 
 		[[nodiscard]] auto begin() const { return vars.begin(); }
 		[[nodiscard]] auto end() const { return vars.end(); }
