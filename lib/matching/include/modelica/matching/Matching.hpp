@@ -20,6 +20,15 @@
 
 namespace modelica
 {
+  /* Grafo del matching
+   * Contiene il grafo bipartito usato per il matching ed è responsabile per
+   * il calcolo del matching vero e proprio.
+   *
+   * Il matching viene fatto matchando un *SOTTOALBERO nell'equazione*
+   * *valido in un certo range di indici* con *l'equazione stessa*.
+   * Potrebbe sembrare che il matching viene fatto dall'insieme delle variabili
+   * dichiarate all'insieme delle equazioni. Ciò è FALSO. In realtà l'insieme
+   * delle variabili viene generato DALLE EQUAZIONI STESSE. */
 	class MatchingGraph
 	{
 		template<typename MatchingGraph, typename Iterator, typename EdgeType>

@@ -27,6 +27,11 @@ using namespace llvm;
 void MatchingGraph::addEquation(const ModEquation& eq)
 {
 	ReferenceMatcher matcher(eq);
+  /* elenca tutti gli "accessi a variabile" nell'equazione e crea un arco
+   * per ognuno di questi accessi nel grafo del matching.
+   *   Questo dettaglio è il modo in cui gestiamo le equazioni dove compare
+   * più di una volta la stessa variabile (potenzialmente con delle V.A.F.
+   * diverse) */
 	for (size_t useIndex : irange(matcher.size()))
 		emplaceEdge(eq, move(matcher[useIndex]), useIndex);
 }
@@ -37,15 +42,20 @@ void MatchingGraph::emplaceEdge(
 	if (!VectorAccess::isCanonical(path.getExp()))
 		return;
 
-	auto access = AccessToVar::fromExp(path.getExp());
+	auto access = AccessToVar::fromExp(path.getExp()); /* la vector access function */
 	const auto& var = model.getVar(access.getVarName());
 
+  /* niente var di stato e niente costanti */
 	if (var.isState() || var.isConstant())
 		return;
 
+  /* se il numero di dimensioni iterate nella variabile è minore del numero di dimensioni
+   * nel ciclo for (= n. di cicli for innestati) allora non posso matchare questo accesso
+   * con questa equazione e lo ignoriamo */
 	if (access.getAccess().mappableDimensions() < eq.dimensions())
 		return;
 
+  /* mappa equazioni e variabili con gli archi corrispondenti*/
 	auto eqDesc = getDesc(eq);
 	auto varDesc = getDesc(var);
 

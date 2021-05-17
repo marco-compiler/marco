@@ -52,7 +52,9 @@ namespace modelica
 			return value;
 		}
 
+    /** Returns true if the vector access is in the form i+k */
 		[[nodiscard]] bool isOffset() const { return !isAbs; }
+  /** Returns true if the vector access is in the form k */
 		[[nodiscard]] bool isDirecAccess() const { return isAbs; }
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
@@ -116,6 +118,8 @@ namespace modelica
 		[[nodiscard]] llvm::SmallVector<size_t, 3> map(
 				llvm::ArrayRef<size_t> interval) const;
 
+    /* returns the number of dimensions in the vector that are not sliced away
+     * Example: A[i][1 (sliced away)][j] => 2 */
 		[[nodiscard]] size_t mappableDimensions() const
 		{
 			return llvm::count_if(

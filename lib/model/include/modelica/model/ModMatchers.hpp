@@ -12,6 +12,22 @@
 
 namespace modelica
 {
+  /*
+   * data un'equazione produciamo il vettore di puntatori che puntano alle
+   * sottoespressioni dell'albero che corrispondono a un accesso a
+   * variabile
+   *
+   * esempio:
+   *   der(u[j]) = ((-u[j]) + u[j-1])*10 - mu*u[j]*(u[j] - alpha)*(u[j] - 1);
+   * vars generato:
+   *   1. u[j] (quello nella der)
+   *   2. u[j] (il secondo)
+   *   3. u[j-1] (il terzo)
+   *   4. mu (perché non sa che è una costante)
+   *   5. u[j] (il quarto)
+   *   6. u[j] (il quinto)
+   *   7. u[j] (il sesto)
+   */
 	class ReferenceMatcher
 	{
 		public:

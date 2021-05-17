@@ -131,6 +131,9 @@ FlowCandidates AugmentingPath::getForwardMatchable() const
 	return FlowCandidates(directMatch, graph);
 }
 
+/* calcola gli indici che è possibile togliere sull'arco negativo specificato.
+ * Assume che l'arco negativo parta dallo stesso nodo dove arriva l'ultimo
+ * arco positivo considerato */
 IndexSet AugmentingPath::possibleBackwardFlow(const Edge& backEdge) const
 {
 	const Flow& forwardEdge = getCurrentFlow();
@@ -155,7 +158,7 @@ IndexSet AugmentingPath::possibleBackwardFlow(const Edge& backEdge) const
 	return alreadyAssigned;
 }
 
-/* Crea la lista di archi che bisogna rimuovere dal matching assumendo che
+/* Crea la lista di archi che è possibile rimuovere dal matching assumendo che
  * venga scelto l'arco in avanti getCurrentFlow() (attenzione: fa uno step solo!) */
 FlowCandidates AugmentingPath::getBackwardMatchable() const
 {
@@ -207,7 +210,7 @@ AugmentingPath::AugmentingPath(MatchingGraph& graph, size_t maxDepth)
     dump(errs());
   }
    
-	while (!valid() && frontier.size() < maxDepth)
+	while (!valid() && frontier.size() < maxDepth /*bugfix begin*/&& !frontier.empty()/*bugfix end*/)
 	{
 		// in massimese: while the current siblings are not empty keep exploring
     // in italiano: abbiamo scelto un arco da dove partire, fai la DFS per
