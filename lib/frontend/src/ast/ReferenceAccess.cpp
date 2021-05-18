@@ -2,14 +2,13 @@
 
 using namespace modelica::frontend;
 
-// TODO type
 ReferenceAccess::ReferenceAccess(SourcePosition location,
 																 Type type,
 																 llvm::StringRef name,
 																 bool globalLookup,
 																 bool dummy)
-		: ExpressionCRTP<ReferenceAccess>(
-					ASTNodeKind::EXPRESSION_REFERENCE_ACCESS, std::move(location), std::move(type)),
+		: ASTNode(std::move(location)),
+			type(std::move(type)),
 			name(name.str()),
 			globalLookup(globalLookup),
 			dummyVar(dummy)
@@ -17,7 +16,8 @@ ReferenceAccess::ReferenceAccess(SourcePosition location,
 }
 
 ReferenceAccess::ReferenceAccess(const ReferenceAccess& other)
-		: ExpressionCRTP<ReferenceAccess>(static_cast<ExpressionCRTP&>(*this)),
+		: ASTNode(other),
+			type(other.type),
 			name(other.name),
 			globalLookup(other.globalLookup),
 			dummyVar(other.dummyVar)
@@ -41,25 +41,20 @@ namespace modelica::frontend
 {
 	void swap(ReferenceAccess& first, ReferenceAccess& second)
 	{
-		swap(static_cast<impl::ExpressionCRTP<ReferenceAccess>&>(first),
-				 static_cast<impl::ExpressionCRTP<ReferenceAccess>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
+		swap(first.type, second.type);
 		swap(first.name, second.name);
 		swap(first.globalLookup, second.globalLookup);
 		swap(first.dummyVar, second.dummyVar);
 	}
 }
 
-void ReferenceAccess::dump(llvm::raw_ostream& os, size_t indents) const
+void ReferenceAccess::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
-	os << "reference access: " << (hasGlobalLookup() ? "." : "") << getName() << "\n";
-
-	os.indent(indents);
-	os << "type: ";
-	getType().dump(os);
-	os << "\n";
+	os << "reference access: " << (hasGlobalLookup() ? "." : "") << name << "\n";
 }
 
 bool ReferenceAccess::isLValue() const
@@ -77,6 +72,21 @@ bool ReferenceAccess::operator==(const ReferenceAccess& other) const
 bool ReferenceAccess::operator!=(const ReferenceAccess& other) const
 {
 	return !(*this == other);
+}
+
+Type& ReferenceAccess::getType()
+{
+	return type;
+}
+
+const Type& ReferenceAccess::getType() const
+{
+	return type;
+}
+
+void ReferenceAccess::setType(Type tp)
+{
+	type = std::move(tp);
 }
 
 llvm::StringRef ReferenceAccess::getName() const
@@ -99,9 +109,9 @@ bool ReferenceAccess::isDummy() const
 	return dummyVar;
 }
 
-ReferenceAccess ReferenceAccess::dummy(SourcePosition location)
+std::unique_ptr<Expression> ReferenceAccess::dummy(SourcePosition location, Type type)
 {
-	return ReferenceAccess(location, "", false, true);
+	return Expression::reference(location, type, "", false, true);
 }
 
 namespace modelica::frontend

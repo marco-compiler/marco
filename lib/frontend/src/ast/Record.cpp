@@ -1,20 +1,21 @@
 #include <modelica/frontend/AST.h>
 #include <numeric>
 
-using namespace modelica;
-using namespace frontend;
+using namespace modelica::frontend;
 
 Record::Record(SourcePosition location,
 							 llvm::StringRef name,
 							 llvm::ArrayRef<std::unique_ptr<Member>> members)
-		: ClassCRTP<Record>(ASTNodeKind::CLASS_RECORD, std::move(location), std::move(name))
+		: ASTNode(std::move(location)),
+			name(name.str())
 {
 	for (const auto& member : members)
 		this->members.push_back(member->clone());
 }
 
 Record::Record(const Record& other)
-		: ClassCRTP<Record>(static_cast<ClassCRTP<Record>&>(*this))
+		: ASTNode(other),
+			name(other.name)
 {
 	for (const auto& member : other.members)
 		this->members.push_back(member->clone());
@@ -37,8 +38,7 @@ namespace modelica::frontend
 {
 	void swap(Record& first, Record& second)
 	{
-		swap(static_cast<impl::ClassCRTP<Record>&>(first),
-				 static_cast<impl::ClassCRTP<Record>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
 		impl::swap(first.members, second.members);
@@ -47,7 +47,7 @@ namespace modelica::frontend
 
 bool Record::operator==(const Record& other) const
 {
-	if (getName() != other.getName())
+	if (name != other.name)
 		return false;
 
 	if (members.size() != other.members.size())
@@ -85,13 +85,18 @@ const Member* Record::operator[](llvm::StringRef name) const
 			})->get();
 }
 
-void Record::dump(llvm::raw_ostream& os, size_t indents) const
+void Record::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
-	os << "record: " << getName() << "\n";
+	os << "record: " << name << "\n";
 
 	for (const auto& member : members)
-		member->dump(os, indents + 1);
+		member->print(os, indents + 1);
+}
+
+llvm::StringRef Record::getName() const
+{
+	return name;
 }
 
 size_t Record::size() const

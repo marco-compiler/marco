@@ -4,13 +4,16 @@
 #include <llvm/ADT/SmallVector.h>
 #include <memory>
 
-#include "Expression.h"
+#include "ASTNode.h"
+#include "Type.h"
 
 namespace modelica::frontend
 {
+	class Expression;
+
 	class Array
-			: public impl::ExpressionCRTP<Array>,
-				public impl::Cloneable<Array>
+			: public ASTNode,
+				public impl::Dumpable<Array>
 	{
 		private:
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
@@ -18,10 +21,6 @@ namespace modelica::frontend
 		public:
 		using iterator = Container<std::unique_ptr<Expression>>::iterator;
 		using const_iterator = Container<std::unique_ptr<Expression>>::const_iterator;
-
-		Array(SourcePosition location,
-					llvm::ArrayRef<std::unique_ptr<Expression>> values,
-					Type type);
 
 		Array(const Array& other);
 		Array(Array&& other);
@@ -32,20 +31,19 @@ namespace modelica::frontend
 
 		friend void swap(Array& first, Array& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::EXPRESSION_ARRAY;
-		}
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
-
-		[[nodiscard]] bool isLValue() const override;
+		[[nodiscard]] bool isLValue() const;
 
 		[[nodiscard]] bool operator==(const Array& other) const;
 		[[nodiscard]] bool operator!=(const Array& other) const;
 
 		[[nodiscard]] Expression* operator[](size_t index);
 		[[nodiscard]] const Expression* operator[](size_t index) const;
+
+		[[nodiscard]] Type& getType();
+		[[nodiscard]] const Type& getType() const;
+		void setType(Type tp);
 
 		[[nodiscard]] size_t size() const;
 
@@ -56,6 +54,13 @@ namespace modelica::frontend
 		[[nodiscard]] const_iterator end() const;
 
 		private:
+		friend class Expression;
+
+		Array(SourcePosition location,
+					Type type,
+					llvm::ArrayRef<std::unique_ptr<Expression>> values);
+
+		Type type;
 		Container<std::unique_ptr<Expression>> values;
 	};
 

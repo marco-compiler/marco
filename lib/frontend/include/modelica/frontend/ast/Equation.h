@@ -9,13 +9,16 @@ namespace modelica::frontend
 	class Expression;
 
 	class Equation
-			: public impl::ASTNodeCRTP<Equation>,
-				public impl::Cloneable<Equation>
+			: public ASTNode,
+				public impl::Cloneable<Equation>,
+				public impl::Dumpable<Equation>
 	{
 		public:
-		Equation(SourcePosition location,
-						 std::unique_ptr<Expression> lhs,
-						 std::unique_ptr<Expression> rhs);
+		template<typename... Args>
+		static std::unique_ptr<Equation> build(Args&&... args)
+		{
+			return std::unique_ptr<Equation>(new Equation(std::forward<Args>(args)...));
+		}
 
 		Equation(const Equation& other);
 		Equation(Equation&& other);
@@ -26,22 +29,21 @@ namespace modelica::frontend
 
 		friend void swap(Equation& first, Equation& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::EQUATION;
-		}
-
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] Expression* getLhsExpression();
 		[[nodiscard]] const Expression* getLhsExpression() const;
-		void setLhsExpression(Expression* expression);
+		void setLhsExpression(std::unique_ptr<Expression> expression);
 
 		[[nodiscard]] Expression* getRhsExpression();
 		[[nodiscard]] const Expression* getRhsExpression() const;
-		void setRhsExpression(Expression* expression);
+		void setRhsExpression(std::unique_ptr<Expression> expression);
 
 		private:
+		Equation(SourcePosition location,
+						 std::unique_ptr<Expression> lhs,
+						 std::unique_ptr<Expression> rhs);
+
 		std::unique_ptr<Expression> lhs;
 		std::unique_ptr<Expression> rhs;
 	};

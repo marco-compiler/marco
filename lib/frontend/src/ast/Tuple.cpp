@@ -4,20 +4,22 @@
 
 using namespace modelica::frontend;
 
-// TODO type
 Tuple::Tuple(SourcePosition location,
+						 Type type,
 						 llvm::ArrayRef<std::unique_ptr<Expression>> expressions)
-		: ExpressionCRTP<Tuple>(ASTNodeKind::EXPRESSION_TUPLE, std::move(location), Type::unknown())
+		: ASTNode(std::move(location)),
+			type(std::move(type))
 {
 	for (const auto& expression : expressions)
-		this->expressions.push_back(expression->cloneExpression());
+		this->expressions.push_back(expression->clone());
 }
 
 Tuple::Tuple(const Tuple& other)
-		: ExpressionCRTP<Tuple>(static_cast<ExpressionCRTP&>(*this))
+		: ASTNode(other),
+			type(other.type)
 {
 	for (const auto& expression : other.expressions)
-		this->expressions.push_back(expression->cloneExpression());
+		this->expressions.push_back(expression->clone());
 }
 
 Tuple::Tuple(Tuple&& other) = default;
@@ -37,23 +39,18 @@ namespace modelica::frontend
 {
 	void swap(Tuple& first, Tuple& second)
 	{
-		swap(static_cast<impl::ExpressionCRTP<Tuple>&>(first),
-				 static_cast<impl::ExpressionCRTP<Tuple>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
-		swap(first.expressions, second.expressions);
+		swap(first.type, second.type);
+		impl::swap(first.expressions, second.expressions);
 	}
 }
 
-void Tuple::dump(llvm::raw_ostream& os, size_t indents) const
+void Tuple::print(llvm::raw_ostream& os, size_t indents) const
 {
-	os.indent(indents);
-	os << "type: ";
-	getType().dump(os);
-	os << "\n";
-
 	for (const auto& expression : *this)
-		expression.dump(os, indents);
+		expression->print(os, indents);
 }
 
 bool Tuple::isLValue() const
@@ -83,11 +80,36 @@ bool Tuple::operator!=(const Tuple& other) const
 
 Expression* Tuple::operator[](size_t index)
 {
+	return getArg(index);
+}
+
+const Expression* Tuple::operator[](size_t index) const
+{
+	return getArg(index);
+}
+
+Type& Tuple::getType()
+{
+	return type;
+}
+
+const Type& Tuple::getType() const
+{
+	return type;
+}
+
+void Tuple::setType(Type tp)
+{
+	type = std::move(tp);
+}
+
+Expression* Tuple::getArg(size_t index)
+{
 	assert(index < expressions.size());
 	return expressions[index].get();
 }
 
-const Expression* Tuple::operator[](size_t index) const
+const Expression* Tuple::getArg(size_t index) const
 {
 	assert(index < expressions.size());
 	return expressions[index].get();
@@ -128,10 +150,10 @@ namespace modelica::frontend
 	std::string toString(const Tuple& obj)
 	{
 		return "(" +
-					 accumulate(++obj.begin(), obj.end(), std::string(),
-											[](const std::string& result, const Expression& element)
+					 accumulate(std::next(obj.begin()), obj.end(), std::string(),
+											[](const std::string& result, const auto& element)
 											{
-												std::string str = toString(element);
+												std::string str = toString(*element);
 												return result.empty() ? str : result + "," + str;
 											}) +
 					 ")";

@@ -3,6 +3,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <memory>
+#include <string>
 
 #include "Class.h"
 
@@ -23,21 +24,13 @@ namespace modelica::frontend
 	};
 
 	class Model
-			: public impl::ClassCRTP<Model>,
-				public impl::Cloneable<Model>
+			: public ASTNode,
+				public impl::Dumpable<Model>
 	{
 		private:
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		Model(SourcePosition location,
-					llvm::StringRef name,
-					llvm::ArrayRef<std::unique_ptr<Member>> members,
-					llvm::ArrayRef<std::unique_ptr<Equation>> equations,
-					llvm::ArrayRef<std::unique_ptr<ForEquation>> forEquations,
-					llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms,
-					llvm::ArrayRef<std::unique_ptr<Class>> innerClasses);
-
 		Model(const Model& other);
 		Model(Model&& other);
 		~Model() override;
@@ -47,16 +40,13 @@ namespace modelica::frontend
 
 		friend void swap(Model& first, Model& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::CLASS_MODEL;
-		}
+		void print(llvm::raw_ostream& os, size_t indents) const override;
 
-		void dump(llvm::raw_ostream& os, size_t indents) const override;
+		[[nodiscard]] llvm::StringRef getName() const;
 
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Member>> getMembers();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Member>> getMembers() const;
-		void addMember(Member* member);
+		void addMember(std::unique_ptr<Member> member);
 
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Equation>> getEquations();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Equation>> getEquations() const;
@@ -71,6 +61,17 @@ namespace modelica::frontend
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Class>> getInnerClasses() const;
 
 		private:
+		friend class Class;
+
+		Model(SourcePosition location,
+					llvm::StringRef name,
+					llvm::ArrayRef<std::unique_ptr<Member>> members,
+					llvm::ArrayRef<std::unique_ptr<Equation>> equations,
+					llvm::ArrayRef<std::unique_ptr<ForEquation>> forEquations,
+					llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms,
+					llvm::ArrayRef<std::unique_ptr<Class>> innerClasses);
+
+		std::string name;
 		Container<std::unique_ptr<Member>> members;
 		Container<std::unique_ptr<Equation>> equations;
 		Container<std::unique_ptr<ForEquation>> forEquations;

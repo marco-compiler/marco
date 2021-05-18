@@ -3,14 +3,17 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <memory>
+#include <string>
 
-#include "Class.h"
+#include "ASTNode.h"
 
 namespace modelica::frontend
 {
+	class Class;
+
 	class Package
-			: public impl::ClassCRTP<Package>,
-				public impl::Cloneable<Package>
+			: public ASTNode,
+				public impl::Dumpable<Package>
 	{
 		private:
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
@@ -18,10 +21,6 @@ namespace modelica::frontend
 		public:
 		using iterator = Container<std::unique_ptr<Class>>::iterator;
 		using const_iterator = Container<std::unique_ptr<Class>>::const_iterator;
-
-		Package(SourcePosition location,
-						llvm::StringRef name,
-						llvm::ArrayRef<std::unique_ptr<Class>> innerClasses);
 
 		Package(const Package& other);
 		Package(Package&& other);
@@ -32,12 +31,9 @@ namespace modelica::frontend
 
 		friend void swap(Package& first, Package& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::CLASS_PACKAGE;
-		}
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		[[nodiscard]] llvm::StringRef getName() const;
 
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Class>> getInnerClasses();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Class>> getInnerClasses() const;
@@ -51,6 +47,13 @@ namespace modelica::frontend
 		[[nodiscard]] const_iterator end() const;
 
 		private:
+		friend class Class;
+
+		Package(SourcePosition location,
+						llvm::StringRef name,
+						llvm::ArrayRef<std::unique_ptr<Class>> innerClasses);
+
+		std::string name;
 		Container<std::unique_ptr<Class>> innerClasses;
 	};
 }

@@ -5,20 +5,21 @@
 using namespace modelica::frontend;
 
 Array::Array(SourcePosition location,
-						 llvm::ArrayRef<std::unique_ptr<Expression>> values,
-						 Type type)
-		: ExpressionCRTP<Array>(
-					ASTNodeKind::EXPRESSION_ARRAY, std::move(location), std::move(type))
+						 Type type,
+						 llvm::ArrayRef<std::unique_ptr<Expression>> values)
+		: ASTNode(std::move(location)),
+			type(std::move(type))
 {
 	for (const auto& value : values)
-		this->values.push_back(value->cloneExpression());
+		this->values.push_back(value->clone());
 }
 
 Array::Array(const Array& other)
-		: ExpressionCRTP<Array>(static_cast<ExpressionCRTP<Array>&>(*this))
+		: ASTNode(other),
+			type(other.type)
 {
 	for (const auto& value : other.values)
-		this->values.push_back(value->cloneExpression());
+		this->values.push_back(value->clone());
 }
 
 Array::Array(Array&& other) = default;
@@ -38,22 +39,18 @@ namespace modelica::frontend
 {
 	void swap(Array& first, Array& second)
 	{
-		swap(static_cast<impl::ExpressionCRTP<Array>&>(first),
-				 static_cast<impl::ExpressionCRTP<Array>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
+		using std::swap;
+		swap(first.type, second.type);
 		impl::swap(first.values, second.values);
 	}
 }
 
-void Array::dump(llvm::raw_ostream& os, size_t indents) const
+void Array::print(llvm::raw_ostream& os, size_t indents) const
 {
-	os.indent(indents);
-	os << "type: ";
-	getType().dump(os);
-	os << "\n";
-
 	for (const auto& value : values)
-		value->dump(os, indents);
+		value->print(os, indents);
 }
 
 bool Array::isLValue() const
@@ -63,6 +60,9 @@ bool Array::isLValue() const
 
 bool Array::operator==(const Array& other) const
 {
+	if (type != other.type)
+		return false;
+
 	if (values.size() != other.values.size())
 		return false;
 
@@ -91,6 +91,21 @@ const Expression* Array::operator[](size_t index) const
 {
 	assert(index < values.size());
 	return values[index].get();
+}
+
+Type& Array::getType()
+{
+	return type;
+}
+
+const Type& Array::getType() const
+{
+	return type;
+}
+
+void Array::setType(Type tp)
+{
+	type = std::move(tp);
 }
 
 size_t Array::size() const

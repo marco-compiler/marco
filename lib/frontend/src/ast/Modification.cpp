@@ -1,10 +1,10 @@
-#include <modelica/frontend/ast/Modification.h>
+#include <modelica/frontend/AST.h>
 
 using namespace modelica::frontend;
 
 Modification::Modification(SourcePosition location,
 													 std::unique_ptr<ClassModification> classModification)
-		: ASTNodeCRTP<Modification>(ASTNodeKind::MODIFICATION, std::move(location)),
+		: ASTNode(std::move(location)),
 			classModification(std::move(classModification)),
 			expression(llvm::None)
 {
@@ -13,7 +13,7 @@ Modification::Modification(SourcePosition location,
 Modification::Modification(SourcePosition location,
 													 std::unique_ptr<ClassModification> classModification,
 													 std::unique_ptr<Expression> expression)
-		: ASTNodeCRTP<Modification>(ASTNodeKind::MODIFICATION, std::move(location)),
+		: ASTNode(std::move(location)),
 			classModification(std::move(classModification)),
 			expression(std::move(expression))
 {
@@ -21,17 +21,24 @@ Modification::Modification(SourcePosition location,
 
 Modification::Modification(SourcePosition location,
 													 std::unique_ptr<Expression> expression)
-		: ASTNodeCRTP<Modification>(ASTNodeKind::MODIFICATION, std::move(location)),
+		: ASTNode(std::move(location)),
 			classModification(llvm::None),
 			expression(std::move(expression))
 {
 }
 
 Modification::Modification(const Modification& other)
-		: ASTNodeCRTP<Modification>(static_cast<ASTNodeCRTP<Modification>&>(*this)),
-			classModification(other.classModification.hasValue() ? llvm::Optional((*other.classModification)->clone()) : llvm::None),
-			expression(other.expression.hasValue() ? llvm::Optional((*other.expression)->cloneExpression()) : llvm::None)
+		: ASTNode(other)
 {
+	if (other.classModification.hasValue())
+		classModification = other.classModification.getValue()->clone();
+	else
+		classModification = llvm::None;
+
+	if (other.expression.hasValue())
+		expression = other.expression.getValue()->clone();
+	else
+		expression = llvm::None;
 }
 
 Modification::Modification(Modification&& other) = default;
@@ -51,8 +58,7 @@ namespace modelica::frontend
 {
 	void swap(Modification& first, Modification& second)
 	{
-		swap(static_cast<impl::ASTNodeCRTP<Modification>&>(first),
-				 static_cast<impl::ASTNodeCRTP<Modification>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
 		swap(first.classModification, second.classModification);
@@ -60,7 +66,7 @@ namespace modelica::frontend
 	}
 }
 
-void Modification::dump(llvm::raw_ostream& os, size_t indents) const
+void Modification::print(llvm::raw_ostream& os, size_t indents) const
 {
 	// TODO
 }
@@ -101,17 +107,17 @@ const Expression* Modification::getExpression() const
 
 ClassModification::ClassModification(SourcePosition location,
 																		 llvm::ArrayRef<std::unique_ptr<Argument>> arguments)
-		: ASTNodeCRTP<ClassModification>(static_cast<ASTNodeCRTP<ClassModification>&>(*this))
+		: ASTNode(std::move(location))
 {
 	for (const auto& arg : arguments)
-		this->arguments.push_back(arg->cloneArgument());
+		this->arguments.push_back(arg->clone());
 }
 
 ClassModification::ClassModification(const ClassModification& other)
-		: ASTNodeCRTP<ClassModification>(static_cast<ASTNodeCRTP<ClassModification>&>(*this))
+		: ASTNode(other)
 {
 	for (const auto& arg : other.arguments)
-		this->arguments.push_back(arg->cloneArgument());
+		this->arguments.push_back(arg->clone());
 }
 
 ClassModification::ClassModification(ClassModification&& other) = default;
@@ -131,15 +137,14 @@ namespace modelica::frontend
 {
 	void swap(ClassModification& first, ClassModification& second)
 	{
-		swap(static_cast<impl::ASTNodeCRTP<ClassModification>&>(first),
-				 static_cast<impl::ASTNodeCRTP<ClassModification>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
 		impl::swap(first.arguments, second.arguments);
 	}
 }
 
-void ClassModification::dump(llvm::raw_ostream& os, size_t indents) const
+void ClassModification::print(llvm::raw_ostream& os, size_t indents) const
 {
 	// TODO
 }
@@ -164,13 +169,23 @@ ClassModification::const_iterator ClassModification::end() const
 	return arguments.end();
 }
 
-Argument::Argument(ASTNodeKind kind, SourcePosition location)
-		: ASTNodeCRTP<Argument>(kind, std::move(location))
+Argument::Argument(ElementModification content)
+		: content(std::move(content))
+{
+}
+
+Argument::Argument(ElementRedeclaration content)
+		: content(std::move(content))
+{
+}
+
+Argument::Argument(ElementReplaceable content)
+		: content(std::move(content))
 {
 }
 
 Argument::Argument(const Argument& other)
-		: ASTNodeCRTP<Argument>(static_cast<ASTNodeCRTP<Argument>&>(*this))
+		: content(other.content)
 {
 }
 
@@ -180,12 +195,8 @@ Argument::~Argument() = default;
 
 Argument& Argument::operator=(const Argument& other)
 {
-	if (this != &other)
-	{
-		static_cast<ASTNodeCRTP<Argument>&>(*this) =
-				static_cast<const ASTNodeCRTP<Argument>&>(other);
-	}
-
+	Argument result(other);
+	swap(*this, result);
 	return *this;
 }
 
@@ -195,23 +206,28 @@ namespace modelica::frontend
 {
 	void swap(Argument& first, Argument& second)
 	{
-		swap(static_cast<impl::ASTNodeCRTP<Argument>&>(first),
-				 static_cast<impl::ASTNodeCRTP<Argument>&>(second));
-
 		using std::swap;
+		swap(first.content, second.content);
 	}
+}
+
+void Argument::print(llvm::raw_ostream& os, size_t indents) const
+{
+	visit([&os, indents](const auto& obj) {
+		obj.print(os, indents);
+	});
 }
 
 ElementModification::ElementModification(SourcePosition location,
 																				 bool each,
 																				 bool final,
 																				 llvm::StringRef name,
-																				 std::unique_ptr<Modification>& modification)
-		: ArgumentCRTP<ElementModification>(ASTNodeKind::ARGUMENT_ELEMENT_MODIFICATION, std::move(location)),
+																				 std::unique_ptr<Modification> modification)
+		: ASTNode(std::move(location)),
 			each(each),
 			final(final),
 			name(std::move(name)),
-			modification(modification->clone())
+			modification(std::move(modification))
 {
 }
 
@@ -219,7 +235,7 @@ ElementModification::ElementModification(SourcePosition location,
 																				 bool each,
 																				 bool final,
 																				 llvm::StringRef name)
-		: ArgumentCRTP<ElementModification>(ASTNodeKind::ARGUMENT_ELEMENT_MODIFICATION, std::move(location)),
+		: ASTNode(std::move(location)),
 			each(each),
 			final(final),
 			name(std::move(name))
@@ -227,8 +243,15 @@ ElementModification::ElementModification(SourcePosition location,
 }
 
 ElementModification::ElementModification(const ElementModification& other)
-		: ArgumentCRTP<ElementModification>(static_cast<ArgumentCRTP<ElementModification>&>(*this))
+		: ASTNode(other),
+			each(other.each),
+			final(other.final),
+			name(other.name)
 {
+	if (other.modification.hasValue())
+		modification = other.modification.getValue()->clone();
+	else
+		modification = llvm::None;
 }
 
 ElementModification::ElementModification(ElementModification&& other) = default;
@@ -248,14 +271,17 @@ namespace modelica::frontend
 {
 	void swap(ElementModification& first, ElementModification& second)
 	{
-		swap(static_cast<impl::ArgumentCRTP<ElementModification>&>(first),
-				 static_cast<impl::ArgumentCRTP<ElementModification>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
+		swap(first.each, second.each);
+		swap(first.final, second.final);
+		swap(first.name, second.name);
+		swap(first.modification, second.modification);
 	}
 }
 
-void ElementModification::dump(llvm::raw_ostream& os, size_t indents) const
+void ElementModification::print(llvm::raw_ostream& os, size_t indents) const
 {
 	// TODO
 }
@@ -293,12 +319,12 @@ const Modification* ElementModification::getModification() const
 }
 
 ElementReplaceable::ElementReplaceable(SourcePosition location)
-		: ArgumentCRTP<ElementReplaceable>(ASTNodeKind::ARGUMENT_ELEMENT_REPLACEABLE, std::move(location))
+		: ASTNode(std::move(location))
 {
 }
 
 ElementReplaceable::ElementReplaceable(const ElementReplaceable& other)
-		: ArgumentCRTP<ElementReplaceable>(static_cast<ArgumentCRTP<ElementReplaceable>&>(*this))
+		: ASTNode(other)
 {
 }
 
@@ -319,25 +345,24 @@ namespace modelica::frontend
 {
 	void swap(ElementReplaceable& first, ElementReplaceable& second)
 	{
-		swap(static_cast<impl::ArgumentCRTP<ElementReplaceable>&>(first),
-				 static_cast<impl::ArgumentCRTP<ElementReplaceable>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
 	}
 }
 
-void ElementReplaceable::dump(llvm::raw_ostream& os, size_t indents) const
+void ElementReplaceable::print(llvm::raw_ostream& os, size_t indents) const
 {
 	// TODO
 }
 
 ElementRedeclaration::ElementRedeclaration(SourcePosition location)
-		: ArgumentCRTP<ElementRedeclaration>(ASTNodeKind::ARGUMENT_ELEMENT_REDECLARATION, std::move(location))
+		: ASTNode(std::move(location))
 {
 }
 
 ElementRedeclaration::ElementRedeclaration(const ElementRedeclaration& other)
-		: ArgumentCRTP<ElementRedeclaration>(static_cast<ArgumentCRTP<ElementRedeclaration>&>(*this))
+		: ASTNode(other)
 {
 }
 
@@ -358,14 +383,13 @@ namespace modelica::frontend
 {
 	void swap(ElementRedeclaration& first, ElementRedeclaration& second)
 	{
-		swap(static_cast<impl::ArgumentCRTP<ElementRedeclaration>&>(first),
-				 static_cast<impl::ArgumentCRTP<ElementRedeclaration>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
 	}
 }
 
-void ElementRedeclaration::dump(llvm::raw_ostream& os, size_t indents) const
+void ElementRedeclaration::print(llvm::raw_ostream& os, size_t indents) const
 {
 	// TODO
 }

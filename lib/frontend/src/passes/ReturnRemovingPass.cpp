@@ -3,219 +3,185 @@
 
 using namespace modelica::frontend;
 
+template<>
+llvm::Error ReturnRemover::run<Class>(Class& cls)
+{
+	return cls.visit([&](auto& obj) {
+		using type = decltype(obj);
+		using deref = typename std::remove_reference<type>::type;
+		using deconst = typename std::remove_const<deref>::type;
+		return run<deconst>(cls);
+	});
+}
+
 llvm::Error ReturnRemover::run(Class& cls)
 {
-	if (auto* function = cls.dyn_cast<Function>())
-		return run(*function);
-
-	if (auto* model = cls.dyn_cast<Model>())
-		return run(*model);
-
-	if (auto* package = cls.dyn_cast<Package>())
-		return run(*package);
-
-	if (auto* record = cls.dyn_cast<Record>())
-		return run(*record);
-
-	return llvm::Error::success();
+	return run<Class>(cls);
 }
 
-llvm::Error ReturnRemover::run(Model& cls)
+template<>
+llvm::Error ReturnRemover::run<DerFunction>(Class& cls)
 {
 	return llvm::Error::success();
 }
 
-llvm::Error ReturnRemover::run(Function& function)
+template<>
+llvm::Error ReturnRemover::run<StandardFunction>(Class& cls)
 {
-	if (auto* derFunction = function.dyn_cast<DerFunction>())
-		return run(*derFunction);
-
-	if (auto* standardFunction = function.dyn_cast<StandardFunction>())
-		return run(*standardFunction);
-
-	return llvm::Error::success();
-}
-
-llvm::Error ReturnRemover::run(DerFunction& function)
-{
-	return llvm::Error::success();
-}
-
-llvm::Error ReturnRemover::run(StandardFunction& function)
-{
-	for (auto& algorithm : function.getAlgorithms())
+	for (auto& algorithm : cls.get<StandardFunction>()->getAlgorithms())
 		if (auto error = run(*algorithm); error)
 			return error;
 
 	return llvm::Error::success();
 }
 
-llvm::Error ReturnRemover::run(Package& package)
+template<>
+llvm::Error ReturnRemover::run<Model>(Class& cls)
 {
-	for (auto& cls : package)
-		if (auto error = run(*cls); error)
+	return llvm::Error::success();
+}
+
+template<>
+llvm::Error ReturnRemover::run<Package>(Class& cls)
+{
+	for (auto& innerClass : cls.get<Package>()->getInnerClasses())
+		if (auto error = run(*innerClass); error)
 			return error;
 
 	return llvm::Error::success();
 }
 
-llvm::Error ReturnRemover::run(Record& record)
+template<>
+llvm::Error ReturnRemover::run<Record>(Class& cls)
 {
+	for (auto& innerClass : cls.get<Package>()->getInnerClasses())
+		if (auto error = run(*innerClass); error)
+			return error;
+
 	return llvm::Error::success();
 }
 
-llvm::Error ReturnRemover::run(Algorithm& algorithm)
+template<>
+bool ReturnRemover::run<Statement>(Statement& statement)
 {
+	return statement.visit([&](auto& obj) {
+		using type = decltype(obj);
+		using deref = typename std::remove_reference<type>::type;
+		using deconst = typename std::remove_const<deref>::type;
+		return run<deconst>(statement);
+	});
+}
+
+template<>
+bool ReturnRemover::run<AssignmentStatement>(Statement& statement)
+{
+	return false;
+}
+
+template<>
+bool ReturnRemover::run<BreakStatement>(Statement& statement)
+{
+	return false;
+}
+
+template<>
+bool ReturnRemover::run<ForStatement>(Statement& statement)
+{
+	auto* forStatement = statement.get<ForStatement>();
 	bool canReturn = false;
 
-	llvm::SmallVector<std::shared_ptr<Statement>, 3> statements;
-	llvm::SmallVector<std::shared_ptr<Statement>, 3> avoidableStatements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> statements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> avoidableStatements;
 
-	for (auto& statement : algorithm)
+	for (auto& stmnt : *forStatement)
 	{
-		if (canReturn)
-			avoidableStatements.push_back(statement);
-		else
-			statements.push_back(statement);
+		bool currentCanReturn = run<Statement>(*stmnt);
 
-		canReturn |= run<Statement>(*statement);
+		if (canReturn)
+			avoidableStatements.push_back(std::move(stmnt));
+		else
+			statements.push_back(std::move(stmnt));
+
+		canReturn |= currentCanReturn;
 	}
 
 	if (canReturn && !avoidableStatements.empty())
 	{
-		Expression reference = Expression::reference(algorithm.getLocation(), makeType<bool>(), "__mustReturn");
-		Expression falseConstant = Expression::constant(algorithm.getLocation(), makeType<bool>(), false);
-		Expression condition = Expression::operation(algorithm.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
+		auto condition = Expression::operation(
+				forStatement->getLocation(),
+				makeType<bool>(),
+				OperationKind::equal,
+				llvm::ArrayRef({
+						Expression::reference(forStatement->getLocation(), makeType<bool>(), "__mustReturn"),
+						Expression::constant(forStatement->getLocation(), makeType<bool>(), false)
+				}));
 
 		// Create the block of code to be executed if a return is not called
-		IfStatement::Block returnNotCalledBlock(condition, {});
-		returnNotCalledBlock.getBody() = avoidableStatements;
-		statements.push_back(std::make_shared<Statement>(IfStatement(algorithm.getLocation(), returnNotCalledBlock)));
+		IfStatement::Block returnNotCalledBlock(std::move(condition), {});
+		returnNotCalledBlock.setBody(avoidableStatements);
+		statements.push_back(Statement::ifStatement(forStatement->getLocation(), returnNotCalledBlock));
 	}
 
-	algorithm.getStatements() = statements;
-	algorithm.setReturnCheckName("__mustReturn");
-	return llvm::Error::success();
+	forStatement->setBody(statements);
+	forStatement->setReturnCheckName("__mustReturn");
+	return canReturn;
 }
 
-bool ReturnRemover::run(Statement& statement)
+template<>
+bool ReturnRemover::run<IfStatement>(Statement& statement)
 {
-	if (auto* assignmentStatement = statement.dyn_cast<AssignmentStatement>())
-		return run(*assignmentStatement);
-
-	if (auto* breakStatement = statement.dyn_cast<BreakStatement>())
-		return run(*breakStatement);
-
-	if (auto* forStatement = statement.dyn_cast<ForStatement>())
-		return run(*forStatement);
-
-	if (auto* ifStatement = statement.dyn_cast<IfStatement>())
-		return run(*ifStatement);
-
-	if (auto* returnStatement = statement.dyn_cast<ReturnStatement>())
-		return run(*returnStatement);
-
-	if (auto* whenStatement = statement.dyn_cast<WhenStatement>())
-		return run(*whenStatement);
-
-	if (auto* whileStatement = statement.dyn_cast<WhileStatement>())
-		return run(*whileStatement);
-
-	return false;
-}
-
-bool ReturnRemover::run(AssignmentStatement& statement)
-{
-	return false;
-}
-
-bool ReturnRemover::run(BreakStatement& statement)
-{
-	return false;
-}
-
-bool ReturnRemover::run(IfStatement& statement)
-{
-	auto& ifStatement = statement.get<IfStatement>();
+	auto* ifStatement = statement.get<IfStatement>();
 	bool canReturn = false;
 
-	for (auto& block : ifStatement)
+	for (auto& block : *ifStatement)
 	{
 		bool blockCanReturn = false;
 
-		llvm::SmallVector<std::shared_ptr<Statement>, 3> statements;
-		llvm::SmallVector<std::shared_ptr<Statement>, 3> avoidableStatements;
+		llvm::SmallVector<std::unique_ptr<Statement>, 3> statements;
+		llvm::SmallVector<std::unique_ptr<Statement>, 3> avoidableStatements;
 
 		for (auto& stmnt : block)
 		{
-			if (blockCanReturn)
-				avoidableStatements.push_back(stmnt);
-			else
-				statements.push_back(stmnt);
+			bool currentCanReturn = run<Statement>(*stmnt);
 
-			blockCanReturn |= run<Statement>(*stmnt);
+			if (blockCanReturn)
+				avoidableStatements.push_back(std::move(stmnt));
+			else
+				statements.push_back(std::move(stmnt));
+
+			blockCanReturn |= currentCanReturn;
 		}
 
 		if (blockCanReturn && !avoidableStatements.empty())
 		{
-			Expression reference = Expression::reference(ifStatement.getLocation(), makeType<bool>(), "__mustReturn");
-			Expression falseConstant = Expression::constant(ifStatement.getLocation(), makeType<bool>(), false);
-			Expression condition = Expression::operation(ifStatement.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
+			auto condition = Expression::operation(
+					ifStatement->getLocation(),
+					makeType<bool>(),
+					OperationKind::equal,
+					llvm::ArrayRef({
+							Expression::reference(ifStatement->getLocation(), makeType<bool>(), "__mustReturn"),
+							Expression::constant(ifStatement->getLocation(), makeType<bool>(), false)
+					}));
 
 			// Create the block of code to be executed if a return is not called
-			IfStatement::Block returnNotCalledBlock(condition, {});
-			returnNotCalledBlock.getBody() = avoidableStatements;
-			statements.push_back(std::make_shared<Statement>(IfStatement(ifStatement.getLocation(), returnNotCalledBlock)));
-
-			block.getBody() = statements;
+			IfStatement::Block returnNotCalledBlock(std::move(condition), {});
+			returnNotCalledBlock.setBody(avoidableStatements);
+			statements.push_back(Statement::ifStatement(ifStatement->getLocation(), returnNotCalledBlock));
 		}
 
+		block.setBody(statements);
 		canReturn |= blockCanReturn;
 	}
 
 	return canReturn;
 }
 
-bool ReturnRemover::run(ForStatement& statement)
+template<>
+bool ReturnRemover::run<ReturnStatement>(Statement& statement)
 {
-	auto& forStatement = statement.get<ForStatement>();
-	bool canReturn = false;
+	auto location = statement.getLocation();
 
-	llvm::SmallVector<std::shared_ptr<Statement>, 3> statements;
-	llvm::SmallVector<std::shared_ptr<Statement>, 3> avoidableStatements;
-
-	for (auto& stmnt : forStatement)
-	{
-		if (canReturn)
-			avoidableStatements.push_back(stmnt);
-		else
-			statements.push_back(stmnt);
-
-		canReturn |= run(*stmnt);
-	}
-
-	if (canReturn && !avoidableStatements.empty())
-	{
-		auto reference = std::make_unique<ReferenceAccess>(forStatement.getLocation(), makeType<bool>(), "__mustReturn");
-		auto falseConstant = std::make_unique<Constant>(forStatement.getLocation(), makeType<bool>(), false);
-		auto condition = std::make_unique<Operation>(forStatement.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
-
-		// Create the block of code to be executed if a return is not called
-		IfStatement::Block returnNotCalledBlock(condition, {});
-		returnNotCalledBlock.getBody() = avoidableStatements;
-		statements.push_back(std::make_shared<Statement>(IfStatement(forStatement.getLocation(), returnNotCalledBlock)));
-	}
-
-	forStatement.getBody() = statements;
-	forStatement.setReturnCheckName("__mustReturn");
-	return canReturn;
-}
-
-bool ReturnRemover::run(ReturnStatement& statement)
-{
-	auto location = statement.get<ReturnStatement>().getLocation();
-
-	statement = AssignmentStatement(
+	statement = *Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<bool>(), "__mustReturn"),
 			Expression::constant(location, makeType<bool>(), true));
@@ -223,44 +189,95 @@ bool ReturnRemover::run(ReturnStatement& statement)
 	return true;
 }
 
-bool ReturnRemover::run(WhenStatement& statement)
+template<>
+bool ReturnRemover::run<WhenStatement>(Statement& statement)
 {
 	return false;
 }
 
-bool ReturnRemover::run(WhileStatement& statement)
+template<>
+bool ReturnRemover::run<WhileStatement>(Statement& statement)
 {
-	auto& whileStatement = statement.get<WhileStatement>();
+	auto* whileStatement = statement.get<WhileStatement>();
 	bool canReturn = false;
 
-	llvm::SmallVector<std::shared_ptr<Statement>, 3> statements;
-	llvm::SmallVector<std::shared_ptr<Statement>, 3> avoidableStatements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> statements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> avoidableStatements;
 
-	for (auto& stmnt : whileStatement)
+	for (auto& stmnt : *whileStatement)
 	{
-		if (canReturn)
-			avoidableStatements.push_back(stmnt);
-		else
-			statements.push_back(stmnt);
+		bool currentCanReturn = run<Statement>(*stmnt);
 
-		canReturn |= run<Statement>(*stmnt);
+		if (canReturn)
+			avoidableStatements.push_back(std::move(stmnt));
+		else
+			statements.push_back(std::move(stmnt));
+
+		canReturn |= currentCanReturn;
 	}
 
 	if (canReturn && !avoidableStatements.empty())
 	{
-		Expression reference = Expression::reference(whileStatement.getLocation(), makeType<bool>(), "__mustReturn");
-		Expression falseConstant = Expression::constant(whileStatement.getLocation(), makeType<bool>(), false);
-		Expression condition = Expression::operation(whileStatement.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
+		auto condition = Expression::operation(
+				whileStatement->getLocation(),
+				makeType<bool>(),
+				OperationKind::equal,
+				llvm::ArrayRef({
+						Expression::reference(whileStatement->getLocation(), makeType<bool>(), "__mustReturn"),
+						Expression::constant(whileStatement->getLocation(), makeType<bool>(), false)
+				}));
 
 		// Create the block of code to be executed if a return is not called
-		IfStatement::Block returnNotCalledBlock(condition, {});
-		returnNotCalledBlock.getBody() = avoidableStatements;
-		statements.push_back(std::make_shared<Statement>(IfStatement(whileStatement.getLocation(), returnNotCalledBlock)));
+		IfStatement::Block returnNotCalledBlock(std::move(condition), {});
+		returnNotCalledBlock.setBody(avoidableStatements);
+		statements.push_back(Statement::ifStatement(whileStatement->getLocation(), returnNotCalledBlock));
 	}
 
-	whileStatement.getBody() = statements;
-	whileStatement.setReturnCheckName("__mustReturn");
+	whileStatement->setBody(statements);
+	whileStatement->setReturnCheckName("__mustReturn");
 	return canReturn;
+}
+
+llvm::Error ReturnRemover::run(Algorithm& algorithm)
+{
+	bool canReturn = false;
+
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> statements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> avoidableStatements;
+
+	for (auto& statement : algorithm)
+	{
+		bool currentCanReturn = run<Statement>(*statement);
+
+		if (canReturn)
+			avoidableStatements.push_back(std::move(statement));
+		else
+			statements.push_back(std::move(statement));
+
+		canReturn |= currentCanReturn;
+	}
+
+	if (canReturn && !avoidableStatements.empty())
+	{
+		auto condition = Expression::operation(
+				algorithm.getLocation(),
+				makeType<bool>(),
+				OperationKind::equal,
+				llvm::ArrayRef({
+						Expression::reference(algorithm.getLocation(), makeType<bool>(), "__mustReturn"),
+						Expression::constant(algorithm.getLocation(), makeType<bool>(), false)
+				}));
+
+		// Create the block of code to be executed if a return is not called
+		IfStatement::Block returnNotCalledBlock(std::move(condition), {});
+		returnNotCalledBlock.setBody(avoidableStatements);
+		statements.push_back(Statement::ifStatement(algorithm.getLocation(), returnNotCalledBlock));
+	}
+
+	algorithm.setBody(statements);
+	algorithm.setReturnCheckName("__mustReturn");
+
+	return llvm::Error::success();
 }
 
 std::unique_ptr<Pass> modelica::frontend::createReturnRemovingPass()

@@ -4,22 +4,30 @@
 
 using namespace modelica::frontend;
 
-Function::Function(ASTNodeKind kind,
-									 SourcePosition location,
+Function::Function(SourcePosition location,
 									 bool pure,
 									 llvm::StringRef name,
-									 llvm::Optional<std::unique_ptr<Annotation>>& annotation)
-		: Class(kind, std::move(location), std::move(name)),
+									 llvm::Optional<std::unique_ptr<Annotation>> annotation)
+		: ASTNode(std::move(location)),
 			pure(pure),
+			name(name.str()),
 			annotation(annotation.hasValue() ? llvm::Optional(annotation.getValue()->clone()) : llvm::None)
 {
+	if (annotation.hasValue())
+		this->annotation = annotation.getValue()->clone();
+	else
+		this->annotation = llvm::None;
 }
 
 Function::Function(const Function& other)
-		: Class(static_cast<Class&>(*this)),
+		: ASTNode(other),
 			pure(other.pure),
-			annotation(other.annotation.hasValue() ? llvm::Optional(other.annotation.getValue()->clone()) : llvm::None)
+			name(other.name)
 {
+	if (other.annotation.hasValue())
+		annotation = other.annotation.getValue()->clone();
+	else
+		annotation = llvm::None;
 }
 
 Function::Function(Function&& other) = default;
@@ -30,9 +38,10 @@ Function& Function::operator=(const Function& other)
 {
 	if (this != &other)
 	{
-		static_cast<Class&>(*this) = static_cast<const Class&>(other);
+		static_cast<ASTNode&>(*this) = static_cast<const ASTNode&>(other);
 
 		this->pure = other.pure;
+		this->name = other.name;
 		this->annotation = other.annotation.hasValue() ? llvm::Optional(other.annotation.getValue()->clone()) : llvm::None;
 	}
 
@@ -45,12 +54,18 @@ namespace modelica::frontend
 {
 	void swap(Function& first, Function& second)
 	{
-		swap(static_cast<Class&>(first), static_cast<Class&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
 		swap(first.pure, second.pure);
+		swap(first.name, second.name);
 		swap(first.annotation, second.annotation);
 	}
+}
+
+llvm::StringRef Function::getName() const
+{
+	return name;
 }
 
 bool Function::isPure() const
@@ -78,18 +93,17 @@ const Annotation* Function::getAnnotation() const
 DerFunction::DerFunction(SourcePosition location,
 												 bool pure,
 												 llvm::StringRef name,
-												 llvm::Optional<std::unique_ptr<Annotation>>& annotation,
+												 llvm::Optional<std::unique_ptr<Annotation>> annotation,
 												 llvm::StringRef derivedFunction,
 												 llvm::StringRef arg)
-		: FunctionCRTP<DerFunction>(
-					ASTNodeKind::FUNCTION_DER, location, pure, name, annotation),
+		: Function(std::move(location), pure, name, std::move(annotation)),
 			derivedFunction(derivedFunction.str()),
 			arg(arg.str())
 {
 }
 
 DerFunction::DerFunction(const DerFunction& other)
-		: FunctionCRTP<DerFunction>(static_cast<FunctionCRTP<DerFunction>&>(*this)),
+		: Function(other),
 			derivedFunction(other.derivedFunction),
 			arg(other.arg)
 {
@@ -112,8 +126,7 @@ namespace modelica::frontend
 {
 	void swap(DerFunction& first, DerFunction& second)
 	{
-		swap(static_cast<impl::FunctionCRTP<DerFunction>&>(first),
-				 static_cast<impl::FunctionCRTP<DerFunction>&>(second));
+		swap(static_cast<Function&>(first), static_cast<Function&>(second));
 
 		using std::swap;
 		swap(first.derivedFunction, second.derivedFunction);
@@ -121,7 +134,7 @@ namespace modelica::frontend
 	}
 }
 
-void DerFunction::dump(llvm::raw_ostream& os, size_t indents) const
+void DerFunction::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "function " << getName() << ": der(" << getDerivedFunction() << ", " << getArg() << "\n";
@@ -140,11 +153,10 @@ llvm::StringRef DerFunction::getArg() const
 StandardFunction::StandardFunction(SourcePosition location,
 																	 bool pure,
 																	 llvm::StringRef name,
-																	 llvm::Optional<std::unique_ptr<Annotation>>& annotation,
+																	 llvm::Optional<std::unique_ptr<Annotation>> annotation,
 																	 llvm::ArrayRef<std::unique_ptr<Member>> members,
 																	 llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms)
-		: FunctionCRTP<StandardFunction>(
-					ASTNodeKind::FUNCTION_STANDARD, location, pure, name, annotation),
+		: Function(std::move(location), pure, name, std::move(annotation)),
 			type(Type::unknown())
 {
 	for (const auto& member : members)
@@ -155,7 +167,7 @@ StandardFunction::StandardFunction(SourcePosition location,
 }
 
 StandardFunction::StandardFunction(const StandardFunction& other)
-		: FunctionCRTP<StandardFunction>(static_cast<FunctionCRTP<StandardFunction>&>(*this)),
+		: Function(other),
 			type(other.type)
 {
 	for (const auto& member : other.members)
@@ -182,8 +194,7 @@ namespace modelica::frontend
 {
 	void swap(StandardFunction& first, StandardFunction& second)
 	{
-		swap(static_cast<impl::FunctionCRTP<StandardFunction>&>(first),
-				 static_cast<impl::FunctionCRTP<StandardFunction>&>(second));
+		swap(static_cast<Function&>(first), static_cast<Function&>(second));
 
 		impl::swap(first.members, second.members);
 		impl::swap(first.algorithms, second.algorithms);
@@ -191,16 +202,16 @@ namespace modelica::frontend
 	}
 }
 
-void StandardFunction::dump(llvm::raw_ostream& os, size_t indents) const
+void StandardFunction::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "function " << getName() << "\n";
 
 	for (const auto& member : members)
-		member->dump(os, indents + 1);
+		member->print(os, indents + 1);
 
 	for (const auto& algorithm : getAlgorithms())
-		algorithm->dump(os, indents + 1);
+		algorithm->print(os, indents + 1);
 }
 
 Member* StandardFunction::operator[](llvm::StringRef name)
@@ -264,9 +275,9 @@ StandardFunction::Container<Member*> StandardFunction::getProtectedMembers() con
 	return result;
 }
 
-void StandardFunction::addMember(Member* member)
+void StandardFunction::addMember(std::unique_ptr<Member> member)
 {
-	this->members.push_back(member->clone());
+	this->members.push_back(std::move(member));
 }
 
 llvm::MutableArrayRef<std::unique_ptr<Algorithm>> StandardFunction::getAlgorithms()
@@ -279,7 +290,12 @@ llvm::ArrayRef<std::unique_ptr<Algorithm>> StandardFunction::getAlgorithms() con
 	return algorithms;
 }
 
-Type StandardFunction::getType() const
+Type& StandardFunction::getType()
+{
+	return type;
+}
+
+const Type& StandardFunction::getType() const
 {
 	return type;
 }

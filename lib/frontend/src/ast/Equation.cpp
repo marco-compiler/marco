@@ -1,21 +1,20 @@
 #include <modelica/frontend/AST.h>
 
-using namespace modelica;
-using namespace frontend;
+using namespace modelica::frontend;
 
 Equation::Equation(SourcePosition location,
 									 std::unique_ptr<Expression> lhs,
 									 std::unique_ptr<Expression> rhs)
-		: ASTNodeCRTP<Equation>(ASTNodeKind::EQUATION, std::move(location)),
+		: ASTNode(std::move(location)),
 			lhs(std::move(lhs)),
 			rhs(std::move(rhs))
 {
 }
 
 Equation::Equation(const Equation& other)
-		: ASTNodeCRTP<Equation>(static_cast<const ASTNodeCRTP<Equation>&>(other)),
-			lhs(other.lhs->cloneExpression()),
-			rhs(other.rhs->cloneExpression())
+		: ASTNode(other),
+			lhs(other.lhs->clone()),
+			rhs(other.rhs->clone())
 {
 }
 
@@ -36,8 +35,7 @@ namespace modelica::frontend
 {
 	void swap(Equation& first, Equation& second)
 	{
-		swap(static_cast<impl::ASTNodeCRTP<Equation>&>(first),
-				 static_cast<impl::ASTNodeCRTP<Equation>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
 		swap(first.lhs, second.lhs);
@@ -45,12 +43,12 @@ namespace modelica::frontend
 	}
 }
 
-void Equation::dump(llvm::raw_ostream& os, size_t indents) const
+void Equation::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "equation\n";
-	lhs->dump(os, indents + 1);
-	rhs->dump(os, indents + 1);
+	lhs->print(os, indents + 1);
+	rhs->print(os, indents + 1);
 }
 
 Expression* Equation::getLhsExpression()
@@ -63,9 +61,9 @@ const Expression* Equation::getLhsExpression() const
 	return lhs.get();
 }
 
-void Equation::setLhsExpression(Expression* expression)
+void Equation::setLhsExpression(std::unique_ptr<Expression> expression)
 {
-	this->lhs = expression->cloneExpression();
+	this->lhs = std::move(expression);
 }
 
 Expression* Equation::getRhsExpression()
@@ -78,7 +76,7 @@ const Expression* Equation::getRhsExpression() const
 	return rhs.get();
 }
 
-void Equation::setRhsExpression(Expression* expression)
+void Equation::setRhsExpression(std::unique_ptr<Expression> expression)
 {
-	this->rhs = expression->cloneExpression();
+	this->rhs = std::move(expression);
 }

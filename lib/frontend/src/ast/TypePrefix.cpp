@@ -54,9 +54,7 @@ TypePrefix::TypePrefix(
 {
 }
 
-void TypePrefix::dump() const { dump(llvm::outs(), 0); }
-
-void TypePrefix::dump(llvm::raw_ostream& os, size_t indents) const
+void TypePrefix::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os << "Prefix: ";
 

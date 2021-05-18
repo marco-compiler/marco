@@ -1,16 +1,40 @@
 #include <modelica/frontend/AST.h>
 
+using namespace modelica;
 using namespace modelica::frontend;
 
-Expression::Expression(ASTNodeKind kind, SourcePosition location, Type type)
-		: ASTNodeCRTP<Expression>(kind, std::move(location)),
-			type(std::move(type))
+Expression::Expression(Array content)
+		: content(std::move(content))
+{
+}
+
+Expression::Expression(Call content)
+		: content(std::move(content))
+{
+}
+
+Expression::Expression(Constant content)
+		: content(std::move(content))
+{
+}
+
+Expression::Expression(Operation content)
+		: content(std::move(content))
+{
+}
+
+Expression::Expression(ReferenceAccess content)
+		: content(std::move(content))
+{
+}
+
+Expression::Expression(Tuple content)
+		: content(std::move(content))
 {
 }
 
 Expression::Expression(const Expression& other)
-		: ASTNodeCRTP<Expression>(static_cast<const ASTNodeCRTP<Expression>&>(other)),
-			type(other.type)
+		: content(other.content)
 {
 }
 
@@ -20,12 +44,8 @@ Expression::~Expression() = default;
 
 Expression& Expression::operator=(const Expression& other)
 {
-	if (this != &other)
-	{
-		static_cast<ASTNodeCRTP<Expression>&>(*this) = static_cast<const ASTNodeCRTP<Expression>&>(other);
-		this->type = other.type;
-	}
-
+	Expression result(other);
+	swap(*this, result);
 	return *this;
 }
 
@@ -35,12 +55,21 @@ namespace modelica::frontend
 {
 	void swap(Expression& first, Expression& second)
 	{
-		swap(static_cast<impl::ASTNodeCRTP<Expression>&>(first),
-				 static_cast<impl::ASTNodeCRTP<Expression>&>(second));
-
 		using std::swap;
-		swap(first.type, second.type);
+		swap(first.content, second.content);
 	}
+}
+
+void Expression::print(llvm::raw_ostream& os, size_t indents) const
+{
+	visit([&os, indents](const auto& obj) {
+		obj.dump(os, indents);
+	});
+}
+
+bool Expression::operator==(const Expression& rhs) const
+{
+	return content == rhs.content;
 }
 
 bool Expression::operator!=(const Expression& rhs) const
@@ -48,19 +77,39 @@ bool Expression::operator!=(const Expression& rhs) const
 	return !(rhs == *this);
 }
 
+SourcePosition Expression::getLocation() const
+{
+	return visit([](const auto& obj) {
+		return obj.getLocation();
+	});
+}
+
 Type& Expression::getType()
 {
-	return type;
+	return std::visit([](auto& obj) -> Type& {
+		return obj.getType();
+	}, content);
 }
 
 const Type& Expression::getType() const
 {
-	return type;
+	return std::visit([](const auto& obj) -> const Type& {
+		return obj.getType();
+	}, content);
 }
 
 void Expression::setType(Type tp)
 {
-	type = std::move(tp);
+	visit([&tp](auto& obj) {
+		obj.setType(std::move(tp));
+	});
+}
+
+bool Expression::isLValue() const
+{
+	return visit([](const auto& obj) {
+		return obj.isLValue();
+	});
 }
 
 namespace modelica::frontend

@@ -3,243 +3,255 @@
 
 using namespace modelica::frontend;
 
+template<>
+llvm::Error BreakRemover::run<Class>(Class& cls)
+{
+	return cls.visit([&](auto& obj) {
+		using type = decltype(obj);
+		using deref = typename std::remove_reference<type>::type;
+		using deconst = typename std::remove_const<deref>::type;
+		return run<deconst>(cls);
+	});
+}
+
 llvm::Error BreakRemover::run(Class& cls)
 {
-	if (auto* function = cls.dyn_cast<Function>())
-		return run(*function);
-
-	if (auto* model = cls.dyn_cast<Model>())
-		return run(*model);
-
-	if (auto* package = cls.dyn_cast<Package>())
-		return run(*package);
-
-	if (auto* record = cls.dyn_cast<Record>())
-		return run(*record);
-
-	return llvm::Error::success();
+	return run<Class>(cls);
 }
 
-llvm::Error BreakRemover::run(Model& cls)
+template<>
+llvm::Error BreakRemover::run<DerFunction>(Class& cls)
 {
 	return llvm::Error::success();
 }
 
-llvm::Error BreakRemover::run(Function& function)
+template<>
+llvm::Error BreakRemover::run<StandardFunction>(Class& cls)
 {
-	if (auto* derFunction = function.dyn_cast<DerFunction>())
-		return run(*derFunction);
-
-	if (auto* standardFunction = function.dyn_cast<StandardFunction>())
-		return run(*standardFunction);
-
-	return llvm::Error::success();
-}
-
-llvm::Error BreakRemover::run(DerFunction& function)
-{
-	return llvm::Error::success();
-}
-
-llvm::Error BreakRemover::run(StandardFunction& function)
-{
-	for (auto& algorithm : function.getAlgorithms())
+	for (auto& algorithm : cls.get<StandardFunction>()->getAlgorithms())
 		if (auto error = run(*algorithm); error)
 			return error;
 
 	return llvm::Error::success();
 }
 
-llvm::Error BreakRemover::run(Package& package)
+template<>
+llvm::Error BreakRemover::run<Model>(Class& cls)
 {
-	for (auto& cls : package)
-		if (auto error = run(*cls); error)
+	return llvm::Error::success();
+}
+
+template<>
+llvm::Error BreakRemover::run<Package>(Class& cls)
+{
+	for (auto& innerClass : cls.get<Package>()->getInnerClasses())
+		if (auto error = run(*innerClass); error)
 			return error;
 
 	return llvm::Error::success();
 }
 
-llvm::Error BreakRemover::run(Record& record)
+template<>
+llvm::Error BreakRemover::run<Record>(Class& cls)
 {
+	for (auto& innerClass : cls.get<Package>()->getInnerClasses())
+		if (auto error = run(*innerClass); error)
+			return error;
+
 	return llvm::Error::success();
 }
 
-llvm::Error BreakRemover::run(Algorithm& algorithm)
+template<>
+bool BreakRemover::run<Statement>(Statement& statement)
 {
-	for (auto& statement : algorithm)
-		run(*statement);
-
-	return llvm::Error::success();
+	return statement.visit([&](auto& obj) {
+		using type = decltype(obj);
+		using deref = typename std::remove_reference<type>::type;
+		using deconst = typename std::remove_const<deref>::type;
+		return run<deconst>(statement);
+	});
 }
 
-bool BreakRemover::run(Statement& statement)
-{
-	if (auto* assignmentStatement = statement.dyn_cast<AssignmentStatement>())
-		return run(*assignmentStatement);
-
-	if (auto* breakStatement = statement.dyn_cast<BreakStatement>())
-		return run(*breakStatement);
-
-	if (auto* forStatement = statement.dyn_cast<ForStatement>())
-		return run(*forStatement);
-
-	if (auto* ifStatement = statement.dyn_cast<IfStatement>())
-		return run(*ifStatement);
-
-	if (auto* returnStatement = statement.dyn_cast<ReturnStatement>())
-		return run(*returnStatement);
-
-	if (auto* whenStatement = statement.dyn_cast<WhenStatement>())
-		return run(*whenStatement);
-
-	if (auto* whileStatement = statement.dyn_cast<WhileStatement>())
-		return run(*whileStatement);
-
-	return false;
-}
-
-bool BreakRemover::run(AssignmentStatement& statement)
+template<>
+bool BreakRemover::run<AssignmentStatement>(Statement& statement)
 {
 	return false;
 }
 
-bool BreakRemover::run(BreakStatement& statement)
+template<>
+bool BreakRemover::run<BreakStatement>(Statement& statement)
 {
 	auto location = statement.getLocation();
 
-	statement = AssignmentStatement(
+	statement = *Statement::assignmentStatement(
 			location,
-			std::make_unique<ReferenceAccess>(location, makeType<bool>(), "__mustBreak" + std::to_string(nestLevel)),
-			std::make_unique<Constant>(location, makeType<bool>(), true));
+			Expression::reference(location, makeType<bool>(), "__mustBreak" + std::to_string(nestLevel)),
+			Expression::constant(location, makeType<bool>(), true));
 
 	return true;
 }
 
-bool BreakRemover::run(IfStatement& statement)
+template<>
+bool BreakRemover::run<ForStatement>(Statement& statement)
 {
-	bool breakable = false;
-
-	for (auto& block : statement)
-	{
-		bool blockBreakable = false;
-
-		llvm::SmallVector<Statement*, 3> statements;
-		llvm::SmallVector<Statement*, 3> avoidableStatements;
-
-		for (auto& stmnt : block)
-		{
-			if (blockBreakable)
-				avoidableStatements.push_back(stmnt.get());
-			else
-				statements.push_back(stmnt.get());
-
-			blockBreakable |= run(*stmnt);
-		}
-
-		if (blockBreakable && !avoidableStatements.empty())
-		{
-			Expression reference = Expression::reference(ifStatement.getLocation(), makeType<bool>(), "__mustBreak" + std::to_string(nestLevel));
-			Expression falseConstant = Expression::constant(ifStatement.getLocation(), makeType<bool>(), false);
-			Expression condition = Expression::operation(ifStatement.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
-
-			// Create the block of code to be executed if a break is not called
-			IfStatement::Block breakNotCalledBlock(condition, {});
-			breakNotCalledBlock.getBody() = avoidableStatements;
-			statements.push_back(std::make_shared<Statement>(IfStatement(ifStatement.getLocation(), breakNotCalledBlock)));
-
-			block.getBody() = statements;
-		}
-
-		breakable |= blockBreakable;
-	}
-
-	return breakable;
-}
-
-bool BreakRemover::run(ForStatement& statement)
-{
+	auto* forStatement = statement.get<ForStatement>();
 	bool breakable = false;
 	nestLevel++;
 
-	llvm::SmallVector<Statement*, 3> statements;
-	llvm::SmallVector<Statement*, 3> avoidableStatements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> statements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> avoidableStatements;
 
-	for (auto& stmnt : statement)
+	for (auto& stmnt : *forStatement)
 	{
-		if (breakable)
-			avoidableStatements.push_back(stmnt.get());
-		else
-			statements.push_back(stmnt.get());
+		bool currentBreakable = run<Statement>(*stmnt);
 
-		breakable |= run(*stmnt);
+		if (breakable)
+			avoidableStatements.push_back(std::move(stmnt));
+		else
+			statements.push_back(std::move(stmnt));
+
+		breakable |= currentBreakable;
 	}
 
 	if (breakable && !avoidableStatements.empty())
 	{
-		Expression reference = Expression::reference(forStatement.getLocation(), makeType<bool>(), "__mustBreak" + std::to_string(nestLevel));
-		Expression falseConstant = Expression::constant(forStatement.getLocation(), makeType<bool>(), false);
-		Expression condition = Expression::operation(forStatement.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
+		auto condition = Expression::operation(
+				forStatement->getLocation(),
+				makeType<bool>(),
+				OperationKind::equal,
+				llvm::ArrayRef({
+						Expression::reference(forStatement->getLocation(), makeType<bool>(), "__mustBreak" + std::to_string(nestLevel)),
+						Expression::constant(forStatement->getLocation(), makeType<bool>(), false)
+				}));
 
 		// Create the block of code to be executed if a break is not called
-		IfStatement::Block breakNotCalledBlock(condition, {});
-		breakNotCalledBlock.getBody() = avoidableStatements;
-		statements.push_back(std::make_shared<Statement>(IfStatement(forStatement.getLocation(), breakNotCalledBlock)));
+		IfStatement::Block breakNotCalledBlock(std::move(condition), {});
+		breakNotCalledBlock.setBody(avoidableStatements);
+		statements.push_back(Statement::ifStatement(forStatement->getLocation(), breakNotCalledBlock));
 	}
 
-	statement.getBody() = statements;
-	statement.setBreakCheckName("__mustBreak" + std::to_string(nestLevel));
+	forStatement->setBody(statements);
+	forStatement->setBreakCheckName("__mustBreak" + std::to_string(nestLevel));
 	nestLevel--;
 
 	// A for statement can't break a parent one
 	return false;
 }
 
-bool BreakRemover::run(ReturnStatement& statement)
+template<>
+bool BreakRemover::run<IfStatement>(Statement& statement)
+{
+	auto* ifStatement = statement.get<IfStatement>();
+	bool breakable = false;
+
+	for (auto& block : *ifStatement)
+	{
+		bool blockBreakable = false;
+
+		llvm::SmallVector<std::unique_ptr<Statement>, 3> statements;
+		llvm::SmallVector<std::unique_ptr<Statement>, 3> avoidableStatements;
+
+		for (auto& stmnt : block)
+		{
+			bool currentBreakable = run<Statement>(*stmnt);
+
+			if (blockBreakable)
+				avoidableStatements.push_back(std::move(stmnt));
+			else
+				statements.push_back(std::move(stmnt));
+
+			blockBreakable |= currentBreakable;
+		}
+
+		if (blockBreakable && !avoidableStatements.empty())
+		{
+			auto condition = Expression::operation(
+					ifStatement->getLocation(),
+					makeType<bool>(),
+					    OperationKind::equal,
+					llvm::ArrayRef({
+							Expression::reference(ifStatement->getLocation(), makeType<bool>(), "__mustBreak" + std::to_string(nestLevel)),
+							Expression::constant(ifStatement->getLocation(), makeType<bool>(), false)
+					}));
+
+			// Create the block of code to be executed if a break is not called
+			IfStatement::Block breakNotCalledBlock(std::move(condition), {});
+			breakNotCalledBlock.setBody(avoidableStatements);
+			statements.push_back(Statement::ifStatement(ifStatement->getLocation(), breakNotCalledBlock));
+		}
+
+		block.setBody(statements);
+		breakable |= blockBreakable;
+	}
+
+	return breakable;
+}
+
+template<>
+bool BreakRemover::run<ReturnStatement>(Statement& statement)
 {
 	return false;
 }
 
-bool BreakRemover::run(WhenStatement& statement)
+template<>
+bool BreakRemover::run<WhenStatement>(Statement& statement)
 {
 	return false;
 }
 
-bool BreakRemover::run(WhileStatement& statement)
+template<>
+bool BreakRemover::run<WhileStatement>(Statement& statement)
 {
+	auto* whileStatement = statement.get<WhileStatement>();
 	bool breakable = false;
 	nestLevel++;
 
-	llvm::SmallVector<Statement*, 3> statements;
-	llvm::SmallVector<Statement*, 3> avoidableStatements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> statements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> avoidableStatements;
 
-	for (auto& stmnt : statement)
+	for (auto& stmnt : *whileStatement)
 	{
-		if (breakable)
-			avoidableStatements.push_back(stmnt.get());
-		else
-			statements.push_back(stmnt.get());
+		bool currentBreakable = run<Statement>(*stmnt);
 
-		breakable |= run(*stmnt);
+		if (breakable)
+			avoidableStatements.push_back(std::move(stmnt));
+		else
+			statements.push_back(std::move(stmnt));
+
+		breakable |= currentBreakable;
 	}
 
 	if (breakable && !avoidableStatements.empty())
 	{
-		Expression reference = Expression::reference(whileStatement.getLocation(), makeType<bool>(), "__mustBreak" + std::to_string(nestLevel));
-		Expression falseConstant = Expression::constant(whileStatement.getLocation(), makeType<bool>(), false);
-		Expression condition = Expression::operation(whileStatement.getLocation(), makeType<bool>(), OperationKind::equal, reference, falseConstant);
+		auto condition = Expression::operation(
+				whileStatement->getLocation(),
+				makeType<bool>(),
+				    OperationKind::equal,
+				llvm::ArrayRef({
+						Expression::reference(whileStatement->getLocation(), makeType<bool>(), "__mustBreak" + std::to_string(nestLevel)),
+						Expression::constant(whileStatement->getLocation(), makeType<bool>(), false)
+				}));
 
 		// Create the block of code to be executed if a break is not called
-		IfStatement::Block breakNotCalledBlock(condition, {});
-		breakNotCalledBlock.getBody() = avoidableStatements;
-		statements.push_back(std::make_shared<Statement>(IfStatement(whileStatement.getLocation(), breakNotCalledBlock)));
+		IfStatement::Block breakNotCalledBlock(std::move(condition), {});
+		breakNotCalledBlock.setBody(avoidableStatements);
+		statements.push_back(Statement::ifStatement(whileStatement->getLocation(), breakNotCalledBlock));
 	}
 
-	statement.getBody() = statements;
-	statement.setBreakCheckName("__mustBreak" + std::to_string(nestLevel));
+	whileStatement->setBody(statements);
+	whileStatement->setBreakCheckName("__mustBreak" + std::to_string(nestLevel));
 	nestLevel--;
 
 	// A while statement can't break a parent one
 	return false;
+}
+
+llvm::Error BreakRemover::run(Algorithm& algorithm)
+{
+	for (auto& statement : algorithm)
+		run<Statement>(*statement);
+
+	return llvm::Error::success();
 }
 
 std::unique_ptr<Pass> modelica::frontend::createBreakRemovingPass()

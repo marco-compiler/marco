@@ -32,35 +32,36 @@ TEST(ControlFlow, thenBranchTaken)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Expression condition = Expression::operation(
-			location,
-			makeType<bool>(),
-			OperationKind::greater,
-			Expression::reference(location, makeType<int>(), "x"),
-			Expression::constant(location, makeType<int>(), 0));
+	auto condition = Expression::operation(
+			location, makeType<bool>(), OperationKind::greater,
+			llvm::ArrayRef({
+					Expression::reference(location, makeType<int>(), "x"),
+					Expression::constant(location, makeType<int>(), 0)
+			}));
 
-	Statement thenStatement = AssignmentStatement(
+	auto thenStatement = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<int>(), "y"),
 			Expression::constant(location, makeType<int>(), 1));
 
-	Statement elseStatement = AssignmentStatement(
+	auto elseStatement = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<int>(), "y"),
 			Expression::constant(location, makeType<int>(), 2));
 
-	Statement ifStatement = IfStatement(location, {
-			IfStatement::Block(condition, { thenStatement }),
-			IfStatement::Block(Expression::constant(location, makeType<bool>(), true), { elseStatement })
-	});
+	auto ifStatement = Statement::ifStatement(
+			location, llvm::ArrayRef({
+										IfStatement::Block(std::move(condition), std::move(thenStatement)),
+										IfStatement::Block(Expression::constant(location, makeType<bool>(), true), std::move(elseStatement))
+								}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ xMember, yMember },
-			Algorithm(location, ifStatement)));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
+			Algorithm::build(location, std::move(ifStatement)));
 
 	mlir::MLIRContext context;
 
@@ -68,7 +69,7 @@ TEST(ControlFlow, thenBranchTaken)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -100,35 +101,38 @@ TEST(ControlFlow, elseBranchTaken)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Expression condition = Expression::operation(
+	auto condition = Expression::operation(
 			location,
 			makeType<bool>(),
 			OperationKind::greater,
-			Expression::reference(location, makeType<int>(), "x"),
-			Expression::constant(location, makeType<int>(), 0));
+			llvm::ArrayRef({
+					Expression::reference(location, makeType<int>(), "x"),
+					Expression::constant(location, makeType<int>(), 0)
+			}));
 
-	Statement thenStatement = AssignmentStatement(
+	auto thenStatement = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<int>(), "y"),
 			Expression::constant(location, makeType<int>(), 1));
 
-	Statement elseStatement = AssignmentStatement(
+	auto elseStatement = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<int>(), "y"),
 			Expression::constant(location, makeType<int>(), 2));
 
-	Statement ifStatement = IfStatement(location, {
-			IfStatement::Block(condition, { thenStatement }),
-			IfStatement::Block(Expression::constant(location, makeType<bool>(), true), { elseStatement })
-	});
+	auto ifStatement = Statement::ifStatement(
+			location, llvm::ArrayRef({
+										IfStatement::Block(std::move(condition), std::move(thenStatement)),
+										IfStatement::Block(Expression::constant(location, makeType<bool>(), true), std::move(elseStatement))
+								}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ xMember, yMember },
-			Algorithm(location, ifStatement)));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
+			Algorithm::build(location, std::move(ifStatement)));
 
 	mlir::MLIRContext context;
 
@@ -136,7 +140,7 @@ TEST(ControlFlow, elseBranchTaken)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -170,48 +174,53 @@ TEST(ControlFlow, elseIfBranchTaken)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Expression ifCondition = Expression::operation(
+	auto ifCondition = Expression::operation(
 			location,
 			makeType<bool>(),
 			OperationKind::equal,
-			Expression::reference(location, makeType<int>(), "x"),
-			Expression::constant(location, makeType<int>(), 0));
+			llvm::ArrayRef({
+					Expression::reference(location, makeType<int>(), "x"),
+					Expression::constant(location, makeType<int>(), 0)
+			}));
 
-	Statement thenStatement = AssignmentStatement(
+	auto thenStatement = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<int>(), "y"),
 			Expression::constant(location, makeType<int>(), 1));
 
-	Expression elseIfCondition = Expression::operation(
+	auto elseIfCondition = Expression::operation(
 			location,
 			makeType<bool>(),
 			OperationKind::greater,
-			Expression::reference(location, makeType<int>(), "x"),
-			Expression::constant(location, makeType<int>(), 0));
+			llvm::ArrayRef({
+					Expression::reference(location, makeType<int>(), "x"),
+					Expression::constant(location, makeType<int>(), 0)
+			}));
 
-	Statement elseIfStatement = AssignmentStatement(
+	auto elseIfStatement = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<int>(), "y"),
 			Expression::constant(location, makeType<int>(), 2));
 
-	Statement elseStatement = AssignmentStatement(
+	auto elseStatement = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<int>(), "y"),
 			Expression::constant(location, makeType<int>(), 3));
 
-	Statement ifStatement = IfStatement(location, {
-			IfStatement::Block(ifCondition, { thenStatement }),
-			IfStatement::Block(elseIfCondition, { elseIfStatement }),
-			IfStatement::Block(Expression::constant(location, makeType<bool>(), true), { elseStatement })
-	});
+	auto ifStatement = Statement::ifStatement(
+			location, llvm::ArrayRef({
+			IfStatement::Block(std::move(ifCondition), std::move(thenStatement)),
+			IfStatement::Block(std::move(elseIfCondition), std::move(elseIfStatement)),
+			IfStatement::Block(Expression::constant(location, makeType<bool>(), true), std::move(elseStatement))
+	}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ xMember, yMember },
-			Algorithm(location, ifStatement)));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
+			Algorithm::build(location, std::move(ifStatement)));
 
 	mlir::MLIRContext context;
 
@@ -219,7 +228,7 @@ TEST(ControlFlow, elseIfBranchTaken)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -250,34 +259,36 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Statement forAssignment = AssignmentStatement(
+	auto forAssignment = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<int>(), "y"),
 			Expression::operation(location, makeType<int>(), OperationKind::add,
-														Expression::reference(location, makeType<int>(), "y"),
-														Expression::reference(location, makeType<int>(), "i"))
-			);
+														llvm::ArrayRef({
+																Expression::reference(location, makeType<int>(), "y"),
+																Expression::reference(location, makeType<int>(), "i")
+														})));
 
-	Statement forStatement = ForStatement(
+	auto forStatement = Statement::forStatement(
 			location,
-			Induction(
-					"i",
+			Induction::build(
+					location, "i",
 					Expression::constant(location, makeType<int>(), 1),
 					Expression::reference(location, makeType<int>(), "x")),
-			forAssignment);
+			std::move(forAssignment));
 
-	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, Expression::reference(location, makeType<int>(), "y"), Expression::constant(location, makeType<int>(), 0)),
-			forStatement
-	});
+	auto algorithm = Algorithm::build(
+			location, llvm::ArrayRef({
+			Statement::assignmentStatement(location, Expression::reference(location, makeType<int>(), "y"), Expression::constant(location, makeType<int>(), 0)),
+			std::move(forStatement)
+	}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ xMember, yMember },
-			algorithm));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
+			std::move(algorithm));
 
 	mlir::MLIRContext context;
 
@@ -285,7 +296,7 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -316,34 +327,36 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Statement forAssignment = AssignmentStatement(
+	auto forAssignment = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<int>(), "y"),
 			Expression::operation(location, makeType<int>(), OperationKind::add,
-														Expression::reference(location, makeType<int>(), "y"),
-														Expression::reference(location, makeType<int>(), "i"))
-	);
+														llvm::ArrayRef({
+																Expression::reference(location, makeType<int>(), "y"),
+																Expression::reference(location, makeType<int>(), "i")
+														})));
 
-	Statement forStatement = ForStatement(
+	auto forStatement = Statement::forStatement(
 			location,
-			Induction(
-					"i",
+			Induction::build(
+					location, "i",
 					Expression::constant(location, makeType<int>(), 2),
 					Expression::reference(location, makeType<int>(), "x")),
-			forAssignment);
+			std::move(forAssignment));
 
-	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, Expression::reference(location, makeType<int>(), "y"), Expression::constant(location, makeType<int>(), 1)),
-			forStatement
-	});
+	auto algorithm = Algorithm::build(
+			location, llvm::ArrayRef({
+										Statement::assignmentStatement(location, Expression::reference(location, makeType<int>(), "y"), Expression::constant(location, makeType<int>(), 1)),
+										std::move(forStatement)
+								}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ xMember, yMember },
-			algorithm));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
+			std::move(algorithm));
 
 	mlir::MLIRContext context;
 
@@ -351,7 +364,7 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -387,31 +400,36 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Member iMember(location, "i", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::none));
+	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto iMember = Member::build(location, "i", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::none));
 
-	Expression xRef = Expression::reference(location, makeType<int>(), "x");
-	Expression yRef = Expression::reference(location, makeType<int>(), "y");
-	Expression iRef = Expression::reference(location, makeType<int>(), "i");
+	auto xRef = Expression::reference(location, makeType<int>(), "x");
+	auto yRef = Expression::reference(location, makeType<int>(), "y");
+	auto iRef = Expression::reference(location, makeType<int>(), "i");
 
-	Expression condition = Expression::operation(location, makeType<bool>(), OperationKind::less, iRef, xRef);
+	auto condition = Expression::operation(
+			location, makeType<bool>(), OperationKind::less,
+			llvm::ArrayRef({ iRef->clone(), xRef->clone() }));
 
-	Statement whileStatement = WhileStatement(location, condition, {
-			AssignmentStatement(location, yRef, Expression::operation(location, makeType<int>(), OperationKind::add, yRef, xRef)),
-			AssignmentStatement(location, iRef, Expression::operation(location, makeType<int>(), OperationKind::add, iRef, Expression::constant(location, makeType<int>(), 1)))
-	});
+	auto whileStatement = Statement::whileStatement(
+			location, std::move(condition),
+			llvm::ArrayRef({
+					Statement::assignmentStatement(location, yRef->clone(), Expression::operation(location, makeType<int>(), OperationKind::add, llvm::ArrayRef({ yRef->clone(), xRef->clone() }))),
+					Statement::assignmentStatement(location, iRef->clone(), Expression::operation(location, makeType<int>(), OperationKind::add, llvm::ArrayRef({ iRef->clone(), Expression::constant(location, makeType<int>(), 1) })))
+			}));
 
-	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, iRef, Expression::constant(location, makeType<int>(), 0)),
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
-			whileStatement
-	});
+	auto algorithm = Algorithm::build(
+			location, llvm::ArrayRef({
+										Statement::assignmentStatement(location, iRef->clone(), Expression::constant(location, makeType<int>(), 0)),
+										Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 0)),
+										std::move(whileStatement)
+								}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ xMember, yMember, iMember },
-			algorithm));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember), std::move(iMember) }),
+			std::move(algorithm));
 
 	mlir::MLIRContext context;
 
@@ -419,7 +437,7 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -450,28 +468,31 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::constant(location, makeType<bool>(), false);
-	Expression yRef = Expression::reference(location, makeType<int>(), "y");
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto condition = Expression::constant(location, makeType<bool>(), false);
+	auto yRef = Expression::reference(location, makeType<int>(), "y");
 
-	Statement whileStatement = WhileStatement(location, condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
-			BreakStatement(location)
-	});
+	auto whileStatement = Statement::whileStatement(
+			location, std::move(condition),
+			llvm::ArrayRef({
+					Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 0)),
+					Statement::breakStatement(location)
+			}));
 
-	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
-			whileStatement
-	});
+	auto algorithm = Algorithm::build(
+			location, llvm::ArrayRef({
+										Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 1)),
+										std::move(whileStatement)
+								}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ yMember },
-			algorithm));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			std::move(yMember),
+			std::move(algorithm));
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(cls));
+	EXPECT_TRUE(!passManager.run(*cls));
 
 	mlir::MLIRContext context;
 
@@ -479,7 +500,7 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -512,33 +533,38 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::constant(location, makeType<bool>(), true);
-	Expression yRef = Expression::reference(location, makeType<int>(), "y");
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto condition = Expression::constant(location, makeType<bool>(), true);
+	auto yRef = Expression::reference(location, makeType<int>(), "y");
 
-	Statement innerWhile = WhileStatement(location, condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
-			BreakStatement(location)
-	});
+	auto innerWhile = Statement::whileStatement(
+			location, condition->clone(),
+			llvm::ArrayRef({
+					Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 1)),
+					Statement::breakStatement(location)
+			}));
 
-	Statement outerWhile = WhileStatement(location, condition, {
-			innerWhile,
-			BreakStatement(location)
-	});
+	auto outerWhile = Statement::whileStatement(
+			location, condition->clone(),
+			llvm::ArrayRef({
+					std::move(innerWhile),
+					Statement::breakStatement(location)
+			}));
 
-	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
-			outerWhile
-	});
+	auto algorithm = Algorithm::build(
+			location, llvm::ArrayRef({
+										Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 0)),
+										std::move(outerWhile)
+								}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ yMember },
-			algorithm));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			std::move(yMember),
+			std::move(algorithm));
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(cls));
+	EXPECT_TRUE(!passManager.run(*cls));
 
 	mlir::MLIRContext context;
 
@@ -546,7 +572,7 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -576,28 +602,31 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression condition = Expression::constant(location, makeType<bool>(), true);
-	Expression yRef = Expression::reference(location, makeType<int>(), "y");
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto condition = Expression::constant(location, makeType<bool>(), true);
+	auto yRef = Expression::reference(location, makeType<int>(), "y");
 
-	Statement whileStatement = WhileStatement(location, condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
-			BreakStatement(location)
-	});
+	auto whileStatement = Statement::whileStatement(
+			location, std::move(condition),
+			llvm::ArrayRef({
+					Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 1)),
+					Statement::breakStatement(location)
+			}));
 
-	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
-			whileStatement
-	});
+	auto algorithm = Algorithm::build(
+			location, llvm::ArrayRef({
+										Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 0)),
+										std::move(whileStatement)
+								}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ yMember },
-			algorithm));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			std::move(yMember),
+			std::move(algorithm));
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(cls));
+	EXPECT_TRUE(!passManager.run(*cls));
 
 	mlir::MLIRContext context;
 
@@ -605,7 +634,7 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -638,44 +667,46 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression yRef = Expression::reference(location, makeType<int>(), "y");
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto yRef = Expression::reference(location, makeType<int>(), "y");
 
-	Expression condition = Expression::operation(
-			location,
-			makeType<bool>(),
-			OperationKind::equal,
-			yRef,
-			Expression::constant(location, makeType<int>(), 0));
+	auto condition = Expression::operation(
+			location, makeType<bool>(), OperationKind::equal,
+			llvm::ArrayRef({
+					yRef->clone(),
+					Expression::constant(location, makeType<int>(), 0)
+			}));
 
-	Statement ifStatement = IfStatement(location, IfStatement::Block(condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
-			BreakStatement(location)
-	}));
+	auto ifStatement = Statement::ifStatement(
+			location, IfStatement::Block(
+										std::move(condition),
+										llvm::ArrayRef({
+												Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 1)),
+												Statement::breakStatement(location)
+										})));
 
-	Statement whileStatement = WhileStatement(
+	auto whileStatement = Statement::whileStatement(
 			location,
 			Expression::constant(location, makeType<bool>(), true),
-			{
-					ifStatement,
-					AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0))
-			});
+			llvm::ArrayRef({
+					std::move(ifStatement),
+					Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 0))
+			}));
 
-	Algorithm algorithm = Algorithm(
-			location,
-			{
-					AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
-					whileStatement
-			});
+	auto algorithm = Algorithm::build(
+			location, llvm::ArrayRef({
+										Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 0)),
+										std::move(whileStatement)
+								}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ yMember },
-			algorithm));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			std::move(yMember),
+			std::move(algorithm));
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(cls));
+	EXPECT_TRUE(!passManager.run(*cls));
 
 	mlir::MLIRContext context;
 
@@ -683,7 +714,7 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -713,35 +744,36 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Statement forAssignment = AssignmentStatement(
+	auto forAssignment = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<int>(), "y"),
 			Expression::constant(location, makeType<int>(), 1)
 	);
 
-	Statement forStatement = ForStatement(
+	auto forStatement = Statement::forStatement(
 			location,
-			Induction(
-					"i",
+			Induction::build(
+					location, "i",
 					Expression::constant(location, makeType<int>(), 1),
 					Expression::constant(location, makeType<int>(), 10)),
-			forAssignment);
+			std::move(forAssignment));
 
-	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, Expression::reference(location, makeType<int>(), "y"), Expression::constant(location, makeType<int>(), 0)),
-			forStatement
-	});
+	auto algorithm = Algorithm::build(
+			location, llvm::ArrayRef({
+										Statement::assignmentStatement(location, Expression::reference(location, makeType<int>(), "y"), Expression::constant(location, makeType<int>(), 0)),
+										std::move(forStatement)
+								}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ yMember },
-			algorithm));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			std::move(yMember),
+			std::move(algorithm));
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(cls));
+	EXPECT_TRUE(!passManager.run(*cls));
 
 	mlir::MLIRContext context;
 
@@ -749,7 +781,7 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -782,45 +814,49 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Expression yRef = Expression::reference(location, makeType<int>(), "y");
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto yRef = Expression::reference(location, makeType<int>(), "y");
 
-	Expression condition = Expression::operation(
+	auto condition = Expression::operation(
+			location, makeType<bool>(), OperationKind::equal,
+			llvm::ArrayRef({
+					yRef->clone(),
+					Expression::constant(location, makeType<int>(), 0)
+			}));
+
+	auto ifStatement = Statement::ifStatement(
+			location, IfStatement::Block(
+										std::move(condition),
+										llvm::ArrayRef({
+												Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 1)),
+												Statement::breakStatement(location)
+										})));
+
+	auto forStatement = Statement::forStatement(
 			location,
-			makeType<bool>(),
-			OperationKind::equal,
-			yRef,
-			Expression::constant(location, makeType<int>(), 0));
-
-	Statement ifStatement = IfStatement(location, IfStatement::Block(condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
-			BreakStatement(location)
-	}));
-
-	Statement forStatement = ForStatement(
-			location,
-			Induction(
-					"i",
+			Induction::build(
+					location, "i",
 					Expression::constant(location, makeType<int>(), 1),
 					Expression::constant(location, makeType<int>(), 10)),
-			{
-					ifStatement,
-					AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0))
-			});
+			llvm::ArrayRef({
+					std::move(ifStatement),
+					Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 0))
+			}));
 
-	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
-			forStatement
-	});
+	auto algorithm = Algorithm::build(
+			location, llvm::ArrayRef({
+										Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 0)),
+										std::move(forStatement)
+								}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ yMember },
-			algorithm));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			std::move(yMember),
+			std::move(algorithm));
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(cls));
+	EXPECT_TRUE(!passManager.run(*cls));
 
 	mlir::MLIRContext context;
 
@@ -828,7 +864,7 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -858,25 +894,28 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Expression yRef = Expression::reference(location, makeType<int>(), "y");
-	Statement ifStatement = IfStatement(location, IfStatement::Block(Expression::constant(location, makeType<bool>(), true), { ReturnStatement(location) }));
+	auto yRef = Expression::reference(location, makeType<int>(), "y");
 
-	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
-			ifStatement,
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 0)),
-	});
+	auto ifStatement = Statement::ifStatement(
+			location, IfStatement::Block(Expression::constant(location, makeType<bool>(), true), Statement::returnStatement(location)));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ yMember },
-			algorithm));
+	auto algorithm = Algorithm::build(
+			location, llvm::ArrayRef({
+										Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 1)),
+										std::move(ifStatement),
+										Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 0)),
+								}));
+
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			std::move(yMember),
+			std::move(algorithm));
 
 	PassManager passManager;
 	passManager.addPass(createReturnRemovingPass());
-	EXPECT_TRUE(!passManager.run(cls));
+	EXPECT_TRUE(!passManager.run(*cls));
 
 	mlir::MLIRContext context;
 
@@ -884,7 +923,7 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -897,7 +936,6 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 	EXPECT_EQ(y, 1);
 }
 
-/*
 TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 {
 	/**
@@ -917,53 +955,63 @@ TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 	 * end main
 	 */
 
-/*
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<int>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-	Member zMember(location, "z", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::none));
+	auto xMember = Member::build(location, "x", makeType<int>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto zMember = Member::build(location, "z", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::none));
 
-	Expression xRef = Expression::reference(location, makeType<int>(2), "x");
-	Expression yRef = Expression::reference(location, makeType<int>(), "y");
-	Expression zRef = Expression::reference(location, makeType<int>(2), "z");
+	auto xRef = Expression::reference(location, makeType<int>(2), "x");
+	auto yRef = Expression::reference(location, makeType<int>(), "y");
+	auto zRef = Expression::reference(location, makeType<int>(2), "z");
 
-	Expression condition = Expression::operation(
+	auto condition = Expression::operation(
+			location, makeType<bool>(), OperationKind::equal,
+			llvm::ArrayRef({
+					yRef->clone(),
+					Expression::constant(location, makeType<int>(), 0)
+			}));
+
+	auto ifStatement = Statement::ifStatement(
+			location, IfStatement::Block(
+										std::move(condition),
+										llvm::ArrayRef({
+												Statement::assignmentStatement(location, yRef->clone(), Expression::constant(location, makeType<int>(), 1)),
+												Statement::breakStatement(location)
+										})));
+
+	auto forStatement = Statement::forStatement(
 			location,
-			makeType<bool>(),
-			OperationKind::equal,
-			yRef,
-			Expression::constant(location, makeType<int>(), 0));
-
-	Statement ifStatement = IfStatement(location, IfStatement::Block(condition, {
-			AssignmentStatement(location, yRef, Expression::constant(location, makeType<int>(), 1)),
-			BreakStatement(location)
-	}));
-
-	Statement forStatement = ForStatement(
-			location,
-			Induction(
-					"i",
+			Induction::build(
+					location, "i",
 					Expression::constant(location, makeType<int>(), 1),
 					Expression::constant(location, makeType<int>(), 10)),
-			{
-					AssignmentStatement(location, zRef, Expression::operation(location, makeType<int>(-1), OperationKind::multiply, zRef, Expression::constant(location, makeType<int>(), 2)))
-			});
+			llvm::ArrayRef({
+					Statement::assignmentStatement(location, zRef->clone(),
+																				 Expression::operation(location, makeType<int>(-1), OperationKind::multiply,
+																															 llvm::ArrayRef({
+																																	 zRef->clone(),
+																																	 Expression::constant(location, makeType<int>(), 2)
+																															 })))
+			}));
 
-	Algorithm algorithm = Algorithm(location, {
-			AssignmentStatement(location, zRef, xRef),
-			forStatement,
-			AssignmentStatement(location, yRef, Expression::call(location, makeType<int>(), Expression::reference(location, makeType<int>(), "sum"), zRef))
-	});
+	auto algorithm = Algorithm::build(
+			location, llvm::ArrayRef({
+										Statement::assignmentStatement(location, zRef->clone(), xRef->clone()),
+										std::move(forStatement),
+										Statement::assignmentStatement(
+												location, yRef->clone(),
+												Expression::call(location, makeType<int>(), Expression::reference(location, makeType<int>(), "sum"), zRef->clone()))
+								}));
 
-	ClassContainer cls(Function(
-			location, "main", true,
-			{ xMember, yMember, zMember },
-			algorithm));
+	auto cls = Class::standardFunction(
+			location, true, "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember), std::move(zMember) }),
+			std::move(algorithm));
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(cls));
+	EXPECT_TRUE(!passManager.run(*cls));
 
 	mlir::MLIRContext context;
 
@@ -971,7 +1019,7 @@ TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -986,4 +1034,3 @@ TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, jit::Runner::result(y))));
 	EXPECT_EQ(y, 3072);
 }
-*/

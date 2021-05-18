@@ -146,7 +146,7 @@ int main(int argc, char* argv[])
 
 	Model model;
 	OmcToModelPass pass(model);
-	exitOnErr(pass.lower(*ast, frontend::SymbolTable()));
+	exitOnErr(pass.lower<frontend::Class>(*ast, frontend::SymbolTable()));
 	if (dumpModel)
 	{
 		model.dump(OS);

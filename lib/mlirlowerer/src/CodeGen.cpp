@@ -156,7 +156,7 @@ mlir::Location MLIRLowerer::loc(SourcePosition location)
 			location.column);
 }
 
-llvm::Optional<mlir::ModuleOp> MLIRLowerer::lower(llvm::ArrayRef<ClassContainer> classes)
+llvm::Optional<mlir::ModuleOp> MLIRLowerer::run(llvm::ArrayRef<Class> classes)
 {
 	mlir::ModuleOp module = mlir::ModuleOp::create(builder.getUnknownLoc());
 
@@ -164,7 +164,9 @@ llvm::Optional<mlir::ModuleOp> MLIRLowerer::lower(llvm::ArrayRef<ClassContainer>
 
 	for (auto cls : classes)
 	{
-		auto* op = cls.visit([&](auto obj) { return lower(obj); });
+		auto* op = cls.visit([&](const auto& obj) {
+			return lower(obj);
+		});
 
 		if (op != nullptr)
 			operations.push_back(op);
@@ -186,19 +188,181 @@ llvm::Optional<mlir::ModuleOp> MLIRLowerer::lower(llvm::ArrayRef<ClassContainer>
 	return module;
 }
 
-mlir::Operation* MLIRLowerer::lower(const Class& cls)
+mlir::Operation* MLIRLowerer::lower(const frontend::Class& cls)
+{
+	return cls.visit([&](const auto& obj) {
+		return lower(obj);
+	});
+}
+
+mlir::Operation* MLIRLowerer::lower(const frontend::DerFunction& function)
+{
+	// TODO
+	return nullptr;
+}
+
+mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 
-	auto location = loc(cls.getLocation());
+	auto location = loc(function.getLocation());
+
+	llvm::SmallVector<llvm::StringRef, 3> argNames;
+	llvm::SmallVector<mlir::Type, 3> argTypes;
+
+	for (const auto& member : function.getArgs())
+	{
+		argNames.emplace_back(member->getName());
+
+		mlir::Type type = lower(member->getType(), BufferAllocationScope::unknown);
+
+		if (auto pointerType = type.dyn_cast<PointerType>())
+			type = pointerType.toUnknownAllocationScope();
+
+		argTypes.emplace_back(type);
+	}
+
+	llvm::SmallVector<llvm::StringRef, 3> returnNames;
+	llvm::SmallVector<mlir::Type, 3> returnTypes;
+	auto outputMembers = function.getResults();
+
+	for (const auto& member : outputMembers)
+	{
+		const auto& frontendType = member->getType();
+		mlir::Type type = lower(member->getType(), BufferAllocationScope::heap);
+
+		if (auto pointerType = type.dyn_cast<PointerType>())
+			type = pointerType.toAllocationScope(BufferAllocationScope::heap);
+
+		returnNames.emplace_back(member->getName());
+		returnTypes.emplace_back(type);
+	}
+
+	auto functionType = builder.getFunctionType(argTypes, returnTypes);
+	auto functionOp = mlir::FuncOp::create(location, function.getName(), functionType);
+
+	if (function.hasAnnotation())
+	{
+		// Inline attribute
+		functionOp->setAttr("inline", builder.getBooleanAttribute(function.getAnnotation()->getInlineProperty()));
+
+		{
+			// Inverse functions attribute
+			auto inverseFunctionAnnotation = function.getAnnotation()->getInverseFunctionAnnotation();
+			InverseFunctionsAttribute::Map map;
+
+			// Create a map of the function members indexes for faster retrieval
+			llvm::StringMap<unsigned int> indexes;
+
+			for (const auto& name : llvm::enumerate(argNames))
+				indexes[name.value()] = name.index();
+
+			for (const auto& name : llvm::enumerate(returnNames))
+				indexes[name.value()] = argNames.size() + name.index();
+
+			mlir::StorageUniquer::StorageAllocator allocator;
+
+			// Iterate over the input arguments and for each invertible one
+			// add the function to the inverse map.
+			for (const auto& arg : argNames)
+			{
+				if (!inverseFunctionAnnotation.isInvertible(arg))
+					continue;
+
+				auto inverseArgs = inverseFunctionAnnotation.getInverseArgs(arg);
+				llvm::SmallVector<unsigned int, 3> permutation;
+
+				for (const auto& inverseArg : inverseArgs)
+				{
+					assert(indexes.find(inverseArg) != indexes.end());
+					permutation.push_back(indexes[inverseArg]);
+				}
+
+				map[indexes[arg]] = std::make_pair(
+						inverseFunctionAnnotation.getInverseFunction(arg),
+						allocator.copyInto(llvm::ArrayRef<unsigned int>(permutation)));
+			}
+
+			if (!map.empty())
+			{
+				auto inverseFunctionAttribute = builder.getInverseFunctionsAttribute(map);
+				functionOp->setAttr("inverse", inverseFunctionAttribute);
+			}
+		}
+	}
+
+	// If the function doesn't have a body, it means it is just a declaration
+	if (function.getAlgorithms().empty())
+		return { functionOp };
+
+	// Start the body of the function.
+	auto& entryBlock = *functionOp.addEntryBlock();
+
+	// Declare all the function arguments in the symbol table
+	for (const auto& [name, value] : llvm::zip(argNames, entryBlock.getArguments()))
+		symbolTable.insert(name, Reference::ssa(&builder, value));
+
+	builder.setInsertionPointToStart(&entryBlock);
+
+	// Initialize members
+	for (const auto& member : function.getMembers())
+		lower<Function>(*member);
+
+	// Emit the body of the function
+	const auto& algorithm = function.getAlgorithms()[0];
+
+	// Create the variable to be checked for an early return
+	auto algorithmLocation = loc(algorithm->getLocation());
+	mlir::Value returnCondition = builder.create<AllocaOp>(algorithmLocation, builder.getBooleanType());
+	mlir::Value falseValue = builder.create<ConstantOp>(algorithmLocation, builder.getBooleanAttribute(false));
+	builder.create<StoreOp>(algorithmLocation, falseValue, returnCondition);
+	symbolTable.insert(algorithm->getReturnCheckName(), Reference::memory(&builder, returnCondition, true));
+
+	// Lower the statements
+	lower(*function.getAlgorithms()[0]);
+
+	// Free the protected members allocated on the heap
+	for (const auto& member : function.getMembers())
+	{
+		if (!member->isInput() && !member->isOutput())
+		{
+			auto reference = symbolTable.lookup(member->getName());
+
+			if (reference.getReference().getType().cast<MemberType>().getAllocationScope() == MemberAllocationScope::heap)
+			{
+				mlir::Value buffer = *reference;
+				builder.create<FreeOp>(location, buffer);
+			}
+		}
+	}
+
+	// Return statement
+	llvm::SmallVector<mlir::Value, 3> results;
+
+	for (const auto& name : returnNames)
+	{
+		auto ptr = symbolTable.lookup(name);
+		results.push_back(*ptr);
+	}
+
+	builder.create<mlir::ReturnOp>(location, results);
+	return functionOp;
+}
+
+mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
+
+	auto location = loc(model.getLocation());
 
 	llvm::SmallVector<mlir::Type, 3> args;
 
 	// Time variable
 	args.push_back(builder.getPointerType(BufferAllocationScope::unknown, builder.getRealType()));
 
-	for (const auto& member : cls.getMembers())
+	for (const auto& member : model.getMembers())
 	{
 		mlir::Type type = lower(member->getType(), BufferAllocationScope::unknown);
 
@@ -223,9 +387,9 @@ mlir::Operation* MLIRLowerer::lower(const Class& cls)
 		mlir::Value time = builder.create<AllocOp>(location, builder.getRealType(), llvm::None, llvm::None, false);
 		vars.push_back(time);
 
-		for (const auto& member : cls.getMembers())
+		for (const auto& member : model.getMembers())
 		{
-			lower<Class>(*member);
+			lower<frontend::Model>(*member);
 			vars.push_back(symbolTable.lookup(member->getName()).getReference());
 		}
 
@@ -239,13 +403,13 @@ mlir::Operation* MLIRLowerer::lower(const Class& cls)
 		mlir::Value time = simulation.time();
 		symbolTable.insert("time", Reference::memory(&builder, time, true));
 
-		for (const auto& member : llvm::enumerate(cls.getMembers()))
+		for (const auto& member : llvm::enumerate(model.getMembers()))
 			symbolTable.insert(member.value()->getName(), Reference::memory(&builder, simulation.body().getArgument(member.index() + 1), true));
 
-		for (const auto& equation : cls.getEquations())
+		for (const auto& equation : model.getEquations())
 			lower(*equation);
 
-		for (const auto& forEquation : cls.getForEquations())
+		for (const auto& forEquation : model.getForEquations())
 			lower(*forEquation);
 
 		builder.create<YieldOp>(location);
@@ -259,7 +423,7 @@ mlir::Operation* MLIRLowerer::lower(const Class& cls)
 
 		variablesToBePrinted.push_back(simulation.print().getArgument(0));
 
-		for (const auto& member : cls.getMembers())
+		for (const auto& member : model.getMembers())
 		{
 			unsigned int index = symbolTable.lookup(member->getName()).getReference().cast<mlir::BlockArgument>().getArgNumber();
 			variablesToBePrinted.push_back(simulation.print().getArgument(index));
@@ -271,159 +435,15 @@ mlir::Operation* MLIRLowerer::lower(const Class& cls)
 	return simulation;
 }
 
-mlir::Operation* MLIRLowerer::lower(const Function& foo)
-{
-	mlir::OpBuilder::InsertionGuard guard(builder);
-	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
-
-	auto location = loc(foo.getLocation());
-
-	llvm::SmallVector<llvm::StringRef, 3> argNames;
-	llvm::SmallVector<mlir::Type, 3> argTypes;
-
-	for (const auto& member : foo.getArgs())
-	{
-		argNames.emplace_back(member->getName());
-
-		mlir::Type type = lower(member->getType(), BufferAllocationScope::unknown);
-
-		if (auto pointerType = type.dyn_cast<PointerType>())
-			type = pointerType.toUnknownAllocationScope();
-
-		argTypes.emplace_back(type);
-	}
-
-	llvm::SmallVector<llvm::StringRef, 3> returnNames;
-	llvm::SmallVector<mlir::Type, 3> returnTypes;
-	auto outputMembers = foo.getResults();
-
-	for (const auto& member : outputMembers)
-	{
-		const auto& frontendType = member->getType();
-		mlir::Type type = lower(member->getType(), BufferAllocationScope::heap);
-
-		if (auto pointerType = type.dyn_cast<PointerType>())
-			type = pointerType.toAllocationScope(BufferAllocationScope::heap);
-
-		returnNames.emplace_back(member->getName());
-		returnTypes.emplace_back(type);
-	}
-
-	auto functionType = builder.getFunctionType(argTypes, returnTypes);
-	auto function = mlir::FuncOp::create(location, foo.getName(), functionType);
-
-	// Inline attribute
-	function->setAttr("inline", builder.getBooleanAttribute(foo.getAnnotation().getInlineProperty()));
-
-	{
-		// Inverse functions attribute
-		auto inverseFunctionAnnotation = foo.getAnnotation().getInverseFunctionAnnotation();
-		InverseFunctionsAttribute::Map map;
-
-		// Create a map of the function members indexes for faster retrieval
-		llvm::StringMap<unsigned int> indexes;
-
-		for (const auto& name : llvm::enumerate(argNames))
-			indexes[name.value()] = name.index();
-
-		for (const auto& name : llvm::enumerate(returnNames))
-			indexes[name.value()] = argNames.size() + name.index();
-
-		mlir::StorageUniquer::StorageAllocator allocator;
-
-		// Iterate over the input arguments and for each invertible one
-		// add the function to the inverse map.
-		for (const auto& arg : argNames)
-		{
-			if (!inverseFunctionAnnotation.isInvertible(arg))
-				continue;
-
-			auto inverseArgs = inverseFunctionAnnotation.getInverseArgs(arg);
-			llvm::SmallVector<unsigned int, 3> permutation;
-
-			for (const auto& inverseArg : inverseArgs)
-			{
-				assert(indexes.find(inverseArg) != indexes.end());
-				permutation.push_back(indexes[inverseArg]);
-			}
-
-			map[indexes[arg]] = std::make_pair(
-					inverseFunctionAnnotation.getInverseFunction(arg),
-					allocator.copyInto(llvm::ArrayRef<unsigned int>(permutation)));
-		}
-
-		if (!map.empty())
-		{
-			auto inverseFunctionAttribute = builder.getInverseFunctionsAttribute(map);
-			function->setAttr("inverse", inverseFunctionAttribute);
-		}
-	}
-
-	// If the function doesn't have a body, it means it is just a declaration
-	if (foo.getAlgorithms().empty())
-		return { function };
-
-	// Start the body of the function.
-	auto& entryBlock = *function.addEntryBlock();
-
-	// Declare all the function arguments in the symbol table
-	for (const auto& [name, value] : llvm::zip(argNames, entryBlock.getArguments()))
-		symbolTable.insert(name, Reference::ssa(&builder, value));
-
-	builder.setInsertionPointToStart(&entryBlock);
-
-	// Initialize members
-	for (const auto& member : foo.getMembers())
-		lower<Function>(*member);
-
-	// Emit the body of the function
-	const auto& algorithm = foo.getAlgorithms()[0];
-
-	// Create the variable to be checked for an early return
-	auto algorithmLocation = loc(algorithm->getLocation());
-	mlir::Value returnCondition = builder.create<AllocaOp>(algorithmLocation, builder.getBooleanType());
-	mlir::Value falseValue = builder.create<ConstantOp>(algorithmLocation, builder.getBooleanAttribute(false));
-	builder.create<StoreOp>(algorithmLocation, falseValue, returnCondition);
-	symbolTable.insert(algorithm->getReturnCheckName(), Reference::memory(&builder, returnCondition, true));
-
-	// Lower the statements
-	lower(*foo.getAlgorithms()[0]);
-
-	// Free the protected members allocated on the heap
-	for (const auto& member : foo.getMembers())
-	{
-		if (!member->isInput() && !member->isOutput())
-		{
-			auto reference = symbolTable.lookup(member->getName());
-
-			if (reference.getReference().getType().cast<MemberType>().getAllocationScope() == MemberAllocationScope::heap)
-			{
-				mlir::Value buffer = *reference;
-				builder.create<FreeOp>(location, buffer);
-			}
-		}
-	}
-
-	// Return statement
-	llvm::SmallVector<mlir::Value, 3> results;
-
-	for (const auto& name : returnNames)
-	{
-		auto ptr = symbolTable.lookup(name);
-		results.push_back(*ptr);
-	}
-
-	builder.create<mlir::ReturnOp>(location, results);
-	return function;
-}
-
-mlir::Operation* MLIRLowerer::lower(const Package& package)
+mlir::Operation* MLIRLowerer::lower(const frontend::Package& package)
 {
 	mlir::ModuleOp module = mlir::ModuleOp::create(builder.getUnknownLoc());
 
-	for (const auto& cls : package)
+	for (const auto& innerClass : package.getInnerClasses())
 	{
-		auto* op = cls.visit([&](const auto& obj) { return lower(obj); });
+		auto* op = innerClass->visit([&](const auto& obj) {
+			return lower(obj);
+		});
 
 		if (op != nullptr)
 			module.push_back(op);
@@ -545,7 +565,7 @@ mlir::Type MLIRLowerer::lower(const UserDefinedType& type, BufferAllocationScope
 }
 
 template<>
-void MLIRLowerer::lower<Class>(const Member& member)
+void MLIRLowerer::lower<frontend::Model>(const Member& member)
 {
 	auto location = loc(member.getLocation());
 
@@ -567,7 +587,7 @@ void MLIRLowerer::lower<Class>(const Member& member)
 
 	if (member.hasStartOverload())
 	{
-		auto values = lower<Expression>(member.getStartOverload());
+		auto values = lower<Expression>(*member.getStartOverload());
 		assert(values.size() == 1);
 		builder.create<AssignmentOp>(location, *values[0], destination);
 	}
@@ -635,7 +655,7 @@ void MLIRLowerer::lower<Function>(const Member& member)
 			{
 				if (dimension.hasExpression())
 				{
-					mlir::Value size = *lower<Expression>(dimension.getExpression())[0];
+					mlir::Value size = *lower<Expression>(*dimension.getExpression())[0];
 					size = builder.create<CastOp>(location, size, builder.getIndexType());
 					dynamicDimensions.push_back(size);
 				}
@@ -656,7 +676,7 @@ void MLIRLowerer::lower<Function>(const Member& member)
 		// if it was a regular assignment statement.
 
 		Reference memory = symbolTable.lookup(member.getName());
-		mlir::Value value = *lower<Expression>(member.getInitializer())[0];
+		mlir::Value value = *lower<Expression>(*member.getInitializer())[0];
 		memory.set(value);
 	}
 }
@@ -673,8 +693,8 @@ void MLIRLowerer::lower(const Equation& equation)
 
 	{
 		// Left-hand side
-		const auto& expression = equation.getLeftHand();
-		auto references = lower<Expression>(expression);
+		const auto* expression = equation.getLhsExpression();
+		auto references = lower<Expression>(*expression);
 
 		for (auto& reference : references)
 			lhs.push_back(*reference);
@@ -682,8 +702,8 @@ void MLIRLowerer::lower(const Equation& equation)
 
 	{
 		// Right-hand side
-		const auto& expression = equation.getRightHand();
-		auto references = lower<Expression>(expression);
+		const auto* expression = equation.getRhsExpression();
+		auto references = lower<Expression>(*expression);
 
 		for (auto& reference : references)
 			rhs.push_back(*reference);
@@ -695,7 +715,7 @@ void MLIRLowerer::lower(const Equation& equation)
 void MLIRLowerer::lower(const ForEquation& forEquation)
 {
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
-	mlir::Location location = loc(forEquation.getEquation().getLocation());
+	mlir::Location location = loc(forEquation.getEquation()->getLocation());
 
 	auto result = builder.create<ForEquationOp>(location, forEquation.getInductions().size());
 
@@ -707,13 +727,13 @@ void MLIRLowerer::lower(const ForEquation& forEquation)
 
 		for (const auto& induction : forEquation.getInductions())
 		{
-			const auto& startExpression = induction.getBegin();
-			assert(startExpression.isA<Constant>());
-			long start = startExpression.get<Constant>().as<BuiltInType::Integer>();
+			const auto& startExpression = induction->getBegin();
+			assert(startExpression->isa<Constant>());
+			long start = startExpression->get<Constant>()->as<BuiltInType::Integer>();
 
-			const auto& endExpression = induction.getEnd();
-			assert(endExpression.isA<Constant>());
-			long end = endExpression.get<Constant>().as<BuiltInType::Integer>();
+			const auto& endExpression = induction->getEnd();
+			assert(endExpression->isa<Constant>());
+			long end = endExpression->get<Constant>()->as<BuiltInType::Integer>();
 
 			mlir::Value ind = builder.create<InductionOp>(location, start, end);
 			inductions.push_back(ind);
@@ -729,7 +749,7 @@ void MLIRLowerer::lower(const ForEquation& forEquation)
 
 		// Add the induction variables to the symbol table
 		for (auto [induction, var] : llvm::zip(forEquation.getInductions(), result.inductions()))
-			symbolTable.insert(induction.getName(), Reference::ssa(&builder, var));
+			symbolTable.insert(induction->getName(), Reference::ssa(&builder, var));
 
 		const auto& equation = forEquation.getEquation();
 
@@ -738,8 +758,8 @@ void MLIRLowerer::lower(const ForEquation& forEquation)
 
 		{
 			// Left-hand side
-			const auto& expression = equation.getLeftHand();
-			auto references = lower<Expression>(expression);
+			const auto* expression = equation->getLhsExpression();
+			auto references = lower<Expression>(*expression);
 
 			for (auto& reference : references)
 				lhs.push_back(*reference);
@@ -747,8 +767,8 @@ void MLIRLowerer::lower(const ForEquation& forEquation)
 
 		{
 			// Right-hand side
-			const auto& expression = equation.getRightHand();
-			auto references = lower<Expression>(expression);
+			const auto* expression = equation->getRhsExpression();
+			auto references = lower<Expression>(*expression);
 
 			for (auto& reference : references)
 				rhs.push_back(*reference);
@@ -772,14 +792,16 @@ void MLIRLowerer::lower(const Statement& statement)
 void MLIRLowerer::lower(const AssignmentStatement& statement)
 {
 	auto location = loc(statement.getLocation());
-	auto destinations = statement.getDestinations();
-	auto values = lower<Expression>(statement.getExpression());
-	assert(values.size() == destinations.size() && "Unequal number of destinations and results");
+	const auto* destinations = statement.getDestinations();
+	auto values = lower<Expression>(*statement.getExpression());
 
-	for (auto pair : zip(destinations, values))
+	assert(destinations->isa<Tuple>());
+	const auto* destinationsTuple = destinations->get<Tuple>();
+	assert(values.size() == destinationsTuple->size() && "Unequal number of destinations and results");
+
+	for (const auto& [ dest, value ] : llvm::zip(*destinationsTuple, values))
 	{
-		auto destination = lower<Expression>(get<0>(pair))[0];
-		auto value = get<1>(pair);
+		auto destination = lower<Expression>(*dest)[0];
 		destination.set(*value);
 	}
 }
@@ -797,7 +819,7 @@ void MLIRLowerer::lower(const IfStatement& statement)
 	{
 		llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 		const auto& conditionalBlock = statement[i];
-		auto condition = lower<Expression>(conditionalBlock.getCondition())[0];
+		auto condition = lower<Expression>(*conditionalBlock.getCondition())[0];
 
 		// The last conditional block can be at most an originally equivalent
 		// "else" block, and thus doesn't need a lowered else block.
@@ -849,7 +871,7 @@ void MLIRLowerer::lower(const ForStatement& statement)
 
 	const auto& induction = statement.getInduction();
 
-	mlir::Value lowerBound = *lower<Expression>(induction.getBegin())[0];
+	mlir::Value lowerBound = *lower<Expression>(*induction->getBegin())[0];
 	lowerBound = builder.create<CastOp>(lowerBound.getLoc(), lowerBound, builder.getIndexType());
 
 	auto forOp = builder.create<BreakableForOp>(location, breakCondition, returnCondition, lowerBound);
@@ -858,39 +880,39 @@ void MLIRLowerer::lower(const ForStatement& statement)
 	{
 		// Check the loop condition
 		llvm::ScopedHashTableScope<mlir::StringRef, Reference> scope(symbolTable);
-		symbolTable.insert(induction.getName(), Reference::ssa(&builder, forOp.condition().front().getArgument(0)));
+		symbolTable.insert(induction->getName(), Reference::ssa(&builder, forOp.condition().front().getArgument(0)));
 
 		builder.setInsertionPointToStart(&forOp.condition().front());
 
-		mlir::Value upperBound = *lower<Expression>(induction.getEnd())[0];
+		mlir::Value upperBound = *lower<Expression>(*induction->getEnd())[0];
 		upperBound = builder.create<CastOp>(lowerBound.getLoc(), upperBound, builder.getIndexType());
 
 		mlir::Value condition = builder.create<LteOp>(location, builder.getBooleanType(), forOp.condition().front().getArgument(0), upperBound);
-		builder.create<ConditionOp>(location, condition, *symbolTable.lookup(induction.getName()));
+		builder.create<ConditionOp>(location, condition, *symbolTable.lookup(induction->getName()));
 	}
 
 	{
 		// Body
 		llvm::ScopedHashTableScope<mlir::StringRef, Reference> scope(symbolTable);
-		symbolTable.insert(induction.getName(), Reference::ssa(&builder, forOp.body().front().getArgument(0)));
+		symbolTable.insert(induction->getName(), Reference::ssa(&builder, forOp.body().front().getArgument(0)));
 
 		builder.setInsertionPointToStart(&forOp.body().front());
 
 		for (const auto& stmnt : statement)
 			lower(*stmnt);
 
-		builder.create<YieldOp>(location, *symbolTable.lookup(induction.getName()));
+		builder.create<YieldOp>(location, *symbolTable.lookup(induction->getName()));
 	}
 
 	{
 		// Step
 		llvm::ScopedHashTableScope<mlir::StringRef, Reference> scope(symbolTable);
-		symbolTable.insert(induction.getName(), Reference::ssa(&builder, forOp.step().front().getArgument(0)));
+		symbolTable.insert(induction->getName(), Reference::ssa(&builder, forOp.step().front().getArgument(0)));
 
 		builder.setInsertionPointToStart(&forOp.step().front());
 
 		mlir::Value step = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(1));
-		mlir::Value incremented = builder.create<mlir::AddIOp>(location, *symbolTable.lookup(induction.getName()), step);
+		mlir::Value incremented = builder.create<mlir::AddIOp>(location, *symbolTable.lookup(induction->getName()), step);
 		builder.create<YieldOp>(location, incremented);
 	}
 }
@@ -918,11 +940,11 @@ void MLIRLowerer::lower(const WhileStatement& statement)
 		llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 		mlir::Block* conditionBlock = &whileOp.condition().front();
 		builder.setInsertionPointToStart(conditionBlock);
-		const auto& condition = statement.getCondition();
+		const auto* condition = statement.getCondition();
 
 		builder.create<ConditionOp>(
-				loc(condition.getLocation()),
-				*lower<Expression>(condition)[0]);
+				loc(condition->getLocation()),
+				*lower<Expression>(*condition)[0]);
 	}
 
 	{
@@ -966,23 +988,23 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Expression>(const Expressio
 template<>
 MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression& expression)
 {
-	assert(expression.isA<Operation>());
-	const auto& operation = expression.get<Operation>();
-	auto kind = operation.getKind();
+	assert(expression.isa<Operation>());
+	const auto* operation = expression.get<Operation>();
+	auto kind = operation->getOperationKind();
 	mlir::Location location = loc(expression.getLocation());
 
 	if (kind == OperationKind::negate)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		auto arg = lower<Expression>(operation[0])[0].getReference();
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		auto arg = lower<Expression>(*operation->getArg(0))[0].getReference();
 		mlir::Value result = builder.create<NotOp>(location, resultType, arg);
 		return { Reference::ssa(&builder, result) };
 	}
 
 	if (kind == OperationKind::add)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		auto args = lowerOperationArgs(operation);
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		auto args = lowerOperationArgs(*operation);
 
 		mlir::Value result = foldBinaryOperation(
 				args,
@@ -996,8 +1018,8 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::subtract)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		auto args = lowerOperationArgs(operation);
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		auto args = lowerOperationArgs(*operation);
 
 		if (args.size() == 1)
 		{
@@ -1022,8 +1044,8 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::multiply)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		auto args = lowerOperationArgs(operation);
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		auto args = lowerOperationArgs(*operation);
 
 		mlir::Value result = foldBinaryOperation(
 				args,
@@ -1037,8 +1059,8 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::divide)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		auto args = lowerOperationArgs(operation);
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		auto args = lowerOperationArgs(*operation);
 
 		mlir::Value result = foldBinaryOperation(
 				args,
@@ -1052,9 +1074,9 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::powerOf)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		mlir::Value base = *lower<Expression>(operation[0])[0];
-		mlir::Value exponent = *lower<Expression>(operation[1])[0];
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		mlir::Value base = *lower<Expression>(*operation->getArg(0))[0];
+		mlir::Value exponent = *lower<Expression>(*operation->getArg(1))[0];
 
 		if (base.getType().isa<PointerType>())
 		{
@@ -1072,61 +1094,61 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::equal)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		auto args = lowerOperationArgs(operation);
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		auto args = lowerOperationArgs(*operation);
 		mlir::Value result = builder.create<EqOp>(location, resultType, args[0], args[1]);
 		return { Reference::ssa(&builder, result) };
 	}
 
 	if (kind == OperationKind::different)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		auto args = lowerOperationArgs(operation);
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		auto args = lowerOperationArgs(*operation);
 		mlir::Value result = builder.create<NotEqOp>(location, resultType, args[0], args[1]);
 		return { Reference::ssa(&builder, result) };
 	}
 
 	if (kind == OperationKind::greater)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		auto args = lowerOperationArgs(operation);
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		auto args = lowerOperationArgs(*operation);
 		mlir::Value result = builder.create<GtOp>(location, resultType, args[0], args[1]);
 		return { Reference::ssa(&builder, result) };
 	}
 
 	if (kind == OperationKind::greaterEqual)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		auto args = lowerOperationArgs(operation);
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		auto args = lowerOperationArgs(*operation);
 		mlir::Value result = builder.create<GteOp>(location, resultType, args[0], args[1]);
 		return { Reference::ssa(&builder, result) };
 	}
 
 	if (kind == OperationKind::less)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		auto args = lowerOperationArgs(operation);
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		auto args = lowerOperationArgs(*operation);
 		mlir::Value result = builder.create<LtOp>(location, resultType, args[0], args[1]);
 		return { Reference::ssa(&builder, result) };
 	}
 
 	if (kind == OperationKind::lessEqual)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		auto args = lowerOperationArgs(operation);
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		auto args = lowerOperationArgs(*operation);
 		mlir::Value result = builder.create<LteOp>(location, resultType, args[0], args[1]);
 		return { Reference::ssa(&builder, result) };
 	}
 
 	if (kind == OperationKind::ifelse)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		mlir::Value condition = *lower<Expression>(operation[0])[0];
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		mlir::Value condition = *lower<Expression>(*operation->getArg(0))[0];
 
-		mlir::Value trueValue = *lower<Expression>(operation[1])[0];
+		mlir::Value trueValue = *lower<Expression>(*operation->getArg(1))[0];
 		trueValue = builder.create<CastOp>(trueValue.getLoc(), trueValue, resultType);
 
-		mlir::Value falseValue = *lower<Expression>(operation[2])[0];
+		mlir::Value falseValue = *lower<Expression>(*operation->getArg(2))[0];
 		falseValue = builder.create<CastOp>(falseValue.getLoc(), falseValue, resultType);
 
 		mlir::Value result = builder.create<mlir::SelectOp>(location, condition, trueValue, falseValue);
@@ -1136,9 +1158,9 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::land)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		mlir::Value lhs = *lower<Expression>(operation[0])[0];
-		mlir::Value rhs = *lower<Expression>(operation[1])[0];
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		mlir::Value lhs = *lower<Expression>(*operation->getArg(0))[0];
+		mlir::Value rhs = *lower<Expression>(*operation->getArg(1))[0];
 
 		mlir::Value result = builder.create<AndOp>(location, resultType, lhs, rhs);
 		return { Reference::ssa(&builder, result) };
@@ -1146,9 +1168,9 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::lor)
 	{
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
-		mlir::Value lhs = *lower<Expression>(operation[0])[0];
-		mlir::Value rhs = *lower<Expression>(operation[1])[0];
+		mlir::Type resultType = lower(operation->getType(), BufferAllocationScope::stack);
+		mlir::Value lhs = *lower<Expression>(*operation->getArg(0))[0];
+		mlir::Value rhs = *lower<Expression>(*operation->getArg(1))[0];
 
 		mlir::Value result = builder.create<OrOp>(location, resultType, lhs, rhs);
 		return { Reference::ssa(&builder, result) };
@@ -1156,14 +1178,14 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 
 	if (kind == OperationKind::subscription)
 	{
-		auto buffer = *lower<Expression>(operation[0])[0];
+		auto buffer = *lower<Expression>(*operation->getArg(0))[0];
 		assert(buffer.getType().isa<PointerType>());
 
 		llvm::SmallVector<mlir::Value, 3> indexes;
 
-		for (size_t i = 1; i < operation.argumentsCount(); i++)
+		for (size_t i = 1; i < operation->argumentsCount(); i++)
 		{
-			mlir::Value index = *lower<Expression>(operation[i])[0];
+			mlir::Value index = *lower<Expression>(*operation->getArg(i))[0];
 			indexes.push_back(index);
 		}
 
@@ -1184,9 +1206,9 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 template<>
 MLIRLowerer::Container<Reference> MLIRLowerer::lower<Constant>(const Expression& expression)
 {
-	assert(expression.isA<Constant>());
-	const auto& type = expression.getType();
-	const auto& constant = expression.get<Constant>();
+	assert(expression.isa<Constant>());
+	const auto* constant = expression.get<Constant>();
+	const auto& type = constant->getType();
 
 	assert(type.isA<BuiltInType>() && "Constants can be made only of built-in typed values");
 	auto builtInType = type.get<BuiltInType>();
@@ -1194,11 +1216,11 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Constant>(const Expression&
 	mlir::Attribute attribute;
 
 	if (builtInType == BuiltInType::Boolean)
-		attribute = builder.getBooleanAttribute(constant.as<BuiltInType::Boolean>());
+		attribute = builder.getBooleanAttribute(constant->as<BuiltInType::Boolean>());
 	else if (builtInType == BuiltInType::Integer)
-		attribute = builder.getIntegerAttribute(constant.as<BuiltInType::Integer>());
+		attribute = builder.getIntegerAttribute(constant->as<BuiltInType::Integer>());
 	else if (builtInType == BuiltInType::Float)
-		attribute = builder.getRealAttribute(constant.as<BuiltInType::Float>());
+		attribute = builder.getRealAttribute(constant->as<BuiltInType::Float>());
 	else
 		assert(false && "Unsupported constant type");
 
@@ -1209,49 +1231,49 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Constant>(const Expression&
 template<>
 MLIRLowerer::Container<Reference> MLIRLowerer::lower<ReferenceAccess>(const Expression& expression)
 {
-	assert(expression.isA<ReferenceAccess>());
+	assert(expression.isa<ReferenceAccess>());
 	const auto& reference = expression.get<ReferenceAccess>();
-	return { symbolTable.lookup(reference.getName()) };
+	return { symbolTable.lookup(reference->getName()) };
 }
 
 template<>
 MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& expression)
 {
-	assert(expression.isA<Call>());
-	const auto& call = expression.get<Call>();
-	const auto& function = call.getFunction();
+	assert(expression.isa<Call>());
+	const auto* call = expression.get<Call>();
+	const auto* function = call->getFunction();
 	mlir::Location location = loc(expression.getLocation());
 
-	const auto& functionName = function.get<ReferenceAccess>().getName();
+	const auto& functionName = function->get<ReferenceAccess>()->getName();
 
 	Container<Reference> results;
 
 	if (functionName == "der")
 	{
-		assert(call.argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(call[0])[0].getReference();
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
 		assert(operand.getType().isa<PointerType>());
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<DerOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "ndims")
 	{
-		assert(call.argumentsCount() == 1);
-		mlir::Value memory = *lower<Expression>(call[0])[0];
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		assert(call->argumentsCount() == 1);
+		mlir::Value memory = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<NDimsOp>(location, resultType, memory);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "size")
 	{
-		assert(call.argumentsCount() == 1 || call.argumentsCount() == 2);
+		assert(call->argumentsCount() == 1 || call->argumentsCount() == 2);
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		for (const auto& arg : call)
-			args.push_back(*lower<Expression>(arg)[0]);
+		for (const auto& arg : *call)
+			args.push_back(*lower<Expression>(*arg)[0]);
 
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 
 		if (args.size() == 1)
 		{
@@ -1268,27 +1290,27 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	}
 	else if (functionName == "identity")
 	{
-		assert(call.argumentsCount() == 1);
-		mlir::Value size = *lower<Expression>(call[0])[0];
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		assert(call->argumentsCount() == 1);
+		mlir::Value size = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<IdentityOp>(location, resultType, size);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "diagonal")
 	{
-		assert(call.argumentsCount() == 1);
-		mlir::Value values = *lower<Expression>(call[0])[0];
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		assert(call->argumentsCount() == 1);
+		mlir::Value values = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<DiagonalOp>(location, resultType, values);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "linspace")
 	{
-		assert(call.argumentsCount() == 3);
-		mlir::Value start = *lower<Expression>(call[0])[0];
-		mlir::Value end = *lower<Expression>(call[1])[0];
-		mlir::Value steps = *lower<Expression>(call[2])[0];
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		assert(call->argumentsCount() == 3);
+		mlir::Value start = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Value end = *lower<Expression>(*call->getArg(1))[0];
+		mlir::Value steps = *lower<Expression>(*call->getArg(2))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<LinspaceOp>(location, resultType, start, end, steps);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
@@ -1297,10 +1319,10 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		// The number of operands is equal to the rank of the resulting array
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		for (const auto& arg : call)
-			args.push_back(*lower<Expression>(arg)[0]);
+		for (const auto& arg : *call)
+			args.push_back(*lower<Expression>(*arg)[0]);
 
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<ZerosOp>(location, resultType, args);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
@@ -1309,10 +1331,10 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		// The number of operands is equal to the rank of the resulting array
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		for (const auto& arg : call)
-			args.push_back(*lower<Expression>(arg)[0]);
+		for (const auto& arg : *call)
+			args.push_back(*lower<Expression>(*arg)[0]);
 
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<OnesOp>(location, resultType, args);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
@@ -1321,10 +1343,10 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		// The min function can have either one array operand or two scalar operands
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		for (const auto& arg : call)
-			args.push_back(*lower<Expression>(arg)[0]);
+		for (const auto& arg : *call)
+			args.push_back(*lower<Expression>(*arg)[0]);
 
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<MinOp>(location, resultType, args);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
@@ -1333,42 +1355,42 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		// The min function can have either one array operand or two scalar operands
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		for (const auto& arg : call)
-			args.push_back(*lower<Expression>(arg)[0]);
+		for (const auto& arg : *call)
+			args.push_back(*lower<Expression>(*arg)[0]);
 
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<MaxOp>(location, resultType, args);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "sum")
 	{
-		assert(call.argumentsCount() == 1);
-		mlir::Value memory = *lower<Expression>(call[0])[0];
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		assert(call->argumentsCount() == 1);
+		mlir::Value memory = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<SumOp>(location, resultType, memory);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "product")
 	{
-		assert(call.argumentsCount() == 1);
-		mlir::Value memory = *lower<Expression>(call[0])[0];
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		assert(call->argumentsCount() == 1);
+		mlir::Value memory = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<ProductOp>(location, resultType, memory);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "transpose")
 	{
-		assert(call.argumentsCount() == 1);
-		mlir::Value memory = *lower<Expression>(call[0])[0];
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		assert(call->argumentsCount() == 1);
+		mlir::Value memory = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<TransposeOp>(location, resultType, memory);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "symmetric")
 	{
-		assert(call.argumentsCount() == 1);
-		mlir::Value source = *lower<Expression>(call[0])[0];
-		mlir::Type resultType = lower(expression.getType(), BufferAllocationScope::stack);
+		assert(call->argumentsCount() == 1);
+		mlir::Value source = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<SymmetricOp>(location, resultType, source);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
@@ -1376,13 +1398,13 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	{
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		for (const auto& arg : call)
+		for (const auto& arg : *call)
 		{
-			auto& reference = lower<Expression>(arg)[0];
+			auto& reference = lower<Expression>(*arg)[0];
 			args.push_back(*reference);
 		}
 
-		auto resultType = expression.getType();
+		auto resultType = call->getType();
 		llvm::SmallVector<mlir::Type, 3> callResultsTypes;
 
 		if (resultType.isA<PackedType>())
@@ -1395,7 +1417,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 
 		auto op = builder.create<CallOp>(
 				loc(expression.getLocation()),
-				function.get<ReferenceAccess>().getName(),
+				function->get<ReferenceAccess>()->getName(),
 				callResultsTypes,
 				args);
 
@@ -1409,11 +1431,11 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 template<>
 MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(const Expression& expression)
 {
-	assert(expression.isA<Tuple>());
-	const auto& tuple = expression.get<Tuple>();
+	assert(expression.isa<Tuple>());
+	const auto* tuple = expression.get<Tuple>();
 	Container<Reference> result;
 
-	for (const auto& exp : tuple)
+	for (const auto& exp : *tuple)
 	{
 		auto values = lower<Expression>(expression);
 
@@ -1430,18 +1452,18 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Tuple>(const Expression& ex
 template<>
 MLIRLowerer::Container<Reference> MLIRLowerer::lower<Array>(const Expression& expression)
 {
-	assert(expression.isA<Array>());
+	assert(expression.isa<Array>());
 	const auto& array = expression.get<Array>();
-	mlir::Location location = loc(array.getLocation());
-	auto type = lower(expression.getType(), BufferAllocationScope::stack).cast<PointerType>();
+	mlir::Location location = loc(expression.getLocation());
+	auto type = lower(array->getType(), BufferAllocationScope::stack).cast<PointerType>();
 
 	mlir::Value result = builder.create<AllocaOp>(location, type.getElementType(), type.getShape());
 
-	for (const auto& value : llvm::enumerate(array))
+	for (const auto& value : llvm::enumerate(*array))
 	{
 		mlir::Value index = builder.create<ConstantOp>(location, builder.getIndexAttribute(value.index()));
 		mlir::Value slice = builder.create<SubscriptionOp>(location, result, index);
-		builder.create<AssignmentOp>(location, *lower<Expression>(value.value())[0], slice);
+		builder.create<AssignmentOp>(location, *lower<Expression>(*value.value())[0], slice);
 	}
 
 	return { Reference::ssa(&builder, result) };
@@ -1463,7 +1485,7 @@ MLIRLowerer::Container<mlir::Value> MLIRLowerer::lowerOperationArgs(const Operat
 	Container<mlir::Value> args;
 
 	for (const auto& arg : operation)
-		args.push_back(*lower<Expression>(arg)[0]);
+		args.push_back(*lower<Expression>(*arg)[0]);
 
 	return args;
 }

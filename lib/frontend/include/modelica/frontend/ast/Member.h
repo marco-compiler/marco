@@ -3,29 +3,29 @@
 #include <optional>
 #include <string>
 
-#include "Constant.h"
-#include "Expression.h"
+#include "ASTNode.h"
 #include "Type.h"
 #include "TypePrefix.h"
 
 namespace modelica::frontend
 {
+	class Expression;
+
 	class Member
 			: public ASTNode,
-				public impl::Cloneable<Member>
+				public impl::Cloneable<Member>,
+				public impl::Dumpable<Member>
 	{
 		public:
-		Member(
-				SourcePosition location,
-				llvm::StringRef name,
-				Type tp,
-				TypePrefix prefix,
-				llvm::Optional<std::unique_ptr<Expression>> initializer,
-				bool isPublic = true,
-				llvm::Optional<std::unique_ptr<Expression>> startOverload = llvm::None);
+		template<typename... Args>
+		static std::unique_ptr<Member> build(Args&&... args)
+		{
+			return std::unique_ptr<Member>(new Member(std::forward<Args>(args)...));
+		}
 
 		Member(const Member& other);
 		Member(Member&& other);
+
 		~Member() override;
 
 		Member& operator=(const Member& other);
@@ -33,7 +33,7 @@ namespace modelica::frontend
 
 		friend void swap(Member& first, Member& second);
 
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] bool operator==(const Member& other) const;
 		[[nodiscard]] bool operator!=(const Member& other) const;
@@ -57,6 +57,15 @@ namespace modelica::frontend
 		[[nodiscard]] bool isOutput() const;
 
 		private:
+		Member(
+				SourcePosition location,
+				llvm::StringRef name,
+				Type tp,
+				TypePrefix prefix,
+				llvm::Optional<std::unique_ptr<Expression>> initializer = llvm::None,
+				bool isPublic = true,
+				llvm::Optional<std::unique_ptr<Expression>> startOverload = llvm::None);
+
 		std::string name;
 		Type type;
 		TypePrefix typePrefix;

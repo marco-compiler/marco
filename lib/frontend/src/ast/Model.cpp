@@ -9,7 +9,8 @@ Model::Model(SourcePosition location,
 						 llvm::ArrayRef<std::unique_ptr<ForEquation>> forEquations,
 						 llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms,
 						 llvm::ArrayRef<std::unique_ptr<Class>> innerClasses)
-		: ClassCRTP<Model>(ASTNodeKind::CLASS_MODEL, std::move(location), std::move(name))
+		: ASTNode(std::move(location)),
+			name(name.str())
 {
 	for (const auto& member : members)
 		this->members.push_back(member->clone());
@@ -24,11 +25,12 @@ Model::Model(SourcePosition location,
 		this->algorithms.push_back(algorithm->clone());
 
 	for (const auto& cls : innerClasses)
-		this->innerClasses.push_back(cls->cloneClass());
+		this->innerClasses.push_back(cls->clone());
 }
 
 Model::Model(const Model& other)
-		: ClassCRTP<Model>(static_cast<ClassCRTP<Model>&>(*this))
+		: ASTNode(other),
+			name(other.name)
 {
 	for (const auto& member : other.members)
 		this->members.push_back(member->clone());
@@ -43,7 +45,7 @@ Model::Model(const Model& other)
 		this->algorithms.push_back(algorithm->clone());
 
 	for (const auto& cls : other.innerClasses)
-		this->innerClasses.push_back(cls->cloneClass());
+		this->innerClasses.push_back(cls->clone());
 }
 
 Model::Model(Model&& other) = default;
@@ -63,8 +65,7 @@ namespace modelica::frontend
 {
 	void swap(Model& first, Model& second)
 	{
-		swap(static_cast<impl::ClassCRTP<Model>&>(first),
-				 static_cast<impl::ClassCRTP<Model>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		impl::swap(first.members, second.members);
 		impl::swap(first.equations, second.equations);
@@ -74,25 +75,30 @@ namespace modelica::frontend
 	}
 }
 
-void Model::dump(llvm::raw_ostream& os, size_t indents) const
+void Model::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "model " << getName() << "\n";
 
 	for (const auto& member : members)
-		member->dump(os, indents + 1);
+		member->print(os, indents + 1);
 
 	for (const auto& equation : equations)
-		equation->dump(os, indents + 1);
+		equation->print(os, indents + 1);
 
 	for (const auto& equation : forEquations)
-		equation->dump(os, indents + 1);
+		equation->print(os, indents + 1);
 
 	for (const auto& algorithm : algorithms)
-		algorithm->dump(os, indents + 1);
+		algorithm->print(os, indents + 1);
 
 	for (const auto& cls : innerClasses)
-		cls->dump(os, indents + 1);
+		cls->print(os, indents + 1);
+}
+
+llvm::StringRef Model::getName() const
+{
+	return name;
 }
 
 llvm::MutableArrayRef<std::unique_ptr<Member>> Model::getMembers()
@@ -105,9 +111,9 @@ llvm::ArrayRef<std::unique_ptr<Member>> Model::getMembers() const
 	return members;
 }
 
-void Model::addMember(Member* member)
+void Model::addMember(std::unique_ptr<Member> member)
 {
-	members.push_back(member->clone());
+	members.push_back(std::move(member));
 }
 
 llvm::MutableArrayRef<std::unique_ptr<Equation>> Model::getEquations()

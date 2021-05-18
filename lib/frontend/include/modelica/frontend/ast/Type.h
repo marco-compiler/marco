@@ -97,8 +97,7 @@ namespace modelica::frontend
 		[[nodiscard]] Type& operator[](size_t index);
 		[[nodiscard]] Type operator[](size_t index) const;
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const;
 
 		[[nodiscard]] bool hasConstantShape() const;
 
@@ -119,7 +118,7 @@ namespace modelica::frontend
 
 	std::string toString(PackedType obj);
 
-	class UserDefinedType
+	class UserDefinedType : public impl::Dumpable<UserDefinedType>
 	{
 		private:
 		using TypePtr = std::shared_ptr<Type>;
@@ -137,8 +136,7 @@ namespace modelica::frontend
 		[[nodiscard]] Type& operator[](size_t index);
 		[[nodiscard]] Type operator[](size_t index) const;
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] llvm::StringRef getName() const;
 
@@ -172,7 +170,17 @@ namespace modelica::frontend
 	{
 		public:
 		ArrayDimension(long size);
-		ArrayDimension(std::unique_ptr<Expression>& size);
+		ArrayDimension(std::unique_ptr<Expression> size);
+
+		ArrayDimension(const ArrayDimension& other);
+		ArrayDimension(ArrayDimension&& other);
+
+		~ArrayDimension();
+
+		ArrayDimension& operator=(const ArrayDimension& other);
+		ArrayDimension& operator=(ArrayDimension&& other);
+
+		friend void swap(ArrayDimension& first, ArrayDimension& second);
 
 		[[nodiscard]] bool operator==(const ArrayDimension& other) const;
 		[[nodiscard]] bool operator!=(const ArrayDimension& other) const;
@@ -206,7 +214,7 @@ namespace modelica::frontend
 
 	std::string toString(const ArrayDimension& obj);
 
-	class Type
+	class Type : public impl::Dumpable<Type>
 	{
 		private:
 		template <typename T> using Container = llvm::SmallVector<T, 3>;
@@ -222,7 +230,7 @@ namespace modelica::frontend
 		Type(const Type& other);
 		Type(Type&& other);
 
-		~Type() = default;
+		~Type();
 
 		Type& operator=(const Type& other);
 		Type& operator=(Type&& other);
@@ -235,8 +243,7 @@ namespace modelica::frontend
 		[[nodiscard]] ArrayDimension& operator[](int index);
 		[[nodiscard]] const ArrayDimension& operator[](int index) const;
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		template<typename T>
 		[[nodiscard]] bool isA() const
@@ -270,8 +277,8 @@ namespace modelica::frontend
 			return std::visit(std::forward<Visitor>(visitor), content);
 		}
 
-		[[nodiscard]] llvm::SmallVectorImpl<ArrayDimension>& getDimensions();
-		[[nodiscard]] const llvm::SmallVectorImpl<ArrayDimension>& getDimensions() const;
+		[[nodiscard]] llvm::MutableArrayRef<ArrayDimension> getDimensions();
+		[[nodiscard]] llvm::ArrayRef<ArrayDimension> getDimensions() const;
 		void setDimensions(llvm::ArrayRef<ArrayDimension> dimensions);
 
 		[[nodiscard]] size_t dimensionsCount() const;
@@ -289,6 +296,8 @@ namespace modelica::frontend
 
 		[[nodiscard]] Type subscript(size_t times) const;
 
+		[[nodiscard]] Type to(BuiltInType type);
+
 		[[nodiscard]] static Type unknown();
 
 		private:
@@ -301,24 +310,24 @@ namespace modelica::frontend
 	std::string toString(Type obj);
 
 	template<typename T, typename... Args>
-	[[nodiscard]] Type makeType(Args... args)
+	[[nodiscard]] Type makeType(Args&&... args)
 	{
 		static_assert(typeToFrontendType<T>() != BuiltInType::Unknown);
 
 		if constexpr (sizeof...(Args) == 0)
 			return Type(typeToFrontendType<T>());
 
-		return Type(typeToFrontendType<T>(), { static_cast<ArrayDimension>(args)... });
+		return Type(typeToFrontendType<T>(), { static_cast<ArrayDimension>(std::forward<Args>(args))... });
 	}
 
 	template<BuiltInType T, typename... Args>
-	[[nodiscard]] Type makeType(Args... args)
+	[[nodiscard]] Type makeType(Args&&... args)
 	{
 		static_assert(T != BuiltInType::Unknown);
 
 		if constexpr (sizeof...(Args) == 0)
 			return Type(T);
 
-		return Type(T, { static_cast<ArrayDimension>(args)... });
+		return Type(T, { static_cast<ArrayDimension>(std::forward<Args>(args))... });
 	}
 }

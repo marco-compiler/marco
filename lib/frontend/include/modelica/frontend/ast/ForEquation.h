@@ -20,13 +20,16 @@ namespace modelica::frontend
 	 * deduce a index and from a index we can deduce a name
 	 */
 	class ForEquation
-			: public impl::ASTNodeCRTP<ForEquation>,
-				public impl::Cloneable<ForEquation>
+			: public ASTNode,
+				public impl::Cloneable<ForEquation>,
+				public impl::Dumpable<ForEquation>
 	{
 		public:
-		ForEquation(SourcePosition location,
-								llvm::ArrayRef<std::unique_ptr<Induction>> inductions,
-								std::unique_ptr<Equation> equation);
+		template<typename... Args>
+		static std::unique_ptr<ForEquation> build(Args&&... args)
+		{
+			return std::unique_ptr<ForEquation>(new ForEquation(std::forward<Args>(args)...));
+		}
 
 		ForEquation(const ForEquation& other);
 		ForEquation(ForEquation&& other);
@@ -37,20 +40,21 @@ namespace modelica::frontend
 
 		friend void swap(ForEquation& first, ForEquation& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::FOR_EQUATION;
-		}
-
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Induction>> getInductions();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Induction>> getInductions() const;
 		[[nodiscard]] size_t inductionsCount() const;
 
+		void addOuterInduction(std::unique_ptr<Induction> induction);
+
 		[[nodiscard]] Equation* getEquation() const;
 
 		private:
+		ForEquation(SourcePosition location,
+								llvm::ArrayRef<std::unique_ptr<Induction>> inductions,
+								std::unique_ptr<Equation> equation);
+
 		llvm::SmallVector<std::unique_ptr<Induction>, 3> inductions;
 		std::unique_ptr<Equation> equation;
 	};

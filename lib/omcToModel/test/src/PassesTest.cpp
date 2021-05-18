@@ -20,9 +20,9 @@ TEST(OmcToModelTest, singleDeclaration)	 // NOLINT
 
 	auto ast = move(*expectedAST);
 
-	Model model;
+	modelica::Model model;
 	OmcToModelPass pass(model);
-	auto error = pass.lower(ast, SymbolTable());
+	auto error = pass.lower<Class>(*ast, SymbolTable());
 	if (error)
 		FAIL();
 
@@ -43,9 +43,9 @@ TEST(OmcToModelTest, uninitializedDeclaration)	// NOLINT
 
 	auto ast = move(*expectedAST);
 
-	Model model;
+	modelica::Model model;
 	OmcToModelPass pass(model);
-	auto error = pass.lower(ast, SymbolTable());
+	auto error = pass.lower<Class>(*ast, SymbolTable());
 	if (error)
 		FAIL();
 
@@ -66,9 +66,9 @@ TEST(OmcToModelTest, startDeclaration)	// NOLINT
 
 	auto ast = move(*expectedAST);
 
-	Model model;
+	modelica::Model model;
 	OmcToModelPass pass(model);
-	auto error = pass.lower(ast, SymbolTable());
+	auto error = pass.lower<Class>(*ast, SymbolTable());
 	if (error)
 		FAIL();
 

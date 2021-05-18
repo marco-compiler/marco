@@ -70,9 +70,7 @@ Type PackedType::operator[](size_t index) const
 	return *types[index];
 }
 
-void PackedType::dump() const { dump(llvm::outs(), 0); }
-
-void PackedType::dump(llvm::raw_ostream& os, size_t indents) const
+void PackedType::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << toString(*this);
@@ -166,9 +164,7 @@ Type UserDefinedType::operator[](size_t index) const
 	return *types[index];
 }
 
-void UserDefinedType::dump() const { dump(llvm::outs(), 0); }
-
-void UserDefinedType::dump(llvm::raw_ostream& os, size_t indents) const
+void UserDefinedType::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << toString(*this);
@@ -233,9 +229,39 @@ ArrayDimension::ArrayDimension(long size) : size(size)
 {
 }
 
-ArrayDimension::ArrayDimension(std::unique_ptr<Expression>& size)
-		: size(size->cloneExpression())
+ArrayDimension::ArrayDimension(std::unique_ptr<Expression> size)
+		: size(std::move(size))
 {
+}
+
+ArrayDimension::ArrayDimension(const ArrayDimension& other)
+{
+	if (other.hasExpression())
+		size = other.getExpression()->clone();
+	else
+		size = other.getNumericSize();
+}
+
+ArrayDimension::ArrayDimension(ArrayDimension&& other) = default;
+
+ArrayDimension::~ArrayDimension() = default;
+
+ArrayDimension& ArrayDimension::operator=(const ArrayDimension& other)
+{
+	ArrayDimension result(other);
+	swap(*this, result);
+	return *this;
+}
+
+ArrayDimension& ArrayDimension::operator=(ArrayDimension&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(ArrayDimension& first, ArrayDimension& second)
+	{
+		using std::swap;
+		swap(first.size, second.size);
+	}
 }
 
 bool ArrayDimension::operator==(const ArrayDimension& other) const
@@ -355,17 +381,18 @@ const ArrayDimension& Type::operator[](int index) const
 	return dimensions[index];
 }
 
-void Type::dump() const { dump(llvm::outs(), 0); }
-
-void Type::dump(llvm::raw_ostream& os, size_t indents) const
+void Type::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << toString(*this);
 }
 
-llvm::SmallVectorImpl<ArrayDimension>& Type::getDimensions() { return dimensions; }
+llvm::MutableArrayRef<ArrayDimension> Type::getDimensions()
+{
+	return dimensions;
+}
 
-const llvm::SmallVectorImpl<ArrayDimension>& Type::getDimensions() const
+llvm::ArrayRef<ArrayDimension> Type::getDimensions() const
 {
 	return dimensions;
 }
@@ -445,6 +472,11 @@ Type Type::subscript(size_t times) const
 	});
 }
 
+Type Type::to(BuiltInType type)
+{
+	return Type(type, dimensions);
+}
+
 class ArrayDimensionToStringVisitor
 {
 	public:
@@ -467,7 +499,7 @@ namespace modelica::frontend
 			return a + (a.length() > 0 ? "," : "") + b.visit(ArrayDimensionToStringVisitor());
 		};
 
-		auto& dimensions = obj.getDimensions();
+		auto dimensions = obj.getDimensions();
 		std::string size = obj.isScalar() ? ""
 																			: "[" +
 																				accumulate(

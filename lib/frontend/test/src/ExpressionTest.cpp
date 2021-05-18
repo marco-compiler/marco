@@ -7,55 +7,62 @@ using namespace frontend;
 TEST(AST, expressionConstantCanBeBuilt)	 // NOLINT
 {
 	SourcePosition location = SourcePosition::unknown();
-	Expression exp = Expression::constant(location, makeType<int>(), 3);
+	auto expression = Expression::constant(location, makeType<int>(), 3);
 
-	EXPECT_TRUE(exp.isA<Constant>());
-	EXPECT_TRUE(exp.get<Constant>().isA<BuiltInType::Integer>());
-	EXPECT_EQ(exp.get<Constant>().get<BuiltInType::Integer>(), 3);
-	EXPECT_EQ(exp.getType().get<BuiltInType>(), BuiltInType::Integer);
-	EXPECT_EQ(exp.getType().size(), 1);
+	EXPECT_TRUE(expression->isa<Constant>());
+	EXPECT_TRUE(expression->get<Constant>()->isa<BuiltInType::Integer>());
+	EXPECT_EQ(expression->get<Constant>()->get<BuiltInType::Integer>(), 3);
+	EXPECT_EQ(expression->getType().get<BuiltInType>(), BuiltInType::Integer);
+	EXPECT_EQ(expression->getType().size(), 1);
 }
 
 TEST(AST, expressionReferenceCanBeBuilt)	 // NOLINT
 {
 	SourcePosition location = SourcePosition::unknown();
-	Expression exp = Expression::reference(location, makeType<int>(), "x");
+	auto expression = Expression::reference(location, makeType<int>(), "x");
 
-	EXPECT_TRUE(exp.isA<ReferenceAccess>());
-	EXPECT_EQ(exp.get<ReferenceAccess>().getName(), "x");
+	EXPECT_TRUE(expression->isa<ReferenceAccess>());
+	EXPECT_EQ(expression->get<ReferenceAccess>()->getName(), "x");
 }
 
 TEST(AST, expressionOperationCanBeBuilt)	 // NOLINT
 {
 	SourcePosition location = SourcePosition::unknown();
-	Expression constant = Expression::constant(location, makeType<int>(), 3);
-	Expression exp = Expression::operation(location, makeType<int>(), OperationKind::add, constant, constant);
+	auto constant = Expression::constant(location, makeType<int>(), 3);
+	auto expression = Expression::operation(location, makeType<int>(), OperationKind::add,
+																	llvm::ArrayRef({ constant->clone(), constant->clone() }));
 
-	EXPECT_TRUE(exp.isA<Operation>());
-	EXPECT_EQ(exp.get<Operation>().getKind(), OperationKind::add);
+	EXPECT_TRUE(expression->isa<Operation>());
+	EXPECT_EQ(expression->get<Operation>()->getOperationKind(), OperationKind::add);
 }
 
 TEST(AST, expressionCallCanBeBuilt)	 // NOLINT
 {
 	SourcePosition location = SourcePosition::unknown();
-	Expression constant = Expression::constant(location, makeType<int>(), 3);
-	Expression exp = Expression::call(location, makeType<int>(), Expression::reference(location, makeType<int>(), "Foo"));
+	auto constant = Expression::constant(location, makeType<int>(), 3);
 
-	EXPECT_TRUE(exp.isA<Call>());
-	EXPECT_EQ(exp.get<Call>().getFunction().get<ReferenceAccess>().getName(), "Foo");
+	auto expression = Expression::call(
+			location, makeType<int>(),
+	    Expression::reference(location, makeType<int>(), "Foo"),
+			llvm::None);
+
+	EXPECT_TRUE(expression->isa<Call>());
+	EXPECT_EQ(expression->get<Call>()->getFunction()->get<ReferenceAccess>()->getName(), "Foo");
 }
 
 TEST(AST, expressionTupleCanBeBuilt)	 // NOLINT
 {
 	SourcePosition location = SourcePosition::unknown();
-	Expression constant = Expression::constant(location, makeType<int>(), 3);
+	auto constant = Expression::constant(location, makeType<int>(), 3);
 
 	Type type(PackedType({ makeType<int>(), makeType<float>() }));
-	Expression exp = Expression::tuple(location, type,
-																		 Expression::reference(location, makeType<int>(), "x"),
-																		 Expression::reference(location, makeType<float>(), "y"));
+	auto expression = Expression::tuple(
+			location, type,
+			llvm::ArrayRef({
+					Expression::reference(location, makeType<int>(), "x"),
+					Expression::reference(location, makeType<float>(), "y") }));
 
-	EXPECT_TRUE(exp.isA<Tuple>());
-	EXPECT_EQ(exp.get<Tuple>()[0].get<ReferenceAccess>().getName(), "x");
-	EXPECT_EQ(exp.get<Tuple>()[1].get<ReferenceAccess>().getName(), "y");
+	EXPECT_TRUE(expression->isa<Tuple>());
+	EXPECT_EQ((*expression->get<Tuple>())[0]->get<ReferenceAccess>()->getName(), "x");
+	EXPECT_EQ((*expression->get<Tuple>())[1]->get<ReferenceAccess>()->getName(), "y");
 }

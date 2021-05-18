@@ -7,7 +7,7 @@ Induction::Induction(SourcePosition location,
 										 llvm::StringRef inductionVariable,
 										 std::unique_ptr<Expression> begin,
 										 std::unique_ptr<Expression> end)
-		: ASTNodeCRTP<Induction>(ASTNodeKind::INDUCTION, std::move(location)),
+		: ASTNode(std::move(location)),
 			inductionVariable(inductionVariable.str()),
 			begin(std::move(begin)),
 			end(std::move(end)),
@@ -16,10 +16,10 @@ Induction::Induction(SourcePosition location,
 }
 
 Induction::Induction(const Induction& other)
-		: ASTNodeCRTP<Induction>(static_cast<const ASTNodeCRTP<Induction>&>(other)),
+		: ASTNode(other),
 			inductionVariable(other.inductionVariable),
-			begin(other.begin->cloneExpression()),
-			end(other.end->cloneExpression()),
+			begin(other.begin->clone()),
+			end(other.end->clone()),
 			inductionIndex(other.inductionIndex)
 {
 }
@@ -41,8 +41,7 @@ namespace modelica::frontend
 {
 	void swap(Induction& first, Induction& second)
 	{
-		swap(static_cast<impl::ASTNodeCRTP<Induction>&>(first),
-				 static_cast<impl::ASTNodeCRTP<Induction>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
 		swap(first.inductionVariable, second.inductionVariable);
@@ -52,18 +51,18 @@ namespace modelica::frontend
 	}
 }
 
-void Induction::dump(llvm::raw_ostream& os, size_t indents) const
+void Induction::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "induction var " << getName() << "\n";
 
 	os.indent(indents);
 	os << "from ";
-	begin->dump(os, indents + 1);
+	begin->print(os, indents + 1);
 	os << "\n";
 	os.indent(indents);
 	os << "to";
-	end->dump(os, indents + 1);
+	end->print(os, indents + 1);
 }
 
 llvm::StringRef Induction::getName() const

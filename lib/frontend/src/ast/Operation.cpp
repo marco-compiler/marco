@@ -58,22 +58,24 @@ namespace modelica::frontend
 
 // TODO type
 Operation::Operation(SourcePosition location,
+										 Type type,
 										 OperationKind kind,
 										 llvm::ArrayRef<std::unique_ptr<Expression>> args)
-		: ExpressionCRTP<Operation>(
-					ASTNodeKind::EXPRESSION_OPERATION, std::move(location), Type::unknown()),
+		: ASTNode(std::move(location)),
+			type(std::move(type)),
 			kind(kind)
 {
 	for (const auto& arg : args)
-		this->args.push_back(arg->cloneExpression());
+		this->args.push_back(arg->clone());
 }
 
 Operation::Operation(const Operation& other)
-		: ExpressionCRTP<Operation>(static_cast<ExpressionCRTP&>(*this)),
+		: ASTNode(other),
+			type(other.type),
 			kind(other.kind)
 {
 	for (const auto& arg : other.args)
-		this->args.push_back(arg->cloneExpression());
+		this->args.push_back(arg->clone());
 }
 
 Operation::Operation(Operation&& other) = default;
@@ -93,30 +95,30 @@ namespace modelica::frontend
 {
 	void swap(Operation& first, Operation& second)
 	{
-		swap(static_cast<impl::ExpressionCRTP<Operation>&>(first),
-				 static_cast<impl::ExpressionCRTP<Operation>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
+		swap(first.type, second.type);
 		swap(first.kind, second.kind);
 		impl::swap(first.args, second.args);
 	}
 }
 
-void Operation::dump(llvm::raw_ostream& os, size_t indents) const
+void Operation::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "operation kind: " << getOperationKind() << "\n";
 
 	os.indent(indents);
 	os << "type: ";
-	getType().dump(os);
+	//getType().print(os);
 	os << "\n";
 
 	os.indent(indents);
 	os << "args:\n";
 
 	for (const auto& arg : getArguments())
-		arg->dump(os, indents + 1);
+		arg->print(os, indents + 1);
 }
 
 bool Operation::isLValue() const
@@ -152,12 +154,27 @@ bool Operation::operator!=(const Operation& other) const
 
 Expression* Operation::operator[](size_t index)
 {
-	return args[index].get();
+	return getArg(index);
 }
 
 const Expression* Operation::operator[](size_t index) const
 {
-	return args[index].get();
+	return getArg(index);
+}
+
+Type& Operation::getType()
+{
+	return type;
+}
+
+const Type& Operation::getType() const
+{
+	return type;
+}
+
+void Operation::setType(Type tp)
+{
+	type = std::move(tp);
 }
 
 OperationKind Operation::getOperationKind() const
@@ -168,6 +185,18 @@ OperationKind Operation::getOperationKind() const
 void Operation::setOperationKind(OperationKind newKind)
 {
 	this->kind = newKind;
+}
+
+Expression* Operation::getArg(size_t index)
+{
+	assert(index < args.size());
+	return args[index].get();
+}
+
+const Expression* Operation::getArg(size_t index) const
+{
+	assert(index < args.size());
+	return args[index].get();
 }
 
 llvm::MutableArrayRef<std::unique_ptr<Expression>> Operation::getArguments()

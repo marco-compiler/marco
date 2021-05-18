@@ -11,25 +11,39 @@ Member::Member(
 		llvm::Optional<std::unique_ptr<Expression>> initializer,
 		bool isPublic,
 		llvm::Optional<std::unique_ptr<Expression>> startOverload)
-		: ASTNode(ASTNodeKind::MEMBER, std::move(location)),
+		: ASTNode(std::move(location)),
 			name(name.str()),
 			type(std::move(tp)),
-			typePrefix(typePrefix),
-			initializer(std::move(initializer)),
-			isPublicMember(isPublic),
-			startOverload(std::move(startOverload))
+			typePrefix(std::move(typePrefix)),
+			isPublicMember(isPublic)
 {
+	if (initializer.hasValue())
+		this->initializer = initializer.getValue()->clone();
+	else
+		this->initializer = llvm::None;
+
+	if (startOverload.hasValue())
+		this->startOverload = startOverload.getValue()->clone();
+	else
+		this->startOverload = llvm::None;
 }
 
 Member::Member(const Member& other)
-		: ASTNode(static_cast<const ASTNode&>(other)),
+		: ASTNode(other),
 			name(other.name),
 			type(other.type),
 			typePrefix(other.typePrefix),
-			initializer(other.initializer),
-			isPublicMember(other.isPublicMember),
-			startOverload(other.startOverload)
+			isPublicMember(other.isPublicMember)
 {
+	if (other.initializer.hasValue())
+		initializer = other.initializer.getValue()->clone();
+	else
+		initializer = llvm::None;
+
+	if (other.startOverload.hasValue())
+		startOverload = other.startOverload.getValue()->clone();
+	else
+		startOverload = llvm::None;
 }
 
 Member::Member(Member&& other) = default;
@@ -61,25 +75,25 @@ namespace modelica::frontend
 	}
 }
 
-void Member::dump(llvm::raw_ostream& os, size_t indents) const
+void Member::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "member: {name: " << name << ", type: ";
-	type.dump(os);
+	type.print(os);
 	os << "}\n";
 
 	if (hasInitializer())
 	{
 		os.indent(indents + 1);
 		os << "initializer:\n";
-		initializer->get()->dump(os, indents + 2);
+		initializer.getValue()->print(os, indents + 2);
 	}
 
 	if (hasStartOverload())
 	{
 		os.indent(indents + 1);
 		os << "start overload:\n";
-		startOverload->get()->dump(os, indents + 2);
+		startOverload.getValue()->print(os, indents + 2);
 	}
 }
 

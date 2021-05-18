@@ -24,12 +24,12 @@ TEST(ReturnRemover, returnInIf)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	ReturnRemover pass;
-	EXPECT_TRUE(!pass.run(*ast));
+	EXPECT_TRUE(!pass.run(**ast));
 
-	auto& algorithm = *ast->get<Function>().getAlgorithms()[0];
+	auto& algorithm = *(*ast)->get<StandardFunction>()->getAlgorithms()[0];
 	EXPECT_EQ(algorithm.size(), 3);
-	EXPECT_TRUE(algorithm[2].isA<IfStatement>());
-	EXPECT_EQ(algorithm[2].get<IfStatement>()[0].size(), 2);
+	EXPECT_TRUE(algorithm[2]->isa<IfStatement>());
+	EXPECT_EQ((*algorithm[2]->get<IfStatement>())[0].size(), 2);
 }
 
 TEST(ReturnRemover, returnInWhile)	 // NOLINT
@@ -52,13 +52,13 @@ TEST(ReturnRemover, returnInWhile)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	ReturnRemover pass;
-	EXPECT_TRUE(!pass.run(*ast));
+	EXPECT_TRUE(!pass.run(**ast));
 
-	auto& algorithm = *ast->get<Function>().getAlgorithms()[0];
-	auto& whileLoop = algorithm[1].get<WhileStatement>();
-	EXPECT_EQ(whileLoop.size(), 2);
-	EXPECT_TRUE(whileLoop[1].isA<IfStatement>());
-	EXPECT_EQ(whileLoop[1].get<IfStatement>()[0].size(), 2);
+	auto& algorithm = *(*ast)->get<StandardFunction>()->getAlgorithms()[0];
+	auto* whileLoop = algorithm[1]->get<WhileStatement>();
+	EXPECT_EQ(whileLoop->size(), 2);
+	EXPECT_TRUE((*whileLoop)[0]->isa<IfStatement>());
+	EXPECT_EQ((*whileLoop)[1]->get<IfStatement>()->getBlock(0).size(), 2);
 }
 
 TEST(ReturnRemover, returnInNestedWhile)	 // NOLINT
@@ -81,14 +81,14 @@ TEST(ReturnRemover, returnInNestedWhile)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	ReturnRemover pass;
-	EXPECT_TRUE(!pass.run(*ast));
+	EXPECT_TRUE(!pass.run(**ast));
 
-	auto& algorithm = *ast->get<Function>().getAlgorithms()[0];
+	auto& algorithm = *(*ast)->get<StandardFunction>()->getAlgorithms()[0];
 
 	// Differently from the break case, where the inner loop could not break
 	// the outer one, here the inner loop may stop the outer loop execution.
-	auto& outerLoop = algorithm[1].get<WhileStatement>();
-	EXPECT_EQ(outerLoop.size(), 2);
+	auto* outerLoop = algorithm[1]->get<WhileStatement>();
+	EXPECT_EQ(outerLoop->size(), 2);
 }
 
 TEST(ReturnRemover, returnInFor)	 // NOLINT
@@ -113,11 +113,11 @@ TEST(ReturnRemover, returnInFor)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	ReturnRemover pass;
-	EXPECT_TRUE(!pass.run(*ast));
+	EXPECT_TRUE(!pass.run(**ast));
 
-	auto& algorithm = *ast->get<Function>().getAlgorithms()[0];
+	auto& algorithm = *(*ast)->get<StandardFunction>()->getAlgorithms()[0];
 	EXPECT_EQ(algorithm.size(), 3);
 
-	auto& forLoop = algorithm[1].get<ForStatement>();
-	EXPECT_EQ(forLoop.size(), 2);
+	auto* forLoop = algorithm[1]->get<ForStatement>();
+	EXPECT_EQ(forLoop->size(), 2);
 }

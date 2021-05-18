@@ -15,23 +15,28 @@ namespace modelica
 		public:
 		OmcToModelPass(Model& toPopulate): model(toPopulate) {}
 
-		[[nodiscard]] llvm::Error lower(frontend::Class& cl, const frontend::SymbolTable& table);
-		[[nodiscard]] llvm::Error lower(frontend::Model& cl, const frontend::SymbolTable& table);
-		[[nodiscard]] llvm::Error lower(frontend::Function& cl, const frontend::SymbolTable& table);
-		[[nodiscard]] llvm::Error lower(frontend::Package& cl, const frontend::SymbolTable& table);
-		[[nodiscard]] llvm::Error lower(frontend::Record& cl, const frontend::SymbolTable& table);
+		template<typename T>
+		[[nodiscard]] llvm::Error lower(
+				frontend::Class& cls, const frontend::SymbolTable& table);
+
 		[[nodiscard]] llvm::Expected<ModEquation> lower(
 				frontend::Equation& eq, const frontend::SymbolTable& table, int nestingLevel);
+
 		[[nodiscard]] llvm::Expected<ModEquation> lower(
 				frontend::ForEquation& eq, const frontend::SymbolTable& table);
+
 		[[nodiscard]] llvm::Expected<ModExp> lower(
 				frontend::Expression& exp, const frontend::SymbolTable& table);
+
 		[[nodiscard]] llvm::Expected<ModCall> lowerCall(
 				frontend::Expression& call, const frontend::SymbolTable& table);
 
 		[[nodiscard]] llvm::Expected<ModExp> lowerOperation(
 				frontend::Expression& op, const frontend::SymbolTable& table);
-		[[nodiscard]] llvm::Error lower(frontend::Member& member, const frontend::SymbolTable& table);
+
+		[[nodiscard]] llvm::Error lower(
+				frontend::Member& member, const frontend::SymbolTable& table);
+
 		[[nodiscard]] llvm::Expected<ModType> lower(
 				const frontend::Type& tp, const frontend::SymbolTable& table);
 
@@ -50,4 +55,28 @@ namespace modelica
 		private:
 		Model& model;
 	};
+
+	template<>
+	llvm::Error OmcToModelPass::lower<frontend::Class>(
+			frontend::Class& cls, const frontend::SymbolTable& table);
+
+	template<>
+	llvm::Error OmcToModelPass::lower<frontend::DerFunction>(
+			frontend::Class& cls, const frontend::SymbolTable& table);
+
+	template<>
+	llvm::Error OmcToModelPass::lower<frontend::StandardFunction>(
+			frontend::Class& cls, const frontend::SymbolTable& table);
+
+	template<>
+	llvm::Error OmcToModelPass::lower<frontend::Model>(
+			frontend::Class& cls, const frontend::SymbolTable& table);
+
+	template<>
+	llvm::Error OmcToModelPass::lower<frontend::Package>(
+			frontend::Class& cls, const frontend::SymbolTable& table);
+
+	template<>
+	llvm::Error OmcToModelPass::lower<frontend::Record>(
+			frontend::Class& cls, const frontend::SymbolTable& table);
 }	 // namespace modelica

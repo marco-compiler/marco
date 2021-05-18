@@ -4,19 +4,19 @@
 using namespace modelica::frontend;
 
 Annotation::Annotation(SourcePosition location)
-		: ASTNodeCRTP<Annotation>(ASTNodeKind::ANNOTATION, std::move(location))
+		: ASTNode(std::move(location))
 {
 }
 
 Annotation::Annotation(SourcePosition location,
 											 std::unique_ptr<ClassModification> properties)
-		: ASTNodeCRTP<Annotation>(ASTNodeKind::ANNOTATION, std::move(location)),
+		: ASTNode(std::move(location)),
 			properties(std::move(properties))
 {
 }
 
 Annotation::Annotation(const Annotation& other)
-		: ASTNodeCRTP<Annotation>(static_cast<ASTNodeCRTP<Annotation>&>(*this)),
+		: ASTNode(other),
 			properties(other.properties->clone())
 {
 }
@@ -38,15 +38,14 @@ namespace modelica::frontend
 {
 	void swap(Annotation& first, Annotation& second)
 	{
-		swap(static_cast<impl::ASTNodeCRTP<Annotation>&>(first),
-				 static_cast<impl::ASTNodeCRTP<Annotation>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
 		swap(first.properties, second.properties);
 	}
 }
 
-void Annotation::dump(llvm::raw_ostream& os, size_t indents) const
+void Annotation::print(llvm::raw_ostream& os, size_t indents) const
 {
 	// TODO
 }
@@ -73,13 +72,13 @@ bool Annotation::getInlineProperty() const
 	{
 		if (argument->isa<ElementModification>())
 		{
-			const auto& elementModification = argument->cast<ElementModification>();
+			const auto& elementModification = argument->get<ElementModification>();
 
 			if (boost::iequals(elementModification->getName(), "inline") &&
 					elementModification->hasModification())
 			{
 				const auto& modification = elementModification->getModification();
-				return modification->getExpression()->cast<Constant>()->get<BuiltInType::Boolean>();
+				return modification->getExpression()->get<Constant>()->get<BuiltInType::Boolean>();
 			}
 		}
 	}
@@ -93,7 +92,7 @@ InverseFunctionAnnotation Annotation::getInverseFunctionAnnotation() const
 
 	for (const auto& argument : *properties)
 	{
-		const auto& elementModification = argument->cast<ElementModification>();
+		const auto& elementModification = argument->get<ElementModification>();
 
 		if (boost::iequals(elementModification->getName().str(), "inverse"))
 		{
@@ -103,18 +102,20 @@ InverseFunctionAnnotation Annotation::getInverseFunctionAnnotation() const
 
 			for (const auto& inverseDeclaration : *modification->getClassModification())
 			{
-				const auto& inverseDeclarationFullExpression = inverseDeclaration->cast<ElementModification>();
+				const auto& inverseDeclarationFullExpression = inverseDeclaration->get<ElementModification>();
 				assert(inverseDeclarationFullExpression->hasModification());
 				const auto& callExpression = inverseDeclarationFullExpression->getModification();
 				assert(callExpression->hasExpression());
-				const auto& call = callExpression->getExpression()->cast<Call>();
+				const auto* call = callExpression->getExpression()->get<Call>();
 
 				llvm::SmallVector<std::string, 3> args;
 
 				for (const auto& arg : *call)
-					args.push_back(arg->cast<ReferenceAccess>()->getName().str());
+					args.push_back(arg->get<ReferenceAccess>()->getName().str());
 
-				result.addInverse(inverseDeclarationFullExpression->getName().str(), call->getFunction()->cast<ReferenceAccess>()->getName(), args);
+				result.addInverse(inverseDeclarationFullExpression->getName().str(),
+													call->getFunction()->get<ReferenceAccess>()->getName(),
+													args);
 			}
 		}
 	}

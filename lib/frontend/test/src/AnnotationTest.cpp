@@ -11,7 +11,7 @@ TEST(Parser, inlineAnnotationTrue)	 // NOLINT
 	auto ast = parser.annotation();
 	ASSERT_FALSE(!ast);
 
-	EXPECT_TRUE(ast->getInlineProperty());
+	EXPECT_TRUE((*ast)->getInlineProperty());
 }
 
 TEST(Parser, inlineAnnotationFalse)	 // NOLINT
@@ -21,7 +21,7 @@ TEST(Parser, inlineAnnotationFalse)	 // NOLINT
 	auto ast = parser.annotation();
 	ASSERT_FALSE(!ast);
 
-	EXPECT_FALSE(ast->getInlineProperty());
+	EXPECT_FALSE((*ast)->getInlineProperty());
 }
 
 TEST(Parser, inlinableFunction)	 // NOLINT
@@ -34,7 +34,7 @@ TEST(Parser, inlinableFunction)	 // NOLINT
 	auto ast = parser.classDefinition();
 	ASSERT_FALSE(!ast);
 
-	EXPECT_TRUE(ast->get<Function>().getAnnotation().getInlineProperty());
+	EXPECT_TRUE((*ast)->get<StandardFunction>()->getAnnotation()->getInlineProperty());
 }
 
 TEST(Parser, inverseFunctionAnnotation)	 // NOLINT
@@ -44,7 +44,7 @@ TEST(Parser, inverseFunctionAnnotation)	 // NOLINT
 	auto ast = parser.annotation();
 	ASSERT_FALSE(!ast);
 
-	auto annotation = ast->getInverseFunctionAnnotation();
+	auto annotation = (*ast)->getInverseFunctionAnnotation();
 
 	EXPECT_TRUE(annotation.isInvertible("y"));
 	EXPECT_EQ(annotation.getInverseFunction("y"), "foo1");

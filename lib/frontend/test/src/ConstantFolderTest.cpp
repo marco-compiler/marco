@@ -10,121 +10,141 @@ using namespace std;
 
 TEST(folderTest, sumShouldFold)
 {
-	Expression exp = Expression::operation(
+	auto expression = Expression::operation(
 			SourcePosition::unknown(),
 			makeType<int>(),
 			OperationKind::add,
-			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
-			Expression::constant(SourcePosition::unknown(), makeType<int>(), 4));
+			llvm::ArrayRef({
+					Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
+					Expression::constant(SourcePosition::unknown(), makeType<int>(), 4)
+			}));
 
 	ConstantFolder folder;
-	if (folder.run(exp))
+
+	if (folder.run<Expression>(*expression))
 		FAIL();
 
-	EXPECT_TRUE(exp.isA<Constant>());
-	EXPECT_EQ(exp.get<Constant>().get<BuiltInType::Integer>(), 7);
+	EXPECT_TRUE(expression->isa<Constant>());
+	EXPECT_EQ(expression->get<Constant>()->get<BuiltInType::Integer>(), 7);
 }
 
 TEST(folderTest, subShouldFold)
 {
-	Expression exp = Expression::operation(
+	auto expression = Expression::operation(
 			SourcePosition::unknown(),
 			makeType<int>(),
 			OperationKind::subtract,
-			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
-			Expression::constant(SourcePosition::unknown(), makeType<int>(), 2));
+			llvm::ArrayRef({
+					Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
+					Expression::constant(SourcePosition::unknown(), makeType<int>(), 2)
+			}));
 
 	ConstantFolder folder;
-	if (folder.run(exp))
+
+	if (folder.run<Expression>(*expression))
 		FAIL();
 
-	EXPECT_TRUE(exp.isA<Constant>());
-	EXPECT_EQ(exp.get<Constant>().get<BuiltInType::Integer>(), 1);
+	EXPECT_TRUE(expression->isa<Constant>());
+	EXPECT_EQ(expression->get<Constant>()->get<BuiltInType::Integer>(), 1);
 }
 
 TEST(folderTest, sumOfSubShouldFold)
 {
-	Expression exp = Expression::operation(
+	auto expression = Expression::operation(
 			SourcePosition::unknown(),
 			makeType<int>(),
 			OperationKind::add,
-			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
-			Expression::constant(SourcePosition::unknown(), makeType<int>(), -1));
+			llvm::ArrayRef({
+					Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
+					Expression::constant(SourcePosition::unknown(), makeType<int>(), -1)
+			}));
 
 	ConstantFolder folder;
-	if (folder.run(exp))
+
+	if (folder.run<Expression>(*expression))
 		FAIL();
 
-	EXPECT_TRUE(exp.isA<Constant>());
-	EXPECT_EQ(exp.get<Constant>().get<BuiltInType::Integer>(), 2);
+	EXPECT_TRUE(expression->isa<Constant>());
+	EXPECT_EQ(expression->get<Constant>()->get<BuiltInType::Integer>(), 2);
 }
 
 TEST(folderTest, sumInSubscriptionShouldFold)
 {
-	Expression exp = Expression::operation(
+	auto access = Expression::operation(
 			SourcePosition::unknown(),
 			makeType<int>(),
 			OperationKind::add,
-			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
-			Expression::constant(SourcePosition::unknown(), makeType<int>(), -1));
+			llvm::ArrayRef({
+					Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
+					Expression::constant(SourcePosition::unknown(), makeType<int>(), -1)
+			}));
 
-	exp = Expression::operation(
+	auto subscription = Expression::operation(
 			SourcePosition::unknown(),
 			makeType<int>(),
 			OperationKind::subscription,
-			Expression::reference(SourcePosition::unknown(), makeType<int>(10), "name"),
-			exp);
+			llvm::ArrayRef({
+					Expression::reference(SourcePosition::unknown(), makeType<int>(10), "name"),
+					std::move(access)
+			}));
 
 	ConstantFolder folder;
 	auto& symbolTable = folder.getSymbolTable();
 	ConstantFolder::SymbolTableScope scope(symbolTable);
 
-	Member m(SourcePosition::unknown(), "name", makeType<int>(10), TypePrefix::none());
-	symbolTable.insert(m.getName(), Symbol(m));
+	auto member = Member::build(SourcePosition::unknown(), "name", makeType<int>(10), TypePrefix::none());
+	symbolTable.insert(member->getName(), Symbol(*member));
 
-	if (folder.run(exp))
+	if (folder.run<Expression>(*subscription))
 		FAIL();
 
-	EXPECT_TRUE(exp.isA<Operation>());
-	auto& accessIndex = exp.get<Operation>()[1];
-	EXPECT_TRUE(accessIndex.isA<Constant>());
-	EXPECT_EQ(accessIndex.get<Constant>().get<BuiltInType::Integer>(), 2);
+	EXPECT_TRUE(subscription->isa<Operation>());
+	auto* accessIndex = subscription->get<Operation>()->getArg(1);
+	EXPECT_TRUE(accessIndex->isa<Constant>());
+	EXPECT_EQ(accessIndex->get<Constant>()->get<BuiltInType::Integer>(), 2);
 }
 
 TEST(folderTest, sumInSubscriptionInDerShouldFold)
 {
-	Expression exp = Expression::operation(
+	auto access = Expression::operation(
 			SourcePosition::unknown(),
 			makeType<int>(),
 			OperationKind::add,
-			Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
-			Expression::constant(SourcePosition::unknown(), makeType<int>(), -1));
+			llvm::ArrayRef({
+					Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
+					Expression::constant(SourcePosition::unknown(), makeType<int>(), -1)
+			}));
 
-	exp = Expression::operation(
+	auto subscription = Expression::operation(
 			SourcePosition::unknown(),
 			makeType<int>(),
 			OperationKind::subscription,
-			Expression::reference(SourcePosition::unknown(), makeType<int>(10), "name"),
-			exp);
+			llvm::ArrayRef({
+					Expression::reference(SourcePosition::unknown(), makeType<int>(10), "name"),
+					std::move(access)
+			}));
 
 	auto refToDer = Expression::reference(SourcePosition::unknown(), Type::unknown(), "der");
-	auto call = Expression::call(SourcePosition::unknown(), Type::unknown(), move(refToDer), move(exp));
+
+	auto call = Expression::call(
+			SourcePosition::unknown(), Type::unknown(),
+			move(refToDer), std::move(subscription));
 
 	ConstantFolder folder;
 	auto& symbolTable = folder.getSymbolTable();
 	ConstantFolder::SymbolTableScope scope(symbolTable);
 
-	Member m(SourcePosition::unknown(), "name", makeType<int>(10), TypePrefix::none());
-	symbolTable.insert(m.getName(), Symbol(m));
+	auto member = Member::build(SourcePosition::unknown(), "name", makeType<int>(10), TypePrefix::none());
+	symbolTable.insert(member->getName(), Symbol(*member));
 
-	if (folder.run(call))
+	if (folder.run<Expression>(*call))
 		FAIL();
 
-	EXPECT_TRUE(call.isA<Call>());
-	auto& arg = call.get<Call>()[0];
-	EXPECT_TRUE(arg.isA<Operation>());
-	auto& accessIndex = arg.get<Operation>()[1];
-	EXPECT_EQ(accessIndex.get<Constant>().get<BuiltInType::Integer>(), 2);
+	EXPECT_TRUE(call->isa<Call>());
+	auto* arg = call->get<Call>()->getArg(0);
+	EXPECT_TRUE(arg->isa<Operation>());
+	auto* accessIndex = arg->get<Operation>()->getArg(1);
+	EXPECT_EQ(accessIndex->get<Constant>()->get<BuiltInType::Integer>(), 2);
 }
 
 TEST(folderTest, startDeclarationWithReference)	 // NOLINT
@@ -134,19 +154,17 @@ TEST(folderTest, startDeclarationWithReference)	 // NOLINT
 								"  Real[10, 10, 4] T(start = A);"
 								"end C;");
 
-	auto expectedAST = parser.classDefinition();
+	auto ast = parser.classDefinition();
 
-	if (!expectedAST)
+	if (!*ast)
 		FAIL();
-
-	auto ast = move(*expectedAST);
 
 	ConstantFolder folder;
 
-	if (folder.run(ast))
+	if (folder.run<Class>(**ast))
 		FAIL();
 
-	const auto& model = ast.get<Class>();
-	bool isConstant = model.getMembers()[1]->getStartOverload().isA<Constant>();
+	const auto* model = (*ast)->get<Model>();
+	bool isConstant = model->getMembers()[1]->getStartOverload()->isa<Constant>();
 	EXPECT_TRUE(isConstant);
 }

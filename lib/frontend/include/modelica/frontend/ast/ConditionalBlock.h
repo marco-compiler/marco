@@ -10,7 +10,7 @@
 namespace modelica::frontend
 {
 	template<typename T>
-	class ConditionalBlock
+	class ConditionalBlock : public impl::Dumpable<ConditionalBlock<T>>
 	{
 		private:
 		using Container = llvm::SmallVector<std::unique_ptr<T>, 3>;
@@ -19,19 +19,19 @@ namespace modelica::frontend
 		using iterator = typename Container::iterator;
 		using const_iterator = typename Container::const_iterator;
 
-		ConditionalBlock(std::unique_ptr<Expression>& condition,
+		ConditionalBlock(std::unique_ptr<Expression> condition,
 										 llvm::ArrayRef<std::unique_ptr<T>> body)
-				: condition(condition->cloneExpression())
+				: condition(std::move(condition))
 		{
 			for (const auto& element : body)
-				this->body.push_back(element->cloneStatement());
+				this->body.push_back(element->clone());
 		}
 
 		ConditionalBlock(const ConditionalBlock<T>& other)
-				: condition(other.condition->cloneExpression())
+				: condition(other.condition->clone())
 		{
-			for (const auto& element : body)
-				this->body.push_back(element->cloneStatement());
+			for (const auto& element : other.body)
+				this->body.push_back(element->clone());
 		}
 
 		ConditionalBlock(ConditionalBlock<T>&& other) = default;
@@ -49,44 +49,36 @@ namespace modelica::frontend
 		friend void swap(ConditionalBlock<T>& first, ConditionalBlock<T>& second)
 		{
 			using std::swap;
-			swap(first.breakCheckName, second.breakCheckName);
-			swap(first.returnCheckName, second.returnCheckName);
 		}
 
-		[[nodiscard]] T& operator[](size_t index)
-		{
-			assert(index < body.size());
-			return *body[index];
-		}
-
-		[[nodiscard]] const T& operator[](size_t index) const
-		{
-			assert(index < body.size());
-			return *body[index];
-		}
-
-		void dump() const { dump(llvm::outs(), 0); }
-
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override
 		{
 			os.indent(indents);
 			os << "condition:\n";
-			condition->dump(os, indents + 1);
+			condition->print(os, indents + 1);
 
 			os.indent(indents);
 			os << "body:\n";
 
 			for (const auto& statement : body)
-				statement->dump(os, indents + 1);
+				statement->print(os, indents + 1);
 		}
 
 		[[nodiscard]] Expression* getCondition() { return condition.get(); }
 
 		[[nodiscard]] const Expression* getCondition() const { return condition.get(); }
 
-		[[nodiscard]] Container& getBody() { return body; }
+		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<T>> getBody() { return body; }
 
-		[[nodiscard]] const Container& getBody() const { return body; }
+		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<T>> getBody() const { return body; }
+
+		void setBody(llvm::ArrayRef<std::unique_ptr<T>> elements)
+		{
+			body.clear();
+
+			for (const auto& element : elements)
+				body.push_back(element->clone());
+		}
 
 		[[nodiscard]] size_t size() const { return body.size(); }
 

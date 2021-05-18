@@ -26,13 +26,13 @@ TEST(BreakRemover, breakInWhile)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	BreakRemover pass;
-	EXPECT_TRUE(!pass.run(*ast));
+	EXPECT_TRUE(!pass.run(**ast));
 
-	auto& algorithm = *ast->get<Function>().getAlgorithms()[0];
-	auto& whileLoop = algorithm[1].get<WhileStatement>();
-	EXPECT_EQ(whileLoop.size(), 2);
-	EXPECT_TRUE(whileLoop[1].isA<IfStatement>());
-	EXPECT_EQ(whileLoop[1].get<IfStatement>()[0].size(), 2);
+	auto& algorithm = *(*ast)->get<StandardFunction>()->getAlgorithms()[0];
+	auto* whileLoop = algorithm[1]->get<WhileStatement>();
+	EXPECT_EQ(whileLoop->size(), 2);
+	EXPECT_TRUE((*whileLoop)[1]->isa<IfStatement>());
+	EXPECT_EQ((*whileLoop)[1]->get<IfStatement>()->getBlock(0).size(), 2);
 }
 
 TEST(BreakRemover, breakInNestedWhile)	 // NOLINT
@@ -55,22 +55,22 @@ TEST(BreakRemover, breakInNestedWhile)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	BreakRemover pass;
-	EXPECT_TRUE(!pass.run(*ast));
+	EXPECT_TRUE(!pass.run(**ast));
 
-	auto& algorithm = *ast->get<Function>().getAlgorithms()[0];
+	auto& algorithm = *(*ast)->get<StandardFunction>()->getAlgorithms()[0];
 
 	// The outer loop should be unchanged, because the inner loop can't break
 	// the outer one.
-	auto& outerLoop = algorithm[1].get<WhileStatement>();
-	EXPECT_EQ(outerLoop.size(), 3);
+	auto* outerLoop = algorithm[1]->get<WhileStatement>();
+	EXPECT_EQ(outerLoop->size(), 3);
 
 	// Inside the inner loop, there should be just an assignment to the break
 	// check variable, because in the original body there are no statements
 	// that can be avoided.
-	auto& innerLoop = outerLoop[0].get<WhileStatement>();
-	EXPECT_EQ(innerLoop.size(), 1);
-	EXPECT_TRUE(innerLoop[0].isA<AssignmentStatement>());
-	EXPECT_EQ(innerLoop[0].get<AssignmentStatement>().getDestinations()[0].get<ReferenceAccess>().getName(), "__mustBreak2");
+	auto* innerLoop = (*outerLoop)[0]->get<WhileStatement>();
+	EXPECT_EQ(innerLoop->size(), 1);
+	EXPECT_TRUE((*innerLoop)[0]->isa<AssignmentStatement>());
+	EXPECT_EQ((*innerLoop)[0]->get<AssignmentStatement>()->getDestinations()->get<Tuple>()->getArg(0)->get<ReferenceAccess>()->getName(), "__mustBreak2");
 }
 
 TEST(BreakRemover, breakInFor)	 // NOLINT
@@ -93,11 +93,11 @@ TEST(BreakRemover, breakInFor)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	BreakRemover pass;
-	EXPECT_TRUE(!pass.run(*ast));
+	EXPECT_TRUE(!pass.run(**ast));
 
-	auto& algorithm = *ast->get<Function>().getAlgorithms()[0];
-	auto& forLoop = algorithm[1].get<ForStatement>();
-	EXPECT_EQ(forLoop.size(), 2);
-	EXPECT_TRUE(forLoop[1].isA<IfStatement>());
-	EXPECT_EQ(forLoop[1].get<IfStatement>()[0].size(), 2);
+	auto& algorithm = *(*ast)->get<StandardFunction>()->getAlgorithms()[0];
+	auto* forLoop = algorithm[1]->get<ForStatement>();
+	EXPECT_EQ(forLoop->size(), 2);
+	EXPECT_TRUE((*forLoop)[1]->isa<IfStatement>());
+	EXPECT_EQ((*forLoop)[1]->get<IfStatement>()->getBlock(0).size(), 2);
 }

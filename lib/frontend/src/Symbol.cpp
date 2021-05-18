@@ -4,9 +4,11 @@ using namespace modelica::frontend;
 
 Symbol::Symbol() = default;
 
-Symbol::Symbol(Function& function): content(&function) {}
+Symbol::Symbol(DerFunction& function): content(&function) {}
 
-Symbol::Symbol(Class& model): content(&model) {}
+Symbol::Symbol(StandardFunction& function): content(&function) {}
+
+Symbol::Symbol(Model& model): content(&model) {}
 
 Symbol::Symbol(Package& package): content(&package) {}
 

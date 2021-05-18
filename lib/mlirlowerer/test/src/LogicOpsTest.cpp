@@ -27,18 +27,19 @@ TEST(Logic, negateScalar)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto xMember = Member::build(location, "x", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Statement assignment = AssignmentStatement(
+	auto assignment = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<bool>(), "y"),
 			Expression::operation(location, makeType<bool>(), OperationKind::negate,
 														Expression::reference(location, makeType<bool>(), "x")));
 
-	ClassContainer cls(Function(location, "main", true,
-															{ xMember, yMember },
-															Algorithm(location, assignment)));
+	auto cls = Class::standardFunction(
+			location,true,  "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
+			Algorithm::build(location, std::move(assignment)));
 
 	mlir::MLIRContext context;
 
@@ -46,7 +47,7 @@ TEST(Logic, negateScalar)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -78,18 +79,19 @@ TEST(Logic, negateArray)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<bool>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<bool>(2), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto xMember = Member::build(location, "x", makeType<bool>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<bool>(2), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Statement assignment = AssignmentStatement(
+	auto assignment = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<bool>(2), "y"),
 			Expression::operation(location, makeType<bool>(2), OperationKind::negate,
 														Expression::reference(location, makeType<bool>(2), "x")));
 
-	ClassContainer cls(Function(location, "main", true,
-															{ xMember, yMember },
-															Algorithm(location, assignment)));
+	auto cls = Class::standardFunction(
+			location,true,  "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
+			Algorithm::build(location, std::move(assignment)));
 
 	mlir::MLIRContext context;
 
@@ -97,7 +99,7 @@ TEST(Logic, negateArray)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -131,20 +133,23 @@ TEST(Logic, andScalars)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto xMember = Member::build(location, "x", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto zMember = Member::build(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Statement assignment = AssignmentStatement(
+	auto assignment = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<bool>(), "z"),
 			Expression::operation(location, makeType<bool>(), OperationKind::land,
-														Expression::reference(location, makeType<bool>(), "x"),
-														Expression::reference(location, makeType<bool>(), "y")));
+														llvm::ArrayRef({
+																Expression::reference(location, makeType<bool>(), "x"),
+																Expression::reference(location, makeType<bool>(), "y")
+														})));
 
-	ClassContainer cls(Function(location, "main", true,
-															{ xMember, yMember, zMember },
-															Algorithm(location, assignment)));
+	auto cls = Class::standardFunction(
+			location,true,  "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember), std::move(zMember) }),
+			Algorithm::build(location, std::move(assignment)));
 
 	mlir::MLIRContext context;
 
@@ -152,7 +157,7 @@ TEST(Logic, andScalars)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -186,20 +191,23 @@ TEST(Logic, andArrays)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<bool>(4), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<bool>(4), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<bool>(4), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto xMember = Member::build(location, "x", makeType<bool>(4), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<bool>(4), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto zMember = Member::build(location, "z", makeType<bool>(4), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Statement assignment = AssignmentStatement(
+	auto assignment = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<bool>(4), "z"),
 			Expression::operation(location, makeType<bool>(4), OperationKind::land,
-														Expression::reference(location, makeType<bool>(4), "x"),
-														Expression::reference(location, makeType<bool>(4), "y")));
+														llvm::ArrayRef({
+																Expression::reference(location, makeType<bool>(4), "x"),
+																Expression::reference(location, makeType<bool>(4), "y")
+														})));
 
-	ClassContainer cls(Function(location, "main", true,
-															{ xMember, yMember, zMember },
-															Algorithm(location, assignment)));
+	auto cls = Class::standardFunction(
+			location,true,  "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember), std::move(zMember) }),
+			Algorithm::build(location, std::move(assignment)));
 
 	mlir::MLIRContext context;
 
@@ -207,7 +215,7 @@ TEST(Logic, andArrays)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -244,20 +252,23 @@ TEST(Logic, orScalars)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto xMember = Member::build(location, "x", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto zMember = Member::build(location, "z", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Statement assignment = AssignmentStatement(
+	auto assignment = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<bool>(), "z"),
 			Expression::operation(location, makeType<bool>(), OperationKind::lor,
-														Expression::reference(location, makeType<bool>(), "x"),
-														Expression::reference(location, makeType<bool>(), "y")));
+														llvm::ArrayRef({
+																Expression::reference(location, makeType<bool>(), "x"),
+																Expression::reference(location, makeType<bool>(), "y")
+														})));
 
-	ClassContainer cls(Function(location, "main", true,
-															{ xMember, yMember, zMember },
-															Algorithm(location, assignment)));
+	auto cls = Class::standardFunction(
+			location,true,  "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember), std::move(zMember) }),
+			Algorithm::build(location, std::move(assignment)));
 
 	mlir::MLIRContext context;
 
@@ -265,7 +276,7 @@ TEST(Logic, orScalars)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -299,20 +310,23 @@ TEST(Logic, orArrays)	 // NOLINT
 
 	SourcePosition location = SourcePosition::unknown();
 
-	Member xMember(location, "x", makeType<bool>(4), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member yMember(location, "y", makeType<bool>(4), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	Member zMember(location, "z", makeType<bool>(4), TypePrefix(ParameterQualifier::none, IOQualifier::output));
+	auto xMember = Member::build(location, "x", makeType<bool>(4), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto yMember = Member::build(location, "y", makeType<bool>(4), TypePrefix(ParameterQualifier::none, IOQualifier::input));
+	auto zMember = Member::build(location, "z", makeType<bool>(4), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
-	Statement assignment = AssignmentStatement(
+	auto assignment = Statement::assignmentStatement(
 			location,
 			Expression::reference(location, makeType<bool>(4), "z"),
 			Expression::operation(location, makeType<bool>(4), OperationKind::lor,
-														Expression::reference(location, makeType<bool>(4), "x"),
-														Expression::reference(location, makeType<bool>(4), "y")));
+														llvm::ArrayRef({
+																Expression::reference(location, makeType<bool>(4), "x"),
+																Expression::reference(location, makeType<bool>(4), "y")
+														})));
 
-	ClassContainer cls(Function(location, "main", true,
-															{ xMember, yMember, zMember },
-															Algorithm(location, assignment)));
+	auto cls = Class::standardFunction(
+			location,true,  "main", llvm::None,
+			llvm::ArrayRef({ std::move(xMember), std::move(yMember), std::move(zMember) }),
+			Algorithm::build(location, std::move(assignment)));
 
 	mlir::MLIRContext context;
 
@@ -320,7 +334,7 @@ TEST(Logic, orArrays)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.lower(cls);
+	auto module = lowerer.run(*cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;

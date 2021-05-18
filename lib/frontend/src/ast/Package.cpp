@@ -5,17 +5,19 @@ using namespace modelica::frontend;
 Package::Package(SourcePosition location,
 								 llvm::StringRef name,
 								 llvm::ArrayRef<std::unique_ptr<Class>> innerClasses)
-		: ClassCRTP<Package>(ASTNodeKind::CLASS_PACKAGE, std::move(location), std::move(name))
+		: ASTNode(std::move(location)),
+			name(name.str())
 {
 	for (const auto& cls : innerClasses)
-		this->innerClasses.push_back(cls->cloneClass());
+		this->innerClasses.push_back(cls->clone());
 }
 
 Package::Package(const Package& other)
-		: ClassCRTP<Package>(static_cast<ClassCRTP<Package>&>(*this))
+		: ASTNode(other),
+			name(other.name)
 {
 	for (const auto& cls : other.innerClasses)
-		this->innerClasses.push_back(cls->cloneClass());
+		this->innerClasses.push_back(cls->clone());
 }
 
 Package::Package(Package&& other) = default;
@@ -35,21 +37,25 @@ namespace modelica::frontend
 {
 	void swap(Package& first, Package& second)
 	{
-		swap(static_cast<impl::ClassCRTP<Package>&>(first),
-				 static_cast<impl::ClassCRTP<Package>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
 		impl::swap(first.innerClasses, second.innerClasses);
 	}
 }
 
-void Package::dump(llvm::raw_ostream& os, size_t indents) const
+void Package::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "package " << getName() << "\n";
 
 	for (const auto& cls : innerClasses)
-		cls->dump(os, indents + 1);
+		cls->print(os, indents + 1);
+}
+
+llvm::StringRef Package::getName() const
+{
+	return name;
 }
 
 llvm::MutableArrayRef<std::unique_ptr<Class>> Package::getInnerClasses()

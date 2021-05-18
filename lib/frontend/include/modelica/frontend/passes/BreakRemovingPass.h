@@ -24,25 +24,54 @@ namespace modelica::frontend
 	{
 		public:
 		llvm::Error run(Class& cls) final;
-		llvm::Error run(Function& function);
-		llvm::Error run(DerFunction& function);
-		llvm::Error run(StandardFunction& function);
-		llvm::Error run(Model& cls);
-		llvm::Error run(Package& package);
-		llvm::Error run(Record& record);
-		llvm::Error run(Algorithm& algorithm);
+
+		template<typename T>
+		llvm::Error run(Class& cls);
+
+		template<typename T>
 		bool run(Statement& statement);
-		bool run(AssignmentStatement& statement);
-		bool run(BreakStatement& statement);
-		bool run(ForStatement& statement);
-		bool run(IfStatement& statement);
-		bool run(ReturnStatement& statement);
-		bool run(WhenStatement& statement);
-		bool run(WhileStatement& statement);
+
+		llvm::Error run(Algorithm& algorithm);
 
 		private:
 		int nestLevel = 0;
 	};
+
+	template<>
+	llvm::Error BreakRemover::run<DerFunction>(Class& cls);
+
+	template<>
+	llvm::Error BreakRemover::run<StandardFunction>(Class& cls);
+
+	template<>
+	llvm::Error BreakRemover::run<Model>(Class& cls);
+
+	template<>
+	llvm::Error BreakRemover::run<Package>(Class& cls);
+
+	template<>
+	llvm::Error BreakRemover::run<Record>(Class& cls);
+
+	template<>
+	bool BreakRemover::run<AssignmentStatement>(Statement& statement);
+
+	template<>
+	bool BreakRemover::run<BreakStatement>(Statement& statement);
+
+	template<>
+	bool BreakRemover::run<ForStatement>(Statement& statement);
+
+	template<>
+	bool BreakRemover::run<IfStatement>(Statement& statement);
+
+	template<>
+	bool BreakRemover::run<ReturnStatement>(Statement& statement);
+
+	template<>
+	bool BreakRemover::run<WhenStatement>(Statement& statement);
+
+	template<>
+	bool BreakRemover::run<WhileStatement>(Statement& statement);
 
 	std::unique_ptr<Pass> createBreakRemovingPass();
 }

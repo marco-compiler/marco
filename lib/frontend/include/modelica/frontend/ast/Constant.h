@@ -4,23 +4,16 @@
 #include <string>
 #include <type_traits>
 
-#include "Expression.h"
+#include "ASTNode.h"
 #include "Type.h"
 
 namespace modelica::frontend
 {
 	class Constant
-			: public impl::ExpressionCRTP<Constant>,
-				public impl::Cloneable<Constant>
+			: public ASTNode,
+				public impl::Dumpable<Constant>
 	{
 		public:
-		Constant(SourcePosition location, Type type, bool val);
-		Constant(SourcePosition location, Type type, int val);
-		Constant(SourcePosition location, Type type, float val);
-		Constant(SourcePosition location, Type type, double val);
-		Constant(SourcePosition location, Type type, char val);
-		Constant(SourcePosition location, Type type, std::string val);
-
 		Constant(const Constant& other);
 		Constant(Constant&& other);
 		~Constant() override;
@@ -30,17 +23,16 @@ namespace modelica::frontend
 
 		friend void swap(Constant& first, Constant& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::EXPRESSION_CONSTANT;
-		}
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
-
-		[[nodiscard]] bool isLValue() const override;
+		[[nodiscard]] bool isLValue() const;
 
 		[[nodiscard]] bool operator==(const Constant& other) const;
 		[[nodiscard]] bool operator!=(const Constant& other) const;
+
+		[[nodiscard]] Type& getType();
+		[[nodiscard]] const Type& getType() const;
+		void setType(Type tp);
 
 		template<class Visitor>
 		auto visit(Visitor&& vis)
@@ -55,7 +47,7 @@ namespace modelica::frontend
 		}
 
 		template<BuiltInType T>
-		[[nodiscard]] bool isA() const
+		[[nodiscard]] bool isa() const
 		{
 			return std::holds_alternative<frontendTypeToType_v<T>>(value);
 		}
@@ -63,14 +55,14 @@ namespace modelica::frontend
 		template<BuiltInType T>
 		[[nodiscard]] frontendTypeToType_v<T>& get()
 		{
-			assert(isA<T>());
+			assert(isa<T>());
 			return std::get<frontendTypeToType_v<T>>(value);
 		}
 
 		template<BuiltInType T>
 		[[nodiscard]] const frontendTypeToType_v<T>& get() const
 		{
-			assert(isA<T>());
+			assert(isa<T>());
 			return std::get<frontendTypeToType_v<T>>(value);
 		}
 
@@ -79,13 +71,13 @@ namespace modelica::frontend
 		{
 			using Tr = frontendTypeToType_v<T>;
 
-			if (isA<BuiltInType::Integer>())
+			if (isa<BuiltInType::Integer>())
 				return static_cast<Tr>(get<BuiltInType::Integer>());
 
-			if (isA<BuiltInType::Float>())
+			if (isa<BuiltInType::Float>())
 				return static_cast<Tr>(get<BuiltInType::Float>());
 
-			if (isA<BuiltInType::Boolean>())
+			if (isa<BuiltInType::Boolean>())
 				return static_cast<Tr>(get<BuiltInType::Boolean>());
 
 			assert(false && "unreachable");
@@ -93,6 +85,16 @@ namespace modelica::frontend
 		}
 
 		private:
+		friend class Expression;
+
+		Constant(SourcePosition location, Type type, bool val);
+		Constant(SourcePosition location, Type type, int val);
+		Constant(SourcePosition location, Type type, float val);
+		Constant(SourcePosition location, Type type, double val);
+		Constant(SourcePosition location, Type type, char val);
+		Constant(SourcePosition location, Type type, std::string val);
+
+		Type type;
 		std::variant<bool, int, double, std::string> value;
 	};
 

@@ -11,8 +11,9 @@ namespace modelica::frontend
 	class Statement;
 
 	class Algorithm
-			: public impl::ASTNodeCRTP<Algorithm>,
-				public impl::Cloneable<Algorithm>
+			: public ASTNode,
+				public impl::Cloneable<Algorithm>,
+				public impl::Dumpable<Algorithm>
 	{
 		private:
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
@@ -21,8 +22,11 @@ namespace modelica::frontend
 		using statements_iterator = Container<std::unique_ptr<Statement>>::iterator;
 		using statements_const_iterator = Container<std::unique_ptr<Statement>>::const_iterator;
 
-		Algorithm(SourcePosition location,
-							llvm::ArrayRef<std::unique_ptr<Statement>> statements);
+		template<typename... Args>
+		static std::unique_ptr<Algorithm> build(Args&&... args)
+		{
+			return std::unique_ptr<Algorithm>(new Algorithm(std::forward<Args>(args)...));
+		}
 
 		Algorithm(const Algorithm& other);
 		Algorithm(Algorithm&& other);
@@ -34,18 +38,18 @@ namespace modelica::frontend
 
 		friend void swap(Algorithm& first, Algorithm& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::ALGORITHM;
-		}
-
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		Statement* operator[](size_t index);
 		const Statement* operator[](size_t index) const;
 
 		[[nodiscard]] llvm::StringRef getReturnCheckName() const;
 		void setReturnCheckName(llvm::StringRef name);
+
+		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Statement>> getBody();
+		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Statement>> getBody() const;
+
+		void setBody(llvm::ArrayRef<std::unique_ptr<Statement>> body);
 
 		[[nodiscard]] size_t size() const;
 
@@ -56,6 +60,9 @@ namespace modelica::frontend
 		[[nodiscard]] statements_const_iterator end() const;
 
 		private:
+		Algorithm(SourcePosition location,
+							llvm::ArrayRef<std::unique_ptr<Statement>> statements);
+
 		std::string returnCheckName;
 		Container<std::unique_ptr<Statement>> statements;
 	};

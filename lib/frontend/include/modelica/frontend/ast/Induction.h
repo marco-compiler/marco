@@ -1,15 +1,13 @@
 #pragma once
 
-#include <llvm/ADT/ArrayRef.h>
-#include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/raw_ostream.h>
 #include <memory>
 
-#include "Equation.h"
-#include "Expression.h"
+#include "ASTNode.h"
 
 namespace modelica::frontend
 {
+	class Expression;
+
 	/**
 	 * An induction is the in memory of a piece of code such as
 	 * for i in 0:20. and induction holds a name and the begin and end
@@ -19,14 +17,16 @@ namespace modelica::frontend
 	 * of step one.
 	 */
 	class Induction
-			: public impl::ASTNodeCRTP<Induction>,
-				public impl::Cloneable<Induction>
+			: public ASTNode,
+				public impl::Cloneable<Induction>,
+				public impl::Dumpable<Induction>
 	{
 		public:
-		Induction(SourcePosition location,
-							llvm::StringRef inductionVariable,
-							std::unique_ptr<Expression> begin,
-							std::unique_ptr<Expression> end);
+		template<typename... Args>
+		static std::unique_ptr<Induction> build(Args&&... args)
+		{
+			return std::unique_ptr<Induction>(new Induction(std::forward<Args>(args)...));
+		}
 
 		Induction(const Induction& other);
 		Induction(Induction&& other);
@@ -37,7 +37,7 @@ namespace modelica::frontend
 
 		friend void swap(Induction& first, Induction& second);
 
-		void dump(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const override;
+		void print(llvm::raw_ostream& os = llvm::outs(), size_t indents = 0) const override;
 
 		[[nodiscard]] llvm::StringRef getName() const;
 
@@ -51,6 +51,11 @@ namespace modelica::frontend
 		void setInductionIndex(size_t index);
 
 		private:
+		Induction(SourcePosition location,
+							llvm::StringRef inductionVariable,
+							std::unique_ptr<Expression> begin,
+							std::unique_ptr<Expression> end);
+
 		std::string inductionVariable;
 		std::unique_ptr<Expression> begin;
 		std::unique_ptr<Expression> end;

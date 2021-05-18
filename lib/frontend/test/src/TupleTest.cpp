@@ -8,22 +8,28 @@ using namespace frontend;
 TEST(AST, singleElementTupleCanBeBuilt)	 // NOLINT
 {
 	SourcePosition location = SourcePosition::unknown();
-	Expression exp = Expression::reference(location, makeType<int>(), "x");
-	Tuple tuple(location, { exp });
-	EXPECT_EQ(tuple.size(), 1);
+	auto reference = Expression::reference(location, makeType<int>(), "x");
+	auto tuple = Expression::tuple(location, Type::unknown(), std::move(reference));
+	EXPECT_EQ(tuple->get<Tuple>()->size(), 1);
 }
 
 TEST(AST, multipleElementsTupleCanBeBuilt)	// NOLINT
 {
 	SourcePosition location = SourcePosition::unknown();
 
-	Expression exp1 = Expression::reference(location, makeType<int>(), "x");
-	Expression exp2 = Expression::reference(location, makeType<float>(), "y");
-	Expression exp3 = Expression::reference(location, Type::unknown(), "z");
+	auto exp1 = Expression::reference(location, makeType<int>(), "x");
+	auto exp2 = Expression::reference(location, makeType<float>(), "y");
+	auto exp3 = Expression::reference(location, Type::unknown(), "z");
 
-	Tuple tuple(location, { exp1, exp2, exp3 });
+	auto tuple = Expression::tuple(
+			location, Type::unknown(),
+			llvm::ArrayRef({
+					std::move(exp1),
+					std::move(exp2),
+					std::move(exp3)
+			}));
 
-	EXPECT_EQ(tuple.size(), 3);
+	EXPECT_EQ(tuple->get<Tuple>()->size(), 3);
 }
 
 TEST(Parser, emptyTuple)	 // NOLINT
@@ -33,5 +39,5 @@ TEST(Parser, emptyTuple)	 // NOLINT
 	auto ast = parser.statement();
 	ASSERT_FALSE(!ast);
 
-	EXPECT_EQ(ast->get<AssignmentStatement>().getDestinations().size(), 0);
+	EXPECT_EQ((*ast)->get<AssignmentStatement>()->getDestinations()->get<Tuple>()->size(), 0);
 }

@@ -4,15 +4,17 @@
 #include <llvm/ADT/SmallVector.h>
 #include <memory>
 
-#include "Expression.h"
+#include "ASTNode.h"
+#include "Type.h"
 
 namespace modelica::frontend
 {
+	class Expression;
 	class ReferenceAccess;
 
 	class Call
-			: public impl::ExpressionCRTP<Call>,
-				public impl::Cloneable<Call>
+			: public ASTNode,
+				public impl::Dumpable<Call>
 	{
 		private:
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
@@ -20,11 +22,6 @@ namespace modelica::frontend
 		public:
 		using args_iterator = Container<std::unique_ptr<Expression>>::iterator;
 		using args_const_iterator = Container<std::unique_ptr<Expression>>::const_iterator;
-
-		Call(SourcePosition location,
-				 std::unique_ptr<ReferenceAccess> function,
-				 llvm::ArrayRef<std::unique_ptr<Expression>> args,
-				 Type type);
 
 		Call(const Call& other);
 		Call(Call&& other);
@@ -35,14 +32,9 @@ namespace modelica::frontend
 
 		friend void swap(Call& first, Call& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::EXPRESSION_CALL;
-		}
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
-
-		[[nodiscard]] bool isLValue() const override;
+		[[nodiscard]] bool isLValue() const;
 
 		[[nodiscard]] bool operator==(const Call& other) const;
 		[[nodiscard]] bool operator!=(const Call& other) const;
@@ -50,8 +42,18 @@ namespace modelica::frontend
 		[[nodiscard]] Expression* operator[](size_t index);
 		[[nodiscard]] const Expression* operator[](size_t index) const;
 
-		[[nodiscard]] ReferenceAccess* getFunction();
-		[[nodiscard]] const ReferenceAccess* getFunction() const;
+		[[nodiscard]] Type& getType();
+		[[nodiscard]] const Type& getType() const;
+		void setType(Type tp);
+
+		[[nodiscard]] Expression* getFunction();
+		[[nodiscard]] const Expression* getFunction() const;
+
+		[[nodiscard]] Expression* getArg(size_t index);
+		[[nodiscard]] const Expression* getArg(size_t index) const;
+
+		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Expression>> getArgs();
+		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Expression>> getArgs() const;
 
 		[[nodiscard]] size_t argumentsCount() const;
 
@@ -62,7 +64,15 @@ namespace modelica::frontend
 		[[nodiscard]] args_const_iterator end() const;
 
 		private:
-		std::unique_ptr<ReferenceAccess> function;
+		friend class Expression;
+
+		Call(SourcePosition location,
+				 Type type,
+				 std::unique_ptr<Expression> function,
+				 llvm::ArrayRef<std::unique_ptr<Expression>> args);
+
+		Type type;
+		std::unique_ptr<Expression> function;
 		Container<std::unique_ptr<Expression>> args;
 	};
 

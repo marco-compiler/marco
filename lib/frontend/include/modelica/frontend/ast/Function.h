@@ -15,14 +15,13 @@ namespace modelica::frontend
 	class Annotation;
 	class Member;
 
-	class Function : public Class
+	class Function : public ASTNode
 	{
 		public:
-		Function(ASTNodeKind kind,
-						 SourcePosition location,
+		Function(SourcePosition location,
 						 bool pure,
 						 llvm::StringRef name,
-						 llvm::Optional<std::unique_ptr<Annotation>>& annotation);
+						 llvm::Optional<std::unique_ptr<Annotation>> annotation);
 
 		Function(const Function& other);
 		Function(Function&& other);
@@ -34,13 +33,7 @@ namespace modelica::frontend
 
 		friend void swap(Function& first, Function& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() >= ASTNodeKind::FUNCTION &&
-						 node->getKind() <= ASTNodeKind::FUNCTION_LAST;
-		}
-
-		[[nodiscard]] virtual std::unique_ptr<Function> cloneFunction() const = 0;
+		[[nodiscard]] llvm::StringRef getName() const;
 
 		[[nodiscard]] bool isPure() const;
 
@@ -50,38 +43,15 @@ namespace modelica::frontend
 
 		private:
 		bool pure;
+		std::string name;
 		llvm::Optional<std::unique_ptr<Annotation>> annotation;
 	};
 
-	namespace impl
-	{
-		template<typename Derived>
-		struct FunctionCRTP : public Function
-		{
-			using Function::Function;
-
-			[[nodiscard]] std::unique_ptr<Class> cloneClass() const override
-			{
-				return std::make_unique<Derived>(static_cast<const Derived&>(*this));
-			}
-
-			[[nodiscard]] std::unique_ptr<Function> cloneFunction() const override
-			{
-				return std::make_unique<Derived>(static_cast<const Derived&>(*this));
-			}
-		};
-	}
-
-	class DerFunction : public impl::FunctionCRTP<DerFunction>
+	class DerFunction
+			: public Function,
+				public impl::Dumpable<DerFunction>
 	{
 		public:
-		DerFunction(SourcePosition location,
-								bool pure,
-								llvm::StringRef name,
-								llvm::Optional<std::unique_ptr<Annotation>>& annotation,
-								llvm::StringRef derivedFunction,
-								llvm::StringRef arg);
-
 		DerFunction(const DerFunction& other);
 		DerFunction(DerFunction&& other);
 		~DerFunction() override;
@@ -91,34 +61,33 @@ namespace modelica::frontend
 
 		friend void swap(DerFunction& first, DerFunction& second);
 
-		static bool classof(const Function* obj)
-		{
-			return obj->getKind() == ASTNodeKind::FUNCTION_DER;
-		}
-
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] llvm::StringRef getDerivedFunction() const;
 		[[nodiscard]] llvm::StringRef getArg() const;
 
 		private:
+		friend class Class;
+
+		DerFunction(SourcePosition location,
+								bool pure,
+								llvm::StringRef name,
+								llvm::Optional<std::unique_ptr<Annotation>> annotation,
+								llvm::StringRef derivedFunction,
+								llvm::StringRef arg);
+
 		std::string derivedFunction;
 		std::string arg;
 	};
 
-	class StandardFunction : public impl::FunctionCRTP<StandardFunction>
+	class StandardFunction
+			: public Function,
+				public impl::Dumpable<StandardFunction>
 	{
 		private:
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		StandardFunction(SourcePosition location,
-										 bool pure,
-										 llvm::StringRef name,
-										 llvm::Optional<std::unique_ptr<Annotation>>& annotation,
-										 llvm::ArrayRef<std::unique_ptr<Member>> members,
-										 llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms);
-
 		StandardFunction(const StandardFunction& other);
 		StandardFunction(StandardFunction&& other);
 		~StandardFunction() override;
@@ -128,12 +97,7 @@ namespace modelica::frontend
 
 		friend void swap(StandardFunction& first, StandardFunction& second);
 
-		static bool classof(const Function* obj)
-		{
-			return obj->getKind() == ASTNodeKind::FUNCTION_STANDARD;
-		}
-
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] Member* operator[](llvm::StringRef name);
 		[[nodiscard]] const Member* operator[](llvm::StringRef name) const;
@@ -145,15 +109,25 @@ namespace modelica::frontend
 		[[nodiscard]] Container<Member*> getResults() const;
 		[[nodiscard]] Container<Member*> getProtectedMembers() const;
 
-		void addMember(Member* member);
+		void addMember(std::unique_ptr<Member> member);
 
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Algorithm>> getAlgorithms();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Algorithm>> getAlgorithms() const;
 
-		[[nodiscard]] Type getType() const;
+		[[nodiscard]] Type& getType();
+		[[nodiscard]] const Type& getType() const;
 		void setType(Type type);
 
 		private:
+		friend class Class;
+
+		StandardFunction(SourcePosition location,
+										 bool pure,
+										 llvm::StringRef name,
+										 llvm::Optional<std::unique_ptr<Annotation>> annotation,
+										 llvm::ArrayRef<std::unique_ptr<Member>> members,
+										 llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms);
+
 		Container<std::unique_ptr<Member>> members;
 		Container<std::unique_ptr<Algorithm>> algorithms;
 		Type type;

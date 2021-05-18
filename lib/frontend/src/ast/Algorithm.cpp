@@ -2,18 +2,20 @@
 
 using namespace modelica::frontend;
 
-Algorithm::Algorithm(SourcePosition location, llvm::ArrayRef<std::unique_ptr<Statement>> statements)
-		: ASTNodeCRTP<Algorithm>(ASTNodeKind::ALGORITHM, std::move(location))
+Algorithm::Algorithm(SourcePosition location,
+										 llvm::ArrayRef<std::unique_ptr<Statement>> statements)
+		: ASTNode(std::move(location))
 {
 	for (const auto& statement : statements)
-		this->statements.push_back(statement->cloneStatement());
+		this->statements.push_back(statement->clone());
 }
 
 Algorithm::Algorithm(const Algorithm& other)
-		: ASTNodeCRTP<Algorithm>(static_cast<const ASTNodeCRTP<Algorithm>&>(other))
+		: ASTNode(other),
+			returnCheckName(other.returnCheckName)
 {
 	for (const auto& statement : other.statements)
-		this->statements.push_back(statement->cloneStatement());
+		this->statements.push_back(statement->clone());
 }
 
 Algorithm::Algorithm(Algorithm&& other) = default;
@@ -33,8 +35,7 @@ namespace modelica::frontend
 {
 	void swap(Algorithm& first, Algorithm& second)
 	{
-		swap(static_cast<impl::ASTNodeCRTP<Algorithm>&>(first),
-				 static_cast<impl::ASTNodeCRTP<Algorithm>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		std::swap(first.returnCheckName, second.returnCheckName);
 		impl::swap(first.statements, second.statements);
@@ -51,7 +52,7 @@ namespace modelica::frontend
 	}
 }
 
-void Algorithm::dump(llvm::raw_ostream& os, size_t indents) const
+void Algorithm::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "algorithm\n";
@@ -80,6 +81,24 @@ llvm::StringRef Algorithm::getReturnCheckName() const
 void Algorithm::setReturnCheckName(llvm::StringRef name)
 {
 	returnCheckName = name.str();
+}
+
+llvm::MutableArrayRef<std::unique_ptr<Statement>> Algorithm::getBody()
+{
+	return statements;
+}
+
+llvm::ArrayRef<std::unique_ptr<Statement>> Algorithm::getBody() const
+{
+	return statements;
+}
+
+void Algorithm::setBody(llvm::ArrayRef<std::unique_ptr<Statement>> body)
+{
+	statements.clear();
+
+	for (const auto& statement : body)
+		statements.push_back(statement->clone());
 }
 
 size_t Algorithm::size() const

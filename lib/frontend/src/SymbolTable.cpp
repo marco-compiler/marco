@@ -12,7 +12,12 @@ class ClassVisitor
 		assert(this->table != nullptr);
 	}
 
-	void operator()(Function& function)
+	void operator()(DerFunction& function)
+	{
+		table->addSymbol(function);
+	}
+
+	void operator()(StandardFunction& function)
 	{
 		table->addSymbol(function);
 
@@ -20,7 +25,7 @@ class ClassVisitor
 			table->addSymbol(*member);
 	}
 
-	void operator()(Class& model)
+	void operator()(Model& model)
 	{
 		table->addSymbol(model);
 
@@ -35,8 +40,8 @@ class ClassVisitor
 	{
 		table->addSymbol(package);
 
-		for (auto& cls : package)
-			cls.visit(*this);
+		for (auto& cls : package.getInnerClasses())
+			cls->visit(*this);
 	}
 
 	void operator()(Record& record)
@@ -44,7 +49,7 @@ class ClassVisitor
 		table->addSymbol(record);
 
 		for (auto& member : record)
-			table->addSymbol(member);
+			table->addSymbol(*member);
 	}
 
 	private:
@@ -55,7 +60,13 @@ SymbolTable::SymbolTable() {}
 
 SymbolTable::SymbolTable(const SymbolTable* parent): parentTable(parent) {}
 
-SymbolTable::SymbolTable(Function& function, const SymbolTable* parent)
+SymbolTable::SymbolTable(DerFunction& function, const SymbolTable* parent)
+		: parentTable(parent)
+{
+	addSymbol(function);
+}
+
+SymbolTable::SymbolTable(StandardFunction& function, const SymbolTable* parent)
 		: parentTable(parent)
 {
 	addSymbol(function);
@@ -64,7 +75,7 @@ SymbolTable::SymbolTable(Function& function, const SymbolTable* parent)
 		addSymbol(*member);
 }
 
-SymbolTable::SymbolTable(Class& model, const SymbolTable* parent)
+SymbolTable::SymbolTable(Model& model, const SymbolTable* parent)
 		: parentTable(parent)
 {
 	addSymbol(model);
@@ -82,9 +93,8 @@ SymbolTable::SymbolTable(Package& package, const SymbolTable* parent)
 	addSymbol(package);
 
 	for (auto& cls : package)
-		cls.visit(ClassVisitor(this));
+		cls->visit(ClassVisitor(this));
 }
-
 
 SymbolTable::SymbolTable(Record& record, const SymbolTable* parent)
 		: parentTable(parent)
@@ -92,7 +102,7 @@ SymbolTable::SymbolTable(Record& record, const SymbolTable* parent)
 	addSymbol(record);
 
 	for (auto& member : record)
-		addSymbol(member);
+		addSymbol(*member);
 }
 
 bool SymbolTable::hasSymbol(llvm::StringRef name) const

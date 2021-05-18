@@ -1,10 +1,8 @@
 #pragma once
 
-#include <llvm/Support/raw_ostream.h>
-#include <modelica/utils/SourcePosition.h>
 #include <string>
 
-#include "Expression.h"
+#include "ASTNode.h"
 
 namespace modelica::frontend
 {
@@ -12,16 +10,10 @@ namespace modelica::frontend
 	 * A reference access is pretty much any use of a variable at the moment.
 	 */
 	class ReferenceAccess
-			: public impl::ExpressionCRTP<ReferenceAccess>,
-				public impl::Cloneable<ReferenceAccess>
+			: public ASTNode,
+				public impl::Dumpable<ReferenceAccess>
 	{
 		public:
-		ReferenceAccess(SourcePosition location,
-										Type type,
-										llvm::StringRef name,
-										bool globalLookup = false,
-										bool dummy = false);
-
 		ReferenceAccess(const ReferenceAccess& other);
 		ReferenceAccess(ReferenceAccess&& other);
 		~ReferenceAccess() override;
@@ -31,17 +23,16 @@ namespace modelica::frontend
 
 		friend void swap(ReferenceAccess& first, ReferenceAccess& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::EXPRESSION_REFERENCE_ACCESS;
-		}
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
-
-		[[nodiscard]] bool isLValue() const override;
+		[[nodiscard]] bool isLValue() const;
 
 		[[nodiscard]] bool operator==(const ReferenceAccess& other) const;
 		[[nodiscard]] bool operator!=(const ReferenceAccess& other) const;
+
+		[[nodiscard]] Type& getType();
+		[[nodiscard]] const Type& getType() const;
+		void setType(Type tp);
 
 		[[nodiscard]] llvm::StringRef getName() const;
 		void setName(llvm::StringRef name);
@@ -57,9 +48,18 @@ namespace modelica::frontend
 		 */
 		[[nodiscard]] bool isDummy() const;
 
-		static ReferenceAccess dummy(SourcePosition location);
+		static std::unique_ptr<Expression> dummy(SourcePosition location, Type type);
 
 		private:
+		friend class Expression;
+
+		ReferenceAccess(SourcePosition location,
+										Type type,
+										llvm::StringRef name,
+										bool globalLookup = false,
+										bool dummy = false);
+
+		Type type;
 		std::string name;
 		bool globalLookup;
 		bool dummyVar;

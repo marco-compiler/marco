@@ -14,7 +14,7 @@ TEST(Parser, functionName)	 // NOLINT
 	auto ast = parser.classDefinition();
 	ASSERT_FALSE(!ast);
 
-	EXPECT_EQ(ast->get<Function>().getName(), "Foo");
+	EXPECT_EQ((*ast)->get<StandardFunction>()->getName(), "Foo");
 }
 
 TEST(Parser, functionAllMembers)	// NOLINT
@@ -30,7 +30,7 @@ TEST(Parser, functionAllMembers)	// NOLINT
 	auto ast = parser.classDefinition();
 	ASSERT_FALSE(!ast);
 
-	const auto& members = ast->get<Function>().getMembers();
+	const auto& members = (*ast)->get<StandardFunction>()->getMembers();
 	EXPECT_EQ(members.size(), 4);
 	EXPECT_EQ(members[0]->getName(), "x");
 	EXPECT_EQ(members[1]->getName(), "y");
@@ -49,7 +49,7 @@ TEST(Parser, functionInputMembers)	// NOLINT
 	auto ast = parser.classDefinition();
 	ASSERT_FALSE(!ast);
 
-	const auto& members = ast->get<Function>().getArgs();
+	const auto& members = (*ast)->get<StandardFunction>()->getArgs();
 	EXPECT_EQ(members.size(), 2);
 	EXPECT_EQ(members[0]->getName(), "x");
 	EXPECT_EQ(members[1]->getName(), "y");
@@ -66,7 +66,7 @@ TEST(Parser, functionOutputMembers)	// NOLINT
 	auto ast = parser.classDefinition();
 	ASSERT_FALSE(!ast);
 
-	const auto& members = ast->get<Function>().getResults();
+	const auto& members = (*ast)->get<StandardFunction>()->getResults();
 	EXPECT_EQ(members.size(), 2);
 	EXPECT_EQ(members[0]->getName(), "y");
 	EXPECT_EQ(members[1]->getName(), "z");
@@ -84,7 +84,7 @@ TEST(Parser, functionProtectedMembers)	// NOLINT
 	auto ast = parser.classDefinition();
 	ASSERT_FALSE(!ast);
 
-	const auto& members = ast->get<Function>().getProtectedMembers();
+	const auto& members = (*ast)->get<StandardFunction>()->getProtectedMembers();
 	EXPECT_EQ(members.size(), 1);
 	EXPECT_EQ(members[0]->getName(), "z");
 }
@@ -99,7 +99,7 @@ TEST(Parser, functionAlgorithm)	// NOLINT
 	auto ast = parser.classDefinition();
 	ASSERT_FALSE(!ast);
 
-	EXPECT_EQ(ast->get<Function>().getAlgorithms().size(), 1);
+	EXPECT_EQ((*ast)->get<StandardFunction>()->getAlgorithms().size(), 1);
 }
 
 /*

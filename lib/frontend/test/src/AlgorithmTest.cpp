@@ -11,7 +11,7 @@ TEST(Parser, algorithmWithNoStatements)	 // NOLINT
 	auto ast = parser.algorithmSection();
 	ASSERT_FALSE(!ast);
 
-	EXPECT_TRUE(ast->getStatements().empty());
+	EXPECT_TRUE((*ast)->getBody().empty());
 }
 
 TEST(Parser, algorithmStatementsCount)	// NOLINT
@@ -24,5 +24,5 @@ TEST(Parser, algorithmStatementsCount)	// NOLINT
 	auto ast = parser.algorithmSection();
 	ASSERT_FALSE(!ast);
 
-	EXPECT_EQ(ast->getStatements().size(), 3);
+	EXPECT_EQ((*ast)->getBody().size(), 3);
 }

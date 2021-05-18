@@ -17,48 +17,67 @@ namespace modelica::frontend
 	class Class;
 	class ClassContainer;
 	class Constant;
+	class DerFunction;
 	class Equation;
 	class Expression;
 	class ForEquation;
 	class ForStatement;
-	class Function;
 	class IfStatement;
 	class Member;
 	class Operation;
 	class ReferenceAccess;
 	class ReturnStatement;
+	class StandardFunction;
 	class Statement;
 	class Tuple;
 	class Type;
 	class WhenStatement;
 	class WhileStatement;
 
-	class TypeChecker: public Pass
+	class TypeChecker : public Pass
 	{
 		public:
 		using SymbolTable = llvm::ScopedHashTable<llvm::StringRef, Symbol>;
 		using SymbolTableScope = llvm::ScopedHashTableScope<llvm::StringRef, Symbol>;
 
-		llvm::Error run(ClassContainer& cls) override;
-		llvm::Error run(Class& model);
-		llvm::Error run(Function& function);
-		llvm::Error run(Package& package);
-		llvm::Error run(Record& record);
-		llvm::Error run(Member& member);
+		llvm::Error run(Class& cls) final;
+
 		llvm::Error run(Algorithm& algorithm);
-		llvm::Error run(Statement& statement);
-		llvm::Error run(AssignmentStatement& statement);
-		llvm::Error run(IfStatement& statement);
-		llvm::Error run(ForStatement& statement);
-		llvm::Error run(WhileStatement& statement);
-		llvm::Error run(WhenStatement& statement);
-		llvm::Error run(BreakStatement& statement);
-		llvm::Error run(ReturnStatement& statement);
-		llvm::Error run(Equation& equation);
-		llvm::Error run(ForEquation& forEquation);
 
 		template<typename T>
-		llvm::Error run(Expression& expression);
+		[[nodiscard]] llvm::Error run(Class& cls);
+
+		llvm::Error run(Equation& equation);
+
+		template<typename T>
+		[[nodiscard]] llvm::Error run(Expression& expression);
+
+		llvm::Error run(ForEquation& forEquation);
+		llvm::Error run(Induction& induction);
+		llvm::Error run(Member& member);
+
+		template<typename T>
+		[[nodiscard]] llvm::Error run(Statement& statement);
+
+		[[nodiscard]] llvm::Error checkGenericOperation(Expression& expression);
+
+		[[nodiscard]] llvm::Error checkAddOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkDifferentOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkDivOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkEqualOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkGreaterOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkGreaterEqualOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkIfElseOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkLogicalAndOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkLogicalOrOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkLessOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkLessEqualOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkMemberLookupOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkMulOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkNegateOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkPowerOfOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkSubOp(Expression& expression);
+		[[nodiscard]] llvm::Error checkSubscriptionOp(Expression& expression);
 
 		private:
 		llvm::ScopedHashTable<llvm::StringRef, Symbol> symbolTable;
@@ -67,25 +86,64 @@ namespace modelica::frontend
 	};
 
 	template<>
+	llvm::Error TypeChecker::run<Class>(Class& cls);
+
+	template<>
+	llvm::Error TypeChecker::run<DerFunction>(Class& cls);
+
+	template<>
+	llvm::Error TypeChecker::run<StandardFunction>(Class& cls);
+
+	template<>
+	llvm::Error TypeChecker::run<Model>(Class& cls);
+
+	template<>
+	llvm::Error TypeChecker::run<Package>(Class& cls);
+
+	template<>
+	llvm::Error TypeChecker::run<Record>(Class& cls);
+
+	template<>
 	llvm::Error TypeChecker::run<Expression>(Expression& expression);
 
 	template<>
-	llvm::Error TypeChecker::run<Operation>(Expression& expression);
-
-	template<>
-	llvm::Error TypeChecker::run<Constant>(Expression& expression);
-
-	template<>
-	llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression);
+	llvm::Error TypeChecker::run<Array>(Expression& expression);
 
 	template<>
 	llvm::Error TypeChecker::run<Call>(Expression& expression);
 
 	template<>
+	llvm::Error TypeChecker::run<Constant>(Expression& expression);
+
+	template<>
+	llvm::Error TypeChecker::run<Operation>(Expression& expression);
+
+	template<>
+	llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression);
+
+	template<>
 	llvm::Error TypeChecker::run<Tuple>(Expression& expression);
 
 	template<>
-	llvm::Error TypeChecker::run<Array>(Expression& expression);
+	llvm::Error TypeChecker::run<AssignmentStatement>(Statement& statement);
+
+	template<>
+	llvm::Error TypeChecker::run<BreakStatement>(Statement& statement);
+
+	template<>
+	llvm::Error TypeChecker::run<ForStatement>(Statement& statement);
+
+	template<>
+	llvm::Error TypeChecker::run<IfStatement>(Statement& statement);
+
+	template<>
+	llvm::Error TypeChecker::run<ReturnStatement>(Statement& statement);
+
+	template<>
+	llvm::Error TypeChecker::run<WhenStatement>(Statement& statement);
+
+	template<>
+	llvm::Error TypeChecker::run<WhileStatement>(Statement& statement);
 
 	std::unique_ptr<Pass> createTypeCheckingPass();
 }

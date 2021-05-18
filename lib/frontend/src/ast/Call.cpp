@@ -4,23 +4,24 @@
 using namespace modelica::frontend;
 
 Call::Call(SourcePosition location,
-					 std::unique_ptr<ReferenceAccess> function,
-					 llvm::ArrayRef<std::unique_ptr<Expression>> args,
-					 Type type)
-		: ExpressionCRTP<Call>(
-					ASTNodeKind::EXPRESSION_CALL, std::move(location), std::move(type)),
+					 Type type,
+					 std::unique_ptr<Expression> function,
+					 llvm::ArrayRef<std::unique_ptr<Expression>> args)
+		: ASTNode(std::move(location)),
+			type(std::move(type)),
 			function(std::move(function))
 {
 	for (const auto& arg : args)
-		this->args.push_back(arg->cloneExpression());
+		this->args.push_back(arg->clone());
 }
 
 Call::Call(const Call& other)
-		: ExpressionCRTP<Call>(static_cast<ExpressionCRTP<Call>&>(*this)),
+		: ASTNode(other),
+			type(other.type),
 			function(other.function->clone())
 {
 	for (const auto& arg : other.args)
-		this->args.push_back(arg->cloneExpression());
+		this->args.push_back(arg->clone());
 }
 
 Call::Call(Call&& other) = default;
@@ -40,28 +41,21 @@ namespace modelica::frontend
 {
 	void swap(Call& first, Call& second)
 	{
-		swap(static_cast<impl::ExpressionCRTP<Call>&>(first),
-				 static_cast<impl::ExpressionCRTP<Call>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
-		std::swap(first.function, second.function);
+		using std::swap;
+		swap(first.type, second.type);
+		swap(first.function, second.function);
 		impl::swap(first.args, second.args);
 	}
 }
 
-void Call::dump(llvm::raw_ostream& os, size_t indents) const
+void Call::print(llvm::raw_ostream& os, size_t indents) const
 {
-	os.indent(indents);
-	os << "call\n";
-
-	os.indent(indents);
-	os << "type: ";
-	getType().dump(os);
-	os << "\n";
-
-	function->dump(os, indents + 1);
+	function->print(os, indents + 1);
 
 	for (const auto& arg : *this)
-		arg->dump(os, indents + 1);
+		arg->print(os, indents + 1);
 }
 
 bool Call::isLValue() const
@@ -71,6 +65,9 @@ bool Call::isLValue() const
 
 bool Call::operator==(const Call& other) const
 {
+	if (type != other.type)
+		return false;
+
 	if (argumentsCount() != other.argumentsCount())
 		return false;
 
@@ -96,24 +93,59 @@ bool Call::operator!=(const Call& other) const
 
 Expression* Call::operator[](size_t index)
 {
-	assert(index < argumentsCount());
-	return args[index].get();
+	return getArg(index);
 }
 
 const Expression* Call::operator[](size_t index) const
 {
+	return getArg(index);
+}
+
+Type& Call::getType()
+{
+	return type;
+}
+
+const Type& Call::getType() const
+{
+	return type;
+}
+
+void Call::setType(Type tp)
+{
+	type = std::move(tp);
+}
+
+Expression* Call::getFunction()
+{
+	return function.get();
+}
+
+const Expression* Call::getFunction() const
+{
+	return function.get();
+}
+
+Expression* Call::getArg(size_t index)
+{
 	assert(index < argumentsCount());
 	return args[index].get();
 }
 
-ReferenceAccess* Call::getFunction()
+const Expression* Call::getArg(size_t index) const
 {
-	return function.get();
+	assert(index < argumentsCount());
+	return args[index].get();
 }
 
-const ReferenceAccess* Call::getFunction() const
+llvm::MutableArrayRef<std::unique_ptr<Expression>> Call::getArgs()
 {
-	return function.get();
+	return args;
+}
+
+llvm::ArrayRef<std::unique_ptr<Expression>> Call::getArgs() const
+{
+	return args;
 }
 
 size_t Call::argumentsCount() const

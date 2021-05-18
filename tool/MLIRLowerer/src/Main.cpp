@@ -119,7 +119,7 @@ int main(int argc, char* argv[])
 	modelicaOptions.timeStep = timeStep;
 
 	codegen::MLIRLowerer lowerer(context, modelicaOptions);
-	auto module = lowerer.lower(ast);
+	auto module = lowerer.run(llvm::ArrayRef({ *ast }));
 
 	if (!module)
 	{

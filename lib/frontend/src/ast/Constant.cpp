@@ -3,49 +3,50 @@
 using namespace modelica::frontend;
 
 Constant::Constant(SourcePosition location, Type type, bool value)
-		: ExpressionCRTP<Constant>(
-					ASTNodeKind::EXPRESSION_CONSTANT, std::move(location), std::move(type)),
+		: ASTNode(std::move(location)),
+			type(std::move(type)),
 			value(value)
 {
 }
 
 Constant::Constant(SourcePosition location, Type type, int value)
-		: ExpressionCRTP<Constant>(
-					ASTNodeKind::EXPRESSION_CONSTANT, std::move(location), std::move(type)),
+		: ASTNode(std::move(location)),
+			type(std::move(type)),
 			value(value)
 {
 }
 
 Constant::Constant(SourcePosition location, Type type, float value)
-		: ExpressionCRTP<Constant>(
-					ASTNodeKind::EXPRESSION_CONSTANT, std::move(location), std::move(type)),
+		: ASTNode(std::move(location)),
+			type(std::move(type)),
 			value(value)
 {
 }
 
 Constant::Constant(SourcePosition location, Type type, double value)
-		: ExpressionCRTP<Constant>(
-					ASTNodeKind::EXPRESSION_CONSTANT, std::move(location), std::move(type)),
+		: ASTNode(std::move(location)),
+			type(std::move(type)),
 			value(value)
 {
 }
 
 Constant::Constant(SourcePosition location, Type type, char value)
-		: ExpressionCRTP<Constant>(
-					ASTNodeKind::EXPRESSION_CONSTANT, std::move(location), std::move(type)),
+		: ASTNode(std::move(location)),
+			type(std::move(type)),
 			value(value)
 {
 }
 
 Constant::Constant(SourcePosition location, Type type, std::string value)
-		: ExpressionCRTP<Constant>(
-					ASTNodeKind::EXPRESSION_CONSTANT, std::move(location), std::move(type)),
+		: ASTNode(std::move(location)),
+			type(std::move(type)),
 			value(value)
 {
 }
 
 Constant::Constant(const Constant& other)
-		: ExpressionCRTP<Constant>(static_cast<ExpressionCRTP&>(*this)),
+		: ASTNode(other),
+			type(other.type),
 			value(other.value)
 {
 }
@@ -67,25 +68,25 @@ namespace modelica::frontend
 {
 	void swap(Constant& first, Constant& second)
 	{
-		swap(static_cast<impl::ExpressionCRTP<Constant>&>(first),
-				 static_cast<impl::ExpressionCRTP<Constant>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
+		swap(first.type, second.type);
 		swap(first.value, second.value);
 	}
 }
 
 bool Constant::operator==(const Constant& other) const
 {
-	return value == other.value;
+	return type == other.type && value == other.value;
 }
 
 bool Constant::operator!=(const Constant& other) const
 {
-	return value != other.value;
+	return !(*this == other);
 }
 
-void Constant::dump(llvm::raw_ostream& os, size_t indents) const
+void Constant::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
 	os << "constant: " << *this << "\n";
@@ -94,6 +95,21 @@ void Constant::dump(llvm::raw_ostream& os, size_t indents) const
 bool Constant::isLValue() const
 {
 	return false;
+}
+
+Type& Constant::getType()
+{
+	return type;
+}
+
+const Type& Constant::getType() const
+{
+	return type;
+}
+
+void Constant::setType(Type tp)
+{
+	type = std::move(tp);
 }
 
 namespace modelica::frontend

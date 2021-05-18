@@ -7,7 +7,7 @@ using namespace modelica::frontend;
 ForEquation::ForEquation(SourcePosition location,
 												 llvm::ArrayRef<std::unique_ptr<Induction>> inductions,
 												 std::unique_ptr<Equation> equation)
-		: ASTNodeCRTP<ForEquation>(ASTNodeKind::FOR_EQUATION, std::move(location)),
+		: ASTNode(std::move(location)),
 			equation(std::move(equation))
 {
 	for (const auto& induction : inductions)
@@ -15,7 +15,7 @@ ForEquation::ForEquation(SourcePosition location,
 }
 
 ForEquation::ForEquation(const ForEquation& other)
-		: ASTNodeCRTP<ForEquation>(static_cast<const ASTNodeCRTP<ForEquation>&>(other)),
+		: ASTNode(other),
 			equation(other.equation->clone())
 {
 	for (const auto& induction : other.inductions)
@@ -39,8 +39,7 @@ namespace modelica::frontend
 {
 	void swap(ForEquation& first, ForEquation& second)
 	{
-		swap(static_cast<impl::ASTNodeCRTP<ForEquation>&>(first),
-				 static_cast<impl::ASTNodeCRTP<ForEquation>&>(second));
+		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
 		impl::swap(first.inductions, second.inductions);
@@ -48,17 +47,17 @@ namespace modelica::frontend
 	}
 }
 
-void ForEquation::dump(llvm::raw_ostream& os, size_t indents) const
+void ForEquation::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os << "for equation\n";
 
 	for (const auto& induction : getInductions())
 	{
-		induction->dump(os, indents + 1);
+		induction->print(os, indents + 1);
 		os << "\n";
 	}
 
-	equation->dump(os, indents + 1);
+	equation->print(os, indents + 1);
 }
 
 llvm::MutableArrayRef<std::unique_ptr<Induction>> ForEquation::getInductions()
@@ -74,6 +73,11 @@ llvm::ArrayRef<std::unique_ptr<Induction>> ForEquation::getInductions() const
 size_t ForEquation::inductionsCount() const
 {
 	return inductions.size();
+}
+
+void ForEquation::addOuterInduction(std::unique_ptr<Induction> induction)
+{
+	inductions.insert(inductions.begin(), std::move(induction));
 }
 
 Equation* ForEquation::getEquation() const

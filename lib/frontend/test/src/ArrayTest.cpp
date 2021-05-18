@@ -15,9 +15,9 @@ TEST(TypeChecking, arrayOfIntegers)	// NOLINT
 	ASSERT_FALSE(!ast);
 
 	TypeChecker typeChecker;
-	EXPECT_FALSE(typeChecker.run<Expression>(*ast));
+	EXPECT_FALSE(typeChecker.run<Expression>(**ast));
 
-	EXPECT_EQ(ast->getType(), makeType<int>(3));
+	EXPECT_EQ((*ast)->getType(), makeType<int>(3));
 }
 
 TEST(TypeChecking, arrayOfReals)	// NOLINT
@@ -28,7 +28,7 @@ TEST(TypeChecking, arrayOfReals)	// NOLINT
 	ASSERT_FALSE(!ast);
 
 	TypeChecker typeChecker;
-	EXPECT_FALSE(typeChecker.run<Expression>(*ast));
+	EXPECT_FALSE(typeChecker.run<Expression>(**ast));
 
-	EXPECT_EQ(ast->getType(), makeType<float>(3));
+	EXPECT_EQ((*ast)->getType(), makeType<float>(3));
 }

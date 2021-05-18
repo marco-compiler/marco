@@ -32,13 +32,12 @@ namespace modelica::frontend
 
 	std::string toString(IOQualifier qualifier);
 
-	class TypePrefix
+	class TypePrefix : public impl::Dumpable<TypePrefix>
 	{
 		public:
 		TypePrefix(ParameterQualifier parameterQualifier, IOQualifier ioQualifier);
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] bool isParameter() const;
 		[[nodiscard]] bool isInput() const;

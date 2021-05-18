@@ -1,7 +1,5 @@
 #pragma once
 
-#include <llvm/ADT/Optional.h>
-
 #include "ASTNode.h"
 
 namespace modelica::frontend
@@ -10,8 +8,9 @@ namespace modelica::frontend
 	class InverseFunctionAnnotation;
 
 	class Annotation
-			: public impl::ASTNodeCRTP<Annotation>,
-				public impl::Cloneable<Annotation>
+			: public ASTNode,
+				public impl::Cloneable<Annotation>,
+				public impl::Dumpable<Annotation>
 	{
 		public:
 		explicit Annotation(SourcePosition location);
@@ -26,12 +25,7 @@ namespace modelica::frontend
 
 		friend void swap(Annotation& first, Annotation& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::ANNOTATION;
-		}
-
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] bool getInlineProperty() const;
 		[[nodiscard]] InverseFunctionAnnotation getInverseFunctionAnnotation() const;

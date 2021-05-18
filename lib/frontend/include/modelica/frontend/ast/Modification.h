@@ -5,7 +5,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <variant>
 
-#include "Expression.h"
+#include "ASTNode.h"
 
 namespace modelica::frontend
 {
@@ -17,19 +17,16 @@ namespace modelica::frontend
 	class Modification;
 
 	class Modification
-			: public impl::ASTNodeCRTP<Modification>,
-				public impl::Cloneable<Modification>
+			: public ASTNode,
+				public impl::Cloneable<Modification>,
+				public impl::Dumpable<Modification>
 	{
 		public:
-		Modification(SourcePosition location,
-								 std::unique_ptr<ClassModification> classModification);
-
-		Modification(SourcePosition location,
-								 std::unique_ptr<ClassModification> classModification,
-								 std::unique_ptr<Expression> expression);
-
-		Modification(SourcePosition location,
-								 std::unique_ptr<Expression> expression);
+		template<typename... Args>
+		static std::unique_ptr<Modification> build(Args&&... args)
+		{
+			return std::unique_ptr<Modification>(new Modification(std::forward<Args>(args)...));
+		}
 
 		Modification(const Modification& other);
 		Modification(Modification&& other);
@@ -40,12 +37,7 @@ namespace modelica::frontend
 
 		friend void swap(Modification& first, Modification& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::MODIFICATION;
-		}
-
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] bool hasClassModification() const;
 		[[nodiscard]] ClassModification* getClassModification();
@@ -56,13 +48,24 @@ namespace modelica::frontend
 		[[nodiscard]] const Expression* getExpression() const;
 
 		private:
+		Modification(SourcePosition location,
+								 std::unique_ptr<ClassModification> classModification);
+
+		Modification(SourcePosition location,
+								 std::unique_ptr<ClassModification> classModification,
+								 std::unique_ptr<Expression> expression);
+
+		Modification(SourcePosition location,
+								 std::unique_ptr<Expression> expression);
+
 		llvm::Optional<std::unique_ptr<ClassModification>> classModification;
 		llvm::Optional<std::unique_ptr<Expression>> expression;
 	};
 
 	class ClassModification
-			: public impl::ASTNodeCRTP<ClassModification>,
-				public impl::Cloneable<ClassModification>
+			: public ASTNode,
+				public impl::Cloneable<ClassModification>,
+				public impl::Dumpable<ClassModification>
 	{
 		private:
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
@@ -71,8 +74,11 @@ namespace modelica::frontend
 		using iterator = Container<std::unique_ptr<Argument>>::iterator;
 		using const_iterator = Container<std::unique_ptr<Argument>>::const_iterator;
 
-		ClassModification(SourcePosition location,
-											llvm::ArrayRef<std::unique_ptr<Argument>> arguments = llvm::None);
+		template<typename... Args>
+		static std::unique_ptr<ClassModification> build(Args&&... args)
+		{
+			return std::unique_ptr<ClassModification>(new ClassModification(std::forward<Args>(args)...));
+		}
 
 		ClassModification(const ClassModification& other);
 		ClassModification(ClassModification&& other);
@@ -83,12 +89,7 @@ namespace modelica::frontend
 
 		friend void swap(ClassModification& first, ClassModification& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::CLASS_MODIFICATION;
-		}
-
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] iterator begin();
 		[[nodiscard]] const_iterator begin() const;
@@ -97,63 +98,17 @@ namespace modelica::frontend
 		[[nodiscard]] const_iterator end() const;
 
 		private:
+		ClassModification(SourcePosition location,
+											llvm::ArrayRef<std::unique_ptr<Argument>> arguments = llvm::None);
+
 		Container<std::unique_ptr<Argument>> arguments;
 	};
 
-	class Argument : public impl::ASTNodeCRTP<Argument>
-	{
-		public:
-		Argument(ASTNodeKind kind, SourcePosition location);
-
-		Argument(const Argument& other);
-		Argument(Argument&& other);
-		~Argument() override;
-
-		Argument& operator=(const Argument& other);
-		Argument& operator=(Argument&& other);
-
-		friend void swap(Argument& first, Argument& second);
-
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() >= ASTNodeKind::ARGUMENT &&
-					   node->getKind() <= ASTNodeKind::ARGUMENT_LAST;
-		}
-
-		[[nodiscard]] virtual std::unique_ptr<Argument> cloneArgument() const = 0;
-	};
-
-	namespace impl
-	{
-		template<class Derived>
-		struct ArgumentCRTP : public Argument
-		{
-			public:
-			using Argument::Argument;
-
-			[[nodiscard]] std::unique_ptr<Argument> cloneArgument() const override
-			{
-				return std::make_unique<Derived>(static_cast<const Derived&>(*this));
-			}
-		};
-	}
-
 	class ElementModification
-			: public impl::ArgumentCRTP<ElementModification>,
-				public impl::Cloneable<ElementModification>
+			: public ASTNode,
+				public impl::Dumpable<ElementModification>
 	{
 		public:
-		ElementModification(SourcePosition location,
-												bool each,
-												bool final,
-												llvm::StringRef name,
-												std::unique_ptr<Modification>& modification);
-
-		ElementModification(SourcePosition location,
-												bool each,
-												bool final,
-												llvm::StringRef name);
-
 		ElementModification(const ElementModification& other);
 		ElementModification(ElementModification&& other);
 		~ElementModification() override;
@@ -163,12 +118,7 @@ namespace modelica::frontend
 
 		friend void swap(ElementModification& first, ElementModification& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::ARGUMENT_ELEMENT_MODIFICATION;
-		}
-
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] bool hasEachProperty() const;
 		[[nodiscard]] bool hasFinalProperty() const;
@@ -180,6 +130,19 @@ namespace modelica::frontend
 		[[nodiscard]] const Modification* getModification() const;
 
 		private:
+		friend class Argument;
+
+		ElementModification(SourcePosition location,
+												bool each,
+												bool final,
+												llvm::StringRef name,
+												std::unique_ptr<Modification> modification);
+
+		ElementModification(SourcePosition location,
+												bool each,
+												bool final,
+												llvm::StringRef name);
+
 		bool each;
 		bool final;
 		std::string name;
@@ -188,11 +151,10 @@ namespace modelica::frontend
 
 	// TODO: ElementReplaceable
 	class ElementReplaceable
-			: public impl::ArgumentCRTP<ElementReplaceable>,
-				public impl::Cloneable<ElementReplaceable>
+			: public ASTNode,
+				public impl::Dumpable<ElementReplaceable>
 	{
 		public:
-		explicit ElementReplaceable(SourcePosition location);
 		ElementReplaceable(const ElementReplaceable& other);
 		ElementReplaceable(ElementReplaceable&& other);
 		~ElementReplaceable() override;
@@ -202,21 +164,20 @@ namespace modelica::frontend
 
 		friend void swap(ElementReplaceable& first, ElementReplaceable& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() == ASTNodeKind::ARGUMENT_ELEMENT_REPLACEABLE;
-		}
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		private:
+		friend class Argument;
+
+		explicit ElementReplaceable(SourcePosition location);
 	};
 
 	// TODO: ElementRedeclaration
 	class ElementRedeclaration
-			: public impl::ArgumentCRTP<ElementRedeclaration>,
-				public impl::Cloneable<ElementRedeclaration>
+			: public ASTNode,
+				public impl::Dumpable<ElementRedeclaration>
 	{
 		public:
-		explicit ElementRedeclaration(SourcePosition location);
 		ElementRedeclaration(const ElementRedeclaration& other);
 		ElementRedeclaration(ElementRedeclaration&& other);
 		~ElementRedeclaration() override;
@@ -226,11 +187,95 @@ namespace modelica::frontend
 
 		friend void swap(ElementRedeclaration& first, ElementRedeclaration& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+
+		private:
+		friend class Argument;
+
+		explicit ElementRedeclaration(SourcePosition location);
+	};
+
+	class Argument
+			: public impl::Cloneable<Argument>,
+				public impl::Dumpable<Argument>
+	{
+		public:
+		template<typename... Args>
+		static std::unique_ptr<Algorithm> build(Args&&... args)
 		{
-			return node->getKind() == ASTNodeKind::ARGUMENT_ELEMENT_REDECLARATION;
+			return std::make_unique<Algorithm>(std::forward<Args>(args)...);
 		}
 
-		void dump(llvm::raw_ostream& os, size_t indents = 0) const override;
+		Argument(const Argument& other);
+		Argument(Argument&& other);
+		~Argument();
+
+		Argument& operator=(const Argument& other);
+		Argument& operator=(Argument&& other);
+
+		friend void swap(Argument& first, Argument& second);
+
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+
+		template<typename T>
+		[[nodiscard]] bool isa() const
+		{
+			return std::holds_alternative<T>(content);
+		}
+
+		template<typename T>
+		[[nodiscard]] T* get()
+		{
+			return &std::get<T>(content);
+		}
+
+		template<typename T>
+		[[nodiscard]] const T* get() const
+		{
+			return &std::get<T>(content);
+		}
+
+		template<typename Visitor>
+		void visit(Visitor&& visitor)
+		{
+			std::visit(visitor, content);
+		}
+
+		template<typename Visitor>
+		void visit(Visitor&& visitor) const
+		{
+			std::visit(visitor, content);
+		}
+
+		template<typename... Args>
+		[[nodiscard]] static std::unique_ptr<Argument> elementModification(Args&&... args)
+		{
+			ElementModification content(std::forward<Args>(args)...);
+			return std::unique_ptr<Argument>(new Argument(std::move(content)));
+		}
+
+		template<typename... Args>
+		[[nodiscard]] static std::unique_ptr<Argument> elementRedeclaration(Args&&... args)
+		{
+			ElementRedeclaration content(std::forward<Args>(args)...);
+			return std::unique_ptr<Argument>(new Argument(std::move(content)));
+		}
+
+		template<typename... Args>
+		[[nodiscard]] static std::unique_ptr<Argument> elementReplaceable(Args&&... args)
+		{
+			ElementReplaceable content(std::forward<Args>(args)...);
+			return std::unique_ptr<Argument>(new Argument(std::move(content)));
+		}
+
+		private:
+		explicit Argument(ElementModification content);
+		explicit Argument(ElementRedeclaration content);
+		explicit Argument(ElementReplaceable content);
+
+		std::variant<
+		    ElementModification,
+				ElementRedeclaration,
+				ElementReplaceable> content;
 	};
 }

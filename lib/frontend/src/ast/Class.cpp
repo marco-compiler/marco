@@ -2,20 +2,34 @@
 
 using namespace modelica::frontend;
 
-Class::Class(ASTNodeKind kind,
-						 SourcePosition location,
-						 llvm::StringRef name)
-		: ASTNodeCRTP<Class>(kind, std::move(location)),
-			name(name.str())
+Class::Class(DerFunction content)
+		: content(std::move(content))
 {
-	assert(!this->name.empty());
+}
+
+Class::Class(StandardFunction content)
+		: content(std::move(content))
+{
+}
+
+Class::Class(Model content)
+		: content(std::move(content))
+{
+}
+
+Class::Class(Package content)
+		: content(std::move(content))
+{
+}
+
+Class::Class(Record content)
+		: content(std::move(content))
+{
 }
 
 Class::Class(const Class& other)
-		: ASTNodeCRTP<Class>(static_cast<ASTNodeCRTP<Class>&>(*this)),
-			name(other.name)
+		: content(other.content)
 {
-	assert(!this->name.empty());
 }
 
 Class::Class(Class&& other) = default;
@@ -24,14 +38,6 @@ Class::~Class() = default;
 
 Class& Class::operator=(const Class& other)
 {
-	if (this != &other)
-	{
-		static_cast<ASTNodeCRTP<Class>&>(*this) =
-				static_cast<const ASTNodeCRTP<Class>&>(other);
-
-		this->name = other.name;
-	}
-
 	return *this;
 }
 
@@ -41,15 +47,14 @@ namespace modelica::frontend
 {
 	void swap(Class& first, Class& second)
 	{
-		swap(static_cast<impl::ASTNodeCRTP<Class>&>(first),
-				 static_cast<impl::ASTNodeCRTP<Class>&>(second));
-
 		using std::swap;
-		swap(first.name, second.name);
+		swap(first.content, second.content);
 	}
 }
 
-llvm::StringRef Class::getName() const
+void Class::print(llvm::raw_ostream& os, size_t indents) const
 {
-	return name;
+	visit([&os, indents](const auto& value) {
+		value.dump(os, indents + 1);
+	});
 }

@@ -181,7 +181,9 @@ llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
 		{
 			if (current == Token::EquationKeyword)
 			{
-				TRY(status, equationSection(equations, forEquations));
+				if (auto error = equationSection(equations, forEquations); error)
+					return std::move(error);
+
 				continue;
 			}
 
@@ -249,20 +251,25 @@ llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
 
 		if (classType == ClassType::Function)
 		{
-			StandardFunction(location, pure, name, clsAnnotation, members, algorithms);
-			//classes.push_back(std::make_unique<StandardFunction>(
-			//		location, pure, name, clsAnnotation, members, algorithms));
+			classes.push_back(Class::standardFunction(location, pure, *name, std::move(clsAnnotation), members, algorithms));
 		}
 		else if (classType == ClassType::Model)
-			classes.emplace_back(Class(location, std::move(name), std::move(members), std::move(equations), std::move(forEquations), std::move(algorithms), std::move(innerClasses)));
+		{
+			classes.push_back(Class::model(
+					location, *name, members, equations, forEquations, algorithms, innerClasses));
+		}
 		else if (classType == ClassType::Package)
-			classes.emplace_back(Package(location, std::move(name), std::move(innerClasses)));
+		{
+			classes.push_back(Class::package(location, *name, innerClasses));
+		}
 		else if (classType == ClassType::Record)
-			classes.emplace_back(Record(location, std::move(name), std::move(members)));
+		{
+			classes.push_back(Class::record(location, *name, members));
+		}
 	}
 
 	if (classes.size() != 1)
-		return ClassContainer(Package(SourcePosition::unknown(), "Main", classes));
+		return Class::package(SourcePosition::unknown(), "Main", classes);
 
 	assert(classes.size() == 1);
 	return std::move(classes[0]);
@@ -286,9 +293,9 @@ llvm::Error Parser::elementList(llvm::SmallVectorImpl<std::unique_ptr<Member>>& 
 	return llvm::Error::success();
 }
 
-llvm::Expected<bool> Parser::element(llvm::SmallVectorImpl<std::unique_ptr<Member>>& members, bool publicSection)
+llvm::Expected<std::unique_ptr<Member>> Parser::element(bool publicSection)
 {
-	auto location = getPosition();
+	auto loc = getPosition();
 
 	accept<Token::FinalKeyword>();
 	TRY(prefix, typePrefix());
@@ -296,37 +303,14 @@ llvm::Expected<bool> Parser::element(llvm::SmallVectorImpl<std::unique_ptr<Membe
 	std::string name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
 
-	if (current == Token::LSquare)
-	{
-		TRY(dims, arrayDimensions());
-		auto& postDimensions = *dims;
-
-		llvm::SmallVector<ArrayDimension, 3> dimensions;
-
-		if (postDimensions.size() > 1 || postDimensions[0] != 1)
-			for (auto& dimension : postDimensions)
-				dimensions.push_back(dimension);
-
-		auto& preDimensions = type->getDimensions();
-
-		if (preDimensions.size() > 1 || preDimensions[0] != 1)
-			for (auto& dimension : preDimensions)
-				dimensions.push_back(dimension);
-
-		if (dimensions.empty())
-			dimensions.push_back(ArrayDimension(1));
-
-		type->setDimensions(dimensions);
-	}
-
-	std::optional<Expression> startOverload = std::nullopt;
+	llvm::Optional<std::unique_ptr<Expression>> startOverload;
 
 	if (current == Token::LPar)
 	{
 		TRY(start, termModification());
 
-		if (start->has_value())
-			startOverload = std::move(**start);
+		if (start->hasValue())
+			startOverload = std::move(start->getValue());
 	}
 
 	if (accept<Token::Equal>())
@@ -334,21 +318,21 @@ llvm::Expected<bool> Parser::element(llvm::SmallVectorImpl<std::unique_ptr<Membe
 		TRY(init, expression());
 
 		accept<Token::String>();
-		return Member(
-				location, move(name), std::move(*type), std::move(*prefix), std::move(*init), publicSection);
+		return Member::build(std::move(loc), name, std::move(*type), std::move(*prefix), std::move(*init), publicSection);
 	}
 
 	accept<Token::String>();
 
-	return Member(
-			location, move(name), std::move(*type), std::move(*prefix), publicSection, startOverload);
+	return Member::build(
+			std::move(loc), name, std::move(*type), std::move(*prefix), llvm::None, publicSection,
+			startOverload.hasValue() ? llvm::Optional(std::move(*startOverload)) : llvm::None);
 }
 
-llvm::Expected<std::optional<Expression>> Parser::termModification()
+llvm::Expected<llvm::Optional<std::unique_ptr<Expression>>> Parser::termModification()
 {
 	EXPECT(Token::LPar);
 
-	std::optional<Expression> e = std::nullopt;
+	llvm::Optional<std::unique_ptr<Expression>> e;
 
 	do
 	{
@@ -379,7 +363,7 @@ llvm::Expected<std::optional<Expression>> Parser::termModification()
 	} while (accept<Token::Comma>());
 
 	EXPECT(Token::RPar);
-	return e;
+	return std::move(e);
 }
 
 llvm::Expected<TypePrefix> Parser::typePrefix()
@@ -418,10 +402,8 @@ llvm::Expected<Type> Parser::typeSpecifier()
 
 	if (current != Token::Ident)
 	{
-		TRY(sub, arrayDimensions());
-
-		for (const auto& dim : *sub)
-			dimensions.push_back(dim);
+		if (auto error = arrayDimensions(dimensions); error)
+			return std::move(error);
 	}
 
 	if (dimensions.empty())
@@ -448,12 +430,10 @@ llvm::Expected<Type> Parser::typeSpecifier()
 	return Type(UserDefinedType(name, {}), dimensions);
 }
 
-llvm::Expected<std::pair<llvm::SmallVector<Equation, 3>, llvm::SmallVector<ForEquation, 3>>> Parser::equationSection()
+llvm::Error Parser::equationSection(llvm::SmallVectorImpl<std::unique_ptr<Equation>>& equations,
+																		llvm::SmallVectorImpl<std::unique_ptr<ForEquation>>& forEquations)
 {
 	EXPECT(Token::EquationKeyword);
-
-	llvm::SmallVector<Equation, 3> equations;
-	llvm::SmallVector<ForEquation, 3> forEquations;
 
 	while (
 			current != Token::End && current != Token::PublicKeyword &&
@@ -463,28 +443,26 @@ llvm::Expected<std::pair<llvm::SmallVector<Equation, 3>, llvm::SmallVector<ForEq
 	{
 		if (current == Token::ForKeyword)
 		{
-			TRY(equs, forEquation(0));
-
-			for (auto& eq : *equs)
-				forEquations.emplace_back(std::move(eq));
+			if (auto error = forEquation(forEquations, 0); error)
+				return std::move(error);
 		}
 		else
 		{
 			TRY(eq, equation());
-			equations.emplace_back(std::move(*eq));
+			equations.push_back(std::move(*eq));
 		}
 
 		EXPECT(Token::Semicolons);
 	}
 
-	return std::pair(std::move(equations), std::move(forEquations));
+	return llvm::Error::success();
 }
 
-llvm::Expected<Algorithm> Parser::algorithmSection()
+llvm::Expected<std::unique_ptr<Algorithm>> Parser::algorithmSection()
 {
 	auto location = getPosition();
 	EXPECT(Token::AlgorithmKeyword);
-	llvm::SmallVector<Statement, 3> statements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> statements;
 
 	while (
 			current != Token::End && current != Token::PublicKeyword &&
@@ -497,84 +475,113 @@ llvm::Expected<Algorithm> Parser::algorithmSection()
 		statements.push_back(std::move(*stmnt));
 	}
 
-	return Algorithm(location, std::move(statements));
+	return Algorithm::build(location, std::move(statements));
 }
 
-llvm::Expected<Equation> Parser::equation()
+llvm::Expected<std::unique_ptr<Induction>> Parser::induction()
 {
-	auto location = getPosition();
-	TRY(l, expression());
-	EXPECT(Token::Equal);
-	TRY(r, expression());
-	accept<Token::String>();
-	return Equation(location, std::move(*l), std::move(*r));
+	auto loc = getPosition();
+
+	auto variableName = lexer.getLastIdentifier();
+	EXPECT(Token::Ident);
+
+	EXPECT(Token::InKeyword);
+
+	TRY(begin, expression());
+	EXPECT(Token::Colons);
+	TRY(end, expression());
+
+	return Induction::build(std::move(loc), variableName, std::move(*begin), std::move(*end));
 }
 
-llvm::Expected<Statement> Parser::statement()
+llvm::Expected<std::unique_ptr<Equation>> Parser::equation()
+{
+	auto loc = getPosition();
+
+	TRY(lhs, expression());
+	EXPECT(Token::Equal);
+	TRY(rhs, expression());
+	accept<Token::String>();
+
+	return Equation::build(std::move(loc), std::move(*lhs), std::move(*rhs));
+}
+
+llvm::Expected<std::unique_ptr<Statement>> Parser::statement()
 {
 	if (current == Token::IfKeyword)
 	{
 		TRY(statement, ifStatement());
-		return Statement(std::move(*statement));
+		return std::move(*statement);
 	}
 
 	if (current == Token::ForKeyword)
 	{
 		TRY(statement, forStatement());
-		return Statement(std::move(*statement));
+		return std::move(*statement);
 	}
 
 	if (current == Token::WhileKeyword)
 	{
 		TRY(statement, whileStatement());
-		return Statement(std::move(*statement));
+		return std::move(*statement);
 	}
 
 	if (current == Token::WhenKeyword)
 	{
 		TRY(statement, whenStatement());
-		return Statement(std::move(*statement));
+		return std::move(*statement);
 	}
 
 	if (current == Token::BreakKeyword)
 	{
 		TRY(statement, breakStatement());
-		return Statement(std::move(*statement));
+		return std::move(*statement);
 	}
 
 	if (current == Token::ReturnKeyword)
 	{
 		TRY(statement, returnStatement());
-		return Statement(std::move(*statement));
+		return std::move(*statement);
 	}
 
 	TRY(statement, assignmentStatement());
-	return Statement(std::move(*statement));
+	return std::move(*statement);
 }
 
-llvm::Expected<AssignmentStatement> Parser::assignmentStatement()
+llvm::Expected<std::unique_ptr<Statement>> Parser::assignmentStatement()
 {
-	auto location = getPosition();
+	auto loc = getPosition();
 
 	if (accept<Token::LPar>())
 	{
-		TRY(destinations, outputExpressionList());
+		llvm::SmallVector<std::unique_ptr<Expression>, 3> destinations;
+
+		if (auto error = outputExpressionList(destinations); error)
+			return std::move(error);
+
+		auto destinationsTuple = Expression::tuple(loc, Type::unknown(), destinations);
+
 		EXPECT(Token::RPar);
 		EXPECT(Token::Assignment);
 		TRY(functionName, componentReference());
-		TRY(args, functionCallArguments());
-		Expression call = Expression::call(location, Type::unknown(), std::move(*functionName), std::move(*args));
 
-		return AssignmentStatement(location, std::move(*destinations), std::move(call));
+		llvm::SmallVector<std::unique_ptr<Expression>, 3> args;
+
+		if (auto error = functionCallArguments(args); error)
+			return std::move(error);
+
+		auto call = Expression::call(loc, Type::unknown(), std::move(*functionName), args);
+
+		return Statement::assignmentStatement(std::move(loc), std::move(destinationsTuple), std::move(call));
 	}
 
 	TRY(component, componentReference());
 	EXPECT(Token::Assignment);
 	TRY(exp, expression());
-	return AssignmentStatement(location, std::move(*component), std::move(*exp));
+	return Statement::assignmentStatement(std::move(loc), std::move(*component), std::move(*exp));
 }
 
-llvm::Expected<IfStatement> Parser::ifStatement()
+llvm::Expected<std::unique_ptr<Statement>> Parser::ifStatement()
 {
 	auto location = getPosition();
 	llvm::SmallVector<IfStatement::Block, 3> blocks;
@@ -583,7 +590,7 @@ llvm::Expected<IfStatement> Parser::ifStatement()
 	TRY(ifCondition, expression());
 	EXPECT(Token::ThenKeyword);
 
-	llvm::SmallVector<Statement, 3> ifStatements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> ifStatements;
 
 	while (current != Token::ElseIfKeyword && current != Token::ElseKeyword &&
 				 current != Token::EndKeyword)
@@ -593,14 +600,14 @@ llvm::Expected<IfStatement> Parser::ifStatement()
 		ifStatements.push_back(std::move(*stmnt));
 	}
 
-	blocks.emplace_back(std::move(*ifCondition), std::move(ifStatements));
+	blocks.emplace_back(std::move(*ifCondition), ifStatements);
 
 	while (current != Token::ElseKeyword && current != Token::EndKeyword)
 	{
 		EXPECT(Token::ElseIfKeyword);
 		TRY(elseIfCondition, expression());
 		EXPECT(Token::ThenKeyword);
-		llvm::SmallVector<Statement, 3> elseIfStatements;
+		llvm::SmallVector<std::unique_ptr<Statement>, 3> elseIfStatements;
 
 		while (current != Token::ElseIfKeyword && current != Token::ElseKeyword &&
 					 current != Token::EndKeyword)
@@ -615,7 +622,7 @@ llvm::Expected<IfStatement> Parser::ifStatement()
 
 	if (accept<Token::ElseKeyword>())
 	{
-		llvm::SmallVector<Statement, 3> elseStatements;
+		llvm::SmallVector<std::unique_ptr<Statement>, 3> elseStatements;
 
 		while (current != Token::EndKeyword)
 		{
@@ -634,24 +641,18 @@ llvm::Expected<IfStatement> Parser::ifStatement()
 	EXPECT(Token::EndKeyword);
 	EXPECT(Token::IfKeyword);
 
-	return IfStatement(location, std::move(blocks));
+	return Statement::ifStatement(location, blocks);
 }
 
-llvm::Expected<ForStatement> Parser::forStatement()
+llvm::Expected<std::unique_ptr<Statement>> Parser::forStatement()
 {
-	auto location = getPosition();
+	auto loc = getPosition();
 
 	EXPECT(Token::ForKeyword);
-	auto name = lexer.getLastIdentifier();
-	EXPECT(Token::Ident);
-	EXPECT(Token::InKeyword);
-	TRY(begin, expression());
-	EXPECT(Token::Colons);
-	TRY(end, expression());
+	TRY(ind, induction());
 	EXPECT(Token::LoopKeyword);
 
-	Induction induction(move(name), std::move(*begin), std::move(*end));
-	llvm::SmallVector<Statement, 3> statements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> statements;
 
 	while (current != Token::EndKeyword)
 	{
@@ -663,10 +664,10 @@ llvm::Expected<ForStatement> Parser::forStatement()
 	EXPECT(Token::EndKeyword);
 	EXPECT(Token::ForKeyword);
 
-	return ForStatement(location, std::move(induction), std::move(statements));
+	return Statement::forStatement(loc, std::move(*ind), std::move(statements));
 }
 
-llvm::Expected<WhileStatement> Parser::whileStatement()
+llvm::Expected<std::unique_ptr<Statement>> Parser::whileStatement()
 {
 	auto location = getPosition();
 
@@ -674,7 +675,7 @@ llvm::Expected<WhileStatement> Parser::whileStatement()
 	TRY(condition, expression());
 	EXPECT(Token::LoopKeyword);
 
-	llvm::SmallVector<Statement, 3> statements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> statements;
 
 	while (current != Token::EndKeyword)
 	{
@@ -686,18 +687,18 @@ llvm::Expected<WhileStatement> Parser::whileStatement()
 	EXPECT(Token::EndKeyword);
 	EXPECT(Token::WhileKeyword);
 
-	return WhileStatement(location, std::move(*condition), std::move(statements));
+	return Statement::whileStatement(location, std::move(*condition), statements);
 }
 
-llvm::Expected<WhenStatement> Parser::whenStatement()
+llvm::Expected<std::unique_ptr<Statement>> Parser::whenStatement()
 {
-	auto location = getPosition();
+	auto loc = getPosition();
 
 	EXPECT(Token::WhenKeyword);
 	TRY(condition, expression());
 	EXPECT(Token::LoopKeyword);
 
-	llvm::SmallVector<Statement, 3> statements;
+	llvm::SmallVector<std::unique_ptr<Statement>, 3> statements;
 
 	while (current != Token::EndKeyword)
 	{
@@ -709,89 +710,79 @@ llvm::Expected<WhenStatement> Parser::whenStatement()
 	EXPECT(Token::EndKeyword);
 	EXPECT(Token::WhenKeyword);
 
-	return WhenStatement(location, std::move(*condition), std::move(statements));
+	return Statement::whenStatement(std::move(loc), std::move(*condition), std::move(statements));
 }
 
-llvm::Expected<BreakStatement> Parser::breakStatement()
+llvm::Expected<std::unique_ptr<Statement>> Parser::breakStatement()
 {
-	auto location = getPosition();
+	auto loc = getPosition();
 	EXPECT(Token::BreakKeyword);
-	return BreakStatement(location);
+	return Statement::breakStatement(std::move(loc));
 }
 
-llvm::Expected<ReturnStatement> Parser::returnStatement()
+llvm::Expected<std::unique_ptr<Statement>> Parser::returnStatement()
 {
-	auto location = getPosition();
+	auto loc = getPosition();
 	EXPECT(Token::ReturnKeyword);
-	return ReturnStatement(location);
+	return Statement::returnStatement(std::move(loc));
 }
 
-llvm::Expected<llvm::SmallVector<ForEquation, 3>> Parser::forEquation(int nestingLevel)
+llvm::Error Parser::forEquation(llvm::SmallVectorImpl<std::unique_ptr<ForEquation>>& equations, int nestingLevel)
 {
-	llvm::SmallVector<ForEquation, 3> toReturn;
-
 	EXPECT(Token::ForKeyword);
-	auto name = lexer.getLastIdentifier();
-	EXPECT(Token::Ident);
-	EXPECT(Token::InKeyword);
-	TRY(begin, expression());
-	EXPECT(Token::Colons);
-	TRY(end, expression());
-	EXPECT(Token::LoopKeyword);
 
-	Induction ind(move(name), std::move(*begin), std::move(*end));
-	ind.setInductionIndex(nestingLevel);
+	TRY(ind, induction());
+	(*ind)->setInductionIndex(nestingLevel);
+
+	EXPECT(Token::LoopKeyword);
 
 	while (!accept<Token::EndKeyword>())
 	{
-		TRY(inner, forEquationBody(nestingLevel + 1));
+		llvm::SmallVector<std::unique_ptr<ForEquation>, 3> inner;
 
-		for (auto& eq : *inner)
+		if (auto error = forEquationBody(inner, nestingLevel + 1); error)
+			return std::move(error);
+
+		for (auto& equation : inner)
 		{
-			auto& inds = eq.getInductions();
-			inds.insert(inds.begin(), ind);
-			toReturn.push_back(eq);
+			equation->addOuterInduction((*ind)->clone());
+			equations.push_back(std::move(equation));
 		}
 
 		EXPECT(Token::Semicolons);
 	}
 
 	EXPECT(Token::ForKeyword);
-	return toReturn;
+	return llvm::Error::success();
 }
 
-llvm::Expected<llvm::SmallVector<ForEquation, 3>> Parser::forEquationBody(int nestingLevel)
+llvm::Error Parser::forEquationBody(llvm::SmallVectorImpl<std::unique_ptr<ForEquation>>& equations, int nestingLevel)
 {
-	llvm::SmallVector<ForEquation, 3> toReturn;
+	auto loc = getPosition();
 
 	if (current != Token::ForKeyword)
 	{
 		TRY(innerEq, equation());
-		toReturn.push_back(ForEquation({}, std::move(*innerEq)));
-		return toReturn;
+		equations.push_back(ForEquation::build(loc, llvm::None, std::move(*innerEq)));
+		return llvm::Error::success();
 	}
 
-	TRY(innerEq, forEquation(nestingLevel));
+	if (auto error = forEquation(equations, nestingLevel); error)
+		return std::move(error);
 
-	for (auto& eq : *innerEq)
-	{
-		auto& inductions = eq.getInductions();
-		toReturn.push_back(std::move(eq));
-	}
-
-	return toReturn;
+	return llvm::Error::success();
 }
 
-llvm::Expected<Expression> Parser::expression()
+llvm::Expected<std::unique_ptr<Expression>> Parser::expression()
 {
 	TRY(l, logicalExpression());
 	return std::move(*l);
 }
 
-llvm::Expected<Expression> Parser::logicalExpression()
+llvm::Expected<std::unique_ptr<Expression>> Parser::logicalExpression()
 {
-	auto location = getPosition();
-	std::vector<Expression> factors;
+	auto loc = getPosition();
+	std::vector<std::unique_ptr<Expression>> factors;
 	TRY(l, logicalTerm());
 
 	if (current != Token::OrKeyword)
@@ -805,13 +796,13 @@ llvm::Expected<Expression> Parser::logicalExpression()
 		factors.emplace_back(std::move(*arg));
 	}
 
-	return Expression::operation(location, Type::unknown(), OperationKind::lor, move(factors));
+	return Expression::operation(std::move(loc), Type::unknown(), OperationKind::lor, move(factors));
 }
 
-llvm::Expected<Expression> Parser::logicalTerm()
+llvm::Expected<std::unique_ptr<Expression>> Parser::logicalTerm()
 {
-	auto location = getPosition();
-	std::vector<Expression> factors;
+	auto loc = getPosition();
+	std::vector<std::unique_ptr<Expression>> factors;
 	TRY(l, logicalFactor());
 
 	if (current != Token::AndKeyword)
@@ -825,54 +816,62 @@ llvm::Expected<Expression> Parser::logicalTerm()
 		factors.emplace_back(std::move(*arg));
 	}
 
-	return Expression::operation(location, Type::unknown(), OperationKind::land, move(factors));
+	return Expression::operation(std::move(loc), Type::unknown(), OperationKind::land, move(factors));
 }
 
-llvm::Expected<Expression> Parser::logicalFactor()
+llvm::Expected<std::unique_ptr<Expression>> Parser::logicalFactor()
 {
-	auto location = getPosition();
+	auto loc = getPosition();
 	bool negated = accept<Token::NotKeyword>();
 	TRY(exp, relation());
 
 	if (negated)
-		return Expression::operation(location, Type::unknown(), OperationKind::negate, std::move(*exp));
+		return Expression::operation(std::move(loc), Type::unknown(), OperationKind::negate, std::move(*exp));
 
-	return *exp;
+	return std::move(*exp);
 }
 
-llvm::Expected<Expression> Parser::relation()
+llvm::Expected<std::unique_ptr<Expression>> Parser::relation()
 {
-	auto location = getPosition();
+	auto loc = getPosition();
 	TRY(left, arithmeticExpression());
 	auto op = relationalOperator();
 
 	if (!op.has_value())
-		return *left;
+		return std::move(*left);
 
 	TRY(right, arithmeticExpression());
-	return Expression::operation(location, Type::unknown(), op.value(), std::move(*left), std::move(*right));
+	return Expression::operation(
+			std::move(loc), Type::unknown(), op.value(),
+			llvm::ArrayRef({ std::move(*left), std::move(*right) }));
 }
 
 std::optional<OperationKind> Parser::relationalOperator()
 {
 	if (accept<Token::GreaterEqual>())
 		return OperationKind::greaterEqual;
+
 	if (accept<Token::GreaterThan>())
 		return OperationKind::greater;
+
 	if (accept<Token::LessEqual>())
 		return OperationKind::lessEqual;
+
 	if (accept<Token::LessThan>())
 		return OperationKind::less;
+
 	if (accept<Token::OperatorEqual>())
 		return OperationKind::equal;
+
 	if (accept<Token::Different>())
 		return OperationKind::different;
+
 	return std::nullopt;
 }
 
-llvm::Expected<Expression> Parser::arithmeticExpression()
+llvm::Expected<std::unique_ptr<Expression>> Parser::arithmeticExpression()
 {
-	auto location = getPosition();
+	auto loc = getPosition();
 	bool negative = false;
 
 	if (accept<Token::Minus>())
@@ -881,20 +880,20 @@ llvm::Expected<Expression> Parser::arithmeticExpression()
 		accept<Token::Plus>();
 
 	TRY(left, term());
-	Expression first = negative
-										 ? Expression::operation(location, Type::unknown(), OperationKind::subtract, std::move(*left))
-										 : std::move(*left);
+	auto first = negative
+									 ? Expression::operation(loc, Type::unknown(), OperationKind::subtract, std::move(*left))
+									 : std::move(*left);
 
 	if (current != Token::Minus && current != Token::Plus)
 		return first;
 
-	location = getPosition();
-	std::vector<Expression> args;
+	loc = getPosition();
+	llvm::SmallVector<std::unique_ptr<Expression>, 3> args;
 	args.push_back(std::move(first));
 
 	while (current == Token::Minus || current == Token::Plus)
 	{
-		location = getPosition();
+		loc = getPosition();
 
 		if (accept<Token::Plus>())
 		{
@@ -905,24 +904,24 @@ llvm::Expected<Expression> Parser::arithmeticExpression()
 
 		EXPECT(Token::Minus);
 		TRY(arg, term());
-		auto exp = Expression::operation(location, Type::unknown(), OperationKind::subtract, std::move(*arg));
+		auto exp = Expression::operation(loc, Type::unknown(), OperationKind::subtract, std::move(*arg));
 		args.emplace_back(std::move(exp));
 	}
 
-	return Expression::operation(std::move(location), Type::unknown(), OperationKind::add, move(args));
+	return Expression::operation(std::move(loc), Type::unknown(), OperationKind::add, move(args));
 }
 
-llvm::Expected<Expression> Parser::term()
+llvm::Expected<std::unique_ptr<Expression>> Parser::term()
 {
 	auto location = getPosition();
 
 	// we keep a list of arguments
-	std::vector<Expression> arguments;
+	llvm::SmallVector<std::unique_ptr<Expression>, 3> arguments;
 	TRY(toReturn, factor());
 
 	// if we se no multiply or division sign we return.
 	if (current != Token::Multiply && current != Token::Division)
-		return *toReturn;
+		return std::move(*toReturn);
 
 	// otherwise the first argument is placed with the others
 	arguments.emplace_back(std::move(*toReturn));
@@ -946,15 +945,27 @@ llvm::Expected<Expression> Parser::term()
 		// example a / b * c = (a/b) * c
 		if (arguments.size() == 1)
 		{
-			arguments = { Expression::operation(
-					location, Type::unknown(), OperationKind::divide, std::move(arguments[0]), std::move(*arg)) };
+			auto x = std::move(arguments[0]);
+			auto y = std::move(*arg);
+
+			arguments.clear();
+			arguments.push_back(Expression::operation(
+					location, Type::unknown(), OperationKind::divide,
+					llvm::ArrayRef({ std::move(x), std::move(y) })));
+
 			continue;
 		}
 
 		// otherwise we create a multiply from the already seen arguments
 		// a * b / c * d = ((a*b)/c)*d
 		auto left = Expression::operation(location, Type::unknown(), OperationKind::multiply, move(arguments));
-		arguments = { Expression::operation(location, Type::unknown(), OperationKind::divide, std::move(left), std::move(*arg)) };
+
+		arguments.clear();
+
+		arguments.push_back(Expression::operation(
+				location, Type::unknown(), OperationKind::divide,
+				llvm::ArrayRef({ std::move(left), std::move(*arg )})));
+
 	}
 
 	if (arguments.size() == 1)
@@ -963,19 +974,22 @@ llvm::Expected<Expression> Parser::term()
 	return Expression::operation(location, Type::unknown(), OperationKind::multiply, move(arguments));
 }
 
-llvm::Expected<Expression> Parser::factor()
+llvm::Expected<std::unique_ptr<Expression>> Parser::factor()
 {
 	auto location = getPosition();
 	TRY(l, primary());
 
 	if (!accept<Token::Exponential>())
-		return *l;
+		return std::move(*l);
 
 	TRY(r, primary());
-	return Expression::operation(std::move(location), Type::unknown(), OperationKind::powerOf, std::move(*l), std::move(*r));
+
+	return Expression::operation(
+			std::move(location), Type::unknown(), OperationKind::powerOf,
+			llvm::ArrayRef({ std::move(*l), std::move(*r) }));
 }
 
-llvm::Expected<Expression> Parser::primary()
+llvm::Expected<std::unique_ptr<Expression>> Parser::primary()
 {
 	auto location = getPosition();
 
@@ -1008,18 +1022,22 @@ llvm::Expected<Expression> Parser::primary()
 
 	if (accept<Token::LPar>())
 	{
-		TRY(exp, outputExpressionList());
+		llvm::SmallVector<std::unique_ptr<Expression>, 3> args;
+
+		if (auto error = outputExpressionList(args); error)
+			return std::move(error);
+
 		EXPECT(Token::RPar);
 
-		if (exp->size() == 1)
-			return (*exp)[0];
+		if (args.size() == 1)
+			return std::move(args[0]);
 
-		return Expression(Type::unknown(), std::move(*exp));
+		return Expression::tuple(location, Type::unknown(), args);
 	}
 
 	if (accept<Token::LCurly>())
 	{
-		llvm::SmallVector<Expression, 3> values;
+		llvm::SmallVector<std::unique_ptr<Expression>, 3> values;
 
 		do
 		{
@@ -1028,14 +1046,18 @@ llvm::Expected<Expression> Parser::primary()
 		} while (accept<Token::Comma>());
 
 		EXPECT(Token::RCurly);
-		return Expression(Type::unknown(), Array(location, values));
+		return Expression::array(location, Type::unknown(), values);
 	}
 
 	if (accept<Token::DerKeyword>())
 	{
-		TRY(args, functionCallArguments());
-		Expression function = Expression::reference(location, Type::unknown(), "der");
-		return Expression::call(location, Type::unknown(), function, std::move(*args));
+		llvm::SmallVector<std::unique_ptr<Expression>, 3> args;
+
+		if (auto error = functionCallArguments(args); error)
+			return std::move(error);
+
+		auto function = Expression::reference(location, Type::unknown(), "der");
+		return Expression::call(location, Type::unknown(), std::move(function), args);
 	}
 
 	if (current == Token::Ident)
@@ -1045,14 +1067,18 @@ llvm::Expected<Expression> Parser::primary()
 		if (current != Token::LPar)
 			return exp;
 
-		TRY(args, functionCallArguments());
-		return Expression::call(std::move(location), Type::unknown(), std::move(*exp), std::move(*args));
+		llvm::SmallVector<std::unique_ptr<Expression>, 3> args;
+
+		if (auto error = functionCallArguments(args); error)
+			return std::move(error);
+
+		return Expression::call(std::move(location), Type::unknown(), std::move(*exp), args);
 	}
 
 	return llvm::make_error<UnexpectedToken>(current, Token::End, getPosition());
 }
 
-llvm::Expected<Expression> Parser::componentReference()
+llvm::Expected<std::unique_ptr<Expression>> Parser::componentReference()
 {
 	auto location = getPosition();
 	bool globalLookup = accept<Token::Dot>();
@@ -1066,57 +1092,68 @@ llvm::Expected<Expression> Parser::componentReference()
 		EXPECT(Token::Ident);
 	}
 
-	Expression expression = Expression::reference(location, Type::unknown(), name, globalLookup);
+	auto expression = Expression::reference(location, Type::unknown(), name, globalLookup);
 
 	if (current == Token::LSquare)
 	{
 		auto loc = getPosition();
-		TRY(access, arraySubscript());
-		access->insert(access->begin(), std::move(expression));
-		expression = Expression::operation(std::move(loc), Type::unknown(), OperationKind::subscription, move(*access));
+
+		llvm::SmallVector<std::unique_ptr<Expression>, 3> subscripts;
+
+		if (auto error = arraySubscript(subscripts); error)
+			return std::move(error);
+
+		subscripts.insert(subscripts.begin(), std::move(expression));
+		expression = Expression::operation(std::move(loc), Type::unknown(), OperationKind::subscription, subscripts);
 	}
 
 	while (accept<Token::Dot>())
 	{
 		location = getPosition();
-		Expression memberName = Expression::reference(location, makeType<std::string>(), lexer.getLastString());
+		auto memberName = Expression::reference(location, makeType<std::string>(), lexer.getLastString());
 		EXPECT(Token::Ident);
-		expression = Expression::operation(location, Type::unknown(), OperationKind::memberLookup, std::move(expression), std::move(memberName));
+
+		expression = Expression::operation(
+				location, Type::unknown(), OperationKind::memberLookup,
+				llvm::ArrayRef({ std::move(expression), std::move(memberName) }));
 
 		if (current != Token::LSquare)
 			continue;
 
 		location = getPosition();
-		TRY(access, arraySubscript());
-		expression = Expression::operation(location, Type::unknown(), OperationKind::subscription, move(*access));
+
+		llvm::SmallVector<std::unique_ptr<Expression>, 3> subscripts;
+
+		if (auto error = arraySubscript(subscripts); error)
+			return std::move(error);
+
+		expression = Expression::operation(location, Type::unknown(), OperationKind::subscription, subscripts);
 	}
 
 	return expression;
 }
 
-llvm::Expected<llvm::SmallVector<Expression, 3>> Parser::functionCallArguments()
+llvm::Error Parser::functionCallArguments(llvm::SmallVectorImpl<std::unique_ptr<Expression>>& args)
 {
 	EXPECT(Token::LPar);
 
-	llvm::SmallVector<Expression, 3> expressions;
 	while (!accept<Token::RPar>())
 	{
 		TRY(arg, expression());
-		expressions.push_back(std::move(*arg));
+		args.push_back(std::move(*arg));
 
 		while (accept(Token::Comma))
 		{
 			TRY(exp, expression());
-			expressions.push_back(std::move(*exp));
+			args.push_back(std::move(*exp));
 		}
 	}
 
-	return expressions;
+	return llvm::Error::success();
 }
 
-llvm::Expected<llvm::SmallVector<ArrayDimension, 3>> Parser::arrayDimensions()
+llvm::Error Parser::arrayDimensions(llvm::SmallVectorImpl<ArrayDimension>& dimensions)
 {
-	llvm::SmallVector<ArrayDimension, 3> dimensions;
 	EXPECT(Token::LSquare);
 
 	do
@@ -1126,31 +1163,27 @@ llvm::Expected<llvm::SmallVector<ArrayDimension, 3>> Parser::arrayDimensions()
 		if (accept<Token::Colons>())
 			dimensions.push_back(ArrayDimension(-1));
 		else if (accept<Token::Integer>())
-			dimensions.push_back(lexer.getLastInt());
+			dimensions.push_back(ArrayDimension(lexer.getLastInt()));
 		else
 		{
 			TRY(exp, expression());
-			dimensions.push_back(ArrayDimension(*exp));
+			dimensions.push_back(ArrayDimension(std::move(*exp)));
 		}
-
 	} while (accept<Token::Comma>());
 
 	EXPECT(Token::RSquare);
-	return dimensions;
+	return llvm::Error::success();
 }
 
-llvm::Expected<Tuple> Parser::outputExpressionList()
+llvm::Error Parser::outputExpressionList(llvm::SmallVectorImpl<std::unique_ptr<Expression>>& expressions)
 {
-	auto location = getPosition();
-	llvm::SmallVector<Expression, 3> expressions;
-
 	while (current != Token::RPar)
 	{
-		auto location = getPosition();
+		auto loc = getPosition();
 
 		if (accept<Token::Comma>())
 		{
-			expressions.emplace_back(Type::unknown(), ReferenceAccess::dummy(location));
+			expressions.push_back(ReferenceAccess::dummy(std::move(loc), Type::unknown()));
 			continue;
 		}
 
@@ -1159,40 +1192,48 @@ llvm::Expected<Tuple> Parser::outputExpressionList()
 		accept(Token::Comma);
 	}
 
-	return Tuple(std::move(location), std::move(expressions));
+	return llvm::Error::success();
 }
 
-llvm::Expected<std::vector<Expression>> Parser::arraySubscript()
+llvm::Error Parser::arraySubscript(llvm::SmallVectorImpl<std::unique_ptr<Expression>>& subscripts)
 {
 	EXPECT(Token::LSquare);
-	std::vector<Expression> expressions;
 
 	do
 	{
 		auto location = getPosition();
 		TRY(exp, expression());
-		*exp =
-				Expression::operation(location, makeType<BuiltInType::Integer>(), OperationKind::add, std::move(*exp), Expression::constant(location, makeType<BuiltInType::Integer>(), -1));
-		expressions.emplace_back(std::move(*exp));
+
+		*exp = Expression::operation(
+				location, makeType<BuiltInType::Integer>(), OperationKind::add,
+				llvm::ArrayRef({
+						std::move(*exp),
+						Expression::constant(location, makeType<BuiltInType::Integer>(), -1)
+				}));
+
+		subscripts.push_back(std::move(*exp));
 	} while (accept<Token::Comma>());
 
 	EXPECT(Token::RSquare);
-	return expressions;
+	return llvm::Error::success();
 }
 
-llvm::Expected<Annotation> Parser::annotation()
+llvm::Expected<std::unique_ptr<Annotation>> Parser::annotation()
 {
+	auto loc = getPosition();
 	EXPECT(Token::AnnotationKeyword);
 	TRY(mod, classModification());
-	return Annotation(*mod);
+	return std::make_unique<Annotation>(std::move(loc), std::move(*mod));
 }
 
-llvm::Expected<Modification> Parser::modification()
+llvm::Expected<std::unique_ptr<Modification>> Parser::modification()
 {
+	auto loc = getPosition();
+
 	if (accept<Token::Equal>() || accept<Token::Assignment>())
 	{
 		TRY(exp, expression());
-		return Modification(*exp);
+		return Modification::build(std::move(loc), std::move(*exp));
 	}
 
 	TRY(mod, classModification());
@@ -1200,34 +1241,36 @@ llvm::Expected<Modification> Parser::modification()
 	if (accept<Token::Equal>())
 	{
 		TRY(exp, expression());
-		return Modification(*mod, *exp);
+		return Modification::build(std::move(loc), std::move(*mod), std::move(*exp));
 	}
 
-	return Modification(*mod);
+	return Modification::build(std::move(loc), std::move(*mod));
 }
 
-llvm::Expected<ClassModification> Parser::classModification()
+llvm::Expected<std::unique_ptr<ClassModification>> Parser::classModification()
 {
+	auto location = getPosition();
+
 	EXPECT(Token::LPar);
-	llvm::SmallVector<Argument, 3> arguments;
+	llvm::SmallVector<std::unique_ptr<Argument>, 3> arguments;
 
 	do
 	{
 		TRY(arg, argument());
-		arguments.push_back(*arg);
+		arguments.push_back(std::move(*arg));
 	} while (accept<Token::Comma>());
 
 	EXPECT(Token::RPar);
 
-	return ClassModification(arguments);
+	return ClassModification::build(location, arguments);
 }
 
-llvm::Expected<Argument> Parser::argument()
+llvm::Expected<std::unique_ptr<Argument>> Parser::argument()
 {
 	if (current == Token::RedeclareKeyword)
 	{
-		TRY(el, elementRedeclaration());
-		return Argument(*el);
+		TRY(redeclaration, elementRedeclaration());
+		return std::move(*redeclaration);
 	}
 
 	bool each = accept<Token::EachKeyword>();
@@ -1235,32 +1278,34 @@ llvm::Expected<Argument> Parser::argument()
 
 	if (current == Token::ReplaceableKeyword)
 	{
-		TRY(el, elementReplaceable(each, final));
-		return Argument(*el);
+		TRY(replaceable, elementReplaceable(each, final));
+		return std::move(*replaceable);
 	}
 
-	TRY(el, elementModification(each, final));
-	return Argument(*el);
+	TRY(modification, elementModification(each, final));
+	return std::move(*modification);
 }
 
-llvm::Expected<ElementModification> Parser::elementModification(bool each, bool final)
+llvm::Expected<std::unique_ptr<Argument>> Parser::elementModification(bool each, bool final)
 {
+	auto loc = getPosition();
+
 	auto name = lexer.getLastIdentifier();
 	EXPECT(Token::Ident);
 
 	if (current != Token::LPar && current != Token::Equal && current != Token::Assignment)
-		return ElementModification(each, final, name);
+		return Argument::elementModification(loc, each, final, name);
 
 	TRY(mod, modification());
-	return ElementModification(each, final, name, *mod);
+	return Argument::elementModification(loc, each, final, name, std::move(*mod));
 }
 
-llvm::Expected<ElementRedeclaration> Parser::elementRedeclaration()
+llvm::Expected<std::unique_ptr<Argument>> Parser::elementRedeclaration()
 {
 	return llvm::make_error<NotImplemented>("element-redeclaration not implemented yet");
 }
 
-llvm::Expected<ElementReplaceable> Parser::elementReplaceable(bool each, bool final)
+llvm::Expected<std::unique_ptr<Argument>> Parser::elementReplaceable(bool each, bool final)
 {
 	return llvm::make_error<NotImplemented>("element-replaceable not implemented yet");
 }

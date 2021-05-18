@@ -5,114 +5,149 @@
 #include <llvm/ADT/SmallVector.h>
 #include <memory>
 #include <utility>
+#include <variant>
 
+#include "Array.h"
 #include "ASTNode.h"
+#include "Call.h"
+#include "Constant.h"
+#include "Operation.h"
+#include "ReferenceAccess.h"
+#include "Tuple.h"
 #include "Type.h"
 
 namespace modelica::frontend
 {
-	class Expression : public impl::ASTNodeCRTP<Expression>
+	class Expression
+			: public impl::Cloneable<Expression>,
+				public impl::Dumpable<Expression>
 	{
 		public:
-		Expression(ASTNodeKind kind, SourcePosition location, Type type);
+		Expression(const Expression& other);
+		Expression(Expression&& other);
 
-		~Expression() override;
+		~Expression();
+
+		Expression& operator=(const Expression& other);
+		Expression& operator=(Expression&& other);
 
 		friend void swap(Expression& first, Expression& second);
 
-		[[maybe_unused]] static bool classof(const ASTNode* node)
-		{
-			return node->getKind() >= ASTNodeKind::EXPRESSION &&
-						 node->getKind() <= ASTNodeKind::EXPRESSION_LAST_EXPRESSION;
-		}
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		[[nodiscard]] virtual std::unique_ptr<Expression> cloneExpression() const = 0;
-
-		[[nodiscard]] virtual bool operator==(const Expression& other) const = 0;
+		[[nodiscard]] bool operator==(const Expression& other) const;
 		[[nodiscard]] bool operator!=(const Expression& other) const;
 
-		[[nodiscard]] virtual bool isLValue() const = 0;
+		template<typename T>
+		[[nodiscard]] bool isa() const
+		{
+			return std::holds_alternative<T>(content);
+		}
+
+		template<typename T>
+		[[nodiscard]] T* get()
+		{
+			assert(isa<T>());
+			return &std::get<T>(content);
+		}
+
+		template<typename T>
+		[[nodiscard]] const T* get() const
+		{
+			assert(isa<T>());
+			return &std::get<T>(content);
+		}
+
+		template<typename T>
+		[[nodiscard]] T* dyn_get()
+		{
+			if (!isa<T>())
+				return nullptr;
+
+			return get<T>();
+		}
+
+		template<typename T>
+		[[nodiscard]] const T* dyn_get() const
+		{
+			if (!isa<T>())
+				return nullptr;
+
+			return get<T>();
+		}
+
+		template<typename Visitor>
+		auto visit(Visitor&& visitor)
+		{
+			return std::visit(visitor, content);
+		}
+
+		template<typename Visitor>
+		auto visit(Visitor&& visitor) const
+		{
+			return std::visit(visitor, content);
+		}
+
+		[[nodiscard]] SourcePosition getLocation() const;
 
 		[[nodiscard]] Type& getType();
 		[[nodiscard]] const Type& getType() const;
 		void setType(Type tp);
 
-		/*
-		template<typename Arg>
-		[[nodiscard]] static Constant constant(SourcePosition location, Type type, Arg&& arg)
+		[[nodiscard]] bool isLValue() const;
+
+		template<typename... Args>
+		[[nodiscard]] static std::unique_ptr<Expression> array(SourcePosition location, Type type, Args&&... args)
 		{
-			Constant content(std::move(location), std::forward<Arg>(arg));
-			return Expression(type, std::move(content));
+			Array content(std::move(location), std::move(type), std::forward<Args>(args)...);
+			return std::unique_ptr<Expression>(new Expression(std::move(content)));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression reference(SourcePosition location, Type type, Args&&... args)
+		[[nodiscard]] static std::unique_ptr<Expression> call(SourcePosition location, Type type, std::unique_ptr<Expression> function, Args&&... args)
 		{
-			ReferenceAccess content(location, std::forward<Args>(args)...);
-			return Expression(type, std::move(content));
+			Call content(std::move(location), std::move(type), std::move(function), std::forward<Args>(args)...);
+			return std::unique_ptr<Expression>(new Expression(std::move(content)));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression operation(SourcePosition location, Type type, OperationKind kind, Args&&... args)
+		[[nodiscard]] static std::unique_ptr<Expression> constant(SourcePosition location, Type type, Args&&... args)
 		{
-			Operation content(location, kind, std::forward<Args>(args)...);
-			return Expression(type, std::move(content));
+			Constant content(std::move(location), std::move(type), std::forward<Args>(args)...);
+			return std::unique_ptr<Expression>(new Expression(std::move(content)));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression call(SourcePosition location, Type type, Expression function, Args&&... args)
+		[[nodiscard]] static std::unique_ptr<Expression> reference(SourcePosition location, Type type, Args&&... args)
 		{
-			Call content(location, std::move(function), { std::forward<Args>(args)... });
-			return Expression(type, std::move(content));
+			ReferenceAccess content(std::move(location), std::move(type), std::forward<Args>(args)...);
+			return std::unique_ptr<Expression>(new Expression(std::move(content)));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression tuple(SourcePosition location, Type type, Args&&... args)
+		[[nodiscard]] static std::unique_ptr<Expression> operation(SourcePosition location, Type type, OperationKind kind, Args&&... args)
 		{
-			Tuple content(location, { std::forward<Args>(args)... });
-			return Expression(type, std::move(content));
+			Operation content(std::move(location), std::move(type), kind, std::forward<Args>(args)...);
+			return std::unique_ptr<Expression>(new Expression(std::move(content)));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static Expression array(SourcePosition location, Type type, Args&&... args)
+		[[nodiscard]] static std::unique_ptr<Expression> tuple(SourcePosition location, Type type, Args&&... args)
 		{
-			Array content(location, { std::forward<Args>(args)... });
-			return Expression(type, std::move(content));
+			Tuple content(std::move(location), std::move(type), std::forward<Args>(args)...);
+			return std::unique_ptr<Expression>(new Expression(std::move(content)));
 		}
-		 */
-
-		protected:
-		Expression(const Expression& other);
-		Expression(Expression&& other);
-
-		Expression& operator=(const Expression& other);
-		Expression& operator=(Expression&& other);
 
 		private:
-		Type type;
+		explicit Expression(Array content);
+		explicit Expression(Call content);
+		explicit Expression(Constant content);
+		explicit Expression(Operation content);
+		explicit Expression(ReferenceAccess content);
+		explicit Expression(Tuple content);
+
+		std::variant<Array, Call, Constant, Operation, ReferenceAccess, Tuple> content;
 	};
-
-	namespace impl
-	{
-		template<typename Derived>
-		struct ExpressionCRTP : public Expression
-		{
-			using Expression::Expression;
-
-			[[nodiscard]] bool operator==(const Expression& other) const override
-			{
-				if (auto* casted = other.template dyn_cast<Derived>())
-					return static_cast<const Derived&>(*this) == *casted;
-
-				return false;
-			}
-
-			[[nodiscard]] std::unique_ptr<Expression> cloneExpression() const override
-			{
-				return std::make_unique<Derived>(static_cast<const Derived&>(*this));
-			}
-		};
-	}
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Expression& obj);
 

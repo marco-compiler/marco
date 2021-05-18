@@ -104,11 +104,13 @@ namespace modelica::codegen
 
 		mlir::LogicalResult convertToLLVMDialect(mlir::ModuleOp& module, ModelicaLoweringOptions options = ModelicaLoweringOptions::getDefaultOptions());
 
-		llvm::Optional<mlir::ModuleOp> lower(llvm::ArrayRef<frontend::ClassContainer> classes);
+		llvm::Optional<mlir::ModuleOp> run(llvm::ArrayRef<frontend::Class> classes);
 
 		private:
 		mlir::Operation* lower(const frontend::Class& cls);
-		mlir::Operation* lower(const frontend::Function& function);
+		mlir::Operation* lower(const frontend::DerFunction& function);
+		mlir::Operation* lower(const frontend::StandardFunction& function);
+		mlir::Operation* lower(const frontend::Model& model);
 		mlir::Operation* lower(const frontend::Package& package);
 		mlir::Operation* lower(const frontend::Record& record);
 
@@ -187,29 +189,38 @@ namespace modelica::codegen
 	};
 
 	template<>
-	void MLIRLowerer::lower<frontend::Class>(const frontend::Member& member);
+	void MLIRLowerer::lower<frontend::Model>(
+			const frontend::Member& member);
 
 	template<>
-	void MLIRLowerer::lower<frontend::Function>(const frontend::Member& member);
+	void MLIRLowerer::lower<frontend::Function>(
+			const frontend::Member& member);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Expression>(const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Expression>(
+			const frontend::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Operation>(const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Operation>(
+			const frontend::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Constant>(const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Constant>(
+			const frontend::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::ReferenceAccess>(const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::ReferenceAccess>(
+			const frontend::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Call>(const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Call>(
+			const frontend::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Tuple>(const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Tuple>(
+			const frontend::Expression& expression);
 
 	template<>
-	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Array>(const frontend::Expression& expression);
+	MLIRLowerer::Container<Reference> MLIRLowerer::lower<frontend::Array>(
+			const frontend::Expression& expression);
 }

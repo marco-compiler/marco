@@ -23,31 +23,41 @@ using namespace frontend;
 using namespace std;
 using namespace llvm;
 
-Error OmcToModelPass::lower(Class& cl, const SymbolTable& table)
+template<>
+Error OmcToModelPass::lower<frontend::Class>(Class& cls, const SymbolTable& table)
 {
-	if (auto* mod = cl.dyn_cast<frontend::Model>())
-		return lower(*mod, table);
-
-	if (auto* fun = cl.dyn_cast<frontend::Function>())
-		return lower(*fun, table);
-
-	if (auto* package = cl.dyn_cast<frontend::Package>())
-		return lower(*package, table);
-
-	if (auto* record = cl.dyn_cast<frontend::Record>())
-		return lower(*record, table);
-
-	return Error::success();
+	return cls.visit([&](auto& obj) {
+		using type = decltype(obj);
+		using deref = typename std::remove_reference<type>::type;
+		using deconst = typename std::remove_const<deref>::type;
+		return lower<deconst>(cls, table);
+	});
 }
 
-Error OmcToModelPass::lower(frontend::Model& cl, const SymbolTable& table)
+template<>
+llvm::Error OmcToModelPass::lower<frontend::DerFunction>(frontend::Class& cls, const frontend::SymbolTable& table)
 {
-	SymbolTable t(cl, &table);
-	for (auto& member : cl.getMembers())
+	return llvm::Error::success();
+}
+
+template<>
+llvm::Error OmcToModelPass::lower<frontend::StandardFunction>(frontend::Class& cls, const frontend::SymbolTable& table)
+{
+	return llvm::Error::success();
+}
+
+template<>
+llvm::Error OmcToModelPass::lower<frontend::Model>(frontend::Class& cls, const frontend::SymbolTable& table)
+{
+	auto* mod = cls.get<frontend::Model>();
+
+	SymbolTable t(*mod, &table);
+
+	for (auto& member : mod->getMembers())
 		if (auto error = lower(*member, t); error)
 			return error;
 
-	for (auto& eq : cl.getEquations())
+	for (auto& eq : mod->getEquations())
 	{
 		auto modEq = lower(*eq, t, 0);
 		if (!modEq)
@@ -56,7 +66,7 @@ Error OmcToModelPass::lower(frontend::Model& cl, const SymbolTable& table)
 		model.addEquation(move(*modEq));
 	}
 
-	for (auto& eq : cl.getForEquations())
+	for (auto& eq : mod->getForEquations())
 	{
 		auto modEq = lower(*eq, t);
 		if (!modEq)
@@ -68,25 +78,23 @@ Error OmcToModelPass::lower(frontend::Model& cl, const SymbolTable& table)
 	return Error::success();
 }
 
-Error OmcToModelPass::lower(Function& cl, const SymbolTable& table)
+template<>
+llvm::Error OmcToModelPass::lower<frontend::Package>(frontend::Class& cls, const frontend::SymbolTable& table)
 {
-	return Error::success();
-}
+	auto* package = cls.get<frontend::Package>();
+	SymbolTable t(*package, &table);
 
-Error OmcToModelPass::lower(Package& cl, const SymbolTable& table)
-{
-	SymbolTable t(cl, &table);
-
-	for (auto& cls : cl)
-		if (auto error = lower(*cls, t); error)
+	for (auto& cl : package->getInnerClasses())
+		if (auto error = lower<frontend::Class>(*cl, t); error)
 			return error;
 
 	return Error::success();
 }
 
-Error OmcToModelPass::lower(Record& cl, const SymbolTable& table)
+template<>
+llvm::Error OmcToModelPass::lower<frontend::Record>(frontend::Class& cls, const frontend::SymbolTable& table)
 {
-	return Error::success();
+	return llvm::Error::success();
 }
 
 static BultinModTypes builtinToBuiltin(BuiltInType type)
@@ -127,11 +135,11 @@ Expected<ModType> OmcToModelPass::lower(
 
 static Expected<ModConst> lowerConstant(const Constant& constant)
 {
-	if (constant.isA<BuiltInType::Float>())
+	if (constant.isa<BuiltInType::Float>())
 		return ModConst(constant.get<BuiltInType::Float>());
-	if (constant.isA<BuiltInType::Integer>())
+	if (constant.isa<BuiltInType::Integer>())
 		return ModConst(constant.get<BuiltInType::Integer>());
-	if (constant.isA<BuiltInType::Boolean>())
+	if (constant.isa<BuiltInType::Boolean>())
 		return ModConst(constant.get<BuiltInType::Boolean>());
 
 	assert(false && "unreachable");
@@ -165,17 +173,17 @@ Expected<ModCall> OmcToModelPass::lowerCall(
 		Expression& call, const SymbolTable& table)
 {
 	assert(call.isa<Call>());
-	auto* c = call.dyn_cast<Call>();
+	auto* c = call.get<Call>();
 	if (!c->getFunction()->isa<ReferenceAccess>())
 		return make_error<NotImplemented>(
 				"only direct function calls are supported");
 
-	const auto* ref = c->getFunction()->cast<ReferenceAccess>();
+	const auto* ref = c->getFunction()->get<ReferenceAccess>();
 
 	ModCall::ArgsVec args;
 	for (size_t i : irange(c->argumentsCount()))
 	{
-		auto larg = lower(c[i], table);
+		auto larg = lower(*(*c)[i], table);
 		if (!larg)
 			return larg.takeError();
 		args.emplace_back(std::make_unique<ModExp>(move(*larg)));
@@ -237,16 +245,16 @@ Expected<ModEquation> OmcToModelPass::lower(
 	for (auto& ind : eq.getInductions())
 	{
 		if (!ind->getBegin()->isa<Constant>() ||
-				!ind->getBegin()->cast<Constant>()->isA<BuiltInType::Integer>())
+				!ind->getBegin()->get<Constant>()->isa<BuiltInType::Integer>())
 			return make_error<NotImplemented>("induction var must be constant int");
 
 		if (!ind->getEnd()->isa<Constant>() ||
-				!ind->getEnd()->cast<Constant>()->isA<BuiltInType::Integer>())
+				!ind->getEnd()->get<Constant>()->isa<BuiltInType::Integer>())
 			return make_error<NotImplemented>("induction var must be constant int");
 
 		interval.emplace_back(
-				ind->getBegin()->cast<Constant>()->get<BuiltInType::Integer>(),
-				ind->getEnd()->cast<Constant>()->get<BuiltInType::Integer>() + 1);
+				ind->getBegin()->get<Constant>()->get<BuiltInType::Integer>(),
+				ind->getEnd()->get<Constant>()->get<BuiltInType::Integer>() + 1);
 	}
 
 	if (not eq.getEquation()->getLhsExpression()->getType().isScalar())
@@ -264,11 +272,11 @@ static Expected<ModExp> lowerConstant(Expression& c, const SymbolTable table)
 {
 	assert(c.isa<Constant>());
 
-	if (c.cast<Constant>()->isA<BuiltInType::Integer>())
-		return ModExp(ModConst(c.cast<Constant>()->as<BuiltInType::Integer>()));
+	if (c.get<Constant>()->isa<BuiltInType::Integer>())
+		return ModExp(ModConst(c.get<Constant>()->as<BuiltInType::Integer>()));
 
-	if (c.cast<Constant>()->isA<BuiltInType::Float>())
-		return ModExp(ModConst(c.cast<Constant>()->as<BuiltInType::Float>()));
+	if (c.get<Constant>()->isa<BuiltInType::Float>())
+		return ModExp(ModConst(c.get<Constant>()->as<BuiltInType::Float>()));
 
 	return make_error<NotImplemented>("unlowerable constant");
 }
@@ -277,19 +285,19 @@ Expected<ModExp> OmcToModelPass::lowerReference(
 		Expression& ref, const SymbolTable& table)
 {
 	assert(ref.isa<ReferenceAccess>());
-	const auto& name = ref.cast<ReferenceAccess>()->getName();
+	const auto& name = ref.get<ReferenceAccess>()->getName();
 	assert(table.hasSymbol(name));
 	auto& symbol = table[name];
-	if (symbol.isA<Member>())
+	if (symbol.isa<Member>())
 	{
-		Expected<ModType> tp = lower(symbol.get<Member>().getType(), table);
+		Expected<ModType> tp = lower(symbol.get<Member>()->getType(), table);
 		if (!tp)
 			return tp.takeError();
 		return ModExp(name.str(), move(*tp));
 	}
 
-	int induction = symbol.get<Induction>().getInductionIndex();
-	if (symbol.isA<Induction>())
+	int induction = symbol.get<Induction>()->getInductionIndex();
+	if (symbol.isa<Induction>())
 		return ModExp::induction(ModExp(ModConst(induction)));
 	return make_error<NotImplemented>("unlowerable symbol reference");
 }
@@ -434,7 +442,7 @@ Expected<ModExp> OmcToModelPass::lowerOperation(
 		Expression& op, const SymbolTable& table)
 {
 	SmallVector<ModExp, 3> arguments;
-	for (auto& arg : *op.cast<Operation>())
+	for (auto& arg : *op.get<Operation>())
 	{
 		auto newArg = lower(*arg, table);
 		if (!newArg)
@@ -446,7 +454,7 @@ Expected<ModExp> OmcToModelPass::lowerOperation(
 	if (!tp)
 		return tp.takeError();
 
-	switch (op.cast<Operation>()->getOperationKind())
+	switch (op.get<Operation>()->getOperationKind())
 	{
 		case OperationKind::negate:
 			return lowerNegate(*tp, move(arguments));
@@ -517,7 +525,7 @@ Expected<ModExp> OmcToModelPass::lowerStart(
 				"Start overload of member " + member.getName().str() +
 				" was not folded into a constant");
 
-	auto cst = lowerConstant(*member.getStartOverload()->cast<Constant>());
+	auto cst = lowerConstant(*member.getStartOverload()->get<Constant>());
 	if (!cst)
 		return cst.takeError();
 

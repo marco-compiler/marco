@@ -13,36 +13,40 @@ using namespace std;
 
 TEST(TypeCheckTest, sumOfIntShouldProduceInt)	 // NOLINT
 {
-	Expression exp = Expression::operation(
+	auto exp = Expression::operation(
 			SourcePosition::unknown(),
 			Type::unknown(),
 			OperationKind::add,
-			Expression::constant(SourcePosition::unknown(), makeType<int>(), 0),
-			Expression::constant(SourcePosition::unknown(), makeType<int>(), 4));
+			llvm::ArrayRef({
+					Expression::constant(SourcePosition::unknown(), makeType<int>(), 0),
+					Expression::constant(SourcePosition::unknown(), makeType<int>(), 4)
+			}));
 
 	TypeChecker checker;
 
-	if (checker.run<Expression>(exp))
+	if (checker.run<Expression>(*exp))
 		FAIL();
 
-	EXPECT_EQ(exp.getType(), makeType<int>());
+	EXPECT_EQ(exp->getType(), makeType<int>());
 }
 
 TEST(TypeCheckTest, andOfBoolShouldProduceBool)	 // NOLINT
 {
-	Expression exp = Expression::operation(
+	auto exp = Expression::operation(
 			SourcePosition::unknown(),
 			Type::unknown(),
 			OperationKind::add,
-			Expression::constant(SourcePosition::unknown(), makeType<bool>(), true),
-			Expression::constant(SourcePosition::unknown(), makeType<bool>(), false));
+			llvm::ArrayRef({
+					Expression::constant(SourcePosition::unknown(), makeType<bool>(), true),
+					Expression::constant(SourcePosition::unknown(), makeType<bool>(), false)
+			}));
 
 	TypeChecker checker;
 
-	if (checker.run<Expression>(exp))
+	if (checker.run<Expression>(*exp))
 		FAIL();
 
-	EXPECT_EQ(exp.getType(), makeType<bool>());
+	EXPECT_EQ(exp->getType(), makeType<bool>());
 }
 
 /*
