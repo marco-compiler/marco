@@ -19,6 +19,14 @@ namespace modelica::frontend
 		template<class Derived>
 		struct Dumpable
 		{
+			Dumpable() = default;
+			Dumpable(const Dumpable& other) = default;
+			Dumpable(Dumpable&& other) = default;
+			virtual ~Dumpable() = default;
+
+			Dumpable& operator=(const Dumpable& other) = default;
+			Dumpable& operator=(Dumpable&& other) = default;
+
 			void dump() const
 			{
 				dump(llvm::outs(), 0);
