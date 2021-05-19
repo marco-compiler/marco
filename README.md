@@ -1,16 +1,96 @@
-# Modelica Compiler
+# MARCO - Modelica Advanced Research COmpiler
 
 *Cheatham's amendment of Conway's Law: If a group of N persons implements a [COBOL] compiler, there will be N-1 passes. Someone in the group has to be the manager.*
 
-## Installation:
-### Requirements:
-* Boost graph
+## Requirements
+### Boost graph
+```bash
 sudo apt install libboost-all-dev
-* LLVM-9.0.0 
-https://apt.llvm.org/
-### Optionals
-* doxigen to invoke the doc generation target
+```
+### LLVM & MLIR
+
+MLIR is not currently included in the prebuilt packages, and thus we need to build LLVM from scratch. We also need to select a specific commit, as MLIR is subject to fast changes and MARCO can be possibly not be yet compatible with the latest commits. 
+```bash
+git clone https://github.com/llvm/llvm-project.git
+cd llvm-project
+git checkout 753185031d939711f8733639a77a6fdc3bdbad22
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/install_path -DLLVM_USE_LINKER=gold -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_INSTALL_UTILS=True -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;libcxx;libcxxabi;mlir;openmp" ../llvm
+make install
+```
+
+## Optional requirements
+* doxygen to invoke the doc generation target
 * genhtml and lcov to get the coverage report.
+
+## Cloning
+[google-test](https://github.com/google/googletest/) is used as testing framework. Thus, a simple clone would not be sufficient:
+
+```bash
+git clone https://github.com/looms-polimi/marco.git
+cd marco
+git submodule update --recursive --init
+```
+
+## Building
+```bash
+cd marco
+mkdir build && cd build
+cmake -DLLVM_DIR=/llvm_install_path/lib/cmake/llvm -DMLIR_DIR=/llvm_install_path/lib/cmake/mlir ..
+make all
+```
+
+Once built, tests can be run with `make test`
+
+## Project structure
+The project is divided into tools and libs. Conceptually a lib does something and a tool lets you do the same things from command line.
+### Libraries structure
+No nested libs are allowed, and each lib must be placed in the ./lib folder. The reason for this choice is because dependencies are expressed with the cmake target_link_libraries command rather than with the position in the tree folder. Furthermore this allows for tools to autodetect which targets are available by just querying the subfolder names in lib. Should the need to visually check the library dependecies ever arise then use a cmake dependecy generator.
+
+A library must be composed of
+* A `CMakeLists.txt` file that invokes `modelicaAddLibrary`. It must be located in the root of the library: `./lib/libName/CMakeLists.txt`
+* An `include` folder. All the headers file in this folder will populate the public interface of this library.
+* A `src` folder. This folder can be structured in any way, since it is private. Private headers can be placed here.
+* A `test` folder. Read in the test section for further information
+
+#### The modelicaAddLibrary macro
+This macro behaves like CMake's `add_library`, but it also does the following:
+* Specify that the include directory is `pathToLib/include`
+* Create an alias for the library called `modelica::libName`
+* Set the language level to C++17
+* Select which and where files will be installed
+* Include the tests subfolder
+
+### Executables
+As is the case for libraries all executables must be placed in the top level of the tool folder. A tool is composed of the following:
+* folder located in ./tool/toolName that contains a CMakeLists.txt that invokes modelicaAddTool
+* a src folder that must contain a Main.cpp file
+* a test folder that can contain anything
+
+### The modelicaAddTool macro
+The modelica add tool macro accepts a name for the tool as first argument and the name of libraries the tool will be depending on. The macro will
+* Set the dependencies
+* Create an alias called modelica::toolName for the tool
+* set the language level to c++17
+* select what will be installed where
+* include the test subdirectory
+
+### Testing
+Each library and tool should include a `test` subfolder containing its tests. The `CMakeLists.txt` inside this folder can use the `modelicaAddTest` macro. If it does, then the `test` folder must contain a `src` subdirectory with the tests files.
+
+#### The addModelicaTest macro
+This macro takes the name of the executable that will contain the tests, it must be the name of the library itself. the postfix test will be added.
+all other arguments must be the path to the cpp file that will compose the body of the test.
+The macro will
+* create the executable
+* set were it must be installed.
+* set the language level
+* set a dependecy to the library with the same name
+
+After building the test can be found in buildfolder/lib/libName/test/libNameTest
+
+
+## Old README
 
 ### DEBUG DEPENDENCIES 
 Due to performance reasons llvm behaviour can be a lot different based upon the cmake flags used to compile llvm itself. If you require a debug build of this software read the following.
@@ -31,14 +111,6 @@ In llvm preconditions of fuctions are written as assertions. This is because req
 Notice that keeping separated multiple version of multiples types of llvm can be painfull. A trick is to never install llvm and to always provide the correct version to cmake. 
 
 ### Cloning
-We are using google-test as testing framework. Thus git clone is not enough, you must
-```bash
-git clone https://github.com/drblallo/modelica
-cd modelica
-git submodule update --recursive --init
-```
-It will clone this repo as well as all dependencies that we must built with modelica.
-
 #### Why is not boost graph a submodule as well?
 boost libraries have a special status within cmake. They are not build with cmake but cmake itself provide a way of searching them in the system when they are used as dependecies. They are not as easy as it is for google-test to make them work.
 
@@ -101,61 +173,8 @@ cpack -G ZIP
 ``` 
 It will produce a zip with debug and release libraries headers and tools
 
-## Project Structure
-The project is divided into tools and libs. Conceptually a lib does something and a tool lets you do the same things from command line.
-### Libraries Structure
-No nested lib are allowed, each lib must be placed in the ./lib folder. The reason for this choise is because dependencies are expressed with the cmake target_link_libraries command rather than with the position in the tree folder. Furthemore this allows for tools to autodetect which targets are avialable by just querying the subfolder names in lib. Should the need to visually check the library dependecies ever arise then use a cmake dependecy generator.
 
-A library must be composed of
-* A cmakelists.txt that invokes modelicaAddLibrary located in `./lib/libName/CMakeLists.txt`
-* a include folder. This folder must be called as the library name and must be locaed in `./lib/libName/include/modelica/libName/`. All headers file in this folder will populate the public interface of this library. The repetition of the libName is necessary so that user of a header can include it as `#include "modelica/libName/HeaderName.hpp"` . We did not placed the header folder in a standalone include directory common to all libraries because in this way we can prevent libraries that do not depend on a second library to include its files.
-* a src folder. Thid folder can be structured in any way, since it is private. Private headers can be placed here.
-* a test folder. Reader in the tests sections for further informations
 
-#### The modelicaAddLibraryMacro
-This macro behaves like add_library, except it does the following as well
-* Specifies that the include directory is pathToLib/include
-* creates an alias for the lib called modelica::libName
-* set the language level to c++17
-* select which things will be installed where
-* includes the test subfolder 
-
-## Executables
-As is the case for libraries all executables must be placed in the top level of the tool folder. A tool is composed of the following:
-* folder located in ./tool/toolName that contains a CMakeLists.txt that invokes modelicaAddTool
-* a src folder that must contain a Main.cpp file
-* a test folder that can contain anything
-
-### The modelicaAddTool Macro
-The modelica add tool macro accepts a name for the tool as first argument and the name of libraries the tool will be depending on. The macro will
-* Set the dependencies
-* Create an alias called modelica::toolName for the tool
-* set the language level to c++17
-* select what will be installed where
-* include the test subdirectory
-
-## Testing
-
-Each library and tool must include a test subdirectory. This subdirectory can use the modelicaAddTest macro. If it does then the folder must
-* add src subdirectory that will contain the cpp file populated with google tests
-* add a include directory that will be always private.
-
-### The addModelicaTest macro
-This macro will accepts the name of the executable that will contain the tests, it must be the name of the library itself. the postfix test will be added.
-all other arguments must be the path to the cpp file that will compose the body of the test.
-The macro will
-* create the executable
-* set were it must be installed.
-* set the language level
-* set a dependecy to the library with the same name
-
-After building the test can be found in buildfolder/lib/libName/test/libNameTest
-
-### Running tests
-All tests can be run with `make(ninja) test` after it has been built.
-
-### Continuous integration
-The github ci is currently broken because ubuntu 18.04 they are using is shipping with a llvm9 that is different from the 9.0.0 and cannot be purged away because their own apt is broken due to missing mesa packages. Once we move to llvm10 it will work again.
 
 ## An example of what can be done
 Once everything has been built and installed we can try the tools.
