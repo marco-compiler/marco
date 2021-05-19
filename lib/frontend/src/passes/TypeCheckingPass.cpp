@@ -257,6 +257,7 @@ llvm::Error TypeChecker::run<Model>(Class& cls)
 template<>
 llvm::Error TypeChecker::run<Package>(Class& cls)
 {
+	SymbolTableScope varScope(symbolTable);
 	auto* package = cls.get<Package>();
 
 	// Populate the symbol table
@@ -275,6 +276,7 @@ llvm::Error TypeChecker::run<Package>(Class& cls)
 template<>
 llvm::Error TypeChecker::run<Record>(Class& cls)
 {
+	SymbolTableScope varScope(symbolTable);
 	auto* record = cls.get<Record>();
 
 	// Populate the symbol table

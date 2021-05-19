@@ -589,7 +589,17 @@ void MLIRLowerer::lower<frontend::Model>(const Member& member)
 	{
 		auto values = lower<Expression>(*member.getStartOverload());
 		assert(values.size() == 1);
-		builder.create<AssignmentOp>(location, *values[0], destination);
+
+		if (auto pointerType = type.dyn_cast<PointerType>())
+		{
+			mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(pointerType.getElementType()));
+			builder.create<FillOp>(location, *values[0], destination);
+		}
+		else
+		{
+			mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(type));
+			builder.create<AssignmentOp>(location, *values[0], destination);
+		}
 	}
 	else
 	{
@@ -856,7 +866,6 @@ void MLIRLowerer::lower(const IfStatement& statement)
 void MLIRLowerer::lower(const ForStatement& statement)
 {
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
-
 	auto location = loc(statement.getLocation());
 
 	// Variable to be set when calling "break"
@@ -919,6 +928,7 @@ void MLIRLowerer::lower(const ForStatement& statement)
 
 void MLIRLowerer::lower(const WhileStatement& statement)
 {
+	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 	auto location = loc(statement.getLocation());
 
 	// Variable to be set when calling "break"

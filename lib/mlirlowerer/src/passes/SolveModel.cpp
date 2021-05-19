@@ -17,7 +17,7 @@ using namespace modelica;
 using namespace codegen;
 using namespace model;
 
-struct LoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
+struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 {
 	using mlir::OpRewritePattern<SimulationOp>::OpRewritePattern;
 
@@ -58,7 +58,7 @@ struct LoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 					auto originalArgument = op.body().getArgument(index);
 					auto newArgument = op.body().insertArgument(index + 1, value.getType().cast<PointerType>().toUnknownAllocationScope());
 
-					for (auto useIt = originalArgument.use_begin(); useIt != originalArgument.use_end();)
+					for (auto useIt = originalArgument.use_begin(), end = originalArgument.use_end(); useIt != end;)
 					{
 						auto& use = *useIt;
 						++useIt;
@@ -70,9 +70,16 @@ struct LoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 						{
 							auto forEquationOp = convertToForEquation(rewriter, equationOp.getLoc(), equationOp);
 							inductions[forEquationOp] = forEquationOp.body()->getArgument(0);
-							parentEquation = forEquationOp;
 						}
+					}
 
+					for (auto useIt = originalArgument.use_begin(), end = originalArgument.use_end(); useIt != end;)
+					{
+						auto& use = *useIt;
+						++useIt;
+						rewriter.setInsertionPoint(use.getOwner());
+
+						auto* parentEquation = use.getOwner()->getParentWithTrait<EquationInterface::Trait>();
 						auto forEquation = mlir::cast<ForEquationOp>(parentEquation);
 
 						if (inductions.find(forEquation) == inductions.end())
@@ -84,6 +91,8 @@ struct LoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 						else
 						{
 							mlir::Value i = inductions[forEquation];
+							rewriter.create<ConstantOp>(i.getLoc(), rewriter.getIndexAttr(23));
+							rewriter.create<ConstantOp>(i.getLoc(), rewriter.getIndexAttr(57));
 							i = rewriter.create<SubOp>(i.getLoc(), i.getType(), i, rewriter.create<ConstantOp>(i.getLoc(), rewriter.getIndexAttr(1)));
 							mlir::Value subscription = rewriter.create<SubscriptionOp>(use.get().getLoc(), newArgument, i);
 							use.set(subscription);
@@ -113,11 +122,15 @@ struct LoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 		}
 
 		// Replace operation with a new one
-		auto result = rewriter.replaceOpWithNewOp<SimulationOp>(op, op.startTime(), op.endTime(), op.timeStep(), op.body().getArgumentTypes());
+		auto result = rewriter.create<SimulationOp>(op->getLoc(), op.startTime(), op.endTime(), op.timeStep(), op.body().getArgumentTypes());
 		rewriter.mergeBlocks(&op.init().front(), &result.init().front(), result.init().getArguments());
 		rewriter.mergeBlocks(&op.body().front(), &result.body().front(), result.body().getArguments());
 		rewriter.mergeBlocks(&op.print().front(), &result.print().front(), result.print().getArguments());
 
+		//rewriter.setInsertionPointToStart(&result.body().front());
+		//rewriter.create<YieldOp>(op->getLoc());
+
+		rewriter.eraseOp(op);
 		return mlir::success();
 	}
 
@@ -139,6 +152,44 @@ struct LoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 
 		rewriter.eraseOp(equation);
 		return forEquation;
+	}
+};
+
+struct EquationOpLoopifyPattern : public mlir::OpRewritePattern<EquationOp>
+{
+	using mlir::OpRewritePattern<EquationOp>::OpRewritePattern;
+
+	mlir::LogicalResult matchAndRewrite(EquationOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op->getLoc();
+
+		auto forEquation = rewriter.create<ForEquationOp>(loc, 1);
+
+		// Inductions
+		rewriter.setInsertionPointToStart(forEquation.inductionsBlock());
+		mlir::Value induction = rewriter.create<InductionOp>(loc, 1, 1);
+		rewriter.create<YieldOp>(loc, induction);
+
+		// Body
+		rewriter.mergeBlocks(op.body(), forEquation.body());
+
+		forEquation.body()->walk([&](SubscriptionOp subscription) {
+			if (subscription.indexes().size() == 1)
+			{
+				auto index = subscription.indexes()[0].getDefiningOp<ConstantOp>();
+				auto indexValue = index.value().cast<IntegerAttribute>().getValue();
+				rewriter.setInsertionPoint(subscription);
+
+				mlir::Value newIndex = rewriter.create<AddOp>(
+						subscription->getLoc(), rewriter.getIndexType(), forEquation.induction(0),
+						rewriter.create<ConstantOp>(subscription->getLoc(), rewriter.getIndexAttr(indexValue - 1)));
+
+				rewriter.replaceOp(index, newIndex);
+			}
+		});
+
+		rewriter.eraseOp(op);
+		return mlir::success();
 	}
 };
 
@@ -831,8 +882,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			return true;
 		});
 
+		target.addIllegalOp<EquationOp>();
+
 		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<LoopifyPattern>(&getContext());
+		patterns.insert<SimulationOpLoopifyPattern, EquationOpLoopifyPattern>(&getContext());
+		patterns.insert<SimulationOpLoopifyPattern>(&getContext());
 
 		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
 			return status;

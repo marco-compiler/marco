@@ -242,7 +242,7 @@ void EquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 void EquationOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.equation";
-	printer.printRegion(*body()->getParent(), false);
+	printer.printRegion(getRegion(), false);
 }
 
 mlir::Block* EquationOp::body()
@@ -300,9 +300,9 @@ void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
 void ForEquationOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << "modelica.for_equation";
-	printer.printRegion(*inductionsBlock()->getParent(), false);
+	printer.printRegion(getRegion(0), false);
 	printer << " body";
-	printer.printRegion(*body()->getParent(), true);
+	printer.printRegion(getRegion(1), true);
 }
 
 mlir::LogicalResult ForEquationOp::verify()
