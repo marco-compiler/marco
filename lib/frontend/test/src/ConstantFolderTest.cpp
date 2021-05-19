@@ -156,7 +156,7 @@ TEST(folderTest, startDeclarationWithReference)	 // NOLINT
 
 	auto ast = parser.classDefinition();
 
-	if (!*ast)
+	if (!ast || !*ast)
 		FAIL();
 
 	ConstantFolder folder;

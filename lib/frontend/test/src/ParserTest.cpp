@@ -11,7 +11,7 @@ TEST(ParserTest, primaryIntTest)
 	Parser parser("4");
 	auto expression = parser.primary();
 
-	if (!*expression)
+	if (!expression || !*expression)
 		FAIL();
 
 	EXPECT_TRUE((*expression)->isa<Constant>());
@@ -23,7 +23,7 @@ TEST(ParserTest, primaryFloatTest)
 	Parser parser("4.0f");
 	auto expression = parser.primary();
 
-	if (!*expression)
+	if (!expression || !*expression)
 		FAIL();
 
 	EXPECT_TRUE((*expression)->isa<Constant>());
@@ -35,7 +35,7 @@ TEST(ParserTest, expressionTest)
 	Parser parser("4.0f");
 	auto expression = parser.expression();
 
-	if (!*expression)
+	if (!expression || !*expression)
 		FAIL();
 
 	EXPECT_TRUE((*expression)->isa<Constant>());
@@ -47,7 +47,7 @@ TEST(ParserTest, sumTest)
 	Parser parser("4.0 + 5.0");
 	auto expression = parser.arithmeticExpression();
 
-	if (!*expression)
+	if (!expression || !*expression)
 		FAIL();
 
 	EXPECT_TRUE((*expression)->isa<Operation>());
@@ -65,7 +65,7 @@ TEST(ParserTest, subTest)
 	Parser parser("4.0 - 5.0");
 	auto expression = parser.expression();
 
-	if (!*expression)
+	if (!expression || !*expression)
 		FAIL();
 
 	EXPECT_TRUE((*expression)->isa<Operation>());
@@ -84,7 +84,7 @@ TEST(ParserTest, andTest)
 	Parser parser("true and false");
 	auto expression = parser.expression();
 
-	if (!*expression)
+	if (!expression || !*expression)
 		FAIL();
 
 	EXPECT_TRUE((*expression)->isa<Operation>());
@@ -102,7 +102,7 @@ TEST(ParserTest, orTest)
 	Parser parser("true or false");
 	auto expression = parser.expression();
 
-	if (!expression)
+	if (!expression || !*expression)
 		FAIL();
 
 	EXPECT_TRUE((*expression)->isa<Operation>());
@@ -120,7 +120,7 @@ TEST(ParserTest, division)
 	Parser parser("4.0 / 5.0");
 	auto expression = parser.expression();
 
-	if (!*expression)
+	if (!expression || !*expression)
 		FAIL();
 
 	EXPECT_TRUE((*expression)->isa<Operation>());
@@ -138,7 +138,7 @@ TEST(ParserTest, equation)
 	Parser parser("4.0 / 5.0 = b * a");
 	auto expression = parser.equation();
 
-	if (!*expression)
+	if (!expression || !*expression)
 		FAIL();
 
 	EXPECT_TRUE((*expression)->getLhsExpression()->isa<Operation>());
@@ -150,7 +150,7 @@ TEST(ParserTest, classTest)
 	Parser parser("model example end example;");
 	auto cls = parser.classDefinition();
 
-	if (!*cls)
+	if (!cls || !*cls)
 		FAIL();
 
 	EXPECT_EQ((*cls)->get<Model>()->getName(), "example");
@@ -161,7 +161,7 @@ TEST(ParserTest, memberTest)
 	Parser parser("Real[10, 10] Qb(unit = \"W\")");
 	auto member = parser.element();
 
-	if (!*member)
+	if (!member || !*member)
 		FAIL();
 
 	EXPECT_FALSE((*member)->hasInitializer());
@@ -175,7 +175,7 @@ TEST(ParserTest, memberStartOverloadTest)
 	Parser parser("Real[10, 10] Qb(start = W)");
 	auto member = parser.element();
 
-	if (!*member)
+	if (!member || !*member)
 		FAIL();
 
 	EXPECT_FALSE((*member)->hasInitializer());
