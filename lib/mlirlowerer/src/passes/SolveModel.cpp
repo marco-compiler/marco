@@ -846,9 +846,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (failed(explicitateEquations(model)))
 				return signalPassFailure();
 
-			// Calculate the values that the state variables will have in the next
-			// iteration.
-			if (failed(updateStates(builder, model)))
+			// Select and use the solver
+			if (failed(selectSolver(builder, model)))
 				return signalPassFailure();
 		});
 
@@ -972,6 +971,19 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
+	mlir::LogicalResult selectSolver(mlir::OpBuilder& builder, Model& model)
+	{
+		if (options.solverName == ForwardEuler)
+			return updateStates(builder, model);
+		if (options.solverName == CleverDAE)
+			return addBltBlocks(builder, model);
+		return mlir::failure();
+	}
+
+	/**
+	 * Calculate the values that the state variables will have in the next
+	 * iteration.
+	 */
 	mlir::LogicalResult updateStates(mlir::OpBuilder& builder, Model& model)
 	{
 		mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1015,6 +1027,16 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		}
 
 		return mlir::success();
+	}
+
+	/**
+	 * This method transforms all differential equations and implicit equations
+	 * into BLT blocks within the model. Then the assigned model, ready for
+	 * lowering, is returned.
+	 */
+	mlir::LogicalResult addBltBlocks(mlir::OpBuilder& builder, Model& model)
+	{
+		assert(false && "To be implemented");
 	}
 
 	mlir::LogicalResult createSimulationFunctions()

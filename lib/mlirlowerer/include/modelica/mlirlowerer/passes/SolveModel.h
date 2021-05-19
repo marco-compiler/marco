@@ -4,11 +4,16 @@
 
 namespace modelica::codegen
 {
+	enum Solver {
+		ForwardEuler, CleverDAE
+	};
+
 	struct SolveModelOptions
 	{
 		bool emitMain = true;
 		int matchingMaxIterations = 1000;
 		int sccMaxIterations = 1000;
+		Solver solverName = ForwardEuler;
 
 		static const SolveModelOptions& getDefaultOptions() {
 			static SolveModelOptions options;
