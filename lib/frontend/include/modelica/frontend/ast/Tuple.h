@@ -64,7 +64,7 @@ namespace modelica::frontend
 		private:
 		friend class Expression;
 
-		Tuple(SourcePosition location,
+		Tuple(SourceRange location,
 					Type type,
 					llvm::ArrayRef<std::unique_ptr<Expression>> expressions = llvm::None);
 

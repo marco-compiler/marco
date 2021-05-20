@@ -2,7 +2,7 @@
 
 using namespace modelica::frontend;
 
-Modification::Modification(SourcePosition location,
+Modification::Modification(SourceRange location,
 													 std::unique_ptr<ClassModification> classModification)
 		: ASTNode(std::move(location)),
 			classModification(std::move(classModification)),
@@ -10,7 +10,7 @@ Modification::Modification(SourcePosition location,
 {
 }
 
-Modification::Modification(SourcePosition location,
+Modification::Modification(SourceRange location,
 													 std::unique_ptr<ClassModification> classModification,
 													 std::unique_ptr<Expression> expression)
 		: ASTNode(std::move(location)),
@@ -19,7 +19,7 @@ Modification::Modification(SourcePosition location,
 {
 }
 
-Modification::Modification(SourcePosition location,
+Modification::Modification(SourceRange location,
 													 std::unique_ptr<Expression> expression)
 		: ASTNode(std::move(location)),
 			classModification(llvm::None),
@@ -105,7 +105,7 @@ const Expression* Modification::getExpression() const
 	return expression->get();
 }
 
-ClassModification::ClassModification(SourcePosition location,
+ClassModification::ClassModification(SourceRange location,
 																		 llvm::ArrayRef<std::unique_ptr<Argument>> arguments)
 		: ASTNode(std::move(location))
 {
@@ -218,7 +218,7 @@ void Argument::print(llvm::raw_ostream& os, size_t indents) const
 	});
 }
 
-ElementModification::ElementModification(SourcePosition location,
+ElementModification::ElementModification(SourceRange location,
 																				 bool each,
 																				 bool final,
 																				 llvm::StringRef name,
@@ -231,7 +231,7 @@ ElementModification::ElementModification(SourcePosition location,
 {
 }
 
-ElementModification::ElementModification(SourcePosition location,
+ElementModification::ElementModification(SourceRange location,
 																				 bool each,
 																				 bool final,
 																				 llvm::StringRef name)
@@ -318,7 +318,7 @@ const Modification* ElementModification::getModification() const
 	return modification->get();
 }
 
-ElementReplaceable::ElementReplaceable(SourcePosition location)
+ElementReplaceable::ElementReplaceable(SourceRange location)
 		: ASTNode(std::move(location))
 {
 }
@@ -356,7 +356,7 @@ void ElementReplaceable::print(llvm::raw_ostream& os, size_t indents) const
 	// TODO
 }
 
-ElementRedeclaration::ElementRedeclaration(SourcePosition location)
+ElementRedeclaration::ElementRedeclaration(SourceRange location)
 		: ASTNode(std::move(location))
 {
 }

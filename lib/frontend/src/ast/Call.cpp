@@ -3,7 +3,7 @@
 
 using namespace modelica::frontend;
 
-Call::Call(SourcePosition location,
+Call::Call(SourceRange location,
 					 Type type,
 					 std::unique_ptr<Expression> function,
 					 llvm::ArrayRef<std::unique_ptr<Expression>> args)

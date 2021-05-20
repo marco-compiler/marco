@@ -4,7 +4,7 @@
 
 using namespace modelica::frontend;
 
-Array::Array(SourcePosition location,
+Array::Array(SourceRange location,
 						 Type type,
 						 llvm::ArrayRef<std::unique_ptr<Expression>> values)
 		: ASTNode(std::move(location)),

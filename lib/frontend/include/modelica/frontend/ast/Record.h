@@ -51,7 +51,7 @@ namespace modelica::frontend
 		private:
 		friend class Class;
 
-		Record(SourcePosition location,
+		Record(SourceRange location,
 					 llvm::StringRef name,
 					 llvm::ArrayRef<std::unique_ptr<Member>> members);
 

@@ -88,7 +88,7 @@ namespace modelica::frontend
 			return std::visit(visitor, content);
 		}
 
-		[[nodiscard]] SourcePosition getLocation() const;
+		[[nodiscard]] SourceRange getLocation() const;
 
 		[[nodiscard]] Type& getType();
 		[[nodiscard]] const Type& getType() const;
@@ -97,42 +97,42 @@ namespace modelica::frontend
 		[[nodiscard]] bool isLValue() const;
 
 		template<typename... Args>
-		[[nodiscard]] static std::unique_ptr<Expression> array(SourcePosition location, Type type, Args&&... args)
+		[[nodiscard]] static std::unique_ptr<Expression> array(SourceRange location, Type type, Args&&... args)
 		{
 			Array content(std::move(location), std::move(type), std::forward<Args>(args)...);
 			return std::unique_ptr<Expression>(new Expression(std::move(content)));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static std::unique_ptr<Expression> call(SourcePosition location, Type type, std::unique_ptr<Expression> function, Args&&... args)
+		[[nodiscard]] static std::unique_ptr<Expression> call(SourceRange location, Type type, std::unique_ptr<Expression> function, Args&&... args)
 		{
 			Call content(std::move(location), std::move(type), std::move(function), std::forward<Args>(args)...);
 			return std::unique_ptr<Expression>(new Expression(std::move(content)));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static std::unique_ptr<Expression> constant(SourcePosition location, Type type, Args&&... args)
+		[[nodiscard]] static std::unique_ptr<Expression> constant(SourceRange location, Type type, Args&&... args)
 		{
 			Constant content(std::move(location), std::move(type), std::forward<Args>(args)...);
 			return std::unique_ptr<Expression>(new Expression(std::move(content)));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static std::unique_ptr<Expression> reference(SourcePosition location, Type type, Args&&... args)
+		[[nodiscard]] static std::unique_ptr<Expression> reference(SourceRange location, Type type, Args&&... args)
 		{
 			ReferenceAccess content(std::move(location), std::move(type), std::forward<Args>(args)...);
 			return std::unique_ptr<Expression>(new Expression(std::move(content)));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static std::unique_ptr<Expression> operation(SourcePosition location, Type type, OperationKind kind, Args&&... args)
+		[[nodiscard]] static std::unique_ptr<Expression> operation(SourceRange location, Type type, OperationKind kind, Args&&... args)
 		{
 			Operation content(std::move(location), std::move(type), kind, std::forward<Args>(args)...);
 			return std::unique_ptr<Expression>(new Expression(std::move(content)));
 		}
 
 		template<typename... Args>
-		[[nodiscard]] static std::unique_ptr<Expression> tuple(SourcePosition location, Type type, Args&&... args)
+		[[nodiscard]] static std::unique_ptr<Expression> tuple(SourceRange location, Type type, Args&&... args)
 		{
 			Tuple content(std::move(location), std::move(type), std::forward<Args>(args)...);
 			return std::unique_ptr<Expression>(new Expression(std::move(content)));

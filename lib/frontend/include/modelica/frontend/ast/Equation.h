@@ -40,7 +40,7 @@ namespace modelica::frontend
 		void setRhsExpression(std::unique_ptr<Expression> expression);
 
 		private:
-		Equation(SourcePosition location,
+		Equation(SourceRange location,
 						 std::unique_ptr<Expression> lhs,
 						 std::unique_ptr<Expression> rhs);
 

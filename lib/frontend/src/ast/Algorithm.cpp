@@ -2,7 +2,7 @@
 
 using namespace modelica::frontend;
 
-Algorithm::Algorithm(SourcePosition location,
+Algorithm::Algorithm(SourceRange location,
 										 llvm::ArrayRef<std::unique_ptr<Statement>> statements)
 		: ASTNode(std::move(location))
 {
@@ -39,16 +39,6 @@ namespace modelica::frontend
 
 		std::swap(first.returnCheckName, second.returnCheckName);
 		impl::swap(first.statements, second.statements);
-
-		/*
-		Algorithm::Container<std::unique_ptr<Statement>> statementsTmp;
-
-		for (const auto& statement : first.statements)
-			statementsTmp.push_back(statement->cloneStatement());
-
-		first.statements = std::move(second.statements);
-		second.statements = std::move(statementsTmp);
-		 */
 	}
 }
 

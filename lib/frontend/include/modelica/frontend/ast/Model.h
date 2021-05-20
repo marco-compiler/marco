@@ -63,7 +63,7 @@ namespace modelica::frontend
 		private:
 		friend class Class;
 
-		Model(SourcePosition location,
+		Model(SourceRange location,
 					llvm::StringRef name,
 					llvm::ArrayRef<std::unique_ptr<Member>> members,
 					llvm::ArrayRef<std::unique_ptr<Equation>> equations,

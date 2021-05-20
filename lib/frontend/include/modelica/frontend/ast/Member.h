@@ -58,7 +58,7 @@ namespace modelica::frontend
 
 		private:
 		Member(
-				SourcePosition location,
+				SourceRange location,
 				llvm::StringRef name,
 				Type tp,
 				TypePrefix prefix,

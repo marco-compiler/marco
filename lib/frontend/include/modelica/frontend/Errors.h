@@ -11,6 +11,66 @@
 
 namespace modelica::frontend
 {
+	class AbstractMessage
+	{
+		public:
+		AbstractMessage() = default;
+		AbstractMessage(const AbstractMessage& other) = default;
+		AbstractMessage(AbstractMessage&& other) = default;
+
+		virtual ~AbstractMessage() = default;
+
+		AbstractMessage& operator=(const AbstractMessage& other) = default;
+		AbstractMessage& operator=(AbstractMessage&& other) = default;
+
+		[[nodiscard]] virtual SourceRange getLocation() const = 0;
+		virtual void printMessage(llvm::raw_ostream& os) const = 0;
+		[[nodiscard]] virtual std::function<void(llvm::raw_ostream&)> getFormatter() const = 0;
+
+		void print(llvm::raw_ostream& os) const
+		{
+			SourceRange location = getLocation();
+
+			os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+			os << *location.fileName << ":" << location.startLine << ":" << location.startColumn << ": ";
+
+			getFormatter()(os);
+			os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+			os << "error: ";
+			os.resetColor();
+
+			printMessage(os);
+			os << "\n";
+
+			location.printLines(os, getFormatter());
+		}
+	};
+
+	class ErrorMessage : public AbstractMessage
+	{
+		public:
+		[[nodiscard]] std::function<void (llvm::raw_ostream &)> getFormatter() const override
+		{
+			return [](llvm::raw_ostream& stream) {
+				stream.changeColor(llvm::raw_ostream::RED);
+			};
+		};
+	};
+
+	class WarningMessage : public AbstractMessage
+	{
+		public:
+		[[nodiscard]] std::function<void (llvm::raw_ostream &)> getFormatter() const override
+		{
+			return [](llvm::raw_ostream& stream) {
+				stream.changeColor(llvm::raw_ostream::YELLOW);
+			};
+		};
+	};
+}
+
+namespace modelica::frontend
+{
 	enum class ParserErrorCode
 	{
 		success = 0,
@@ -68,19 +128,18 @@ namespace modelica::frontend
 
 	std::error_condition make_error_condition(ParserErrorCode errc);
 
-	class UnexpectedToken : public llvm::ErrorInfo<UnexpectedToken>
+	class UnexpectedToken
+			: public ErrorMessage,
+				public llvm::ErrorInfo<UnexpectedToken>
 	{
 		public:
 		static char ID;
 
-		UnexpectedToken(llvm::StringRef file, Token received, SourceRange position)
-				: file(file.str()),
-					token(received),
-					position(std::move(position))
-		{
-		}
+		UnexpectedToken(SourceRange location, Token token);
 
-		[[nodiscard]] Token getToken() const { return token; }
+		[[nodiscard]] SourceRange getLocation() const override;
+
+		void printMessage(llvm::raw_ostream& os) const override;
 
 		void log(llvm::raw_ostream& os) const override;
 
@@ -92,25 +151,24 @@ namespace modelica::frontend
 		}
 
 		private:
-		std::string file;
+		SourceRange location;
 		Token token;
-		SourceRange position;
 	};
 
-	class UnexpectedIdentifier: public llvm::ErrorInfo<UnexpectedIdentifier>
+	class UnexpectedIdentifier
+			: public ErrorMessage,
+				public llvm::ErrorInfo<UnexpectedIdentifier>
 	{
 		public:
 		static char ID;
 
-		UnexpectedIdentifier(llvm::StringRef file, llvm::StringRef identifier, llvm::StringRef expected, SourceRange position)
-				: file(file.str()),
-					identifier(identifier.str()),
-					expected(expected.str()),
-					position(std::move(position))
-		{
-		}
+		UnexpectedIdentifier(SourceRange location, llvm::StringRef identifier, llvm::StringRef expected);
 
-		void log(llvm::raw_ostream& OS) const override;
+		[[nodiscard]] SourceRange getLocation() const override;
+
+		void printMessage(llvm::raw_ostream& os) const override;
+
+		void log(llvm::raw_ostream& os) const override;
 
 		[[nodiscard]] std::error_code convertToErrorCode() const override
 		{
@@ -120,10 +178,36 @@ namespace modelica::frontend
 		}
 
 		private:
-		std::string file;
+		SourceRange location;
 		std::string identifier;
 		std::string expected;
-		SourceRange position;
+	};
+
+	class BadSemantic
+			: public ErrorMessage,
+				public llvm::ErrorInfo<BadSemantic>
+	{
+		public:
+		static char ID;
+
+		BadSemantic(SourceRange location, llvm::StringRef message);
+
+		[[nodiscard]] SourceRange getLocation() const override;
+
+		void printMessage(llvm::raw_ostream& os) const override;
+
+		void log(llvm::raw_ostream& os) const override;
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(ParserErrorCode::bad_semantic),
+					ParserErrorCategory::category);
+		}
+
+		private:
+		SourceRange location;
+		std::string message;
 	};
 
 	class NotImplemented: public llvm::ErrorInfo<NotImplemented>
@@ -220,29 +304,6 @@ namespace modelica::frontend
 		{
 			return std::error_code(
 					static_cast<int>(ParserErrorCode::incompatible_type),
-					ParserErrorCategory::category);
-		}
-
-		private:
-		std::string mess;
-	};
-
-	/**
-	 * BadSemantic is used to signal that the element declaration
-	 * is incompatible with the rules defined by the language.
-	 */
-	class BadSemantic: public llvm::ErrorInfo<BadSemantic>
-	{
-		public:
-		static char ID;
-		BadSemantic(std::string message): mess(std::move(message)) {}
-
-		void log(llvm::raw_ostream& OS) const override { OS << mess; }
-
-		[[nodiscard]] std::error_code convertToErrorCode() const override
-		{
-			return std::error_code(
-					static_cast<int>(ParserErrorCode::bad_semantic),
 					ParserErrorCategory::category);
 		}
 

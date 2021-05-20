@@ -2,7 +2,7 @@
 
 using namespace modelica::frontend;
 
-Package::Package(SourcePosition location,
+Package::Package(SourceRange location,
 								 llvm::StringRef name,
 								 llvm::ArrayRef<std::unique_ptr<Class>> innerClasses)
 		: ASTNode(std::move(location)),

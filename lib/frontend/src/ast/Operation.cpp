@@ -57,7 +57,7 @@ namespace modelica::frontend
 }
 
 // TODO type
-Operation::Operation(SourcePosition location,
+Operation::Operation(SourceRange location,
 										 Type type,
 										 OperationKind kind,
 										 llvm::ArrayRef<std::unique_ptr<Expression>> args)

@@ -4,7 +4,7 @@ using namespace modelica;
 using namespace frontend;
 
 Member::Member(
-		SourcePosition location,
+		SourceRange location,
 		llvm::StringRef name,
 		Type tp,
 		TypePrefix typePrefix,

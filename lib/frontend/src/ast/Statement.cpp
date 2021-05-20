@@ -72,7 +72,7 @@ void Statement::print(llvm::raw_ostream &os, size_t indents) const
 	});
 }
 
-SourcePosition Statement::getLocation() const
+SourceRange Statement::getLocation() const
 {
 	return visit([](const auto& obj) {
 		return obj.getLocation();
@@ -99,7 +99,7 @@ Statement::assignments_const_iterator Statement::end() const
 	return assignments_const_iterator(this, nullptr);
 }
 
-AssignmentStatement::AssignmentStatement(SourcePosition location,
+AssignmentStatement::AssignmentStatement(SourceRange location,
 																				 std::unique_ptr<Expression> destinations,
 																				 std::unique_ptr<Expression> expression)
 		: ASTNode(std::move(location)),
@@ -190,7 +190,7 @@ const Expression* AssignmentStatement::getExpression() const
 	return expression.get();
 }
 
-IfStatement::IfStatement(SourcePosition location, llvm::ArrayRef<Block> blocks)
+IfStatement::IfStatement(SourceRange location, llvm::ArrayRef<Block> blocks)
 		: ASTNode(std::move(location)),
 			blocks(blocks.begin(), blocks.end())
 {
@@ -283,7 +283,7 @@ IfStatement::blocks_const_iterator IfStatement::end() const
 	return blocks.end();
 }
 
-ForStatement::ForStatement(SourcePosition location,
+ForStatement::ForStatement(SourceRange location,
 													 std::unique_ptr<Induction> induction,
                            llvm::ArrayRef<std::unique_ptr<Statement>> statements)
 		: ASTNode(std::move(location)),
@@ -428,7 +428,7 @@ ForStatement::statements_const_iterator ForStatement::end() const
 	return statements.end();
 }
 
-WhileStatement::WhileStatement(SourcePosition location,
+WhileStatement::WhileStatement(SourceRange location,
 															 std::unique_ptr<Expression> condition,
                                llvm::ArrayRef<std::unique_ptr<Statement>> body)
 		: ASTNode(std::move(location)),
@@ -520,7 +520,7 @@ void WhileStatement::setReturnCheckName(llvm::StringRef name)
 	this->returnCheckName = name.str();
 }
 
-WhenStatement::WhenStatement(SourcePosition location,
+WhenStatement::WhenStatement(SourceRange location,
 														 std::unique_ptr<Expression> condition,
 														 llvm::ArrayRef<std::unique_ptr<Statement>> body)
 		: ASTNode(std::move(location)),
@@ -561,7 +561,7 @@ void WhenStatement::print(llvm::raw_ostream& os, size_t indents) const
 {
 }
 
-BreakStatement::BreakStatement(SourcePosition location)
+BreakStatement::BreakStatement(SourceRange location)
 		: ASTNode(std::move(location))
 {
 }
@@ -600,7 +600,7 @@ void BreakStatement::print(llvm::raw_ostream& os, size_t indents) const
 	os << "break\n";
 }
 
-ReturnStatement::ReturnStatement(SourcePosition location)
+ReturnStatement::ReturnStatement(SourceRange location)
 		: ASTNode(std::move(location))
 {
 }

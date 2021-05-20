@@ -156,6 +156,11 @@ mlir::Location MLIRLowerer::loc(SourcePosition location)
 			location.column);
 }
 
+mlir::Location MLIRLowerer::loc(SourceRange location)
+{
+	return loc(location.getStartPosition());
+}
+
 llvm::Optional<mlir::ModuleOp> MLIRLowerer::run(llvm::ArrayRef<Class> classes)
 {
 	mlir::ModuleOp module = mlir::ModuleOp::create(builder.getUnknownLoc());

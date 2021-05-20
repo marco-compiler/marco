@@ -3,7 +3,7 @@
 using namespace modelica;
 using namespace modelica::frontend;
 
-ASTNode::ASTNode(SourcePosition location)
+ASTNode::ASTNode(SourceRange location)
 		: location(std::move(location))
 {
 }
@@ -35,7 +35,7 @@ namespace modelica::frontend
 	}
 }
 
-SourcePosition ASTNode::getLocation() const
+SourceRange ASTNode::getLocation() const
 {
 	return location;
 }

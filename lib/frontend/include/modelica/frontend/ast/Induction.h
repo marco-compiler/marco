@@ -51,7 +51,7 @@ namespace modelica::frontend
 		void setInductionIndex(size_t index);
 
 		private:
-		Induction(SourcePosition location,
+		Induction(SourceRange location,
 							llvm::StringRef inductionVariable,
 							std::unique_ptr<Expression> begin,
 							std::unique_ptr<Expression> end);

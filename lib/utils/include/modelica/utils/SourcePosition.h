@@ -33,6 +33,8 @@ namespace modelica
 								size_t startLine, size_t startColumn,
 								size_t endLine, size_t endColumn);
 
+		[[nodiscard]] static SourceRange unknown();
+
 		[[nodiscard]] SourcePosition getStartPosition() const;
 
 		void printLines(llvm::raw_ostream& os, std::function<void(llvm::raw_ostream&)> formatter) const;
@@ -45,6 +47,15 @@ namespace modelica
 
 		size_t endLine;
 		size_t endColumn;
+
+		private:
+		SourceRange(bool unknown,
+								llvm::StringRef fileName,
+								const char* source,
+								size_t startLine, size_t startColumn,
+								size_t endLine, size_t endColumn);
+
+		bool isUnknown;
 	};
 
 	llvm::raw_ostream& operator<<(

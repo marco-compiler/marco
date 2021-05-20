@@ -48,12 +48,12 @@ namespace modelica::frontend
 		 */
 		[[nodiscard]] bool isDummy() const;
 
-		static std::unique_ptr<Expression> dummy(SourcePosition location, Type type);
+		static std::unique_ptr<Expression> dummy(SourceRange location, Type type);
 
 		private:
 		friend class Expression;
 
-		ReferenceAccess(SourcePosition location,
+		ReferenceAccess(SourceRange location,
 										Type type,
 										llvm::StringRef name,
 										bool globalLookup = false,

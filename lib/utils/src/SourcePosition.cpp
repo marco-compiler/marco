@@ -31,18 +31,33 @@ SourceRange::SourceRange(llvm::StringRef fileName,
 												 const char* source,
 												 size_t startLine, size_t startColumn,
 												 size_t endLine, size_t endColumn)
+		: SourceRange(false, fileName, source, startLine, startColumn, endLine, endColumn)
+{
+}
+
+SourceRange::SourceRange(bool unknown,
+												 llvm::StringRef fileName,
+												 const char* source,
+												 size_t startLine, size_t startColumn,
+												 size_t endLine, size_t endColumn)
 		: fileName(std::make_shared<std::string>(fileName.str())),
 			source(source),
 			startLine(std::move(startLine)),
 			startColumn(std::move(startColumn)),
 			endLine(std::move(endLine)),
-			endColumn(std::move(endColumn))
+			endColumn(std::move(endColumn)),
+			isUnknown(unknown)
 {
 }
 
 SourcePosition SourceRange::getStartPosition() const
 {
 	return SourcePosition(*fileName, startLine, startColumn);
+}
+
+SourceRange SourceRange::unknown()
+{
+	return SourceRange(true, "-", nullptr, 0, 0, 0, 0);
 }
 
 template <class T>
@@ -119,6 +134,9 @@ static void printLine(llvm::raw_ostream& os,
 
 void SourceRange::printLines(llvm::raw_ostream& os, std::function<void(llvm::raw_ostream&)> formatter) const
 {
+	if (isUnknown)
+		return;
+
 	assert(startLine < endLine || (startLine == endLine && startColumn <= endColumn));
 
 	std::string_view sourceView(source);

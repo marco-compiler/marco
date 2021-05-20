@@ -55,7 +55,7 @@ namespace modelica::frontend
 	class ASTNode
 	{
 		public:
-		ASTNode(SourcePosition location);
+		ASTNode(SourceRange location);
 
 		ASTNode(const ASTNode& other);
 		ASTNode(ASTNode&& other);
@@ -67,9 +67,9 @@ namespace modelica::frontend
 
 		friend void swap(ASTNode& first, ASTNode& second);
 
-		[[nodiscard]] SourcePosition getLocation() const;
+		[[nodiscard]] SourceRange getLocation() const;
 
 		private:
-		SourcePosition location;
+		SourceRange location;
 	};
 }

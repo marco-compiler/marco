@@ -3,7 +3,7 @@
 
 using namespace modelica::frontend;
 
-Induction::Induction(SourcePosition location,
+Induction::Induction(SourceRange location,
 										 llvm::StringRef inductionVariable,
 										 std::unique_ptr<Expression> begin,
 										 std::unique_ptr<Expression> end)

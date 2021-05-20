@@ -2,42 +2,42 @@
 
 using namespace modelica::frontend;
 
-Constant::Constant(SourcePosition location, Type type, bool value)
+Constant::Constant(SourceRange location, Type type, bool value)
 		: ASTNode(std::move(location)),
 			type(std::move(type)),
 			value(value)
 {
 }
 
-Constant::Constant(SourcePosition location, Type type, int value)
+Constant::Constant(SourceRange location, Type type, int value)
 		: ASTNode(std::move(location)),
 			type(std::move(type)),
 			value(value)
 {
 }
 
-Constant::Constant(SourcePosition location, Type type, float value)
+Constant::Constant(SourceRange location, Type type, float value)
 		: ASTNode(std::move(location)),
 			type(std::move(type)),
 			value(value)
 {
 }
 
-Constant::Constant(SourcePosition location, Type type, double value)
+Constant::Constant(SourceRange location, Type type, double value)
 		: ASTNode(std::move(location)),
 			type(std::move(type)),
 			value(value)
 {
 }
 
-Constant::Constant(SourcePosition location, Type type, char value)
+Constant::Constant(SourceRange location, Type type, char value)
 		: ASTNode(std::move(location)),
 			type(std::move(type)),
 			value(value)
 {
 }
 
-Constant::Constant(SourcePosition location, Type type, std::string value)
+Constant::Constant(SourceRange location, Type type, std::string value)
 		: ASTNode(std::move(location)),
 			type(std::move(type)),
 			value(value)

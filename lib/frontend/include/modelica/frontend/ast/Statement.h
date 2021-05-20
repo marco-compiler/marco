@@ -49,7 +49,7 @@ namespace modelica::frontend
 		private:
 		friend class Statement;
 
-		AssignmentStatement(SourcePosition location,
+		AssignmentStatement(SourceRange location,
 												std::unique_ptr<Expression> destination,
 												std::unique_ptr<Expression> expression);
 
@@ -80,7 +80,7 @@ namespace modelica::frontend
 		private:
 		friend class Statement;
 
-		explicit BreakStatement(SourcePosition location);
+		explicit BreakStatement(SourceRange location);
 	};
 
 	class ForStatement
@@ -133,7 +133,7 @@ namespace modelica::frontend
 		private:
 		friend class Statement;
 
-		ForStatement(SourcePosition location,
+		ForStatement(SourceRange location,
 								 std::unique_ptr<Induction> induction,
 								 llvm::ArrayRef<std::unique_ptr<Statement>> statements);
 
@@ -185,7 +185,7 @@ namespace modelica::frontend
 		private:
 		friend class Statement;
 
-		IfStatement(SourcePosition location, llvm::ArrayRef<Block> blocks);
+		IfStatement(SourceRange location, llvm::ArrayRef<Block> blocks);
 
 		Container blocks;
 	};
@@ -212,7 +212,7 @@ namespace modelica::frontend
 		private:
 		friend class Statement;
 
-		explicit ReturnStatement(SourcePosition location);
+		explicit ReturnStatement(SourceRange location);
 
 		std::string returnCheckName;
 	};
@@ -237,7 +237,7 @@ namespace modelica::frontend
 		private:
 		friend class Statement;
 
-		WhenStatement(SourcePosition location,
+		WhenStatement(SourceRange location,
 									std::unique_ptr<Expression> condition,
 									llvm::ArrayRef<std::unique_ptr<Statement>> body);
 	};
@@ -271,7 +271,7 @@ namespace modelica::frontend
 		private:
 		friend class Statement;
 
-		WhileStatement(SourcePosition location,
+		WhileStatement(SourceRange location,
 									 std::unique_ptr<Expression> condition,
 									 llvm::ArrayRef<std::unique_ptr<Statement>> body);
 
@@ -541,7 +541,7 @@ namespace modelica::frontend
 			return std::visit(visitor, content);
 		}
 
-		[[nodiscard]] SourcePosition getLocation() const;
+		[[nodiscard]] SourceRange getLocation() const;
 
 		[[nodiscard]] assignments_iterator begin();
 		[[nodiscard]] assignments_const_iterator begin() const;

@@ -81,7 +81,8 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 
 		if (member->isPublic() && !member->isInput() && !member->isOutput())
 			return llvm::make_error<BadSemantic>(
-					"Public members of functions must be input or output variables");
+					member->getLocation(),
+					"public members of functions must be input or output variables");
 
 		// From Function reference:
 		// "Input formal parameters are read-only after being bound to the actual
@@ -90,7 +91,8 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 
 		if (member->isInput() && member->hasInitializer())
 			return llvm::make_error<BadSemantic>(
-					"Input variables can't receive a new value");
+					member->getLocation(),
+					"input variables can't receive a new value");
 
 		// Add type
 		if (member->isOutput())
@@ -111,7 +113,8 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 
 	if (algorithms.size() > 1)
 		return llvm::make_error<BadSemantic>(
-				"Functions can have at most one algorithm section");
+				function->getLocation(),
+				"functions can have at most one algorithm section");
 
 	// For now, functions can't have an external implementation and thus must
 	// have exactly one algorithm section. When external implementations will
@@ -152,13 +155,14 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 
 					if (symbolTable.count(name) == 0)
 						return llvm::make_error<NotImplemented>(
-								"Unknown variable name '" + name.str() + "'");
+								"unknown variable name '" + name.str() + "'");
 
 					const auto& member = symbolTable.lookup(name).get<Member>();
 
 					if (member->isInput())
 						return llvm::make_error<BadSemantic>(
-								"Input variable '" + name.str() + "' can't receive a new value");
+								assignment.getLocation(),
+								"input variable '" + name.str() + "' can't receive a new value");
 				}
 			}
 
@@ -187,6 +191,7 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 							name == "actualStream")
 					{
 						return llvm::make_error<BadSemantic>(
+								expression->getLocation(),
 								"'" + name.str() + "' is not allowed in procedural code");
 					}
 
@@ -309,7 +314,7 @@ llvm::Error TypeChecker::run(Equation& equation)
 	{
 		if (!rhsType.isA<PackedType>() ||
 		    lhsTuple->size() != rhsType.get<PackedType>().size())
-			return llvm::make_error<IncompatibleType>("Type dimension mismatch");
+			return llvm::make_error<IncompatibleType>("type dimension mismatch");
 	}
 
 	if (auto* lhsTuple = lhs->dyn_get<Tuple>())
@@ -700,6 +705,7 @@ llvm::Error TypeChecker::run<AssignmentStatement>(Statement& statement)
 
 		if (!destination->isLValue())
 			return llvm::make_error<BadSemantic>(
+					destination->getLocation(),
 					"Destinations of statements must be l-values");
 	}
 

@@ -2,7 +2,7 @@
 
 using namespace modelica::frontend;
 
-ReferenceAccess::ReferenceAccess(SourcePosition location,
+ReferenceAccess::ReferenceAccess(SourceRange location,
 																 Type type,
 																 llvm::StringRef name,
 																 bool globalLookup,
@@ -109,7 +109,7 @@ bool ReferenceAccess::isDummy() const
 	return dummyVar;
 }
 
-std::unique_ptr<Expression> ReferenceAccess::dummy(SourcePosition location, Type type)
+std::unique_ptr<Expression> ReferenceAccess::dummy(SourceRange location, Type type)
 {
 	return Expression::reference(location, type, "", false, true);
 }

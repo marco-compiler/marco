@@ -51,7 +51,7 @@ namespace modelica::frontend
 		[[nodiscard]] Equation* getEquation() const;
 
 		private:
-		ForEquation(SourcePosition location,
+		ForEquation(SourceRange location,
 								llvm::ArrayRef<std::unique_ptr<Induction>> inductions,
 								std::unique_ptr<Equation> equation);
 

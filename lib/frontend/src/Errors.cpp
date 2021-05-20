@@ -84,35 +84,46 @@ std::error_condition modelica::frontend::make_error_condition(ParserErrorCode er
 	}
 }
 
-void UnexpectedToken::log(llvm::raw_ostream& os) const
+UnexpectedToken::UnexpectedToken(SourceRange location, Token token)
+		: location(std::move(location)),
+			token(token)
 {
-	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
-	os << file << ": ";
+}
 
-	os.changeColor(llvm::raw_ostream::RED, true);
-	os << "error: ";
-	os.resetColor();
+SourceRange UnexpectedToken::getLocation() const
+{
+	return location;
+}
 
+void UnexpectedToken::printMessage(llvm::raw_ostream& os) const
+{
 	os << "unexpected token [";
 	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
 	os << token;
-	os.resetColor();
-	os << "]\n";
-
-	position.printLines(os, [](llvm::raw_ostream& stream) {
-		stream.changeColor(llvm::raw_ostream::RED);
-	});
+	os << "]";
 }
 
-void UnexpectedIdentifier::log(llvm::raw_ostream& os) const
+void UnexpectedToken::log(llvm::raw_ostream& os) const
 {
-	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
-	os << file << ": ";
+	print(os);
+}
 
-	os.changeColor(llvm::raw_ostream::RED, true);
-	os << "error: ";
-	os.resetColor();
+UnexpectedIdentifier::UnexpectedIdentifier(SourceRange location,
+																					 llvm::StringRef identifier,
+																					 llvm::StringRef expected)
+		: location(std::move(location)),
+			identifier(identifier.str()),
+			expected(expected.str())
+{
+}
 
+SourceRange UnexpectedIdentifier::getLocation() const
+{
+	return location;
+}
+
+void UnexpectedIdentifier::printMessage(llvm::raw_ostream& os) const
+{
 	os << "unexpected identifier \"";
 	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
 	os << identifier;
@@ -121,9 +132,31 @@ void UnexpectedIdentifier::log(llvm::raw_ostream& os) const
 	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
 	os << expected;
 	os.resetColor();
-	os << "\")\n";
+	os << "\")";
+}
 
-	position.printLines(os, [](llvm::raw_ostream& stream) {
-		stream.changeColor(llvm::raw_ostream::RED);
-	});
+void UnexpectedIdentifier::log(llvm::raw_ostream& os) const
+{
+	print(os);
+}
+
+BadSemantic::BadSemantic(SourceRange location, llvm::StringRef message)
+		: location(std::move(location)),
+			message(message.str())
+{
+}
+
+SourceRange BadSemantic::getLocation() const
+{
+	return location;
+}
+
+void BadSemantic::printMessage(llvm::raw_ostream& os) const
+{
+	os << message;
+}
+
+void BadSemantic::log(llvm::raw_ostream& os) const
+{
+	print(os);
 }

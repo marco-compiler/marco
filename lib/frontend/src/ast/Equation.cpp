@@ -2,7 +2,7 @@
 
 using namespace modelica::frontend;
 
-Equation::Equation(SourcePosition location,
+Equation::Equation(SourceRange location,
 									 std::unique_ptr<Expression> lhs,
 									 std::unique_ptr<Expression> rhs)
 		: ASTNode(std::move(location)),

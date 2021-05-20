@@ -185,6 +185,14 @@ namespace modelica::codegen
 		 */
 		mlir::Location loc(SourcePosition location);
 
+		/**
+		 * Helper to convert an AST location to a MLIR location.
+		 *
+		 * @param location frontend location
+		 * @return MLIR location
+		 */
+		mlir::Location loc(SourceRange location);
+
 		ModelicaOptions options;
 	};
 

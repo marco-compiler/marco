@@ -4,7 +4,7 @@
 
 using namespace modelica::frontend;
 
-Tuple::Tuple(SourcePosition location,
+Tuple::Tuple(SourceRange location,
 						 Type type,
 						 llvm::ArrayRef<std::unique_ptr<Expression>> expressions)
 		: ASTNode(std::move(location)),

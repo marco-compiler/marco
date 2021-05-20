@@ -3,7 +3,7 @@
 
 using namespace modelica::frontend;
 
-Record::Record(SourcePosition location,
+Record::Record(SourceRange location,
 							 llvm::StringRef name,
 							 llvm::ArrayRef<std::unique_ptr<Member>> members)
 		: ASTNode(std::move(location)),

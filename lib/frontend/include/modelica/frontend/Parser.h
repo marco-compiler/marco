@@ -36,16 +36,17 @@ namespace modelica::frontend
 		public:
 
 		template<typename T>
-		struct ValueWrapper
+		class ValueWrapper
 		{
-			ValueWrapper(SourceRange position, T value)
-					: position(std::move(position)), value(value)
+			public:
+			ValueWrapper(SourceRange location, T value)
+					: location(std::move(location)), value(value)
 			{
 			}
 
-			SourceRange getPosition()
+			SourceRange getLocation()
 			{
-				return position;
+				return location;
 			}
 
 			T& getValue()
@@ -58,7 +59,8 @@ namespace modelica::frontend
 				return value;
 			}
 
-			SourceRange position;
+			private:
+			SourceRange location;
 			T value;
 		};
 
@@ -69,7 +71,7 @@ namespace modelica::frontend
 		/**
 		 * Return the current position in the source stream.
 		 */
-		[[nodiscard]] SourcePosition getPosition() const;
+		[[nodiscard]] SourceRange getPosition() const;
 
 		[[nodiscard]] Token getCurrentToken() const;
 

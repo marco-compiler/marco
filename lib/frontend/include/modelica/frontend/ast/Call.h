@@ -66,7 +66,7 @@ namespace modelica::frontend
 		private:
 		friend class Expression;
 
-		Call(SourcePosition location,
+		Call(SourceRange location,
 				 Type type,
 				 std::unique_ptr<Expression> function,
 				 llvm::ArrayRef<std::unique_ptr<Expression>> args);

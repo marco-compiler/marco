@@ -87,12 +87,12 @@ namespace modelica::frontend
 		private:
 		friend class Expression;
 
-		Constant(SourcePosition location, Type type, bool val);
-		Constant(SourcePosition location, Type type, int val);
-		Constant(SourcePosition location, Type type, float val);
-		Constant(SourcePosition location, Type type, double val);
-		Constant(SourcePosition location, Type type, char val);
-		Constant(SourcePosition location, Type type, std::string val);
+		Constant(SourceRange location, Type type, bool val);
+		Constant(SourceRange location, Type type, int val);
+		Constant(SourceRange location, Type type, float val);
+		Constant(SourceRange location, Type type, double val);
+		Constant(SourceRange location, Type type, char val);
+		Constant(SourceRange location, Type type, std::string val);
 
 		Type type;
 		std::variant<bool, int, double, std::string> value;

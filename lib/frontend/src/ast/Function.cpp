@@ -4,7 +4,7 @@
 
 using namespace modelica::frontend;
 
-Function::Function(SourcePosition location,
+Function::Function(SourceRange location,
 									 bool pure,
 									 llvm::StringRef name,
 									 llvm::Optional<std::unique_ptr<Annotation>> annotation)
@@ -90,7 +90,7 @@ const Annotation* Function::getAnnotation() const
 	return annotation.getValue().get();
 }
 
-DerFunction::DerFunction(SourcePosition location,
+DerFunction::DerFunction(SourceRange location,
 												 bool pure,
 												 llvm::StringRef name,
 												 llvm::Optional<std::unique_ptr<Annotation>> annotation,
@@ -150,7 +150,7 @@ llvm::StringRef DerFunction::getArg() const
 	return arg;
 }
 
-StandardFunction::StandardFunction(SourcePosition location,
+StandardFunction::StandardFunction(SourceRange location,
 																	 bool pure,
 																	 llvm::StringRef name,
 																	 llvm::Optional<std::unique_ptr<Annotation>> annotation,

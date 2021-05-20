@@ -32,9 +32,9 @@ Parser::Parser(const char* source)
 	updateTokenSourceRange();
 }
 
-SourcePosition Parser::getPosition() const
+SourceRange Parser::getPosition() const
 {
-	return SourcePosition(filename, lexer.getCurrentLine(), lexer.getCurrentColumn());
+	return tokenRange;
 }
 
 Token Parser::getCurrentToken() const { return current; }
@@ -61,7 +61,7 @@ llvm::Expected<bool> Parser::expect(Token t)
 	if (accept(t))
 		return true;
 
-	return llvm::make_error<UnexpectedToken>(filename, current, tokenRange);
+	return llvm::make_error<UnexpectedToken>(tokenRange, current);
 }
 
 void Parser::updateTokenSourceRange()
@@ -247,7 +247,8 @@ llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
 		TRY(endName, identifier());
 
 		if (name->getValue() != endName->getValue())
-			return llvm::make_error<UnexpectedIdentifier>(filename, endName->getValue(), name->getValue(), endName->getPosition());
+			return llvm::make_error<UnexpectedIdentifier>(
+					endName->getLocation(), endName->getValue(), name->getValue());
 
 		EXPECT(Token::Semicolons);
 
@@ -271,7 +272,7 @@ llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
 	}
 
 	if (classes.size() != 1)
-		return Class::package(SourcePosition::unknown(), "Main", classes);
+		return Class::package(SourceRange::unknown(), "Main", classes);
 
 	assert(classes.size() == 1);
 	return std::move(classes[0]);
@@ -297,13 +298,10 @@ llvm::Error Parser::elementList(llvm::SmallVectorImpl<std::unique_ptr<Member>>& 
 
 llvm::Expected<std::unique_ptr<Member>> Parser::element(bool publicSection)
 {
-	auto loc = getPosition();
-
 	accept<Token::FinalKeyword>();
 	TRY(prefix, typePrefix());
 	TRY(type, typeSpecifier());
-	std::string name = lexer.getLastIdentifier();
-	EXPECT(Token::Ident);
+	TRY(name, identifier());
 
 	llvm::Optional<std::unique_ptr<Expression>> startOverload;
 
@@ -320,13 +318,14 @@ llvm::Expected<std::unique_ptr<Member>> Parser::element(bool publicSection)
 		TRY(init, expression());
 
 		accept<Token::String>();
-		return Member::build(std::move(loc), name, std::move(*type), std::move(*prefix), std::move(*init), publicSection);
+		return Member::build(
+				name->getLocation(), name->getValue(), std::move(*type), std::move(*prefix), std::move(*init), publicSection);
 	}
 
 	accept<Token::String>();
 
 	return Member::build(
-			std::move(loc), name, std::move(*type), std::move(*prefix), llvm::None, publicSection,
+			name->getLocation(), name->getValue(), std::move(*type), std::move(*prefix), llvm::None, publicSection,
 			startOverload.hasValue() ? llvm::Optional(std::move(*startOverload)) : llvm::None);
 }
 
@@ -1077,7 +1076,7 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::primary()
 		return Expression::call(std::move(location), Type::unknown(), std::move(*exp), args);
 	}
 
-	return llvm::make_error<UnexpectedToken>(filename, current, tokenRange);
+	return llvm::make_error<UnexpectedToken>(tokenRange, current);
 }
 
 llvm::Expected<std::unique_ptr<Expression>> Parser::componentReference()

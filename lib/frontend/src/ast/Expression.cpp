@@ -77,7 +77,7 @@ bool Expression::operator!=(const Expression& rhs) const
 	return !(rhs == *this);
 }
 
-SourcePosition Expression::getLocation() const
+SourceRange Expression::getLocation() const
 {
 	return visit([](const auto& obj) {
 		return obj.getLocation();

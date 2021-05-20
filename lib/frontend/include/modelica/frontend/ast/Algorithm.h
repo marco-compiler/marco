@@ -60,7 +60,7 @@ namespace modelica::frontend
 		[[nodiscard]] statements_const_iterator end() const;
 
 		private:
-		Algorithm(SourcePosition location,
+		Algorithm(SourceRange location,
 							llvm::ArrayRef<std::unique_ptr<Statement>> statements);
 
 		std::string returnCheckName;

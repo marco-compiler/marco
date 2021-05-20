@@ -97,7 +97,7 @@ namespace modelica::frontend
 		private:
 		friend class Expression;
 
-		Operation(SourcePosition location,
+		Operation(SourceRange location,
 							Type type,
 							OperationKind kind,
 							llvm::ArrayRef<std::unique_ptr<Expression>> args);

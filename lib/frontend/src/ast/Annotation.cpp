@@ -3,12 +3,12 @@
 
 using namespace modelica::frontend;
 
-Annotation::Annotation(SourcePosition location)
+Annotation::Annotation(SourceRange location)
 		: ASTNode(std::move(location))
 {
 }
 
-Annotation::Annotation(SourcePosition location,
+Annotation::Annotation(SourceRange location,
 											 std::unique_ptr<ClassModification> properties)
 		: ASTNode(std::move(location)),
 			properties(std::move(properties))

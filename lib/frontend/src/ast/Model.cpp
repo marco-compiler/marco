@@ -2,7 +2,7 @@
 
 using namespace modelica::frontend;
 
-Model::Model(SourcePosition location,
+Model::Model(SourceRange location,
 						 llvm::StringRef name,
 						 llvm::ArrayRef<std::unique_ptr<Member>> members,
 						 llvm::ArrayRef<std::unique_ptr<Equation>> equations,

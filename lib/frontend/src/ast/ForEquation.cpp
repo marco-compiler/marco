@@ -4,7 +4,7 @@
 
 using namespace modelica::frontend;
 
-ForEquation::ForEquation(SourcePosition location,
+ForEquation::ForEquation(SourceRange location,
 												 llvm::ArrayRef<std::unique_ptr<Induction>> inductions,
 												 std::unique_ptr<Equation> equation)
 		: ASTNode(std::move(location)),

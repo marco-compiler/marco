@@ -48,14 +48,14 @@ namespace modelica::frontend
 		[[nodiscard]] const Expression* getExpression() const;
 
 		private:
-		Modification(SourcePosition location,
+		Modification(SourceRange location,
 								 std::unique_ptr<ClassModification> classModification);
 
-		Modification(SourcePosition location,
+		Modification(SourceRange location,
 								 std::unique_ptr<ClassModification> classModification,
 								 std::unique_ptr<Expression> expression);
 
-		Modification(SourcePosition location,
+		Modification(SourceRange location,
 								 std::unique_ptr<Expression> expression);
 
 		llvm::Optional<std::unique_ptr<ClassModification>> classModification;
@@ -98,7 +98,7 @@ namespace modelica::frontend
 		[[nodiscard]] const_iterator end() const;
 
 		private:
-		ClassModification(SourcePosition location,
+		ClassModification(SourceRange location,
 											llvm::ArrayRef<std::unique_ptr<Argument>> arguments = llvm::None);
 
 		Container<std::unique_ptr<Argument>> arguments;
@@ -132,13 +132,13 @@ namespace modelica::frontend
 		private:
 		friend class Argument;
 
-		ElementModification(SourcePosition location,
+		ElementModification(SourceRange location,
 												bool each,
 												bool final,
 												llvm::StringRef name,
 												std::unique_ptr<Modification> modification);
 
-		ElementModification(SourcePosition location,
+		ElementModification(SourceRange location,
 												bool each,
 												bool final,
 												llvm::StringRef name);
@@ -169,7 +169,7 @@ namespace modelica::frontend
 		private:
 		friend class Argument;
 
-		explicit ElementReplaceable(SourcePosition location);
+		explicit ElementReplaceable(SourceRange location);
 	};
 
 	// TODO: ElementRedeclaration
@@ -192,7 +192,7 @@ namespace modelica::frontend
 		private:
 		friend class Argument;
 
-		explicit ElementRedeclaration(SourcePosition location);
+		explicit ElementRedeclaration(SourceRange location);
 	};
 
 	class Argument

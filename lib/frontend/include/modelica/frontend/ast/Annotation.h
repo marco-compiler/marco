@@ -13,8 +13,8 @@ namespace modelica::frontend
 				public impl::Dumpable<Annotation>
 	{
 		public:
-		explicit Annotation(SourcePosition location);
-		Annotation(SourcePosition location, std::unique_ptr<ClassModification> properties);
+		explicit Annotation(SourceRange location);
+		Annotation(SourceRange location, std::unique_ptr<ClassModification> properties);
 
 		Annotation(const Annotation& other);
 		Annotation(Annotation&& other);

@@ -49,7 +49,7 @@ namespace modelica::frontend
 		private:
 		friend class Class;
 
-		Package(SourcePosition location,
+		Package(SourceRange location,
 						llvm::StringRef name,
 						llvm::ArrayRef<std::unique_ptr<Class>> innerClasses);
 

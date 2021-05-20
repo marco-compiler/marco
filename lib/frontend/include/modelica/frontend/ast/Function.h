@@ -18,7 +18,7 @@ namespace modelica::frontend
 	class Function : public ASTNode
 	{
 		public:
-		Function(SourcePosition location,
+		Function(SourceRange location,
 						 bool pure,
 						 llvm::StringRef name,
 						 llvm::Optional<std::unique_ptr<Annotation>> annotation);
@@ -69,7 +69,7 @@ namespace modelica::frontend
 		private:
 		friend class Class;
 
-		DerFunction(SourcePosition location,
+		DerFunction(SourceRange location,
 								bool pure,
 								llvm::StringRef name,
 								llvm::Optional<std::unique_ptr<Annotation>> annotation,
@@ -121,7 +121,7 @@ namespace modelica::frontend
 		private:
 		friend class Class;
 
-		StandardFunction(SourcePosition location,
+		StandardFunction(SourceRange location,
 										 bool pure,
 										 llvm::StringRef name,
 										 llvm::Optional<std::unique_ptr<Annotation>> annotation,
