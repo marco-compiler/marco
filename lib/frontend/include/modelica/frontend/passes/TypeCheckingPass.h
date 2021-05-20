@@ -5,6 +5,7 @@
 #include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Error.h>
 #include <memory>
+#include <modelica/frontend/Errors.h>
 #include <modelica/frontend/Pass.h>
 #include <modelica/frontend/Symbol.hpp>
 
@@ -146,4 +147,104 @@ namespace modelica::frontend
 	llvm::Error TypeChecker::run<WhileStatement>(Statement& statement);
 
 	std::unique_ptr<Pass> createTypeCheckingPass();
+}
+
+namespace modelica::frontend::detail
+{
+	enum class TypeCheckingErrorCode
+	{
+		success = 0,
+		bad_semantic,
+		not_found
+	};
+}
+
+namespace std
+{
+	template<>
+	struct is_error_condition_enum<modelica::frontend::detail::TypeCheckingErrorCode>
+			: public std::true_type
+	{
+	};
+}
+
+namespace modelica::frontend
+{
+	namespace detail
+	{
+		class TypeCheckingErrorCategory: public std::error_category
+		{
+			public:
+			static TypeCheckingErrorCategory category;
+
+			[[nodiscard]] std::error_condition default_error_condition(int ev) const
+			noexcept override;
+
+			[[nodiscard]] const char* name() const noexcept override
+			{
+				return "Type checking error";
+			}
+
+			[[nodiscard]] bool equivalent(
+					const std::error_code& code, int condition) const noexcept override;
+
+			[[nodiscard]] std::string message(int ev) const noexcept override;
+		};
+
+		std::error_condition make_error_condition(TypeCheckingErrorCode errc);
+	}
+
+	class BadSemantic
+			: public ErrorMessage,
+				public llvm::ErrorInfo<BadSemantic>
+	{
+		public:
+		static char ID;
+
+		BadSemantic(SourceRange location, llvm::StringRef message);
+
+		[[nodiscard]] SourceRange getLocation() const override;
+
+		void printMessage(llvm::raw_ostream& os) const override;
+
+		void log(llvm::raw_ostream& os) const override;
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(detail::TypeCheckingErrorCode::bad_semantic),
+					detail::TypeCheckingErrorCategory::category);
+		}
+
+		private:
+		SourceRange location;
+		std::string message;
+	};
+
+	class NotFound
+			: public ErrorMessage,
+				public llvm::ErrorInfo<NotFound>
+	{
+		public:
+		static char ID;
+
+		NotFound(SourceRange location, llvm::StringRef variableName);
+
+		[[nodiscard]] SourceRange getLocation() const override;
+
+		void printMessage(llvm::raw_ostream& os) const override;
+
+		void log(llvm::raw_ostream& os) const override;
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(detail::TypeCheckingErrorCode::not_found),
+					detail::TypeCheckingErrorCategory::category);
+		}
+
+		private:
+		SourceRange location;
+		std::string variableName;
+	};
 }

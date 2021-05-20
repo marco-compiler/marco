@@ -9,7 +9,6 @@ modelicaAddTest(
         src/FunctionTest.cpp
         src/LexerStateMachineTest.cpp
         src/ParserTest.cpp
-        src/ParserErrorsTest.cpp
         src/ParserEquationTest.cpp
         src/ParserClassTest.cpp
         src/RecordTest.cpp

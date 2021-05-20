@@ -3,160 +3,115 @@
 using namespace modelica;
 using namespace modelica::frontend;
 
-ParserErrorCategory ParserErrorCategory::category;
-char UnexpectedToken::ID;
-char UnexpectedIdentifier::ID;
-char NotImplemented::ID;
-char ChoiseNotFound::ID;
-char IncompatibleType::ID;
-char BranchesTypeDoNotMatch::ID;
-char EmptyList::ID;
-char BadSemantic::ID;
+AbstractMessage::AbstractMessage() = default;
+AbstractMessage::AbstractMessage(const AbstractMessage& other) = default;
+AbstractMessage::AbstractMessage(AbstractMessage&& other) = default;
 
-std::error_condition modelica::frontend::make_error_condition(ParserErrorCode errc)
+AbstractMessage::~AbstractMessage() = default;
+
+AbstractMessage& AbstractMessage::operator=(const AbstractMessage& other) = default;
+AbstractMessage& AbstractMessage::operator=(AbstractMessage&& other) = default;
+
+void AbstractMessage::print(llvm::raw_ostream& os) const
 {
-	return std::error_condition(
-			static_cast<int>(errc), ParserErrorCategory::category);
+	SourceRange location = getLocation();
+
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << *location.fileName << ":" << location.startLine << ":" << location.startColumn << ": ";
+
+	getFormatter()(os);
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << "error: ";
+	os.resetColor();
+
+	printMessage(os);
+	os << "\n";
+
+	location.printLines(os, getFormatter());
 }
 
-/**
- * This is required by std::error, just add a line every time you need to
- * create a new error type.
- */
-[[nodiscard]] std::error_condition ParserErrorCategory::default_error_condition(
-		int ev) const noexcept
+std::function<void (llvm::raw_ostream &)> ErrorMessage::getFormatter() const
 {
-	if (ev == 0)
-		return std::error_condition(ParserErrorCode::success);
-	if (ev == 1)
-		return std::error_condition(ParserErrorCode::not_implemented);
-	if (ev == 2)
-		return std::error_condition(ParserErrorCode::unexpected_token);
-	if (ev == 3)
-		return std::error_condition(ParserErrorCode::choise_not_found);
-	if (ev == 4)
-		return std::error_condition(ParserErrorCode::branches_types_do_not_match);
-	if (ev == 5)
-		return std::error_condition(ParserErrorCode::incompatible_type);
-	if (ev == 6)
-		return std::error_condition(ParserErrorCode::empty_list);
-	if (ev == 7)
-		return std::error_condition(ParserErrorCode::bad_semantic);
+	return [](llvm::raw_ostream& stream) {
+		stream.changeColor(llvm::raw_ostream::RED);
+	};
+};
 
-	return std::error_condition(ParserErrorCode::unexpected_token);
-}
-
-[[nodiscard]] bool ParserErrorCategory::equivalent(
-		const std::error_code& code, int condition) const noexcept
+std::function<void (llvm::raw_ostream &)> WarningMessage::getFormatter() const
 {
-	bool equal = *this == code.category();
-	auto v = default_error_condition(code.value()).value();
-	equal = equal && static_cast<int>(v) == condition;
-	return equal;
-}
+	return [](llvm::raw_ostream& stream) {
+		stream.changeColor(llvm::raw_ostream::YELLOW);
+	};
+};
 
-/**
- * Decides the messaged based upon the type.
- * This is done for compatibility with std::error, but when writing
- * tools code you should report error with ExitOnError and that will use
- * the string provided by the class extending ErrorInfo.
- */
-[[nodiscard]] std::string ParserErrorCategory::message(int ev) const noexcept
+namespace modelica::frontend::detail
 {
-	switch (ev)
+	GenericErrorCategory GenericErrorCategory::category;
+
+	std::error_condition GenericErrorCategory::default_error_condition(int ev) const noexcept
 	{
-		case (0):
-			return "Success";
-		case (1):
-			return "Not Implemented";
-		case (2):
-			return "Unexpected Token";
-		case (3):
-			return "Choise Not Found";
-		case (4):
-			return "If else branches type do not match";
-		case (5):
-			return "Expression type is incompatible";
-		case (6):
-			return "List was empty when expected not";
-		default:
-			return "Unknown Error";
+		if (ev == 1)
+			return std::error_condition(GenericErrorCode::not_implemented);
+
+		if (ev == 2)
+			return std::error_condition(GenericErrorCode::choice_not_found);
+
+		if (ev == 3)
+			return std::error_condition(GenericErrorCode::empty_list);
+
+		if (ev == 4)
+			return std::error_condition(GenericErrorCode::branches_types_do_not_match);
+
+		if (ev == 5)
+			return std::error_condition(GenericErrorCode::incompatible_type);
+
+		return std::error_condition(GenericErrorCode::success);
+	}
+
+	bool GenericErrorCategory::equivalent(const std::error_code& code, int condition) const noexcept
+	{
+		bool equal = *this == code.category();
+		auto v = default_error_condition(code.value()).value();
+		equal = equal && static_cast<int>(v) == condition;
+		return equal;
+	}
+
+	std::string GenericErrorCategory::message(int ev) const noexcept
+	{
+		switch (ev)
+		{
+			case (0):
+				return "Success";
+
+			case (1):
+				return "Not implemented";
+
+			case (2):
+				return "Choice not found";
+
+			case (3):
+				return "Empty list";
+
+			case (4):
+				return "Branches types do not match";
+
+			case (5):
+				return "Incompatible type";
+
+			default:
+				return "Unknown Error";
+		}
+	}
+
+	std::error_condition make_error_condition(GenericErrorCode errc)
+	{
+		return std::error_condition(
+				static_cast<int>(errc), detail::GenericErrorCategory::category);
 	}
 }
 
-UnexpectedToken::UnexpectedToken(SourceRange location, Token token)
-		: location(std::move(location)),
-			token(token)
-{
-}
-
-SourceRange UnexpectedToken::getLocation() const
-{
-	return location;
-}
-
-void UnexpectedToken::printMessage(llvm::raw_ostream& os) const
-{
-	os << "unexpected token [";
-	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
-	os << token;
-	os << "]";
-}
-
-void UnexpectedToken::log(llvm::raw_ostream& os) const
-{
-	print(os);
-}
-
-UnexpectedIdentifier::UnexpectedIdentifier(SourceRange location,
-																					 llvm::StringRef identifier,
-																					 llvm::StringRef expected)
-		: location(std::move(location)),
-			identifier(identifier.str()),
-			expected(expected.str())
-{
-}
-
-SourceRange UnexpectedIdentifier::getLocation() const
-{
-	return location;
-}
-
-void UnexpectedIdentifier::printMessage(llvm::raw_ostream& os) const
-{
-	os << "unexpected identifier \"";
-	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
-	os << identifier;
-	os.resetColor();
-	os << "\" (expected: \"";
-	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
-	os << expected;
-	os.resetColor();
-	os << "\")";
-}
-
-void UnexpectedIdentifier::log(llvm::raw_ostream& os) const
-{
-	print(os);
-}
-
-BadSemantic::BadSemantic(SourceRange location, llvm::StringRef message)
-		: location(std::move(location)),
-			message(message.str())
-{
-}
-
-SourceRange BadSemantic::getLocation() const
-{
-	return location;
-}
-
-void BadSemantic::printMessage(llvm::raw_ostream& os) const
-{
-	os << message;
-}
-
-void BadSemantic::log(llvm::raw_ostream& os) const
-{
-	print(os);
-}
+char NotImplemented::ID;
+char ChoiceNotFound::ID;
+char EmptyList::ID;
+char BranchesTypeDoNotMatch::ID;
+char IncompatibleType::ID;

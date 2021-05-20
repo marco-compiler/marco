@@ -1310,3 +1310,110 @@ llvm::Expected<std::unique_ptr<Argument>> Parser::elementReplaceable(bool each, 
 {
 	return llvm::make_error<NotImplemented>("element-replaceable not implemented yet");
 }
+
+namespace modelica::frontend::detail
+{
+	ParsingErrorCategory ParsingErrorCategory::category;
+
+	std::error_condition ParsingErrorCategory::default_error_condition(int ev) const noexcept
+	{
+		if (ev == 1)
+			return std::error_condition(ParsingErrorCode::unexpected_token);
+
+		if (ev == 2)
+			return std::error_condition(ParsingErrorCode::unexpected_identifier);
+
+		return std::error_condition(ParsingErrorCode::success);
+	}
+
+	bool ParsingErrorCategory::equivalent(const std::error_code& code, int condition) const noexcept
+	{
+		bool equal = *this == code.category();
+		auto v = default_error_condition(code.value()).value();
+		equal = equal && static_cast<int>(v) == condition;
+		return equal;
+	}
+
+	std::string ParsingErrorCategory::message(int ev) const noexcept
+	{
+		switch (ev)
+		{
+			case (0):
+				return "Success";
+
+			case (1):
+				return "Unexpected Token";
+
+			case (2):
+				return "Unexpected identifier";
+
+			default:
+				return "Unknown Error";
+		}
+	}
+
+	std::error_condition make_error_condition(ParsingErrorCode errc)
+	{
+		return std::error_condition(
+				static_cast<int>(errc), detail::ParsingErrorCategory::category);
+	}
+}
+
+char UnexpectedToken::ID;
+char UnexpectedIdentifier::ID;
+
+UnexpectedToken::UnexpectedToken(SourceRange location, Token token)
+		: location(std::move(location)),
+			token(token)
+{
+}
+
+SourceRange UnexpectedToken::getLocation() const
+{
+	return location;
+}
+
+void UnexpectedToken::printMessage(llvm::raw_ostream& os) const
+{
+	os << "unexpected token [";
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << token;
+	os << "]";
+}
+
+void UnexpectedToken::log(llvm::raw_ostream& os) const
+{
+	print(os);
+}
+
+UnexpectedIdentifier::UnexpectedIdentifier(SourceRange location,
+																					 llvm::StringRef identifier,
+																					 llvm::StringRef expected)
+		: location(std::move(location)),
+			identifier(identifier.str()),
+			expected(expected.str())
+{
+}
+
+SourceRange UnexpectedIdentifier::getLocation() const
+{
+	return location;
+}
+
+void UnexpectedIdentifier::printMessage(llvm::raw_ostream& os) const
+{
+	os << "unexpected identifier \"";
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << identifier;
+	os.resetColor();
+	os << "\" (expected: \"";
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << expected;
+	os.resetColor();
+	os << "\")";
+}
+
+void UnexpectedIdentifier::log(llvm::raw_ostream& os) const
+{
+	print(os);
+}

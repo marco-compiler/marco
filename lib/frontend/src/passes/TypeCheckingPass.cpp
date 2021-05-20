@@ -154,8 +154,7 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 					const auto& name = ref->getName();
 
 					if (symbolTable.count(name) == 0)
-						return llvm::make_error<NotImplemented>(
-								"unknown variable name '" + name.str() + "'");
+						return llvm::make_error<NotFound>(ref->getLocation(), name);
 
 					const auto& member = symbolTable.lookup(name).get<Member>();
 
@@ -199,14 +198,14 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 				}
 				else if (expression->isa<Operation>())
 				{
-					for (auto& arg : *expression->get<Operation>())
+					for (const auto& arg : *expression->get<Operation>())
 						stack.push(arg.get());
 				}
 				else if (expression->isa<Call>())
 				{
-					auto* call = expression->get<Call>();
+					const auto* call = expression->get<Call>();
 
-					for (auto& arg : *call)
+					for (const auto& arg : *call)
 						stack.push(arg.get());
 
 					stack.push(call->getFunction());
@@ -268,11 +267,11 @@ llvm::Error TypeChecker::run<Package>(Class& cls)
 	// Populate the symbol table
 	symbolTable.insert(package->getName(), Symbol(*package));
 
-	for (auto& cls : *package)
-		cls->visit([&](auto& obj) { symbolTable.insert(obj.getName(), Symbol(obj)); });
+	for (auto& innerClass : *package)
+		innerClass->visit([&](auto& obj) { symbolTable.insert(obj.getName(), Symbol(obj)); });
 
-	for (auto& cls : *package)
-		if (auto error = run(*cls); error)
+	for (auto& innerClass : *package)
+		if (auto error = run(*innerClass); error)
 			return error;
 
 	return llvm::Error::success();
@@ -617,7 +616,7 @@ llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression)
 			return llvm::Error::success();
 		}
 
-		return llvm::make_error<NotImplemented>("Unknown variable name '" + name.str() + "'");
+		return llvm::make_error<NotFound>(reference->getLocation(), name);
 	}
 
 	auto symbol = symbolTable.lookup(name);
@@ -1115,71 +1114,6 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 	return llvm::Error::success();
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 template<class T>
 std::string getTemporaryVariableName(T& cls)
 {
@@ -1254,7 +1188,30 @@ llvm::Error resolveDummyReferences(Model& model)
 		}
 	}
 
-	// TODO: check of ForEquation
+	for (auto& forEquation : model.getForEquations())
+	{
+		auto* equation = forEquation->getEquation();
+		auto* lhs = equation->getLhsExpression();
+
+		if (auto* lhsTuple = lhs->dyn_get<Tuple>())
+		{
+			for (auto& expression : *lhsTuple)
+			{
+				if (!expression->isa<ReferenceAccess>())
+					continue;
+
+				auto* ref = expression->get<ReferenceAccess>();
+
+				if (!ref->isDummy())
+					continue;
+
+				std::string name = getTemporaryVariableName(model);
+				auto temp = Member::build(expression->getLocation(), name, expression->getType(), TypePrefix::none(), llvm::None);
+				ref->setName(temp->getName());
+				model.addMember(std::move(temp));
+			}
+		}
+	}
 
 	for (auto& algorithm : model.getAlgorithms())
 	{
@@ -1290,4 +1247,101 @@ llvm::Error resolveDummyReferences(Model& model)
 std::unique_ptr<Pass> modelica::frontend::createTypeCheckingPass()
 {
 	return std::make_unique<TypeChecker>();
+}
+
+namespace modelica::frontend::detail
+{
+	TypeCheckingErrorCategory TypeCheckingErrorCategory::category;
+
+	std::error_condition TypeCheckingErrorCategory::default_error_condition(int ev) const noexcept
+	{
+		if (ev == 1)
+			return std::error_condition(TypeCheckingErrorCode::bad_semantic);
+
+		if (ev == 2)
+			return std::error_condition(TypeCheckingErrorCode::not_found);
+
+		return std::error_condition(TypeCheckingErrorCode::success);
+	}
+
+	bool TypeCheckingErrorCategory::equivalent(const std::error_code& code, int condition) const noexcept
+	{
+		bool equal = *this == code.category();
+		auto v = default_error_condition(code.value()).value();
+		equal = equal && static_cast<int>(v) == condition;
+		return equal;
+	}
+
+	std::string TypeCheckingErrorCategory::message(int ev) const noexcept
+	{
+		switch (ev)
+		{
+			case (0):
+				return "Success";
+
+			case (1):
+				return "Bad semantic";
+
+			case (2):
+				return "Not found";
+
+			default:
+				return "Unknown Error";
+		}
+	}
+
+	std::error_condition make_error_condition(TypeCheckingErrorCode errc)
+	{
+		return std::error_condition(
+				static_cast<int>(errc), TypeCheckingErrorCategory::category);
+	}
+}
+
+char BadSemantic::ID;
+char NotFound::ID;
+
+BadSemantic::BadSemantic(SourceRange location, llvm::StringRef message)
+		: location(std::move(location)),
+			message(message.str())
+{
+}
+
+SourceRange BadSemantic::getLocation() const
+{
+	return location;
+}
+
+void BadSemantic::printMessage(llvm::raw_ostream& os) const
+{
+	os << message;
+}
+
+void BadSemantic::log(llvm::raw_ostream& os) const
+{
+	print(os);
+}
+
+NotFound::NotFound(SourceRange location, llvm::StringRef variableName)
+		: location(std::move(location)),
+			variableName(variableName.str())
+{
+}
+
+SourceRange NotFound::getLocation() const
+{
+	return location;
+}
+
+void NotFound::printMessage(llvm::raw_ostream& os) const
+{
+	os << "unknown identifier \"";
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << variableName;
+	os.resetColor();
+	os << "\"";
+}
+
+void NotFound::log(llvm::raw_ostream& os) const
+{
+	print(os);
 }

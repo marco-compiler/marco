@@ -3,12 +3,12 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Error.h>
 #include <memory>
-#include <modelica/frontend/Errors.h>
 #include <modelica/frontend/LexerStateMachine.h>
 #include <modelica/utils/Lexer.hpp>
 #include <optional>
 
 #include "AST.h"
+#include "Errors.h"
 
 namespace modelica::frontend
 {
@@ -182,5 +182,105 @@ namespace modelica::frontend
 		Lexer<ModelicaStateMachine> lexer;
 		Token current;
 		SourceRange tokenRange;
+	};
+}
+
+namespace modelica::frontend::detail
+{
+	enum class ParsingErrorCode
+	{
+		success = 0,
+		unexpected_token,
+		unexpected_identifier
+	};
+}
+
+namespace std
+{
+	template<>
+	struct is_error_condition_enum<modelica::frontend::detail::ParsingErrorCode>
+			: public std::true_type
+	{
+	};
+}
+
+namespace modelica::frontend
+{
+	namespace detail
+	{
+		class ParsingErrorCategory: public std::error_category
+		{
+			public:
+			static ParsingErrorCategory category;
+
+			[[nodiscard]] std::error_condition default_error_condition(int ev) const noexcept override;
+
+			[[nodiscard]] const char* name() const noexcept override
+			{
+				return "Parsing error";
+			}
+
+			[[nodiscard]] bool equivalent(
+					const std::error_code& code, int condition) const noexcept override;
+
+			[[nodiscard]] std::string message(int ev) const noexcept override;
+		};
+
+		std::error_condition make_error_condition(ParsingErrorCode errc);
+	}
+
+	class UnexpectedToken
+			: public ErrorMessage,
+				public llvm::ErrorInfo<UnexpectedToken>
+	{
+		public:
+		static char ID;
+
+		UnexpectedToken(SourceRange location, Token token);
+
+		[[nodiscard]] SourceRange getLocation() const override;
+
+		void printMessage(llvm::raw_ostream& os) const override;
+
+		void log(llvm::raw_ostream& os) const override;
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(detail::ParsingErrorCode::unexpected_token),
+					detail::ParsingErrorCategory::category);
+		}
+
+		private:
+		SourceRange location;
+		Token token;
+	};
+
+	class UnexpectedIdentifier
+			: public ErrorMessage,
+				public llvm::ErrorInfo<UnexpectedIdentifier>
+	{
+		public:
+		static char ID;
+
+		UnexpectedIdentifier(SourceRange location, llvm::StringRef identifier, llvm::StringRef expected);
+
+		[[nodiscard]] SourceRange getLocation() const override;
+
+		void printMessage(llvm::raw_ostream& os) const override;
+
+		void log(llvm::raw_ostream& os) const override;
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(detail::ParsingErrorCode::unexpected_identifier),
+					detail::ParsingErrorCategory::category);
+		}
+
+		private:
+		SourceRange location;
+		std::string identifier;
+		std::string expected;
 	};
 }
