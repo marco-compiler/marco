@@ -11,12 +11,12 @@ using namespace std;
 TEST(folderTest, sumShouldFold)
 {
 	auto expression = Expression::operation(
-			SourcePosition::unknown(),
+			SourceRange::unknown(),
 			makeType<int>(),
 			OperationKind::add,
 			llvm::ArrayRef({
-					Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
-					Expression::constant(SourcePosition::unknown(), makeType<int>(), 4)
+					Expression::constant(SourceRange::unknown(), makeType<int>(), 3),
+					Expression::constant(SourceRange::unknown(), makeType<int>(), 4)
 			}));
 
 	ConstantFolder folder;
@@ -31,12 +31,12 @@ TEST(folderTest, sumShouldFold)
 TEST(folderTest, subShouldFold)
 {
 	auto expression = Expression::operation(
-			SourcePosition::unknown(),
+			SourceRange::unknown(),
 			makeType<int>(),
 			OperationKind::subtract,
 			llvm::ArrayRef({
-					Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
-					Expression::constant(SourcePosition::unknown(), makeType<int>(), 2)
+					Expression::constant(SourceRange::unknown(), makeType<int>(), 3),
+					Expression::constant(SourceRange::unknown(), makeType<int>(), 2)
 			}));
 
 	ConstantFolder folder;
@@ -51,12 +51,12 @@ TEST(folderTest, subShouldFold)
 TEST(folderTest, sumOfSubShouldFold)
 {
 	auto expression = Expression::operation(
-			SourcePosition::unknown(),
+			SourceRange::unknown(),
 			makeType<int>(),
 			OperationKind::add,
 			llvm::ArrayRef({
-					Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
-					Expression::constant(SourcePosition::unknown(), makeType<int>(), -1)
+					Expression::constant(SourceRange::unknown(), makeType<int>(), 3),
+					Expression::constant(SourceRange::unknown(), makeType<int>(), -1)
 			}));
 
 	ConstantFolder folder;
@@ -71,20 +71,20 @@ TEST(folderTest, sumOfSubShouldFold)
 TEST(folderTest, sumInSubscriptionShouldFold)
 {
 	auto access = Expression::operation(
-			SourcePosition::unknown(),
+			SourceRange::unknown(),
 			makeType<int>(),
 			OperationKind::add,
 			llvm::ArrayRef({
-					Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
-					Expression::constant(SourcePosition::unknown(), makeType<int>(), -1)
+					Expression::constant(SourceRange::unknown(), makeType<int>(), 3),
+					Expression::constant(SourceRange::unknown(), makeType<int>(), -1)
 			}));
 
 	auto subscription = Expression::operation(
-			SourcePosition::unknown(),
+			SourceRange::unknown(),
 			makeType<int>(),
 			OperationKind::subscription,
 			llvm::ArrayRef({
-					Expression::reference(SourcePosition::unknown(), makeType<int>(10), "name"),
+					Expression::reference(SourceRange::unknown(), makeType<int>(10), "name"),
 					std::move(access)
 			}));
 
@@ -92,7 +92,7 @@ TEST(folderTest, sumInSubscriptionShouldFold)
 	auto& symbolTable = folder.getSymbolTable();
 	ConstantFolder::SymbolTableScope scope(symbolTable);
 
-	auto member = Member::build(SourcePosition::unknown(), "name", makeType<int>(10), TypePrefix::none());
+	auto member = Member::build(SourceRange::unknown(), "name", makeType<int>(10), TypePrefix::none());
 	symbolTable.insert(member->getName(), Symbol(*member));
 
 	if (folder.run<Expression>(*subscription))
@@ -107,34 +107,34 @@ TEST(folderTest, sumInSubscriptionShouldFold)
 TEST(folderTest, sumInSubscriptionInDerShouldFold)
 {
 	auto access = Expression::operation(
-			SourcePosition::unknown(),
+			SourceRange::unknown(),
 			makeType<int>(),
 			OperationKind::add,
 			llvm::ArrayRef({
-					Expression::constant(SourcePosition::unknown(), makeType<int>(), 3),
-					Expression::constant(SourcePosition::unknown(), makeType<int>(), -1)
+					Expression::constant(SourceRange::unknown(), makeType<int>(), 3),
+					Expression::constant(SourceRange::unknown(), makeType<int>(), -1)
 			}));
 
 	auto subscription = Expression::operation(
-			SourcePosition::unknown(),
+			SourceRange::unknown(),
 			makeType<int>(),
 			OperationKind::subscription,
 			llvm::ArrayRef({
-					Expression::reference(SourcePosition::unknown(), makeType<int>(10), "name"),
+					Expression::reference(SourceRange::unknown(), makeType<int>(10), "name"),
 					std::move(access)
 			}));
 
-	auto refToDer = Expression::reference(SourcePosition::unknown(), Type::unknown(), "der");
+	auto refToDer = Expression::reference(SourceRange::unknown(), Type::unknown(), "der");
 
 	auto call = Expression::call(
-			SourcePosition::unknown(), Type::unknown(),
+			SourceRange::unknown(), Type::unknown(),
 			move(refToDer), std::move(subscription));
 
 	ConstantFolder folder;
 	auto& symbolTable = folder.getSymbolTable();
 	ConstantFolder::SymbolTableScope scope(symbolTable);
 
-	auto member = Member::build(SourcePosition::unknown(), "name", makeType<int>(10), TypePrefix::none());
+	auto member = Member::build(SourceRange::unknown(), "name", makeType<int>(10), TypePrefix::none());
 	symbolTable.insert(member->getName(), Symbol(*member));
 
 	if (folder.run<Expression>(*call))

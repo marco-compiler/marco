@@ -7,7 +7,6 @@
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/runtime/ArrayDescriptor.h>
-#include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
 using namespace frontend;
@@ -30,7 +29,7 @@ TEST(ControlFlow, thenBranchTaken)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -99,7 +98,7 @@ TEST(ControlFlow, elseBranchTaken)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -172,7 +171,7 @@ TEST(ControlFlow, elseIfBranchTaken)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -257,7 +256,7 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -325,7 +324,7 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -398,7 +397,7 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -466,7 +465,7 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 	auto condition = Expression::constant(location, makeType<bool>(), false);
@@ -531,7 +530,7 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 	auto condition = Expression::constant(location, makeType<bool>(), true);
@@ -600,7 +599,7 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 	auto condition = Expression::constant(location, makeType<bool>(), true);
@@ -665,7 +664,7 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 	auto yRef = Expression::reference(location, makeType<int>(), "y");
@@ -742,7 +741,7 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
@@ -812,7 +811,7 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 	auto yRef = Expression::reference(location, makeType<int>(), "y");
@@ -892,7 +891,7 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
@@ -955,7 +954,7 @@ TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));

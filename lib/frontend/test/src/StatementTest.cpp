@@ -8,7 +8,7 @@ using namespace frontend;
 
 TEST(AST, ifStatementWithEmptyBody)	 // NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto condition = Expression::constant(location, makeType<bool>(), true);
 	IfStatement::Block block(std::move(condition), {});
 	EXPECT_EQ(block.size(), 0);
@@ -16,7 +16,7 @@ TEST(AST, ifStatementWithEmptyBody)	 // NOLINT
 
 TEST(AST, ifStatementWithNonEmptyBody)	 // NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto condition = Expression::constant(location, makeType<bool>(), true);
 
 	auto statement1 = Statement::assignmentStatement(
@@ -41,7 +41,7 @@ TEST(AST, ifStatementWithNonEmptyBody)	 // NOLINT
 
 TEST(AST, forStatementWithEmptyBody)	 // NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto condition = Expression::constant(location, makeType<bool>(), true);
 
 	auto induction = Induction::build(
@@ -57,7 +57,7 @@ TEST(AST, forStatementWithEmptyBody)	 // NOLINT
 
 TEST(AST, forStatementWithNonEmptyBody)	 // NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto condition = Expression::constant(location, makeType<bool>(), true);
 
 	auto induction = Induction::build(
@@ -89,7 +89,7 @@ TEST(AST, forStatementWithNonEmptyBody)	 // NOLINT
 
 TEST(AST, whileStatementWithEmptyBody)	 // NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto condition = Expression::constant(location, makeType<bool>(), true);
 	auto statement = Statement::whileStatement(location, std::move(condition), llvm::None);
 
@@ -98,7 +98,7 @@ TEST(AST, whileStatementWithEmptyBody)	 // NOLINT
 
 TEST(AST, whileStatementWithNonEmptyBody)	 // NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto condition = Expression::constant(location, makeType<bool>(), true);
 
 	auto statement1 = Statement::assignmentStatement(

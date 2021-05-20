@@ -12,7 +12,6 @@
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/runtime/ArrayDescriptor.h>
-#include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
 using namespace frontend;
@@ -37,7 +36,7 @@ TEST(Function, callNoArguments)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 	auto xRef = Expression::reference(location, makeType<int>(), "x");
 
@@ -91,7 +90,7 @@ TEST(Function, recursiveCall)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<float>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto iMember = Member::build(location, "i", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
@@ -194,7 +193,7 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 	auto xRef = Expression::reference(location, makeType<int>(3), "x");
@@ -284,7 +283,7 @@ TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	llvm::SmallVector<std::unique_ptr<Member>, 3> fooMembers;
 	fooMembers.push_back(Member::build(location, "x", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input)));
@@ -379,7 +378,7 @@ TEST(Function, callElementWise)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto fooAlgorithm = Algorithm::build(
 			location,
@@ -462,7 +461,7 @@ TEST(Function, callWithMultipleOutputs)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto xRef = Expression::reference(location, makeType<int>(), "x");

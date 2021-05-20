@@ -7,7 +7,7 @@ using namespace frontend;
 
 TEST(AST, singleElementTupleCanBeBuilt)	 // NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto reference = Expression::reference(location, makeType<int>(), "x");
 	auto tuple = Expression::tuple(location, Type::unknown(), std::move(reference));
 	EXPECT_EQ(tuple->get<Tuple>()->size(), 1);
@@ -15,7 +15,7 @@ TEST(AST, singleElementTupleCanBeBuilt)	 // NOLINT
 
 TEST(AST, multipleElementsTupleCanBeBuilt)	// NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto exp1 = Expression::reference(location, makeType<int>(), "x");
 	auto exp2 = Expression::reference(location, makeType<float>(), "y");

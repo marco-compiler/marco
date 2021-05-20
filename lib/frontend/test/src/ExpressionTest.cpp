@@ -6,7 +6,7 @@ using namespace frontend;
 
 TEST(AST, expressionConstantCanBeBuilt)	 // NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto expression = Expression::constant(location, makeType<int>(), 3);
 
 	EXPECT_TRUE(expression->isa<Constant>());
@@ -18,7 +18,7 @@ TEST(AST, expressionConstantCanBeBuilt)	 // NOLINT
 
 TEST(AST, expressionReferenceCanBeBuilt)	 // NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto expression = Expression::reference(location, makeType<int>(), "x");
 
 	EXPECT_TRUE(expression->isa<ReferenceAccess>());
@@ -27,7 +27,7 @@ TEST(AST, expressionReferenceCanBeBuilt)	 // NOLINT
 
 TEST(AST, expressionOperationCanBeBuilt)	 // NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto constant = Expression::constant(location, makeType<int>(), 3);
 	auto expression = Expression::operation(location, makeType<int>(), OperationKind::add,
 																	llvm::ArrayRef({ constant->clone(), constant->clone() }));
@@ -38,7 +38,7 @@ TEST(AST, expressionOperationCanBeBuilt)	 // NOLINT
 
 TEST(AST, expressionCallCanBeBuilt)	 // NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto constant = Expression::constant(location, makeType<int>(), 3);
 
 	auto expression = Expression::call(
@@ -52,7 +52,7 @@ TEST(AST, expressionCallCanBeBuilt)	 // NOLINT
 
 TEST(AST, expressionTupleCanBeBuilt)	 // NOLINT
 {
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 	auto constant = Expression::constant(location, makeType<int>(), 3);
 
 	Type type(PackedType({ makeType<int>(), makeType<float>() }));

@@ -4,7 +4,6 @@
 #include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/Runner.h>
 #include <modelica/runtime/ArrayDescriptor.h>
-#include <modelica/utils/SourcePosition.h>
 
 using namespace modelica;
 using namespace frontend;
@@ -23,7 +22,7 @@ TEST(Input, booleanScalar)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<bool>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -70,7 +69,7 @@ TEST(Input, integerScalar)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -117,7 +116,7 @@ TEST(Input, floatScalar)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -164,7 +163,7 @@ TEST(Input, integerArray)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -225,7 +224,7 @@ TEST(Input, integerArrayUnknownSize)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -286,7 +285,7 @@ TEST(Input, floatArray)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<float>(2), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -349,7 +348,7 @@ TEST(Input, floatArrayUnknownSize)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<float>(-1), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<float>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -414,7 +413,7 @@ TEST(Input, integerMatrix)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(2, 3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
@@ -519,7 +518,7 @@ TEST(Output, integerArray)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(2), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
@@ -592,7 +591,7 @@ TEST(Output, integerArrayWithSizeDependingOnInputValue)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
 	auto xReference = Expression::reference(location, makeType<int>(), "x");
@@ -664,7 +663,7 @@ TEST(Output, floatArray)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<float>(2), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
@@ -732,7 +731,7 @@ TEST(Output, integerMatrix)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(2, 3), TypePrefix(ParameterQualifier::none, IOQualifier::output));
 
@@ -790,7 +789,7 @@ TEST(Output, defaultScalarValue)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output), Expression::constant(location, makeType<int>(), 1));
 	auto cls = Class::standardFunction(location, true, "main", llvm::None, xMember, Algorithm::build(location, llvm::None));
@@ -825,7 +824,7 @@ TEST(Output, defaultArrayValue)	 // NOLINT
 	 * end main
 	 */
 
-	SourcePosition location = SourcePosition::unknown();
+	SourceRange location = SourceRange::unknown();
 
 	auto xMember = Member::build(
 			location, "x", makeType<int>(3),
