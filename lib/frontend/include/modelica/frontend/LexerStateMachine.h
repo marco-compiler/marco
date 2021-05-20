@@ -4,6 +4,7 @@
 #include <llvm/Support/raw_ostream.h>
 #include <map>
 #include <modelica/utils/NumbersLexer.hpp>
+#include <modelica/utils/SourcePosition.h>
 #include <optional>
 #include <string>
 
@@ -154,8 +155,14 @@ namespace modelica::frontend
 		 */
 		[[nodiscard]] Token getCurrent() const { return currentToken; }
 
-		[[nodiscard]] unsigned int getCurrentLine() const { return currentLine; }
-		[[nodiscard]] unsigned int getCurrentColumn() const { return currentColumn; }
+		[[nodiscard]] size_t getCurrentLine() const { return currentLine; }
+		[[nodiscard]] size_t getCurrentColumn() const { return currentColumn; }
+
+		[[nodiscard]] size_t getTokenStartLine() const { return startLine; }
+		[[nodiscard]] size_t getTokenStartColumn() const { return startColumn; }
+
+		[[nodiscard]] size_t getTokenEndLine() const { return endLine; }
+		[[nodiscard]] size_t getTokenEndColumn() const { return endColumn; }
 
 		/**
 		 * Returns the last seen identifier, or the one being built if the machine
@@ -229,7 +236,11 @@ namespace modelica::frontend
 
 		template<State s>
 		Token scan();
+
 		Token tryScanSymbol();
+
+		void setTokenStartPosition();
+		void setTokenEndPosition();
 
 		State state;
 		char current;
@@ -239,8 +250,14 @@ namespace modelica::frontend
 		FloatLexer<defaultBase> lastNum;
 		std::string lastString;
 
-		unsigned int currentLine;
-		unsigned int currentColumn;
+		size_t currentLine;
+		size_t currentColumn;
+
+		size_t startLine;
+		size_t startColumn;
+
+		size_t endLine;
+		size_t endColumn;
 
 		std::string error;
 		llvm::StringMap<Token> keywordMap;

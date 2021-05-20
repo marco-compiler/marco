@@ -1,7 +1,7 @@
 #include <cstdio>
 #include <modelica/frontend/AST.h>
+#include <modelica/frontend/Errors.h>
 #include <modelica/frontend/passes/TypeCheckingPass.h>
-#include <modelica/frontend/ParserErrors.hpp>
 #include <queue>
 #include <stack>
 

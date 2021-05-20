@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "modelica/frontend/ParserErrors.hpp"
+#include "modelica/frontend/Errors.h"
 
 using namespace modelica;
 using namespace frontend;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/raw_ostream.h>
 #include <memory>
 #include <string>
@@ -26,14 +28,23 @@ namespace modelica
 	class SourceRange
 	{
 		public:
-		SourceRange(SourcePosition b, SourcePosition e);
+		SourceRange(llvm::StringRef fileName,
+								const char* source,
+								size_t startLine, size_t startColumn,
+								size_t endLine, size_t endColumn);
 
-		[[nodiscard]] const SourcePosition& getBegin() const;
-		[[nodiscard]] const SourcePosition& getEnd() const;
+		[[nodiscard]] SourcePosition getStartPosition() const;
 
-		private:
-		SourcePosition begin;
-		SourcePosition end;
+		void printLines(llvm::raw_ostream& os, std::function<void(llvm::raw_ostream&)> formatter) const;
+
+		std::shared_ptr<std::string> fileName;
+		const char* source;
+
+		size_t startLine;
+		size_t startColumn;
+
+		size_t endLine;
+		size_t endColumn;
 	};
 
 	llvm::raw_ostream& operator<<(

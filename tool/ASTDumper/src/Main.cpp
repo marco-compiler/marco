@@ -1,7 +1,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "modelica/frontend/Parser.hpp"
+#include "modelica/frontend/Parser.h"
 
 using namespace modelica;
 using namespace llvm;

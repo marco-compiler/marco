@@ -1,5 +1,6 @@
-#include <modelica/frontend/ParserErrors.hpp>
+#include <modelica/frontend/Errors.h>
 
+using namespace modelica;
 using namespace modelica::frontend;
 
 ParserErrorCategory ParserErrorCategory::category;
@@ -81,4 +82,48 @@ std::error_condition modelica::frontend::make_error_condition(ParserErrorCode er
 		default:
 			return "Unknown Error";
 	}
+}
+
+void UnexpectedToken::log(llvm::raw_ostream& os) const
+{
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << file << ": ";
+
+	os.changeColor(llvm::raw_ostream::RED, true);
+	os << "error: ";
+	os.resetColor();
+
+	os << "unexpected token [";
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << token;
+	os.resetColor();
+	os << "]\n";
+
+	position.printLines(os, [](llvm::raw_ostream& stream) {
+		stream.changeColor(llvm::raw_ostream::RED);
+	});
+}
+
+void UnexpectedIdentifier::log(llvm::raw_ostream& os) const
+{
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << file << ": ";
+
+	os.changeColor(llvm::raw_ostream::RED, true);
+	os << "error: ";
+	os.resetColor();
+
+	os << "unexpected identifier \"";
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << identifier;
+	os.resetColor();
+	os << "\" (expected: \"";
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << expected;
+	os.resetColor();
+	os << "\")\n";
+
+	position.printLines(os, [](llvm::raw_ostream& stream) {
+		stream.changeColor(llvm::raw_ostream::RED);
+	});
 }

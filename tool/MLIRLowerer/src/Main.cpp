@@ -15,7 +15,7 @@
 #include <mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Export.h>
 #include <mlir/Transforms/Passes.h>
-#include <modelica/frontend/Parser.hpp>
+#include <modelica/frontend/Parser.h>
 #include <modelica/frontend/Passes.h>
 #include <modelica/mlirlowerer/CodeGen.h>
 
@@ -98,7 +98,7 @@ int main(int argc, char* argv[])
 	}
 
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
-	frontend::Parser parser(buffer->getBufferStart());
+	frontend::Parser parser(inputFile, buffer->getBufferStart());
 	auto ast = exitOnErr(parser.classDefinition());
 
 	if (printParsedAST)

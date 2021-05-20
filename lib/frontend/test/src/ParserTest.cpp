@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <llvm/Support/Error.h>
 #include <modelica/frontend/AST.h>
-#include <modelica/frontend/Parser.hpp>
+#include <modelica/frontend/Parser.h>
 
 using namespace modelica;
 using namespace frontend;

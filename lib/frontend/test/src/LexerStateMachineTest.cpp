@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <modelica/frontend/LexerStateMachine.hpp>
+#include <modelica/frontend/LexerStateMachine.h>
 #include <modelica/utils/Lexer.hpp>
 
 using namespace modelica;

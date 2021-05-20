@@ -1,4 +1,4 @@
-#include <modelica/frontend/LexerStateMachine.hpp>
+#include <modelica/frontend/LexerStateMachine.h>
 
 using namespace llvm;
 using namespace modelica;
@@ -278,7 +278,11 @@ ModelicaStateMachine::ModelicaStateMachine(char first)
 			lastIdentifier(""),
 			lastString(""),
 			currentLine(1),
-			currentColumn(0)
+			currentColumn(0),
+			startLine(1),
+			startColumn(0),
+			endLine(1),
+			endColumn(0)
 {
 	keywordMap["algorithm"] = Token::AlgorithmKeyword;
 	keywordMap["and"] = Token::AndKeyword;
@@ -364,7 +368,10 @@ template<>
 Token ModelicaStateMachine::scan<State::ParsingComment>()
 {
 	if (next == '\0')
+	{
+		setTokenEndPosition();
 		state = State::Normal;
+	}
 
 	if (current == '*' && next == '/')
 		state = State::EndOfComment;
@@ -376,6 +383,7 @@ template<>
 Token ModelicaStateMachine::scan<State::EndOfComment>()
 {
 	state = State::Normal;
+	setTokenEndPosition();
 	return Token::None;
 }
 
@@ -383,10 +391,16 @@ template<>
 Token ModelicaStateMachine::scan<State::ParsingLineComment>()
 {
 	if (next == '\0')
+	{
 		state = State::Normal;
+		setTokenEndPosition();
+	}
 
 	if (current == '\n')
+	{
 		state = State::Normal;
+		setTokenEndPosition();
+	}
 
 	return Token::None;
 }
@@ -400,12 +414,16 @@ static Token elementWise(char current, char next)
 	{
 		case ('/'):
 			return Token::ElementWiseDivision;
+
 		case ('*'):
 			return Token::ElementWiseMultilpy;
+
 		case ('-'):
 			return Token::ElementWiseMinus;
+
 		case ('+'):
 			return Token::ElementWiseSum;
+
 		case ('^'):
 			return Token::ElementWiseExponential;
 	}
@@ -438,6 +456,7 @@ Token ModelicaStateMachine::scan<State::ParsingNum>()
 	if (!isAccetable(next))
 	{
 		state = State::Normal;
+		setTokenEndPosition();
 		return Token::Integer;
 	}
 
@@ -454,6 +473,7 @@ Token ModelicaStateMachine::scan<State::ParsingFloatExponent>()
 		return Token::None;
 
 	state = State::Normal;
+	setTokenEndPosition();
 	return Token::FloatingPoint;
 }
 
@@ -466,6 +486,7 @@ Token ModelicaStateMachine::scan<State::ParsingFloatExponentialSign>()
 		{
 			error = "Exp sign must be followed by a number";
 			state = State::Normal;
+			setTokenEndPosition();
 			return Token::Error;
 		}
 
@@ -483,7 +504,9 @@ Token ModelicaStateMachine::scan<State::ParsingFloatExponentialSign>()
 
 	error = "Error unexpected char " + std::to_string(current) +
 					" in floating number scan";
+
 	state = State::Normal;
+	setTokenEndPosition();
 	return Token::Error;
 }
 
@@ -503,6 +526,7 @@ Token ModelicaStateMachine::scan<State::ParsingFloat>()
 		return Token::None;
 
 	state = State::Normal;
+	setTokenEndPosition();
 	return Token::FloatingPoint;
 }
 
@@ -514,6 +538,7 @@ Token ModelicaStateMachine::scan<State::ParsingId>()
 	if (!isDigit(next) && !isNonDigit(next))
 	{
 		state = State::Normal;
+		setTokenEndPosition();
 		return stringToToken(lastIdentifier);
 	}
 
@@ -526,6 +551,7 @@ Token ModelicaStateMachine::scan<State::ParsingString>()
 	if (current == '"')
 	{
 		state = State::Normal;
+		setTokenEndPosition();
 		return Token::String;
 	}
 
@@ -558,12 +584,14 @@ Token ModelicaStateMachine::scan<State::ParsingQId>()
 	if (current == '\'')
 	{
 		state = State::Normal;
+		setTokenEndPosition();
 		return Token::Ident;
 	}
 
 	if (next == '\0')
 	{
 		state = State::Normal;
+		setTokenEndPosition();
 		error = "Unexpected end of string when parsing qidentifier";
 		return Token::Error;
 	}
@@ -593,6 +621,8 @@ Token ModelicaStateMachine::scan<State::Normal>()
 {
 	if (std::isspace(current) != 0)
 		return Token::None;
+
+	setTokenStartPosition();
 
 	if (isNonDigit(current))
 	{
@@ -691,32 +721,46 @@ Token ModelicaStateMachine::step(char c)
 	{
 		case (State::Normal):
 			return scan<State::Normal>();
+
 		case (State::ParsingComment):
 			return scan<State::ParsingComment>();
+
 		case (State::ParsingLineComment):
 			return scan<State::ParsingLineComment>();
+
 		case (State::EndOfComment):
 			return scan<State::EndOfComment>();
+
 		case (State::ParsingNum):
 			return scan<State::ParsingNum>();
+
 		case (State::ParsingFloat):
 			return scan<State::ParsingFloat>();
+
 		case (State::ParsingFloatExponentialSign):
 			return scan<State::ParsingFloatExponentialSign>();
+
 		case (State::ParsingFloatExponent):
 			return scan<State::ParsingFloatExponent>();
+
 		case (State::ParsingString):
 			return scan<State::ParsingString>();
+
 		case (State::ParsingBackSlash):
 			return scan<State::ParsingBackSlash>();
+
 		case (State::ParsingId):
 			return scan<State::ParsingId>();
+
 		case (State::ParsingQId):
 			return scan<State::ParsingQId>();
+
 		case (State::ParsingIdBackSlash):
 			return scan<State::ParsingIdBackSlash>();
+
 		case (State::End):
 			return Token::End;
+
 		case (State::IgnoreNextChar):
 			state = State::Normal;
 			return Token::None;
@@ -724,4 +768,16 @@ Token ModelicaStateMachine::step(char c)
 
 	error = "Unhandled Lexer State";
 	return Token::Error;
+}
+
+void ModelicaStateMachine::setTokenStartPosition()
+{
+	startLine = currentLine;
+	startColumn = currentColumn;
+}
+
+void ModelicaStateMachine::setTokenEndPosition()
+{
+	endLine = currentLine;
+	endColumn = currentColumn;
 }

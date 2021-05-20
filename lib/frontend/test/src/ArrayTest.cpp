@@ -1,6 +1,6 @@
 #include <gtest/gtest.h>
 #include <llvm/Support/Error.h>
-#include <modelica/frontend/Parser.hpp>
+#include <modelica/frontend/Parser.h>
 #include <modelica/frontend/Passes.h>
 #include <modelica/utils/ErrorTest.hpp>
 

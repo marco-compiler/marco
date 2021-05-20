@@ -3,8 +3,8 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Error.h>
 #include <memory>
-#include <modelica/frontend/LexerStateMachine.hpp>
-#include <modelica/frontend/ParserErrors.hpp>
+#include <modelica/frontend/Errors.h>
+#include <modelica/frontend/LexerStateMachine.h>
 #include <modelica/utils/Lexer.hpp>
 #include <optional>
 
@@ -34,7 +34,35 @@ namespace modelica::frontend
 	class Parser
 	{
 		public:
-		Parser(std::string filename, const std::string& source);
+
+		template<typename T>
+		struct ValueWrapper
+		{
+			ValueWrapper(SourceRange position, T value)
+					: position(std::move(position)), value(value)
+			{
+			}
+
+			SourceRange getPosition()
+			{
+				return position;
+			}
+
+			T& getValue()
+			{
+				return value;
+			}
+
+			const T& getValue() const
+			{
+				return value;
+			}
+
+			SourceRange position;
+			T value;
+		};
+
+		Parser(llvm::StringRef fileName, const char* source);
 		Parser(const std::string& source);
 		Parser(const char* source);
 
@@ -45,7 +73,7 @@ namespace modelica::frontend
 
 		[[nodiscard]] Token getCurrentToken() const;
 
-		llvm::Expected<std::string> identifier();
+		llvm::Expected<ValueWrapper<std::string>> identifier();
 
 		llvm::Expected<std::unique_ptr<Class>> classDefinition();
 
@@ -66,7 +94,7 @@ namespace modelica::frontend
 
 		llvm::Expected<TypePrefix> typePrefix();
 		llvm::Expected<std::unique_ptr<Member>> element(bool publicSection = true);
-		std::optional<OperationKind> relationalOperator();
+		llvm::Optional<OperationKind> relationalOperator();
 
 		llvm::Expected<std::unique_ptr<Expression>> logicalTerm();
 		llvm::Expected<std::unique_ptr<Expression>> logicalExpression();
@@ -127,6 +155,7 @@ namespace modelica::frontend
 		 * and true will be returned, else false.
 		 */
 		bool accept(Token t);
+
 		/**
 		 * fancy overloads if you know at compile time
 		 * which token you want.
@@ -139,23 +168,17 @@ namespace modelica::frontend
 				next();
 				return true;
 			}
+
 			return false;
 		}
 
 		llvm::Expected<bool> expect(Token t);
 
-		/**
-		 * Unfortunately the grammar in the specification is written in such a
-		 * way that there is a single point where you need a two lookahead
-		 * to tell the difference between a component reference and a
-		 * named argument. Instead of adding a real two lookahead or to completely
-		 * change factor the grammar we can provide the ability to undo the last
-		 * accept. If you need to implement that particular case, use this.
-		 */
-		void undoScan(Token t);
+		void updateTokenSourceRange();
+
 		const std::string filename;
 		Lexer<ModelicaStateMachine> lexer;
 		Token current;
-		Token undo;
+		SourceRange tokenRange;
 	};
 }

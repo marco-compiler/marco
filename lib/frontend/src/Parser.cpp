@@ -1,32 +1,35 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Error.h>
 #include <modelica/frontend/AST.h>
-#include <modelica/frontend/ParserErrors.hpp>
-#include <modelica/frontend/LexerStateMachine.hpp>
-#include <modelica/frontend/Parser.hpp>
-#include <modelica/frontend/ParserErrors.hpp>
+#include <modelica/frontend/Errors.h>
+#include <modelica/frontend/LexerStateMachine.h>
+#include <modelica/frontend/Parser.h>
 #include <optional>
 
 using namespace modelica;
 using namespace modelica::frontend;
 
-Parser::Parser(std::string filename, const std::string& source)
-		: filename(move(filename)),
+Parser::Parser(llvm::StringRef fileName, const char* source)
+		: filename(fileName.str()),
 			lexer(source),
-			current(lexer.scan()), undo(Token::End)
+			current(lexer.scan()),
+			tokenRange(fileName, source, 1, 1, 1, 1)
 {
+	updateTokenSourceRange();
 }
 
 Parser::Parser(const std::string& source)
-		: Parser("-", source)
+		: Parser("-", source.data())
 {
 }
 
 Parser::Parser(const char* source)
 		: filename("-"),
 			lexer(source),
-			current(lexer.scan()), undo(Token::End)
+			current(lexer.scan()),
+			tokenRange(filename, source, 1, 1, 1, 1)
 {
+	updateTokenSourceRange();
 }
 
 SourcePosition Parser::getPosition() const
@@ -49,14 +52,8 @@ bool Parser::accept(Token t)
 
 void Parser::next()
 {
-	if (undo != Token::End)
-	{
-		current = undo;
-		undo = Token::End;
-		return;
-	}
-
 	current = lexer.scan();
+	updateTokenSourceRange();
 }
 
 llvm::Expected<bool> Parser::expect(Token t)
@@ -64,29 +61,34 @@ llvm::Expected<bool> Parser::expect(Token t)
 	if (accept(t))
 		return true;
 
-	return llvm::make_error<UnexpectedToken>(current, t, getPosition());
+	return llvm::make_error<UnexpectedToken>(filename, current, tokenRange);
 }
 
-void Parser::undoScan(Token t)
+void Parser::updateTokenSourceRange()
 {
-	undo = current;
-	current = t;
+	tokenRange.startLine = lexer.getTokenStartLine();
+	tokenRange.startColumn = lexer.getTokenStartColumn();
+	tokenRange.endLine = lexer.getTokenEndLine();
+	tokenRange.endColumn = lexer.getTokenEndColumn();
 }
 
 #include <modelica/utils/ParserUtils.hpp>
 
-llvm::Expected<std::string> Parser::identifier()
+llvm::Expected<Parser::ValueWrapper<std::string>> Parser::identifier()
 {
 	std::string identifier = lexer.getLastIdentifier();
+	auto position = tokenRange;
 	EXPECT(Token::Ident);
 
 	while (accept<Token::Dot>())
 	{
 		identifier += "." + lexer.getLastIdentifier();
+		position.endLine = tokenRange.endLine;
+		position.endColumn = tokenRange.endColumn;
 		EXPECT(Token::Ident);
 	}
 
-	return identifier;
+	return ValueWrapper<std::string>(position, std::move(identifier));
 }
 
 llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
@@ -244,27 +246,27 @@ llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
 
 		TRY(endName, identifier());
 
-		if (*name != *endName)
-			return llvm::make_error<UnexpectedIdentifier>(*endName, *name, getPosition());
+		if (name->getValue() != endName->getValue())
+			return llvm::make_error<UnexpectedIdentifier>(filename, endName->getValue(), name->getValue(), endName->getPosition());
 
 		EXPECT(Token::Semicolons);
 
 		if (classType == ClassType::Function)
 		{
-			classes.push_back(Class::standardFunction(location, pure, *name, std::move(clsAnnotation), members, algorithms));
+			classes.push_back(Class::standardFunction(location, pure, name->getValue(), std::move(clsAnnotation), members, algorithms));
 		}
 		else if (classType == ClassType::Model)
 		{
 			classes.push_back(Class::model(
-					location, *name, members, equations, forEquations, algorithms, innerClasses));
+					location, name->getValue(), members, equations, forEquations, algorithms, innerClasses));
 		}
 		else if (classType == ClassType::Package)
 		{
-			classes.push_back(Class::package(location, *name, innerClasses));
+			classes.push_back(Class::package(location, name->getValue(), innerClasses));
 		}
 		else if (classType == ClassType::Record)
 		{
-			classes.push_back(Class::record(location, *name, members));
+			classes.push_back(Class::record(location, name->getValue(), members));
 		}
 	}
 
@@ -837,16 +839,16 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::relation()
 	TRY(left, arithmeticExpression());
 	auto op = relationalOperator();
 
-	if (!op.has_value())
+	if (!op.hasValue())
 		return std::move(*left);
 
 	TRY(right, arithmeticExpression());
 	return Expression::operation(
-			std::move(loc), Type::unknown(), op.value(),
+			std::move(loc), Type::unknown(), op.getValue(),
 			llvm::ArrayRef({ std::move(*left), std::move(*right) }));
 }
 
-std::optional<OperationKind> Parser::relationalOperator()
+llvm::Optional<OperationKind> Parser::relationalOperator()
 {
 	if (accept<Token::GreaterEqual>())
 		return OperationKind::greaterEqual;
@@ -866,7 +868,7 @@ std::optional<OperationKind> Parser::relationalOperator()
 	if (accept<Token::Different>())
 		return OperationKind::different;
 
-	return std::nullopt;
+	return llvm::None;
 }
 
 llvm::Expected<std::unique_ptr<Expression>> Parser::arithmeticExpression()
@@ -1075,7 +1077,7 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::primary()
 		return Expression::call(std::move(location), Type::unknown(), std::move(*exp), args);
 	}
 
-	return llvm::make_error<UnexpectedToken>(current, Token::End, getPosition());
+	return llvm::make_error<UnexpectedToken>(filename, current, tokenRange);
 }
 
 llvm::Expected<std::unique_ptr<Expression>> Parser::componentReference()

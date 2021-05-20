@@ -2,7 +2,7 @@
 #include <llvm/ADT/StringMap.h>
 #include <llvm/Support/Error.h>
 #include <modelica/frontend/AST.h>
-#include <modelica/frontend/Parser.hpp>
+#include <modelica/frontend/Parser.h>
 #include <modelica/frontend/passes/TypeCheckingPass.h>
 #include <modelica/utils/ErrorTest.hpp>
 

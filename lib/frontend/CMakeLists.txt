@@ -28,9 +28,9 @@ modelicaAddLibrary(
 		src/passes/PassManager.cpp
 		src/passes/ReturnRemovingPass.cpp
 		src/passes/TypeCheckingPass.cpp
+		src/Errors.cpp
         src/LexerStateMachine.cpp
         src/Parser.cpp
-        src/ParserErrors.cpp
 		src/Symbol.cpp
 		src/SymbolTable.cpp
 )

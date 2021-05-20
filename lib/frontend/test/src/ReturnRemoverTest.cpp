@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
 #include <modelica/frontend/AST.h>
+#include <modelica/frontend/Parser.h>
 #include <modelica/frontend/Passes.h>
-#include <modelica/frontend/Parser.hpp>
 
 using namespace modelica;
 using namespace frontend;

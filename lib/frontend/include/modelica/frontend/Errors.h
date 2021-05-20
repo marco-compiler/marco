@@ -1,12 +1,13 @@
 #pragma once
 
 #include <llvm/Support/Error.h>
+#include <llvm/Support/WithColor.h>
 #include <modelica/utils/SourcePosition.h>
 #include <string>
 #include <system_error>
 #include <utility>
 
-#include "LexerStateMachine.hpp"
+#include "LexerStateMachine.h"
 
 namespace modelica::frontend
 {
@@ -67,21 +68,21 @@ namespace modelica::frontend
 
 	std::error_condition make_error_condition(ParserErrorCode errc);
 
-	class UnexpectedToken: public llvm::ErrorInfo<UnexpectedToken>
+	class UnexpectedToken : public llvm::ErrorInfo<UnexpectedToken>
 	{
 		public:
 		static char ID;
-		UnexpectedToken(Token received, Token expected, SourcePosition pos)
-				: token(received), expected(expected), pos(pos)
+
+		UnexpectedToken(llvm::StringRef file, Token received, SourceRange position)
+				: file(file.str()),
+					token(received),
+					position(std::move(position))
 		{
 		}
 
 		[[nodiscard]] Token getToken() const { return token; }
-		void log(llvm::raw_ostream& OS) const override
-		{
-			OS << "[" << pos << "] "
-				 << "Unexpected Token: " << token << ", expected: " << expected;
-		}
+
+		void log(llvm::raw_ostream& os) const override;
 
 		[[nodiscard]] std::error_code convertToErrorCode() const override
 		{
@@ -91,9 +92,9 @@ namespace modelica::frontend
 		}
 
 		private:
+		std::string file;
 		Token token;
-		Token expected;
-		SourcePosition pos;
+		SourceRange position;
 	};
 
 	class UnexpectedIdentifier: public llvm::ErrorInfo<UnexpectedIdentifier>
@@ -101,20 +102,15 @@ namespace modelica::frontend
 		public:
 		static char ID;
 
-		UnexpectedIdentifier(
-				std::string identifier, std::string expected, SourcePosition pos)
-				: identifier(std::move(identifier)),
-					expected(std::move(expected)),
-					pos(pos)
+		UnexpectedIdentifier(llvm::StringRef file, llvm::StringRef identifier, llvm::StringRef expected, SourceRange position)
+				: file(file.str()),
+					identifier(identifier.str()),
+					expected(expected.str()),
+					position(std::move(position))
 		{
 		}
 
-		void log(llvm::raw_ostream& OS) const override
-		{
-			OS << "[" << pos << "] "
-				 << "Unexpected Identifier: " << identifier
-				 << ", expected: " << expected;
-		}
+		void log(llvm::raw_ostream& OS) const override;
 
 		[[nodiscard]] std::error_code convertToErrorCode() const override
 		{
@@ -124,9 +120,10 @@ namespace modelica::frontend
 		}
 
 		private:
+		std::string file;
 		std::string identifier;
 		std::string expected;
-		SourcePosition pos;
+		SourceRange position;
 	};
 
 	class NotImplemented: public llvm::ErrorInfo<NotImplemented>

@@ -5,7 +5,7 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
 #include "modelica/frontend/AST.h"
-#include "modelica/frontend/ParserErrors.hpp"
+#include "modelica/frontend/Errors.h"
 #include "modelica/frontend/SymbolTable.hpp"
 #include "modelica/model/Assigment.hpp"
 #include "modelica/model/ModCall.hpp"
