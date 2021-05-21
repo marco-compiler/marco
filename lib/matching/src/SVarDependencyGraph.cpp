@@ -50,7 +50,7 @@ void SVarDepencyGraph::insertNode(LookUp& LookUp, size_t vertexIndex)
 				auto indicies = vertex.getEqToVars()[i].map(eqInds);
 				auto vertexIndex =
 						add_vertex(SingleEquationReference(vertex, indicies), graph);
-				LookUp[&vertex][vertex.getVariables()[i].indexOfElement(indicies)] =
+				LookUp[&vertex][vertex.getVariables()[i]->indexOfElement(indicies)] =
 						vertexIndex;
 			}
 		}
@@ -78,7 +78,7 @@ static Optional<size_t> indexOfScalarVar(
 		assert(false && "To be checked");
 		for (auto& variable : var.getVariables())
 		{
-			auto toReturn = v->second.find(variable.indexOfElement(access));
+			auto toReturn = v->second.find(variable->indexOfElement(access));
 			if (toReturn != v->second.end())
 				return toReturn->second;
 		}
@@ -159,7 +159,7 @@ void SingleEquationReference::dump(llvm::raw_ostream& OS) const
 {
 	for (auto i : irange(vertex->size()))
 	{
-		OS << vertex->getVariables()[i].getName();
+		OS << vertex->getVariables()[i]->getName();
 		OS << "[";
 		for (size_t index : indexes)
 			OS << index << ",";

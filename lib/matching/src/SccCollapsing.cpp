@@ -74,7 +74,7 @@ static bool cycleHasIndentityDependency(
 		const VVarDependencyGraph& graph,
 		const DependenciesVector& dep)
 {
-	auto fin = std::accumulate(
+	auto fin = accumulate(
 			dep.begin() + 1, dep.end(), dep[0], [](const auto& l, const auto& r) {
 				return l * r;
 			});
@@ -131,7 +131,7 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 		EqVector& source,
 		EqVector& filtered,
 		EqVector& untouched,
-		const std::vector<VVarDependencyGraph::VertexDesc>& cycle,
+		const vector<VVarDependencyGraph::VertexDesc>& cycle,
 		const VVarDependencyGraph& g)
 {
 	auto c = cycleToEdgeVec(cycle, g);
@@ -178,7 +178,7 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 	for (auto i : irange(source.size()))
 	{
 		if (find(cycle, i) == cycle.end())
-			untouched.emplace_back(std::move(source[i]));
+			untouched.emplace_back(move(source[i]));
 	}
 	return true;
 }
@@ -198,7 +198,7 @@ class CycleFuser
 
 	template<typename Graph>
 	void cycle(
-			const std::vector<VVarDependencyGraph::VertexDesc>& cycle, const Graph&)
+			const vector<VVarDependencyGraph::VertexDesc>& cycle, const Graph& g)
 	{
 		if (*foundOne)
 			return;
@@ -217,7 +217,7 @@ class CycleFuser
 		if (!*err)
 			return;
 
-		auto e = linearySolve(filtered, *model);
+		auto e = linearySolve(filtered);
 		if (e)
 		{
 			*error = move(e);
@@ -226,10 +226,10 @@ class CycleFuser
 		}
 
 		for (auto& eq : filtered)
-			newEqus.emplace_back(std::move(eq));
+			newEqus.emplace_back(move(eq));
 
 		*foundOne = true;
-		*equs = std::move(newEqus);
+		*equs = move(newEqus);
 	}
 
 	private:
@@ -317,10 +317,10 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 		}
 	}
 
-	Model outModel({}, std::move(model.getVars()));
+	Model outModel({}, move(model.getVars()));
 	for (auto& eqList : possibleEq)
 		for (auto& eq : eqList)
-			outModel.addEquation(std::move(eq));
+			outModel.addEquation(move(eq));
 	for (auto& algebraicLoop : algebraicLoops)
 		outModel.addBltBlock(algebraicLoop);
 

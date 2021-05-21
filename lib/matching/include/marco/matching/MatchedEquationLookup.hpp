@@ -37,7 +37,7 @@ namespace marco
 		IndexesOfEquation(const Model& model, const ModEquation& equation)
 				: content(equation),
 					accesses({ equation.getDeterminedVariable() }),
-					variables({ model.getVar(accesses.front().getVarName()) }),
+					variables({ &model.getVar(accesses.front().getVarName()) }),
 					directAccesses({ accesses.front().getAccess() }),
 					invertedAccesses({ accesses.front().getAccess().invert() }),
 					indexSets(
@@ -51,7 +51,7 @@ namespace marco
 			for (const ModEquation& eq : bltBlock.getEquations())
 			{
 				accesses.push_back(eq.getDeterminedVariable());
-				variables.push_back(model.getVar(accesses.back().getVarName()));
+				variables.push_back(&model.getVar(accesses.back().getVarName()));
 				directAccesses.push_back(accesses.back().getAccess());
 				invertedAccesses.push_back(accesses.back().getAccess().invert());
 				indexSets.push_back(directAccesses.back().map(eq.getInductions()));
@@ -108,7 +108,7 @@ namespace marco
 		[[nodiscard]] const ModVariable& getVariable() const
 		{
 			assert(isEquation());
-			return variables.front();
+			return *variables.front();
 		}
 		[[nodiscard]] const VectorAccess& getEqToVar() const
 		{
@@ -131,7 +131,7 @@ namespace marco
 		private:
 		const std::variant<ModEquation, ModBltBlock> content;
 		llvm::SmallVector<AccessToVar, 3> accesses;
-		llvm::SmallVector<ModVariable, 3> variables;
+		llvm::SmallVector<const ModVariable*, 3> variables;
 		llvm::SmallVector<VectorAccess, 3> directAccesses;
 		llvm::SmallVector<VectorAccess, 3> invertedAccesses;
 		llvm::SmallVector<MultiDimInterval, 3> indexSets;
@@ -170,12 +170,7 @@ namespace marco
 		void addEquation(const ModEquation& equation, const Model& model)
 		{
 			IndexesOfEquation index(model, equation);
-			assert(
-					index.isEquation() ||
-					index.isBltBlock());	// TODO: Remove this redundant for debugging
 			const ModVariable* var = &index.getVariable();
-			// variables.insert(std::pair<const ModVariable*, IndexesOfEquation>(
-			//		var, IndexesOfEquation(index)));
 			variables.emplace(var, std::move(index));
 		}
 
@@ -183,8 +178,8 @@ namespace marco
 		{
 			IndexesOfEquation index(model, bltBlock);
 			assert(false && "Need to be checked");
-			for (const ModVariable var : index.getVariables())
-				variables.emplace(&var, IndexesOfEquation(index));	// Check if var/&var
+			for (const ModVariable* var : index.getVariables())
+				variables.emplace(var, IndexesOfEquation(index));
 		}
 
 		[[nodiscard]] const_iterator_range eqsDeterminingVar(
@@ -204,6 +199,7 @@ namespace marco
 		[[nodiscard]] iterator end() { return variables.end(); }
 		[[nodiscard]] const_iterator begin() const { return variables.begin(); }
 		[[nodiscard]] const_iterator end() const { return variables.end(); }
+		[[nodiscard]] size_t size() const { return variables.size(); }
 
 		private:
 		Map variables;

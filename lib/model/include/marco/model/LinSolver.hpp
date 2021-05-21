@@ -33,8 +33,7 @@ namespace marco
 		return llvm::Error::success();
 	}
 
-	inline llvm::Error linearySolve(
-			llvm::SmallVectorImpl<ModEquation>& equs, const Model& model)
+	inline llvm::Error linearySolve(llvm::SmallVectorImpl<ModEquation>& equs)
 	{
 		for (auto eq = equs.rbegin(); eq != equs.rend(); eq++)
 		{
