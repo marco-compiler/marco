@@ -5,7 +5,6 @@ on: [push]
 jobs:
   build-and-test:
     runs-on: ubuntu-20.04
-    if: ${{secrets.ENABLED}} == 'T'
 
     steps:
       - name: Checkout repository and submodules
