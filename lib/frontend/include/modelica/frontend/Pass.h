@@ -19,6 +19,6 @@ namespace modelica::frontend
 
 		Pass& operator=(const Pass& other) = default;
 
-		virtual llvm::Error run(Class& cls) = 0;
+		virtual llvm::Error run(llvm::ArrayRef<std::unique_ptr<Class>> classes) = 0;
 	};
 }

@@ -23,7 +23,7 @@ namespace modelica::frontend
 	class ReturnRemover: public Pass
 	{
 		public:
-		llvm::Error run(Class& cls) final;
+		llvm::Error run(llvm::ArrayRef<std::unique_ptr<Class>> classes) final;
 
 		template<typename T>
 		llvm::Error run(Class& cls);

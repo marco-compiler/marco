@@ -42,9 +42,13 @@ llvm::Error TypeChecker::run<Class>(Class& cls)
 	});
 }
 
-llvm::Error TypeChecker::run(Class& cls)
+llvm::Error TypeChecker::run(llvm::ArrayRef<std::unique_ptr<Class>> classes)
 {
-	return run<Class>(cls);
+	for (const auto& cls : classes)
+		if (auto error = run<Class>(*cls); error)
+			return error;
+
+	return llvm::Error::success();
 }
 
 template<>
@@ -237,7 +241,7 @@ llvm::Error TypeChecker::run<Model>(Class& cls)
 	// ones, because it establishes the result type of the functions that may
 	// be invoked elsewhere.
 	for (auto& innerClass : model->getInnerClasses())
-		if (auto error = run(*innerClass); error)
+		if (auto error = run<Class>(*innerClass); error)
 			return error;
 
 	for (auto& eq : model->getEquations())
@@ -271,7 +275,7 @@ llvm::Error TypeChecker::run<Package>(Class& cls)
 		innerClass->visit([&](auto& obj) { symbolTable.insert(obj.getName(), Symbol(obj)); });
 
 	for (auto& innerClass : *package)
-		if (auto error = run(*innerClass); error)
+		if (auto error = run<Class>(*innerClass); error)
 			return error;
 
 	return llvm::Error::success();

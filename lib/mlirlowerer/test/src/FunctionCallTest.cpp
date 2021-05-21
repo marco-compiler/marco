@@ -61,7 +61,10 @@ TEST(Function, callNoArguments)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(llvm::ArrayRef({ *foo, *main }));
+	llvm::SmallVector<std::unique_ptr<Class>, 3> classes;
+	classes.push_back(std::move(foo));
+	classes.push_back(std::move(main));
+	auto module = lowerer.run(classes);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -150,7 +153,7 @@ TEST(Function, recursiveCall)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -244,7 +247,10 @@ TEST(Function, callWithStaticArrayAsOutput)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run({ *main, *foo });
+	llvm::SmallVector<std::unique_ptr<Class>, 3> classes;
+	classes.push_back(std::move(foo));
+	classes.push_back(std::move(main));
+	auto module = lowerer.run(classes);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -342,7 +348,10 @@ TEST(Function, callWithDynamicArrayAsOutput)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run({ *foo, *main });
+	llvm::SmallVector<std::unique_ptr<Class>, 3> classes;
+	classes.push_back(std::move(foo));
+	classes.push_back(std::move(main));
+	auto module = lowerer.run(classes);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -419,7 +428,10 @@ TEST(Function, callElementWise)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run({ *main, *foo });
+	llvm::SmallVector<std::unique_ptr<Class>, 3> classes;
+	classes.push_back(std::move(foo));
+	classes.push_back(std::move(main));
+	auto module = lowerer.run(classes);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -521,7 +533,10 @@ TEST(Function, callWithMultipleOutputs)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run({ *main, *foo });
+	llvm::SmallVector<std::unique_ptr<Class>, 3> classes;
+	classes.push_back(std::move(foo));
+	classes.push_back(std::move(main));
+	auto module = lowerer.run(classes);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;

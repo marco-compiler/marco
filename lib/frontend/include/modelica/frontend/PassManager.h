@@ -14,7 +14,7 @@ namespace modelica::frontend
 	{
 		public:
 		void addPass(std::unique_ptr<Pass> pass);
-		llvm::Error run(Class& cls);
+		llvm::Error run(llvm::ArrayRef<std::unique_ptr<Class>> classes);
 
 		private:
 		llvm::SmallVector<std::unique_ptr<Pass>, 3> passes;

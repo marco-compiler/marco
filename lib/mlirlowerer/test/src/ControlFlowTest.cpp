@@ -68,7 +68,7 @@ TEST(ControlFlow, thenBranchTaken)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -139,7 +139,7 @@ TEST(ControlFlow, elseBranchTaken)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -227,7 +227,7 @@ TEST(ControlFlow, elseIfBranchTaken)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -295,7 +295,7 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -363,7 +363,7 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -436,7 +436,7 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -491,7 +491,7 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(*cls));
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 
@@ -499,7 +499,7 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -563,7 +563,7 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(*cls));
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 
@@ -571,7 +571,7 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -625,7 +625,7 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(*cls));
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 
@@ -633,7 +633,7 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -705,7 +705,7 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(*cls));
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 
@@ -713,7 +713,7 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -772,7 +772,7 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(*cls));
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 
@@ -780,7 +780,7 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -855,7 +855,7 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(*cls));
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 
@@ -863,7 +863,7 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -914,7 +914,7 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 
 	PassManager passManager;
 	passManager.addPass(createReturnRemovingPass());
-	EXPECT_TRUE(!passManager.run(*cls));
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 
@@ -922,7 +922,7 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -1010,7 +1010,7 @@ TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 
 	PassManager passManager;
 	passManager.addPass(createBreakRemovingPass());
-	EXPECT_TRUE(!passManager.run(*cls));
+	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
 
@@ -1018,7 +1018,7 @@ TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;

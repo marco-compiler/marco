@@ -49,7 +49,7 @@ TEST(Comparison, eqIntegers)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -107,7 +107,7 @@ TEST(Comparison, eqFloats)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -165,7 +165,7 @@ TEST(Comparison, eqIntegerAndFloat)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -223,7 +223,7 @@ TEST(Comparison, notEqIntegers)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -281,7 +281,7 @@ TEST(Comparison, notEqFloats)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -339,7 +339,7 @@ TEST(Comparison, notEqIntegerAndFloat)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -397,7 +397,7 @@ TEST(Comparison, gtIntegers)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -455,7 +455,7 @@ TEST(Comparison, gtFloats)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -513,7 +513,7 @@ TEST(Comparison, gtIntegerAndFloat)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -571,7 +571,7 @@ TEST(Comparison, gteIntegers)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -629,7 +629,7 @@ TEST(Comparison, gteFloats)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -687,7 +687,7 @@ TEST(Comparison, gteIntegerAndFloat)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -745,7 +745,7 @@ TEST(Comparison, ltIntegers)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -803,7 +803,7 @@ TEST(Comparison, ltFloats)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -861,7 +861,7 @@ TEST(Comparison, ltIntegerAndFloat)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -919,7 +919,7 @@ TEST(Comparison, lteIntegers)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -977,7 +977,7 @@ TEST(Comparison, lteFloats)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;
@@ -1035,7 +1035,7 @@ TEST(Comparison, lteIntegerAndFloat)	 // NOLINT
 	modelicaOptions.x64 = false;
 	MLIRLowerer lowerer(context, modelicaOptions);
 
-	auto module = lowerer.run(*cls);
+	auto module = lowerer.run(cls);
 
 	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.llvmOptions.emitCWrappers = true;

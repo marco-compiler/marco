@@ -161,15 +161,15 @@ mlir::Location MLIRLowerer::loc(SourceRange location)
 	return loc(location.getStartPosition());
 }
 
-llvm::Optional<mlir::ModuleOp> MLIRLowerer::run(llvm::ArrayRef<Class> classes)
+llvm::Optional<mlir::ModuleOp> MLIRLowerer::run(llvm::ArrayRef<std::unique_ptr<Class>> classes)
 {
 	mlir::ModuleOp module = mlir::ModuleOp::create(builder.getUnknownLoc());
 
 	llvm::SmallVector<mlir::Operation*, 3> operations;
 
-	for (auto cls : classes)
+	for (const auto& cls : classes)
 	{
-		auto* op = cls.visit([&](const auto& obj) {
+		auto* op = cls->visit([&](const auto& obj) {
 			return lower(obj);
 		});
 

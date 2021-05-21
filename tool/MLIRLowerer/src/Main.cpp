@@ -36,7 +36,7 @@ static cl::opt<codegen::Solver> solverName(cl::desc("Solvers:"),
 
 static cl::OptionCategory codeGenOptions("Code generation options");
 
-static cl::opt<string> inputFile(cl::Positional, cl::desc("<input-file>"), cl::init("-"), cl::cat(codeGenOptions));
+static cl::list<std::string> inputFiles(cl::Positional, cl::desc("<input files>"), cl::OneOrMore, cl::cat(codeGenOptions));
 static cl::opt<string> outputFile("o", cl::desc("<output-file>"), cl::init("-"), cl::cat(codeGenOptions));
 static cl::opt<bool> emitMain("emit-main", cl::desc("Whether to emit the main function that will start the simulation (default: true)"), cl::init(true), cl::cat(codeGenOptions));
 static cl::opt<bool> x86("32", cl::desc("Use 32-bit values instead of 64-bit ones"), cl::init(false), cl::cat(codeGenOptions));
@@ -87,7 +87,6 @@ int main(int argc, char* argv[])
 
 	cl::ParseCommandLineOptions(argc, argv);
 
-	auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(inputFile);
 	error_code error;
 	llvm::raw_fd_ostream os(outputFile, error, llvm::sys::fs::F_None);
 
@@ -97,12 +96,20 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
-	frontend::Parser parser(inputFile, buffer->getBufferStart());
-	auto ast = exitOnErr(parser.classDefinition());
+	llvm::SmallVector<std::unique_ptr<frontend::Class>, 3> classes;
+
+	for (const auto& inputFile : inputFiles)
+	{
+		auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(inputFile);
+		auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
+		frontend::Parser parser(inputFile, buffer->getBufferStart());
+		auto ast = exitOnErr(parser.classDefinition());
+		classes.push_back(std::move(ast));
+	}
 
 	if (printParsedAST)
-		ast->dump();
+		for (const auto& cls : classes)
+			cls->dump();
 
 	// Run frontend passes
 	frontend::PassManager frontendPassManager;
@@ -110,10 +117,11 @@ int main(int argc, char* argv[])
 	frontendPassManager.addPass(frontend::createConstantFolderPass());
 	frontendPassManager.addPass(frontend::createBreakRemovingPass());
 	frontendPassManager.addPass(frontend::createReturnRemovingPass());
-	exitOnErr(frontendPassManager.run(*ast));
+	exitOnErr(frontendPassManager.run(classes));
 
 	if (printLegalizedAST)
-		ast->dump();
+		for (const auto& cls : classes)
+			cls->dump();
 
 	// Create the MLIR module
 	mlir::MLIRContext context;
@@ -125,7 +133,7 @@ int main(int argc, char* argv[])
 	modelicaOptions.timeStep = timeStep;
 
 	codegen::MLIRLowerer lowerer(context, modelicaOptions);
-	auto module = lowerer.run(llvm::ArrayRef({ *ast }));
+	auto module = lowerer.run(classes);
 
 	if (!module)
 	{

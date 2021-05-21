@@ -104,7 +104,7 @@ namespace modelica::codegen
 
 		mlir::LogicalResult convertToLLVMDialect(mlir::ModuleOp& module, ModelicaLoweringOptions options = ModelicaLoweringOptions::getDefaultOptions());
 
-		llvm::Optional<mlir::ModuleOp> run(llvm::ArrayRef<frontend::Class> classes);
+		llvm::Optional<mlir::ModuleOp> run(llvm::ArrayRef<std::unique_ptr<frontend::Class>> classes);
 
 		private:
 		mlir::Operation* lower(const frontend::Class& cls);

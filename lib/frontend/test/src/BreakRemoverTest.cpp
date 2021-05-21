@@ -26,7 +26,7 @@ TEST(BreakRemover, breakInWhile)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	BreakRemover pass;
-	EXPECT_TRUE(!pass.run(**ast));
+	EXPECT_TRUE(!pass.run(*ast));
 
 	auto& algorithm = *(*ast)->get<StandardFunction>()->getAlgorithms()[0];
 	auto* whileLoop = algorithm[1]->get<WhileStatement>();
@@ -55,7 +55,7 @@ TEST(BreakRemover, breakInNestedWhile)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	BreakRemover pass;
-	EXPECT_TRUE(!pass.run(**ast));
+	EXPECT_TRUE(!pass.run(*ast));
 
 	auto& algorithm = *(*ast)->get<StandardFunction>()->getAlgorithms()[0];
 
@@ -93,7 +93,7 @@ TEST(BreakRemover, breakInFor)	 // NOLINT
 	ASSERT_FALSE(!ast);
 
 	BreakRemover pass;
-	EXPECT_TRUE(!pass.run(**ast));
+	EXPECT_TRUE(!pass.run(*ast));
 
 	auto& algorithm = *(*ast)->get<StandardFunction>()->getAlgorithms()[0];
 	auto* forLoop = algorithm[1]->get<ForStatement>();

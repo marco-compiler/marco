@@ -16,9 +16,13 @@ llvm::Error ConstantFolder::run<Class>(Class& cls)
 	});
 }
 
-llvm::Error ConstantFolder::run(Class& cls)
+llvm::Error ConstantFolder::run(llvm::ArrayRef<std::unique_ptr<Class>> classes)
 {
-	return run<Class>(cls);
+	for (const auto& cls : classes)
+		if (auto error = run<Class>(*cls); error)
+			return error;
+
+	return llvm::Error::success();
 }
 
 template<>
@@ -79,7 +83,7 @@ llvm::Error ConstantFolder::run<Package>(Class& cls)
 	auto* package = cls.get<Package>();
 
 	for (auto& innerClass : *package)
-		if (auto error = run(*innerClass); error)
+		if (auto error = run<Class>(*innerClass); error)
 			return error;
 
 	return llvm::Error::success();

@@ -14,9 +14,13 @@ llvm::Error BreakRemover::run<Class>(Class& cls)
 	});
 }
 
-llvm::Error BreakRemover::run(Class& cls)
+llvm::Error BreakRemover::run(llvm::ArrayRef<std::unique_ptr<Class>> classes)
 {
-	return run<Class>(cls);
+	for (const auto& cls : classes)
+	 if (auto error = run<Class>(*cls); error)
+		 return error;
+
+	return llvm::Error::success();
 }
 
 template<>
@@ -45,7 +49,7 @@ template<>
 llvm::Error BreakRemover::run<Package>(Class& cls)
 {
 	for (auto& innerClass : cls.get<Package>()->getInnerClasses())
-		if (auto error = run(*innerClass); error)
+		if (auto error = run<Class>(*innerClass); error)
 			return error;
 
 	return llvm::Error::success();
@@ -55,7 +59,7 @@ template<>
 llvm::Error BreakRemover::run<Record>(Class& cls)
 {
 	for (auto& innerClass : cls.get<Package>()->getInnerClasses())
-		if (auto error = run(*innerClass); error)
+		if (auto error = run<Class>(*innerClass); error)
 			return error;
 
 	return llvm::Error::success();
