@@ -16,7 +16,7 @@ jobs:
       - name: Check run condition
         run: echo "SHOULD_RUN=${{secrets.ENABLED}}" >> $GITHUB_ENV
 
-      - name: Tar
+      - name: Create package
         if: ${{env.SHOULD_RUN}} == 'T'
         run: tar -cvf marco.tar marco
 
@@ -37,12 +37,12 @@ jobs:
         if: ${{env.SHOULD_RUN}} == 'T'
         run: echo "TEMP_DIR=$(ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} mktemp -d)" >> $GITHUB_ENV
 
-      - name: Copy tar to server
+      - name: Copy package to server
         id: copy
         if: ${{env.SHOULD_RUN}} == 'T'
         run: scp marco.tar ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}}:${{env.TEMP_DIR}}/marco.tar
 
-      - name: Untar
+      - name: Extract package
         if: ${{env.SHOULD_RUN}} == 'T'
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}} '&&' tar -xvf marco.tar
 
