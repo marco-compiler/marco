@@ -90,9 +90,9 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 		// the body of the function."
 
 		if (member->isInput() && member->hasInitializer())
-			return llvm::make_error<BadSemantic>(
-					member->getLocation(),
-					"input variables can't receive a new value");
+			return llvm::make_error<AssignmentToInputMember>(
+					member->getInitializer()->getLocation(),
+					function->getName());
 
 		// Add type
 		if (member->isOutput())
@@ -112,9 +112,9 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 	// function."
 
 	if (algorithms.size() > 1)
-		return llvm::make_error<BadSemantic>(
-				function->getLocation(),
-				"functions can have at most one algorithm section");
+		return llvm::make_error<MultipleAlgorithmsFunction>(
+				function->getAlgorithms()[1]->getLocation(),
+				function->getName());
 
 	// For now, functions can't have an external implementation and thus must
 	// have exactly one algorithm section. When external implementations will
@@ -159,9 +159,9 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 					const auto& member = symbolTable.lookup(name).get<Member>();
 
 					if (member->isInput())
-						return llvm::make_error<BadSemantic>(
-								assignment.getLocation(),
-								"input variable '" + name.str() + "' can't receive a new value");
+						return llvm::make_error<AssignmentToInputMember>(
+								ref->getLocation(),
+								function->getName());
 				}
 			}
 
@@ -1280,9 +1280,15 @@ namespace modelica::frontend::detail
 				return "Success";
 
 			case (1):
-				return "Bad semantic";
+				return "Assignment to input member";
 
 			case (2):
+				return "Bad semantic";
+
+			case (3):
+				return "Multiple algorithms";
+
+			case (4):
 				return "Not found";
 
 			default:
@@ -1297,8 +1303,45 @@ namespace modelica::frontend::detail
 	}
 }
 
+char AssignmentToInputMember::ID;
 char BadSemantic::ID;
+char MultipleAlgorithmsFunction::ID;
 char NotFound::ID;
+
+AssignmentToInputMember::AssignmentToInputMember(SourceRange location, llvm::StringRef className)
+		: location(std::move(location)),
+			className(className.str())
+{
+}
+
+SourceRange AssignmentToInputMember::getLocation() const
+{
+	return location;
+}
+
+bool AssignmentToInputMember::printBeforeMessage(llvm::raw_ostream& os) const
+{
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << *location.fileName << ": ";
+	os.resetColor();
+	os << "in class \"";
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << className;
+	os.resetColor();
+	os << "\"";
+
+	return true;
+}
+
+void AssignmentToInputMember::printMessage(llvm::raw_ostream& os) const
+{
+	os << "input member can't receive a new value";
+}
+
+void AssignmentToInputMember::log(llvm::raw_ostream& os) const
+{
+	print(os);
+}
 
 BadSemantic::BadSemantic(SourceRange location, llvm::StringRef message)
 		: location(std::move(location)),
@@ -1317,6 +1360,41 @@ void BadSemantic::printMessage(llvm::raw_ostream& os) const
 }
 
 void BadSemantic::log(llvm::raw_ostream& os) const
+{
+	print(os);
+}
+
+MultipleAlgorithmsFunction::MultipleAlgorithmsFunction(SourceRange location, llvm::StringRef functionName)
+		: location(std::move(location)),
+			functionName(functionName.str())
+{
+}
+
+SourceRange MultipleAlgorithmsFunction::getLocation() const
+{
+	return location;
+}
+
+bool MultipleAlgorithmsFunction::printBeforeMessage(llvm::raw_ostream& os) const
+{
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << *location.fileName << ": ";
+	os.resetColor();
+	os << "in function \"";
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << functionName;
+	os.resetColor();
+	os << "\"";
+
+	return true;
+}
+
+void MultipleAlgorithmsFunction::printMessage(llvm::raw_ostream& os) const
+{
+	os << "functions can have at most one algorithm section";
+}
+
+void MultipleAlgorithmsFunction::log(llvm::raw_ostream& os) const
 {
 	print(os);
 }

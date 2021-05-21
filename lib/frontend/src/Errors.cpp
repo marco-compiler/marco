@@ -12,8 +12,21 @@ AbstractMessage::~AbstractMessage() = default;
 AbstractMessage& AbstractMessage::operator=(const AbstractMessage& other) = default;
 AbstractMessage& AbstractMessage::operator=(AbstractMessage&& other) = default;
 
+bool AbstractMessage::printBeforeMessage(llvm::raw_ostream& os) const
+{
+	return false;
+}
+
+bool AbstractMessage::printAfterLines(llvm::raw_ostream& os) const
+{
+	return false;
+}
+
 void AbstractMessage::print(llvm::raw_ostream& os) const
 {
+	if (printBeforeMessage(os))
+		os << "\n";
+
 	SourceRange location = getLocation();
 
 	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
@@ -28,6 +41,9 @@ void AbstractMessage::print(llvm::raw_ostream& os) const
 	os << "\n";
 
 	location.printLines(os, getFormatter());
+
+	if (printAfterLines(os))
+		os << "\n";
 }
 
 std::function<void (llvm::raw_ostream &)> ErrorMessage::getFormatter() const

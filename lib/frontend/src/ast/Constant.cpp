@@ -9,14 +9,7 @@ Constant::Constant(SourceRange location, Type type, bool value)
 {
 }
 
-Constant::Constant(SourceRange location, Type type, int value)
-		: ASTNode(std::move(location)),
-			type(std::move(type)),
-			value(value)
-{
-}
-
-Constant::Constant(SourceRange location, Type type, float value)
+Constant::Constant(SourceRange location, Type type, long value)
 		: ASTNode(std::move(location)),
 			type(std::move(type)),
 			value(value)
@@ -30,17 +23,20 @@ Constant::Constant(SourceRange location, Type type, double value)
 {
 }
 
-Constant::Constant(SourceRange location, Type type, char value)
+Constant::Constant(SourceRange location, Type type, std::string value)
 		: ASTNode(std::move(location)),
 			type(std::move(type)),
 			value(value)
 {
 }
 
-Constant::Constant(SourceRange location, Type type, std::string value)
-		: ASTNode(std::move(location)),
-			type(std::move(type)),
-			value(value)
+Constant::Constant(SourceRange location, Type type, int value)
+		: Constant(std::move(location), std::move(type), static_cast<long>(value))
+{
+}
+
+Constant::Constant(SourceRange location, Type type, float value)
+		: Constant(std::move(location), std::move(type), static_cast<double >(value))
 {
 }
 
@@ -122,7 +118,7 @@ namespace modelica::frontend
 	class ConstantToStringVisitor {
 		public:
 		std::string operator()(const bool& value) { return value ? "true" : "false"; }
-		std::string operator()(const int& value) { return std::to_string(value); }
+		std::string operator()(const long& value) { return std::to_string(value); }
 		std::string operator()(const double& value) { return std::to_string(value); }
 		std::string operator()(const std::string& value) { return value; }
 	};

@@ -81,8 +81,8 @@ static SingleDimensionAccess inductionToSingleDimensionAccess(
 			expression.isOperation() &&
 			expression.getKind() == ModExpKind::induction);
 	const auto& inductionVar = expression.getLeftHand();
-	assert(inductionVar.isConstant<int>());
-	auto indVar = inductionVar.getConstant().get<int>(0);
+	assert(inductionVar.isConstant<long>());
+	auto indVar = inductionVar.getConstant().get<long>(0);
 	return SingleDimensionAccess::relative(0, indVar);
 }
 
@@ -105,12 +105,12 @@ static SingleDimensionAccess operationToSingleDimensionAccess(
 
 	assert(inductionExp.isOperation());
 	assert(inductionExp.getKind() == ModExpKind::induction);
-	assert(inductionExp.getLeftHand().isConstant<int>());
-	assert(constantExp.isConstant<int>());
+	assert(inductionExp.getLeftHand().isConstant<long>());
+	assert(constantExp.isConstant<long>());
 
 	int multiplier = expression.getKind() == ModExpKind::sub ? -1 : 1;
-	int64_t offset = constantExp.getConstant().get<int>(0) * multiplier;
-	size_t indVar = inductionExp.getLeftHand().getConstant().get<int>(0);
+	int64_t offset = constantExp.getConstant().get<long>(0) * multiplier;
+	size_t indVar = inductionExp.getLeftHand().getConstant().get<long>(0);
 
 	return SingleDimensionAccess::relative(offset, indVar);
 }
@@ -134,9 +134,9 @@ static bool isCanonicalSumInductionAccess(const ModExp& expression)
 
 	if (inductionExp.getKind() != ModExpKind::induction)
 		return false;
-	if (!inductionExp.getLeftHand().isConstant<int>())
+	if (!inductionExp.getLeftHand().isConstant<long>())
 		return false;
-	if (!constantExp.isConstant<int>())
+	if (!constantExp.isConstant<long>())
 		return false;
 	return true;
 }
@@ -158,7 +158,7 @@ bool SingleDimensionAccess::isCanonical(const ModExp& expression)
 
 	const auto& index = expression.getRightHand();
 
-	if (index.isConstant<int>())
+	if (index.isConstant<long>())
 		return true;
 
 	if (isCanonicalSingleInductionAccess(index))
@@ -174,8 +174,8 @@ SingleDimensionAccess SingleDimensionAccess::fromExp(const ModExp& expression)
 
 	// if the accessing expression is a constant we are in the case
 	// for x in a:b loop y[K]
-	if (index.isConstant<int>())
-		return SingleDimensionAccess::absolute(index.getConstant().get<int>(0));
+	if (index.isConstant<long>())
+		return SingleDimensionAccess::absolute(index.getConstant().get<long>(0));
 
 	// if the accessing expression is a induction we are in the case
 	// for x in a:b loop y[x]

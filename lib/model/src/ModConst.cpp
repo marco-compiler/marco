@@ -111,8 +111,8 @@ ModConst ModConst::module(const ModConst& left, const ModConst& right)
 	assert(left.size() == right.size());
 	assert(left.getBuiltinType() == BultinModTypes::INT);
 	assert(right.getBuiltinType() == BultinModTypes::INT);
-	return contentPairWiseOperation<int, int>(
-			left.getContent<int>(), right.getContent<int>(), [](int l, int r) {
+	return contentPairWiseOperation<long, long>(
+			left.getContent<long>(), right.getContent<long>(), [](long l, long r) {
 				return l % r;
 			});
 }

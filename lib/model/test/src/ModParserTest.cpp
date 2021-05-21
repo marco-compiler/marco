@@ -18,9 +18,9 @@ TEST(ModParserTest, contIntVectorShouldParse)
 	auto constVector = *vec;
 
 	EXPECT_EQ(constVector.size(), 3);
-	EXPECT_EQ(constVector.get<int>(0), 1);
-	EXPECT_EQ(constVector.get<int>(1), 2);
-	EXPECT_EQ(constVector.get<int>(2), 3);
+	EXPECT_EQ(constVector.get<long>(0), 1);
+	EXPECT_EQ(constVector.get<long>(1), 2);
+	EXPECT_EQ(constVector.get<long>(2), 3);
 }
 
 TEST(ModParserTest, contFloatVectorShouldParse)
@@ -69,9 +69,9 @@ TEST(ModParserTest, constExp)
 	auto& constant = exp.getConstant();
 
 	EXPECT_EQ(constant.size(), 3);
-	EXPECT_EQ(constant.get<int>(0), 4);
-	EXPECT_EQ(constant.get<int>(1), 1);
-	EXPECT_EQ(constant.get<int>(2), 9);
+	EXPECT_EQ(constant.get<long>(0), 4);
+	EXPECT_EQ(constant.get<long>(1), 1);
+	EXPECT_EQ(constant.get<long>(2), 9);
 }
 
 TEST(ModParserTest, simCall)

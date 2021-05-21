@@ -20,7 +20,7 @@ TEST(ConstantTest, construtorTest)	// NOLINT
 	ModConst constant2(1.0F);
 	ModConst constant3(false);
 
-	EXPECT_EQ(constant.get<int>(0), 1);
+	EXPECT_EQ(constant.get<long>(0), 1);
 	EXPECT_EQ(constant2.get<double>(0), 1.0F);
 	EXPECT_EQ(constant3.get<bool>(0), false);
 }
@@ -30,7 +30,7 @@ TEST(ExpressionTest, constantExpression)	// NOLINT
 	ModExp exp(ModConst(1));
 	EXPECT_TRUE(exp.isConstant<int>());
 	EXPECT_TRUE(exp.isConstant());
-	EXPECT_EQ(exp.getConstant().get<int>(0), 1);
+	EXPECT_EQ(exp.getConstant().get<long>(0), 1);
 }
 
 TEST(ExpressionTest, negateExpression)	// NOLINT
@@ -120,7 +120,7 @@ TEST(ModExpTest, sumCanBeFolded)
 	auto sum = ModExp(ModConst(1)) + ModExp(ModConst(3));
 	EXPECT_TRUE(sum.tryFoldConstant());
 	EXPECT_TRUE(sum.isConstant<int>());
-	EXPECT_EQ(sum.getConstant().get<int>(0), 4);
+	EXPECT_EQ(sum.getConstant().get<long>(0), 4);
 }
 
 TEST(ModExpTest, operatorGreaterCanBeFolded)
@@ -146,7 +146,7 @@ TEST(ModExpTest, conditionalCanBeFolded)
 	EXPECT_TRUE(sum.tryFoldConstant());
 	sum.dump();
 	EXPECT_TRUE(sum.isConstant<int>());
-	EXPECT_EQ(sum.getConstant().get<int>(0), 3);
+	EXPECT_EQ(sum.getConstant().get<long>(0), 3);
 }
 
 TEST(ModelTest, entryModelIsIteratable)
@@ -171,7 +171,7 @@ TEST(ModelTest, negationCanBeFolded)
 	auto sum = ModExp::negate(ModExp(ModConst(3)));
 	EXPECT_TRUE(sum.tryFoldConstant());
 	EXPECT_TRUE(sum.isConstant<int>());
-	EXPECT_EQ(sum.getConstant().get<int>(0), -3);
+	EXPECT_EQ(sum.getConstant().get<long>(0), -3);
 }
 
 TEST(ModelTest, inductionShouldNotBeFoldable)

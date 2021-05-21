@@ -59,7 +59,7 @@ namespace modelica::frontend
 	class frontendTypeToType<BuiltInType::Integer>
 	{
 		public:
-		using value = int;
+		using value = long;
 	};
 
 	template<>

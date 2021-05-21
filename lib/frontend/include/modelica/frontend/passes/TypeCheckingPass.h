@@ -154,7 +154,9 @@ namespace modelica::frontend::detail
 	enum class TypeCheckingErrorCode
 	{
 		success = 0,
+		assignment_to_input_member,
 		bad_semantic,
+		multiple_algorithms_function,
 		not_found
 	};
 }
@@ -194,6 +196,34 @@ namespace modelica::frontend
 		std::error_condition make_error_condition(TypeCheckingErrorCode errc);
 	}
 
+	class AssignmentToInputMember
+			: public ErrorMessage,
+				public llvm::ErrorInfo<AssignmentToInputMember>
+	{
+		public:
+		static char ID;
+
+		AssignmentToInputMember(SourceRange location, llvm::StringRef className);
+
+		[[nodiscard]] SourceRange getLocation() const override;
+
+		bool printBeforeMessage(llvm::raw_ostream& os) const override;
+		void printMessage(llvm::raw_ostream& os) const override;
+
+		void log(llvm::raw_ostream& os) const override;
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(detail::TypeCheckingErrorCode::assignment_to_input_member),
+					detail::TypeCheckingErrorCategory::category);
+		}
+
+		private:
+		SourceRange location;
+		std::string className;
+	};
+
 	class BadSemantic
 			: public ErrorMessage,
 				public llvm::ErrorInfo<BadSemantic>
@@ -219,6 +249,34 @@ namespace modelica::frontend
 		private:
 		SourceRange location;
 		std::string message;
+	};
+
+	class MultipleAlgorithmsFunction
+			: public ErrorMessage,
+				public llvm::ErrorInfo<MultipleAlgorithmsFunction>
+	{
+		public:
+		static char ID;
+
+		MultipleAlgorithmsFunction(SourceRange location, llvm::StringRef functionName);
+
+		[[nodiscard]] SourceRange getLocation() const override;
+
+		bool printBeforeMessage(llvm::raw_ostream& os) const override;
+		void printMessage(llvm::raw_ostream& os) const override;
+
+		void log(llvm::raw_ostream& os) const override;
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(detail::TypeCheckingErrorCode::multiple_algorithms_function),
+					detail::TypeCheckingErrorCategory::category);
+		}
+
+		private:
+		SourceRange location;
+		std::string functionName;
 	};
 
 	class NotFound

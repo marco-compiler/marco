@@ -107,5 +107,5 @@ TEST(ModConstTest, constantShouldBeMoveAsssignable)
 {
 	ModConst c(4);
 	c = ModConst(3);
-	EXPECT_EQ(c.get<int>(0), 3);
+	EXPECT_EQ(c.get<long>(0), 3);
 }

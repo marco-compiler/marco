@@ -87,15 +87,16 @@ namespace modelica::frontend
 		private:
 		friend class Expression;
 
-		Constant(SourceRange location, Type type, bool val);
-		Constant(SourceRange location, Type type, int val);
-		Constant(SourceRange location, Type type, float val);
-		Constant(SourceRange location, Type type, double val);
-		Constant(SourceRange location, Type type, char val);
-		Constant(SourceRange location, Type type, std::string val);
+		Constant(SourceRange location, Type type, bool value);
+		Constant(SourceRange location, Type type, long value);
+		Constant(SourceRange location, Type type, double value);
+		Constant(SourceRange location, Type type, std::string value);
+
+		Constant(SourceRange location, Type type, int value);
+		Constant(SourceRange location, Type type, float value);
 
 		Type type;
-		std::variant<bool, int, double, std::string> value;
+		std::variant<bool, long, double, std::string> value;
 	};
 
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Constant& obj);

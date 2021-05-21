@@ -75,6 +75,10 @@ namespace modelica::frontend
 
 		[[nodiscard]] Token getCurrentToken() const;
 
+		llvm::Expected<ValueWrapper<bool>> getBool();
+		llvm::Expected<ValueWrapper<long>> getInt();
+		llvm::Expected<ValueWrapper<double>> getFloat();
+		llvm::Expected<ValueWrapper<std::string>> getString();
 		llvm::Expected<ValueWrapper<std::string>> identifier();
 
 		llvm::Expected<std::unique_ptr<Class>> classDefinition();
@@ -122,7 +126,7 @@ namespace modelica::frontend
 		llvm::Expected<std::unique_ptr<Expression>> relation();
 		llvm::Expected<std::unique_ptr<Expression>> componentReference();
 
-		llvm::Error functionCallArguments(llvm::SmallVectorImpl<std::unique_ptr<Expression>>& args);
+		llvm::Error functionCallArguments(SourceRange& location, llvm::SmallVectorImpl<std::unique_ptr<Expression>>& args);
 
 		llvm::Expected<std::unique_ptr<Algorithm>> algorithmSection();
 		llvm::Expected<std::unique_ptr<Statement>> statement();
@@ -136,7 +140,7 @@ namespace modelica::frontend
 
 		llvm::Error outputExpressionList(llvm::SmallVectorImpl<std::unique_ptr<Expression>>& expressions);
 
-		llvm::Error arraySubscript(llvm::SmallVectorImpl<std::unique_ptr<Expression>>& subscripts);
+		llvm::Error arraySubscript(SourceRange& location, llvm::SmallVectorImpl<std::unique_ptr<Expression>>& subscripts);
 
 		llvm::Expected<std::unique_ptr<Annotation>> annotation();
 		llvm::Expected<std::unique_ptr<Modification>> modification();

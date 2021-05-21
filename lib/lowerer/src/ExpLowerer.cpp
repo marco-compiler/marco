@@ -66,6 +66,17 @@ void storeConstArray(
 		cont.storeConstantToArrayElement<T>(constant.get<T>(i), castedAlloca, i);
 }
 
+template<>
+void storeConstArray<int>(
+		LowererContext& cont, const ModConst& constant, AllocaInst* alloca)
+{
+	auto& builder = cont.getBuilder();
+	auto castedAlloca =
+			builder.CreatePointerCast(alloca, flatPtrType(alloca->getType()));
+	for (size_t i = 0; i < constant.size(); i++)
+		cont.storeConstantToArrayElement<long>(constant.get<long>(i), castedAlloca, i);
+}
+
 Expected<AllocaInst*> lowerConstantTyped(
 		LowererContext& cont, const ModConst& constant, const ModType& type)
 {

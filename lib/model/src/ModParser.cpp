@@ -56,7 +56,7 @@ Expected<float> ModParser::floatingPoint()
 
 Expected<ModConst> ModParser::intVector()
 {
-	SmallVector<int, 3> args;
+	SmallVector<long, 3> args;
 	EXPECT(ModToken::LCurly);
 	TRY(val, integer());
 	args.push_back(*val);

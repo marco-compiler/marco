@@ -189,7 +189,7 @@ namespace modelica::frontend
 		 * Notice that as soon as a new number is found this value is overridden,
 		 * even if it was a float and not a int.
 		 */
-		[[nodiscard]] int getLastInt() const { return lastNum.getUpperPart(); }
+		[[nodiscard]] long getLastInt() const { return lastNum.getUpperPart(); }
 
 		/**
 		 * Returns the last float seen, or the one being built if the machine is in

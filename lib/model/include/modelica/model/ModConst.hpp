@@ -43,6 +43,8 @@ namespace modelica
 		{
 		}
 
+		ModConst(int d): content(Content<long>({ static_cast<long>(d) })) {}
+
 		ModConst(float d): content(Content<double>({ static_cast<double>(d) })) {}
 
 		template<typename First, typename... T>
@@ -51,11 +53,17 @@ namespace modelica
 		{
 		}
 
+		template<typename... T>
+		explicit ModConst(int f, T&&... args)
+				: content(Content<long>({ static_cast<long>(f), static_cast<long>(std::forward<T>(args))... }))
+		{
+		}
+
 		template<typename Callable>
 		void visit(Callable&& c)
 		{
-			if (isA<int>())
-				c(getContent<int>());
+			if (isA<long>())
+				c(getContent<long>());
 			else if (isA<double>())
 				c(getContent<double>());
 			else if (isA<bool>())
@@ -67,7 +75,7 @@ namespace modelica
 		template<typename Callable>
 		auto map(Callable&& c)
 		{
-			using ReturnType = decltype(c(Content<int>()));
+			using ReturnType = decltype(c(Content<long>()));
 
 			ReturnType returnValue;
 			visit([&](const auto& content) { returnValue = c(content); });
@@ -77,7 +85,7 @@ namespace modelica
 		template<typename Callable>
 		[[nodiscard]] auto map(Callable&& c) const
 		{
-			using ReturnType = decltype(c(Content<int>()));
+			using ReturnType = decltype(c(Content<long>()));
 
 			ReturnType returnValue;
 			visit([&](const auto& content) { returnValue = c(content); });
@@ -87,8 +95,8 @@ namespace modelica
 		template<typename Callable>
 		void visit(Callable&& c) const
 		{
-			if (isA<int>())
-				c(getContent<int>());
+			if (isA<long>())
+				c(getContent<long>());
 			else if (isA<double>())
 				c(getContent<double>());
 			else if (isA<bool>())
@@ -157,7 +165,7 @@ namespace modelica
 			if (builtin == BultinModTypes::FLOAT)
 				return as<double>();
 			if (builtin == BultinModTypes::INT)
-				return as<int>();
+				return as<long>();
 
 			assert(false && "unreachable");
 			return *this;
@@ -233,8 +241,14 @@ namespace modelica
 		static ModConst module(const ModConst& left, const ModConst& right);
 
 		private:
-		std::variant<Content<int>, Content<double>, Content<bool>> content;
+		std::variant<Content<long>, Content<double>, Content<bool>> content;
 	};
+
+	template<>
+	[[nodiscard]] inline bool ModConst::isA<int>() const
+	{
+		return isA<long>();
+	}
 
 	/**
 	 * This template is used to check if

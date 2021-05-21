@@ -33,11 +33,13 @@ namespace modelica
 	constexpr BultinModTypes typeToBuiltin()
 	{
 		static_assert(
-				std::is_same_v<int, T> or std::is_same_v<T, bool> or
-						std::is_same_v<T, double>,
+				std::is_same_v<int, T> or std::is_same_v<long, T> or
+						std::is_same_v<T, bool> or std::is_same_v<T, double>,
 				"Unrechable");
 
 		if constexpr (std::is_same<int, T>::value)
+			return BultinModTypes::INT;
+		if constexpr (std::is_same<long, T>::value)
 			return BultinModTypes::INT;
 		else if constexpr (std::is_same<bool, T>::value)
 			return BultinModTypes::BOOL;

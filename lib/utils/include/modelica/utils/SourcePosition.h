@@ -36,6 +36,7 @@ namespace modelica
 		[[nodiscard]] static SourceRange unknown();
 
 		[[nodiscard]] SourcePosition getStartPosition() const;
+		void extendEnd(SourceRange to);
 
 		void printLines(llvm::raw_ostream& os, std::function<void(llvm::raw_ostream&)> formatter) const;
 

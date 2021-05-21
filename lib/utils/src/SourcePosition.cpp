@@ -50,14 +50,27 @@ SourceRange::SourceRange(bool unknown,
 {
 }
 
+SourceRange SourceRange::unknown()
+{
+	return SourceRange(true, "-", nullptr, 0, 0, 0, 0);
+}
+
 SourcePosition SourceRange::getStartPosition() const
 {
 	return SourcePosition(*fileName, startLine, startColumn);
 }
 
-SourceRange SourceRange::unknown()
+void SourceRange::extendEnd(SourceRange to)
 {
-	return SourceRange(true, "-", nullptr, 0, 0, 0, 0);
+	if (endLine == to.endLine)
+	{
+		endColumn = std::max(endColumn, to.endColumn);
+	}
+	else if (endLine < to.endLine)
+	{
+		endLine = to.endLine;
+		endColumn = to.endColumn;
+	}
 }
 
 template <class T>
