@@ -403,7 +403,7 @@ static llvm::Error composeAccess(
 	// If exp is a scalar, it means that the Scc Collapsing cannot procede
 	// because there is an actual Algebraic Loop; it would fail ModExp::at().
 	if (newExps.getModType().isScalar())
-		return llvm::make_error<FailedSccCollapsing>();
+		return llvm::make_error<UnsolvableAlgebraicLoop>();
 	exp = accessToExp(combinedAccess, move(newExps));
 
 	return Error::success();

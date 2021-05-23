@@ -34,17 +34,11 @@ void ScheduledModel::dump(llvm::raw_ostream& OS) const
 	}
 
 	OS << "updates\n";
-	int bltBlockCount = 0;
 	for (const auto& update : updates)
 	{
 		if (holds_alternative<ModEquation>(update))
-		{
 			get<ModEquation>(update).dump(OS);
-		}
 		else
-		{
-			OS << "blt-block " << ++bltBlockCount << "\n";
 			get<ModBltBlock>(update).dump(OS);
-		}
 	}
 }

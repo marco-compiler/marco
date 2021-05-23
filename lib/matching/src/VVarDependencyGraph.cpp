@@ -15,9 +15,9 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
-<<<<<<< HEAD
 #include "marco/matching/MatchedEquationLookup.hpp"
 #include "marco/matching/SccLookup.hpp"
+#include "modelica/model/ModBltBlock.hpp"
 #include "marco/model/ModEquation.hpp"
 #include "marco/model/ModExp.hpp"
 #include "marco/model/ModExpPath.hpp"
@@ -30,23 +30,6 @@
 #include "marco/utils/Interval.hpp"
 
 using namespace marco;
-=======
-#include "modelica/matching/MatchedEquationLookup.hpp"
-#include "modelica/matching/SccLookup.hpp"
-#include "modelica/model/ModBltBlock.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModExpPath.hpp"
-#include "modelica/model/ModMatchers.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/model/Model.hpp"
-#include "modelica/model/VectorAccess.hpp"
-#include "modelica/utils/IRange.hpp"
-#include "modelica/utils/IndexSet.hpp"
-#include "modelica/utils/Interval.hpp"
-
-using namespace modelica;
->>>>>>> Started adding ModBltBlocks to Scheduling
 using namespace std;
 using namespace llvm;
 using namespace boost;

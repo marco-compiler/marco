@@ -22,7 +22,7 @@ namespace marco
 		typeConstantSizeMissMatch,
 		unexpectedModToken,
 		failedExplicitation,
-		failedSccCollapsing
+		unsolvableAlgebraicLoop
 	};
 }
 
@@ -266,21 +266,22 @@ namespace marco
 	 * Error caused by the presence of an Algebraic Loop that could not be solved
 	 * during the SccCollapsing pass.
 	 */
-	class FailedSccCollapsing: public llvm::ErrorInfo<FailedSccCollapsing>
+	class UnsolvableAlgebraicLoop: public llvm::ErrorInfo<UnsolvableAlgebraicLoop>
 	{
 		public:
 		static char ID;
-		FailedSccCollapsing() {}
+		UnsolvableAlgebraicLoop() {}
 
 		void log(llvm::raw_ostream& OS) const override
 		{
 			OS << "Some Algebraic Loops could not be solved by SccCollapsing.";
+			OS << "A suitable solver must be used to solve such models";
 		}
 
 		[[nodiscard]] std::error_code convertToErrorCode() const override
 		{
 			return std::error_code(
-					static_cast<int>(LowererErrorCode::failedSccCollapsing),
+					static_cast<int>(LowererErrorCode::unsolvableAlgebraicLoop),
 					LowererErrorCategory::category);
 		}
 	};

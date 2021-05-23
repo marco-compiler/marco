@@ -34,7 +34,7 @@ opt<string> entryPointName(
 
 opt<bool> externalLinkage(
 		"publicSymbols",
-		cl::desc("globals symbols are set as extenal linkage"),
+		cl::desc("globals symbols are set as external linkage"),
 		cl::init(false),
 		cl::cat(simCCategory));
 
@@ -56,19 +56,21 @@ opt<int> maxMatchingIterations(
 		init(1000),
 		cat(simCCategory));
 
-SmallVector<Assigment, 2> toAssign(SmallVector<ModEquation, 2>&& equs)
+SmallVector<variant<Assigment, ModBltBlock>, 2> toAssign(
+		SmallVector<ModEquation, 2>&& equs)
 {
-	SmallVector<Assigment, 2> assign;
+	SmallVector<variant<Assigment, ModBltBlock>, 2> assign;
 
 	for (ModEquation& eq : equs)
 	{
 		assert(eq.getLeft().isReference() || eq.getLeft().isReferenceAccess());
-		assign.emplace_back(
-				eq.getTemplate(), move(eq.getInductions()), eq.isForward());
+		assign.push_back(
+				Assigment(eq.getTemplate(), move(eq.getInductions()), eq.isForward()));
 	}
 
 	return assign;
 }
+
 ExitOnError exitOnErr;
 
 int main(int argc, char* argv[])
@@ -79,13 +81,13 @@ int main(int argc, char* argv[])
 	ModParser parser(buffer->getBufferStart());
 	Model model = exitOnErr(parser.simulation());
 
-	auto assigments = toAssign(move(model.getEquations()));
+	auto assignments = toAssign(move(model.getEquations()));
 	auto init = std::move(model.getVars());
 	LLVMContext context;
 	Lowerer sim(
 			context,
 			move(init),
-			move(assigments),
+			move(assignments),
 			"Modulation",
 			entryPointName,
 			simulationTime,

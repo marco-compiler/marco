@@ -149,7 +149,7 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 
 		// set induction to those that generate the circular dependency
 		if (!toFuseEq.getInductions().contains(vecSet[i]))
-			return make_error<FailedSccCollapsing>();
+			return make_error<UnsolvableAlgebraicLoop>();
 
 		toFuseEq.setInductionVars(vecSet[i]);
 		if (auto error = toFuseEq.explicitate(); error)
@@ -297,7 +297,7 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 						fuseScc(sccs[i], vectorGraph, possibleEq[i], maxIterations);
 				error)
 		{
-			if (!error.isA<FailedSccCollapsing>())
+			if (!error.isA<UnsolvableAlgebraicLoop>())
 				return move(error);
 
 			// If the Scc Collapsing algorithm fails, it means that we have
@@ -310,7 +310,10 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 				bltEquations.push_back(eq.getEquation());
 				bltVariables.push_back(eq.getVariable());
 			}
-			algebraicLoops.push_back(ModBltBlock(bltEquations, bltVariables));
+			algebraicLoops.push_back(ModBltBlock(
+					bltEquations,
+					bltVariables,
+					"loop" + to_string(algebraicLoops.size())));
 
 			possibleEq[i].clear();
 			consumeError(move(error));

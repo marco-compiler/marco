@@ -16,13 +16,14 @@ using namespace llvm;
 Expected<AssignModel> modelica::addBltBlocks(ScheduledModel& model)
 {
 	AssignModel out;
+	size_t implicitCount = 0, derivativeCount = 0;
 
 	for (auto& content : model.getUpdates())
 	{
 		// Add the algebraic loops, which are already in BLT blocks.
 		if (holds_alternative<ModBltBlock>(content))
 		{
-			out.addBltBlock(get<ModBltBlock>(content));
+			out.addUpdate(get<ModBltBlock>(content));
 			continue;
 		}
 
@@ -37,8 +38,10 @@ Expected<AssignModel> modelica::addBltBlocks(ScheduledModel& model)
 
 		if (u.isImplicit())
 		{
-			out.addBltBlock(
-					ModBltBlock({ update }, { ModVariable(model.getVar(matchedVar)) }));
+			out.addUpdate(ModBltBlock(
+					{ update },
+					{ ModVariable(model.getVar(matchedVar)) },
+					"implicit" + to_string(implicitCount++)));
 		}
 
 		// Transform all differential equations in BLT blocks.
@@ -46,16 +49,18 @@ Expected<AssignModel> modelica::addBltBlocks(ScheduledModel& model)
 				matchedVar.substr(0, 4) == "der_" &&
 				model.getVar(matchedVar.substr(4)).isState())
 		{
-			out.addBltBlock(
-					ModBltBlock({ update }, { ModVariable(model.getVar(matchedVar)) }));
+			out.addUpdate(ModBltBlock(
+					{ update },
+					{ ModVariable(model.getVar(matchedVar)) },
+					"derivative" + to_string(implicitCount++)));
 		}
 
 		// Add the remaining equations to the assignments list.
 		else
 		{
 			auto& templ = u.getTemplate();
-			out.emplaceUpdate(
-					templ, move(update.getInductions()), update.isForward());
+			out.addUpdate(
+					Assigment(templ, move(update.getInductions()), update.isForward()));
 		}
 	}
 

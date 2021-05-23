@@ -24,8 +24,8 @@ using namespace llvm;
  * and the jacobian matrix.
  */
 ModBltBlock::ModBltBlock(
-		SmallVector<ModEquation, 3> equs, SmallVector<ModVariable, 3> vars)
-		: equations(std::move(equs))
+		SmallVector<ModEquation, 3> equs, SmallVector<ModVariable, 3> vars, string bltName)
+		: equations(std::move(equs)), bltName(bltName)
 {
 	for (const auto& v : vars)
 		addVar(v);
@@ -54,6 +54,7 @@ bool ModBltBlock::addVar(ModVariable exp)
 
 void ModBltBlock::dump(llvm::raw_ostream& OS) const
 {
+	OS << "blt-block-" << bltName << "\n";
 	OS << "\tinit\n";
 	for (const auto& var : getVars())
 	{

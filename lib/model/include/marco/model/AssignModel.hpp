@@ -1,5 +1,6 @@
 #pragma once
 #include <set>
+#include <variant>
 
 #include "llvm/ADT/StringMap.h"
 #include "marco/model/Assigment.hpp"
@@ -13,7 +14,7 @@ namespace marco
 		public:
 		AssignModel(
 				llvm::StringMap<ModVariable> vars,
-				llvm::SmallVector<Assigment, 2> ups = {})
+				llvm::SmallVector<std::variant<Assigment, ModBltBlock>, 2> ups = {})
 				: variables(std::move(vars)), updates(std::move(ups))
 		{
 			for (const auto& update : updates)
@@ -39,78 +40,30 @@ namespace marco
 		}
 
 		/**
-		 * Add an update expression for a particular variable.
-		 * notice that if a expression is referring to a missing
-		 * variable then it's lower that will fail, not addUpdate
+		 * Add an update expression for a particular variable. If the parmeter is an
+		 * Assignment, it will be lowered as an assignment operation. If it is a
+		 * ModBltBlock it will be lowered with the usage of a solver. Notice that if
+		 * an expression is referring to a missing variable then its lowering will
+		 * fail, not addUpdate.
 		 */
-		void addUpdate(Assigment assigment)
+		void addUpdate(std::variant<Assigment, ModBltBlock> update)
 		{
-			updates.push_back(std::move(assigment));
+			updates.push_back(std::move(update));
 			addTemplate(updates.back());
 		}
 
-		void addBltBlock(ModBltBlock bltBlock)
-		{
-			bltBlocks.push_back(std::move(bltBlock));
-		}
-
-		template<typename... T>
-		void emplaceUpdate(T&&... args)
-		{
-			updates.emplace_back(std::forward<T>(args)...);
-			addTemplate(updates.back());
-		}
-
-		void dump(llvm::raw_ostream& OS = llvm::outs()) const
-		{
-			OS << "init\n";
-			for (const auto& var : variables)
-				var.second.dump(OS);
-
-			if (!templates.empty())
-				OS << "templates\n";
-			for (const auto& pair : templates)
-			{
-				pair->dump(true, OS);
-				OS << "\n";
-			}
-
-			if (!bltBlocks.empty())
-				OS << "blt-blocks\n";
-			for (auto i : irange(bltBlocks.size()))
-			{
-				OS << "blt-block " << i + 1 << "\n";
-				bltBlocks[i].dump(OS);
-			}
-
-			OS << "update\n";
-			for (const auto& update : updates)
-				update.dump(OS);
-		}
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
 		[[nodiscard]] auto& getVars() { return variables; }
 		[[nodiscard]] const auto& getVars() const { return variables; }
 		[[nodiscard]] auto& getUpdates() { return updates; }
 		[[nodiscard]] const auto& getUpdates() const { return updates; }
-		[[nodiscard]] auto& getBltBlocks() { return bltBlocks; }
-		[[nodiscard]] const auto& getBltBlocks() const { return bltBlocks; }
 
 		private:
-		void addTemplate(const Assigment& assigment)
-		{
-			if (assigment.getTemplate()->getName().empty())
-				return;
-
-			if (templates.find(assigment.getTemplate()) != templates.end())
-				return;
-
-			templates.emplace(assigment.getTemplate());
-		}
+		void addTemplate(const std::variant<Assigment, ModBltBlock>& update);
 
 		llvm::StringMap<ModVariable> variables;
-		llvm::SmallVector<Assigment, 2> updates;	// TODO: REMOVE
-		llvm::SmallVector<std::variant<Assigment, ModBltBlock>, 3> tmpUpdates;
-		llvm::SmallVector<ModBltBlock, 3> bltBlocks;	// TODO: REMOVE
+		llvm::SmallVector<std::variant<Assigment, ModBltBlock>, 3> updates;
 		std::set<std::shared_ptr<ModEqTemplate>> templates;
 	};
 }	 // namespace marco

@@ -49,14 +49,15 @@ Expected<AssignModel> marco::addApproximation(
 	for (auto& content : model.getUpdates())
 	{
 		if (!holds_alternative<ModEquation>(content))
-			return make_error<FailedSccCollapsing>();
+			return make_error<UnsolvableAlgebraicLoop>();
 
 		ModEquation update = get<ModEquation>(content);
 		auto u = update.clone(update.getTemplate()->getName() + "explicitated");
 		if (auto e = u.explicitate(); e)
 			return move(e);
 		auto& templ = u.getTemplate();
-		out.emplaceUpdate(templ, move(update.getInductions()), update.isForward());
+		out.addUpdate(
+				Assigment(templ, move(update.getInductions()), update.isForward()));
 	}
 
 	for (const auto& varP : out.getVars())
@@ -79,7 +80,7 @@ Expected<AssignModel> marco::addApproximation(
 
 		auto templ = make_shared<ModEqTemplate>(
 				move(left), move(right), derName + "_update");
-		out.emplaceUpdate(templ, var.toMultiDimInterval());
+		out.addUpdate(Assigment(templ, var.toMultiDimInterval()));
 	}
 
 	return out;

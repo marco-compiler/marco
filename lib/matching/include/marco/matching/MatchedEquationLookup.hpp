@@ -5,20 +5,12 @@
 #include <variant>
 
 #include "llvm/ADT/iterator_range.h"
-<<<<<<< HEAD:lib/matching/include/marco/matching/MatchedEquationLookup.hpp
+#include "modelica/model/ModBltBlock.hpp"
 #include "marco/model/ModEquation.hpp"
 #include "marco/model/Model.hpp"
 #include "marco/model/VectorAccess.hpp"
 #include "marco/utils/Interval.hpp"
 #include "marco/utils/MapIterator.hpp"
-=======
-#include "modelica/model/ModBltBlock.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/Model.hpp"
-#include "modelica/model/VectorAccess.hpp"
-#include "modelica/utils/Interval.hpp"
-#include "modelica/utils/MapIterator.hpp"
->>>>>>> Started adding ModBltBlocks to Scheduling:lib/matching/include/modelica/matching/MatchedEquationLookup.hpp
 
 namespace marco
 {
