@@ -281,11 +281,11 @@ static Error createNormalAssigment(
 	auto templFun = info.getModule().getFunction(templName);
 	if (templFun == nullptr)
 	{
-		auto maybFun = createFunctionAssigment(info, assigment);
-		if (!maybFun)
-			return maybFun.takeError();
+		auto maybeFun = createFunctionAssigment(info, assigment);
+		if (!maybeFun)
+			return maybeFun.takeError();
 
-		templFun = *maybFun;
+		templFun = *maybeFun;
 	}
 
 	info.getBuilder().CreateCall(templFun, { info.getInductionVars() });
@@ -342,7 +342,7 @@ static Expected<Function*> createUpdate(
 
 static Expected<Function*> createUpdates(
 		LowererContext& info,
-		const SmallVector<Assigment, 0>& upds,
+		const SmallVector<variant<Assigment, ModBltBlock>, 0>& upds,
 		const StringMap<ModVariable>& definitions)
 {
 	auto updateFunctionExpected = makePublicFunction("update", info.getModule());
@@ -356,7 +356,9 @@ static Expected<Function*> createUpdates(
 	size_t counter = 0;
 	for (const auto& assigment : upds)
 	{
-		auto fun = createUpdate(info, assigment, counter++);
+		if (!holds_alternative<Assigment>(assigment))
+			return make_error<UnsolvableAlgebraicLoop>();
+		auto fun = createUpdate(info, get<Assigment>(assigment), counter++);
 		if (!fun)
 			return fun.takeError();
 		bld.SetInsertPoint(&updateFunction->getEntryBlock());
@@ -495,7 +497,12 @@ void Lowerer::dump(raw_ostream& OS) const
 
 	OS << "update:\n";
 	for (const auto& update : updates)
-		update.dump(OS);
+	{
+		if (holds_alternative<Assigment>(update))
+			get<Assigment>(update).dump(OS);
+		else
+			get<ModBltBlock>(update).dump(OS);
+	}
 }
 
 void Lowerer::dumpBC(raw_ostream& OS) const { WriteBitcodeToFile(module, OS); }

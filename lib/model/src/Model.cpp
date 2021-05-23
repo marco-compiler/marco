@@ -56,11 +56,8 @@ void Model::dump(llvm::raw_ostream& OS) const
 
 	if (!getBltBlocks().empty())
 		OS << "blt-blocks\n";
-	for (auto i : irange(getBltBlocks().size()))
-	{
-		OS << "blt-block " << i + 1 << "\n";
-		getBltBlock(i).dump(OS);
-	}
+	for (const auto& bltBlock : getBltBlocks())
+		bltBlock.dump(OS);
 
 	OS << "update\n";
 	for (const auto& update : *this)

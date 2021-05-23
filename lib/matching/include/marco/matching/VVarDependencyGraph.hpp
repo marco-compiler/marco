@@ -8,20 +8,12 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
-<<<<<<< HEAD:lib/matching/include/marco/matching/VVarDependencyGraph.hpp
 #include "marco/matching/MatchedEquationLookup.hpp"
+#include "modelica/model/ModBltBlock.hpp"
 #include "marco/model/ModEquation.hpp"
 #include "marco/model/ModVariable.hpp"
 #include "marco/model/Model.hpp"
 #include "marco/model/VectorAccess.hpp"
-=======
-#include "modelica/matching/MatchedEquationLookup.hpp"
-#include "modelica/model/ModBltBlock.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/model/Model.hpp"
-#include "modelica/model/VectorAccess.hpp"
->>>>>>> Started adding ModBltBlocks to Scheduling:lib/matching/include/modelica/matching/VVarDependencyGraph.hpp
 
 namespace marco
 {

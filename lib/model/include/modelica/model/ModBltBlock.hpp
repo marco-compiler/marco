@@ -20,7 +20,8 @@ namespace modelica
 		public:
 		ModBltBlock(
 				llvm::SmallVector<ModEquation, 3> equs,
-				llvm::SmallVector<ModVariable, 3> vars);
+				llvm::SmallVector<ModVariable, 3> vars,
+				std::string bltName);
 		ModBltBlock() = default;
 
 		auto begin() { return equations.begin(); }
@@ -163,6 +164,8 @@ namespace modelica
 		void addTemplate(const ModEquation& eq);
 		void computeResidualFunction();
 		void computeJacobianMatrix();
+
+		std::string bltName;
 		llvm::SmallVector<ModEquation, 3> equations;
 		llvm::StringMap<ModVariable> vars;
 		TemplateMap templates;

@@ -13,6 +13,7 @@ set(SOURCES
 		src/ModConst.cpp
 		src/ModMatchers.cpp
 		src/ModBltBlock.cpp
+		src/AssignModel.cpp
 		src/ScheduledModel.cpp
 		src/SymbolicDifferentiation.cpp)
 

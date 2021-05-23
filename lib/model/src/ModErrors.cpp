@@ -9,7 +9,7 @@ char GlobalVariableCreationFailure::ID;
 char UnexpectedModToken::ID;
 char TypeConstantSizeMissMatch::ID;
 char FailedExplicitation::ID;
-char FailedSccCollapsing::ID;
+char UnsolvableAlgebraicLoop::ID;
 
 std::error_condition marco::make_error_condition(LowererErrorCode errc)
 {
@@ -42,7 +42,7 @@ LowererErrorCategory::default_error_condition(int ev) const noexcept
 	if (ev == 7)
 		return std::error_condition(LowererErrorCode::failedExplicitation);
 	if (ev == 8)
-		return std::error_condition(LowererErrorCode::failedSccCollapsing);
+		return std::error_condition(LowererErrorCode::unsolvableAlgebraicLoop);
 
 	return std::error_condition(LowererErrorCode::unkownVariable);
 }
@@ -83,7 +83,7 @@ LowererErrorCategory::default_error_condition(int ev) const noexcept
 		case 7:
 			return "Failed Explicitation";
 		case 8:
-			return "Failed SccCollapsing";
+			return "Unsolvable Algebraic Loop";
 
 		default:
 			return "Unkown Error";

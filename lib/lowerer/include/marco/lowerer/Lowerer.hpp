@@ -1,10 +1,13 @@
 #pragma once
 
+#include <variant>
+
 #include "llvm/ADT/StringMap.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Module.h"
 #include "marco/lowerer/LowererUtils.hpp"
 #include "marco/model/Assigment.hpp"
+#include "modelica/model/ModBltBlock.hpp"
 #include "marco/model/ModExp.hpp"
 #include "marco/model/ModVariable.hpp"
 
@@ -12,7 +15,7 @@ namespace marco
 {
 	/**
 	 * The default number of iterations to be performed.
-	 * Totaly arbitrary number.
+	 * Totally arbitrary number.
 	 */
 	constexpr int defaultModulationIterations = 10;
 
@@ -20,7 +23,7 @@ namespace marco
 	 * A Lowerer is the main container of the library. It lowers
 	 * a simulation and dumps into a bc file to be later compiled.
 	 *
-	 * A Lowerer is made of a inizialization section and of an update section.
+	 * A Lowerer is made of a initialization section and of an update section.
 	 * The generated file will invoke the initialization values once and then
 	 * update a certain number of time and will print the values of the vars at
 	 * each update.
@@ -31,7 +34,7 @@ namespace marco
 		Lowerer(
 				llvm::LLVMContext& context,
 				llvm::StringMap<ModVariable> vars,
-				llvm::SmallVector<Assigment, 2> updates,
+				llvm::SmallVector<std::variant<Assigment, ModBltBlock>, 2> updates,
 				std::string name = "Modelica Module",
 				std::string entryPointName = "main",
 				unsigned stopTime = defaultModulationIterations,
@@ -82,7 +85,7 @@ namespace marco
 		 * variable then it's lower that will fail, not addUpdate
 		 *
 		 */
-		void addUpdate(Assigment assigment)
+		void addUpdate(std::variant<Assigment, ModBltBlock> assigment)
 		{
 			updates.push_back(std::move(assigment));
 		}
@@ -97,7 +100,7 @@ namespace marco
 		llvm::Error lower();
 
 		/**
-		 * dumpds a human readable rappresentation of the simulation to OS, standard
+		 * dumps a human readable rappresentation of the simulation to OS, standard
 		 * out by default
 		 */
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
@@ -164,7 +167,7 @@ namespace marco
 				llvm::GlobalValue::LinkageTypes linkage);
 		llvm::Module module;
 		llvm::StringMap<ModVariable> variables;
-		llvm::SmallVector<Assigment, 0> updates;
+		llvm::SmallVector<std::variant<Assigment, ModBltBlock>, 0> updates;
 		unsigned stopTime;
 
 		std::string entryPointName;

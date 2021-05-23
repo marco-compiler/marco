@@ -5,20 +5,12 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-<<<<<<< HEAD:lib/model/include/marco/model/ModMatchers.hpp
+#include "modelica/model/ModBltBlock.hpp"
 #include "marco/model/ModEquation.hpp"
 #include "marco/model/ModExp.hpp"
 #include "marco/model/ModExpPath.hpp"
 #include "marco/utils/IRange.hpp"
 #include "marco/utils/ScopeGuard.hpp"
-=======
-#include "modelica/model/ModBltBlock.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModExpPath.hpp"
-#include "modelica/utils/IRange.hpp"
-#include "modelica/utils/ScopeGuard.hpp"
->>>>>>> Started adding ModBltBlocks to Scheduling:lib/model/include/modelica/model/ModMatchers.hpp
 
 namespace marco
 {

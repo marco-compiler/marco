@@ -52,10 +52,12 @@ TEST(CleverDAETest, AddDifferentialEqToBltBlock)
 	}
 
 	EXPECT_EQ(assignModel->getVars().size(), 3);
-	EXPECT_EQ(assignModel->getUpdates().size(), 0);
-	EXPECT_EQ(assignModel->getBltBlocks().size(), 2);
-	for (auto& bltBlock : assignModel->getBltBlocks())
+	EXPECT_EQ(assignModel->getUpdates().size(), 2);
+	for (auto& update : assignModel->getUpdates())
 	{
+		EXPECT_TRUE(holds_alternative<ModBltBlock>(update));
+		ModBltBlock bltBlock = get<ModBltBlock>(update);
+
 		EXPECT_EQ(bltBlock.getVars().size(), 1);
 		EXPECT_EQ(bltBlock.getEquations().size(), 1);
 		EXPECT_EQ(bltBlock.getResidual().size(), 1);
@@ -103,13 +105,15 @@ TEST(CleverDAETest, AddImplicitEqToBltBlock1)
 	}
 
 	EXPECT_EQ(assignModel->getVars().size(), 1);
-	EXPECT_EQ(assignModel->getUpdates().size(), 0);
-	EXPECT_EQ(assignModel->getBltBlocks().size(), 1);
-	EXPECT_EQ(assignModel->getBltBlocks()[0].getVars().size(), 1);
-	EXPECT_EQ(assignModel->getBltBlocks()[0].getEquations().size(), 1);
-	EXPECT_EQ(assignModel->getBltBlocks()[0].getResidual().size(), 1);
-	EXPECT_EQ(assignModel->getBltBlocks()[0].getJacobian().size(), 1);
-	EXPECT_EQ(assignModel->getBltBlocks()[0].getJacobian().front().size(), 1);
+	EXPECT_EQ(assignModel->getUpdates().size(), 1);
+	EXPECT_TRUE(holds_alternative<ModBltBlock>(assignModel->getUpdates()[0]));
+
+	ModBltBlock bltBlock = get<ModBltBlock>(assignModel->getUpdates()[0]);
+	EXPECT_EQ(bltBlock.getVars().size(), 1);
+	EXPECT_EQ(bltBlock.getEquations().size(), 1);
+	EXPECT_EQ(bltBlock.getResidual().size(), 1);
+	EXPECT_EQ(bltBlock.getJacobian().size(), 1);
+	EXPECT_EQ(bltBlock.getJacobian().front().size(), 1);
 }
 
 TEST(CleverDAETest, AddImplicitEqToBltBlock2)
@@ -151,11 +155,13 @@ TEST(CleverDAETest, AddImplicitEqToBltBlock2)
 	}
 
 	EXPECT_EQ(assignModel->getVars().size(), 1);
-	EXPECT_EQ(assignModel->getUpdates().size(), 0);
-	EXPECT_EQ(assignModel->getBltBlocks().size(), 1);
-	EXPECT_EQ(assignModel->getBltBlocks()[0].getVars().size(), 1);
-	EXPECT_EQ(assignModel->getBltBlocks()[0].getEquations().size(), 1);
-	EXPECT_EQ(assignModel->getBltBlocks()[0].getResidual().size(), 1);
-	EXPECT_EQ(assignModel->getBltBlocks()[0].getJacobian().size(), 1);
-	EXPECT_EQ(assignModel->getBltBlocks()[0].getJacobian().front().size(), 1);
+	EXPECT_EQ(assignModel->getUpdates().size(), 1);
+	EXPECT_TRUE(holds_alternative<ModBltBlock>(assignModel->getUpdates()[0]));
+
+	ModBltBlock bltBlock = get<ModBltBlock>(assignModel->getUpdates()[0]);
+	EXPECT_EQ(bltBlock.getVars().size(), 1);
+	EXPECT_EQ(bltBlock.getEquations().size(), 1);
+	EXPECT_EQ(bltBlock.getResidual().size(), 1);
+	EXPECT_EQ(bltBlock.getJacobian().size(), 1);
+	EXPECT_EQ(bltBlock.getJacobian().front().size(), 1);
 }
