@@ -35,65 +35,67 @@ using namespace llvm;
 using namespace boost;
 
 void VVarDependencyGraph::populateEdge(
-		const IndexesOfEquation& equation,
+		const IndexesOfEquation* content,
 		const AccessToVar& toVariable,
 		EqToVert& eqToVert)
 {
-	const auto& variable = model.getVar(toVariable.getVarName());
+	const ModVariable& variable = model.getVar(toVariable.getVarName());
 
-	if (equation.isEquation())
+	if (content->isEquation())
 	{
-		const ModEquation& content = equation.getEquation();
-		const auto usedIndexes =
-				toVariable.getAccess().map(content.getInductions());
-		for (const auto& var : lookUp.eqsDeterminingVar(variable))
+		const ModEquation& equation = content->getEquation();
+		const MultiDimInterval usedIndexes =
+				toVariable.getAccess().map(equation.getInductions());
+		for (const IndexesOfEquation* var : lookUp.eqsDeterminingVar(variable))
 		{
-			const auto& setOfVar = var.getInterval();
-			if (areDisjoint(usedIndexes, setOfVar))
-				continue;
-
-			add_edge(
-					eqToVert[&equation.getContent()],
-					eqToVert[&var.getContent()],
-					toVariable.getAccess(),
-					graph);
-		}
-	}
-	else	// TODO: Check if ModEquation/ModBltBlock is correctly differentiated
-	{
-		assert(false && "To be checked");
-		ModBltBlock content = equation.getBltBlock();
-		for (const IndexesOfEquation& var : lookUp.eqsDeterminingVar(variable))
-		{
-			for (auto i : modelica::irange(content.getEquations().size()))
+			for (const MultiDimInterval& setOfVar : var->getIntervals())
 			{
-				const MultiDimInterval usedIndexes =
-						toVariable.getAccess().map(content.getEquation(i).getInductions());
-				const MultiDimInterval& setOfVar = var.getIntervals()[i];
-
 				if (areDisjoint(usedIndexes, setOfVar))
 					continue;
 
 				add_edge(
-						eqToVert[&equation.getContent()],
-						eqToVert[&var.getContent()],
+						eqToVert[&content->getContent()],
+						eqToVert[&var->getContent()],
 						toVariable.getAccess(),
 						graph);
+			}
+		}
+	}
+	else
+	{
+		const ModBltBlock& bltBlock = content->getBltBlock();
+		for (const IndexesOfEquation* var : lookUp.eqsDeterminingVar(variable))
+		{
+			for (const ModEquation& eq : bltBlock.getEquations())
+			{
+				const MultiDimInterval usedIndexes =
+						toVariable.getAccess().map(eq.getInductions());
+				for (const MultiDimInterval& setOfVar : var->getIntervals())
+				{
+					if (areDisjoint(usedIndexes, setOfVar))
+						continue;
+
+					add_edge(
+							eqToVert[&content->getContent()],
+							eqToVert[&var->getContent()],
+							toVariable.getAccess(),
+							graph);
+				}
 			}
 		}
 	}
 }
 
 void VVarDependencyGraph::populateEq(
-		const IndexesOfEquation& equation, EqToVert& eqToVert)
+		const IndexesOfEquation* content, EqToVert& eqToVert)
 {
 	ReferenceMatcher rightHandMatcher;
-	rightHandMatcher.visit(equation.getContent(), true);
+	rightHandMatcher.visit(content->getContent(), true);
 	for (const auto& toVariable : rightHandMatcher)
 	{
 		assert(VectorAccess::isCanonical(toVariable.getExp()));
 		auto toAccess = AccessToVar::fromExp(toVariable.getExp());
-		populateEdge(equation, toAccess, eqToVert);
+		populateEdge(content, toAccess, eqToVert);
 	}
 }
 
@@ -101,11 +103,16 @@ void VVarDependencyGraph::create()
 {
 	EqToVert eqToVert;
 
-	for (const auto& eq : lookUp)
-		eqToVert[&eq.getContent()] = add_vertex(&eq, graph);
+	for (const IndexesOfEquation* content : lookUp)
+	{
+		// Do not add duplicate IndexesOfEquation to the map.
+		// This could be caused by multiple equations in a ModBltBlock.
+		if (eqToVert.find(&content->getContent()) == eqToVert.end())
+			eqToVert[&content->getContent()] = add_vertex(content, graph);
+	}
 
-	for (const auto& eq : lookUp)
-		populateEq(eq, eqToVert);
+	for (const IndexesOfEquation* content : lookUp)
+		populateEq(content, eqToVert);
 }
 
 VVarDependencyGraph::VVarDependencyGraph(

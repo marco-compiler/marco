@@ -19,7 +19,7 @@ void ReferenceMatcher::visit(
 		if (!ignoreMatched)
 			return;
 
-		const auto* match = &equation.getMatchedExp();
+		const ModExp* match = &equation.getMatchedExp();
 
 		vars.erase(
 				remove_if(
@@ -29,9 +29,8 @@ void ReferenceMatcher::visit(
 						}),
 				vars.end());
 	}
-	else	// TODO: Check if ModEquation/ModBltBlock is correctly differentiated
+	else
 	{
-		assert(false && "To be checked");
 		for (ModEquation equation : get<ModBltBlock>(content).getEquations())
 		{
 			assert(!ignoreMatched || equation.isMatched());
@@ -41,7 +40,7 @@ void ReferenceMatcher::visit(
 			if (!ignoreMatched)
 				return;
 
-			const auto* match = &equation.getMatchedExp();
+			const ModExp* match = &equation.getMatchedExp();
 
 			vars.erase(
 					remove_if(

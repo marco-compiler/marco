@@ -6,8 +6,8 @@ namespace modelica
 {
 	/**
 	 * This method transforms all differential equations and implicit equations
-	 * into BLT blocks within the model. Then the assigned model, ready for
-	 * lowering, is returned.
+	 * into BLT blocks within the model. The explicitable equations are
+	 * transformed into assignments. Then the assigned model is returned.
 	 *
 	 * @param model The matched, collapsed and scheduled model.
 	 * @return The assigned model.

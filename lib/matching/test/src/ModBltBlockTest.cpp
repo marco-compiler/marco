@@ -12,6 +12,22 @@ using namespace modelica;
 
 TEST(ModBltBlockTest, CyclesWithScalarsInBltBlock)
 {
+	/* Tested Model:
+		model Loop2
+			int x;
+			int y;
+			int z;
+			int w;
+			int v;
+		equation
+			x + y = 9 - v;
+			x - y = 3;
+			z + w = 1 + v;
+			z - w = -1;
+			v = 4;
+		end Loop2;
+	*/
+
 	const string stringModel =
 			"init "
 			"v = INT[1]{0} "
@@ -68,6 +84,18 @@ TEST(ModBltBlockTest, CyclesWithScalarsInBltBlock)
 
 TEST(ModBltBlockTest, CyclesWithVectorsInBltBlock)
 {
+	/* Tested Model:
+		model Loop6
+			int[5] x;
+		equation
+			x[1] + x[2] = 2;
+			x[1] - x[2] = 4;
+			x[3] + x[4] = 1;
+			x[3] - x[4] = -1;
+			x[5] = x[4] + x[1];
+		end Loop6;
+	*/
+
 	const string stringModel =
 			"init "
 			"x = INT[5]call fill INT[5](INT[1]{0}) "
@@ -124,6 +152,16 @@ TEST(ModBltBlockTest, CyclesWithVectorsInBltBlock)
 
 TEST(ModBltBlockTest, CycleMoreThanTwoEquations)
 {
+	/* Tested Model:
+		model Loop4
+			Real[3] x;
+		equation
+			x[1] + x[2] = 2.0;
+			x[1] - x[3] = 3.0;
+			x[2] + x[3] = 1.0;
+		end Loop4;
+	*/
+
 	const string stringModel =
 			"init "
 			"x = FLOAT[3]call fill FLOAT[3](INT[1]{0}) "

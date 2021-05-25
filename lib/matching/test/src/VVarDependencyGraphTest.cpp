@@ -92,18 +92,18 @@ TEST(VVarDependencyGraphTest, scalarGraph)
 	int visitedNodes = 0;
 	for (const auto& scc : sccContent)
 	{
-		SVarDepencyGraph scalarGraph(graph, scc);
+		SVarDependencyGraph scalarGraph(graph, scc);
 		visitedNodes += scalarGraph.count();
 	}
 	EXPECT_EQ(visitedNodes, 4);
 }
 
-TEST(VVarDependencyGraphTest, testOder)
+TEST(VVarDependencyGraphTest, testOrder)
 {
 	auto model = makeModel();
 	VVarDependencyGraph graph(model);
 	SccLookup sccContent(graph);
-	SmallVector<SVarDepencyGraph, 0> sccs;
+	SmallVector<SVarDependencyGraph, 0> sccs;
 	SmallVector<size_t, 0> execOrder;
 	int cutCount = 0;
 

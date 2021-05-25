@@ -21,7 +21,7 @@ using namespace llvm;
 using namespace boost;
 using namespace std;
 
-void SVarDepencyGraph::insertNode(LookUp& LookUp, size_t vertexIndex)
+void SVarDependencyGraph::insertNode(LookUp& lookUp, size_t vertexIndex)
 {
 	const IndexesOfEquation& vertex = collapsedGraph[vertexIndex];
 	if (vertex.isEquation())
@@ -31,26 +31,25 @@ void SVarDepencyGraph::insertNode(LookUp& LookUp, size_t vertexIndex)
 		for (auto eqInds : interval.contentRange())
 		{
 			auto indicies = vertex.getEqToVar().map(eqInds);
-			auto vertexIndex =
+			size_t vertexIndex =
 					add_vertex(SingleEquationReference(vertex, indicies), graph);
-			LookUp[&vertex][vertex.getVariable().indexOfElement(indicies)] =
+			lookUp[&vertex][vertex.getVariable()->indexOfElement(indicies)] =
 					vertexIndex;
 		}
 	}
-	else	// TODO: Check if ModEquation/ModBltBlock is correctly differentiated
+	else
 	{
-		assert(false && "To be checked");
 		const ModBltBlock& bltBlock = vertex.getBltBlock();
-		for (auto i : irange(vertex.size()))
+		for (size_t i : irange(vertex.size()))
 		{
 			const ModEquation& eq = bltBlock.getEquation(i);
 			const MultiDimInterval& interval = eq.getInductions();
 			for (auto eqInds : interval.contentRange())
 			{
 				auto indicies = vertex.getEqToVars()[i].map(eqInds);
-				auto vertexIndex =
+				size_t vertexIndex =
 						add_vertex(SingleEquationReference(vertex, indicies), graph);
-				LookUp[&vertex][vertex.getVariables()[i]->indexOfElement(indicies)] =
+				lookUp[&vertex][vertex.getVariables()[i]->indexOfElement(indicies)] =
 						vertexIndex;
 			}
 		}
@@ -60,7 +59,7 @@ void SVarDepencyGraph::insertNode(LookUp& LookUp, size_t vertexIndex)
 static Optional<size_t> indexOfScalarVar(
 		ArrayRef<size_t> access,
 		const IndexesOfEquation& var,
-		const SVarDepencyGraph::LookUp& lookUp)
+		const SVarDependencyGraph::LookUp& lookUp)
 {
 	auto v = lookUp.find(&var);
 	if (v == lookUp.end())
@@ -68,15 +67,14 @@ static Optional<size_t> indexOfScalarVar(
 
 	if (var.isEquation())
 	{
-		auto toReturn = v->second.find(var.getVariable().indexOfElement(access));
-		if (toReturn == v->second.end())
-			return {};
-		return toReturn->second;
+		auto toReturn = v->second.find(var.getVariable()->indexOfElement(access));
+		if (toReturn != v->second.end())
+			return toReturn->second;
+		return {};
 	}
-	else	// TODO: Check if ModEquation/ModBltBlock is correctly differentiated
+	else
 	{
-		assert(false && "To be checked");
-		for (auto& variable : var.getVariables())
+		for (const ModVariable* variable : var.getVariables())
 		{
 			auto toReturn = v->second.find(variable->indexOfElement(access));
 			if (toReturn != v->second.end())
@@ -86,7 +84,7 @@ static Optional<size_t> indexOfScalarVar(
 	}
 }
 
-void SVarDepencyGraph::insertEdge(
+void SVarDependencyGraph::insertEdge(
 		const LookUp& lookUp, const VVarDependencyGraph::EdgeDesc& edge)
 {
 	size_t sourceVertex = source(edge, collImpl());
@@ -114,10 +112,9 @@ void SVarDepencyGraph::insertEdge(
 			add_edge(*sourceIndex, *targetIndex, graph);
 		}
 	}
-	else	// TODO: Check if ModEquation/ModBltBlock is correctly differentiated
+	else
 	{
-		assert(false && "To be checked");
-		for (auto i : irange(targetNode.size()))
+		for (size_t i : irange(targetNode.size()))
 		{
 			VectorAccess dependencies = targetNode.getVarToEqs()[i] * varAccess;
 
@@ -137,18 +134,18 @@ void SVarDepencyGraph::insertEdge(
 	}
 }
 
-void SVarDepencyGraph::insertEdges(const LookUp& lookUp, size_t vertexIndex)
+void SVarDependencyGraph::insertEdges(const LookUp& lookUp, size_t vertexIndex)
 {
 	for (const auto& edge : outEdgesRange(vertexIndex, collImpl()))
 		insertEdge(lookUp, edge);
 }
 
-SVarDepencyGraph::SVarDepencyGraph(
+SVarDependencyGraph::SVarDependencyGraph(
 		const VVarDependencyGraph& collapsedGraph, const VVarScc& scc)
 		: scc(scc), collapsedGraph(collapsedGraph)
 {
 	LookUp vertexesLookUp;
-	for (const auto& vertex : scc)
+	for (const size_t& vertex : scc)
 		insertNode(vertexesLookUp, vertex);
 
 	for (size_t vertex : scc)
@@ -157,7 +154,7 @@ SVarDepencyGraph::SVarDepencyGraph(
 
 void SingleEquationReference::dump(llvm::raw_ostream& OS) const
 {
-	for (auto i : irange(vertex->size()))
+	for (size_t i : irange(vertex->size()))
 	{
 		OS << vertex->getVariables()[i]->getName();
 		OS << "[";
@@ -169,12 +166,12 @@ void SingleEquationReference::dump(llvm::raw_ostream& OS) const
 	}
 }
 
-void SVarDepencyGraph::dumpGraph(llvm::raw_ostream& OS) const
+void SVarDependencyGraph::dumpGraph(llvm::raw_ostream& OS) const
 {
 	OS << "digraph {";
 
 	const auto& verts = make_iterator_range(vertices(graph));
-	for (auto vertex : verts)
+	for (size_t vertex : verts)
 	{
 		const auto& eqRef = graph[vertex];
 		eqRef.dump(OS);
