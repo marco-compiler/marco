@@ -18,7 +18,7 @@ using namespace llvm;
 using namespace std;
 
 static SmallVector<variant<ModEquation, ModBltBlock>, 3> collapseEquations(
-		const SVarDepencyGraph& originalGraph)
+		const SVarDependencyGraph& originalGraph)
 {
 	SmallVector<variant<ModEquation, ModBltBlock>, 3> out;
 
@@ -44,7 +44,7 @@ static SmallVector<variant<ModEquation, ModBltBlock>, 3> collapseEquations(
 			for (const auto& set : currentSet)
 				out.emplace_back(ModEquation(eq.getTemplate(), set, !backward));
 		}
-		else	// TODO: Check if ModEquation/ModBltBlock differentiation is correct
+		else
 		{
 			assert(false && "Need to be checked");
 			ModBltBlock bltBlock = get<ModBltBlock>(content);
@@ -120,7 +120,7 @@ static SmallVector<variant<ModEquation, ModBltBlock>, 3> sched(
 	if (auto sched = trivialScheduling(scc, originalGraph); !sched.empty())
 		return sched;
 
-	SVarDepencyGraph scalarGraph(originalGraph, scc);
+	SVarDependencyGraph scalarGraph(originalGraph, scc);
 
 	return collapseEquations(scalarGraph);
 }
@@ -150,7 +150,7 @@ ScheduledModel marco::schedule(const Model& model)
 
 	SortedScc sortedScc = sccDependency.topologicalSort();
 
-	auto results = parallelMap(vectorGraph, sortedScc);
+	ResultVector results = parallelMap(vectorGraph, sortedScc);
 
 	ScheduledModel scheduledModel(move(model.getVars()));
 	for (const auto& res : results)

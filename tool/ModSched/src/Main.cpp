@@ -83,7 +83,7 @@ int main(int argc, char* argv[])
 		for (const auto& scc : sccs)
 		{
 			string fileName = to_string(i) + "_" + outputFile;
-			SVarDepencyGraph scalarGraph(graph, scc);
+			SVarDependencyGraph scalarGraph(graph, scc);
 			raw_fd_ostream OS(outputFile, error, sys::fs::OF_None);
 			if (error)
 			{

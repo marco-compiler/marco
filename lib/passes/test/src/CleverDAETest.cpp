@@ -14,6 +14,18 @@ using namespace modelica;
 
 TEST(CleverDAETest, AddDifferentialEqToBltBlock)
 {
+	/* Tested Model:
+		model SimpleDer
+			final parameter Real tau = 5.0;
+			Real[10] x(start = 0.0);
+		equation
+			tau*der(x[1]) = 1.0;
+			for i in 2:10 loop
+				tau*der(x[i]) = 2.0*i;
+			end for;
+		end SimpleDer;
+	*/
+
 	const string stringModel =
 			"init "
 			"der_x = FLOAT[10]call fill FLOAT[10](FLOAT[1]{0.000000e+00}) "
@@ -68,6 +80,14 @@ TEST(CleverDAETest, AddDifferentialEqToBltBlock)
 
 TEST(CleverDAETest, AddImplicitEqToBltBlock1)
 {
+	/* Tested Model:
+		model Implicit1
+			Real x;
+		equation
+			x*x*x - x + 2 = 3;
+		end Implicit1;
+	*/
+
 	const string stringModel =
 			"init "
 			"x = FLOAT[1]{0.000000e+00} "
@@ -118,6 +138,14 @@ TEST(CleverDAETest, AddImplicitEqToBltBlock1)
 
 TEST(CleverDAETest, AddImplicitEqToBltBlock2)
 {
+	/* Tested Model:
+		model Implicit2
+			Real x;
+		equation
+			x - 1/x + 2 = 3;
+		end Implicit2;
+	*/
+
 	const string stringModel =
 			"init "
 			"x = FLOAT[1]{0.000000e+00} "

@@ -91,16 +91,12 @@ namespace marco
 			assert(isBltBlock());
 			return invertedAccesses;
 		}
-		[[nodiscard]] const auto& getIntervals() const
-		{
-			assert(isBltBlock());
-			return indexSets;
-		}
+		[[nodiscard]] const auto& getIntervals() const { return indexSets; }
 
-		[[nodiscard]] const ModVariable& getVariable() const
+		[[nodiscard]] const ModVariable* getVariable() const
 		{
 			assert(isEquation());
-			return *variables.front();
+			return variables.front();
 		}
 		[[nodiscard]] const VectorAccess& getEqToVar() const
 		{
@@ -136,42 +132,41 @@ namespace marco
 	 */
 	class MatchedEquationLookup
 	{
-		using Map = std::multimap<const ModVariable*, IndexesOfEquation>;
-		using iterator = MapIterator<Map::iterator, IndexesOfEquation>;
+		using Map = std::multimap<const ModVariable*, IndexesOfEquation*>;
+		using iterator = MapIterator<Map::iterator, IndexesOfEquation*>;
 		using const_iterator =
-				MapIterator<Map::const_iterator, const IndexesOfEquation>;
+				MapIterator<Map::const_iterator, const IndexesOfEquation*>;
 		using iterator_range = llvm::iterator_range<iterator>;
 		using const_iterator_range = llvm::iterator_range<const_iterator>;
 
 		public:
 		MatchedEquationLookup(const Model& model)
 		{
-			for (auto& equation : model)
+			for (const ModEquation& equation : model)
 				addEquation(equation, model);
-			for (auto& bltBlock : model.getBltBlocks())
+			for (const ModBltBlock& bltBlock : model.getBltBlocks())
 				addBltBlock(bltBlock, model);
 		}
 
 		MatchedEquationLookup(const Model& model, llvm::ArrayRef<ModEquation> equs)
 		{
 			assert(model.getBltBlocks().empty());
-			for (auto& equation : equs)
+			for (const ModEquation& equation : equs)
 				addEquation(equation, model);
 		}
 
 		void addEquation(const ModEquation& equation, const Model& model)
 		{
-			IndexesOfEquation index(model, equation);
-			const ModVariable* var = &index.getVariable();
-			variables.emplace(var, std::move(index));
+			IndexesOfEquation* index = new IndexesOfEquation(model, equation);
+			const ModVariable* var = index->getVariable();
+			variables.emplace(var, index);
 		}
 
 		void addBltBlock(const ModBltBlock& bltBlock, const Model& model)
 		{
-			IndexesOfEquation index(model, bltBlock);
-			assert(false && "Need to be checked");
-			for (const ModVariable* var : index.getVariables())
-				variables.emplace(var, IndexesOfEquation(index));
+			IndexesOfEquation* index = new IndexesOfEquation(model, bltBlock);
+			for (const ModVariable* var : index->getVariables())
+				variables.emplace(var, index);
 		}
 
 		[[nodiscard]] const_iterator_range eqsDeterminingVar(

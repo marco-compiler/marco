@@ -305,10 +305,10 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 			llvm::SmallVector<ModEquation, 3> bltEquations;
 			llvm::SmallVector<ModVariable, 3> bltVariables;
 
-			for (auto& eq : sccs[i].range(vectorGraph))
+			for (const IndexesOfEquation& eq : sccs[i].range(vectorGraph))
 			{
 				bltEquations.push_back(eq.getEquation());
-				bltVariables.push_back(eq.getVariable());
+				bltVariables.push_back(*eq.getVariable());
 			}
 			algebraicLoops.push_back(ModBltBlock(
 					bltEquations,

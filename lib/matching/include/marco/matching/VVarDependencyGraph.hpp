@@ -77,10 +77,10 @@ namespace marco
 		using EqToVert =
 				std::map<const std::variant<ModEquation, ModBltBlock>*, VertexDesc>;
 		void populateEdge(
-				const IndexesOfEquation& equation,
+				const IndexesOfEquation* equation,
 				const AccessToVar& toVariable,
 				EqToVert& eqToVert);
-		void populateEq(const IndexesOfEquation& eq, EqToVert& eqToVert);
+		void populateEq(const IndexesOfEquation* eq, EqToVert& eqToVert);
 		void create();
 
 		const Model& model;
