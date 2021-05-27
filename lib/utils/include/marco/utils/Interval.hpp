@@ -14,7 +14,7 @@ namespace marco
 		public:
 		explicit Interval(size_t min, size_t max): minVal(min), maxVal(max)
 		{
-			assert(min < max);
+			assert((long)min < (long)max);
 		}
 		Interval(std::initializer_list<size_t> list)
 		{

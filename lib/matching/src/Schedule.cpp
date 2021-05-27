@@ -63,7 +63,7 @@ static SmallVector<variant<ModEquation, ModBltBlock>, 3> collapseEquations(
 static bool isForward(const VectorAccess* access)
 {
 	for (const auto& varAcc : *access)
-		if (varAcc.isOffset() && varAcc.getOffset() >= 0)
+		if (varAcc.isOffset() && varAcc.getOffset() > 0)
 			return false;
 
 	return true;
@@ -72,7 +72,7 @@ static bool isForward(const VectorAccess* access)
 static bool isBackward(const VectorAccess* access)
 {
 	for (const auto& varAcc : *access)
-		if (varAcc.isOffset() && varAcc.getOffset() <= 0)
+		if (varAcc.isOffset() && varAcc.getOffset() < 0)
 			return false;
 
 	return true;
