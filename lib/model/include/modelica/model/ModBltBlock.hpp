@@ -2,11 +2,9 @@
 
 #include <set>
 
-#include "llvm/ADT/StringMap.h"
 #include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModVariable.hpp"
 
 namespace modelica
 {
@@ -18,10 +16,7 @@ namespace modelica
 	class ModBltBlock
 	{
 		public:
-		ModBltBlock(
-				llvm::SmallVector<ModEquation, 3> equs,
-				llvm::SmallVector<ModVariable, 3> vars,
-				std::string bltName);
+		ModBltBlock(llvm::SmallVector<ModEquation, 3> equs, std::string bltName);
 		ModBltBlock() = default;
 
 		auto begin() { return equations.begin(); }
@@ -38,29 +33,6 @@ namespace modelica
 		[[nodiscard]] const ModEquation& getEquation(size_t index) const
 		{
 			return equations[index];
-		}
-
-		auto varbegin() { return vars.begin(); }
-		auto varend() { return vars.end(); };
-
-		[[nodiscard]] auto varbegin() const { return vars.begin(); }
-		[[nodiscard]] auto varend() const { return vars.end(); };
-
-		[[nodiscard]] bool containsVar(llvm::StringRef name) const
-		{
-			return vars.find(name) != vars.end();
-		}
-
-		[[nodiscard]] ModVariable& getVar(llvm::StringRef name)
-		{
-			assert(containsVar(name));	// NOLINT
-			return vars.find(name)->second;
-		}
-
-		[[nodiscard]] const ModVariable& getVar(llvm::StringRef name) const
-		{
-			assert(containsVar(name));	// NOLINT
-			return vars.find(name)->second;
 		}
 
 		void addEquation(ModEquation equation)
@@ -86,53 +58,15 @@ namespace modelica
 			addTemplate(equations.back());
 		}
 
-		bool addVar(ModVariable exp);
-
-		template<typename... Args>
-		bool emplaceVar(std::string name, Args&&... args)
-		{
-			if (vars.find(name) != vars.end())
-				return false;
-
-			vars.try_emplace(name, name, std::forward<Args>(args)...);
-			return true;
-		}
-
-		[[nodiscard]] const llvm::StringMap<ModVariable>& getVars() const
-		{
-			return vars;
-		}
-
-		[[nodiscard]] llvm::StringMap<ModVariable>& getVars() { return vars; }
-		[[nodiscard]] size_t startingIndex(const std::string& varName) const;
-
 		[[nodiscard]] auto& getEquations() { return equations; }
 		[[nodiscard]] const auto& getEquations() const { return equations; }
 
 		[[nodiscard]] size_t equationsCount() const
 		{
 			size_t count = 0;
-			for (const auto& eq : equations)
+			for (const ModEquation& eq : equations)
 				count += eq.getInductions().size();
 
-			return count;
-		}
-
-		[[nodiscard]] size_t stateCount() const
-		{
-			size_t count = 0;
-			for (const auto& var : vars)
-				if (var.second.isState())
-					count += var.second.toIndexSet().size();
-			return count;
-		}
-
-		[[nodiscard]] size_t nonStateNonConstCount() const
-		{
-			size_t count = 0;
-			for (const auto& var : vars)
-				if (!var.second.isState() && !var.second.isConstant())
-					count += var.second.toIndexSet().size();
 			return count;
 		}
 
@@ -167,7 +101,6 @@ namespace modelica
 
 		std::string bltName;
 		llvm::SmallVector<ModEquation, 3> equations;
-		llvm::StringMap<ModVariable> vars;
 		TemplateMap templates;
 		ResidualFunction residualFunction;
 		JacobianMatrix jacobianMatrix;

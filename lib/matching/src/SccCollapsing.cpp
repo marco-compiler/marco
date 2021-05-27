@@ -43,7 +43,7 @@ static EdDescVector cycleToEdgeVec(
 		vector<VVarDependencyGraph::VertexDesc> c, const VVarDependencyGraph& graph)
 {
 	EdDescVector v;
-	for (auto a : irange(c.size()))
+	for (size_t a : irange(c.size()))
 	{
 		auto vertex = c[a];
 		auto nextVertex = c[(a + 1) % c.size()];
@@ -62,7 +62,7 @@ static DependenciesVector cycleToDependenciesVector(
 
 	for (auto e : c)
 	{
-		const auto& varToEq = graph[source(e, graph.getImpl())];
+		const IndexesOfEquation& varToEq = graph[source(e, graph.getImpl())];
 		v.emplace_back(varToEq.getVarToEq() * graph[e]);
 	}
 
@@ -74,7 +74,7 @@ static bool cycleHasIndentityDependency(
 		const VVarDependencyGraph& graph,
 		const DependenciesVector& dep)
 {
-	auto fin = accumulate(
+	VectorAccess fin = accumulate(
 			dep.begin() + 1, dep.end(), dep[0], [](const auto& l, const auto& r) {
 				return l * r;
 			});
@@ -87,12 +87,12 @@ static MultiDimInterval cyclicDependentSet(
 		const VVarDependencyGraph& graph,
 		const DependenciesVector& dep)
 {
-	const auto& firstEq = graph[source(c[0], graph.getImpl())];
-	auto set = firstEq.getInterval();
-	for (auto i : irange(c.size()))
+	const IndexesOfEquation& firstEq = graph[source(c[0], graph.getImpl())];
+	MultiDimInterval set = firstEq.getInterval();
+	for (size_t i : irange(c.size()))
 	{
-		const auto& edge = graph[c[i]];
-		auto eq = graph[target(c[i], graph.getImpl())];
+		const VectorAccess& edge = graph[c[i]];
+		IndexesOfEquation eq = graph[target(c[i], graph.getImpl())];
 
 		set = intersection(dep[i].map(set), eq.getInterval());
 	}
@@ -103,11 +103,11 @@ static MultiDimInterval cyclicDependentSet(
 static IndexSetVector cyclicDependentSets(
 		const EdDescVector& c, const VVarDependencyGraph& graph)
 {
-	auto dep = cycleToDependenciesVector(c, graph);
-	auto cyclicSet = cyclicDependentSet(c, graph, dep);
+	DependenciesVector dep = cycleToDependenciesVector(c, graph);
+	MultiDimInterval cyclicSet = cyclicDependentSet(c, graph, dep);
 	IndexSetVector v({ cyclicSet });
 
-	for (auto i : irange(c.size() - 1))
+	for (size_t i : irange(c.size() - 1))
 		v.emplace_back(dep[i].map(v.back()));
 
 	assert(dep.size() == c.size() && v.size() == c.size());
@@ -115,10 +115,10 @@ static IndexSetVector cyclicDependentSets(
 	if (!cycleHasIndentityDependency(c, graph, dep))
 		return v;
 
-	for (auto i : irange(v.size()))
+	for (size_t i : irange(v.size()))
 	{
-		const auto& edge = graph[c[i]];
-		const auto& eq = graph[source(c[i], graph.getImpl())];
+		const VectorAccess& edge = graph[c[i]];
+		const IndexesOfEquation& eq = graph[source(c[i], graph.getImpl())];
 		v[i] = eq.getVarToEq().map(v[i]);
 		assert(eq.getEquation().getInductions().contains(v[i]));
 	}
@@ -134,17 +134,17 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 		const vector<VVarDependencyGraph::VertexDesc>& cycle,
 		const VVarDependencyGraph& g)
 {
-	auto c = cycleToEdgeVec(cycle, g);
-	auto vecSet = cyclicDependentSets(c, g);
+	EdDescVector c = cycleToEdgeVec(cycle, g);
+	IndexSetVector vecSet = cyclicDependentSets(c, g);
 	if (vecSet[0].empty())
 		return false;
 
 	// for each equation in the cycle
-	for (auto i : irange(cycle.size()))
+	for (size_t i : irange(cycle.size()))
 	{
-		const auto& eq = g[boost::source(c[i], g.getImpl())].getEquation();
+		const ModEquation& eq = g[boost::source(c[i], g.getImpl())].getEquation();
 		// copy the equation
-		auto toFuseEq =
+		ModEquation toFuseEq =
 				eq.clone(eq.getTemplate()->getName() + "merged" + to_string(a++));
 
 		// set induction to those that generate the circular dependency
@@ -163,8 +163,8 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 
 		// then for all other index set that
 		// are not in the circular set
-		auto nonUsed = remove(eq.getInductions(), vecSet[i]);
-		for (auto set : nonUsed)
+		IndexSet nonUsed = remove(eq.getInductions(), vecSet[i]);
+		for (MultiDimInterval set : nonUsed)
 		{
 			// add the equation to the untouched set
 			untouched.emplace_back(eq);
@@ -175,7 +175,7 @@ static llvm::Expected<bool> extractEquationWithDependencies(
 
 	// for all equations that were not in the circular set, add it to the
 	// untouched set.
-	for (auto i : irange(source.size()))
+	for (size_t i : irange(source.size()))
 	{
 		if (find(cycle, i) == cycle.end())
 			untouched.emplace_back(move(source[i]));
@@ -225,7 +225,7 @@ class CycleFuser
 			return;
 		}
 
-		for (auto& eq : filtered)
+		for (ModEquation& eq : filtered)
 			newEqus.emplace_back(move(eq));
 
 		*foundOne = true;
@@ -272,7 +272,7 @@ static Error fuseScc(
 {
 	out.reserve(scc.size());
 
-	for (const auto& eq : scc.range(vectorGraph))
+	for (const IndexesOfEquation& eq : scc.range(vectorGraph))
 		out.push_back(eq.getEquation());
 
 	if (auto error = fuseEquations(out, vectorGraph.getModel(), maxIterations);
@@ -291,7 +291,7 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 	SmallVector<ModBltBlock, 3> algebraicLoops;
 
 	// For each Scc, try to collapse it, otherwise add it to the loop list
-	for (auto i : irange(sccs.count()))
+	for (size_t i : irange(sccs.count()))
 	{
 		if (auto error =
 						fuseScc(sccs[i], vectorGraph, possibleEq[i], maxIterations);
@@ -303,17 +303,11 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 			// If the Scc Collapsing algorithm fails, it means that we have
 			// an Algebraic Loop, which must be handled by a solver afterwards.
 			llvm::SmallVector<ModEquation, 3> bltEquations;
-			llvm::SmallVector<ModVariable, 3> bltVariables;
-
 			for (const IndexesOfEquation& eq : sccs[i].range(vectorGraph))
-			{
 				bltEquations.push_back(eq.getEquation());
-				bltVariables.push_back(*eq.getVariable());
-			}
-			algebraicLoops.push_back(ModBltBlock(
-					bltEquations,
-					bltVariables,
-					"loop" + to_string(algebraicLoops.size())));
+
+			algebraicLoops.push_back(
+					ModBltBlock(bltEquations, "loop" + to_string(algebraicLoops.size())));
 
 			possibleEq[i].clear();
 			consumeError(move(error));
@@ -321,10 +315,10 @@ Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 	}
 
 	Model outModel({}, move(model.getVars()));
-	for (auto& eqList : possibleEq)
-		for (auto& eq : eqList)
+	for (EqVector& eqList : possibleEq)
+		for (ModEquation& eq : eqList)
 			outModel.addEquation(move(eq));
-	for (auto& algebraicLoop : algebraicLoops)
+	for (ModBltBlock& algebraicLoop : algebraicLoops)
 		outModel.addBltBlock(algebraicLoop);
 
 	return outModel;

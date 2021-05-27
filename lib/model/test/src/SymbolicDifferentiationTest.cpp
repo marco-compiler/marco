@@ -2,21 +2,19 @@
 
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModVariable.hpp"
 #include "modelica/model/SymbolicDifferentiation.hpp"
 #include "modelica/model/VectorAccess.hpp"
 
 using namespace modelica;
 
-const ModExp dim = ModExp(ModConst(0), ModType(BultinModTypes::FLOAT, 1));
-const ModVariable var = ModVariable("var", dim);
-const ModExp varExp = ModExp("var", BultinModTypes::FLOAT);
+const ModExp var = ModExp("var", BultinModTypes::FLOAT);
+const ModExp varExp = ModExp(var);
 const ModExp varExp2 = ModExp("var2", BultinModTypes::FLOAT);
 
-const ModExp vDim = ModExp(ModConst(0, 1), ModType(BultinModTypes::FLOAT, 2));
-const ModVariable vectorVar = ModVariable("var3", vDim);
-const ModExp vVarExp = ModExp("var3", ModType(BultinModTypes::FLOAT, 2));
-const ModExp vAccess = ModExp::at(ModExp(vVarExp), ModExp::index(ModConst(0)));
+const ModExp vectorVar = ModExp("var3", ModType(BultinModTypes::FLOAT, 2));
+const ModExp vVarExp = ModExp(vectorVar);
+const ModExp vAccess =
+		ModExp::at(ModExp(vectorVar), ModExp::index(ModConst(0)));
 
 TEST(SymbolicDifferentiationTest, DifferentiateScalarConstant)
 {
@@ -38,6 +36,7 @@ TEST(SymbolicDifferentiationTest, DifferentiateScalarVariable)
 
 TEST(SymbolicDifferentiationTest, DifferentiateVectorConstant)
 {
+	ModExp dim = ModExp(ModConst(0), ModType(BultinModTypes::FLOAT, 1));
 	ModVariable constant = ModVariable("constant", dim, false, true);
 	ModExp exp = ModExp("constant", ModType(BultinModTypes::FLOAT, 2));
 
@@ -60,13 +59,13 @@ TEST(SymbolicDifferentiationTest, DifferentiateVectorVariable)
 	ModExp exp7 = ModExp::at(
 			ModExp(vVarExp), ModExp::add(ModExp::index(ModConst(0)), ModConst(3)));
 
-	ModExp der1 = differentiate(exp1, vectorVar, vAccess);
-	ModExp der2 = differentiate(exp2, vectorVar, vAccess);
-	ModExp der3 = differentiate(exp3, vectorVar, vAccess);
-	ModExp der4 = differentiate(exp4, vectorVar, vAccess);
-	ModExp der5 = differentiate(exp5, vectorVar, vAccess);
-	ModExp der6 = differentiate(exp6, vectorVar, vectorAccess2);
-	ModExp der7 = differentiate(exp7, vectorVar, vectorAccess2);
+	ModExp der1 = differentiate(exp1, vAccess);
+	ModExp der2 = differentiate(exp2, vAccess);
+	ModExp der3 = differentiate(exp3, vAccess);
+	ModExp der4 = differentiate(exp4, vAccess);
+	ModExp der5 = differentiate(exp5, vAccess);
+	ModExp der6 = differentiate(exp6, vectorAccess2);
+	ModExp der7 = differentiate(exp7, vectorAccess2);
 
 	EXPECT_EQ(der1, ModConst(0.0));
 	EXPECT_EQ(der2, ModConst(0.0));
@@ -87,7 +86,7 @@ TEST(SymbolicDifferentiationTest, DifferentiateNegate)
 	ModExp der1 = differentiate(exp1, var);
 	ModExp der2 = differentiate(exp2, var);
 	ModExp der3 = differentiate(exp3, var);
-	ModExp der4 = differentiate(exp4, vectorVar, vAccess);
+	ModExp der4 = differentiate(exp4, vAccess);
 
 	EXPECT_EQ(der1, ModConst(0.0));
 	EXPECT_EQ(der2, ModConst(-1.0));
@@ -111,7 +110,7 @@ TEST(SymbolicDifferentiationTest, DifferentiateAddition)
 	ModExp der4 = differentiate(exp4, var);
 	ModExp der5 = differentiate(exp5, var);
 	ModExp der6 = differentiate(exp6, var);
-	ModExp der7 = differentiate(exp7, vectorVar, vAccess);
+	ModExp der7 = differentiate(exp7, vAccess);
 
 	EXPECT_EQ(der1, ModConst(0.0));
 	EXPECT_EQ(der2, ModConst(1.0));
@@ -138,7 +137,7 @@ TEST(SymbolicDifferentiationTest, DifferentiateSubtraction)
 	ModExp der4 = differentiate(exp4, var);
 	ModExp der5 = differentiate(exp5, var);
 	ModExp der6 = differentiate(exp6, var);
-	ModExp der7 = differentiate(exp7, vectorVar, vAccess);
+	ModExp der7 = differentiate(exp7, vAccess);
 
 	EXPECT_EQ(der1, ModConst(0.0));
 	EXPECT_EQ(der2, ModConst(1.0));
@@ -165,7 +164,7 @@ TEST(SymbolicDifferentiationTest, DifferentiateMultiplication)
 	ModExp der4 = differentiate(exp4, var);
 	ModExp der5 = differentiate(exp5, var);
 	ModExp der6 = differentiate(exp6, var);
-	ModExp der7 = differentiate(exp7, vectorVar, vAccess);
+	ModExp der7 = differentiate(exp7, vAccess);
 
 	ModExp res4 = ModExp::add(varExp, varExp);
 
@@ -194,7 +193,7 @@ TEST(SymbolicDifferentiationTest, DifferentiateDivision)
 	ModExp der4 = differentiate(exp4, var);
 	ModExp der5 = differentiate(exp5, var);
 	ModExp der6 = differentiate(exp6, var);
-	ModExp der7 = differentiate(exp7, vectorVar, vAccess);
+	ModExp der7 = differentiate(exp7, vAccess);
 
 	ModExp res3 =
 			ModExp::divide(ModConst(-5.0), ModExp::multiply(varExp, varExp));
@@ -227,7 +226,7 @@ TEST(SymbolicDifferentiationTest, DifferentiateElevation)
 	ModExp der3 = differentiate(exp3, var);
 	ModExp der4 = differentiate(exp4, var);
 	ModExp der5 = differentiate(exp5, var);
-	ModExp der6 = differentiate(exp6, vectorVar, vAccess);
+	ModExp der6 = differentiate(exp6, vAccess);
 
 	ModExp res3 = ModExp::multiply(ModConst(2.0), varExp);
 	ModExp res4 =
@@ -252,7 +251,7 @@ TEST(SymbolicDifferentiationTest, DifferentiateInduction)
 	ModExp der1 = differentiate(exp1, var);
 	ModExp der2 = differentiate(exp2, var);
 	ModExp der3 = differentiate(exp3, var);
-	ModExp der4 = differentiate(exp4, vectorVar, vAccess);
+	ModExp der4 = differentiate(exp4, vAccess);
 
 	EXPECT_EQ(der1, ModConst(0.0));
 	EXPECT_EQ(der2, ModExp::induction(ModConst(4)));
@@ -276,17 +275,14 @@ TEST(SymbolicDifferentiationTest, DifferentiateEquation)
 
 TEST(SymbolicDifferentiationTest, DifferentiateMultiDimVariables)
 {
-	ModExp multiDim =
-			ModExp(ModConst(0, 1, 2, 3), ModType(BultinModTypes::FLOAT, 2, 2));
-	ModVariable multiVectorVar = ModVariable("var4", multiDim);
 	ModExp multiVarExp = ModExp("var4", ModType(BultinModTypes::FLOAT, 2, 2));
 	ModExp multiDimAcc = ModExp::at(
 			ModExp::at(ModExp(multiVarExp), ModExp::index(ModConst(1))),
 			ModExp::index(ModConst(0)));
 
-	ModExp der1 = differentiate(multiDimAcc, multiVectorVar, multiDimAcc);
-	ModExp der2 = differentiate(multiDimAcc, vectorVar, vAccess);
-	ModExp der3 = differentiate(vAccess, multiVectorVar, multiDimAcc);
+	ModExp der1 = differentiate(multiDimAcc, multiDimAcc);
+	ModExp der2 = differentiate(multiDimAcc, vAccess);
+	ModExp der3 = differentiate(vAccess, multiDimAcc);
 
 	EXPECT_EQ(der1, ModConst(1.0));
 	EXPECT_EQ(der2, ModConst(0.0));
