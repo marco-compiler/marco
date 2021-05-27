@@ -74,7 +74,6 @@ TEST(ModBltBlockTest, CyclesWithScalarsInBltBlock)
 	EXPECT_EQ(collapsedModel->getBltBlocks().size(), 2);
 	for (auto& bltBlock : collapsedModel->getBltBlocks())
 	{
-		EXPECT_EQ(bltBlock.getVars().size(), 2);
 		EXPECT_EQ(bltBlock.getEquations().size(), 2);
 		EXPECT_EQ(bltBlock.getResidual().size(), 2);
 		EXPECT_EQ(bltBlock.getJacobian().size(), 2);
@@ -142,7 +141,6 @@ TEST(ModBltBlockTest, CyclesWithVectorsInBltBlock)
 	EXPECT_EQ(collapsedModel->getBltBlocks().size(), 2);
 	for (auto& bltBlock : collapsedModel->getBltBlocks())
 	{
-		EXPECT_EQ(bltBlock.getVars().size(), 1);
 		EXPECT_EQ(bltBlock.getEquations().size(), 2);
 		EXPECT_EQ(bltBlock.getResidual().size(), 2);
 		EXPECT_EQ(bltBlock.getJacobian().size(), 2);
@@ -201,7 +199,6 @@ TEST(ModBltBlockTest, CycleMoreThanTwoEquations)
 	EXPECT_EQ(collapsedModel->getVars().size(), 1);
 	EXPECT_EQ(collapsedModel->getEquations().size(), 0);
 	EXPECT_EQ(collapsedModel->getBltBlocks().size(), 1);
-	EXPECT_EQ(collapsedModel->getBltBlock(0).getVars().size(), 1);
 	EXPECT_EQ(collapsedModel->getBltBlock(0).getEquations().size(), 3);
 	EXPECT_EQ(collapsedModel->getBltBlock(0).getResidual().size(), 3);
 	EXPECT_EQ(collapsedModel->getBltBlock(0).getJacobian().size(), 3);

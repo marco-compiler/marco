@@ -38,10 +38,8 @@ Expected<AssignModel> modelica::addBltBlocks(ScheduledModel& model)
 
 		if (u.isImplicit())
 		{
-			out.addUpdate(ModBltBlock(
-					{ update },
-					{ ModVariable(model.getVar(matchedVar)) },
-					"implicit" + to_string(implicitCount++)));
+			out.addUpdate(
+					ModBltBlock({ update }, "implicit" + to_string(implicitCount++)));
 		}
 
 		// Transform all differential equations in BLT blocks.
@@ -49,10 +47,8 @@ Expected<AssignModel> modelica::addBltBlocks(ScheduledModel& model)
 				matchedVar.substr(0, 4) == "der_" &&
 				model.getVar(matchedVar.substr(4)).isState())
 		{
-			out.addUpdate(ModBltBlock(
-					{ update },
-					{ ModVariable(model.getVar(matchedVar)) },
-					"derivative" + to_string(implicitCount++)));
+			out.addUpdate(
+					ModBltBlock({ update }, "derivative" + to_string(derivativeCount++)));
 		}
 
 		// Add the remaining equations to the assignments list.

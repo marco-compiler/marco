@@ -70,7 +70,6 @@ TEST(CleverDAETest, AddDifferentialEqToBltBlock)
 		EXPECT_TRUE(holds_alternative<ModBltBlock>(update));
 		ModBltBlock bltBlock = get<ModBltBlock>(update);
 
-		EXPECT_EQ(bltBlock.getVars().size(), 1);
 		EXPECT_EQ(bltBlock.getEquations().size(), 1);
 		EXPECT_EQ(bltBlock.getResidual().size(), 1);
 		EXPECT_EQ(bltBlock.getJacobian().size(), 1);
@@ -129,7 +128,6 @@ TEST(CleverDAETest, AddImplicitEqToBltBlock1)
 	EXPECT_TRUE(holds_alternative<ModBltBlock>(assignModel->getUpdates()[0]));
 
 	ModBltBlock bltBlock = get<ModBltBlock>(assignModel->getUpdates()[0]);
-	EXPECT_EQ(bltBlock.getVars().size(), 1);
 	EXPECT_EQ(bltBlock.getEquations().size(), 1);
 	EXPECT_EQ(bltBlock.getResidual().size(), 1);
 	EXPECT_EQ(bltBlock.getJacobian().size(), 1);
@@ -187,7 +185,6 @@ TEST(CleverDAETest, AddImplicitEqToBltBlock2)
 	EXPECT_TRUE(holds_alternative<ModBltBlock>(assignModel->getUpdates()[0]));
 
 	ModBltBlock bltBlock = get<ModBltBlock>(assignModel->getUpdates()[0]);
-	EXPECT_EQ(bltBlock.getVars().size(), 1);
 	EXPECT_EQ(bltBlock.getEquations().size(), 1);
 	EXPECT_EQ(bltBlock.getResidual().size(), 1);
 	EXPECT_EQ(bltBlock.getJacobian().size(), 1);
