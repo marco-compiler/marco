@@ -57,7 +57,7 @@ void MatchingGraph::match(int iterations)
 {
 	for (auto _ : irange(0, iterations))
 	{
- 		AugmentingPath path(*this);
+		AugmentingPath path(*this);
 		if (!path.valid())
 			return;
 
@@ -175,7 +175,7 @@ static Error insertEq(
 	const auto& eq = edge.getEquation();
 	const auto& templ = eq.getTemplate();
 	auto newName =
-			templ->getName() + "m" + std::to_string(outModel.getTemplates().size());
+			templ->getName() + "m" + std::to_string(outModel.getEquations().size());
 	outModel.addEquation(eq.clone(std::move(newName)));
 	auto& justInserted = outModel.getEquations().back();
 	justInserted.setInductionVars(inductionVars);

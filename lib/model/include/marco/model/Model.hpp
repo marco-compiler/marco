@@ -16,6 +16,12 @@
 
 namespace marco
 {
+	/**
+	 * This class contains all the information about the modelica model. This
+	 * includes: all the variables, all the equations, all the blt block (if any),
+	 * and the templates to print the model. This class is used for the constant
+	 * folding and matching phases, it will then be used for the scheduling phase.
+	 */
 	class Model
 	{
 		public:
@@ -153,25 +159,25 @@ namespace marco
 		void addBltBlock(ModBltBlock bltBlock)
 		{
 			bltBlocks.push_back(std::move(bltBlock));
+			addTemplate(bltBlocks.back());
 		}
 
 		[[nodiscard]] auto& getBltBlocks() { return bltBlocks; }
 		[[nodiscard]] const auto& getBltBlocks() const { return bltBlocks; }
 
-		using TemplateMap = std::set<std::shared_ptr<ModEqTemplate>>;
-
-		[[nodiscard]] TemplateMap& getTemplates() { return templates; }
-
-		[[nodiscard]] const TemplateMap& getTemplates() const { return templates; }
+		using TemplateEqMap = std::set<std::shared_ptr<ModEqTemplate>>;
+		using TemplateBltMap = std::set<std::shared_ptr<ModBltTemplate>>;
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
 		private:
 		void addTemplate(const ModEquation& eq);
+		void addTemplate(const ModBltBlock& bltBlock);
 		llvm::SmallVector<ModEquation, 3> equations;
 		llvm::StringMap<ModVariable> vars;
 		llvm::SmallVector<ModBltBlock, 3> bltBlocks;
-		TemplateMap templates;
+		TemplateEqMap eqTemplates;
+		TemplateBltMap bltTemplates;
 	};
 
 }	 // namespace marco

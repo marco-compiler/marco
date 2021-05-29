@@ -6,15 +6,10 @@ using namespace llvm;
 
 void AssignModel::addTemplate(const variant<Assigment, ModBltBlock>& update)
 {
-	if (!holds_alternative<Assigment>(update))
-		return;
-
-	Assigment assigment = get<Assigment>(update);
-	if (assigment.getTemplate()->getName().empty() ||
-			templates.find(assigment.getTemplate()) != templates.end())
-		return;
-
-	templates.emplace(assigment.getTemplate());
+	if (holds_alternative<Assigment>(update))
+		templates.emplace(get<Assigment>(update).getTemplate());
+	else
+		templates.emplace(get<ModBltBlock>(update).getTemplate());
 }
 
 void AssignModel::dump(raw_ostream& OS) const
@@ -27,8 +22,15 @@ void AssignModel::dump(raw_ostream& OS) const
 		OS << "templates\n";
 	for (const auto& pair : templates)
 	{
-		pair->dump(true, OS);
-		OS << "\n";
+		if (holds_alternative<shared_ptr<ModEqTemplate>>(pair))
+		{
+			get<shared_ptr<ModEqTemplate>>(pair)->dump(true, OS);
+			OS << "\n";
+		}
+		else
+		{
+			get<shared_ptr<ModBltTemplate>>(pair)->dump(true, OS);
+		}
 	}
 
 	OS << "update\n";

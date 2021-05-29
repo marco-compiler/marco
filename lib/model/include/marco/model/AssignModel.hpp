@@ -1,4 +1,5 @@
 #pragma once
+
 #include <set>
 #include <variant>
 
@@ -9,6 +10,13 @@
 
 namespace marco
 {
+	/**
+	 * This class contains all the information about the modelica model. This
+	 * includes: all the variables, all the assignments and all the blt block (in
+	 * the order in which they need to be executed), and the templates to print
+	 * the model. This class is obtained from the solver phase and will be passed
+	 * to the lowerer.
+	 */
 	class AssignModel
 	{
 		public:
@@ -24,7 +32,7 @@ namespace marco
 		AssignModel() = default;
 
 		/**
-		 * adds a var to the simulation that will be intialized with the provided
+		 * Adds a var to the simulation that will be intialized with the provided
 		 * expression. Notice that in the initialization is undefined behaviour to
 		 * use references to other variables.
 		 *
@@ -59,11 +67,14 @@ namespace marco
 		[[nodiscard]] auto& getUpdates() { return updates; }
 		[[nodiscard]] const auto& getUpdates() const { return updates; }
 
+		using TemplateMap = std::set<std::variant<
+				std::shared_ptr<ModEqTemplate>,
+				std::shared_ptr<ModBltTemplate>>>;
+
 		private:
 		void addTemplate(const std::variant<Assigment, ModBltBlock>& update);
-
 		llvm::StringMap<ModVariable> variables;
 		llvm::SmallVector<std::variant<Assigment, ModBltBlock>, 3> updates;
-		std::set<std::shared_ptr<ModEqTemplate>> templates;
+		TemplateMap templates;
 	};
 }	 // namespace marco

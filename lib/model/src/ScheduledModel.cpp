@@ -5,18 +5,19 @@ using namespace modelica;
 using namespace llvm;
 
 ScheduledModel::ScheduledModel(llvm::StringMap<ModVariable> variables)
-		: variables(std::move(variables))
+		: variables(move(variables))
 {
 	for (const auto& update : updates)
-		if (std::holds_alternative<ModEquation>(update))
-			addTemplate(std::get<ModEquation>(update));
+		addTemplate(get<ModEquation>(update));
 }
 
-void ScheduledModel::addTemplate(const ModEquation& eq)
+void ScheduledModel::addTemplate(
+		const variant<ModEquation, ModBltBlock>& update)
 {
-	if (!eq.getTemplate()->getName().empty())
-		if (templates.find(eq.getTemplate()) == templates.end())
-			templates.emplace(eq.getTemplate());
+	if (holds_alternative<ModEquation>(update))
+		templates.emplace(get<ModEquation>(update).getTemplate());
+	else
+		templates.emplace(get<ModBltBlock>(update).getTemplate());
 }
 
 void ScheduledModel::dump(llvm::raw_ostream& OS) const
@@ -29,8 +30,15 @@ void ScheduledModel::dump(llvm::raw_ostream& OS) const
 		OS << "templates\n";
 	for (const auto& pair : templates)
 	{
-		pair->dump(true, OS);
-		OS << "\n";
+		if (holds_alternative<shared_ptr<ModEqTemplate>>(pair))
+		{
+			get<shared_ptr<ModEqTemplate>>(pair)->dump(true, OS);
+			OS << "\n";
+		}
+		else
+		{
+			get<shared_ptr<ModBltTemplate>>(pair)->dump(true, OS);
+		}
 	}
 
 	OS << "updates\n";

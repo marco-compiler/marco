@@ -1,7 +1,9 @@
 #pragma once
 
+#include <memory>
 #include <set>
 
+#include "modelica/model/ModBltTemplate.hpp"
 #include "modelica/model/ModEqTemplate.hpp"
 #include "modelica/model/ModEquation.hpp"
 #include "modelica/model/ModExp.hpp"
@@ -35,29 +37,6 @@ namespace modelica
 			return equations[index];
 		}
 
-		void addEquation(ModEquation equation)
-		{
-			equations.push_back(std::move(equation));
-			addTemplate(equations.back());
-		}
-
-		void emplaceEquation(
-				ModExp left,
-				ModExp right,
-				std::string templateName,
-				MultiDimInterval vars,
-				std::optional<EquationPath> path = std::nullopt)
-		{
-			equations.emplace_back(
-					std::move(left),
-					std::move(right),
-					std::move(templateName),
-					std::move(vars),
-					true,
-					std::move(path));
-			addTemplate(equations.back());
-		}
-
 		[[nodiscard]] auto& getEquations() { return equations; }
 		[[nodiscard]] const auto& getEquations() const { return equations; }
 
@@ -74,9 +53,6 @@ namespace modelica
 		using ResidualFunction = llvm::SmallVector<ModExp, 3>;
 		using JacobianMatrix = llvm::SmallVector<llvm::SmallVector<ModExp, 3>, 3>;
 
-		[[nodiscard]] TemplateMap& getTemplates() { return templates; }
-		[[nodiscard]] const TemplateMap& getTemplates() const { return templates; }
-
 		[[nodiscard]] ResidualFunction& getResidual() { return residualFunction; }
 		[[nodiscard]] const ResidualFunction& getResidual() const
 		{
@@ -92,6 +68,9 @@ namespace modelica
 		[[nodiscard]] bool isForward() const { return isForwardDirection; }
 		void setForward(bool isForward) { isForwardDirection = isForward; }
 
+		[[nodiscard]] auto& getTemplate() { return body; }
+		[[nodiscard]] const auto& getTemplate() const { return body; }
+
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
 		private:
@@ -99,11 +78,11 @@ namespace modelica
 		void computeResidualFunction();
 		void computeJacobianMatrix();
 
-		std::string bltName;
 		llvm::SmallVector<ModEquation, 3> equations;
 		TemplateMap templates;
 		ResidualFunction residualFunction;
 		JacobianMatrix jacobianMatrix;
 		bool isForwardDirection = true;
+		std::shared_ptr<ModBltTemplate> body;
 	};
 }	 // namespace modelica

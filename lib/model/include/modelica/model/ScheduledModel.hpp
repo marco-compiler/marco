@@ -10,6 +10,13 @@
 
 namespace modelica
 {
+	/**
+	 * This class contains all the information about the modelica model. This
+	 * includes: all the variables, all the equations and all the blt block (in
+	 * the order in which they need to be executed), and the templates to print
+	 * the model. This class is obtained from the scheduling phase and will be
+	 * passed to the solver.
+	 */
 	class ScheduledModel
 	{
 		public:
@@ -34,20 +41,10 @@ namespace modelica
 			return variables.find(name)->second;
 		}
 
-		bool addVar(ModVariable exp)
-		{
-			if (variables.find(exp.getName()) != variables.end())
-				return false;
-			auto name = exp.getName();
-			variables.try_emplace(std::move(name), std::move(exp));
-			return true;
-		}
-
 		void addUpdate(std::variant<ModEquation, ModBltBlock> update)
 		{
 			updates.push_back(std::move(update));
-			if (std::holds_alternative<ModEquation>(updates.back()))
-				addTemplate(std::get<ModEquation>(updates.back()));
+			addTemplate(updates.back());
 		}
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
@@ -57,10 +54,14 @@ namespace modelica
 		[[nodiscard]] auto& getUpdates() { return updates; }
 		[[nodiscard]] const auto& getUpdates() const { return updates; }
 
+		using TemplateMap = std::set<std::variant<
+				std::shared_ptr<ModEqTemplate>,
+				std::shared_ptr<ModBltTemplate>>>;
+
 		private:
-		void addTemplate(const ModEquation& eq);
+		void addTemplate(const std::variant<ModEquation, ModBltBlock>& update);
 		llvm::StringMap<ModVariable> variables;
 		llvm::SmallVector<std::variant<ModEquation, ModBltBlock>, 3> updates;
-		std::set<std::shared_ptr<ModEqTemplate>> templates;
+		TemplateMap templates;
 	};
 }	 // namespace modelica

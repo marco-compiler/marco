@@ -12,12 +12,13 @@ using namespace llvm;
  * and the jacobian matrix.
  */
 ModBltBlock::ModBltBlock(SmallVector<ModEquation, 3> equs, string bltName)
-		: bltName(bltName), equations(std::move(equs))
+		: equations(std::move(equs))
 {
 	for (const ModEquation& eq : equations)
 		addTemplate(eq);
 	computeResidualFunction();
 	computeJacobianMatrix();
+	body = make_shared<ModBltTemplate>(equations, bltName);
 }
 
 void ModBltBlock::addTemplate(const ModEquation& eq)
@@ -29,23 +30,7 @@ void ModBltBlock::addTemplate(const ModEquation& eq)
 
 void ModBltBlock::dump(llvm::raw_ostream& OS) const
 {
-	OS << "blt-block-" << bltName << "\n";
-	OS << "\tinit\n";
-	if (!getTemplates().empty())
-		OS << "\ttemplate\n";
-	for (const auto& temp : getTemplates())
-	{
-		OS << "\t";
-		temp->dump(true, OS);
-		OS << "\n";
-	}
-
-	OS << "\tupdate\n";
-	for (const ModEquation& eq : equations)
-	{
-		OS << "\t";
-		eq.dump(OS);
-	}
+	OS << "template blt-block-" << body->getName() << "\n";
 }
 
 /**
