@@ -13,8 +13,7 @@ const ModExp varExp2 = ModExp("var2", BultinModTypes::FLOAT);
 
 const ModExp vectorVar = ModExp("var3", ModType(BultinModTypes::FLOAT, 2));
 const ModExp vVarExp = ModExp(vectorVar);
-const ModExp vAccess =
-		ModExp::at(ModExp(vectorVar), ModExp::index(ModConst(0)));
+const ModExp vAccess = ModExp::at(ModExp(vVarExp), ModExp::index(ModConst(0)));
 
 TEST(SymbolicDifferentiationTest, DifferentiateScalarConstant)
 {
