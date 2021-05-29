@@ -34,6 +34,10 @@ using namespace std;
 using namespace llvm;
 using namespace boost;
 
+/**
+ * For every node, add an edge to every other node that depend on the matched
+ * variable of that node.
+ */
 void VVarDependencyGraph::populateEdge(
 		const IndexesOfEquation* content,
 		const AccessToVar& toVariable,
@@ -41,11 +45,11 @@ void VVarDependencyGraph::populateEdge(
 {
 	const ModVariable& variable = model.getVar(toVariable.getVarName());
 
-	if (content->isEquation())
+	for (const ModEquation& equation : content->getEquations())
 	{
-		const ModEquation& equation = content->getEquation();
 		const MultiDimInterval usedIndexes =
 				toVariable.getAccess().map(equation.getInductions());
+
 		for (const IndexesOfEquation* var : lookUp.eqsDeterminingVar(variable))
 		{
 			for (const MultiDimInterval& setOfVar : var->getIntervals())
@@ -61,48 +65,37 @@ void VVarDependencyGraph::populateEdge(
 			}
 		}
 	}
-	else
-	{
-		const ModBltBlock& bltBlock = content->getBltBlock();
-		for (const IndexesOfEquation* var : lookUp.eqsDeterminingVar(variable))
-		{
-			for (const ModEquation& eq : bltBlock.getEquations())
-			{
-				const MultiDimInterval usedIndexes =
-						toVariable.getAccess().map(eq.getInductions());
-				for (const MultiDimInterval& setOfVar : var->getIntervals())
-				{
-					if (areDisjoint(usedIndexes, setOfVar))
-						continue;
-
-					add_edge(
-							eqToVert[&content->getContent()],
-							eqToVert[&var->getContent()],
-							toVariable.getAccess(),
-							graph);
-				}
-			}
-		}
-	}
 }
 
+/**
+ * Search for all dependencies among nodes and add an edge between them.
+ */
 void VVarDependencyGraph::populateEq(
 		const IndexesOfEquation* content, EqToVert& eqToVert)
 {
 	ReferenceMatcher rightHandMatcher;
+
+	// Search for dependencies among the non-matched variables
 	rightHandMatcher.visit(content->getContent(), true);
-	for (const auto& toVariable : rightHandMatcher)
+	for (const ModExpPath& toVariable : rightHandMatcher)
 	{
 		assert(VectorAccess::isCanonical(toVariable.getExp()));
-		auto toAccess = AccessToVar::fromExp(toVariable.getExp());
+		AccessToVar toAccess = AccessToVar::fromExp(toVariable.getExp());
+
+		// Add an edge for each dependency
 		populateEdge(content, toAccess, eqToVert);
 	}
 }
 
+/**
+ * Add all nodes to the graph. A node is an IndexesOfEquation which contains
+ * either an Equation or a BltBlock. Then add all edges among these nodes.
+ */
 void VVarDependencyGraph::create()
 {
 	EqToVert eqToVert;
 
+	// Add all nodes
 	for (const IndexesOfEquation* content : lookUp)
 	{
 		// Do not add duplicate IndexesOfEquation to the map.
@@ -111,6 +104,7 @@ void VVarDependencyGraph::create()
 			eqToVert[&content->getContent()] = add_vertex(content, graph);
 	}
 
+	// Add all edges
 	for (const IndexesOfEquation* content : lookUp)
 		populateEq(content, eqToVert);
 }

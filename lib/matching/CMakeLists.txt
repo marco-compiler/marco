@@ -3,6 +3,7 @@ set(SOURCES
 		src/Edge.cpp
 		src/Flow.cpp
 		src/MatchingErrors.cpp
+		src/MatchedEquationLookup.cpp
 		src/VVarDependencyGraph.cpp
 		src/SVarDependencyGraph.cpp
 		src/SCCDependencyGraph.cpp

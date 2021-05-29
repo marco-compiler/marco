@@ -21,37 +21,28 @@ using namespace llvm;
 using namespace boost;
 using namespace std;
 
-void SVarDependencyGraph::insertNode(LookUp& lookUp, size_t vertexIndex)
+void SVarDependencyGraph::insertNodes(LookUp& lookUp, size_t vertexIndex)
 {
 	const IndexesOfEquation& vertex = collapsedGraph[vertexIndex];
-	if (vertex.isEquation())
+
+	for (size_t i : irange(vertex.size()))
 	{
-		const ModEquation& eq = vertex.getEquation();
-		const MultiDimInterval& interval = eq.getInductions();
+		const MultiDimInterval& interval = vertex.getEquations()[i].getInductions();
 		for (auto eqInds : interval.contentRange())
 		{
-			auto indicies = vertex.getEqToVar().map(eqInds);
+			auto indicies = vertex.getEqToVars()[i].map(eqInds);
+
+			// Do not add duplicate IndexesOfEquation to the map.
+			// This could be caused by multiple equations in a ModBltBlock.
+			if (lookUp.find(&vertex) != lookUp.end() &&
+					lookUp[&vertex].find(vertex.getVariables()[i]->indexOfElement(
+							indicies)) != lookUp[&vertex].end())
+				continue;
+
 			size_t vertexIndex =
 					add_vertex(SingleEquationReference(vertex, indicies), graph);
-			lookUp[&vertex][vertex.getVariable()->indexOfElement(indicies)] =
+			lookUp[&vertex][vertex.getVariables()[i]->indexOfElement(indicies)] =
 					vertexIndex;
-		}
-	}
-	else
-	{
-		const ModBltBlock& bltBlock = vertex.getBltBlock();
-		for (size_t i : irange(vertex.size()))
-		{
-			const ModEquation& eq = bltBlock.getEquation(i);
-			const MultiDimInterval& interval = eq.getInductions();
-			for (auto eqInds : interval.contentRange())
-			{
-				auto indicies = vertex.getEqToVars()[i].map(eqInds);
-				size_t vertexIndex =
-						add_vertex(SingleEquationReference(vertex, indicies), graph);
-				lookUp[&vertex][vertex.getVariables()[i]->indexOfElement(indicies)] =
-						vertexIndex;
-			}
 		}
 	}
 }
@@ -65,23 +56,13 @@ static Optional<size_t> indexOfScalarVar(
 	if (v == lookUp.end())
 		return {};
 
-	if (var.isEquation())
+	for (const ModVariable* variable : var.getVariables())
 	{
-		auto toReturn = v->second.find(var.getVariable()->indexOfElement(access));
+		auto toReturn = v->second.find(variable->indexOfElement(access));
 		if (toReturn != v->second.end())
 			return toReturn->second;
-		return {};
 	}
-	else
-	{
-		for (const ModVariable* variable : var.getVariables())
-		{
-			auto toReturn = v->second.find(variable->indexOfElement(access));
-			if (toReturn != v->second.end())
-				return toReturn->second;
-		}
-		return {};
-	}
+	return {};
 }
 
 void SVarDependencyGraph::insertEdge(
@@ -95,41 +76,22 @@ void SVarDependencyGraph::insertEdge(
 	const IndexesOfEquation& sourceNode = *collImpl()[sourceVertex];
 	const VectorAccess& varAccess = collImpl()[edge];
 
-	if (targetNode.isEquation())
+	for (size_t i : irange(targetNode.size()))
 	{
-		VectorAccess dependencies = targetNode.getVarToEq() * varAccess;
+		VectorAccess dependencies = targetNode.getVarToEqs()[i] * varAccess;
 
-		for (const auto& indices : targetNode.getInterval().contentRange())
+		for (const auto& indices : targetNode.getIntervals()[i].contentRange())
 		{
 			auto sourceIndex = indexOfScalarVar(indices, sourceNode, lookUp);
 
 			auto scalarVarInduction = dependencies.map(indices);
 			auto targetIndex =
 					indexOfScalarVar(scalarVarInduction, targetNode, lookUp);
+
 			if (!sourceIndex || !targetIndex)
 				continue;
 
 			add_edge(*sourceIndex, *targetIndex, graph);
-		}
-	}
-	else
-	{
-		for (size_t i : irange(targetNode.size()))
-		{
-			VectorAccess dependencies = targetNode.getVarToEqs()[i] * varAccess;
-
-			for (const auto& indices : targetNode.getIntervals()[i].contentRange())
-			{
-				auto sourceIndex = indexOfScalarVar(indices, sourceNode, lookUp);
-
-				auto scalarVarInduction = dependencies.map(indices);
-				auto targetIndex =
-						indexOfScalarVar(scalarVarInduction, targetNode, lookUp);
-				if (!sourceIndex || !targetIndex)
-					continue;
-
-				add_edge(*sourceIndex, *targetIndex, graph);
-			}
 		}
 	}
 }
@@ -146,7 +108,7 @@ SVarDependencyGraph::SVarDependencyGraph(
 {
 	LookUp vertexesLookUp;
 	for (const size_t& vertex : scc)
-		insertNode(vertexesLookUp, vertex);
+		insertNodes(vertexesLookUp, vertex);
 
 	for (size_t vertex : scc)
 		insertEdges(vertexesLookUp, vertex);
