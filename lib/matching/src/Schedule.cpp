@@ -41,12 +41,11 @@ static SmallVector<variant<ModEquation, ModBltBlock>, 3> collapseEquations(
 		if (holds_alternative<ModEquation>(content))
 		{
 			const ModEquation& eq = get<ModEquation>(content);
-			for (const auto& set : currentSet)
+			for (const MultiDimInterval& set : currentSet)
 				out.emplace_back(ModEquation(eq.getTemplate(), set, !backward));
 		}
 		else
 		{
-			assert(false && "Need to be checked");
 			ModBltBlock bltBlock = get<ModBltBlock>(content);
 			bltBlock.setForward(!backward);
 			out.emplace_back(bltBlock);
@@ -62,7 +61,7 @@ static SmallVector<variant<ModEquation, ModBltBlock>, 3> collapseEquations(
 
 static bool isForward(const VectorAccess* access)
 {
-	for (const auto& varAcc : *access)
+	for (const SingleDimensionAccess& varAcc : *access)
 		if (varAcc.isOffset() && varAcc.getOffset() > 0)
 			return false;
 
@@ -71,7 +70,7 @@ static bool isForward(const VectorAccess* access)
 
 static bool isBackward(const VectorAccess* access)
 {
-	for (const auto& varAcc : *access)
+	for (const SingleDimensionAccess& varAcc : *access)
 		if (varAcc.isOffset() && varAcc.getOffset() < 0)
 			return false;
 
@@ -119,6 +118,9 @@ static SmallVector<variant<ModEquation, ModBltBlock>, 3> sched(
 {
 	if (auto sched = trivialScheduling(scc, originalGraph); !sched.empty())
 		return sched;
+
+	// After a topological sort there should be no need of Khan's algorithm.
+	assert(false && "Unreachable?");
 
 	SVarDependencyGraph scalarGraph(originalGraph, scc);
 

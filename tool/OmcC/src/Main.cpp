@@ -100,17 +100,25 @@ opt<string> entryPointName(
 		cl::init("main"),
 		cl::cat(omcCCat));
 
-opt<string> solverName(
-		"solver",
-		cl::desc("name of solver among: forwardEuler, cleverDAE"),
-		cl::init("forwardEuler"),
+enum Solver
+{
+	ForwardEuler,
+	CleverDAE
+};
+
+opt<Solver> solverName(
+		cl::desc("Solvers:"),
+		cl::values(
+				clEnumValN(ForwardEuler, "forward-euler", "Forward Euler (default)"),
+				clEnumValN(CleverDAE, "clever-dae", "Clever DAE")),
+		cl::init(ForwardEuler),
 		cl::cat(omcCCat));
 
 Expected<AssignModel> selectSolver(ScheduledModel scheduled)
 {
-	if (solverName == "forwardEuler")
+	if (solverName == ForwardEuler)
 		return addApproximation(scheduled, timeStep);
-	if (solverName == "cleverDAE")
+	if (solverName == CleverDAE)
 		return addBltBlocks(scheduled);
 	return createStringError(
 			errc::executable_format_error, "Could not find the chosen solver");

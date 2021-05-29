@@ -26,29 +26,9 @@ namespace marco
 	class IndexesOfEquation
 	{
 		public:
-		IndexesOfEquation(const Model& model, const ModEquation& equation)
-				: content(equation),
-					accesses({ equation.getDeterminedVariable() }),
-					variables({ &model.getVar(accesses.front().getVarName()) }),
-					directAccesses({ accesses.front().getAccess() }),
-					invertedAccesses({ accesses.front().getAccess().invert() }),
-					indexSets(
-							{ accesses.front().getAccess().map(equation.getInductions()) })
-		{
-		}
+		IndexesOfEquation(const Model& model, const ModEquation& equation);
 
-		IndexesOfEquation(const Model& model, const ModBltBlock& bltBlock)
-				: content(bltBlock)
-		{
-			for (const ModEquation& eq : bltBlock.getEquations())
-			{
-				accesses.push_back(eq.getDeterminedVariable());
-				variables.push_back(&model.getVar(accesses.back().getVarName()));
-				directAccesses.push_back(accesses.back().getAccess());
-				invertedAccesses.push_back(accesses.back().getAccess().invert());
-				indexSets.push_back(directAccesses.back().map(eq.getInductions()));
-			}
-		}
+		IndexesOfEquation(const Model& model, const ModBltBlock& bltBlock);
 
 		[[nodiscard]] bool isEquation() const
 		{
@@ -76,21 +56,10 @@ namespace marco
 			return std::get<ModBltBlock>(content);
 		}
 
-		[[nodiscard]] const auto& getVariables() const
-		{
-			assert(isBltBlock());
-			return variables;
-		}
-		[[nodiscard]] const auto& getEqToVars() const
-		{
-			assert(isBltBlock());
-			return directAccesses;
-		}
-		[[nodiscard]] const auto& getVarToEqs() const
-		{
-			assert(isBltBlock());
-			return invertedAccesses;
-		}
+		[[nodiscard]] const auto getEquations() const { return equations; }
+		[[nodiscard]] const auto& getVariables() const { return variables; }
+		[[nodiscard]] const auto& getEqToVars() const { return directAccesses; }
+		[[nodiscard]] const auto& getVarToEqs() const { return invertedAccesses; }
 		[[nodiscard]] const auto& getIntervals() const { return indexSets; }
 
 		[[nodiscard]] const ModVariable* getVariable() const
@@ -114,10 +83,11 @@ namespace marco
 			return indexSets.front();
 		}
 
-		[[nodiscard]] size_t size() const { return accesses.size(); }
+		[[nodiscard]] size_t size() const { return equations.size(); }
 
 		private:
 		const std::variant<ModEquation, ModBltBlock> content;
+		const llvm::SmallVector<ModEquation, 3> equations;
 		llvm::SmallVector<AccessToVar, 3> accesses;
 		llvm::SmallVector<const ModVariable*, 3> variables;
 		llvm::SmallVector<VectorAccess, 3> directAccesses;
@@ -140,34 +110,13 @@ namespace marco
 		using const_iterator_range = llvm::iterator_range<const_iterator>;
 
 		public:
-		MatchedEquationLookup(const Model& model)
-		{
-			for (const ModEquation& equation : model)
-				addEquation(equation, model);
-			for (const ModBltBlock& bltBlock : model.getBltBlocks())
-				addBltBlock(bltBlock, model);
-		}
+		MatchedEquationLookup(const Model& model);
 
-		MatchedEquationLookup(const Model& model, llvm::ArrayRef<ModEquation> equs)
-		{
-			assert(model.getBltBlocks().empty());
-			for (const ModEquation& equation : equs)
-				addEquation(equation, model);
-		}
+		MatchedEquationLookup(const Model& model, llvm::ArrayRef<ModEquation> equs);
 
-		void addEquation(const ModEquation& equation, const Model& model)
-		{
-			IndexesOfEquation* index = new IndexesOfEquation(model, equation);
-			const ModVariable* var = index->getVariable();
-			variables.emplace(var, index);
-		}
+		void addEquation(const ModEquation& equation, const Model& model);
 
-		void addBltBlock(const ModBltBlock& bltBlock, const Model& model)
-		{
-			IndexesOfEquation* index = new IndexesOfEquation(model, bltBlock);
-			for (const ModVariable* var : index->getVariables())
-				variables.emplace(var, index);
-		}
+		void addBltBlock(const ModBltBlock& bltBlock, const Model& model);
 
 		[[nodiscard]] const_iterator_range eqsDeterminingVar(
 				const ModVariable& var) const

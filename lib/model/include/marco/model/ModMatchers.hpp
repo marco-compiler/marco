@@ -14,6 +14,10 @@
 
 namespace marco
 {
+	/**
+	 * This class, given an equation or a blt block, finds and stores pointers
+	 * to subexpressions that are variable accesses.
+	 */
 	class ReferenceMatcher
 	{
 		public:
@@ -24,7 +28,7 @@ namespace marco
 		}
 
 		void visit(const ModExp& exp, bool isLeft, size_t index);
-
+		void visit(const ModEquation& equation, bool ignoreMatched = false);
 		void visit(
 				const std::variant<ModEquation, ModBltBlock>& content,
 				bool ignoreMatched = false);

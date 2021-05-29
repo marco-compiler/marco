@@ -79,7 +79,7 @@ namespace marco
 		private:
 		void insertEdge(
 				const LookUp& lookup, const VVarDependencyGraph::EdgeDesc& edge);
-		void insertNode(LookUp& lookUp, size_t vertexIndex);
+		void insertNodes(LookUp& lookUp, size_t vertexIndex);
 		void insertEdges(const LookUp& lookup, size_t vertex);
 		const VVarScc& scc;
 		const VVarDependencyGraph& collapsedGraph;
