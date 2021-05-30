@@ -21,5 +21,14 @@ namespace modelica::codegen
 		}
 	};
 
-	std::unique_ptr<mlir::Pass> createSolveModelPass(SolveModelOptions options = SolveModelOptions::getDefaultOptions());
+	std::unique_ptr<mlir::Pass> createSolveModelPass(
+			SolveModelOptions options = SolveModelOptions::getDefaultOptions());
+
+	inline void registerSolveModelPass()
+	{
+		mlir::registerPass("solve-model", "Modelica: solve model",
+											 []() -> std::unique_ptr<::mlir::Pass> {
+												 return createSolveModelPass();
+											 });
+	}
 }

@@ -7,42 +7,6 @@ namespace modelica::codegen
 {
 	class ModelicaDialect;
 
-	class IntegerTypeStorage : public mlir::TypeStorage
-	{
-		public:
-		using KeyTy = unsigned int;
-
-		IntegerTypeStorage() = delete;
-		bool operator==(const KeyTy& key) const;
-		static unsigned int hashKey(const KeyTy& key);
-		static IntegerTypeStorage* construct(mlir::TypeStorageAllocator&allocator, unsigned int bitWidth);
-
-		[[nodiscard]] unsigned int getBitWidth() const;
-
-		private:
-		explicit IntegerTypeStorage(unsigned int bitWidth);
-
-		unsigned int bitWidth;
-	};
-
-	class RealTypeStorage : public mlir::TypeStorage
-	{
-		public:
-		using KeyTy = unsigned int;
-
-		RealTypeStorage() = delete;
-		bool operator==(const KeyTy& key) const;
-		static unsigned int hashKey(const KeyTy& key);
-		static RealTypeStorage* construct(mlir::TypeStorageAllocator&allocator, unsigned int bitWidth);
-
-		[[nodiscard]] unsigned int getBitWidth() const;
-
-		private:
-		explicit RealTypeStorage(unsigned int bitWidth);
-
-		unsigned int bitWidth;
-	};
-
 	enum class MemberAllocationScope
 	{
 		stack,
@@ -107,7 +71,7 @@ namespace modelica::codegen
 	class UnsizedPointerTypeStorage : public mlir::TypeStorage
 	{
 		public:
-		using KeyTy = std::tuple<mlir::Type, unsigned int>;
+		using KeyTy = mlir::Type;
 
 		UnsizedPointerTypeStorage() = delete;
 
@@ -119,10 +83,9 @@ namespace modelica::codegen
 		[[nodiscard]] unsigned int getRank() const;
 
 		private:
-		UnsizedPointerTypeStorage(mlir::Type elementType, unsigned int rank);
+		UnsizedPointerTypeStorage(mlir::Type elementType);
 
 		mlir::Type elementType;
-		unsigned int rank;
 	};
 
 	class StructTypeStorage : public mlir::TypeStorage
@@ -151,22 +114,20 @@ namespace modelica::codegen
 		static BooleanType get(mlir::MLIRContext* context);
 	};
 
-	class IntegerType : public mlir::Type::TypeBase<IntegerType, mlir::Type, IntegerTypeStorage>
+	class IntegerType : public mlir::Type::TypeBase<IntegerType, mlir::Type, mlir::TypeStorage>
 	{
 		public:
 		using Base::Base;
 
-		static IntegerType get(mlir::MLIRContext* context, unsigned int bitWidth);
-		[[nodiscard]] unsigned int getBitWidth() const;
+		static IntegerType get(mlir::MLIRContext* context);
 	};
 
-	class RealType : public mlir::Type::TypeBase<RealType, mlir::Type, RealTypeStorage>
+	class RealType : public mlir::Type::TypeBase<RealType, mlir::Type, mlir::TypeStorage>
 	{
 		public:
 		using Base::Base;
 
-		static RealType get(mlir::MLIRContext* context, unsigned int bitWidth);
-		[[nodiscard]] unsigned int getBitWidth() const;
+		static RealType get(mlir::MLIRContext* context);
 	};
 
 	class PointerType;
@@ -229,10 +190,9 @@ namespace modelica::codegen
 		public:
 		using Base::Base;
 
-		static UnsizedPointerType get(mlir::MLIRContext* context, mlir::Type elementType, unsigned int rank);
+		static UnsizedPointerType get(mlir::MLIRContext* context, mlir::Type elementType);
 
 		[[nodiscard]] mlir::Type getElementType() const;
-		[[nodiscard]] unsigned int getRank() const;
 	};
 
 	class OpaquePointerType : public mlir::Type::TypeBase<OpaquePointerType, mlir::Type, mlir::TypeStorage>
@@ -252,5 +212,6 @@ namespace modelica::codegen
 		llvm::ArrayRef<mlir::Type> getElementTypes();
 	};
 
+	mlir::Type parseModelicaType(mlir::DialectAsmParser& parser);
 	void printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer);
 }

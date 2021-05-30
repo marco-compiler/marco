@@ -102,6 +102,22 @@ TEST(Parser, functionAlgorithm)	// NOLINT
 	EXPECT_EQ((*ast)->get<StandardFunction>()->getAlgorithms().size(), 1);
 }
 
+TEST(Parser, partialDerFunction)	// NOLINT
+{
+	Parser parser("function Bar = der(Foo, x, y);");
+
+	auto ast = parser.classDefinition();
+	ASSERT_FALSE(!ast);
+
+	EXPECT_TRUE((*ast)->isa<PartialDerFunction>());
+
+	auto* derFunction = (*ast)->get<PartialDerFunction>();
+	EXPECT_EQ(derFunction->getDerivedFunction()->get<ReferenceAccess>()->getName(), "Foo");
+	EXPECT_EQ(derFunction->getIndependentVariables().size(), 2);
+	EXPECT_EQ(derFunction->getIndependentVariables()[0]->get<ReferenceAccess>()->getName(), "x");
+	EXPECT_EQ(derFunction->getIndependentVariables()[1]->get<ReferenceAccess>()->getName(), "y");
+}
+
 /*
 TEST(FunctionTypeCheck, publicMembersMustBeInputOrOutput)	 // NOLINT
 {

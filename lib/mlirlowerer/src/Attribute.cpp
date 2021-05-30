@@ -1,3 +1,4 @@
+#include <mlir/IR/Builders.h>
 #include <mlir/IR/DialectImplementation.h>
 #include <modelica/mlirlowerer/Attribute.h>
 #include <modelica/mlirlowerer/Type.h>
@@ -79,8 +80,7 @@ unsigned int IntegerAttributeStorage::hashKey(const KeyTy& key)
 IntegerAttributeStorage::KeyTy IntegerAttributeStorage::getKey(mlir::Type type, long value)
 {
 	assert(type.isa<IntegerType>());
-	auto integerType = type.cast<IntegerType>();
-	return KeyTy(type, llvm::APInt(integerType.getBitWidth(), value, true));
+	return KeyTy(type, llvm::APInt(sizeof(long) * 8, value, true));
 }
 
 IntegerAttributeStorage* IntegerAttributeStorage::construct(mlir::AttributeStorageAllocator& allocator, KeyTy key)
@@ -88,7 +88,7 @@ IntegerAttributeStorage* IntegerAttributeStorage::construct(mlir::AttributeStora
 	return new (allocator.allocate<IntegerAttributeStorage>()) IntegerAttributeStorage(std::get<0>(key), std::get<1>(key));
 }
 
-[[nodiscard]] long IntegerAttributeStorage::getValue() const
+long IntegerAttributeStorage::getValue() const
 {
 	return value.getSExtValue();
 }
@@ -253,6 +253,39 @@ InverseFunctionsAttributeStorage::InverseFunctionsAttributeStorage(Map map)
 {
 }
 
+bool DerivativeAttributeStorage::operator==(const KeyTy& key) const
+{
+	return key == KeyTy(name, order);
+}
+
+unsigned int DerivativeAttributeStorage::hashKey(const KeyTy& key)
+{
+	return llvm::hash_combine(std::get<0>(key), std::get<1>(key));
+}
+
+DerivativeAttributeStorage* DerivativeAttributeStorage::construct(mlir::AttributeStorageAllocator& allocator, KeyTy key)
+{
+	llvm::StringRef name = allocator.copyInto(std::get<0>(key));
+	unsigned int order = std::get<1>(key);
+
+	return new (allocator.allocate<DerivativeAttributeStorage>()) DerivativeAttributeStorage(name, order);
+}
+
+llvm::StringRef DerivativeAttributeStorage::getName() const
+{
+	return name;
+}
+
+unsigned int DerivativeAttributeStorage::getOrder() const
+{
+	return order;
+}
+
+DerivativeAttributeStorage::DerivativeAttributeStorage(llvm::StringRef name, unsigned int order)
+		: name(name), order(order)
+{
+}
+
 constexpr llvm::StringRef BooleanAttribute::getAttrName()
 {
 	return "bool";
@@ -309,11 +342,10 @@ constexpr llvm::StringRef IntegerArrayAttribute::getAttrName()
 IntegerArrayAttribute IntegerArrayAttribute::get(mlir::Type type, llvm::ArrayRef<long> values)
 {
 	assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<IntegerType>());
-	auto baseType = type.cast<PointerType>().getElementType().cast<IntegerType>();
 	llvm::SmallVector<llvm::APInt, 3> vals;
 
 	for (const auto& value : values)
-		vals.emplace_back(baseType.getBitWidth(), value, true);
+		vals.emplace_back(sizeof(value) * 8, value, true);
 
 	return Base::get(type.getContext(), type, vals);
 }
@@ -403,51 +435,145 @@ llvm::ArrayRef<unsigned int> InverseFunctionsAttribute::getArgumentsIndexes(unsi
 	return getImpl()->getArgumentsIndexes(argumentIndex);
 }
 
-void modelica::codegen::printModelicaAttribute(mlir::Attribute attr, mlir::DialectAsmPrinter& printer)
+constexpr llvm::StringRef DerivativeAttribute::getAttrName()
 {
-	auto& os = printer.getStream();
+	return "derivative";
+}
 
-	if (auto attribute = attr.dyn_cast<BooleanAttribute>())
+DerivativeAttribute DerivativeAttribute::get(mlir::MLIRContext* context,
+																						 llvm::StringRef name,
+																						 unsigned int order)
+{
+	return Base::get(context, name, order);
+}
+
+llvm::StringRef DerivativeAttribute::getName() const
+{
+	return getImpl()->getName();
+}
+
+unsigned int DerivativeAttribute::getOrder() const
+{
+	return getImpl()->getOrder();
+}
+
+namespace modelica::codegen
+{
+	mlir::Attribute parseModelicaAttribute(mlir::DialectAsmParser& parser, mlir::Type type)
 	{
-		os << (attribute.getValue() ? "true" : "false");
-		return;
+		if (mlir::succeeded(parser.parseOptionalKeyword("bool")))
+		{
+			if (parser.parseLess())
+				return mlir::Attribute();
+
+			bool value = false;
+
+			if (mlir::succeeded(parser.parseOptionalKeyword("true")))
+			{
+				value = true;
+			}
+			else
+			{
+				if (parser.parseKeyword("false"))
+					return mlir::Attribute();
+
+				value = false;
+			}
+
+			if (parser.parseGreater())
+				return mlir::Attribute();
+
+			return BooleanAttribute::get(
+					BooleanType::get(parser.getBuilder().getContext()), value);
+		}
+
+		if (mlir::succeeded(parser.parseOptionalKeyword("int")))
+		{
+			if (parser.parseLess())
+				return mlir::Attribute();
+
+			long value = 0;
+
+			if (parser.parseInteger(value))
+				return mlir::Attribute();
+
+			if (parser.parseGreater())
+				return mlir::Attribute();
+
+			return IntegerAttribute::get(
+					IntegerType::get(parser.getBuilder().getContext()), value);
+		}
+
+		if (mlir::succeeded(parser.parseOptionalKeyword("real")))
+		{
+			if (parser.parseLess())
+				return mlir::Attribute();
+
+			double value = 0;
+
+			if (parser.parseFloat(value))
+				return mlir::Attribute();
+
+			if (parser.parseGreater())
+				return mlir::Attribute();
+
+			return RealAttribute::get(
+					RealType::get(parser.getBuilder().getContext()), value);
+		}
+
+		parser.emitError(parser.getCurrentLocation()) << "unknown attribute";
+		return mlir::Attribute();
 	}
 
-	if (auto attribute = attr.dyn_cast<IntegerAttribute>())
+	void printModelicaAttribute(mlir::Attribute attr, mlir::DialectAsmPrinter& printer)
 	{
-		os << "int<" << std::to_string(attribute.getValue()) << ">";
-		return;
-	}
+		if (auto attribute = attr.dyn_cast<BooleanAttribute>())
+		{
+			printer << "bool<" << (attribute.getValue() ? "true" : "false") << ">";
+			return;
+		}
 
-	if (auto attribute = attr.dyn_cast<RealAttribute>())
-	{
-		os << "real<" << std::to_string(attribute.getValue()) << ">";
-		return;
-	}
+		if (auto attribute = attr.dyn_cast<IntegerAttribute>())
+		{
+			printer << "int<" << std::to_string(attribute.getValue()) << ">";
+			return;
+		}
 
-	if (auto attribute = attr.dyn_cast<InverseFunctionsAttribute>())
-	{
-		os << "inverse: {";
+		if (auto attribute = attr.dyn_cast<RealAttribute>())
+		{
+			printer << "real<" << std::to_string(attribute.getValue()) << ">";
+			return;
+		}
 
-		os << std::accumulate(
-				attribute.cbegin(), attribute.cend(), std::string(),
-				[&](const std::string& result, const unsigned int& invertibleArg) {
-					auto args = attribute.getArgumentsIndexes(invertibleArg);
+		if (auto attribute = attr.dyn_cast<DerivativeAttribute>())
+		{
+			printer << "name: " << attribute.getName() << ", order: " << attribute.getOrder();
+		}
 
-					std::string argsString = std::accumulate(
-							args.begin(), args.end(), std::string(),
-							[](const std::string& result, const unsigned int& index) {
-								std::string str = std::to_string(index);
-								return result.empty() ? str : result + ", " + str;
-							});
+		if (auto attribute = attr.dyn_cast<InverseFunctionsAttribute>())
+		{
+			printer << "inverse: {";
 
-					std::string str = std::to_string(invertibleArg) + ": " +
-														attribute.getFunction(invertibleArg).str() + "(" +
-														argsString + ")";
+			printer << std::accumulate(
+					attribute.cbegin(), attribute.cend(), std::string(),
+					[&](const std::string& result, const unsigned int& invertibleArg) {
+						auto args = attribute.getArgumentsIndexes(invertibleArg);
 
-					return result.empty() ? str : result + ", " + str;
-				});
+						std::string argsString = std::accumulate(
+								args.begin(), args.end(), std::string(),
+								[](const std::string& result, const unsigned int& index) {
+									std::string str = std::to_string(index);
+									return result.empty() ? str : result + ", " + str;
+								});
 
-		os << "}";
+						std::string str = std::to_string(invertibleArg) + ": " +
+															attribute.getFunction(invertibleArg).str() + "(" +
+															argsString + ")";
+
+						return result.empty() ? str : result + ", " + str;
+					});
+
+			printer << "}";
+		}
 	}
 }

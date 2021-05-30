@@ -52,8 +52,76 @@ llvm::Error TypeChecker::run(llvm::ArrayRef<std::unique_ptr<Class>> classes)
 }
 
 template<>
-llvm::Error TypeChecker::run<DerFunction>(Class& cls)
+llvm::Error TypeChecker::run<PartialDerFunction>(Class& cls)
 {
+	SymbolTableScope varScope(symbolTable);
+	auto* derFunction = cls.get<PartialDerFunction>();
+
+	if (auto* derivedFunction = derFunction->getDerivedFunction(); !derivedFunction->isa<ReferenceAccess>())
+		return llvm::make_error<BadSemantic>(derivedFunction->getLocation(), "the derived function must be a reference");
+
+	Class* baseFunction = &cls;
+
+	while (!baseFunction->isa<StandardFunction>())
+	{
+		auto symbol = symbolTable.lookup(
+				derFunction->getDerivedFunction()->get<ReferenceAccess>()->getName());
+
+		if (symbol.isa<Class>())
+			baseFunction = symbol.get<Class>();
+		else
+			return llvm::make_error<BadSemantic>(
+					derFunction->getLocation(),
+					"the derived function name must refer to a function");
+
+		if (!cls.isa<StandardFunction>() && !cls.isa<PartialDerFunction>())
+			return llvm::make_error<BadSemantic>(
+					derFunction->getLocation(),
+					"the derived function name must refer to a function");
+	}
+
+	auto* standardFunction = baseFunction->get<StandardFunction>();
+	auto members = standardFunction->getMembers();
+	llvm::SmallVector<size_t, 3> independentVariablesIndexes;
+
+	for (auto& independentVariable : derFunction->getIndependentVariables())
+	{
+		auto name = independentVariable->get<ReferenceAccess>()->getName();
+		auto membersEnum = llvm::enumerate(members);
+
+		auto member = std::find_if(membersEnum.begin(), membersEnum.end(),
+																[&name](const auto& obj) {
+																	return obj.value()->getName() == name;
+																});
+
+		if (member == membersEnum.end())
+			return llvm::make_error<BadSemantic>(
+					independentVariable->get<ReferenceAccess>()->getLocation(),
+					"independent variable not found");
+
+		auto type = (*member).value()->getType();
+
+		if (!type.isA<BuiltInType>() || type.get<BuiltInType>() != BuiltInType::Float)
+			return llvm::make_error<BadSemantic>(
+					independentVariable->getLocation(),
+					"independent variables must have Real type");
+
+		independentVariable->setType(std::move(type));
+		independentVariablesIndexes.push_back((*member).index());
+	}
+
+	llvm::SmallVector<Type, 3> argsTypes;
+	llvm::SmallVector<Type, 3> resultsTypes;
+
+	for (const auto& arg : standardFunction->getArgs())
+		argsTypes.push_back(arg->getType());
+
+	for (const auto& result : standardFunction->getResults())
+		resultsTypes.push_back(result->getType());
+
+	derFunction->setArgsTypes(argsTypes);
+	derFunction->setResultsTypes(resultsTypes);
+
 	return llvm::Error::success();
 }
 
@@ -64,7 +132,7 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 	auto* function = cls.get<StandardFunction>();
 
 	// Populate the symbol table
-	symbolTable.insert(function->getName(), Symbol(*function));
+	symbolTable.insert(function->getName(), Symbol(cls));
 
 	for (const auto& member : function->getMembers())
 		symbolTable.insert(member->getName(), Symbol(*member));
@@ -228,7 +296,7 @@ llvm::Error TypeChecker::run<Model>(Class& cls)
 	auto* model = cls.get<Model>();
 
 	// Populate the symbol table
-	symbolTable.insert(model->getName(), Symbol(*model));
+	symbolTable.insert(model->getName(), Symbol(cls));
 
 	for (auto& member : model->getMembers())
 		symbolTable.insert(member->getName(), Symbol(*member));
@@ -269,10 +337,10 @@ llvm::Error TypeChecker::run<Package>(Class& cls)
 	auto* package = cls.get<Package>();
 
 	// Populate the symbol table
-	symbolTable.insert(package->getName(), Symbol(*package));
+	symbolTable.insert(package->getName(), Symbol(cls));
 
 	for (auto& innerClass : *package)
-		innerClass->visit([&](auto& obj) { symbolTable.insert(obj.getName(), Symbol(obj)); });
+		symbolTable.insert(innerClass->getName(), Symbol(*innerClass));
 
 	for (auto& innerClass : *package)
 		if (auto error = run<Class>(*innerClass); error)
@@ -288,7 +356,7 @@ llvm::Error TypeChecker::run<Record>(Class& cls)
 	auto* record = cls.get<Record>();
 
 	// Populate the symbol table
-	symbolTable.insert(record->getName(), Symbol(*record));
+	symbolTable.insert(record->getName(), Symbol(cls));
 
 	for (auto& member : *record)
 		symbolTable.insert(member->getName(), Symbol(*member));
@@ -626,8 +694,18 @@ llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression)
 	auto symbol = symbolTable.lookup(name);
 
 	auto symbolType = [](Symbol& symbol) -> Type {
-		if (symbol.isa<StandardFunction>())
-			return symbol.get<StandardFunction>()->getType();
+		if (auto* cls = symbol.dyn_get<Class>(); cls != nullptr && cls->isa<StandardFunction>())
+			return cls->get<StandardFunction>()->getType();
+
+		if (auto* cls = symbol.dyn_get<Class>(); cls != nullptr && cls->isa<PartialDerFunction>())
+		{
+			auto types = cls->get<PartialDerFunction>()->getResultsTypes();
+
+			if (types.size() == 1)
+				return types[0];
+
+			return Type(PackedType(types));
+		}
 
 		if (symbol.isa<Member>())
 			return symbol.get<Member>()->getType();
@@ -635,6 +713,7 @@ llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression)
 		if (symbol.isa<Induction>())
 			return makeType<int>();
 
+		assert(false && "Unexpected symbol type");
 		return Type::unknown();
 	};
 

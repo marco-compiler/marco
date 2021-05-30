@@ -1,5 +1,6 @@
 #include <mlir/Conversion/Passes.h>
 #include <mlir/IR/Builders.h>
+#include <mlir/IR/FunctionImplementation.h>
 #include <mlir/IR/OpImplementation.h>
 #include <modelica/mlirlowerer/Attribute.h>
 #include <modelica/mlirlowerer/Ops.h>
@@ -31,11 +32,6 @@ static mlir::Value readValue(mlir::OpBuilder& builder, mlir::Value operand)
 mlir::ValueRange PackOpAdaptor::values()
 {
 	return getValues();
-}
-
-llvm::StringRef PackOp::getOperationName()
-{
-	return "modelica.pack";
 }
 
 void PackOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
@@ -71,11 +67,6 @@ mlir::ValueRange PackOp::values()
 mlir::Value ExtractOpAdaptor::packedValue()
 {
 	return getValues()[0];
-}
-
-llvm::StringRef ExtractOp::getOperationName()
-{
-	return "modelica.extract";
 }
 
 void ExtractOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value packedValue, unsigned int index)
@@ -119,11 +110,6 @@ unsigned int ExtractOp::index()
 //===----------------------------------------------------------------------===//
 // Modelica::SimulationOp
 //===----------------------------------------------------------------------===//
-
-llvm::StringRef SimulationOp::getOperationName()
-{
-	return "modelica.simulation";
-}
 
 void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars)
 {
@@ -228,20 +214,25 @@ mlir::Value SimulationOp::time()
 // Modelica::EquationOp
 //===----------------------------------------------------------------------===//
 
-llvm::StringRef EquationOp::getOperationName()
-{
-	return "modelica.equation";
-}
-
 void EquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.createBlock(state.addRegion());
 }
 
+mlir::ParseResult EquationOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::Region* body = result.addRegion();
+
+	if (parser.parseRegion(*body))
+		return mlir::failure();
+
+	return mlir::success();
+}
+
 void EquationOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.equation";
+	printer << getOperationName();
 	printer.printRegion(getRegion(), false);
 }
 
@@ -282,11 +273,6 @@ mlir::ValueRange EquationOp::rhs()
 //===----------------------------------------------------------------------===//
 // Modelica::ForEquationOp
 //===----------------------------------------------------------------------===//
-
-llvm::StringRef ForEquationOp::getOperationName()
-{
-	return "modelica.for_equation";
-}
 
 void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, size_t inductionsAmount)
 {
@@ -369,11 +355,6 @@ mlir::ValueRange ForEquationOp::rhs()
 // Modelica::InductionOp
 //===----------------------------------------------------------------------===//
 
-llvm::StringRef InductionOp::getOperationName()
-{
-	return "modelica.induction";
-}
-
 void InductionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, long start, long end)
 {
 	state.addAttribute("start", builder.getI64IntegerAttr(start));
@@ -384,7 +365,7 @@ void InductionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, l
 
 void InductionOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.induction (from " << start() << " to " << end() << ") : " << getOperation()->getResultTypes();
+	printer << getOperationName() << " (from " << start() << " to " << end() << ") : " << getOperation()->getResultTypes();
 }
 
 long InductionOp::start()
@@ -413,11 +394,6 @@ mlir::ValueRange EquationSidesOpAdaptor::rhs()
 	return mlir::ValueRange(std::next(getValues().begin(), getValues().size() - amount), getValues().end());
 }
 
-llvm::StringRef EquationSidesOp::getOperationName()
-{
-	return "modelica.equation_sides";
-}
-
 void EquationSidesOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange lhs, mlir::ValueRange rhs)
 {
 	state.addAttribute("lhs", builder.getI64IntegerAttr(lhs.size()));
@@ -427,9 +403,51 @@ void EquationSidesOp::build(mlir::OpBuilder& builder, mlir::OperationState& stat
 	state.addOperands(rhs);
 }
 
+mlir::ParseResult EquationSidesOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	auto& builder = parser.getBuilder();
+
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 1> lhs;
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 1> rhs;
+
+	llvm::SmallVector<mlir::Type, 1> lhsTypes;
+	llvm::SmallVector<mlir::Type, 1> rhsTypes;
+
+	llvm::SMLoc lhsLocation = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(lhs, mlir::OpAsmParser::Delimiter::Paren))
+		return mlir::failure();
+
+	llvm::SMLoc rhsLocation = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(rhs, mlir::OpAsmParser::Delimiter::Paren))
+		return mlir::failure();
+
+	if (parser.parseColon() ||
+			parser.parseLParen() ||
+			parser.parseTypeList(lhsTypes) ||
+			parser.parseRParen() ||
+			parser.parseLParen() ||
+			parser.parseTypeList(rhsTypes) ||
+			parser.parseRParen())
+		return mlir::failure();
+
+
+	if (parser.resolveOperands(lhs, lhsTypes, lhsLocation, result.operands) ||
+			parser.resolveOperands(rhs, rhsTypes, rhsLocation, result.operands))
+		return mlir::failure();
+
+	result.addAttribute("lhs", builder.getI64IntegerAttr(lhs.size()));
+	result.addAttribute("rhs", builder.getI64IntegerAttr(rhs.size()));
+
+	return mlir::success();
+}
+
 void EquationSidesOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.equation_sides (" << lhs() << ") (" << rhs() << ")";
+	printer << getOperationName()
+					<< " (" << lhs() << ") (" << rhs() << ")"
+					<< " : (" << lhs().getTypes() << ") (" << rhs().getTypes() << ")";
 }
 
 mlir::ValueRange EquationSidesOp::lhs()
@@ -443,13 +461,322 @@ mlir::ValueRange EquationSidesOp::rhs()
 }
 
 //===----------------------------------------------------------------------===//
-// Modelica::ConstantOp
+// Modelica::FunctionOp
 //===----------------------------------------------------------------------===//
 
-llvm::StringRef ConstantOp::getOperationName()
+llvm::ArrayRef<mlir::Attribute> FunctionOpAdaptor::argsNames()
 {
-	return "modelica.constant";
+	return getAttrs().getAs<mlir::ArrayAttr>("args_names").getValue();
 }
+
+llvm::ArrayRef<mlir::Attribute> FunctionOpAdaptor::resultsNames()
+{
+	return getAttrs().getAs<mlir::ArrayAttr>("results_names").getValue();
+}
+
+void FunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::FunctionType type, llvm::ArrayRef<llvm::StringRef> argsNames, llvm::ArrayRef<llvm::StringRef> resultsNames)
+{
+	state.addAttribute(mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name));
+	state.addAttribute(getTypeAttrName(), mlir::TypeAttr::get(type));
+
+	state.addAttribute("args_names", builder.getStrArrayAttr(argsNames));
+	state.addAttribute("results_names", builder.getStrArrayAttr(resultsNames));
+
+	state.addRegion();
+}
+
+mlir::ParseResult FunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	auto& builder = parser.getBuilder();
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> args;
+	llvm::SmallVector<mlir::Type, 3> argsTypes;
+
+	llvm::SmallVector<mlir::Type, 3> resultsTypes;
+
+	mlir::StringAttr nameAttr;
+	if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes))
+		return mlir::failure();
+
+	llvm::SmallVector<mlir::NamedAttrList> argsAttrs;
+	bool isVariadic = false;
+
+	// TODO: don't rely on FunctionLike parsing
+	if (mlir::impl::parseFunctionArgumentList(parser, false, false, args, argsTypes, argsAttrs, isVariadic))
+		return mlir::failure();
+
+	if (parser.parseArrow() ||
+			parser.parseLParen())
+		return mlir::failure();
+
+	if (mlir::failed(parser.parseOptionalRParen()))
+	{
+		if (parser.parseTypeList(resultsTypes) ||
+				parser.parseRParen())
+			return mlir::failure();
+	}
+
+	mlir::FunctionType functionType = builder.getFunctionType(argsTypes, resultsTypes);
+	result.addAttribute(getTypeAttrName(), mlir::TypeAttr::get(functionType));
+
+	mlir::NamedAttrList attributes;
+
+	if (parser.parseOptionalAttrDictWithKeyword(attributes))
+		return mlir::failure();
+
+	result.attributes.append(attributes);
+
+	mlir::Region* region = result.addRegion();
+
+	if (parser.parseRegion(*region, args, argsTypes))
+		return mlir::failure();
+
+	return mlir::success();
+}
+
+void FunctionOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " @" << name() << "(";
+
+	auto args = getArguments();
+
+	for (const auto& arg : llvm::enumerate(args))
+	{
+		if (arg.index() > 0)
+			printer << ", ";
+
+		printer << arg.value() << " : " << arg.value().getType();
+	}
+
+	printer << ") -> (";
+
+	auto results = getType().getResults();
+
+	for (const auto& result : llvm::enumerate(results))
+	{
+		if (result.index() > 0)
+			printer << ", ";
+
+		printer << result.value();
+	}
+
+	printer << ")";
+
+	size_t index = 0;
+
+	auto attributes = getOperation()->getAttrs();
+
+	if (attributes.size() > 2)
+	{
+		printer << " attributes {";
+
+		for (auto attribute : attributes)
+		{
+			if (attribute.first == mlir::SymbolTable::getSymbolAttrName() ||
+					attribute.first == getTypeAttrName())
+				continue;
+
+			if (index++ > 0)
+				printer << ", ";
+
+			printer << attribute.first;
+			printer << " = ";
+			printer << attribute.second;
+		}
+
+		printer << "}";
+	}
+
+	printer.printRegion(getBody(), false);
+}
+
+mlir::LogicalResult FunctionOp::verify()
+{
+	if (getNumArguments() != argsNames().size())
+		return emitOpError("requires all the args to have their names defined");
+
+	if (getNumResults() != resultsNames().size())
+		return emitOpError("requires all the results to have their names defined");
+
+	auto returnOp = mlir::cast<ReturnOp>(getBody().back().getTerminator());
+
+	if (getNumResults() != returnOp.values().size())
+		return emitOpError("requires the return operation to have the same number of values as the result types of the function");
+
+	for (const auto& [returnType, functionType] : llvm::zip(returnOp.values().getTypes(), getType().getResults()))
+		if (returnType != functionType)
+			return emitOpError("requires the return values to match the function signature");
+
+	return mlir::success();
+}
+
+unsigned int FunctionOp::getNumFuncArguments()
+{
+	return getType().getInputs().size();
+}
+
+unsigned int FunctionOp::getNumFuncResults()
+{
+	return getType().getResults().size();
+}
+
+mlir::Region* FunctionOp::getCallableRegion()
+{
+	return &getBody();
+}
+
+llvm::ArrayRef<mlir::Type> FunctionOp::getCallableResults()
+{
+	return getType().getResults();
+}
+
+llvm::StringRef FunctionOp::name()
+{
+	return getOperation()->getAttrOfType<mlir::StringAttr>(mlir::SymbolTable::getSymbolAttrName()).getValue();
+}
+
+llvm::ArrayRef<mlir::Attribute> FunctionOp::argsNames()
+{
+	return Adaptor(*this).argsNames();
+}
+
+llvm::ArrayRef<mlir::Attribute> FunctionOp::resultsNames()
+{
+	return Adaptor(*this).resultsNames();
+}
+
+bool FunctionOp::hasDerivative()
+{
+	return getOperation()->hasAttr("derivative");
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::ReturnOp
+//===----------------------------------------------------------------------===//
+
+mlir::ValueRange ReturnOpAdaptor::values()
+{
+	return getValues();
+}
+
+void ReturnOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
+{
+	state.addOperands(values);
+}
+
+mlir::ParseResult ReturnOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> values;
+	llvm::SmallVector<mlir::Type, 3> types;
+
+	llvm::SMLoc valuesLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(values) ||
+			parser.parseOptionalColonTypeList(types) ||
+			parser.resolveOperands(values, types, valuesLoc, result.operands))
+		return mlir::failure();
+
+	return mlir::success();
+}
+
+void ReturnOp::print(mlir::OpAsmPrinter& printer)
+{
+	auto operands = values();
+	printer << getOperationName() << " " << operands;
+
+	if (!operands.empty())
+		printer << " : " << operands.getTypes();
+}
+
+void ReturnOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	for (auto value : values())
+		if (value.getType().isa<PointerType>())
+			effects.emplace_back(mlir::MemoryEffects::Read::get(), value, mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::ValueRange ReturnOp::values()
+{
+	return Adaptor(*this).values();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::DerFunctionOp
+//===----------------------------------------------------------------------===//
+
+void DerFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, llvm::StringRef derivedFunction, llvm::ArrayRef<llvm::StringRef> independentVariables)
+{
+	state.addAttribute(mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name));
+	state.addAttribute("derived_function", builder.getStringAttr(derivedFunction));
+	state.addAttribute("independent_variables", builder.getStrArrayAttr(independentVariables));
+}
+
+void DerFunctionOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << "modelica.der_function @" << name();
+	printer << " {";
+
+	size_t index = 0;
+
+	for (auto attribute : getOperation()->getAttrs())
+	{
+		if (attribute.first == mlir::SymbolTable::getSymbolAttrName())
+			continue;
+
+		if (index++ > 0)
+			printer << ", ";
+
+		printer << attribute.first;
+		printer << ": ";
+		printer << attribute.second;
+	}
+
+	printer << "}";
+}
+
+mlir::LogicalResult DerFunctionOp::verify()
+{
+	auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
+	auto* base = module.lookupSymbol(derivedFunction());
+
+	if (base == nullptr)
+		return emitOpError("requires the function to be derived to exist within the module");
+
+	return mlir::success();
+}
+
+mlir::Region* DerFunctionOp::getCallableRegion()
+{
+	// The function body will be created by an appropriate pass, and at the same
+	// type the der function will be converted to a standard function. Thus,
+	// this operation is like an external function.
+
+	return nullptr;
+}
+
+llvm::ArrayRef<mlir::Type> DerFunctionOp::getCallableResults()
+{
+	auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
+	return mlir::cast<mlir::CallableOpInterface>(module.lookupSymbol(derivedFunction())).getCallableResults();
+}
+
+llvm::StringRef DerFunctionOp::name()
+{
+	return getOperation()->getAttrOfType<mlir::StringAttr>(mlir::SymbolTable::getSymbolAttrName()).getValue();
+}
+
+llvm::StringRef DerFunctionOp::derivedFunction()
+{
+	return getOperation()->getAttrOfType<mlir::StringAttr>("derived_function").getValue();
+}
+
+llvm::ArrayRef<mlir::Attribute> DerFunctionOp::independentVariables()
+{
+	return getOperation()->getAttrOfType<mlir::ArrayAttr>("independent_variables").getValue();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::ConstantOp
+//===----------------------------------------------------------------------===//
 
 void ConstantOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Attribute attribute)
 {
@@ -457,9 +784,21 @@ void ConstantOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, ml
 	state.addTypes(attribute.getType());
 }
 
+mlir::ParseResult ConstantOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::Attribute value;
+
+	if (parser.parseAttribute(value))
+		return mlir::failure();
+
+	result.attributes.append("value", value);
+	result.addTypes(value.getType());
+	return mlir::success();
+}
+
 void ConstantOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.constant " << value();
+	printer << getOperationName() << " " << value();
 }
 
 mlir::OpFoldResult ConstantOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
@@ -485,11 +824,6 @@ mlir::Type ConstantOp::resultType()
 mlir::Value CastOpAdaptor::value()
 {
 	return getValues()[0];
-}
-
-llvm::StringRef CastOp::getOperationName()
-{
-	return "modelica.cast";
 }
 
 void CastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType)
@@ -541,11 +875,6 @@ mlir::Type CastOp::resultType()
 mlir::ValueRange CastCommonOpAdaptor::operands()
 {
 	return getValues();
-}
-
-llvm::StringRef CastCommonOp::getOperationName()
-{
-	return "modelica.cast_common";
 }
 
 void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
@@ -632,11 +961,6 @@ mlir::Value AssignmentOpAdaptor::destination()
 	return getValues()[1];
 }
 
-llvm::StringRef AssignmentOp::getOperationName()
-{
-	return "modelica.assignment";
-}
-
 void AssignmentOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination)
 {
 	state.addOperands({ source, destination });
@@ -677,26 +1001,85 @@ mlir::ValueRange CallOpAdaptor::args()
 	return getValues();
 }
 
-llvm::StringRef CallOp::getOperationName()
-{
-	return "modelica.call";
-}
-
 void CallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::TypeRange results, mlir::ValueRange args, unsigned int movedResults)
 {
 	state.addAttribute("callee", builder.getSymbolRefAttr(callee));
 	state.addOperands(args);
 	state.addTypes(results);
-	state.addAttribute("movedResults", builder.getUI32IntegerAttr(movedResults));
+	state.addAttribute("moved_results", builder.getUI32IntegerAttr(movedResults));
+}
+
+mlir::ParseResult CallOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	auto& builder = parser.getBuilder();
+
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> args;
+	llvm::SmallVector<mlir::Type, 3> argsTypes;
+
+	llvm::SmallVector<mlir::Type, 3> resultsTypes;
+
+	mlir::FlatSymbolRefAttr calleeAttr;
+	if (parser.parseAttribute(calleeAttr, builder.getType<mlir::NoneType>(), "callee", result.attributes))
+		return mlir::failure();
+
+	llvm::SMLoc argsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(args, mlir::OpAsmParser::Delimiter::Paren))
+		return mlir::failure();
+
+	mlir::Attribute movedResultsAttr;
+
+	if (mlir::succeeded(parser.parseOptionalLBrace()))
+	{
+		if (parser.parseAttribute(movedResultsAttr, "moved_results", result.attributes) ||
+				parser.parseRBrace())
+			return mlir::failure();
+	}
+
+	if (!result.attributes.getNamed("moved_results").hasValue())
+		result.attributes.append("moved_results", builder.getUI32IntegerAttr(0));
+
+	if (parser.parseColon() ||
+			parser.parseLParen())
+		return mlir::failure();
+
+	if (mlir::failed(parser.parseRParen()))
+	{
+		if (parser.parseTypeList(argsTypes) ||
+				parser.parseRParen())
+			return mlir::failure();
+	}
+
+	if (parser.parseArrow() ||
+			parser.parseLParen())
+		return mlir::failure();
+
+	if (mlir::failed(parser.parseOptionalRParen()))
+	{
+		if (parser.parseTypeList(resultsTypes) ||
+				parser.parseRParen())
+			return mlir::failure();
+	}
+
+	if (args.size() != argsTypes.size())
+		return parser.emitError(argsLoc)
+				<< "expected as many args types as args "
+				<< "(expected " << args.size() << " got "
+				<< argsTypes.size() << ")";
+
+	if (parser.resolveOperands(args, argsTypes, argsLoc, result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultsTypes);
+	return mlir::success();
 }
 
 void CallOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.call @" << callee() << "(" << args() << ")";
-	auto resultTypes = getResultTypes();
-
-	if (resultTypes.size() != 0)
-		printer << " : " << getResultTypes();
+	printer << getOperationName()
+					<< " @" << callee() << "(" << args() << ")"
+					<< " {moved_results = " << movedResults() << "}"
+					<< " : (" << args().getTypes() << ") -> (" << getResultTypes() << ")";
 }
 
 void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
@@ -765,7 +1148,7 @@ mlir::LogicalResult CallOp::invert(mlir::OpBuilder& builder, unsigned int argume
 	mlir::Value toNest = currentResult[0];
 
 	auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
-	auto callee = module.lookupSymbol<mlir::FuncOp>(this->callee());
+	auto callee = module.lookupSymbol<FunctionOp>(this->callee());
 
 	if (!callee->hasAttr("inverse"))
 		return emitError("Function " + callee->getName().getStringRef() + " is not invertible");
@@ -815,7 +1198,7 @@ mlir::ValueRange CallOp::args()
 
 unsigned int CallOp::movedResults()
 {
-	auto attr = getOperation()->getAttrOfType<mlir::IntegerAttr>("movedResults");
+	auto attr = getOperation()->getAttrOfType<mlir::IntegerAttr>("moved_results");
 	return attr.getUInt();
 }
 
@@ -828,28 +1211,92 @@ mlir::ValueRange MemberCreateOpAdaptor::dynamicDimensions()
 	return getValues();
 }
 
-llvm::StringRef MemberCreateOp::getOperationName()
-{
-	return "modelica.member_create";
-}
-
 void MemberCreateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type type, mlir::ValueRange dynamicDimensions)
 {
 	state.addTypes(type);
 	state.addOperands(dynamicDimensions);
 }
 
+mlir::ParseResult MemberCreateOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> dynamicDimensions;
+	llvm::SmallVector<mlir::Type, 2> dynamicDimensionsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc dynamicDimensionsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(dynamicDimensions))
+		return mlir::failure();
+
+	if (parser.parseColon())
+		return mlir::failure();
+
+	if (mlir::succeeded(parser.parseOptionalLParen()))
+	{
+		if (parser.parseTypeList(dynamicDimensionsTypes) ||
+				parser.parseRParen() ||
+				parser.parseArrow())
+			return mlir::failure();
+	}
+
+	if (parser.parseType(resultType))
+		return mlir::failure();
+
+	if (mlir::succeeded(parser.parseOptionalArrow()))
+	{
+		dynamicDimensionsTypes.push_back(resultType);
+
+		if (parser.parseType(resultType))
+			return mlir::failure();
+	}
+
+	if (dynamicDimensions.size() != dynamicDimensionsTypes.size())
+		return parser.emitError(dynamicDimensionsLoc)
+				<< "expected as many dimensions types as dimensions "
+				<< "(expected " << dynamicDimensions.size() << " got "
+				<< dynamicDimensionsTypes.size() << ")";
+
+	if (parser.resolveOperands(dynamicDimensions, dynamicDimensionsTypes, dynamicDimensionsLoc, result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void MemberCreateOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.member_create " << dynamicDimensions() << ": " << resultType();
+	printer << getOperationName();
+
+	for (const auto& dynamicDimension : llvm::enumerate(dynamicDimensions()))
+	{
+		if (dynamicDimension.index() > 0)
+			printer << ", ";
+
+		printer << dynamicDimension.value();
+	}
+
+	printer << " : ";
+
+	if (auto dimensions = dynamicDimensions().getTypes(); !dimensions.empty())
+	{
+		if (dimensions.size() > 1)
+			printer << "(";
+
+		printer << dimensions;
+
+		if (dimensions.size() > 1)
+			printer << ")";
+
+		printer << " -> ";
+	}
+
+	printer << resultType();
 }
 
 mlir::LogicalResult MemberCreateOp::verify()
 {
 	if (!resultType().isa<MemberType>())
 		return emitOpError("requires the result to be a member type");
-
-
 
 	return mlir::success();
 }
@@ -878,20 +1325,40 @@ mlir::Value MemberLoadOpAdaptor::member()
 	return getValues()[0];
 }
 
-llvm::StringRef MemberLoadOp::getOperationName()
-{
-	return "modelica.member_load";
-}
-
 void MemberLoadOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value member)
 {
 	state.addTypes(resultType);
 	state.addOperands(member);
 }
 
+mlir::ParseResult MemberLoadOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType member;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(member) ||
+			parser.parseColon())
+		return mlir::failure();
+
+	llvm::SMLoc resultTypeLoc = parser.getCurrentLocation();
+
+	if (parser.parseType(resultType))
+		return mlir::failure();
+
+	if (!resultType.isa<PointerType>())
+		return parser.emitError(resultTypeLoc)
+					 << "result type must be a pointer type";
+
+	if (parser.resolveOperand(member, MemberType::get(resultType.cast<PointerType>()), result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void MemberLoadOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.member_load " << member() << ": " << resultType();
+	printer << getOperationName() << " " << member() << " : " << resultType();
 }
 
 mlir::LogicalResult MemberLoadOp::verify()
@@ -930,20 +1397,41 @@ mlir::Value MemberStoreOpAdaptor::value()
 	return getValues()[1];
 }
 
-llvm::StringRef MemberStoreOp::getOperationName()
-{
-	return "modelica.member_store";
-}
-
 void MemberStoreOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value member, mlir::Value value)
 {
 	state.addOperands(member);
 	state.addOperands(value);
 }
 
+mlir::ParseResult MemberStoreOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	mlir::Type memberType;
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon())
+		return mlir::failure();
+
+	llvm::SMLoc resultTypeLoc = parser.getCurrentLocation();
+
+	if (parser.parseType(memberType))
+		return mlir::failure();
+
+	if (!memberType.isa<MemberType>())
+		return parser.emitError(resultTypeLoc)
+				<< "specified type must be a member type";
+
+	if (parser.resolveOperand(operands[0], memberType.cast<MemberType>().getElementType(), result.operands) ||
+			parser.resolveOperand(operands[1], memberType, result.operands))
+		return mlir::failure();
+
+	return mlir::success();
+}
+
 void MemberStoreOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.member_store " << value() << ", " << member();
+	printer << getOperationName() << " " << value() << ", " << member()
+					<< " : " << member().getType() ;
 }
 
 mlir::LogicalResult MemberStoreOp::verify()
@@ -974,11 +1462,6 @@ mlir::Value MemberStoreOp::value()
 mlir::ValueRange AllocaOpAdaptor::dynamicDimensions()
 {
 	return getValues();
-}
-
-llvm::StringRef AllocaOp::getOperationName()
-{
-	return "modelica.alloca";
 }
 
 void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool constant)
@@ -1041,11 +1524,6 @@ bool AllocaOp::isConstant()
 mlir::ValueRange AllocOpAdaptor::dynamicDimensions()
 {
 	return getValues();
-}
-
-llvm::StringRef AllocOp::getOperationName()
-{
-	return "modelica.alloc";
 }
 
 void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool shouldBeFreed, bool constant)
@@ -1128,11 +1606,6 @@ mlir::Value FreeOpAdaptor::memory()
 	return getValues()[0];
 }
 
-llvm::StringRef FreeOp::getOperationName()
-{
-	return "modelica.free";
-}
-
 void FreeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory)
 {
 	state.addOperands(memory);
@@ -1173,11 +1646,6 @@ mlir::Value FreeOp::memory()
 mlir::Value PtrCastOpAdaptor::memory()
 {
 	return getValues()[0];
-}
-
-llvm::StringRef PtrCastOp::getOperationName()
-{
-	return "modelica.ptr_cast";
 }
 
 void PtrCastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::Type resultType)
@@ -1271,26 +1739,50 @@ mlir::Value DimOpAdaptor::dimension()
 	return getValues()[1];
 }
 
-llvm::StringRef DimOp::getOperationName()
-{
-	return "modelica.dim";
-}
-
 void DimOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::Value dimension)
 {
-	state.addOperands({ memory, dimension });
+	state.addOperands(memory);
+	state.addOperands(dimension);
 	state.addTypes(builder.getIndexType());
+}
+
+mlir::ParseResult DimOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	auto& builder = parser.getBuilder();
+
+	mlir::OpAsmParser::OperandType array;
+	mlir::OpAsmParser::OperandType dimension;
+
+	mlir::Type arrayType;
+
+	if (parser.parseOperand(array) ||
+			parser.parseComma() ||
+			parser.parseOperand(dimension) ||
+			parser.parseColonType(arrayType))
+		return mlir::failure();
+
+	if (parser.resolveOperand(array, arrayType, result.operands) ||
+			parser.resolveOperand(dimension, builder.getIndexType(), result.operands))
+		return mlir::failure();
+
+	result.addTypes(builder.getIndexType());
+	return mlir::success();
 }
 
 void DimOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.dim " << getOperands() << " : " << memory().getType();
+	printer << getOperationName()
+					<< " " << memory() << ", " << dimension()
+					<< " : " << memory().getType();
 }
 
 mlir::LogicalResult DimOp::verify()
 {
 	if (!memory().getType().isa<PointerType>())
 		return emitOpError("requires the operand to be a pointer to an array");
+
+	if (!dimension().getType().isa<mlir::IndexType>())
+		return emitOpError("requires the dimension to be an index");
 
 	return mlir::success();
 }
@@ -1343,11 +1835,6 @@ mlir::ValueRange SubscriptionOpAdaptor::indexes()
 	return mlir::ValueRange(std::next(getValues().begin(), 1), getValues().end());
 }
 
-llvm::StringRef SubscriptionOp::getOperationName()
-{
-	return "modelica.subscription";
-}
-
 void SubscriptionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::ValueRange indexes)
 {
 	state.addOperands(source);
@@ -1358,9 +1845,63 @@ void SubscriptionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 	state.addTypes(resultType);
 }
 
+mlir::ParseResult SubscriptionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType source;
+	mlir::Type sourceType;
+
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> indexes;
+	llvm::SmallVector<mlir::Type, 3> indexesTypes;
+
+	llvm::SMLoc sourceLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperand(source))
+		return mlir::failure();
+
+	llvm::SMLoc indexesLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(indexes, mlir::OpAsmParser::Delimiter::Square))
+		return mlir::failure();
+
+	if (parser.parseColonType(sourceType) ||
+			parser.resolveOperand(source, sourceType, result.operands))
+		return mlir::failure();
+
+	if (!sourceType.isa<PointerType>())
+		return parser.emitError(sourceLoc, "the source must have a pointer type");
+
+	result.addTypes(sourceType.cast<PointerType>().slice(indexes.size()));
+
+	if (!indexes.empty())
+	{
+		if (parser.parseComma() ||
+				parser.parseTypeList(indexesTypes))
+			return mlir::failure();
+	}
+
+	if (indexes.size() != indexesTypes.size())
+		return parser.emitError(indexesLoc)
+				<< "expected as many indexes types as indexes "
+				<< "(expected " << indexes.size() << " got "
+				<< indexesTypes.size() << ")";
+
+	if (parser.resolveOperands(indexes, indexesTypes, indexesLoc, result.operands))
+		return mlir::failure();
+
+	return mlir::success();
+}
+
 void SubscriptionOp::print(mlir::OpAsmPrinter& printer)
 {
- 	printer << "modelica.subscript " << source() << "[" << indexes() << "] : " << resultType();
+ 	printer << getOperationName()
+					<< " " << source() << "[" << indexes() << "]"
+					<< " : " << source().getType();
+
+	if (auto ind = indexes(); !ind.empty())
+	{
+		for (const auto& index : ind)
+			printer << ", " << index.getType();
+	}
 }
 
 mlir::Value SubscriptionOp::getViewSource()
@@ -1397,11 +1938,6 @@ mlir::ValueRange LoadOpAdaptor::indexes()
 	return mlir::ValueRange(std::next(getValues().begin(), 1), getValues().end());
 }
 
-llvm::StringRef LoadOp::getOperationName()
-{
-	return "modelica.load";
-}
-
 void LoadOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::ValueRange indexes)
 {
 	state.addOperands(memory);
@@ -1409,12 +1945,40 @@ void LoadOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 	state.addTypes(memory.getType().cast<PointerType>().getElementType());
 }
 
+mlir::ParseResult LoadOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	auto& builder = parser.getBuilder();
+
+	mlir::OpAsmParser::OperandType array;
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> indexes;
+	mlir::Type arrayType;
+
+	if (parser.parseOperand(array) ||
+			parser.parseOperandList(indexes, mlir::OpAsmParser::Delimiter::Square))
+		return mlir::failure();
+
+	llvm::SMLoc arrayTypeLoc = parser.getCurrentLocation();
+
+	if (parser.parseColonType(arrayType))
+		return mlir::failure();
+
+	if (parser.resolveOperand(array, arrayType, result.operands) ||
+			parser.resolveOperands(indexes, builder.getIndexType(), result.operands))
+		return mlir::failure();
+
+	if (!arrayType.isa<PointerType>())
+		return parser.emitError(arrayTypeLoc, "the array type must be a pointer type");
+
+	result.addTypes(arrayType.cast<PointerType>().getElementType());
+	return mlir::success();
+}
+
 void LoadOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.load " << memory() << "[";
-	printer.printOperands(indexes());
-	printer << "] : ";
-	printer.printType(getOperation()->getResultTypes()[0]);
+	printer << getOperationName()
+					<< " " << memory()
+					<< "[" << indexes() << "]"
+					<< " : " << memory().getType();
 }
 
 mlir::LogicalResult LoadOp::verify()
@@ -1469,11 +2033,6 @@ mlir::ValueRange StoreOpAdaptor::indexes()
 	return mlir::ValueRange(std::next(getValues().begin(), 2), getValues().end());
 }
 
-llvm::StringRef StoreOp::getOperationName()
-{
-	return "modelica.store";
-}
-
 void StoreOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory, mlir::ValueRange indexes)
 {
 	state.addOperands(value);
@@ -1481,9 +2040,42 @@ void StoreOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 	state.addOperands(indexes);
 }
 
+mlir::ParseResult StoreOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	auto& builder = parser.getBuilder();
+
+	mlir::OpAsmParser::OperandType value;
+	mlir::OpAsmParser::OperandType array;
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> indexes;
+	mlir::Type arrayType;
+
+	if (parser.parseOperand(value) ||
+			parser.parseComma() ||
+			parser.parseOperand(array) ||
+			parser.parseOperandList(indexes, mlir::OpAsmParser::Delimiter::Square) ||
+			parser.parseColon())
+		return mlir::failure();
+
+	llvm::SMLoc arrayTypeLoc = parser.getCurrentLocation();
+
+	if (parser.parseType(arrayType))
+		return mlir::failure();
+
+	if (!arrayType.isa<PointerType>())
+		return parser.emitError(arrayTypeLoc)
+				<< "destination type must be a pointer type";
+
+	if (parser.resolveOperand(value, arrayType.cast<PointerType>().getElementType(), result.operands) ||
+			parser.resolveOperand(array, arrayType, result.operands) ||
+			parser.resolveOperands(indexes, builder.getIndexType(), result.operands))
+		return mlir::failure();
+
+	return mlir::success();
+}
+
 void StoreOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.store " << value() << ", " << memory() << "[";
+	printer << getOperationName() << " " << value() << ", " << memory() << "[";
 	printer.printOperands(indexes());
 	printer << "] : ";
 	printer.printType(memory().getType());
@@ -1539,21 +2131,21 @@ mlir::Value ArrayCloneOpAdaptor::source()
 	return getValues()[0];
 }
 
-llvm::StringRef ArrayCloneOp::getOperationName()
-{
-	return "modelica.array_clone";
-}
-
 void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType, bool shouldBeFreed)
 {
 	state.addOperands(source);
 	state.addTypes(resultType);
-	state.addAttribute("shouldBeFreed", builder.getBoolAttr(shouldBeFreed));
+	state.addAttribute("auto_free", builder.getBoolAttr(shouldBeFreed));
 }
 
 void ArrayCloneOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.array_clone " << source() << " : " << resultType();
+	printer << getOperationName() << " " << source();
+
+	if (!shouldBeFreed())
+		printer << getOperation()->getAttr("auto_free");
+
+	printer	<< " : " << source().getType() << " -> " << resultType();
 }
 
 mlir::LogicalResult ArrayCloneOp::verify()
@@ -1583,7 +2175,7 @@ void ArrayCloneOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectIns
 
 bool ArrayCloneOp::shouldBeFreed()
 {
-	return getOperation()->getAttrOfType<mlir::BoolAttr>("shouldBeFreed").getValue();
+	return getOperation()->getAttrOfType<mlir::BoolAttr>("auto_free").getValue();
 }
 
 PointerType ArrayCloneOp::resultType()
@@ -1603,11 +2195,6 @@ mlir::Value ArrayCloneOp::source()
 mlir::Value IfOpAdaptor::condition()
 {
 	return getValues()[0];
-}
-
-llvm::StringRef IfOp::getOperationName()
-{
-	return "modelica.if";
 }
 
 void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::TypeRange resultTypes, mlir::Value condition, bool withElseRegion)
@@ -1632,9 +2219,51 @@ void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Va
 	build(builder, state, llvm::None, condition, withElseRegion);
 }
 
+mlir::ParseResult IfOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType condition;
+	mlir::Type conditionType;
+	mlir::Type resultType;
+
+	if (parser.parseLParen() ||
+			parser.parseOperand(condition) ||
+			parser.parseColonType(conditionType) ||
+			parser.parseRParen() ||
+			parser.resolveOperand(condition, conditionType, result.operands))
+		return mlir::failure();
+
+	if (parser.parseLParen())
+		return mlir::failure();
+
+	if (mlir::succeeded(*parser.parseOptionalType(resultType)))
+		result.addTypes(resultType);
+
+	if (parser.parseRParen())
+		return mlir::failure();
+
+	mlir::Region* thenRegion = result.addRegion();
+
+	if (parser.parseRegion(*thenRegion))
+		return mlir::failure();
+
+	mlir::Region* elseRegion = result.addRegion();
+
+	if (mlir::succeeded(parser.parseOptionalKeyword("else")))
+	{
+		if (parser.parseRegion(*elseRegion))
+			return mlir::failure();
+	}
+
+	return mlir::success();
+}
+
 void IfOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.if (" << condition() << ") -> (" << resultTypes() << ")";
+	printer << getOperationName()
+					<< " (" << condition() << " : " << condition().getType() << ")"
+					<< " -> "
+					<< " (" << resultTypes() << ")";
+
 	printer.printRegion(thenRegion());
 
 	if (!elseRegion().empty())
@@ -1717,11 +2346,6 @@ mlir::Region& IfOp::elseRegion()
 mlir::ValueRange ForOpAdaptor::args()
 {
 	return getValues();
-}
-
-llvm::StringRef ForOp::getOperationName()
-{
-	return "modelica.for";
 }
 
 void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args)
@@ -1818,11 +2442,6 @@ mlir::ValueRange BreakableForOpAdaptor::args()
 	return mlir::ValueRange(std::next(getValues().begin(), 2), getValues().end());
 }
 
-llvm::StringRef BreakableForOp::getOperationName()
-{
-	return "modelica.breakable_for";
-}
-
 void BreakableForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1843,13 +2462,15 @@ void BreakableForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 
 void BreakableForOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.breakable_for (break on " << breakCondition() << ", return on " << returnCondition() << ") " << args();
+	printer << getOperationName() << " (";
+	printer << "break = " << breakCondition() << " : " << breakCondition().getType() << ", ";
+	printer << "return = " << returnCondition() << " : " << returnCondition().getType() << ")";
 
 	if (!args().empty())
-		printer << " ";
+		printer << "(" << args() << " : " << args().getTypes() << ")";
 
-	printer << "condition";
-	printer.printRegion(condition(), true);
+	printer << " condition";
+	printer.printRegion(condition(), false);
 	printer << " body";
 	printer.printRegion(body(), true);
 	printer << " step";
@@ -1956,11 +2577,6 @@ mlir::Value BreakableWhileOpAdaptor::returnCondition()
 	return getValues()[1];
 }
 
-llvm::StringRef BreakableWhileOp::getOperationName()
-{
-	return "modelica.breakable_while";
-}
-
 void BreakableWhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1975,9 +2591,58 @@ void BreakableWhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& sta
 	builder.createBlock(state.addRegion());
 }
 
+mlir::ParseResult BreakableWhileOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType breakCondition;
+	mlir::Type breakConditionType;
+
+	mlir::OpAsmParser::OperandType returnCondition;
+	mlir::Type returnConditionType;
+
+	if (parser.parseLParen())
+		return mlir::failure();
+
+	if (parser.parseKeyword("break") ||
+			parser.parseEqual() ||
+			parser.parseOperand(breakCondition) ||
+			parser.parseColonType(breakConditionType) ||
+			parser.resolveOperand(breakCondition, breakConditionType, result.operands))
+		return mlir::failure();
+
+	if (parser.parseComma())
+		return mlir::failure();
+
+	if (parser.parseKeyword("return") ||
+			parser.parseEqual() ||
+			parser.parseOperand(returnCondition) ||
+			parser.parseColonType(returnConditionType) ||
+			parser.resolveOperand(returnCondition, returnConditionType, result.operands))
+		return mlir::failure();
+
+	if (parser.parseRParen())
+		return mlir::failure();
+
+	mlir::Region* conditionRegion = result.addRegion();
+
+	if (parser.parseRegion(*conditionRegion))
+		return mlir::failure();
+
+	if (parser.parseKeyword("do"))
+		return mlir::failure();
+
+	mlir::Region* bodyRegion = result.addRegion();
+
+	if (parser.parseRegion(*bodyRegion))
+		return mlir::failure();
+
+	return mlir::success();
+}
+
 void BreakableWhileOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.breakable_while (break on " << breakCondition() << ", return on " << returnCondition() << ")";
+	printer << getOperationName() << " (";
+	printer << "break = " << breakCondition() << " : " << breakCondition().getType() << ", ";
+	printer << "return = " << returnCondition() << " : " << returnCondition().getType() << ")";
 	printer.printRegion(condition(), false);
 	printer << " do";
 	printer.printRegion(body(), false);
@@ -2069,20 +2734,59 @@ mlir::ValueRange ConditionOpAdaptor::args()
 	return mlir::ValueRange(std::next(getValues().begin()), getValues().end());
 }
 
-llvm::StringRef ConditionOp::getOperationName()
-{
-	return "modelica.condition";
-}
-
 void ConditionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value condition, mlir::ValueRange args)
 {
 	state.addOperands(condition);
 	state.addOperands(args);
 }
 
+mlir::ParseResult ConditionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType condition;
+	mlir::Type conditionType;
+
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> args;
+	llvm::SmallVector<mlir::Type, 3> argsTypes;
+
+	mlir::Type resultType;
+
+	if (parser.parseLParen() ||
+			parser.parseOperand(condition) ||
+			parser.parseColonType(conditionType) ||
+			parser.parseRParen() ||
+			parser.resolveOperand(condition, conditionType, result.operands))
+		return mlir::failure();
+
+	llvm::SMLoc argsLoc = parser.getCurrentLocation();
+	mlir::OptionalParseResult argsLPar = parser.parseOptionalLParen();
+
+	if (!argsLPar.hasValue())
+		return mlir::success();
+
+	if (argsLPar.hasValue() && mlir::failed(argsLPar.getValue()))
+		return mlir::failure();
+
+	if (parser.parseOperandList(args) ||
+			parser.parseColonTypeList(argsTypes) ||
+			parser.resolveOperands(args, argsTypes, argsLoc, result.operands) ||
+			parser.parseRParen())
+		return mlir::failure();
+
+	if (args.size() != argsTypes.size())
+		return parser.emitError(argsLoc)
+				<< "expected as many args types as args "
+				<< "(expected " << args.size() << " got "
+				<< argsTypes.size() << ")";
+
+	return mlir::success();
+}
+
 void ConditionOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.condition (" << condition() << ") " << args();
+	printer << getOperationName() << " (" << condition() << " : " << condition().getType() << ")";
+
+	if (auto arguments = args(); !arguments.empty())
+		printer << " (" << arguments << " : " << arguments.getTypes() << ")";
 }
 
 mlir::LogicalResult ConditionOp::verify()
@@ -2104,14 +2808,9 @@ mlir::ValueRange ConditionOp::args()
 // Modelica::YieldOp
 //===----------------------------------------------------------------------===//
 
-mlir::ValueRange YieldOpAdaptor::args()
+mlir::ValueRange YieldOpAdaptor::values()
 {
 	return getValues();
-}
-
-llvm::StringRef YieldOp::getOperationName()
-{
-	return "modelica.yield";
 }
 
 void YieldOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange operands)
@@ -2119,14 +2818,30 @@ void YieldOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 	state.addOperands(operands);
 }
 
-void YieldOp::print(mlir::OpAsmPrinter& printer)
+mlir::ParseResult YieldOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	printer << "modelica.yield " << getOperands();
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands) ||
+			parser.parseColonTypeList(operandsTypes) ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+		return mlir::failure();
+
+	return mlir::success();
 }
 
-mlir::ValueRange YieldOp::args()
+void YieldOp::print(mlir::OpAsmPrinter& printer)
 {
-	return Adaptor(*this).args();
+	printer << getOperationName() << " " << values() << " : " << values().getTypes();
+}
+
+mlir::ValueRange YieldOp::values()
+{
+	return Adaptor(*this).values();
 }
 
 //===----------------------------------------------------------------------===//
@@ -2138,20 +2853,35 @@ mlir::Value NotOpAdaptor::operand()
 	return getValues()[0];
 }
 
-llvm::StringRef NotOp::getOperationName()
-{
-	return "modelica.not";
-}
-
 void NotOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
 {
 	state.addTypes(resultType);
 	state.addOperands(operand);
 }
 
+mlir::ParseResult NotOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void NotOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.not " << getOperand() << " : " << getOperation()->getResultTypes();
+	printer << getOperationName() << " "
+					<< operand() << " : "
+					<< operand().getType() << " -> " << resultType();
 }
 
 mlir::LogicalResult NotOp::verify()
@@ -2203,20 +2933,40 @@ mlir::Value AndOpAdaptor::rhs()
 	return getValues()[1];
 }
 
-llvm::StringRef AndOp::getOperationName()
-{
-	return "modelica.and";
-}
-
 void AndOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
 }
 
+mlir::ParseResult AndOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	llvm::SmallVector<mlir::Type, 2> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() ||
+			parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void AndOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.and " << lhs() << ", " << rhs() << " : " << resultType();
+	printer << getOperationName() << " "
+					<< lhs() << ", " << rhs() << " : ("
+					<< lhs().getType() << ", " << rhs().getType() << ") -> "
+					<< resultType();
 }
 
 mlir::LogicalResult AndOp::verify()
@@ -2285,20 +3035,40 @@ mlir::Value OrOpAdaptor::rhs()
 	return getValues()[1];
 }
 
-llvm::StringRef OrOp::getOperationName()
-{
-	return "modelica.or";
-}
-
 void OrOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
 }
 
+mlir::ParseResult OrOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	llvm::SmallVector<mlir::Type, 2> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() ||
+			parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void OrOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.or " << lhs() << ", " << rhs() << " : " << resultType();
+	printer << getOperationName() << " "
+					<< lhs() << ", " << rhs() << " : ("
+					<< lhs().getType() << ", " << rhs().getType() << ") -> "
+					<< resultType();
 }
 
 mlir::LogicalResult OrOp::verify()
@@ -2367,21 +3137,42 @@ mlir::Value EqOpAdaptor::rhs()
 	return getValues()[1];
 }
 
-llvm::StringRef EqOp::getOperationName()
-{
-	return "modelica.eq";
-}
-
 void EqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
 }
 
+mlir::ParseResult EqOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	llvm::SmallVector<mlir::Type, 2> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() ||
+			parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void EqOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.eq " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+	printer << getOperationName() << " " << getOperands() << " : ("
+					<< lhs().getType() << ", "
+					<< rhs().getType() << ") -> "
+					<< getOperation()->getResultTypes()[0];
 }
+
 
 mlir::LogicalResult EqOp::verify()
 {
@@ -2420,20 +3211,40 @@ mlir::Value NotEqOpAdaptor::rhs()
 	return getValues()[1];
 }
 
-llvm::StringRef NotEqOp::getOperationName()
-{
-	return "modelica.neq";
-}
-
 void NotEqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
 }
 
+mlir::ParseResult NotEqOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	llvm::SmallVector<mlir::Type, 2> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() ||
+			parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void NotEqOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.neq " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+	printer << getOperationName() << " " << getOperands() << " : ("
+					<< lhs().getType() << ", "
+					<< rhs().getType() << ") -> "
+					<< getOperation()->getResultTypes()[0];
 }
 
 mlir::LogicalResult NotEqOp::verify()
@@ -2473,20 +3284,40 @@ mlir::Value GtOpAdaptor::rhs()
 	return getValues()[1];
 }
 
-llvm::StringRef GtOp::getOperationName()
-{
-	return "modelica.gt";
-}
-
 void GtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
 }
 
+mlir::ParseResult GtOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	llvm::SmallVector<mlir::Type, 2> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() ||
+			parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void GtOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.gt " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+	printer << getOperationName() << " " << getOperands() << " : ("
+					<< lhs().getType() << ", "
+					<< rhs().getType() << ") -> "
+					<< getOperation()->getResultTypes()[0];
 }
 
 mlir::LogicalResult GtOp::verify()
@@ -2526,20 +3357,40 @@ mlir::Value GteOpAdaptor::rhs()
 	return getValues()[1];
 }
 
-llvm::StringRef GteOp::getOperationName()
-{
-	return "modelica.gte";
-}
-
 void GteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
 }
 
+mlir::ParseResult GteOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	llvm::SmallVector<mlir::Type, 2> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() ||
+			parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void GteOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.gte " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+	printer << getOperationName() << " " << getOperands() << " : ("
+					<< lhs().getType() << ", "
+					<< rhs().getType() << ") -> "
+					<< getOperation()->getResultTypes()[0];
 }
 
 mlir::LogicalResult GteOp::verify()
@@ -2579,20 +3430,40 @@ mlir::Value LtOpAdaptor::rhs()
 	return getValues()[1];
 }
 
-llvm::StringRef LtOp::getOperationName()
-{
-	return "modelica.lt";
-}
-
 void LtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
 }
 
+mlir::ParseResult LtOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	llvm::SmallVector<mlir::Type, 2> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() ||
+			parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void LtOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.lt " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+	printer << getOperationName() << " " << getOperands() << " : ("
+					<< lhs().getType() << ", "
+					<< rhs().getType() << ") -> "
+					<< getOperation()->getResultTypes()[0];
 }
 
 mlir::LogicalResult LtOp::verify()
@@ -2632,20 +3503,40 @@ mlir::Value LteOpAdaptor::rhs()
 	return getValues()[1];
 }
 
-llvm::StringRef LteOp::getOperationName()
-{
-	return "modelica.lte";
-}
-
 void LteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
 }
 
+mlir::ParseResult LteOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	llvm::SmallVector<mlir::Type, 2> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() ||
+			parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void LteOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.lte " << getOperands() << " : " << getOperation()->getResultTypes()[0];
+	printer << getOperationName() << " " << getOperands() << " : ("
+					<< lhs().getType() << ", "
+					<< rhs().getType() << ") -> "
+					<< getOperation()->getResultTypes()[0];
 }
 
 mlir::LogicalResult LteOp::verify()
@@ -2680,20 +3571,34 @@ mlir::Value NegateOpAdaptor::operand()
 	return getValues()[0];
 }
 
-llvm::StringRef NegateOp::getOperationName()
-{
-	return "modelica.neg";
-}
-
 void NegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value value)
 {
 	state.addTypes(resultType);
 	state.addOperands(value);
 }
 
+mlir::ParseResult NegateOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void NegateOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.neg " << operand() << " : " << resultType();
+	printer << getOperationName() << " " << operand() << " : "
+					<< operand().getType() << " -> " << resultType();
 }
 
 void NegateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
@@ -2824,11 +3729,6 @@ mlir::Value AddOpAdaptor::rhs()
 	return getValues()[1];
 }
 
-llvm::StringRef AddOp::getOperationName()
-{
-	return "modelica.add";
-}
-
 void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	if (auto pointerType = resultType.dyn_cast<PointerType>())
@@ -2839,9 +3739,31 @@ void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 	state.addOperands({ lhs, rhs });
 }
 
+mlir::ParseResult AddOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() || parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() || parser.parseArrow() || parser.parseLParen() ||
+			parser.parseType(resultType) || parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void AddOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.add " << lhs() << ", " << rhs() << " : " << resultType();
+	printer << getOperationName() << " " << lhs() << ", " << rhs() << " : ("
+					<< lhs().getType() << ", " << rhs().getType()
+					<< ") -> " << resultType();
 }
 
 void AddOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
@@ -2987,11 +3909,6 @@ mlir::Value SubOpAdaptor::rhs()
 	return getValues()[1];
 }
 
-llvm::StringRef SubOp::getOperationName()
-{
-	return "modelica.sub";
-}
-
 void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	if (auto pointerType = resultType.dyn_cast<PointerType>())
@@ -3002,9 +3919,31 @@ void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 	state.addOperands({ lhs, rhs });
 }
 
+mlir::ParseResult SubOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() || parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() || parser.parseArrow() || parser.parseLParen() ||
+			parser.parseType(resultType) || parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void SubOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.sub " << lhs() << ", " << rhs() << " : " << resultType();
+	printer << getOperationName() << " " << lhs() << ", " << rhs() << " : ("
+					<< lhs().getType() << ", " << rhs().getType()
+					<< ") -> " << resultType();
 }
 
 void SubOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
@@ -3150,11 +4089,6 @@ mlir::Value MulOpAdaptor::rhs()
 	return getValues()[1];
 }
 
-llvm::StringRef MulOp::getOperationName()
-{
-	return "modelica.mul";
-}
-
 void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	if (auto pointerType = resultType.dyn_cast<PointerType>())
@@ -3165,9 +4099,31 @@ void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 	state.addOperands({ lhs, rhs });
 }
 
+mlir::ParseResult MulOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() || parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() || parser.parseArrow() || parser.parseLParen() ||
+			parser.parseType(resultType) || parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void MulOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.mul " << lhs() << ", " << rhs() << " : " << resultType();
+	printer << getOperationName() << " " << lhs() << ", " << rhs() << " : ("
+					<< lhs().getType() << ", " << rhs().getType()
+					<< ") -> " << resultType();
 }
 
 void MulOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
@@ -3335,11 +4291,6 @@ mlir::Value DivOpAdaptor::rhs()
 	return getValues()[1];
 }
 
-llvm::StringRef DivOp::getOperationName()
-{
-	return "modelica.div";
-}
-
 void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	if (auto pointerType = resultType.dyn_cast<PointerType>())
@@ -3350,9 +4301,31 @@ void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 	state.addOperands({ lhs, rhs });
 }
 
+mlir::ParseResult DivOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() || parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() || parser.parseArrow() || parser.parseLParen() ||
+			parser.parseType(resultType) || parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void DivOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.div " << lhs() << ", " << rhs() << " : " << resultType();
+	printer << getOperationName() << " " << lhs() << ", " << rhs() << " : ("
+					<< lhs().getType() << ", " << rhs().getType()
+					<< ") -> " << resultType();
 }
 
 void DivOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
@@ -3576,11 +4549,6 @@ mlir::Value PowOpAdaptor::exponent()
 	return getValues()[1];
 }
 
-llvm::StringRef PowOp::getOperationName()
-{
-	return "modelica.pow";
-}
-
 void PowOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value base, mlir::Value exponent)
 {
 	if (auto pointerType = resultType.dyn_cast<PointerType>())
@@ -3591,9 +4559,31 @@ void PowOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::T
 	state.addOperands({ base, exponent });
 }
 
+mlir::ParseResult PowOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() || parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() || parser.parseArrow() || parser.parseLParen() ||
+			parser.parseType(resultType) || parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void PowOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.pow " << base() << ", " << exponent() << " : " << resultType();
+	printer << getOperationName() << " " << base() << ", " << exponent() << " : ("
+					<< base().getType() << ", " << exponent().getType()
+					<< ") -> " << resultType();
 }
 
 void PowOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context)
@@ -3646,20 +4636,33 @@ mlir::Value NDimsOpAdaptor::memory()
 	return getValues()[0];
 }
 
-llvm::StringRef NDimsOp::getOperationName()
-{
-	return "modelica.ndims";
-}
-
 void NDimsOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory)
 {
 	state.addTypes(resultType);
 	state.addOperands(memory);
 }
 
+mlir::ParseResult NDimsOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType array;
+	mlir::Type arrayType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(array) ||
+			parser.parseColon() ||
+			parser.parseType(arrayType) ||
+			parser.resolveOperand(array, arrayType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void NDimsOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.ndims " << memory() << " : " << resultType();
+	printer << getOperationName() << " " << memory() << " : " << memory().getType() << " -> " << resultType();
 }
 
 mlir::Type NDimsOp::resultType()
@@ -3684,11 +4687,6 @@ mlir::Value SizeOpAdaptor::memory()
 mlir::Value SizeOpAdaptor::index()
 {
 	return getValues()[1];
-}
-
-llvm::StringRef SizeOp::getOperationName()
-{
-	return "modelica.size";
 }
 
 void SizeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory, mlir::Value index)
@@ -3759,20 +4757,34 @@ mlir::Value IdentityOpAdaptor::size()
 	return getValues()[0];
 }
 
-llvm::StringRef IdentityOp::getOperationName()
-{
-	return "modelica.identity";
-}
-
 void IdentityOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value size)
 {
 	state.addTypes(resultType);
 	state.addOperands(size);
 }
 
+mlir::ParseResult IdentityOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType size;
+	mlir::Type sizeType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(size) ||
+			parser.parseColon() ||
+			parser.parseType(sizeType) ||
+			parser.resolveOperand(size, sizeType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void IdentityOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.identity " << size() << " : " << resultType();
+	printer << getOperationName() << " "
+					<< size() << " : " << size().getType() << " -> " << resultType();
 }
 
 mlir::LogicalResult IdentityOp::verify()
@@ -3809,20 +4821,34 @@ mlir::Value DiagonalOpAdaptor::values()
 	return getValues()[0];
 }
 
-llvm::StringRef DiagonalOp::getOperationName()
-{
-	return "modelica.diagonal";
-}
-
 void DiagonalOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value values)
 {
 	state.addTypes(resultType);
 	state.addOperands(values);
 }
 
+mlir::ParseResult DiagonalOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType array;
+	mlir::Type arrayType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(array) ||
+			parser.parseColon() ||
+			parser.parseType(arrayType) ||
+			parser.resolveOperand(array, arrayType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void DiagonalOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.diagonal " << values() << " : " << resultType();
+	printer << getOperationName() << " "
+					<< values() << " : " << values().getType() << " -> " << resultType();
 }
 
 mlir::LogicalResult DiagonalOp::verify()
@@ -3862,20 +4888,66 @@ mlir::ValueRange ZerosOpAdaptor::sizes()
 	return getValues();
 }
 
-llvm::StringRef ZerosOp::getOperationName()
-{
-	return "modelica.zeros";
-}
-
 void ZerosOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange sizes)
 {
 	state.addTypes(resultType);
 	state.addOperands(sizes);
 }
 
+mlir::ParseResult ZerosOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> dimensions;
+	llvm::SmallVector<mlir::Type, 3> dimensionsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc dimensionsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(dimensions) ||
+			parser.parseColon())
+		return mlir::failure();
+
+	llvm::SMLoc dimensionsTypesLoc = parser.getCurrentLocation();
+
+	if (dimensions.size() > 1)
+    if (parser.parseLParen())
+			return mlir::failure();
+
+	if (parser.parseTypeList(dimensionsTypes))
+		return mlir::failure();
+
+	if (dimensions.size() > 1)
+		if (parser.parseRParen())
+			return mlir::failure();
+
+	if (parser.resolveOperands(dimensions, dimensionsTypes, dimensionsLoc, result.operands) ||
+		 parser.parseArrow() ||
+		 parser.parseType(resultType))
+		return mlir::failure();
+
+	if (dimensions.size() != dimensionsTypes.size())
+		return parser.emitError(dimensionsTypesLoc)
+				<< "expected as many input types as operands "
+				<< "(expected " << dimensions.size() << " got "
+				<< dimensionsTypes.size() << ")";
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void ZerosOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.zeros " << sizes() << " : " << resultType();
+	printer << getOperationName() << " " << sizes() << " : ";
+	auto sizesTypes = sizes().getTypes();
+
+	if (sizesTypes.size() > 1)
+		printer << "(";
+
+	printer << sizesTypes;
+
+	if (sizesTypes.size() > 1)
+		printer << ")";
+
+	printer << " -> " << resultType();
 }
 
 mlir::LogicalResult ZerosOp::verify()
@@ -3915,20 +4987,66 @@ mlir::ValueRange OnesOpAdaptor::sizes()
 	return getValues();
 }
 
-llvm::StringRef OnesOp::getOperationName()
-{
-	return "modelica.ones";
-}
-
 void OnesOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange sizes)
 {
 	state.addTypes(resultType);
 	state.addOperands(sizes);
 }
 
+mlir::ParseResult OnesOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> dimensions;
+	llvm::SmallVector<mlir::Type, 3> dimensionsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc dimensionsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(dimensions) ||
+			parser.parseColon())
+		return mlir::failure();
+
+	llvm::SMLoc dimensionsTypesLoc = parser.getCurrentLocation();
+
+	if (dimensions.size() > 1)
+		if (parser.parseLParen())
+			return mlir::failure();
+
+	if (parser.parseTypeList(dimensionsTypes))
+		return mlir::failure();
+
+	if (dimensions.size() > 1)
+		if (parser.parseRParen())
+			return mlir::failure();
+
+	if (parser.resolveOperands(dimensions, dimensionsTypes, dimensionsLoc, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	if (dimensions.size() != dimensionsTypes.size())
+		return parser.emitError(dimensionsTypesLoc)
+				<< "expected as many input types as operands "
+				<< "(expected " << dimensions.size() << " got "
+				<< dimensionsTypes.size() << ")";
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void OnesOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.ones " << sizes() << " : " << resultType();
+	printer << getOperationName() << " " << sizes() << " : ";
+	auto sizesTypes = sizes().getTypes();
+
+	if (sizesTypes.size() > 1)
+		printer << "(";
+
+	printer << sizesTypes;
+
+	if (sizesTypes.size() > 1)
+		printer << ")";
+
+	printer << " -> " << resultType();
 }
 
 mlir::LogicalResult OnesOp::verify()
@@ -3978,11 +5096,6 @@ mlir::Value LinspaceOpAdaptor::steps()
 	return getValues()[2];
 }
 
-llvm::StringRef LinspaceOp::getOperationName()
-{
-	return "modelica.linspace";
-}
-
 void LinspaceOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value start, mlir::Value end, mlir::Value steps)
 {
 	state.addTypes(resultType);
@@ -3991,9 +5104,36 @@ void LinspaceOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, ml
 	state.addOperands(steps);
 }
 
+mlir::ParseResult LinspaceOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 3) ||
+			parser.parseColon() ||
+			parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void LinspaceOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.linspace " << start() << ", " << end() << ", " << steps() << " : " << resultType();
+	printer << getOperationName() << " "
+					<< start() << ", " << end() << ", " << steps() << " : ("
+					<< start().getType() << ", "
+					<< end().getType() << ", "
+					<< steps().getType() << ") -> "
+					<< resultType();
 }
 
 mlir::LogicalResult LinspaceOp::verify()
@@ -4048,21 +5188,30 @@ mlir::Value FillOpAdaptor::memory()
 	return getValues()[1];
 }
 
-llvm::StringRef FillOp::getOperationName()
-{
-	return "modelica.fill";
-}
-
 void FillOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory)
 {
 	state.addOperands(value);
 	state.addOperands(memory);
 }
 
+mlir::ParseResult FillOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	llvm::SmallVector<mlir::Type, 2> operandsTypes;
+	mlir::Type resultType;
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColonTypeList(operandsTypes))
+		return mlir::failure();
+
+	return mlir::success();
+}
+
 void FillOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.fill " << value() << ", " << memory();
-	printer << " : " << memory().getType();
+	printer << getOperationName() << " "
+					<< value() << ", " << memory() << " : "
+					<< value().getType() << ", " << memory().getType();
 }
 
 mlir::Value FillOp::value()
@@ -4084,20 +5233,69 @@ mlir::ValueRange MinOpAdaptor::values()
 	return getValues();
 }
 
-llvm::StringRef MinOp::getOperationName()
-{
-	return "modelica.min";
-}
-
 void MinOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values)
 {
 	state.addTypes(resultType);
 	state.addOperands(values);
 }
 
+mlir::ParseResult MinOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	llvm::SmallVector<mlir::Type, 2> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands) ||
+			parser.parseColon())
+		return mlir::failure();
+
+	if (operands.empty())
+		return parser.emitError(operandsLoc) << "expected at least one operand";
+
+	llvm::SMLoc dimensionsTypesLoc = parser.getCurrentLocation();
+
+	if (operands.size() > 1)
+		if (parser.parseLParen())
+			return mlir::failure();
+
+	if (parser.parseTypeList(operandsTypes))
+		return mlir::failure();
+
+	if (operands.size() > 1)
+		if (parser.parseRParen())
+			return mlir::failure();
+
+	if (parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	if (operands.size() != operandsTypes.size())
+		return parser.emitError(dimensionsTypesLoc)
+				<< "expected as many input types as operands "
+				<< "(expected " << operands.size() << " got "
+				<< operandsTypes.size() << ")";
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void MinOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.min " << values() << " : " << resultType();
+	printer << getOperationName() << " " << values() << " : ";
+	auto valuesTypes = values().getTypes();
+
+	if (valuesTypes.size() > 1)
+		printer << "(";
+
+	printer << valuesTypes;
+
+	if (valuesTypes.size() > 1)
+		printer << ")";
+
+	printer << " -> " << resultType();
 }
 
 mlir::LogicalResult MinOp::verify()
@@ -4136,20 +5334,69 @@ mlir::ValueRange MaxOpAdaptor::values()
 	return getValues();
 }
 
-llvm::StringRef MaxOp::getOperationName()
-{
-	return "modelica.max";
-}
-
 void MaxOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values)
 {
 	state.addTypes(resultType);
 	state.addOperands(values);
 }
 
+mlir::ParseResult MaxOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	llvm::SmallVector<mlir::Type, 2> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands) ||
+			parser.parseColon())
+		return mlir::failure();
+
+	if (operands.empty())
+		return parser.emitError(operandsLoc) << "expected at least one operand";
+
+	llvm::SMLoc dimensionsTypesLoc = parser.getCurrentLocation();
+
+	if (operands.size() > 1)
+		if (parser.parseLParen())
+			return mlir::failure();
+
+	if (parser.parseTypeList(operandsTypes))
+		return mlir::failure();
+
+	if (operands.size() > 1)
+		if (parser.parseRParen())
+			return mlir::failure();
+
+	if (parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	if (operands.size() != operandsTypes.size())
+		return parser.emitError(dimensionsTypesLoc)
+				<< "expected as many input types as operands "
+				<< "(expected " << operands.size() << " got "
+				<< operandsTypes.size() << ")";
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void MaxOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.max " << values() << " : " << resultType();
+	printer << getOperationName() << " " << values() << " : ";
+	auto valuesTypes = values().getTypes();
+
+	if (valuesTypes.size() > 1)
+		printer << "(";
+
+	printer << valuesTypes;
+
+	if (valuesTypes.size() > 1)
+		printer << ")";
+
+	printer << " -> " << resultType();
 }
 
 mlir::LogicalResult MaxOp::verify()
@@ -4183,33 +5430,47 @@ mlir::ValueRange MaxOp::values()
 // Modelica::SumOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value SumOpAdaptor::memory()
+mlir::Value SumOpAdaptor::array()
 {
 	return getValues()[0];
 }
 
-llvm::StringRef SumOp::getOperationName()
-{
-	return "modelica.sum";
-}
-
-void SumOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory)
+void SumOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value array)
 {
 	state.addTypes(resultType);
-	state.addOperands(memory);
+	state.addOperands(array);
+}
+
+mlir::ParseResult SumOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType array;
+	mlir::Type arrayType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(array) ||
+			parser.parseColon() ||
+			parser.parseType(resultType) ||
+			parser.resolveOperand(array, arrayType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
 }
 
 void SumOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.sum " << memory() << " : " << resultType();
+	printer << getOperationName() << " " << array() << " : "
+					<< array().getType() << " -> " << resultType();
 }
 
 mlir::LogicalResult SumOp::verify()
 {
-	if (!memory().getType().isa<PointerType>())
+	if (!array().getType().isa<PointerType>())
 		return emitOpError("requires the operand to be an array");
 
-	if (!isNumeric(memory().getType().cast<PointerType>().getElementType()))
+	if (!isNumeric(array().getType().cast<PointerType>().getElementType()))
 		return emitOpError("requires the operand to be an array of numeric values");
 
 	return mlir::success();
@@ -4220,42 +5481,56 @@ mlir::Type SumOp::resultType()
 	return getOperation()->getResultTypes()[0];
 }
 
-mlir::Value SumOp::memory()
+mlir::Value SumOp::array()
 {
-	return Adaptor(*this).memory();
+	return Adaptor(*this).array();
 }
 
 //===----------------------------------------------------------------------===//
 // Modelica::ProductOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value ProductOpAdaptor::memory()
+mlir::Value ProductOpAdaptor::array()
 {
 	return getValues()[0];
 }
 
-llvm::StringRef ProductOp::getOperationName()
-{
-	return "modelica.product";
-}
-
-void ProductOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory)
+void ProductOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value array)
 {
 	state.addTypes(resultType);
-	state.addOperands(memory);
+	state.addOperands(array);
+}
+
+mlir::ParseResult ProductOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType array;
+	mlir::Type arrayType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(array) ||
+			parser.parseColon() ||
+			parser.parseType(resultType) ||
+			parser.resolveOperand(array, arrayType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
 }
 
 void ProductOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.product " << memory() << " : " << resultType();
+	printer << getOperationName() << " " << array() << " : "
+					<< array().getType() << " -> " << resultType();
 }
 
 mlir::LogicalResult ProductOp::verify()
 {
-	if (!memory().getType().isa<PointerType>())
+	if (!array().getType().isa<PointerType>())
 		return emitOpError("requires the operand to be an array");
 
-	if (!isNumeric(memory().getType().cast<PointerType>().getElementType()))
+	if (!isNumeric(array().getType().cast<PointerType>().getElementType()))
 		return emitOpError("requires the operand to be an array of numeric values");
 
 	return mlir::success();
@@ -4266,42 +5541,56 @@ mlir::Type ProductOp::resultType()
 	return getOperation()->getResultTypes()[0];
 }
 
-mlir::Value ProductOp::memory()
+mlir::Value ProductOp::array()
 {
-	return Adaptor(*this).memory();
+	return Adaptor(*this).array();
 }
 
 //===----------------------------------------------------------------------===//
 // Modelica::TransposeOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value TransposeOpAdaptor::source()
+mlir::Value TransposeOpAdaptor::matrix()
 {
 	return getValues()[0];
 }
 
-llvm::StringRef TransposeOp::getOperationName()
-{
-	return "modelica.transpose";
-}
-
-void TransposeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value source)
+void TransposeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value matrix)
 {
 	state.addTypes(resultType);
-	state.addOperands(source);
+	state.addOperands(matrix);
+}
+
+mlir::ParseResult TransposeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType matrix;
+	mlir::Type matrixType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(matrix) ||
+			parser.parseColon() ||
+			parser.parseType(matrixType) ||
+			parser.resolveOperand(matrix, matrixType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
 }
 
 void TransposeOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.transpose " << source() << " : " << resultType();
+	printer << getOperationName() << " " << matrix() << " : "
+					<< matrix().getType() << " -> " << resultType();
 }
 
 mlir::LogicalResult TransposeOp::verify()
 {
-	if (!source().getType().isa<PointerType>())
+	if (!matrix().getType().isa<PointerType>())
 		return emitOpError("requires the source to be an array");
 
-	auto sourceType = source().getType().cast<PointerType>();
+	auto sourceType = matrix().getType().cast<PointerType>();
 
 	if (sourceType.getRank() != 2)
 		return emitOpError("requires the source to have rank 2");
@@ -4341,42 +5630,56 @@ mlir::Type TransposeOp::resultType()
 	return getOperation()->getResultTypes()[0];
 }
 
-mlir::Value TransposeOp::source()
+mlir::Value TransposeOp::matrix()
 {
-	return Adaptor(*this).source();
+	return Adaptor(*this).matrix();
 }
 
 //===----------------------------------------------------------------------===//
 // Modelica::SymmetricOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value SymmetricOpAdaptor::source()
+mlir::Value SymmetricOpAdaptor::matrix()
 {
 	return getValues()[0];
 }
 
-llvm::StringRef SymmetricOp::getOperationName()
-{
-	return "modelica.symmetric";
-}
-
-void SymmetricOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value source)
+void SymmetricOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value matrix)
 {
 	state.addTypes(resultType);
-	state.addOperands(source);
+	state.addOperands(matrix);
+}
+
+mlir::ParseResult SymmetricOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType matrix;
+	mlir::Type matrixType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(matrix) ||
+			parser.parseColon() ||
+			parser.parseType(matrixType) ||
+			parser.resolveOperand(matrix, matrixType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
 }
 
 void SymmetricOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.symmetric " << source() << " : " << resultType();
+	printer << getOperationName() << " " << matrix() << " : "
+					<< matrix().getType() << " -> " << resultType();
 }
 
 mlir::LogicalResult SymmetricOp::verify()
 {
-	if (!source().getType().isa<PointerType>())
+	if (!matrix().getType().isa<PointerType>())
 		return emitOpError("requires the source to be an array");
 
-	auto sourceType = source().getType().cast<PointerType>();
+	auto sourceType = matrix().getType().cast<PointerType>();
 
 	if (sourceType.getRank() != 2)
 		return emitOpError("requires the source to have rank 2");
@@ -4416,9 +5719,9 @@ mlir::Type SymmetricOp::resultType()
 	return getOperation()->getResultTypes()[0];
 }
 
-mlir::Value SymmetricOp::source()
+mlir::Value SymmetricOp::matrix()
 {
-	return Adaptor(*this).source();
+	return Adaptor(*this).matrix();
 }
 
 //===----------------------------------------------------------------------===//
@@ -4430,20 +5733,34 @@ mlir::Value DerOpAdaptor::operand()
 	return getValues()[0];
 }
 
-llvm::StringRef DerOp::getOperationName()
-{
-	return "modelica.der";
-}
-
 void DerOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
 {
 	state.addTypes(resultType);
 	state.addOperands(operand);
 }
 
+mlir::ParseResult DerOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void DerOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.der " << operand() << " : " << resultType();
+	printer << getOperationName() << " " << operand() << " : "
+					<< operand().getType() << " -> " << resultType();
 }
 
 mlir::Type DerOp::resultType()
@@ -4465,19 +5782,30 @@ mlir::ValueRange PrintOpAdaptor::values()
 	return getValues();
 }
 
-llvm::StringRef PrintOp::getOperationName()
-{
-	return "modelica.print";
-}
-
 void PrintOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
 {
 	state.addOperands(values);
 }
 
+mlir::ParseResult PrintOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands) ||
+			parser.parseColonTypeList(operandsTypes) ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+		return mlir::failure();
+
+	return mlir::success();
+}
+
 void PrintOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.print " << values();
+	printer << getOperationName() << " " << values() << " : " << values().getTypes();
 }
 
 mlir::ValueRange PrintOp::values()

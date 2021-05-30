@@ -61,7 +61,7 @@ namespace modelica
 			frontend::Class& cls, const frontend::SymbolTable& table);
 
 	template<>
-	llvm::Error OmcToModelPass::lower<frontend::DerFunction>(
+	llvm::Error OmcToModelPass::lower<frontend::PartialDerFunction>(
 			frontend::Class& cls, const frontend::SymbolTable& table);
 
 	template<>

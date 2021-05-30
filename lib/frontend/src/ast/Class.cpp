@@ -1,8 +1,9 @@
 #include <modelica/frontend/AST.h>
 
+using namespace modelica;
 using namespace modelica::frontend;
 
-Class::Class(DerFunction content)
+Class::Class(PartialDerFunction content)
 		: content(std::move(content))
 {
 }
@@ -56,5 +57,19 @@ void Class::print(llvm::raw_ostream& os, size_t indents) const
 {
 	visit([&os, indents](const auto& value) {
 		value.dump(os, indents + 1);
+	});
+}
+
+SourceRange Class::getLocation() const
+{
+	return visit([](const auto& obj) {
+		return obj.getLocation();
+	});
+}
+
+llvm::StringRef Class::getName() const
+{
+	return visit([](const auto& obj) {
+		return obj.getName();
 	});
 }

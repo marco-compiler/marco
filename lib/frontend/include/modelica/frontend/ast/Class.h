@@ -15,7 +15,7 @@ namespace modelica::frontend
 				public impl::Dumpable<Class>
 	{
 		public:
-		explicit Class(DerFunction content);
+		explicit Class(PartialDerFunction content);
 		explicit Class(StandardFunction content);
 		explicit Class(Model content);
 		explicit Class(Package content);
@@ -83,10 +83,14 @@ namespace modelica::frontend
 			return std::visit(visitor, content);
 		}
 
+		[[nodiscard]] SourceRange getLocation() const;
+
+		[[nodiscard]] llvm::StringRef getName() const;
+
 		template<typename... Args>
-		[[nodiscard]] static std::unique_ptr<Class> derFunction(Args&&... args)
+		[[nodiscard]] static std::unique_ptr<Class> partialDerFunction(Args&&... args)
 		{
-			return std::make_unique<Class>(DerFunction(std::forward<Args>(args)...));
+			return std::make_unique<Class>(PartialDerFunction(std::forward<Args>(args)...));
 		}
 
 		template<typename... Args>
@@ -114,6 +118,6 @@ namespace modelica::frontend
 		}
 
 		private:
-		std::variant<DerFunction, StandardFunction, Model, Package, Record> content;
+		std::variant<PartialDerFunction, StandardFunction, Model, Package, Record> content;
 	};
 }

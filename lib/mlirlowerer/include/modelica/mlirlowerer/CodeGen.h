@@ -22,20 +22,11 @@
 
 namespace modelica::codegen
 {
-	struct ModelicaOptions {
-
-		bool x64 = true;
+	struct ModelicaOptions
+	{
 		double startTime = 0;
 		double endTime = 10;
 		double timeStep = 0.1;
-
-		[[nodiscard]] unsigned int getBitWidth() const
-		{
-			if (x64)
-				return 64;
-
-			return 32;
-		}
 
 		/**
 		 * Get a statically allocated copy of the default options.
@@ -50,6 +41,7 @@ namespace modelica::codegen
 
 	struct ModelicaLoweringOptions
 	{
+		bool x64 = true;
 		SolveModelOptions solveModelOptions = SolveModelOptions::getDefaultOptions();
 		bool inlining = true;
 		bool resultBuffersToArgs = true;
@@ -59,8 +51,25 @@ namespace modelica::codegen
 		ModelicaToLLVMConversionOptions llvmOptions = ModelicaToLLVMConversionOptions::getDefaultOptions();
 		bool debug = true;
 
-		static const ModelicaLoweringOptions& getDefaultOptions() {
+		[[nodiscard]] unsigned int getBitWidth() const
+		{
+			if (x64)
+				return 64;
+
+			return 32;
+		}
+
+		static const ModelicaLoweringOptions& getDefaultOptions()
+		{
 			static ModelicaLoweringOptions options;
+			return options;
+		}
+
+		static const ModelicaLoweringOptions testsOptions()
+		{
+			static ModelicaLoweringOptions options;
+			options.x64 = false;
+			options.llvmOptions.emitCWrappers = true;
 			return options;
 		}
 	};
@@ -108,7 +117,7 @@ namespace modelica::codegen
 
 		private:
 		mlir::Operation* lower(const frontend::Class& cls);
-		mlir::Operation* lower(const frontend::DerFunction& function);
+		mlir::Operation* lower(const frontend::PartialDerFunction& function);
 		mlir::Operation* lower(const frontend::StandardFunction& function);
 		mlir::Operation* lower(const frontend::Model& model);
 		mlir::Operation* lower(const frontend::Package& package);

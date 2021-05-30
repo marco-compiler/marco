@@ -235,6 +235,24 @@ namespace modelica::frontend
 			return &std::get<T>(content);
 		}
 
+		template<typename T>
+		[[nodiscard]] T* dyn_get()
+		{
+			if (!isa<T>())
+				return nullptr;
+
+			return get<T>();
+		}
+
+		template<typename T>
+		[[nodiscard]] const T* dyn_get() const
+		{
+			if (!isa<T>())
+				return nullptr;
+
+			return get<T>();
+		}
+
 		template<typename Visitor>
 		void visit(Visitor&& visitor)
 		{

@@ -5,6 +5,7 @@
 namespace modelica::frontend
 {
 	class ClassModification;
+	class DerivativeAnnotation;
 	class InverseFunctionAnnotation;
 
 	class Annotation
@@ -28,6 +29,10 @@ namespace modelica::frontend
 		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		[[nodiscard]] bool getInlineProperty() const;
+
+		[[nodiscard]] bool hasDerivativeAnnotation() const;
+		[[nodiscard]] DerivativeAnnotation getDerivativeAnnotation() const;
+
 		[[nodiscard]] InverseFunctionAnnotation getInverseFunctionAnnotation() const;
 
 		private:

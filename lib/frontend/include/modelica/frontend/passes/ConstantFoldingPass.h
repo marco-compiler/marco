@@ -16,7 +16,7 @@ namespace modelica::frontend
 	class Class;
 	class ClassContainer;
 	class Constant;
-	class DerFunction;
+	class PartialDerFunction;
 	class Equation;
 	class Expression;
 	class ForEquation;
@@ -89,7 +89,7 @@ namespace modelica::frontend
 	llvm::Error ConstantFolder::run<Class>(Class& cls);
 
 	template<>
-	llvm::Error ConstantFolder::run<DerFunction>(Class& cls);
+	llvm::Error ConstantFolder::run<PartialDerFunction>(Class& cls);
 
 	template<>
 	llvm::Error ConstantFolder::run<StandardFunction>(Class& cls);

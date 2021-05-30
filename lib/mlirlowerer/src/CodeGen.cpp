@@ -107,7 +107,7 @@ Reference Reference::member(mlir::OpBuilder* builder, mlir::Value value, bool in
 }
 
 MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options)
-		: builder(&context, options.getBitWidth()),
+		: builder(&context),
 			options(options)
 {
 	context.loadDialect<ModelicaDialect>();
@@ -118,6 +118,7 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 {
 	mlir::PassManager passManager(builder.getContext());
 
+	passManager.addPass(createAutomaticDifferentiationPass());
 	passManager.addPass(createSolveModelPass(loweringOptions.solveModelOptions));
 	passManager.addPass(createExplicitCastInsertionPass());
 
@@ -128,19 +129,20 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 		passManager.addPass(createResultBuffersToArgsPass());
 
 	passManager.addPass(mlir::createCanonicalizerPass());
+	passManager.addPass(createFunctionConversionPass());
 
 	if (loweringOptions.cse)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
 
-	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions, options.getBitWidth()));
+	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions, loweringOptions.getBitWidth()));
 	passManager.addNestedPass<mlir::FuncOp>(mlir::createLoopInvariantCodeMotionPass());
 	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
 
 	if (loweringOptions.openmp)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
 
-	passManager.addPass(createLowerToCFGPass(loweringOptions.conversionOptions));
-	passManager.addPass(createLLVMLoweringPass(loweringOptions.llvmOptions));
+	passManager.addPass(createLowerToCFGPass(loweringOptions.conversionOptions, loweringOptions.getBitWidth()));
+	passManager.addPass(createLLVMLoweringPass(loweringOptions.llvmOptions, loweringOptions.getBitWidth()));
 
 	if (!loweringOptions.debug)
 		passManager.addPass(mlir::createStripDebugInfoPass());
@@ -200,10 +202,46 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Class& cls)
 	});
 }
 
-mlir::Operation* MLIRLowerer::lower(const frontend::DerFunction& function)
+mlir::Operation* MLIRLowerer::lower(const frontend::PartialDerFunction& function)
 {
-	// TODO
-	return nullptr;
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto location = loc(function.getLocation());
+
+	/*
+	llvm::SmallVector<mlir::Type, 3> argsTypes;
+	llvm::SmallVector<mlir::Type, 3> resultsTypes;
+
+	for (const auto& argType : function.getArgsTypes())
+	{
+		mlir::Type type = lower(argType, BufferAllocationScope::unknown);
+
+		if (auto pointerType = type.dyn_cast<PointerType>())
+			type = pointerType.toUnknownAllocationScope();
+
+		argsTypes.emplace_back(type);
+	}
+
+	for (const auto& resultType : function.getResultsTypes())
+	{
+		mlir::Type type = lower(resultType, BufferAllocationScope::heap);
+
+		if (auto pointerType = type.dyn_cast<PointerType>())
+			type = pointerType.toAllocationScope(BufferAllocationScope::heap);
+
+		resultsTypes.emplace_back(type);
+	}
+
+	auto functionType = builder.getFunctionType(argsTypes, resultsTypes);
+	 */
+
+	llvm::StringRef derivedFunction = function.getDerivedFunction()->get<ReferenceAccess>()->getName();
+	llvm::SmallVector<llvm::StringRef, 3> independentVariables;
+
+	for (const auto& independentVariable : function.getIndependentVariables())
+		independentVariables.push_back(independentVariable->get<ReferenceAccess>()->getName());
+
+	return builder.create<DerFunctionOp>(location, function.getName(), derivedFunction, independentVariables);
 }
 
 mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
@@ -245,16 +283,18 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 	}
 
 	auto functionType = builder.getFunctionType(argTypes, returnTypes);
-	auto functionOp = mlir::FuncOp::create(location, function.getName(), functionType);
+	auto functionOp = builder.create<FunctionOp>(location, function.getName(), functionType, argNames, returnNames);
 
 	if (function.hasAnnotation())
 	{
+		const auto* annotation = function.getAnnotation();
+
 		// Inline attribute
 		functionOp->setAttr("inline", builder.getBooleanAttribute(function.getAnnotation()->getInlineProperty()));
 
 		{
 			// Inverse functions attribute
-			auto inverseFunctionAnnotation = function.getAnnotation()->getInverseFunctionAnnotation();
+			auto inverseFunctionAnnotation = annotation->getInverseFunctionAnnotation();
 			InverseFunctionsAttribute::Map map;
 
 			// Create a map of the function members indexes for faster retrieval
@@ -294,6 +334,13 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 				auto inverseFunctionAttribute = builder.getInverseFunctionsAttribute(map);
 				functionOp->setAttr("inverse", inverseFunctionAttribute);
 			}
+		}
+
+		if (annotation->hasDerivativeAnnotation())
+		{
+			auto derivativeAnnotation = annotation->getDerivativeAnnotation();
+			auto derivativeAttribute = builder.getDerivativeAttribute(derivativeAnnotation.getName(), derivativeAnnotation.getOrder());
+			functionOp->setAttr("derivative", derivativeAttribute);
 		}
 	}
 
@@ -351,7 +398,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 		results.push_back(*ptr);
 	}
 
-	builder.create<mlir::ReturnOp>(location, results);
+	builder.create<ReturnOp>(location, results);
 	return functionOp;
 }
 

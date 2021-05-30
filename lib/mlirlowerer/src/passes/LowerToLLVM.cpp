@@ -358,7 +358,8 @@ class DynamicArrayDescriptor
  * @tparam FromOp type of the operation to be converted
  */
 template<typename FromOp>
-class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
+class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp>
+{
 	protected:
 	using Adaptor = typename FromOp::Adaptor;
 	using mlir::OpConversionPattern<FromOp>::OpConversionPattern;
@@ -378,7 +379,7 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 	[[nodiscard]] mlir::Type voidPtrType(mlir::MLIRContext* context) const
 	{
 		return mlir::LLVM::LLVMPointerType::get(
-				this->getTypeConverter()->convertType(IntegerType::get(context, 8)));
+				this->getTypeConverter()->convertType(mlir::IntegerType::get(context, 8)));
 	}
 
 	[[nodiscard]] unsigned int pointerBitWidth() const
@@ -772,8 +773,7 @@ class CastOpIndexLowering: public ModelicaOpConversion<CastOp>
 
 		if (destination.isa<RealType>())
 		{
-			unsigned int destinationBitWidth = destination.cast<RealType>().getBitWidth();
-			mlir::Value value = rewriter.create<mlir::IndexCastOp>(location, op.value(), convertType(IntegerType::get(rewriter.getContext(), destinationBitWidth)));
+			mlir::Value value = rewriter.create<mlir::IndexCastOp>(location, op.value(), convertType(IntegerType::get(rewriter.getContext())));
 			value = materializeTargetConversion(rewriter, value);
 			rewriter.replaceOpWithNewOp<mlir::LLVM::SIToFPOp>(op, convertType(destination), value);
 			return mlir::success();
@@ -807,11 +807,7 @@ class CastOpBooleanLowering: public ModelicaOpConversion<CastOp>
 		if (destination.isa<RealType>())
 		{
 			mlir::Value value = adaptor.value();
-			unsigned int destinationBitWidth = destination.cast<RealType>().getBitWidth();
-
-			if (destinationBitWidth > 1)
-				value = rewriter.create<mlir::LLVM::SExtOp>(location, convertType(IntegerType::get(rewriter.getContext(), destinationBitWidth)), value);
-
+			value = rewriter.create<mlir::LLVM::SExtOp>(location, convertType(IntegerType::get(rewriter.getContext())), value);
 			rewriter.replaceOpWithNewOp<mlir::LLVM::SIToFPOp>(op, convertType(destination), value);
 			return mlir::success();
 		}
@@ -850,13 +846,6 @@ class CastOpIntegerLowering: public ModelicaOpConversion<CastOp>
 		if (destination.isa<RealType>())
 		{
 			mlir::Value value = adaptor.value();
-			unsigned int destinationBitWidth = destination.cast<RealType>().getBitWidth();
-
-			if (source.getBitWidth() < destinationBitWidth)
-				value = rewriter.create<mlir::LLVM::SExtOp>(location, convertType(IntegerType::get(rewriter.getContext(), destinationBitWidth)), value);
-			else if (source.getBitWidth() > destinationBitWidth)
-				value = rewriter.create<mlir::LLVM::TruncOp>(location, convertType(IntegerType::get(rewriter.getContext(), destinationBitWidth)), value);
-
 			rewriter.replaceOpWithNewOp<mlir::LLVM::SIToFPOp>(op, convertType(destination), value);
 			return mlir::success();
 		}
@@ -895,13 +884,6 @@ class CastOpRealLowering: public ModelicaOpConversion<CastOp>
 		if (destination.isa<IntegerType>())
 		{
 			mlir::Value value = adaptor.value();
-			unsigned int destinationBitWidth = destination.cast<IntegerType>().getBitWidth();
-
-			if (source.getBitWidth() < destinationBitWidth)
-				value = rewriter.create<mlir::LLVM::FPExtOp>(location, convertType(RealType::get(rewriter.getContext(), destinationBitWidth)), value);
-			else if (source.getBitWidth() > destinationBitWidth)
-				value = rewriter.create<mlir::LLVM::FPTruncOp>(location, convertType(RealType::get(rewriter.getContext(), destinationBitWidth)), value);
-
 			rewriter.replaceOpWithNewOp<mlir::LLVM::FPToSIOp>(op, convertType(destination), value);
 			return mlir::success();
 		}
@@ -1067,8 +1049,8 @@ static void populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatternL
 class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
-	explicit LLVMLoweringPass(ModelicaToLLVMConversionOptions options)
-			: options(std::move(options))
+	explicit LLVMLoweringPass(ModelicaToLLVMConversionOptions options, unsigned int bitWidth)
+			: options(std::move(options)), bitWidth(bitWidth)
 	{
 	}
 
@@ -1092,7 +1074,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		mlir::LowerToLLVMOptions llvmOptions(&getContext());
 		llvmOptions.emitCWrappers = options.emitCWrappers;
 
-		modelica::codegen::TypeConverter typeConverter(&getContext(), llvmOptions);
+		modelica::codegen::TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
 
 		target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });
 		target.addLegalOp<mlir::omp::TerminatorOp, mlir::omp::TaskyieldOp, mlir::omp::FlushOp, mlir::omp::BarrierOp, mlir::omp::TaskwaitOp>();
@@ -1139,9 +1121,10 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 
 	private:
 	ModelicaToLLVMConversionOptions options;
+	unsigned int bitWidth;
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createLLVMLoweringPass(ModelicaToLLVMConversionOptions options)
+std::unique_ptr<mlir::Pass> modelica::codegen::createLLVMLoweringPass(ModelicaToLLVMConversionOptions options, unsigned int bitWidth)
 {
-	return std::make_unique<LLVMLoweringPass>(options);
+	return std::make_unique<LLVMLoweringPass>(options, bitWidth);
 }

@@ -4,177 +4,284 @@
 
 using namespace modelica::codegen;
 
-static void updateFuncOp(mlir::FuncOp func, llvm::SmallVectorImpl<mlir::BlockArgument>& appendedEntryArgs)
+struct FunctionOpPattern : public mlir::OpRewritePattern<FunctionOp>
 {
-	auto functionType = func.getType();
+	using mlir::OpRewritePattern<FunctionOp>::OpRewritePattern;
 
-	// Collect information about the results will become appended arguments
-	llvm::SmallVector<mlir::Type, 6> erasedResultTypes;
-	llvm::SmallVector<unsigned int, 6> erasedResultIndices;
-
-	for (auto resultType : llvm::enumerate(functionType.getResults())) {
-		if (auto pointerType = resultType.value().dyn_cast<PointerType>(); pointerType && pointerType.canBeOnStack()) {
-			erasedResultIndices.push_back(resultType.index());
-			erasedResultTypes.push_back(pointerType.toUnknownAllocationScope());
-		}
+	FunctionOpPattern(mlir::MLIRContext* context, std::function<bool(mlir::Type)> moveCondition)
+			: mlir::OpRewritePattern<FunctionOp>(context), moveCondition(std::move(moveCondition))
+	{
 	}
 
-	// Add the new arguments to the function type
-	auto newArgTypes = llvm::to_vector<6>(
-			llvm::concat<const mlir::Type>(functionType.getInputs(), erasedResultTypes));
-	auto newFunctionType = mlir::FunctionType::get(func.getContext(), newArgTypes, functionType.getResults());
-	func.setType(newFunctionType);
+	mlir::LogicalResult matchAndRewrite(FunctionOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		auto functionType = op.getType();
 
-	// Transfer the result attributes to arg attributes
-	for (int i = 0, e = erasedResultTypes.size(); i < e; i++)
-		func.setArgAttrs(functionType.getNumInputs() + i,
-										 func.getResultAttrs(erasedResultIndices[i]));
+		llvm::SmallVector<mlir::Type, 3> argsTypes;
+		llvm::SmallVector<llvm::StringRef, 3> argsNames;
 
-	// Erase the results
-	func.eraseResults(erasedResultIndices);
+		llvm::SmallVector<mlir::Type, 3> resultsTypes;
+		llvm::SmallVector<llvm::StringRef, 3> resultsNames;
 
-	// Add the new arguments to the entry block if the function is not external
-	if (func.isExternal())
-		return;
+		llvm::SmallVector<unsigned int, 3> erasedResultIndexes;
 
-	auto newArgs = func.front().addArguments(erasedResultTypes);
-	appendedEntryArgs.append(newArgs.begin(), newArgs.end());
-}
+		argsTypes.append(functionType.getInputs().begin(), functionType.getInputs().end());
 
-static void updateReturnOps(mlir::FuncOp func, llvm::ArrayRef<mlir::BlockArgument> appendedEntryArgs) {
-	func.walk([&](mlir::ReturnOp op) {
-		size_t entryArgCounter = 0;
+		for (const auto& name : op.argsNames())
+			argsNames.push_back(name.cast<mlir::StringAttr>().getValue());
+
+		for (auto resultType : llvm::enumerate(functionType.getResults()))
+		{
+			auto name = op.resultsNames()[resultType.index()].cast<mlir::StringAttr>().getValue();
+
+			if (auto pointerType = resultType.value().dyn_cast<PointerType>();
+					pointerType && pointerType.canBeOnStack())
+			{
+				argsTypes.push_back(pointerType.toUnknownAllocationScope());
+				argsNames.push_back(name);
+				erasedResultIndexes.push_back(resultType.index());
+			}
+			else
+			{
+				resultsTypes.push_back(resultType.value());
+				resultsNames.push_back(name);
+			}
+		}
+
+		// Create the function with the new signature and move the old body
+		// into it. Then operate on this new function.
+
+		assert(argsTypes.size() == argsNames.size());
+
+		auto function = rewriter.replaceOpWithNewOp<FunctionOp>(
+				op, op.getName(), rewriter.getFunctionType(argsTypes, resultsTypes), argsNames, resultsNames);
+
+		if (op.isExternal())
+			return mlir::success();
+
+		mlir::BlockAndValueMapping mapping;
+
+		// Clone the blocks structure of the original function
+		for (auto& block : llvm::enumerate(op.getRegion().getBlocks()))
+		{
+			mlir::TypeRange types = block.index() == 0 ? mlir::TypeRange(argsTypes) : mlir::TypeRange(block.value().getArgumentTypes());
+
+			mlir::Block* clonedBlock = rewriter.createBlock(
+					&function.getRegion(), function.getRegion().end(), types);
+
+			mapping.map(&block.value(), clonedBlock);
+		}
+
+		// Copy the old blocks content
+		for (auto& sourceBlock : llvm::enumerate(op.getBody().getBlocks()))
+		{
+			auto& destinationBlock = *std::next(function.getBody().getBlocks().begin(), sourceBlock.index());
+
+			for (const auto& arg : llvm::enumerate(sourceBlock.value().getArguments()))
+				mapping.map(arg.value(), destinationBlock.getArgument(arg.index()));
+
+			rewriter.setInsertionPointToStart(&destinationBlock);
+
+			for (auto& sourceOp : sourceBlock.value().getOperations())
+				rewriter.clone(sourceOp, mapping);
+		}
+
+		// Update the return operation
+		auto returnOp = mlir::cast<ReturnOp>(function.getBody().back().getTerminator());
+		llvm::SmallVector<mlir::Value, 3> returnValues;
+
+		size_t entryArgCounter = op.getNumArguments();
 		llvm::SmallVector<mlir::Value, 3> returnOperands;
 
-		mlir::OpBuilder builder(op);
-
-		for (mlir::Value operand : op.getOperands())
+		for (auto returnValue : llvm::enumerate(returnOp.values()))
 		{
-			if (auto pointerType = operand.getType().dyn_cast<PointerType>(); pointerType && pointerType.canBeOnStack())
+			if (moveCondition(returnValue.value().getType()))
 			{
-				auto createOp = operand.getDefiningOp<MemberLoadOp>().member().getDefiningOp<MemberCreateOp>();
+				mlir::Value arg = function.getArgument(entryArgCounter);
 
-				for (auto* user : createOp->getUsers())
+				// Get the member create operation
+				auto* returnValueOp = returnValue.value().getDefiningOp();
+
+				if (!mlir::isa<MemberLoadOp>(returnValueOp))
+					return mlir::failure();
+
+				auto memberCreateOp = mlir::cast<MemberLoadOp>(returnValueOp).member().getDefiningOp<MemberCreateOp>();
+
+				// Remove the operations operating on the member
+				for (auto* memberUser : memberCreateOp->getUsers())
 				{
-					assert(mlir::isa<MemberLoadOp>(user) || mlir::isa<MemberStoreOp>(user));
-
-					if (mlir::isa<MemberLoadOp>(user))
+					if (auto loadOp = mlir::dyn_cast<MemberLoadOp>(memberUser))
 					{
-						user->replaceAllUsesWith(mlir::ValueRange(appendedEntryArgs[entryArgCounter]));
-					}
-					else if (auto storeOp = mlir::dyn_cast<MemberStoreOp>(user))
-					{
-						auto value = storeOp.value();
-						builder.setInsertionPoint(user);
-						builder.create<AssignmentOp>(value.getLoc(), value, appendedEntryArgs[entryArgCounter]);
-					}
+						rewriter.replaceOp(loadOp, arg);
 
-					user->erase();
+						// Fix the subscription operations, which still have the old
+						// allocation scope in its result type.
+
+						for (auto* loadUser : loadOp.getResult().getUsers())
+						{
+							if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(loadUser))
+							{
+								mlir::OpBuilder::InsertionGuard guard(rewriter);
+								rewriter.setInsertionPoint(subscriptionOp);
+
+								rewriter.replaceOpWithNewOp<SubscriptionOp>(
+										subscriptionOp, arg, subscriptionOp.indexes());
+							}
+						}
+					}
+					else if (auto storeOp = mlir::dyn_cast<MemberStoreOp>(memberUser))
+					{
+						rewriter.replaceOpWithNewOp<AssignmentOp>(storeOp, storeOp.value(), arg);
+					}
 				}
 
-				createOp->erase();
+				rewriter.eraseOp(memberCreateOp);
+
+				for (auto* user : arg.getUsers())
+					user->dump();
+
 				entryArgCounter++;
 			}
 			else
 			{
-				returnOperands.push_back(operand);
+				returnOperands.push_back(returnValue.value());
 			}
 		}
 
-		builder.setInsertionPoint(op);
-		builder.create<mlir::ReturnOp>(op.getLoc(), returnOperands);
-		op.erase();
-	});
-}
+		rewriter.replaceOpWithNewOp<ReturnOp>(returnOp, returnValues);
+		return mlir::success();
+	}
 
-static void updateSubscriptionOps(mlir::FuncOp func) {
-	func.walk([&](SubscriptionOp op) {
-		if (op.resultType().getAllocationScope() != op.source().getType().cast<PointerType>().getAllocationScope())
+	private:
+	std::function<bool(mlir::Type)> moveCondition;
+};
+
+struct CallOpPattern : public mlir::OpRewritePattern<CallOp>
+{
+	using mlir::OpRewritePattern<CallOp>::OpRewritePattern;
+
+	CallOpPattern(mlir::MLIRContext* context, std::function<bool(mlir::Type)> moveCondition)
+			: mlir::OpRewritePattern<CallOp>(context), moveCondition(std::move(moveCondition))
+	{
+	}
+
+	mlir::LogicalResult matchAndRewrite(CallOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		// Determine which results have become an argument and allocate their
+		// buffers in the caller. Simultaneously, determine the new call results
+		// types.
+
+		llvm::SmallVector<unsigned int, 3> removedResultsIndexes;
+		llvm::SmallVector<mlir::Value, 3> buffers;
+		llvm::SmallVector<mlir::Type, 3> newResultsTypes;
+
+		for (auto result : llvm::enumerate(op.getResults()))
 		{
-			mlir::OpBuilder builder(op);
-			mlir::Value newOp = builder.create<SubscriptionOp>(op->getLoc(), op.source(), op.indexes());
-			op.replaceAllUsesWith(newOp);
-			op->erase();
-		}
-	});
-}
+			if (moveCondition(result.value().getType()))
+			{
+				// The buffer can be allocated on the stack, because the result has
+				// been moved precisely because it can be allocated there.
 
-static mlir::LogicalResult updateCalls(mlir::ModuleOp module) {
-	bool didFail = false;
+				auto pointerType = result.value().getType().cast<PointerType>();
 
-	module.walk([&](CallOp op) {
-		llvm::SmallVector<mlir::Value, 6> replaceWithNewCallResults;
-		llvm::SmallVector<mlir::Value, 6> replaceWithOutParams;
+				mlir::Value buffer = rewriter.create<AllocaOp>(
+						result.value().getLoc(), pointerType.getElementType(), pointerType.getShape());
 
-		for (mlir::OpResult result : op.getResults()) {
-			if (auto pointerType = result.getType().dyn_cast<PointerType>(); pointerType && pointerType.canBeOnStack())
-				replaceWithOutParams.push_back(result);
-			else
-				replaceWithNewCallResults.push_back(result);
-		}
+				buffer = rewriter.create<PtrCastOp>(
+						buffer.getLoc(), buffer,
+						buffer.getType().cast<PointerType>().toUnknownAllocationScope());
 
-		llvm::SmallVector<mlir::Value, 6> outParams;
-		mlir::OpBuilder builder(op);
-
-		for (mlir::Value ptr : replaceWithOutParams) {
-			auto pointerType = ptr.getType().cast<PointerType>();
-
-			if (!pointerType.canBeOnStack()) {
-				didFail = true;
-				return;
+				buffers.push_back(buffer);
+				removedResultsIndexes.push_back(result.index());
 			}
-
-			mlir::Value outParam = builder.create<AllocaOp>(op.getLoc(), pointerType.getElementType(), pointerType.getShape());
-			ptr.replaceAllUsesWith(outParam);
-
-			outParam = builder.create<PtrCastOp>(
-					op->getLoc(), outParam,
-					PointerType::get(pointerType.getContext(), BufferAllocationScope::unknown, pointerType.getElementType(), pointerType.getShape()));
-
-			outParams.push_back(outParam);
+			else
+			{
+				newResultsTypes.push_back(result.value().getType());
+			}
 		}
 
-		auto newOperands = llvm::to_vector<6>(op.getOperands());
-		newOperands.append(outParams.begin(), outParams.end());
+		// The new call arguments are the old ones plus the new buffers
+		llvm::SmallVector<mlir::Value, 3> args;
+		args.append(op.args().begin(), op.args().end());
+		args.append(buffers);
 
-		auto newResultTypes = llvm::to_vector<6>(llvm::map_range(
-				replaceWithNewCallResults, [](mlir::Value v) { return v.getType(); }));
+		auto newCall = rewriter.create<CallOp>(
+				op->getLoc(), op.callee(), newResultsTypes, args, buffers.size());
 
-		auto newCall = builder.create<CallOp>(op.getLoc(), op.callee(), newResultTypes, newOperands, replaceWithOutParams.size());
+		// Create a view over the old results that replace the moved results with
+		// the new allocated buffers.
 
-		for (auto t : llvm::zip(replaceWithNewCallResults, newCall.getResults()))
-			std::get<0>(t).replaceAllUsesWith(std::get<1>(t));
+		llvm::SmallVector<mlir::Value, 3> resultsView;
+		unsigned int buffersIndex = 0;
+		unsigned int newResultsIndex = 0;
 
-		op.erase();
-	});
+		for (const auto& result : op.getResults())
+		{
+			if (auto pointerType = result.getType().dyn_cast<PointerType>();
+					pointerType && pointerType.canBeOnStack())
+			{
+				resultsView.push_back(buffers[buffersIndex++]);
+			}
+			else
+			{
+				resultsView.push_back(newCall.getResult(newResultsIndex++));
+			}
+		}
 
-	return mlir::failure(didFail);
-}
+		rewriter.replaceOp(op, resultsView);
+		return mlir::success();
+	}
+
+	private:
+	std::function<bool(mlir::Type)> moveCondition;
+};
 
 class ResultBuffersToArgsPass: public mlir::PassWrapper<ResultBuffersToArgsPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
-		registry.insert<mlir::scf::SCFDialect>();
+		registry.insert<ModelicaDialect>();
 	}
 
 	void runOnOperation() override
 	{
-		auto module = getOperation();
+		llvm::SmallVector<llvm::StringRef, 3> modifiedFunctions;
+		mlir::ConversionTarget target(getContext());
 
-		for (auto func : module.getOps<mlir::FuncOp>()) {
-			llvm::SmallVector<mlir::BlockArgument, 6> appendedEntryArgs;
-			updateFuncOp(func, appendedEntryArgs);
+		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) {
+			return true;
+		});
 
-			if (func.isExternal())
-				continue;
+		target.addDynamicallyLegalOp<FunctionOp>([](FunctionOp op) {
+			return llvm::none_of(op.getType().getResults(), [](mlir::Type type) {
+				if (auto pointerType = type.dyn_cast<PointerType>())
+					return pointerType.canBeOnStack();
 
-			updateReturnOps(func, appendedEntryArgs);
-			updateSubscriptionOps(func);
-		}
+				return false;
+			});
+		});
 
-		if (failed(updateCalls(module)))
+		target.addDynamicallyLegalOp<CallOp>([](CallOp op) {
+			return llvm::none_of(op->getResults(), [](mlir::Value value) {
+				if (auto pointerType = value.getType().dyn_cast<PointerType>())
+					return pointerType.canBeOnStack();
+
+				return false;
+			});
+		});
+
+		mlir::OwningRewritePatternList patterns(&getContext());
+
+		patterns.insert<FunctionOpPattern, CallOpPattern>(
+				&getContext(), [](mlir::Type type) {
+					if (auto pointerType = type.dyn_cast<PointerType>())
+						return pointerType.canBeOnStack();
+
+					return false;
+				});
+
+		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
 			return signalPassFailure();
 	}
 };

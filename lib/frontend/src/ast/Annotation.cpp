@@ -70,10 +70,8 @@ bool Annotation::getInlineProperty() const
 {
 	for (const auto& argument : *properties)
 	{
-		if (argument->isa<ElementModification>())
+		if (auto* elementModification = argument->dyn_get<ElementModification>())
 		{
-			const auto& elementModification = argument->get<ElementModification>();
-
 			if (boost::iequals(elementModification->getName(), "inline") &&
 					elementModification->hasModification())
 			{
@@ -86,36 +84,102 @@ bool Annotation::getInlineProperty() const
 	return false;
 }
 
+bool Annotation::hasDerivativeAnnotation() const
+{
+	for (const auto& argument : *properties)
+		if (auto* elementModification = argument->dyn_get<ElementModification>())
+			if (elementModification->getName() == "derivative")
+				return true;
+
+	return false;
+}
+
+/**
+ * Derivative property AST structure:
+ *
+ *          class-modification
+ *                  |
+ *            argument-list
+ *             /         \
+ *       argument         ...
+ *          |
+ *  element-modification
+ *    /                \
+ *  name            modification
+ * derivative       /         \
+ *             expression   class-modification
+ *               foo                |
+ *                           argument-list
+ *                             /       \
+ *                        argument     ...
+ *                           |
+ *                   element-modification
+ *                    /              \
+ *                  name          modification
+ *                  order             |
+ *                                expression
+ *                                  <int>
+ */
+DerivativeAnnotation Annotation::getDerivativeAnnotation() const
+{
+	assert(hasDerivativeAnnotation());
+
+	for (const auto& argument : *properties)
+	{
+		if (auto* elementModification = argument->dyn_get<ElementModification>())
+		{
+			if (elementModification->getName() != "derivative")
+				continue;
+
+			auto* modification = elementModification->getModification();
+			auto name = modification->getExpression()->get<ReferenceAccess>()->getName();
+			unsigned int order = 1;
+
+			if (modification->hasClassModification())
+				for (const auto& derivativeArgument : *modification->getClassModification())
+					if (auto* derivativeModification = derivativeArgument->dyn_get<ElementModification>())
+						if (derivativeModification->getName() == "order")
+							order = derivativeModification->getModification()->getExpression()->get<Constant>()->get<BuiltInType::Integer>();
+
+			return DerivativeAnnotation(name, order);
+		}
+	}
+
+	// Normally unreachable
+	return DerivativeAnnotation("", 1);
+}
+
 InverseFunctionAnnotation Annotation::getInverseFunctionAnnotation() const
 {
 	InverseFunctionAnnotation result;
 
 	for (const auto& argument : *properties)
 	{
-		const auto& elementModification = argument->get<ElementModification>();
-
-		if (boost::iequals(elementModification->getName().str(), "inverse"))
+		if (auto* elementModification = argument->dyn_get<ElementModification>())
 		{
-			assert(elementModification->hasModification());
-			const auto& modification = elementModification->getModification();
-			assert(modification->hasClassModification());
-
-			for (const auto& inverseDeclaration : *modification->getClassModification())
+			if (boost::iequals(elementModification->getName().str(), "inverse"))
 			{
-				const auto& inverseDeclarationFullExpression = inverseDeclaration->get<ElementModification>();
-				assert(inverseDeclarationFullExpression->hasModification());
-				const auto& callExpression = inverseDeclarationFullExpression->getModification();
-				assert(callExpression->hasExpression());
-				const auto* call = callExpression->getExpression()->get<Call>();
+				assert(elementModification->hasModification());
+				const auto& modification = elementModification->getModification();
+				assert(modification->hasClassModification());
 
-				llvm::SmallVector<std::string, 3> args;
+				for (const auto& inverseDeclaration : *modification->getClassModification())
+				{
+					const auto& inverseDeclarationFullExpression = inverseDeclaration->get<ElementModification>();
+					assert(inverseDeclarationFullExpression->hasModification());
+					const auto& callExpression = inverseDeclarationFullExpression->getModification();
+					assert(callExpression->hasExpression());
+					const auto* call = callExpression->getExpression()->get<Call>();
 
-				for (const auto& arg : *call)
-					args.push_back(arg->get<ReferenceAccess>()->getName().str());
+					llvm::SmallVector<std::string, 3> args;
 
-				result.addInverse(inverseDeclarationFullExpression->getName().str(),
-													call->getFunction()->get<ReferenceAccess>()->getName(),
-													args);
+					for (const auto& arg : *call)
+						args.push_back(arg->get<ReferenceAccess>()->getName().str());
+
+					result.addInverse(inverseDeclarationFullExpression->getName().str(),
+														call->getFunction()->get<ReferenceAccess>()->getName(),
+														args);
+				}
 			}
 		}
 	}

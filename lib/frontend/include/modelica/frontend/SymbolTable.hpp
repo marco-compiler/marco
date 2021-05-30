@@ -16,11 +16,7 @@ namespace modelica::frontend
 		// we would be shadowing the copy constructor.
 		SymbolTable();
 		explicit SymbolTable(const SymbolTable* parent);
-		explicit SymbolTable(DerFunction& cls, const SymbolTable* parent = nullptr);
-		explicit SymbolTable(StandardFunction& cls, const SymbolTable* parent = nullptr);
-		explicit SymbolTable(Model& cls, const SymbolTable* parent = nullptr);
-		explicit SymbolTable(Package& cls, const SymbolTable* parent = nullptr);
-		explicit SymbolTable(Record& cls, const SymbolTable* parent = nullptr);
+		explicit SymbolTable(Class& cls, const SymbolTable* parent = nullptr);
 
 		[[nodiscard]] const Symbol& operator[](llvm::StringRef name) const
 		{

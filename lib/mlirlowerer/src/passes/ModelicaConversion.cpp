@@ -21,7 +21,9 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 	using Adaptor = typename FromOp::Adaptor;
 
 	public:
-	ModelicaOpConversion(mlir::MLIRContext* ctx, TypeConverter& typeConverter, ModelicaConversionOptions options)
+	ModelicaOpConversion(mlir::MLIRContext* ctx,
+											 TypeConverter& typeConverter,
+											 ModelicaConversionOptions options)
 			: mlir::OpConversionPattern<FromOp>(typeConverter, ctx, 1),
 				options(std::move(options))
 	{
@@ -157,10 +159,10 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 			return "i1";
 
 		if (auto integerType = type.dyn_cast<IntegerType>())
-			return "i" + std::to_string(integerType.getBitWidth());
+			return "i" + std::to_string(convertType(integerType).getIntOrFloatBitWidth());
 
 		if (auto realType = type.dyn_cast<RealType>())
-			return "f" + std::to_string(realType.getBitWidth());
+			return "f" + std::to_string(convertType(realType).getIntOrFloatBitWidth());
 
 		if (auto pointerType = type.dyn_cast<UnsizedPointerType>())
 			return "a" + getMangledType(pointerType.getElementType());
@@ -179,6 +181,30 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 
 	protected:
 	ModelicaConversionOptions options;
+};
+
+struct FunctionOpLowering : public mlir::OpRewritePattern<FunctionOp>
+{
+	using mlir::OpRewritePattern<FunctionOp>::OpRewritePattern;
+
+	mlir::LogicalResult matchAndRewrite(FunctionOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		auto function = rewriter.replaceOpWithNewOp<mlir::FuncOp>(op, op.name(), op.getType());
+
+		{
+			mlir::OpBuilder::InsertionGuard guard(rewriter);
+			auto returnOp = mlir::cast<ReturnOp>(op.getBody().back().getTerminator());
+			rewriter.setInsertionPoint(returnOp);
+			rewriter.replaceOpWithNewOp<mlir::ReturnOp>(returnOp, returnOp.values());
+		}
+
+		//auto* body = function.addEntryBlock();
+		auto* body = rewriter.createBlock(&function.getBody(), {}, op.getType().getInputs());
+
+		rewriter.mergeBlocks(&op.getBody().front(), body, body->getArguments());
+
+		return mlir::success();
+	}
 };
 
 struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
@@ -2239,11 +2265,7 @@ struct OnesOpLowering: public ModelicaOpConversion<OnesOp>
 
 struct LinspaceOpLowering: public ModelicaOpConversion<LinspaceOp>
 {
-	LinspaceOpLowering(mlir::MLIRContext* ctx, TypeConverter& typeConverter, ModelicaConversionOptions options, unsigned int bitWidth)
-			: ModelicaOpConversion<LinspaceOp>(ctx, typeConverter, options),
-				bitWidth(bitWidth)
-	{
-	}
+	using ModelicaOpConversion<LinspaceOp>::ModelicaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(LinspaceOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -2264,11 +2286,11 @@ struct LinspaceOpLowering: public ModelicaOpConversion<LinspaceOp>
 
 		args.push_back(rewriter.create<CastOp>(
 				loc, op.start(),
-				RealType::get(op->getContext(), bitWidth)));
+				RealType::get(op->getContext())));
 
 		args.push_back(rewriter.create<CastOp>(
 				loc, op.end(),
-				RealType::get(op->getContext(), bitWidth)));
+				RealType::get(op->getContext())));
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
@@ -2280,9 +2302,6 @@ struct LinspaceOpLowering: public ModelicaOpConversion<LinspaceOp>
 		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
 		return mlir::success();
 	}
-
-	private:
-	unsigned int bitWidth;
 };
 
 struct FillOpLowering: public ModelicaOpConversion<FillOp>
@@ -2475,11 +2494,11 @@ struct SumOpLowering: public ModelicaOpConversion<SumOp>
 	mlir::LogicalResult matchAndRewrite(SumOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
-		auto pointerType = op.memory().getType().cast<PointerType>();
+		auto pointerType = op.array().getType().cast<PointerType>();
 
 		mlir::Value arg = rewriter.create<PtrCastOp>(
-				loc, op.memory(),
-				op.memory().getType().cast<PointerType>().toUnsized());
+				loc, op.array(),
+				op.array().getType().cast<PointerType>().toUnsized());
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
@@ -2503,11 +2522,11 @@ struct ProductOpLowering: public ModelicaOpConversion<ProductOp>
 	mlir::LogicalResult matchAndRewrite(ProductOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
-		auto pointerType = op.memory().getType().cast<PointerType>();
+		auto pointerType = op.array().getType().cast<PointerType>();
 
 		mlir::Value arg = rewriter.create<PtrCastOp>(
-				loc, op.memory(),
-				op.memory().getType().cast<PointerType>().toUnsized());
+				loc, op.array(),
+				op.array().getType().cast<PointerType>().toUnsized());
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
@@ -2541,7 +2560,7 @@ struct TransposeOpLowering: public ModelicaOpConversion<TransposeOp>
 			if (size.value() == -1)
 			{
 				mlir::Value index = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(shape.size() - size.index() - 1));
-				mlir::Value dim = rewriter.create<DimOp>(loc, op.source(), index);
+				mlir::Value dim = rewriter.create<DimOp>(loc, op.matrix(), index);
 				dynamicDimensions.push_back(dim);
 			}
 		}
@@ -2556,8 +2575,8 @@ struct TransposeOpLowering: public ModelicaOpConversion<TransposeOp>
 				result.getType().cast<PointerType>().toUnsized()));
 
 		args.push_back(rewriter.create<PtrCastOp>(
-				loc, op.source(),
-				op.source().getType().cast<PointerType>().toUnsized()));
+				loc, op.matrix(),
+				op.matrix().getType().cast<PointerType>().toUnsized()));
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
@@ -2588,7 +2607,7 @@ struct SymmetricOpLowering: public ModelicaOpConversion<SymmetricOp>
 			if (size.value() == -1)
 			{
 				mlir::Value index = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(size.index()));
-				dynamicDimensions.push_back(rewriter.create<DimOp>(loc, op.source(), index));
+				dynamicDimensions.push_back(rewriter.create<DimOp>(loc, op.matrix(), index));
 			}
 		}
 
@@ -2602,8 +2621,8 @@ struct SymmetricOpLowering: public ModelicaOpConversion<SymmetricOp>
 				result.getType().cast<PointerType>().toUnsized()));
 
 		args.push_back(rewriter.create<PtrCastOp>(
-				loc, op.source(),
-				op.source().getType().cast<PointerType>().toUnsized()));
+				loc, op.matrix(),
+				op.matrix().getType().cast<PointerType>().toUnsized()));
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
@@ -2750,12 +2769,12 @@ struct BreakableForOpLowering: public ModelicaOpConversion<BreakableForOp>
 		// Replace "body" block terminator with a branch to the "step" block
 		rewriter.setInsertionPointToEnd(bodyBlock);
 		auto bodyYieldOp = mlir::cast<YieldOp>(bodyBlock->getTerminator());
-		rewriter.replaceOpWithNewOp<mlir::BranchOp>(bodyYieldOp, stepBlock, bodyYieldOp.args());
+		rewriter.replaceOpWithNewOp<mlir::BranchOp>(bodyYieldOp, stepBlock, bodyYieldOp.values());
 
 		// Branch to the condition check after incrementing the induction variable
 		rewriter.setInsertionPointToEnd(stepBlock);
 		auto stepYieldOp = mlir::cast<YieldOp>(stepBlock->getTerminator());
-		rewriter.replaceOpWithNewOp<mlir::BranchOp>(stepYieldOp, conditionBlock, stepYieldOp.args());
+		rewriter.replaceOpWithNewOp<mlir::BranchOp>(stepYieldOp, conditionBlock, stepYieldOp.values());
 
 		// Create stack save & restore operations
 		rewriter.setInsertionPointToStart(bodyBlock);
@@ -2802,12 +2821,12 @@ struct ForOpLowering: public ModelicaOpConversion<ForOp>
 		// Replace "body" block terminator with a branch to the "step" block
 		rewriter.setInsertionPointToEnd(bodyBlock);
 		auto bodyYieldOp = mlir::cast<YieldOp>(bodyBlock->getTerminator());
-		rewriter.replaceOpWithNewOp<mlir::BranchOp>(bodyYieldOp, stepBlock, bodyYieldOp.args());
+		rewriter.replaceOpWithNewOp<mlir::BranchOp>(bodyYieldOp, stepBlock, bodyYieldOp.values());
 
 		// Branch to the condition check after incrementing the induction variable
 		rewriter.setInsertionPointToEnd(stepBlock);
 		auto stepYieldOp = mlir::cast<YieldOp>(stepBlock->getTerminator());
-		rewriter.replaceOpWithNewOp<mlir::BranchOp>(stepYieldOp, conditionBlock, stepYieldOp.args());
+		rewriter.replaceOpWithNewOp<mlir::BranchOp>(stepYieldOp, conditionBlock, stepYieldOp.values());
 
 		// Create stack save & restore operations
 		rewriter.setInsertionPointToStart(bodyBlock);
@@ -2898,6 +2917,44 @@ struct BreakableWhileOpLowering: public ModelicaOpConversion<BreakableWhileOp>
 	}
 };
 
+class FunctionConversionPass: public mlir::PassWrapper<FunctionConversionPass, mlir::OperationPass<mlir::ModuleOp>>
+{
+	public:
+	void getDependentDialects(mlir::DialectRegistry &registry) const override
+	{
+		registry.insert<mlir::BuiltinDialect>();
+		registry.insert<mlir::StandardOpsDialect>();
+	}
+
+	void runOnOperation() override
+	{
+		auto module = getOperation();
+
+		mlir::ConversionTarget target(getContext());
+		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
+		target.addIllegalOp<FunctionOp>();
+
+		// Provide the set of patterns that will lower the Modelica operations
+		mlir::OwningRewritePatternList patterns(&getContext());
+		patterns.insert<FunctionOpLowering>(&getContext());
+
+		// With the target and rewrite patterns defined, we can now attempt the
+		// conversion. The conversion will signal failure if any of our "illegal"
+		// operations were not converted successfully.
+
+		if (failed(applyPartialConversion(module, target, std::move(patterns))))
+		{
+			mlir::emitError(module.getLoc(), "Error in converting the Modelica functions\n");
+			signalPassFailure();
+		}
+	}
+};
+
+std::unique_ptr<mlir::Pass> modelica::codegen::createFunctionConversionPass()
+{
+	return std::make_unique<FunctionConversionPass>();
+}
+
 static void populateModelicaControlFlowConversionPatterns(
 		mlir::OwningRewritePatternList& patterns,
 		mlir::MLIRContext* context,
@@ -2915,8 +2972,7 @@ static void populateModelicaConversionPatterns(
 		mlir::OwningRewritePatternList& patterns,
 		mlir::MLIRContext* context,
 		modelica::codegen::TypeConverter& typeConverter,
-		ModelicaConversionOptions options,
-		unsigned int bitWidth)
+		ModelicaConversionOptions options)
 {
 	patterns.insert<MemberAllocOpLowering>(context);
 
@@ -2964,6 +3020,7 @@ static void populateModelicaConversionPatterns(
 			DiagonalOpLowering,
 			ZerosOpLowering,
 			OnesOpLowering,
+			LinspaceOpLowering,
 			FillOpLowering,
 			MinOpArrayLowering,
 			MinOpScalarsLowering,
@@ -2973,8 +3030,6 @@ static void populateModelicaConversionPatterns(
 			ProductOpLowering,
 			TransposeOpLowering,
 			SymmetricOpLowering>(context, typeConverter, options);
-
-	patterns.insert<LinspaceOpLowering>(context, typeConverter, options, bitWidth);
 }
 
 class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, mlir::OperationPass<mlir::ModuleOp>>
@@ -3018,11 +3073,11 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 
 		mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-		TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+		TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
 
 		// Provide the set of patterns that will lower the Modelica operations
 		mlir::OwningRewritePatternList patterns(&getContext());
-		populateModelicaConversionPatterns(patterns, &getContext(), typeConverter, options, bitWidth);
+		populateModelicaConversionPatterns(patterns, &getContext(), typeConverter, options);
 
 		// With the target and rewrite patterns defined, we can now attempt the
 		// conversion. The conversion will signal failure if any of our "illegal"
@@ -3048,8 +3103,8 @@ std::unique_ptr<mlir::Pass> modelica::codegen::createModelicaConversionPass(Mode
 class LowerToCFGPass: public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
-	explicit LowerToCFGPass(ModelicaConversionOptions options)
-			: options(std::move(options))
+	explicit LowerToCFGPass(ModelicaConversionOptions options, unsigned int bitWidth)
+			: options(std::move(options)), bitWidth(bitWidth)
 	{
 	}
 
@@ -3069,7 +3124,7 @@ class LowerToCFGPass: public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPa
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 
 		mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-		TypeConverter typeConverter(&getContext(), llvmLoweringOptions);
+		TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
 
 		// Provide the set of patterns that will lower the Modelica operations
 		mlir::OwningRewritePatternList patterns(&getContext());
@@ -3089,9 +3144,10 @@ class LowerToCFGPass: public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPa
 
 	private:
 	ModelicaConversionOptions options;
+	unsigned int bitWidth;
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createLowerToCFGPass(ModelicaConversionOptions options)
+std::unique_ptr<mlir::Pass> modelica::codegen::createLowerToCFGPass(ModelicaConversionOptions options, unsigned int bitWidth)
 {
-	return std::make_unique<LowerToCFGPass>(options);
+	return std::make_unique<LowerToCFGPass>(options, bitWidth);
 }

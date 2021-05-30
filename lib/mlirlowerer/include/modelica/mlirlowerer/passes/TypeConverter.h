@@ -12,7 +12,7 @@ namespace modelica::codegen
 	class TypeConverter : public mlir::LLVMTypeConverter
 	{
 		public:
-		TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options);
+		TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options, unsigned int bitWidth);
 
 		private:
 		mlir::Type convertBooleanType(BooleanType type);
@@ -25,5 +25,7 @@ namespace modelica::codegen
 
 		llvm::SmallVector<mlir::Type, 3> getPointerDescriptorFields(PointerType type);
 		llvm::SmallVector<mlir::Type, 3> getUnsizedPointerDescriptorFields(UnsizedPointerType type);
+
+		unsigned int bitWidth;
 	};
 }

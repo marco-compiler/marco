@@ -18,7 +18,7 @@ namespace modelica::frontend
 	class Class;
 	class ClassContainer;
 	class Constant;
-	class DerFunction;
+	class PartialPartialDerFunction;
 	class Equation;
 	class Expression;
 	class ForEquation;
@@ -90,7 +90,7 @@ namespace modelica::frontend
 	llvm::Error TypeChecker::run<Class>(Class& cls);
 
 	template<>
-	llvm::Error TypeChecker::run<DerFunction>(Class& cls);
+	llvm::Error TypeChecker::run<PartialDerFunction>(Class& cls);
 
 	template<>
 	llvm::Error TypeChecker::run<StandardFunction>(Class& cls);

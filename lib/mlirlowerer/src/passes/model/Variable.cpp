@@ -73,12 +73,19 @@ mlir::Value Variable::getReference()
 
 bool Variable::isState() const
 {
-	return impl->state;
+	return impl->state || isTime();
 }
 
 bool Variable::isConstant() const
 {
 	return impl->constant;
+}
+
+bool Variable::isTime() const
+{
+	auto simulation = impl->reference.getParentRegion()->getParentOfType<SimulationOp>();
+	auto initTerminator = mlir::cast<YieldOp>(simulation.init().front().getTerminator());
+	return impl->reference == initTerminator.values()[0];
 }
 
 mlir::Value Variable::getDer()

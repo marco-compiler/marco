@@ -2,9 +2,8 @@
 
 using namespace modelica::codegen;
 
-ModelicaBuilder::ModelicaBuilder(mlir::MLIRContext* context, unsigned int bitWidth)
-		: mlir::OpBuilder(context),
-			bitWidth(bitWidth)
+ModelicaBuilder::ModelicaBuilder(mlir::MLIRContext* context)
+		: mlir::OpBuilder(context)
 {
 }
 
@@ -15,12 +14,12 @@ BooleanType ModelicaBuilder::getBooleanType()
 
 IntegerType ModelicaBuilder::getIntegerType()
 {
-	return IntegerType::get(getContext(), bitWidth);
+	return IntegerType::get(getContext());
 }
 
 RealType ModelicaBuilder::getRealType()
 {
-	return RealType::get(getContext(), bitWidth);
+	return RealType::get(getContext());
 }
 
 PointerType ModelicaBuilder::getPointerType(BufferAllocationScope allocationScope, mlir::Type elementType, const PointerType::Shape& shape)
@@ -75,4 +74,9 @@ mlir::Attribute ModelicaBuilder::getZeroAttribute(mlir::Type type)
 InverseFunctionsAttribute ModelicaBuilder::getInverseFunctionsAttribute(InverseFunctionsAttribute::Map map)
 {
 	return InverseFunctionsAttribute::get(getContext(), map);
+}
+
+DerivativeAttribute ModelicaBuilder::getDerivativeAttribute(llvm::StringRef name, unsigned int order)
+{
+	return DerivativeAttribute::get(getContext(), name, order);
 }

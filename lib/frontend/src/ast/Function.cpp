@@ -4,30 +4,16 @@
 
 using namespace modelica::frontend;
 
-Function::Function(SourceRange location,
-									 bool pure,
-									 llvm::StringRef name,
-									 llvm::Optional<std::unique_ptr<Annotation>> annotation)
+Function::Function(SourceRange location, llvm::StringRef name)
 		: ASTNode(std::move(location)),
-			pure(pure),
-			name(name.str()),
-			annotation(annotation.hasValue() ? llvm::Optional(annotation.getValue()->clone()) : llvm::None)
+			name(name.str())
 {
-	if (annotation.hasValue())
-		this->annotation = annotation.getValue()->clone();
-	else
-		this->annotation = llvm::None;
 }
 
 Function::Function(const Function& other)
 		: ASTNode(other),
-			pure(other.pure),
 			name(other.name)
 {
-	if (other.annotation.hasValue())
-		annotation = other.annotation.getValue()->clone();
-	else
-		annotation = llvm::None;
 }
 
 Function::Function(Function&& other) = default;
@@ -40,9 +26,7 @@ Function& Function::operator=(const Function& other)
 	{
 		static_cast<ASTNode&>(*this) = static_cast<const ASTNode&>(other);
 
-		this->pure = other.pure;
 		this->name = other.name;
-		this->annotation = other.annotation.hasValue() ? llvm::Optional(other.annotation.getValue()->clone()) : llvm::None;
 	}
 
 	return *this;
@@ -57,9 +41,7 @@ namespace modelica::frontend
 		swap(static_cast<ASTNode&>(first), static_cast<ASTNode&>(second));
 
 		using std::swap;
-		swap(first.pure, second.pure);
 		swap(first.name, second.name);
-		swap(first.annotation, second.annotation);
 	}
 }
 
@@ -68,95 +50,139 @@ llvm::StringRef Function::getName() const
 	return name;
 }
 
-bool Function::isPure() const
+PartialDerFunction::PartialDerFunction(SourceRange location,
+																			 llvm::StringRef name,
+																			 std::unique_ptr<Expression> derivedFunction,
+																			 llvm::ArrayRef<std::unique_ptr<Expression>> independentVariables)
+		: Function(std::move(location), name),
+			derivedFunction(std::move(derivedFunction))
 {
-	return pure;
+	for (const auto& var : independentVariables)
+		this->independentVariables.push_back(var->clone());
 }
 
-bool Function::hasAnnotation() const
-{
-	return annotation.hasValue();
-}
-
-Annotation* Function::getAnnotation()
-{
-	assert(annotation.hasValue());
-	return annotation.getValue().get();
-}
-
-const Annotation* Function::getAnnotation() const
-{
-	assert(annotation.hasValue());
-	return annotation.getValue().get();
-}
-
-DerFunction::DerFunction(SourceRange location,
-												 bool pure,
-												 llvm::StringRef name,
-												 llvm::Optional<std::unique_ptr<Annotation>> annotation,
-												 llvm::StringRef derivedFunction,
-												 llvm::StringRef arg)
-		: Function(std::move(location), pure, name, std::move(annotation)),
-			derivedFunction(derivedFunction.str()),
-			arg(arg.str())
-{
-}
-
-DerFunction::DerFunction(const DerFunction& other)
+PartialDerFunction::PartialDerFunction(const PartialDerFunction& other)
 		: Function(other),
-			derivedFunction(other.derivedFunction),
-			arg(other.arg)
+			derivedFunction(other.derivedFunction->clone())
 {
+	independentVariables.clear();
+
+	for (const auto& arg : other.independentVariables)
+      independentVariables.push_back(arg->clone());
+
+	args.clear();
+
+	for (const auto& type : other.args)
+		args.push_back(type);
+
+	results.clear();
+
+	for (const auto& type : other.results)
+		results.push_back(type);
 }
 
-DerFunction::DerFunction(DerFunction&& other) = default;
+PartialDerFunction::PartialDerFunction(PartialDerFunction&& other) = default;
 
-DerFunction::~DerFunction() = default;
+PartialDerFunction::~PartialDerFunction() = default;
 
-DerFunction& DerFunction::operator=(const DerFunction& other)
+PartialDerFunction& PartialDerFunction::operator=(const PartialDerFunction& other)
 {
-	DerFunction result(other);
+	PartialDerFunction result(other);
 	swap(*this, result);
 	return *this;
 }
 
-DerFunction& DerFunction::operator=(DerFunction&& other) = default;
+PartialDerFunction& PartialDerFunction::operator=(PartialDerFunction&& other) = default;
 
 namespace modelica::frontend
 {
-	void swap(DerFunction& first, DerFunction& second)
+	void swap(PartialDerFunction& first, PartialDerFunction& second)
 	{
 		swap(static_cast<Function&>(first), static_cast<Function&>(second));
 
 		using std::swap;
 		swap(first.derivedFunction, second.derivedFunction);
-		swap(first.arg, second.arg);
+		impl::swap(first.independentVariables, second.independentVariables);
+		swap(first.args, second.args);
+		swap(first.results, second.results);
 	}
 }
 
-void DerFunction::print(llvm::raw_ostream& os, size_t indents) const
+void PartialDerFunction::print(llvm::raw_ostream& os, size_t indents) const
 {
 	os.indent(indents);
-	os << "function " << getName() << ": der(" << getDerivedFunction() << ", " << getArg() << "\n";
+	os << "function " << getName() << "\n";
+
+	os.indent(indents + 1);
+	os << "derived function\n";
+	derivedFunction->dump(os, indents + 2);
+
+	os.indent(indents + 1);
+	os << "args\n";
+
+	for (const auto& var : independentVariables)
+		var->dump(os, indents + 2);
 }
 
-llvm::StringRef DerFunction::getDerivedFunction() const
+Expression* PartialDerFunction::getDerivedFunction() const
 {
-	return derivedFunction;
+	return derivedFunction.get();
 }
 
-llvm::StringRef DerFunction::getArg() const
+llvm::MutableArrayRef<std::unique_ptr<Expression>> PartialDerFunction::getIndependentVariables()
 {
-	return arg;
+	return independentVariables;
+}
+
+llvm::ArrayRef<std::unique_ptr<Expression>> PartialDerFunction::getIndependentVariables() const
+{
+	return independentVariables;
+}
+
+llvm::MutableArrayRef<Type> PartialDerFunction::getArgsTypes()
+{
+	return args;
+}
+
+llvm::ArrayRef<Type> PartialDerFunction::getArgsTypes() const
+{
+	return args;
+}
+
+void PartialDerFunction::setArgsTypes(llvm::ArrayRef<Type> types)
+{
+	this->args.clear();
+
+	for (const auto& type : types)
+		this->args.push_back(type);
+}
+
+llvm::MutableArrayRef<Type> PartialDerFunction::getResultsTypes()
+{
+	return results;
+}
+
+llvm::ArrayRef<Type> PartialDerFunction::getResultsTypes() const
+{
+	return results;
+}
+
+void PartialDerFunction::setResultsTypes(llvm::ArrayRef<Type> types)
+{
+	this->results.clear();
+
+	for (const auto& type : types)
+		this->results.push_back(type);
 }
 
 StandardFunction::StandardFunction(SourceRange location,
 																	 bool pure,
 																	 llvm::StringRef name,
-																	 llvm::Optional<std::unique_ptr<Annotation>> annotation,
 																	 llvm::ArrayRef<std::unique_ptr<Member>> members,
-																	 llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms)
-		: Function(std::move(location), pure, name, std::move(annotation)),
+																	 llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms,
+																	 llvm::Optional<std::unique_ptr<Annotation>> annotation)
+		: Function(std::move(location), name),
+			pure(pure),
 			type(Type::unknown())
 {
 	for (const auto& member : members)
@@ -164,10 +190,16 @@ StandardFunction::StandardFunction(SourceRange location,
 
 	for (const auto& algorithm : algorithms)
 		this->algorithms.push_back(algorithm->clone());
+
+	if (annotation.hasValue())
+		this->annotation = annotation.getValue()->clone();
+	else
+		this->annotation = llvm::None;
 }
 
 StandardFunction::StandardFunction(const StandardFunction& other)
 		: Function(other),
+			pure(other.pure),
 			type(other.type)
 {
 	for (const auto& member : other.members)
@@ -175,6 +207,11 @@ StandardFunction::StandardFunction(const StandardFunction& other)
 
 	for (const auto& algorithm : other.algorithms)
 		this->algorithms.push_back(algorithm->clone());
+
+	if (other.annotation.hasValue())
+		annotation = other.annotation.getValue()->clone();
+	else
+		annotation = llvm::None;
 }
 
 StandardFunction::StandardFunction(StandardFunction&& other) = default;
@@ -196,9 +233,12 @@ namespace modelica::frontend
 	{
 		swap(static_cast<Function&>(first), static_cast<Function&>(second));
 
+		using std::swap;
+		swap(first.pure, second.pure);
 		impl::swap(first.members, second.members);
 		impl::swap(first.algorithms, second.algorithms);
-		std::swap(first.type, second.type);
+		swap(first.annotation, second.annotation);
+		swap(first.type, second.type);
 	}
 }
 
@@ -230,6 +270,11 @@ const Member* StandardFunction::operator[](llvm::StringRef name) const
 			return member.get();
 
 	assert(false && "Not found");
+}
+
+bool StandardFunction::isPure() const
+{
+	return pure;
 }
 
 llvm::MutableArrayRef<std::unique_ptr<Member>> StandardFunction::getMembers()
@@ -290,6 +335,23 @@ llvm::ArrayRef<std::unique_ptr<Algorithm>> StandardFunction::getAlgorithms() con
 	return algorithms;
 }
 
+bool StandardFunction::hasAnnotation() const
+{
+	return annotation.hasValue();
+}
+
+Annotation* StandardFunction::getAnnotation()
+{
+	assert(annotation.hasValue());
+	return annotation.getValue().get();
+}
+
+const Annotation* StandardFunction::getAnnotation() const
+{
+	assert(annotation.hasValue());
+	return annotation.getValue().get();
+}
+
 Type& StandardFunction::getType()
 {
 	return type;
@@ -304,6 +366,24 @@ void StandardFunction::setType(Type newType)
 {
 	this->type = std::move(newType);
 }
+
+DerivativeAnnotation::DerivativeAnnotation(llvm::StringRef name, unsigned int order)
+		: name(name.str()), order(order)
+{
+	assert(order > 0);
+}
+
+llvm::StringRef DerivativeAnnotation::getName() const
+{
+	return name;
+}
+
+unsigned int DerivativeAnnotation::getOrder() const
+{
+	return order;
+}
+
+InverseFunctionAnnotation::InverseFunctionAnnotation() = default;
 
 bool InverseFunctionAnnotation::isInvertible(llvm::StringRef arg) const
 {

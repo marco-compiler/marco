@@ -127,7 +127,6 @@ int main(int argc, char* argv[])
 	mlir::MLIRContext context;
 
 	codegen::ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = !x86.getValue();
 	modelicaOptions.startTime = startTime;
 	modelicaOptions.endTime = endTime;
 	modelicaOptions.timeStep = timeStep;
@@ -154,6 +153,7 @@ int main(int argc, char* argv[])
 	loweringOptions.resultBuffersToArgs = !resultBuffersToArgs;
 	loweringOptions.cse = !cse;
 	loweringOptions.openmp = openmp;
+	loweringOptions.x64 = !x86.getValue();
 	loweringOptions.conversionOptions.useRuntimeLibrary = !disableRuntimeLibrary;
 	loweringOptions.debug = debug;
 

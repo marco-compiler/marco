@@ -14,5 +14,15 @@ namespace modelica::codegen
 		}
 	};
 
-	std::unique_ptr<mlir::Pass> createLLVMLoweringPass(ModelicaToLLVMConversionOptions options = ModelicaToLLVMConversionOptions::getDefaultOptions());
+	std::unique_ptr<mlir::Pass> createLLVMLoweringPass(
+			ModelicaToLLVMConversionOptions options = ModelicaToLLVMConversionOptions::getDefaultOptions(),
+			unsigned int bitWidth = 64);
+
+	inline void registerLLVMLoweringPass()
+	{
+		mlir::registerPass("lower-to-llvm", "Modelica: LLVM lowering pass",
+											 []() -> std::unique_ptr<::mlir::Pass> {
+												 return createLLVMLoweringPass();
+											 });
+	}
 }

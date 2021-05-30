@@ -1,6 +1,7 @@
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/IR/FunctionSupport.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/ExplicitCastInsertion.h>
@@ -14,7 +15,7 @@ struct CallOpScalarPattern : public mlir::OpRewritePattern<CallOp>
 	mlir::LogicalResult match(CallOp op) const override
 	{
 		auto module = op->getParentOfType<mlir::ModuleOp>();
-		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
+		auto callee = module.lookupSymbol<FunctionOp>(op.callee());
 		assert(op.args().size() == callee.getArgumentTypes().size());
 		auto pairs = llvm::zip(op.args(), callee.getArgumentTypes());
 
@@ -43,7 +44,7 @@ struct CallOpScalarPattern : public mlir::OpRewritePattern<CallOp>
 		mlir::Location location = op->getLoc();
 
 		auto module = op->getParentOfType<mlir::ModuleOp>();
-		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
+		auto callee = module.lookupSymbol<FunctionOp>(op.callee());
 
 		llvm::SmallVector<mlir::Value, 3> args;
 
@@ -71,7 +72,7 @@ struct CallOpElementWisePattern : public mlir::OpRewritePattern<CallOp>
 	mlir::LogicalResult match(CallOp op) const override
 	{
 		auto module = op->getParentOfType<mlir::ModuleOp>();
-		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
+		auto callee = module.lookupSymbol<FunctionOp>(op.callee());
 		assert(op.args().size() == callee.getArgumentTypes().size());
 		auto pairs = llvm::zip(op.args(), callee.getArgumentTypes());
 
@@ -109,7 +110,7 @@ struct CallOpElementWisePattern : public mlir::OpRewritePattern<CallOp>
 
 		// Get the calle
 		auto module = op->getParentOfType<mlir::ModuleOp>();
-		auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
+		auto callee = module.lookupSymbol<FunctionOp>(op.callee());
 
 		unsigned int rankDifference = op.args()[0].getType().cast<PointerType>().getRank();
 
@@ -263,7 +264,7 @@ struct ConditionOpPattern : public mlir::OpRewritePattern<ConditionOp>
 	}
 };
 
-void populateExplicitCastInsertionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context)
+static void populateExplicitCastInsertionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context)
 {
 	patterns.insert<
 	    CallOpScalarPattern,
@@ -281,7 +282,11 @@ struct ExplicitCastInsertionTarget : public mlir::ConversionTarget
 				[](CallOp op)
 				{
 					auto module = op->getParentOfType<mlir::ModuleOp>();
-					auto callee = module.lookupSymbol<mlir::FuncOp>(op.callee());
+					auto callee = module.lookupSymbol<FunctionOp>(op.callee());
+
+					if (callee == nullptr)
+						return true;
+
 					assert(op.args().size() == callee.getArgumentTypes().size());
 					auto pairs = llvm::zip(op.args(), callee.getArgumentTypes());
 

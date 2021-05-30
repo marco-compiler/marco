@@ -1,5 +1,7 @@
 add_subdirectory(ASTDumper)
+add_subdirectory(marco)
 add_subdirectory(MLIRLowerer)
+add_subdirectory(modelica-opt)
 add_subdirectory(ModC)
 add_subdirectory(OmcC)
 add_subdirectory(ModMatch)

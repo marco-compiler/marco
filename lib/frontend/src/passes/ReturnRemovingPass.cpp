@@ -24,7 +24,7 @@ llvm::Error ReturnRemover::run(llvm::ArrayRef<std::unique_ptr<Class>> classes)
 }
 
 template<>
-llvm::Error ReturnRemover::run<DerFunction>(Class& cls)
+llvm::Error ReturnRemover::run<PartialDerFunction>(Class& cls)
 {
 	return llvm::Error::success();
 }

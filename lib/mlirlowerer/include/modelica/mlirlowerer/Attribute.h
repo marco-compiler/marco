@@ -207,6 +207,25 @@ namespace modelica::codegen
 		Map map;
 	};
 
+	class DerivativeAttributeStorage: public mlir::AttributeStorage
+	{
+		public:
+		using KeyTy = std::tuple<llvm::StringRef, unsigned int>;
+
+		bool operator==(const KeyTy& key) const;
+		static unsigned int hashKey(const KeyTy& key);
+		static DerivativeAttributeStorage* construct(mlir::AttributeStorageAllocator& allocator, KeyTy key);
+
+		[[nodiscard]] llvm::StringRef getName() const;
+		[[nodiscard]] unsigned int getOrder() const;
+
+		private:
+		DerivativeAttributeStorage(llvm::StringRef name, unsigned int order);
+
+		llvm::StringRef name;
+		unsigned int order;
+	};
+
 	class BooleanAttribute : public mlir::Attribute::AttrBase<BooleanAttribute, mlir::Attribute, BooleanAttributeStorage>
 	{
 		public:
@@ -290,5 +309,22 @@ namespace modelica::codegen
 		[[nodiscard]] llvm::ArrayRef<unsigned int> getArgumentsIndexes(unsigned int argumentIndex) const;
 	};
 
+	class DerivativeAttribute : public mlir::Attribute::AttrBase<DerivativeAttribute, mlir::Attribute, DerivativeAttributeStorage>
+	{
+		public:
+		using Map = InverseFunctionsAttributeStorage::Map;
+		using iterator = InverseFunctionsAttributeStorage::iterator;
+		using const_iterator = InverseFunctionsAttributeStorage::const_iterator;
+
+		using Base::Base;
+
+		static constexpr llvm::StringRef getAttrName();
+		static DerivativeAttribute get(mlir::MLIRContext* context, llvm::StringRef name, unsigned int order);
+
+		[[nodiscard]] llvm::StringRef getName() const;
+		[[nodiscard]] unsigned int getOrder() const;
+	};
+
+	mlir::Attribute parseModelicaAttribute(mlir::DialectAsmParser& parser, mlir::Type type);
 	void printModelicaAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& printer);
 }

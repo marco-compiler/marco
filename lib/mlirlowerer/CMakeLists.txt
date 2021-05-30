@@ -20,6 +20,7 @@ modelicaAddLibrary(
         src/passes/model/ReferenceMatcher.cpp
         src/passes/model/Variable.cpp
         src/passes/model/VectorAccess.cpp
+        src/passes/AutomaticDifferentiation.cpp
         src/passes/BufferDeallocation.cpp
         src/passes/ExplicitCastInsertion.cpp
         src/passes/ModelicaConversion.cpp

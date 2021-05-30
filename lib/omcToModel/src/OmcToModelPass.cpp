@@ -35,7 +35,7 @@ Error OmcToModelPass::lower<frontend::Class>(Class& cls, const SymbolTable& tabl
 }
 
 template<>
-llvm::Error OmcToModelPass::lower<frontend::DerFunction>(frontend::Class& cls, const frontend::SymbolTable& table)
+llvm::Error OmcToModelPass::lower<frontend::PartialDerFunction>(frontend::Class& cls, const frontend::SymbolTable& table)
 {
 	return llvm::Error::success();
 }
@@ -51,7 +51,7 @@ llvm::Error OmcToModelPass::lower<frontend::Model>(frontend::Class& cls, const f
 {
 	auto* mod = cls.get<frontend::Model>();
 
-	SymbolTable t(*mod, &table);
+	SymbolTable t(cls, &table);
 
 	for (auto& member : mod->getMembers())
 		if (auto error = lower(*member, t); error)
@@ -82,7 +82,7 @@ template<>
 llvm::Error OmcToModelPass::lower<frontend::Package>(frontend::Class& cls, const frontend::SymbolTable& table)
 {
 	auto* package = cls.get<frontend::Package>();
-	SymbolTable t(*package, &table);
+	SymbolTable t(cls, &table);
 
 	for (auto& cl : package->getInnerClasses())
 		if (auto error = lower<frontend::Class>(*cl, t); error)

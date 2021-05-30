@@ -11,7 +11,7 @@ namespace modelica::codegen
 	class ModelicaBuilder : public mlir::OpBuilder
 	{
 		public:
-		ModelicaBuilder(mlir::MLIRContext* context, unsigned int bitWidth);
+		ModelicaBuilder(mlir::MLIRContext* context);
 
 		BooleanType getBooleanType();
 		IntegerType getIntegerType();
@@ -23,7 +23,7 @@ namespace modelica::codegen
 		mlir::IntegerAttr getIndexAttribute(long value);
 
 		BooleanAttribute getBooleanAttribute(bool value);
-		//BooleanArrayAttribute getBooleanArrayttribute(llvm::ArrayRef<bool> values);
+		//BooleanArrayAttribute getBooleanArrayAttribute(llvm::ArrayRef<bool> values);
 
 		IntegerAttribute getIntegerAttribute(long value);
 		//IntegerArrayAttribute getIntegerArrayAttribute(llvm::ArrayRef<long> values);
@@ -34,8 +34,6 @@ namespace modelica::codegen
 		mlir::Attribute getZeroAttribute(mlir::Type type);
 
 		InverseFunctionsAttribute getInverseFunctionsAttribute(InverseFunctionsAttribute::Map map);
-
-		private:
-		unsigned int bitWidth;
+		DerivativeAttribute getDerivativeAttribute(llvm::StringRef name, unsigned int order);
 	};
 }

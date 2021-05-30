@@ -26,7 +26,7 @@ llvm::Error ConstantFolder::run(llvm::ArrayRef<std::unique_ptr<Class>> classes)
 }
 
 template<>
-llvm::Error ConstantFolder::run<DerFunction>(Class& cls)
+llvm::Error ConstantFolder::run<PartialDerFunction>(Class& cls)
 {
 	return llvm::Error::success();
 }
@@ -38,7 +38,7 @@ llvm::Error ConstantFolder::run<StandardFunction>(Class& cls)
 	SymbolTableScope varScope(symbolTable);
 
 	// Populate the symbol table
-	symbolTable.insert(function->getName(), Symbol(*function));
+	symbolTable.insert(function->getName(), Symbol(cls));
 
 	for (auto& member : function->getMembers())
 		if (auto error = run(*member); error)
@@ -57,7 +57,7 @@ llvm::Error ConstantFolder::run<Model>(Class& cls)
 	auto* model = cls.get<Model>();
 	SymbolTableScope varScope(symbolTable);
 
-	symbolTable.insert(model->getName(), Symbol(*model));
+	symbolTable.insert(model->getName(), Symbol(cls));
 
 	for (auto& member : model->getMembers())
 		symbolTable.insert(member->getName(), Symbol(*member));

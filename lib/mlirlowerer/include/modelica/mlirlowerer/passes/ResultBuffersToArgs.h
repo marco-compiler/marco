@@ -11,4 +11,12 @@
 namespace modelica::codegen
 {
 	std::unique_ptr<mlir::Pass> createResultBuffersToArgsPass();
+
+	inline void registerResultBuffersToArgsPass()
+	{
+		mlir::registerPass("result-buffers-to-args", "Modelica: result buffers to args",
+											 []() -> std::unique_ptr<::mlir::Pass> {
+												 return createResultBuffersToArgsPass();
+											 });
+	}
 }

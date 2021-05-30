@@ -35,7 +35,7 @@ namespace modelica::frontend
 	};
 
 	template<>
-	llvm::Error ReturnRemover::run<DerFunction>(Class& cls);
+	llvm::Error ReturnRemover::run<PartialDerFunction>(Class& cls);
 
 	template<>
 	llvm::Error ReturnRemover::run<StandardFunction>(Class& cls);

@@ -255,18 +255,25 @@ static mlir::Value getMultiplyingFactor(mlir::OpBuilder& builder, mlir::Value va
 			return builder.create<ConstantOp>(op->getLoc(), getIntegerAttribute(builder, value.getType(), 1));
 	}
 
-	assert(mlir::isa<NegateOp>(op) || mlir::isa<MulOp>(op));
+	assert(mlir::isa<ConstantOp>(op) || mlir::isa<NegateOp>(op) || mlir::isa<MulOp>(op));
+
+	if (auto constantOp = mlir::dyn_cast<ConstantOp>(op))
+	{
+		return constantOp.getResult();
+	}
 
 	if (auto negateOp = mlir::dyn_cast<NegateOp>(op))
-		return builder.create<NegateOp>(
-				negateOp.getLoc(), negateOp.resultType(),
-				getMultiplyingFactor(builder, negateOp.operand(), access));
+	{
+		mlir::Value operand = getMultiplyingFactor(builder, negateOp.operand(), access);
+		return builder.create<NegateOp>(negateOp.getLoc(), negateOp.resultType(), operand);
+	}
 
 	if (auto mulOp = mlir::dyn_cast<MulOp>(op))
-		return builder.create<MulOp>(
-				mulOp.getLoc(), mulOp.resultType(),
-				getMultiplyingFactor(builder, mulOp.lhs(), access),
-				getMultiplyingFactor(builder, mulOp.rhs(), access));
+	{
+		mlir::Value lhs = getMultiplyingFactor(builder, mulOp.lhs(), access);
+		mlir::Value rhs = getMultiplyingFactor(builder, mulOp.rhs(), access);
+		return builder.create<MulOp>(mulOp.getLoc(), mulOp.resultType(), lhs, rhs);
+	}
 
 	return value;
 }

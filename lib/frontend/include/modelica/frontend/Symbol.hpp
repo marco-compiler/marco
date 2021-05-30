@@ -1,26 +1,19 @@
 #pragma once
 
+#include <modelica/utils/SourcePosition.h>
 #include <variant>
 
 namespace modelica::frontend
 {
-	class DerFunction;
-	class StandardFunction;
+	class Class;
 	class Induction;
 	class Member;
-	class Model;
-	class Package;
-	class Record;
 
 	class Symbol
 	{
 		public:
 		Symbol();
-		explicit Symbol(DerFunction& function);
-		explicit Symbol(StandardFunction& function);
-		explicit Symbol(Model& model);
-		explicit Symbol(Package& package);
-		explicit Symbol(Record& record);
+		explicit Symbol(Class& cls);
 		explicit Symbol(Member& member);
 		explicit Symbol(Induction& induction);
 
@@ -31,13 +24,50 @@ namespace modelica::frontend
 		}
 
 		template<typename T>
+		[[nodiscard]] T* get()
+		{
+			assert(isa<T>());
+			return std::get<T*>(content);
+		}
+
+		template<typename T>
 		[[nodiscard]] const T* get() const
 		{
 			assert(isa<T>());
 			return std::get<T*>(content);
 		}
 
+		template<typename T>
+		[[nodiscard]] T* dyn_get()
+		{
+			if (!isa<T>())
+				return nullptr;
+
+			return std::get<T*>(content);
+		}
+
+		template<typename T>
+		[[nodiscard]] const T* dyn_get() const
+		{
+			if (!isa<T>())
+				return nullptr;
+
+			return std::get<T*>(content);
+		}
+
+		template<typename Visitor>
+		auto visit(Visitor&& visitor)
+		{
+			return std::visit(visitor, content);
+		}
+
+		template<typename Visitor>
+		auto visit(Visitor&& visitor) const
+		{
+			return std::visit(visitor, content);
+		}
+
 		private:
-		std::variant<DerFunction*, StandardFunction*, Model*, Package*, Record*, Member*, Induction*> content;
+		std::variant<Class*, Member*, Induction*> content;
 	};
 }

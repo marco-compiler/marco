@@ -193,9 +193,21 @@ llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
 			EXPECT(Token::DerKeyword);
 			EXPECT(Token::LPar);
 
+			TRY(derivedFunction, expression());
+			llvm::SmallVector<std::unique_ptr<Expression>, 3> independentVariables;
 
+			while (accept<Token::Comma>())
+			{
+				TRY(var, expression());
+				independentVariables.push_back(std::move(*var));
+			}
 
 			EXPECT(Token::RPar);
+			accept(Token::String);
+			EXPECT(Token::Semicolons);
+
+			classes.push_back(Class::partialDerFunction(loc, name->getValue(), std::move(*derivedFunction), independentVariables));
+			continue;
 		}
 
 		accept(Token::String);
@@ -288,7 +300,7 @@ llvm::Expected<std::unique_ptr<Class>> Parser::classDefinition()
 
 		if (classType == ClassType::Function)
 		{
-			classes.push_back(Class::standardFunction(loc, pure, name->getValue(), std::move(clsAnnotation), members, algorithms));
+			classes.push_back(Class::standardFunction(loc, pure, name->getValue(), members, algorithms, std::move(clsAnnotation)));
 		}
 		else if (classType == ClassType::Model)
 		{

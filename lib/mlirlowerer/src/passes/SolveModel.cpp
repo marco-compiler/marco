@@ -27,13 +27,13 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 		rewriter.eraseOp(terminator);
 
 		llvm::SmallVector<mlir::Value, 3> newVars;
-		newVars.push_back(terminator.args()[0]);
+		newVars.push_back(terminator.values()[0]);
 
 		unsigned int index = 1;
 
 		std::map<ForEquationOp, mlir::Value> inductions;
 
-		for (auto it = std::next(terminator.args().begin()); it != terminator.args().end(); ++it)
+		for (auto it = std::next(terminator.values().begin()); it != terminator.values().end(); ++it)
 		{
 			mlir::Value value = *it;
 
@@ -91,8 +91,6 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 						else
 						{
 							mlir::Value i = inductions[forEquation];
-							rewriter.create<ConstantOp>(i.getLoc(), rewriter.getIndexAttr(23));
-							rewriter.create<ConstantOp>(i.getLoc(), rewriter.getIndexAttr(57));
 							i = rewriter.create<SubOp>(i.getLoc(), i.getType(), i, rewriter.create<ConstantOp>(i.getLoc(), rewriter.getIndexAttr(1)));
 							mlir::Value subscription = rewriter.create<SubscriptionOp>(use.get().getLoc(), newArgument, i);
 							use.set(subscription);
@@ -340,8 +338,8 @@ struct ForEquationOpScalarizePattern : public mlir::OpRewritePattern<ForEquation
 
 struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 {
-	DerOpPattern(mlir::MLIRContext* context, Model& model)
-			: mlir::OpRewritePattern<DerOp>(context), model(&model)
+	DerOpPattern(mlir::MLIRContext* context, Model& model, mlir::BlockAndValueMapping& derivatives)
+			: mlir::OpRewritePattern<DerOp>(context), model(&model), derivatives(&derivatives)
 	{
 	}
 
@@ -349,18 +347,19 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 	{
 		mlir::Location loc = op->getLoc();
 		mlir::Value operand = op.operand();
+
+		// If the value to be derived belongs to an array, then also the derived
+		// value is stored within an array. Thus we need to store its position.
+
 		llvm::SmallVector<mlir::Value, 3> subscriptions;
 
 		while (!operand.isa<mlir::BlockArgument>())
 		{
-			mlir::Operation* definingOp = operand.getDefiningOp();
-
-			if (auto subscription = mlir::dyn_cast<SubscriptionOp>(definingOp))
+			if (auto subscriptionOp = mlir::dyn_cast<SubscriptionOp>(operand.getDefiningOp()))
 			{
-				for (auto index : subscription.indexes())
-					subscriptions.push_back(index);
-
-				operand = subscription.source();
+				mlir::ValueRange indexes = subscriptionOp.indexes();
+				subscriptions.append(indexes.begin(), indexes.end());
+				operand = subscriptionOp.source();
 			}
 			else
 			{
@@ -373,14 +372,14 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 		auto variable = model->getVariable(var);
 		mlir::Value derVar;
 
-		if (!variable.isState())
+		if (!derivatives->contains(operand))
 		{
 			auto terminator = mlir::cast<YieldOp>(var.getParentBlock()->getTerminator());
 			rewriter.setInsertionPointAfter(terminator);
 
 			llvm::SmallVector<mlir::Value, 3> args;
 
-			for (mlir::Value arg : terminator.args())
+			for (mlir::Value arg : terminator.values())
 				args.push_back(arg);
 
 			if (auto pointerType = variable.getReference().getType().dyn_cast<PointerType>())
@@ -398,8 +397,10 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 			rewriter.eraseOp(terminator);
 
 			auto newArgumentType = derVar.getType().cast<PointerType>().toUnknownAllocationScope();
-			simulation.body().addArgument(newArgumentType);
+			auto bodyArgument = simulation.body().addArgument(newArgumentType);
 			simulation.print().addArgument(newArgumentType);
+
+			derivatives->map(operand, bodyArgument);
 		}
 		else
 		{
@@ -408,18 +409,12 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 
 		rewriter.setInsertionPoint(op);
 
-		// Get argument index
-		for (auto [declaration, arg] : llvm::zip(
-				mlir::cast<YieldOp>(simulation.init().front().getTerminator()).args(),
-				simulation.body().getArguments()))
-			if (declaration == derVar)
-				derVar = arg;
+		op.dump();
+		operand.dump();
+		derVar = derivatives->lookup(operand);
 
 		if (!subscriptions.empty())
-		{
-			auto subscriptionOp = rewriter.create<SubscriptionOp>(loc, derVar, subscriptions);
-			derVar = subscriptionOp.getResult();
-		}
+			derVar = rewriter.create<SubscriptionOp>(loc, derVar, subscriptions);
 
 		if (auto pointerType = derVar.getType().cast<PointerType>(); pointerType.getRank() == 0)
 			derVar = rewriter.create<LoadOp>(loc, derVar);
@@ -431,6 +426,7 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 
 	private:
 	Model* model;
+	mlir::BlockAndValueMapping* derivatives;
 };
 
 struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
@@ -449,12 +445,12 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 
 		{
 			auto terminator = mlir::cast<YieldOp>(op.init().back().getTerminator());
-			varTypes.push_back(terminator.args()[0].getType().cast<PointerType>().toUnknownAllocationScope());
+			varTypes.push_back(terminator.values()[0].getType().cast<PointerType>().toUnknownAllocationScope());
 
 			// Add the time step as second argument
 			varTypes.push_back(op.timeStep().getType());
 
-			for (auto it = ++terminator.args().begin(); it != terminator.args().end(); ++it)
+			for (auto it = ++terminator.values().begin(); it != terminator.values().end(); ++it)
 				varTypes.push_back((*it).getType().cast<PointerType>().toUnknownAllocationScope());
 		}
 
@@ -483,7 +479,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			};
 
 			// Time variable
-			mlir::Value time = terminator.args()[0];
+			mlir::Value time = terminator.values()[0];
 			values.push_back(removeAllocationScopeFn(time));
 
 			// Time step
@@ -494,7 +490,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			// variables have already been managed, but only the time one was in the
 			// yield operation, so we need to start from its second argument.
 
-			for (auto it = std::next(terminator.args().begin()); it != terminator.args().end(); ++it)
+			for (auto it = std::next(terminator.values().begin()); it != terminator.values().end(); ++it)
 				values.push_back(removeAllocationScopeFn(*it));
 
 			// Set the start time
@@ -584,7 +580,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			auto terminator = mlir::cast<YieldOp>(op.print().front().getTerminator());
 			llvm::SmallVector<mlir::Value, 3> valuesToBePrinted;
 
-			for (mlir::Value value : terminator.args())
+			for (mlir::Value value : terminator.values())
 				valuesToBePrinted.push_back(mapping.lookup(value));
 
 			rewriter.create<PrintOp>(loc, valuesToBePrinted);
@@ -810,6 +806,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 	void runOnOperation() override
 	{
+		// TODO: addTimeDerivative
+
 		// Convert the scalar values into arrays of one element
 		if (failed(loopify()))
 			return signalPassFailure();
@@ -819,14 +817,20 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (failed(scalarizeArrayEquations()))
 			return signalPassFailure();
 
+		getOperation()->dump();
+
 		getOperation()->walk([&](SimulationOp simulation) {
 			mlir::OpBuilder builder(simulation);
 
 			// Create the model
 			Model model = Model::build(simulation);
+			mlir::BlockAndValueMapping derivatives;
 
 			// Remove the derivative operations and allocate the appropriate buffers
-			if (failed(removeDerivatives(builder, model)))
+			if (failed(removeDerivatives(builder, model, derivatives)))
+				return signalPassFailure();
+
+			if (failed(instantiateFunctionDerivatives(builder, model, derivatives)))
 				return signalPassFailure();
 
 			// Match
@@ -837,18 +841,26 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (failed(solveSCCs(builder, model, options.sccMaxIterations)))
 				return signalPassFailure();
 
+			simulation->dump();
+
 			// Schedule
 			if (failed(schedule(model)))
 				return signalPassFailure();
+
+			simulation->dump();
 
 			// Explicitate the equations so that the updated variable is the only
 			// one on the left-hand side of the equation.
 			if (failed(explicitateEquations(model)))
 				return signalPassFailure();
 
+			simulation->dump();
+
 			// Select and use the solver
 			if (failed(selectSolver(builder, model)))
 				return signalPassFailure();
+
+			simulation.dump();
 		});
 
 		// The model has been solved and we can now proceed to create the update
@@ -871,7 +883,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		target.addDynamicallyLegalOp<SimulationOp>([](SimulationOp op) {
 			auto terminator = mlir::cast<YieldOp>(op.init().back().getTerminator());
-			mlir::ValueRange args = terminator.args();
+			mlir::ValueRange args = terminator.values();
 
 			for (auto it = std::next(args.begin()), end = args.end(); it != end; ++it)
 				if (auto pointerType = (*it).getType().dyn_cast<PointerType>())
@@ -946,19 +958,57 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	 * @param model   model
 	 * @return conversion result
 	 */
-	mlir::LogicalResult removeDerivatives(mlir::OpBuilder& builder, Model& model)
+	mlir::LogicalResult removeDerivatives(mlir::OpBuilder& builder, Model& model, mlir::BlockAndValueMapping& derivatives)
 	{
 		mlir::ConversionTarget target(getContext());
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 		target.addIllegalOp<DerOp>();
 
 		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<DerOpPattern>(&getContext(), model);
+		patterns.insert<DerOpPattern>(&getContext(), model, derivatives);
 
 		if (auto status = applyPartialConversion(model.getOp(), target, std::move(patterns)); failed(status))
 			return status;
 
 		model.reloadIR();
+		return mlir::success();
+	}
+
+	mlir::LogicalResult instantiateFunctionDerivatives(mlir::OpBuilder& builder, Model& model, mlir::BlockAndValueMapping& derivatives)
+	{
+		/*
+		model.getOp()->walk([&](ForEquationOp equation) {
+			equation.walk([&](CallOp call) {
+				auto module = call->getParentOfType<mlir::ModuleOp>();
+				auto simulation = call->getParentOfType<SimulationOp>();
+				auto callee = module.lookupSymbol<FunctionOp>(call.callee());
+
+				if (!callee.hasDerivative())
+					return;
+
+				builder.setInsertionPointAfter(equation);
+				auto derivedEquation = builder.create<ForEquationOp>(equation->getLoc(), equation.inductions().size());
+
+				llvm::SmallVector<mlir::Value, 3> lhs;
+				llvm::SmallVector<mlir::Value, 3> rhs;
+
+				for (mlir::Value lhsValue : equation.lhs())
+				{
+					if (mlir::isa<mlir::BlockArgument>(lhsValue))
+					{
+						auto var = model.getVariable(simulation.getVariableAllocation(lhsValue));
+
+						if (!var.isState())
+							return;
+
+						lhs.push_back()
+					}
+				}
+			});
+		});
+
+		model.reloadIR();
+		 */
 		return mlir::success();
 	}
 
@@ -975,8 +1025,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	{
 		if (options.solverName == ForwardEuler)
 			return updateStates(builder, model);
+
 		if (options.solverName == CleverDAE)
 			return addBltBlocks(builder, model);
+
 		return mlir::failure();
 	}
 
@@ -1007,12 +1059,15 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (!variable->isState())
 				continue;
 
+			if (variable->isTime())
+				continue;
+
 			mlir::Value var = variable->getReference();
 			mlir::Value der = variable->getDer();
 
 			auto terminator = mlir::cast<YieldOp>(model.getOp().init().front().getTerminator());
 
-			for (auto value : llvm::enumerate(terminator.args()))
+			for (auto value : llvm::enumerate(terminator.values()))
 			{
 				if (value.value() == var)
 					var = model.getOp().body().front().getArgument(value.index());

@@ -18,10 +18,7 @@ namespace modelica::frontend
 	class Function : public ASTNode
 	{
 		public:
-		Function(SourceRange location,
-						 bool pure,
-						 llvm::StringRef name,
-						 llvm::Optional<std::unique_ptr<Annotation>> annotation);
+		Function(SourceRange location, llvm::StringRef name);
 
 		Function(const Function& other);
 		Function(Function&& other);
@@ -35,49 +32,51 @@ namespace modelica::frontend
 
 		[[nodiscard]] llvm::StringRef getName() const;
 
-		[[nodiscard]] bool isPure() const;
-
-		[[nodiscard]] bool hasAnnotation() const;
-		[[nodiscard]] Annotation* getAnnotation();
-		[[nodiscard]] const Annotation* getAnnotation() const;
-
 		private:
-		bool pure;
 		std::string name;
-		llvm::Optional<std::unique_ptr<Annotation>> annotation;
 	};
 
-	class DerFunction
+	class PartialDerFunction
 			: public Function,
-				public impl::Dumpable<DerFunction>
+				public impl::Dumpable<PartialDerFunction>
 	{
 		public:
-		DerFunction(const DerFunction& other);
-		DerFunction(DerFunction&& other);
-		~DerFunction() override;
+		PartialDerFunction(const PartialDerFunction& other);
+		PartialDerFunction(PartialDerFunction&& other);
+		~PartialDerFunction() override;
 
-		DerFunction& operator=(const DerFunction& other);
-		DerFunction& operator=(DerFunction&& other);
+		PartialDerFunction& operator=(const PartialDerFunction& other);
+		PartialDerFunction& operator=(PartialDerFunction&& other);
 
-		friend void swap(DerFunction& first, DerFunction& second);
+		friend void swap(PartialDerFunction& first, PartialDerFunction& second);
 
 		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		[[nodiscard]] llvm::StringRef getDerivedFunction() const;
-		[[nodiscard]] llvm::StringRef getArg() const;
+		[[nodiscard]] Expression* getDerivedFunction() const;
+
+		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Expression>> getIndependentVariables();
+		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Expression>> getIndependentVariables() const;
+
+		[[nodiscard]] llvm::MutableArrayRef<Type> getArgsTypes();
+		[[nodiscard]] llvm::ArrayRef<Type> getArgsTypes() const;
+		void setArgsTypes(llvm::ArrayRef<Type> types);
+
+		[[nodiscard]] llvm::MutableArrayRef<Type> getResultsTypes();
+		[[nodiscard]] llvm::ArrayRef<Type> getResultsTypes() const;
+		void setResultsTypes(llvm::ArrayRef<Type> types);
 
 		private:
 		friend class Class;
 
-		DerFunction(SourceRange location,
-								bool pure,
-								llvm::StringRef name,
-								llvm::Optional<std::unique_ptr<Annotation>> annotation,
-								llvm::StringRef derivedFunction,
-								llvm::StringRef arg);
+		PartialDerFunction(SourceRange location,
+											 llvm::StringRef name,
+											 std::unique_ptr<Expression> derivedFunction,
+											 llvm::ArrayRef<std::unique_ptr<Expression>> independentVariables);
 
-		std::string derivedFunction;
-		std::string arg;
+		std::unique_ptr<Expression> derivedFunction;
+		llvm::SmallVector<std::unique_ptr<Expression>, 3> independentVariables;
+		llvm::SmallVector<Type, 3> args;
+		llvm::SmallVector<Type, 3> results;
 	};
 
 	class StandardFunction
@@ -102,6 +101,8 @@ namespace modelica::frontend
 		[[nodiscard]] Member* operator[](llvm::StringRef name);
 		[[nodiscard]] const Member* operator[](llvm::StringRef name) const;
 
+		[[nodiscard]] bool isPure() const;
+
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Member>> getMembers();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Member>> getMembers() const;
 
@@ -114,6 +115,10 @@ namespace modelica::frontend
 		[[nodiscard]] llvm::MutableArrayRef<std::unique_ptr<Algorithm>> getAlgorithms();
 		[[nodiscard]] llvm::ArrayRef<std::unique_ptr<Algorithm>> getAlgorithms() const;
 
+		[[nodiscard]] bool hasAnnotation() const;
+		[[nodiscard]] Annotation* getAnnotation();
+		[[nodiscard]] const Annotation* getAnnotation() const;
+
 		[[nodiscard]] Type& getType();
 		[[nodiscard]] const Type& getType() const;
 		void setType(Type type);
@@ -124,13 +129,28 @@ namespace modelica::frontend
 		StandardFunction(SourceRange location,
 										 bool pure,
 										 llvm::StringRef name,
-										 llvm::Optional<std::unique_ptr<Annotation>> annotation,
 										 llvm::ArrayRef<std::unique_ptr<Member>> members,
-										 llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms);
+										 llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms,
+										 llvm::Optional<std::unique_ptr<Annotation>> annotation = llvm::None);
 
+		bool pure;
 		Container<std::unique_ptr<Member>> members;
 		Container<std::unique_ptr<Algorithm>> algorithms;
+		llvm::Optional<std::unique_ptr<Annotation>> annotation;
 		Type type;
+	};
+
+	class DerivativeAnnotation
+	{
+		public:
+		DerivativeAnnotation(llvm::StringRef name, unsigned int order = 1);
+
+		[[nodiscard]] llvm::StringRef getName() const;
+		[[nodiscard]] unsigned int getOrder() const;
+
+		private:
+		std::string name;
+		unsigned int order;
 	};
 
 	class InverseFunctionAnnotation
@@ -139,7 +159,7 @@ namespace modelica::frontend
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		InverseFunctionAnnotation() = default;
+		InverseFunctionAnnotation();
 
 		[[nodiscard]] bool isInvertible(llvm::StringRef arg) const;
 		[[nodiscard]] llvm::StringRef getInverseFunction(llvm::StringRef invertibleArg) const;

@@ -58,21 +58,15 @@ TEST(ControlFlow, thenBranchTaken)	 // NOLINT
 								}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
 			Algorithm::build(location, std::move(ifStatement)));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int x = 1;
 	int y = 0;
@@ -129,21 +123,15 @@ TEST(ControlFlow, elseBranchTaken)	 // NOLINT
 								}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
 			Algorithm::build(location, std::move(ifStatement)));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int x = -1;
 	int y = 0;
@@ -217,21 +205,15 @@ TEST(ControlFlow, elseIfBranchTaken)	 // NOLINT
 	}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
 			Algorithm::build(location, std::move(ifStatement)));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int x = 1;
 	int y = 0;
@@ -285,21 +267,15 @@ TEST(ControlFlow, forLoop)	 // NOLINT
 	}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
 			std::move(algorithm));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int x = 10;
 	int y = 0;
@@ -353,21 +329,15 @@ TEST(ControlFlow, forNotExecuted)	 // NOLINT
 								}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
 			std::move(algorithm));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int x = 1;
 	int y = 0;
@@ -426,21 +396,15 @@ TEST(ControlFlow, whileLoop)	 // NOLINT
 								}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			llvm::ArrayRef({ std::move(xMember), std::move(yMember), std::move(iMember) }),
 			std::move(algorithm));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int x = 10;
 	int y = 0;
@@ -485,7 +449,7 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 								}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			std::move(yMember),
 			std::move(algorithm));
 
@@ -494,16 +458,10 @@ TEST(ControlFlow, whileNotExecuted)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int y = 0;
 
@@ -557,7 +515,7 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 								}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			std::move(yMember),
 			std::move(algorithm));
 
@@ -566,16 +524,10 @@ TEST(ControlFlow, breakInInnermostWhile)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int y = 0;
 
@@ -619,7 +571,7 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 								}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			std::move(yMember),
 			std::move(algorithm));
 
@@ -628,16 +580,10 @@ TEST(ControlFlow, breakAsLastOpInWhile)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int y = 0;
 
@@ -699,7 +645,7 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 								}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			std::move(yMember),
 			std::move(algorithm));
 
@@ -708,16 +654,10 @@ TEST(ControlFlow, breakNestedInWhile)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int y = 0;
 
@@ -766,7 +706,7 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 								}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			std::move(yMember),
 			std::move(algorithm));
 
@@ -775,16 +715,10 @@ TEST(ControlFlow, breakAsLastOpInFor)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int y = 0;
 
@@ -849,7 +783,7 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 								}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			std::move(yMember),
 			std::move(algorithm));
 
@@ -858,16 +792,10 @@ TEST(ControlFlow, breakNestedInFor)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int y = 0;
 
@@ -908,7 +836,7 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 								}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			std::move(yMember),
 			std::move(algorithm));
 
@@ -917,16 +845,10 @@ TEST(ControlFlow, earlyReturn)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	int y = 0;
 
@@ -1004,7 +926,7 @@ TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 								}));
 
 	auto cls = Class::standardFunction(
-			location, true, "main", llvm::None,
+			location, true, "main",
 			llvm::ArrayRef({ std::move(xMember), std::move(yMember), std::move(zMember) }),
 			std::move(algorithm));
 
@@ -1013,16 +935,10 @@ TEST(ControlFlow, allocationsInsideLoop)	 // NOLINT
 	EXPECT_TRUE(!passManager.run(cls));
 
 	mlir::MLIRContext context;
-
-	ModelicaOptions modelicaOptions;
-	modelicaOptions.x64 = false;
-	MLIRLowerer lowerer(context, modelicaOptions);
+	MLIRLowerer lowerer(context);
 
 	auto module = lowerer.run(cls);
-
-	ModelicaLoweringOptions loweringOptions;
-	loweringOptions.llvmOptions.emitCWrappers = true;
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, loweringOptions)));
+	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
 
 	std::array<int, 2> x = { 1, 2 };
 	ArrayDescriptor<int, 1> xDesc(x);

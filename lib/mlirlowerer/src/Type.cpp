@@ -1,58 +1,9 @@
 #include <llvm/ADT/STLExtras.h>
+#include <mlir/IR/Builders.h>
 #include <mlir/IR/DialectImplementation.h>
 #include <modelica/mlirlowerer/Type.h>
 
 using namespace modelica::codegen;
-
-bool IntegerTypeStorage::operator==(const KeyTy& key) const
-{
-	return key == getBitWidth();
-}
-
-unsigned int IntegerTypeStorage::hashKey(const KeyTy& key)
-{
-	return llvm::hash_combine(key);
-}
-
-IntegerTypeStorage* IntegerTypeStorage::construct(mlir::TypeStorageAllocator&allocator, unsigned int bitWidth)
-{
-	auto* storage = allocator.allocate<IntegerTypeStorage>();
-	return new (storage) IntegerTypeStorage(bitWidth);
-}
-
-unsigned int IntegerTypeStorage::getBitWidth() const
-{
-	return bitWidth;
-}
-
-IntegerTypeStorage::IntegerTypeStorage(unsigned int bitWidth) : bitWidth(bitWidth)
-{
-}
-
-bool RealTypeStorage::operator==(const KeyTy& key) const
-{
-	return key == getBitWidth();
-}
-
-unsigned int RealTypeStorage::hashKey(const KeyTy& key)
-{
-	return llvm::hash_combine(key);
-}
-
-RealTypeStorage* RealTypeStorage::construct(mlir::TypeStorageAllocator&allocator, unsigned int bitWidth)
-{
-	auto* storage = allocator.allocate<RealTypeStorage>();
-	return new (storage) RealTypeStorage(bitWidth);
-}
-
-unsigned int RealTypeStorage::getBitWidth() const
-{
-	return bitWidth;
-}
-
-RealTypeStorage::RealTypeStorage(unsigned int bitWidth) : bitWidth(bitWidth)
-{
-}
 
 bool MemberTypeStorage::operator==(const KeyTy& key) const
 {
@@ -63,9 +14,10 @@ unsigned int MemberTypeStorage::hashKey(const KeyTy& key)
 {
 	auto hashValue = [](const MemberTypeStorage::Shape& s) -> llvm::hash_code
 	{
-		if (s.size()) {
+		if (!s.empty()) {
 			return llvm::hash_combine_range(s.begin(), s.end());
 		}
+
 		return llvm::hash_combine(0);
 	};
 
@@ -150,18 +102,18 @@ PointerTypeStorage::PointerTypeStorage(BufferAllocationScope allocationScope, ml
 
 bool UnsizedPointerTypeStorage::operator==(const KeyTy& key) const
 {
-	return key == KeyTy{getElementType(), getRank()};
+	return key == KeyTy{getElementType()};
 }
 
 unsigned int UnsizedPointerTypeStorage::hashKey(const KeyTy& key)
 {
-	return llvm::hash_combine(std::get<mlir::Type>(key), std::get<unsigned int>(key));
+	return llvm::hash_combine(key);
 }
 
 UnsizedPointerTypeStorage* UnsizedPointerTypeStorage::construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key)
 {
 	auto *storage = allocator.allocate<UnsizedPointerTypeStorage>();
-	return new (storage) UnsizedPointerTypeStorage{std::get<mlir::Type>(key), std::get<unsigned int>(key)};
+	return new (storage) UnsizedPointerTypeStorage{key};
 }
 
 mlir::Type UnsizedPointerTypeStorage::getElementType() const
@@ -169,14 +121,8 @@ mlir::Type UnsizedPointerTypeStorage::getElementType() const
 	return elementType;
 }
 
-unsigned int UnsizedPointerTypeStorage::getRank() const
-{
-	return rank;
-}
-
-UnsizedPointerTypeStorage::UnsizedPointerTypeStorage(mlir::Type elementType, unsigned int rank)
-		: elementType(elementType),
-			rank(rank)
+UnsizedPointerTypeStorage::UnsizedPointerTypeStorage(mlir::Type elementType)
+		: elementType(elementType)
 {
 }
 
@@ -211,24 +157,14 @@ BooleanType BooleanType::get(mlir::MLIRContext* context)
 	return Base::get(context);
 }
 
-IntegerType IntegerType::get(mlir::MLIRContext* context, unsigned int bitWidth)
+IntegerType IntegerType::get(mlir::MLIRContext* context)
 {
-	return Base::get(context, bitWidth);
+	return Base::get(context);
 }
 
-unsigned int IntegerType::getBitWidth() const
+RealType RealType::get(mlir::MLIRContext* context)
 {
-	return getImpl()->getBitWidth();
-}
-
-RealType RealType::get(mlir::MLIRContext* context, unsigned int bitWidth)
-{
-	return Base::get(context, bitWidth);
-}
-
-unsigned int RealType::getBitWidth() const
-{
-	return getImpl()->getBitWidth();
+	return Base::get(context);
 }
 
 namespace modelica::codegen
@@ -420,7 +356,7 @@ PointerType PointerType::toMinAllowedAllocationScope()
 
 UnsizedPointerType PointerType::toUnsized()
 {
-	return UnsizedPointerType::get(getContext(), getElementType(), getRank());
+	return UnsizedPointerType::get(getContext(), getElementType());
 }
 
 bool PointerType::canBeOnStack() const
@@ -428,19 +364,14 @@ bool PointerType::canBeOnStack() const
 	return hasConstantShape();
 }
 
-UnsizedPointerType UnsizedPointerType::get(mlir::MLIRContext* context, mlir::Type elementType, unsigned int rank)
+UnsizedPointerType UnsizedPointerType::get(mlir::MLIRContext* context, mlir::Type elementType)
 {
-	return Base::get(context, elementType, rank);
+	return Base::get(context, elementType);
 }
 
 mlir::Type UnsizedPointerType::getElementType() const
 {
 	return getImpl()->getElementType();
-}
-
-unsigned int UnsizedPointerType::getRank() const
-{
-	return getImpl()->getRank();
 }
 
 OpaquePointerType OpaquePointerType::get(mlir::MLIRContext* context)
@@ -458,89 +389,222 @@ llvm::ArrayRef<mlir::Type> StructType::getElementTypes()
 	return getImpl()->getElementTypes();
 }
 
-void modelica::codegen::printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer) {
-	auto& os = printer.getStream();
-
-	if (type.isa<BooleanType>())
+namespace modelica::codegen
+{
+	mlir::Type parseModelicaType(mlir::DialectAsmParser& parser)
 	{
-		os << "bool";
-		return;
-	}
+		auto builder = parser.getBuilder();
 
-	if (type.isa<IntegerType>())
-	{
-		os << "int";
-		return;
-	}
+		if (mlir::succeeded(parser.parseOptionalKeyword("bool")))
+			return BooleanType::get(builder.getContext());
 
-	if (type.dyn_cast<RealType>())
-	{
-		os << "real";
-		return;
-	}
+		if (mlir::succeeded(parser.parseOptionalKeyword("int")))
+			return IntegerType::get(builder.getContext());
 
-	if (auto memberType = type.dyn_cast<MemberType>())
-	{
-		os << "member<";
+		if (mlir::succeeded(parser.parseOptionalKeyword("real")))
+			return RealType::get(builder.getContext());
 
-		if (memberType.getAllocationScope() == MemberAllocationScope::stack)
-			os << "stack, ";
-		else if (memberType.getAllocationScope() == MemberAllocationScope::heap)
-			os << "heap, ";
-
-		auto dimensions = memberType.getShape();
-
-		for (const auto& dimension : dimensions)
-			os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
-
-		printer.printType(memberType.getElementType());
-		os << ">";
-		return;
-	}
-
-	if (auto pointerType = type.dyn_cast<PointerType>())
-	{
-		os << "ptr<";
-
-		if (pointerType.getAllocationScope() == BufferAllocationScope::stack)
-			os << "stack, ";
-		else if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
-			os << "heap, ";
-
-		auto dimensions = pointerType.getShape();
-
-		for (const auto& dimension : dimensions)
-			os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
-
-		printer.printType(pointerType.getElementType());
-		os << ">";
-		return;
-	}
-
-	if (auto pointerType = type.dyn_cast<UnsizedPointerType>())
-	{
-		os << "ptr<*x" << pointerType.getElementType() << ">";
-		return;
-	}
-
-	if (type.isa<OpaquePointerType>())
-	{
-		os << "opaque_ptr";
-		return;
-	}
-
-	if (auto structType = type.dyn_cast<StructType>())
-	{
-		os << "struct<";
-
-		for (auto subtype : llvm::enumerate(structType.getElementTypes()))
+		if (mlir::succeeded(parser.parseOptionalKeyword("member")))
 		{
-			if (subtype.index() != 0)
-				os << ", ";
+			if (parser.parseLess())
+				return mlir::Type();
 
-			os << subtype.value();
+			MemberAllocationScope scope;
+
+			if (mlir::succeeded(parser.parseOptionalKeyword("stack")))
+			{
+				scope = MemberAllocationScope::stack;
+			}
+			else if (mlir::succeeded(parser.parseOptionalKeyword("heap")))
+			{
+				scope = MemberAllocationScope::heap;
+			}
+			else
+			{
+				parser.emitError(parser.getCurrentLocation()) << "unexpected member allocation scope";
+				return mlir::Type();
+			}
+
+			if (parser.parseComma())
+				return mlir::Type();
+
+			llvm::SmallVector<long, 3> dimensions;
+
+			if (parser.parseDimensionList(dimensions))
+				return mlir::Type();
+
+			mlir::Type baseType;
+
+			if (parser.parseType(baseType) ||
+					parser.parseGreater())
+				return mlir::Type();
+
+			return MemberType::get(builder.getContext(), scope, baseType, dimensions);
 		}
 
-		os << ">";
+		if (mlir::succeeded(parser.parseOptionalKeyword("ptr")))
+		{
+			if (parser.parseLess())
+				return mlir::Type();
+
+			if (mlir::succeeded(parser.parseOptionalStar()))
+			{
+				mlir::Type baseType;
+
+				if (parser.parseType(baseType) ||
+						parser.parseGreater())
+					return mlir::Type();
+
+				return UnsizedPointerType::get(builder.getContext(), baseType);
+			}
+
+			BufferAllocationScope scope = BufferAllocationScope::unknown;
+
+			if (mlir::succeeded(parser.parseOptionalKeyword("stack")))
+			{
+				scope = BufferAllocationScope::stack;
+			}
+			else if (mlir::succeeded(parser.parseOptionalKeyword("heap")))
+			{
+				scope = BufferAllocationScope::heap;
+			}
+			else if (mlir::failed(parser.parseKeyword("unknown")))
+			{
+				parser.emitError(parser.getCurrentLocation()) << "unexpected buffer allocation scope";
+				return mlir::Type();
+			}
+
+			if (parser.parseComma())
+				return mlir::Type();
+
+			llvm::SmallVector<long, 3> dimensions;
+
+			if (parser.parseDimensionList(dimensions))
+				return mlir::Type();
+
+			mlir::Type baseType;
+
+			if (parser.parseType(baseType) ||
+					parser.parseGreater())
+				return mlir::Type();
+
+			return PointerType::get(builder.getContext(), scope, baseType, dimensions);
+		}
+
+		if (mlir::succeeded(parser.parseOptionalKeyword("opaque_ptr")))
+			return OpaquePointerType::get(builder.getContext());
+
+		if (mlir::succeeded(parser.parseOptionalKeyword("struct")))
+		{
+			if (mlir::failed(parser.parseLess()))
+				return mlir::Type();
+
+			llvm::SmallVector<mlir::Type, 3> types;
+
+			do {
+				mlir::Type type;
+
+				if (parser.parseType(type))
+					return mlir::Type();
+
+				types.push_back(type);
+			} while (succeeded(parser.parseOptionalComma()));
+
+			if (mlir::failed(parser.parseGreater()))
+				return mlir::Type();
+
+			return StructType::get(builder.getContext(), types);
+		}
+
+		parser.emitError(parser.getCurrentLocation()) << "unknown type";
+		return mlir::Type();
+	}
+
+	void printModelicaType(mlir::Type type, mlir::DialectAsmPrinter& printer) {
+		auto& os = printer.getStream();
+
+		if (type.isa<BooleanType>())
+		{
+			os << "bool";
+			return;
+		}
+
+		if (type.isa<IntegerType>())
+		{
+			os << "int";
+			return;
+		}
+
+		if (type.dyn_cast<RealType>())
+		{
+			os << "real";
+			return;
+		}
+
+		if (auto memberType = type.dyn_cast<MemberType>())
+		{
+			os << "member<";
+
+			if (memberType.getAllocationScope() == MemberAllocationScope::stack)
+				os << "stack, ";
+			else if (memberType.getAllocationScope() == MemberAllocationScope::heap)
+				os << "heap, ";
+
+			auto dimensions = memberType.getShape();
+
+			for (const auto& dimension : dimensions)
+				os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
+
+			printer.printType(memberType.getElementType());
+			os << ">";
+			return;
+		}
+
+		if (auto pointerType = type.dyn_cast<PointerType>())
+		{
+			os << "ptr<";
+
+			if (pointerType.getAllocationScope() == BufferAllocationScope::stack)
+				os << "stack, ";
+			else if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+				os << "heap, ";
+
+			auto dimensions = pointerType.getShape();
+
+			for (const auto& dimension : dimensions)
+				os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
+
+			printer.printType(pointerType.getElementType());
+			os << ">";
+			return;
+		}
+
+		if (auto pointerType = type.dyn_cast<UnsizedPointerType>())
+		{
+			os << "ptr<*x" << pointerType.getElementType() << ">";
+			return;
+		}
+
+		if (type.isa<OpaquePointerType>())
+		{
+			os << "opaque_ptr";
+			return;
+		}
+
+		if (auto structType = type.dyn_cast<StructType>())
+		{
+			os << "struct<";
+
+			for (auto subtype : llvm::enumerate(structType.getElementTypes()))
+			{
+				if (subtype.index() != 0)
+					os << ", ";
+
+				os << subtype.value();
+			}
+
+			os << ">";
+		}
 	}
 }
+

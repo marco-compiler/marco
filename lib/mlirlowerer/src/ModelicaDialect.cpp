@@ -12,7 +12,10 @@ class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
 
 	bool isLegalToInline(mlir::Operation* call, mlir::Operation* callable, bool wouldBeCloned) const final
 	{
-		auto function = mlir::cast<mlir::FuncOp>(callable);
+		if (!mlir::isa<FunctionOp>(callable))
+			return false;
+
+		auto function = mlir::cast<FunctionOp>(callable);
 
 		if (!function->hasAttr("inline"))
 			return false;
@@ -27,7 +30,7 @@ class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
 	}
 
 	void handleTerminator(mlir::Operation* op, llvm::ArrayRef<mlir::Value> valuesToReplace) const final {
-		auto returnOp = mlir::cast<mlir::ReturnOp>(op);
+		auto returnOp = mlir::cast<ReturnOp>(op);
 
 		// Replace the values directly with the return operands
 		assert(returnOp.getNumOperands() == valuesToReplace.size());
@@ -41,8 +44,10 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 		: Dialect("modelica", context, mlir::TypeID::get<ModelicaDialect>())
 {
 	addTypes<BooleanType, IntegerType, RealType, MemberType, PointerType, UnsizedPointerType, OpaquePointerType, StructType>();
-	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute, InverseFunctionsAttribute>();
+	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute, DerivativeAttribute, InverseFunctionsAttribute>();
 	addInterfaces<ModelicaInlinerInterface>();
+
+	addOperations<FunctionOp, ReturnOp, DerFunctionOp>();
 
 	// Basic operations
 	addOperations<ConstantOp, PackOp, ExtractOp, CastOp, CastCommonOp, AssignmentOp, CallOp, PrintOp>();
@@ -76,7 +81,6 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 
 	// Built-in operations
 	addOperations<NDimsOp, SizeOp, IdentityOp, DiagonalOp, ZerosOp, OnesOp, LinspaceOp, FillOp, MinOp, MaxOp, SumOp, ProductOp, TransposeOp, SymmetricOp>();
-
 	addOperations<SimulationOp, EquationOp, InductionOp, ForEquationOp, EquationSidesOp, DerOp>();
 }
 
@@ -85,11 +89,23 @@ mlir::StringRef ModelicaDialect::getDialectNamespace()
 	return "modelica";
 }
 
-void ModelicaDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& printer) const {
+mlir::Type ModelicaDialect::parseType(mlir::DialectAsmParser& parser) const
+{
+	return parseModelicaType(parser);
+}
+
+void ModelicaDialect::printType(mlir::Type type, mlir::DialectAsmPrinter& printer) const
+{
 	return printModelicaType(type, printer);
 }
 
-void ModelicaDialect::printAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& printer) const {
+mlir::Attribute ModelicaDialect::parseAttribute(mlir::DialectAsmParser& parser, mlir::Type type) const
+{
+	return parseModelicaAttribute(parser, type);
+}
+
+void ModelicaDialect::printAttribute(mlir::Attribute attribute, mlir::DialectAsmPrinter& printer) const
+{
 	return printModelicaAttribute(attribute, printer);
 }
 

@@ -30,6 +30,8 @@ namespace modelica::codegen::model
 		[[nodiscard]] bool isState() const;
 		[[nodiscard]] bool isConstant() const;
 
+		[[nodiscard]] bool isTime() const;
+
 		mlir::Value getDer();
 		void setDer(mlir::Value value);
 

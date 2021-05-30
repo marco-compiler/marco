@@ -2,7 +2,8 @@
 
 using namespace modelica::codegen;
 
-TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options) : mlir::LLVMTypeConverter(context, options)
+TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options, unsigned int bitWidth)
+		: mlir::LLVMTypeConverter(context, options), bitWidth(bitWidth)
 {
 	addConversion([&](BooleanType type) { return convertBooleanType(type); });
 	addConversion([&](IntegerType type) { return convertIntegerType(type); });
@@ -80,7 +81,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 				if (inputs.size() != 1)
 					return llvm::None;
 
-				if (!inputs[0].getType().isa<mlir::IntegerType>() || inputs[0].getType().getIntOrFloatBitWidth() != resultType.getBitWidth())
+				if (!inputs[0].getType().isa<mlir::IntegerType>() || inputs[0].getType().getIntOrFloatBitWidth() != this->bitWidth)
 					return llvm::None;
 
 				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
@@ -92,7 +93,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 				if (inputs.size() != 1)
 					return llvm::None;
 
-				if (!inputs[0].getType().isa<mlir::FloatType>() || inputs[0].getType().getIntOrFloatBitWidth() != resultType.getBitWidth())
+				if (!inputs[0].getType().isa<mlir::FloatType>() || inputs[0].getType().getIntOrFloatBitWidth() != this->bitWidth)
 					return llvm::None;
 
 				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
@@ -175,13 +176,11 @@ mlir::Type TypeConverter::convertBooleanType(BooleanType type)
 
 mlir::Type TypeConverter::convertIntegerType(IntegerType type)
 {
-	return mlir::IntegerType::get(&getContext(), type.getBitWidth());
+	return mlir::IntegerType::get(&getContext(), bitWidth);
 }
 
 mlir::Type TypeConverter::convertRealType(RealType type)
 {
-	unsigned int bitWidth = type.getBitWidth();
-
 	if (bitWidth == 16)
 		return convertType(mlir::Float16Type::get(&getContext()));
 
@@ -209,7 +208,7 @@ mlir::Type TypeConverter::convertUnsizedPointerType(UnsizedPointerType type)
 
 mlir::Type TypeConverter::convertOpaquePointerType(OpaquePointerType type)
 {
-	return mlir::LLVM::LLVMPointerType::get(convertType(IntegerType::get(type.getContext(), 8)));
+	return mlir::LLVM::LLVMPointerType::get(convertType(mlir::IntegerType::get(type.getContext(), 8)));
 }
 
 mlir::Type TypeConverter::convertStructType(StructType type)
@@ -243,7 +242,7 @@ llvm::SmallVector<mlir::Type, 3> TypeConverter::getPointerDescriptorFields(Point
 llvm::SmallVector<mlir::Type, 3> TypeConverter::getUnsizedPointerDescriptorFields(UnsizedPointerType type)
 {
 	auto indexType = getIndexType();
-	auto voidPtr = mlir::LLVM::LLVMPointerType::get(convertType(IntegerType::get(type.getContext(), 8)));
+	auto voidPtr = mlir::LLVM::LLVMPointerType::get(convertType(mlir::IntegerType::get(type.getContext(), 8)));
 
 	llvm::SmallVector<mlir::Type, 3> results = { indexType, voidPtr };
 	return results;

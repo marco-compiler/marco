@@ -58,3 +58,29 @@ TEST(Parser, inverseFunctionAnnotation)	 // NOLINT
 	EXPECT_EQ(annotation.getInverseArgs("z")[0], "x");
 	EXPECT_EQ(annotation.getInverseArgs("z")[1], "y");
 }
+
+TEST(Parser, functionDerivativeAnnotationWithOrder)	 // NOLINT
+{
+	Parser parser("annotation(derivative(order=2)=foo1)");
+
+	auto ast = parser.annotation();
+	ASSERT_FALSE(!ast);
+
+	auto annotation = (*ast)->getDerivativeAnnotation();
+
+	EXPECT_EQ(annotation.getName(), "foo1");
+	EXPECT_EQ(annotation.getOrder(), 2);
+}
+
+TEST(Parser, functionDerivativeAnnotationWithoutOrder)	 // NOLINT
+{
+	Parser parser("annotation(derivative=foo1)");
+
+	auto ast = parser.annotation();
+	ASSERT_FALSE(!ast);
+
+	auto annotation = (*ast)->getDerivativeAnnotation();
+
+	EXPECT_EQ(annotation.getName(), "foo1");
+	EXPECT_EQ(annotation.getOrder(), 1);
+}
