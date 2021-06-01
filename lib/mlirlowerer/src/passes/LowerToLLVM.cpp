@@ -831,7 +831,6 @@ class CastOpIntegerLowering: public ModelicaOpConversion<CastOp>
 		if (!op.value().getType().isa<IntegerType>())
 			return rewriter.notifyMatchFailure(op, "Source is not an IntegerType");
 
-		mlir::Location location = op.getLoc();
 		Adaptor adaptor(operands);
 
 		auto source = op.value().getType().cast<IntegerType>();
@@ -1102,6 +1101,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		target.addLegalOp<mlir::ModuleOp>();
 
 		mlir::LowerToLLVMOptions llvmOptions(&getContext());
+		llvmOptions.emitCWrappers = options.emitCWrappers;
 		modelica::codegen::TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
 
 		target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });
