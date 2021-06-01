@@ -4,33 +4,26 @@
 // RUN: %t | FileCheck %s
 
 // CHECK-LABEL: results
-// CHECK-NEXT: -10
-// CHECK-NEXT: -23
-// CHECK-NEXT: 57
+// CHECK-NEXT: 10
+// CHECK-NEXT: 20
 
 #include <array>
 #include <iostream>
 #include <modelica/runtime/ArrayDescriptor.h>
 
-extern "C" void __modelica_ciface_foo(
-		ArrayDescriptor<long, 1>* y, ArrayDescriptor<long, 1>* x);
+extern "C" void __modelica_ciface_foo(ArrayDescriptor<long, 1>* x);
 
 using namespace std;
 
 int main() {
-	array<long, 3> x = { 10, 23, -57 };
+	array<long, 2> x = { 0, 0 };
 	ArrayDescriptor<long, 1> xDescriptor(x);
 
-	array<long, 3> y = { 10, 23, -57 };
-	ArrayDescriptor<long, 1> yDescriptor(y);
-
-	__modelica_ciface_foo(&yDescriptor, &xDescriptor);
+	__modelica_ciface_foo(&xDescriptor);
 
 	cout << "results" << endl;
+	cout << xDescriptor[0] << endl;
+	cout << xDescriptor[1] << endl;
 
-	for (const auto& value : yDescriptor)
-		cout << value << endl;
-
-	delete[] yDescriptor.getData();
 	return 0;
 }
