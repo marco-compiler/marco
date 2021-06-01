@@ -2,6 +2,7 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/raw_ostream.h>
 
 template <typename T>
 class ArrayIterator;
@@ -76,6 +77,13 @@ class ArrayDescriptor
 	{
 		assert(data != nullptr);
 		return data[offset];
+	}
+
+	void dump()
+	{
+		llvm::outs() << "Array descriptor";
+		llvm::outs().indent(2) << "address: " << getData();
+		llvm::outs().indent(2) << "rank: " << getRank();
 	}
 
 	template<typename... Index>

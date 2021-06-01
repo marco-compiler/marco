@@ -1060,6 +1060,36 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		registry.insert<mlir::LLVM::LLVMDialect>();
 	}
 
+	void runOnOperation() override
+	{
+		auto module = getOperation();
+
+		if (failed(stdToLLVMConversionPass(module)))
+		{
+			mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
+			signalPassFailure();
+			return;
+		}
+
+		if (failed(castsFolderPass(module)))
+		{
+			mlir::emitError(module.getLoc(), "Error in folding the casts operations\n");
+			signalPassFailure();
+			return;
+		}
+
+		if (options.emitCWrappers)
+		{
+			if (failed(emitCWrappers(module)))
+			{
+				mlir::emitError(module.getLoc(), "Error in emitting the C wrappers\n");
+				signalPassFailure();
+				return;
+			}
+		}
+	}
+
+	private:
 	mlir::LogicalResult stdToLLVMConversionPass(mlir::ModuleOp module)
 	{
 		mlir::ConversionTarget target(getContext());
@@ -1072,8 +1102,6 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		target.addLegalOp<mlir::ModuleOp>();
 
 		mlir::LowerToLLVMOptions llvmOptions(&getContext());
-		llvmOptions.emitCWrappers = options.emitCWrappers;
-
 		modelica::codegen::TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
 
 		target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });
@@ -1100,26 +1128,82 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		return applyFullConversion(module, target, std::move(patterns));
 	}
 
-	void runOnOperation() override
+	mlir::LogicalResult emitCWrappers(mlir::ModuleOp module)
 	{
-		auto module = getOperation();
+		bool success = true;
+		mlir::OpBuilder builder(module);
 
-		if (failed(stdToLLVMConversionPass(module)))
-		{
-			mlir::emitError(module.getLoc(), "Error in converting to LLVM dialect\n");
-			signalPassFailure();
-			return;
-		}
+		module.walk([&](mlir::LLVM::LLVMFuncOp function) {
+			if (function.isExternal())
+				return;
 
-		if (failed(castsFolderPass(module)))
-		{
-			mlir::emitError(module.getLoc(), "Error in folding the casts operations\n");
-			signalPassFailure();
-			return;
-		}
+			builder.setInsertionPointAfter(function);
+
+			llvm::SmallVector<mlir::Type, 3> wrapperArgumentsTypes;
+
+			// Keep track for each original argument of its destination position
+			llvm::SmallVector<long, 3> argumentsMapping;
+
+			// Keep track for each original result if it has been moved to the
+			// arguments list or not.
+			bool resultMoved = false;
+
+			mlir::Type wrapperResultType = function.getType().getReturnType();
+
+			if (wrapperResultType.isa<mlir::LLVM::LLVMStructType>())
+			{
+				wrapperArgumentsTypes.push_back(mlir::LLVM::LLVMPointerType::get(wrapperResultType));
+				wrapperResultType = mlir::LLVM::LLVMVoidType::get(function->getContext());
+				resultMoved = true;
+			}
+
+			for (mlir::Type type : function.getType().getParams())
+			{
+				argumentsMapping.push_back(wrapperArgumentsTypes.size());
+
+				if (type.isa<mlir::LLVM::LLVMStructType>())
+					wrapperArgumentsTypes.push_back(mlir::LLVM::LLVMPointerType::get(type));
+				else
+					wrapperArgumentsTypes.push_back(type);
+			}
+
+			auto functionType = mlir::LLVM::LLVMFunctionType::get(wrapperResultType, wrapperArgumentsTypes, function.getType().isVarArg());
+			auto wrapper = builder.create<mlir::LLVM::LLVMFuncOp>(function.getLoc(), ("__modelica_ciface_" + function.getName()).str(), functionType);
+			mlir::Block* body = wrapper.addEntryBlock();
+			builder.setInsertionPointToStart(body);
+
+			llvm::SmallVector<mlir::Value, 3> args;
+			llvm::SmallVector<mlir::Value, 1> results;
+
+			for (auto type : llvm::enumerate(function.getArgumentTypes()))
+			{
+				mlir::Value wrapperArg = wrapper.getArgument(argumentsMapping[type.index()]);
+
+				if (type.value().isa<mlir::LLVM::LLVMStructType>())
+					args.push_back(builder.create<mlir::LLVM::LoadOp>(wrapper->getLoc(), wrapperArg));
+				else
+					args.push_back(wrapperArg);
+			}
+
+			auto call = builder.create<mlir::LLVM::CallOp>(wrapper->getLoc(), function, args);
+			assert(call.getNumResults() <= 1);
+
+			if (call->getNumResults() == 1)
+			{
+				mlir::Value result = call.getResult(0);
+
+				if (resultMoved)
+					builder.create<mlir::LLVM::StoreOp>(wrapper.getLoc(), result, wrapper.getArgument(0));
+				else
+					results.push_back(result);
+			}
+
+			builder.create<mlir::LLVM::ReturnOp>(wrapper->getLoc(), results);
+		});
+
+		return mlir::success(success);
 	}
 
-	private:
 	ModelicaToLLVMConversionOptions options;
 	unsigned int bitWidth;
 };

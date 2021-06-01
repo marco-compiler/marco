@@ -1,19 +1,10 @@
-#import os
-
-#config.my_src_root = r'@CMAKE_SOURCE_DIR@'
-#config.my_obj_root = r'@CMAKE_BINARY_DIR@'
-
-# Let the main config do the real work
-#lit_config.load_config(
-#        config, os.path.join(config.my_src_root, "test/lit.cfg.py"))
-
-
 @LIT_SITE_CFG_IN_HEADER@
 
 import sys
 
 config.host_triple = "@LLVM_HOST_TRIPLE@"
 config.target_triple = "@TARGET_TRIPLE@"
+config.llvm_include_dirs = "@LLVM_INCLUDE_DIRS@"
 config.llvm_src_root = "@LLVM_SOURCE_DIR@"
 config.llvm_obj_root = "@LLVM_BINARY_DIR@"
 config.llvm_tools_dir = "@LLVM_TOOLS_DIR@"

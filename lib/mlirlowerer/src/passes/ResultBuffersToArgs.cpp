@@ -136,10 +136,6 @@ struct FunctionOpPattern : public mlir::OpRewritePattern<FunctionOp>
 				}
 
 				rewriter.eraseOp(memberCreateOp);
-
-				for (auto* user : arg.getUsers())
-					user->dump();
-
 				entryArgCounter++;
 			}
 			else

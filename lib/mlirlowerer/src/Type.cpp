@@ -463,19 +463,17 @@ namespace modelica::codegen
 			if (mlir::succeeded(parser.parseOptionalKeyword("stack")))
 			{
 				scope = BufferAllocationScope::stack;
+
+				if (parser.parseComma())
+					return mlir::Type();
 			}
 			else if (mlir::succeeded(parser.parseOptionalKeyword("heap")))
 			{
 				scope = BufferAllocationScope::heap;
-			}
-			else if (mlir::failed(parser.parseKeyword("unknown")))
-			{
-				parser.emitError(parser.getCurrentLocation()) << "unexpected buffer allocation scope";
-				return mlir::Type();
-			}
 
-			if (parser.parseComma())
-				return mlir::Type();
+				if (parser.parseComma())
+					return mlir::Type();
+			}
 
 			llvm::SmallVector<long, 3> dimensions;
 

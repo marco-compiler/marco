@@ -21,7 +21,7 @@ namespace modelica::codegen
 
 	inline void registerFunctionConversionPass()
 	{
-		mlir::registerPass("convert-functions-to-std", "Modelica: functions lowering",
+		mlir::registerPass("convert-functions", "Modelica: functions lowering",
 											 []() -> std::unique_ptr<::mlir::Pass> {
 												 return createFunctionConversionPass();
 											 });
@@ -59,7 +59,7 @@ namespace modelica::codegen
 
 	inline void registerLowerToCFGPass()
 	{
-		mlir::registerPass("convert-modelica-to-cfg", "Modelica: cfg operations to SCF operations",
+		mlir::registerPass("convert-to-cfg", "Modelica: cfg operations to SCF operations",
 											 []() -> std::unique_ptr<::mlir::Pass> {
 												 return createLowerToCFGPass();
 											 });

@@ -813,6 +813,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {}, bool constant = false);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -1325,7 +1326,7 @@ namespace modelica::codegen
 			return "modelica.breakable_while";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition = nullptr, mlir::Value returnCondition = nullptr);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();

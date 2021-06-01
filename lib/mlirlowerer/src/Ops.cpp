@@ -1043,7 +1043,7 @@ mlir::ParseResult CallOp::parse(mlir::OpAsmParser& parser, mlir::OperationState&
 			parser.parseLParen())
 		return mlir::failure();
 
-	if (mlir::failed(parser.parseRParen()))
+	if (mlir::failed(parser.parseOptionalRParen()))
 	{
 		if (parser.parseTypeList(argsTypes) ||
 				parser.parseRParen())
@@ -1471,12 +1471,79 @@ void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir
 	state.addAttribute("constant", builder.getBoolAttr(constant));
 }
 
+mlir::ParseResult AllocaOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	auto& builder = parser.getBuilder();
+
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> indexes;
+	llvm::SmallVector<mlir::Type, 3> indexesTypes;
+
+	mlir::Type resultType;
+
+	llvm::SMLoc indexesLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(indexes))
+		return mlir::failure();
+
+	// TODO: parse constant attribute
+	result.addAttribute("constant", builder.getBoolAttr(false));
+
+	if (parser.parseColon())
+		return mlir::failure();
+
+	if (!indexes.empty())
+	{
+		if (mlir::succeeded(parser.parseOptionalLParen()))
+		{
+			if (parser.parseTypeList(indexesTypes) ||
+					parser.parseRParen())
+				return mlir::failure();
+		}
+		else if (parser.parseTypeList(indexesTypes))
+		{
+			return mlir::failure();
+		}
+
+		if (parser.parseArrow())
+			return mlir::failure();
+	}
+
+	if (indexes.size() != indexesTypes.size())
+		return parser.emitError(indexesLoc)
+				<< "expected as many indexes types as indexes "
+				<< "(expected " << indexes.size() << " got "
+				<< indexesTypes.size() << ")";
+
+	if (parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void AllocaOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.alloca ";
-	printer.printOperands(getOperands());
-	printer << ": ";
-	printer.printType(getOperation()->getResultTypes()[0]);
+	printer << getOperationName()
+					<< " " << dynamicDimensions()
+					<< ": ";
+
+	if (isConstant())
+		printer << "{constant = true} ";
+
+	if (auto dimensionsTypes = dynamicDimensions().getTypes(); !dimensionsTypes.empty())
+	{
+		if (dimensionsTypes.size() > 1)
+			printer << "(";
+
+		printer << dimensionsTypes;
+
+		if (dimensionsTypes.size() > 1)
+			printer << ")";
+
+		printer << " -> ";
+	}
+
+	printer << resultType();
 }
 
 mlir::LogicalResult AllocaOp::verify()
@@ -2223,7 +2290,6 @@ mlir::ParseResult IfOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& r
 {
 	mlir::OpAsmParser::OperandType condition;
 	mlir::Type conditionType;
-	mlir::Type resultType;
 
 	if (parser.parseLParen() ||
 			parser.parseOperand(condition) ||
@@ -2232,14 +2298,18 @@ mlir::ParseResult IfOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& r
 			parser.resolveOperand(condition, conditionType, result.operands))
 		return mlir::failure();
 
-	if (parser.parseLParen())
-		return mlir::failure();
+	if (mlir::succeeded(parser.parseOptionalArrow()))
+	{
+		mlir::Type resultType;
+		bool paren = mlir::succeeded(parser.parseOptionalLParen());
 
-	if (mlir::succeeded(*parser.parseOptionalType(resultType)))
-		result.addTypes(resultType);
+		if (mlir::succeeded(*parser.parseOptionalType(resultType)))
+			result.addTypes(resultType);
 
-	if (parser.parseRParen())
-		return mlir::failure();
+		if (paren)
+			if (parser.parseRParen())
+				return mlir::failure();
+	}
 
 	mlir::Region* thenRegion = result.addRegion();
 
@@ -2260,9 +2330,10 @@ mlir::ParseResult IfOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& r
 void IfOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << getOperationName()
-					<< " (" << condition() << " : " << condition().getType() << ")"
-					<< " -> "
-					<< " (" << resultTypes() << ")";
+					<< " (" << condition() << " : " << condition().getType() << ")";
+
+	if (!resultTypes().empty())
+		printer << " -> " << " (" << resultTypes() << ")";
 
 	printer.printRegion(thenRegion());
 
@@ -2758,13 +2829,9 @@ mlir::ParseResult ConditionOp::parse(mlir::OpAsmParser& parser, mlir::OperationS
 		return mlir::failure();
 
 	llvm::SMLoc argsLoc = parser.getCurrentLocation();
-	mlir::OptionalParseResult argsLPar = parser.parseOptionalLParen();
 
-	if (!argsLPar.hasValue())
+	if (mlir::failed(parser.parseOptionalLParen()))
 		return mlir::success();
-
-	if (argsLPar.hasValue() && mlir::failed(argsLPar.getValue()))
-		return mlir::failure();
 
 	if (parser.parseOperandList(args) ||
 			parser.parseColonTypeList(argsTypes) ||
@@ -2820,15 +2887,26 @@ void YieldOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 
 mlir::ParseResult YieldOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
-	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> values;
+	llvm::SmallVector<mlir::Type, 3> valuesTypes;
 	mlir::Type resultType;
 
-	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+	llvm::SMLoc valuesLoc = parser.getCurrentLocation();
 
-	if (parser.parseOperandList(operands) ||
-			parser.parseColonTypeList(operandsTypes) ||
-			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+	if (parser.parseOperandList(values))
+		return mlir::failure();
+
+	if (!values.empty())
+		if (parser.parseOptionalColonTypeList(valuesTypes))
+			return mlir::failure();
+
+	if (values.size() != valuesTypes.size())
+		return parser.emitError(valuesLoc)
+				<< "expected as many types as values "
+				<< "(expected " << values.size() << " got "
+				<< valuesTypes.size() << ")";
+
+	if (parser.resolveOperands(values, valuesTypes, valuesLoc, result.operands))
 		return mlir::failure();
 
 	return mlir::success();
@@ -2836,7 +2914,10 @@ mlir::ParseResult YieldOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 
 void YieldOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " " << values() << " : " << values().getTypes();
+	printer << getOperationName() << " " << values();
+
+	if (auto types = values().getTypes(); !types.empty())
+		printer << " : " << types;
 }
 
 mlir::ValueRange YieldOp::values()

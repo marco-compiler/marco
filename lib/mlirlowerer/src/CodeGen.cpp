@@ -365,11 +365,15 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 	const auto& algorithm = function.getAlgorithms()[0];
 
 	// Create the variable to be checked for an early return
-	auto algorithmLocation = loc(algorithm->getLocation());
-	mlir::Value returnCondition = builder.create<AllocaOp>(algorithmLocation, builder.getBooleanType());
-	mlir::Value falseValue = builder.create<ConstantOp>(algorithmLocation, builder.getBooleanAttribute(false));
-	builder.create<StoreOp>(algorithmLocation, falseValue, returnCondition);
-	symbolTable.insert(algorithm->getReturnCheckName(), Reference::memory(&builder, returnCondition, true));
+	//auto algorithmLocation = loc(algorithm->getLocation());
+	//mlir::Value returnCondition = builder.create<AllocaOp>(algorithmLocation, builder.getBooleanType());
+	//mlir::Value falseValue = builder.create<ConstantOp>(algorithmLocation, builder.getBooleanAttribute(false));
+	//builder.create<StoreOp>(algorithmLocation, falseValue, returnCondition);
+	//symbolTable.insert(algorithm->getReturnCheckName(), Reference::memory(&builder, returnCondition, true));
+
+	//mlir::Value zero = builder.create<ConstantOp>(location, builder.getIndexAttribute(0));
+	//mlir::Value dim = builder.create<DimOp>(location, *symbolTable.lookup("x"), zero);
+	//builder.create<PrintOp>(location, dim);
 
 	// Lower the statements
 	lower(*function.getAlgorithms()[0]);

@@ -408,9 +408,6 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 		}
 
 		rewriter.setInsertionPoint(op);
-
-		op.dump();
-		operand.dump();
 		derVar = derivatives->lookup(operand);
 
 		if (!subscriptions.empty())
@@ -817,8 +814,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (failed(scalarizeArrayEquations()))
 			return signalPassFailure();
 
-		getOperation()->dump();
-
 		getOperation()->walk([&](SimulationOp simulation) {
 			mlir::OpBuilder builder(simulation);
 
@@ -841,26 +836,18 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (failed(solveSCCs(builder, model, options.sccMaxIterations)))
 				return signalPassFailure();
 
-			simulation->dump();
-
 			// Schedule
 			if (failed(schedule(model)))
 				return signalPassFailure();
-
-			simulation->dump();
 
 			// Explicitate the equations so that the updated variable is the only
 			// one on the left-hand side of the equation.
 			if (failed(explicitateEquations(model)))
 				return signalPassFailure();
 
-			simulation->dump();
-
 			// Select and use the solver
 			if (failed(selectSolver(builder, model)))
 				return signalPassFailure();
-
-			simulation.dump();
 		});
 
 		// The model has been solved and we can now proceed to create the update

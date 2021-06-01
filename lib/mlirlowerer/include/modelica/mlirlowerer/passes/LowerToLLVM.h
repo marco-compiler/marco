@@ -20,7 +20,7 @@ namespace modelica::codegen
 
 	inline void registerLLVMLoweringPass()
 	{
-		mlir::registerPass("lower-to-llvm", "Modelica: LLVM lowering pass",
+		mlir::registerPass("convert-to-llvm", "Modelica: LLVM lowering pass",
 											 []() -> std::unique_ptr<::mlir::Pass> {
 												 return createLLVMLoweringPass();
 											 });

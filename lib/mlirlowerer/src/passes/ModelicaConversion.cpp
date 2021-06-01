@@ -2682,8 +2682,15 @@ struct IfOpLowering: public ModelicaOpConversion<IfOp>
 
 		mlir::Block* thenBlock = &ifOp.thenRegion().front();
 		auto thenTerminator = mlir::cast<YieldOp>(thenBlock->getTerminator());
-		rewriter.setInsertionPointToEnd(thenBlock);
-		rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(thenTerminator, thenTerminator.getOperands());
+		rewriter.setInsertionPointAfter(thenTerminator);
+
+		// The yielded values must be converted to their target types
+		llvm::SmallVector<mlir::Value, 3> thenYieldValues;
+
+		for (mlir::Value value : thenTerminator.values())
+			thenYieldValues.push_back(materializeTargetConversion(rewriter, value));
+
+		rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(thenTerminator, thenYieldValues);
 
 		// If the operation also has an "else" block, also replace its
 		// Modelica::YieldOp terminator with a SCF::YieldOp.
@@ -2692,8 +2699,15 @@ struct IfOpLowering: public ModelicaOpConversion<IfOp>
 		{
 			mlir::Block* elseBlock = &ifOp.elseRegion().front();
 			auto elseTerminator = mlir::cast<YieldOp>(elseBlock->getTerminator());
-			rewriter.setInsertionPointToEnd(elseBlock);
-			rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(elseTerminator, elseTerminator.getOperands());
+			rewriter.setInsertionPointAfter(elseTerminator);
+
+			// The yielded values must be converted to their target types
+			llvm::SmallVector<mlir::Value, 3> elseYieldValues;
+
+			for (mlir::Value value : elseTerminator.values())
+				thenYieldValues.push_back(materializeTargetConversion(rewriter, value));
+
+			rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(elseTerminator, elseYieldValues);
 		}
 
 		return mlir::success();
@@ -3110,7 +3124,8 @@ class LowerToCFGPass: public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPa
 
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
-		registry.insert<mlir::LLVM::LLVMDialect>();
+		registry.insert<mlir::StandardOpsDialect>();
+		registry.insert<mlir::scf::SCFDialect>();
 	}
 
 	void runOnOperation() override

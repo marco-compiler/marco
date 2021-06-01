@@ -115,11 +115,6 @@ llvm::iterator_range<MatchingGraph::out_iterator> MatchingGraph::arcsOf(const Eq
 llvm::iterator_range<MatchingGraph::const_out_iterator> MatchingGraph::arcsOf(const Equation& equation) const
 {
 	const auto iter = equationLookUp.find(equation);
-
-	llvm::errs() << "---------DUMP\n";
-	for (const auto& eq : equationLookUp)
-		eq.first.getOp()->dump();
-
 	assert(equationLookUp.end() != iter);
 	auto [begin, end] = boost::out_edges(iter->second, graph);
 	return llvm::make_range(const_out_iterator(*this, begin), const_out_iterator(*this, end));
@@ -204,8 +199,6 @@ void MatchingGraph::addEquation(Equation eq)
 
 void MatchingGraph::emplaceEdge(Equation eq, ExpressionPath path, size_t useIndex)
 {
-	eq.getOp().dump();
-
 	if (!VectorAccess::isCanonical(path.getExpression()))
 		return;
 
@@ -229,9 +222,6 @@ void MatchingGraph::emplaceEdge(Equation eq, ExpressionPath path, size_t useInde
 
 mlir::LogicalResult modelica::codegen::model::match(Model& model, size_t maxIterations)
 {
-	for (const auto& var : model.getVariables())
-		var->getReference().dump();
-
 	if (model.equationsCount() != model.nonStateNonConstCount())
 		return model.getOp()->emitError("Equations amount (" + std::to_string(model.equationsCount()) + ") doesn't match the non state + non const variables amount (" + std::to_string(model.nonStateNonConstCount()) + ")");
 

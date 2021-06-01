@@ -45,6 +45,7 @@ static cl::opt<bool> resultBuffersToArgs("no-result-buffers-to-args", cl::desc("
 static cl::opt<bool> cse("no-cse", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> openmp("omp", cl::desc("Enable OpenMP usage"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> disableRuntimeLibrary("disable-runtime-library", cl::desc("Avoid the calls to the external runtime library functions (only when a native implementation of the operation exists)"), cl::init(false), cl::cat(codeGenOptions));
+static cl::opt<bool> emitCWrappers("emit-c-wrappers", cl::desc("Emit C wrappers"), cl::init(false), cl::cat(codeGenOptions));
 
 enum OptLevel {
 	O0, O1, O2, O3
@@ -98,6 +99,9 @@ int main(int argc, char* argv[])
 
 	llvm::SmallVector<std::unique_ptr<frontend::Class>, 3> classes;
 
+	if (inputFiles.empty())
+		inputFiles.addValue("-");
+
 	for (const auto& inputFile : inputFiles)
 	{
 		auto errorOrBuffer = llvm::MemoryBuffer::getFileOrSTDIN(inputFile);
@@ -108,8 +112,12 @@ int main(int argc, char* argv[])
 	}
 
 	if (printParsedAST)
+	{
 		for (const auto& cls : classes)
-			cls->dump();
+			cls->dump(os);
+
+		return 0;
+	}
 
 	// Run frontend passes
 	frontend::PassManager frontendPassManager;
@@ -120,8 +128,12 @@ int main(int argc, char* argv[])
 	exitOnErr(frontendPassManager.run(classes));
 
 	if (printLegalizedAST)
+	{
 		for (const auto& cls : classes)
-			cls->dump();
+			cls->dump(os);
+
+		return 0;
+	}
 
 	// Create the MLIR module
 	mlir::MLIRContext context;
@@ -141,7 +153,10 @@ int main(int argc, char* argv[])
 	}
 
 	if (printModelicaDialectIR)
-		module->dump();
+	{
+		os << *module;
+		return 0;
+	}
 
 	// Convert to LLVM dialect
 	codegen::ModelicaLoweringOptions loweringOptions;
@@ -155,6 +170,7 @@ int main(int argc, char* argv[])
 	loweringOptions.openmp = openmp;
 	loweringOptions.x64 = !x86.getValue();
 	loweringOptions.conversionOptions.useRuntimeLibrary = !disableRuntimeLibrary;
+	loweringOptions.llvmOptions.emitCWrappers = emitCWrappers;
 	loweringOptions.debug = debug;
 
 	if (mlir::failed(lowerer.convertToLLVMDialect(*module, loweringOptions)))
@@ -164,7 +180,10 @@ int main(int argc, char* argv[])
 	}
 
 	if (printLLVMDialectIR)
-		module->dump();
+	{
+		os << *module;
+		return 0;
+	}
 
 	// Register the conversions to LLVM IR
 	mlir::registerLLVMDialectTranslation(*module->getContext());

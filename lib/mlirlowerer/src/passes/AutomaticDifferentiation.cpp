@@ -103,8 +103,6 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 			mlir::emitError(module.getLoc(), "Error during automatic differentiation\n");
 			signalPassFailure();
 		}
-
-		module.dump();
 	}
 };
 
