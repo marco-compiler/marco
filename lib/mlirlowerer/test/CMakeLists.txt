@@ -5,5 +5,4 @@ modelicaAddTest(mlirlowerer
         src/ControlFlowTest.cpp
         src/FunctionCallTest.cpp
         src/InputOutputTest.cpp
-        src/LogicOpsTest.cpp
         src/MathOpsTest.cpp)

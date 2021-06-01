@@ -1100,7 +1100,31 @@ llvm::Error TypeChecker::checkLogicalAndOp(Expression& expression)
 		if (auto error = run<Expression>(*arg); error)
 			return error;
 
-	expression.setType(makeType<bool>());
+	llvm::SmallVector<ArrayDimension, 3> dimensions;
+
+	auto& lhsType = operation->getArg(0)->getType();
+	auto& rhsType = operation->getArg(1)->getType();
+
+	// TODO: replace assert with proper error
+	assert(lhsType.dimensionsCount() == rhsType.dimensionsCount());
+
+	for (const auto& [l, r] : llvm::zip(lhsType.getDimensions(), rhsType.getDimensions()))
+	{
+		long dimension = -1;
+
+		if (!l.isDynamic() && !r.isDynamic())
+			if (l.getNumericSize() != r.getNumericSize())
+				return llvm::make_error<IncompatibleType>("dimensions mismatch");
+
+		if (!l.isDynamic())
+			dimension = l.getNumericSize();
+		else if (!r.isDynamic())
+			dimension = r.getNumericSize();
+
+		dimensions.push_back(dimension);
+	}
+
+	expression.setType(Type(BuiltInType::Boolean, dimensions));
 	return llvm::Error::success();
 }
 
@@ -1113,7 +1137,31 @@ llvm::Error TypeChecker::checkLogicalOrOp(Expression& expression)
 		if (auto error = run<Expression>(*arg); error)
 			return error;
 
-	expression.setType(makeType<bool>());
+	llvm::SmallVector<ArrayDimension, 3> dimensions;
+
+	auto& lhsType = operation->getArg(0)->getType();
+	auto& rhsType = operation->getArg(1)->getType();
+
+	// TODO: replace assert with proper error
+	assert(lhsType.dimensionsCount() == rhsType.dimensionsCount());
+
+	for (const auto& [l, r] : llvm::zip(lhsType.getDimensions(), rhsType.getDimensions()))
+	{
+		long dimension = -1;
+
+		if (!l.isDynamic() && !r.isDynamic())
+			if (l.getNumericSize() != r.getNumericSize())
+				return llvm::make_error<IncompatibleType>("dimensions mismatch");
+
+		if (!l.isDynamic())
+			dimension = l.getNumericSize();
+		else if (!r.isDynamic())
+			dimension = r.getNumericSize();
+
+		dimensions.push_back(dimension);
+	}
+
+	expression.setType(Type(BuiltInType::Boolean, dimensions));
 	return llvm::Error::success();
 }
 

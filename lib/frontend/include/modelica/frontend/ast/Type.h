@@ -230,7 +230,7 @@ namespace modelica::frontend
 		Type(const Type& other);
 		Type(Type&& other);
 
-		~Type();
+		~Type() override;
 
 		Type& operator=(const Type& other);
 		Type& operator=(Type&& other);

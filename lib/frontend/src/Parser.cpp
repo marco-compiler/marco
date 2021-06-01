@@ -462,6 +462,9 @@ llvm::Expected<Type> Parser::typeSpecifier()
 	if (name == "string")
 		return Type(BuiltInType::String, dimensions);
 
+	if (name == "Boolean")
+		return Type(BuiltInType::Boolean, dimensions);
+
 	if (name == "Real")
 		return Type(BuiltInType::Float, dimensions);
 
