@@ -4,29 +4,26 @@
 // RUN: %t | FileCheck %s
 
 // CHECK-LABEL: results
-// CHECK-NEXT: 2
-// CHECK-NEXT: 2
-// CHECK-NEXT: -1
-// CHECK-NEXT: -1
 // CHECK-NEXT: 1
-// CHECK-NEXT: 1
+// CHECK-NEXT: 3
+// CHECK-NEXT: 21
+// CHECK-NEXT: -19
 
 #include <array>
 #include <iostream>
-#include <llvm/ADT/STLExtras.h>
+#include <modelica/runtime/ArrayDescriptor.h>
 
-extern "C" long __modelica_ciface_foo(long x, long y);
+extern "C" long __modelica_ciface_foo(long x);
 
 using namespace std;
 
 int main() {
-	array<long, 6> x = { 1, 2, -1, -2, 1, -1 };
-	array<long, 6> y = { 2, 1, -2, -1, -1, 1 };
+	array<long, 4> x = { 0, 1, 10, -10 };
 
 	cout << "results" << endl;
 
-	for (const auto& [x, y] : llvm::zip(x, y))
-		cout << __modelica_ciface_foo(x, y) << endl;
+	for (const auto& value : x)
+		cout << __modelica_ciface_foo(value) << endl;
 
 	return 0;
 }

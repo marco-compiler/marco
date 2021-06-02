@@ -4,7 +4,7 @@
 // RUN: %t | FileCheck %s
 
 // CHECK-LABEL: results
-// CHECK-NEXT{LITERAL}: -3
+// CHECK-NEXT: -3
 
 #include <array>
 #include <iostream>

@@ -463,7 +463,7 @@ Type Type::subscript(size_t times) const
 	if (dimensions.size() == times)
 		return visit([&](const auto& t) { return Type(t); });
 
-	assert(times > dimensions.size());
+	assert(times < dimensions.size());
 
 	return visit([&](const auto& type) {
 		return Type(

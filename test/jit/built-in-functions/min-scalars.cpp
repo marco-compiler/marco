@@ -4,12 +4,12 @@
 // RUN: %t | FileCheck %s
 
 // CHECK-LABEL: results
-// CHECK-NEXT{LITERAL}: 1
-// CHECK-NEXT{LITERAL}: 1
-// CHECK-NEXT{LITERAL}: -2
-// CHECK-NEXT{LITERAL}: -2
-// CHECK-NEXT{LITERAL}: -1
-// CHECK-NEXT{LITERAL}: -1
+// CHECK-NEXT: 1
+// CHECK-NEXT: 1
+// CHECK-NEXT: -2
+// CHECK-NEXT: -2
+// CHECK-NEXT: -1
+// CHECK-NEXT: -1
 
 #include <array>
 #include <iostream>

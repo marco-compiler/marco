@@ -552,6 +552,14 @@ static llvm::Optional<Type> builtInFunctionType(Call& call)
 	if (name == "ndims")
 		return makeType<int>();
 
+	if (name == "size")
+	{
+		if (args.size() == 1)
+			return makeType<int>(args[0]->getType().getDimensions().size());
+
+		return makeType<int>();
+	}
+
 	if (name == "identity")
 		return makeType<int>(-1, -1);
 
@@ -603,6 +611,12 @@ static llvm::Optional<Type> builtInFunctionType(Call& call)
 			return xType >= yType ? xType : yType;
 		}
 	}
+
+	if (name == "sum")
+		return Type(args[0]->getType().get<BuiltInType>());
+
+	if (name == "product")
+		return Type(args[0]->getType().get<BuiltInType>());
 
 	if (name == "transpose")
 	{
