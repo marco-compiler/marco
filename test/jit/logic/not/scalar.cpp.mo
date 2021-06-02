@@ -2,6 +2,6 @@ function foo
     input Boolean x;
     output Boolean y;
 
-    algorithm
-        y := not x;
+algorithm
+    y := not x;
 end foo;

@@ -12,51 +12,6 @@ using namespace frontend;
 using namespace codegen;
 using namespace std;
 
-TEST(BuiltInOps, ndims)	 // NOLINT
-{
-	/**
-	 * function main
-	 *   input Integer[3] x;
-	 *   output Integer y;
-	 *
-	 *   algorithm
-	 *     y := ndims(x);
-	 * end main
-	 */
-
-	SourceRange location = SourceRange::unknown();
-
-	auto xMember = Member::build(location, "x", makeType<int>(3), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	auto yMember = Member::build(location, "y", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-
-	auto assignment = Statement::assignmentStatement(
-			location,
-			Expression::reference(location, makeType<int>(), "y"),
-			Expression::call(location, makeType<int>(),
-			    Expression::reference(location, makeType<int>(), "ndims"),
-											 Expression::reference(location, makeType<int>(3), "x")));
-
-	auto cls = Class::standardFunction(
-			location, true, "main",
-			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
-			Algorithm::build(location, assignment));
-
-	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
-
-	auto module = lowerer.run(cls);
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
-
-	array<int, 3> x = { 10, 23, -57 };
-	ArrayDescriptor<int, 1> xDesc(x);
-
-	int y = 0;
-
-	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", xDesc, jit::Runner::result(y))));
-	EXPECT_EQ(y, xDesc.getRank());
-}
-
 TEST(BuiltInOps, sizeSpecificArrayDimension)	 // NOLINT
 {
 	/**
@@ -151,57 +106,6 @@ TEST(BuiltInOps, sizeAllArrayDimensions)	 // NOLINT
 
 	EXPECT_EQ(yDesc[0], xDesc.getDimensionSize(0));
 	EXPECT_EQ(yDesc[1], xDesc.getDimensionSize(1));
-}
-
-TEST(BuiltInOps, identityMatrix)	 // NOLINT
-{
-	/**
-	 * function main
-	 *   input Integer x;
-	 *   output Integer[:,:] y;
-	 *
-	 *   algorithm
-	 *     y := identity(x);
-	 * end main
-	 */
-
-	SourceRange location = SourceRange::unknown();
-
-	auto xMember = Member::build(location, "x", makeType<int>(), TypePrefix(ParameterQualifier::none, IOQualifier::input));
-	auto yMember = Member::build(location, "y", makeType<int>(-1, -1), TypePrefix(ParameterQualifier::none, IOQualifier::output));
-
-	auto assignment = Statement::assignmentStatement(
-			location,
-			Expression::reference(location, makeType<int>(-1, -1), "y"),
-			Expression::call(location, makeType<int>(-1, -1),
-											 Expression::reference(location, makeType<int>(-1, -1), "identity"),
-											 Expression::reference(location, makeType<int>(), "x")));
-
-	auto cls = Class::standardFunction(
-			location, true, "main",
-			llvm::ArrayRef({ std::move(xMember), std::move(yMember) }),
-			Algorithm::build(location, assignment));
-
-	mlir::MLIRContext context;
-	MLIRLowerer lowerer(context);
-
-	auto module = lowerer.run(cls);
-	ASSERT_TRUE(module && !failed(lowerer.convertToLLVMDialect(*module, ModelicaLoweringOptions::testsOptions())));
-
-	int x = 3;
-
-	array<int, 3> y = { 2, 2, 2 };
-	ArrayDescriptor<int, 1> yDesc(y);
-	auto* yPtr = &yDesc;
-
-	jit::Runner runner(*module);
-	ASSERT_TRUE(mlir::succeeded(runner.run("main", jit::Runner::result(yPtr), x)));
-
-	EXPECT_EQ(yDesc.getRank(), 2);
-
-	for (long i = 0; i < 3; ++i)
-		for (long j = 0; j < 3; ++j)
-			EXPECT_EQ(yDesc.get(i, j), i == j ? 1 : 0);
 }
 
 TEST(BuiltInOps, diagonalMatrix)	 // NOLINT

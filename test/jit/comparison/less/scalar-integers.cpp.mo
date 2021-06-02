@@ -3,6 +3,6 @@ function foo
     input Integer y;
     output Boolean z;
 
-    algorithm
-        z := x < y;
+algorithm
+    z := x < y;
 end foo;

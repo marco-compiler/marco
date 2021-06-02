@@ -549,6 +549,12 @@ static llvm::Optional<Type> builtInFunctionType(Call& call)
 	if (name == "der")
 		return args[0]->getType().to(BuiltInType::Float);
 
+	if (name == "ndims")
+		return makeType<int>();
+
+	if (name == "identity")
+		return makeType<int>(-1, -1);
+
 	return llvm::None;
 }
 

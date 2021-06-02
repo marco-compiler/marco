@@ -25,6 +25,7 @@ config.substitutions.append(('%shlibext', config.llvm_shlib_ext))
 
 config.substitutions.append(('%llvm_include_dirs', config.llvm_include_dirs))
 config.substitutions.append(('%runtime_h', os.path.join(config.standalone_src_root, 'lib/runtime/include')))
+config.substitutions.append(('%libs', os.path.join(config.standalone_obj_root, 'lib')))
 
 llvm_config.with_system_environment(
     ['HOME', 'INCLUDE', 'LIB', 'TMP', 'TEMP'])

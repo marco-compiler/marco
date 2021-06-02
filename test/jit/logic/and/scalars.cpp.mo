@@ -3,6 +3,6 @@ function foo
     input Boolean y;
     output Boolean z;
 
-    algorithm
-        z := x and y;
+algorithm
+    z := x and y;
 end foo;

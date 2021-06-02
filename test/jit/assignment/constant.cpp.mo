@@ -1,6 +1,6 @@
 function foo
     output Integer x;
 
-    algorithm
-        x := 57;
+algorithm
+    x := 57;
 end foo;

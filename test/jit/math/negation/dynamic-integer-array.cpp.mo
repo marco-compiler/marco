@@ -2,6 +2,6 @@ function foo
     input Integer[:] x;
     output Integer[:] y;
 
-    algorithm
-        y := -x;
+algorithm
+    y := -x;
 end foo;
