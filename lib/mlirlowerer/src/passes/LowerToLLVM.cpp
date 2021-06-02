@@ -1101,7 +1101,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		target.addLegalOp<mlir::ModuleOp>();
 
 		mlir::LowerToLLVMOptions llvmOptions(&getContext());
-		//llvmOptions.emitCWrappers = options.emitCWrappers;
+		llvmOptions.emitCWrappers = options.emitCWrappers;
 		modelica::codegen::TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
 
 		target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });

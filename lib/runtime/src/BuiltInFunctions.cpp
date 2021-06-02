@@ -182,10 +182,10 @@ inline void linspace(UnsizedArrayDescriptor<T> array, double start, double end)
 {
 	assert(array.getRank() == 1);
 
-	size_t n = array.getDimensionSize(0);
+	unsigned long n = array.getDimensionSize(0);
 	double step = (end - start) / ((double) n - 1);
 
-	for (size_t i = 0; i < n; ++i)
+	for (unsigned long i = 0; i < n; ++i)
 		array.get(i) = start + i * step;
 }
 
@@ -343,7 +343,7 @@ void transpose(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDesc
 		auto indexes = it.getCurrentIndexes();
 		assert(indexes.size() == 2);
 
-		llvm::SmallVector<size_t, 2> transposedIndexes;
+		llvm::SmallVector<unsigned long, 2> transposedIndexes;
 
 		for (auto revIt = indexes.rbegin(), revEnd = indexes.rend(); revIt != revEnd; ++revIt)
 			transposedIndexes.push_back(*revIt);
@@ -402,14 +402,14 @@ void symmetric(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDesc
 	assert(destination.getDimensionSize(0) == source.getDimensionSize(0));
 	assert(destination.getDimensionSize(1) == source.getDimensionSize(1));
 
-	size_t size = destination.getDimensionSize(0);
+	unsigned long size = destination.getDimensionSize(0);
 
 	// Manually iterate on the dimensions, so that we can explore just half
 	// of the source matrix.
 
-	for (size_t i = 0; i < size; ++i)
+	for (unsigned long i = 0; i < size; ++i)
 	{
-		for (size_t j = i; j < size; ++j)
+		for (unsigned long j = i; j < size; ++j)
 		{
 			destination.set({ i, j }, source.get(i, j));
 

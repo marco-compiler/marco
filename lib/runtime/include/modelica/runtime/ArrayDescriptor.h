@@ -1,8 +1,10 @@
 #pragma once
 
+#include <iostream>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/raw_os_ostream.h>
 
 template <typename T>
 class ArrayIterator;
@@ -61,7 +63,7 @@ class ArrayDescriptor
 	 * @param offset	 index of the flat array
 	 * @return value
 	 */
-	T& operator[](size_t offset)
+	T& operator[](unsigned long offset)
 	{
 		assert(data != nullptr);
 		return data[offset];
@@ -73,37 +75,51 @@ class ArrayDescriptor
 	 * @param offset	 index of the flat array
 	 * @return value
 	 */
-	const T& operator[](size_t offset) const
+	const T& operator[](unsigned long offset) const
 	{
 		assert(data != nullptr);
 		return data[offset];
 	}
 
-	void dump()
+	void dump() const
 	{
-		llvm::outs() << "Array descriptor";
-		llvm::outs().indent(2) << "address: " << getData();
-		llvm::outs().indent(2) << "rank: " << getRank();
+		dump(llvm::outs());
+	}
+
+	void dump(llvm::raw_ostream& os) const
+	{
+		os << "Array descriptor";
+		os.indent(2) << "address: " << getData();
+		os.indent(2) << "rank: " << getRank();
+		os.indent(2) << "values: " << *this;
+		os << "\n";
 	}
 
 	template<typename... Index>
 	T& get(Index... indexes)
 	{
-		llvm::SmallVector<size_t, 3> positions{ static_cast<size_t>(indexes)... };
-		return get(static_cast<llvm::ArrayRef<size_t>>(positions));
+		llvm::SmallVector<unsigned long, 3> positions{ static_cast<unsigned long>(indexes)... };
+		return get(static_cast<llvm::ArrayRef<unsigned long>>(positions));
 	}
 
-	T& get(llvm::ArrayRef<size_t> indexes)
+	T& get(llvm::ArrayRef<unsigned long> indexes)
 	{
 		assert(data != nullptr);
-		size_t offset = computeOffset(indexes);
+		unsigned long offset = computeOffset(indexes);
 		return (*this)[offset];
 	}
 
-	void set(llvm::ArrayRef<size_t> indexes, T value)
+	const T& get(llvm::ArrayRef<unsigned long> indexes) const
 	{
 		assert(data != nullptr);
-		size_t offset = computeOffset(indexes);
+		unsigned long offset = computeOffset(indexes);
+		return (*this)[offset];
+	}
+
+	void set(llvm::ArrayRef<unsigned long> indexes, T value)
+	{
+		assert(data != nullptr);
+		unsigned long offset = computeOffset(indexes);
 		(*this)[offset] = value;
 	}
 
@@ -117,7 +133,7 @@ class ArrayDescriptor
 		return rank;
 	}
 
-	[[nodiscard]] unsigned long getDimensionSize(size_t index) const
+	[[nodiscard]] unsigned long getDimensionSize(unsigned long index) const
 	{
 		assert(index >= 0 && index < rank);
 		return sizes[index];
@@ -145,7 +161,7 @@ class ArrayDescriptor
 
 	[[nodiscard]] bool hasSameSizes() const
 	{
-		for (size_t i = 1; i < rank; ++i)
+		for (unsigned long i = 1; i < rank; ++i)
 			if (sizes[i] != sizes[0])
 				return false;
 
@@ -153,14 +169,14 @@ class ArrayDescriptor
 	}
 
 	private:
-	[[nodiscard]] size_t computeOffset(llvm::ArrayRef<size_t> indexes) const
+	[[nodiscard]] unsigned long computeOffset(llvm::ArrayRef<unsigned long> indexes) const
 	{
 		assert(indexes.size() == rank && "Wrong amount of indexes");
 		assert(llvm::all_of(indexes, [](const auto& index) { return index >= 0; }));
 
-		size_t offset = indexes[0];
+		unsigned long offset = indexes[0];
 
-		for (size_t i = 1; i < indexes.size(); ++i)
+		for (unsigned long i = 1; i < indexes.size(); ++i)
 		{
 			long size = getDimensionSize(i);
 			assert(size > 0);
@@ -179,6 +195,51 @@ class ArrayDescriptor
 	// never have a size with value -1.
 	unsigned long sizes[Rank];
 };
+
+namespace impl
+{
+	template<typename T, unsigned int Rank>
+	void printArrayDescriptor(llvm::raw_ostream& stream,
+														const ArrayDescriptor<T, Rank>& descriptor,
+														llvm::SmallVectorImpl<unsigned long>& indexes,
+														unsigned long dimension)
+	{
+		stream << "[";
+
+		for (unsigned long i = 0; i < descriptor.getDimensionSize(dimension); ++i)
+		{
+			indexes[dimension] = i;
+
+			if (i > 0)
+				stream << ", ";
+
+			if (dimension == descriptor.getRank() - 1)
+				stream << descriptor.get(indexes);
+			else
+				printArrayDescriptor(stream, descriptor, indexes, dimension + 1);
+		}
+
+		indexes[dimension] = 0;
+		stream << "]";
+	}
+}
+
+template<typename T, unsigned int Rank>
+llvm::raw_ostream& operator<<(
+		llvm::raw_ostream& stream, const ArrayDescriptor<T, Rank>& descriptor)
+{
+	llvm::SmallVector<unsigned long, Rank> indexes(descriptor.getRank(), 0);
+	impl::printArrayDescriptor(stream, descriptor, indexes, 0);
+	return stream;
+}
+
+template<typename T, unsigned int Rank>
+std::ostream& operator<<(
+		std::ostream& stream, const ArrayDescriptor<T, Rank>& descriptor)
+{
+	llvm::raw_os_ostream(stream) << descriptor;
+	return stream;
+}
 
 /**
  * This class allows to accept a generically sized array as input argument
@@ -206,12 +267,12 @@ class UnsizedArrayDescriptor
 		return getDescriptor()->get(indexes...);
 	}
 
-	T& get(llvm::ArrayRef<size_t> indexes)
+	T& get(llvm::ArrayRef<unsigned long> indexes)
 	{
 		return getDescriptor()->get(indexes);
 	}
 
-	void set(llvm::ArrayRef<size_t> indexes, T value)
+	void set(llvm::ArrayRef<unsigned long> indexes, T value)
 	{
 		getDescriptor()->set(indexes, value);
 	}
@@ -227,7 +288,7 @@ class UnsizedArrayDescriptor
 		return rank;
 	}
 
-	[[nodiscard]] unsigned long getDimensionSize(size_t index) const
+	[[nodiscard]] unsigned long getDimensionSize(unsigned long index) const
 	{
 		return getDescriptor()->getDimensionSize(index);
 	}
@@ -358,13 +419,13 @@ class ArrayIterator
 		return other.offset != offset || other.descriptor != descriptor;
 	}
 
-	[[nodiscard]] llvm::ArrayRef<size_t> getCurrentIndexes() const
+	[[nodiscard]] llvm::ArrayRef<unsigned long> getCurrentIndexes() const
 	{
 		return indexes;
 	}
 
 	private:
 	long offset = 0;
-	llvm::SmallVector<size_t, 3> indexes;
+	llvm::SmallVector<unsigned long, 3> indexes;
 	ArrayDescriptor<ArrayType, 0>* descriptor;
 };

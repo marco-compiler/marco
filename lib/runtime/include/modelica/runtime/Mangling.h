@@ -80,5 +80,5 @@
 	} \
 	returnType CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))) \
 	{ \
-		return NAME_MANGLED(name, __VA_ARGS__)(ARGS_NAMES(__VA_ARGS__)); \
+		return name(ARGS_NAMES(__VA_ARGS__)); \
 	}

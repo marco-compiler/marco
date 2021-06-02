@@ -31,6 +31,6 @@ int main() {
 	for (const auto& value : yDescriptor)
 		cout << value << endl;
 
-	delete[] yDescriptor.getData();
+	free(yDescriptor.getData());
 	return 0;
 }

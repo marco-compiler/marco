@@ -555,6 +555,21 @@ static llvm::Optional<Type> builtInFunctionType(Call& call)
 	if (name == "identity")
 		return makeType<int>(-1, -1);
 
+	if (name == "diagonal")
+		return makeType<int>(-1, -1);
+
+	if (name == "zeros")
+	{
+		llvm::SmallVector<ArrayDimension, 3> dimensions(args.size(), -1);
+		return Type(BuiltInType::Integer, dimensions);
+	}
+
+	if (name == "ones")
+	{
+		llvm::SmallVector<ArrayDimension, 3> dimensions(args.size(), -1);
+		return Type(BuiltInType::Integer, dimensions);
+	}
+
 	return llvm::None;
 }
 

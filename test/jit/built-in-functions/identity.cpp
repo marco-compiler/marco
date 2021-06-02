@@ -25,29 +25,8 @@ int main() {
 	for (const auto& value : x)
 	{
 		__modelica_ciface_foo(&yDescriptor, value);
-
-		cout << "[";
-
-		for (size_t i = 0; i < yDescriptor.getDimensionSize(0); ++i)
-		{
-			if (i > 0)
-				cout << ", ";
-
-			cout << "[";
-
-			for (size_t j = 0; j < yDescriptor.getDimensionSize(1); ++j)
-			{
-				if (j > 0)
-					cout << ", ";
-
-				cout << yDescriptor.get(i, j);
-			}
-
-			cout << "]";
-		}
-
-		cout << "]" << endl;
-		delete[] yDescriptor.getData();
+		cout << yDescriptor << endl;
+		free(yDescriptor.getData());
 	}
 
 	return 0;

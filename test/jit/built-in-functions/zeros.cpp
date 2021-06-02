@@ -4,33 +4,32 @@
 // RUN: %t | FileCheck %s
 
 // CHECK-LABEL: results
-// CHECK-NEXT: -10
-// CHECK-NEXT: -23
-// CHECK-NEXT: 57
+// CHECK-NEXT{LITERAL}: [[0, 0, 0], [0, 0, 0]]
+// CHECK-NEXT{LITERAL}: [[0, 0], [0, 0], [0, 0]]
 
 #include <array>
 #include <iostream>
+#include <llvm/ADT/STLExtras.h>
 #include <modelica/runtime/ArrayDescriptor.h>
 
-extern "C" void __modelica_ciface_foo(
-		ArrayDescriptor<double, 1>* y, ArrayDescriptor<double, 1>* x);
+extern "C" void __modelica_ciface_foo(ArrayDescriptor<long, 2>* y, long n1, long n2);
 
 using namespace std;
 
 int main() {
-	array<double, 3> x = { 10, 23, -57 };
-	ArrayDescriptor<double, 1> xDescriptor(x);
+	array<long, 2> n1 = { 2, 3 };
+	array<long, 2> n2 = { 3, 2 };
 
-	array<double, 3> y = { 10, 23, -57 };
-	ArrayDescriptor<double, 1> yDescriptor(y);
-
-	__modelica_ciface_foo(&yDescriptor, &xDescriptor);
+	ArrayDescriptor<long, 2> yDescriptor(nullptr, { 1, 1 });
 
 	cout << "results" << endl;
 
-	for (const auto& value : yDescriptor)
-		cout << value << endl;
+	for (const auto& [n1, n2] : llvm::zip(n1, n2))
+	{
+		__modelica_ciface_foo(&yDescriptor, n1, n2);
+		cout << yDescriptor << endl;
+		free(yDescriptor.getData());
+	}
 
-	free(yDescriptor.getData());
 	return 0;
 }
