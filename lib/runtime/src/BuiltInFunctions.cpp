@@ -186,7 +186,7 @@ inline void linspace(UnsizedArrayDescriptor<T> array, double start, double end)
 	double step = (end - start) / ((double) n - 1);
 
 	for (unsigned long i = 0; i < n; ++i)
-		array.get(i) = start + i * step;
+		array.get(i) = start + static_cast<double>(i) * step;
 }
 
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(bool), float, float)

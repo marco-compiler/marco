@@ -570,6 +570,56 @@ static llvm::Optional<Type> builtInFunctionType(Call& call)
 		return Type(BuiltInType::Integer, dimensions);
 	}
 
+	if (name == "linspace")
+	{
+		llvm::SmallVector<ArrayDimension, 1> dimensions(1, -1);
+		return Type(BuiltInType::Float, dimensions);
+	}
+
+	if (name == "min")
+	{
+		if (args.size() == 1)
+			return Type(args[0]->getType().get<BuiltInType>());
+
+		if (args.size() == 2)
+		{
+			auto& xType = args[0]->getType();
+			auto& yType = args[1]->getType();
+
+			return xType >= yType ? xType : yType;
+		}
+	}
+
+	if (name == "max")
+	{
+		if (args.size() == 1)
+			return Type(args[0]->getType().get<BuiltInType>());
+
+		if (args.size() == 2)
+		{
+			auto& xType = args[0]->getType();
+			auto& yType = args[1]->getType();
+
+			return xType >= yType ? xType : yType;
+		}
+	}
+
+	if (name == "transpose")
+	{
+		auto type = args[0]->getType();
+		assert(type.dimensionsCount() == 2);
+		llvm::SmallVector<ArrayDimension, 2> dimensions;
+
+		dimensions.push_back(type[1].isDynamic() ? -1 : type[1].getNumericSize());
+		dimensions.push_back(type[0].isDynamic() ? -1 : type[0].getNumericSize());
+
+		type.setDimensions(dimensions);
+		return type;
+	}
+
+	if (name == "symmetric")
+		return args[0]->getType();
+
 	return llvm::None;
 }
 
