@@ -277,6 +277,8 @@ namespace modelica::frontend
 			return std::visit(std::forward<Visitor>(visitor), content);
 		}
 
+		[[nodiscard]] size_t getRank() const;
+
 		[[nodiscard]] llvm::MutableArrayRef<ArrayDimension> getDimensions();
 		[[nodiscard]] llvm::ArrayRef<ArrayDimension> getDimensions() const;
 		void setDimensions(llvm::ArrayRef<ArrayDimension> dimensions);

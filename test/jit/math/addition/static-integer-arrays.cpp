@@ -4,33 +4,31 @@
 // RUN: %t | FileCheck %s
 
 // CHECK-LABEL: results
-// CHECK-NEXT: -1.000000e+01
-// CHECK-NEXT: -2.300000e+01
-// CHECK-NEXT: 5.700000e+01
+// CHECK-NEXT{LITERAL}: [3, -3, -1, 1]
 
 #include <array>
 #include <iostream>
 #include <modelica/runtime/ArrayDescriptor.h>
 
 extern "C" void __modelica_ciface_foo(
-		ArrayDescriptor<double, 1>* y, ArrayDescriptor<double, 1>* x);
+		ArrayDescriptor<long, 1>* x, ArrayDescriptor<long, 1>* y, ArrayDescriptor<long, 1>* z);
 
 using namespace std;
 
 int main() {
-	array<double, 3> x = { 10, 23, -57 };
-	ArrayDescriptor<double, 1> xDescriptor(x);
+	array<long, 4> x = { 1, -1, 1, -1 };
+	ArrayDescriptor<long, 1> xDescriptor(x);
 
-	array<double, 3> y = { 10, 23, -57 };
-	ArrayDescriptor<double, 1> yDescriptor(y);
+	array<long, 4> y = { 2, -2, -2, 2 };
+	ArrayDescriptor<long, 1> yDescriptor(y);
 
-	__modelica_ciface_foo(&yDescriptor, &xDescriptor);
+	array<long, 4> z = { 0, 0, 0, 0 };
+	ArrayDescriptor<long, 1> zDescriptor(z);
+
+	__modelica_ciface_foo(&xDescriptor, &yDescriptor, &zDescriptor);
 
 	cout << "results" << endl;
+	cout << zDescriptor << endl;
 
-	for (const auto& value : yDescriptor)
-		cout << scientific << value << endl;
-
-	free(yDescriptor.getData());
 	return 0;
 }

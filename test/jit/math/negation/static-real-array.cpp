@@ -4,9 +4,9 @@
 // RUN: %t | FileCheck %s
 
 // CHECK-LABEL: results
-// CHECK-NEXT: -10
-// CHECK-NEXT: -23
-// CHECK-NEXT: 57
+// CHECK-NEXT: -1.000000e+01
+// CHECK-NEXT: -2.300000e+01
+// CHECK-NEXT: 5.700000e+01
 
 #include <array>
 #include <iostream>
@@ -29,7 +29,7 @@ int main() {
 	cout << "results" << endl;
 
 	for (const auto& value : yDescriptor)
-		cout << value << endl;
+		cout << scientific << value << endl;
 
 	return 0;
 }

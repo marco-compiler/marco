@@ -4,23 +4,27 @@
 // RUN: %t | FileCheck %s
 
 // CHECK-LABEL: results
-// CHECK-NEXT: -2.350000e+01
-// CHECK-NEXT: 5.750000e+01
+// CHECK-NEXT: 0
+// CHECK-NEXT: 15
+// CHECK-NEXT: -15
+// CHECK-NEXT: -15
 
 #include <array>
 #include <iostream>
+#include <llvm/ADT/STLExtras.h>
 
-extern "C" double __modelica_ciface_foo(double x);
+extern "C" long __modelica_ciface_foo(long x, long y);
 
 using namespace std;
 
 int main() {
-	array<double, 2> x = { 23.5, -57.5 };
+	array<long, 4> x = { 0, 3, 3, -5 };
+	array<long, 4> y = { 10, 5, -5, 3 };
 
 	cout << "results" << endl;
 
-	for (const auto& value : x)
-		cout << scientific << __modelica_ciface_foo(value) << endl;
+	for (const auto& [x, y] : llvm::zip(x, y))
+		cout << __modelica_ciface_foo(x, y) << endl;
 
 	return 0;
 }

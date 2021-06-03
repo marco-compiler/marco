@@ -570,7 +570,7 @@ static llvm::Error foldDivOp(Expression& expression)
 	}
 
 	// Otherwise apply the operation to all the arguments
-	expression = *Expression::operation(expression.getLocation(), expression.getType(), OperationKind::multiply, std::move(newArgs));
+	expression = *Expression::operation(expression.getLocation(), expression.getType(), OperationKind::divide, std::move(newArgs));
 	return llvm::Error::success();
 }
 

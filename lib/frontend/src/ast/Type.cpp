@@ -387,6 +387,11 @@ void Type::print(llvm::raw_ostream& os, size_t indents) const
 	os << toString(*this);
 }
 
+size_t Type::getRank() const
+{
+	return dimensions.size();
+}
+
 llvm::MutableArrayRef<ArrayDimension> Type::getDimensions()
 {
 	return dimensions;

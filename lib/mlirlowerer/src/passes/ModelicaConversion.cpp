@@ -469,6 +469,8 @@ struct AssignmentOpArrayLowering: public ModelicaOpConversion<AssignmentOp>
 								 });
 
 		rewriter.eraseOp(op);
+		llvm::errs() << "AAAAAAAAAAAAAAAAAAAAA\n";
+		op->getParentOp()->dump();
 		return mlir::success();
 	}
 };
@@ -638,6 +640,7 @@ struct ArrayCloneOpLowering: public ModelicaOpConversion<ArrayCloneOp>
 
 		iterateArray(rewriter, loc, op.source(), [&](mlir::ValueRange indexes) {
 			mlir::Value value = rewriter.create<LoadOp>(loc, op.source(), indexes);
+			value = rewriter.create<CastOp>(loc, value, op.resultType().cast<PointerType>().getElementType());
 			rewriter.create<StoreOp>(loc, value, result, indexes);
 		});
 
@@ -3102,6 +3105,8 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 			mlir::emitError(module.getLoc(), "Error in converting the Modelica operations\n");
 			signalPassFailure();
 		}
+
+		module.dump();
 	}
 
 	private:

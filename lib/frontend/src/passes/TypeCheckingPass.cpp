@@ -2,6 +2,7 @@
 #include <modelica/frontend/AST.h>
 #include <modelica/frontend/Errors.h>
 #include <modelica/frontend/passes/TypeCheckingPass.h>
+#include <numeric>
 #include <queue>
 #include <stack>
 
@@ -29,6 +30,11 @@ static bool operator>=(Type x, Type y)
 		return y.get<BuiltInType>() == BuiltInType::Boolean;
 
 	return false;
+}
+
+static BuiltInType getMostGenericBaseType(Type x, Type y)
+{
+	return x >= y ? x.get<BuiltInType>() : y.get<BuiltInType>();
 }
 
 template<>
@@ -1076,6 +1082,17 @@ llvm::Error TypeChecker::checkDifferentOp(Expression& expression)
 	return llvm::Error::success();
 }
 
+static llvm::Optional<Type> divPairResultType(Type x, Type y)
+{
+	if (x.isScalar() && y.isScalar())
+		return makeType<float>();
+
+	if (x.getRank() == 1 && y.isScalar())
+		return x.to(BuiltInType::Float);
+
+	return llvm::None;
+}
+
 llvm::Error TypeChecker::checkDivOp(Expression& expression)
 {
 	auto* operation = expression.get<Operation>();
@@ -1085,8 +1102,20 @@ llvm::Error TypeChecker::checkDivOp(Expression& expression)
 		if (auto error = run<Expression>(*arg); error)
 			return error;
 
-	Type type = operation->getArg(0)->getType().to(BuiltInType::Float);
-	expression.setType(std::move(type));
+	assert(operation->getArguments().size() >= 2);
+	Type resultType = operation->getArg(0)->getType();
+
+	for (size_t i = 1, end = operation->getArguments().size(); i < end; ++i)
+	{
+		auto& current = operation->getArg(i)->getType();
+
+		if (auto folded = divPairResultType(resultType, current); folded.hasValue())
+			resultType = std::move(folded.getValue());
+		else
+			return llvm::make_error<IncompatibleType>("Incompatible types");
+	}
+
+	expression.setType(resultType);
 	return llvm::Error::success();
 }
 
@@ -1257,6 +1286,68 @@ llvm::Error TypeChecker::checkMemberLookupOp(Expression& expression)
 	return llvm::make_error<NotImplemented>("member lookup is not implemented yet");
 }
 
+static llvm::Optional<Type> mulPairResultType(Type x, Type y)
+{
+	if (x.isScalar())
+		return y.to(getMostGenericBaseType(x, y));
+
+	if (y.isScalar())
+		return x.to(getMostGenericBaseType(x, y));
+
+	if (x.getRank() == 1 && y.getRank() == 1)
+	{
+		auto baseType = getMostGenericBaseType(x, y);
+
+		if (!x[0].isDynamic() && !y[0].isDynamic())
+			if (x[0].getNumericSize() != y[0].getNumericSize())
+				return llvm::None;
+
+		return Type(baseType);
+	}
+
+	if (x.getRank() == 1 && y.getRank() == 2)
+	{
+		auto baseType = getMostGenericBaseType(x, y);
+
+		if (!x[0].isDynamic() && !y[0].isDynamic())
+			if (x[0].getNumericSize() != y[0].getNumericSize())
+				return llvm::None;
+
+		llvm::SmallVector<ArrayDimension, 1> dimensions;
+		dimensions.emplace_back(y[1].isDynamic() ? -1 : y[1].getNumericSize());
+		return Type(baseType, dimensions);
+	}
+
+	if (x.getRank() == 2 && y.getRank() == 1)
+	{
+		auto baseType = getMostGenericBaseType(x, y);
+
+		if (!x[1].isDynamic() && !y[0].isDynamic())
+			if (x[1].getNumericSize() != y[0].getNumericSize())
+				return llvm::None;
+
+		llvm::SmallVector<ArrayDimension, 1> dimensions;
+		dimensions.emplace_back(x[0].isDynamic() ? -1 : x[0].getNumericSize());
+		return Type(baseType, dimensions);
+	}
+
+	if (x.getRank() == 2 && y.getRank() == 2)
+	{
+		auto baseType = getMostGenericBaseType(x, y);
+
+		if (!x[1].isDynamic() && !y[0].isDynamic())
+			if (x[1].getNumericSize() != y[0].getNumericSize())
+				return llvm::None;
+
+		llvm::SmallVector<ArrayDimension, 2> dimensions;
+		dimensions.emplace_back(x[0].isDynamic() ? -1 : x[0].getNumericSize());
+		dimensions.emplace_back(y[1].isDynamic() ? -1 : y[1].getNumericSize());
+		return Type(baseType, dimensions);
+	}
+
+	return llvm::None;
+}
+
 llvm::Error TypeChecker::checkMulOp(Expression& expression)
 {
 	auto* operation = expression.get<Operation>();
@@ -1266,13 +1357,20 @@ llvm::Error TypeChecker::checkMulOp(Expression& expression)
 		if (auto error = run<Expression>(*arg); error)
 			return error;
 
-	Type type = expression.getType();
+	assert(operation->getArguments().size() >= 2);
+	Type resultType = operation->getArg(0)->getType();
 
-	for (auto& arg : operation->getArguments())
-		if (auto& argType = arg->getType(); argType >= type)
-			type = argType;
+	for (size_t i = 1, end = operation->getArguments().size(); i < end; ++i)
+	{
+		auto& current = operation->getArg(i)->getType();
 
-	expression.setType(operation->getArg(0)->getType().to(type.get<BuiltInType>()));
+		if (auto folded = mulPairResultType(resultType, current); folded.hasValue())
+			resultType = std::move(folded.getValue());
+		else
+			return llvm::make_error<IncompatibleType>("Incompatible types");
+	}
+
+	expression.setType(resultType);
 	return llvm::Error::success();
 }
 
