@@ -119,9 +119,7 @@ namespace modelica::frontend
 		[[nodiscard]] Annotation* getAnnotation();
 		[[nodiscard]] const Annotation* getAnnotation() const;
 
-		[[nodiscard]] Type& getType();
-		[[nodiscard]] const Type& getType() const;
-		void setType(Type type);
+		[[nodiscard]] FunctionType getType() const;
 
 		private:
 		friend class Class;
@@ -137,7 +135,6 @@ namespace modelica::frontend
 		Container<std::unique_ptr<Member>> members;
 		Container<std::unique_ptr<Algorithm>> algorithms;
 		llvm::Optional<std::unique_ptr<Annotation>> annotation;
-		Type type;
 	};
 
 	class DerivativeAnnotation

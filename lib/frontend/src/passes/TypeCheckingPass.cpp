@@ -9,9 +9,6 @@
 using namespace modelica;
 using namespace modelica::frontend;
 
-llvm::Error resolveDummyReferences(StandardFunction& function);
-llvm::Error resolveDummyReferences(Model& model);
-
 static bool operator>=(Type x, Type y)
 {
 	assert(x.isA<BuiltInType>());
@@ -37,6 +34,396 @@ static BuiltInType getMostGenericBaseType(Type x, Type y)
 	return x >= y ? x.get<BuiltInType>() : y.get<BuiltInType>();
 }
 
+namespace modelica::frontend::typecheck::detail
+{
+	struct CosFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
+	struct DerFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
+	struct DiagonalFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<int>(-1, -1);
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(1);
+		}
+	};
+
+	struct IdentityFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<int>(-1, -1);
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(2);
+		}
+	};
+
+	struct LinspaceFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>(-1);
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+			ranks.push_back(0);
+			ranks.push_back(0);
+		}
+	};
+
+	struct MaxFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			if (args.size() == 1)
+				return Type(args[0]->getType().get<BuiltInType>());
+
+			if (args.size() == 2)
+			{
+				auto& xType = args[0]->getType();
+				auto& yType = args[1]->getType();
+
+				return xType >= yType ? xType : yType;
+			}
+
+			return llvm::None;
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			if (argsCount == 1)
+			{
+				ranks.push_back(-1);
+			}
+			else if (argsCount == 2)
+			{
+				ranks.push_back(0);
+				ranks.push_back(0);
+			}
+		}
+	};
+
+	struct MinFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			if (args.size() == 1)
+				return Type(args[0]->getType().get<BuiltInType>());
+
+			if (args.size() == 2)
+			{
+				auto& xType = args[0]->getType();
+				auto& yType = args[1]->getType();
+
+				return xType >= yType ? xType : yType;
+			}
+
+			return llvm::None;
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			if (argsCount == 1)
+			{
+				ranks.push_back(-1);
+			}
+			else if (argsCount == 2)
+			{
+				ranks.push_back(0);
+				ranks.push_back(0);
+			}
+		}
+	};
+
+	struct NdimsFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<int>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(-1);
+		}
+	};
+
+	struct OnesFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			llvm::SmallVector<ArrayDimension, 2> dimensions(args.size(), -1);
+			return Type(BuiltInType::Integer, dimensions);
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			for (size_t i = 0; i < argsCount; ++i)
+				ranks.push_back(0);
+		}
+	};
+
+	struct ProductFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return Type(args[0]->getType().get<BuiltInType>());
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(-1);
+		}
+	};
+
+	struct SinFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
+	struct SizeFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			if (args.size() == 1)
+				return makeType<int>(args[0]->getType().getDimensions().size());
+
+			return makeType<int>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(-1);
+
+			if (argsCount == 2)
+				ranks.push_back(0);
+		}
+	};
+
+	struct SumFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return Type(args[0]->getType().get<BuiltInType>());
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(-1);
+		}
+	};
+
+	struct SymmetricFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return args[0]->getType();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(2);
+		}
+	};
+
+	struct TransposeFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			auto type = args[0]->getType();
+			assert(type.dimensionsCount() == 2);
+			llvm::SmallVector<ArrayDimension, 2> dimensions;
+
+			dimensions.push_back(type[1].isDynamic() ? -1 : type[1].getNumericSize());
+			dimensions.push_back(type[0].isDynamic() ? -1 : type[0].getNumericSize());
+
+			type.setDimensions(dimensions);
+			return type;
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(2);
+		}
+	};
+
+	struct ZerosFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			llvm::SmallVector<ArrayDimension, 2> dimensions(args.size(), -1);
+			return Type(BuiltInType::Integer, dimensions);
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return false;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			for (size_t i = 0; i < argsCount; ++i)
+				ranks.push_back(0);
+		}
+	};
+}
+
+llvm::Error resolveDummyReferences(StandardFunction& function);
+llvm::Error resolveDummyReferences(Model& model);
+
+TypeChecker::TypeChecker()
+{
+	using namespace typecheck::detail;
+
+	builtInFunctions["cos"] = std::make_unique<CosFunction>();
+	builtInFunctions["der"] = std::make_unique<DerFunction>();
+	builtInFunctions["diagonal"] = std::make_unique<DiagonalFunction>();
+	builtInFunctions["identity"] = std::make_unique<IdentityFunction>();
+	builtInFunctions["linspace"] = std::make_unique<LinspaceFunction>();
+	builtInFunctions["max"] = std::make_unique<MaxFunction>();
+	builtInFunctions["min"] = std::make_unique<MinFunction>();
+	builtInFunctions["ndims"] = std::make_unique<NdimsFunction>();
+	builtInFunctions["ones"] = std::make_unique<OnesFunction>();
+	builtInFunctions["product"] = std::make_unique<ProductFunction>();
+	builtInFunctions["sin"] = std::make_unique<SinFunction>();
+	builtInFunctions["size"] = std::make_unique<SizeFunction>();
+	builtInFunctions["sum"] = std::make_unique<SumFunction>();
+	builtInFunctions["symmetric"] = std::make_unique<SymmetricFunction>();
+	builtInFunctions["transpose"] = std::make_unique<TransposeFunction>();
+	builtInFunctions["zeros"] = std::make_unique<ZerosFunction>();
+}
+
 template<>
 llvm::Error TypeChecker::run<Class>(Class& cls)
 {
@@ -60,7 +447,7 @@ llvm::Error TypeChecker::run(llvm::ArrayRef<std::unique_ptr<Class>> classes)
 template<>
 llvm::Error TypeChecker::run<PartialDerFunction>(Class& cls)
 {
-	SymbolTableScope varScope(symbolTable);
+	SymbolTable::ScopeTy varScope(symbolTable);
 	auto* derFunction = cls.get<PartialDerFunction>();
 
 	if (auto* derivedFunction = derFunction->getDerivedFunction(); !derivedFunction->isa<ReferenceAccess>())
@@ -134,7 +521,7 @@ llvm::Error TypeChecker::run<PartialDerFunction>(Class& cls)
 template<>
 llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 {
-	SymbolTableScope varScope(symbolTable);
+	SymbolTable::ScopeTy varScope(symbolTable);
 	auto* function = cls.get<StandardFunction>();
 
 	// Populate the symbol table
@@ -143,10 +530,7 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 	for (const auto& member : function->getMembers())
 		symbolTable.insert(member->getName(), Symbol(*member));
 
-	llvm::SmallVector<Type, 3> types;
-
 	// Check members
-
 	for (auto& member : function->getMembers())
 	{
 		if (auto error = run(*member); error)
@@ -171,16 +555,7 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 			return llvm::make_error<AssignmentToInputMember>(
 					member->getInitializer()->getLocation(),
 					function->getName());
-
-		// Add type
-		if (member->isOutput())
-			types.push_back(member->getType());
 	}
-
-	if (types.size() == 1)
-		function->setType(std::move(types[0]));
-	else
-		function->setType(Type(PackedType(types)));
 
 	auto algorithms = function->getAlgorithms();
 
@@ -298,7 +673,7 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 template<>
 llvm::Error TypeChecker::run<Model>(Class& cls)
 {
-	SymbolTableScope varScope(symbolTable);
+	SymbolTable::ScopeTy varScope(symbolTable);
 	auto* model = cls.get<Model>();
 
 	// Populate the symbol table
@@ -339,7 +714,7 @@ llvm::Error TypeChecker::run<Model>(Class& cls)
 template<>
 llvm::Error TypeChecker::run<Package>(Class& cls)
 {
-	SymbolTableScope varScope(symbolTable);
+	SymbolTable::ScopeTy varScope(symbolTable);
 	auto* package = cls.get<Package>();
 
 	// Populate the symbol table
@@ -358,7 +733,7 @@ llvm::Error TypeChecker::run<Package>(Class& cls)
 template<>
 llvm::Error TypeChecker::run<Record>(Class& cls)
 {
-	SymbolTableScope varScope(symbolTable);
+	SymbolTable::ScopeTy varScope(symbolTable);
 	auto* record = cls.get<Record>();
 
 	// Populate the symbol table
@@ -461,7 +836,7 @@ llvm::Error TypeChecker::run(Equation& equation)
 
 llvm::Error TypeChecker::run(ForEquation& forEquation)
 {
-	SymbolTableScope varScope(symbolTable);
+	SymbolTable::ScopeTy varScope(symbolTable);
 
 	for (auto& ind : forEquation.getInductions())
 	{
@@ -547,100 +922,62 @@ llvm::Error TypeChecker::run<Array>(Expression& expression)
 	return llvm::Error::success();
 }
 
-static llvm::Optional<Type> builtInFunctionType(Call& call)
+static llvm::Expected<Type> getCallElementWiseResultType(
+		llvm::ArrayRef<long> argsExpectedRanks, Call& call)
 {
-	auto name = call.getFunction()->get<ReferenceAccess>()->getName();
-	const auto args = call.getArgs();
+	llvm::SmallVector<ArrayDimension, 3> dimensions;
 
-	if (name == "der")
-		return args[0]->getType().to(BuiltInType::Float);
-
-	if (name == "ndims")
-		return makeType<int>();
-
-	if (name == "size")
+	for (const auto& arg : llvm::enumerate(call.getArgs()))
 	{
-		if (args.size() == 1)
-			return makeType<int>(args[0]->getType().getDimensions().size());
+		unsigned int argActualRank = arg.value()->getType().getRank();
+		unsigned int argExpectedRank = argsExpectedRanks[arg.index()];
 
-		return makeType<int>();
-	}
-
-	if (name == "identity")
-		return makeType<int>(-1, -1);
-
-	if (name == "diagonal")
-		return makeType<int>(-1, -1);
-
-	if (name == "zeros")
-	{
-		llvm::SmallVector<ArrayDimension, 3> dimensions(args.size(), -1);
-		return Type(BuiltInType::Integer, dimensions);
-	}
-
-	if (name == "ones")
-	{
-		llvm::SmallVector<ArrayDimension, 3> dimensions(args.size(), -1);
-		return Type(BuiltInType::Integer, dimensions);
-	}
-
-	if (name == "linspace")
-	{
-		llvm::SmallVector<ArrayDimension, 1> dimensions(1, -1);
-		return Type(BuiltInType::Float, dimensions);
-	}
-
-	if (name == "min")
-	{
-		if (args.size() == 1)
-			return Type(args[0]->getType().get<BuiltInType>());
-
-		if (args.size() == 2)
+		if (arg.index() == 0)
 		{
-			auto& xType = args[0]->getType();
-			auto& yType = args[1]->getType();
+			// If this is the first argument, then it will determine the
+			// rank and dimensions of the result array, although the dimensions
+			// can be also specialized by the other arguments if initially unknown.
 
-			return xType >= yType ? xType : yType;
+			for (size_t i = 0; i < argActualRank - argExpectedRank; ++i)
+			{
+				auto& dimension = arg.value()->getType()[arg.index()];
+				dimensions.push_back(dimension.isDynamic() ? -1 : dimension.getNumericSize());
+			}
+		}
+		else
+		{
+			// The rank difference must match with the one given by the first
+			// argument, independently from the dimensions sizes.
+			if (argActualRank != argExpectedRank + dimensions.size())
+				return llvm::make_error<IncompatibleType>("incompatible shape");
+
+			for (size_t i = 0; i < argActualRank - argExpectedRank; ++i)
+			{
+				auto& dimension = arg.value()->getType()[arg.index()];
+
+				// If the dimension is dynamic, then no further checks or
+				// specializations are possible.
+				if (dimension.isDynamic())
+					continue;
+
+				// If the dimension determined by the first argument is fixed, then
+				// also the dimension of the other arguments must match (when that's
+				// fixed too).
+				if (!dimensions[i].isDynamic() && dimensions[i] != dimension)
+					return llvm::make_error<IncompatibleType>("incompatible shape");
+
+				// If the dimension determined by the first argument is dynamic, then
+				// set it to a required size.
+				if (dimensions[i].isDynamic())
+					dimensions[i] = dimension;
+			}
 		}
 	}
 
-	if (name == "max")
-	{
-		if (args.size() == 1)
-			return Type(args[0]->getType().get<BuiltInType>());
+	if (dimensions.empty())
+		return call.getFunction()->getType();
 
-		if (args.size() == 2)
-		{
-			auto& xType = args[0]->getType();
-			auto& yType = args[1]->getType();
-
-			return xType >= yType ? xType : yType;
-		}
-	}
-
-	if (name == "sum")
-		return Type(args[0]->getType().get<BuiltInType>());
-
-	if (name == "product")
-		return Type(args[0]->getType().get<BuiltInType>());
-
-	if (name == "transpose")
-	{
-		auto type = args[0]->getType();
-		assert(type.dimensionsCount() == 2);
-		llvm::SmallVector<ArrayDimension, 2> dimensions;
-
-		dimensions.push_back(type[1].isDynamic() ? -1 : type[1].getNumericSize());
-		dimensions.push_back(type[0].isDynamic() ? -1 : type[0].getNumericSize());
-
-		type.setDimensions(dimensions);
-		return type;
-	}
-
-	if (name == "symmetric")
-		return args[0]->getType();
-
-	return llvm::None;
+	return call.getFunction()->getType().to(dimensions);
 }
 
 template<>
@@ -653,18 +990,70 @@ llvm::Error TypeChecker::run<Call>(Expression& expression)
 			return error;
 
 	auto* function = call->getFunction();
+	llvm::StringRef functionName = function->get<ReferenceAccess>()->getName();
+	bool canBeCalledElementWise = true;
+	llvm::SmallVector<long, 3> argsExpectedRanks;
 
-	if (auto type = builtInFunctionType(*call);
-			type.hasValue() &&
-			symbolTable.count(function->get<ReferenceAccess>()->getName()) == 0)
+	// If the function name refers to a built-in one, we also need to check
+	// whether there is a user defined one that is shadowing it. If this is
+	// not the case, then we can fallback to the real built-in function.
+
+	if (symbolTable.count(functionName) == 0 &&
+			builtInFunctions.count(functionName) != 0)
 	{
-		expression.setType(type.getValue());
+		// Built-in function
+		auto& builtInFunction = builtInFunctions[functionName];
+		auto resultType = builtInFunction->resultType(call->getArgs());
+
+		if (!resultType.hasValue())
+			return llvm::make_error<IncompatibleType>("Wrong number of arguments");
+
+		function->setType(*resultType);
+		canBeCalledElementWise = builtInFunction->canBeCalledElementWise();
+		builtInFunction->getArgsExpectedRanks(call->argumentsCount(), argsExpectedRanks);
 	}
 	else
 	{
+		// User defined function
+
 		if (auto error = run<Expression>(*function); error)
 			return error;
 
+		auto functionTypeResolver = [&](llvm::StringRef name) -> llvm::Optional<FunctionType> {
+			if (symbolTable.count(name) == 0)
+				return llvm::None;
+
+			auto symbol = symbolTable.lookup(functionName);
+
+			if (const auto* cls = symbol.dyn_get<Class>())
+			{
+				if (const auto* standardFunction = cls->dyn_get<StandardFunction>())
+					return standardFunction->getType();
+			}
+
+			return llvm::None;
+		};
+
+		auto functionType = functionTypeResolver(functionName);
+
+		if (!functionType.hasValue())
+			return llvm::make_error<NotFound>(function->getLocation(), functionName);
+
+		for (const auto& type : functionType->getArgs())
+			argsExpectedRanks.push_back(type.getRank());
+	}
+
+	if (canBeCalledElementWise)
+	{
+		auto type = getCallElementWiseResultType(argsExpectedRanks, *call);
+
+		if (!type)
+			return type.takeError();
+
+		expression.setType(std::move(*type));
+	}
+	else
+	{
 		expression.setType(function->getType());
 	}
 
@@ -786,7 +1175,7 @@ llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression)
 
 	auto symbolType = [](Symbol& symbol) -> Type {
 		if (auto* cls = symbol.dyn_get<Class>(); cls != nullptr && cls->isa<StandardFunction>())
-			return cls->get<StandardFunction>()->getType();
+			return cls->get<StandardFunction>()->getType().packResults();
 
 		if (auto* cls = symbol.dyn_get<Class>(); cls != nullptr && cls->isa<PartialDerFunction>())
 		{

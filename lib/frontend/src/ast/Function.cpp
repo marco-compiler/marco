@@ -182,8 +182,7 @@ StandardFunction::StandardFunction(SourceRange location,
 																	 llvm::ArrayRef<std::unique_ptr<Algorithm>> algorithms,
 																	 llvm::Optional<std::unique_ptr<Annotation>> annotation)
 		: Function(std::move(location), name),
-			pure(pure),
-			type(Type::unknown())
+			pure(pure)
 {
 	for (const auto& member : members)
 		this->members.push_back(member->clone());
@@ -199,8 +198,7 @@ StandardFunction::StandardFunction(SourceRange location,
 
 StandardFunction::StandardFunction(const StandardFunction& other)
 		: Function(other),
-			pure(other.pure),
-			type(other.type)
+			pure(other.pure)
 {
 	for (const auto& member : other.members)
 		this->members.push_back(member->clone());
@@ -238,7 +236,6 @@ namespace modelica::frontend
 		impl::swap(first.members, second.members);
 		impl::swap(first.algorithms, second.algorithms);
 		swap(first.annotation, second.annotation);
-		swap(first.type, second.type);
 	}
 }
 
@@ -352,19 +349,20 @@ const Annotation* StandardFunction::getAnnotation() const
 	return annotation.getValue().get();
 }
 
-Type& StandardFunction::getType()
+FunctionType StandardFunction::getType() const
 {
-	return type;
-}
+	llvm::SmallVector<Type, 3> argsTypes;
+	llvm::SmallVector<Type, 1> resultsTypes;
 
-const Type& StandardFunction::getType() const
-{
-	return type;
-}
+	for (const auto& member : members)
+	{
+		if (member->isInput())
+			argsTypes.push_back(member->getType());
+		else if (member->isOutput())
+			resultsTypes.push_back(member->getType());
+	}
 
-void StandardFunction::setType(Type newType)
-{
-	this->type = std::move(newType);
+	return FunctionType(argsTypes, resultsTypes);
 }
 
 DerivativeAnnotation::DerivativeAnnotation(llvm::StringRef name, unsigned int order)

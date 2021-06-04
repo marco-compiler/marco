@@ -1,2 +1,1 @@
-modelicaAddTest(mlirlowerer
-        src/FunctionCallTest.cpp)
+#modelicaAddTest(mlirlowerer)

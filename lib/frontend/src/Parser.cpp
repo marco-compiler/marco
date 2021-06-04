@@ -1115,6 +1115,7 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::primary()
 
 	if (accept<Token::DerKeyword>())
 	{
+		auto functionLoc = loc;
 		auto argsLocation = getPosition();
 		llvm::SmallVector<std::unique_ptr<Expression>, 3> args;
 
@@ -1123,7 +1124,7 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::primary()
 
 		loc.extendEnd(argsLocation);
 
-		auto function = Expression::reference(loc, Type::unknown(), "der");
+		auto function = Expression::reference(functionLoc, Type::unknown(), "der");
 		return Expression::call(loc, Type::unknown(), std::move(function), args);
 	}
 

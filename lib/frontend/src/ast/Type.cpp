@@ -389,6 +389,12 @@ void Type::print(llvm::raw_ostream& os, size_t indents) const
 
 size_t Type::getRank() const
 {
+	// TODO: temporary workaround for x[1] being considered as a scalar.
+	if (dimensions.size() == 1 &&
+			!dimensions[0].isDynamic() &&
+			dimensions[0].getNumericSize() == 1)
+		return 0;
+
 	return dimensions.size();
 }
 
@@ -477,9 +483,16 @@ Type Type::subscript(size_t times) const
 	});
 }
 
-Type Type::to(BuiltInType type)
+Type Type::to(BuiltInType type) const
 {
 	return Type(type, dimensions);
+}
+
+Type Type::to(llvm::ArrayRef<ArrayDimension> dims) const
+{
+	Type copy = *this;
+	copy.setDimensions(dims);
+	return copy;
 }
 
 class ArrayDimensionToStringVisitor
@@ -518,3 +531,73 @@ namespace modelica::frontend
 }
 
 Type Type::unknown() { return Type(BuiltInType::Unknown); }
+
+FunctionType::FunctionType(llvm::ArrayRef<Type> args, llvm::ArrayRef<Type> results)
+{
+	for (const auto& type : args)
+		this->args.push_back(type);
+
+	for (const auto& type : results)
+		this->results.push_back(type);
+}
+
+FunctionType::FunctionType(const FunctionType& other)
+		: args(other.args),
+			results(other.results)
+{
+}
+
+FunctionType::FunctionType(FunctionType&& other) = default;
+
+FunctionType::~FunctionType() = default;
+
+FunctionType& FunctionType::operator=(const FunctionType& other)
+{
+	FunctionType result(other);
+	swap(*this, result);
+	return *this;
+}
+
+FunctionType& FunctionType::operator=(FunctionType&& other) = default;
+
+namespace modelica::frontend
+{
+	void swap(FunctionType& first, FunctionType& second)
+	{
+		std::swap(first.args, second.args);
+		std::swap(first.results, second.results);
+	}
+}
+
+void FunctionType::print(llvm::raw_ostream& os, size_t indents) const
+{
+	os.indent(indents) << "function type";
+	os.indent(indents + 1) << "args:";
+
+	for (const auto& type : args)
+		type.dump(os, indents + 2);
+
+	os << "\n";
+	os.indent(indents + 1) << "results:";
+
+	for (const auto& type : results)
+		type.dump(os, indents + 2);
+}
+
+llvm::ArrayRef<Type> FunctionType::getArgs() const
+{
+	return args;
+}
+
+llvm::ArrayRef<Type> FunctionType::getResults() const
+{
+	return results;
+}
+
+Type FunctionType::packResults() const
+{
+	if (results.size() == 1)
+		return results[0];
+
+	return Type(PackedType(results));
+}

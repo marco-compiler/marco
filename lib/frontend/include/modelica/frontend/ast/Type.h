@@ -298,7 +298,8 @@ namespace modelica::frontend
 
 		[[nodiscard]] Type subscript(size_t times) const;
 
-		[[nodiscard]] Type to(BuiltInType type);
+		[[nodiscard]] Type to(BuiltInType type) const;
+		[[nodiscard]] Type to(llvm::ArrayRef<ArrayDimension> dimensions) const;
 
 		[[nodiscard]] static Type unknown();
 
@@ -332,4 +333,31 @@ namespace modelica::frontend
 
 		return Type(T, { static_cast<ArrayDimension>(std::forward<Args>(args))... });
 	}
+
+	class FunctionType : public impl::Dumpable<FunctionType>
+	{
+		public:
+		FunctionType(llvm::ArrayRef<Type> args, llvm::ArrayRef<Type> results);
+
+		FunctionType(const FunctionType& other);
+		FunctionType(FunctionType&& other);
+
+		~FunctionType() override;
+
+		FunctionType& operator=(const FunctionType& other);
+		FunctionType& operator=(FunctionType&& other);
+
+		friend void swap(FunctionType& first, FunctionType& second);
+
+		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
+
+		[[nodiscard]] llvm::ArrayRef<Type> getArgs() const;
+		[[nodiscard]] llvm::ArrayRef<Type> getResults() const;
+
+		[[nodiscard]] Type packResults() const;
+
+		private:
+		llvm::SmallVector<Type, 3> args;
+		llvm::SmallVector<Type, 1> results;
+	};
 }

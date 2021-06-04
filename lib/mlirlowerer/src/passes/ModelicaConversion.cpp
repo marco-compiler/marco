@@ -469,8 +469,6 @@ struct AssignmentOpArrayLowering: public ModelicaOpConversion<AssignmentOp>
 								 });
 
 		rewriter.eraseOp(op);
-		llvm::errs() << "AAAAAAAAAAAAAAAAAAAAA\n";
-		op->getParentOp()->dump();
 		return mlir::success();
 	}
 };
@@ -3105,8 +3103,6 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 			mlir::emitError(module.getLoc(), "Error in converting the Modelica operations\n");
 			signalPassFailure();
 		}
-
-		module.dump();
 	}
 
 	private:

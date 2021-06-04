@@ -1077,9 +1077,12 @@ mlir::ParseResult CallOp::parse(mlir::OpAsmParser& parser, mlir::OperationState&
 void CallOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << getOperationName()
-					<< " @" << callee() << "(" << args() << ")"
-					<< " {moved_results = " << movedResults() << "}"
-					<< " : (" << args().getTypes() << ") -> (" << getResultTypes() << ")";
+					<< " @" << callee() << "(" << args() << ")";
+
+	if (movedResults() != 0)
+		printer << " {moved_results = " << movedResults() << "}";
+
+	printer << " : (" << args().getTypes() << ") -> (" << getResultTypes() << ")";
 }
 
 void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)

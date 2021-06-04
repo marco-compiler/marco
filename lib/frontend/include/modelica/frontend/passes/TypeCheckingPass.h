@@ -35,11 +35,50 @@ namespace modelica::frontend
 	class WhenStatement;
 	class WhileStatement;
 
+	namespace typecheck::detail
+	{
+		struct BuiltInFunction
+		{
+			/**
+			 * Get the result type in case of non element-wise call.
+			 * The arguments str needed because some functions (such
+			 * as min / max / size) may vary their behaviour according to it.
+			 * If the arguments count is invalid, then no type is returned.
+			 *
+			 * @param args	actual arguments
+			 * @return result type
+			 */
+			[[nodiscard]] virtual llvm::Optional<Type> resultType(
+					llvm::ArrayRef<std::unique_ptr<Expression>> args) const = 0;
+
+			/**
+			 * Whether the function can be used in an element-wise call.
+			 *
+			 * @return true if allowed; false otherwise
+			 */
+			[[nodiscard]] virtual bool canBeCalledElementWise() const = 0;
+
+			/**
+			 * Get the expected rank for each argument of the function.
+			 * A rank of -1 means any rank is accepted (functions like ndims are
+			 * made for the exact purpose to receive such arguments).
+			 * The total arguments count is needed because some functions (such
+			 * as min / max) may vary their behaviour according to it.
+			 *
+			 * @param argsCount  arguments count
+			 * @param ranks 		 ranks container
+			 */
+			virtual void getArgsExpectedRanks(
+					unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const = 0;
+		};
+	}
+
 	class TypeChecker : public Pass
 	{
 		public:
 		using SymbolTable = llvm::ScopedHashTable<llvm::StringRef, Symbol>;
-		using SymbolTableScope = llvm::ScopedHashTableScope<llvm::StringRef, Symbol>;
+
+		TypeChecker();
 
 		llvm::Error run(llvm::ArrayRef<std::unique_ptr<Class>> classes) final;
 
@@ -81,9 +120,8 @@ namespace modelica::frontend
 		[[nodiscard]] llvm::Error checkSubscriptionOp(Expression& expression);
 
 		private:
-		llvm::ScopedHashTable<llvm::StringRef, Symbol> symbolTable;
-
-		llvm::Expected<Type> typeFromSymbol(const Expression& exp);
+		SymbolTable symbolTable;
+		llvm::StringMap<std::unique_ptr<typecheck::detail::BuiltInFunction>> builtInFunctions;
 	};
 
 	template<>
