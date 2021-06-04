@@ -246,7 +246,7 @@ namespace modelica::frontend
 		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
 		template<typename T>
-		[[nodiscard]] bool isA() const
+		[[nodiscard]] bool isa() const
 		{
 			return std::holds_alternative<T>(content);
 		}
@@ -254,14 +254,14 @@ namespace modelica::frontend
 		template<typename T>
 		[[nodiscard]] T& get()
 		{
-			assert(isA<T>());
+			assert(isa<T>());
 			return std::get<T>(content);
 		}
 
 		template<typename T>
 		[[nodiscard]] const T& get() const
 		{
-			assert(isA<T>());
+			assert(isa<T>());
 			return std::get<T>(content);
 		}
 

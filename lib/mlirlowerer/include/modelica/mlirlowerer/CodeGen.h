@@ -64,14 +64,6 @@ namespace modelica::codegen
 			static ModelicaLoweringOptions options;
 			return options;
 		}
-
-		static const ModelicaLoweringOptions testsOptions()
-		{
-			static ModelicaLoweringOptions options;
-			options.x64 = false;
-			options.llvmOptions.emitCWrappers = true;
-			return options;
-		}
 	};
 
 	class Reference
@@ -81,24 +73,21 @@ namespace modelica::codegen
 
 		[[nodiscard]] mlir::Value operator*();
 		[[nodiscard]] mlir::Value getReference() const;
-		[[nodiscard]] bool isInitialized() const;
 
 		void set(mlir::Value value);
 
 		[[nodiscard]] static Reference ssa(mlir::OpBuilder* builder, mlir::Value value);
-		[[nodiscard]] static Reference memory(mlir::OpBuilder* builder, mlir::Value value, bool initialized);
-		[[nodiscard]] static Reference member(mlir::OpBuilder* builder, mlir::Value value, bool initialized);
+		[[nodiscard]] static Reference memory(mlir::OpBuilder* builder, mlir::Value value);
+		[[nodiscard]] static Reference member(mlir::OpBuilder* builder, mlir::Value value);
 
 		private:
 		Reference(mlir::OpBuilder* builder,
 							mlir::Value value,
-							bool initialized,
 							std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader,
 							std::function<void(mlir::OpBuilder* builder, Reference& destination, mlir::Value)> writer);
 
 		mlir::OpBuilder* builder;
 		mlir::Value value;
-		bool initialized;
 		std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader;
 		std::function<void(mlir::OpBuilder*, Reference&, mlir::Value)> writer;
 	};

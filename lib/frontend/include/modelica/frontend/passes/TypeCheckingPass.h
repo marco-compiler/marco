@@ -16,9 +16,7 @@ namespace modelica::frontend
 	class BreakStatement;
 	class Call;
 	class Class;
-	class ClassContainer;
 	class Constant;
-	class PartialPartialDerFunction;
 	class Equation;
 	class Expression;
 	class ForEquation;
@@ -194,8 +192,10 @@ namespace modelica::frontend::detail
 		success = 0,
 		assignment_to_input_member,
 		bad_semantic,
+		incompatible_type,
+		incompatible_types,
 		multiple_algorithms_function,
-		not_found
+		not_found,
 	};
 }
 
@@ -287,6 +287,61 @@ namespace modelica::frontend
 		private:
 		SourceRange location;
 		std::string message;
+	};
+
+	class IncompatibleType
+			: public ErrorMessage,
+				public llvm::ErrorInfo<IncompatibleType>
+	{
+		public:
+		static char ID;
+
+		IncompatibleType(SourceRange location, llvm::StringRef message);
+
+		[[nodiscard]] SourceRange getLocation() const override;
+
+		void printMessage(llvm::raw_ostream& os) const override;
+
+		void log(llvm::raw_ostream& os) const override;
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(detail::TypeCheckingErrorCode::incompatible_type),
+					detail::TypeCheckingErrorCategory::category);
+		}
+
+		private:
+		SourceRange location;
+		std::string message;
+	};
+
+	class IncompatibleTypes
+			: public ErrorMessage,
+				public llvm::ErrorInfo<IncompatibleTypes>
+	{
+		public:
+		static char ID;
+
+		IncompatibleTypes(SourceRange location, Type first, Type second);
+
+		[[nodiscard]] SourceRange getLocation() const override;
+
+		void printMessage(llvm::raw_ostream& os) const override;
+
+		void log(llvm::raw_ostream& os) const override;
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(detail::TypeCheckingErrorCode::incompatible_types),
+					detail::TypeCheckingErrorCategory::category);
+		}
+
+		private:
+		SourceRange location;
+		Type first;
+		Type second;
 	};
 
 	class MultipleAlgorithmsFunction

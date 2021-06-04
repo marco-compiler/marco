@@ -78,9 +78,6 @@ namespace modelica::frontend::detail
 		if (ev == 4)
 			return std::error_condition(GenericErrorCode::branches_types_do_not_match);
 
-		if (ev == 5)
-			return std::error_condition(GenericErrorCode::incompatible_type);
-
 		return std::error_condition(GenericErrorCode::success);
 	}
 
@@ -130,4 +127,3 @@ char NotImplemented::ID;
 char ChoiceNotFound::ID;
 char EmptyList::ID;
 char BranchesTypeDoNotMatch::ID;
-char IncompatibleType::ID;

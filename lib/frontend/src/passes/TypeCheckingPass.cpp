@@ -11,8 +11,8 @@ using namespace modelica::frontend;
 
 static bool operator>=(Type x, Type y)
 {
-	assert(x.isA<BuiltInType>());
-	assert(y.isA<BuiltInType>());
+	assert(x.isa<BuiltInType>());
+	assert(y.isa<BuiltInType>());
 
 	if (y.get<BuiltInType>() == BuiltInType::Unknown)
 		return true;
@@ -36,25 +36,6 @@ static BuiltInType getMostGenericBaseType(Type x, Type y)
 
 namespace modelica::frontend::typecheck::detail
 {
-	struct CosFunction : public BuiltInFunction
-	{
-		[[nodiscard]] llvm::Optional<Type> resultType(
-				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
-		{
-			return makeType<float>();
-		}
-
-		[[nodiscard]] bool canBeCalledElementWise() const override
-		{
-			return true;
-		}
-
-		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
-		{
-			ranks.push_back(0);
-		}
-	};
-
 	struct DerFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
@@ -74,11 +55,16 @@ namespace modelica::frontend::typecheck::detail
 		}
 	};
 
+	/**
+	 * Returns a square matrix with the elements of a vector on the
+	 * diagonal and all other elements set to zero.
+	 */
 	struct DiagonalFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
 				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
 		{
+			// 2D array as output
 			return makeType<int>(-1, -1);
 		}
 
@@ -89,15 +75,21 @@ namespace modelica::frontend::typecheck::detail
 
 		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
 		{
+			// 1D array as input
 			ranks.push_back(1);
 		}
 	};
 
+	/**
+	 * Returns an integer identity matrix, with ones on the diagonal
+	 * and zeros at the other places.
+	 */
 	struct IdentityFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
 				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
 		{
+			// 2D array as output
 			return makeType<int>(-1, -1);
 		}
 
@@ -108,15 +100,21 @@ namespace modelica::frontend::typecheck::detail
 
 		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
 		{
-			ranks.push_back(2);
+			// Square matrix size
+			ranks.push_back(0);
 		}
 	};
 
+	/**
+	 * Returns an array with equally spaced elements.
+	 */
 	struct LinspaceFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
 				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
 		{
+			// The result 1D array has a dynamic size, as it depends on the
+			// input argument.
 			return makeType<float>(-1);
 		}
 
@@ -127,12 +125,15 @@ namespace modelica::frontend::typecheck::detail
 
 		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
 		{
-			ranks.push_back(0);
-			ranks.push_back(0);
-			ranks.push_back(0);
+			ranks.push_back(0); // x1
+			ranks.push_back(0); // x2
+			ranks.push_back(0); // n
 		}
 	};
 
+	/**
+	 * Returns the greatest element of an array, or between two scalar values.
+	 */
 	struct MaxFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
@@ -161,6 +162,7 @@ namespace modelica::frontend::typecheck::detail
 		{
 			if (argsCount == 1)
 			{
+				// The array can have any rank
 				ranks.push_back(-1);
 			}
 			else if (argsCount == 2)
@@ -171,6 +173,9 @@ namespace modelica::frontend::typecheck::detail
 		}
 	};
 
+	/**
+	 * Returns the least element of an array, or between two scalar values.
+	 */
 	struct MinFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
@@ -199,6 +204,7 @@ namespace modelica::frontend::typecheck::detail
 		{
 			if (argsCount == 1)
 			{
+				// The array can have any rank
 				ranks.push_back(-1);
 			}
 			else if (argsCount == 2)
@@ -209,6 +215,9 @@ namespace modelica::frontend::typecheck::detail
 		}
 	};
 
+	/**
+	 * Returns the number of dimensions of an array.
+	 */
 	struct NdimsFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
@@ -228,6 +237,9 @@ namespace modelica::frontend::typecheck::detail
 		}
 	};
 
+	/**
+	 * Return a n-D array with all elements equal to one.
+	 */
 	struct OnesFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
@@ -244,11 +256,15 @@ namespace modelica::frontend::typecheck::detail
 
 		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
 		{
+			// All the arguments are scalars
 			for (size_t i = 0; i < argsCount; ++i)
 				ranks.push_back(0);
 		}
 	};
 
+	/**
+	 * Returns the scalar product of all the elements of an array.
+	 */
 	struct ProductFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
@@ -268,25 +284,11 @@ namespace modelica::frontend::typecheck::detail
 		}
 	};
 
-	struct SinFunction : public BuiltInFunction
-	{
-		[[nodiscard]] llvm::Optional<Type> resultType(
-				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
-		{
-			return makeType<float>();
-		}
-
-		[[nodiscard]] bool canBeCalledElementWise() const override
-		{
-			return true;
-		}
-
-		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
-		{
-			ranks.push_back(0);
-		}
-	};
-
+	/**
+	 * If there is a single array argument, then returns a 1D array containing
+	 * the dimension sizes of A. If a second scalar argument is provided, only
+	 * the size of that dimension is returned.
+	 */
 	struct SizeFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
@@ -295,7 +297,10 @@ namespace modelica::frontend::typecheck::detail
 			if (args.size() == 1)
 				return makeType<int>(args[0]->getType().getDimensions().size());
 
-			return makeType<int>();
+			if (args.size() == 2)
+				return makeType<int>();
+
+			return llvm::None;
 		}
 
 		[[nodiscard]] bool canBeCalledElementWise() const override
@@ -312,6 +317,9 @@ namespace modelica::frontend::typecheck::detail
 		}
 	};
 
+	/**
+	 * Returns the scalar sum of all the elements of an array.
+	 */
 	struct SumFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
@@ -331,6 +339,12 @@ namespace modelica::frontend::typecheck::detail
 		}
 	};
 
+	/**
+	 * Returns a matrix where the diagonal elements and the elements above the
+	 * diagonal are identical to the corresponding elements of the source matrix,
+	 * while the elements below the diagonal are set equal to the elements above
+	 * the diagonal.
+	 */
 	struct SymmetricFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
@@ -350,13 +364,16 @@ namespace modelica::frontend::typecheck::detail
 		}
 	};
 
+	/**
+	 * Permutes a matrix.
+	 * // TODO: should accept also arrays with rank > 2
+	 */
 	struct TransposeFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
 				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
 		{
 			auto type = args[0]->getType();
-			assert(type.dimensionsCount() == 2);
 			llvm::SmallVector<ArrayDimension, 2> dimensions;
 
 			dimensions.push_back(type[1].isDynamic() ? -1 : type[1].getNumericSize());
@@ -377,6 +394,9 @@ namespace modelica::frontend::typecheck::detail
 		}
 	};
 
+	/**
+	 * Return a n-D array with all elements equal to zero.
+	 */
 	struct ZerosFunction : public BuiltInFunction
 	{
 		[[nodiscard]] llvm::Optional<Type> resultType(
@@ -393,6 +413,7 @@ namespace modelica::frontend::typecheck::detail
 
 		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
 		{
+			// All the arguments are scalars
 			for (size_t i = 0; i < argsCount; ++i)
 				ranks.push_back(0);
 		}
@@ -406,7 +427,6 @@ TypeChecker::TypeChecker()
 {
 	using namespace typecheck::detail;
 
-	builtInFunctions["cos"] = std::make_unique<CosFunction>();
 	builtInFunctions["der"] = std::make_unique<DerFunction>();
 	builtInFunctions["diagonal"] = std::make_unique<DiagonalFunction>();
 	builtInFunctions["identity"] = std::make_unique<IdentityFunction>();
@@ -416,7 +436,6 @@ TypeChecker::TypeChecker()
 	builtInFunctions["ndims"] = std::make_unique<NdimsFunction>();
 	builtInFunctions["ones"] = std::make_unique<OnesFunction>();
 	builtInFunctions["product"] = std::make_unique<ProductFunction>();
-	builtInFunctions["sin"] = std::make_unique<SinFunction>();
 	builtInFunctions["size"] = std::make_unique<SizeFunction>();
 	builtInFunctions["sum"] = std::make_unique<SumFunction>();
 	builtInFunctions["symmetric"] = std::make_unique<SymmetricFunction>();
@@ -494,7 +513,7 @@ llvm::Error TypeChecker::run<PartialDerFunction>(Class& cls)
 
 		auto type = (*member).value()->getType();
 
-		if (!type.isA<BuiltInType>() || type.get<BuiltInType>() != BuiltInType::Float)
+		if (!type.isa<BuiltInType>() || type.get<BuiltInType>() != BuiltInType::Float)
 			return llvm::make_error<BadSemantic>(
 					independentVariable->getLocation(),
 					"independent variables must have Real type");
@@ -764,14 +783,15 @@ llvm::Error TypeChecker::run(Equation& equation)
 
 	if (auto* lhsTuple = lhs->dyn_get<Tuple>())
 	{
-		if (!rhsType.isA<PackedType>() ||
-		    lhsTuple->size() != rhsType.get<PackedType>().size())
-			return llvm::make_error<IncompatibleType>("type dimension mismatch");
+		if (!rhsType.isa<PackedType>() || lhsTuple->size() != rhsType.get<PackedType>().size())
+			return llvm::make_error<IncompatibleType>(
+					rhs->getLocation(),
+					"number of results don't match with the destination tuple size");
 	}
 
 	if (auto* lhsTuple = lhs->dyn_get<Tuple>())
 	{
-		assert(rhs->getType().isA<PackedType>());
+		assert(rhs->getType().isa<PackedType>());
 		auto& rhsTypes = rhs->getType().get<PackedType>();
 
 		// Assign type to dummy variables.
@@ -799,7 +819,7 @@ llvm::Error TypeChecker::run(Equation& equation)
 	// If the function call has more return values than the provided
 	// destinations, then we need to add more dummy references.
 
-	if (rhsType.isA<PackedType>())
+	if (rhsType.isa<PackedType>())
 	{
 		const auto& rhsPackedType = rhsType.get<PackedType>();
 		size_t returns = rhsPackedType.size();
@@ -881,7 +901,7 @@ llvm::Error TypeChecker::run<Array>(Expression& expression)
 			return error;
 
 		auto& elementType = element->getType();
-		assert(elementType.isA<BuiltInType>());
+		assert(elementType.isa<BuiltInType>());
 		auto& builtInElementType = elementType.get<BuiltInType>();
 
 		assert(builtInElementType == BuiltInType::Boolean ||
@@ -949,7 +969,9 @@ static llvm::Expected<Type> getCallElementWiseResultType(
 			// The rank difference must match with the one given by the first
 			// argument, independently from the dimensions sizes.
 			if (argActualRank != argExpectedRank + dimensions.size())
-				return llvm::make_error<IncompatibleType>("incompatible shape");
+				return llvm::make_error<IncompatibleType>(
+						arg.value()->getLocation(),
+						"argument is incompatible with call vectorization (rank mismatch)");
 
 			for (size_t i = 0; i < argActualRank - argExpectedRank; ++i)
 			{
@@ -964,7 +986,9 @@ static llvm::Expected<Type> getCallElementWiseResultType(
 				// also the dimension of the other arguments must match (when that's
 				// fixed too).
 				if (!dimensions[i].isDynamic() && dimensions[i] != dimension)
-					return llvm::make_error<IncompatibleType>("incompatible shape");
+					return llvm::make_error<IncompatibleType>(
+							arg.value()->getLocation(),
+							"argument is incompatible with call vectorization (dimensions mismatch)");
 
 				// If the dimension determined by the first argument is dynamic, then
 				// set it to a required size.
@@ -1006,7 +1030,7 @@ llvm::Error TypeChecker::run<Call>(Expression& expression)
 		auto resultType = builtInFunction->resultType(call->getArgs());
 
 		if (!resultType.hasValue())
-			return llvm::make_error<IncompatibleType>("Wrong number of arguments");
+			return llvm::make_error<BadSemantic>(call->getLocation(), "wrong number of arguments");
 
 		function->setType(*resultType);
 		canBeCalledElementWise = builtInFunction->canBeCalledElementWise();
@@ -1276,8 +1300,9 @@ llvm::Error TypeChecker::run<AssignmentStatement>(Statement& statement)
 	if (auto error = run<Expression>(*expression); error)
 		return error;
 
-	if (destinationsTuple->size() > 1 && !expression->getType().isA<PackedType>())
+	if (destinationsTuple->size() > 1 && !expression->getType().isa<PackedType>())
 		return llvm::make_error<IncompatibleType>(
+				expression->getLocation(),
 				"The expression must return at least " +
 				std::to_string(destinationsTuple->size()) + "values");
 
@@ -1297,7 +1322,7 @@ llvm::Error TypeChecker::run<AssignmentStatement>(Statement& statement)
 		if (reference->isDummy())
 		{
 			auto& expressionType = expression->getType();
-			assert(expressionType.isA<PackedType>());
+			assert(expressionType.isa<PackedType>());
 			auto& packedType = expressionType.get<PackedType>();
 			assert(packedType.size() >= i);
 			destinationsTuple->getArg(i)->setType(packedType[i]);
@@ -1307,7 +1332,7 @@ llvm::Error TypeChecker::run<AssignmentStatement>(Statement& statement)
 	// If the function call has more return values than the provided
 	// destinations, then we need to add more dummy references.
 
-	if (expression->getType().isA<PackedType>())
+	if (expression->getType().isa<PackedType>())
 	{
 		auto& packedType = expression->getType().get<PackedType>();
 		size_t returns = packedType.size();
@@ -1471,7 +1496,7 @@ llvm::Error TypeChecker::checkDifferentOp(Expression& expression)
 	return llvm::Error::success();
 }
 
-static llvm::Optional<Type> divPairResultType(Type x, Type y)
+static llvm::Expected<Type> divPairResultType(Type x, Type y, SourceRange loc)
 {
 	if (x.isScalar() && y.isScalar())
 		return makeType<float>();
@@ -1479,7 +1504,7 @@ static llvm::Optional<Type> divPairResultType(Type x, Type y)
 	if (x.getRank() == 1 && y.isScalar())
 		return x.to(BuiltInType::Float);
 
-	return llvm::None;
+	return llvm::make_error<IncompatibleTypes>(loc, x, y);
 }
 
 llvm::Error TypeChecker::checkDivOp(Expression& expression)
@@ -1494,14 +1519,15 @@ llvm::Error TypeChecker::checkDivOp(Expression& expression)
 	assert(operation->getArguments().size() >= 2);
 	Type resultType = operation->getArg(0)->getType();
 
-	for (size_t i = 1, end = operation->getArguments().size(); i < end; ++i)
+	for (size_t i = 1, end = operation->argumentsCount(); i < end; ++i)
 	{
-		auto& current = operation->getArg(i)->getType();
+		auto* arg = operation->getArg(i);
+		auto pairResultType = divPairResultType(resultType, arg->getType(), arg->getLocation());
 
-		if (auto folded = divPairResultType(resultType, current); folded.hasValue())
-			resultType = std::move(folded.getValue());
-		else
-			return llvm::make_error<IncompatibleType>("Incompatible types");
+		if (!pairResultType)
+			return pairResultType.takeError();
+
+		resultType = std::move(*pairResultType);
 	}
 
 	expression.setType(resultType);
@@ -1556,13 +1582,19 @@ llvm::Error TypeChecker::checkIfElseOp(Expression& expression)
 		if (auto error = run<Expression>(*arg); error)
 			return error;
 
-	if (operation->getArg(0)->getType() != makeType<bool>())
-		return llvm::make_error<IncompatibleType>(
-				"condition of if else was not boolean");
+	auto* condition = operation->getArg(0);
+	auto* trueValue = operation->getArg(1);
+	auto* falseValue = operation->getArg(2);
 
-	if (operation->getArg(1)->getType() != operation->getArg(2)->getType())
+	if (condition->getType() != makeType<bool>())
 		return llvm::make_error<IncompatibleType>(
-				"ternary operator branches had different return type");
+				condition->getLocation(),
+				"condition must be a boolean value");
+
+	if (trueValue->getType() != falseValue->getType())
+		return llvm::make_error<IncompatibleType>(
+				falseValue->getLocation(),
+				"ternary operator values must have the same type");
 
 	expression.setType(operation->getArg(1)->getType());
 	return llvm::Error::success();
@@ -1605,19 +1637,32 @@ llvm::Error TypeChecker::checkLogicalAndOp(Expression& expression)
 
 	llvm::SmallVector<ArrayDimension, 3> dimensions;
 
-	auto& lhsType = operation->getArg(0)->getType();
-	auto& rhsType = operation->getArg(1)->getType();
+	assert(operation->argumentsCount() == 2);
+	auto* lhs = operation->getArg(0);
+	auto* rhs = operation->getArg(1);
 
-	// TODO: replace assert with proper error
-	assert(lhsType.dimensionsCount() == rhsType.dimensionsCount());
+	auto& lhsType = lhs->getType();
+	auto& rhsType = rhs->getType();
 
+	// The arguments must be booleans or array of booleans
+	if (!lhsType.isa<BuiltInType>() || lhsType.get<BuiltInType>() != BuiltInType::Boolean)
+		return llvm::make_error<IncompatibleType>(lhs->getLocation(), "argument must be a boolean or an array of booleans");
+
+	if (!rhsType.isa<BuiltInType>() || rhsType.get<BuiltInType>() != BuiltInType::Boolean)
+		return llvm::make_error<IncompatibleType>(rhs->getLocation(), "argument must be a boolean or an array of booleans");
+
+	// The ranks must match
+	if (lhsType.getRank() != rhsType.getRank())
+		return llvm::make_error<IncompatibleTypes>(operation->getLocation(), lhsType, rhsType);
+
+	// If the arguments are arrays, then also their dimensions must match
 	for (const auto& [l, r] : llvm::zip(lhsType.getDimensions(), rhsType.getDimensions()))
 	{
 		long dimension = -1;
 
 		if (!l.isDynamic() && !r.isDynamic())
 			if (l.getNumericSize() != r.getNumericSize())
-				return llvm::make_error<IncompatibleType>("dimensions mismatch");
+				return llvm::make_error<IncompatibleTypes>(operation->getLocation(), lhsType, rhsType);
 
 		if (!l.isDynamic())
 			dimension = l.getNumericSize();
@@ -1642,19 +1687,32 @@ llvm::Error TypeChecker::checkLogicalOrOp(Expression& expression)
 
 	llvm::SmallVector<ArrayDimension, 3> dimensions;
 
-	auto& lhsType = operation->getArg(0)->getType();
-	auto& rhsType = operation->getArg(1)->getType();
+	assert(operation->argumentsCount() == 2);
+	auto* lhs = operation->getArg(0);
+	auto* rhs = operation->getArg(1);
 
-	// TODO: replace assert with proper error
-	assert(lhsType.dimensionsCount() == rhsType.dimensionsCount());
+	auto& lhsType = lhs->getType();
+	auto& rhsType = rhs->getType();
 
+	// The arguments must be booleans or array of booleans
+	if (!lhsType.isa<BuiltInType>() || lhsType.get<BuiltInType>() != BuiltInType::Boolean)
+		return llvm::make_error<IncompatibleType>(lhs->getLocation(), "argument must be a boolean or an array of booleans");
+
+	if (!rhsType.isa<BuiltInType>() || rhsType.get<BuiltInType>() != BuiltInType::Boolean)
+		return llvm::make_error<IncompatibleType>(rhs->getLocation(), "argument must be a boolean or an array of booleans");
+
+	// The ranks must match
+	if (lhsType.getRank() != rhsType.getRank())
+		return llvm::make_error<IncompatibleTypes>(operation->getLocation(), lhsType, rhsType);
+
+	// If the arguments are arrays, then also their dimensions must match
 	for (const auto& [l, r] : llvm::zip(lhsType.getDimensions(), rhsType.getDimensions()))
 	{
 		long dimension = -1;
 
 		if (!l.isDynamic() && !r.isDynamic())
 			if (l.getNumericSize() != r.getNumericSize())
-				return llvm::make_error<IncompatibleType>("dimensions mismatch");
+				return llvm::make_error<IncompatibleTypes>(operation->getLocation(), lhsType, rhsType);
 
 		if (!l.isDynamic())
 			dimension = l.getNumericSize();
@@ -1675,7 +1733,15 @@ llvm::Error TypeChecker::checkMemberLookupOp(Expression& expression)
 	return llvm::make_error<NotImplemented>("member lookup is not implemented yet");
 }
 
-static llvm::Optional<Type> mulPairResultType(Type x, Type y)
+/**
+ * Get the type resulting from the multiplication of two types.
+ *
+ * @param x  	 first type
+ * @param y	 	 second type
+ * @param loc	 second type location
+ * @return result type
+ */
+static llvm::Expected<Type> mulPairResultType(Type x, Type y, SourceRange loc)
 {
 	if (x.isScalar())
 		return y.to(getMostGenericBaseType(x, y));
@@ -1689,7 +1755,7 @@ static llvm::Optional<Type> mulPairResultType(Type x, Type y)
 
 		if (!x[0].isDynamic() && !y[0].isDynamic())
 			if (x[0].getNumericSize() != y[0].getNumericSize())
-				return llvm::None;
+				return llvm::make_error<IncompatibleTypes>(loc, x, y);
 
 		return Type(baseType);
 	}
@@ -1700,7 +1766,7 @@ static llvm::Optional<Type> mulPairResultType(Type x, Type y)
 
 		if (!x[0].isDynamic() && !y[0].isDynamic())
 			if (x[0].getNumericSize() != y[0].getNumericSize())
-				return llvm::None;
+				return llvm::make_error<IncompatibleTypes>(loc, x, y);
 
 		llvm::SmallVector<ArrayDimension, 1> dimensions;
 		dimensions.emplace_back(y[1].isDynamic() ? -1 : y[1].getNumericSize());
@@ -1713,7 +1779,7 @@ static llvm::Optional<Type> mulPairResultType(Type x, Type y)
 
 		if (!x[1].isDynamic() && !y[0].isDynamic())
 			if (x[1].getNumericSize() != y[0].getNumericSize())
-				return llvm::None;
+				return llvm::make_error<IncompatibleTypes>(loc, x, y);
 
 		llvm::SmallVector<ArrayDimension, 1> dimensions;
 		dimensions.emplace_back(x[0].isDynamic() ? -1 : x[0].getNumericSize());
@@ -1726,7 +1792,7 @@ static llvm::Optional<Type> mulPairResultType(Type x, Type y)
 
 		if (!x[1].isDynamic() && !y[0].isDynamic())
 			if (x[1].getNumericSize() != y[0].getNumericSize())
-				return llvm::None;
+				return llvm::make_error<IncompatibleTypes>(loc, x, y);
 
 		llvm::SmallVector<ArrayDimension, 2> dimensions;
 		dimensions.emplace_back(x[0].isDynamic() ? -1 : x[0].getNumericSize());
@@ -1734,7 +1800,7 @@ static llvm::Optional<Type> mulPairResultType(Type x, Type y)
 		return Type(baseType, dimensions);
 	}
 
-	return llvm::None;
+	return llvm::make_error<IncompatibleTypes>(loc, x, y);
 }
 
 llvm::Error TypeChecker::checkMulOp(Expression& expression)
@@ -1751,12 +1817,13 @@ llvm::Error TypeChecker::checkMulOp(Expression& expression)
 
 	for (size_t i = 1, end = operation->getArguments().size(); i < end; ++i)
 	{
-		auto& current = operation->getArg(i)->getType();
+		auto* arg = operation->getArg(i);
+		auto pairResultType = mulPairResultType(resultType, arg->getType(), arg->getLocation());
 
-		if (auto folded = mulPairResultType(resultType, current); folded.hasValue())
-			resultType = std::move(folded.getValue());
-		else
-			return llvm::make_error<IncompatibleType>("Incompatible types");
+		if (!pairResultType)
+			return pairResultType.takeError();
+
+		resultType = std::move(*pairResultType);
 	}
 
 	expression.setType(resultType);
@@ -1785,7 +1852,42 @@ llvm::Error TypeChecker::checkPowerOfOp(Expression& expression)
 		if (auto error = run<Expression>(*arg); error)
 			return error;
 
-	expression.setType(operation->getArg(0)->getType());
+	auto* base = operation->getArg(0);
+
+	if (auto baseType = base->getType(); baseType.getRank() == 0)
+	{
+		if (!baseType.isa<BuiltInType>())
+			return llvm::make_error<IncompatibleType>(
+					base->getLocation(), "base must be a numeric value");
+
+		if (auto builtInType = baseType.get<BuiltInType>();
+				builtInType != BuiltInType::Integer && builtInType != BuiltInType::Float)
+			return llvm::make_error<IncompatibleType>(
+					base->getLocation(), "base must be a numeric value");
+	}
+	else
+	{
+		if (baseType.getRank() == 2)
+		{
+			if (!baseType[0].isDynamic() && !baseType[1].isDynamic())
+				if (baseType[0] != baseType[1])
+					return llvm::make_error<IncompatibleType>(
+							base->getLocation(), "base must be a scalar or a square matrix");
+		}
+		else
+		{
+			return llvm::make_error<IncompatibleType>(
+					base->getLocation(), "base must be a scalar or a square matrix");
+		}
+	}
+
+	auto* exponent = operation->getArg(1);
+
+	if (exponent->getType().getRank() != 0)
+		return llvm::make_error<IncompatibleType>(
+				exponent->getLocation(), "the exponent must be a scalar value");
+
+	expression.setType(base->getType());
 	return llvm::Error::success();
 }
 
@@ -1803,17 +1905,19 @@ llvm::Error TypeChecker::checkSubscriptionOp(Expression& expression)
 		if (auto error = run<Expression>(*arg); error)
 			return error;
 
-	size_t subscriptionIndicesCount = operation->argumentsCount() - 1;
+	auto* source = operation->getArg(0);
+	size_t subscriptionIndexesCount = operation->argumentsCount() - 1;
 
-	if (subscriptionIndicesCount > operation->getArg(0)->getType().dimensionsCount())
-		return llvm::make_error<IncompatibleType>("Array was subscripted too many times");
+	if (subscriptionIndexesCount > source->getType().dimensionsCount())
+		return llvm::make_error<BadSemantic>(
+				operation->getLocation(), "too many subscriptions");
 
-	for (size_t a = 1; a < operation->argumentsCount(); a++)
-		if (operation->getArg(a)->getType() != makeType<int>())
-			return llvm::make_error<IncompatibleType>(
-					"Parameter of array subscription was not int");
+	for (size_t i = 1; i < operation->argumentsCount(); ++i)
+		if (auto* index = operation->getArg(i); index->getType() != makeType<int>())
+			return llvm::make_error<BadSemantic>(
+					index->getLocation(), "index expression must be an integer");
 
-	expression.setType(operation->getArg(0)->getType().subscript(subscriptionIndicesCount));
+	expression.setType(source->getType().subscript(subscriptionIndexesCount));
 	return llvm::Error::success();
 }
 
@@ -1989,9 +2093,15 @@ namespace modelica::frontend::detail
 				return "Bad semantic";
 
 			case (3):
-				return "Multiple algorithms";
+				return "Incompatible type";
 
 			case (4):
+				return "Incompatible types";
+
+			case (5):
+				return "Multiple algorithms";
+
+			case (6):
 				return "Not found";
 
 			default:
@@ -2008,6 +2118,8 @@ namespace modelica::frontend::detail
 
 char AssignmentToInputMember::ID;
 char BadSemantic::ID;
+char IncompatibleType::ID;
+char IncompatibleTypes::ID;
 char MultipleAlgorithmsFunction::ID;
 char NotFound::ID;
 
@@ -2063,6 +2175,57 @@ void BadSemantic::printMessage(llvm::raw_ostream& os) const
 }
 
 void BadSemantic::log(llvm::raw_ostream& os) const
+{
+	print(os);
+}
+
+IncompatibleType::IncompatibleType(SourceRange location, llvm::StringRef message)
+		: location(std::move(location)),
+			message(message.str())
+{
+}
+
+SourceRange IncompatibleType::getLocation() const
+{
+	return location;
+}
+
+void IncompatibleType::printMessage(llvm::raw_ostream& os) const
+{
+	os << message;
+}
+
+void IncompatibleType::log(llvm::raw_ostream& os) const
+{
+	print(os);
+}
+
+IncompatibleTypes::IncompatibleTypes(SourceRange location, Type first, Type second)
+		: location(std::move(location)),
+			first(std::move(first)),
+			second(std::move(second))
+{
+}
+
+SourceRange IncompatibleTypes::getLocation() const
+{
+	return location;
+}
+
+void IncompatibleTypes::printMessage(llvm::raw_ostream& os) const
+{
+	os << "incompatible types: \"";
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << first;
+	os.resetColor();
+	os << "\" and \"";
+	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
+	os << second;
+	os.resetColor();
+	os << "\"";
+}
+
+void IncompatibleTypes::log(llvm::raw_ostream& os) const
 {
 	print(os);
 }

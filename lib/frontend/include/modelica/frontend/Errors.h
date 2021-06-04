@@ -55,8 +55,7 @@ namespace modelica::frontend::detail
 		not_implemented,
 		choice_not_found,
 		empty_list,
-		branches_types_do_not_match,
-		incompatible_type
+		branches_types_do_not_match
 	};
 }
 
@@ -174,28 +173,5 @@ namespace modelica::frontend
 					static_cast<int>(detail::GenericErrorCode::branches_types_do_not_match),
 					detail::GenericErrorCategory::category);
 		}
-	};
-
-	/**
-	 * Incompatible type is used to signal that subexpressions are
-	 * not acceptable due to their types.
-	 */
-	class IncompatibleType: public llvm::ErrorInfo<IncompatibleType>
-	{
-		public:
-		static char ID;
-		IncompatibleType(std::string message): mess(std::move(message)) {}
-
-		void log(llvm::raw_ostream& OS) const override { OS << mess; }
-
-		[[nodiscard]] std::error_code convertToErrorCode() const override
-		{
-			return std::error_code(
-					static_cast<int>(detail::GenericErrorCode::incompatible_type),
-					detail::GenericErrorCategory::category);
-		}
-
-		private:
-		std::string mess;
 	};
 }

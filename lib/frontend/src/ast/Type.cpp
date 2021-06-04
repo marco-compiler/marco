@@ -16,17 +16,17 @@ namespace modelica::frontend
 		switch (type)
 		{
 			case BuiltInType::None:
-				return "none";
+				return "None";
 			case BuiltInType::Integer:
-				return "integer";
+				return "Integer";
 			case BuiltInType::Float:
-				return "float";
+				return "Real";
 			case BuiltInType::String:
-				return "string";
+				return "String";
 			case BuiltInType::Boolean:
-				return "boolean";
+				return "Boolean";
 			case BuiltInType::Unknown:
-				return "unknown";
+				return "Unknown";
 		}
 
 		assert(false && "Unexpected type");
@@ -437,7 +437,7 @@ bool Type::hasConstantShape() const
 		if (dimension.isDynamic())
 			return false;
 
-	if (isA<PackedType>())
+	if (isa<PackedType>())
 		return get<PackedType>().hasConstantShape();
 
 	return true;
@@ -495,13 +495,6 @@ Type Type::to(llvm::ArrayRef<ArrayDimension> dims) const
 	return copy;
 }
 
-class ArrayDimensionToStringVisitor
-{
-	public:
-	std::string operator()(const long& value) { return std::to_string(value); }
-	std::string operator()(const std::unique_ptr<Expression>& expression) { return toString(*expression); };
-};
-
 namespace modelica::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Type& obj)
@@ -514,10 +507,12 @@ namespace modelica::frontend
 		auto visitor = [](const auto& t) { return toString(t); };
 
 		auto dimensionsToStringLambda = [](const std::string& a, ArrayDimension& b) -> std::string {
-			return a + (a.length() > 0 ? "," : "") + b.visit(ArrayDimensionToStringVisitor());
+			return a + (a.length() > 0 ? "," : "") +
+						 (b.isDynamic() ? ":" : std::to_string(b.getNumericSize()));
 		};
 
 		auto dimensions = obj.getDimensions();
+
 		std::string size = obj.isScalar() ? ""
 																			: "[" +
 																				accumulate(
@@ -525,8 +520,9 @@ namespace modelica::frontend
 																						dimensions.end(),
 																						std::string(),
 																						dimensionsToStringLambda) +
-																				"] ";
-		return size + obj.visit(visitor);
+																				"]";
+
+		return obj.visit(visitor) + size;
 	}
 }
 

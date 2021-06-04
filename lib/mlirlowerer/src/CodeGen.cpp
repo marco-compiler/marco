@@ -17,19 +17,16 @@ using namespace std;
 Reference::Reference()
 		: builder(nullptr),
 			value(nullptr),
-			initialized(false),
 			reader(nullptr)
 {
 }
 
 Reference::Reference(mlir::OpBuilder* builder,
 										 mlir::Value value,
-										 bool initialized,
 										 std::function<mlir::Value(mlir::OpBuilder*, mlir::Value)> reader,
 										 std::function<void(mlir::OpBuilder* builder, Reference&, mlir::Value)> writer)
 		: builder(builder),
 			value(std::move(value)),
-			initialized(initialized),
 			reader(std::move(reader)),
 			writer(std::move(writer))
 {
@@ -45,11 +42,6 @@ mlir::Value Reference::getReference() const
 	return value;
 }
 
-bool Reference::isInitialized() const
-{
-	return initialized;
-}
-
 void Reference::set(mlir::Value v)
 {
 	writer(builder, *this, v);
@@ -58,7 +50,7 @@ void Reference::set(mlir::Value v)
 Reference Reference::ssa(mlir::OpBuilder* builder, mlir::Value value)
 {
 	return Reference(
-			builder, value, true,
+			builder, value,
 			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value {
 				return value;
 			},
@@ -67,10 +59,10 @@ Reference Reference::ssa(mlir::OpBuilder* builder, mlir::Value value)
 			});
 }
 
-Reference Reference::memory(mlir::OpBuilder* builder, mlir::Value value, bool initialized)
+Reference Reference::memory(mlir::OpBuilder* builder, mlir::Value value)
 {
 	return Reference(
-			builder, value, initialized,
+			builder, value,
 			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value {
 				auto pointerType = value.getType().cast<PointerType>();
 
@@ -88,10 +80,10 @@ Reference Reference::memory(mlir::OpBuilder* builder, mlir::Value value, bool in
 			});
 }
 
-Reference Reference::member(mlir::OpBuilder* builder, mlir::Value value, bool initialized)
+Reference Reference::member(mlir::OpBuilder* builder, mlir::Value value)
 {
 	return Reference(
-			builder, value, initialized,
+			builder, value,
 			[](mlir::OpBuilder* builder, mlir::Value value) -> mlir::Value
 			{
 				auto memberType = value.getType().cast<MemberType>();
@@ -369,7 +361,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 	mlir::Value returnCondition = builder.create<AllocaOp>(algorithmLocation, builder.getBooleanType());
 	mlir::Value falseValue = builder.create<ConstantOp>(algorithmLocation, builder.getBooleanAttribute(false));
 	builder.create<StoreOp>(algorithmLocation, falseValue, returnCondition);
-	symbolTable.insert(algorithm->getReturnCheckName(), Reference::memory(&builder, returnCondition, true));
+	symbolTable.insert(algorithm->getReturnCheckName(), Reference::memory(&builder, returnCondition));
 
 	// Lower the statements
 	lower(*function.getAlgorithms()[0]);
@@ -453,10 +445,10 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 		builder.setInsertionPointToStart(&simulation.body().front());
 
 		mlir::Value time = simulation.time();
-		symbolTable.insert("time", Reference::memory(&builder, time, true));
+		symbolTable.insert("time", Reference::memory(&builder, time));
 
 		for (const auto& member : llvm::enumerate(model.getMembers()))
-			symbolTable.insert(member.value()->getName(), Reference::memory(&builder, simulation.body().getArgument(member.index() + 1), true));
+			symbolTable.insert(member.value()->getName(), Reference::memory(&builder, simulation.body().getArgument(member.index() + 1)));
 
 		for (const auto& equation : model.getEquations())
 			lower(*equation);
@@ -627,12 +619,12 @@ void MLIRLowerer::lower<frontend::Model>(const Member& member)
 	if (auto pointerType = type.dyn_cast<PointerType>())
 	{
 		mlir::Value ptr = builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), llvm::None, false);
-		symbolTable.insert(member.getName(), Reference::memory(&builder, ptr, true));
+		symbolTable.insert(member.getName(), Reference::memory(&builder, ptr));
 	}
 	else
 	{
 		mlir::Value ptr = builder.create<AllocOp>(location, type, llvm::None, llvm::None, false);
-		symbolTable.insert(member.getName(), Reference::memory(&builder, ptr, true));
+		symbolTable.insert(member.getName(), Reference::memory(&builder, ptr));
 	}
 
 	mlir::Value destination = symbolTable.lookup(member.getName()).getReference();
@@ -643,15 +635,9 @@ void MLIRLowerer::lower<frontend::Model>(const Member& member)
 		assert(values.size() == 1);
 
 		if (auto pointerType = type.dyn_cast<PointerType>())
-		{
-			mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(pointerType.getElementType()));
 			builder.create<FillOp>(location, *values[0], destination);
-		}
 		else
-		{
-			mlir::Value zero = builder.create<ConstantOp>(location, builder.getZeroAttribute(type));
 			builder.create<AssignmentOp>(location, *values[0], destination);
-		}
 	}
 	else
 	{
@@ -691,7 +677,6 @@ void MLIRLowerer::lower<Function>(const Member& member)
 	const auto& frontendType = member.getType();
 	mlir::Type type = lower(frontendType, member.isOutput() ? BufferAllocationScope::heap : BufferAllocationScope::stack);
 
-	bool initialized = true;
 	llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 	MemberType::Shape shape;
 
@@ -709,7 +694,7 @@ void MLIRLowerer::lower<Function>(const Member& member)
 		// If all the dynamic dimensions have an expression to determine their
 		// values, then the member can be instantiated from the beginning.
 
-		initialized = expressionsCount == pointerType.getDynamicDimensions();
+		bool initialized = expressionsCount == pointerType.getDynamicDimensions();
 
 		if (initialized)
 		{
@@ -730,7 +715,7 @@ void MLIRLowerer::lower<Function>(const Member& member)
 			MemberType::get(builder.getContext(), MemberAllocationScope::stack, type);
 
 	mlir::Value var = builder.create<MemberCreateOp>(location, memberType, dynamicDimensions);
-	symbolTable.insert(member.getName(), Reference::member(&builder, var, initialized));
+	symbolTable.insert(member.getName(), Reference::member(&builder, var));
 
 	if (member.hasInitializer())
 	{
@@ -853,7 +838,6 @@ void MLIRLowerer::lower(const Statement& statement)
 
 void MLIRLowerer::lower(const AssignmentStatement& statement)
 {
-	auto location = loc(statement.getLocation());
 	const auto* destinations = statement.getDestinations();
 	auto values = lower<Expression>(*statement.getExpression());
 
@@ -924,8 +908,7 @@ void MLIRLowerer::lower(const ForStatement& statement)
 	mlir::Value breakCondition = builder.create<AllocaOp>(location, builder.getBooleanType());
 	mlir::Value falseValue = builder.create<ConstantOp>(location, builder.getBooleanAttribute(false));
 	builder.create<StoreOp>(location, falseValue, breakCondition);
-	symbolTable.insert(statement.getBreakCheckName(),
-			Reference::memory(&builder, breakCondition, true));
+	symbolTable.insert(statement.getBreakCheckName(), Reference::memory(&builder, breakCondition));
 
 	// Variable to be set when calling "return"
 	mlir::Value returnCondition = symbolTable.lookup(statement.getReturnCheckName()).getReference();
@@ -987,8 +970,7 @@ void MLIRLowerer::lower(const WhileStatement& statement)
 	mlir::Value breakCondition = builder.create<AllocaOp>(location, builder.getBooleanType());
 	mlir::Value falseValue = builder.create<ConstantOp>(location, builder.getBooleanAttribute(false));
 	builder.create<StoreOp>(location, falseValue, breakCondition);
-	symbolTable.insert(statement.getBreakCheckName(),
-			Reference::memory(&builder, breakCondition, true));
+	symbolTable.insert(statement.getBreakCheckName(), Reference::memory(&builder, breakCondition));
 
 	// Variable to be set when calling "return"
 	mlir::Value returnCondition = symbolTable.lookup(statement.getReturnCheckName()).getReference();
@@ -1252,7 +1234,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 		}
 
 		mlir::Value result = builder.create<SubscriptionOp>(location, buffer, indexes);
-		return { Reference::memory(&builder, result, true) };
+		return { Reference::memory(&builder, result) };
 	}
 
 	if (kind == OperationKind::memberLookup)
@@ -1272,7 +1254,8 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Constant>(const Expression&
 	const auto* constant = expression.get<Constant>();
 	const auto& type = constant->getType();
 
-	assert(type.isA<BuiltInType>() && "Constants can be made only of built-in typed values");
+	assert(
+			type.isa<BuiltInType>() && "Constants can be made only of built-in typed values");
 	auto builtInType = type.get<BuiltInType>();
 
 	mlir::Attribute attribute;
@@ -1469,7 +1452,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		auto resultType = call->getType();
 		llvm::SmallVector<mlir::Type, 3> callResultsTypes;
 
-		if (resultType.isA<PackedType>())
+		if (resultType.isa<PackedType>())
 		{
 			for (const auto& type : resultType.get<PackedType>())
 				callResultsTypes.push_back(lower(type, BufferAllocationScope::heap));
