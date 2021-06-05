@@ -12,5 +12,6 @@ add_llvm_executable(modelica-opt modelica-opt.cpp)
 
 llvm_update_compile_flags(modelica-opt)
 target_link_libraries(modelica-opt PRIVATE ${LIBS})
-
 mlir_check_all_link_libraries(modelica-opt)
+
+install(TARGETS modelica-opt RUNTIME DESTINATION bin)

@@ -12,5 +12,6 @@ add_llvm_executable(marco marco.cpp)
 
 llvm_update_compile_flags(marco)
 target_link_libraries(marco PRIVATE ${LIBS})
-
 mlir_check_all_link_libraries(marco)
+
+install(TARGETS marco RUNTIME DESTINATION bin)
