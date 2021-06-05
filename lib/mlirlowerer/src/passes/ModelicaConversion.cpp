@@ -2689,7 +2689,7 @@ struct IfOpLowering: public ModelicaOpConversion<IfOp>
 		llvm::SmallVector<mlir::Value, 3> thenYieldValues;
 
 		for (mlir::Value value : thenTerminator.values())
-			thenYieldValues.push_back(materializeTargetConversion(rewriter, value));
+			thenYieldValues.push_back(value);
 
 		rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(thenTerminator, thenYieldValues);
 
@@ -2706,7 +2706,7 @@ struct IfOpLowering: public ModelicaOpConversion<IfOp>
 			llvm::SmallVector<mlir::Value, 3> elseYieldValues;
 
 			for (mlir::Value value : elseTerminator.values())
-				thenYieldValues.push_back(materializeTargetConversion(rewriter, value));
+				elseYieldValues.push_back(value);
 
 			rewriter.replaceOpWithNewOp<mlir::scf::YieldOp>(elseTerminator, elseYieldValues);
 		}

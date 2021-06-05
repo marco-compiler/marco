@@ -513,7 +513,7 @@ llvm::Error TypeChecker::run<PartialDerFunction>(Class& cls)
 
 		auto type = (*member).value()->getType();
 
-		if (!type.isa<BuiltInType>() || type.get<BuiltInType>() != BuiltInType::Float)
+		if (!type.isa<float>())
 			return llvm::make_error<BadSemantic>(
 					independentVariable->getLocation(),
 					"independent variables must have Real type");
@@ -901,12 +901,7 @@ llvm::Error TypeChecker::run<Array>(Expression& expression)
 			return error;
 
 		auto& elementType = element->getType();
-		assert(elementType.isa<BuiltInType>());
-		auto& builtInElementType = elementType.get<BuiltInType>();
-
-		assert(builtInElementType == BuiltInType::Boolean ||
-					 builtInElementType == BuiltInType::Integer ||
-					 builtInElementType == BuiltInType::Float);
+		assert(elementType.isNumeric());
 
 		if (elementType >= resultType)
 			resultType = elementType;
@@ -1391,8 +1386,16 @@ llvm::Error TypeChecker::run(Induction& induction)
 	if (auto error = run<Expression>(*induction.getBegin()); error)
 		return error;
 
+	if (!induction.getBegin()->getType().isa<int>())
+		return llvm::make_error<IncompatibleType>(
+				induction.getBegin()->getLocation(), "start value must be an integer");
+
 	if (auto error = run<Expression>(*induction.getEnd()); error)
 		return error;
+
+	if (!induction.getEnd()->getType().isa<int>())
+		return llvm::make_error<IncompatibleType>(
+				induction.getBegin()->getLocation(), "end value must be an integer");
 
 	return llvm::Error::success();
 }
@@ -1406,6 +1409,10 @@ llvm::Error TypeChecker::run<IfStatement>(Statement& statement)
 	{
 		if (auto error = run<Expression>(*block.getCondition()); error)
 			return error;
+
+		if (!block.getCondition()->getType().isa<bool>())
+			return llvm::make_error<IncompatibleType>(
+					block.getCondition()->getLocation(), "condition must be a boolean");
 
 		for (auto& stmnt : block)
 			if (auto error = run<Statement>(*stmnt); error)
@@ -1429,6 +1436,10 @@ llvm::Error TypeChecker::run<WhenStatement>(Statement& statement)
 	if (auto error = run<Expression>(*whenStatement->getCondition()); error)
 		return error;
 
+	if (!whenStatement->getCondition()->getType().isa<bool>())
+		return llvm::make_error<IncompatibleType>(
+				whenStatement->getCondition()->getLocation(), "condition must be a boolean");
+
 	for (auto& stmnt : whenStatement->getBody())
 		if (auto error = run<Statement>(*stmnt); error)
 			return error;
@@ -1443,6 +1454,10 @@ llvm::Error TypeChecker::run<WhileStatement>(Statement& statement)
 
 	if (auto error = run<Expression>(*whileStatement->getCondition()); error)
 		return error;
+
+	if (!whileStatement->getCondition()->getType().isa<bool>())
+		return llvm::make_error<IncompatibleType>(
+				whileStatement->getCondition()->getLocation(), "condition must be a boolean");
 
 	for (auto& stmnt : whileStatement->getBody())
 		if (auto error = run<Statement>(*stmnt); error)
@@ -1496,6 +1511,14 @@ llvm::Error TypeChecker::checkDifferentOp(Expression& expression)
 	return llvm::Error::success();
 }
 
+/**
+ * Get the type resulting from the division of two types.
+ *
+ * @param x  	 first type
+ * @param y	 	 second type
+ * @param loc	 second type location
+ * @return result type
+ */
 static llvm::Expected<Type> divPairResultType(Type x, Type y, SourceRange loc)
 {
 	if (x.isScalar() && y.isScalar())
@@ -1645,10 +1668,10 @@ llvm::Error TypeChecker::checkLogicalAndOp(Expression& expression)
 	auto& rhsType = rhs->getType();
 
 	// The arguments must be booleans or array of booleans
-	if (!lhsType.isa<BuiltInType>() || lhsType.get<BuiltInType>() != BuiltInType::Boolean)
+	if (!lhsType.isa<bool>())
 		return llvm::make_error<IncompatibleType>(lhs->getLocation(), "argument must be a boolean or an array of booleans");
 
-	if (!rhsType.isa<BuiltInType>() || rhsType.get<BuiltInType>() != BuiltInType::Boolean)
+	if (!rhsType.isa<bool>())
 		return llvm::make_error<IncompatibleType>(rhs->getLocation(), "argument must be a boolean or an array of booleans");
 
 	// The ranks must match
@@ -1695,10 +1718,10 @@ llvm::Error TypeChecker::checkLogicalOrOp(Expression& expression)
 	auto& rhsType = rhs->getType();
 
 	// The arguments must be booleans or array of booleans
-	if (!lhsType.isa<BuiltInType>() || lhsType.get<BuiltInType>() != BuiltInType::Boolean)
+	if (!lhsType.isa<bool>())
 		return llvm::make_error<IncompatibleType>(lhs->getLocation(), "argument must be a boolean or an array of booleans");
 
-	if (!rhsType.isa<BuiltInType>() || rhsType.get<BuiltInType>() != BuiltInType::Boolean)
+	if (!rhsType.isa<bool>())
 		return llvm::make_error<IncompatibleType>(rhs->getLocation(), "argument must be a boolean or an array of booleans");
 
 	// The ranks must match
@@ -1856,12 +1879,7 @@ llvm::Error TypeChecker::checkPowerOfOp(Expression& expression)
 
 	if (auto baseType = base->getType(); baseType.getRank() == 0)
 	{
-		if (!baseType.isa<BuiltInType>())
-			return llvm::make_error<IncompatibleType>(
-					base->getLocation(), "base must be a numeric value");
-
-		if (auto builtInType = baseType.get<BuiltInType>();
-				builtInType != BuiltInType::Integer && builtInType != BuiltInType::Float)
+		if (!baseType.isNumeric())
 			return llvm::make_error<IncompatibleType>(
 					base->getLocation(), "base must be a numeric value");
 	}

@@ -179,6 +179,9 @@ namespace modelica::codegen
 			case MemberAllocationScope::heap:
 				return BufferAllocationScope::heap;
 		}
+
+		assert(false && "Unexpected allocation scope");
+		return BufferAllocationScope::heap;
 	}
 
 	static MemberAllocationScope bufferToMemberAllocationScope(BufferAllocationScope scope)
@@ -195,6 +198,9 @@ namespace modelica::codegen
 				assert(false && "Unexpected unknown allocation scope");
 				return MemberAllocationScope::heap;
 		}
+
+		assert(false && "Unexpected allocation scope");
+		return MemberAllocationScope::heap;
 	}
 }
 

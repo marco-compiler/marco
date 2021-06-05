@@ -29,20 +29,88 @@ namespace modelica::frontend
 
 	std::string toString(BuiltInType type);
 
-	template<typename T>
-	constexpr BuiltInType typeToFrontendType()
+	namespace detail
 	{
-		if constexpr (std::is_same<T, float>() || std::is_same<T, double>())
-			return BuiltInType::Float;
-		if constexpr (std::is_same<T, int>() || std::is_same<T, long>())
-			return BuiltInType::Integer;
-		if constexpr (std::is_same<T, bool>())
-			return BuiltInType::Boolean;
-		if constexpr (std::is_same<std::string, T>())
-			return BuiltInType::String;
+		template<typename T>
+		struct [[maybe_unused]] IsBuiltInTypeCompatible
+		{
+			static const bool value = false;
+		};
 
-		assert(false && "Unknown type");
-		return BuiltInType::Unknown;
+		template<>
+		struct [[maybe_unused]] IsBuiltInTypeCompatible<bool>
+		{
+			static const bool value = true;
+		};
+
+		template<>
+		struct [[maybe_unused]] IsBuiltInTypeCompatible<int>
+		{
+			static const bool value = true;
+		};
+
+		template<>
+		struct [[maybe_unused]] IsBuiltInTypeCompatible<long>
+		{
+			static const bool value = true;
+		};
+
+		template<>
+		struct [[maybe_unused]] IsBuiltInTypeCompatible<float>
+		{
+			static const bool value = true;
+		};
+
+		template<>
+		struct [[maybe_unused]] IsBuiltInTypeCompatible<double>
+		{
+			static const bool value = true;
+		};
+
+		template<>
+		struct [[maybe_unused]] IsBuiltInTypeCompatible<std::string>
+		{
+			static const bool value = true;
+		};
+
+		template<typename T>
+		struct [[maybe_unused]] FrontendType;
+
+		template<>
+		struct [[maybe_unused]] FrontendType<bool>
+		{
+			static const BuiltInType value = BuiltInType::Boolean;
+		};
+
+		template<>
+		struct [[maybe_unused]] FrontendType<int>
+		{
+			static const BuiltInType value = BuiltInType::Integer;
+		};
+
+		template<>
+		struct [[maybe_unused]] FrontendType<long>
+		{
+			static const BuiltInType value = BuiltInType::Integer;
+		};
+
+		template<>
+		struct [[maybe_unused]] FrontendType<float>
+		{
+			static const BuiltInType value = BuiltInType::Float;
+		};
+
+		template<>
+		struct [[maybe_unused]] FrontendType<double>
+		{
+			static const BuiltInType value = BuiltInType::Float;
+		};
+
+		template<>
+		struct [[maybe_unused]] FrontendType<std::string>
+		{
+			static const BuiltInType value = BuiltInType::String;
+		};
 	}
 
 	template<BuiltInType T>
@@ -245,10 +313,26 @@ namespace modelica::frontend
 
 		void print(llvm::raw_ostream& os, size_t indents = 0) const override;
 
-		template<typename T>
+		template<typename T,  typename std::enable_if<
+		    !detail::IsBuiltInTypeCompatible<T>::value, bool>::type = true>
 		[[nodiscard]] bool isa() const
 		{
 			return std::holds_alternative<T>(content);
+		}
+
+		template<typename T, typename std::enable_if<
+		    detail::IsBuiltInTypeCompatible<T>::value, bool>::type = true>
+		[[nodiscard]] bool isa() const
+		{
+			if (!std::holds_alternative<BuiltInType>(content))
+				return false;
+
+			return detail::FrontendType<T>::value == std::get<BuiltInType>(content);
+		}
+
+		[[nodiscard]] bool isNumeric() const
+		{
+			return isa<bool>() || isa<int>() || isa<float>();
 		}
 
 		template<typename T>
@@ -315,12 +399,12 @@ namespace modelica::frontend
 	template<typename T, typename... Args>
 	[[nodiscard]] Type makeType(Args&&... args)
 	{
-		static_assert(typeToFrontendType<T>() != BuiltInType::Unknown);
+		static_assert(detail::IsBuiltInTypeCompatible<T>::value);
 
 		if constexpr (sizeof...(Args) == 0)
-			return Type(typeToFrontendType<T>());
+			return Type(detail::FrontendType<T>::value);
 
-		return Type(typeToFrontendType<T>(), { static_cast<ArrayDimension>(std::forward<Args>(args))... });
+		return Type(detail::FrontendType<T>::value, { static_cast<ArrayDimension>(std::forward<Args>(args))... });
 	}
 
 	template<BuiltInType T, typename... Args>
