@@ -90,4 +90,10 @@ fabric.properties
 # VS Code
 .vscode
 dist
-build*
+/build*
+
+# Sundials libraries
+sundials_libraries/install
+sundials_libraries/OpenBLAS*
+sundials_libraries/SuiteSparse*
+sundials_libraries/sundials*

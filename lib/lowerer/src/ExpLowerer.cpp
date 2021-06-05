@@ -1,9 +1,9 @@
-#include "ExpLowerer.hpp"
+#include "modelica/lowerer/ExpLowerer.hpp"
 
-#include "CallLowerer.hpp"
-#include "OperationLowerer.hpp"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Support/Error.h"
+#include "marco/lowerer/CallLowerer.hpp"
+#include "marco/lowerer/OperationLowerer.hpp"
 #include "marco/model/ModConst.hpp"
 #include "marco/model/ModErrors.hpp"
 #include "marco/model/ModExp.hpp"
@@ -74,7 +74,8 @@ void storeConstArray<int>(
 	auto castedAlloca =
 			builder.CreatePointerCast(alloca, flatPtrType(alloca->getType()));
 	for (size_t i = 0; i < constant.size(); i++)
-		cont.storeConstantToArrayElement<long>(constant.get<long>(i), castedAlloca, i);
+		cont.storeConstantToArrayElement<long>(
+				constant.get<long>(i), castedAlloca, i);
 }
 
 Expected<AllocaInst*> lowerConstantTyped(
