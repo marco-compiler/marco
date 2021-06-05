@@ -10,6 +10,7 @@ char UnexpectedModToken::ID;
 char TypeConstantSizeMissMatch::ID;
 char FailedExplicitation::ID;
 char UnsolvableAlgebraicLoop::ID;
+char SundialsError::ID;
 
 std::error_condition marco::make_error_condition(LowererErrorCode errc)
 {
@@ -43,6 +44,8 @@ LowererErrorCategory::default_error_condition(int ev) const noexcept
 		return std::error_condition(LowererErrorCode::failedExplicitation);
 	if (ev == 8)
 		return std::error_condition(LowererErrorCode::unsolvableAlgebraicLoop);
+	if (ev == 9)
+		return std::error_condition(LowererErrorCode::sundialsError);
 
 	return std::error_condition(LowererErrorCode::unkownVariable);
 }

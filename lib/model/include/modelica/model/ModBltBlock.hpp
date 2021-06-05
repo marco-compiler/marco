@@ -70,6 +70,12 @@ namespace modelica
 
 		[[nodiscard]] auto& getTemplate() { return body; }
 		[[nodiscard]] const auto& getTemplate() const { return body; }
+		[[nodiscard]] const std::string& getTemplateName() const
+		{
+			return body->getName();
+		}
+
+		[[nodiscard]] size_t size() const { return equations.size(); }
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 

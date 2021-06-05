@@ -22,7 +22,8 @@ namespace marco
 		typeConstantSizeMissMatch,
 		unexpectedModToken,
 		failedExplicitation,
-		unsolvableAlgebraicLoop
+		unsolvableAlgebraicLoop,
+		sundialsError
 	};
 }
 
@@ -284,5 +285,40 @@ namespace marco
 					static_cast<int>(LowererErrorCode::unsolvableAlgebraicLoop),
 					LowererErrorCategory::category);
 		}
+	};
+
+	class SundialsError: public llvm::ErrorInfo<SundialsError>
+	{
+		public:
+		static char ID;
+		SundialsError(void* returnvalue, const char* funcname, int opt)
+				: returnvalue(std::move(returnvalue)), funcname(funcname), opt(opt)
+		{
+		}
+
+		void log(llvm::raw_ostream& OS) const override
+		{
+			if (opt == 0)
+				OS << "SUNDIALS_ERROR: " << funcname
+					 << "() failed - returned NULL pointer";
+			else if (opt == 1)
+				OS << "SUNDIALS_ERROR: " << funcname
+					 << "() failed with retval = " << (int*) returnvalue;
+			else
+				OS << "MEMORY_ERROR: " << funcname
+					 << "() failed - returned NULL pointer";
+		}
+
+		[[nodiscard]] std::error_code convertToErrorCode() const override
+		{
+			return std::error_code(
+					static_cast<int>(LowererErrorCode::sundialsError),
+					LowererErrorCategory::category);
+		}
+
+		private:
+		void* returnvalue;
+		const char* funcname;
+		int opt;
 	};
 }	 // namespace marco

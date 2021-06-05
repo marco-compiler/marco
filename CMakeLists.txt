@@ -70,6 +70,26 @@ add_definitions(${LLVM_DEFINITIONS})
 # inherit build options from the LLVM build we are linking against
 include(HandleLLVMOptions)
 
+# SUNDIALS
+set(SUNDIALS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/sundials_libraries/install"
+	CACHE PATH "Path to sundials_libraries/install folder")
+set(SUNDIALS_INCLUDE_DIR ${SUNDIALS_DIR}/include)
+set(SUNDIALS_LIBRARY_DIR ${SUNDIALS_DIR}/lib)
+
+find_library(SUNDIALS_SOLVER_LIB sundials_ida ${SUNDIALS_LIBRARY_DIR})
+find_library(SUNDIALS_NVEC_LIB sundials_nvecserial ${SUNDIALS_LIBRARY_DIR})
+find_library(SUNDIALS_MANYVEC_LIB sundials_nvecmanyvector ${SUNDIALS_LIBRARY_DIR})
+find_library(SUNDIALS_SUNLINSOLKLU_LIB sundials_sunlinsolklu ${SUNDIALS_LIBRARY_DIR})
+
+add_library(sundials INTERFACE)
+target_include_directories(sundials INTERFACE ${SUNDIALS_INCLUDE_DIR})
+target_include_directories(sundials INTERFACE ${SUNDIALS_INCLUDE_DIRS})
+target_link_libraries(sundials INTERFACE
+	${SUNDIALS_SOLVER_LIB}
+	${SUNDIALS_NVEC_LIB}
+	${SUNDIALS_MANYVEC_LIB}
+	${SUNDIALS_SUNLINSOLKLU_LIB})
+
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 
 # MARCO profiling for compilation and runtime

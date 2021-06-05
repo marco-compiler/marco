@@ -7,6 +7,13 @@
 ```bash
 sudo apt install libboost-all-dev
 ```
+
+### SUNDIALS
+Required dependencies for the SUNDIALS library:
+```bash
+sudo apt install gfortran libgmp-dev libmpfr-dev
+```
+
 ### LLVM & MLIR
 
 MLIR is not currently included in the prebuilt packages, and thus we need to build LLVM from scratch. We also need to select a specific commit, as MLIR is subject to fast changes and MARCO can be possibly not be yet compatible with the latest commits. 
@@ -40,11 +47,18 @@ cd marco
 git submodule update --recursive --init
 ```
 
+Afterwards, the OpenBLAS, SuiteSparse and Sundials libraries must be built with the `buildlibs.sh` file in the `sundials_libraries` folder. It will download, build and install the three libraries.
+```bash
+cd sundials_libraries
+./buildlibs.sh
+cd ..
+```
+
 ## Building
 ```bash
 cd marco
 mkdir build && cd build
-cmake -DLLVM_DIR=/llvm_install_path/lib/cmake/llvm -DMLIR_DIR=/llvm_install_path/lib/cmake/mlir -DLLVM_EXTERNAL_LIT=/lit_executable_path ..
+cmake -DLLVM_DIR=/llvm_install_path/lib/cmake/llvm -DMLIR_DIR=/llvm_install_path/lib/cmake/mlir -DLLVM_EXTERNAL_LIT=/lit_executable_path -DSUNDIALS_DIR=../sundials_libraries/install ..
 make all
 ```
 
