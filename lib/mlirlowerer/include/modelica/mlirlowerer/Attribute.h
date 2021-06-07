@@ -312,10 +312,6 @@ namespace modelica::codegen
 	class DerivativeAttribute : public mlir::Attribute::AttrBase<DerivativeAttribute, mlir::Attribute, DerivativeAttributeStorage>
 	{
 		public:
-		using Map = InverseFunctionsAttributeStorage::Map;
-		using iterator = InverseFunctionsAttributeStorage::iterator;
-		using const_iterator = InverseFunctionsAttributeStorage::const_iterator;
-
 		using Base::Base;
 
 		static constexpr llvm::StringRef getAttrName();

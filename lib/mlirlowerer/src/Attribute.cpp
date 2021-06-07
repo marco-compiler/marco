@@ -521,6 +521,24 @@ namespace modelica::codegen
 					RealType::get(parser.getBuilder().getContext()), value);
 		}
 
+		// TODO: parse inverse
+
+		if (mlir::succeeded(parser.parseOptionalKeyword("derivative")))
+		{
+			mlir::StringAttr name;
+			unsigned int order = 1;
+
+			if (parser.parseLess() ||
+					parser.parseAttribute(name) ||
+					parser.parseComma() ||
+					parser.parseInteger(order) ||
+					parser.parseGreater())
+				return mlir::Attribute();
+
+			return DerivativeAttribute::get(
+					parser.getBuilder().getContext(), name.getValue(), order);
+		}
+
 		parser.emitError(parser.getCurrentLocation()) << "unknown attribute";
 		return mlir::Attribute();
 	}
@@ -543,11 +561,6 @@ namespace modelica::codegen
 		{
 			printer << "real<" << std::to_string(attribute.getValue()) << ">";
 			return;
-		}
-
-		if (auto attribute = attr.dyn_cast<DerivativeAttribute>())
-		{
-			printer << "name: " << attribute.getName() << ", order: " << attribute.getOrder();
 		}
 
 		if (auto attribute = attr.dyn_cast<InverseFunctionsAttribute>())
@@ -574,6 +587,11 @@ namespace modelica::codegen
 					});
 
 			printer << "}";
+		}
+
+		if (auto attribute = attr.dyn_cast<DerivativeAttribute>())
+		{
+			printer << "derivative" << "<\"" << attribute.getName() << "\", " << attribute.getOrder() << ">";
 		}
 	}
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <mlir/IR/OpDefinition.h>
+#include <mlir/IR/BlockAndValueMapping.h>
 
 struct EquationInterfaceTraits {
 	struct Concept {
@@ -332,5 +333,47 @@ class DivOpDistributionInterface : public mlir::OpInterface<DivOpDistributionInt
 	mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
 	{
 		return getImpl()->distributeDivOp(getOperation(), builder, resultType, value);
+	}
+};
+
+struct DerivativeInterfaceTraits {
+	struct Concept {
+		Concept() = default;
+		Concept(const Concept& other) = default;
+		Concept(Concept&& other) = default;
+		Concept& operator=(Concept&& other) = default;
+		virtual ~Concept() = default;
+		Concept& operator=(const Concept& other) = default;
+
+		virtual void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator) const = 0;
+	};
+
+	template <typename ConcreteOp>
+	struct Model : public Concept {
+		void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator) const final
+		{
+			return mlir::cast<ConcreteOp>(op).derive(builder, derivatives, derivativeAllocator);
+		}
+	};
+
+	template<typename ConcreteOp>
+	class FallbackModel : public Concept {
+		public:
+		FallbackModel() = default;
+
+		void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator) const final
+		{
+			return mlir::cast<ConcreteOp>(op).derive(builder, derivatives, derivativeAllocator);
+		}
+	};
+};
+
+class DerivativeInterface : public mlir::OpInterface<DerivativeInterface, DerivativeInterfaceTraits> {
+	public:
+	using OpInterface<DerivativeInterface, DerivativeInterfaceTraits>::OpInterface;
+
+	void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+	{
+		return getImpl()->derive(getOperation(), builder, derivatives, derivativeAllocator);
 	}
 };
