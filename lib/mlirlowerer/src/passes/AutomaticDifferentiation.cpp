@@ -282,28 +282,6 @@ static mlir::LogicalResult createFullDerFunction(FunctionOp base)
 	if (module.lookupSymbol<FunctionOp>(derivativeAttribute.getName()))
 		return mlir::success();
 
-	/*
-	// Create the partial derivative functions
-	for (const auto& [name, type] : llvm::zip(op.argsNames(), op.getType().getInputs()))
-	{
-		if (!hasFloatBase(type))
-			continue;
-
-		llvm::StringRef argName = name.cast<mlir::StringAttr>().getValue();
-		std::string partialDerFunctionName = getPartialDerivativeName(op.getName(), argName);
-
-		// Check if the derivative already exists
-		if (module.lookupSymbol(partialDerFunctionName) != nullptr)
-			continue;
-
-		if (auto status = createPartialDerFunction(
-						op, partialDerFunctionName,
-						name.cast<mlir::StringAttr>().getValue());
-				mlir::failed(status))
-			return status;
-	}
-	 */
-
 	// Create a map of the source arguments for a faster lookup
 	llvm::StringMap<mlir::Value> sourceArgsMap;
 
@@ -402,9 +380,27 @@ static mlir::LogicalResult createFullDerFunction(FunctionOp base)
 	mlir::Block* body = derivedFunction.addEntryBlock();
 	builder.setInsertionPointToStart(body);
 
-	// Map the block arguments
-	assert(base.getRegion().getBlocks().size() == 1);
 	mlir::BlockAndValueMapping mapping;
+
+	// Clone the blocks structure of the function to be derived. The
+	// operations contained in the blocks are not copied.
+
+	for (auto& block : llvm::enumerate(base.getRegion().getBlocks()))
+	{
+		if (block.index() == 0)
+		{
+			// The first source block is ignored, as it has only a subset of the
+			// derived function arguments.
+			continue;
+		}
+
+		mlir::Block* clonedBlock = builder.createBlock(
+				&derivedFunction.getRegion(),
+				derivedFunction.getRegion().end(),
+				block.value().getArgumentTypes());
+
+		mapping.map(&block.value(), clonedBlock);
+	}
 
 	for (const auto& sourceArg : llvm::enumerate(base.getRegion().front().getArguments()))
 		mapping.map(sourceArg.value(), body->getArgument(sourceArg.index()));
@@ -413,10 +409,23 @@ static mlir::LogicalResult createFullDerFunction(FunctionOp base)
 	mlir::BlockAndValueMapping derivatives;
 	mapDerArgs(argsNames, derivedFunction.getArguments(), derivatives, order);
 
-	// Create the operations derivatives
-	for (auto& baseOp : base.getRegion().front().getOperations())
-		builder.clone(baseOp, mapping);
+	// Clone the original operations, which will be interleaved in the
+	// resulting derivative function.
+	for (auto& sourceBlock : llvm::enumerate(base.getBody().getBlocks()))
+	{
+		auto& block = *std::next(derivedFunction.getBlocks().begin(), sourceBlock.index());
+		builder.setInsertionPointToStart(&block);
 
+		// Map the original block arguments to the new block ones
+		for (const auto& arg : llvm::enumerate(sourceBlock.value().getArguments()))
+			mapping.map(arg.value(), block.getArgument(arg.index()));
+
+		for (auto& baseOp : sourceBlock.value().getOperations())
+			builder.clone(baseOp, mapping);
+	}
+
+	// Determine the list of the derivable operations. We can't just derive as
+	// we find them, as we would invalidate the operation walk's iterator.
 	llvm::SmallVector<DerivativeInterface> derivableOps;
 
 	derivedFunction.walk([&](mlir::Operation* op) {
@@ -424,6 +433,10 @@ static mlir::LogicalResult createFullDerFunction(FunctionOp base)
 			derivableOps.push_back(deriveInterface);
 	});
 
+	// Derive each derivable operation. The derivative is placed before the
+	// old assignment, in order to avoid inconsistencies in case of
+	// self-assignments (i.e. "y := y * 2" would invalidate the derivative
+	// if placed before "y' := y' * 2").
 	for (auto& op : derivableOps)
 	{
 		builder.setInsertionPoint(op);
@@ -437,85 +450,17 @@ static mlir::LogicalResult createFullDerFunction(FunctionOp base)
 				});
 	}
 
-	{
-		/*
-		if (auto returnOp = mlir::dyn_cast<ReturnOp>(baseOp))
-		{
-			llvm::SmallVector<mlir::Value, 3> derivedValues;
-
-			for (mlir::Value value : returnOp.values())
-				derivedValues.push_back(derivatives.lookup(mapping.lookup(value)));
-
-			builder.create<ReturnOp>(returnOp.getLoc(), derivedValues);
-			continue;
-		}
-
-		auto* cloned = builder.clone(baseOp, mapping);
-		builder.setInsertionPoint(cloned);
-
-		if (auto deriveInterface = mlir::dyn_cast<DerivativeInterface>(cloned))
-		{
-			deriveInterface.derive(
-					builder, derivatives,
-					[&op](mlir::OpBuilder& builder, std::function<mlir::ValueRange(mlir::OpBuilder&)> allocator) -> mlir::ValueRange {
-						mlir::OpBuilder::InsertionGuard guard(builder);
-						builder.setInsertionPointToStart(&op.getRegion().front());
-						return allocator(builder);
-					});
-		}
-
-		builder.setInsertionPointAfter(cloned);
-		 */
-	}
-
-
-
-	/*
-	llvm::SmallVector<mlir::Value, 3> partialDerivativeCallArgs;
-
-	for (const auto& arg : op.argsNames())
-		partialDerivativeCallArgs.push_back(argsMap[arg.cast<mlir::StringAttr>().getValue()]);
-
-	llvm::SmallVector<mlir::Value, 3> derResults;
-
-	for (const auto& [name, type] : llvm::zip(op.argsNames(), op.getType().getInputs()))
-	{
-		if (!hasFloatBase(type))
-			continue;
-
-		auto call = builder.create<CallOp>(
-				op.getLoc(),
-				getPartialDerivativeName(op.getName(), name.cast<mlir::StringAttr>().getValue()),
-				op.getType().getResults(),
-				partialDerivativeCallArgs);
-
-		for (const auto& [resultName, callResult] : llvm::zip(op.resultsNames(), call.getResults()))
-		{
-			auto derName = getNextDerVariableName(name.cast<mlir::StringAttr>().getValue(), order);
-
-			// TODO: change to element-wise multiplication
-			mlir::Value mul = builder.create<MulOp>(
-								 op.getLoc(), callResult.getType(), callResult,
-								 argsMap[derName]);
-
-			derResults.push_back(mul);
-		}
-	}
-
+	// Replace the old return operation with a new one returning the derivatives
+	auto returnOp = mlir::cast<ReturnOp>(derivedFunction.getRegion().back().getTerminator());
 	llvm::SmallVector<mlir::Value, 3> results;
 
-	for (size_t i = 0; i < derResults.size(); i += newArgsTypes.size())
-	{
-		mlir::Value sum = derResults[i];
+	for (auto value : llvm::enumerate(returnOp.values()))
+		if (hasFloatBase(base.getType().getResult(value.index())))
+			results.push_back(derivatives.lookup(value.value()));
 
-		for (size_t j = 1; j < newArgsNamesBuffers.size(); ++j)
-			sum = builder.create<AddOp>(op->getLoc(), sum.getType(), sum, derResults[i + j]);
-
-		results.push_back(sum);
-	}
-
-	builder.create<ReturnOp>(op->getLoc(), results);
-	*/
+	builder.setInsertionPoint(returnOp);
+	builder.create<ReturnOp>(returnOp.getLoc(), results);
+	returnOp->erase();
 
 	return mlir::success();
 }
