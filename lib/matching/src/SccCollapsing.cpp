@@ -91,9 +91,7 @@ static MultiDimInterval cyclicDependentSet(
 	MultiDimInterval set = firstEq.getInterval();
 	for (size_t i : irange(c.size()))
 	{
-		const VectorAccess& edge = graph[c[i]];
 		IndexesOfEquation eq = graph[target(c[i], graph.getImpl())];
-
 		set = intersection(dep[i].map(set), eq.getInterval());
 	}
 
@@ -117,7 +115,6 @@ static IndexSetVector cyclicDependentSets(
 
 	for (size_t i : irange(v.size()))
 	{
-		const VectorAccess& edge = graph[c[i]];
 		const IndexesOfEquation& eq = graph[source(c[i], graph.getImpl())];
 		v[i] = eq.getVarToEq().map(v[i]);
 		assert(eq.getEquation().getInductions().contains(v[i]));
@@ -189,10 +186,9 @@ class CycleFuser
 	CycleFuser(
 			bool& f,
 			EqVector& equs,
-			const Model& model,
 			const VVarDependencyGraph& graph,
 			llvm::Error* e)
-			: foundOne(&f), equs(&equs), model(&model), graph(&graph), error(e)
+			: foundOne(&f), equs(&equs), graph(&graph), error(e)
 	{
 	}
 
@@ -235,7 +231,6 @@ class CycleFuser
 	private:
 	bool* foundOne;
 	EqVector* equs;
-	const Model* model;
 	const VVarDependencyGraph* graph;
 	llvm::Error* error;
 };
@@ -254,7 +249,7 @@ static Error fuseEquations(
 			return e;
 		tiernan_all_cycles(
 				vectorGraph.getImpl(),
-				CycleFuser(atLeastOneCollapse, equs, sourceModel, vectorGraph, &e));
+				CycleFuser(atLeastOneCollapse, equs, vectorGraph, &e));
 		if (e)
 			return e;
 

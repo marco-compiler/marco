@@ -14,7 +14,6 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/lowerer/BltBlockLowerer.hpp"
 #include "modelica/lowerer/CallLowerer.hpp"
 #include "modelica/lowerer/ExpLowerer.hpp"
 #include "marco/model/Assigment.hpp"
@@ -321,16 +320,8 @@ static Error createAssigment(LowererContext& info, const Assigment& assigment)
 	return createForAssigment(info, assigment);
 }
 
-static Error createBltBlock(LowererContext& info, const ModBltBlock& bltBlock)
-{
-	assert(false && "To be implemented");					 // TODO
-	return make_error<UnsolvableAlgebraicLoop>();	 // TODO
-}
-
 static Expected<Function*> createUpdate(
-		LowererContext& cont,
-		const variant<Assigment, ModBltBlock>& update,
-		size_t functionIndex)
+		LowererContext& cont, const Assigment& assigment, size_t functionIndex)
 {
 	IRBuilder<>& bld = cont.getBuilder();
 
@@ -343,9 +334,7 @@ static Expected<Function*> createUpdate(
 	bld.SetInsertPoint(&fun->getEntryBlock());
 	cont.setFunction(fun);
 
-	Error err = holds_alternative<Assigment>(update)
-									? createAssigment(cont, get<Assigment>(update))
-									: createBltBlock(cont, get<ModBltBlock>(update));
+	auto err = createAssigment(cont, assigment);
 	if (err)
 		return move(err);
 

@@ -28,6 +28,14 @@ void ModBltBlock::addTemplate(const ModEquation& eq)
 			templates.emplace(eq.getTemplate());
 }
 
+[[nodiscard]] size_t ModBltBlock::size() const
+{
+	size_t size = 0;
+	for (const ModEquation& eq : equations)
+		size += eq.getInductions().size();
+	return size;
+}
+
 void ModBltBlock::dump(llvm::raw_ostream& OS) const
 {
 	OS << "template blt-block-" << body->getName() << "\n";

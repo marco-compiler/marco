@@ -56,7 +56,7 @@ namespace marco
 			return std::get<ModBltBlock>(content);
 		}
 
-		[[nodiscard]] const auto getEquations() const { return equations; }
+		[[nodiscard]] const auto& getEquations() const { return equations; }
 		[[nodiscard]] const auto& getVariables() const { return variables; }
 		[[nodiscard]] const auto& getEqToVars() const { return directAccesses; }
 		[[nodiscard]] const auto& getVarToEqs() const { return invertedAccesses; }

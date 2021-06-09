@@ -1,13 +1,14 @@
 #pragma once
 
 #include <ida/ida.h>
-#include <math.h>
 #include <nvector/nvector_serial.h>
 #include <sundials/sundials_math.h>
 #include <sundials/sundials_types.h>
 #include <sunlinsol/sunlinsol_klu.h>
 #include <sunmatrix/sunmatrix_sparse.h>
 
+#include "llvm/Support/Error.h"
+#include "modelica/lowerer/LowererUtils.hpp"
 #include "modelica/model/ModBltBlock.hpp"
 
 namespace modelica
@@ -25,12 +26,12 @@ namespace modelica
 		 * parameters.
 		 */
 		IdaSolver(
-				const ModBltBlock &bltBlock,
-				const realtype start_time,
-				const realtype stop_time,
-				const realtype step_size,
-				const realtype reltol,
-				const realtype abstol);
+				LowererContext &info,
+				const llvm::SmallVector<ModBltBlock, 3> &bltBlocks,
+				const realtype startTime = 0.0,
+				const realtype stopTime = 1.0,
+				const realtype relativeTolerance = 1e-6,
+				const realtype abstol = 1e-6);
 
 		/**
 		 * The destructor frees the memory used by the SUNDIALS library.
@@ -52,19 +53,36 @@ namespace modelica
 
 		private:
 		/**
+		 * Compute the number of equations in the sparse matrix.
+		 */
+		sunindextype computeNEQ();
+
+		/**
+		 * Compute the number of non-zero values in the sparse matrix.
+		 */
+		sunindextype computeNNZ();
+
+		/**
+		 * Initialize the variables and derivatives vectors, which contain the
+		 * values of all the variables and their derivatives values, and the id
+		 * vector, which contains if the variables are algebraic or differential.
+		 */
+		void initVectors();
+
+		/**
 		 * This function is called by the IDA solver. It contains how to compute the
 		 * Residual Function of the BLT block given the value of the current
 		 * parameters.
 		 */
-		static int resrob(
+		static int residualFunction(
 				realtype tres, N_Vector yy, N_Vector yp, N_Vector rr, void *user_data);
 
 		/**
 		 * This function is called by the IDA solver. It contains how to compute the
 		 * Jacobian Matrix of the BLT block given the value of the current
-		 * parameters.
+		 * parameters. The matrix is represented in Compressed Sparse Row format.
 		 */
-		static int jacrob(
+		static int jacobianMatrix(
 				realtype tt,
 				realtype cj,
 				N_Vector yy,
@@ -79,33 +97,37 @@ namespace modelica
 		/**
 		 * Check a function return value in order to find possible failures.
 		 */
-		llvm::Error check_retval(void *returnvalue, const char *funcname, int opt);
+		llvm::Error checkRetval(void *returnvalue, const char *funcname, int opt);
 
-		const ModBltBlock &bltBlock;	// BLT block solved by IDA.
+		// Lowerer data
+		const LowererContext &context;
+		const llvm::SmallVector<ModBltBlock, 3> &bltBlocks;
 
-		void *ida_mem;	// Pointer to the ida memory block.
-		int retval;			// Return value of IDA functions, used to check for errors.
+		// Simulation times
+		const realtype startTime;
+		const realtype stopTime;
+		realtype time;
 
-		const realtype start_time;	// Start time of the integration.
-		const realtype stop_time;		// Stop time of the integration.
-		const realtype step_size;		// Step size of the integration.
+		// Error tolerances
+		const realtype relativeTolerance;
+		const realtype absoluteTolerance;
 
-		const realtype reltol;	// Relative tolerance.
-		const realtype abstol;	// Absolute tolerance.
+		// Matrix size
+		const sunindextype equationsNumber;
+		const sunindextype nonZeroValuesNumber;
 
-		const sunindextype neq;	 // Number of equations.
-		const sunindextype nnz;	 // Maximum number of non-zero values in the matrix.
+		// Variables vectors and values
+		N_Vector variablesVector;
+		N_Vector derivativesVector;
+		N_Vector idVector;
+		realtype *variablesValues;
+		realtype *derivativesValues;
+		realtype *idValues;
 
-		realtype time;	// Current time of the integration.
-		realtype tret;	// Time reached by the solver at each step.
-
-		N_Vector yy;	// Vectors of the variables.
-		N_Vector yp;	// Vectors of the variable derivatives.
-
-		realtype *yval;		// Vectors of the variable values.
-		realtype *ypval;	// Vectors of the variable derivative values.
-
-		SUNMatrix A;				 // Sparse matrix.
-		SUNLinearSolver LS;	 // Linear solver.
+		// IDA classes
+		void *idaMemory;
+		int returnValue;
+		SUNMatrix sparseMatrix;
+		SUNLinearSolver linearSolver;
 	};
 }	 // namespace modelica
