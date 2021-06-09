@@ -75,7 +75,7 @@ namespace modelica
 			return body->getName();
 		}
 
-		[[nodiscard]] size_t size() const { return equations.size(); }
+		[[nodiscard]] size_t size() const;
 
 		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 

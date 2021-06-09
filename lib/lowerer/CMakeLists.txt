@@ -2,7 +2,6 @@ set(SOURCES
 		src/Lowerer.cpp
 		src/LowererUtils.cpp
 		src/ExpLowerer.cpp
-		src/BltBlockLowerer.cpp
 		src/CallLowerer.cpp
 		src/OperationLowerer.cpp)
 		src/IdaSolver.cpp

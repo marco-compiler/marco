@@ -26,7 +26,6 @@ static SmallVector<variant<ModEquation, ModBltBlock>, 3> collapseEquations(
 
 	const auto onSched = [&](size_t node) {
 		const auto& currentNode = originalGraph[node];
-		const auto& eq = currentNode.getCollapsedVertex();
 		currentSet.insert(currentNode.getIndexes());
 	};
 

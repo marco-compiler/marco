@@ -153,8 +153,7 @@ TEST(ModelTest, entryModelIsIteratable)
 {
 	Model model;
 
-	for (auto& e : model)
-		FAIL();
+	EXPECT_TRUE(model.getEquations().empty());
 
 	model.emplaceEquation(
 			ModExp("Hey", BultinModTypes::INT),

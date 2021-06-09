@@ -7,90 +7,106 @@ using namespace llvm;
 using namespace modelica;
 
 IdaSolver::IdaSolver(
-		const ModBltBlock &bltBlock,
-		const realtype start_time,
-		const realtype stop_time,
-		const realtype step_size,
-		const realtype reltol,
-		const realtype abstol)
-		: bltBlock(bltBlock),
-			start_time(start_time),
-			stop_time(stop_time),
-			step_size(step_size),
-			reltol(reltol),
-			abstol(abstol),
-			neq(bltBlock.size()),
-			nnz(neq * neq)
+		LowererContext &context,
+		const SmallVector<ModBltBlock, 3> &bltBlocks,
+		const realtype startTime,
+		const realtype stopTime,
+		const realtype relativeTolerance,
+		const realtype absoluteTolerance)
+		: context(context),
+			bltBlocks(bltBlocks),
+			startTime(startTime),
+			stopTime(stopTime),
+			relativeTolerance(relativeTolerance),
+			absoluteTolerance(absoluteTolerance),
+			equationsNumber(computeNEQ()),
+			nonZeroValuesNumber(computeNNZ())
 {
 }
 
 IdaSolver::~IdaSolver()
 {
 	// Free memory
-	IDAFree(&ida_mem);
-	SUNLinSolFree(LS);
-	SUNMatDestroy(A);
-	N_VDestroy(yy);
-	N_VDestroy(yp);
+	IDAFree(&idaMemory);
+	SUNLinSolFree(linearSolver);
+	SUNMatDestroy(sparseMatrix);
+	N_VDestroy(variablesVector);
+	N_VDestroy(derivativesVector);
+	N_VDestroy(idVector);
 }
 
 Error IdaSolver::init()
 {
-	// Allocate N-vectors.
-	yy = N_VNew_Serial(neq);
-	if (auto error = check_retval((void *) yy, "N_VNew_Serial", 0); error)
+	// Create and initialize the required N-vectors for the variables
+	variablesVector = N_VNew_Serial(equationsNumber);
+	if (Error error = checkRetval((void *) variablesVector, "N_VNew_Serial", 0);
+			error)
 		return move(error);
-	yp = N_VNew_Serial(neq);
-	if (auto error = check_retval((void *) yp, "N_VNew_Serial", 0); error)
+	derivativesVector = N_VNew_Serial(equationsNumber);
+	if (Error error = checkRetval((void *) derivativesVector, "N_VNew_Serial", 0);
+			error)
+		return move(error);
+	idVector = N_VNew_Serial(equationsNumber);
+	if (Error error = checkRetval((void *) idVector, "N_VNew_Serial", 0); error)
 		return move(error);
 
-	// Create and initialize  y, y'
-	yval = N_VGetArrayPointer(yy);
-	yval[0] = RCONST(0.0);
-	yval[1] = RCONST(0.0);
-	yval[2] = RCONST(0.0);
-
-	ypval = N_VGetArrayPointer(yp);
-	ypval[0] = RCONST(-0.04);
-	ypval[1] = RCONST(0.04);
-	ypval[2] = RCONST(0.0);
+	initVectors();
 
 	// Call IDACreate and IDAInit to initialize IDA memory
-	ida_mem = IDACreate();
-	if (auto error = check_retval((void *) ida_mem, "IDACreate", 0); error)
+	idaMemory = IDACreate();
+	if (Error error = checkRetval((void *) idaMemory, "IDACreate", 0); error)
 		return move(error);
 
-	retval = IDASetUserData(ida_mem, (void *) this);
-	if (auto error = check_retval(&retval, "IDASetUserData", 1); error)
+	returnValue = IDASetUserData(idaMemory, (void *) this);
+	if (Error error = checkRetval(&returnValue, "IDASetUserData", 1); error)
 		return move(error);
 
-	retval = IDAInit(ida_mem, IdaSolver::resrob, start_time, yy, yp);
-	if (auto error = check_retval(&retval, "IDAInit", 1); error)
+	// Set which components are algebraic or differential
+	returnValue = IDASetId(idaMemory, idVector);
+	if (Error error = checkRetval(&returnValue, "IDASetId", 1); error)
+		return move(error);
+
+	returnValue = IDAInit(
+			idaMemory,
+			IdaSolver::residualFunction,
+			startTime,
+			variablesVector,
+			derivativesVector);
+	if (Error error = checkRetval(&returnValue, "IDAInit", 1); error)
 		return move(error);
 
 	// Call IDASVtolerances to set tolerances
-	retval = IDASStolerances(ida_mem, reltol, abstol);
-	if (auto error = check_retval(&retval, "IDASVtolerances", 1); error)
+	returnValue =
+			IDASStolerances(idaMemory, relativeTolerance, absoluteTolerance);
+	if (Error error = checkRetval(&returnValue, "IDASStolerances", 1); error)
 		return move(error);
 
-	// Create sparse SUNMatrix for use in linear solves
-	A = SUNSparseMatrix(neq, neq, nnz, CSR_MAT);
-	if (auto error = check_retval((void *) A, "SUNSparseMatrix", 0); error)
+	// Create sparse SUNMatrix for use in linear solver
+	sparseMatrix = SUNSparseMatrix(
+			equationsNumber, equationsNumber, nonZeroValuesNumber, CSR_MAT);
+	if (Error error = checkRetval((void *) sparseMatrix, "SUNSparseMatrix", 0);
+			error)
 		return move(error);
 
 	// Create KLU SUNLinearSolver object
-	LS = SUNLinSol_KLU(yy, A);
-	if (auto error = check_retval((void *) LS, "SUNLinSol_KLU", 0); error)
+	linearSolver = SUNLinSol_KLU(variablesVector, sparseMatrix);
+	if (Error error = checkRetval((void *) linearSolver, "SUNLinSol_KLU", 0);
+			error)
 		return move(error);
 
 	// Attach the matrix and linear solver
-	retval = IDASetLinearSolver(ida_mem, LS, A);
-	if (auto error = check_retval(&retval, "IDASetLinearSolver", 1); error)
+	returnValue = IDASetLinearSolver(idaMemory, linearSolver, sparseMatrix);
+	if (Error error = checkRetval(&returnValue, "IDASetLinearSolver", 1); error)
 		return move(error);
 
 	// Set the user-supplied Jacobian routine
-	retval = IDASetJacFn(ida_mem, IdaSolver::jacrob);
-	if (auto error = check_retval(&retval, "IDASetJacFn", 1); error)
+	returnValue = IDASetJacFn(idaMemory, IdaSolver::jacobianMatrix);
+	if (Error error = checkRetval(&returnValue, "IDASetJacFn", 1); error)
+		return move(error);
+
+	// Call IDACalcIC to correct the initial values
+	returnValue = IDACalcIC(idaMemory, IDA_YA_YDP_INIT, stopTime);
+	if (Error error = checkRetval(&returnValue, "IDACalcIC", 1); error)
 		return move(error);
 
 	return Error::success();
@@ -98,17 +114,49 @@ Error IdaSolver::init()
 
 Expected<bool> IdaSolver::step()
 {
-	time += step_size;
+	returnValue = IDASolve(
+			idaMemory,
+			stopTime,
+			&time,
+			variablesVector,
+			derivativesVector,
+			IDA_ONE_STEP);
 
-	retval = IDASolve(ida_mem, time, &tret, yy, yp, IDA_NORMAL);
-
-	if (auto error = check_retval(&retval, "IDASolve", 1); error)
+	if (Error error = checkRetval(&returnValue, "IDASolve", 1); error)
 		return move(error);
 
-	return time < stop_time;
+	return time < stopTime;
 }
 
-int IdaSolver::resrob(
+sunindextype IdaSolver::computeNEQ()
+{
+	sunindextype result = 0;
+	for (ModBltBlock bltBlock : bltBlocks)
+		result += bltBlock.size();
+	return result;
+}
+
+sunindextype IdaSolver::computeNNZ()
+{
+	sunindextype result = 0, rowLength = 0;
+	for (ModBltBlock bltBlock : bltBlocks)
+	{
+		rowLength += bltBlock.size();
+		result += rowLength * bltBlock.size();
+	}
+	return result;
+}
+
+void IdaSolver::initVectors()
+{
+	variablesValues = N_VGetArrayPointer(variablesVector);
+	derivativesValues = N_VGetArrayPointer(derivativesVector);
+	idValues = N_VGetArrayPointer(idVector);
+	// TODO: Create and load problem data block
+	// TODO: Initialize variablesValues, derivativesValues, idValues
+}
+
+int IdaSolver::residualFunction(
 		realtype tres, N_Vector yy, N_Vector yp, N_Vector rr, void *user_data)
 {
 	realtype *yval = N_VGetArrayPointer(yy);
@@ -118,11 +166,16 @@ int IdaSolver::resrob(
 	IdaSolver *idaSolver = static_cast<IdaSolver *>(user_data);
 
 	// TODO: Copmute the Residual Function.
+	// For every equation in the matrix:
+	//		For every induction in that equation:
+	//			Assign to rval[i] the value where matched variables are substituted
+	//			with yval and ypval, while how to compute the other hidden variables
+	//			is done through the context.
 
 	return 0;
 }
 
-int IdaSolver::jacrob(
+int IdaSolver::jacobianMatrix(
 		realtype tt,
 		realtype cj,
 		N_Vector yy,
@@ -142,17 +195,17 @@ int IdaSolver::jacrob(
 
 	IdaSolver *idaSolver = static_cast<IdaSolver *>(user_data);
 
-	for (int i = 0; i <= idaSolver->neq; ++i)
-	{
-		rowptrs[i] = idaSolver->neq * i;
-	}
-
-	//  TODO: Compute the Jacobian Matrix.
+	// TODO: Compute the Jacobian Matrix.
+	// For every equation in the matrix:
+	//		For every induction in that equation:
+	//			Assign to JJ[i][j] the partial derivative wrt the matched variables,
+	//			which are substituted with yval and ypval, while how to compute the
+	//			other hidden variables is done through the context.
 
 	return 0;
 }
 
-Error IdaSolver::check_retval(void *returnvalue, const char *funcname, int opt)
+Error IdaSolver::checkRetval(void *returnvalue, const char *funcname, int opt)
 {
 	// Check if SUNDIALS function returned NULL pointer (no memory allocated)
 	if (opt == 0 && returnvalue == NULL)
