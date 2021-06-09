@@ -445,6 +445,8 @@ bool Type::hasConstantShape() const
 
 bool Type::isScalar() const
 {
+	// TODO: Change this once the MLIR transition is complete. Arrays of 1 element are NOT scalars!
+
 	return dimensions.size() == 1 &&
 				 !dimensions[0].hasExpression() &&
 				 dimensions[0].getNumericSize() == 1;

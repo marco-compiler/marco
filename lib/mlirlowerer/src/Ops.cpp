@@ -84,10 +84,10 @@ void ExtractOp::print(mlir::OpAsmPrinter& printer)
 mlir::LogicalResult ExtractOp::verify()
 {
 	if (!packedValue().getType().isa<StructType>())
-		return emitOpError(" requires the operand to be a struct");
+		return emitOpError("requires the operand to be a struct");
 
 	if (auto structType = packedValue().getType().cast<StructType>(); index() >= structType.getElementTypes().size())
-		return emitOpError(" has an out of bounds index");
+		return emitOpError("has an out of bounds index");
 
 	return mlir::success();
 }
@@ -295,7 +295,7 @@ mlir::LogicalResult ForEquationOp::verify()
 {
 	for (auto value : inductionsDefinitions())
 		if (!mlir::isa<InductionOp>(value.getDefiningOp()))
-			return emitOpError(" requires the inductions to be defined by InductionOp operations");
+			return emitOpError("requires the inductions to be defined by InductionOp operations");
 
 	return mlir::success();
 }
@@ -805,6 +805,12 @@ mlir::OpFoldResult ConstantOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
 {
 	assert(operands.empty() && "constant has no operands");
 	return value();
+}
+
+void ConstantOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+{
+	mlir::Value zero = builder.create<ConstantOp>(getLoc(), RealAttribute::get(RealType::get(getContext()), 0));
+	derivatives.map(getResult(), zero);
 }
 
 mlir::Attribute ConstantOp::value()
@@ -1350,7 +1356,7 @@ void MemberLoadOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 mlir::ParseResult MemberLoadOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
 	mlir::OpAsmParser::OperandType member;
-	mlir::Type memberType;
+	mlir::Type resultType;
 
 	if (parser.parseOperand(member) ||
 			parser.parseColon())
@@ -1358,32 +1364,30 @@ mlir::ParseResult MemberLoadOp::parse(mlir::OpAsmParser& parser, mlir::Operation
 
 	llvm::SMLoc memberTypeLoc = parser.getCurrentLocation();
 
-	if (parser.parseType(memberType))
+	if (parser.parseType(resultType))
 		return mlir::failure();
 
-	if (!memberType.isa<MemberType>())
-		return parser.emitError(memberTypeLoc)
-					 << "type must be a member type";
+	auto memberType = resultType.isa<PointerType>() ?
+										MemberType::get(resultType.cast<PointerType>()) :
+										MemberType::get(parser.getBuilder().getContext(), MemberAllocationScope::stack, resultType);
 
 	if (parser.resolveOperand(member, memberType, result.operands))
 		return mlir::failure();
 
-	if (auto castedType = memberType.cast<MemberType>(); castedType.getShape().empty())
-		result.addTypes(castedType.getElementType());
-	else
-		result.addTypes(castedType.toPointerType());
-
+	result.addTypes(resultType);
 	return mlir::success();
 }
 
 void MemberLoadOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " " << member() << " : " << member().getType();
+	printer << getOperationName() << " " << member() << " : " << resultType();
 }
 
 mlir::LogicalResult MemberLoadOp::verify()
 {
-	// TODO
+	if (!member().getType().isa<MemberType>())
+		return emitOpError("requires a source with member type");
+
 	return mlir::success();
 }
 
@@ -1447,8 +1451,8 @@ mlir::ParseResult MemberStoreOp::parse(mlir::OpAsmParser& parser, mlir::Operatio
 		return parser.emitError(resultTypeLoc)
 				<< "specified type must be a member type";
 
-	if (parser.resolveOperand(operands[0], memberType.cast<MemberType>().getElementType(), result.operands) ||
-			parser.resolveOperand(operands[1], memberType, result.operands))
+	if (parser.resolveOperand(operands[0], memberType, result.operands) ||
+			parser.resolveOperand(operands[1], memberType.cast<MemberType>().getElementType(), result.operands))
 		return mlir::failure();
 
 	return mlir::success();
@@ -1456,13 +1460,28 @@ mlir::ParseResult MemberStoreOp::parse(mlir::OpAsmParser& parser, mlir::Operatio
 
 void MemberStoreOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " " << value() << ", " << member()
-					<< " : " << member().getType() ;
+	printer << getOperationName()
+					<< " " << member() << ", " << value()
+					<< " : " << member().getType();
 }
 
 mlir::LogicalResult MemberStoreOp::verify()
 {
-	// TODO
+	if (!member().getType().isa<MemberType>())
+		return emitOpError("requires the destination to have member type");
+
+	auto memberType = member().getType().cast<MemberType>();
+	mlir::Type valueType = value().getType();
+
+	if (valueType.isa<PointerType>())
+	{
+		auto pointerType = valueType.cast<PointerType>();
+
+		for (const auto& [valueDimension, memberDimension] : llvm::zip(pointerType.getShape(), memberType.getShape()))
+			if (valueDimension != -1 && memberDimension != -1 && valueDimension != memberDimension)
+				return emitOpError("requires the shapes to be compatible");
+	}
+
 	return mlir::success();
 }
 
@@ -2008,6 +2027,12 @@ mlir::Value SubscriptionOp::getViewSource()
 	return source();
 }
 
+void SubscriptionOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+{
+	auto derivedOp = builder.create<SubscriptionOp>(getLoc(), derivatives.lookup(source()), indexes());
+	derivatives.map(getResult(), derivedOp.getResult());
+}
+
 PointerType SubscriptionOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<PointerType>();
@@ -2096,6 +2121,12 @@ mlir::LogicalResult LoadOp::verify()
 void LoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), memory(), mlir::SideEffects::DefaultResource::get());
+}
+
+void LoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+{
+	auto derivedOp = builder.create<LoadOp>(getLoc(), derivatives.lookup(memory()), indexes());
+	derivatives.map(getResult(), derivedOp.getResult());
 }
 
 PointerType LoadOp::getPointerType()
@@ -2201,6 +2232,12 @@ void StoreOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), memory(), mlir::SideEffects::DefaultResource::get());
 }
 
+void StoreOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+{
+	auto derivedOp = builder.create<StoreOp>(
+			getLoc(), derivatives.lookup(value()), derivatives.lookup(memory()), indexes());
+}
+
 PointerType StoreOp::getPointerType()
 {
 	return memory().getType().cast<PointerType>();
@@ -2253,7 +2290,7 @@ mlir::LogicalResult ArrayCloneOp::verify()
 
 	if (auto scope = pointerType.getAllocationScope();
 			scope != BufferAllocationScope::stack && scope != BufferAllocationScope::heap)
-		return emitOpError(" requires the result array type to be stack or heap allocated");
+		return emitOpError("requires the result array type to be stack or heap allocated");
 
 	return mlir::success();
 }
@@ -3286,11 +3323,10 @@ void EqOp::print(mlir::OpAsmPrinter& printer)
 					<< getOperation()->getResultTypes()[0];
 }
 
-
 mlir::LogicalResult EqOp::verify()
 {
 	if (!isNumeric(lhs()) || !isNumeric(rhs()))
-		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+		return emitOpError("requires the operands to be scalars of simple types");
 
 	return mlir::success();
 }
@@ -3363,7 +3399,7 @@ void NotEqOp::print(mlir::OpAsmPrinter& printer)
 mlir::LogicalResult NotEqOp::verify()
 {
 	if (!isNumeric(lhs()) || !isNumeric(rhs()))
-		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+		return emitOpError("requires the operands to be scalars of simple types");
 
 	return mlir::success();
 }
@@ -3436,7 +3472,7 @@ void GtOp::print(mlir::OpAsmPrinter& printer)
 mlir::LogicalResult GtOp::verify()
 {
 	if (!isNumeric(lhs()) || !isNumeric(rhs()))
-		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+		return emitOpError("requires the operands to be scalars of simple types");
 
 	return mlir::success();
 }
@@ -3509,7 +3545,7 @@ void GteOp::print(mlir::OpAsmPrinter& printer)
 mlir::LogicalResult GteOp::verify()
 {
 	if (!isNumeric(lhs()) || !isNumeric(rhs()))
-		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+		return emitOpError("requires the operands to be scalars of simple types");
 
 	return mlir::success();
 }
@@ -3582,7 +3618,7 @@ void LtOp::print(mlir::OpAsmPrinter& printer)
 mlir::LogicalResult LtOp::verify()
 {
 	if (!isNumeric(lhs()) || !isNumeric(rhs()))
-		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+		return emitOpError("requires the operands to be scalars of simple types");
 
 	return mlir::success();
 }
@@ -3655,7 +3691,7 @@ void LteOp::print(mlir::OpAsmPrinter& printer)
 mlir::LogicalResult LteOp::verify()
 {
 	if (!isNumeric(lhs()) || !isNumeric(rhs()))
-		return emitOpError("Comparison operation are only defined for scalar operands of simple types");
+		return emitOpError("requires the operands to be scalars of simple types");
 
 	return mlir::success();
 }
@@ -3816,6 +3852,12 @@ mlir::Value NegateOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resul
 	mlir::Value operand = distributeFn(this->operand());
 
 	return builder.create<NegateOp>(getLoc(), resultType, operand);
+}
+
+void NegateOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+{
+	auto derivedOp = builder.create<NegateOp>(getLoc(), resultType(), operand());
+	derivatives.map(getResult(), derivedOp.getResult());
 }
 
 mlir::Type NegateOp::resultType()
@@ -3998,7 +4040,7 @@ void AddOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivat
 	mlir::Value derivedLhs = derivatives.lookup(lhs());
 	mlir::Value derivedRhs = derivatives.lookup(rhs());
 
-	auto derivedOp = builder.create<AddOp>(getLoc(), RealType::get(getContext()), derivedLhs, derivedRhs);
+	auto derivedOp = builder.create<AddOp>(getLoc(), resultType(), derivedLhs, derivedRhs);
 	derivatives.map(getResult(), derivedOp.getResult());
 }
 
@@ -4180,6 +4222,15 @@ mlir::Value SubOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 	mlir::Value rhs = distributeFn(this->rhs());
 
 	return builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
+}
+
+void SubOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+{
+	mlir::Value derivedLhs = derivatives.lookup(lhs());
+	mlir::Value derivedRhs = derivatives.lookup(rhs());
+
+	auto derivedOp = builder.create<SubOp>(getLoc(), resultType(), derivedLhs, derivedRhs);
+	derivatives.map(getResult(), derivedOp.getResult());
 }
 
 mlir::Type SubOp::resultType()
@@ -4384,6 +4435,18 @@ mlir::Value MulOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 	return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
 }
 
+void MulOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+{
+	mlir::Value derivedLhs = derivatives.lookup(lhs());
+	mlir::Value derivedRhs = derivatives.lookup(rhs());
+
+	mlir::Value firstMul = builder.create<MulOp>(getLoc(), resultType(), derivedLhs, rhs());
+	mlir::Value secondMul = builder.create<MulOp>(getLoc(), resultType(), lhs(), derivedRhs);
+
+	auto derivedOp = builder.create<AddOp>(getLoc(), resultType(), firstMul, secondMul);
+	derivatives.map(getResult(), derivedOp.getResult());
+}
+
 mlir::Type MulOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -4584,6 +4647,11 @@ mlir::Value DivOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 	mlir::Value rhs = this->rhs();
 
 	return builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
+}
+
+void DivOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+{
+	// TODO: DivOp derivation
 }
 
 mlir::Type DivOp::resultType()

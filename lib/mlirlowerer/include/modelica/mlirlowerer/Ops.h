@@ -484,7 +484,8 @@ namespace modelica::codegen
 																		mlir::OpTrait::ZeroRegion,
 																		mlir::OpTrait::OneResult,
 																		mlir::OpTrait::ZeroOperands,
-																		mlir::OpTrait::ConstantLike>
+																		mlir::OpTrait::ConstantLike,
+																		DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -499,6 +500,8 @@ namespace modelica::codegen
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::OpFoldResult fold(llvm::ArrayRef<mlir::Attribute> operands);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
 
 		mlir::Attribute value();
 		mlir::Type resultType();
@@ -1018,7 +1021,8 @@ namespace modelica::codegen
 																				mlir::OpTrait::ZeroRegion,
 																				mlir::OpTrait::AtLeastNOperands<2>::Impl,
 																				mlir::OpTrait::OneResult,
-																				mlir::ViewLikeOpInterface::Trait>
+																				mlir::ViewLikeOpInterface::Trait,
+																				DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1034,6 +1038,8 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Value getViewSource();
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
 
 		PointerType resultType();
 		mlir::Value source();
@@ -1077,6 +1083,8 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
+
 		PointerType getPointerType();
 		mlir::Value memory();
 		mlir::ValueRange indexes();
@@ -1102,7 +1110,8 @@ namespace modelica::codegen
 																 mlir::OpTrait::ZeroRegion,
 																 mlir::OpTrait::AtLeastNOperands<2>::Impl,
 																 mlir::OpTrait::ZeroResult,
-																 mlir::MemoryEffectOpInterface::Trait>
+																 mlir::MemoryEffectOpInterface::Trait,
+																 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1119,6 +1128,8 @@ namespace modelica::codegen
 		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
 
 		PointerType getPointerType();
 		mlir::Value value();
@@ -1808,7 +1819,8 @@ namespace modelica::codegen
 																	DistributableInterface::Trait,
 																	NegateOpDistributionInterface::Trait,
 																	MulOpDistributionInterface::Trait,
-																	DivOpDistributionInterface::Trait>
+																	DivOpDistributionInterface::Trait,
+																	DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1831,6 +1843,8 @@ namespace modelica::codegen
 		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -1912,7 +1926,8 @@ namespace modelica::codegen
 															 InvertibleInterface::Trait,
 															 NegateOpDistributionInterface::Trait,
 															 MulOpDistributionInterface::Trait,
-															 DivOpDistributionInterface::Trait>
+															 DivOpDistributionInterface::Trait,
+															 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1934,6 +1949,8 @@ namespace modelica::codegen
 		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -1963,7 +1980,8 @@ namespace modelica::codegen
 															 DistributableInterface::Trait,
 															 NegateOpDistributionInterface::Trait,
 															 MulOpDistributionInterface::Trait,
-															 DivOpDistributionInterface::Trait>
+															 DivOpDistributionInterface::Trait,
+															 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1986,6 +2004,8 @@ namespace modelica::codegen
 		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2015,7 +2035,8 @@ namespace modelica::codegen
 															 DistributableInterface::Trait,
 															 NegateOpDistributionInterface::Trait,
 															 MulOpDistributionInterface::Trait,
-															 DivOpDistributionInterface::Trait>
+															 DivOpDistributionInterface::Trait,
+															 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2038,6 +2059,8 @@ namespace modelica::codegen
 		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
 
 		mlir::Type resultType();
 		mlir::Value lhs();

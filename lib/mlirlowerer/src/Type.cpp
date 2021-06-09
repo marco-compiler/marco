@@ -192,10 +192,7 @@ namespace modelica::codegen
 				return MemberAllocationScope::stack;
 
 			case BufferAllocationScope::heap:
-				return MemberAllocationScope::heap;
-
 			case BufferAllocationScope::unknown:
-				assert(false && "Unexpected unknown allocation scope");
 				return MemberAllocationScope::heap;
 		}
 
