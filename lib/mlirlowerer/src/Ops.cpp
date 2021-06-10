@@ -45,9 +45,58 @@ void PackOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 	state.addOperands(values);
 }
 
+mlir::ParseResult PackOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> values;
+	llvm::SmallVector<mlir::Type, 3> types;
+	mlir::Type resultType;
+
+	llvm::SMLoc valuesLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(values) ||
+			parser.parseColon())
+		return mlir::failure();
+
+	if (values.size() == 1)
+	{
+		if (parser.parseTypeList(types))
+			return mlir::failure();
+	}
+	else if (values.size() > 1)
+	{
+		if (parser.parseLParen() ||
+				parser.parseTypeList(types) ||
+				parser.parseRParen())
+			return mlir::failure();
+	}
+
+	if (!values.empty())
+		if (parser.parseArrow())
+			return mlir::failure();
+
+	if (parser.parseType(resultType) ||
+			parser.resolveOperands(values, types, valuesLoc, result.operands))
+		return mlir::failure();
+
+	return mlir::success();
+}
+
 void PackOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.pack " << values() << " : " << resultType();
+	printer << "modelica.pack " << values() << " : ";
+
+	if (values().size() > 1)
+		printer << "(";
+
+	printer << values();
+
+	if (values().size() > 1)
+		printer << ")";
+
+	if (!values().empty())
+		printer << " -> ";
+
+	printer << resultType();
 }
 
 StructType PackOp::resultType()
@@ -69,6 +118,11 @@ mlir::Value ExtractOpAdaptor::packedValue()
 	return getValues()[0];
 }
 
+unsigned int ExtractOpAdaptor::index()
+{
+	return getAttrs().getAs<mlir::IntegerAttr>("index").getInt();
+}
+
 void ExtractOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value packedValue, unsigned int index)
 {
 	state.addTypes(resultType);
@@ -78,7 +132,9 @@ void ExtractOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mli
 
 void ExtractOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.extract " << packedValue() << ", " << index() << " : " << resultType();
+	printer << "modelica.extract "
+					<< packedValue() << getOperation()->getAttrDictionary()
+					<< " : (" << packedValue().getType();
 }
 
 mlir::LogicalResult ExtractOp::verify()
@@ -104,7 +160,7 @@ mlir::Value ExtractOp::packedValue()
 
 unsigned int ExtractOp::index()
 {
-	return getOperation()->getAttrOfType<mlir::IntegerAttr>("index").getInt();
+	return Adaptor(*this).index();
 }
 
 //===----------------------------------------------------------------------===//
@@ -355,6 +411,16 @@ mlir::ValueRange ForEquationOp::rhs()
 // Modelica::InductionOp
 //===----------------------------------------------------------------------===//
 
+long InductionOpAdaptor::start()
+{
+	return getAttrs().getAs<mlir::IntegerAttr>("start").getInt();
+}
+
+long InductionOpAdaptor::end()
+{
+	return getAttrs().getAs<mlir::IntegerAttr>("end").getInt();
+}
+
 void InductionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, long start, long end)
 {
 	state.addAttribute("start", builder.getI64IntegerAttr(start));
@@ -363,19 +429,38 @@ void InductionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, l
 	state.addTypes(builder.getIndexType());
 }
 
+mlir::ParseResult InductionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SMLoc loc = parser.getCurrentLocation();
+	mlir::NamedAttrList attributes;
+
+	if (parser.parseOptionalAttrDict(attributes))
+		return mlir::failure();
+
+	result.attributes.append(attributes);
+
+	if (!result.attributes.getNamed("start").hasValue())
+		return parser.emitError(loc, "expected start value");
+
+	if (!result.attributes.getNamed("end").hasValue())
+		return parser.emitError(loc, "expected end value");
+
+	return mlir::success();
+}
+
 void InductionOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " (from " << start() << " to " << end() << ") : " << getOperation()->getResultTypes();
+	printer << getOperationName() << getOperation()->getAttrDictionary();
 }
 
 long InductionOp::start()
 {
-	return getOperation()->getAttrOfType<mlir::IntegerAttr>("start").getInt();
+	return Adaptor(*this).start();
 }
 
 long InductionOp::end()
 {
-	return getOperation()->getAttrOfType<mlir::IntegerAttr>("end").getInt();
+	return Adaptor(*this).end();
 }
 
 //===----------------------------------------------------------------------===//
@@ -872,85 +957,6 @@ mlir::Value CastOp::value()
 mlir::Type CastOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
-}
-
-//===----------------------------------------------------------------------===//
-// Modelica::CastCommonOp
-//===----------------------------------------------------------------------===//
-
-mlir::ValueRange CastCommonOpAdaptor::operands()
-{
-	return getValues();
-}
-
-void CastCommonOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
-{
-	state.addOperands(values);
-
-	mlir::Type resultType = nullptr;
-	mlir::Type resultBaseType = nullptr;
-
-	for (const auto& value : values)
-	{
-		mlir::Type type = value.getType();
-		mlir::Type baseType = type;
-
-		if (resultType == nullptr)
-		{
-			resultType = type;
-			resultBaseType = type;
-
-			while (resultBaseType.isa<PointerType>())
-				resultBaseType = resultBaseType.cast<PointerType>().getElementType();
-
-			continue;
-		}
-
-		if (type.isa<PointerType>())
-		{
-			while (baseType.isa<PointerType>())
-				baseType = baseType.cast<PointerType>().getElementType();
-		}
-
-		if (resultBaseType.isa<mlir::IndexType>() || baseType.isa<RealType>())
-		{
-			resultType = type;
-			resultBaseType = baseType;
-		}
-	}
-
-	llvm::SmallVector<mlir::Type, 3> types;
-
-	for (const auto& value : values)
-	{
-		mlir::Type type = value.getType();
-
-		if (type.isa<PointerType>())
-		{
-			auto pointerType = type.cast<PointerType>();
-			auto shape = pointerType.getShape();
-			types.emplace_back(PointerType::get(pointerType.getContext(), pointerType.getAllocationScope(), resultBaseType, shape));
-		}
-		else
-			types.emplace_back(resultBaseType);
-	}
-
-	state.addTypes(types);
-}
-
-void CastCommonOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << "modelica.cast_common " << operands() << " : " << resultType();
-}
-
-mlir::Type CastCommonOp::resultType()
-{
-	return getResultTypes()[0];
-}
-
-mlir::ValueRange CastCommonOp::operands()
-{
-	return Adaptor(*this).operands();
 }
 
 //===----------------------------------------------------------------------===//

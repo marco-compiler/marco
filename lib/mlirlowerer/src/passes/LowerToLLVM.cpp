@@ -898,28 +898,6 @@ class CastOpRealLowering: public ModelicaOpConversion<CastOp>
 	}
 };
 
-class CastCommonOpLowering: public ModelicaOpConversion<CastCommonOp>
-{
-	using ModelicaOpConversion<CastCommonOp>::ModelicaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(CastCommonOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		mlir::Location location = op.getLoc();
-		Adaptor adaptor(operands);
-
-		llvm::SmallVector<mlir::Value, 3> values;
-
-		for (auto tuple : llvm::zip(op->getOperands(), op->getResultTypes()))
-		{
-			mlir::Value castedValue = rewriter.create<CastOp>(location, std::get<0>(tuple), std::get<1>(tuple));
-			values.push_back(castedValue);
-		}
-
-		rewriter.replaceOp(op, values);
-		return mlir::success();
-	}
-};
-
 struct PtrCastOpLowering : public ModelicaOpConversion<PtrCastOp>
 {
 	using ModelicaOpConversion<PtrCastOp>::ModelicaOpConversion;
@@ -1040,7 +1018,6 @@ static void populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatternL
 			CastOpBooleanLowering,
 			CastOpIntegerLowering,
 			CastOpRealLowering,
-			CastCommonOpLowering,
 			PtrCastOpLowering,
 			PrintOpLowering>(typeConverter, context);
 }

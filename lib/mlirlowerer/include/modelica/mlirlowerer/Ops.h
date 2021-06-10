@@ -81,6 +81,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 
 		StructType resultType();
@@ -99,6 +100,7 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 
 		mlir::Value packedValue();
+		unsigned int index();
 	};
 
 	class ExtractOp : public mlir::Op<ExtractOp,
@@ -116,6 +118,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value packedValue, unsigned int index);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -153,6 +156,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -239,6 +243,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, size_t inductionsAmount);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -260,10 +265,13 @@ namespace modelica::codegen
 
 	class InductionOp;
 
-	class InductionOppAdaptor : public OpAdaptor<InductionOp>
+	class InductionOpAdaptor : public OpAdaptor<InductionOp>
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
+
+		long start();
+		long end();
 	};
 
 	class InductionOp : public mlir::Op<InductionOp,
@@ -274,7 +282,7 @@ namespace modelica::codegen
 	{
 		public:
 		using Op::Op;
-		using Adaptor = InductionOppAdaptor;
+		using Adaptor = InductionOpAdaptor;
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
@@ -282,6 +290,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, long start, long end);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 
 		long start();
@@ -439,13 +448,13 @@ namespace modelica::codegen
 	};
 
 	class DerFunctionOp : public mlir::Op<DerFunctionOp,
-			mlir::OpTrait::ZeroRegion,
-			mlir::OpTrait::ZeroResult,
-			mlir::OpTrait::ZeroSuccessor,
-			mlir::OpTrait::ZeroOperands,
-			mlir::OpTrait::IsIsolatedFromAbove,
-			mlir::CallableOpInterface::Trait,
-			mlir::SymbolOpInterface::Trait>
+																			 mlir::OpTrait::ZeroRegion,
+																			 mlir::OpTrait::ZeroResult,
+																			 mlir::OpTrait::ZeroSuccessor,
+																			 mlir::OpTrait::ZeroOperands,
+																			 mlir::OpTrait::IsIsolatedFromAbove,
+																			 mlir::CallableOpInterface::Trait,
+																			 mlir::SymbolOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -457,6 +466,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, llvm::StringRef derivedFunction, llvm::ArrayRef<llvm::StringRef> independentVariables);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -536,47 +546,13 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& Builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 		mlir::OpFoldResult fold(mlir::ArrayRef<mlir::Attribute> operands);
 
 		mlir::Value value();
 		mlir::Type resultType();
-	};
-
-	//===----------------------------------------------------------------------===//
-	// Modelica::CastCommonOp
-	//===----------------------------------------------------------------------===//
-
-	class CastCommonOp;
-
-	class CastCommonOpAdaptor : public OpAdaptor<CastCommonOp>
-	{
-		public:
-		using OpAdaptor::OpAdaptor;
-
-		mlir::ValueRange operands();
-	};
-
-	class CastCommonOp : public mlir::Op<CastCommonOp,
-																			mlir::OpTrait::ZeroRegion,
-																			mlir::OpTrait::VariadicOperands,
-																			mlir::OpTrait::VariadicResults>
-	{
-		public:
-		using Op::Op;
-		using Adaptor = CastCommonOpAdaptor;
-
-		static constexpr llvm::StringLiteral getOperationName()
-		{
-			return "modelica.cast_common";
-		}
-
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values);
-		void print(mlir::OpAsmPrinter& printer);
-
-		mlir::Type resultType();
-		mlir::ValueRange operands();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -610,6 +586,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
@@ -864,6 +841,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {}, bool shouldBeFreed = true, bool isConstant = false);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -905,6 +883,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -953,6 +932,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value, mlir::Type resultType);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -1165,6 +1145,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType, bool shouldBeFreed = true);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -1250,7 +1231,8 @@ namespace modelica::codegen
 			return "modelica.for";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args = {});
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args = llvm::None);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
@@ -1295,6 +1277,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args = llvm::None);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -2171,6 +2154,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory, mlir::Value index = nullptr);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 

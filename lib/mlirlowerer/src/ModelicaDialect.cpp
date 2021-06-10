@@ -50,7 +50,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<FunctionOp, ReturnOp, DerFunctionOp>();
 
 	// Basic operations
-	addOperations<ConstantOp, PackOp, ExtractOp, CastOp, CastCommonOp, AssignmentOp, CallOp, PrintOp>();
+	addOperations<ConstantOp, PackOp, ExtractOp, CastOp, AssignmentOp, CallOp, PrintOp>();
 
 	// Memory operations
 	addOperations<MemberCreateOp, MemberLoadOp, MemberStoreOp>();

@@ -268,12 +268,12 @@ static void mapDerivatives(llvm::ArrayRef<llvm::StringRef> names,
 static mlir::LogicalResult createFullDerFunction(FunctionOp base)
 {
 	mlir::OpBuilder builder(base);
-	auto module = base->getParentOfType<mlir::ModuleOp>();
 	auto derivativeAttribute = base->getAttrOfType<DerivativeAttribute>("derivative");
 	unsigned int order = derivativeAttribute.getOrder();
 
 	// If the source already provides the derivative function, then stop
-	if (module.lookupSymbol<FunctionOp>(derivativeAttribute.getName()))
+	if (auto module = base->getParentOfType<mlir::ModuleOp>();
+			module.lookupSymbol<FunctionOp>(derivativeAttribute.getName()))
 		return mlir::success();
 
 	// Create a map of the source arguments for a faster lookup

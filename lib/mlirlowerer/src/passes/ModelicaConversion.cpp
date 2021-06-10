@@ -45,6 +45,12 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 		return this->getTypeConverter()->materializeTargetConversion(builder, value.getLoc(), type, value);
 	}
 
+	void materializeTargetConversion(mlir::OpBuilder& builder, llvm::SmallVectorImpl<mlir::Value>& values) const
+	{
+		for (auto& value : values)
+			value = materializeTargetConversion(builder, value);
+	}
+
 	[[nodiscard]] bool isNumeric(mlir::Value value) const
 	{
 		return isNumericType(value.getType());
@@ -150,6 +156,67 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
 				[&](const std::string& result, mlir::Type type) {
 					return result + "_" + getMangledType(type);
 				});
+	}
+
+	mlir::Type castToMostGenericType(mlir::OpBuilder& builder,
+														 mlir::ValueRange values,
+														 llvm::SmallVectorImpl<mlir::Value>& castedValues) const
+	{
+		mlir::Type resultType = nullptr;
+		mlir::Type resultBaseType = nullptr;
+
+		for (const auto& value : values)
+		{
+			mlir::Type type = value.getType();
+			mlir::Type baseType = type;
+
+			if (resultType == nullptr)
+			{
+				resultType = type;
+				resultBaseType = type;
+
+				while (resultBaseType.isa<PointerType>())
+					resultBaseType = resultBaseType.cast<PointerType>().getElementType();
+
+				continue;
+			}
+
+			if (type.isa<PointerType>())
+			{
+				while (baseType.isa<PointerType>())
+					baseType = baseType.cast<PointerType>().getElementType();
+			}
+
+			if (resultBaseType.isa<mlir::IndexType>() || baseType.isa<RealType>())
+			{
+				resultType = type;
+				resultBaseType = baseType;
+			}
+		}
+
+		llvm::SmallVector<mlir::Type, 3> types;
+
+		for (const auto& value : values)
+		{
+			mlir::Type type = value.getType();
+
+			if (type.isa<PointerType>())
+			{
+				auto pointerType = type.cast<PointerType>();
+				auto shape = pointerType.getShape();
+				types.emplace_back(PointerType::get(pointerType.getContext(), pointerType.getAllocationScope(), resultBaseType, shape));
+			}
+			else
+				types.emplace_back(resultBaseType);
+		}
+
+		for (const auto& [value, type] : llvm::zip(values, types))
+		{
+			mlir::Value castedValue = builder.create<CastOp>(value.getLoc(), value, type);
+			castedValues.push_back(castedValue);
+		}
+
+		return types[0];
 	}
 
 	private:
@@ -835,267 +902,231 @@ struct OrOpArrayLowering: public ModelicaOpConversion<OrOp>
 	}
 };
 
-struct EqOpLowering: public ModelicaOpConversion<EqOp>
+template<typename FromOp>
+struct ComparisonOpLowering : public ModelicaOpConversion<FromOp>
 {
-	using ModelicaOpConversion<EqOp>::ModelicaOpConversion;
+	using Adaptor = typename ModelicaOpConversion<FromOp>::Adaptor;
+	using ModelicaOpConversion<FromOp>::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(EqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(FromOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 
 		// Check if the operands are compatible
-		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
+		if (!this->isNumeric(op.lhs()) || !this->isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Unsupported types");
 
 		// Cast the operands to the most generic type, in order to avoid
 		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
-
-		for (const auto& operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
-
-		mlir::Type type = castOp.resultType();
-		Adaptor transformed(castedOperands);
+		mlir::Type type = this->castToMostGenericType(rewriter, op->getOperands(), castedOperands);
+		Adaptor adaptor(castedOperands);
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::ICmpPredicate::eq, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
+			mlir::Value result = compareIntegers(rewriter, loc, adaptor.lhs(), adaptor.rhs());
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
 
 		if (type.isa<RealType>())
 		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::FCmpPredicate::oeq, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
+			mlir::Value result = compareReals(rewriter, loc, adaptor.lhs(), adaptor.rhs());
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
 
 		return mlir::failure();
 	}
+
+	virtual mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const = 0;
+	virtual mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const = 0;
 };
 
-struct NotEqOpLowering: public ModelicaOpConversion<NotEqOp>
+struct EqOpLowering: public ComparisonOpLowering<EqOp>
 {
-	using ModelicaOpConversion<NotEqOp>::ModelicaOpConversion;
+	using ComparisonOpLowering<EqOp>::ComparisonOpLowering;
 
-	mlir::LogicalResult matchAndRewrite(NotEqOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Location loc = op.getLoc();
+		mlir::Value result = builder.create<mlir::LLVM::ICmpOp>(
+				loc,
+				builder.getIntegerType(1),
+				mlir::LLVM::ICmpPredicate::eq,
+				materializeTargetConversion(builder, lhs),
+				materializeTargetConversion(builder, rhs));
 
-		// Check if the operands are compatible
-		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
-			return rewriter.notifyMatchFailure(op, "Unsupported types");
+		return getTypeConverter()->materializeSourceConversion(
+				builder, loc, BooleanType::get(result.getContext()), result);
+	}
 
-		// Cast the operands to the most generic type, in order to avoid
-		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
-		llvm::SmallVector<mlir::Value, 3> castedOperands;
+	mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
+	{
+		mlir::Value result = builder.create<mlir::LLVM::FCmpOp>(
+				loc,
+				builder.getIntegerType(1),
+				mlir::LLVM::FCmpPredicate::oeq,
+				materializeTargetConversion(builder, lhs),
+				materializeTargetConversion(builder, rhs));
 
-		for (const auto& operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
-
-		Adaptor transformed(castedOperands);
-		mlir::Type type = castOp.resultType();
-
-		// Compute the result
-		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
-		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::ICmpPredicate::ne, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
-			return mlir::success();
-		}
-
-		if (type.isa<RealType>())
-		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::FCmpPredicate::one, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
-			return mlir::success();
-		}
-
-		return mlir::failure();
+		return getTypeConverter()->materializeSourceConversion(
+				builder, loc, BooleanType::get(result.getContext()), result);
 	}
 };
 
-struct GtOpLowering: public ModelicaOpConversion<GtOp>
+struct NotEqOpLowering: public ComparisonOpLowering<NotEqOp>
 {
-	using ModelicaOpConversion<GtOp>::ModelicaOpConversion;
+	using ComparisonOpLowering<NotEqOp>::ComparisonOpLowering;
 
-	mlir::LogicalResult matchAndRewrite(GtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Location loc = op.getLoc();
+		mlir::Value result = builder.create<mlir::LLVM::ICmpOp>(
+				loc,
+				builder.getIntegerType(1),
+				mlir::LLVM::ICmpPredicate::ne,
+				materializeTargetConversion(builder, lhs),
+				materializeTargetConversion(builder, rhs));
 
-		// Check if the operands are compatible
-		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
-			return rewriter.notifyMatchFailure(op, "Unsupported types");
+		return getTypeConverter()->materializeSourceConversion(
+				builder, loc, BooleanType::get(result.getContext()), result);
+	}
 
-		// Cast the operands to the most generic type, in order to avoid
-		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
-		llvm::SmallVector<mlir::Value, 3> castedOperands;
+	mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
+	{
+		mlir::Value result = builder.create<mlir::LLVM::FCmpOp>(
+				loc,
+				builder.getIntegerType(1),
+				mlir::LLVM::FCmpPredicate::one,
+				materializeTargetConversion(builder, lhs),
+				materializeTargetConversion(builder, rhs));
 
-		for (const auto& operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
-
-		Adaptor transformed(castedOperands);
-		mlir::Type type = castOp.resultType();
-
-		// Compute the result
-		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
-		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::ICmpPredicate::sgt, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
-			return mlir::success();
-		}
-
-		if (type.isa<RealType>())
-		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::FCmpPredicate::ogt, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
-			return mlir::success();
-		}
-
-		return mlir::failure();
+		return getTypeConverter()->materializeSourceConversion(
+				builder, loc, BooleanType::get(result.getContext()), result);
 	}
 };
 
-struct GteOpLowering: public ModelicaOpConversion<GteOp>
+struct GtOpLowering: public ComparisonOpLowering<GtOp>
 {
-	using ModelicaOpConversion<GteOp>::ModelicaOpConversion;
+	using ComparisonOpLowering<GtOp>::ComparisonOpLowering;
 
-	mlir::LogicalResult matchAndRewrite(GteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Location loc = op.getLoc();
+		mlir::Value result = builder.create<mlir::LLVM::ICmpOp>(
+				loc,
+				builder.getIntegerType(1),
+				mlir::LLVM::ICmpPredicate::sgt,
+				materializeTargetConversion(builder, lhs),
+				materializeTargetConversion(builder, rhs));
 
-		// Check if the operands are compatible
-		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
-			return rewriter.notifyMatchFailure(op, "Unsupported types");
+		return getTypeConverter()->materializeSourceConversion(
+				builder, loc, BooleanType::get(result.getContext()), result);
+	}
 
-		// Cast the operands to the most generic type, in order to avoid
-		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
-		llvm::SmallVector<mlir::Value, 3> castedOperands;
+	mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
+	{
+		mlir::Value result = builder.create<mlir::LLVM::FCmpOp>(
+				loc,
+				builder.getIntegerType(1),
+				mlir::LLVM::FCmpPredicate::ogt,
+				materializeTargetConversion(builder, lhs),
+				materializeTargetConversion(builder, rhs));
 
-		for (const auto& operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
-
-		Adaptor transformed(castedOperands);
-		mlir::Type type = castOp.resultType();
-
-		// Compute the result
-		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
-		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::ICmpPredicate::sge, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
-			return mlir::success();
-		}
-
-		if (type.isa<RealType>())
-		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::FCmpPredicate::oge, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
-			return mlir::success();
-		}
-
-		return mlir::failure();
+		return getTypeConverter()->materializeSourceConversion(
+				builder, loc, BooleanType::get(result.getContext()), result);
 	}
 };
 
-struct LtOpLowering: public ModelicaOpConversion<LtOp>
+struct GteOpLowering: public ComparisonOpLowering<GteOp>
 {
-	using ModelicaOpConversion<LtOp>::ModelicaOpConversion;
+	using ComparisonOpLowering<GteOp>::ComparisonOpLowering;
 
-	mlir::LogicalResult matchAndRewrite(LtOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Location loc = op.getLoc();
+		mlir::Value result = builder.create<mlir::LLVM::ICmpOp>(
+				loc,
+				builder.getIntegerType(1),
+				mlir::LLVM::ICmpPredicate::sge,
+				materializeTargetConversion(builder, lhs),
+				materializeTargetConversion(builder, rhs));
 
-		// Check if the operands are compatible
-		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
-			return rewriter.notifyMatchFailure(op, "Unsupported types");
+		return getTypeConverter()->materializeSourceConversion(
+				builder, loc, BooleanType::get(result.getContext()), result);
+	}
 
-		// Cast the operands to the most generic type, in order to avoid
-		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
-		llvm::SmallVector<mlir::Value, 3> castedOperands;
+	mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
+	{
+		mlir::Value result = builder.create<mlir::LLVM::FCmpOp>(
+				loc,
+				builder.getIntegerType(1),
+				mlir::LLVM::FCmpPredicate::oge,
+				materializeTargetConversion(builder, lhs),
+				materializeTargetConversion(builder, rhs));
 
-		for (const auto& operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
-
-		Adaptor transformed(castedOperands);
-		mlir::Type type = castOp.resultType();
-
-		// Compute the result
-		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
-		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::ICmpPredicate::slt, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
-			return mlir::success();
-		}
-
-		if (type.isa<RealType>())
-		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::FCmpPredicate::olt, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
-			return mlir::success();
-		}
-
-		return mlir::failure();
+		return getTypeConverter()->materializeSourceConversion(
+				builder, loc, BooleanType::get(result.getContext()), result);
 	}
 };
 
-struct LteOpLowering: public ModelicaOpConversion<LteOp>
+struct LtOpLowering: public ComparisonOpLowering<LtOp>
 {
-	using ModelicaOpConversion<LteOp>::ModelicaOpConversion;
+	using ComparisonOpLowering<LtOp>::ComparisonOpLowering;
 
-	mlir::LogicalResult matchAndRewrite(LteOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Location loc = op->getLoc();
+		mlir::Value result = builder.create<mlir::LLVM::ICmpOp>(
+				loc,
+				builder.getIntegerType(1),
+				mlir::LLVM::ICmpPredicate::slt,
+				materializeTargetConversion(builder, lhs),
+				materializeTargetConversion(builder, rhs));
 
-		// Check if the operands are compatible
-		if (!isNumeric(op.lhs()) || !isNumeric(op.rhs()))
-			return rewriter.notifyMatchFailure(op, "Unsupported types");
+		return getTypeConverter()->materializeSourceConversion(
+				builder, loc, BooleanType::get(result.getContext()), result);
+	}
 
-		// Cast the operands to the most generic type, in order to avoid
-		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
-		llvm::SmallVector<mlir::Value, 3> castedOperands;
+	mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
+	{
+		mlir::Value result = builder.create<mlir::LLVM::FCmpOp>(
+				loc,
+				builder.getIntegerType(1),
+				mlir::LLVM::FCmpPredicate::olt,
+				materializeTargetConversion(builder, lhs),
+				materializeTargetConversion(builder, rhs));
 
-		for (const auto& operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
+		return getTypeConverter()->materializeSourceConversion(
+				builder, loc, BooleanType::get(result.getContext()), result);
+	}
+};
 
-		Adaptor transformed(castedOperands);
-		mlir::Type type = castOp.resultType();
+struct LteOpLowering: public ComparisonOpLowering<LteOp>
+{
+	using ComparisonOpLowering<LteOp>::ComparisonOpLowering;
 
-		// Compute the result
-		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
-		{
-			mlir::Value result = rewriter.create<mlir::LLVM::ICmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::ICmpPredicate::sle, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
-			return mlir::success();
-		}
+	mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
+	{
+		mlir::Value result = builder.create<mlir::LLVM::ICmpOp>(
+				loc,
+				builder.getIntegerType(1),
+				mlir::LLVM::ICmpPredicate::sle,
+				materializeTargetConversion(builder, lhs),
+				materializeTargetConversion(builder, rhs));
 
-		if (type.isa<RealType>())
-		{
-			mlir::Value result = rewriter.create<mlir::LLVM::FCmpOp>(loc, rewriter.getIntegerType(1), mlir::LLVM::FCmpPredicate::ole, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, BooleanType::get(op->getContext()), result);
-			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
-			return mlir::success();
-		}
+		return getTypeConverter()->materializeSourceConversion(
+				builder, loc, BooleanType::get(result.getContext()), result);
+	}
 
-		return mlir::failure();
+	mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
+	{
+		mlir::Value result = builder.create<mlir::LLVM::FCmpOp>(
+				loc,
+				builder.getIntegerType(1),
+				mlir::LLVM::FCmpPredicate::ole,
+				materializeTargetConversion(builder, lhs),
+				materializeTargetConversion(builder, rhs));
+
+		return getTypeConverter()->materializeSourceConversion(
+				builder, loc, BooleanType::get(result.getContext()), result);
 	}
 };
 
@@ -1195,15 +1226,12 @@ struct AddOpScalarLowering: public ModelicaOpConversion<AddOp>
 		if (!isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Right-hand side value is not a scalar");
 
-		// Cast the operands to the most generic type
-		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
+		// Cast the operands to the most generic type, in order to avoid
+		// information loss.
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
-
-		for (mlir::Value operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
-
+		mlir::Type type = castToMostGenericType(rewriter, op->getOperands(), castedOperands);
+		materializeTargetConversion(rewriter, castedOperands);
 		Adaptor transformed(castedOperands);
-		mlir::Type type = castOp.resultType();
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
@@ -1299,15 +1327,12 @@ struct SubOpScalarLowering: public ModelicaOpConversion<SubOp>
 		if (!isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Right-hand side value is not a scalar");
 
-		// Cast the operands to the most generic type
-		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
+		// Cast the operands to the most generic type, in order to avoid
+		// information loss.
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
-
-		for (mlir::Value operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
-
+		mlir::Type type = castToMostGenericType(rewriter, op->getOperands(), castedOperands);
+		materializeTargetConversion(rewriter, castedOperands);
 		Adaptor transformed(castedOperands);
-		mlir::Type type = castOp.resultType();
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
@@ -1405,14 +1430,10 @@ struct MulOpLowering: public ModelicaOpConversion<MulOp>
 
 		// Cast the operands to the most generic type, in order to avoid
 		// information loss.
-		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
-
-		for (mlir::Value operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
-
+		mlir::Type type = castToMostGenericType(rewriter, op->getOperands(), castedOperands);
+		materializeTargetConversion(rewriter, castedOperands);
 		Adaptor transformed(castedOperands);
-		mlir::Type type = castOp.resultType();
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
@@ -1863,14 +1884,10 @@ struct DivOpLowering: public ModelicaOpConversion<DivOp>
 			return rewriter.notifyMatchFailure(op, "Scalar-scalar division: right-hand side value is not a scalar");
 
 		// Cast the operands to the most generic type
-		auto castOp = rewriter.create<CastCommonOp>(loc, op->getOperands());
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
-
-		for (mlir::Value operand : castOp.getResults())
-			castedOperands.push_back(materializeTargetConversion(rewriter, operand));
-
+		mlir::Type type = castToMostGenericType(rewriter, op->getOperands(), castedOperands);
+		materializeTargetConversion(rewriter, castedOperands);
 		Adaptor transformed(castedOperands);
-		mlir::Type type = castOp.resultType();
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
@@ -2398,17 +2415,19 @@ struct MinOpScalarsLowering: public ModelicaOpConversion<MinOp>
 		mlir::ValueRange values = op.values();
 		assert(isNumeric(values[0]) && isNumeric(values[1]));
 
-		auto castOp = rewriter.create<CastCommonOp>(loc, values);
-		Adaptor adaptor(castOp->getResults());
+		llvm::SmallVector<mlir::Value, 3> castedOperands;
+		mlir::Type type = castToMostGenericType(rewriter, values, castedOperands);
+		materializeTargetConversion(rewriter, castedOperands);
+		Adaptor transformed(castedOperands);
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				getMangledFunctionName("min", adaptor.values()),
-				castOp.resultType(),
-				adaptor.values());
+				getMangledFunctionName("min", transformed.values()),
+				type,
+				transformed.values());
 
-		auto call = rewriter.create<CallOp>(loc, callee.getName(), castOp.resultType(), adaptor.values());
+		auto call = rewriter.create<CallOp>(loc, callee.getName(), type, transformed.values());
 		assert(call.getNumResults() == 1);
 		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
 
@@ -2470,17 +2489,19 @@ struct MaxOpScalarsLowering: public ModelicaOpConversion<MaxOp>
 		mlir::ValueRange values = op.values();
 		assert(isNumeric(values[0]) && isNumeric(values[1]));
 
-		auto castOp = rewriter.create<CastCommonOp>(loc, values);
-		Adaptor adaptor(castOp->getResults());
+		llvm::SmallVector<mlir::Value, 3> castedOperands;
+		mlir::Type type = castToMostGenericType(rewriter, values, castedOperands);
+		materializeTargetConversion(rewriter, castedOperands);
+		Adaptor transformed(castedOperands);
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				getMangledFunctionName("max", adaptor.values()),
-				castOp.resultType(),
-				adaptor.values());
+				getMangledFunctionName("max", transformed.values()),
+				type,
+				transformed.values());
 
-		auto call = rewriter.create<CallOp>(loc, callee.getName(), castOp.resultType(), adaptor.values());
+		auto call = rewriter.create<CallOp>(loc, callee.getName(), type, transformed.values());
 		assert(call.getNumResults() == 1);
 		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
 
