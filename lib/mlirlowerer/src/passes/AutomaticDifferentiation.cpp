@@ -4,6 +4,7 @@
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/AutomaticDifferentiation.h>
+#include <stack>
 
 using namespace modelica::codegen;
 
@@ -57,7 +58,7 @@ static std::string getNextDerVariableName(llvm::StringRef currentName, unsigned 
 	assert(currentName.rfind("der_") == 0);
 
 	if (currentOrder == 2)
-		return getDerVariableName(currentName.substr(5), currentOrder);
+		return getDerVariableName(currentName.substr(4), currentOrder);
 
 	return getDerVariableName(currentName.substr(5 + numDigits(currentOrder - 1)), currentOrder);
 }
@@ -209,7 +210,7 @@ static mlir::LogicalResult createPartialDerFunction(FunctionOp base, llvm::Strin
 					dynamicDimensions.push_back(builder.create<DimOp>(
 							value.getLoc(), value, builder.create<ConstantOp>(value.getLoc(), builder.getIndexAttr(dimension.index()))));
 
-		mlir::Value der = builder.create<MemberCreateOp>(base.getLoc(), memberType, dynamicDimensions);
+		mlir::Value der = builder.create<MemberCreateOp>(base.getLoc(), name, memberType, dynamicDimensions);
 		der = builder.create<MemberLoadOp>(base->getLoc(), type, der);
 		derivatives.map(value, der);
 
@@ -221,23 +222,16 @@ static mlir::LogicalResult createPartialDerFunction(FunctionOp base, llvm::Strin
 	for (auto& op : derivableOps)
 	{
 		builder.setInsertionPoint(op);
-
-		op.derive(
-				builder, derivatives,
-				[](mlir::OpBuilder& builder, std::function<mlir::ValueRange(mlir::OpBuilder&)> allocator) -> mlir::ValueRange {
-					mlir::OpBuilder::InsertionGuard guard(builder);
-					builder.setInsertionPointToStart(builder.getInsertionBlock());
-					return allocator(builder);
-				});
+		op.derive(builder, derivatives);
 	}
 
 	return mlir::success();
 }
 
-static void mapDerArgs(llvm::ArrayRef<llvm::StringRef> names,
-											 mlir::ValueRange values,
-											 mlir::BlockAndValueMapping& derivatives,
-											 unsigned int maxOrder)
+static void mapDerivatives(llvm::ArrayRef<llvm::StringRef> names,
+													 mlir::ValueRange values,
+													 mlir::BlockAndValueMapping& derivatives,
+													 unsigned int maxOrder)
 {
 	// Map the values for a faster by-name lookup
 	llvm::StringMap<mlir::Value> map;
@@ -405,9 +399,10 @@ static mlir::LogicalResult createFullDerFunction(FunctionOp base)
 	for (const auto& sourceArg : llvm::enumerate(base.getRegion().front().getArguments()))
 		mapping.map(sourceArg.value(), body->getArgument(sourceArg.index()));
 
-	// Map the derivatives
 	mlir::BlockAndValueMapping derivatives;
-	mapDerArgs(argsNames, derivedFunction.getArguments(), derivatives, order);
+
+	// Map the derivatives among the function arguments.
+	mapDerivatives(argsNames, derivedFunction.getArguments(), derivatives, order);
 
 	// Clone the original operations, which will be interleaved in the
 	// resulting derivative function.
@@ -424,13 +419,48 @@ static mlir::LogicalResult createFullDerFunction(FunctionOp base)
 			builder.clone(baseOp, mapping);
 	}
 
+	// Create the new members derivatives
+	builder.setInsertionPointToStart(&derivedFunction.getRegion().front());
+
+	llvm::SmallVector<llvm::StringRef, 3> allMembersNames;
+	llvm::SmallVector<mlir::Value, 3> allMembersValues;
+
+	derivedFunction.walk([&](MemberCreateOp op) {
+		allMembersNames.push_back(op.name());
+		allMembersValues.push_back(op.getResult());
+	});
+
+	llvm::SmallVector<mlir::Value, 3> toBeDerived;
+	mapDerivatives(allMembersNames, allMembersValues, derivatives, order - 1);
+
+	// Create the new members derivatives
+	for (const auto& [name, value] : llvm::zip(allMembersNames, allMembersValues))
+	{
+		if (derivatives.contains(value))
+		{
+			derivatives.map(value, derivatives.lookup(value));
+		}
+		else
+		{
+			auto createOp = value.getDefiningOp<MemberCreateOp>();
+			builder.setInsertionPointAfter(createOp);
+
+			mlir::Value der = builder.create<MemberCreateOp>(
+					value.getLoc(),
+					getNextDerVariableName(name, order),
+					value.getType(), createOp.dynamicDimensions());
+
+			derivatives.map(value, der);
+		}
+	}
+
 	// Determine the list of the derivable operations. We can't just derive as
 	// we find them, as we would invalidate the operation walk's iterator.
 	llvm::SmallVector<DerivativeInterface> derivableOps;
 
 	derivedFunction.walk([&](mlir::Operation* op) {
-		if (auto deriveInterface = mlir::dyn_cast<DerivativeInterface>(op))
-			derivableOps.push_back(deriveInterface);
+		if (auto derivableOp = mlir::dyn_cast<DerivativeInterface>(op))
+			derivableOps.push_back(derivableOp);
 	});
 
 	// Derive each derivable operation. The derivative is placed before the
@@ -440,14 +470,7 @@ static mlir::LogicalResult createFullDerFunction(FunctionOp base)
 	for (auto& op : derivableOps)
 	{
 		builder.setInsertionPoint(op);
-
-		op.derive(
-				builder, derivatives,
-				[](mlir::OpBuilder& builder, std::function<mlir::ValueRange(mlir::OpBuilder&)> allocator) -> mlir::ValueRange {
-					mlir::OpBuilder::InsertionGuard guard(builder);
-					builder.setInsertionPointToStart(builder.getInsertionBlock());
-					return allocator(builder);
-				});
+		op.derive(builder, derivatives);
 	}
 
 	// Replace the old return operation with a new one returning the derivatives
@@ -490,10 +513,21 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 		auto module = getOperation();
 		module.dump();
 
-		module->walk([](FunctionOp op) {
+		llvm::SmallVector<FunctionOp, 3> toBeDerived;
+
+		module->walk([&](FunctionOp op) {
 			if (op.hasDerivative())
-				createFullDerFunction(op);
+				toBeDerived.push_back(op);
 		});
+
+		for (auto& function : toBeDerived)
+		{
+			if (mlir::failed(createFullDerFunction(function)))
+			{
+				module->dump();
+				return signalPassFailure();
+			}
+		}
 
 		module->dump();
 

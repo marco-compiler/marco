@@ -345,14 +345,14 @@ struct DerivativeInterfaceTraits {
 		virtual ~Concept() = default;
 		Concept& operator=(const Concept& other) = default;
 
-		virtual void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator) const = 0;
+		virtual void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const = 0;
 	};
 
 	template <typename ConcreteOp>
 	struct Model : public Concept {
-		void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator) const final
+		void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const final
 		{
-			return mlir::cast<ConcreteOp>(op).derive(builder, derivatives, derivativeAllocator);
+			return mlir::cast<ConcreteOp>(op).derive(builder, derivatives);
 		}
 	};
 
@@ -361,9 +361,9 @@ struct DerivativeInterfaceTraits {
 		public:
 		FallbackModel() = default;
 
-		void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator) const final
+		void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const final
 		{
-			return mlir::cast<ConcreteOp>(op).derive(builder, derivatives, derivativeAllocator);
+			return mlir::cast<ConcreteOp>(op).derive(builder, derivatives);
 		}
 	};
 };
@@ -372,8 +372,8 @@ class DerivativeInterface : public mlir::OpInterface<DerivativeInterface, Deriva
 	public:
 	using OpInterface<DerivativeInterface, DerivativeInterfaceTraits>::OpInterface;
 
-	void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+	void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 	{
-		return getImpl()->derive(getOperation(), builder, derivatives, derivativeAllocator);
+		return getImpl()->derive(getOperation(), builder, derivatives);
 	}
 };

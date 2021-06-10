@@ -8,7 +8,7 @@ namespace modelica::codegen
 
 	inline void registerBufferDeallocationPass()
 	{
-		mlir::registerPass("buffer-deallocation", "Modelica: automatic buffer deallocation",
+		mlir::registerPass("modelica-buffer-deallocation", "Modelica: automatic buffer deallocation",
 											 []() -> std::unique_ptr<::mlir::Pass> {
 												 return createBufferDeallocationPass();
 											 });

@@ -501,7 +501,7 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::OpFoldResult fold(llvm::ArrayRef<mlir::Attribute> operands);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Attribute value();
 		mlir::Type resultType();
@@ -683,8 +683,7 @@ namespace modelica::codegen
 																				mlir::OpTrait::ZeroRegion,
 																				mlir::OpTrait::VariadicOperands,
 																				mlir::OpTrait::OneResult,
-																				mlir::MemoryEffectOpInterface::Trait,
-																				DerivativeInterface::Trait>
+																				mlir::MemoryEffectOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -695,15 +694,14 @@ namespace modelica::codegen
 			return "modelica.member_create";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type type, mlir::ValueRange dynamicDimensions);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::Type type, mlir::ValueRange dynamicDimensions, mlir::NamedAttrList attributes = {});
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
-
+		llvm::StringRef name();
 		mlir::Type resultType();
 		mlir::ValueRange dynamicDimensions();
 	};
@@ -745,7 +743,7 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value member();
@@ -789,7 +787,7 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Value member();
 		mlir::Value value();
@@ -1039,7 +1037,7 @@ namespace modelica::codegen
 
 		mlir::Value getViewSource();
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		PointerType resultType();
 		mlir::Value source();
@@ -1083,7 +1081,7 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		PointerType getPointerType();
 		mlir::Value memory();
@@ -1129,7 +1127,7 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		PointerType getPointerType();
 		mlir::Value value();
@@ -1844,7 +1842,7 @@ namespace modelica::codegen
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -1897,7 +1895,7 @@ namespace modelica::codegen
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -1950,7 +1948,7 @@ namespace modelica::codegen
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2005,7 +2003,7 @@ namespace modelica::codegen
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2060,7 +2058,7 @@ namespace modelica::codegen
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator);
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value lhs();

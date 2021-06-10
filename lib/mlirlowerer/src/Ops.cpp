@@ -807,7 +807,7 @@ mlir::OpFoldResult ConstantOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
 	return value();
 }
 
-void ConstantOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+void ConstantOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	mlir::Value zero = builder.create<ConstantOp>(getLoc(), RealAttribute::get(RealType::get(getContext()), 0));
 	derivatives.map(getResult(), zero);
@@ -1220,17 +1220,27 @@ mlir::ValueRange MemberCreateOpAdaptor::dynamicDimensions()
 	return getValues();
 }
 
-void MemberCreateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type type, mlir::ValueRange dynamicDimensions)
+void MemberCreateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::Type type, mlir::ValueRange dynamicDimensions, mlir::NamedAttrList attributes)
 {
+	state.addAttribute("name", builder.getStringAttr(name));
 	state.addTypes(type);
 	state.addOperands(dynamicDimensions);
+	state.attributes.append(attributes);
 }
 
 mlir::ParseResult MemberCreateOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
 	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> dynamicDimensions;
+	mlir::StringAttr nameAttr;
 	llvm::SmallVector<mlir::Type, 2> dynamicDimensionsTypes;
 	mlir::Type resultType;
+
+	mlir::NamedAttrList attributes;
+
+	if (parser.parseOptionalAttrDict(attributes))
+		return mlir::failure();
+
+	result.attributes.append(attributes);
 
 	llvm::SMLoc dynamicDimensionsLoc = parser.getCurrentLocation();
 
@@ -1284,6 +1294,7 @@ void MemberCreateOp::print(mlir::OpAsmPrinter& printer)
 		printer << dynamicDimension.value();
 	}
 
+	printer << " " << getOperation()->getAttrDictionary();
 	printer << " : ";
 
 	if (auto dimensions = dynamicDimensions().getTypes(); !dimensions.empty())
@@ -1315,17 +1326,9 @@ void MemberCreateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectI
 	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 }
 
-void MemberCreateOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+llvm::StringRef MemberCreateOp::name()
 {
-	if (derivatives.contains(getResult()))
-		return;
-
-	mlir::ValueRange results = derivativeAllocator(builder, [&](mlir::OpBuilder& builder) -> mlir::ValueRange {
-		return builder.create<MemberCreateOp>(getLoc(), resultType(), dynamicDimensions())->getResults();
-	});
-
-	for (const auto& [source, der] : llvm::zip(getOperation()->getResults(), results))
-		derivatives.map(source, der);
+	return getOperation()->getAttrOfType<mlir::StringAttr>("name").getValue();
 }
 
 mlir::Type MemberCreateOp::resultType()
@@ -1393,11 +1396,10 @@ mlir::LogicalResult MemberLoadOp::verify()
 
 void MemberLoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	// TODO
-	effects.emplace_back(mlir::MemoryEffects::Read::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), member(), mlir::SideEffects::DefaultResource::get());
 }
 
-void MemberLoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+void MemberLoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	auto derivedOp = builder.create<MemberLoadOp>(getLoc(), resultType(), derivatives.lookup(member()));
 	derivatives.map(getResult(), derivedOp.getResult());
@@ -1487,13 +1489,21 @@ mlir::LogicalResult MemberStoreOp::verify()
 
 void MemberStoreOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), value(), mlir::SideEffects::DefaultResource::get());
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), member(), mlir::SideEffects::DefaultResource::get());
 }
 
-void MemberStoreOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+void MemberStoreOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
-	builder.create<MemberStoreOp>(
-			getLoc(), derivatives.lookup(member()), derivatives.lookup(value()));
+	// Store operations should be derived only if they store a value into
+	// a member whose derivative is created by the current function. Otherwise,
+	// we would create a double store into that derived member.
+
+	assert(derivatives.contains(member()) && "Derived member not found");
+	mlir::Value derivedMember = derivatives.lookup(member());
+
+	if (!derivatives.contains(derivedMember))
+		builder.create<MemberStoreOp>(getLoc(), derivedMember, derivatives.lookup(value()));
 }
 
 mlir::Value MemberStoreOp::member()
@@ -2027,7 +2037,7 @@ mlir::Value SubscriptionOp::getViewSource()
 	return source();
 }
 
-void SubscriptionOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+void SubscriptionOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	auto derivedOp = builder.create<SubscriptionOp>(getLoc(), derivatives.lookup(source()), indexes());
 	derivatives.map(getResult(), derivedOp.getResult());
@@ -2123,7 +2133,7 @@ void LoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), memory(), mlir::SideEffects::DefaultResource::get());
 }
 
-void LoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+void LoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	auto derivedOp = builder.create<LoadOp>(getLoc(), derivatives.lookup(memory()), indexes());
 	derivatives.map(getResult(), derivedOp.getResult());
@@ -2232,7 +2242,7 @@ void StoreOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), memory(), mlir::SideEffects::DefaultResource::get());
 }
 
-void StoreOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+void StoreOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	auto derivedOp = builder.create<StoreOp>(
 			getLoc(), derivatives.lookup(value()), derivatives.lookup(memory()), indexes());
@@ -3854,7 +3864,7 @@ mlir::Value NegateOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resul
 	return builder.create<NegateOp>(getLoc(), resultType, operand);
 }
 
-void NegateOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+void NegateOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	auto derivedOp = builder.create<NegateOp>(getLoc(), resultType(), operand());
 	derivatives.map(getResult(), derivedOp.getResult());
@@ -4035,7 +4045,7 @@ mlir::Value AddOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 	return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
 }
 
-void AddOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+void AddOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	mlir::Value derivedLhs = derivatives.lookup(lhs());
 	mlir::Value derivedRhs = derivatives.lookup(rhs());
@@ -4224,7 +4234,7 @@ mlir::Value SubOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 	return builder.create<SubOp>(getLoc(), resultType, lhs, rhs);
 }
 
-void SubOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+void SubOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	mlir::Value derivedLhs = derivatives.lookup(lhs());
 	mlir::Value derivedRhs = derivatives.lookup(rhs());
@@ -4283,8 +4293,8 @@ mlir::ParseResult MulOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& 
 	if (parser.parseOperandList(operands, 2) ||
 			parser.parseColon() || parser.parseLParen() ||
 			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() || parser.parseArrow() || parser.parseLParen() ||
-			parser.parseType(resultType) || parser.parseRParen() ||
+			parser.parseRParen() || parser.parseArrow() ||
+			parser.parseType(resultType) ||
 			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
 		return mlir::failure();
 
@@ -4435,7 +4445,7 @@ mlir::Value MulOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 	return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
 }
 
-void MulOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+void MulOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	mlir::Value derivedLhs = derivatives.lookup(lhs());
 	mlir::Value derivedRhs = derivatives.lookup(rhs());
@@ -4649,7 +4659,7 @@ mlir::Value DivOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 	return builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
 }
 
-void DivOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives, std::function<mlir::ValueRange(mlir::OpBuilder&, std::function<mlir::ValueRange(mlir::OpBuilder&)>)> derivativeAllocator)
+void DivOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	// TODO: DivOp derivation
 }

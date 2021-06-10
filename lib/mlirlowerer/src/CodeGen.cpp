@@ -714,7 +714,7 @@ void MLIRLowerer::lower<Function>(const Member& member)
 	    MemberType::get(type.cast<PointerType>()) :
 			MemberType::get(builder.getContext(), MemberAllocationScope::stack, type);
 
-	mlir::Value var = builder.create<MemberCreateOp>(location, memberType, dynamicDimensions);
+	mlir::Value var = builder.create<MemberCreateOp>(location, member.getName(), memberType, dynamicDimensions);
 	symbolTable.insert(member.getName(), Reference::member(&builder, var));
 
 	if (member.hasInitializer())

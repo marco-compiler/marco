@@ -17,6 +17,7 @@ using namespace modelica::codegen;
 
 int main(int argc, char* argv[])
 {
+	mlir::registerAllPasses();
 	modelica::codegen::registerModelicaPasses();
 
 	mlir::DialectRegistry registry;
