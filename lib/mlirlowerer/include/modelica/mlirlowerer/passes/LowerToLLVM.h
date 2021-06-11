@@ -6,6 +6,7 @@ namespace modelica::codegen
 {
 	struct ModelicaToLLVMConversionOptions
 	{
+		bool assertions = true;
 		bool emitCWrappers = false;
 
 		static const ModelicaToLLVMConversionOptions& getDefaultOptions() {

@@ -6,6 +6,7 @@ namespace modelica::codegen
 {
 	struct ModelicaConversionOptions
 	{
+		bool assertions = true;
 		bool useRuntimeLibrary = true;
 
 		static const ModelicaConversionOptions& getDefaultOptions() {

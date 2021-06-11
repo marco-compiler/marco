@@ -13,7 +13,7 @@ namespace modelica::codegen
 		bool emitMain = true;
 		int matchingMaxIterations = 1000;
 		int sccMaxIterations = 1000;
-		Solver solverName = ForwardEuler;
+		Solver solver = ForwardEuler;
 
 		static const SolveModelOptions& getDefaultOptions() {
 			static SolveModelOptions options;

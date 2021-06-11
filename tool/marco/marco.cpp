@@ -27,12 +27,12 @@ static cl::OptionCategory modelSolvingOptions("Model solving options");
 
 static cl::opt<int> matchingMaxIterations("matching-max-iterations", cl::desc("Maximum number of iterations for the matching phase (default: 1000)"), cl::init(1000), cl::cat(modelSolvingOptions));
 static cl::opt<int> sccMaxIterations("scc-max-iterations", cl::desc("Maximum number of iterations for the SCC resolution phase (default: 1000)"), cl::init(1000), cl::cat(modelSolvingOptions));
-static cl::opt<codegen::Solver> solverName(cl::desc("Solvers:"),
-																					 cl::values(
-																							 clEnumValN(codegen::ForwardEuler, "forward-euler", "Forward Euler (default)"),
-																							 clEnumValN(codegen::CleverDAE, "clever-dae", "Clever DAE")),
-																					 cl::init(codegen::ForwardEuler),
-																					 cl::cat(modelSolvingOptions));
+static cl::opt<codegen::Solver> solver(cl::desc("Solvers:"),
+																			 cl::values(
+																					 clEnumValN(codegen::ForwardEuler, "forward-euler", "Forward Euler (default)"),
+																					 clEnumValN(codegen::CleverDAE, "clever-dae", "Clever DAE")),
+																			 cl::init(codegen::ForwardEuler),
+																			 cl::cat(modelSolvingOptions));
 
 static cl::OptionCategory codeGenOptions("Code generation options");
 
@@ -68,6 +68,7 @@ static cl::opt<bool> printModelicaDialectIR("print-modelica", cl::desc("Print th
 static cl::opt<bool> printLLVMDialectIR("print-llvm", cl::desc("Print the LLVM dialect IR"), cl::init(false), cl::cat(debugOptions));
 
 static cl::opt<bool> debug("d", cl::desc("Keep debug information in the final IR"), cl::init(false), cl::cat(debugOptions));
+static cl::opt<bool> enableAssertions("asserts", cl::desc("Enable assertions (default: true for O0, false otherwise)"), cl::init(true), cl::cat(debugOptions));
 
 static cl::OptionCategory simulationOptions("Simulation options");
 
@@ -163,7 +164,7 @@ int main(int argc, char* argv[])
 	loweringOptions.solveModelOptions.emitMain = emitMain;
 	loweringOptions.solveModelOptions.matchingMaxIterations = matchingMaxIterations;
 	loweringOptions.solveModelOptions.sccMaxIterations = sccMaxIterations;
-	loweringOptions.solveModelOptions.solverName = solverName;
+	loweringOptions.solveModelOptions.solver = solver;
 	loweringOptions.inlining = !inlining;
 	loweringOptions.resultBuffersToArgs = !resultBuffersToArgs;
 	loweringOptions.cse = !cse;
@@ -172,6 +173,25 @@ int main(int argc, char* argv[])
 	loweringOptions.conversionOptions.useRuntimeLibrary = !disableRuntimeLibrary;
 	loweringOptions.llvmOptions.emitCWrappers = emitCWrappers;
 	loweringOptions.debug = debug;
+
+	if (optimizationLevel == O0)
+	{
+		loweringOptions.conversionOptions.assertions = enableAssertions;
+		loweringOptions.llvmOptions.assertions = enableAssertions;
+	}
+	else
+	{
+		if (enableAssertions.isDefaultOption())
+		{
+			loweringOptions.conversionOptions.assertions = false;
+			loweringOptions.llvmOptions.assertions = enableAssertions;
+		}
+		else
+		{
+			loweringOptions.conversionOptions.assertions = enableAssertions;
+			loweringOptions.llvmOptions.assertions = enableAssertions;
+		}
+	}
 
 	if (mlir::failed(lowerer.convertToLLVMDialect(*module, loweringOptions)))
 	{

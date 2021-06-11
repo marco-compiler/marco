@@ -1010,10 +1010,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 	mlir::LogicalResult selectSolver(mlir::OpBuilder& builder, Model& model)
 	{
-		if (options.solverName == ForwardEuler)
+		if (options.solver == ForwardEuler)
 			return updateStates(builder, model);
 
-		if (options.solverName == CleverDAE)
+		if (options.solver == CleverDAE)
 			return addBltBlocks(builder, model);
 
 		return mlir::failure();
