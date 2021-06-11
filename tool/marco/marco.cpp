@@ -68,7 +68,7 @@ static cl::opt<bool> printModelicaDialectIR("print-modelica", cl::desc("Print th
 static cl::opt<bool> printLLVMDialectIR("print-llvm", cl::desc("Print the LLVM dialect IR"), cl::init(false), cl::cat(debugOptions));
 
 static cl::opt<bool> debug("d", cl::desc("Keep debug information in the final IR"), cl::init(false), cl::cat(debugOptions));
-static cl::opt<bool> enableAssertions("asserts", cl::desc("Enable assertions (default: true for O0, false otherwise)"), cl::init(true), cl::cat(debugOptions));
+static cl::opt<bool> enableAssertions("enable-assertions", cl::desc("Enable assertions (default: true for O0, false otherwise)"), cl::init(true), cl::cat(debugOptions));
 
 static cl::OptionCategory simulationOptions("Simulation options");
 
@@ -181,7 +181,7 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		if (enableAssertions.isDefaultOption())
+		if (enableAssertions.getNumOccurrences() == 0)
 		{
 			loweringOptions.conversionOptions.assertions = false;
 			loweringOptions.llvmOptions.assertions = enableAssertions;

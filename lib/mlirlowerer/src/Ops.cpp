@@ -1665,7 +1665,7 @@ void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 	state.addTypes(PointerType::get(state.getContext(), BufferAllocationScope::heap, elementType, shape));
 	state.addOperands(dimensions);
 
-	state.addAttribute("shouldBeFreed", builder.getBoolAttr(shouldBeFreed));
+	state.addAttribute(getAutoFreeAttrName(), builder.getBoolAttr(shouldBeFreed));
 	state.addAttribute("constant", builder.getBoolAttr(constant));
 }
 
@@ -1709,11 +1709,6 @@ void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
 	}
-}
-
-bool AllocOp::shouldBeFreed()
-{
-	return getOperation()->getAttrOfType<mlir::BoolAttr>("shouldBeFreed").getValue();
 }
 
 PointerType AllocOp::resultType()
@@ -2287,16 +2282,12 @@ void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 {
 	state.addOperands(source);
 	state.addTypes(resultType);
-	state.addAttribute("auto_free", builder.getBoolAttr(shouldBeFreed));
+	state.addAttribute(getAutoFreeAttrName(), builder.getBoolAttr(shouldBeFreed));
 }
 
 void ArrayCloneOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << getOperationName() << " " << source();
-
-	if (!shouldBeFreed())
-		printer << getOperation()->getAttr("auto_free");
-
 	printer	<< " : " << source().getType() << " -> " << resultType();
 }
 
@@ -2323,11 +2314,6 @@ void ArrayCloneOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectIns
 		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-}
-
-bool ArrayCloneOp::shouldBeFreed()
-{
-	return getOperation()->getAttrOfType<mlir::BoolAttr>("auto_free").getValue();
 }
 
 PointerType ArrayCloneOp::resultType()

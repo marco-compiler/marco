@@ -689,7 +689,7 @@ struct ArrayCloneOpLowering: public ModelicaOpConversion<ArrayCloneOp>
 		{
 			if (size.value() == -1)
 			{
-				mlir::Value index = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(size.index()));
+				mlir::Value index = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(size.index()));
 				mlir::Value dim = rewriter.create<DimOp>(loc, op.source(), index);
 				dynamicDimensions.push_back(dim);
 			}
@@ -3210,7 +3210,6 @@ static void populateModelicaConversionPatterns(
 			AssignmentOpArrayLowering,
 			CallOpLowering,
 			PrintOpLowering,
-			ArrayCloneOpLowering,
 			NotOpScalarLowering,
 			NotOpArrayLowering,
 			AndOpScalarLowering,
@@ -3278,18 +3277,32 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 
 	void runOnOperation() override
 	{
-		auto module = getOperation();
+		if (mlir::failed(convertOperations()))
+		{
+			mlir::emitError(getOperation().getLoc(), "Error in converting the Modelica operations\n");
+			return signalPassFailure();
+		}
 
+		if (mlir::failed(forwardAllocations()))
+		{
+			mlir::emitError(getOperation().getLoc(), "Error in forwarding the allocations\n");
+			return signalPassFailure();
+		}
+	}
+
+	private:
+	mlir::LogicalResult convertOperations()
+	{
+		auto module = getOperation();
 		mlir::ConversionTarget target(getContext());
 
 		target.addIllegalOp<
-		    MemberCreateOp, MemberLoadOp, MemberStoreOp,
-		    ConstantOp, PackOp, ExtractOp,
+				MemberCreateOp, MemberLoadOp, MemberStoreOp,
+				ConstantOp, PackOp, ExtractOp,
 				AssignmentOp,
 				CallOp,
 				FillOp,
 				PrintOp,
-				ArrayCloneOp,
 				NotOp, AndOp, OrOp,
 				EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp,
 				NegateOp, AddOp, SubOp, MulOp, DivOp, PowOp,
@@ -3301,22 +3314,71 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 		mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
 		TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
 
-		// Provide the set of patterns that will lower the Modelica operations
 		mlir::OwningRewritePatternList patterns(&getContext());
 		populateModelicaConversionPatterns(patterns, &getContext(), typeConverter, options);
 
-		// With the target and rewrite patterns defined, we can now attempt the
-		// conversion. The conversion will signal failure if any of our "illegal"
-		// operations were not converted successfully.
+		if (auto status = applyPartialConversion(module, target, std::move(patterns)); failed(status))
+			return status;
 
-		if (failed(applyPartialConversion(module, target, std::move(patterns))))
-		{
-			mlir::emitError(module.getLoc(), "Error in converting the Modelica operations\n");
-			signalPassFailure();
-		}
+		return mlir::success();
 	}
 
-	private:
+	mlir::LogicalResult forwardAllocations()
+	{
+		auto module = getOperation();
+
+		// Erase the clone operations for which a forward of the original
+		// allocation is enough. The allocation forwarding is possible only
+		// when the clone has the same type of the source, including the
+		// allocation scope.
+
+		module.walk([](ArrayCloneOp op) {
+			if (auto pointerType = op.source().getType().dyn_cast<PointerType>())
+			{
+				if (pointerType != op.resultType())
+					return;
+
+				mlir::Operation* sourceOp = op.source().getDefiningOp();
+
+				if (auto sourceAllocator = mlir::dyn_cast<HeapAllocator>(sourceOp))
+				{
+					bool shouldBeFreed = sourceAllocator.shouldBeFreed();
+
+					for (const auto& user : op.source().getUsers())
+						if (auto userAllocator = mlir::dyn_cast<HeapAllocator>(user))
+							shouldBeFreed &= userAllocator.shouldBeFreed();
+
+					if (shouldBeFreed)
+						sourceAllocator.setAsAutomaticallyFreed();
+					else
+						sourceAllocator.setAsManuallyFreed();
+				}
+
+				op.replaceAllUsesWith(op.source());
+				op.erase();
+			}
+		});
+
+		// The remaining clone operations can't be optimized more, so just
+		// convert them into naive copies.
+
+		mlir::ConversionTarget target(getContext());
+
+		target.addIllegalOp<ArrayCloneOp>();
+		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
+
+		mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+		TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
+
+		mlir::OwningRewritePatternList patterns(&getContext());
+		patterns.insert<ArrayCloneOpLowering>(&getContext(), typeConverter, options);
+
+		if (auto status = applyPartialConversion(module, target, std::move(patterns)); failed(status))
+			return status;
+
+		return mlir::success();
+	}
+
 	ModelicaConversionOptions options;
 	unsigned int bitWidth;
 };

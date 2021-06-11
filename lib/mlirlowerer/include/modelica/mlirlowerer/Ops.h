@@ -829,7 +829,8 @@ namespace modelica::codegen
 																 mlir::OpTrait::ZeroRegion,
 																 mlir::OpTrait::VariadicOperands,
 																 mlir::OpTrait::OneResult,
-																 mlir::MemoryEffectOpInterface::Trait>
+																 mlir::MemoryEffectOpInterface::Trait,
+																 HeapAllocator::Trait>
 	{
 		public:
 		using Op::Op;
@@ -847,7 +848,6 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		bool shouldBeFreed();
 		PointerType resultType();
 		mlir::ValueRange dynamicDimensions();
 		bool isConstant();
@@ -1133,7 +1133,8 @@ namespace modelica::codegen
 																			mlir::OpTrait::ZeroRegion,
 																			mlir::OpTrait::OneOperand,
 																			mlir::OpTrait::OneResult,
-																			mlir::MemoryEffectOpInterface::Trait>
+																			mlir::MemoryEffectOpInterface::Trait,
+																			HeapAllocator::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1151,7 +1152,6 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		bool shouldBeFreed();
 		PointerType resultType();
 		mlir::Value source();
 	};
