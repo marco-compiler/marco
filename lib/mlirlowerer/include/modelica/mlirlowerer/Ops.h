@@ -920,7 +920,8 @@ namespace modelica::codegen
 	class PtrCastOp : public mlir::Op<PtrCastOp,
 																	 mlir::OpTrait::ZeroRegion,
 																	 mlir::OpTrait::OneOperand,
-																	 mlir::OpTrait::OneResult>
+																	 mlir::OpTrait::OneResult,
+																	 mlir::ViewLikeOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -935,6 +936,8 @@ namespace modelica::codegen
 		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
+
+		mlir::Value getViewSource();
 
 		mlir::Type resultType();
 		mlir::Value memory();

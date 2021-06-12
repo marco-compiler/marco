@@ -511,7 +511,6 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 	void runOnOperation() override
 	{
 		auto module = getOperation();
-		module.dump();
 
 		llvm::SmallVector<FunctionOp, 3> toBeDerived;
 
@@ -528,8 +527,6 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 				return signalPassFailure();
 			}
 		}
-
-		module->dump();
 
 		/*
 		mlir::ConversionTarget target(getContext());

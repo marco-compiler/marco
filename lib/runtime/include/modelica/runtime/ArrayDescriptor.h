@@ -133,10 +133,25 @@ class ArrayDescriptor
 		return rank;
 	}
 
-	[[nodiscard]] unsigned long getDimensionSize(unsigned long index) const
+	[[nodiscard]] unsigned long getDimension(unsigned long index) const
 	{
 		assert(index >= 0 && index < rank);
 		return sizes[index];
+	}
+
+	[[nodiscard]] llvm::ArrayRef<unsigned long> getDimensions() const
+	{
+		return llvm::ArrayRef(sizes, rank);
+	}
+
+	[[nodiscard]] unsigned long getNumElements() const
+	{
+		unsigned long result = 1;
+
+		for (const auto& dimension : getDimensions())
+			result *= dimension;
+
+		return result;
 	}
 
 	[[nodiscard]] iterator begin()
@@ -178,7 +193,7 @@ class ArrayDescriptor
 
 		for (unsigned long i = 1; i < indexes.size(); ++i)
 		{
-			long size = getDimensionSize(i);
+			long size = getDimension(i);
 			assert(size > 0);
 			offset = offset * size + indexes[i];
 		}
@@ -206,7 +221,7 @@ namespace impl
 	{
 		stream << "[";
 
-		for (unsigned long i = 0; i < descriptor.getDimensionSize(dimension); ++i)
+		for (unsigned long i = 0; i < descriptor.getDimension(dimension); ++i)
 		{
 			indexes[dimension] = i;
 
@@ -290,7 +305,17 @@ class UnsizedArrayDescriptor
 
 	[[nodiscard]] unsigned long getDimensionSize(unsigned long index) const
 	{
-		return getDescriptor()->getDimensionSize(index);
+		return getDescriptor()->getDimension(index);
+	}
+
+	[[nodiscard]] llvm::ArrayRef<unsigned long> getDimensions() const
+	{
+		return getDescriptor()->getDimensions();
+	}
+
+	[[nodiscard]] unsigned long getNumElements() const
+	{
+		return getDescriptor()->getNumElements();
 	}
 
 	[[nodiscard]] iterator begin()
@@ -373,7 +398,7 @@ class ArrayIterator
 	{
 		int dim = descriptor->getRank() - 1;
 
-		while (dim >= 0 && indexes[dim] == (descriptor->getDimensionSize(dim) - 1)) {
+		while (dim >= 0 && indexes[dim] == (descriptor->getDimension(dim) - 1)) {
 			indexes[dim] = 0;
 			--dim;
 		}

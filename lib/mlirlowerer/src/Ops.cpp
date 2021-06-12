@@ -1844,6 +1844,11 @@ mlir::LogicalResult PtrCastOp::verify()
 	return emitOpError("requires a compatible conversion");
 }
 
+mlir::Value PtrCastOp::getViewSource()
+{
+	return memory();
+}
+
 mlir::Value PtrCastOp::memory()
 {
 	return Adaptor(*this).memory();

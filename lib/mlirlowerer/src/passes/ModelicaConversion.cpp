@@ -682,7 +682,6 @@ struct ArrayCloneOpLowering: public ModelicaOpConversion<ArrayCloneOp>
 	{
 		mlir::Location loc = op.getLoc();
 		Adaptor adaptor(operands);
-
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
 		for (auto size : llvm::enumerate(op.resultType().getShape()))
@@ -697,11 +696,29 @@ struct ArrayCloneOpLowering: public ModelicaOpConversion<ArrayCloneOp>
 
 		mlir::Value result = allocate(rewriter, loc, op.resultType(), dynamicDimensions, op.shouldBeFreed());
 
-		iterateArray(rewriter, loc, op.source(), [&](mlir::ValueRange indexes) {
-			mlir::Value value = rewriter.create<LoadOp>(loc, op.source(), indexes);
-			value = rewriter.create<CastOp>(loc, value, op.resultType().cast<PointerType>().getElementType());
-			rewriter.create<StoreOp>(loc, value, result, indexes);
-		});
+		if (options.useRuntimeLibrary)
+		{
+			llvm::SmallVector<mlir::Value, 2> args;
+			args.push_back(rewriter.create<PtrCastOp>(loc, result, result.getType().cast<PointerType>().toUnsized()));
+			args.push_back(rewriter.create<PtrCastOp>(loc, op.source(), op.source().getType().cast<PointerType>().toUnsized()));
+
+			auto callee = getOrDeclareFunction(
+					rewriter,
+					op->getParentOfType<mlir::ModuleOp>(),
+					getMangledFunctionName("clone", args),
+					llvm::None,
+					args);
+
+			rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, args);
+		}
+		else
+		{
+			iterateArray(rewriter, loc, op.source(), [&](mlir::ValueRange indexes) {
+				mlir::Value value = rewriter.create<LoadOp>(loc, op.source(), indexes);
+				value = rewriter.create<CastOp>(loc, value, op.resultType().cast<PointerType>().getElementType());
+				rewriter.create<StoreOp>(loc, value, result, indexes);
+			});
+		}
 
 		rewriter.replaceOp(op, result);
 		return mlir::success();
@@ -2328,7 +2345,7 @@ struct IdentityOpLowering: public ModelicaOpConversion<IdentityOp>
 				llvm::None,
 				arg.getType());
 
-		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, arg);
+		rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, arg);
 		return mlir::success();
 	}
 };
@@ -2380,7 +2397,7 @@ struct DiagonalOpLowering: public ModelicaOpConversion<DiagonalOp>
 				llvm::None,
 				args);
 
-		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
+		rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, args);
 		return mlir::success();
 	}
 };
@@ -2416,7 +2433,7 @@ struct ZerosOpLowering: public ModelicaOpConversion<ZerosOp>
 				llvm::None,
 				args);
 
-		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
+		rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, args);
 		return mlir::success();
 	}
 };
@@ -2452,7 +2469,7 @@ struct OnesOpLowering: public ModelicaOpConversion<OnesOp>
 				llvm::None,
 				args);
 
-		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
+		rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, args);
 		return mlir::success();
 	}
 };
@@ -2493,7 +2510,7 @@ struct LinspaceOpLowering: public ModelicaOpConversion<LinspaceOp>
 				llvm::None,
 				args);
 
-		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
+		rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, args);
 		return mlir::success();
 	}
 };
@@ -2520,7 +2537,7 @@ struct FillOpLowering: public ModelicaOpConversion<FillOp>
 					llvm::None,
 					mlir::ValueRange(args).getTypes());
 
-			rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
+			rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, args);
 		}
 		else
 		{
@@ -2566,7 +2583,7 @@ struct MinOpArrayLowering: public ModelicaOpConversion<MinOp>
 				pointerType.getElementType(),
 				operand);
 
-		auto call = rewriter.create<CallOp>(loc, callee.getName(), pointerType.getElementType(), operand);
+		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), pointerType.getElementType(), operand);
 		assert(call.getNumResults() == 1);
 		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
 
@@ -2603,7 +2620,7 @@ struct MinOpScalarsLowering: public ModelicaOpConversion<MinOp>
 				type,
 				transformed.values());
 
-		auto call = rewriter.create<CallOp>(loc, callee.getName(), type, transformed.values());
+		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), type, transformed.values());
 		assert(call.getNumResults() == 1);
 		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
 
@@ -2640,7 +2657,7 @@ struct MaxOpArrayLowering: public ModelicaOpConversion<MaxOp>
 				pointerType.getElementType(),
 				operand);
 
-		auto call = rewriter.create<CallOp>(loc, callee.getName(), pointerType.getElementType(), operand);
+		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), pointerType.getElementType(), operand);
 		assert(call.getNumResults() == 1);
 		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
 
@@ -2677,7 +2694,7 @@ struct MaxOpScalarsLowering: public ModelicaOpConversion<MaxOp>
 				type,
 				transformed.values());
 
-		auto call = rewriter.create<CallOp>(loc, callee.getName(), type, transformed.values());
+		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), type, transformed.values());
 		assert(call.getNumResults() == 1);
 		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
 
@@ -2705,7 +2722,7 @@ struct SumOpLowering: public ModelicaOpConversion<SumOp>
 				pointerType.getElementType(),
 				arg);
 
-		auto call = rewriter.create<CallOp>(loc, callee.getName(), pointerType.getElementType(), arg);
+		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), pointerType.getElementType(), arg);
 		assert(call.getNumResults() == 1);
 		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
 
@@ -2733,7 +2750,7 @@ struct ProductOpLowering: public ModelicaOpConversion<ProductOp>
 				pointerType.getElementType(),
 				arg);
 
-		auto call = rewriter.create<CallOp>(loc, callee.getName(), pointerType.getElementType(), arg);
+		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), pointerType.getElementType(), arg);
 		assert(call.getNumResults() == 1);
 		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
 
@@ -2783,7 +2800,7 @@ struct TransposeOpLowering: public ModelicaOpConversion<TransposeOp>
 				llvm::None,
 				args);
 
-		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
+		rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, args);
 		return mlir::success();
 	}
 };
@@ -2843,7 +2860,7 @@ struct SymmetricOpLowering: public ModelicaOpConversion<SymmetricOp>
 				llvm::None,
 				args);
 
-		rewriter.create<CallOp>(loc, callee.getName(), llvm::None, args);
+		rewriter.create<mlir::CallOp>(loc, callee.getName(), llvm::None, args);
 		return mlir::success();
 	}
 };
@@ -3332,6 +3349,7 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 		// when the clone has the same type of the source, including the
 		// allocation scope.
 
+		/*
 		module.walk([](ArrayCloneOp op) {
 			if (auto pointerType = op.source().getType().dyn_cast<PointerType>())
 			{
@@ -3358,6 +3376,7 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 				op.erase();
 			}
 		});
+		 */
 
 		// The remaining clone operations can't be optimized more, so just
 		// convert them into naive copies.

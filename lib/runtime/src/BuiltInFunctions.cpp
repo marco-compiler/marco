@@ -2,6 +2,64 @@
 #include <numeric>
 
 /**
+ * Clone an array into another one.
+ *
+ * @tparam T 					destination array type
+ * @tparam U 					source array type
+ * @param destination destination array
+ * @param values 			source values
+ */
+template<typename T, typename U>
+inline void clone(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> source)
+{
+	assert(source.getNumElements() == destination.getNumElements());
+
+	for (const auto& [source, destination] : llvm::zip(source, destination))
+		destination = source;
+}
+
+// Optimization for arrays with the same type
+template<typename T>
+inline void clone(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
+{
+	unsigned long sourceSize = source.getNumElements();
+	unsigned long destinationSize = destination.getNumElements();
+
+	assert(sourceSize == destinationSize);
+	memcpy(destination.getData(), source.getData(), destinationSize * sizeof(T));
+}
+
+RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(bool))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(int))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(long))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(float))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(double))
+
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int), ARRAY(bool))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int), ARRAY(int))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int), ARRAY(long))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int), ARRAY(float))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int), ARRAY(double))
+
+RUNTIME_FUNC_DEF(clone, void, ARRAY(long), ARRAY(bool))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(long), ARRAY(int))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(long), ARRAY(long))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(long), ARRAY(float))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(long), ARRAY(double))
+
+RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(bool))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(int))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(long))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(float))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(double))
+
+RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(bool))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(int))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(long))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(float))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(double))
+
+/**
  * Set all the elements of an array to a given value.
  *
  * @tparam T 		 data type

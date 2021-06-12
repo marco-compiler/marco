@@ -1126,8 +1126,8 @@ TEST(Runtime, transpose_ai1_ai1)	 // NOLINT
 
 	_Mtranspose_ai1_ai1(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
 }
 
@@ -1144,8 +1144,8 @@ TEST(Runtime, transpose_ai1_ai32)	 // NOLINT
 
 	_Mtranspose_ai1_ai32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
 }
 
@@ -1162,8 +1162,8 @@ TEST(Runtime, transpose_ai1_ai64)	 // NOLINT
 
 	_Mtranspose_ai1_ai64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
 }
 
@@ -1180,8 +1180,8 @@ TEST(Runtime, transpose_ai1_af32)	 // NOLINT
 
 	_Mtranspose_ai1_af32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
 }
 
@@ -1198,8 +1198,8 @@ TEST(Runtime, transpose_ai1_af64)	 // NOLINT
 
 	_Mtranspose_ai1_af64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
 }
 
@@ -1216,8 +1216,8 @@ TEST(Runtime, transpose_ai32_ai1)	 // NOLINT
 
 	_Mtranspose_ai32_ai1(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
 }
 
@@ -1234,8 +1234,8 @@ TEST(Runtime, transpose_ai32_ai32)	 // NOLINT
 
 	_Mtranspose_ai32_ai32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
 }
 
@@ -1252,8 +1252,8 @@ TEST(Runtime, transpose_ai32_ai64)	 // NOLINT
 
 	_Mtranspose_ai32_ai64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
 }
 
@@ -1270,8 +1270,8 @@ TEST(Runtime, transpose_ai32_af32)	 // NOLINT
 
 	_Mtranspose_ai32_af32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
 }
 
@@ -1288,8 +1288,8 @@ TEST(Runtime, transpose_ai32_af64)	 // NOLINT
 
 	_Mtranspose_ai32_af64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
 }
 
@@ -1306,8 +1306,8 @@ TEST(Runtime, transpose_ai64_ai1)	 // NOLINT
 
 	_Mtranspose_ai64_ai1(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
 }
 
@@ -1324,8 +1324,8 @@ TEST(Runtime, transpose_ai64_ai32)	 // NOLINT
 
 	_Mtranspose_ai64_ai32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
 }
 
@@ -1342,8 +1342,8 @@ TEST(Runtime, transpose_ai64_ai64)	 // NOLINT
 
 	_Mtranspose_ai64_ai64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
 }
 
@@ -1360,8 +1360,8 @@ TEST(Runtime, transpose_ai64_af32)	 // NOLINT
 
 	_Mtranspose_ai64_af32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
 }
 
@@ -1378,8 +1378,8 @@ TEST(Runtime, transpose_ai64_af64)	 // NOLINT
 
 	_Mtranspose_ai64_af64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
 }
 
@@ -1396,8 +1396,8 @@ TEST(Runtime, transpose_af32_ai1)	 // NOLINT
 
 	_Mtranspose_af32_ai1(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
 }
 
@@ -1414,8 +1414,8 @@ TEST(Runtime, transpose_af32_ai32)	 // NOLINT
 
 	_Mtranspose_af32_ai32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
 }
 
@@ -1432,8 +1432,8 @@ TEST(Runtime, transpose_af32_ai64)	 // NOLINT
 
 	_Mtranspose_af32_ai64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
 }
 
@@ -1450,8 +1450,8 @@ TEST(Runtime, transpose_af32_af32)	 // NOLINT
 
 	_Mtranspose_af32_af32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
 }
 
@@ -1468,8 +1468,8 @@ TEST(Runtime, transpose_af32_af64)	 // NOLINT
 
 	_Mtranspose_af32_af64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
 }
 
@@ -1486,8 +1486,8 @@ TEST(Runtime, transpose_af64_ai1)	 // NOLINT
 
 	_Mtranspose_af64_ai1(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
 }
 
@@ -1504,8 +1504,8 @@ TEST(Runtime, transpose_af64_ai32)	 // NOLINT
 
 	_Mtranspose_af64_ai32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
 }
 
@@ -1522,8 +1522,8 @@ TEST(Runtime, transpose_af64_ai64)	 // NOLINT
 
 	_Mtranspose_af64_ai64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
 }
 
@@ -1540,8 +1540,8 @@ TEST(Runtime, transpose_af64_af32)	 // NOLINT
 
 	_Mtranspose_af64_af32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
 }
 
@@ -1558,8 +1558,8 @@ TEST(Runtime, transpose_af64_af64)	 // NOLINT
 
 	_Mtranspose_af64_af64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = 0; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
 			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
 }
 
@@ -1576,8 +1576,8 @@ TEST(Runtime, symmetric_ai1_ai1)	 // NOLINT
 
 	_Msymmetric_ai1_ai1(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
@@ -1597,8 +1597,8 @@ TEST(Runtime, symmetric_ai1_ai32)	 // NOLINT
 
 	_Msymmetric_ai1_ai32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
@@ -1618,8 +1618,8 @@ TEST(Runtime, symmetric_ai1_ai64)	 // NOLINT
 
 	_Msymmetric_ai1_ai64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
@@ -1639,8 +1639,8 @@ TEST(Runtime, symmetric_ai1_af32)	 // NOLINT
 
 	_Msymmetric_ai1_af32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
@@ -1660,8 +1660,8 @@ TEST(Runtime, symmetric_ai1_af64)	 // NOLINT
 
 	_Msymmetric_ai1_af64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (bool) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (bool) sourceDescriptor.get(i, j));
@@ -1681,8 +1681,8 @@ TEST(Runtime, symmetric_ai32_ai1)	 // NOLINT
 
 	_Msymmetric_ai32_ai1(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (int) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
@@ -1702,8 +1702,8 @@ TEST(Runtime, symmetric_ai32_ai32)	 // NOLINT
 
 	_Msymmetric_ai32_ai32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (int) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
@@ -1723,8 +1723,8 @@ TEST(Runtime, symmetric_ai32_ai64)	 // NOLINT
 
 	_Msymmetric_ai32_ai64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (int) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
@@ -1744,8 +1744,8 @@ TEST(Runtime, symmetric_ai32_af32)	 // NOLINT
 
 	_Msymmetric_ai32_af32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (int) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
@@ -1765,8 +1765,8 @@ TEST(Runtime, symmetric_ai32_af64)	 // NOLINT
 
 	_Msymmetric_ai32_af64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (int) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
@@ -1786,8 +1786,8 @@ TEST(Runtime, symmetric_ai64_ai1)	 // NOLINT
 
 	_Msymmetric_ai64_ai1(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (long) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
@@ -1807,8 +1807,8 @@ TEST(Runtime, symmetric_ai64_ai32)	 // NOLINT
 
 	_Msymmetric_ai64_ai32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (int) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (int) sourceDescriptor.get(i, j));
@@ -1828,8 +1828,8 @@ TEST(Runtime, symmetric_ai64_ai64)	 // NOLINT
 
 	_Msymmetric_ai64_ai64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (long) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
@@ -1849,8 +1849,8 @@ TEST(Runtime, symmetric_ai64_af32)	 // NOLINT
 
 	_Msymmetric_ai64_af32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (long) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
@@ -1870,8 +1870,8 @@ TEST(Runtime, symmetric_ai64_af64)	 // NOLINT
 
 	_Msymmetric_ai64_af64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (long) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (long) sourceDescriptor.get(i, j));
@@ -1891,8 +1891,8 @@ TEST(Runtime, symmetric_af32_ai1)	 // NOLINT
 
 	_Msymmetric_af32_ai1(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
@@ -1912,8 +1912,8 @@ TEST(Runtime, symmetric_af32_ai32)	 // NOLINT
 
 	_Msymmetric_af32_ai32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
@@ -1933,8 +1933,8 @@ TEST(Runtime, symmetric_af32_ai64)	 // NOLINT
 
 	_Msymmetric_af32_ai64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
@@ -1954,8 +1954,8 @@ TEST(Runtime, symmetric_af32_af32)	 // NOLINT
 
 	_Msymmetric_af32_af32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
@@ -1975,8 +1975,8 @@ TEST(Runtime, symmetric_af32_af64)	 // NOLINT
 
 	_Msymmetric_af32_af64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (float) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (float) sourceDescriptor.get(i, j));
@@ -1996,8 +1996,8 @@ TEST(Runtime, symmetric_af64_ai1)	 // NOLINT
 
 	_Msymmetric_af64_ai1(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
@@ -2017,8 +2017,8 @@ TEST(Runtime, symmetric_af64_ai32)	 // NOLINT
 
 	_Msymmetric_af64_ai32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
@@ -2038,8 +2038,8 @@ TEST(Runtime, symmetric_af64_ai64)	 // NOLINT
 
 	_Msymmetric_af64_ai64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
@@ -2059,8 +2059,8 @@ TEST(Runtime, symmetric_af64_af32)	 // NOLINT
 
 	_Msymmetric_af64_af32(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
@@ -2080,8 +2080,8 @@ TEST(Runtime, symmetric_af64_af64)	 // NOLINT
 
 	_Msymmetric_af64_af64(unsizedDestination, unsizedSource);
 
-	for (size_t i = 0; i < sourceDescriptor.getDimensionSize(0); ++i)
-		for (size_t j = i; j < sourceDescriptor.getDimensionSize(1); ++j)
+	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
+		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
 		{
 			EXPECT_EQ(destinationDescriptor.get(i, j), (double) sourceDescriptor.get(i, j));
 			EXPECT_EQ(destinationDescriptor.get(j, i), (double) sourceDescriptor.get(i, j));
