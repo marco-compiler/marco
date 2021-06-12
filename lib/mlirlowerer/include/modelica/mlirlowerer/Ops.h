@@ -546,7 +546,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& Builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType);
-		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 		mlir::OpFoldResult fold(mlir::ArrayRef<mlir::Attribute> operands);
@@ -586,7 +586,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination);
-		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
@@ -823,6 +823,7 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 
 		mlir::ValueRange dynamicDimensions();
+		bool isConstant();
 	};
 
 	class AllocOp : public mlir::Op<AllocOp,
@@ -841,8 +842,8 @@ namespace modelica::codegen
 			return "modelica.alloc";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {}, bool shouldBeFreed = true, bool isConstant = false);
-		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = llvm::None, mlir::ValueRange dimensions = llvm::None, bool shouldBeFreed = true, bool isConstant = false);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -883,7 +884,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory);
-		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -1130,6 +1131,7 @@ namespace modelica::codegen
 		using OpAdaptor::OpAdaptor;
 
 		mlir::Value source();
+		bool canSourceBeForwarded();
 	};
 
 	class ArrayCloneOp :public mlir::Op<ArrayCloneOp,
@@ -1148,8 +1150,8 @@ namespace modelica::codegen
 			return "modelica.array_clone";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType, bool shouldBeFreed = true);
-		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType, bool shouldBeFreed = true, bool canSourceBeForwarded = false);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -1157,6 +1159,7 @@ namespace modelica::codegen
 
 		PointerType resultType();
 		mlir::Value source();
+		bool canSourceBeForwarded();
 	};
 
 	//===----------------------------------------------------------------------===//

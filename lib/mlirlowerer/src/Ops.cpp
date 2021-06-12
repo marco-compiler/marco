@@ -923,9 +923,28 @@ void CastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 	state.addTypes(resultType);
 }
 
+mlir::ParseResult CastOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType value;
+	mlir::Type valueType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(value) ||
+			parser.parseColon() ||
+			parser.parseType(valueType) ||
+			parser.resolveOperand(value, valueType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void CastOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.cast " << value() << " : " << resultType();
+	printer << getOperationName() << value()
+					<< " : " << value().getType() << " -> " << resultType();
 }
 
 mlir::LogicalResult CastOp::verify()
@@ -975,14 +994,37 @@ mlir::Value AssignmentOpAdaptor::destination()
 
 void AssignmentOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination)
 {
-	state.addOperands({ source, destination });
+	state.addOperands(source);
+	state.addOperands(destination);
+}
+
+mlir::ParseResult AssignmentOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType source;
+	mlir::OpAsmParser::OperandType destination;
+
+	mlir::Type sourceType;
+	mlir::Type destinationType;
+
+	if (parser.parseOperand(source) ||
+			parser.parseComma() ||
+			parser.parseOperand(destination) ||
+			parser.parseColon() ||
+			parser.parseType(sourceType) ||
+			parser.parseComma() ||
+			parser.parseType(destinationType) ||
+			parser.resolveOperand(source, sourceType, result.operands) ||
+			parser.resolveOperand(destination, destinationType, result.operands))
+		return mlir::failure();
+
+	return mlir::success();
 }
 
 void AssignmentOp::print(mlir::OpAsmPrinter& printer)
 {
-	mlir::Value source = this->source();
-	mlir::Value destination = this->destination();
-	printer << "modelica.assign " << source << " to " << destination << " : " << source.getType() << ", " << destination.getType();
+	printer << getOperationName()
+					<< " " << source() << ", " << destination()
+					<< " : " << source().getType() << ", " << destination().getType();
 }
 
 void AssignmentOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
@@ -1072,12 +1114,6 @@ mlir::ParseResult CallOp::parse(mlir::OpAsmParser& parser, mlir::OperationState&
 				parser.parseRParen())
 			return mlir::failure();
 	}
-
-	if (args.size() != argsTypes.size())
-		return parser.emitError(argsLoc)
-				<< "expected as many args types as args "
-				<< "(expected " << args.size() << " got "
-				<< argsTypes.size() << ")";
 
 	if (parser.resolveOperands(args, argsTypes, argsLoc, result.operands))
 		return mlir::failure();
@@ -1274,12 +1310,6 @@ mlir::ParseResult MemberCreateOp::parse(mlir::OpAsmParser& parser, mlir::Operati
 		if (parser.parseType(resultType))
 			return mlir::failure();
 	}
-
-	if (dynamicDimensions.size() != dynamicDimensionsTypes.size())
-		return parser.emitError(dynamicDimensionsLoc)
-				<< "expected as many dimensions types as dimensions "
-				<< "(expected " << dynamicDimensions.size() << " got "
-				<< dynamicDimensionsTypes.size() << ")";
 
 	if (parser.resolveOperands(dynamicDimensions, dynamicDimensionsTypes, dynamicDimensionsLoc, result.operands))
 		return mlir::failure();
@@ -1575,12 +1605,6 @@ mlir::ParseResult AllocaOp::parse(mlir::OpAsmParser& parser, mlir::OperationStat
 			return mlir::failure();
 	}
 
-	if (indexes.size() != indexesTypes.size())
-		return parser.emitError(indexesLoc)
-				<< "expected as many indexes types as indexes "
-				<< "(expected " << indexes.size() << " got "
-				<< indexesTypes.size() << ")";
-
 	if (parser.parseType(resultType))
 		return mlir::failure();
 
@@ -1660,6 +1684,16 @@ mlir::ValueRange AllocOpAdaptor::dynamicDimensions()
 	return getValues();
 }
 
+bool AllocOpAdaptor::isConstant()
+{
+	auto attr = getAttrs().getNamed("constant");
+
+	if (!attr.hasValue())
+		return false;
+
+	return attr->second.cast<mlir::BoolAttr>().getValue();
+}
+
 void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool shouldBeFreed, bool constant)
 {
 	state.addTypes(PointerType::get(state.getContext(), BufferAllocationScope::heap, elementType, shape));
@@ -1669,12 +1703,69 @@ void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 	state.addAttribute("constant", builder.getBoolAttr(constant));
 }
 
+mlir::ParseResult AllocOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> dimensions;
+	llvm::SmallVector<mlir::Type, 3> dimensionsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc dimensionsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(dimensions))
+		return mlir::failure();
+
+	mlir::NamedAttrList attributes;
+
+	if (parser.parseOptionalAttrDict(attributes))
+		return mlir::failure();
+
+	result.attributes.append(attributes);
+
+	if (parser.parseColon())
+		return mlir::failure();
+
+	if (dimensions.size() > 1)
+		if (parser.parseLParen())
+			return mlir::failure();
+
+	if (parser.parseTypeList(dimensionsTypes))
+		return mlir::failure();
+
+	if (dimensions.size() > 1)
+		if (parser.parseRParen())
+			return mlir::failure();
+
+	if (parser.resolveOperands(dimensions, dimensionsTypes, dimensionsLoc, result.operands))
+		return mlir::failure();
+
+	if (!dimensions.empty())
+		if (parser.parseArrow())
+			return mlir::failure();
+
+	if (parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
 void AllocOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.alloc ";
-	printer.printOperands(getOperands());
-	printer << ": ";
-	printer.printType(getOperation()->getResultTypes()[0]);
+	auto dimensions = dynamicDimensions();
+
+	printer << getOperationName() << " " << dimensions;
+	printer.printOptionalAttrDict(getOperation()->getAttrs());
+	printer << " : ";
+
+	if (dimensions.size() > 1)
+		printer << "(";
+
+	printer << dimensions.getTypes();
+
+	if (dimensions.size() > 1)
+		printer << ")";
+
+	printer << " -> " << resultType();
 }
 
 mlir::LogicalResult AllocOp::verify()
@@ -1723,7 +1814,7 @@ mlir::ValueRange AllocOp::dynamicDimensions()
 
 bool AllocOp::isConstant()
 {
-	return getOperation()->getAttrOfType<mlir::BoolAttr>("constant").getValue();
+	return Adaptor(*this).isConstant();
 }
 
 //===----------------------------------------------------------------------===//
@@ -1740,9 +1831,24 @@ void FreeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 	state.addOperands(memory);
 }
 
+mlir::ParseResult FreeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType memory;
+	mlir::Type type;
+
+	if (parser.parseOperand(memory) ||
+			parser.parseColonType(type) ||
+			parser.resolveOperand(memory, type, result.operands))
+		return mlir::failure();
+
+	return mlir::success();
+}
+
 void FreeOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.free " << memory();
+	printer << getOperationName()
+					<< " " << memory()
+					<< " : " << memory().getType();
 }
 
 mlir::LogicalResult FreeOp::verify()
@@ -2013,12 +2119,6 @@ mlir::ParseResult SubscriptionOp::parse(mlir::OpAsmParser& parser, mlir::Operati
 			return mlir::failure();
 	}
 
-	if (indexes.size() != indexesTypes.size())
-		return parser.emitError(indexesLoc)
-				<< "expected as many indexes types as indexes "
-				<< "(expected " << indexes.size() << " got "
-				<< indexesTypes.size() << ")";
-
 	if (parser.resolveOperands(indexes, indexesTypes, indexesLoc, result.operands))
 		return mlir::failure();
 
@@ -2190,15 +2290,17 @@ mlir::ParseResult StoreOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 {
 	auto& builder = parser.getBuilder();
 
-	mlir::OpAsmParser::OperandType value;
 	mlir::OpAsmParser::OperandType array;
 	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> indexes;
+	mlir::OpAsmParser::OperandType value;
 	mlir::Type arrayType;
 
-	if (parser.parseOperand(value) ||
+	if (parser.parseOperand(array))
+		return mlir::failure();
+
+	if (parser.parseOperandList(indexes, mlir::OpAsmParser::Delimiter::Square) ||
 			parser.parseComma() ||
-			parser.parseOperand(array) ||
-			parser.parseOperandList(indexes, mlir::OpAsmParser::Delimiter::Square) ||
+			parser.parseOperand(value) ||
 			parser.parseColon())
 		return mlir::failure();
 
@@ -2211,9 +2313,9 @@ mlir::ParseResult StoreOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 		return parser.emitError(arrayTypeLoc)
 				<< "destination type must be a pointer type";
 
-	if (parser.resolveOperand(value, arrayType.cast<PointerType>().getElementType(), result.operands) ||
-			parser.resolveOperand(array, arrayType, result.operands) ||
-			parser.resolveOperands(indexes, builder.getIndexType(), result.operands))
+	if (parser.resolveOperand(array, arrayType, result.operands) ||
+			parser.resolveOperands(indexes, builder.getIndexType(), result.operands) ||
+			parser.resolveOperand(value, arrayType.cast<PointerType>().getElementType(), result.operands))
 		return mlir::failure();
 
 	return mlir::success();
@@ -2221,10 +2323,9 @@ mlir::ParseResult StoreOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 
 void StoreOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " " << value() << ", " << memory() << "[";
-	printer.printOperands(indexes());
-	printer << "] : ";
-	printer.printType(memory().getType());
+	printer << getOperationName()
+					<< " " << memory() << "[" << indexes() << "], " << value()
+					<< " : " << memory().getType();
 }
 
 mlir::LogicalResult StoreOp::verify()
@@ -2283,17 +2384,60 @@ mlir::Value ArrayCloneOpAdaptor::source()
 	return getValues()[0];
 }
 
-void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType, bool shouldBeFreed)
+bool ArrayCloneOpAdaptor::canSourceBeForwarded()
+{
+	auto attr = getAttrs().getNamed("forward");
+
+	if (attr.hasValue())
+		return attr->second.cast<mlir::BoolAttr>().getValue();
+
+	return false;
+}
+
+void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType, bool shouldBeFreed, bool canSourceBeForwarded)
 {
 	state.addOperands(source);
 	state.addTypes(resultType);
 	state.addAttribute(getAutoFreeAttrName(), builder.getBoolAttr(shouldBeFreed));
+	state.addAttribute("forward", builder.getBoolAttr(canSourceBeForwarded));
+}
+
+mlir::ParseResult ArrayCloneOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType source;
+	mlir::Type sourceType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(source))
+		return mlir::failure();
+
+	mlir::NamedAttrList attributes;
+
+	if (parser.parseOptionalAttrDict(attributes))
+		return mlir::failure();
+
+	result.attributes.append(attributes);
+
+	if (parser.parseColon() ||
+			parser.parseType(sourceType) ||
+			parser.resolveOperand(source, sourceType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
 }
 
 void ArrayCloneOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << getOperationName() << " " << source();
-	printer	<< " : " << source().getType() << " -> " << resultType();
+	auto attributes = getOperation()->getAttrDictionary();
+
+	if (!attributes.empty())
+		printer << " " << attributes;
+
+	printer << " : " << source().getType() << " -> " << resultType();
 }
 
 mlir::LogicalResult ArrayCloneOp::verify()
@@ -2329,6 +2473,11 @@ PointerType ArrayCloneOp::resultType()
 mlir::Value ArrayCloneOp::source()
 {
 	return Adaptor(*this).source();
+}
+
+bool ArrayCloneOp::canSourceBeForwarded()
+{
+	return Adaptor(*this).canSourceBeForwarded();
 }
 
 //===----------------------------------------------------------------------===//
@@ -2915,12 +3064,6 @@ mlir::ParseResult ConditionOp::parse(mlir::OpAsmParser& parser, mlir::OperationS
 			parser.parseRParen())
 		return mlir::failure();
 
-	if (args.size() != argsTypes.size())
-		return parser.emitError(argsLoc)
-				<< "expected as many args types as args "
-				<< "(expected " << args.size() << " got "
-				<< argsTypes.size() << ")";
-
 	return mlir::success();
 }
 
@@ -2975,12 +3118,6 @@ mlir::ParseResult YieldOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 	if (!values.empty())
 		if (parser.parseOptionalColonTypeList(valuesTypes))
 			return mlir::failure();
-
-	if (values.size() != valuesTypes.size())
-		return parser.emitError(valuesLoc)
-				<< "expected as many types as values "
-				<< "(expected " << values.size() << " got "
-				<< valuesTypes.size() << ")";
 
 	if (parser.resolveOperands(values, valuesTypes, valuesLoc, result.operands))
 		return mlir::failure();
@@ -5121,12 +5258,6 @@ mlir::ParseResult ZerosOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 		 parser.parseType(resultType))
 		return mlir::failure();
 
-	if (dimensions.size() != dimensionsTypes.size())
-		return parser.emitError(dimensionsTypesLoc)
-				<< "expected as many input types as operands "
-				<< "(expected " << dimensions.size() << " got "
-				<< dimensionsTypes.size() << ")";
-
 	result.addTypes(resultType);
 	return mlir::success();
 }
@@ -5219,12 +5350,6 @@ mlir::ParseResult OnesOp::parse(mlir::OpAsmParser& parser, mlir::OperationState&
 			parser.parseArrow() ||
 			parser.parseType(resultType))
 		return mlir::failure();
-
-	if (dimensions.size() != dimensionsTypes.size())
-		return parser.emitError(dimensionsTypesLoc)
-				<< "expected as many input types as operands "
-				<< "(expected " << dimensions.size() << " got "
-				<< dimensionsTypes.size() << ")";
 
 	result.addTypes(resultType);
 	return mlir::success();
@@ -5469,12 +5594,6 @@ mlir::ParseResult MinOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& 
 			parser.parseType(resultType))
 		return mlir::failure();
 
-	if (operands.size() != operandsTypes.size())
-		return parser.emitError(dimensionsTypesLoc)
-				<< "expected as many input types as operands "
-				<< "(expected " << operands.size() << " got "
-				<< operandsTypes.size() << ")";
-
 	result.addTypes(resultType);
 	return mlir::success();
 }
@@ -5569,12 +5688,6 @@ mlir::ParseResult MaxOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& 
 			parser.parseArrow() ||
 			parser.parseType(resultType))
 		return mlir::failure();
-
-	if (operands.size() != operandsTypes.size())
-		return parser.emitError(dimensionsTypesLoc)
-				<< "expected as many input types as operands "
-				<< "(expected " << operands.size() << " got "
-				<< operandsTypes.size() << ")";
 
 	result.addTypes(resultType);
 	return mlir::success();

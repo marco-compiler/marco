@@ -357,8 +357,12 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 						// buffer has not been allocated yet and we need to create a copy
 						// of the source one.
 
+						// The function input arguments must be cloned, in order to avoid
+						// inputs modifications.
+						bool canSourceBeForwarded = !storeOp.value().isa<mlir::BlockArgument>();
+
 						mlir::Value copy = rewriter.create<ArrayCloneOp>(
-								loc, storeOp.value(), pointerType, false);
+								loc, storeOp.value(), pointerType, false, canSourceBeForwarded);
 
 						// Free the previously allocated memory. This is only apparently in
 						// contrast with the above statements: unknown-sized arrays pointers
@@ -3300,9 +3304,9 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 			return signalPassFailure();
 		}
 
-		if (mlir::failed(forwardAllocations()))
+		if (mlir::failed(bufferForwarding()))
 		{
-			mlir::emitError(getOperation().getLoc(), "Error in forwarding the allocations\n");
+			mlir::emitError(getOperation().getLoc(), "Error in forwarding the buffers\n");
 			return signalPassFailure();
 		}
 	}
@@ -3340,16 +3344,19 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 		return mlir::success();
 	}
 
-	mlir::LogicalResult forwardAllocations()
+	mlir::LogicalResult bufferForwarding()
 	{
 		auto module = getOperation();
 
 		// Erase the clone operations for which a forward of the original
-		// allocation is enough. The allocation forwarding is possible only
-		// when the clone has the same type of the source, including the
-		// allocation scope.
+		// allocation is enough. The buffer forwarding is possible only when
+		// the clone has the same type of the source, including the allocation
+		// scope.
 
 		module.walk([](ArrayCloneOp op) {
+			if (!op.canSourceBeForwarded())
+				return;
+
 			if (auto pointerType = op.source().getType().dyn_cast<PointerType>())
 			{
 				if (pointerType != op.resultType())
