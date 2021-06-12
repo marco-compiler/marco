@@ -3349,7 +3349,6 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 		// when the clone has the same type of the source, including the
 		// allocation scope.
 
-		/*
 		module.walk([](ArrayCloneOp op) {
 			if (auto pointerType = op.source().getType().dyn_cast<PointerType>())
 			{
@@ -3376,7 +3375,6 @@ class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, m
 				op.erase();
 			}
 		});
-		 */
 
 		// The remaining clone operations can't be optimized more, so just
 		// convert them into naive copies.

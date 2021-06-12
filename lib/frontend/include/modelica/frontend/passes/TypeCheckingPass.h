@@ -37,6 +37,16 @@ namespace modelica::frontend
 	{
 		struct BuiltInFunction
 		{
+			BuiltInFunction() = default;
+			BuiltInFunction(const BuiltInFunction& other) = default;
+
+			BuiltInFunction(BuiltInFunction&& other) = default;
+			BuiltInFunction& operator=(BuiltInFunction&& other) = default;
+
+			virtual ~BuiltInFunction() = default;
+
+			BuiltInFunction& operator=(const BuiltInFunction& other) = default;
+
 			/**
 			 * Get the result type in case of non element-wise call.
 			 * The arguments str needed because some functions (such
