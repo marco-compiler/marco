@@ -291,6 +291,11 @@ constexpr llvm::StringRef BooleanAttribute::getAttrName()
 	return "bool";
 }
 
+BooleanAttribute BooleanAttribute::get(mlir::MLIRContext* context, bool value)
+{
+	return BooleanAttribute::get(BooleanType::get(context), value);
+}
+
 BooleanAttribute BooleanAttribute::get(mlir::Type type, bool value)
 {
 	assert(type.isa<BooleanType>());
@@ -321,6 +326,11 @@ llvm::ArrayRef<bool> BooleanArrayAttribute::getValue() const
 constexpr llvm::StringRef IntegerAttribute::getAttrName()
 {
 	return "int";
+}
+
+IntegerAttribute IntegerAttribute::get(mlir::MLIRContext* context, long value)
+{
+	return IntegerAttribute::get(IntegerType::get(context), value);
 }
 
 IntegerAttribute IntegerAttribute::get(mlir::Type type, long value)
@@ -358,6 +368,11 @@ llvm::ArrayRef<llvm::APInt> IntegerArrayAttribute::getValue() const
 constexpr llvm::StringRef RealAttribute::getAttrName()
 {
 	return "real";
+}
+
+RealAttribute RealAttribute::get(mlir::MLIRContext* context, double value)
+{
+	return RealAttribute::get(RealType::get(context), value);
 }
 
 RealAttribute RealAttribute::get(mlir::Type type, double value)

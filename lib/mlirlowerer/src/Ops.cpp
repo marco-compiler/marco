@@ -894,7 +894,7 @@ mlir::OpFoldResult ConstantOp::fold(llvm::ArrayRef<mlir::Attribute> operands)
 
 void ConstantOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
-	mlir::Value zero = builder.create<ConstantOp>(getLoc(), RealAttribute::get(RealType::get(getContext()), 0));
+	mlir::Value zero = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 0));
 	derivatives.map(getResult(), zero);
 }
 
@@ -2264,11 +2264,6 @@ mlir::ValueRange LoadOp::indexes()
 // Modelica::StoreOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value StoreOpAdaptor::value()
-{
-	return getValues()[0];
-}
-
 mlir::Value StoreOpAdaptor::memory()
 {
 	return getValues()[1];
@@ -2277,6 +2272,11 @@ mlir::Value StoreOpAdaptor::memory()
 mlir::ValueRange StoreOpAdaptor::indexes()
 {
 	return mlir::ValueRange(std::next(getValues().begin(), 2), getValues().end());
+}
+
+mlir::Value StoreOpAdaptor::value()
+{
+	return getValues()[0];
 }
 
 void StoreOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory, mlir::ValueRange indexes)
@@ -2313,9 +2313,9 @@ mlir::ParseResult StoreOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 		return parser.emitError(arrayTypeLoc)
 				<< "destination type must be a pointer type";
 
-	if (parser.resolveOperand(array, arrayType, result.operands) ||
-			parser.resolveOperands(indexes, builder.getIndexType(), result.operands) ||
-			parser.resolveOperand(value, arrayType.cast<PointerType>().getElementType(), result.operands))
+	if (parser.resolveOperand(value, arrayType.cast<PointerType>().getElementType(), result.operands) ||
+			parser.resolveOperand(array, arrayType, result.operands) ||
+			parser.resolveOperands(indexes, builder.getIndexType(), result.operands))
 		return mlir::failure();
 
 	return mlir::success();
@@ -2360,11 +2360,6 @@ PointerType StoreOp::getPointerType()
 	return memory().getType().cast<PointerType>();
 }
 
-mlir::Value StoreOp::value()
-{
-	return Adaptor(*this).value();
-}
-
 mlir::Value StoreOp::memory()
 {
 	return Adaptor(*this).memory();
@@ -2373,6 +2368,11 @@ mlir::Value StoreOp::memory()
 mlir::ValueRange StoreOp::indexes()
 {
 	return Adaptor(*this).indexes();
+}
+
+mlir::Value StoreOp::value()
+{
+	return Adaptor(*this).value();
 }
 
 //===----------------------------------------------------------------------===//
@@ -4238,8 +4238,8 @@ mlir::ParseResult SubOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& 
 	if (parser.parseOperandList(operands, 2) ||
 			parser.parseColon() || parser.parseLParen() ||
 			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() || parser.parseArrow() || parser.parseLParen() ||
-			parser.parseType(resultType) || parser.parseRParen() ||
+			parser.parseRParen() || parser.parseArrow() ||
+			parser.parseType(resultType) ||
 			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
 		return mlir::failure();
 
@@ -4641,8 +4641,8 @@ mlir::ParseResult DivOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& 
 	if (parser.parseOperandList(operands, 2) ||
 			parser.parseColon() || parser.parseLParen() ||
 			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() || parser.parseArrow() || parser.parseLParen() ||
-			parser.parseType(resultType) || parser.parseRParen() ||
+			parser.parseRParen() || parser.parseArrow() ||
+			parser.parseType(resultType) ||
 			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
 		return mlir::failure();
 
@@ -4795,7 +4795,18 @@ mlir::Value DivOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 
 void DivOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
-	// TODO: DivOp derivation
+	mlir::Value derivedLhs = derivatives.lookup(lhs());
+	mlir::Value derivedRhs = derivatives.lookup(rhs());
+
+	mlir::Value firstMul = builder.create<MulOp>(getLoc(), RealType::get(getContext()), derivedLhs, rhs());
+	mlir::Value secondMul = builder.create<MulOp>(getLoc(), RealType::get(getContext()), lhs(), derivedRhs);
+	mlir::Value numerator = builder.create<SubOp>(getLoc(), RealType::get(getContext()), firstMul, secondMul);
+
+	mlir::Value two = builder.create<ConstantOp>(getLoc(), IntegerAttribute::get(getContext(), 2));
+	mlir::Value denominator = builder.create<PowOp>(getLoc(), RealType::get(getContext()), rhs(), two);
+
+	auto derivedOp = builder.create<DivOp>(getLoc(), resultType(), numerator, denominator);
+	derivatives.map(getResult(), derivedOp.getResult());
 }
 
 mlir::Type DivOp::resultType()

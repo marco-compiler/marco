@@ -232,6 +232,7 @@ namespace modelica::codegen
 		using Base::Base;
 
 		static constexpr llvm::StringRef getAttrName();
+		static BooleanAttribute get(mlir::MLIRContext* context, bool value);
 		static BooleanAttribute get(mlir::Type type, bool value);
 		[[nodiscard]] bool getValue() const;
 	};
@@ -252,6 +253,7 @@ namespace modelica::codegen
 		using Base::Base;
 
 		static constexpr llvm::StringRef getAttrName();
+		static IntegerAttribute get(mlir::MLIRContext* context, long value);
 		static IntegerAttribute get(mlir::Type type, long value);
 		[[nodiscard]] long getValue() const;
 	};
@@ -272,6 +274,7 @@ namespace modelica::codegen
 		using Base::Base;
 
 		static constexpr llvm::StringRef getAttrName();
+		static RealAttribute get(mlir::MLIRContext* context, double value);
 		static RealAttribute get(mlir::Type type, double value);
 		[[nodiscard]] double getValue() const;
 	};
