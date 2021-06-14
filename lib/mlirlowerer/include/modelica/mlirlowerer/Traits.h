@@ -430,6 +430,13 @@ class DerivativeInterface : public mlir::OpInterface<DerivativeInterface, detail
 
 	void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 	{
+		mlir::OpBuilder::InsertionGuard guard(builder);
+
+		// The derivative is placed before the old assignment, in order to avoid
+		// inconsistencies in case of self-assignments (i.e. "y := y * 2" would
+		// invalidate the derivative if placed before "y' := y' * 2").
+		builder.setInsertionPoint(getOperation());
+
 		return getImpl()->derive(getOperation(), builder, derivatives);
 	}
 };

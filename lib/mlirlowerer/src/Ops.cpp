@@ -4000,7 +4000,8 @@ mlir::Value NegateOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resul
 
 void NegateOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
-	auto derivedOp = builder.create<NegateOp>(getLoc(), resultType(), operand());
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	auto derivedOp = builder.create<NegateOp>(getLoc(), resultType(), derivedOperand);
 	derivatives.map(getResult(), derivedOp.getResult());
 }
 
@@ -4802,7 +4803,7 @@ void DivOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivat
 	mlir::Value secondMul = builder.create<MulOp>(getLoc(), RealType::get(getContext()), lhs(), derivedRhs);
 	mlir::Value numerator = builder.create<SubOp>(getLoc(), RealType::get(getContext()), firstMul, secondMul);
 
-	mlir::Value two = builder.create<ConstantOp>(getLoc(), IntegerAttribute::get(getContext(), 2));
+	mlir::Value two = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 2));
 	mlir::Value denominator = builder.create<PowOp>(getLoc(), RealType::get(getContext()), rhs(), two);
 
 	auto derivedOp = builder.create<DivOp>(getLoc(), resultType(), numerator, denominator);
@@ -4915,8 +4916,8 @@ mlir::ParseResult PowOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& 
 	if (parser.parseOperandList(operands, 2) ||
 			parser.parseColon() || parser.parseLParen() ||
 			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() || parser.parseArrow() || parser.parseLParen() ||
-			parser.parseType(resultType) || parser.parseRParen() ||
+			parser.parseRParen() || parser.parseArrow() ||
+			parser.parseType(resultType) ||
 			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
 		return mlir::failure();
 
@@ -4955,6 +4956,17 @@ void PowOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 	}
+}
+
+void PowOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Value derivedBase = derivatives.lookup(base());
+
+	mlir::Value one = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 1));
+	mlir::Value exp = builder.create<SubOp>(getLoc(), RealType::get(getContext()), exponent(), one);
+
+	auto derivedOp = builder.create<PowOp>(getLoc(), resultType(), derivedBase, exp);
+	derivatives.map(getResult(), derivedOp.getResult());
 }
 
 mlir::Type PowOp::resultType()

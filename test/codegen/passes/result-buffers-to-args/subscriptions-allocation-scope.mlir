@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --result-buffers-to-args | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --result-buffers-to-args | FileCheck %s
 
 // Subscriptions should change the allocation scope
 

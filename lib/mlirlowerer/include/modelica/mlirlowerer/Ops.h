@@ -2072,7 +2072,8 @@ namespace modelica::codegen
 	class PowOp : public mlir::Op<PowOp,
 															 mlir::OpTrait::NOperands<2>::Impl,
 															 mlir::OpTrait::OneResult,
-															 mlir::MemoryEffectOpInterface::Trait>
+															 mlir::MemoryEffectOpInterface::Trait,
+															 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2089,6 +2090,8 @@ namespace modelica::codegen
 		static void getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context);
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value base();

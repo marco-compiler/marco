@@ -265,9 +265,11 @@ static void mapDerivatives(llvm::ArrayRef<llvm::StringRef> names,
 	}
 }
 
-static mlir::LogicalResult createFullDerFunction(FunctionOp base)
+static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, FunctionOp base)
 {
-	mlir::OpBuilder builder(base);
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPointAfter(base);
+
 	auto derivativeAttribute = base->getAttrOfType<DerivativeAttribute>("derivative");
 	unsigned int order = derivativeAttribute.getOrder();
 
@@ -463,15 +465,9 @@ static mlir::LogicalResult createFullDerFunction(FunctionOp base)
 			derivableOps.push_back(derivableOp);
 	});
 
-	// Derive each derivable operation. The derivative is placed before the
-	// old assignment, in order to avoid inconsistencies in case of
-	// self-assignments (i.e. "y := y * 2" would invalidate the derivative
-	// if placed before "y' := y' * 2").
+	// Derive each derivable operation
 	for (auto& op : derivableOps)
-	{
-		builder.setInsertionPoint(op);
 		op.derive(builder, derivatives);
-	}
 
 	// Replace the old return operation with a new one returning the derivatives
 	auto returnOp = mlir::cast<ReturnOp>(derivedFunction.getRegion().back().getTerminator());
@@ -511,6 +507,7 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 	void runOnOperation() override
 	{
 		auto module = getOperation();
+		mlir::OpBuilder builder(module);
 
 		llvm::SmallVector<FunctionOp, 3> toBeDerived;
 
@@ -520,13 +517,8 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 		});
 
 		for (auto& function : toBeDerived)
-		{
-			if (mlir::failed(createFullDerFunction(function)))
-			{
-				module->dump();
+			if (mlir::failed(createFullDerFunction(builder, function)))
 				return signalPassFailure();
-			}
-		}
 
 		/*
 		mlir::ConversionTarget target(getContext());
