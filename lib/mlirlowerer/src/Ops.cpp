@@ -943,7 +943,7 @@ mlir::ParseResult CastOp::parse(mlir::OpAsmParser& parser, mlir::OperationState&
 
 void CastOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << value()
+	printer << getOperationName() << " " << value()
 					<< " : " << value().getType() << " -> " << resultType();
 }
 

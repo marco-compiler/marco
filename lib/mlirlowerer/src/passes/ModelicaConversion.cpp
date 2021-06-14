@@ -166,7 +166,8 @@ static mlir::Type castToMostGenericType(mlir::OpBuilder& builder,
  * @tparam FromOp type of the operation to be converted
  */
 template<typename FromOp>
-class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp> {
+class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp>
+{
 	protected:
 	using Adaptor = typename FromOp::Adaptor;
 
@@ -414,7 +415,7 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 	}
 };
 
-struct ConstantOpLowering: public ModelicaOpConversion<ConstantOp>
+struct ConstantOpLowering : public ModelicaOpConversion<ConstantOp>
 {
 	using ModelicaOpConversion<ConstantOp>::ModelicaOpConversion;
 
@@ -449,7 +450,7 @@ struct ConstantOpLowering: public ModelicaOpConversion<ConstantOp>
 	}
 };
 
-struct PackOpLowering: public ModelicaOpConversion<PackOp>
+struct PackOpLowering : public ModelicaOpConversion<PackOp>
 {
 	using ModelicaOpConversion<PackOp>::ModelicaOpConversion;
 
@@ -472,7 +473,7 @@ struct PackOpLowering: public ModelicaOpConversion<PackOp>
 	}
 };
 
-struct ExtractOpLowering: public ModelicaOpConversion<ExtractOp>
+struct ExtractOpLowering : public ModelicaOpConversion<ExtractOp>
 {
 	using ModelicaOpConversion<ExtractOp>::ModelicaOpConversion;
 
@@ -493,11 +494,11 @@ struct ExtractOpLowering: public ModelicaOpConversion<ExtractOp>
 /**
  * Store a scalar value.
  */
-struct AssignmentOpScalarLowering: public ModelicaOpConversion<AssignmentOp>
+struct AssignmentOpScalarLowering : public mlir::OpRewritePattern<AssignmentOp>
 {
-	using ModelicaOpConversion<AssignmentOp>::ModelicaOpConversion;
+	using mlir::OpRewritePattern<AssignmentOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(AssignmentOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(AssignmentOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 
@@ -515,11 +516,11 @@ struct AssignmentOpScalarLowering: public ModelicaOpConversion<AssignmentOp>
 /**
  * Store (copy) an array value.
  */
-struct AssignmentOpArrayLowering: public ModelicaOpConversion<AssignmentOp>
+struct AssignmentOpArrayLowering : public mlir::OpRewritePattern<AssignmentOp>
 {
-	using ModelicaOpConversion<AssignmentOp>::ModelicaOpConversion;
+	using mlir::OpRewritePattern<AssignmentOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(AssignmentOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(AssignmentOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 
@@ -538,18 +539,18 @@ struct AssignmentOpArrayLowering: public ModelicaOpConversion<AssignmentOp>
 	}
 };
 
-struct CallOpLowering: public ModelicaOpConversion<CallOp>
+struct CallOpLowering : public mlir::OpRewritePattern<CallOp>
 {
-	using ModelicaOpConversion<CallOp>::ModelicaOpConversion;
+	using mlir::OpRewritePattern<CallOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(CallOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(CallOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, op.callee(), op->getResultTypes(), op.args());
 		return mlir::success();
 	}
 };
 
-struct PrintOpLowering: public ModelicaOpConversion<PrintOp>
+struct PrintOpLowering : public ModelicaOpConversion<PrintOp>
 {
 	using ModelicaOpConversion<PrintOp>::ModelicaOpConversion;
 
@@ -678,7 +679,7 @@ struct PrintOpLowering: public ModelicaOpConversion<PrintOp>
 	}
 };
 
-struct ArrayCloneOpLowering: public ModelicaOpConversion<ArrayCloneOp>
+struct ArrayCloneOpLowering : public ModelicaOpConversion<ArrayCloneOp>
 {
 	using ModelicaOpConversion<ArrayCloneOp>::ModelicaOpConversion;
 
@@ -729,7 +730,7 @@ struct ArrayCloneOpLowering: public ModelicaOpConversion<ArrayCloneOp>
 	}
 };
 
-struct NotOpScalarLowering: public ModelicaOpConversion<NotOp>
+struct NotOpScalarLowering : public ModelicaOpConversion<NotOp>
 {
 	using ModelicaOpConversion<NotOp>::ModelicaOpConversion;
 
@@ -753,14 +754,13 @@ struct NotOpScalarLowering: public ModelicaOpConversion<NotOp>
 	}
 };
 
-struct NotOpArrayLowering: public ModelicaOpConversion<NotOp>
+struct NotOpArrayLowering : public mlir::OpRewritePattern<NotOp>
 {
-	using ModelicaOpConversion<NotOp>::ModelicaOpConversion;
+	using mlir::OpRewritePattern<NotOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(NotOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(NotOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
-		Adaptor transformed(operands);
 
 		// Check if the operand is compatible
 		if (!op.operand().getType().isa<PointerType>())
@@ -788,7 +788,7 @@ struct NotOpArrayLowering: public ModelicaOpConversion<NotOp>
 	}
 };
 
-struct AndOpScalarLowering: public ModelicaOpConversion<AndOp>
+struct AndOpScalarLowering : public ModelicaOpConversion<AndOp>
 {
 	using ModelicaOpConversion<AndOp>::ModelicaOpConversion;
 
@@ -813,11 +813,15 @@ struct AndOpScalarLowering: public ModelicaOpConversion<AndOp>
 	}
 };
 
-struct AndOpArrayLowering: public ModelicaOpConversion<AndOp>
+struct AndOpArrayLowering : public mlir::OpRewritePattern<AndOp>
 {
-	using ModelicaOpConversion<AndOp>::ModelicaOpConversion;
+	AndOpArrayLowering(mlir::MLIRContext* ctx, ModelicaConversionOptions options)
+			: mlir::OpRewritePattern<AndOp>(ctx),
+				options(std::move(options))
+	{
+	}
 
-	mlir::LogicalResult matchAndRewrite(AndOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(AndOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
 
@@ -851,8 +855,8 @@ struct AndOpArrayLowering: public ModelicaOpConversion<AndOp>
 				if (lhsShape[i] == -1 || rhsShape[i] == -1)
 				{
 					mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i));
-					mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex));
-					mlir::Value rhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.rhs(), dimensionIndex));
+					mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
+					mlir::Value rhsDimensionSize = rewriter.create<DimOp>(loc, op.rhs(), dimensionIndex);
 					mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
 					rewriter.create<mlir::AssertOp>(loc, condition, rewriter.getStringAttr("Incompatible dimensions"));
 				}
@@ -877,9 +881,12 @@ struct AndOpArrayLowering: public ModelicaOpConversion<AndOp>
 
 		return mlir::success();
 	}
+
+	private:
+	ModelicaConversionOptions options;
 };
 
-struct OrOpScalarLowering: public ModelicaOpConversion<OrOp>
+struct OrOpScalarLowering : public ModelicaOpConversion<OrOp>
 {
 	using ModelicaOpConversion<OrOp>::ModelicaOpConversion;
 
@@ -904,11 +911,15 @@ struct OrOpScalarLowering: public ModelicaOpConversion<OrOp>
 	}
 };
 
-struct OrOpArrayLowering: public ModelicaOpConversion<OrOp>
+struct OrOpArrayLowering : public mlir::OpRewritePattern<OrOp>
 {
-	using ModelicaOpConversion<OrOp>::ModelicaOpConversion;
+	OrOpArrayLowering(mlir::MLIRContext* ctx, ModelicaConversionOptions options)
+			: mlir::OpRewritePattern<OrOp>(ctx),
+		    options(std::move(options))
+	{
+	}
 
-	mlir::LogicalResult matchAndRewrite(OrOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(OrOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
 
@@ -942,8 +953,8 @@ struct OrOpArrayLowering: public ModelicaOpConversion<OrOp>
 				if (lhsShape[i] == -1 || rhsShape[i] == -1)
 				{
 					mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i));
-					mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex));
-					mlir::Value rhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.rhs(), dimensionIndex));
+					mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
+					mlir::Value rhsDimensionSize = rewriter.create<DimOp>(loc, op.rhs(), dimensionIndex);
 					mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
 					rewriter.create<mlir::AssertOp>(loc, condition, rewriter.getStringAttr("Incompatible dimensions"));
 				}
@@ -968,6 +979,9 @@ struct OrOpArrayLowering: public ModelicaOpConversion<OrOp>
 
 		return mlir::success();
 	}
+
+	private:
+	ModelicaConversionOptions options;
 };
 
 template<typename FromOp>
@@ -1012,7 +1026,7 @@ struct ComparisonOpLowering : public ModelicaOpConversion<FromOp>
 	virtual mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const = 0;
 };
 
-struct EqOpLowering: public ComparisonOpLowering<EqOp>
+struct EqOpLowering : public ComparisonOpLowering<EqOp>
 {
 	using ComparisonOpLowering<EqOp>::ComparisonOpLowering;
 
@@ -1043,7 +1057,7 @@ struct EqOpLowering: public ComparisonOpLowering<EqOp>
 	}
 };
 
-struct NotEqOpLowering: public ComparisonOpLowering<NotEqOp>
+struct NotEqOpLowering : public ComparisonOpLowering<NotEqOp>
 {
 	using ComparisonOpLowering<NotEqOp>::ComparisonOpLowering;
 
@@ -1074,7 +1088,7 @@ struct NotEqOpLowering: public ComparisonOpLowering<NotEqOp>
 	}
 };
 
-struct GtOpLowering: public ComparisonOpLowering<GtOp>
+struct GtOpLowering : public ComparisonOpLowering<GtOp>
 {
 	using ComparisonOpLowering<GtOp>::ComparisonOpLowering;
 
@@ -1105,7 +1119,7 @@ struct GtOpLowering: public ComparisonOpLowering<GtOp>
 	}
 };
 
-struct GteOpLowering: public ComparisonOpLowering<GteOp>
+struct GteOpLowering : public ComparisonOpLowering<GteOp>
 {
 	using ComparisonOpLowering<GteOp>::ComparisonOpLowering;
 
@@ -1136,7 +1150,7 @@ struct GteOpLowering: public ComparisonOpLowering<GteOp>
 	}
 };
 
-struct LtOpLowering: public ComparisonOpLowering<LtOp>
+struct LtOpLowering : public ComparisonOpLowering<LtOp>
 {
 	using ComparisonOpLowering<LtOp>::ComparisonOpLowering;
 
@@ -1167,7 +1181,7 @@ struct LtOpLowering: public ComparisonOpLowering<LtOp>
 	}
 };
 
-struct LteOpLowering: public ComparisonOpLowering<LteOp>
+struct LteOpLowering : public ComparisonOpLowering<LteOp>
 {
 	using ComparisonOpLowering<LteOp>::ComparisonOpLowering;
 
@@ -1201,7 +1215,7 @@ struct LteOpLowering: public ComparisonOpLowering<LteOp>
 /**
  * Negate a scalar value.
  */
-struct NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
+struct NegateOpScalarLowering : public ModelicaOpConversion<NegateOp>
 {
 	using ModelicaOpConversion<NegateOp>::ModelicaOpConversion;
 
@@ -1241,11 +1255,11 @@ struct NegateOpScalarLowering: public ModelicaOpConversion<NegateOp>
 /**
  * Negate an array.
  */
-struct NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
+struct NegateOpArrayLowering : public mlir::OpRewritePattern<NegateOp>
 {
-	using ModelicaOpConversion<NegateOp>::ModelicaOpConversion;
+	using mlir::OpRewritePattern<NegateOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(NegateOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(NegateOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
 
@@ -1280,7 +1294,7 @@ struct NegateOpArrayLowering: public ModelicaOpConversion<NegateOp>
 /**
  * Sum of two numeric scalars.
  */
-struct AddOpScalarLowering: public ModelicaOpConversion<AddOp>
+struct AddOpScalarLowering : public ModelicaOpConversion<AddOp>
 {
 	using ModelicaOpConversion<AddOp>::ModelicaOpConversion;
 
@@ -1326,11 +1340,15 @@ struct AddOpScalarLowering: public ModelicaOpConversion<AddOp>
 /**
  * Sum of two numeric arrays.
  */
-struct AddOpArrayLowering: public ModelicaOpConversion<AddOp>
+struct AddOpArrayLowering : public mlir::OpRewritePattern<AddOp>
 {
-	using ModelicaOpConversion<AddOp>::ModelicaOpConversion;
+	AddOpArrayLowering(mlir::MLIRContext* ctx, ModelicaConversionOptions options)
+			: mlir::OpRewritePattern<AddOp>(ctx),
+		    options(std::move(options))
+	{
+	}
 
-	mlir::LogicalResult matchAndRewrite(AddOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(AddOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 
@@ -1372,8 +1390,8 @@ struct AddOpArrayLowering: public ModelicaOpConversion<AddOp>
 				if (lhsShape[i] == -1 || rhsShape[i] == -1)
 				{
 					mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i));
-					mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex));
-					mlir::Value rhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.rhs(), dimensionIndex));
+					mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
+					mlir::Value rhsDimensionSize = rewriter.create<DimOp>(loc, op.rhs(), dimensionIndex);
 					mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
 					rewriter.create<mlir::AssertOp>(loc, condition, rewriter.getStringAttr("Incompatible dimensions"));
 				}
@@ -1398,12 +1416,15 @@ struct AddOpArrayLowering: public ModelicaOpConversion<AddOp>
 
 		return mlir::success();
 	}
+
+	private:
+	ModelicaConversionOptions options;
 };
 
 /**
  * Subtraction of two numeric scalars.
  */
-struct SubOpScalarLowering: public ModelicaOpConversion<SubOp>
+struct SubOpScalarLowering : public ModelicaOpConversion<SubOp>
 {
 	using ModelicaOpConversion<SubOp>::ModelicaOpConversion;
 
@@ -1449,11 +1470,15 @@ struct SubOpScalarLowering: public ModelicaOpConversion<SubOp>
 /**
  * Subtraction of two numeric arrays.
  */
-struct SubOpArrayLowering: public ModelicaOpConversion<SubOp>
+struct SubOpArrayLowering : public mlir::OpRewritePattern<SubOp>
 {
-	using ModelicaOpConversion<SubOp>::ModelicaOpConversion;
+	SubOpArrayLowering(mlir::MLIRContext* ctx, ModelicaConversionOptions options)
+			: mlir::OpRewritePattern<SubOp>(ctx),
+				options(std::move(options))
+	{
+	}
 
-	mlir::LogicalResult matchAndRewrite(SubOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(SubOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 
@@ -1495,8 +1520,8 @@ struct SubOpArrayLowering: public ModelicaOpConversion<SubOp>
 				if (lhsShape[i] == -1 || rhsShape[i] == -1)
 				{
 					mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i));
-					mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex));
-					mlir::Value rhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.rhs(), dimensionIndex));
+					mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
+					mlir::Value rhsDimensionSize = rewriter.create<DimOp>(loc, op.rhs(), dimensionIndex);
 					mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
 					rewriter.create<mlir::AssertOp>(loc, condition, rewriter.getStringAttr("Incompatible dimensions"));
 				}
@@ -1521,12 +1546,15 @@ struct SubOpArrayLowering: public ModelicaOpConversion<SubOp>
 
 		return mlir::success();
 	}
+
+	private:
+	ModelicaConversionOptions options;
 };
 
 /**
  * Product between two scalar values.
  */
-struct MulOpLowering: public ModelicaOpConversion<MulOp>
+struct MulOpLowering : public ModelicaOpConversion<MulOp>
 {
 	using ModelicaOpConversion<MulOp>::ModelicaOpConversion;
 
@@ -1572,11 +1600,11 @@ struct MulOpLowering: public ModelicaOpConversion<MulOp>
 /**
  * Product between a scalar and an array.
  */
-struct MulOpScalarProductLowering: public ModelicaOpConversion<MulOp>
+struct MulOpScalarProductLowering : public mlir::OpRewritePattern<MulOp>
 {
-	using ModelicaOpConversion<MulOp>::ModelicaOpConversion;
+	using mlir::OpRewritePattern<MulOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(MulOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(MulOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
 
@@ -1629,7 +1657,7 @@ struct MulOpScalarProductLowering: public ModelicaOpConversion<MulOp>
  *
  * [ x1, x2, x3 ] * [ y1, y2, y3 ] = x1 * y1 + x2 * y2 + x3 * y3
  */
-struct MulOpCrossProductLowering: public ModelicaOpConversion<MulOp>
+struct MulOpCrossProductLowering : public ModelicaOpConversion<MulOp>
 {
 	using ModelicaOpConversion<MulOp>::ModelicaOpConversion;
 
@@ -1670,8 +1698,8 @@ struct MulOpCrossProductLowering: public ModelicaOpConversion<MulOp>
 			if (lhsShape[0] == -1 || rhsShape[0] == -1)
 			{
 				mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
-				mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex));
-				mlir::Value rhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.rhs(), dimensionIndex));
+				mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
+				mlir::Value rhsDimensionSize =  rewriter.create<DimOp>(loc, op.rhs(), dimensionIndex);
 				mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
 				rewriter.create<mlir::AssertOp>(loc, condition, rewriter.getStringAttr("Incompatible dimensions"));
 			}
@@ -1716,7 +1744,7 @@ struct MulOpCrossProductLowering: public ModelicaOpConversion<MulOp>
  * [ x2	]		[ y21, y22 ]
  * [ x3	]		[ y31, y32 ]
  */
-struct MulOpVectorMatrixLowering: public ModelicaOpConversion<MulOp>
+struct MulOpVectorMatrixLowering : public ModelicaOpConversion<MulOp>
 {
 	using ModelicaOpConversion<MulOp>::ModelicaOpConversion;
 
@@ -1757,8 +1785,8 @@ struct MulOpVectorMatrixLowering: public ModelicaOpConversion<MulOp>
 			if (lhsShape[0] == -1 || rhsShape[0] == -1)
 			{
 				mlir::Value zero = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
-				mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.lhs(), zero));
-				mlir::Value rhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.rhs(), zero));
+				mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), zero);
+				mlir::Value rhsDimensionSize = rewriter.create<DimOp>(loc, op.rhs(), zero);
 				mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
 				rewriter.create<mlir::AssertOp>(loc, condition, rewriter.getStringAttr("Incompatible dimensions"));
 			}
@@ -1822,7 +1850,7 @@ struct MulOpVectorMatrixLowering: public ModelicaOpConversion<MulOp>
  * [ x21, x22 ]								 [ x21 * y1 + x22 * y2 ]
  * [ x31, x32 ]								 [ x31 * y1 + x22 * y2 ]
  */
-struct MulOpMatrixVectorLowering: public ModelicaOpConversion<MulOp>
+struct MulOpMatrixVectorLowering : public ModelicaOpConversion<MulOp>
 {
 	using ModelicaOpConversion<MulOp>::ModelicaOpConversion;
 
@@ -1864,8 +1892,8 @@ struct MulOpMatrixVectorLowering: public ModelicaOpConversion<MulOp>
 			{
 				mlir::Value zero = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 				mlir::Value one = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
-				mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.lhs(), one));
-				mlir::Value rhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.rhs(), zero));
+				mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), one);
+				mlir::Value rhsDimensionSize = rewriter.create<DimOp>(loc, op.rhs(), zero);
 				mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
 				rewriter.create<mlir::AssertOp>(loc, condition, rewriter.getStringAttr("Incompatible dimensions"));
 			}
@@ -1930,7 +1958,7 @@ struct MulOpMatrixVectorLowering: public ModelicaOpConversion<MulOp>
  * [ x31, x32, x33 ]	 [ y31, y32 ]		[ x31 * y11 + x32 * y21 + x33 * y31, x31 * y12 + x32 * y22 + x33 * y32 ]
  * [ x41, x42, x43 ]
  */
-struct MulOpMatrixLowering: public ModelicaOpConversion<MulOp>
+struct MulOpMatrixLowering : public ModelicaOpConversion<MulOp>
 {
 	using ModelicaOpConversion<MulOp>::ModelicaOpConversion;
 
@@ -1972,8 +2000,8 @@ struct MulOpMatrixLowering: public ModelicaOpConversion<MulOp>
 			{
 				mlir::Value zero = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 				mlir::Value one = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
-				mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.lhs(), one));
-				mlir::Value rhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.rhs(), zero));
+				mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), one);
+				mlir::Value rhsDimensionSize = rewriter.create<DimOp>(loc, op.rhs(), zero);
 				mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
 				rewriter.create<mlir::AssertOp>(loc, condition, rewriter.getStringAttr("Incompatible dimensions"));
 			}
@@ -2045,7 +2073,7 @@ struct MulOpMatrixLowering: public ModelicaOpConversion<MulOp>
 /**
  * Division between two scalar values.
  */
-struct DivOpLowering: public ModelicaOpConversion<DivOp>
+struct DivOpLowering : public ModelicaOpConversion<DivOp>
 {
 	using ModelicaOpConversion<DivOp>::ModelicaOpConversion;
 
@@ -2090,11 +2118,11 @@ struct DivOpLowering: public ModelicaOpConversion<DivOp>
 /**
  * Division between an array and a scalar value.
  */
-struct DivOpArrayLowering: public ModelicaOpConversion<DivOp>
+struct DivOpArrayLowering : public mlir::OpRewritePattern<DivOp>
 {
-	using ModelicaOpConversion<DivOp>::ModelicaOpConversion;
+	using mlir::OpRewritePattern<DivOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(DivOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(DivOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
 
@@ -2196,8 +2224,8 @@ struct PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 			{
 				mlir::Value zero = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 				mlir::Value one = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(1));
-				mlir::Value lhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.base(), one));
-				mlir::Value rhsDimensionSize = materializeTargetConversion(rewriter, rewriter.create<DimOp>(loc, op.base(), zero));
+				mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.base(), one);
+				mlir::Value rhsDimensionSize = rewriter.create<DimOp>(loc, op.base(), zero);
 				mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
 				rewriter.create<mlir::AssertOp>(loc, condition, rewriter.getStringAttr("Base matrix is not squared"));
 			}
@@ -2235,11 +2263,11 @@ struct PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 	}
 };
 
-struct NDimsOpLowering: public ModelicaOpConversion<NDimsOp>
+struct NDimsOpLowering : public mlir::OpRewritePattern<NDimsOp>
 {
-	using ModelicaOpConversion<NDimsOp>::ModelicaOpConversion;
+	using mlir::OpRewritePattern<NDimsOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(NDimsOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(NDimsOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 		auto pointerType = op.memory().getType().cast<PointerType>();
@@ -2252,11 +2280,11 @@ struct NDimsOpLowering: public ModelicaOpConversion<NDimsOp>
 /**
  * Get the size of a specific array dimension.
  */
-struct SizeOpDimensionLowering: public ModelicaOpConversion<SizeOp>
+struct SizeOpDimensionLowering : public mlir::OpRewritePattern<SizeOp>
 {
-	using ModelicaOpConversion<SizeOp>::ModelicaOpConversion;
+	using mlir::OpRewritePattern<SizeOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(SizeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(SizeOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 
@@ -2273,14 +2301,13 @@ struct SizeOpDimensionLowering: public ModelicaOpConversion<SizeOp>
 /**
  * Get the size of alla the array dimensions.
  */
-struct SizeOpArrayLowering: public ModelicaOpConversion<SizeOp>
+struct SizeOpArrayLowering : public mlir::OpRewritePattern<SizeOp>
 {
-	using ModelicaOpConversion<SizeOp>::ModelicaOpConversion;
+	using mlir::OpRewritePattern<SizeOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(SizeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(SizeOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
-		Adaptor transformed(operands);
 
 		if (op.hasIndex())
 			return rewriter.notifyMatchFailure(op, "Index specified");
@@ -2309,12 +2336,13 @@ struct SizeOpArrayLowering: public ModelicaOpConversion<SizeOp>
 			dimensionSize = rewriter.create<CastOp>(loc, dimensionSize, resultType.getElementType());
 			rewriter.create<StoreOp>(loc, dimensionSize, result, loop.getInductionVar());
 		}
+
 		rewriter.replaceOp(op, result);
 		return mlir::success();
 	}
 };
 
-struct IdentityOpLowering: public ModelicaOpConversion<IdentityOp>
+struct IdentityOpLowering : public ModelicaOpConversion<IdentityOp>
 {
 	using ModelicaOpConversion<IdentityOp>::ModelicaOpConversion;
 
@@ -2356,7 +2384,7 @@ struct IdentityOpLowering: public ModelicaOpConversion<IdentityOp>
 	}
 };
 
-struct DiagonalOpLowering: public ModelicaOpConversion<DiagonalOp>
+struct DiagonalOpLowering : public ModelicaOpConversion<DiagonalOp>
 {
 	using ModelicaOpConversion<DiagonalOp>::ModelicaOpConversion;
 
@@ -2408,7 +2436,7 @@ struct DiagonalOpLowering: public ModelicaOpConversion<DiagonalOp>
 	}
 };
 
-struct ZerosOpLowering: public ModelicaOpConversion<ZerosOp>
+struct ZerosOpLowering : public ModelicaOpConversion<ZerosOp>
 {
 	using ModelicaOpConversion<ZerosOp>::ModelicaOpConversion;
 
@@ -2444,7 +2472,7 @@ struct ZerosOpLowering: public ModelicaOpConversion<ZerosOp>
 	}
 };
 
-struct OnesOpLowering: public ModelicaOpConversion<OnesOp>
+struct OnesOpLowering : public ModelicaOpConversion<OnesOp>
 {
 	using ModelicaOpConversion<OnesOp>::ModelicaOpConversion;
 
@@ -2480,7 +2508,7 @@ struct OnesOpLowering: public ModelicaOpConversion<OnesOp>
 	}
 };
 
-struct LinspaceOpLowering: public ModelicaOpConversion<LinspaceOp>
+struct LinspaceOpLowering : public ModelicaOpConversion<LinspaceOp>
 {
 	using ModelicaOpConversion<LinspaceOp>::ModelicaOpConversion;
 
@@ -2521,7 +2549,7 @@ struct LinspaceOpLowering: public ModelicaOpConversion<LinspaceOp>
 	}
 };
 
-struct FillOpLowering: public ModelicaOpConversion<FillOp>
+struct FillOpLowering : public ModelicaOpConversion<FillOp>
 {
 	using ModelicaOpConversion<FillOp>::ModelicaOpConversion;
 
@@ -2560,7 +2588,7 @@ struct FillOpLowering: public ModelicaOpConversion<FillOp>
 	}
 };
 
-struct MinOpArrayLowering: public ModelicaOpConversion<MinOp>
+struct MinOpArrayLowering : public ModelicaOpConversion<MinOp>
 {
 	using ModelicaOpConversion<MinOp>::ModelicaOpConversion;
 
@@ -2597,7 +2625,7 @@ struct MinOpArrayLowering: public ModelicaOpConversion<MinOp>
 	}
 };
 
-struct MinOpScalarsLowering: public ModelicaOpConversion<MinOp>
+struct MinOpScalarsLowering : public ModelicaOpConversion<MinOp>
 {
 	using ModelicaOpConversion<MinOp>::ModelicaOpConversion;
 
@@ -2634,7 +2662,7 @@ struct MinOpScalarsLowering: public ModelicaOpConversion<MinOp>
 	}
 };
 
-struct MaxOpArrayLowering: public ModelicaOpConversion<MaxOp>
+struct MaxOpArrayLowering : public ModelicaOpConversion<MaxOp>
 {
 	using ModelicaOpConversion<MaxOp>::ModelicaOpConversion;
 
@@ -2671,7 +2699,7 @@ struct MaxOpArrayLowering: public ModelicaOpConversion<MaxOp>
 	}
 };
 
-struct MaxOpScalarsLowering: public ModelicaOpConversion<MaxOp>
+struct MaxOpScalarsLowering : public ModelicaOpConversion<MaxOp>
 {
 	using ModelicaOpConversion<MaxOp>::ModelicaOpConversion;
 
@@ -2708,7 +2736,7 @@ struct MaxOpScalarsLowering: public ModelicaOpConversion<MaxOp>
 	}
 };
 
-struct SumOpLowering: public ModelicaOpConversion<SumOp>
+struct SumOpLowering : public ModelicaOpConversion<SumOp>
 {
 	using ModelicaOpConversion<SumOp>::ModelicaOpConversion;
 
@@ -2736,7 +2764,7 @@ struct SumOpLowering: public ModelicaOpConversion<SumOp>
 	}
 };
 
-struct ProductOpLowering: public ModelicaOpConversion<ProductOp>
+struct ProductOpLowering : public ModelicaOpConversion<ProductOp>
 {
 	using ModelicaOpConversion<ProductOp>::ModelicaOpConversion;
 
@@ -2764,7 +2792,7 @@ struct ProductOpLowering: public ModelicaOpConversion<ProductOp>
 	}
 };
 
-struct TransposeOpLowering: public ModelicaOpConversion<TransposeOp>
+struct TransposeOpLowering : public ModelicaOpConversion<TransposeOp>
 {
 	using ModelicaOpConversion<TransposeOp>::ModelicaOpConversion;
 
@@ -2811,7 +2839,7 @@ struct TransposeOpLowering: public ModelicaOpConversion<TransposeOp>
 	}
 };
 
-struct SymmetricOpLowering: public ModelicaOpConversion<SymmetricOp>
+struct SymmetricOpLowering : public ModelicaOpConversion<SymmetricOp>
 {
 	using ModelicaOpConversion<SymmetricOp>::ModelicaOpConversion;
 
@@ -2871,7 +2899,7 @@ struct SymmetricOpLowering: public ModelicaOpConversion<SymmetricOp>
 	}
 };
 
-struct IfOpLowering: public ModelicaOpConversion<IfOp>
+struct IfOpLowering : public ModelicaOpConversion<IfOp>
 {
 	using ModelicaOpConversion<IfOp>::ModelicaOpConversion;
 
@@ -2949,7 +2977,7 @@ struct IfOpLowering: public ModelicaOpConversion<IfOp>
 	}
 };
 
-struct BreakableForOpLowering: public ModelicaOpConversion<BreakableForOp>
+struct BreakableForOpLowering : public ModelicaOpConversion<BreakableForOp>
 {
 	using ModelicaOpConversion<BreakableForOp>::ModelicaOpConversion;
 
@@ -3036,7 +3064,7 @@ struct BreakableForOpLowering: public ModelicaOpConversion<BreakableForOp>
 	}
 };
 
-struct ForOpLowering: public ModelicaOpConversion<ForOp>
+struct ForOpLowering : public ModelicaOpConversion<ForOp>
 {
 	using ModelicaOpConversion<ForOp>::ModelicaOpConversion;
 
@@ -3088,7 +3116,7 @@ struct ForOpLowering: public ModelicaOpConversion<ForOp>
 	}
 };
 
-struct BreakableWhileOpLowering: public ModelicaOpConversion<BreakableWhileOp>
+struct BreakableWhileOpLowering : public ModelicaOpConversion<BreakableWhileOp>
 {
 	using ModelicaOpConversion<BreakableWhileOp>::ModelicaOpConversion;
 
@@ -3166,7 +3194,7 @@ struct BreakableWhileOpLowering: public ModelicaOpConversion<BreakableWhileOp>
 	}
 };
 
-class FunctionConversionPass: public mlir::PassWrapper<FunctionConversionPass, mlir::OperationPass<mlir::ModuleOp>>
+class FunctionConversionPass : public mlir::PassWrapper<FunctionConversionPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
@@ -3223,22 +3251,33 @@ static void populateModelicaConversionPatterns(
 		modelica::codegen::TypeConverter& typeConverter,
 		ModelicaConversionOptions options)
 {
-	patterns.insert<MemberAllocOpLowering>(context);
+	patterns.insert<
+			MemberAllocOpLowering,
+	    AssignmentOpScalarLowering,
+			AssignmentOpArrayLowering,
+			CallOpLowering,
+			NotOpArrayLowering,
+			NegateOpArrayLowering,
+			MulOpScalarProductLowering,
+			DivOpArrayLowering,
+			NDimsOpLowering,
+			SizeOpDimensionLowering,
+			SizeOpArrayLowering>(context);
+
+	patterns.insert<
+			AndOpArrayLowering,
+			OrOpArrayLowering,
+			AddOpArrayLowering,
+			SubOpArrayLowering>(context, options);
 
 	patterns.insert<
 			ConstantOpLowering,
 			PackOpLowering,
 			ExtractOpLowering,
-			AssignmentOpScalarLowering,
-			AssignmentOpArrayLowering,
-			CallOpLowering,
 			PrintOpLowering,
 			NotOpScalarLowering,
-			NotOpArrayLowering,
 			AndOpScalarLowering,
-			AndOpArrayLowering,
 			OrOpScalarLowering,
-			OrOpArrayLowering,
 			EqOpLowering,
 			NotEqOpLowering,
 			GtOpLowering,
@@ -3246,24 +3285,16 @@ static void populateModelicaConversionPatterns(
 			LtOpLowering,
 			LteOpLowering,
 			NegateOpScalarLowering,
-			NegateOpArrayLowering,
 			AddOpScalarLowering,
-			AddOpArrayLowering,
 			SubOpScalarLowering,
-			SubOpArrayLowering,
 			MulOpLowering,
-			MulOpScalarProductLowering,
 			MulOpCrossProductLowering,
 			MulOpVectorMatrixLowering,
 			MulOpMatrixVectorLowering,
 			MulOpMatrixLowering,
 			DivOpLowering,
-			DivOpArrayLowering,
 			PowOpLowering,
 			PowOpMatrixLowering,
-			NDimsOpLowering,
-			SizeOpDimensionLowering,
-			SizeOpArrayLowering,
 			IdentityOpLowering,
 			DiagonalOpLowering,
 			ZerosOpLowering,
@@ -3280,7 +3311,7 @@ static void populateModelicaConversionPatterns(
 			SymmetricOpLowering>(context, typeConverter, options);
 }
 
-class ModelicaConversionPass: public mlir::PassWrapper<ModelicaConversionPass, mlir::OperationPass<mlir::ModuleOp>>
+class ModelicaConversionPass : public mlir::PassWrapper<ModelicaConversionPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
 	explicit ModelicaConversionPass(ModelicaConversionOptions options, unsigned int bitWidth)
@@ -3414,7 +3445,7 @@ std::unique_ptr<mlir::Pass> modelica::codegen::createModelicaConversionPass(Mode
 	return std::make_unique<ModelicaConversionPass>(options, bitWidth);
 }
 
-class LowerToCFGPass: public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPass<mlir::ModuleOp>>
+class LowerToCFGPass : public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
 	explicit LowerToCFGPass(ModelicaConversionOptions options, unsigned int bitWidth)
