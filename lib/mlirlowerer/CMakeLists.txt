@@ -23,6 +23,7 @@ modelicaAddLibrary(
         src/passes/AutomaticDifferentiation.cpp
         src/passes/BufferDeallocation.cpp
         src/passes/ExplicitCastInsertion.cpp
+        src/passes/FunctionsScalarization.cpp
         src/passes/ModelicaConversion.cpp
         src/passes/LowerToLLVM.cpp
         src/passes/ResultBuffersToArgs.cpp

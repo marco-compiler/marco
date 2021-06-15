@@ -3,518 +3,722 @@
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 
-namespace detail
+#include "Type.h"
+
+namespace modelica::codegen
 {
-	struct EquationInterfaceTraits
+	namespace detail
 	{
-		struct Concept
+		struct VectorizableOpTraits
 		{
-			Concept() = default;
-			Concept(const Concept& other) = default;
-			Concept(Concept&& other) = default;
-			Concept& operator=(Concept&& other) = default;
-			virtual ~Concept() = default;
-			Concept& operator=(const Concept& other) = default;
+			struct Concept
+			{
+				Concept() = default;
+				Concept(const Concept& other) = default;
+				Concept(Concept&& other) = default;
+				Concept& operator=(Concept&& other) = default;
+				virtual ~Concept() = default;
+				Concept& operator=(const Concept& other) = default;
 
-			virtual mlir::Block* body(mlir::Operation* op) const = 0;
-			virtual mlir::ValueRange inductions(mlir::Operation* op) const = 0;
-			virtual mlir::Value induction(mlir::Operation* op, size_t index) const = 0;
-			virtual long inductionIndex(mlir::Operation* op, mlir::Value induction) const = 0;
-			virtual mlir::ValueRange lhs(mlir::Operation* op) const = 0;
-			virtual mlir::ValueRange rhs(mlir::Operation* op) const = 0;
+				virtual unsigned int vectorizationRank(mlir::Operation* op) const = 0;
+				virtual mlir::ValueRange getArgs(mlir::Operation* op) const = 0;
+				virtual unsigned int getArgExpectedRank(mlir::Operation* op, unsigned int argIndex) const = 0;
+				virtual mlir::ValueRange scalarize(mlir::Operation* op, mlir::OpBuilder& builder, mlir::ValueRange indexes) const = 0;
+			};
+
+			template <typename ConcreteOp>
+			struct Model : public Concept
+			{
+				unsigned int vectorizationRank(mlir::Operation* op) const override
+				{
+					llvm::SmallVector<long, 2> expectedRanks;
+					llvm::SmallVector<long, 3> dimensions;
+
+					if (getArgs(op).empty())
+						return 0;
+
+					for (auto& arg : llvm::enumerate(getArgs(op)))
+					{
+						mlir::Type argType = arg.value().getType();
+						unsigned int argExpectedRank = getArgExpectedRank(op, arg.index());
+
+						unsigned int argActualRank = argType.isa<PointerType>() ?
+						    argType.cast<PointerType>().getRank() : 0;
+
+						// Each argument must have a rank higher than the expected one
+						// for the operation to be vectorized.
+						if (argActualRank <= argExpectedRank)
+							return 0;
+
+						if (arg.index() == 0)
+						{
+							// If this is the first argument, then it will determine the
+							// rank and dimensions of the result array, although the
+							// dimensions can be also specialized by the other arguments
+							// if initially unknown.
+
+							for (size_t i = 0; i < argActualRank - argExpectedRank; ++i)
+							{
+								auto& dimension = argType.cast<PointerType>().getShape()[arg.index()];
+								dimensions.push_back(dimension);
+							}
+						}
+						else
+						{
+							// The rank difference must match with the one given by the first
+							// argument, independently from the dimensions sizes.
+							if (argActualRank != argExpectedRank + dimensions.size())
+								return 0;
+
+							for (size_t i = 0; i < argActualRank - argExpectedRank; ++i)
+							{
+								auto& dimension = argType.cast<PointerType>().getShape()[arg.index()];
+
+								// If the dimension is dynamic, then no further checks or
+								// specializations are possible.
+								if (dimension == -1)
+									continue;
+
+								// If the dimension determined by the first argument is fixed,
+								// then also the dimension of the other arguments must match
+								// (when that's fixed too).
+								if (dimensions[i] != -1 && dimensions[i] != dimension)
+									return 0;
+
+								// If the dimension determined by the first argument is dynamic, then
+								// set it to a required size.
+								if (dimensions[i] == -1)
+									dimensions[i] = dimension;
+							}
+						}
+					}
+
+					return dimensions.size();
+				}
+
+				mlir::ValueRange getArgs(mlir::Operation* op) const override
+				{
+					return mlir::cast<ConcreteOp>(op).getArgs();
+				}
+
+				unsigned int getArgExpectedRank(mlir::Operation* op, unsigned int argIndex) const override
+				{
+					return mlir::cast<ConcreteOp>(op).getArgExpectedRank(argIndex);
+				}
+
+				mlir::ValueRange scalarize(mlir::Operation* op, mlir::OpBuilder& builder, mlir::ValueRange indexes) const override
+				{
+					return mlir::cast<ConcreteOp>(op).scalarize(builder, indexes);
+				}
+			};
+
+			template<typename ConcreteOp>
+			class FallbackModel : public Concept
+			{
+				public:
+				FallbackModel() = default;
+
+				unsigned int vectorizationRank(mlir::Operation* op) const override
+				{
+					return 0;
+				}
+
+				mlir::ValueRange getArgs(mlir::Operation* op) const override
+				{
+					return op->getOperands();
+				}
+
+				unsigned int getArgExpectedRank(mlir::Operation* op, unsigned int argIndex) const override
+				{
+					return 0;
+				}
+
+				mlir::ValueRange scalarize(mlir::Operation* op, mlir::OpBuilder& builder, mlir::ValueRange indexes) const override
+				{
+					return mlir::cast<ConcreteOp>(op).scalarize(indexes);
+				}
+			};
 		};
+	}
 
-		template<typename ConcreteOp>
-		struct Model : public Concept
+	class VectorizableOpInterface : public mlir::OpInterface<VectorizableOpInterface, detail::VectorizableOpTraits>
+	{
+		public:
+		using OpInterface<VectorizableOpInterface, detail::VectorizableOpTraits>::OpInterface;
+
+		template <typename ConcreteOp>
+		struct VectorizableOpTrait : public mlir::OpInterface<VectorizableOpInterface, detail::VectorizableOpTraits>::Trait<ConcreteOp>
 		{
-			mlir::Block* body(mlir::Operation* op) const final
+			unsigned int vectorizationRank()
 			{
-				return mlir::cast<ConcreteOp>(op).body();
+				mlir::Operation* op = (*static_cast<ConcreteOp*>(this)).getOperation();
+				return mlir::cast<VectorizableOpInterface>(op).vectorizationRank();
 			}
-
-			mlir::ValueRange inductions(mlir::Operation* op) const final
-			{
-				return mlir::cast<ConcreteOp>(op).inductions();
-			}
-
-			mlir::Value induction(mlir::Operation* op, size_t index) const final
-			{
-				return mlir::cast<ConcreteOp>(op).induction(index);
-			}
-
-			long inductionIndex(mlir::Operation* op, mlir::Value induction) const final
-			{
-				return mlir::cast<ConcreteOp>(op).inductionIndex(induction);
-			}
-
-			mlir::ValueRange lhs(mlir::Operation* op) const final
-			{
-				return mlir::cast<ConcreteOp>(op).lhs();
-			}
-
-			mlir::ValueRange rhs(mlir::Operation* op) const final
-			{
-				return mlir::cast<ConcreteOp>(op).rhs();
-			}
-		};
-
-		template<typename ConcreteOp>
-		class FallbackModel : public Concept
-		{
-			public:
-			FallbackModel() = default;
-
-			mlir::Block* body(mlir::Operation* op) const final
-			{
-				return mlir::cast<ConcreteOp>(op).body();
-			}
-
-			mlir::ValueRange inductions(mlir::Operation* op) const final
-			{
-				return mlir::cast<ConcreteOp>(op).inductions();
-			}
-
-			mlir::Value induction(mlir::Operation* op, size_t index) const final
-			{
-				return mlir::cast<ConcreteOp>(op).induction(index);
-			}
-
-			long inductionIndex(mlir::Operation* op, mlir::Value induction) const final
-			{
-				return mlir::cast<ConcreteOp>(op).inductionIndex(induction);
-			}
-
-			mlir::ValueRange lhs(mlir::Operation* op) const final
-			{
-				return mlir::cast<ConcreteOp>(op).lhs();
-			}
-
-			mlir::ValueRange rhs(mlir::Operation* op) const final
-			{
-				return mlir::cast<ConcreteOp>(op).rhs();
-			}
-		};
-	};
-}
-
-class EquationInterface : public mlir::OpInterface<EquationInterface, detail::EquationInterfaceTraits>
-{
-	public:
-	using mlir::OpInterface<EquationInterface, detail::EquationInterfaceTraits>::OpInterface;
-
-	mlir::Block* body()
-	{
-		return getImpl()->body(getOperation());
-	}
-
-	mlir::ValueRange inductions()
-	{
-		return getImpl()->inductions(getOperation());
-	}
-
-	mlir::Value induction(size_t index)
-	{
-		return getImpl()->induction(getOperation(), index);
-	}
-
-	long inductionIndex(mlir::Value induction)
-	{
-		return getImpl()->inductionIndex(getOperation(), induction);
-	}
-
-	mlir::ValueRange lhs()
-	{
-		return getImpl()->lhs(getOperation());
-	}
-
-	mlir::ValueRange rhs()
-	{
-		return getImpl()->rhs(getOperation());
-	}
-};
-
-namespace detail
-{
-	struct InvertibleInterfaceTraits
-	{
-		struct Concept
-		{
-			Concept() = default;
-			Concept(const Concept& other) = default;
-			Concept(Concept&& other) = default;
-			Concept& operator=(Concept&& other) = default;
-			virtual ~Concept() = default;
-			Concept& operator=(const Concept& other) = default;
-
-			// TODO: keep ValueRange or switch to Value?
-			virtual mlir::LogicalResult invert(mlir::Operation* op, mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult) const = 0;
 		};
 
 		template <typename ConcreteOp>
-		struct Model : public Concept
+		struct Trait : public VectorizableOpTrait<ConcreteOp> {};
+
+		unsigned int vectorizationRank()
 		{
-			mlir::LogicalResult invert(mlir::Operation* op, mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult) const final
-			{
-				return mlir::cast<ConcreteOp>(op).invert(builder, argumentIndex, currentResult);
-			}
-		};
-
-		template<typename ConcreteOp>
-		class FallbackModel : public Concept
-		{
-			public:
-			FallbackModel() = default;
-
-			mlir::LogicalResult invert(mlir::Operation* op, mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult) const final
-			{
-				return mlir::cast<ConcreteOp>(op).invert(builder, argumentIndex, currentResult);
-			}
-		};
-	};
-}
-
-class InvertibleInterface : public mlir::OpInterface<InvertibleInterface, detail::InvertibleInterfaceTraits>
-{
-	public:
-	using OpInterface<InvertibleInterface, detail::InvertibleInterfaceTraits>::OpInterface;
-
-	mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
-	{
-		return getImpl()->invert(getOperation(), builder, argumentIndex, currentResult);
-	}
-};
-
-namespace detail
-{
-	struct DistributableInterfaceTraits
-	{
-		struct Concept
-		{
-			Concept() = default;
-			Concept(const Concept& other) = default;
-			Concept(Concept&& other) = default;
-			Concept& operator=(Concept&& other) = default;
-			virtual ~Concept() = default;
-			Concept& operator=(const Concept& other) = default;
-
-			virtual mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const = 0;
-		};
-
-		template <typename ConcreteOp>
-		struct Model : public Concept
-		{
-			mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const final
-			{
-				return mlir::cast<ConcreteOp>(op).distribute(builder);
-			}
-		};
-
-		template<typename ConcreteOp>
-		class FallbackModel : public Concept
-		{
-			public:
-			FallbackModel() = default;
-
-			mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const final
-			{
-				return mlir::cast<ConcreteOp>(op).distribute(builder);
-			}
-		};
-	};
-}
-
-class DistributableInterface : public mlir::OpInterface<DistributableInterface, detail::DistributableInterfaceTraits>
-{
-	public:
-	using OpInterface<DistributableInterface, detail::DistributableInterfaceTraits>::OpInterface;
-
-	mlir::Value distribute(mlir::OpBuilder& builder)
-	{
-		return getImpl()->distribute(getOperation(), builder);
-	}
-};
-
-namespace detail
-{
-	struct NegateOpDistributionInterfaceTraits
-	{
-		struct Concept
-		{
-			Concept() = default;
-			Concept(const Concept& other) = default;
-			Concept(Concept&& other) = default;
-			Concept& operator=(Concept&& other) = default;
-			virtual ~Concept() = default;
-			Concept& operator=(const Concept& other) = default;
-
-			virtual mlir::Value distributeNegateOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType) const = 0;
-		};
-
-		template <typename ConcreteOp>
-		struct Model : public Concept
-		{
-			mlir::Value distributeNegateOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType) const final
-			{
-				return mlir::cast<ConcreteOp>(op).distributeNegateOp(builder, resultType);
-			}
-		};
-
-		template<typename ConcreteOp>
-		class FallbackModel : public Concept
-		{
-			public:
-			FallbackModel() = default;
-
-			mlir::Value distributeNegateOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType) const final
-			{
-				return mlir::cast<ConcreteOp>(op).distributeNegateOp(builder, resultType);
-			}
-		};
-	};
-}
-
-class NegateOpDistributionInterface : public mlir::OpInterface<NegateOpDistributionInterface, detail::NegateOpDistributionInterfaceTraits>
-{
-	public:
-	using OpInterface<NegateOpDistributionInterface, detail::NegateOpDistributionInterfaceTraits>::OpInterface;
-
-	mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
-	{
-		return getImpl()->distributeNegateOp(getOperation(), builder, resultType);
-	}
-};
-
-namespace detail
-{
-	struct MulOpDistributionInterfaceTraits
-	{
-		struct Concept
-		{
-			Concept() = default;
-			Concept(const Concept& other) = default;
-			Concept(Concept&& other) = default;
-			Concept& operator=(Concept&& other) = default;
-			virtual ~Concept() = default;
-			Concept& operator=(const Concept& other) = default;
-
-			virtual mlir::Value distributeMulOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const = 0;
-		};
-
-		template <typename ConcreteOp>
-		struct Model : public Concept
-		{
-			mlir::Value distributeMulOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
-			{
-				return mlir::cast<ConcreteOp>(op).distributeMulOp(builder, resultType, value);
-			}
-		};
-
-		template<typename ConcreteOp>
-		class FallbackModel : public Concept
-		{
-			public:
-			FallbackModel() = default;
-
-			mlir::Value distributeMulOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
-			{
-				return mlir::cast<ConcreteOp>(op).distributeMulOp(builder, resultType, value);
-			}
-		};
-	};
-}
-
-class MulOpDistributionInterface : public mlir::OpInterface<MulOpDistributionInterface, detail::MulOpDistributionInterfaceTraits>
-{
-	public:
-	using OpInterface<MulOpDistributionInterface, detail::MulOpDistributionInterfaceTraits>::OpInterface;
-
-	mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
-	{
-		return getImpl()->distributeMulOp(getOperation(), builder, resultType, value);
-	}
-};
-
-namespace detail
-{
-	struct DivOpDistributionInterfaceTraits
-	{
-		struct Concept
-		{
-			Concept() = default;
-			Concept(const Concept& other) = default;
-			Concept(Concept&& other) = default;
-			Concept& operator=(Concept&& other) = default;
-			virtual ~Concept() = default;
-			Concept& operator=(const Concept& other) = default;
-
-			virtual mlir::Value distributeDivOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const = 0;
-		};
-
-		template <typename ConcreteOp>
-		struct Model : public Concept
-		{
-			mlir::Value distributeDivOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
-			{
-				return mlir::cast<ConcreteOp>(op).distributeDivOp(builder, resultType, value);
-			}
-		};
-
-		template<typename ConcreteOp>
-		class FallbackModel : public Concept
-		{
-			public:
-			FallbackModel() = default;
-
-			mlir::Value distributeDivOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
-			{
-				return mlir::cast<ConcreteOp>(op).distributeDivOp(builder, resultType, value);
-			}
-		};
-	};
-}
-
-class DivOpDistributionInterface : public mlir::OpInterface<DivOpDistributionInterface, detail::DivOpDistributionInterfaceTraits>
-{
-	public:
-	using OpInterface<DivOpDistributionInterface, detail::DivOpDistributionInterfaceTraits>::OpInterface;
-
-	mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
-	{
-		return getImpl()->distributeDivOp(getOperation(), builder, resultType, value);
-	}
-};
-
-namespace detail
-{
-	struct DerivativeInterfaceTraits
-	{
-		struct Concept
-		{
-			Concept() = default;
-			Concept(const Concept& other) = default;
-			Concept(Concept&& other) = default;
-			Concept& operator=(Concept&& other) = default;
-			virtual ~Concept() = default;
-			Concept& operator=(const Concept& other) = default;
-
-			virtual void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const = 0;
-		};
-
-		template <typename ConcreteOp>
-		struct Model : public Concept
-		{
-			void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const final
-			{
-				return mlir::cast<ConcreteOp>(op).derive(builder, derivatives);
-			}
-		};
-
-		template<typename ConcreteOp>
-		class FallbackModel : public Concept
-		{
-			public:
-			FallbackModel() = default;
-
-			void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const final
-			{
-				return mlir::cast<ConcreteOp>(op).derive(builder, derivatives);
-			}
-		};
-	};
-}
-
-class DerivativeInterface : public mlir::OpInterface<DerivativeInterface, detail::DerivativeInterfaceTraits>
-{
-	public:
-	using OpInterface<DerivativeInterface, detail::DerivativeInterfaceTraits>::OpInterface;
-
-	void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
-	{
-		mlir::OpBuilder::InsertionGuard guard(builder);
-
-		// The derivative is placed before the old assignment, in order to avoid
-		// inconsistencies in case of self-assignments (i.e. "y := y * 2" would
-		// invalidate the derivative if placed before "y' := y' * 2").
-		builder.setInsertionPoint(getOperation());
-
-		return getImpl()->derive(getOperation(), builder, derivatives);
-	}
-};
-
-namespace detail
-{
-	struct HeapAllocatorTraits
-	{
-		static llvm::StringRef getAutoFreeAttrName()
-		{
-			return "auto_free";
+			return getImpl()->vectorizationRank(getOperation());
 		}
 
-		struct Concept
+		mlir::ValueRange getArgs()
 		{
-			Concept() = default;
-			Concept(const Concept& other) = default;
-			Concept(Concept&& other) = default;
-			Concept& operator=(Concept&& other) = default;
-			virtual ~Concept() = default;
-			Concept& operator=(const Concept& other) = default;
+			return getImpl()->getArgs(getOperation());
+		}
 
+		unsigned int getArgExpectedRank(unsigned int argIndex)
+		{
+			return getImpl()->getArgExpectedRank(getOperation(), argIndex);
+		}
+
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+		{
+			return getImpl()->scalarize(getOperation(), builder, indexes);
+		}
+	};
+
+	namespace detail
+	{
+		struct EquationInterfaceTraits
+		{
+			struct Concept
+			{
+				Concept() = default;
+				Concept(const Concept& other) = default;
+				Concept(Concept&& other) = default;
+				Concept& operator=(Concept&& other) = default;
+				virtual ~Concept() = default;
+				Concept& operator=(const Concept& other) = default;
+
+				virtual mlir::Block* body(mlir::Operation* op) const = 0;
+				virtual mlir::ValueRange inductions(mlir::Operation* op) const = 0;
+				virtual mlir::Value induction(mlir::Operation* op, size_t index) const = 0;
+				virtual long inductionIndex(mlir::Operation* op, mlir::Value induction) const = 0;
+				virtual mlir::ValueRange lhs(mlir::Operation* op) const = 0;
+				virtual mlir::ValueRange rhs(mlir::Operation* op) const = 0;
+			};
+
+			template<typename ConcreteOp>
+			struct Model : public Concept
+			{
+				mlir::Block* body(mlir::Operation* op) const final
+				{
+					return mlir::cast<ConcreteOp>(op).body();
+				}
+
+				mlir::ValueRange inductions(mlir::Operation* op) const final
+				{
+					return mlir::cast<ConcreteOp>(op).inductions();
+				}
+
+				mlir::Value induction(mlir::Operation* op, size_t index) const final
+				{
+					return mlir::cast<ConcreteOp>(op).induction(index);
+				}
+
+				long inductionIndex(mlir::Operation* op, mlir::Value induction) const final
+				{
+					return mlir::cast<ConcreteOp>(op).inductionIndex(induction);
+				}
+
+				mlir::ValueRange lhs(mlir::Operation* op) const final
+				{
+					return mlir::cast<ConcreteOp>(op).lhs();
+				}
+
+				mlir::ValueRange rhs(mlir::Operation* op) const final
+				{
+					return mlir::cast<ConcreteOp>(op).rhs();
+				}
+			};
+
+			template<typename ConcreteOp>
+			class FallbackModel : public Concept
+			{
+				public:
+				FallbackModel() = default;
+
+				mlir::Block* body(mlir::Operation* op) const final
+				{
+					return mlir::cast<ConcreteOp>(op).body();
+				}
+
+				mlir::ValueRange inductions(mlir::Operation* op) const final
+				{
+					return mlir::cast<ConcreteOp>(op).inductions();
+				}
+
+				mlir::Value induction(mlir::Operation* op, size_t index) const final
+				{
+					return mlir::cast<ConcreteOp>(op).induction(index);
+				}
+
+				long inductionIndex(mlir::Operation* op, mlir::Value induction) const final
+				{
+					return mlir::cast<ConcreteOp>(op).inductionIndex(induction);
+				}
+
+				mlir::ValueRange lhs(mlir::Operation* op) const final
+				{
+					return mlir::cast<ConcreteOp>(op).lhs();
+				}
+
+				mlir::ValueRange rhs(mlir::Operation* op) const final
+				{
+					return mlir::cast<ConcreteOp>(op).rhs();
+				}
+			};
+		};
+	}
+
+	class EquationInterface : public mlir::OpInterface<EquationInterface, detail::EquationInterfaceTraits>
+	{
+		public:
+		using mlir::OpInterface<EquationInterface, detail::EquationInterfaceTraits>::OpInterface;
+
+		mlir::Block* body()
+		{
+			return getImpl()->body(getOperation());
+		}
+
+		mlir::ValueRange inductions()
+		{
+			return getImpl()->inductions(getOperation());
+		}
+
+		mlir::Value induction(size_t index)
+		{
+			return getImpl()->induction(getOperation(), index);
+		}
+
+		long inductionIndex(mlir::Value induction)
+		{
+			return getImpl()->inductionIndex(getOperation(), induction);
+		}
+
+		mlir::ValueRange lhs()
+		{
+			return getImpl()->lhs(getOperation());
+		}
+
+		mlir::ValueRange rhs()
+		{
+			return getImpl()->rhs(getOperation());
+		}
+	};
+
+	namespace detail
+	{
+		struct InvertibleInterfaceTraits
+		{
+			struct Concept
+			{
+				Concept() = default;
+				Concept(const Concept& other) = default;
+				Concept(Concept&& other) = default;
+				Concept& operator=(Concept&& other) = default;
+				virtual ~Concept() = default;
+				Concept& operator=(const Concept& other) = default;
+
+				// TODO: keep ValueRange or switch to Value?
+				virtual mlir::LogicalResult invert(mlir::Operation* op, mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult) const = 0;
+			};
+
+			template <typename ConcreteOp>
+			struct Model : public Concept
+			{
+				mlir::LogicalResult invert(mlir::Operation* op, mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult) const final
+				{
+					return mlir::cast<ConcreteOp>(op).invert(builder, argumentIndex, currentResult);
+				}
+			};
+
+			template<typename ConcreteOp>
+			class FallbackModel : public Concept
+			{
+				public:
+				FallbackModel() = default;
+
+				mlir::LogicalResult invert(mlir::Operation* op, mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult) const final
+				{
+					return mlir::cast<ConcreteOp>(op).invert(builder, argumentIndex, currentResult);
+				}
+			};
+		};
+	}
+
+	class InvertibleInterface : public mlir::OpInterface<InvertibleInterface, detail::InvertibleInterfaceTraits>
+	{
+		public:
+		using OpInterface<InvertibleInterface, detail::InvertibleInterfaceTraits>::OpInterface;
+
+		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+		{
+			return getImpl()->invert(getOperation(), builder, argumentIndex, currentResult);
+		}
+	};
+
+	namespace detail
+	{
+		struct DistributableInterfaceTraits
+		{
+			struct Concept
+			{
+				Concept() = default;
+				Concept(const Concept& other) = default;
+				Concept(Concept&& other) = default;
+				Concept& operator=(Concept&& other) = default;
+				virtual ~Concept() = default;
+				Concept& operator=(const Concept& other) = default;
+
+				virtual mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const = 0;
+			};
+
+			template <typename ConcreteOp>
+			struct Model : public Concept
+			{
+				mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const final
+				{
+					return mlir::cast<ConcreteOp>(op).distribute(builder);
+				}
+			};
+
+			template<typename ConcreteOp>
+			class FallbackModel : public Concept
+			{
+				public:
+				FallbackModel() = default;
+
+				mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const final
+				{
+					return mlir::cast<ConcreteOp>(op).distribute(builder);
+				}
+			};
+		};
+	}
+
+	class DistributableInterface : public mlir::OpInterface<DistributableInterface, detail::DistributableInterfaceTraits>
+	{
+		public:
+		using OpInterface<DistributableInterface, detail::DistributableInterfaceTraits>::OpInterface;
+
+		mlir::Value distribute(mlir::OpBuilder& builder)
+		{
+			return getImpl()->distribute(getOperation(), builder);
+		}
+	};
+
+	namespace detail
+	{
+		struct NegateOpDistributionInterfaceTraits
+		{
+			struct Concept
+			{
+				Concept() = default;
+				Concept(const Concept& other) = default;
+				Concept(Concept&& other) = default;
+				Concept& operator=(Concept&& other) = default;
+				virtual ~Concept() = default;
+				Concept& operator=(const Concept& other) = default;
+
+				virtual mlir::Value distributeNegateOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType) const = 0;
+			};
+
+			template <typename ConcreteOp>
+			struct Model : public Concept
+			{
+				mlir::Value distributeNegateOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType) const final
+				{
+					return mlir::cast<ConcreteOp>(op).distributeNegateOp(builder, resultType);
+				}
+			};
+
+			template<typename ConcreteOp>
+			class FallbackModel : public Concept
+			{
+				public:
+				FallbackModel() = default;
+
+				mlir::Value distributeNegateOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType) const final
+				{
+					return mlir::cast<ConcreteOp>(op).distributeNegateOp(builder, resultType);
+				}
+			};
+		};
+	}
+
+	class NegateOpDistributionInterface : public mlir::OpInterface<NegateOpDistributionInterface, detail::NegateOpDistributionInterfaceTraits>
+	{
+		public:
+		using OpInterface<NegateOpDistributionInterface, detail::NegateOpDistributionInterfaceTraits>::OpInterface;
+
+		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
+		{
+			return getImpl()->distributeNegateOp(getOperation(), builder, resultType);
+		}
+	};
+
+	namespace detail
+	{
+		struct MulOpDistributionInterfaceTraits
+		{
+			struct Concept
+			{
+				Concept() = default;
+				Concept(const Concept& other) = default;
+				Concept(Concept&& other) = default;
+				Concept& operator=(Concept&& other) = default;
+				virtual ~Concept() = default;
+				Concept& operator=(const Concept& other) = default;
+
+				virtual mlir::Value distributeMulOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const = 0;
+			};
+
+			template <typename ConcreteOp>
+			struct Model : public Concept
+			{
+				mlir::Value distributeMulOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
+				{
+					return mlir::cast<ConcreteOp>(op).distributeMulOp(builder, resultType, value);
+				}
+			};
+
+			template<typename ConcreteOp>
+			class FallbackModel : public Concept
+			{
+				public:
+				FallbackModel() = default;
+
+				mlir::Value distributeMulOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
+				{
+					return mlir::cast<ConcreteOp>(op).distributeMulOp(builder, resultType, value);
+				}
+			};
+		};
+	}
+
+	class MulOpDistributionInterface : public mlir::OpInterface<MulOpDistributionInterface, detail::MulOpDistributionInterfaceTraits>
+	{
+		public:
+		using OpInterface<MulOpDistributionInterface, detail::MulOpDistributionInterfaceTraits>::OpInterface;
+
+		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+		{
+			return getImpl()->distributeMulOp(getOperation(), builder, resultType, value);
+		}
+	};
+
+	namespace detail
+	{
+		struct DivOpDistributionInterfaceTraits
+		{
+			struct Concept
+			{
+				Concept() = default;
+				Concept(const Concept& other) = default;
+				Concept(Concept&& other) = default;
+				Concept& operator=(Concept&& other) = default;
+				virtual ~Concept() = default;
+				Concept& operator=(const Concept& other) = default;
+
+				virtual mlir::Value distributeDivOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const = 0;
+			};
+
+			template <typename ConcreteOp>
+			struct Model : public Concept
+			{
+				mlir::Value distributeDivOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
+				{
+					return mlir::cast<ConcreteOp>(op).distributeDivOp(builder, resultType, value);
+				}
+			};
+
+			template<typename ConcreteOp>
+			class FallbackModel : public Concept
+			{
+				public:
+				FallbackModel() = default;
+
+				mlir::Value distributeDivOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const final
+				{
+					return mlir::cast<ConcreteOp>(op).distributeDivOp(builder, resultType, value);
+				}
+			};
+		};
+	}
+
+	class DivOpDistributionInterface : public mlir::OpInterface<DivOpDistributionInterface, detail::DivOpDistributionInterfaceTraits>
+	{
+		public:
+		using OpInterface<DivOpDistributionInterface, detail::DivOpDistributionInterfaceTraits>::OpInterface;
+
+		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+		{
+			return getImpl()->distributeDivOp(getOperation(), builder, resultType, value);
+		}
+	};
+
+	namespace detail
+	{
+		struct DerivativeInterfaceTraits
+		{
+			struct Concept
+			{
+				Concept() = default;
+				Concept(const Concept& other) = default;
+				Concept(Concept&& other) = default;
+				Concept& operator=(Concept&& other) = default;
+				virtual ~Concept() = default;
+				Concept& operator=(const Concept& other) = default;
+
+				virtual void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const = 0;
+			};
+
+			template <typename ConcreteOp>
+			struct Model : public Concept
+			{
+				void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const final
+				{
+					return mlir::cast<ConcreteOp>(op).derive(builder, derivatives);
+				}
+			};
+
+			template<typename ConcreteOp>
+			class FallbackModel : public Concept
+			{
+				public:
+				FallbackModel() = default;
+
+				void derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const final
+				{
+					return mlir::cast<ConcreteOp>(op).derive(builder, derivatives);
+				}
+			};
+		};
+	}
+
+	class DerivativeInterface : public mlir::OpInterface<DerivativeInterface, detail::DerivativeInterfaceTraits>
+	{
+		public:
+		using OpInterface<DerivativeInterface, detail::DerivativeInterfaceTraits>::OpInterface;
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+		{
+			mlir::OpBuilder::InsertionGuard guard(builder);
+
+			// The derivative is placed before the old assignment, in order to avoid
+			// inconsistencies in case of self-assignments (i.e. "y := y * 2" would
+			// invalidate the derivative if placed before "y' := y' * 2").
+			builder.setInsertionPoint(getOperation());
+
+			return getImpl()->derive(getOperation(), builder, derivatives);
+		}
+	};
+
+	namespace detail
+	{
+		struct HeapAllocatorTraits
+		{
 			static llvm::StringRef getAutoFreeAttrName()
 			{
-				return HeapAllocatorTraits::getAutoFreeAttrName();
+				return "auto_free";
 			}
 
-			virtual bool shouldBeFreed(mlir::Operation* op) const
+			struct Concept
 			{
-				llvm::StringRef attrName = getAutoFreeAttrName();
-				return op->template getAttrOfType<mlir::BoolAttr>(attrName).getValue();
+				Concept() = default;
+				Concept(const Concept& other) = default;
+				Concept(Concept&& other) = default;
+				Concept& operator=(Concept&& other) = default;
+				virtual ~Concept() = default;
+				Concept& operator=(const Concept& other) = default;
+
+				static llvm::StringRef getAutoFreeAttrName()
+				{
+					return HeapAllocatorTraits::getAutoFreeAttrName();
+				}
+
+				virtual bool shouldBeFreed(mlir::Operation* op) const
+				{
+					llvm::StringRef attrName = getAutoFreeAttrName();
+					return op->template getAttrOfType<mlir::BoolAttr>(attrName).getValue();
+				}
+
+				void setAsAutomaticallyFreed(mlir::Operation* op)
+				{
+					auto attr = mlir::BoolAttr::get(op->getContext(), true);
+					op->setAttr(getAutoFreeAttrName(), attr);
+				}
+
+				void setAsManuallyFreed(mlir::Operation* op)
+				{
+					auto attr = mlir::BoolAttr::get(op->getContext(), false);
+					op->setAttr(getAutoFreeAttrName(), attr);
+				}
+			};
+
+			template <typename ConcreteOp>
+			struct Model : public Concept
+			{
+				bool shouldBeFreed(mlir::Operation* op) const override
+				{
+					llvm::StringRef attrName = getAutoFreeAttrName();
+					return op->template getAttrOfType<mlir::BoolAttr>(attrName).getValue();
+				}
+			};
+
+			template<typename ConcreteOp>
+			class FallbackModel : public Concept
+			{
+				public:
+				FallbackModel() = default;
+
+				bool shouldBeFreed(mlir::Operation* op) const override
+				{
+					return true;
+				}
+			};
+		};
+	}
+
+	class HeapAllocator : public mlir::OpInterface<HeapAllocator, detail::HeapAllocatorTraits>
+	{
+		public:
+		using OpInterface<HeapAllocator, detail::HeapAllocatorTraits>::OpInterface;
+
+		template <typename ConcreteOp>
+		struct HeapAllocatorTrait : public mlir::OpInterface<HeapAllocator, detail::HeapAllocatorTraits>::Trait<ConcreteOp>
+		{
+			static llvm::StringRef getAutoFreeAttrName()
+			{
+				return detail::HeapAllocatorTraits::getAutoFreeAttrName();
 			}
 
-			void setAsAutomaticallyFreed(mlir::Operation* op)
+			bool shouldBeFreed()
 			{
-				auto attr = mlir::BoolAttr::get(op->getContext(), true);
-				op->setAttr(getAutoFreeAttrName(), attr);
+				mlir::Operation* op = (*static_cast<ConcreteOp*>(this)).getOperation();
+				return mlir::cast<HeapAllocator>(op).shouldBeFreed();
 			}
 
-			void setAsManuallyFreed(mlir::Operation* op)
+			void setAsAutomaticallyFreed()
 			{
-				auto attr = mlir::BoolAttr::get(op->getContext(), false);
-				op->setAttr(getAutoFreeAttrName(), attr);
+				mlir::Operation* op = (*static_cast<ConcreteOp*>(this)).getOperation();
+				return mlir::cast<HeapAllocator>(op).setAsAutomaticallyFreed();
+			}
+
+			void setAsManuallyFreed()
+			{
+				mlir::Operation* op = (*static_cast<ConcreteOp*>(this)).getOperation();
+				return mlir::cast<HeapAllocator>(op).setAsManuallyFreed();
 			}
 		};
 
 		template <typename ConcreteOp>
-		struct Model : public Concept
-		{
-			bool shouldBeFreed(mlir::Operation* op) const override
-			{
-				llvm::StringRef attrName = getAutoFreeAttrName();
-				return op->template getAttrOfType<mlir::BoolAttr>(attrName).getValue();
-			}
-		};
+		struct Trait : public HeapAllocatorTrait<ConcreteOp> {};
 
-		template<typename ConcreteOp>
-		class FallbackModel : public Concept
-		{
-			public:
-			FallbackModel() = default;
-
-			bool shouldBeFreed(mlir::Operation* op) const override
-			{
-				return true;
-			}
-		};
-	};
-}
-
-class HeapAllocator : public mlir::OpInterface<HeapAllocator, detail::HeapAllocatorTraits>
-{
-	public:
-	using OpInterface<HeapAllocator, detail::HeapAllocatorTraits>::OpInterface;
-
-	template <typename ConcreteOp>
-	struct HeapAllocatorTrait : public mlir::OpInterface<HeapAllocator, detail::HeapAllocatorTraits>::Trait<ConcreteOp>
-	{
 		static llvm::StringRef getAutoFreeAttrName()
 		{
 			return detail::HeapAllocatorTraits::getAutoFreeAttrName();
@@ -522,43 +726,17 @@ class HeapAllocator : public mlir::OpInterface<HeapAllocator, detail::HeapAlloca
 
 		bool shouldBeFreed()
 		{
-			mlir::Operation* op = (*static_cast<ConcreteOp*>(this)).getOperation();
-			return mlir::cast<HeapAllocator>(op).shouldBeFreed();
+			return getImpl()->shouldBeFreed(getOperation());
 		}
 
 		void setAsAutomaticallyFreed()
 		{
-			mlir::Operation* op = (*static_cast<ConcreteOp*>(this)).getOperation();
-			return mlir::cast<HeapAllocator>(op).setAsAutomaticallyFreed();
+			getImpl()->setAsAutomaticallyFreed(getOperation());
 		}
 
 		void setAsManuallyFreed()
 		{
-			mlir::Operation* op = (*static_cast<ConcreteOp*>(this)).getOperation();
-			return mlir::cast<HeapAllocator>(op).setAsManuallyFreed();
+			getImpl()->setAsManuallyFreed(getOperation());
 		}
 	};
-
-	template <typename ConcreteOp>
-	struct Trait : public HeapAllocatorTrait<ConcreteOp> {};
-
-	static llvm::StringRef getAutoFreeAttrName()
-	{
-		return detail::HeapAllocatorTraits::getAutoFreeAttrName();
-	}
-
-	bool shouldBeFreed()
-	{
-		return getImpl()->shouldBeFreed(getOperation());
-	}
-
-	void setAsAutomaticallyFreed()
-	{
-		getImpl()->setAsAutomaticallyFreed(getOperation());
-	}
-
-	void setAsManuallyFreed()
-	{
-		getImpl()->setAsManuallyFreed(getOperation());
-	}
-};
+}

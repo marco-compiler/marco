@@ -55,6 +55,140 @@ namespace modelica::frontend::typecheck::detail
 		}
 	};
 
+	struct AbsFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return Type(args[0]->getType().get<BuiltInType>());
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
+	struct AcosFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
+	struct AsinFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
+	struct AtanFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
+	struct Atan2Function : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+			ranks.push_back(0);
+		}
+	};
+
+	struct CosFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
+	struct CoshFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
 	/**
 	 * Returns a square matrix with the elements of a vector on the
 	 * diagonal and all other elements set to zero.
@@ -77,6 +211,25 @@ namespace modelica::frontend::typecheck::detail
 		{
 			// 1D array as input
 			ranks.push_back(1);
+		}
+	};
+
+	struct ExpFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
 		}
 	};
 
@@ -128,6 +281,44 @@ namespace modelica::frontend::typecheck::detail
 			ranks.push_back(0); // x1
 			ranks.push_back(0); // x2
 			ranks.push_back(0); // n
+		}
+	};
+
+	struct LogFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
+	struct Log10Function : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
 		}
 	};
 
@@ -284,6 +475,63 @@ namespace modelica::frontend::typecheck::detail
 		}
 	};
 
+	struct SignFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<int>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
+	struct SinFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
+	struct SinhFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
 	/**
 	 * If there is a single array argument, then returns a 1D array containing
 	 * the dimension sizes of A. If a second scalar argument is provided, only
@@ -314,6 +562,25 @@ namespace modelica::frontend::typecheck::detail
 
 			if (argsCount == 2)
 				ranks.push_back(0);
+		}
+	};
+
+	struct SqrtFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
 		}
 	};
 
@@ -361,6 +628,44 @@ namespace modelica::frontend::typecheck::detail
 		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
 		{
 			ranks.push_back(2);
+		}
+	};
+
+	struct TanFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
+		}
+	};
+
+	struct TanhFunction : public BuiltInFunction
+	{
+		[[nodiscard]] llvm::Optional<Type> resultType(
+				llvm::ArrayRef<std::unique_ptr<Expression>> args) const override
+		{
+			return makeType<float>();
+		}
+
+		[[nodiscard]] bool canBeCalledElementWise() const override
+		{
+			return true;
+		}
+
+		void getArgsExpectedRanks(unsigned int argsCount, llvm::SmallVectorImpl<long>& ranks) const override
+		{
+			ranks.push_back(0);
 		}
 	};
 
@@ -427,18 +732,34 @@ TypeChecker::TypeChecker()
 {
 	using namespace typecheck::detail;
 
+	builtInFunctions["abs"] = std::make_unique<AbsFunction>();
+	builtInFunctions["acos"] = std::make_unique<AcosFunction>();
+	builtInFunctions["asin"] = std::make_unique<AsinFunction>();
+	builtInFunctions["atan"] = std::make_unique<AtanFunction>();
+	builtInFunctions["atan2"] = std::make_unique<Atan2Function>();
+	builtInFunctions["cos"] = std::make_unique<CosFunction>();
+	builtInFunctions["cosh"] = std::make_unique<CoshFunction>();
 	builtInFunctions["der"] = std::make_unique<DerFunction>();
 	builtInFunctions["diagonal"] = std::make_unique<DiagonalFunction>();
+	builtInFunctions["exp"] = std::make_unique<ExpFunction>();
 	builtInFunctions["identity"] = std::make_unique<IdentityFunction>();
 	builtInFunctions["linspace"] = std::make_unique<LinspaceFunction>();
+	builtInFunctions["log"] = std::make_unique<LogFunction>();
+	builtInFunctions["log10"] = std::make_unique<Log10Function>();
 	builtInFunctions["max"] = std::make_unique<MaxFunction>();
 	builtInFunctions["min"] = std::make_unique<MinFunction>();
 	builtInFunctions["ndims"] = std::make_unique<NdimsFunction>();
 	builtInFunctions["ones"] = std::make_unique<OnesFunction>();
 	builtInFunctions["product"] = std::make_unique<ProductFunction>();
+	builtInFunctions["sign"] = std::make_unique<SignFunction>();
+	builtInFunctions["sin"] = std::make_unique<SinFunction>();
+	builtInFunctions["sinh"] = std::make_unique<SinhFunction>();
 	builtInFunctions["size"] = std::make_unique<SizeFunction>();
+	builtInFunctions["sqrt"] = std::make_unique<SqrtFunction>();
 	builtInFunctions["sum"] = std::make_unique<SumFunction>();
 	builtInFunctions["symmetric"] = std::make_unique<SymmetricFunction>();
+	builtInFunctions["tan"] = std::make_unique<TanFunction>();
+	builtInFunctions["tanh"] = std::make_unique<TanhFunction>();
 	builtInFunctions["transpose"] = std::make_unique<TransposeFunction>();
 	builtInFunctions["zeros"] = std::make_unique<ZerosFunction>();
 }

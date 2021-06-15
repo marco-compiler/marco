@@ -13,7 +13,7 @@ TEST(Runtime, clone_ai1_ai1)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai1_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(bool), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (bool) source);
@@ -30,7 +30,7 @@ TEST(Runtime, clone_ai1_ai32)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai1_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(bool), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (bool) source);
@@ -47,7 +47,7 @@ TEST(Runtime, clone_ai1_ai64)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai1_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(bool), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (bool) source);
@@ -64,7 +64,7 @@ TEST(Runtime, clone_ai1_af32)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai1_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(bool), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (bool) source);
@@ -81,7 +81,7 @@ TEST(Runtime, clone_ai1_af64)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai1_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(bool), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (bool) source);
@@ -98,7 +98,7 @@ TEST(Runtime, clone_ai32_ai1)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai32_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(int), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (int) source);
@@ -115,7 +115,7 @@ TEST(Runtime, clone_ai32_ai32)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai32_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(int), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (int) source);
@@ -132,7 +132,7 @@ TEST(Runtime, clone_ai32_ai64)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai32_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(int), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (int) source);
@@ -149,7 +149,7 @@ TEST(Runtime, clone_ai32_af32)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai32_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(int), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (int) source);
@@ -166,7 +166,7 @@ TEST(Runtime, clone_ai32_af64)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai32_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(int), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (int) source);
@@ -183,7 +183,7 @@ TEST(Runtime, clone_ai64_ai1)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai64_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(long), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (long) source);
@@ -200,7 +200,7 @@ TEST(Runtime, clone_ai64_ai32)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai64_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(long), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (long) source);
@@ -217,7 +217,7 @@ TEST(Runtime, clone_ai64_ai64)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai64_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(long), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (long) source);
@@ -234,7 +234,7 @@ TEST(Runtime, clone_ai64_af32)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai64_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(long), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (long) source);
@@ -251,7 +251,7 @@ TEST(Runtime, clone_ai64_af64)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Mclone_ai64_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(long), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_EQ(destination, (long) source);
@@ -268,7 +268,7 @@ TEST(Runtime, clone_af32_ai1)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Mclone_af32_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(float), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_FLOAT_EQ(destination, (float) source);
@@ -285,7 +285,7 @@ TEST(Runtime, clone_af32_ai32)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Mclone_af32_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(float), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_FLOAT_EQ(destination, (float) source);
@@ -302,7 +302,7 @@ TEST(Runtime, clone_af32_ai64)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Mclone_af32_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(float), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_FLOAT_EQ(destination, (float) source);
@@ -319,7 +319,7 @@ TEST(Runtime, clone_af32_af32)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Mclone_af32_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(float), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_FLOAT_EQ(destination, (float) source);
@@ -336,7 +336,7 @@ TEST(Runtime, clone_af32_af64)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Mclone_af32_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(float), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_FLOAT_EQ(destination, (float) source);
@@ -353,7 +353,7 @@ TEST(Runtime, clone_af64_ai1)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Mclone_af64_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(double), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_DOUBLE_EQ(destination, (double) source);
@@ -370,7 +370,7 @@ TEST(Runtime, clone_af64_ai32)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Mclone_af64_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(double), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_DOUBLE_EQ(destination, source);
@@ -387,7 +387,7 @@ TEST(Runtime, clone_af64_ai64)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Mclone_af64_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(double), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_DOUBLE_EQ(destination, source);
@@ -404,7 +404,7 @@ TEST(Runtime, clone_af64_af32)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Mclone_af64_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(double), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_DOUBLE_EQ(destination, source);
@@ -421,7 +421,7 @@ TEST(Runtime, clone_af64_af64)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 2, 3 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Mclone_af64_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(clone, void, ARRAY(double), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (const auto& [source, destination] : llvm::zip(sourceDescriptor, destinationDescriptor))
 		EXPECT_DOUBLE_EQ(destination, source);

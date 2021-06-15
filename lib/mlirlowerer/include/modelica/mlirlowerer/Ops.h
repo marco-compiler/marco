@@ -615,6 +615,7 @@ namespace modelica::codegen
 																mlir::OpTrait::VariadicOperands,
 																mlir::MemoryEffectOpInterface::Trait,
 																mlir::CallOpInterface::Trait,
+																VectorizableOpInterface::Trait,
 																InvertibleInterface::Trait>
 	{
 		public:
@@ -634,6 +635,10 @@ namespace modelica::codegen
 
 		mlir::CallInterfaceCallable getCallableForCallee();
 		mlir::Operation::operand_range getArgOperands();
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
 		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
 
@@ -2096,6 +2101,648 @@ namespace modelica::codegen
 		mlir::Type resultType();
 		mlir::Value base();
 		mlir::Value exponent();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::AbsOp
+	//===----------------------------------------------------------------------===//
+
+	class AbsOp;
+
+	class AbsOpAdaptor : public OpAdaptor<AbsOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class AbsOp : public mlir::Op<AbsOp,
+															 mlir::OpTrait::OneOperand,
+															 mlir::OpTrait::OneResult,
+															 VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = AbsOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.abs";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::SignOp
+	//===----------------------------------------------------------------------===//
+
+	class SignOp;
+
+	class SignOpAdaptor : public OpAdaptor<SignOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class SignOp : public mlir::Op<SignOp,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult,
+																VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = SignOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.sign";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::SqrtOp
+	//===----------------------------------------------------------------------===//
+
+	class SqrtOp;
+
+	class SqrtOpAdaptor : public OpAdaptor<SqrtOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class SqrtOp : public mlir::Op<SqrtOp,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult,
+																VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = SqrtOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.sqrt";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::SinOp
+	//===----------------------------------------------------------------------===//
+
+	class SinOp;
+
+	class SinOpAdaptor : public OpAdaptor<SinOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class SinOp : public mlir::Op<SinOp,
+															 mlir::OpTrait::OneOperand,
+															 mlir::OpTrait::OneResult,
+															 VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = SinOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.sin";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::CosOp
+	//===----------------------------------------------------------------------===//
+
+	class CosOp;
+
+	class CosOpAdaptor : public OpAdaptor<CosOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class CosOp : public mlir::Op<CosOp,
+															 mlir::OpTrait::OneOperand,
+															 mlir::OpTrait::OneResult,
+															 VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = CosOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.cos";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::TanOp
+	//===----------------------------------------------------------------------===//
+
+	class TanOp;
+
+	class TanOpAdaptor : public OpAdaptor<TanOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class TanOp : public mlir::Op<TanOp,
+															 mlir::OpTrait::OneOperand,
+															 mlir::OpTrait::OneResult,
+															 VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = TanOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.tan";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::AsinOp
+	//===----------------------------------------------------------------------===//
+
+	class AsinOp;
+
+	class AsinOpAdaptor : public OpAdaptor<AsinOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class AsinOp : public mlir::Op<AsinOp,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult,
+																VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = AsinOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.asin";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::AcosOp
+	//===----------------------------------------------------------------------===//
+
+	class AcosOp;
+
+	class AcosOpAdaptor : public OpAdaptor<AcosOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class AcosOp : public mlir::Op<AcosOp,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult,
+																VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = AcosOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.acos";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::AtanOp
+	//===----------------------------------------------------------------------===//
+
+	class AtanOp;
+
+	class AtanOpAdaptor : public OpAdaptor<AtanOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class AtanOp : public mlir::Op<AtanOp,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult,
+																VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = AtanOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.atan";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::Atan2Op
+	//===----------------------------------------------------------------------===//
+
+	class Atan2Op;
+
+	class Atan2OpAdaptor : public OpAdaptor<Atan2Op>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value y();
+		mlir::Value x();
+	};
+
+	class Atan2Op : public mlir::Op<Atan2Op,
+																 mlir::OpTrait::NOperands<2>::Impl,
+																 mlir::OpTrait::OneResult,
+																 VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = Atan2OpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.atan2";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value y, mlir::Value x);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value y();
+		mlir::Value x();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::SinhOp
+	//===----------------------------------------------------------------------===//
+
+	class SinhOp;
+
+	class SinhOpAdaptor : public OpAdaptor<SinhOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class SinhOp : public mlir::Op<SinhOp,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult,
+																VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = SinhOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.sinh";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::CoshOp
+	//===----------------------------------------------------------------------===//
+
+	class CoshOp;
+
+	class CoshOpAdaptor : public OpAdaptor<CoshOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class CoshOp : public mlir::Op<CoshOp,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult,
+																VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = CoshOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.cosh";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::TanhOp
+	//===----------------------------------------------------------------------===//
+
+	class TanhOp;
+
+	class TanhOpAdaptor : public OpAdaptor<TanhOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class TanhOp : public mlir::Op<TanhOp,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult,
+																VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = TanhOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.tanh";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::ExpOp
+	//===----------------------------------------------------------------------===//
+
+	class ExpOp;
+
+	class ExpOpAdaptor : public OpAdaptor<ExpOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value exponent();
+	};
+
+	class ExpOp : public mlir::Op<ExpOp,
+															 mlir::OpTrait::OneOperand,
+															 mlir::OpTrait::OneResult,
+															 VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = ExpOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.exp";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value exponent);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value exponent();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::LogOp
+	//===----------------------------------------------------------------------===//
+
+	class LogOp;
+
+	class LogOpAdaptor : public OpAdaptor<LogOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class LogOp : public mlir::Op<LogOp,
+															 mlir::OpTrait::OneOperand,
+															 mlir::OpTrait::OneResult,
+															 VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = LogOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.log";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::Log10Op
+	//===----------------------------------------------------------------------===//
+
+	class Log10Op;
+
+	class Log10OpAdaptor : public OpAdaptor<Log10Op>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value operand();
+	};
+
+	class Log10Op : public mlir::Op<Log10Op,
+																 mlir::OpTrait::OneOperand,
+																 mlir::OpTrait::OneResult,
+																 VectorizableOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = Log10OpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.log10";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::ValueRange getArgs();
+		unsigned int getArgExpectedRank(unsigned int argIndex);
+		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::Type resultType();
+		mlir::Value operand();
 	};
 
 	//===----------------------------------------------------------------------===//

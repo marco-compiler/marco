@@ -44,6 +44,7 @@
 #define TYPE_CPP(n, type) type ##_CPP
 #define TYPES_CPP(...) APPLY_ALL(TYPE_CPP, __VA_ARGS__)
 
+#define void_MANGLED _void
 #define bool_MANGLED _i1
 #define int_MANGLED _i32
 #define long_MANGLED _i64
@@ -70,15 +71,15 @@
 #define MLIR_PREFIX _mlir_ciface_
 
 #define RUNTIME_FUNC_DECL(name, returnType, ...) \
-	extern "C" returnType NAME_MANGLED(name, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))); \
-  extern "C" returnType CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)));
+	extern "C" returnType NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))); \
+  extern "C" returnType CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, returnType, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)));
 
 #define RUNTIME_FUNC_DEF(name, returnType, ...) \
-	returnType NAME_MANGLED(name, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))) \
+	returnType NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))) \
 	{ \
 		return name(ARGS_NAMES(__VA_ARGS__)); \
 	} \
-	returnType CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))) \
+	returnType CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, returnType, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))) \
 	{ \
 		return name(ARGS_NAMES(__VA_ARGS__)); \
 	}

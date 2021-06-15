@@ -2,6 +2,93 @@
 #include <numeric>
 
 /**
+ * Get the absolute value.
+ *
+ * @tparam T		 data type
+ * @param value  value
+ * @return absolute value
+ */
+template<typename T>
+inline T abs(T value)
+{
+	if (value >= 0)
+		return value;
+
+	return -1 * value;
+}
+
+RUNTIME_FUNC_DEF(abs, bool, bool)
+RUNTIME_FUNC_DEF(abs, int, int)
+RUNTIME_FUNC_DEF(abs, long, long)
+RUNTIME_FUNC_DEF(abs, float, float)
+RUNTIME_FUNC_DEF(abs, double, double)
+
+/**
+ * Get the inverse cosine of a value.
+ *
+ * @tparam T		 data type
+ * @param value  value
+ * @return acos
+ */
+template<typename T>
+inline double acos(T value)
+{
+	return std::acos(value);
+}
+
+RUNTIME_FUNC_DEF(acos, float, float)
+RUNTIME_FUNC_DEF(acos, double, double)
+
+/**
+ * Get the inverse sine of a value.
+ *
+ * @tparam T		 data type
+ * @param value  value
+ * @return asin
+ */
+template<typename T>
+inline double asin(T value)
+{
+	return std::asin(value);
+}
+
+RUNTIME_FUNC_DEF(asin, float, float)
+RUNTIME_FUNC_DEF(asin, double, double)
+
+/**
+ * Get the inverse tangent of a value.
+ *
+ * @tparam T		 data type
+ * @param value  value
+ * @return atan
+ */
+template<typename T>
+inline double atan(T value)
+{
+	return std::atan(value);
+}
+
+RUNTIME_FUNC_DEF(atan, float, float)
+RUNTIME_FUNC_DEF(atan, double, double)
+
+/**
+ * Get the inverse tangent of a value.
+ *
+ * @tparam T	data type
+ * @param y		y value
+ * @param x		x value
+ * @return atan2
+ */
+template<typename T>
+inline double atan2(T y, T x)
+{
+	return std::atan2(y, x);
+}
+
+RUNTIME_FUNC_DEF(atan2, float, float, float)
+RUNTIME_FUNC_DEF(atan2, double, double, double)
+
+/**
  * Clone an array into another one.
  *
  * @tparam T 					destination array type
@@ -60,62 +147,36 @@ RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(double))
 
 /**
- * Set all the elements of an array to a given value.
+ * Get the cosine of a value.
  *
- * @tparam T 		 data type
- * @param array  array to be populated
- * @param value  value to be set
+ * @tparam T		 data type
+ * @param value  value
+ * @return cos
  */
 template<typename T>
-inline void fill(UnsizedArrayDescriptor<T> array, T value)
+inline double cos(T value)
 {
-	for (auto& element : array)
-		element = value;
+	return std::cos(value);
 }
 
-RUNTIME_FUNC_DEF(fill, void, ARRAY(bool), bool)
-RUNTIME_FUNC_DEF(fill, void, ARRAY(int), int)
-RUNTIME_FUNC_DEF(fill, void, ARRAY(long), long)
-RUNTIME_FUNC_DEF(fill, void, ARRAY(float), float)
-RUNTIME_FUNC_DEF(fill, void, ARRAY(double), double)
+RUNTIME_FUNC_DEF(cos, float, float)
+RUNTIME_FUNC_DEF(cos, double, double)
 
 /**
- * Set a multi-dimensional array to an identity like matrix.
+ * Get the hyperbolic cosine of a value.
  *
- * @tparam T 	   data type
- * @param array  array to be populated
+ * @tparam T		 data type
+ * @param value  value
+ * @return cosh
  */
 template<typename T>
-inline void identity(UnsizedArrayDescriptor<T> array)
+inline double cosh(T value)
 {
-	// Check that the array is square-like (all the dimensions have the same
-	// size). Note that the implementation is generalized to n-D dimensions,
-	// while the "identity" Modelica function is defined only for 2-D arrays.
-	// Still, the implementation complexity would be the same.
-
-	assert(array.hasSameSizes());
-
-	// Directly use the iterators, as we need to determine the current indexes
-	// so that we can place a 1 if the access is on the matrix diagonal.
-
-	for (auto it = array.begin(), end = array.end(); it != end; ++it)
-	{
-		auto indexes = it.getCurrentIndexes();
-		assert(!indexes.empty());
-
-		bool isIdentityAccess = llvm::all_of(indexes, [&indexes](const auto& i) {
-			return i == indexes[0];
-		});
-
-		*it = isIdentityAccess ? 1 : 0;
-	}
+	return std::cosh(value);
 }
 
-RUNTIME_FUNC_DEF(identity, void, ARRAY(bool))
-RUNTIME_FUNC_DEF(identity, void, ARRAY(int))
-RUNTIME_FUNC_DEF(identity, void, ARRAY(long))
-RUNTIME_FUNC_DEF(identity, void, ARRAY(float))
-RUNTIME_FUNC_DEF(identity, void, ARRAY(double))
+RUNTIME_FUNC_DEF(cosh, float, float)
+RUNTIME_FUNC_DEF(cosh, double, double)
 
 /**
  * Place some values on the diagonal of a matrix, and set all the other
@@ -190,42 +251,78 @@ RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(double))
 
 /**
- * Set all the elements of an array to zero.
+ * Get the value e at the power of a value.
  *
- * @tparam T data type
- * @param array   array to be populated
+ * @tparam T		 		data type
+ * @param exponent	exponent
+ * @return exp
  */
 template<typename T>
-inline void zeros(UnsizedArrayDescriptor<T> array)
+inline double exp(T value)
 {
-	for (auto& element : array)
-		element = 0;
+	return std::exp(value);
 }
 
-RUNTIME_FUNC_DEF(zeros, void, ARRAY(bool))
-RUNTIME_FUNC_DEF(zeros, void, ARRAY(int))
-RUNTIME_FUNC_DEF(zeros, void, ARRAY(long))
-RUNTIME_FUNC_DEF(zeros, void, ARRAY(float))
-RUNTIME_FUNC_DEF(zeros, void, ARRAY(double))
+RUNTIME_FUNC_DEF(exp, float, float)
+RUNTIME_FUNC_DEF(exp, double, double)
 
 /**
- * Set all the elements of an array to ones.
+ * Set all the elements of an array to a given value.
  *
- * @tparam T data type
- * @param array   array to be populated
+ * @tparam T 		 data type
+ * @param array  array to be populated
+ * @param value  value to be set
  */
 template<typename T>
-inline void ones(UnsizedArrayDescriptor<T> array)
+inline void fill(UnsizedArrayDescriptor<T> array, T value)
 {
 	for (auto& element : array)
-		element = 1;
+		element = value;
 }
 
-RUNTIME_FUNC_DEF(ones, void, ARRAY(bool))
-RUNTIME_FUNC_DEF(ones, void, ARRAY(int))
-RUNTIME_FUNC_DEF(ones, void, ARRAY(long))
-RUNTIME_FUNC_DEF(ones, void, ARRAY(float))
-RUNTIME_FUNC_DEF(ones, void, ARRAY(double))
+RUNTIME_FUNC_DEF(fill, void, ARRAY(bool), bool)
+RUNTIME_FUNC_DEF(fill, void, ARRAY(int), int)
+RUNTIME_FUNC_DEF(fill, void, ARRAY(long), long)
+RUNTIME_FUNC_DEF(fill, void, ARRAY(float), float)
+RUNTIME_FUNC_DEF(fill, void, ARRAY(double), double)
+
+/**
+ * Set a multi-dimensional array to an identity like matrix.
+ *
+ * @tparam T 	   data type
+ * @param array  array to be populated
+ */
+template<typename T>
+inline void identity(UnsizedArrayDescriptor<T> array)
+{
+	// Check that the array is square-like (all the dimensions have the same
+	// size). Note that the implementation is generalized to n-D dimensions,
+	// while the "identity" Modelica function is defined only for 2-D arrays.
+	// Still, the implementation complexity would be the same.
+
+	assert(array.hasSameSizes());
+
+	// Directly use the iterators, as we need to determine the current indexes
+	// so that we can place a 1 if the access is on the matrix diagonal.
+
+	for (auto it = array.begin(), end = array.end(); it != end; ++it)
+	{
+		auto indexes = it.getCurrentIndexes();
+		assert(!indexes.empty());
+
+		bool isIdentityAccess = llvm::all_of(indexes, [&indexes](const auto& i) {
+			return i == indexes[0];
+		});
+
+		*it = isIdentityAccess ? 1 : 0;
+	}
+}
+
+RUNTIME_FUNC_DEF(identity, void, ARRAY(bool))
+RUNTIME_FUNC_DEF(identity, void, ARRAY(int))
+RUNTIME_FUNC_DEF(identity, void, ARRAY(long))
+RUNTIME_FUNC_DEF(identity, void, ARRAY(float))
+RUNTIME_FUNC_DEF(identity, void, ARRAY(double))
 
 /**
  * Populate a 1-D array with equally spaced elements.
@@ -259,43 +356,32 @@ RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), float, float)
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), double, double)
 
 /**
- * Get the min value of an array.
+ * Get the natural logarithm of a value.
  *
- * @tparam T 		 data type
- * @param array	 array
- * @return minimum value
+ * @tparam T		 data type
+ * @param value  value
+ * @return log
  */
 template<typename T>
-inline T min(UnsizedArrayDescriptor<T> array)
+inline double log(T value)
 {
-	return *std::min_element(array.begin(), array.end());
+	assert(value > 0);
+	return std::log(value);
 }
-
-RUNTIME_FUNC_DEF(min, bool, ARRAY(bool))
-RUNTIME_FUNC_DEF(min, int, ARRAY(int))
-RUNTIME_FUNC_DEF(min, long, ARRAY(long))
-RUNTIME_FUNC_DEF(min, float, ARRAY(float))
-RUNTIME_FUNC_DEF(min, double, ARRAY(double))
 
 /**
- * Get the min among two values.
+ * Get the base 10 logarithm of a value.
  *
- * @tparam T  data type
- * @param x   left-hand side value
- * @param y   right-hand side value
- * @return minimum value
+ * @tparam T		 data type
+ * @param value  value
+ * @return log10
  */
 template<typename T>
-inline T min(T x, T y)
+inline double log10(T value)
 {
-	return std::min(x, y);
+	assert(value > 0);
+	return std::log10(value);
 }
-
-RUNTIME_FUNC_DEF(min, bool, bool, bool)
-RUNTIME_FUNC_DEF(min, int, int, int)
-RUNTIME_FUNC_DEF(min, long, long, long)
-RUNTIME_FUNC_DEF(min, float, float, float)
-RUNTIME_FUNC_DEF(min, double, double, double)
 
 /**
  * Get the max value of an array.
@@ -337,23 +423,62 @@ RUNTIME_FUNC_DEF(max, float, float, float)
 RUNTIME_FUNC_DEF(max, double, double, double)
 
 /**
- * Sum all the elements of an array.
+ * Get the min value of an array.
  *
  * @tparam T 		 data type
- * @param array  array
- * @return sum of all the values
+ * @param array	 array
+ * @return minimum value
  */
 template<typename T>
-inline T sum(UnsizedArrayDescriptor<T> array)
+inline T min(UnsizedArrayDescriptor<T> array)
 {
-	return std::accumulate(array.begin(), array.end(), 0, std::plus<T>());
+	return *std::min_element(array.begin(), array.end());
 }
 
-RUNTIME_FUNC_DEF(sum, bool, ARRAY(bool))
-RUNTIME_FUNC_DEF(sum, int, ARRAY(int))
-RUNTIME_FUNC_DEF(sum, long, ARRAY(long))
-RUNTIME_FUNC_DEF(sum, float, ARRAY(float))
-RUNTIME_FUNC_DEF(sum, double, ARRAY(double))
+RUNTIME_FUNC_DEF(min, bool, ARRAY(bool))
+RUNTIME_FUNC_DEF(min, int, ARRAY(int))
+RUNTIME_FUNC_DEF(min, long, ARRAY(long))
+RUNTIME_FUNC_DEF(min, float, ARRAY(float))
+RUNTIME_FUNC_DEF(min, double, ARRAY(double))
+
+/**
+ * Get the min among two values.
+ *
+ * @tparam T  data type
+ * @param x   left-hand side value
+ * @param y   right-hand side value
+ * @return minimum value
+ */
+template<typename T>
+inline T min(T x, T y)
+{
+	return std::min(x, y);
+}
+
+RUNTIME_FUNC_DEF(min, bool, bool, bool)
+RUNTIME_FUNC_DEF(min, int, int, int)
+RUNTIME_FUNC_DEF(min, long, long, long)
+RUNTIME_FUNC_DEF(min, float, float, float)
+RUNTIME_FUNC_DEF(min, double, double, double)
+
+/**
+ * Set all the elements of an array to ones.
+ *
+ * @tparam T data type
+ * @param array   array to be populated
+ */
+template<typename T>
+inline void ones(UnsizedArrayDescriptor<T> array)
+{
+	for (auto& element : array)
+		element = 1;
+}
+
+RUNTIME_FUNC_DEF(ones, void, ARRAY(bool))
+RUNTIME_FUNC_DEF(ones, void, ARRAY(int))
+RUNTIME_FUNC_DEF(ones, void, ARRAY(long))
+RUNTIME_FUNC_DEF(ones, void, ARRAY(float))
+RUNTIME_FUNC_DEF(ones, void, ARRAY(double))
 
 /**
  * Multiply all the elements of an array.
@@ -373,6 +498,204 @@ RUNTIME_FUNC_DEF(product, int, ARRAY(int))
 RUNTIME_FUNC_DEF(product, long, ARRAY(long))
 RUNTIME_FUNC_DEF(product, float, ARRAY(float))
 RUNTIME_FUNC_DEF(product, double, ARRAY(double))
+
+/**
+ * Get the sign of a value.
+ *
+ * @tparam T		 data type
+ * @param value  value
+ * @return 1 if value is > 0, -1 if < 0, 0 if = 0
+ */
+template<typename T>
+inline long sign(T value)
+{
+	if (value == 0)
+		return 0;
+
+	if (value > 0)
+		return 1;
+
+	return -1;
+}
+
+RUNTIME_FUNC_DEF(sign, int, bool)
+RUNTIME_FUNC_DEF(sign, int, int)
+RUNTIME_FUNC_DEF(sign, int, long)
+RUNTIME_FUNC_DEF(sign, int, float)
+RUNTIME_FUNC_DEF(sign, int, double)
+
+RUNTIME_FUNC_DEF(sign, long, bool)
+RUNTIME_FUNC_DEF(sign, long, int)
+RUNTIME_FUNC_DEF(sign, long, long)
+RUNTIME_FUNC_DEF(sign, long, float)
+RUNTIME_FUNC_DEF(sign, long, double)
+
+/**
+ * Get the sine of a value.
+ *
+ * @tparam T		 data type
+ * @param value  value
+ * @return sin
+ */
+template<typename T>
+inline double sin(T value)
+{
+	return std::sin(value);
+}
+
+RUNTIME_FUNC_DEF(sin, float, float)
+RUNTIME_FUNC_DEF(sin, double, double)
+
+/**
+ * Get the hyperbolic sine of a value.
+ *
+ * @tparam T		 data type
+ * @param value  value
+ * @return sinh
+ */
+template<typename T>
+inline double sinh(T value)
+{
+	return std::sinh(value);
+}
+
+RUNTIME_FUNC_DEF(sinh, float, float)
+RUNTIME_FUNC_DEF(sinh, double, double)
+
+/**
+ * Get the square root of a value.
+ *
+ * @tparam T		 data type
+ * @param value  value
+ * @return square root
+ */
+template<typename T>
+inline double sqrt(T value)
+{
+	assert(value >= 0);
+	return std::sqrt(value);
+}
+
+RUNTIME_FUNC_DEF(sqrt, float, float)
+RUNTIME_FUNC_DEF(sqrt, double, double)
+
+/**
+ * Sum all the elements of an array.
+ *
+ * @tparam T 		 data type
+ * @param array  array
+ * @return sum of all the values
+ */
+template<typename T>
+inline T sum(UnsizedArrayDescriptor<T> array)
+{
+	return std::accumulate(array.begin(), array.end(), 0, std::plus<T>());
+}
+
+RUNTIME_FUNC_DEF(sum, bool, ARRAY(bool))
+RUNTIME_FUNC_DEF(sum, int, ARRAY(int))
+RUNTIME_FUNC_DEF(sum, long, ARRAY(long))
+RUNTIME_FUNC_DEF(sum, float, ARRAY(float))
+RUNTIME_FUNC_DEF(sum, double, ARRAY(double))
+
+/**
+ * Populate the destination matrix so that it becomes the symmetric version
+ * of the source one, thus discarding the elements below the source diagonal.
+ *
+ * @tparam Destination	destination type
+ * @tparam Source				source type
+ * @param destination		destination matrix
+ * @param source				source matrix
+ */
+template<typename Destination, typename Source>
+void symmetric(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDescriptor<Source> source)
+{
+	// The two arrays must have exactly two dimensions
+	assert(destination.getRank() == 2);
+	assert(source.getRank() == 2);
+
+	// The two matrixes must have the same dimensions
+	assert(destination.getDimensionSize(0) == source.getDimensionSize(0));
+	assert(destination.getDimensionSize(1) == source.getDimensionSize(1));
+
+	unsigned long size = destination.getDimensionSize(0);
+
+	// Manually iterate on the dimensions, so that we can explore just half
+	// of the source matrix.
+
+	for (unsigned long i = 0; i < size; ++i)
+	{
+		for (unsigned long j = i; j < size; ++j)
+		{
+			destination.set({ i, j }, source.get(i, j));
+
+			if (i != j)
+				destination.set({ j, i }, source.get(i, j));
+		}
+	}
+}
+
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(bool))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(int))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(float))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(double))
+
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(bool))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(int))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(float))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(double))
+
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(bool))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(int))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(float))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(double))
+
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(bool))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(int))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(float))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(double))
+
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(bool))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(int))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(float))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(double))
+
+/**
+ * Get the tangent of a value.
+ *
+ * @tparam T		 data type
+ * @param value  value
+ * @return tan
+ */
+template<typename T>
+inline double tan(T value)
+{
+	return std::tan(value);
+}
+
+RUNTIME_FUNC_DEF(tan, float, float)
+RUNTIME_FUNC_DEF(tan, double, double)
+
+/**
+ * Get the hyperbolic tangent of a value.
+ *
+ * @tparam T		 data type
+ * @param value  value
+ * @return tanh
+ */
+template<typename T>
+inline double tanh(T value)
+{
+	return std::tanh(value);
+}
+
+RUNTIME_FUNC_DEF(tanh, float, float)
+RUNTIME_FUNC_DEF(tanh, double, double)
 
 /**
  * Transpose a matrix.
@@ -441,68 +764,20 @@ RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(double))
 
 /**
- * Populate the destination matrix so that it becomes the symmetric version
- * of the source one, thus discarding the elements below the source diagonal.
+ * Set all the elements of an array to zero.
  *
- * @tparam Destination	destination type
- * @tparam Source				source type
- * @param destination		destination matrix
- * @param source				source matrix
+ * @tparam T data type
+ * @param array   array to be populated
  */
-template<typename Destination, typename Source>
-void symmetric(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDescriptor<Source> source)
+template<typename T>
+inline void zeros(UnsizedArrayDescriptor<T> array)
 {
-	// The two arrays must have exactly two dimensions
-	assert(destination.getRank() == 2);
-	assert(source.getRank() == 2);
-
-	// The two matrixes must have the same dimensions
-	assert(destination.getDimensionSize(0) == source.getDimensionSize(0));
-	assert(destination.getDimensionSize(1) == source.getDimensionSize(1));
-
-	unsigned long size = destination.getDimensionSize(0);
-
-	// Manually iterate on the dimensions, so that we can explore just half
-	// of the source matrix.
-
-	for (unsigned long i = 0; i < size; ++i)
-	{
-		for (unsigned long j = i; j < size; ++j)
-		{
-			destination.set({ i, j }, source.get(i, j));
-
-			if (i != j)
-				destination.set({ j, i }, source.get(i, j));
-		}
-	}
+	for (auto& element : array)
+		element = 0;
 }
 
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(bool))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(int))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(long))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(float))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(double))
-
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(bool))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(int))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(long))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(float))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(double))
-
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(bool))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(int))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(long))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(float))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(double))
-
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(bool))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(int))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(long))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(float))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(double))
-
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(bool))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(int))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(long))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(float))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(double))
+RUNTIME_FUNC_DEF(zeros, void, ARRAY(bool))
+RUNTIME_FUNC_DEF(zeros, void, ARRAY(int))
+RUNTIME_FUNC_DEF(zeros, void, ARRAY(long))
+RUNTIME_FUNC_DEF(zeros, void, ARRAY(float))
+RUNTIME_FUNC_DEF(zeros, void, ARRAY(double))

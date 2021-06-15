@@ -1183,6 +1183,67 @@ mlir::Operation::operand_range CallOp::getArgOperands()
 	return getOperands();
 }
 
+mlir::ValueRange CallOp::getArgs()
+{
+	return args();
+}
+
+unsigned int CallOp::getArgExpectedRank(unsigned int argIndex)
+{
+	auto module = getOperation()->getParentOfType<mlir::ModuleOp>();
+	auto function = module.lookupSymbol<FunctionOp>(callee());
+
+	if (function == nullptr)
+	{
+		// If the function is not declare, then assume that the arguments types
+		// already match its hypothetical signature.
+
+		mlir::Type argType = getArgs()[argIndex].getType();
+
+		if (auto pointerType = argType.dyn_cast<PointerType>())
+			return pointerType.getRank();
+
+		return 0;
+	}
+
+	mlir::Type argType = function.getArgument(argIndex).getType();
+
+	if (auto pointerType = argType.dyn_cast<PointerType>())
+		return pointerType.getRank();
+
+	return 0;
+}
+
+mlir::ValueRange CallOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	llvm::SmallVector<mlir::Type, 3> newResultsTypes;
+
+	for (mlir::Type type : getResultTypes())
+	{
+		mlir::Type newResultType = type.cast<PointerType>().slice(indexes.size());
+
+		if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+			newResultType = pointerType.getElementType();
+
+		newResultsTypes.push_back(newResultType);
+	}
+
+	llvm::SmallVector<mlir::Value, 3> newArgs;
+
+	for (mlir::Value arg : args())
+	{
+		assert(arg.getType().isa<PointerType>());
+
+		if (arg.getType().cast<PointerType>().getRank() == indexes.size())
+			newArgs.push_back(builder.create<LoadOp>(getLoc(), arg, indexes));
+		else
+			newArgs.push_back(builder.create<SubscriptionOp>(getLoc(), arg, indexes));
+	}
+
+	auto op = builder.create<CallOp>(getLoc(), callee(), newResultsTypes, newArgs);
+	return op->getResults();
+}
+
 mlir::LogicalResult CallOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
@@ -1474,6 +1535,7 @@ void MemberStoreOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
 mlir::ParseResult MemberStoreOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
 	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	mlir::Type valueType;
 	mlir::Type memberType;
 
 	if (parser.parseOperandList(operands, 2) ||
@@ -1489,8 +1551,13 @@ mlir::ParseResult MemberStoreOp::parse(mlir::OpAsmParser& parser, mlir::Operatio
 		return parser.emitError(resultTypeLoc)
 				<< "specified type must be a member type";
 
+	if (auto castedMemberType = memberType.cast<MemberType>(); castedMemberType.getRank() != 0)
+		valueType = castedMemberType.toPointerType();
+	else
+		valueType = castedMemberType.getElementType();
+
 	if (parser.resolveOperand(operands[0], memberType, result.operands) ||
-			parser.resolveOperand(operands[1], memberType.cast<MemberType>().getElementType(), result.operands))
+			parser.resolveOperand(operands[1], valueType, result.operands))
 		return mlir::failure();
 
 	return mlir::success();
@@ -4982,6 +5049,1209 @@ mlir::Value PowOp::base()
 mlir::Value PowOp::exponent()
 {
 	return Adaptor(*this).exponent();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::AbsOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value AbsOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void AbsOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult AbsOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void AbsOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange AbsOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int AbsOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange AbsOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<AbsOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type AbsOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value AbsOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::SignOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value SignOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void SignOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult SignOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void SignOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange SignOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int SignOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange SignOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<SignOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type SignOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value SignOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::SqrtOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value SqrtOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void SqrtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult SqrtOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void SqrtOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange SqrtOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int SqrtOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange SqrtOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<SqrtOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type SqrtOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value SqrtOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::SinOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value SinOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void SinOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult SinOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void SinOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange SinOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int SinOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange SinOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<SinOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type SinOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value SinOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::CosOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value CosOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void CosOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult CosOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void CosOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange CosOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int CosOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange CosOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<CosOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type CosOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value CosOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::TanOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value TanOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void TanOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult TanOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void TanOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange TanOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int TanOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange TanOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<TanOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type TanOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value TanOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::AsinOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value AsinOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void AsinOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult AsinOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void AsinOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange AsinOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int AsinOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange AsinOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<AsinOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type AsinOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value AsinOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::AcosOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value AcosOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void AcosOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult AcosOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void AcosOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange AcosOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int AcosOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange AcosOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<AcosOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type AcosOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value AcosOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::AtanOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value AtanOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void AtanOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult AtanOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void AtanOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange AtanOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int AtanOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange AtanOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<AtanOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type AtanOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value AtanOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::Atan2Op
+//===----------------------------------------------------------------------===//
+
+mlir::Value Atan2OpAdaptor::y()
+{
+	return getValues()[0];
+}
+
+mlir::Value Atan2OpAdaptor::x()
+{
+	return getValues()[1];
+}
+
+void Atan2Op::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value y, mlir::Value x)
+{
+	state.addTypes(resultType);
+	state.addOperands(y);
+	state.addOperands(x);
+}
+
+mlir::ParseResult Atan2Op::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void Atan2Op::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName()
+					<< " " << y() << ", " << x()
+					<< " : (" << y().getType() << ", " << x().getType()
+					<< ") -> " << resultType();
+}
+
+mlir::ValueRange Atan2Op::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int Atan2Op::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange Atan2Op::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newY = builder.create<SubscriptionOp>(getLoc(), y(), indexes);
+
+	if (auto pointerType = newY.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newY = builder.create<LoadOp>(getLoc(), newY);
+
+	mlir::Value newX = builder.create<SubscriptionOp>(getLoc(), x(), indexes);
+
+	if (auto pointerType = newX.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newX = builder.create<LoadOp>(getLoc(), newX);
+
+	auto op = builder.create<Atan2Op>(getLoc(), newResultType, newY, newX);
+	return op->getResults();
+}
+
+mlir::Type Atan2Op::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value Atan2Op::y()
+{
+	return Adaptor(*this).y();
+}
+
+mlir::Value Atan2Op::x()
+{
+	return Adaptor(*this).x();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::SinhOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value SinhOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void SinhOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult SinhOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void SinhOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange SinhOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int SinhOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange SinhOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<SinhOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type SinhOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value SinhOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::CoshOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value CoshOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void CoshOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult CoshOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void CoshOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange CoshOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int CoshOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange CoshOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<CoshOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type CoshOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value CoshOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::TanhOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value TanhOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void TanhOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult TanhOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void TanhOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange TanhOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int TanhOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange TanhOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<TanhOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type TanhOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value TanhOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::ExpOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value ExpOpAdaptor::exponent()
+{
+	return getValues()[0];
+}
+
+void ExpOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value exponent)
+{
+	state.addTypes(resultType);
+	state.addOperands(exponent);
+}
+
+mlir::ParseResult ExpOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType exponent;
+	mlir::Type exponentType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(exponent) ||
+			parser.parseColon() ||
+			parser.parseType(exponentType) ||
+			parser.resolveOperand(exponent, exponentType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void ExpOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << exponent() << " : " << exponent().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange ExpOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int ExpOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange ExpOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), exponent(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<ExpOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type ExpOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value ExpOp::exponent()
+{
+	return Adaptor(*this).exponent();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::LogOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value LogOpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void LogOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult LogOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void LogOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange LogOp::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int LogOp::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange LogOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<LogOp>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type LogOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value LogOp::operand()
+{
+	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::Log10Op
+//===----------------------------------------------------------------------===//
+
+mlir::Value Log10OpAdaptor::operand()
+{
+	return getValues()[0];
+}
+
+void Log10Op::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
+{
+	state.addTypes(resultType);
+	state.addOperands(operand);
+}
+
+mlir::ParseResult Log10Op::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+	mlir::Type resultType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseArrow() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void Log10Op::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << operand() << " : " << operand().getType() << " -> " << resultType();
+}
+
+mlir::ValueRange Log10Op::getArgs()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+unsigned int Log10Op::getArgExpectedRank(unsigned int argIndex)
+{
+	return 0;
+}
+
+mlir::ValueRange Log10Op::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
+{
+	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+
+	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newResultType = pointerType.getElementType();
+
+	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
+
+	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
+
+	auto op = builder.create<Log10Op>(getLoc(), newResultType, newOperand);
+	return op->getResults();
+}
+
+mlir::Type Log10Op::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value Log10Op::operand()
+{
+	return Adaptor(*this).operand();
 }
 
 //===----------------------------------------------------------------------===//

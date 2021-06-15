@@ -506,19 +506,17 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
 	void runOnOperation() override
 	{
-		auto module = getOperation();
-		mlir::OpBuilder builder(module);
+		if (mlir::failed(createFullDerFunctions()))
+		{
+			mlir::emitError(getOperation().getLoc(), "Error in creating the functions full derivatives");
+			return signalPassFailure();
+		}
 
-		llvm::SmallVector<FunctionOp, 3> toBeDerived;
-
-		module->walk([&](FunctionOp op) {
-			if (op.hasDerivative())
-				toBeDerived.push_back(op);
-		});
-
-		for (auto& function : toBeDerived)
-			if (mlir::failed(createFullDerFunction(builder, function)))
-				return signalPassFailure();
+		if (mlir::failed(resolveTrivialDerCalls()))
+		{
+			mlir::emitError(getOperation().getLoc(), "Error in resolving the trivial derivative calls");
+			return signalPassFailure();
+		}
 
 		/*
 		mlir::ConversionTarget target(getContext());
@@ -544,6 +542,32 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 			signalPassFailure();
 		}
 		 */
+	}
+
+	mlir::LogicalResult createFullDerFunctions()
+	{
+		auto module = getOperation();
+		mlir::OpBuilder builder(module);
+
+		llvm::SmallVector<FunctionOp, 3> toBeDerived;
+
+		module->walk([&](FunctionOp op) {
+			if (op.hasDerivative())
+				toBeDerived.push_back(op);
+		});
+
+		for (auto& function : toBeDerived)
+			if (auto status = createFullDerFunction(builder, function); mlir::failed(status))
+				return status;
+
+		return mlir::success();
+	}
+
+	mlir::LogicalResult resolveTrivialDerCalls()
+	{
+		auto module = getOperation();
+
+		return mlir::success();
 	}
 };
 

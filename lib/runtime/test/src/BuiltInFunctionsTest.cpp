@@ -10,7 +10,7 @@ TEST(Runtime, fill_i1)	 // NOLINT
 	UnsizedArrayDescriptor<bool> unsized(descriptor);
 
 	bool value = true;
-	_Mfill_ai1_i1(unsized, value);
+	NAME_MANGLED(fill, void, ARRAY(bool), bool)(unsized, value);
 
 	for (const auto& element : data)
 		EXPECT_EQ(value, element);
@@ -23,7 +23,7 @@ TEST(Runtime, fill_i32)	 // NOLINT
 	UnsizedArrayDescriptor<int> unsized(descriptor);
 
 	int value = 1;
-	_Mfill_ai32_i32(unsized, value);
+	NAME_MANGLED(fill, void, ARRAY(int), int)(unsized, value);
 
 	for (const auto& element : data)
 		EXPECT_EQ(value, element);
@@ -36,7 +36,7 @@ TEST(Runtime, fill_i64)	 // NOLINT
 	UnsizedArrayDescriptor<long> unsized(descriptor);
 
 	long value = 1;
-	_Mfill_ai64_i64(unsized, value);
+	NAME_MANGLED(fill, void, ARRAY(long), long)(unsized, value);
 
 	for (const auto& element : data)
 		EXPECT_EQ(value, element);
@@ -49,7 +49,7 @@ TEST(Runtime, fill_f32)	 // NOLINT
 	UnsizedArrayDescriptor<float> unsized(descriptor);
 
 	float value = 1;
-	_Mfill_af32_f32(unsized, value);
+	NAME_MANGLED(fill, void, ARRAY(float), float)(unsized, value);
 
 	for (const auto& element : data)
 		EXPECT_EQ(value, element);
@@ -62,7 +62,7 @@ TEST(Runtime, fill_f64)	 // NOLINT
 	UnsizedArrayDescriptor<double> unsized(descriptor);
 
 	double value = 1;
-	_Mfill_af64_f64(unsized, value);
+	NAME_MANGLED(fill, void, ARRAY(double), double)(unsized, value);
 
 	for (const auto& element : data)
 		EXPECT_EQ(value, element);
@@ -76,11 +76,11 @@ TEST(Runtime, identitySquareMatrix_i1)	 // NOLINT
 	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<bool> unsized(descriptor);
 
-	_Midentity_ai1(unsized);
+	NAME_MANGLED(identity, void, ARRAY(bool))(unsized);
 
 	for (size_t i = 0; i < sizes[0]; ++i)
 		for (size_t j = 0; j < sizes[1]; j++)
-			EXPECT_EQ(data[3 * i + j], i == j ? true : false);
+			EXPECT_EQ(data[3 * i + j], i == j);
 }
 
 TEST(Runtime, identitySquareMatrix_i32)	 // NOLINT
@@ -91,7 +91,7 @@ TEST(Runtime, identitySquareMatrix_i32)	 // NOLINT
 	ArrayDescriptor<int, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<int> unsized(descriptor);
 
-	_Midentity_ai32(unsized);
+	NAME_MANGLED(identity, void, ARRAY(int))(unsized);
 
 	for (size_t i = 0; i < sizes[0]; ++i)
 		for (size_t j = 0; j < sizes[1]; j++)
@@ -106,7 +106,7 @@ TEST(Runtime, identitySquareMatrix_i64)	 // NOLINT
 	ArrayDescriptor<long, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<long> unsized(descriptor);
 
-	_Midentity_ai64(unsized);
+	NAME_MANGLED(identity, void, ARRAY(long))(unsized);
 
 	for (size_t i = 0; i < sizes[0]; ++i)
 		for (size_t j = 0; j < sizes[1]; j++)
@@ -121,7 +121,7 @@ TEST(Runtime, identitySquareMatrix_f32)	 // NOLINT
 	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<float> unsized(descriptor);
 
-	_Midentity_af32(unsized);
+	NAME_MANGLED(identity, void, ARRAY(float))(unsized);
 
 	for (size_t i = 0; i < sizes[0]; ++i)
 		for (size_t j = 0; j < sizes[1]; j++)
@@ -136,7 +136,7 @@ TEST(Runtime, identitySquareMatrix_f64)	 // NOLINT
 	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<double> unsized(descriptor);
 
-	_Midentity_af64(unsized);
+	NAME_MANGLED(identity, void, ARRAY(double))(unsized);
 
 	for (size_t i = 0; i < sizes[0]; ++i)
 		for (size_t j = 0; j < sizes[1]; j++)
@@ -155,7 +155,7 @@ TEST(Runtime, diagonalSquareMatrix_i1_i1)	 // NOLINT
 	ArrayDescriptor<bool, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai1_ai1(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(bool))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -174,7 +174,7 @@ TEST(Runtime, diagonalSquareMatrix_i1_i32)	 // NOLINT
 	ArrayDescriptor<int, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai1_ai32(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(int))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -193,7 +193,7 @@ TEST(Runtime, diagonalSquareMatrix_i1_i64)	 // NOLINT
 	ArrayDescriptor<long, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai1_ai64(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(long))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -212,7 +212,7 @@ TEST(Runtime, diagonalSquareMatrix_i1_f32)	 // NOLINT
 	ArrayDescriptor<float, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai1_af32(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(float))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -231,7 +231,7 @@ TEST(Runtime, diagonalSquareMatrix_i1_f64)	 // NOLINT
 	ArrayDescriptor<double, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai1_af64(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(bool), ARRAY(double))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -250,7 +250,7 @@ TEST(Runtime, diagonalSquareMatrix_i32_i1)	 // NOLINT
 	ArrayDescriptor<bool, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai32_ai1(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(int), ARRAY(bool))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -269,7 +269,7 @@ TEST(Runtime, diagonalSquareMatrix_i32_i32)	 // NOLINT
 	ArrayDescriptor<int, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai32_ai32(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(int), ARRAY(int))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -288,7 +288,7 @@ TEST(Runtime, diagonalSquareMatrix_i32_i64)	 // NOLINT
 	ArrayDescriptor<long, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai32_ai64(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(int), ARRAY(long))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -307,7 +307,7 @@ TEST(Runtime, diagonalSquareMatrix_i32_f32)	 // NOLINT
 	ArrayDescriptor<float, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai32_af32(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(int), ARRAY(float))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -326,7 +326,7 @@ TEST(Runtime, diagonalSquareMatrix_i32_f64)	 // NOLINT
 	ArrayDescriptor<double, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai32_af64(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(int), ARRAY(double))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -345,7 +345,7 @@ TEST(Runtime, diagonalSquareMatrix_i64_i1)	 // NOLINT
 	ArrayDescriptor<bool, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai64_ai1(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(long), ARRAY(bool))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -364,7 +364,7 @@ TEST(Runtime, diagonalSquareMatrix_i64_i32)	 // NOLINT
 	ArrayDescriptor<int, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai64_ai32(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(long), ARRAY(int))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -383,7 +383,7 @@ TEST(Runtime, diagonalSquareMatrix_i64_i64)	 // NOLINT
 	ArrayDescriptor<long, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai64_ai64(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(long), ARRAY(long))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -402,7 +402,7 @@ TEST(Runtime, diagonalSquareMatrix_i64_f32)	 // NOLINT
 	ArrayDescriptor<float, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai64_af32(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(long), ARRAY(float))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -421,7 +421,7 @@ TEST(Runtime, diagonalSquareMatrix_i64_f64)	 // NOLINT
 	ArrayDescriptor<double, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_ai64_af64(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(long), ARRAY(double))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -440,7 +440,7 @@ TEST(Runtime, diagonalSquareMatrix_f32_i1)	 // NOLINT
 	ArrayDescriptor<bool, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_af32_ai1(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(bool))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -459,7 +459,7 @@ TEST(Runtime, diagonalSquareMatrix_f32_i32)	 // NOLINT
 	ArrayDescriptor<int, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_af32_ai32(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(int))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -478,7 +478,7 @@ TEST(Runtime, diagonalSquareMatrix_f32_i64)	 // NOLINT
 	ArrayDescriptor<long, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_af32_ai64(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(long))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -497,7 +497,7 @@ TEST(Runtime, diagonalSquareMatrix_f32_f32)	 // NOLINT
 	ArrayDescriptor<float, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_af32_af32(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(float))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -516,7 +516,7 @@ TEST(Runtime, diagonalSquareMatrix_f32_f64)	 // NOLINT
 	ArrayDescriptor<double, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_af32_af64(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(float), ARRAY(double))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -535,7 +535,7 @@ TEST(Runtime, diagonalSquareMatrix_f64_i1)	 // NOLINT
 	ArrayDescriptor<bool, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<bool> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_af64_ai1(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(bool))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -554,7 +554,7 @@ TEST(Runtime, diagonalSquareMatrix_f64_i32)	 // NOLINT
 	ArrayDescriptor<int, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<int> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_af64_ai32(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(int))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -573,7 +573,7 @@ TEST(Runtime, diagonalSquareMatrix_f64_i64)	 // NOLINT
 	ArrayDescriptor<long, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<long> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_af64_ai64(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(long))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -592,7 +592,7 @@ TEST(Runtime, diagonalSquareMatrix_f64_f32)	 // NOLINT
 	ArrayDescriptor<float, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<float> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_af64_af32(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(float))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -611,7 +611,7 @@ TEST(Runtime, diagonalSquareMatrix_f64_f64)	 // NOLINT
 	ArrayDescriptor<double, 1> valuesDescriptor(values);
 	UnsizedArrayDescriptor<double> unsizedValues(valuesDescriptor);
 
-	_Mdiagonal_af64_af64(unsizedDestination, unsizedValues);
+	NAME_MANGLED(diagonal, void, ARRAY(double), ARRAY(double))(unsizedDestination, unsizedValues);
 
 	for (size_t i = 0; i < destinationSizes[0]; ++i)
 		for (size_t j = 0; j < destinationSizes[1]; j++)
@@ -626,7 +626,7 @@ TEST(Runtime, zeros_i1)	 // NOLINT
 	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<bool> unsized(descriptor);
 
-	_Mzeros_ai1(unsized);
+	NAME_MANGLED(zeros, void, ARRAY(bool))(unsized);
 
 	for (const auto& element : data)
 		EXPECT_EQ(element, false);
@@ -640,7 +640,7 @@ TEST(Runtime, zeros_i32)	 // NOLINT
 	ArrayDescriptor<int, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<int> unsized(descriptor);
 
-	_Mzeros_ai32(unsized);
+	NAME_MANGLED(zeros, void, ARRAY(int))(unsized);
 
 	for (const auto& element : data)
 		EXPECT_EQ(element, 0);
@@ -654,7 +654,7 @@ TEST(Runtime, zeros_i64)	 // NOLINT
 	ArrayDescriptor<long, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<long> unsized(descriptor);
 
-	_Mzeros_ai64(unsized);
+	NAME_MANGLED(zeros, void, ARRAY(long))(unsized);
 
 	for (const auto& element : data)
 		EXPECT_EQ(element, 0);
@@ -668,7 +668,7 @@ TEST(Runtime, zeros_f32)	 // NOLINT
 	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<float> unsized(descriptor);
 
-	_Mzeros_af32(unsized);
+	NAME_MANGLED(zeros, void, ARRAY(float))(unsized);
 
 	for (const auto& element : data)
 		EXPECT_EQ(element, 0);
@@ -682,7 +682,7 @@ TEST(Runtime, zeros_f64)	 // NOLINT
 	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<double> unsized(descriptor);
 
-	_Mzeros_af64(unsized);
+	NAME_MANGLED(zeros, void, ARRAY(double))(unsized);
 
 	for (const auto& element : data)
 		EXPECT_EQ(element, 0);
@@ -696,7 +696,7 @@ TEST(Runtime, ones_i1)	 // NOLINT
 	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<bool> unsized(descriptor);
 
-	_Mones_ai1(unsized);
+	NAME_MANGLED(ones, void, ARRAY(bool))(unsized);
 
 	for (const auto& element : data)
 		EXPECT_EQ(element, true);
@@ -710,7 +710,7 @@ TEST(Runtime, ones_i32)	 // NOLINT
 	ArrayDescriptor<int, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<int> unsized(descriptor);
 
-	_Mones_ai32(unsized);
+	NAME_MANGLED(ones, void, ARRAY(int))(unsized);
 
 	for (const auto& element : data)
 		EXPECT_EQ(element, 1);
@@ -724,7 +724,7 @@ TEST(Runtime, ones_i64)	 // NOLINT
 	ArrayDescriptor<long, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<long> unsized(descriptor);
 
-	_Mones_ai64(unsized);
+	NAME_MANGLED(ones, void, ARRAY(long))(unsized);
 
 	for (const auto& element : data)
 		EXPECT_EQ(element, 1);
@@ -738,7 +738,7 @@ TEST(Runtime, ones_f32)	 // NOLINT
 	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<float> unsized(descriptor);
 
-	_Mones_af32(unsized);
+	NAME_MANGLED(ones, void, ARRAY(float))(unsized);
 
 	for (const auto& element : data)
 		EXPECT_FLOAT_EQ(element, 1);
@@ -752,7 +752,7 @@ TEST(Runtime, ones_f64)	 // NOLINT
 	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<double> unsized(descriptor);
 
-	_Mones_af64(unsized);
+	NAME_MANGLED(ones, void, ARRAY(double))(unsized);
 
 	for (const auto& element : data)
 		EXPECT_DOUBLE_EQ(element, 1);
@@ -767,7 +767,7 @@ TEST(Runtime, linspace_i1)	 // NOLINT
 	double start = 0;
 	double end = 1;
 
-	_Mlinspace_ai1_f64_f64(unsized, start, end);
+	NAME_MANGLED(linspace, void, ARRAY(bool), double, double)(unsized, start, end);
 
 	for (size_t i = 0; i < data.size(); ++i)
 		EXPECT_EQ(data[i], (start + i * (end - start) / (data.size() - 1)) > 0);
@@ -782,7 +782,7 @@ TEST(Runtime, linspace_i32)	 // NOLINT
 	double start = 0;
 	double end = 2;
 
-	_Mlinspace_ai32_f64_f64(unsized, start, end);
+	NAME_MANGLED(linspace, void, ARRAY(int), double, double)(unsized, start, end);
 
 	for (size_t i = 0; i < data.size(); ++i)
 		EXPECT_EQ(data[i], (int) (start + i * (end - start) / (data.size() - 1)));
@@ -797,7 +797,7 @@ TEST(Runtime, linspace_i64)	 // NOLINT
 	double start = 0;
 	double end = 2;
 
-	_Mlinspace_ai64_f64_f64(unsized, start, end);
+	NAME_MANGLED(linspace, void, ARRAY(long), double, double)(unsized, start, end);
 
 	for (size_t i = 0; i < data.size(); ++i)
 		EXPECT_EQ(data[i], (long) (start + i * (end - start) / (data.size() - 1)));
@@ -812,7 +812,7 @@ TEST(Runtime, linspace_f32)	 // NOLINT
 	double start = 0;
 	double end = 2;
 
-	_Mlinspace_af32_f64_f64(unsized, start, end);
+	NAME_MANGLED(linspace, void, ARRAY(float), double, double)(unsized, start, end);
 
 	for (size_t i = 0; i < data.size(); ++i)
 		EXPECT_FLOAT_EQ(data[i], start +  i * (end - start) / (data.size() - 1));
@@ -827,7 +827,7 @@ TEST(Runtime, linspace_f64)	 // NOLINT
 	double start = 0;
 	double end = 2;
 
-	_Mlinspace_af64_f64_f64(unsized, start, end);
+	NAME_MANGLED(linspace, void, ARRAY(double), double, double)(unsized, start, end);
 
 	for (size_t i = 0; i < data.size(); ++i)
 		EXPECT_FLOAT_EQ(data[i], start +  i * (end - start) / (data.size() - 1));
@@ -841,7 +841,8 @@ TEST(Runtime, min_ai1)	 // NOLINT
 	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<bool> unsized(descriptor);
 
-	EXPECT_EQ(_Mmin_ai1(unsized), *std::min_element(data.begin(), data.end()));
+	auto result = NAME_MANGLED(min, bool, ARRAY(bool))(unsized);
+	EXPECT_EQ(result, *std::min_element(data.begin(), data.end()));
 }
 
 TEST(Runtime, min_ai32)	 // NOLINT
@@ -852,7 +853,8 @@ TEST(Runtime, min_ai32)	 // NOLINT
 	ArrayDescriptor<int, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<int> unsized(descriptor);
 
-	EXPECT_EQ(_Mmin_ai32(unsized), *std::min_element(data.begin(), data.end()));
+	auto result = NAME_MANGLED(min, int, ARRAY(int))(unsized);
+	EXPECT_EQ(result, *std::min_element(data.begin(), data.end()));
 }
 
 TEST(Runtime, min_ai64)	 // NOLINT
@@ -863,7 +865,8 @@ TEST(Runtime, min_ai64)	 // NOLINT
 	ArrayDescriptor<long, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<long> unsized(descriptor);
 
-	EXPECT_EQ(_Mmin_ai64(unsized), *std::min_element(data.begin(), data.end()));
+	auto result = NAME_MANGLED(min, long, ARRAY(long))(unsized);
+	EXPECT_EQ(result, *std::min_element(data.begin(), data.end()));
 }
 
 TEST(Runtime, min_af32)	 // NOLINT
@@ -874,7 +877,8 @@ TEST(Runtime, min_af32)	 // NOLINT
 	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<float> unsized(descriptor);
 
-	EXPECT_FLOAT_EQ(_Mmin_af32(unsized), *std::min_element(data.begin(), data.end()));
+	auto result = NAME_MANGLED(min, float, ARRAY(float))(unsized);
+	EXPECT_FLOAT_EQ(result, *std::min_element(data.begin(), data.end()));
 }
 
 TEST(Runtime, min_af64)	 // NOLINT
@@ -885,7 +889,8 @@ TEST(Runtime, min_af64)	 // NOLINT
 	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<double> unsized(descriptor);
 
-	EXPECT_DOUBLE_EQ(_Mmin_af64(unsized), *std::min_element(data.begin(), data.end()));
+	auto result = NAME_MANGLED(min, double, ARRAY(double))(unsized);
+	EXPECT_DOUBLE_EQ(result, *std::min_element(data.begin(), data.end()));
 }
 
 TEST(Runtime, min_i1_i1)	 // NOLINT
@@ -894,7 +899,10 @@ TEST(Runtime, min_i1_i1)	 // NOLINT
 	std::array<bool, 4> y = { false, true, false, true };
 
 	for (const auto& [x, y] : llvm::zip(x, y))
-		ASSERT_EQ(_Mmin_i1_i1(x, y), std::min(x, y));
+	{
+		auto result = NAME_MANGLED(min, bool, bool, bool)(x, y);
+		ASSERT_EQ(result, std::min(x, y));
+	}
 }
 
 TEST(Runtime, min_i32_i32)	 // NOLINT
@@ -903,7 +911,10 @@ TEST(Runtime, min_i32_i32)	 // NOLINT
 	std::array<int, 4> y = { 0, 2, 1 };
 
 	for (const auto& [x, y] : llvm::zip(x, y))
-		ASSERT_EQ(_Mmin_i32_i32(x, y), std::min(x, y));
+	{
+		auto result = NAME_MANGLED(min, int, int, int)(x, y);
+		ASSERT_EQ(result, std::min(x, y));
+	}
 }
 
 TEST(Runtime, min_i64_i64)	 // NOLINT
@@ -912,7 +923,10 @@ TEST(Runtime, min_i64_i64)	 // NOLINT
 	std::array<long, 4> y = { 0, 2, 1 };
 
 	for (const auto& [x, y] : llvm::zip(x, y))
-		ASSERT_EQ(_Mmin_i64_i64(x, y), std::min(x, y));
+	{
+		auto result = NAME_MANGLED(min, long, long, long)(x, y);
+		ASSERT_EQ(result, std::min(x, y));
+	}
 }
 
 TEST(Runtime, min_f32_f32)	 // NOLINT
@@ -921,7 +935,10 @@ TEST(Runtime, min_f32_f32)	 // NOLINT
 	std::array<float, 4> y = { 0, 2, 1 };
 
 	for (const auto& [x, y] : llvm::zip(x, y))
-		ASSERT_FLOAT_EQ(_Mmin_f32_f32(x, y), std::min(x, y));
+	{
+		auto result = NAME_MANGLED(min, float, float, float)(x, y);
+		ASSERT_EQ(result, std::min(x, y));
+	}
 }
 
 TEST(Runtime, min_f64_f64)	 // NOLINT
@@ -930,7 +947,10 @@ TEST(Runtime, min_f64_f64)	 // NOLINT
 	std::array<double, 4> y = { 0, 2, 1 };
 
 	for (const auto& [x, y] : llvm::zip(x, y))
-		ASSERT_DOUBLE_EQ(_Mmin_f64_f64(x, y), std::min(x, y));
+	{
+		auto result = NAME_MANGLED(min, double, double, double)(x, y);
+		ASSERT_EQ(result, std::min(x, y));
+	}
 }
 
 TEST(Runtime, max_ai1)	 // NOLINT
@@ -941,7 +961,8 @@ TEST(Runtime, max_ai1)	 // NOLINT
 	ArrayDescriptor<bool, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<bool> unsized(descriptor);
 
-	EXPECT_EQ(_Mmax_ai1(unsized), *std::max_element(data.begin(), data.end()));
+	auto result = NAME_MANGLED(max, bool, ARRAY(bool))(unsized);
+	EXPECT_EQ(result, *std::max_element(data.begin(), data.end()));
 }
 
 TEST(Runtime, max_ai32)	 // NOLINT
@@ -952,7 +973,8 @@ TEST(Runtime, max_ai32)	 // NOLINT
 	ArrayDescriptor<int, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<int> unsized(descriptor);
 
-	EXPECT_EQ(_Mmax_ai32(unsized), *std::max_element(data.begin(), data.end()));
+	auto result = NAME_MANGLED(max, int, ARRAY(int))(unsized);
+	EXPECT_EQ(result, *std::max_element(data.begin(), data.end()));
 }
 
 TEST(Runtime, max_ai64)	 // NOLINT
@@ -963,7 +985,8 @@ TEST(Runtime, max_ai64)	 // NOLINT
 	ArrayDescriptor<long, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<long> unsized(descriptor);
 
-	EXPECT_EQ(_Mmax_ai64(unsized), *std::max_element(data.begin(), data.end()));
+	auto result = NAME_MANGLED(max, long, ARRAY(long))(unsized);
+	EXPECT_EQ(result, *std::max_element(data.begin(), data.end()));
 }
 
 TEST(Runtime, max_af32)	 // NOLINT
@@ -974,7 +997,8 @@ TEST(Runtime, max_af32)	 // NOLINT
 	ArrayDescriptor<float, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<float> unsized(descriptor);
 
-	EXPECT_FLOAT_EQ(_Mmax_af32(unsized), *std::max_element(data.begin(), data.end()));
+	auto result = NAME_MANGLED(max, float, ARRAY(float))(unsized);
+	EXPECT_FLOAT_EQ(result, *std::max_element(data.begin(), data.end()));
 }
 
 TEST(Runtime, max_af64)	 // NOLINT
@@ -985,7 +1009,8 @@ TEST(Runtime, max_af64)	 // NOLINT
 	ArrayDescriptor<double, 2> descriptor(data.data(), sizes);
 	UnsizedArrayDescriptor<double> unsized(descriptor);
 
-	EXPECT_DOUBLE_EQ(_Mmax_af64(unsized), *std::max_element(data.begin(), data.end()));
+	auto result = NAME_MANGLED(max, double, ARRAY(double))(unsized);
+	EXPECT_DOUBLE_EQ(result, *std::max_element(data.begin(), data.end()));
 }
 
 TEST(Runtime, max_i1_i1)	 // NOLINT
@@ -994,7 +1019,10 @@ TEST(Runtime, max_i1_i1)	 // NOLINT
 	std::array<bool, 4> y = { false, true, false, true };
 
 	for (const auto& [x, y] : llvm::zip(x, y))
-		ASSERT_EQ(_Mmax_i1_i1(x, y), std::max(x, y));
+	{
+		auto result = NAME_MANGLED(max, bool, bool, bool)(x, y);
+		ASSERT_EQ(result, std::max(x, y));
+	}
 }
 
 TEST(Runtime, max_i32_i32)	 // NOLINT
@@ -1003,7 +1031,10 @@ TEST(Runtime, max_i32_i32)	 // NOLINT
 	std::array<int, 4> y = { 0, 2, 1 };
 
 	for (const auto& [x, y] : llvm::zip(x, y))
-		ASSERT_EQ(_Mmax_i32_i32(x, y), std::max(x, y));
+	{
+		auto result = NAME_MANGLED(max, int, int, int)(x, y);
+		ASSERT_EQ(result, std::max(x, y));
+	}
 }
 
 TEST(Runtime, max_i64_i64)	 // NOLINT
@@ -1012,7 +1043,10 @@ TEST(Runtime, max_i64_i64)	 // NOLINT
 	std::array<long, 4> y = { 0, 2, 1 };
 
 	for (const auto& [x, y] : llvm::zip(x, y))
-		ASSERT_EQ(_Mmax_i64_i64(x, y), std::max(x, y));
+	{
+		auto result = NAME_MANGLED(max, long, long, long)(x, y);
+		ASSERT_EQ(result, std::max(x, y));
+	}
 }
 
 TEST(Runtime, max_f32_f32)	 // NOLINT
@@ -1021,7 +1055,10 @@ TEST(Runtime, max_f32_f32)	 // NOLINT
 	std::array<float, 4> y = { 0, 2, 1 };
 
 	for (const auto& [x, y] : llvm::zip(x, y))
-		ASSERT_FLOAT_EQ(_Mmax_f32_f32(x, y), std::max(x, y));
+	{
+		auto result = NAME_MANGLED(max, float, float, float)(x, y);
+		ASSERT_EQ(result, std::max(x, y));
+	}
 }
 
 TEST(Runtime, max_f64_f64)	 // NOLINT
@@ -1030,7 +1067,10 @@ TEST(Runtime, max_f64_f64)	 // NOLINT
 	std::array<double, 4> y = { 0, 2, 1 };
 
 	for (const auto& [x, y] : llvm::zip(x, y))
-		ASSERT_DOUBLE_EQ(_Mmax_f64_f64(x, y), std::max(x, y));
+	{
+		auto result = NAME_MANGLED(max, double, double, double)(x, y);
+		ASSERT_EQ(result, std::max(x, y));
+	}
 }
 
 TEST(Runtime, sum_ai1)	 // NOLINT
@@ -1038,7 +1078,8 @@ TEST(Runtime, sum_ai1)	 // NOLINT
 	std::array<bool, 3> data = { false, true, true };
 	ArrayDescriptor<bool, 1> descriptor(data);
 	UnsizedArrayDescriptor<bool> unsized(descriptor);
-	EXPECT_EQ(_Msum_ai1(unsized), (bool) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+	auto result = NAME_MANGLED(sum, bool, ARRAY(bool))(unsized);
+	EXPECT_EQ(result, (bool) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
 }
 
 TEST(Runtime, sum_ai32)	 // NOLINT
@@ -1046,7 +1087,8 @@ TEST(Runtime, sum_ai32)	 // NOLINT
 	std::array<int, 3> data = { 1, 2, 3 };
 	ArrayDescriptor<int, 1> descriptor(data);
 	UnsizedArrayDescriptor<int> unsized(descriptor);
-	EXPECT_EQ(_Msum_ai32(unsized), (int) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+	auto result = NAME_MANGLED(sum, int, ARRAY(int))(unsized);
+	EXPECT_EQ(result, (int) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
 }
 
 TEST(Runtime, sum_ai64)	 // NOLINT
@@ -1054,7 +1096,8 @@ TEST(Runtime, sum_ai64)	 // NOLINT
 	std::array<long, 3> data = { 1, 2, 3 };
 	ArrayDescriptor<long, 1> descriptor(data);
 	UnsizedArrayDescriptor<long> unsized(descriptor);
-	EXPECT_EQ(_Msum_ai64(unsized), (long) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+	auto result = NAME_MANGLED(sum, long, ARRAY(long))(unsized);
+	EXPECT_EQ(result, (long) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
 }
 
 TEST(Runtime, sum_af32)	 // NOLINT
@@ -1062,7 +1105,8 @@ TEST(Runtime, sum_af32)	 // NOLINT
 	std::array<float, 3> data = { 1, 2, 3 };
 	ArrayDescriptor<float, 1> descriptor(data);
 	UnsizedArrayDescriptor<float> unsized(descriptor);
-	EXPECT_FLOAT_EQ(_Msum_af32(unsized), (float) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+	auto result = NAME_MANGLED(sum, float, ARRAY(float))(unsized);
+	EXPECT_FLOAT_EQ(result, (float) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
 }
 
 TEST(Runtime, sum_af64)	 // NOLINT
@@ -1070,7 +1114,8 @@ TEST(Runtime, sum_af64)	 // NOLINT
 	std::array<double, 3> data = { 1, 2, 3 };
 	ArrayDescriptor<double, 1> descriptor(data);
 	UnsizedArrayDescriptor<double> unsized(descriptor);
-	EXPECT_DOUBLE_EQ(_Msum_af64(unsized), (double) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
+	auto result = NAME_MANGLED(sum, double, ARRAY(double))(unsized);
+	EXPECT_DOUBLE_EQ(result, (double) std::accumulate(data.begin(), data.end(), 0, std::plus<>()));
 }
 
 TEST(Runtime, product_ai1)	 // NOLINT
@@ -1078,7 +1123,8 @@ TEST(Runtime, product_ai1)	 // NOLINT
 	std::array<bool, 3> data = { false, true, true };
 	ArrayDescriptor<bool, 1> descriptor(data);
 	UnsizedArrayDescriptor<bool> unsized(descriptor);
-	EXPECT_EQ(_Mproduct_ai1(unsized), (bool) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+	auto result = NAME_MANGLED(product, bool, ARRAY(bool))(unsized);
+	EXPECT_EQ(result, (bool) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
 }
 
 TEST(Runtime, product_ai32)	 // NOLINT
@@ -1086,7 +1132,8 @@ TEST(Runtime, product_ai32)	 // NOLINT
 	std::array<int, 3> data = { 1, 2, 3 };
 	ArrayDescriptor<int, 1> descriptor(data);
 	UnsizedArrayDescriptor<int> unsized(descriptor);
-	EXPECT_EQ(_Mproduct_ai32(unsized), (int) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+	auto result = NAME_MANGLED(product, int, ARRAY(int))(unsized);
+	EXPECT_EQ(result, (int) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
 }
 
 TEST(Runtime, product_ai64)	 // NOLINT
@@ -1094,7 +1141,8 @@ TEST(Runtime, product_ai64)	 // NOLINT
 	std::array<long, 3> data = { 1, 2, 3 };
 	ArrayDescriptor<long, 1> descriptor(data);
 	UnsizedArrayDescriptor<long> unsized(descriptor);
-	EXPECT_EQ(_Mproduct_ai64(unsized), (long) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+	auto result = NAME_MANGLED(product, long, ARRAY(long))(unsized);
+	EXPECT_EQ(result, (long) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
 }
 
 TEST(Runtime, product_af32)	 // NOLINT
@@ -1102,7 +1150,8 @@ TEST(Runtime, product_af32)	 // NOLINT
 	std::array<float, 3> data = { 1, 2, 3 };
 	ArrayDescriptor<float, 1> descriptor(data);
 	UnsizedArrayDescriptor<float> unsized(descriptor);
-	EXPECT_FLOAT_EQ(_Mproduct_af32(unsized), (float) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+	auto result = NAME_MANGLED(product, float, ARRAY(float))(unsized);
+	EXPECT_FLOAT_EQ(result, (float) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
 }
 
 TEST(Runtime, product_af64)	 // NOLINT
@@ -1110,7 +1159,8 @@ TEST(Runtime, product_af64)	 // NOLINT
 	std::array<double, 3> data = { 1, 2, 3 };
 	ArrayDescriptor<double, 1> descriptor(data);
 	UnsizedArrayDescriptor<double> unsized(descriptor);
-	EXPECT_DOUBLE_EQ(_Mproduct_af64(unsized), (double) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
+	auto result = NAME_MANGLED(product, double, ARRAY(double))(unsized);
+	EXPECT_DOUBLE_EQ(result, (double) std::accumulate(data.begin(), data.end(), 1, std::multiplies<>()));
 }
 
 TEST(Runtime, transpose_ai1_ai1)	 // NOLINT
@@ -1124,7 +1174,7 @@ TEST(Runtime, transpose_ai1_ai1)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai1_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1142,7 +1192,7 @@ TEST(Runtime, transpose_ai1_ai32)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai1_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1160,7 +1210,7 @@ TEST(Runtime, transpose_ai1_ai64)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai1_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1178,7 +1228,7 @@ TEST(Runtime, transpose_ai1_af32)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai1_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1196,7 +1246,7 @@ TEST(Runtime, transpose_ai1_af64)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai1_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(bool), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1214,7 +1264,7 @@ TEST(Runtime, transpose_ai32_ai1)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai32_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(int), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1232,7 +1282,7 @@ TEST(Runtime, transpose_ai32_ai32)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai32_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(int), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1250,7 +1300,7 @@ TEST(Runtime, transpose_ai32_ai64)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai32_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(int), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1268,7 +1318,7 @@ TEST(Runtime, transpose_ai32_af32)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai32_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(int), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1286,7 +1336,7 @@ TEST(Runtime, transpose_ai32_af64)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai32_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(int), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1304,7 +1354,7 @@ TEST(Runtime, transpose_ai64_ai1)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai64_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(long), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1322,7 +1372,7 @@ TEST(Runtime, transpose_ai64_ai32)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai64_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(long), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1340,7 +1390,7 @@ TEST(Runtime, transpose_ai64_ai64)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai64_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(long), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1358,7 +1408,7 @@ TEST(Runtime, transpose_ai64_af32)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai64_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(long), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1376,7 +1426,7 @@ TEST(Runtime, transpose_ai64_af64)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_ai64_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(long), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1394,7 +1444,7 @@ TEST(Runtime, transpose_af32_ai1)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_af32_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1412,7 +1462,7 @@ TEST(Runtime, transpose_af32_ai32)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_af32_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1430,7 +1480,7 @@ TEST(Runtime, transpose_af32_ai64)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_af32_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1448,7 +1498,7 @@ TEST(Runtime, transpose_af32_af32)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_af32_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1466,7 +1516,7 @@ TEST(Runtime, transpose_af32_af64)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_af32_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(float), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1484,7 +1534,7 @@ TEST(Runtime, transpose_af64_ai1)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_af64_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1502,7 +1552,7 @@ TEST(Runtime, transpose_af64_ai32)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_af64_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1520,7 +1570,7 @@ TEST(Runtime, transpose_af64_ai64)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_af64_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1538,7 +1588,7 @@ TEST(Runtime, transpose_af64_af32)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_af64_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1556,7 +1606,7 @@ TEST(Runtime, transpose_af64_af64)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 2 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Mtranspose_af64_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(transpose, void, ARRAY(double), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = 0; j < sourceDescriptor.getDimension(1); ++j)
@@ -1574,7 +1624,7 @@ TEST(Runtime, symmetric_ai1_ai1)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai1_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1595,7 +1645,7 @@ TEST(Runtime, symmetric_ai1_ai32)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai1_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1616,7 +1666,7 @@ TEST(Runtime, symmetric_ai1_ai64)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai1_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1637,7 +1687,7 @@ TEST(Runtime, symmetric_ai1_af32)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai1_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1658,7 +1708,7 @@ TEST(Runtime, symmetric_ai1_af64)	 // NOLINT
 	ArrayDescriptor<bool, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<bool> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai1_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(bool), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1679,7 +1729,7 @@ TEST(Runtime, symmetric_ai32_ai1)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai32_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(int), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1700,7 +1750,7 @@ TEST(Runtime, symmetric_ai32_ai32)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai32_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(int), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1721,7 +1771,7 @@ TEST(Runtime, symmetric_ai32_ai64)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai32_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(int), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1742,7 +1792,7 @@ TEST(Runtime, symmetric_ai32_af32)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai32_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(int), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1763,7 +1813,7 @@ TEST(Runtime, symmetric_ai32_af64)	 // NOLINT
 	ArrayDescriptor<int, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<int> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai32_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(int), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1784,7 +1834,7 @@ TEST(Runtime, symmetric_ai64_ai1)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai64_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(long), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1805,7 +1855,7 @@ TEST(Runtime, symmetric_ai64_ai32)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai64_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(long), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1826,7 +1876,7 @@ TEST(Runtime, symmetric_ai64_ai64)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai64_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(long), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1847,7 +1897,7 @@ TEST(Runtime, symmetric_ai64_af32)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai64_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(long), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1868,7 +1918,7 @@ TEST(Runtime, symmetric_ai64_af64)	 // NOLINT
 	ArrayDescriptor<long, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<long> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_ai64_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(long), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1889,7 +1939,7 @@ TEST(Runtime, symmetric_af32_ai1)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_af32_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1910,7 +1960,7 @@ TEST(Runtime, symmetric_af32_ai32)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_af32_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1931,7 +1981,7 @@ TEST(Runtime, symmetric_af32_ai64)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_af32_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1952,7 +2002,7 @@ TEST(Runtime, symmetric_af32_af32)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_af32_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1973,7 +2023,7 @@ TEST(Runtime, symmetric_af32_af64)	 // NOLINT
 	ArrayDescriptor<float, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<float> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_af32_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(float), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -1994,7 +2044,7 @@ TEST(Runtime, symmetric_af64_ai1)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_af64_ai1(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(bool))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -2015,7 +2065,7 @@ TEST(Runtime, symmetric_af64_ai32)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_af64_ai32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(int))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -2036,7 +2086,7 @@ TEST(Runtime, symmetric_af64_ai64)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_af64_ai64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(long))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -2057,7 +2107,7 @@ TEST(Runtime, symmetric_af64_af32)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_af64_af32(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(float))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
@@ -2078,7 +2128,7 @@ TEST(Runtime, symmetric_af64_af64)	 // NOLINT
 	ArrayDescriptor<double, 2> destinationDescriptor(destination.data(), { 3, 3 });
 	UnsizedArrayDescriptor<double> unsizedDestination(destinationDescriptor);
 
-	_Msymmetric_af64_af64(unsizedDestination, unsizedSource);
+	NAME_MANGLED(symmetric, void, ARRAY(double), ARRAY(double))(unsizedDestination, unsizedSource);
 
 	for (size_t i = 0; i < sourceDescriptor.getDimension(0); ++i)
 		for (size_t j = i; j < sourceDescriptor.getDimension(1); ++j)
