@@ -20,6 +20,7 @@ namespace modelica::codegen
 				virtual ~Concept() = default;
 				Concept& operator=(const Concept& other) = default;
 
+				virtual bool isVectorized(mlir::Operation* op) const = 0;
 				virtual unsigned int vectorizationRank(mlir::Operation* op) const = 0;
 				virtual mlir::ValueRange getArgs(mlir::Operation* op) const = 0;
 				virtual unsigned int getArgExpectedRank(mlir::Operation* op, unsigned int argIndex) const = 0;
@@ -29,6 +30,11 @@ namespace modelica::codegen
 			template <typename ConcreteOp>
 			struct Model : public Concept
 			{
+				bool isVectorized(mlir::Operation* op) const override
+				{
+					return vectorizationRank(op) != 0;
+				}
+
 				unsigned int vectorizationRank(mlir::Operation* op) const override
 				{
 					llvm::SmallVector<long, 2> expectedRanks;
@@ -118,6 +124,11 @@ namespace modelica::codegen
 				public:
 				FallbackModel() = default;
 
+				bool isVectorized(mlir::Operation* op) const override
+				{
+					return false;
+				}
+
 				unsigned int vectorizationRank(mlir::Operation* op) const override
 				{
 					return 0;
@@ -158,6 +169,11 @@ namespace modelica::codegen
 
 		template <typename ConcreteOp>
 		struct Trait : public VectorizableOpTrait<ConcreteOp> {};
+
+		bool isVectorized()
+		{
+			return getImpl()->isVectorized(getOperation());
+		}
 
 		unsigned int vectorizationRank()
 		{

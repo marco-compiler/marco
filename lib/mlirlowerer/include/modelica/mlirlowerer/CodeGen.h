@@ -43,6 +43,7 @@ namespace modelica::codegen
 	{
 		bool x64 = true;
 		SolveModelOptions solveModelOptions = SolveModelOptions::getDefaultOptions();
+		FunctionsScalarizationOptions functionsScalarizationOptions = FunctionsScalarizationOptions::getDefaultOptions();
 		bool inlining = true;
 		bool resultBuffersToArgs = true;
 		bool cse = true;

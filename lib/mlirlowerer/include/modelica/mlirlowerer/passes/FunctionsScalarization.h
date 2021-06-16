@@ -4,7 +4,18 @@
 
 namespace modelica::codegen
 {
-	std::unique_ptr<mlir::Pass> createFunctionsScalarizationPass();
+	struct FunctionsScalarizationOptions
+	{
+		bool assertions = true;
+
+		static const FunctionsScalarizationOptions& getDefaultOptions() {
+			static FunctionsScalarizationOptions options;
+			return options;
+		}
+	};
+
+	std::unique_ptr<mlir::Pass> createFunctionsScalarizationPass(
+			FunctionsScalarizationOptions options = FunctionsScalarizationOptions::getDefaultOptions());
 
 	inline void registerFunctionsScalarizationPass()
 	{
