@@ -2240,7 +2240,8 @@ namespace modelica::codegen
 	class SinOp : public mlir::Op<SinOp,
 															 mlir::OpTrait::OneOperand,
 															 mlir::OpTrait::OneResult,
-															 VectorizableOpInterface::Trait>
+															 VectorizableOpInterface::Trait,
+															 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2258,6 +2259,8 @@ namespace modelica::codegen
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2280,7 +2283,8 @@ namespace modelica::codegen
 	class CosOp : public mlir::Op<CosOp,
 															 mlir::OpTrait::OneOperand,
 															 mlir::OpTrait::OneResult,
-															 VectorizableOpInterface::Trait>
+															 VectorizableOpInterface::Trait,
+															 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2298,6 +2302,8 @@ namespace modelica::codegen
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2320,7 +2326,8 @@ namespace modelica::codegen
 	class TanOp : public mlir::Op<TanOp,
 															 mlir::OpTrait::OneOperand,
 															 mlir::OpTrait::OneResult,
-															 VectorizableOpInterface::Trait>
+															 VectorizableOpInterface::Trait,
+															 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2338,6 +2345,8 @@ namespace modelica::codegen
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2360,7 +2369,8 @@ namespace modelica::codegen
 	class AsinOp : public mlir::Op<AsinOp,
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
-																VectorizableOpInterface::Trait>
+																VectorizableOpInterface::Trait,
+																DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2378,6 +2388,8 @@ namespace modelica::codegen
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2400,7 +2412,8 @@ namespace modelica::codegen
 	class AcosOp : public mlir::Op<AcosOp,
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
-																VectorizableOpInterface::Trait>
+																VectorizableOpInterface::Trait,
+																DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2418,6 +2431,8 @@ namespace modelica::codegen
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2440,7 +2455,8 @@ namespace modelica::codegen
 	class AtanOp : public mlir::Op<AtanOp,
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
-																VectorizableOpInterface::Trait>
+																VectorizableOpInterface::Trait,
+																DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2458,6 +2474,8 @@ namespace modelica::codegen
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2522,7 +2540,8 @@ namespace modelica::codegen
 	class SinhOp : public mlir::Op<SinhOp,
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
-																VectorizableOpInterface::Trait>
+																VectorizableOpInterface::Trait,
+																DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2540,6 +2559,8 @@ namespace modelica::codegen
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2562,7 +2583,8 @@ namespace modelica::codegen
 	class CoshOp : public mlir::Op<CoshOp,
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
-																VectorizableOpInterface::Trait>
+																VectorizableOpInterface::Trait,
+																DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2580,6 +2602,8 @@ namespace modelica::codegen
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2602,7 +2626,8 @@ namespace modelica::codegen
 	class TanhOp : public mlir::Op<TanhOp,
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
-																VectorizableOpInterface::Trait>
+																VectorizableOpInterface::Trait,
+																DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2620,6 +2645,8 @@ namespace modelica::codegen
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2642,7 +2669,8 @@ namespace modelica::codegen
 	class ExpOp : public mlir::Op<ExpOp,
 															 mlir::OpTrait::OneOperand,
 															 mlir::OpTrait::OneResult,
-															 VectorizableOpInterface::Trait>
+															 VectorizableOpInterface::Trait,
+															 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2660,6 +2688,8 @@ namespace modelica::codegen
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value exponent();
@@ -2682,7 +2712,8 @@ namespace modelica::codegen
 	class LogOp : public mlir::Op<LogOp,
 															 mlir::OpTrait::OneOperand,
 															 mlir::OpTrait::OneResult,
-															 VectorizableOpInterface::Trait>
+															 VectorizableOpInterface::Trait,
+															 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2700,6 +2731,8 @@ namespace modelica::codegen
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2722,7 +2755,8 @@ namespace modelica::codegen
 	class Log10Op : public mlir::Op<Log10Op,
 																 mlir::OpTrait::OneOperand,
 																 mlir::OpTrait::OneResult,
-																 VectorizableOpInterface::Trait>
+																 VectorizableOpInterface::Trait,
+																 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2740,6 +2774,8 @@ namespace modelica::codegen
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 
 		mlir::Type resultType();
 		mlir::Value operand();

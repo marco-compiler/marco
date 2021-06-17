@@ -5028,12 +5028,15 @@ void PowOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 void PowOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
+	mlir::Type realType = RealType::get(getContext());
+
 	mlir::Value derivedBase = derivatives.lookup(base());
-
 	mlir::Value one = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 1));
-	mlir::Value exp = builder.create<SubOp>(getLoc(), RealType::get(getContext()), exponent(), one);
+	mlir::Value reducedExponent = builder.create<SubOp>(getLoc(), realType, exponent(), one);
+	mlir::Value pow = builder.create<PowOp>(getLoc(), realType, base(), reducedExponent);
+	mlir::Value mul = builder.create<MulOp>(getLoc(), realType, pow, exponent());
+	auto derivedOp = builder.create<MulOp>(getLoc(), resultType(), mul, derivedBase);
 
-	auto derivedOp = builder.create<PowOp>(getLoc(), resultType(), derivedBase, exp);
 	derivatives.map(getResult(), derivedOp.getResult());
 }
 
@@ -5338,6 +5341,17 @@ mlir::ValueRange SinOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange ind
 	return op->getResults();
 }
 
+void SinOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Type realType = RealType::get(getContext());
+
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Value cos = builder.create<CosOp>(getLoc(), realType, operand());
+	auto derivedOp = builder.create<MulOp>(getLoc(), resultType(), cos, derivedOperand);
+
+	derivatives.map(getResult(), derivedOp.getResult());
+}
+
 mlir::Type SinOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -5410,6 +5424,18 @@ mlir::ValueRange CosOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange ind
 
 	auto op = builder.create<CosOp>(getLoc(), newResultType, newOperand);
 	return op->getResults();
+}
+
+void CosOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Type realType = RealType::get(getContext());
+
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Value sin = builder.create<SinOp>(getLoc(), RealType::get(getContext()), operand());
+	mlir::Value negatedSin = builder.create<NegateOp>(getLoc(), sin.getType(), sin);
+	auto derivedOp = builder.create<MulOp>(getLoc(), resultType(), negatedSin, derivedOperand);
+
+	derivatives.map(getResult(), derivedOp.getResult());
 }
 
 mlir::Type CosOp::resultType()
@@ -5486,6 +5512,21 @@ mlir::ValueRange TanOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange ind
 	return op->getResults();
 }
 
+void TanOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Type realType = RealType::get(getContext());
+
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Value one = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 1));
+	mlir::Value cos = builder.create<CosOp>(getLoc(), realType, operand());
+	mlir::Value two = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 2));
+	mlir::Value denominator = builder.create<PowOp>(getLoc(), realType, cos, two);
+	mlir::Value div = builder.create<DivOp>(getLoc(), realType, one, denominator);
+	auto derivedOp = builder.create<MulOp>(getLoc(), resultType(), div, derivedOperand);
+
+	derivatives.map(getResult(), derivedOp.getResult());
+}
+
 mlir::Type TanOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -5558,6 +5599,22 @@ mlir::ValueRange AsinOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 	auto op = builder.create<AsinOp>(getLoc(), newResultType, newOperand);
 	return op->getResults();
+}
+
+void AsinOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Type realType = RealType::get(getContext());
+
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Value one = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 1));
+	mlir::Value two = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 2));
+	mlir::Value argSquared = builder.create<PowOp>(getLoc(), realType, operand(), two);
+	mlir::Value sub = builder.create<SubOp>(getLoc(), realType, one, argSquared);
+	mlir::Value denominator = builder.create<SqrtOp>(getLoc(), realType, sub);
+	mlir::Value div = builder.create<DivOp>(getLoc(), realType, one, denominator);
+	auto derivedOp = builder.create<MulOp>(getLoc(), resultType(), div, derivedOperand);
+
+	derivatives.map(getResult(), derivedOp.getResult());
 }
 
 mlir::Type AsinOp::resultType()
@@ -5634,6 +5691,23 @@ mlir::ValueRange AcosOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 	return op->getResults();
 }
 
+void AcosOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Type realType = RealType::get(getContext());
+
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Value one = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 1));
+	mlir::Value two = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 2));
+	mlir::Value argSquared = builder.create<PowOp>(getLoc(), realType, operand(), two);
+	mlir::Value sub = builder.create<SubOp>(getLoc(), realType, one, argSquared);
+	mlir::Value denominator = builder.create<SqrtOp>(getLoc(), realType, sub);
+	mlir::Value div = builder.create<DivOp>(getLoc(), realType, one, denominator);
+	mlir::Value negatedDiv = builder.create<NegateOp>(getLoc(), realType, div);
+	auto derivedOp = builder.create<MulOp>(getLoc(), resultType(), negatedDiv, derivedOperand);
+
+	derivatives.map(getResult(), derivedOp.getResult());
+}
+
 mlir::Type AcosOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -5706,6 +5780,22 @@ mlir::ValueRange AtanOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 	auto op = builder.create<AtanOp>(getLoc(), newResultType, newOperand);
 	return op->getResults();
+}
+
+void AtanOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Type realType = RealType::get(getContext());
+
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Value one = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 1));
+	mlir::Value two = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 2));
+	mlir::Value argSquared = builder.create<PowOp>(getLoc(), realType, operand(), two);
+	mlir::Value denominator = builder.create<AddOp>(getLoc(), realType, one, argSquared);
+	mlir::Value div = builder.create<DivOp>(getLoc(), realType, one, denominator);
+	mlir::Value negatedDiv = builder.create<NegateOp>(getLoc(), realType, div);
+	auto derivedOp = builder.create<MulOp>(getLoc(), resultType(), negatedDiv, derivedOperand);
+
+	derivatives.map(getResult(), derivedOp.getResult());
 }
 
 mlir::Type AtanOp::resultType()
@@ -5879,6 +5969,17 @@ mlir::ValueRange SinhOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 	return op->getResults();
 }
 
+void SinhOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Type realType = RealType::get(getContext());
+
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Value cosh = builder.create<CoshOp>(getLoc(), realType, operand());
+	auto derivedOp = builder.create<MulOp>(getLoc(), resultType(), cosh, derivedOperand);
+
+	derivatives.map(getResult(), derivedOp.getResult());
+}
+
 mlir::Type SinhOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -5951,6 +6052,17 @@ mlir::ValueRange CoshOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 	auto op = builder.create<CoshOp>(getLoc(), newResultType, newOperand);
 	return op->getResults();
+}
+
+void CoshOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Type realType = RealType::get(getContext());
+
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Value sinh = builder.create<SinhOp>(getLoc(), realType, operand());
+	auto derivedOp = builder.create<MulOp>(getLoc(), resultType(), sinh, derivedOperand);
+
+	derivatives.map(getResult(), derivedOp.getResult());
 }
 
 mlir::Type CoshOp::resultType()
@@ -6027,6 +6139,21 @@ mlir::ValueRange TanhOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 	return op->getResults();
 }
 
+void TanhOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Type realType = RealType::get(getContext());
+
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Value one = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 1));
+	mlir::Value cosh = builder.create<CoshOp>(getLoc(), realType, operand());
+	mlir::Value sech = builder.create<DivOp>(getLoc(), realType, one, cosh);
+	mlir::Value two = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 2));
+	mlir::Value pow = builder.create<PowOp>(getLoc(), realType, sech, two);
+	auto derivedOp = builder.create<MulOp>(getLoc(), resultType(), pow, derivedOperand);
+
+	derivatives.map(getResult(), derivedOp.getResult());
+}
+
 mlir::Type TanhOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -6099,6 +6226,17 @@ mlir::ValueRange ExpOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange ind
 
 	auto op = builder.create<ExpOp>(getLoc(), newResultType, newOperand);
 	return op->getResults();
+}
+
+void ExpOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Type realType = RealType::get(getContext());
+
+	mlir::Value derivedExponent = derivatives.lookup(exponent());
+	mlir::Value pow = builder.create<ExpOp>(getLoc(), realType, exponent());
+	auto derivedOp = builder.create<MulOp>(getLoc(), resultType(), pow, derivedExponent);
+
+	derivatives.map(getResult(), derivedOp.getResult());
 }
 
 mlir::Type ExpOp::resultType()
@@ -6175,6 +6313,14 @@ mlir::ValueRange LogOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange ind
 	return op->getResults();
 }
 
+void LogOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	auto derivedOp = builder.create<DivOp>(getLoc(), resultType(), derivedOperand, operand());
+
+	derivatives.map(getResult(), derivedOp.getResult());
+}
+
 mlir::Type LogOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -6247,6 +6393,19 @@ mlir::ValueRange Log10Op::scalarize(mlir::OpBuilder& builder, mlir::ValueRange i
 
 	auto op = builder.create<Log10Op>(getLoc(), newResultType, newOperand);
 	return op->getResults();
+}
+
+void Log10Op::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Type realType = RealType::get(getContext());
+
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Value ten = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 10));
+	mlir::Value log = builder.create<LogOp>(getLoc(), realType, ten);
+	mlir::Value mul = builder.create<MulOp>(getLoc(), realType, operand(), log);
+	auto derivedOp = builder.create<DivOp>(getLoc(), realType, derivedOperand, mul);
+
+	derivatives.map(getResult(), derivedOp.getResult());
 }
 
 mlir::Type Log10Op::resultType()

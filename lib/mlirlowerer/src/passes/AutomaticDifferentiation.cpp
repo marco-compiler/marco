@@ -556,6 +556,11 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 				toBeDerived.push_back(op);
 		});
 
+		llvm::sort(toBeDerived, [](FunctionOp first, FunctionOp second) {
+			auto annotation = first->getAttrOfType<DerivativeAttribute>("derivative");
+			return annotation.getName() == second.name();
+		});
+
 		for (auto& function : toBeDerived)
 			if (auto status = createFullDerFunction(builder, function); mlir::failed(status))
 				return status;
@@ -566,6 +571,17 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 	mlir::LogicalResult resolveTrivialDerCalls()
 	{
 		auto module = getOperation();
+		mlir::OpBuilder builder(module);
+
+		module.walk([&](DerOp op) {
+			mlir::Value operand = op.operand();
+			mlir::Operation* definingOp = operand.getDefiningOp();
+
+			if (auto derivableOp = mlir::dyn_cast<DerivativeInterface>(definingOp))
+			{
+				//derivableOp.derive(builder, );
+			}
+		});
 
 		return mlir::success();
 	}
