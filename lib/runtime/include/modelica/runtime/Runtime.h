@@ -3,6 +3,9 @@
 #include "ArrayDescriptor.h"
 #include "Mangling.h"
 
+RUNTIME_FUNC_DECL(abs, bool, bool)
+RUNTIME_FUNC_DECL(abs, int, int)
+RUNTIME_FUNC_DECL(abs, long, long)
 RUNTIME_FUNC_DECL(abs, float, float)
 RUNTIME_FUNC_DECL(abs, double, double)
 

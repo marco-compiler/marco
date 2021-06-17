@@ -17,6 +17,11 @@ inline T abs(T value)
 	return -1 * value;
 }
 
+inline bool abs(bool value)
+{
+	return value;
+}
+
 RUNTIME_FUNC_DEF(abs, bool, bool)
 RUNTIME_FUNC_DEF(abs, int, int)
 RUNTIME_FUNC_DEF(abs, long, long)
@@ -369,6 +374,9 @@ inline double log(T value)
 	return std::log(value);
 }
 
+RUNTIME_FUNC_DEF(log, float, float)
+RUNTIME_FUNC_DEF(log, double, double)
+
 /**
  * Get the base 10 logarithm of a value.
  *
@@ -382,6 +390,9 @@ inline double log10(T value)
 	assert(value > 0);
 	return std::log10(value);
 }
+
+RUNTIME_FUNC_DEF(log10, float, float)
+RUNTIME_FUNC_DEF(log10, double, double)
 
 /**
  * Get the max value of an array.
