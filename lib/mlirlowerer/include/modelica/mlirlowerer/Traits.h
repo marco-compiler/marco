@@ -78,7 +78,7 @@ namespace modelica::codegen
 
 							for (size_t i = 0; i < argActualRank - argExpectedRank; ++i)
 							{
-								auto& dimension = argType.cast<PointerType>().getShape()[arg.index()];
+								auto& dimension = argType.cast<PointerType>().getShape()[i];
 
 								// If the dimension is dynamic, then no further checks or
 								// specializations are possible.

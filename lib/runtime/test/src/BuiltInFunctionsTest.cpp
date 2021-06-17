@@ -102,13 +102,11 @@ TEST(Runtime, asin_f64)	 // NOLINT
 
 TEST(Runtime, atan_f32)	 // NOLINT
 {
-	std::array<float, 5> data = { 1, 0.577350269, 0, -0.577350269, -1 };
-
-	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(data[0]), M_PI / 4, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(data[1]), M_PI / 6, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(data[2]), 0, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(data[3]), -1 * M_PI / 6, 0.000001);
-	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(data[4]), -1 * M_PI / 4, 0.000001);
+	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(1), M_PI / 4, 0.000001);
+	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(0.577350269), M_PI / 6, 0.000001);
+	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(0), 0, 0.000001);
+	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(-0.577350269), -1 * M_PI / 6, 0.000001);
+	EXPECT_NEAR(NAME_MANGLED(atan, float, float)(-1), -1 * M_PI / 4, 0.000001);
 }
 
 TEST(Runtime, atan_f64)	 // NOLINT

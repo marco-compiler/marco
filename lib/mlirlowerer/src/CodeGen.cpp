@@ -1294,7 +1294,15 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 
 	Container<Reference> results;
 
-	if (functionName == "acos")
+	if (functionName == "abs")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<AbsOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "acos")
 	{
 		assert(call->argumentsCount() == 1);
 		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
@@ -1454,6 +1462,14 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		mlir::Value result = builder.create<ProductOp>(location, resultType, memory);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
+	else if (functionName == "sign")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<SignOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
 	else if (functionName == "sin")
 	{
 		assert(call->argumentsCount() == 1);
@@ -1492,6 +1508,14 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 			mlir::Value result = builder.create<SizeOp>(location, resultType, args[0], index);
 			results.emplace_back(Reference::ssa(&builder, result));
 		}
+	}
+	else if (functionName == "sqrt")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<SqrtOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "sum")
 	{

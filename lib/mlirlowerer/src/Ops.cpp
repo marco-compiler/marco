@@ -1233,11 +1233,12 @@ mlir::ValueRange CallOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 	for (mlir::Value arg : args())
 	{
 		assert(arg.getType().isa<PointerType>());
+		mlir::Value newArg = builder.create<SubscriptionOp>(getLoc(), arg, indexes);
 
-		if (arg.getType().cast<PointerType>().getRank() == indexes.size())
-			newArgs.push_back(builder.create<LoadOp>(getLoc(), arg, indexes));
-		else
-			newArgs.push_back(builder.create<SubscriptionOp>(getLoc(), arg, indexes));
+		if (auto pointerType = newArg.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+			newArg = builder.create<LoadOp>(getLoc(), newArg);
+
+		newArgs.push_back(newArg);
 	}
 
 	auto op = builder.create<CallOp>(getLoc(), callee(), newResultsTypes, newArgs);
@@ -1338,17 +1339,17 @@ mlir::ParseResult MemberCreateOp::parse(mlir::OpAsmParser& parser, mlir::Operati
 	llvm::SmallVector<mlir::Type, 2> dynamicDimensionsTypes;
 	mlir::Type resultType;
 
+	llvm::SMLoc dynamicDimensionsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(dynamicDimensions))
+		return mlir::failure();
+
 	mlir::NamedAttrList attributes;
 
 	if (parser.parseOptionalAttrDict(attributes))
 		return mlir::failure();
 
 	result.attributes.append(attributes);
-
-	llvm::SMLoc dynamicDimensionsLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(dynamicDimensions))
-		return mlir::failure();
 
 	if (parser.parseColon())
 		return mlir::failure();
@@ -5740,14 +5741,18 @@ void Atan2Op::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir:
 
 mlir::ParseResult Atan2Op::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	mlir::OpAsmParser::OperandType operand;
-	mlir::Type operandType;
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	llvm::SmallVector<mlir::Type, 2> operandsTypes;
 	mlir::Type resultType;
 
-	if (parser.parseOperand(operand) ||
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
 			parser.parseColon() ||
-			parser.parseType(operandType) ||
-			parser.resolveOperand(operand, operandType, result.operands) ||
+			parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
 			parser.parseArrow() ||
 			parser.parseType(resultType))
 		return mlir::failure();

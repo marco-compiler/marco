@@ -3,7 +3,7 @@
 // Static output arrays can be moved (if having an allowed size)
 
 modelica.function @callee() -> (!modelica.ptr<heap, 3x!modelica.int>) attributes {args_names = [], results_names = ["y"]} {
-    %0 = modelica.member_create : !modelica.member<heap, 3x!modelica.int>
+    %0 = modelica.member_create {name = "y"} : !modelica.member<heap, 3x!modelica.int>
     %1 = modelica.member_load %0 : !modelica.ptr<heap, 3x!modelica.int>
     modelica.return %1 : !modelica.ptr<heap, 3x!modelica.int>
 }

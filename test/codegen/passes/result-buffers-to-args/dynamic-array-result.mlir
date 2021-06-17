@@ -9,7 +9,7 @@
 // CHECK-SAME: results_names = ["y"]
 
 modelica.function @f2(%arg0 : !modelica.int) -> (!modelica.ptr<heap, ?x!modelica.int>) attributes {args_names = ["x"], results_names = ["y"]} {
-    %0 = modelica.member_create %arg0 : !modelica.int -> !modelica.member<heap, ?x!modelica.int>
+    %0 = modelica.member_create %arg0 {name = "y"} : !modelica.int -> !modelica.member<heap, ?x!modelica.int>
     %1 = modelica.member_load %0 : !modelica.ptr<heap, ?x!modelica.int>
     %2 = modelica.constant #modelica.int<1>
     %3 = modelica.constant 0 : index
