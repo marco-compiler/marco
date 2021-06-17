@@ -1294,7 +1294,56 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 
 	Container<Reference> results;
 
-	if (functionName == "der")
+	if (functionName == "acos")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<AcosOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "asin")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<AsinOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "atan")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<AtanOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "atan2")
+	{
+		assert(call->argumentsCount() == 2);
+		mlir::Value y = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value x = lower<Expression>(*call->getArg(1))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<Atan2Op>(location, resultType, y, x);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "cos")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<CosOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "cosh")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<CoshOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "der")
 	{
 		assert(call->argumentsCount() == 1);
 		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
@@ -1303,12 +1352,122 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 		mlir::Value result = builder.create<DerOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
+	else if (functionName == "diagonal")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value values = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<DiagonalOp>(location, resultType, values);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "exp")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<ExpOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "identity")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value size = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<IdentityOp>(location, resultType, size);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "linspace")
+	{
+		assert(call->argumentsCount() == 3);
+		mlir::Value start = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Value end = *lower<Expression>(*call->getArg(1))[0];
+		mlir::Value steps = *lower<Expression>(*call->getArg(2))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<LinspaceOp>(location, resultType, start, end, steps);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "log")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<LogOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "log10")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<Log10Op>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "max")
+	{
+		// The min function can have either one array operand or two scalar operands
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		for (const auto& arg : *call)
+			args.push_back(*lower<Expression>(*arg)[0]);
+
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<MaxOp>(location, resultType, args);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "min")
+	{
+		// The min function can have either one array operand or two scalar operands
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		for (const auto& arg : *call)
+			args.push_back(*lower<Expression>(*arg)[0]);
+
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<MinOp>(location, resultType, args);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
 	else if (functionName == "ndims")
 	{
 		assert(call->argumentsCount() == 1);
 		mlir::Value memory = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<NDimsOp>(location, resultType, memory);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "ones")
+	{
+		// The number of operands is equal to the rank of the resulting array
+		llvm::SmallVector<mlir::Value, 3> args;
+
+		for (const auto& arg : *call)
+			args.push_back(*lower<Expression>(*arg)[0]);
+
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<OnesOp>(location, resultType, args);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "product")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value memory = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<ProductOp>(location, resultType, memory);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "sin")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<SinOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "sinh")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<SinhOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "size")
@@ -1334,30 +1493,44 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 			results.emplace_back(Reference::ssa(&builder, result));
 		}
 	}
-	else if (functionName == "identity")
+	else if (functionName == "sum")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value size = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Value memory = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<IdentityOp>(location, resultType, size);
+		mlir::Value result = builder.create<SumOp>(location, resultType, memory);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
-	else if (functionName == "diagonal")
+	else if (functionName == "symmetric")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value values = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Value source = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<DiagonalOp>(location, resultType, values);
+		mlir::Value result = builder.create<SymmetricOp>(location, resultType, source);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
-	else if (functionName == "linspace")
+	else if (functionName == "tan")
 	{
-		assert(call->argumentsCount() == 3);
-		mlir::Value start = *lower<Expression>(*call->getArg(0))[0];
-		mlir::Value end = *lower<Expression>(*call->getArg(1))[0];
-		mlir::Value steps = *lower<Expression>(*call->getArg(2))[0];
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<LinspaceOp>(location, resultType, start, end, steps);
+		mlir::Value result = builder.create<TanOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "tanh")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<TanhOp>(location, resultType, operand);
+		results.emplace_back(Reference::ssa(&builder, result));
+	}
+	else if (functionName == "transpose")
+	{
+		assert(call->argumentsCount() == 1);
+		mlir::Value memory = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
+		mlir::Value result = builder.create<TransposeOp>(location, resultType, memory);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "zeros")
@@ -1370,74 +1543,6 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<ZerosOp>(location, resultType, args);
-		results.emplace_back(Reference::ssa(&builder, result));
-	}
-	else if (functionName == "ones")
-	{
-		// The number of operands is equal to the rank of the resulting array
-		llvm::SmallVector<mlir::Value, 3> args;
-
-		for (const auto& arg : *call)
-			args.push_back(*lower<Expression>(*arg)[0]);
-
-		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<OnesOp>(location, resultType, args);
-		results.emplace_back(Reference::ssa(&builder, result));
-	}
-	else if (functionName == "min")
-	{
-		// The min function can have either one array operand or two scalar operands
-		llvm::SmallVector<mlir::Value, 3> args;
-
-		for (const auto& arg : *call)
-			args.push_back(*lower<Expression>(*arg)[0]);
-
-		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<MinOp>(location, resultType, args);
-		results.emplace_back(Reference::ssa(&builder, result));
-	}
-	else if (functionName == "max")
-	{
-		// The min function can have either one array operand or two scalar operands
-		llvm::SmallVector<mlir::Value, 3> args;
-
-		for (const auto& arg : *call)
-			args.push_back(*lower<Expression>(*arg)[0]);
-
-		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<MaxOp>(location, resultType, args);
-		results.emplace_back(Reference::ssa(&builder, result));
-	}
-	else if (functionName == "sum")
-	{
-		assert(call->argumentsCount() == 1);
-		mlir::Value memory = *lower<Expression>(*call->getArg(0))[0];
-		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<SumOp>(location, resultType, memory);
-		results.emplace_back(Reference::ssa(&builder, result));
-	}
-	else if (functionName == "product")
-	{
-		assert(call->argumentsCount() == 1);
-		mlir::Value memory = *lower<Expression>(*call->getArg(0))[0];
-		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<ProductOp>(location, resultType, memory);
-		results.emplace_back(Reference::ssa(&builder, result));
-	}
-	else if (functionName == "transpose")
-	{
-		assert(call->argumentsCount() == 1);
-		mlir::Value memory = *lower<Expression>(*call->getArg(0))[0];
-		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<TransposeOp>(location, resultType, memory);
-		results.emplace_back(Reference::ssa(&builder, result));
-	}
-	else if (functionName == "symmetric")
-	{
-		assert(call->argumentsCount() == 1);
-		mlir::Value source = *lower<Expression>(*call->getArg(0))[0];
-		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<SymmetricOp>(location, resultType, source);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else
