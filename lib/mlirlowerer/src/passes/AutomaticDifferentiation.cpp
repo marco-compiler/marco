@@ -230,8 +230,7 @@ static mlir::LogicalResult createPartialDerFunction(FunctionOp base, llvm::Strin
 
 static void mapDerivatives(llvm::ArrayRef<llvm::StringRef> names,
 													 mlir::ValueRange values,
-													 mlir::BlockAndValueMapping& derivatives,
-													 unsigned int maxOrder)
+													 mlir::BlockAndValueMapping& derivatives)
 {
 	// Map the values for a faster by-name lookup
 	llvm::StringMap<mlir::Value> map;
@@ -254,13 +253,22 @@ static void mapDerivatives(llvm::ArrayRef<llvm::StringRef> names,
 		mlir::Value der = map[candidateFirstOrderDer];
 		derivatives.map(map[name], der);
 
-		for (unsigned int i = 2; i <= maxOrder; ++i)
+		unsigned int order = 2;
+		bool found = true;
+
+		while (found)
 		{
-			auto nextName = getDerVariableName(name, i);
-			assert(map.count(nextName) != 0);
-			mlir::Value nextDer = map[nextName];
-			derivatives.map(der, nextDer);
-			der = nextDer;
+			auto nextName = getDerVariableName(name, order);
+			found = map.count(nextName) != 0;
+
+			if (found)
+			{
+				mlir::Value nextDer = map[nextName];
+				derivatives.map(der, nextDer);
+				der = nextDer;
+			}
+
+			++order;
 		}
 	}
 }
@@ -404,7 +412,7 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 	mlir::BlockAndValueMapping derivatives;
 
 	// Map the derivatives among the function arguments.
-	mapDerivatives(argsNames, derivedFunction.getArguments(), derivatives, order);
+	mapDerivatives(argsNames, derivedFunction.getArguments(), derivatives);
 
 	// Clone the original operations, which will be interleaved in the
 	// resulting derivative function.
@@ -433,7 +441,7 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 	});
 
 	llvm::SmallVector<mlir::Value, 3> toBeDerived;
-	mapDerivatives(allMembersNames, allMembersValues, derivatives, order - 1);
+	mapDerivatives(allMembersNames, allMembersValues, derivatives);
 
 	// Create the new members derivatives
 	for (const auto& [name, value] : llvm::zip(allMembersNames, allMembersValues))
@@ -579,7 +587,25 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
 			if (auto derivableOp = mlir::dyn_cast<DerivativeInterface>(definingOp))
 			{
-				//derivableOp.derive(builder, );
+				auto classOp = op->getParentOfType<ClassInterface>();
+
+				if (classOp == nullptr)
+					return;
+
+				llvm::SmallVector<mlir::Value, 3> members;
+				llvm::SmallVector<llvm::StringRef, 3> names;
+				classOp.getMembers(members, names);
+
+				mlir::BlockAndValueMapping derivatives;
+				mapDerivatives(names, members, derivatives);
+
+				mlir::ValueRange ders = derivableOp.deriveTree(builder, derivatives);
+
+				if (ders.size() != op->getNumResults())
+					return;
+
+				op->replaceAllUsesWith(ders);
+				op.erase();
 			}
 		});
 

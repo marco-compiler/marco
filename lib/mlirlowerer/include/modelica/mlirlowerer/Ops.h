@@ -359,7 +359,8 @@ namespace modelica::codegen
 																		mlir::OpTrait::IsIsolatedFromAbove,
 																		mlir::OpTrait::FunctionLike,
 																		mlir::CallableOpInterface::Trait,
-																		mlir::SymbolOpInterface::Trait>
+																		mlir::SymbolOpInterface::Trait,
+																		ClassInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -384,6 +385,8 @@ namespace modelica::codegen
 		llvm::ArrayRef<mlir::Attribute> resultsNames();
 
 		bool hasDerivative();
+
+		void getMembers(llvm::SmallVectorImpl<mlir::Value>& members, llvm::SmallVectorImpl<llvm::StringRef>& names);
 
 		private:
 		friend class mlir::OpTrait::FunctionLike<FunctionOp>;
@@ -511,7 +514,8 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::OpFoldResult fold(llvm::ArrayRef<mlir::Attribute> operands);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Attribute value();
 		mlir::Type resultType();
@@ -725,7 +729,8 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value member();
@@ -769,7 +774,8 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Value member();
 		mlir::Value value();
@@ -1026,7 +1032,8 @@ namespace modelica::codegen
 
 		mlir::Value getViewSource();
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		PointerType resultType();
 		mlir::Value source();
@@ -1070,7 +1077,8 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		PointerType getPointerType();
 		mlir::Value memory();
@@ -1116,7 +1124,8 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		PointerType getPointerType();
 		mlir::Value value();
@@ -1836,7 +1845,8 @@ namespace modelica::codegen
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -1889,7 +1899,8 @@ namespace modelica::codegen
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -1942,7 +1953,8 @@ namespace modelica::codegen
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -1997,7 +2009,8 @@ namespace modelica::codegen
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2052,7 +2065,8 @@ namespace modelica::codegen
 		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2096,7 +2110,8 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value base();
@@ -2260,7 +2275,8 @@ namespace modelica::codegen
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2303,7 +2319,8 @@ namespace modelica::codegen
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2346,7 +2363,8 @@ namespace modelica::codegen
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2389,7 +2407,8 @@ namespace modelica::codegen
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2432,7 +2451,8 @@ namespace modelica::codegen
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2475,7 +2495,8 @@ namespace modelica::codegen
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2560,7 +2581,8 @@ namespace modelica::codegen
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2603,7 +2625,8 @@ namespace modelica::codegen
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2646,7 +2669,8 @@ namespace modelica::codegen
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2689,7 +2713,8 @@ namespace modelica::codegen
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value exponent();
@@ -2732,7 +2757,8 @@ namespace modelica::codegen
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2775,7 +2801,8 @@ namespace modelica::codegen
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
 
-		void derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
 		mlir::Type resultType();
 		mlir::Value operand();

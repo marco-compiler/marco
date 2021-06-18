@@ -97,26 +97,3 @@ modelica.function @div(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!mode
     %2 = modelica.member_load %0 : !modelica.real
     modelica.return %2 : !modelica.real
 }
-
-// -----
-
-// CHECK-LABEL: @pow_der
-// CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.real
-// CHECK-SAME: %[[Y:[a-zA-Z0-9]*]] : !modelica.real
-// CHECK-SAME: %[[DER_X:[a-zA-Z0-9]*]] : !modelica.real
-// CHECK-SAME: %[[DER_Y:[a-zA-Z0-9]*]] : !modelica.real
-// CHECK: %[[DER_Z:[a-zA-Z0-9]*]] = modelica.member_create {name = "der_z"} : !modelica.member<stack, !modelica.real>
-// CHECK: %[[ONE:[a-zA-Z0-9]*]] = modelica.constant #modelica.real<1.000000>
-// CHECK: %[[EXPONENT:[a-zA-Z0-9]*]] = modelica.sub %[[Y]], %[[ONE]] : (!modelica.real, !modelica.real) -> !modelica.real
-// CHECK: %[[POW:[a-zA-Z0-9]*]] = modelica.pow %[[X]], %[[EXPONENT]] : (!modelica.real, !modelica.real) -> !modelica.real
-// CHECK: %[[TMP:[a-zA-Z0-9]*]] = modelica.mul %[[POW]], %[[Y]] : (!modelica.real, !modelica.real) -> !modelica.real
-// CHECK: %[[RESULT:[a-zA-Z0-9]*]] = modelica.mul %[[TMP]], %[[DER_X]] : (!modelica.real, !modelica.real) -> !modelica.real
-// CHECK: modelica.member_store %[[DER_Z]], %[[RESULT]]
-
-modelica.function @pow(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x", "y"], results_names = ["z"], derivative = #modelica.derivative<"pow_der", 1>} {
-    %0 = modelica.member_create {name = "z"} : !modelica.member<stack, !modelica.real>
-    %1 = modelica.pow %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
-    modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
-    %2 = modelica.member_load %0 : !modelica.real
-    modelica.return %2 : !modelica.real
-}
