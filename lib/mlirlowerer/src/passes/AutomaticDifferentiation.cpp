@@ -585,6 +585,9 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 			mlir::Value operand = op.operand();
 			mlir::Operation* definingOp = operand.getDefiningOp();
 
+			if (definingOp == nullptr)
+				return;
+
 			if (auto derivableOp = mlir::dyn_cast<DerivativeInterface>(definingOp))
 			{
 				auto classOp = op->getParentOfType<ClassInterface>();
