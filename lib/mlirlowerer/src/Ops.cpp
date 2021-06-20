@@ -7745,7 +7745,7 @@ mlir::Value DerSeedOpAdaptor::member()
 
 unsigned int DerSeedOpAdaptor::value()
 {
-	return getAttrs().cast<mlir::IntegerAttr>().getInt();
+	return getAttrs().getAs<mlir::IntegerAttr>("value").getInt();
 }
 
 void DerSeedOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value member, unsigned int value)
