@@ -4,6 +4,7 @@
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/AutomaticDifferentiation.h>
+#include <set>
 
 using namespace modelica::codegen;
 
@@ -48,6 +49,37 @@ unsigned int numDigits(T number)
 	}
 
 	return digits;
+}
+
+static mlir::Value createDerVariable(
+		mlir::OpBuilder& builder,
+		mlir::Value var,
+		std::function<std::string()> derivativeName)
+{
+	if (auto memberCreateOp = var.getDefiningOp<MemberCreateOp>())
+	{
+		mlir::Value der = builder.create<MemberCreateOp>(
+				var.getLoc(),
+				derivativeName(),
+				var.getType(),
+				memberCreateOp.dynamicDimensions());
+
+		return der;
+	}
+
+	mlir::Type type = var.getType();
+
+	auto memberType = type.isa<ArrayType>() ?
+										MemberType::get(type.cast<ArrayType>()) :
+										MemberType::get(builder.getContext(), MemberAllocationScope::stack, type);
+
+	llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+	getDynamicDimensions(builder, var, dynamicDimensions);
+
+	mlir::Value der = builder.create<MemberCreateOp>(
+			var.getLoc(), derivativeName(), memberType, dynamicDimensions);
+
+	return der;
 }
 
 static std::string getPartialDerVariableName(llvm::StringRef currentName, llvm::StringRef independentVar)
@@ -188,17 +220,11 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 			builder.clone(baseOp, mapping);
 	}
 
-	// Create a list of the operations to be derived
-	llvm::SmallVector<DerivativeInterface> derivableOps;
-
-	derivedFunction.walk([&](mlir::Operation* op) {
-		if (auto deriveInterface = mlir::dyn_cast<DerivativeInterface>(op))
-			derivableOps.push_back(deriveInterface);
-	});
+	std::set<mlir::Operation*> notToBeDerivedOps;
 
 	// Create the members derivatives
 	builder.setInsertionPointToStart(&derivedFunction.getBody().front());
-	mlir::BlockAndValueMapping derivatives;
+	llvm::StringMap<mlir::BlockAndValueMapping> derivatives;
 
 	llvm::StringMap<mlir::Value> membersMap;
 
@@ -208,27 +234,48 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 
 	for (const auto& [name, value, type] : llvm::zip(argsNames, derivedFunction.getArguments(), derivedFunction.getType().getInputs()))
 	{
-		auto memberType = type.isa<ArrayType>() ?
-											MemberType::get(type.cast<ArrayType>()) :
-											MemberType::get(builder.getContext(), MemberAllocationScope::stack, type);
+		llvm::SmallVector<mlir::Value, 3> variables;
+		llvm::SmallVector<std::string, 3> names;
 
-		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
-		getDynamicDimensions(builder, value, dynamicDimensions);
+		variables.push_back(value);
+		names.push_back(name.str());
 
-		auto derName = getPartialDerVariableName(name, independentVar);
-		mlir::Value der = builder.create<MemberCreateOp>(base.getLoc(), derName, memberType, dynamicDimensions);
+		for (const auto& independentVariable : independentVariables)
+		{
+			llvm::SmallVector<mlir::Value, 3> newVariables;
+			llvm::SmallVector<std::string, 3> newNames;
 
-		// Create the seed
-		builder.create<DerSeedOp>(loc, der, name == independentVar ? 1 : 0);
+			for (const auto& [variable, name] : llvm::zip(variables, names))
+			{
+				auto derivativeName = getPartialDerVariableName(name, independentVariable);
 
-		// Input arguments should not be mapped to the member itself, but rather
-		// to the value (seed) they contain. This way, existing operations that
-		// refer to the input arguments don't have to check whether to load
-		// or not the value from the member. This is possible also because
-		// input arguments get never written as per the Modelica standard.
+				mlir::Value der = createDerVariable(builder, value, [&derivativeName]() {
+					return derivativeName;
+				});
 
-		mlir::Value seed = builder.create<MemberLoadOp>(base->getLoc(), type, der);
-		derivatives.map(value, seed);
+				newVariables.push_back(der);
+				newNames.push_back(derivativeName);
+
+				// Create the seed
+				builder.create<DerSeedOp>(loc, der, name == independentVariable ? 1 : 0);
+
+				// Input arguments should not be mapped to the member itself, but rather
+				// to the value (seed) they contain. This way, existing operations that
+				// refer to the input arguments don't have to check whether to load
+				// or not the value from the member. This is possible also because
+				// input arguments get never written as per the Modelica standard.
+
+				auto seed = builder.create<MemberLoadOp>(base->getLoc(), type, der);
+				derivatives[independentVariable].map(value, seed.getResult());
+
+				// The load operation is created just to provide access to the seed,
+				// and thus should not be derived.
+				notToBeDerivedOps.insert(seed.getOperation());
+			}
+
+			variables.append(newVariables);
+			names.append(newNames);
+		}
 	}
 
 	for (const auto& member : membersMap)
@@ -236,26 +283,57 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 		llvm::StringRef name = member.getKey();
 		mlir::Value value = member.getValue();
 
-		auto createOp = value.getDefiningOp<MemberCreateOp>();
-		builder.setInsertionPointAfter(createOp);
-		auto derName = getPartialDerVariableName(name, independentVar);
+		llvm::SmallVector<mlir::Value, 3> variables;
+		llvm::SmallVector<std::string, 3> names;
 
-		mlir::Value der = builder.create<MemberCreateOp>(
-				value.getLoc(),
-				derName,
-				value.getType(), createOp.dynamicDimensions());
+		variables.push_back(value);
+		names.push_back(name.str());
 
-		// Create the seed
-		builder.create<DerSeedOp>(loc, der, name == independentVar ? 1 : 0);
+		for (const auto& independentVariable : independentVariables)
+		{
+			llvm::SmallVector<mlir::Value, 3> newVariables;
+			llvm::SmallVector<std::string, 3> newNames;
 
-		derivatives.map(value, der);
+			for (const auto& [variable, name] : llvm::zip(variables, names))
+			{
+				auto derivativeName = getPartialDerVariableName(name, independentVariable);
+
+				mlir::Value der = createDerVariable(builder, value, [&derivativeName]() {
+					return derivativeName;
+				});
+
+				newVariables.push_back(der);
+				newNames.push_back(derivativeName);
+
+				derivatives[independentVariable].map(value, der);
+
+				// Create the seed
+				builder.create<DerSeedOp>(loc, der, name == independentVariable ? 1 : 0);
+			}
+
+			variables.append(newVariables);
+			names.append(newNames);
+		}
 	}
+	// List of the operations to be derived
+	std::set<mlir::Operation*> derivedOperations;
+	llvm::SmallVector<DerivativeInterface, 3> derivableOps;
 
-	// Derive the derivable operations
-	for (auto& op : derivableOps)
+	for (const auto& independentVariable : independentVariables)
 	{
-		builder.setInsertionPoint(op);
-		op.derive(builder, derivatives);
+		derivedFunction.walk([&](mlir::Operation* op) {
+			if (auto derivableOp = mlir::dyn_cast<DerivativeInterface>(op))
+				if (derivedOperations.count(derivableOp.getOperation()) == 0 &&
+						notToBeDerivedOps.count(derivableOp.getOperation()) == 0)
+					derivableOps.push_back(derivableOp);
+		});
+
+		for (auto& op : derivableOps)
+		{
+			builder.setInsertionPoint(op);
+			op.derive(builder, derivatives[independentVariable]);
+			derivedOperations.insert(op.getOperation());
+		}
 	}
 
 	// Replace the old return operation with a new one returning the derivatives
@@ -263,8 +341,17 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 	llvm::SmallVector<mlir::Value, 3> results;
 
 	for (auto value : llvm::enumerate(returnOp.values()))
+	{
 		if (hasFloatBase(base.getType().getResult(value.index())))
-			results.push_back(derivatives.lookup(value.value()));
+		{
+			mlir::Value result = value.value();
+
+			for (const auto& independentVariable : independentVariables)
+				result = derivatives[independentVariable].lookup(result);
+
+			results.push_back(result);
+		}
+	}
 
 	builder.setInsertionPoint(returnOp);
 	builder.create<ReturnOp>(returnOp.getLoc(), results);
@@ -536,13 +623,9 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 		}
 		else
 		{
-			auto createOp = value.getDefiningOp<MemberCreateOp>();
-			builder.setInsertionPointAfter(createOp);
-
-			mlir::Value der = builder.create<MemberCreateOp>(
-					value.getLoc(),
-					getNextFullDerVariableName(name, order),
-					value.getType(), createOp.dynamicDimensions());
+			mlir::Value der = createDerVariable(builder, value, [name = std::ref(name), &order]() {
+				return getNextFullDerVariableName(name, order);
+			});
 
 			derivatives.map(value, der);
 		}
