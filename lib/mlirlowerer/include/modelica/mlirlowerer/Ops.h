@@ -469,7 +469,7 @@ namespace modelica::codegen
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, llvm::StringRef derivedFunction, llvm::ArrayRef<llvm::StringRef> independentVariables);
-		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
@@ -3376,6 +3376,42 @@ namespace modelica::codegen
 
 		mlir::Type resultType();
 		mlir::Value operand();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::DerSeedOp
+	//===----------------------------------------------------------------------===//
+
+	class DerSeedOp;
+
+	class DerSeedOpAdaptor : public OpAdaptor<DerSeedOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value member();
+		unsigned int value();
+	};
+
+	class DerSeedOp : public mlir::Op<DerSeedOp,
+																	 mlir::OpTrait::OneOperand,
+																	 mlir::OpTrait::ZeroResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = DerSeedOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.der_seed";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value member, unsigned int value);
+		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Value member();
+		unsigned int value();
 	};
 
 	//===----------------------------------------------------------------------===//

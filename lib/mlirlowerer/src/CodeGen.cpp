@@ -198,35 +198,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Class& cls)
 mlir::Operation* MLIRLowerer::lower(const frontend::PartialDerFunction& function)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
-
 	auto location = loc(function.getLocation());
-
-	/*
-	llvm::SmallVector<mlir::Type, 3> argsTypes;
-	llvm::SmallVector<mlir::Type, 3> resultsTypes;
-
-	for (const auto& argType : function.getArgsTypes())
-	{
-		mlir::Type type = lower(argType, BufferAllocationScope::unknown);
-
-		if (auto pointerType = type.dyn_cast<PointerType>())
-			type = pointerType.toUnknownAllocationScope();
-
-		argsTypes.emplace_back(type);
-	}
-
-	for (const auto& resultType : function.getResultsTypes())
-	{
-		mlir::Type type = lower(resultType, BufferAllocationScope::heap);
-
-		if (auto pointerType = type.dyn_cast<PointerType>())
-			type = pointerType.toAllocationScope(BufferAllocationScope::heap);
-
-		resultsTypes.emplace_back(type);
-	}
-
-	auto functionType = builder.getFunctionType(argsTypes, resultsTypes);
-	 */
 
 	llvm::StringRef derivedFunction = function.getDerivedFunction()->get<ReferenceAccess>()->getName();
 	llvm::SmallVector<llvm::StringRef, 3> independentVariables;

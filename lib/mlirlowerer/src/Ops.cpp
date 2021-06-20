@@ -806,12 +806,29 @@ void DerFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
 {
 	state.addAttribute(mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name));
 	state.addAttribute("derived_function", builder.getStringAttr(derivedFunction));
-	state.addAttribute("independent_variables", builder.getStrArrayAttr(independentVariables));
+	state.addAttribute("independent_vars", builder.getStrArrayAttr(independentVariables));
+}
+
+mlir::ParseResult DerFunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	auto& builder = parser.getBuilder();
+
+	mlir::StringAttr nameAttr;
+	if (parser.parseSymbolName(nameAttr, mlir::SymbolTable::getSymbolAttrName(), result.attributes))
+		return mlir::failure();
+
+	mlir::NamedAttrList attributes;
+
+	if (parser.parseOptionalAttrDict(attributes))
+		return mlir::failure();
+
+	result.attributes.append(attributes);
+	return mlir::success();
 }
 
 void DerFunctionOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.der_function @" << name();
+	printer << getOperationName() << " @" << name();
 	printer << " {";
 
 	size_t index = 0;
@@ -825,7 +842,7 @@ void DerFunctionOp::print(mlir::OpAsmPrinter& printer)
 			printer << ", ";
 
 		printer << attribute.first;
-		printer << ": ";
+		printer << " = ";
 		printer << attribute.second;
 	}
 
@@ -870,7 +887,7 @@ llvm::StringRef DerFunctionOp::derivedFunction()
 
 llvm::ArrayRef<mlir::Attribute> DerFunctionOp::independentVariables()
 {
-	return getOperation()->getAttrOfType<mlir::ArrayAttr>("independent_variables").getValue();
+	return getOperation()->getAttrOfType<mlir::ArrayAttr>("independent_vars").getValue();
 }
 
 //===----------------------------------------------------------------------===//
@@ -7715,6 +7732,42 @@ mlir::Type DerOp::resultType()
 mlir::Value DerOp::operand()
 {
 	return Adaptor(*this).operand();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::DerSeedOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value DerSeedOpAdaptor::member()
+{
+	return getValues()[0];
+}
+
+unsigned int DerSeedOpAdaptor::value()
+{
+	return getAttrs().cast<mlir::IntegerAttr>().getInt();
+}
+
+void DerSeedOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value member, unsigned int value)
+{
+	state.addOperands(member);
+	state.addAttribute("value", builder.getI32IntegerAttr(value));
+}
+
+void DerSeedOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << member() << ", " << value() << " : "
+					<< member().getType();
+}
+
+mlir::Value DerSeedOp::member()
+{
+	return Adaptor(*this).member();
+}
+
+unsigned int DerSeedOp::value()
+{
+	return Adaptor(*this).value();
 }
 
 //===----------------------------------------------------------------------===//

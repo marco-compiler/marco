@@ -98,7 +98,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 			TransposeOp,
 			SymmetricOp>();
 
-	addOperations<SimulationOp, EquationOp, InductionOp, ForEquationOp, EquationSidesOp, DerOp>();
+	addOperations<SimulationOp, EquationOp, InductionOp, ForEquationOp, EquationSidesOp, DerOp, DerSeedOp>();
 }
 
 mlir::StringRef ModelicaDialect::getDialectNamespace()
