@@ -28,7 +28,7 @@ unsigned int MemberTypeStorage::hashKey(const KeyTy& key)
 MemberTypeStorage* MemberTypeStorage::construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key)
 {
 	auto *storage = allocator.allocate<MemberTypeStorage>();
-	return new (storage) MemberTypeStorage{std::get<MemberAllocationScope>(key), std::get<mlir::Type>(key), std::get<PointerType::Shape>(key)};
+	return new (storage) MemberTypeStorage{std::get<MemberAllocationScope>(key), std::get<mlir::Type>(key), std::get<ArrayType::Shape>(key)};
 }
 
 MemberAllocationScope MemberTypeStorage::getAllocationScope() const
@@ -53,14 +53,14 @@ MemberTypeStorage::MemberTypeStorage(MemberAllocationScope allocationScope, mlir
 {
 }
 
-bool PointerTypeStorage::operator==(const KeyTy& key) const
+bool ArrayTypeStorage::operator==(const KeyTy& key) const
 {
 	return key == KeyTy{getAllocationScope(), getElementType(), getShape()};
 }
 
-unsigned int PointerTypeStorage::hashKey(const KeyTy& key)
+unsigned int ArrayTypeStorage::hashKey(const KeyTy& key)
 {
-	auto hashValue = [](const PointerTypeStorage::Shape& s) -> llvm::hash_code
+	auto hashValue = [](const ArrayTypeStorage::Shape& s) -> llvm::hash_code
 	{
 		if (s.size()) {
 			return llvm::hash_combine_range(s.begin(), s.end());
@@ -68,60 +68,60 @@ unsigned int PointerTypeStorage::hashKey(const KeyTy& key)
 		return llvm::hash_combine(0);
 	};
 
-	auto shapeHash{hashValue(std::get<PointerType::Shape>(key))};
+	auto shapeHash{hashValue(std::get<ArrayType::Shape>(key))};
 	return llvm::hash_combine(std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), shapeHash);
 }
 
-PointerTypeStorage* PointerTypeStorage::construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key)
+ArrayTypeStorage* ArrayTypeStorage::construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key)
 {
-	auto *storage = allocator.allocate<PointerTypeStorage>();
-	return new (storage) PointerTypeStorage{std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), std::get<PointerType::Shape>(key)};
+	auto *storage = allocator.allocate<ArrayTypeStorage>();
+	return new (storage) ArrayTypeStorage{std::get<BufferAllocationScope>(key), std::get<mlir::Type>(key), std::get<ArrayType::Shape>(key)};
 }
 
-BufferAllocationScope PointerTypeStorage::getAllocationScope() const
+BufferAllocationScope ArrayTypeStorage::getAllocationScope() const
 {
 	return allocationScope;
 }
 
-PointerType::Shape PointerTypeStorage::getShape() const
+ArrayType::Shape ArrayTypeStorage::getShape() const
 {
 	return shape;
 }
 
-mlir::Type PointerTypeStorage::getElementType() const
+mlir::Type ArrayTypeStorage::getElementType() const
 {
 	return elementType;
 }
 
-PointerTypeStorage::PointerTypeStorage(BufferAllocationScope allocationScope, mlir::Type elementType, const Shape& shape)
+ArrayTypeStorage::ArrayTypeStorage(BufferAllocationScope allocationScope, mlir::Type elementType, const Shape& shape)
 		: allocationScope(allocationScope),
 			elementType(elementType),
 			shape(std::move(shape))
 {
 }
 
-bool UnsizedPointerTypeStorage::operator==(const KeyTy& key) const
+bool UnsizedArrayTypeStorage::operator==(const KeyTy& key) const
 {
 	return key == KeyTy{getElementType()};
 }
 
-unsigned int UnsizedPointerTypeStorage::hashKey(const KeyTy& key)
+unsigned int UnsizedArrayTypeStorage::hashKey(const KeyTy& key)
 {
 	return llvm::hash_combine(key);
 }
 
-UnsizedPointerTypeStorage* UnsizedPointerTypeStorage::construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key)
+UnsizedArrayTypeStorage* UnsizedArrayTypeStorage::construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key)
 {
-	auto *storage = allocator.allocate<UnsizedPointerTypeStorage>();
-	return new (storage) UnsizedPointerTypeStorage{key};
+	auto *storage = allocator.allocate<UnsizedArrayTypeStorage>();
+	return new (storage) UnsizedArrayTypeStorage{key};
 }
 
-mlir::Type UnsizedPointerTypeStorage::getElementType() const
+mlir::Type UnsizedArrayTypeStorage::getElementType() const
 {
 	return elementType;
 }
 
-UnsizedPointerTypeStorage::UnsizedPointerTypeStorage(mlir::Type elementType)
+UnsizedArrayTypeStorage::UnsizedArrayTypeStorage(mlir::Type elementType)
 		: elementType(elementType)
 {
 }
@@ -206,14 +206,14 @@ MemberType MemberType::get(mlir::MLIRContext* context, MemberAllocationScope all
 	return Base::get(context, allocationScope, elementType, Shape(shape.begin(), shape.end()));
 }
 
-MemberType MemberType::get(PointerType pointerType)
+MemberType MemberType::get(ArrayType arrayType)
 {
-	auto shape = pointerType.getShape();
+	auto shape = arrayType.getShape();
 
 	return Base::get(
-			pointerType.getContext(),
-			bufferToMemberAllocationScope(pointerType.getAllocationScope()),
-			pointerType.getElementType(),
+			arrayType.getContext(),
+			bufferToMemberAllocationScope(arrayType.getAllocationScope()),
+			arrayType.getElementType(),
 			Shape(shape.begin(), shape.end()));
 }
 
@@ -237,41 +237,41 @@ unsigned int MemberType::getRank() const
 	return getShape().size();
 }
 
-PointerType MemberType::toPointerType() const
+ArrayType MemberType::toArrayType() const
 {
-	return PointerType::get(
+	return ArrayType::get(
 			getContext(),
 			memberToBufferAllocationScope(getAllocationScope()),
 			getElementType(),
 			getShape());
 }
 
-PointerType PointerType::get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape)
+ArrayType ArrayType::get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape)
 {
 	return Base::get(context, allocationScope, elementType, Shape(shape.begin(), shape.end()));
 }
 
-BufferAllocationScope PointerType::getAllocationScope() const
+BufferAllocationScope ArrayType::getAllocationScope() const
 {
 	return getImpl()->getAllocationScope();
 }
 
-mlir::Type PointerType::getElementType() const
+mlir::Type ArrayType::getElementType() const
 {
 	return getImpl()->getElementType();
 }
 
-PointerType::Shape PointerType::getShape() const
+ArrayType::Shape ArrayType::getShape() const
 {
 	return getImpl()->getShape();
 }
 
-unsigned int PointerType::getRank() const
+unsigned int ArrayType::getRank() const
 {
 	return getShape().size();
 }
 
-unsigned int PointerType::getConstantDimensions() const
+unsigned int ArrayType::getConstantDimensions() const
 {
 	auto dimensions = getShape();
 	unsigned int count = 0;
@@ -284,7 +284,7 @@ unsigned int PointerType::getConstantDimensions() const
 	return count;
 }
 
-unsigned int PointerType::getDynamicDimensions() const
+unsigned int ArrayType::getDynamicDimensions() const
 {
 	auto dimensions = getShape();
 	unsigned int count = 0;
@@ -297,7 +297,7 @@ unsigned int PointerType::getDynamicDimensions() const
 	return count;
 }
 
-long PointerType::rawSize() const
+long ArrayType::rawSize() const
 {
 	long result = 1;
 
@@ -312,19 +312,19 @@ long PointerType::rawSize() const
 	return result;
 }
 
-bool PointerType::hasConstantShape() const
+bool ArrayType::hasConstantShape() const
 {
 	return llvm::all_of(getShape(), [](long size) {
 		return size != -1;
 	});
 }
 
-bool PointerType::isScalar() const
+bool ArrayType::isScalar() const
 {
 	return getRank() == 0;
 }
 
-PointerType PointerType::slice(unsigned int subscriptsAmount)
+ArrayType ArrayType::slice(unsigned int subscriptsAmount)
 {
 	auto shape = getShape();
 	assert(subscriptsAmount <= shape.size() && "Too many subscriptions");
@@ -333,20 +333,20 @@ PointerType PointerType::slice(unsigned int subscriptsAmount)
 	for (size_t i = subscriptsAmount, e = shape.size(); i < e; ++i)
 		resultShape.push_back(shape[i]);
 
-	return PointerType::get(getContext(), getAllocationScope(), getElementType(), resultShape);
+	return ArrayType::get(getContext(), getAllocationScope(), getElementType(), resultShape);
 }
 
-PointerType PointerType::toAllocationScope(BufferAllocationScope scope)
+ArrayType ArrayType::toAllocationScope(BufferAllocationScope scope)
 {
-	return PointerType::get(getContext(), scope, getElementType(), getShape());
+	return ArrayType::get(getContext(), scope, getElementType(), getShape());
 }
 
-PointerType PointerType::toUnknownAllocationScope()
+ArrayType ArrayType::toUnknownAllocationScope()
 {
 	return toAllocationScope(BufferAllocationScope::unknown);
 }
 
-PointerType PointerType::toMinAllowedAllocationScope()
+ArrayType ArrayType::toMinAllowedAllocationScope()
 {
 	if (getAllocationScope() == BufferAllocationScope::heap)
 		return *this;
@@ -357,22 +357,22 @@ PointerType PointerType::toMinAllowedAllocationScope()
 	return toAllocationScope(BufferAllocationScope::heap);
 }
 
-UnsizedPointerType PointerType::toUnsized()
+UnsizedArrayType ArrayType::toUnsized()
 {
-	return UnsizedPointerType::get(getContext(), getElementType());
+	return UnsizedArrayType::get(getContext(), getElementType());
 }
 
-bool PointerType::canBeOnStack() const
+bool ArrayType::canBeOnStack() const
 {
 	return hasConstantShape();
 }
 
-UnsizedPointerType UnsizedPointerType::get(mlir::MLIRContext* context, mlir::Type elementType)
+UnsizedArrayType UnsizedArrayType::get(mlir::MLIRContext* context, mlir::Type elementType)
 {
 	return Base::get(context, elementType);
 }
 
-mlir::Type UnsizedPointerType::getElementType() const
+mlir::Type UnsizedArrayType::getElementType() const
 {
 	return getImpl()->getElementType();
 }
@@ -445,7 +445,7 @@ namespace modelica::codegen
 			return MemberType::get(builder.getContext(), scope, baseType, dimensions);
 		}
 
-		if (mlir::succeeded(parser.parseOptionalKeyword("ptr")))
+		if (mlir::succeeded(parser.parseOptionalKeyword("array")))
 		{
 			if (parser.parseLess())
 				return mlir::Type();
@@ -458,7 +458,7 @@ namespace modelica::codegen
 						parser.parseGreater())
 					return mlir::Type();
 
-				return UnsizedPointerType::get(builder.getContext(), baseType);
+				return UnsizedArrayType::get(builder.getContext(), baseType);
 			}
 
 			BufferAllocationScope scope = BufferAllocationScope::unknown;
@@ -489,7 +489,7 @@ namespace modelica::codegen
 					parser.parseGreater())
 				return mlir::Type();
 
-			return PointerType::get(builder.getContext(), scope, baseType, dimensions);
+			return ArrayType::get(builder.getContext(), scope, baseType, dimensions);
 		}
 
 		if (mlir::succeeded(parser.parseOptionalKeyword("opaque_ptr")))
@@ -561,28 +561,28 @@ namespace modelica::codegen
 			return;
 		}
 
-		if (auto pointerType = type.dyn_cast<PointerType>())
+		if (auto arrayType = type.dyn_cast<ArrayType>())
 		{
-			os << "ptr<";
+			os << "array<";
 
-			if (pointerType.getAllocationScope() == BufferAllocationScope::stack)
+			if (arrayType.getAllocationScope() == BufferAllocationScope::stack)
 				os << "stack, ";
-			else if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+			else if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 				os << "heap, ";
 
-			auto dimensions = pointerType.getShape();
+			auto dimensions = arrayType.getShape();
 
 			for (const auto& dimension : dimensions)
 				os << (dimension == -1 ? "?" : std::to_string(dimension)) << "x";
 
-			printer.printType(pointerType.getElementType());
+			printer.printType(arrayType.getElementType());
 			os << ">";
 			return;
 		}
 
-		if (auto pointerType = type.dyn_cast<UnsizedPointerType>())
+		if (auto arrayType = type.dyn_cast<UnsizedArrayType>())
 		{
-			os << "ptr<*x" << pointerType.getElementType() << ">";
+			os << "array<*x" << arrayType.getElementType() << ">";
 			return;
 		}
 

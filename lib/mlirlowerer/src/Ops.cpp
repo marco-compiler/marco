@@ -19,7 +19,7 @@ static bool isNumeric(mlir::Value value)
 
 static mlir::Value readValue(mlir::OpBuilder& builder, mlir::Value operand)
 {
-	if (auto pointerType = operand.getType().dyn_cast<PointerType>(); pointerType && pointerType.getRank() == 0)
+	if (auto arrayType = operand.getType().dyn_cast<ArrayType>(); arrayType && arrayType.getRank() == 0)
 		return builder.create<LoadOp>(operand.getLoc(), operand);
 
 	return operand;
@@ -789,7 +789,7 @@ void ReturnOp::print(mlir::OpAsmPrinter& printer)
 void ReturnOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	for (auto value : values())
-		if (value.getType().isa<PointerType>())
+		if (value.getType().isa<ArrayType>())
 			effects.emplace_back(mlir::MemoryEffects::Read::get(), value, mlir::SideEffects::DefaultResource::get());
 }
 
@@ -1065,10 +1065,10 @@ void AssignmentOp::print(mlir::OpAsmPrinter& printer)
 
 void AssignmentOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (source().getType().isa<PointerType>())
+	if (source().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), source(), mlir::SideEffects::DefaultResource::get());
 
-	if (destination().getType().isa<PointerType>())
+	if (destination().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), source(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -1182,7 +1182,7 @@ void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 	unsigned int nativeArgsCount = args().size() - movedResultsCount;
 
 	for (size_t i = 0; i < nativeArgsCount; ++i)
-		if (args()[i].getType().isa<PointerType>())
+		if (args()[i].getType().isa<ArrayType>())
 			effects.emplace_back(mlir::MemoryEffects::Read::get(), args()[i], mlir::SideEffects::DefaultResource::get());
 
 	// Declare the side effects on the static array results that have been
@@ -1197,7 +1197,7 @@ void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 		// must be seen as if they were allocated by the function call. This way,
 		// the deallocation pass can free them.
 
-		if (auto pointerType = type.dyn_cast<PointerType>(); pointerType && pointerType.getAllocationScope() == BufferAllocationScope::heap)
+		if (auto arrayType = type.dyn_cast<ArrayType>(); arrayType && arrayType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
 
 		/*
@@ -1236,16 +1236,16 @@ unsigned int CallOp::getArgExpectedRank(unsigned int argIndex)
 
 		mlir::Type argType = getArgs()[argIndex].getType();
 
-		if (auto pointerType = argType.dyn_cast<PointerType>())
-			return pointerType.getRank();
+		if (auto arrayType = argType.dyn_cast<ArrayType>())
+			return arrayType.getRank();
 
 		return 0;
 	}
 
 	mlir::Type argType = function.getArgument(argIndex).getType();
 
-	if (auto pointerType = argType.dyn_cast<PointerType>())
-		return pointerType.getRank();
+	if (auto arrayType = argType.dyn_cast<ArrayType>())
+		return arrayType.getRank();
 
 	return 0;
 }
@@ -1256,10 +1256,10 @@ mlir::ValueRange CallOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 	for (mlir::Type type : getResultTypes())
 	{
-		mlir::Type newResultType = type.cast<PointerType>().slice(indexes.size());
+		mlir::Type newResultType = type.cast<ArrayType>().slice(indexes.size());
 
-		if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-			newResultType = pointerType.getElementType();
+		if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+			newResultType = arrayType.getElementType();
 
 		newResultsTypes.push_back(newResultType);
 	}
@@ -1268,10 +1268,10 @@ mlir::ValueRange CallOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 	for (mlir::Value arg : args())
 	{
-		assert(arg.getType().isa<PointerType>());
+		assert(arg.getType().isa<ArrayType>());
 		mlir::Value newArg = builder.create<SubscriptionOp>(getLoc(), arg, indexes);
 
-		if (auto pointerType = newArg.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+		if (auto arrayType = newArg.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 			newArg = builder.create<LoadOp>(getLoc(), newArg);
 
 		newArgs.push_back(newArg);
@@ -1504,8 +1504,8 @@ mlir::ParseResult MemberLoadOp::parse(mlir::OpAsmParser& parser, mlir::Operation
 	if (parser.parseType(resultType))
 		return mlir::failure();
 
-	auto memberType = resultType.isa<PointerType>() ?
-										MemberType::get(resultType.cast<PointerType>()) :
+	auto memberType = resultType.isa<ArrayType>() ?
+										MemberType::get(resultType.cast<ArrayType>()) :
 										MemberType::get(parser.getBuilder().getContext(), MemberAllocationScope::stack, resultType);
 
 	if (parser.resolveOperand(member, memberType, result.operands))
@@ -1594,7 +1594,7 @@ mlir::ParseResult MemberStoreOp::parse(mlir::OpAsmParser& parser, mlir::Operatio
 				<< "specified type must be a member type";
 
 	if (auto castedMemberType = memberType.cast<MemberType>(); castedMemberType.getRank() != 0)
-		valueType = castedMemberType.toPointerType();
+		valueType = castedMemberType.toArrayType();
 	else
 		valueType = castedMemberType.getElementType();
 
@@ -1620,11 +1620,11 @@ mlir::LogicalResult MemberStoreOp::verify()
 	auto memberType = member().getType().cast<MemberType>();
 	mlir::Type valueType = value().getType();
 
-	if (valueType.isa<PointerType>())
+	if (valueType.isa<ArrayType>())
 	{
-		auto pointerType = valueType.cast<PointerType>();
+		auto arrayType = valueType.cast<ArrayType>();
 
-		for (const auto& [valueDimension, memberDimension] : llvm::zip(pointerType.getShape(), memberType.getShape()))
+		for (const auto& [valueDimension, memberDimension] : llvm::zip(arrayType.getShape(), memberType.getShape()))
 			if (valueDimension != -1 && memberDimension != -1 && valueDimension != memberDimension)
 				return emitOpError("requires the shapes to be compatible");
 	}
@@ -1680,7 +1680,7 @@ mlir::ValueRange AllocaOpAdaptor::dynamicDimensions()
 
 void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool constant)
 {
-	state.addTypes(PointerType::get(state.getContext(), BufferAllocationScope::stack, elementType, shape));
+	state.addTypes(ArrayType::get(state.getContext(), BufferAllocationScope::stack, elementType, shape));
 	state.addOperands(dimensions);
 	state.addAttribute("constant", builder.getBoolAttr(constant));
 }
@@ -1777,9 +1777,9 @@ void AllocaOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstanc
 	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 }
 
-PointerType AllocaOp::resultType()
+ArrayType AllocaOp::resultType()
 {
-	return getOperation()->getResultTypes()[0].cast<PointerType>();
+	return getOperation()->getResultTypes()[0].cast<ArrayType>();
 }
 
 mlir::ValueRange AllocaOp::dynamicDimensions()
@@ -1813,7 +1813,7 @@ bool AllocOpAdaptor::isConstant()
 
 void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool shouldBeFreed, bool constant)
 {
-	state.addTypes(PointerType::get(state.getContext(), BufferAllocationScope::heap, elementType, shape));
+	state.addTypes(ArrayType::get(state.getContext(), BufferAllocationScope::heap, elementType, shape));
 	state.addOperands(dimensions);
 
 	state.addAttribute(getAutoFreeAttrName(), builder.getBoolAttr(shouldBeFreed));
@@ -1919,9 +1919,9 @@ void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance
 	}
 }
 
-PointerType AllocOp::resultType()
+ArrayType AllocOp::resultType()
 {
-	return getOperation()->getResultTypes()[0].cast<PointerType>();
+	return getOperation()->getResultTypes()[0].cast<ArrayType>();
 }
 
 mlir::ValueRange AllocOp::dynamicDimensions()
@@ -1970,9 +1970,9 @@ void FreeOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult FreeOp::verify()
 {
-	if (auto pointerType = memory().getType().dyn_cast<PointerType>(); pointerType)
+	if (auto arrayType = memory().getType().dyn_cast<ArrayType>(); arrayType)
 	{
-		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 			return mlir::success();
 
 		return emitOpError("requires the memory to be allocated on the heap");
@@ -1992,38 +1992,38 @@ mlir::Value FreeOp::memory()
 }
 
 //===----------------------------------------------------------------------===//
-// Modelica::PtrCastOp
+// Modelica::ArrayCastOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value PtrCastOpAdaptor::memory()
+mlir::Value ArrayCastOpAdaptor::memory()
 {
 	return getValues()[0];
 }
 
-void PtrCastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::Type resultType)
+void ArrayCastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::Type resultType)
 {
 	state.addOperands(memory);
 	state.addTypes(resultType);
 }
 
-void PtrCastOp::print(mlir::OpAsmPrinter& printer)
+void ArrayCastOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.ptr_cast " << memory() << " : " << resultType();
+	printer << getOperationName() << " " << memory() << " : " << resultType();
 }
 
-mlir::LogicalResult PtrCastOp::verify()
+mlir::LogicalResult ArrayCastOp::verify()
 {
 	mlir::Type sourceType = memory().getType();
 	mlir::Type destinationType = resultType();
 
-	if (auto source = sourceType.dyn_cast<PointerType>())
+	if (auto source = sourceType.dyn_cast<ArrayType>())
 	{
-		if (auto destination = destinationType.dyn_cast<PointerType>())
+		if (auto destination = destinationType.dyn_cast<ArrayType>())
 		{
-			if (source.getElementType() != resultType().cast<PointerType>().getElementType())
+			if (source.getElementType() != resultType().cast<ArrayType>().getElementType())
 				return emitOpError("requires the result pointer type to have the same element type of the operand");
 
-			if (source.getRank() != resultType().cast<PointerType>().getRank())
+			if (source.getRank() != resultType().cast<ArrayType>().getRank())
 				return emitOpError("requires the result pointer type to have the same rank as the operand");
 
 			if (destination.getAllocationScope() != BufferAllocationScope::unknown &&
@@ -2037,7 +2037,7 @@ mlir::LogicalResult PtrCastOp::verify()
 			return mlir::success();
 		}
 
-		if (auto destination = destinationType.dyn_cast<UnsizedPointerType>())
+		if (auto destination = destinationType.dyn_cast<UnsizedArrayType>())
 		{
 			if (source.getElementType() != destination.getElementType())
 				return emitOpError("requires the result pointer type to have the same element type of the operand");
@@ -2051,7 +2051,7 @@ mlir::LogicalResult PtrCastOp::verify()
 
 	if (auto source = sourceType.dyn_cast<OpaquePointerType>())
 	{
-		if (auto destination = destinationType.dyn_cast<PointerType>())
+		if (auto destination = destinationType.dyn_cast<ArrayType>())
 		{
 			// If the destination is a non-opaque pointer type, its shape must not
 			// contain dynamic sizes.
@@ -2067,17 +2067,17 @@ mlir::LogicalResult PtrCastOp::verify()
 	return emitOpError("requires a compatible conversion");
 }
 
-mlir::Value PtrCastOp::getViewSource()
+mlir::Value ArrayCastOp::getViewSource()
 {
 	return memory();
 }
 
-mlir::Value PtrCastOp::memory()
+mlir::Value ArrayCastOp::memory()
 {
 	return Adaptor(*this).memory();
 }
 
-mlir::Type PtrCastOp::resultType()
+mlir::Type ArrayCastOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
 }
@@ -2135,7 +2135,7 @@ void DimOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult DimOp::verify()
 {
-	if (!memory().getType().isa<PointerType>())
+	if (!memory().getType().isa<ArrayType>())
 		return emitOpError("requires the operand to be a pointer to an array");
 
 	if (!dimension().getType().isa<mlir::IndexType>())
@@ -2151,8 +2151,8 @@ mlir::OpFoldResult DimOp::fold(mlir::ArrayRef<mlir::Attribute> operands)
 
 	if (auto attribute = operands[1].dyn_cast<mlir::IntegerAttr>(); attribute)
 	{
-		auto pointerType = memory().getType().cast<PointerType>();
-		auto shape = pointerType.getShape();
+		auto arrayType = memory().getType().cast<ArrayType>();
+		auto shape = arrayType.getShape();
 
 		size_t index = attribute.getInt();
 
@@ -2163,9 +2163,9 @@ mlir::OpFoldResult DimOp::fold(mlir::ArrayRef<mlir::Attribute> operands)
 	return nullptr;
 }
 
-PointerType DimOp::getPointerType()
+ArrayType DimOp::getArrayType()
 {
-	return memory().getType().cast<PointerType>();
+	return memory().getType().cast<ArrayType>();
 }
 
 mlir::Value DimOp::memory()
@@ -2197,8 +2197,8 @@ void SubscriptionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 	state.addOperands(source);
 	state.addOperands(indexes);
 
-	auto sourcePointerType = source.getType().cast<PointerType>();
-	mlir::Type resultType = sourcePointerType.slice(indexes.size());
+	auto sourceArrayType = source.getType().cast<ArrayType>();
+	mlir::Type resultType = sourceArrayType.slice(indexes.size());
 	state.addTypes(resultType);
 }
 
@@ -2224,10 +2224,10 @@ mlir::ParseResult SubscriptionOp::parse(mlir::OpAsmParser& parser, mlir::Operati
 			parser.resolveOperand(source, sourceType, result.operands))
 		return mlir::failure();
 
-	if (!sourceType.isa<PointerType>())
+	if (!sourceType.isa<ArrayType>())
 		return parser.emitError(sourceLoc, "the source must have a pointer type");
 
-	result.addTypes(sourceType.cast<PointerType>().slice(indexes.size()));
+	result.addTypes(sourceType.cast<ArrayType>().slice(indexes.size()));
 
 	if (!indexes.empty())
 	{
@@ -2271,9 +2271,9 @@ void SubscriptionOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& 
 	toBeDerived.push_back(source());
 }
 
-PointerType SubscriptionOp::resultType()
+ArrayType SubscriptionOp::resultType()
 {
-	return getOperation()->getResultTypes()[0].cast<PointerType>();
+	return getOperation()->getResultTypes()[0].cast<ArrayType>();
 }
 
 mlir::Value SubscriptionOp::source()
@@ -2304,7 +2304,7 @@ void LoadOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 {
 	state.addOperands(memory);
 	state.addOperands(indexes);
-	state.addTypes(memory.getType().cast<PointerType>().getElementType());
+	state.addTypes(memory.getType().cast<ArrayType>().getElementType());
 }
 
 mlir::ParseResult LoadOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -2328,10 +2328,10 @@ mlir::ParseResult LoadOp::parse(mlir::OpAsmParser& parser, mlir::OperationState&
 			parser.resolveOperands(indexes, builder.getIndexType(), result.operands))
 		return mlir::failure();
 
-	if (!arrayType.isa<PointerType>())
+	if (!arrayType.isa<ArrayType>())
 		return parser.emitError(arrayTypeLoc, "the array type must be a pointer type");
 
-	result.addTypes(arrayType.cast<PointerType>().getElementType());
+	result.addTypes(arrayType.cast<ArrayType>().getElementType());
 	return mlir::success();
 }
 
@@ -2345,13 +2345,13 @@ void LoadOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult LoadOp::verify()
 {
-	auto pointerType = memory().getType().cast<PointerType>();
+	auto arrayType = memory().getType().cast<ArrayType>();
 
-	if (pointerType.getRank() != indexes().size())
+	if (arrayType.getRank() != indexes().size())
 		return emitOpError("requires the indexes amount (" +
 											 std::to_string(indexes().size()) +
 											 ") to match the array rank (" +
-											 std::to_string(pointerType.getRank()) + ")");
+											 std::to_string(arrayType.getRank()) + ")");
 
 	return mlir::success();
 }
@@ -2372,9 +2372,9 @@ void LoadOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeri
 	toBeDerived.push_back(memory());
 }
 
-PointerType LoadOp::getPointerType()
+ArrayType LoadOp::getArrayType()
 {
-	return memory().getType().cast<PointerType>();
+	return memory().getType().cast<ArrayType>();
 }
 
 mlir::Value LoadOp::memory()
@@ -2436,11 +2436,11 @@ mlir::ParseResult StoreOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 	if (parser.parseType(arrayType))
 		return mlir::failure();
 
-	if (!arrayType.isa<PointerType>())
+	if (!arrayType.isa<ArrayType>())
 		return parser.emitError(arrayTypeLoc)
 				<< "destination type must be a pointer type";
 
-	if (parser.resolveOperand(value, arrayType.cast<PointerType>().getElementType(), result.operands) ||
+	if (parser.resolveOperand(value, arrayType.cast<ArrayType>().getElementType(), result.operands) ||
 			parser.resolveOperand(array, arrayType, result.operands) ||
 			parser.resolveOperands(indexes, builder.getIndexType(), result.operands))
 		return mlir::failure();
@@ -2457,16 +2457,16 @@ void StoreOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult StoreOp::verify()
 {
-	auto pointerType = memory().getType().cast<PointerType>();
+	auto arrayType = memory().getType().cast<ArrayType>();
 
-	if (pointerType.getElementType() != value().getType())
+	if (arrayType.getElementType() != value().getType())
 		return emitOpError("requires the value to have the same type of the array elements");
 
-	if (pointerType.getRank() != indexes().size())
+	if (arrayType.getRank() != indexes().size())
 		return emitOpError("requires the indexes amount (" +
 											 std::to_string(indexes().size()) +
 											 ") to match the array rank (" +
-											 std::to_string(pointerType.getRank()) + ")");
+											 std::to_string(arrayType.getRank()) + ")");
 
 	return mlir::success();
 }
@@ -2490,9 +2490,9 @@ void StoreOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDer
 	toBeDerived.push_back(memory());
 }
 
-PointerType StoreOp::getPointerType()
+ArrayType StoreOp::getArrayType()
 {
-	return memory().getType().cast<PointerType>();
+	return memory().getType().cast<ArrayType>();
 }
 
 mlir::Value StoreOp::memory()
@@ -2529,7 +2529,7 @@ bool ArrayCloneOpAdaptor::canSourceBeForwarded()
 	return false;
 }
 
-void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType, bool shouldBeFreed, bool canSourceBeForwarded)
+void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, ArrayType resultType, bool shouldBeFreed, bool canSourceBeForwarded)
 {
 	state.addOperands(source);
 	state.addTypes(resultType);
@@ -2577,9 +2577,9 @@ void ArrayCloneOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult ArrayCloneOp::verify()
 {
-	auto pointerType = resultType();
+	auto arrayType = resultType();
 
-	if (auto scope = pointerType.getAllocationScope();
+	if (auto scope = arrayType.getAllocationScope();
 			scope != BufferAllocationScope::stack && scope != BufferAllocationScope::heap)
 		return emitOpError("requires the result array type to be stack or heap allocated");
 
@@ -2600,9 +2600,9 @@ void ArrayCloneOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectIns
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
-PointerType ArrayCloneOp::resultType()
+ArrayType ArrayCloneOp::resultType()
 {
-	return getOperation()->getResultTypes()[0].cast<PointerType>();
+	return getOperation()->getResultTypes()[0].cast<ArrayType>();
 }
 
 mlir::Value ArrayCloneOp::source()
@@ -2910,11 +2910,11 @@ void BreakableForOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult BreakableForOp::verify()
 {
-	if (auto breakPtr = breakCondition().getType().dyn_cast<PointerType>();
+	if (auto breakPtr = breakCondition().getType().dyn_cast<ArrayType>();
 			!breakPtr || !breakPtr.getElementType().isa<BooleanType>() || breakPtr.getRank() != 0)
 		return emitOpError("requires the break condition to be a pointer to a single boolean value");
 
-	if (auto returnPtr = breakCondition().getType().dyn_cast<PointerType>();
+	if (auto returnPtr = breakCondition().getType().dyn_cast<ArrayType>();
 			!returnPtr || !returnPtr.getElementType().isa<BooleanType>() || returnPtr.getRank() != 0)
 		return emitOpError("requires the return condition to be a pointer to a single boolean value");
 
@@ -3081,11 +3081,11 @@ void BreakableWhileOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult BreakableWhileOp::verify()
 {
-	if (auto breakPtr = breakCondition().getType().dyn_cast<PointerType>();
+	if (auto breakPtr = breakCondition().getType().dyn_cast<ArrayType>();
 			!breakPtr || !breakPtr.getElementType().isa<BooleanType>() || breakPtr.getRank() != 0)
 		return emitOpError("requires the break condition to be a pointer to a single boolean value");
 
-	if (auto returnPtr = breakCondition().getType().dyn_cast<PointerType>();
+	if (auto returnPtr = breakCondition().getType().dyn_cast<ArrayType>();
 			!returnPtr || !returnPtr.getElementType().isa<BooleanType>() || returnPtr.getRank() != 0)
 		return emitOpError("requires the return condition to be a pointer to a single boolean value");
 
@@ -3316,7 +3316,7 @@ void NotOp::print(mlir::OpAsmPrinter& printer)
 mlir::LogicalResult NotOp::verify()
 {
 	if (!operand().getType().isa<BooleanType>())
-		if (auto pointerType = operand().getType().dyn_cast<PointerType>(); !pointerType || !pointerType.getElementType().isa<BooleanType>())
+		if (auto arrayType = operand().getType().dyn_cast<ArrayType>(); !arrayType || !arrayType.getElementType().isa<BooleanType>())
 			return emitOpError("requires the operand to be a boolean or an array of booleans");
 
 	return mlir::success();
@@ -3324,14 +3324,14 @@ mlir::LogicalResult NotOp::verify()
 
 void NotOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (operand().getType().isa<PointerType>())
+	if (operand().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
 	{
-		if (pointerType.getAllocationScope() == BufferAllocationScope::stack)
+		if (arrayType.getAllocationScope() == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+		else if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
@@ -3406,9 +3406,9 @@ mlir::LogicalResult AndOp::verify()
 	if (lhsType.isa<BooleanType>() && rhsType.isa<BooleanType>())
 		return mlir::success();
 
-	if (lhsType.isa<PointerType>() && rhsType.isa<PointerType>())
-		if (lhsType.cast<PointerType>().getElementType().isa<BooleanType>() &&
-		    rhsType.cast<PointerType>().getElementType().isa<BooleanType>())
+	if (lhsType.isa<ArrayType>() && rhsType.isa<ArrayType>())
+		if (lhsType.cast<ArrayType>().getElementType().isa<BooleanType>() &&
+		    rhsType.cast<ArrayType>().getElementType().isa<BooleanType>())
 			return mlir::success();
 
 	return emitOpError("requires the operands to be booleans or arrays of booleans");
@@ -3416,15 +3416,15 @@ mlir::LogicalResult AndOp::verify()
 
 void AndOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (lhs().getType().isa<PointerType>())
+	if (lhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (rhs().getType().isa<PointerType>())
+	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
 	{
-		auto scope = pointerType.getAllocationScope();
+		auto scope = arrayType.getAllocationScope();
 
 		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
@@ -3508,9 +3508,9 @@ mlir::LogicalResult OrOp::verify()
 	if (lhsType.isa<BooleanType>() && rhsType.isa<BooleanType>())
 		return mlir::success();
 
-	if (lhsType.isa<PointerType>() && rhsType.isa<PointerType>())
-		if (lhsType.cast<PointerType>().getElementType().isa<BooleanType>() &&
-				rhsType.cast<PointerType>().getElementType().isa<BooleanType>())
+	if (lhsType.isa<ArrayType>() && rhsType.isa<ArrayType>())
+		if (lhsType.cast<ArrayType>().getElementType().isa<BooleanType>() &&
+				rhsType.cast<ArrayType>().getElementType().isa<BooleanType>())
 			return mlir::success();
 
 	return emitOpError("requires the operands to be booleans or arrays of booleans");
@@ -3518,15 +3518,15 @@ mlir::LogicalResult OrOp::verify()
 
 void OrOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (lhs().getType().isa<PointerType>())
+	if (lhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (rhs().getType().isa<PointerType>())
+	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
 	{
-		auto scope = pointerType.getAllocationScope();
+		auto scope = arrayType.getAllocationScope();
 
 		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
@@ -4031,12 +4031,12 @@ void NegateOp::print(mlir::OpAsmPrinter& printer)
 
 void NegateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (operand().getType().isa<PointerType>())
+	if (operand().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
 	{
-		auto scope = pointerType.getAllocationScope();
+		auto scope = arrayType.getAllocationScope();
 
 		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
@@ -4171,9 +4171,9 @@ mlir::Value AddOpAdaptor::rhs()
 
 void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
-	if (auto pointerType = resultType.dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::unknown)
-			resultType = pointerType.toMinAllowedAllocationScope();
+	if (auto arrayType = resultType.dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::unknown)
+			resultType = arrayType.toMinAllowedAllocationScope();
 
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
@@ -4208,15 +4208,15 @@ void AddOp::print(mlir::OpAsmPrinter& printer)
 
 void AddOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (lhs().getType().isa<PointerType>())
+	if (lhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (rhs().getType().isa<PointerType>())
+	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
 	{
-		auto scope = pointerType.getAllocationScope();
+		auto scope = arrayType.getAllocationScope();
 
 		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
@@ -4366,9 +4366,9 @@ mlir::Value SubOpAdaptor::rhs()
 
 void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
-	if (auto pointerType = resultType.dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::unknown)
-			resultType = pointerType.toMinAllowedAllocationScope();
+	if (auto arrayType = resultType.dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::unknown)
+			resultType = arrayType.toMinAllowedAllocationScope();
 
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
@@ -4403,15 +4403,15 @@ void SubOp::print(mlir::OpAsmPrinter& printer)
 
 void SubOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (lhs().getType().isa<PointerType>())
+	if (lhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (rhs().getType().isa<PointerType>())
+	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
 	{
-		auto scope = pointerType.getAllocationScope();
+		auto scope = arrayType.getAllocationScope();
 
 		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
@@ -4561,9 +4561,9 @@ mlir::Value MulOpAdaptor::rhs()
 
 void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
-	if (auto pointerType = resultType.dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::unknown)
-			resultType = pointerType.toMinAllowedAllocationScope();
+	if (auto arrayType = resultType.dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::unknown)
+			resultType = arrayType.toMinAllowedAllocationScope();
 
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
@@ -4598,15 +4598,15 @@ void MulOp::print(mlir::OpAsmPrinter& printer)
 
 void MulOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (lhs().getType().isa<PointerType>())
+	if (lhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (rhs().getType().isa<PointerType>())
+	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
 	{
-		auto scope = pointerType.getAllocationScope();
+		auto scope = arrayType.getAllocationScope();
 
 		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
@@ -4783,9 +4783,9 @@ mlir::Value DivOpAdaptor::rhs()
 
 void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
-	if (auto pointerType = resultType.dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::unknown)
-			resultType = pointerType.toMinAllowedAllocationScope();
+	if (auto arrayType = resultType.dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::unknown)
+			resultType = arrayType.toMinAllowedAllocationScope();
 
 	state.addTypes(resultType);
 	state.addOperands({ lhs, rhs });
@@ -4820,15 +4820,15 @@ void DivOp::print(mlir::OpAsmPrinter& printer)
 
 void DivOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (lhs().getType().isa<PointerType>())
+	if (lhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (rhs().getType().isa<PointerType>())
+	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
 	{
-		auto scope = pointerType.getAllocationScope();
+		auto scope = arrayType.getAllocationScope();
 
 		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
@@ -5065,9 +5065,9 @@ mlir::Value PowOpAdaptor::exponent()
 
 void PowOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value base, mlir::Value exponent)
 {
-	if (auto pointerType = resultType.dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::unknown)
-			resultType = pointerType.toMinAllowedAllocationScope();
+	if (auto arrayType = resultType.dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::unknown)
+			resultType = arrayType.toMinAllowedAllocationScope();
 
 	state.addTypes(resultType);
 	state.addOperands({ base, exponent });
@@ -5107,15 +5107,15 @@ void PowOp::getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns
 
 void PowOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (base().getType().isa<PointerType>())
+	if (base().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), base(), mlir::SideEffects::DefaultResource::get());
 
-	if (exponent().getType().isa<PointerType>())
+	if (exponent().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), exponent(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
 	{
-		auto scope = pointerType.getAllocationScope();
+		auto scope = arrayType.getAllocationScope();
 
 		if (scope == BufferAllocationScope::stack)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
@@ -5217,14 +5217,14 @@ unsigned int AbsOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange AbsOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<AbsOp>(getLoc(), newResultType, newOperand);
@@ -5291,14 +5291,14 @@ unsigned int SignOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange SignOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<SignOp>(getLoc(), newResultType, newOperand);
@@ -5365,14 +5365,14 @@ unsigned int SqrtOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange SqrtOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<SqrtOp>(getLoc(), newResultType, newOperand);
@@ -5439,14 +5439,14 @@ unsigned int SinOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange SinOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<SinOp>(getLoc(), newResultType, newOperand);
@@ -5531,14 +5531,14 @@ unsigned int CosOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange CosOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<CosOp>(getLoc(), newResultType, newOperand);
@@ -5624,14 +5624,14 @@ unsigned int TanOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange TanOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<TanOp>(getLoc(), newResultType, newOperand);
@@ -5720,14 +5720,14 @@ unsigned int AsinOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange AsinOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<AsinOp>(getLoc(), newResultType, newOperand);
@@ -5817,14 +5817,14 @@ unsigned int AcosOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange AcosOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<AcosOp>(getLoc(), newResultType, newOperand);
@@ -5915,14 +5915,14 @@ unsigned int AtanOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange AtanOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<AtanOp>(getLoc(), newResultType, newOperand);
@@ -6025,19 +6025,19 @@ unsigned int Atan2Op::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange Atan2Op::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newY = builder.create<SubscriptionOp>(getLoc(), y(), indexes);
 
-	if (auto pointerType = newY.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newY.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newY = builder.create<LoadOp>(getLoc(), newY);
 
 	mlir::Value newX = builder.create<SubscriptionOp>(getLoc(), x(), indexes);
 
-	if (auto pointerType = newX.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newX.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newX = builder.create<LoadOp>(getLoc(), newX);
 
 	auto op = builder.create<Atan2Op>(getLoc(), newResultType, newY, newX);
@@ -6109,14 +6109,14 @@ unsigned int SinhOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange SinhOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<SinhOp>(getLoc(), newResultType, newOperand);
@@ -6201,14 +6201,14 @@ unsigned int CoshOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange CoshOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<CoshOp>(getLoc(), newResultType, newOperand);
@@ -6293,14 +6293,14 @@ unsigned int TanhOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange TanhOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<TanhOp>(getLoc(), newResultType, newOperand);
@@ -6389,14 +6389,14 @@ unsigned int ExpOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange ExpOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), exponent(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<ExpOp>(getLoc(), newResultType, newOperand);
@@ -6481,14 +6481,14 @@ unsigned int LogOp::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange LogOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<LogOp>(getLoc(), newResultType, newOperand);
@@ -6568,14 +6568,14 @@ unsigned int Log10Op::getArgExpectedRank(unsigned int argIndex)
 
 mlir::ValueRange Log10Op::scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes)
 {
-	mlir::Type newResultType = resultType().cast<PointerType>().slice(indexes.size());
+	mlir::Type newResultType = resultType().cast<ArrayType>().slice(indexes.size());
 
-	if (auto pointerType = newResultType.dyn_cast<PointerType>(); pointerType.getRank() == 0)
-		newResultType = pointerType.getElementType();
+	if (auto arrayType = newResultType.dyn_cast<ArrayType>(); arrayType.getRank() == 0)
+		newResultType = arrayType.getElementType();
 
 	mlir::Value newOperand = builder.create<SubscriptionOp>(getLoc(), operand(), indexes);
 
-	if (auto pointerType = newOperand.getType().dyn_cast<PointerType>(); pointerType.getRank() == 0)
+	if (auto arrayType = newOperand.getType().dyn_cast<ArrayType>(); arrayType.getRank() == 0)
 		newOperand = builder.create<LoadOp>(getLoc(), newOperand);
 
 	auto op = builder.create<Log10Op>(getLoc(), newResultType, newOperand);
@@ -6676,8 +6676,8 @@ mlir::Value SizeOpAdaptor::index()
 
 void SizeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory, mlir::Value index)
 {
-	if (auto pointerType = resultType.dyn_cast<PointerType>())
-		resultType = pointerType.toAllocationScope(BufferAllocationScope::heap);
+	if (auto arrayType = resultType.dyn_cast<ArrayType>())
+		resultType = arrayType.toAllocationScope(BufferAllocationScope::heap);
 
 	state.addTypes(resultType);
 	state.addOperands(memory);
@@ -6698,7 +6698,7 @@ void SizeOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult SizeOp::verify()
 {
-	if (!memory().getType().isa<PointerType>())
+	if (!memory().getType().isa<ArrayType>())
 		return emitOpError("requires the operand to be an array");
 
 	return mlir::success();
@@ -6706,8 +6706,8 @@ mlir::LogicalResult SizeOp::verify()
 
 void SizeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), memory(), mlir::SideEffects::DefaultResource::get());
@@ -6782,8 +6782,8 @@ mlir::LogicalResult IdentityOp::verify()
 
 void IdentityOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -6838,10 +6838,10 @@ void DiagonalOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult DiagonalOp::verify()
 {
-	if (!values().getType().isa<PointerType>())
+	if (!values().getType().isa<ArrayType>())
 		return emitOpError("requires the values to be an array");
 
-	if (auto pointerType = values().getType().cast<PointerType>(); pointerType.getRank() != 1)
+	if (auto arrayType = values().getType().cast<ArrayType>(); arrayType.getRank() != 1)
 		return emitOpError("requires the values array to have rank 1");
 
 	return mlir::success();
@@ -6849,8 +6849,8 @@ mlir::LogicalResult DiagonalOp::verify()
 
 void DiagonalOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -6931,10 +6931,10 @@ void ZerosOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult ZerosOp::verify()
 {
-	if (!resultType().isa<PointerType>())
+	if (!resultType().isa<ArrayType>())
 		return emitOpError("requires the result to be an array");
 
-	if (auto pointerType = resultType().cast<PointerType>(); pointerType.getRank() != sizes().size())
+	if (auto arrayType = resultType().cast<ArrayType>(); arrayType.getRank() != sizes().size())
 		return emitOpError("requires the rank of the result array to match the sizes amount");
 
 	return mlir::success();
@@ -6942,8 +6942,8 @@ mlir::LogicalResult ZerosOp::verify()
 
 void ZerosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -7024,10 +7024,10 @@ void OnesOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult OnesOp::verify()
 {
-	if (!resultType().isa<PointerType>())
+	if (!resultType().isa<ArrayType>())
 		return emitOpError("requires the result to be an array");
 
-	if (auto pointerType = resultType().cast<PointerType>(); pointerType.getRank() != sizes().size())
+	if (auto arrayType = resultType().cast<ArrayType>(); arrayType.getRank() != sizes().size())
 		return emitOpError("requires the rank of the result array to match the sizes amount");
 
 	return mlir::success();
@@ -7035,8 +7035,8 @@ mlir::LogicalResult OnesOp::verify()
 
 void OnesOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -7111,10 +7111,10 @@ void LinspaceOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult LinspaceOp::verify()
 {
-	if (!resultType().isa<PointerType>())
+	if (!resultType().isa<ArrayType>())
 		return emitOpError("requires the result to be an array");
 
-	if (auto pointerType = resultType().cast<PointerType>(); pointerType.getRank() != 1)
+	if (auto arrayType = resultType().cast<ArrayType>(); arrayType.getRank() != 1)
 		return emitOpError("requires the result array to have rank 1");
 
 	return mlir::success();
@@ -7122,8 +7122,8 @@ mlir::LogicalResult LinspaceOp::verify()
 
 void LinspaceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -7269,8 +7269,8 @@ mlir::LogicalResult MinOp::verify()
 {
 	if (getNumOperands() == 1)
 	{
-		if (auto pointerType = values()[0].getType().dyn_cast<PointerType>();
-				pointerType && isNumeric(pointerType.getElementType()))
+		if (auto arrayType = values()[0].getType().dyn_cast<ArrayType>();
+				arrayType && isNumeric(arrayType.getElementType()))
 			return mlir::success();
 	}
 	else if (getNumOperands() == 2)
@@ -7364,8 +7364,8 @@ mlir::LogicalResult MaxOp::verify()
 {
 	if (getNumOperands() == 1)
 	{
-		if (auto pointerType = values()[0].getType().dyn_cast<PointerType>();
-				pointerType && isNumeric(pointerType.getElementType()))
+		if (auto arrayType = values()[0].getType().dyn_cast<ArrayType>();
+				arrayType && isNumeric(arrayType.getElementType()))
 			return mlir::success();
 	}
 	else if (getNumOperands() == 2)
@@ -7428,10 +7428,10 @@ void SumOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult SumOp::verify()
 {
-	if (!array().getType().isa<PointerType>())
+	if (!array().getType().isa<ArrayType>())
 		return emitOpError("requires the operand to be an array");
 
-	if (!isNumeric(array().getType().cast<PointerType>().getElementType()))
+	if (!isNumeric(array().getType().cast<ArrayType>().getElementType()))
 		return emitOpError("requires the operand to be an array of numeric values");
 
 	return mlir::success();
@@ -7488,10 +7488,10 @@ void ProductOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult ProductOp::verify()
 {
-	if (!array().getType().isa<PointerType>())
+	if (!array().getType().isa<ArrayType>())
 		return emitOpError("requires the operand to be an array");
 
-	if (!isNumeric(array().getType().cast<PointerType>().getElementType()))
+	if (!isNumeric(array().getType().cast<ArrayType>().getElementType()))
 		return emitOpError("requires the operand to be an array of numeric values");
 
 	return mlir::success();
@@ -7548,18 +7548,18 @@ void TransposeOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult TransposeOp::verify()
 {
-	if (!matrix().getType().isa<PointerType>())
+	if (!matrix().getType().isa<ArrayType>())
 		return emitOpError("requires the source to be an array");
 
-	auto sourceType = matrix().getType().cast<PointerType>();
+	auto sourceType = matrix().getType().cast<ArrayType>();
 
 	if (sourceType.getRank() != 2)
 		return emitOpError("requires the source to have rank 2");
 
-	if (!resultType().isa<PointerType>())
+	if (!resultType().isa<ArrayType>())
 		return emitOpError("requires the result to be an array");
 
-	auto destinationType = resultType().cast<PointerType>();
+	auto destinationType = resultType().cast<ArrayType>();
 
 	if (destinationType.getRank() != 2)
 		return emitOpError("requires the destination to have rank 2");
@@ -7581,8 +7581,8 @@ mlir::LogicalResult TransposeOp::verify()
 
 void TransposeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -7637,18 +7637,18 @@ void SymmetricOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult SymmetricOp::verify()
 {
-	if (!matrix().getType().isa<PointerType>())
+	if (!matrix().getType().isa<ArrayType>())
 		return emitOpError("requires the source to be an array");
 
-	auto sourceType = matrix().getType().cast<PointerType>();
+	auto sourceType = matrix().getType().cast<ArrayType>();
 
 	if (sourceType.getRank() != 2)
 		return emitOpError("requires the source to have rank 2");
 
-	if (!resultType().isa<PointerType>())
+	if (!resultType().isa<ArrayType>())
 		return emitOpError("requires the result to be an array");
 
-	auto destinationType = resultType().cast<PointerType>();
+	auto destinationType = resultType().cast<ArrayType>();
 
 	if (destinationType.getRank() != 2)
 		return emitOpError("requires the destination to have rank 2");
@@ -7670,8 +7670,8 @@ mlir::LogicalResult SymmetricOp::verify()
 
 void SymmetricOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto pointerType = resultType().dyn_cast<PointerType>())
-		if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -7815,6 +7815,6 @@ void PrintOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
 
 	for (mlir::Value value : values())
-		if (value.getType().isa<PointerType>())
+		if (value.getType().isa<ArrayType>())
 			effects.emplace_back(mlir::MemoryEffects::Read::get(), value, mlir::SideEffects::DefaultResource::get());
 }

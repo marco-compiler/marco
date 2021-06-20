@@ -37,12 +37,12 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 		{
 			mlir::Value value = *it;
 
-			if (auto pointerType = value.getType().dyn_cast<PointerType>(); pointerType && pointerType.getRank() == 0)
+			if (auto arrayType = value.getType().dyn_cast<ArrayType>(); arrayType && arrayType.getRank() == 0)
 			{
 				{
 					mlir::OpBuilder::InsertionGuard guard(rewriter);
 					rewriter.setInsertionPoint(value.getDefiningOp());
-					mlir::Value newVar = rewriter.create<AllocOp>(value.getLoc(), pointerType.getElementType(), 1, llvm::None, false);
+					mlir::Value newVar = rewriter.create<AllocOp>(value.getLoc(), arrayType.getElementType(), 1, llvm::None, false);
 					mlir::Value zeroValue = rewriter.create<ConstantOp>(value.getLoc(), rewriter.getIndexAttr(0));
 					mlir::Value subscription = rewriter.create<SubscriptionOp>(value.getLoc(), newVar, zeroValue);
 
@@ -56,7 +56,7 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 					mlir::OpBuilder::InsertionGuard guard(rewriter);
 
 					auto originalArgument = op.body().getArgument(index);
-					auto newArgument = op.body().insertArgument(index + 1, value.getType().cast<PointerType>().toUnknownAllocationScope());
+					auto newArgument = op.body().insertArgument(index + 1, value.getType().cast<ArrayType>().toUnknownAllocationScope());
 
 					for (auto useIt = originalArgument.use_begin(), end = originalArgument.use_end(); useIt != end;)
 					{
@@ -103,7 +103,7 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 				{
 					// Fix print argument
 					auto originalArgument = op.print().getArgument(index);
-					auto newArgument = op.print().insertArgument(index + 1, value.getType().cast<PointerType>().toUnknownAllocationScope());
+					auto newArgument = op.print().insertArgument(index + 1, value.getType().cast<ArrayType>().toUnknownAllocationScope());
 					originalArgument.replaceAllUsesWith(newArgument);
 					op.print().eraseArgument(index);
 				}
@@ -204,11 +204,11 @@ struct EquationOpScalarizePattern : public mlir::OpRewritePattern<EquationOp>
 		auto lhs = sides.lhs()[0];
 		auto rhs = sides.rhs()[0];
 
-		auto lhsPointerType = lhs.getType().cast<PointerType>();
-		auto rhsPointerType = rhs.getType().cast<PointerType>();
-		assert(lhsPointerType.getRank() == rhsPointerType.getRank());
+		auto lhsArrayType = lhs.getType().cast<ArrayType>();
+		auto rhsArrayType = rhs.getType().cast<ArrayType>();
+		assert(lhsArrayType.getRank() == rhsArrayType.getRank());
 
-		auto forEquation = rewriter.create<ForEquationOp>(location, lhsPointerType.getRank());
+		auto forEquation = rewriter.create<ForEquationOp>(location, lhsArrayType.getRank());
 
 		{
 			// Inductions
@@ -216,7 +216,7 @@ struct EquationOpScalarizePattern : public mlir::OpRewritePattern<EquationOp>
 			rewriter.setInsertionPointToStart(forEquation.inductionsBlock());
 			llvm::SmallVector<mlir::Value, 3> inductions;
 
-			for (const auto& [left, right] : llvm::zip(lhsPointerType.getShape(), rhsPointerType.getShape()))
+			for (const auto& [left, right] : llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape()))
 			{
 				assert(left != -1 || right != -1);
 
@@ -272,11 +272,11 @@ struct ForEquationOpScalarizePattern : public mlir::OpRewritePattern<ForEquation
 		auto lhs = sides.lhs()[0];
 		auto rhs = sides.rhs()[0];
 
-		auto lhsPointerType = lhs.getType().cast<PointerType>();
-		auto rhsPointerType = rhs.getType().cast<PointerType>();
-		assert(lhsPointerType.getRank() == rhsPointerType.getRank());
+		auto lhsArrayType = lhs.getType().cast<ArrayType>();
+		auto rhsArrayType = rhs.getType().cast<ArrayType>();
+		assert(lhsArrayType.getRank() == rhsArrayType.getRank());
 
-		auto forEquation = rewriter.create<ForEquationOp>(location, lhsPointerType.getRank() + op.inductionsDefinitions().size());
+		auto forEquation = rewriter.create<ForEquationOp>(location, lhsArrayType.getRank() + op.inductionsDefinitions().size());
 
 		{
 			// Inductions
@@ -284,7 +284,7 @@ struct ForEquationOpScalarizePattern : public mlir::OpRewritePattern<ForEquation
 			rewriter.setInsertionPointToStart(forEquation.inductionsBlock());
 			llvm::SmallVector<mlir::Value, 3> inductions;
 
-			for (const auto& [left, right] : llvm::zip(lhsPointerType.getShape(), rhsPointerType.getShape()))
+			for (const auto& [left, right] : llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape()))
 			{
 				assert(left != -1 || right != -1);
 
@@ -316,7 +316,7 @@ struct ForEquationOpScalarizePattern : public mlir::OpRewritePattern<ForEquation
 			llvm::SmallVector<mlir::Value, 1> newRhs;
 
 			mlir::ValueRange allInductions = forEquation.inductions();
-			mlir::ValueRange newInductions = mlir::ValueRange(allInductions.begin(), allInductions.begin() + lhsPointerType.getRank());
+			mlir::ValueRange newInductions = mlir::ValueRange(allInductions.begin(), allInductions.begin() + lhsArrayType.getRank());
 
 			for (auto [lhs, rhs] : llvm::zip(sides.lhs(), sides.rhs()))
 			{
@@ -382,8 +382,8 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 			for (mlir::Value arg : terminator.values())
 				args.push_back(arg);
 
-			if (auto pointerType = variable.getReference().getType().dyn_cast<PointerType>())
-				derVar = rewriter.create<AllocOp>(loc, pointerType.getElementType(), pointerType.getShape(), llvm::None, false);
+			if (auto arrayType = variable.getReference().getType().dyn_cast<ArrayType>())
+				derVar = rewriter.create<AllocOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, false);
 			else
 			{
 				derVar = rewriter.create<AllocOp>(loc, variable.getReference().getType(), llvm::None, llvm::None, false);
@@ -396,7 +396,7 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 			rewriter.create<YieldOp>(terminator.getLoc(), args);
 			rewriter.eraseOp(terminator);
 
-			auto newArgumentType = derVar.getType().cast<PointerType>().toUnknownAllocationScope();
+			auto newArgumentType = derVar.getType().cast<ArrayType>().toUnknownAllocationScope();
 			auto bodyArgument = simulation.body().addArgument(newArgumentType);
 			simulation.print().addArgument(newArgumentType);
 
@@ -413,7 +413,7 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 		if (!subscriptions.empty())
 			derVar = rewriter.create<SubscriptionOp>(loc, derVar, subscriptions);
 
-		if (auto pointerType = derVar.getType().cast<PointerType>(); pointerType.getRank() == 0)
+		if (auto arrayType = derVar.getType().cast<ArrayType>(); arrayType.getRank() == 0)
 			derVar = rewriter.create<LoadOp>(loc, derVar);
 
 		rewriter.replaceOp(op, derVar);
@@ -442,17 +442,17 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 
 		{
 			auto terminator = mlir::cast<YieldOp>(op.init().back().getTerminator());
-			varTypes.push_back(terminator.values()[0].getType().cast<PointerType>().toUnknownAllocationScope());
+			varTypes.push_back(terminator.values()[0].getType().cast<ArrayType>().toUnknownAllocationScope());
 
 			// Add the time step as second argument
 			varTypes.push_back(op.timeStep().getType());
 
 			for (auto it = ++terminator.values().begin(); it != terminator.values().end(); ++it)
-				varTypes.push_back((*it).getType().cast<PointerType>().toUnknownAllocationScope());
+				varTypes.push_back((*it).getType().cast<ArrayType>().toUnknownAllocationScope());
 		}
 
 		auto structType = StructType::get(op->getContext(), varTypes);
-		auto structPtrType = PointerType::get(structType.getContext(), BufferAllocationScope::unknown, structType);
+		auto structPtrType = ArrayType::get(structType.getContext(), BufferAllocationScope::unknown, structType);
 		auto opaquePtrType = OpaquePointerType::get(structPtrType.getContext());
 
 		{
@@ -470,9 +470,9 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			auto terminator = mlir::cast<YieldOp>(entryBlock->getTerminator());
 
 			auto removeAllocationScopeFn = [&](mlir::Value value) -> mlir::Value {
-				return rewriter.create<PtrCastOp>(
+				return rewriter.create<ArrayCastOp>(
 						loc, value,
-						value.getType().cast<PointerType>().toUnknownAllocationScope());
+						value.getType().cast<ArrayType>().toUnknownAllocationScope());
 			};
 
 			// Time variable
@@ -497,7 +497,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			mlir::Value structValue = rewriter.create<PackOp>(terminator->getLoc(), values);
 			mlir::Value result = rewriter.create<AllocOp>(structValue.getLoc(), structType, llvm::None, llvm::None, false);
 			rewriter.create<StoreOp>(result.getLoc(), structValue, result);
-			result = rewriter.create<PtrCastOp>(result.getLoc(), result, opaquePtrType);
+			result = rewriter.create<ArrayCastOp>(result.getLoc(), result, opaquePtrType);
 
 			rewriter.replaceOpWithNewOp<mlir::ReturnOp>(terminator, result);
 		}
@@ -661,8 +661,8 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 	static mlir::Value loadDataFromOpaquePtr(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value ptr, StructType structType)
 	{
 		assert(ptr.getType().isa<OpaquePointerType>());
-		mlir::Type structPtrType = PointerType::get(structType.getContext(), BufferAllocationScope::unknown, structType);
-		mlir::Value castedPtr = builder.create<PtrCastOp>(loc, ptr, structPtrType);
+		mlir::Type structPtrType = ArrayType::get(structType.getContext(), BufferAllocationScope::unknown, structType);
+		mlir::Value castedPtr = builder.create<ArrayCastOp>(loc, ptr, structPtrType);
 		return builder.create<LoadOp>(loc, castedPtr);
 	}
 
@@ -873,8 +873,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			mlir::ValueRange args = terminator.values();
 
 			for (auto it = std::next(args.begin()), end = args.end(); it != end; ++it)
-				if (auto pointerType = (*it).getType().dyn_cast<PointerType>())
-					if (pointerType.getRank() == 0)
+				if (auto arrayType = (*it).getType().dyn_cast<ArrayType>())
+					if (arrayType.getRank() == 0)
 						return false;
 
 			return true;
@@ -909,7 +909,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				mlir::Type lhs = std::get<0>(pair).getType();
 				mlir::Type rhs = std::get<1>(pair).getType();
 
-				return !lhs.isa<PointerType>() && !rhs.isa<PointerType>();
+				return !lhs.isa<ArrayType>() && !rhs.isa<ArrayType>();
 			});
 		});
 
@@ -921,7 +921,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				mlir::Type lhs = std::get<0>(pair).getType();
 				mlir::Type rhs = std::get<1>(pair).getType();
 
-				return !lhs.isa<PointerType>() && !rhs.isa<PointerType>();
+				return !lhs.isa<ArrayType>() && !rhs.isa<ArrayType>();
 			});
 		});
 

@@ -18,13 +18,13 @@ namespace modelica::codegen
 		mlir::Type convertBooleanType(BooleanType type);
 		mlir::Type convertIntegerType(IntegerType type);
 		mlir::Type convertRealType(RealType type);
-		mlir::Type convertPointerType(PointerType type);
-		mlir::Type convertUnsizedPointerType(UnsizedPointerType type);
+		mlir::Type convertArrayType(ArrayType type);
+		mlir::Type convertUnsizedArrayType(UnsizedArrayType type);
 		mlir::Type convertOpaquePointerType(OpaquePointerType type);
 		mlir::Type convertStructType(StructType type);
 
-		llvm::SmallVector<mlir::Type, 3> getPointerDescriptorFields(PointerType type);
-		llvm::SmallVector<mlir::Type, 3> getUnsizedPointerDescriptorFields(UnsizedPointerType type);
+		llvm::SmallVector<mlir::Type, 3> getArrayDescriptorFields(ArrayType type);
+		llvm::SmallVector<mlir::Type, 3> getUnsizedArrayDescriptorFields(UnsizedArrayType type);
 
 		unsigned int bitWidth;
 	};

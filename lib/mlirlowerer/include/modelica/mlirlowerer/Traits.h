@@ -110,8 +110,8 @@ namespace modelica::codegen
 						mlir::Type argType = arg.value().getType();
 						unsigned int argExpectedRank = getArgExpectedRank(op, arg.index());
 
-						unsigned int argActualRank = argType.isa<PointerType>() ?
-						    argType.cast<PointerType>().getRank() : 0;
+						unsigned int argActualRank = argType.isa<ArrayType>() ?
+						    argType.cast<ArrayType>().getRank() : 0;
 
 						// Each argument must have a rank higher than the expected one
 						// for the operation to be vectorized.
@@ -127,7 +127,7 @@ namespace modelica::codegen
 
 							for (size_t i = 0; i < argActualRank - argExpectedRank; ++i)
 							{
-								auto& dimension = argType.cast<PointerType>().getShape()[arg.index()];
+								auto& dimension = argType.cast<ArrayType>().getShape()[arg.index()];
 								dimensions.push_back(dimension);
 							}
 						}
@@ -140,7 +140,7 @@ namespace modelica::codegen
 
 							for (size_t i = 0; i < argActualRank - argExpectedRank; ++i)
 							{
-								auto& dimension = argType.cast<PointerType>().getShape()[i];
+								auto& dimension = argType.cast<ArrayType>().getShape()[i];
 
 								// If the dimension is dynamic, then no further checks or
 								// specializations are possible.

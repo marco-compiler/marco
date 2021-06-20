@@ -22,11 +22,11 @@ static bool isNumeric(mlir::Value value)
 
 static void getArrayDynamicDimensions(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value array, llvm::SmallVectorImpl<mlir::Value>& dimensions)
 {
-	assert(array.getType().isa<PointerType>());
-	auto pointerType = array.getType().cast<PointerType>();
-	auto shape = pointerType.getShape();
+	assert(array.getType().isa<ArrayType>());
+	auto arrayType = array.getType().cast<ArrayType>();
+	auto shape = arrayType.getShape();
 
-	for (const auto& dimension : llvm::enumerate(pointerType.getShape()))
+	for (const auto& dimension : llvm::enumerate(arrayType.getShape()))
 	{
 		if (dimension.value() == -1)
 		{
@@ -36,15 +36,15 @@ static void getArrayDynamicDimensions(mlir::OpBuilder& builder, mlir::Location l
 	}
 }
 
-static mlir::Value allocate(mlir::OpBuilder& builder, mlir::Location location, PointerType pointerType, mlir::ValueRange dynamicDimensions = llvm::None, bool shouldBeFreed = true)
+static mlir::Value allocate(mlir::OpBuilder& builder, mlir::Location location, ArrayType arrayType, mlir::ValueRange dynamicDimensions = llvm::None, bool shouldBeFreed = true)
 {
-	if (pointerType.getAllocationScope() == BufferAllocationScope::unknown)
-		pointerType = pointerType.toMinAllowedAllocationScope();
+	if (arrayType.getAllocationScope() == BufferAllocationScope::unknown)
+		arrayType = arrayType.toMinAllowedAllocationScope();
 
-	if (pointerType.getAllocationScope() == BufferAllocationScope::stack)
-		return builder.create<AllocaOp>(location, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions);
+	if (arrayType.getAllocationScope() == BufferAllocationScope::stack)
+		return builder.create<AllocaOp>(location, arrayType.getElementType(), arrayType.getShape(), dynamicDimensions);
 
-	return builder.create<AllocOp>(location, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions, shouldBeFreed);
+	return builder.create<AllocOp>(location, arrayType.getElementType(), arrayType.getShape(), dynamicDimensions, shouldBeFreed);
 }
 
 static mlir::FuncOp getOrDeclareFunction(mlir::OpBuilder& builder, mlir::ModuleOp module, llvm::StringRef name, mlir::TypeRange results, mlir::TypeRange args)
@@ -74,17 +74,17 @@ static mlir::FuncOp getOrDeclareFunction(mlir::OpBuilder& builder, mlir::ModuleO
  */
 static void iterateArray(mlir::OpBuilder& builder, mlir::Location location, mlir::Value array, std::function<void(mlir::ValueRange)> callback)
 {
-	assert(array.getType().isa<PointerType>());
-	auto pointerType = array.getType().cast<PointerType>();
+	assert(array.getType().isa<ArrayType>());
+	auto arrayType = array.getType().cast<ArrayType>();
 
 	mlir::Value zero = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(0));
 	mlir::Value one = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(1));
 
-	llvm::SmallVector<mlir::Value, 3> lowerBounds(pointerType.getRank(), zero);
+	llvm::SmallVector<mlir::Value, 3> lowerBounds(arrayType.getRank(), zero);
 	llvm::SmallVector<mlir::Value, 3> upperBounds;
-	llvm::SmallVector<mlir::Value, 3> steps(pointerType.getRank(), one);
+	llvm::SmallVector<mlir::Value, 3> steps(arrayType.getRank(), one);
 
-	for (unsigned int i = 0, e = pointerType.getRank(); i < e; ++i)
+	for (unsigned int i = 0, e = arrayType.getRank(); i < e; ++i)
 	{
 		mlir::Value dim = builder.create<mlir::ConstantOp>(location, builder.getIndexAttr(i));
 		upperBounds.push_back(builder.create<DimOp>(location, array, dim));
@@ -116,16 +116,16 @@ static mlir::Type castToMostGenericType(mlir::OpBuilder& builder,
 			resultType = type;
 			resultBaseType = type;
 
-			while (resultBaseType.isa<PointerType>())
-				resultBaseType = resultBaseType.cast<PointerType>().getElementType();
+			while (resultBaseType.isa<ArrayType>())
+				resultBaseType = resultBaseType.cast<ArrayType>().getElementType();
 
 			continue;
 		}
 
-		if (type.isa<PointerType>())
+		if (type.isa<ArrayType>())
 		{
-			while (baseType.isa<PointerType>())
-				baseType = baseType.cast<PointerType>().getElementType();
+			while (baseType.isa<ArrayType>())
+				baseType = baseType.cast<ArrayType>().getElementType();
 		}
 
 		if (resultBaseType.isa<mlir::IndexType>() || baseType.isa<RealType>())
@@ -141,11 +141,11 @@ static mlir::Type castToMostGenericType(mlir::OpBuilder& builder,
 	{
 		mlir::Type type = value.getType();
 
-		if (type.isa<PointerType>())
+		if (type.isa<ArrayType>())
 		{
-			auto pointerType = type.cast<PointerType>();
-			auto shape = pointerType.getShape();
-			types.emplace_back(PointerType::get(pointerType.getContext(), pointerType.getAllocationScope(), resultBaseType, shape));
+			auto arrayType = type.cast<ArrayType>();
+			auto shape = arrayType.getShape();
+			types.emplace_back(ArrayType::get(arrayType.getContext(), arrayType.getAllocationScope(), resultBaseType, shape));
 		}
 		else
 			types.emplace_back(resultBaseType);
@@ -232,8 +232,8 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp>
 		if (auto realType = type.dyn_cast<RealType>())
 			return "f" + std::to_string(convertType(realType).getIntOrFloatBitWidth());
 
-		if (auto pointerType = type.dyn_cast<UnsizedPointerType>())
-			return "a" + getMangledType(pointerType.getElementType());
+		if (auto arrayType = type.dyn_cast<UnsizedArrayType>())
+			return "a" + getMangledType(arrayType.getElementType());
 
 		if (auto indexType = type.dyn_cast<mlir::IndexType>())
 			return getMangledType(this->getTypeConverter()->convertType(type));
@@ -285,14 +285,14 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 
 		auto replacers = [&loc, &op, &rewriter]() {
 			auto memberType = op.resultType().cast<MemberType>();
-			auto pointerType = memberType.toPointerType();
+			auto arrayType = memberType.toArrayType();
 
-			if (pointerType.isScalar())
+			if (arrayType.isScalar())
 			{
 				assert(op.dynamicDimensions().empty());
-				assert(pointerType.getAllocationScope() == BufferAllocationScope::stack);
+				assert(arrayType.getAllocationScope() == BufferAllocationScope::stack);
 
-				mlir::Value reference = rewriter.create<AllocaOp>(loc, pointerType.getElementType());
+				mlir::Value reference = rewriter.create<AllocaOp>(loc, arrayType.getElementType());
 				return std::make_pair<LoadReplacer, StoreReplacer>(
 						[&rewriter, reference](MemberLoadOp loadOp) -> void {
 							mlir::OpBuilder::InsertionGuard guard(rewriter);
@@ -312,11 +312,11 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 			// pointer to that buffer, so that we can eventually reassign it if
 			// the dimensions change.
 
-			bool hasStaticSize = op.dynamicDimensions().size() == pointerType.getDynamicDimensions();
+			bool hasStaticSize = op.dynamicDimensions().size() == arrayType.getDynamicDimensions();
 
 			if (hasStaticSize)
 			{
-				mlir::Value reference = allocate(rewriter, loc, pointerType, op.dynamicDimensions());
+				mlir::Value reference = allocate(rewriter, loc, arrayType, op.dynamicDimensions());
 
 				return std::make_pair<LoadReplacer, StoreReplacer>(
 						[&rewriter, reference](MemberLoadOp loadOp) -> void {
@@ -335,16 +335,16 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 			// a pointer to the array currently in use.
 
 			assert(op.dynamicDimensions().empty());
-			mlir::Value stackValue = rewriter.create<AllocaOp>(loc, pointerType);
+			mlir::Value stackValue = rewriter.create<AllocaOp>(loc, arrayType);
 
-			if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+			if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 			{
 				// We need to allocate a fake buffer in order to allow the first
 				// free operation to operate on a valid memory area.
 
-				PointerType::Shape shape(pointerType.getRank(), 1);
-				mlir::Value var = rewriter.create<AllocOp>(loc, pointerType.getElementType(), shape, llvm::None, false);
-				var = rewriter.create<PtrCastOp>(loc, var, pointerType);
+				ArrayType::Shape shape(arrayType.getRank(), 1);
+				mlir::Value var = rewriter.create<AllocOp>(loc, arrayType.getElementType(), shape, llvm::None, false);
+				var = rewriter.create<ArrayCastOp>(loc, var, arrayType);
 				rewriter.create<StoreOp>(loc, var, stackValue);
 			}
 
@@ -354,7 +354,7 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 						rewriter.setInsertionPoint(loadOp);
 						rewriter.replaceOpWithNewOp<LoadOp>(loadOp, stackValue);
 					},
-					[&rewriter, loc, pointerType, stackValue](MemberStoreOp storeOp) -> void {
+					[&rewriter, loc, arrayType, stackValue](MemberStoreOp storeOp) -> void {
 						mlir::OpBuilder::InsertionGuard guard(rewriter);
 						rewriter.setInsertionPoint(storeOp);
 
@@ -367,14 +367,14 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 						bool canSourceBeForwarded = !storeOp.value().isa<mlir::BlockArgument>();
 
 						mlir::Value copy = rewriter.create<ArrayCloneOp>(
-								loc, storeOp.value(), pointerType, false, canSourceBeForwarded);
+								loc, storeOp.value(), arrayType, false, canSourceBeForwarded);
 
 						// Free the previously allocated memory. This is only apparently in
 						// contrast with the above statements: unknown-sized arrays pointers
 						// are initialized with a pointer to a 1-element sized array, so that
 						// the initial free always operates on valid memory.
 
-						if (pointerType.getAllocationScope() == BufferAllocationScope::heap)
+						if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
 						{
 							mlir::Value buffer = rewriter.create<LoadOp>(loc, stackValue);
 							rewriter.create<FreeOp>(loc, buffer);
@@ -404,18 +404,18 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 	}
 
 	private:
-	static mlir::Value allocate(mlir::OpBuilder& builder, mlir::Location loc, PointerType pointerType, mlir::ValueRange dynamicDimensions)
+	static mlir::Value allocate(mlir::OpBuilder& builder, mlir::Location loc, ArrayType arrayType, mlir::ValueRange dynamicDimensions)
 	{
-		auto scope = pointerType.getAllocationScope();
+		auto scope = arrayType.getAllocationScope();
 		assert(scope != BufferAllocationScope::unknown);
 
 		if (scope == BufferAllocationScope::stack)
-			return builder.create<AllocaOp>(loc, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions);
+			return builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), dynamicDimensions);
 
 		// Note that being a member, we will take care of manually freeing
 		// the buffer when needed.
 
-		return builder.create<AllocOp>(loc, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions, false);
+		return builder.create<AllocOp>(loc, arrayType.getElementType(), arrayType.getShape(), dynamicDimensions, false);
 	}
 };
 
@@ -509,7 +509,7 @@ struct AssignmentOpScalarLowering : public mlir::OpRewritePattern<AssignmentOp>
 		if (!isNumeric(op.source()))
 			return rewriter.notifyMatchFailure(op, "Source value has not a numeric type");
 
-		auto destinationBaseType = op.destination().getType().cast<PointerType>().getElementType();
+		auto destinationBaseType = op.destination().getType().cast<ArrayType>().getElementType();
 		mlir::Value value = rewriter.create<CastOp>(loc, op.source(), destinationBaseType);
 		rewriter.replaceOpWithNewOp<StoreOp>(op, value, op.destination());
 
@@ -528,13 +528,13 @@ struct AssignmentOpArrayLowering : public mlir::OpRewritePattern<AssignmentOp>
 	{
 		mlir::Location loc = op->getLoc();
 
-		if (!op.source().getType().isa<PointerType>())
+		if (!op.source().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Source value is not an array");
 
 		iterateArray(rewriter, op.getLoc(), op.source(),
 								 [&](mlir::ValueRange position) {
 									 mlir::Value value = rewriter.create<LoadOp>(loc, op.source(), position);
-									 value = rewriter.create<CastOp>(value.getLoc(), value, op.destination().getType().cast<PointerType>().getElementType());
+									 value = rewriter.create<CastOp>(value.getLoc(), value, op.destination().getType().cast<ArrayType>().getElementType());
 									 rewriter.create<StoreOp>(loc, value, op.destination(), position);
 								 });
 
@@ -576,9 +576,9 @@ struct PrintOpLowering : public ModelicaOpConversion<PrintOp>
 			mlir::Value source = std::get<0>(pair);
 			mlir::Value transformed = std::get<1>(pair);
 
-			if (auto pointerType = source.getType().dyn_cast<PointerType>())
+			if (auto arrayType = source.getType().dyn_cast<ArrayType>())
 			{
-				if (pointerType.getRank() > 0)
+				if (arrayType.getRank() > 0)
 				{
 					iterateArray(rewriter, source.getLoc(), source,
 											 [&](mlir::ValueRange position) {
@@ -708,8 +708,8 @@ struct ArrayCloneOpLowering : public ModelicaOpConversion<ArrayCloneOp>
 		if (options.useRuntimeLibrary)
 		{
 			llvm::SmallVector<mlir::Value, 2> args;
-			args.push_back(rewriter.create<PtrCastOp>(loc, result, result.getType().cast<PointerType>().toUnsized()));
-			args.push_back(rewriter.create<PtrCastOp>(loc, op.source(), op.source().getType().cast<PointerType>().toUnsized()));
+			args.push_back(rewriter.create<ArrayCastOp>(loc, result, result.getType().cast<ArrayType>().toUnsized()));
+			args.push_back(rewriter.create<ArrayCastOp>(loc, op.source(), op.source().getType().cast<ArrayType>().toUnsized()));
 
 			auto callee = getOrDeclareFunction(
 					rewriter,
@@ -724,7 +724,7 @@ struct ArrayCloneOpLowering : public ModelicaOpConversion<ArrayCloneOp>
 		{
 			iterateArray(rewriter, loc, op.source(), [&](mlir::ValueRange indexes) {
 				mlir::Value value = rewriter.create<LoadOp>(loc, op.source(), indexes);
-				value = rewriter.create<CastOp>(loc, value, op.resultType().cast<PointerType>().getElementType());
+				value = rewriter.create<CastOp>(loc, value, op.resultType().cast<ArrayType>().getElementType());
 				rewriter.create<StoreOp>(loc, value, result, indexes);
 			});
 		}
@@ -767,14 +767,14 @@ struct NotOpArrayLowering : public mlir::OpRewritePattern<NotOp>
 		mlir::Location loc = op->getLoc();
 
 		// Check if the operand is compatible
-		if (!op.operand().getType().isa<PointerType>())
+		if (!op.operand().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Operand is not an array");
 
-		if (auto pointerType = op.operand().getType().cast<PointerType>(); !pointerType.getElementType().isa<BooleanType>())
+		if (auto arrayType = op.operand().getType().cast<ArrayType>(); !arrayType.getElementType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Operand is not an array of booleans");
 
 		// Allocate the result array
-		auto resultType = op.resultType().cast<PointerType>();
+		auto resultType = op.resultType().cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		getArrayDynamicDimensions(rewriter, loc, op.operand(), dynamicDimensions);
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
@@ -830,31 +830,31 @@ struct AndOpArrayLowering : public mlir::OpRewritePattern<AndOp>
 		mlir::Location loc = op.getLoc();
 
 		// Check if the operands are compatible
-		if (!op.lhs().getType().isa<PointerType>())
+		if (!op.lhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not an array");
 
-		auto lhsPointerType = op.lhs().getType().cast<PointerType>();
+		auto lhsArrayType = op.lhs().getType().cast<ArrayType>();
 
-		if (!lhsPointerType.getElementType().isa<BooleanType>())
+		if (!lhsArrayType.getElementType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not an array of booleans");
 
-		if (!op.rhs().getType().isa<PointerType>())
+		if (!op.rhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Right-hand side operand is not an array");
 
-		auto rhsPointerType = op.rhs().getType().cast<PointerType>();
+		auto rhsArrayType = op.rhs().getType().cast<ArrayType>();
 
-		if (!rhsPointerType.getElementType().isa<BooleanType>())
+		if (!rhsArrayType.getElementType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not an array of booleans");
 
-		assert(lhsPointerType.getRank() == rhsPointerType.getRank());
+		assert(lhsArrayType.getRank() == rhsArrayType.getRank());
 
 		if (options.assertions)
 		{
 			// Check if the dimensions are compatible
-			auto lhsShape = lhsPointerType.getShape();
-			auto rhsShape = rhsPointerType.getShape();
+			auto lhsShape = lhsArrayType.getShape();
+			auto rhsShape = rhsArrayType.getShape();
 
-			for (size_t i = 0; i < lhsPointerType.getRank(); ++i)
+			for (size_t i = 0; i < lhsArrayType.getRank(); ++i)
 			{
 				if (lhsShape[i] == -1 || rhsShape[i] == -1)
 				{
@@ -868,7 +868,7 @@ struct AndOpArrayLowering : public mlir::OpRewritePattern<AndOp>
 		}
 
 		// Allocate the result array
-		auto resultType = op.resultType().cast<PointerType>();
+		auto resultType = op.resultType().cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> lhsDynamicDimensions;
 		getArrayDynamicDimensions(rewriter, loc, op.lhs(), lhsDynamicDimensions);
 		mlir::Value result = allocate(rewriter, loc, resultType, lhsDynamicDimensions);
@@ -928,31 +928,31 @@ struct OrOpArrayLowering : public mlir::OpRewritePattern<OrOp>
 		mlir::Location loc = op.getLoc();
 
 		// Check if the operands are compatible
-		if (!op.lhs().getType().isa<PointerType>())
+		if (!op.lhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not an array");
 
-		auto lhsPointerType = op.lhs().getType().cast<PointerType>();
+		auto lhsArrayType = op.lhs().getType().cast<ArrayType>();
 
-		if (!lhsPointerType.getElementType().isa<BooleanType>())
+		if (!lhsArrayType.getElementType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not an array of booleans");
 
-		if (!op.rhs().getType().isa<PointerType>())
+		if (!op.rhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Right-hand side operand is not an array");
 
-		auto rhsPointerType = op.rhs().getType().cast<PointerType>();
+		auto rhsArrayType = op.rhs().getType().cast<ArrayType>();
 
-		if (!rhsPointerType.getElementType().isa<BooleanType>())
+		if (!rhsArrayType.getElementType().isa<BooleanType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not an array of booleans");
 
-		assert(lhsPointerType.getRank() == rhsPointerType.getRank());
+		assert(lhsArrayType.getRank() == rhsArrayType.getRank());
 
 		if (options.assertions)
 		{
 			// Check if the dimensions are compatible
-			auto lhsShape = lhsPointerType.getShape();
-			auto rhsShape = rhsPointerType.getShape();
+			auto lhsShape = lhsArrayType.getShape();
+			auto rhsShape = rhsArrayType.getShape();
 
-			for (size_t i = 0; i < lhsPointerType.getRank(); ++i)
+			for (size_t i = 0; i < lhsArrayType.getRank(); ++i)
 			{
 				if (lhsShape[i] == -1 || rhsShape[i] == -1)
 				{
@@ -966,7 +966,7 @@ struct OrOpArrayLowering : public mlir::OpRewritePattern<OrOp>
 		}
 
 		// Allocate the result array
-		auto resultType = op.resultType().cast<PointerType>();
+		auto resultType = op.resultType().cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		getArrayDynamicDimensions(rewriter, loc, op.lhs(), dynamicDimensions);
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
@@ -1268,16 +1268,16 @@ struct NegateOpArrayLowering : public mlir::OpRewritePattern<NegateOp>
 		mlir::Location loc = op.getLoc();
 
 		// Check if the operand is compatible
-		if (!op.operand().getType().isa<PointerType>())
+		if (!op.operand().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Value is not an array");
 
-		auto pointerType = op.operand().getType().cast<PointerType>();
+		auto arrayType = op.operand().getType().cast<ArrayType>();
 
-		if (!isNumericType(pointerType.getElementType()))
+		if (!isNumericType(arrayType.getElementType()))
 			return rewriter.notifyMatchFailure(op, "Array has not numeric elements");
 
 		// Allocate the result array
-		auto resultType = op.resultType().cast<PointerType>();
+		auto resultType = op.resultType().cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		getArrayDynamicDimensions(rewriter, loc, op.operand(), dynamicDimensions);
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
@@ -1357,16 +1357,16 @@ struct AddOpArrayLowering : public mlir::OpRewritePattern<AddOp>
 		mlir::Location loc = op->getLoc();
 
 		// Check if the operands are compatible
-		if (!op.lhs().getType().isa<PointerType>())
+		if (!op.lhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side value is not an array");
 
-		if (!op.rhs().getType().isa<PointerType>())
+		if (!op.rhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Right-hand side value is not an array");
 
-		auto lhsPointerType = op.lhs().getType().cast<PointerType>();
-		auto rhsPointerType = op.rhs().getType().cast<PointerType>();
+		auto lhsArrayType = op.lhs().getType().cast<ArrayType>();
+		auto rhsArrayType = op.rhs().getType().cast<ArrayType>();
 
-		for (auto pair : llvm::zip(lhsPointerType.getShape(), rhsPointerType.getShape()))
+		for (auto pair : llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape()))
 		{
 			auto lhsDimension = std::get<0>(pair);
 			auto rhsDimension = std::get<1>(pair);
@@ -1375,21 +1375,21 @@ struct AddOpArrayLowering : public mlir::OpRewritePattern<AddOp>
 				return rewriter.notifyMatchFailure(op, "Incompatible array dimensions");
 		}
 
-		if (!isNumericType(lhsPointerType.getElementType()))
+		if (!isNumericType(lhsArrayType.getElementType()))
 			return rewriter.notifyMatchFailure(op, "Left-hand side array has not numeric elements");
 
-		if (!isNumericType(rhsPointerType.getElementType()))
+		if (!isNumericType(rhsArrayType.getElementType()))
 			return rewriter.notifyMatchFailure(op, "Right-hand side array has not numeric elements");
 
 		if (options.assertions)
 		{
 			// Check if the dimensions are compatible
-			auto lhsShape = lhsPointerType.getShape();
-			auto rhsShape = rhsPointerType.getShape();
+			auto lhsShape = lhsArrayType.getShape();
+			auto rhsShape = rhsArrayType.getShape();
 
-			assert(lhsPointerType.getRank() == rhsPointerType.getRank());
+			assert(lhsArrayType.getRank() == rhsArrayType.getRank());
 
-			for (size_t i = 0; i < lhsPointerType.getRank(); ++i)
+			for (size_t i = 0; i < lhsArrayType.getRank(); ++i)
 			{
 				if (lhsShape[i] == -1 || rhsShape[i] == -1)
 				{
@@ -1403,7 +1403,7 @@ struct AddOpArrayLowering : public mlir::OpRewritePattern<AddOp>
 		}
 
 		// Allocate the result array
-		auto resultType = op.resultType().cast<PointerType>();
+		auto resultType = op.resultType().cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		getArrayDynamicDimensions(rewriter, loc, op.lhs(), dynamicDimensions);
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
@@ -1487,16 +1487,16 @@ struct SubOpArrayLowering : public mlir::OpRewritePattern<SubOp>
 		mlir::Location loc = op->getLoc();
 
 		// Check if the operands are compatible
-		if (!op.lhs().getType().isa<PointerType>())
+		if (!op.lhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side value is not an array");
 
-		if (!op.rhs().getType().isa<PointerType>())
+		if (!op.rhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Right-hand side value is not an array");
 
-		auto lhsPointerType = op.lhs().getType().cast<PointerType>();
-		auto rhsPointerType = op.rhs().getType().cast<PointerType>();
+		auto lhsArrayType = op.lhs().getType().cast<ArrayType>();
+		auto rhsArrayType = op.rhs().getType().cast<ArrayType>();
 
-		for (auto pair : llvm::zip(lhsPointerType.getShape(), rhsPointerType.getShape()))
+		for (auto pair : llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape()))
 		{
 			auto lhsDimension = std::get<0>(pair);
 			auto rhsDimension = std::get<1>(pair);
@@ -1505,21 +1505,21 @@ struct SubOpArrayLowering : public mlir::OpRewritePattern<SubOp>
 				return rewriter.notifyMatchFailure(op, "Incompatible array dimensions");
 		}
 
-		if (!isNumericType(lhsPointerType.getElementType()))
+		if (!isNumericType(lhsArrayType.getElementType()))
 			return rewriter.notifyMatchFailure(op, "Left-hand side array has not numeric elements");
 
-		if (!isNumericType(rhsPointerType.getElementType()))
+		if (!isNumericType(rhsArrayType.getElementType()))
 			return rewriter.notifyMatchFailure(op, "Right-hand side array has not numeric elements");
 
 		if (options.assertions)
 		{
 			// Check if the dimensions are compatible
-			auto lhsShape = lhsPointerType.getShape();
-			auto rhsShape = rhsPointerType.getShape();
+			auto lhsShape = lhsArrayType.getShape();
+			auto rhsShape = rhsArrayType.getShape();
 
-			assert(lhsPointerType.getRank() == rhsPointerType.getRank());
+			assert(lhsArrayType.getRank() == rhsArrayType.getRank());
 
-			for (size_t i = 0; i < lhsPointerType.getRank(); ++i)
+			for (size_t i = 0; i < lhsArrayType.getRank(); ++i)
 			{
 				if (lhsShape[i] == -1 || rhsShape[i] == -1)
 				{
@@ -1533,7 +1533,7 @@ struct SubOpArrayLowering : public mlir::OpRewritePattern<SubOp>
 		}
 
 		// Allocate the result array
-		auto resultType = op.resultType().cast<PointerType>();
+		auto resultType = op.resultType().cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		getArrayDynamicDimensions(rewriter, loc, op.lhs(), dynamicDimensions);
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
@@ -1618,19 +1618,19 @@ struct MulOpScalarProductLowering : public mlir::OpRewritePattern<MulOp>
 
 		if (isNumeric(op.lhs()))
 		{
-			if (!op.rhs().getType().isa<PointerType>())
+			if (!op.rhs().getType().isa<ArrayType>())
 				return rewriter.notifyMatchFailure(op, "Scalar-array product: right-hand size value is not an array");
 
-			if (!isNumericType(op.rhs().getType().cast<PointerType>().getElementType()))
+			if (!isNumericType(op.rhs().getType().cast<ArrayType>().getElementType()))
 				return rewriter.notifyMatchFailure(op, "Scalar-array product: right-hand side array has not numeric elements");
 		}
 
 		if (isNumeric(op.rhs()))
 		{
-			if (!op.lhs().getType().isa<PointerType>())
+			if (!op.lhs().getType().isa<ArrayType>())
 				return rewriter.notifyMatchFailure(op, "Scalar-array product: right-hand size value is not an array");
 
-			if (!isNumericType(op.lhs().getType().cast<PointerType>().getElementType()))
+			if (!isNumericType(op.lhs().getType().cast<ArrayType>().getElementType()))
 				return rewriter.notifyMatchFailure(op, "Scalar-array product: left-hand side array has not numeric elements");
 		}
 
@@ -1638,7 +1638,7 @@ struct MulOpScalarProductLowering : public mlir::OpRewritePattern<MulOp>
 		mlir::Value array = isNumeric(op.rhs()) ? op.lhs() : op.rhs();
 
 		// Allocate the result array
-		auto resultType = op.resultType().cast<PointerType>();
+		auto resultType = op.resultType().cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		getArrayDynamicDimensions(rewriter, loc, array, dynamicDimensions);
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
@@ -1670,34 +1670,34 @@ struct MulOpCrossProductLowering : public ModelicaOpConversion<MulOp>
 		mlir::Location loc = op.getLoc();
 
 		// Check if the operands are compatible
-		if (!op.lhs().getType().isa<PointerType>())
+		if (!op.lhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Cross product: left-hand side value is not an array");
 
-		auto lhsPointerType = op.lhs().getType().cast<PointerType>();
+		auto lhsArrayType = op.lhs().getType().cast<ArrayType>();
 
-		if (lhsPointerType.getRank() != 1)
+		if (lhsArrayType.getRank() != 1)
 			return rewriter.notifyMatchFailure(op, "Cross product: left-hand side arrays is not 1D");
 
-		if (!op.rhs().getType().isa<PointerType>())
+		if (!op.rhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Cross product: right-hand side value is not an array");
 
-		auto rhsPointerType = op.rhs().getType().cast<PointerType>();
+		auto rhsArrayType = op.rhs().getType().cast<ArrayType>();
 
-		if (rhsPointerType.getRank() != 1)
+		if (rhsArrayType.getRank() != 1)
 			return rewriter.notifyMatchFailure(op, "Cross product: right-hand side arrays is not 1D");
 
-		if (lhsPointerType.getShape()[0] != -1 && rhsPointerType.getShape()[0] != -1)
-			if (lhsPointerType.getShape()[0] != rhsPointerType.getShape()[0])
+		if (lhsArrayType.getShape()[0] != -1 && rhsArrayType.getShape()[0] != -1)
+			if (lhsArrayType.getShape()[0] != rhsArrayType.getShape()[0])
 				return rewriter.notifyMatchFailure(op, "Cross product: the two arrays have different shape");
 
-		assert(lhsPointerType.getRank() == 1);
-		assert(rhsPointerType.getRank() == 1);
+		assert(lhsArrayType.getRank() == 1);
+		assert(rhsArrayType.getRank() == 1);
 
 		if (options.assertions)
 		{
 			// Check if the dimensions are compatible
-			auto lhsShape = lhsPointerType.getShape();
-			auto rhsShape = rhsPointerType.getShape();
+			auto lhsShape = lhsArrayType.getShape();
+			auto rhsShape = rhsArrayType.getShape();
 
 			if (lhsShape[0] == -1 || rhsShape[0] == -1)
 			{
@@ -1757,34 +1757,34 @@ struct MulOpVectorMatrixLowering : public ModelicaOpConversion<MulOp>
 		mlir::Location loc = op->getLoc();
 
 		// Check if the operands are compatible
-		if (!op.lhs().getType().isa<PointerType>())
+		if (!op.lhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Vector-matrix product: left-hand side value is not an array");
 
-		auto lhsPointerType = op.lhs().getType().cast<PointerType>();
+		auto lhsArrayType = op.lhs().getType().cast<ArrayType>();
 
-		if (lhsPointerType.getRank() != 1)
+		if (lhsArrayType.getRank() != 1)
 			return rewriter.notifyMatchFailure(op, "Vector-matrix product: left-hand size array is not 1-D");
 
-		if (!op.rhs().getType().isa<PointerType>())
+		if (!op.rhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Vector-matrix product: right-hand side value is not an array");
 
-		auto rhsPointerType = op.rhs().getType().cast<PointerType>();
+		auto rhsArrayType = op.rhs().getType().cast<ArrayType>();
 
-		if (rhsPointerType.getRank() != 2)
+		if (rhsArrayType.getRank() != 2)
 			return rewriter.notifyMatchFailure(op, "Vector-matrix product: right-hand side matrix is not 2-D");
 
-		if (lhsPointerType.getShape()[0] != -1 && rhsPointerType.getShape()[0] != -1)
-			if (lhsPointerType.getShape()[0] != rhsPointerType.getShape()[0])
+		if (lhsArrayType.getShape()[0] != -1 && rhsArrayType.getShape()[0] != -1)
+			if (lhsArrayType.getShape()[0] != rhsArrayType.getShape()[0])
 				return rewriter.notifyMatchFailure(op, "Vector-matrix product: incompatible shapes");
 
-		assert(lhsPointerType.getRank() == 1);
-		assert(rhsPointerType.getRank() == 2);
+		assert(lhsArrayType.getRank() == 1);
+		assert(rhsArrayType.getRank() == 2);
 
 		if (options.assertions)
 		{
 			// Check if the dimensions are compatible
-			auto lhsShape = lhsPointerType.getShape();
-			auto rhsShape = rhsPointerType.getShape();
+			auto lhsShape = lhsArrayType.getShape();
+			auto rhsShape = rhsArrayType.getShape();
 
 			if (lhsShape[0] == -1 || rhsShape[0] == -1)
 			{
@@ -1798,7 +1798,7 @@ struct MulOpVectorMatrixLowering : public ModelicaOpConversion<MulOp>
 
 		// Allocate the result array
 		Adaptor transformed(operands);
-		auto resultType = op.resultType().cast<PointerType>();
+		auto resultType = op.resultType().cast<ArrayType>();
 		auto shape = resultType.getShape();
 		assert(shape.size() == 1);
 
@@ -1863,34 +1863,34 @@ struct MulOpMatrixVectorLowering : public ModelicaOpConversion<MulOp>
 		mlir::Location loc = op->getLoc();
 
 		// Check if the operands are compatible
-		if (!op.lhs().getType().isa<PointerType>())
+		if (!op.lhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Matrix-vector product: left-hand side value is not an array");
 
-		auto lhsPointerType = op.lhs().getType().cast<PointerType>();
+		auto lhsArrayType = op.lhs().getType().cast<ArrayType>();
 
-		if (lhsPointerType.getRank() != 2)
+		if (lhsArrayType.getRank() != 2)
 			return rewriter.notifyMatchFailure(op, "Matrix-vector product: left-hand size array is not 2-D");
 
-		if (!op.rhs().getType().isa<PointerType>())
+		if (!op.rhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Matrix-vector product: right-hand side value is not an array");
 
-		auto rhsPointerType = op.rhs().getType().cast<PointerType>();
+		auto rhsArrayType = op.rhs().getType().cast<ArrayType>();
 
-		if (rhsPointerType.getRank() != 1)
+		if (rhsArrayType.getRank() != 1)
 			return rewriter.notifyMatchFailure(op, "Matrix-vector product: right-hand side matrix is not 1-D");
 
-		if (lhsPointerType.getShape()[1] != -1 && rhsPointerType.getShape()[0] != -1)
-			if (lhsPointerType.getShape()[1] != rhsPointerType.getShape()[0])
+		if (lhsArrayType.getShape()[1] != -1 && rhsArrayType.getShape()[0] != -1)
+			if (lhsArrayType.getShape()[1] != rhsArrayType.getShape()[0])
 				return rewriter.notifyMatchFailure(op, "Matrix-vector product: incompatible shapes");
 
-		assert(lhsPointerType.getRank() == 2);
-		assert(rhsPointerType.getRank() == 1);
+		assert(lhsArrayType.getRank() == 2);
+		assert(rhsArrayType.getRank() == 1);
 
 		if (options.assertions)
 		{
 			// Check if the dimensions are compatible
-			auto lhsShape = lhsPointerType.getShape();
-			auto rhsShape = rhsPointerType.getShape();
+			auto lhsShape = lhsArrayType.getShape();
+			auto rhsShape = rhsArrayType.getShape();
 
 			if (lhsShape[1] == -1 || rhsShape[0] == -1)
 			{
@@ -1905,7 +1905,7 @@ struct MulOpMatrixVectorLowering : public ModelicaOpConversion<MulOp>
 
 		// Allocate the result array
 		Adaptor transformed(operands);
-		auto resultType = op.resultType().cast<PointerType>();
+		auto resultType = op.resultType().cast<ArrayType>();
 		auto shape = resultType.getShape();
 
 		llvm::SmallVector<mlir::Value, 1> dynamicDimensions;
@@ -1971,34 +1971,34 @@ struct MulOpMatrixLowering : public ModelicaOpConversion<MulOp>
 		mlir::Location loc = op.getLoc();
 
 		// Check if the operands are compatible
-		if (!op.lhs().getType().isa<PointerType>())
+		if (!op.lhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Matrix product: left-hand side value is not an array");
 
-		auto lhsPointerType = op.lhs().getType().cast<PointerType>();
+		auto lhsArrayType = op.lhs().getType().cast<ArrayType>();
 
-		if (lhsPointerType.getRank() != 2)
+		if (lhsArrayType.getRank() != 2)
 			return rewriter.notifyMatchFailure(op, "Matrix product: left-hand size array is not 2-D");
 
-		if (!op.rhs().getType().isa<PointerType>())
+		if (!op.rhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Matrix product: right-hand side value is not an array");
 
-		auto rhsPointerType = op.rhs().getType().cast<PointerType>();
+		auto rhsArrayType = op.rhs().getType().cast<ArrayType>();
 
-		if (rhsPointerType.getRank() != 2)
+		if (rhsArrayType.getRank() != 2)
 			return rewriter.notifyMatchFailure(op, "Matrix product: right-hand side matrix is not 2-D");
 
-		if (lhsPointerType.getShape()[1] != -1 && rhsPointerType.getShape()[0] != -1)
-			if (lhsPointerType.getShape()[1] != rhsPointerType.getShape()[0])
+		if (lhsArrayType.getShape()[1] != -1 && rhsArrayType.getShape()[0] != -1)
+			if (lhsArrayType.getShape()[1] != rhsArrayType.getShape()[0])
 				return rewriter.notifyMatchFailure(op, "Matrix-vector product: incompatible shapes");
 
-		assert(lhsPointerType.getRank() == 2);
-		assert(rhsPointerType.getRank() == 2);
+		assert(lhsArrayType.getRank() == 2);
+		assert(rhsArrayType.getRank() == 2);
 
 		if (options.assertions)
 		{
 			// Check if the dimensions are compatible
-			auto lhsShape = lhsPointerType.getShape();
-			auto rhsShape = rhsPointerType.getShape();
+			auto lhsShape = lhsArrayType.getShape();
+			auto rhsShape = rhsArrayType.getShape();
 
 			if (lhsShape[1] == -1 || rhsShape[0] == -1)
 			{
@@ -2013,7 +2013,7 @@ struct MulOpMatrixLowering : public ModelicaOpConversion<MulOp>
 
 		// Allocate the result array
 		Adaptor transformed(operands);
-		auto resultType = op.resultType().cast<PointerType>();
+		auto resultType = op.resultType().cast<ArrayType>();
 		auto shape = resultType.getShape();
 
 		llvm::SmallVector<mlir::Value, 2> dynamicDimensions;
@@ -2131,17 +2131,17 @@ struct DivOpArrayLowering : public mlir::OpRewritePattern<DivOp>
 		mlir::Location loc = op.getLoc();
 
 		// Check if the operands are compatible
-		if (!op.lhs().getType().isa<PointerType>())
+		if (!op.lhs().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Array-scalar division: left-hand size value is not an array");
 
-		if (!isNumericType(op.lhs().getType().cast<PointerType>().getElementType()))
+		if (!isNumericType(op.lhs().getType().cast<ArrayType>().getElementType()))
 			return rewriter.notifyMatchFailure(op, "Array-scalar division: right-hand side array has not numeric elements");
 
 		if (!isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Array-scalar division: right-hand size value is not a scalar");
 
 		// Allocate the result array
-		auto resultType = op.resultType().cast<PointerType>();
+		auto resultType = op.resultType().cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		getArrayDynamicDimensions(rewriter, loc, op.lhs(), dynamicDimensions);
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
@@ -2202,27 +2202,27 @@ struct PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 		Adaptor transformed(operands);
 
 		// Check if the operands are compatible
-		if (!op.base().getType().isa<PointerType>())
+		if (!op.base().getType().isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Base is not an array");
 
-		auto basePointerType = op.base().getType().cast<PointerType>();
+		auto baseArrayType = op.base().getType().cast<ArrayType>();
 
-		if (basePointerType.getRank() != 2)
+		if (baseArrayType.getRank() != 2)
 			return rewriter.notifyMatchFailure(op, "Base array is not 2-D");
 
-		if (basePointerType.getShape()[0] != -1 && basePointerType.getShape()[1] != -1)
-			if (basePointerType.getShape()[0] != basePointerType.getShape()[1])
+		if (baseArrayType.getShape()[0] != -1 && baseArrayType.getShape()[1] != -1)
+			if (baseArrayType.getShape()[0] != baseArrayType.getShape()[1])
 				return rewriter.notifyMatchFailure(op, "Base is not a square matrix");
 
 		if (!op.exponent().getType().isa<IntegerType>())
 			return rewriter.notifyMatchFailure(op, "Exponent is not an integer");
 
-		assert(basePointerType.getRank() == 2);
+		assert(baseArrayType.getRank() == 2);
 
 		if (options.assertions)
 		{
 			// Check if the matrix is a square one
-			auto shape = basePointerType.getShape();
+			auto shape = baseArrayType.getShape();
 
 			if (shape[0] == -1 || shape[1] == -1)
 			{
@@ -2236,10 +2236,10 @@ struct PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 		}
 
 		// Allocate the result array
-		auto resultPointerType = op.resultType().cast<PointerType>();
+		auto resultArrayType = op.resultType().cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		getArrayDynamicDimensions(rewriter, loc, op.base(), dynamicDimensions);
-		mlir::Value result = allocate(rewriter, loc, resultPointerType, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, resultArrayType, dynamicDimensions);
 		rewriter.replaceOp(op, result);
 
 		// Compute the result
@@ -2250,7 +2250,7 @@ struct PowOpMatrixLowering: public ModelicaOpConversion<PowOp>
 		// The intermediate results must be allocated on the heap, in order
 		// to avoid a potentially big allocation on the stack (due to the
 		// iteration).
-		auto intermediateResultType = op.base().getType().cast<PointerType>().toAllocationScope(BufferAllocationScope::heap);
+		auto intermediateResultType = op.base().getType().cast<ArrayType>().toAllocationScope(BufferAllocationScope::heap);
 		mlir::Value current = rewriter.create<ArrayCloneOp>(loc, op.base(), intermediateResultType);
 
 		auto forLoop = rewriter.create<mlir::scf::ForOp>(loc, lowerBound, exponent, step);
@@ -2444,18 +2444,18 @@ struct DiagonalOpLowering : public ModelicaOpConversion<DiagonalOp>
 	mlir::LogicalResult matchAndRewrite(DiagonalOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
-		auto pointerType = op.resultType().cast<PointerType>();
+		auto arrayType = op.resultType().cast<ArrayType>();
 
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		mlir::Value castedSize = nullptr;
 
-		for (const auto& size : pointerType.getShape())
+		for (const auto& size : arrayType.getShape())
 		{
 			if (size == -1)
 			{
 				if (castedSize == nullptr)
 				{
-					assert(op.values().getType().cast<PointerType>().getRank() == 1);
+					assert(op.values().getType().cast<ArrayType>().getRank() == 1);
 					mlir::Value zeroValue = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(0));
 					castedSize = rewriter.create<DimOp>(loc, op.values(), zeroValue);
 				}
@@ -2464,18 +2464,18 @@ struct DiagonalOpLowering : public ModelicaOpConversion<DiagonalOp>
 			}
 		}
 
-		mlir::Value result = allocate(rewriter, loc, pointerType, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, arrayType, dynamicDimensions);
 		rewriter.replaceOp(op, result);
 
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		args.push_back(rewriter.create<PtrCastOp>(
+		args.push_back(rewriter.create<ArrayCastOp>(
 				loc, result,
-				result.getType().cast<PointerType>().toUnsized()));
+				result.getType().cast<ArrayType>().toUnsized()));
 
-		args.push_back(rewriter.create<PtrCastOp>(
+		args.push_back(rewriter.create<ArrayCastOp>(
 				loc, op.values(),
-				op.values().getType().cast<PointerType>().toUnsized()));
+				op.values().getType().cast<ArrayType>().toUnsized()));
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
@@ -2520,13 +2520,13 @@ struct FillOpLowering : public ModelicaOpConversion<FillOp>
 	mlir::LogicalResult matchAndRewrite(FillOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
-		auto pointerType = op.memory().getType().cast<PointerType>();
+		auto arrayType = op.memory().getType().cast<ArrayType>();
 
 		if (options.useRuntimeLibrary)
 		{
 			llvm::SmallVector<mlir::Value, 3> args;
-			args.push_back(rewriter.create<PtrCastOp>(loc, op.memory(), pointerType.toUnsized()));
-			args.push_back(rewriter.create<CastOp>(loc, op.value(), pointerType.getElementType()));
+			args.push_back(rewriter.create<ArrayCastOp>(loc, op.memory(), arrayType.toUnsized()));
+			args.push_back(rewriter.create<CastOp>(loc, op.value(), arrayType.getElementType()));
 
 			auto callee = getOrDeclareFunction(
 					rewriter,
@@ -2539,7 +2539,7 @@ struct FillOpLowering : public ModelicaOpConversion<FillOp>
 		}
 		else
 		{
-			mlir::Value value = rewriter.create<CastOp>(loc, op.value(), pointerType.getElementType());
+			mlir::Value value = rewriter.create<CastOp>(loc, op.value(), arrayType.getElementType());
 
 			iterateArray(rewriter, loc, op.memory(),
 									 [&](mlir::ValueRange position) {
@@ -2559,12 +2559,12 @@ struct IdentityOpLowering : public ModelicaOpConversion<IdentityOp>
 	mlir::LogicalResult matchAndRewrite(IdentityOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
-		auto pointerType = op.resultType().cast<PointerType>();
+		auto arrayType = op.resultType().cast<ArrayType>();
 
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		mlir::Value castedSize = nullptr;
 
-		for (const auto& size : pointerType.getShape())
+		for (const auto& size : arrayType.getShape())
 		{
 			if (size == -1)
 			{
@@ -2575,12 +2575,12 @@ struct IdentityOpLowering : public ModelicaOpConversion<IdentityOp>
 			}
 		}
 
-		mlir::Value result = allocate(rewriter, loc, pointerType, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, arrayType, dynamicDimensions);
 		rewriter.replaceOp(op, result);
 
-		mlir::Value arg = rewriter.create<PtrCastOp>(
+		mlir::Value arg = rewriter.create<ArrayCastOp>(
 				loc, result,
-				result.getType().cast<PointerType>().toUnsized());
+				result.getType().cast<ArrayType>().toUnsized());
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
@@ -2601,19 +2601,19 @@ struct LinspaceOpLowering : public ModelicaOpConversion<LinspaceOp>
 	mlir::LogicalResult matchAndRewrite(LinspaceOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
-		auto pointerType = op.resultType().cast<PointerType>();
+		auto arrayType = op.resultType().cast<ArrayType>();
 
-		assert(pointerType.getRank() == 1);
+		assert(arrayType.getRank() == 1);
 		mlir::Value size = rewriter.create<CastOp>(loc, op.steps(), rewriter.getIndexType());
 
-		mlir::Value result = allocate(rewriter, loc, pointerType, size);
+		mlir::Value result = allocate(rewriter, loc, arrayType, size);
 		rewriter.replaceOp(op, result);
 
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		args.push_back(rewriter.create<PtrCastOp>(
+		args.push_back(rewriter.create<ArrayCastOp>(
 				loc, result,
-				result.getType().cast<PointerType>().toUnsized()));
+				result.getType().cast<ArrayType>().toUnsized()));
 
 		args.push_back(rewriter.create<CastOp>(
 				loc, op.start(),
@@ -2690,8 +2690,8 @@ struct NDimsOpLowering : public mlir::OpRewritePattern<NDimsOp>
 	mlir::LogicalResult matchAndRewrite(NDimsOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
-		auto pointerType = op.memory().getType().cast<PointerType>();
-		mlir::Value result = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(pointerType.getRank()));
+		auto arrayType = op.memory().getType().cast<ArrayType>();
+		mlir::Value result = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(arrayType.getRank()));
 		rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 		return mlir::success();
 	}
@@ -2704,22 +2704,22 @@ struct OnesOpLowering : public ModelicaOpConversion<OnesOp>
 	mlir::LogicalResult matchAndRewrite(OnesOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
-		auto pointerType = op.resultType().cast<PointerType>();
+		auto arrayType = op.resultType().cast<ArrayType>();
 
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
-		for (auto size : llvm::enumerate(pointerType.getShape()))
+		for (auto size : llvm::enumerate(arrayType.getShape()))
 			if (size.value() == -1)
 				dynamicDimensions.push_back(rewriter.create<CastOp>(loc, op.sizes()[size.index()], rewriter.getIndexType()));
 
-		mlir::Value result = allocate(rewriter, loc, pointerType, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, arrayType, dynamicDimensions);
 		rewriter.replaceOp(op, result);
 
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		args.push_back(rewriter.create<PtrCastOp>(
+		args.push_back(rewriter.create<ArrayCastOp>(
 				loc, result,
-				result.getType().cast<PointerType>().toUnsized()));
+				result.getType().cast<ArrayType>().toUnsized()));
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
@@ -2749,20 +2749,20 @@ struct MaxOpArrayLowering : public ModelicaOpConversion<MaxOp>
 		// If there is just one operand, then it is for sure an array, thanks
 		// to the operation verification.
 
-		assert(operand.getType().isa<PointerType>() &&
-					 isNumericType(operand.getType().cast<PointerType>().getElementType()));
+		assert(operand.getType().isa<ArrayType>() &&
+					 isNumericType(operand.getType().cast<ArrayType>().getElementType()));
 
-		auto pointerType = operand.getType().cast<PointerType>();
-		operand = rewriter.create<PtrCastOp>(loc, operand, pointerType.toUnsized());
+		auto arrayType = operand.getType().cast<ArrayType>();
+		operand = rewriter.create<ArrayCastOp>(loc, operand, arrayType.toUnsized());
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				getMangledFunctionName("max", pointerType.getElementType(), operand),
-				pointerType.getElementType(),
+				getMangledFunctionName("max", arrayType.getElementType(), operand),
+				arrayType.getElementType(),
 				operand);
 
-		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), pointerType.getElementType(), operand);
+		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), arrayType.getElementType(), operand);
 		assert(call.getNumResults() == 1);
 		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
 
@@ -2823,20 +2823,20 @@ struct MinOpArrayLowering : public ModelicaOpConversion<MinOp>
 		// If there is just one operand, then it is for sure an array, thanks
 		// to the operation verification.
 
-		assert(operand.getType().isa<PointerType>() &&
-					 isNumericType(operand.getType().cast<PointerType>().getElementType()));
+		assert(operand.getType().isa<ArrayType>() &&
+					 isNumericType(operand.getType().cast<ArrayType>().getElementType()));
 
-		auto pointerType = operand.getType().cast<PointerType>();
-		operand = rewriter.create<PtrCastOp>(loc, operand, pointerType.toUnsized());
+		auto arrayType = operand.getType().cast<ArrayType>();
+		operand = rewriter.create<ArrayCastOp>(loc, operand, arrayType.toUnsized());
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				getMangledFunctionName("min", pointerType.getElementType(), operand),
-				pointerType.getElementType(),
+				getMangledFunctionName("min", arrayType.getElementType(), operand),
+				arrayType.getElementType(),
 				operand);
 
-		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), pointerType.getElementType(), operand);
+		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), arrayType.getElementType(), operand);
 		assert(call.getNumResults() == 1);
 		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
 
@@ -2888,20 +2888,20 @@ struct ProductOpLowering : public ModelicaOpConversion<ProductOp>
 	mlir::LogicalResult matchAndRewrite(ProductOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
-		auto pointerType = op.array().getType().cast<PointerType>();
+		auto arrayType = op.array().getType().cast<ArrayType>();
 
-		mlir::Value arg = rewriter.create<PtrCastOp>(
+		mlir::Value arg = rewriter.create<ArrayCastOp>(
 				loc, op.array(),
-				op.array().getType().cast<PointerType>().toUnsized());
+				op.array().getType().cast<ArrayType>().toUnsized());
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				getMangledFunctionName("product", pointerType.getElementType(), arg),
-				pointerType.getElementType(),
+				getMangledFunctionName("product", arrayType.getElementType(), arg),
+				arrayType.getElementType(),
 				arg);
 
-		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), pointerType.getElementType(), arg);
+		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), arrayType.getElementType(), arg);
 		assert(call.getNumResults() == 1);
 		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
 
@@ -3014,15 +3014,15 @@ struct SizeOpArrayLowering : public mlir::OpRewritePattern<SizeOp>
 		if (op.hasIndex())
 			return rewriter.notifyMatchFailure(op, "Index specified");
 
-		assert(op.resultType().isa<PointerType>());
-		auto resultType = op.resultType().cast<PointerType>();
+		assert(op.resultType().isa<ArrayType>());
+		auto resultType = op.resultType().cast<ArrayType>();
 		mlir::Value result = allocate(rewriter, loc, resultType, llvm::None);
 
 		// Iterate on each dimension
 		mlir::Value zeroValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(0));
 
-		auto pointerType = op.memory().getType().cast<PointerType>();
-		mlir::Value rank = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(pointerType.getRank()));
+		auto arrayType = op.memory().getType().cast<ArrayType>();
+		mlir::Value rank = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(arrayType.getRank()));
 		mlir::Value step = rewriter.create<mlir::ConstantOp>(loc, rewriter.getIndexAttr(1));
 
 		auto loop = rewriter.create<mlir::scf::ForOp>(loc, zeroValue, rank, step);
@@ -3075,20 +3075,20 @@ struct SumOpLowering : public ModelicaOpConversion<SumOp>
 	mlir::LogicalResult matchAndRewrite(SumOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
-		auto pointerType = op.array().getType().cast<PointerType>();
+		auto arrayType = op.array().getType().cast<ArrayType>();
 
-		mlir::Value arg = rewriter.create<PtrCastOp>(
+		mlir::Value arg = rewriter.create<ArrayCastOp>(
 				loc, op.array(),
-				op.array().getType().cast<PointerType>().toUnsized());
+				op.array().getType().cast<ArrayType>().toUnsized());
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				getMangledFunctionName("sum", pointerType.getElementType(), arg),
-				pointerType.getElementType(),
+				getMangledFunctionName("sum", arrayType.getElementType(), arg),
+				arrayType.getElementType(),
 				arg);
 
-		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), pointerType.getElementType(), arg);
+		auto call = rewriter.create<mlir::CallOp>(loc, callee.getName(), arrayType.getElementType(), arg);
 		assert(call.getNumResults() == 1);
 		rewriter.replaceOpWithNewOp<CastOp>(op, call->getResult(0), op.resultType());
 
@@ -3103,8 +3103,8 @@ struct SymmetricOpLowering : public ModelicaOpConversion<SymmetricOp>
 	mlir::LogicalResult matchAndRewrite(SymmetricOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
-		auto pointerType = op.matrix().getType().cast<PointerType>();
-		auto shape = pointerType.getShape();
+		auto arrayType = op.matrix().getType().cast<ArrayType>();
+		auto shape = arrayType.getShape();
 
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
@@ -3131,18 +3131,18 @@ struct SymmetricOpLowering : public ModelicaOpConversion<SymmetricOp>
 			}
 		}
 
-		mlir::Value result = allocate(rewriter, loc, pointerType, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, arrayType, dynamicDimensions);
 		rewriter.replaceOp(op, result);
 
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		args.push_back(rewriter.create<PtrCastOp>(
+		args.push_back(rewriter.create<ArrayCastOp>(
 				loc, result,
-				result.getType().cast<PointerType>().toUnsized()));
+				result.getType().cast<ArrayType>().toUnsized()));
 
-		args.push_back(rewriter.create<PtrCastOp>(
+		args.push_back(rewriter.create<ArrayCastOp>(
 				loc, op.matrix(),
-				op.matrix().getType().cast<PointerType>().toUnsized()));
+				op.matrix().getType().cast<ArrayType>().toUnsized()));
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
@@ -3211,8 +3211,8 @@ struct TransposeOpLowering : public ModelicaOpConversion<TransposeOp>
 	mlir::LogicalResult matchAndRewrite(TransposeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
-		auto pointerType = op.resultType().cast<PointerType>();
-		auto shape = pointerType.getShape();
+		auto arrayType = op.resultType().cast<ArrayType>();
+		auto shape = arrayType.getShape();
 
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
@@ -3226,18 +3226,18 @@ struct TransposeOpLowering : public ModelicaOpConversion<TransposeOp>
 			}
 		}
 
-		mlir::Value result = allocate(rewriter, loc, pointerType, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, arrayType, dynamicDimensions);
 		rewriter.replaceOp(op, result);
 
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		args.push_back(rewriter.create<PtrCastOp>(
+		args.push_back(rewriter.create<ArrayCastOp>(
 				loc, result,
-				result.getType().cast<PointerType>().toUnsized()));
+				result.getType().cast<ArrayType>().toUnsized()));
 
-		args.push_back(rewriter.create<PtrCastOp>(
+		args.push_back(rewriter.create<ArrayCastOp>(
 				loc, op.matrix(),
-				op.matrix().getType().cast<PointerType>().toUnsized()));
+				op.matrix().getType().cast<ArrayType>().toUnsized()));
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
@@ -3258,22 +3258,22 @@ struct ZerosOpLowering : public ModelicaOpConversion<ZerosOp>
 	mlir::LogicalResult matchAndRewrite(ZerosOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
-		auto pointerType = op.resultType().cast<PointerType>();
+		auto arrayType = op.resultType().cast<ArrayType>();
 
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
-		for (auto size : llvm::enumerate(pointerType.getShape()))
+		for (auto size : llvm::enumerate(arrayType.getShape()))
 			if (size.value() == -1)
 				dynamicDimensions.push_back(rewriter.create<CastOp>(loc, op.sizes()[size.index()], rewriter.getIndexType()));
 
-		mlir::Value result = allocate(rewriter, loc, pointerType, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, arrayType, dynamicDimensions);
 		rewriter.replaceOp(op, result);
 
 		llvm::SmallVector<mlir::Value, 3> args;
 
-		args.push_back(rewriter.create<PtrCastOp>(
+		args.push_back(rewriter.create<ArrayCastOp>(
 				loc, result,
-				result.getType().cast<PointerType>().toUnsized()));
+				result.getType().cast<ArrayType>().toUnsized()));
 
 		auto callee = getOrDeclareFunction(
 				rewriter,
@@ -3800,9 +3800,9 @@ class ModelicaConversionPass : public mlir::PassWrapper<ModelicaConversionPass, 
 			if (!op.canSourceBeForwarded())
 				return;
 
-			if (auto pointerType = op.source().getType().dyn_cast<PointerType>())
+			if (auto arrayType = op.source().getType().dyn_cast<ArrayType>())
 			{
-				if (pointerType != op.resultType())
+				if (arrayType != op.resultType())
 					return;
 
 				mlir::Operation* sourceOp = op.source().getDefiningOp();

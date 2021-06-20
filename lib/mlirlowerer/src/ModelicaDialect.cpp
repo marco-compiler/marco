@@ -43,7 +43,7 @@ class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
 ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 		: Dialect("modelica", context, mlir::TypeID::get<ModelicaDialect>())
 {
-	addTypes<BooleanType, IntegerType, RealType, MemberType, PointerType, UnsizedPointerType, OpaquePointerType, StructType>();
+	addTypes<BooleanType, IntegerType, RealType, MemberType, ArrayType, UnsizedArrayType, OpaquePointerType, StructType>();
 	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute, DerivativeAttribute, InverseFunctionsAttribute>();
 	addInterfaces<ModelicaInlinerInterface>();
 
@@ -55,7 +55,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	// Memory operations
 	addOperations<MemberCreateOp, MemberLoadOp, MemberStoreOp>();
 	addOperations<AllocaOp, AllocOp, FreeOp>();
-	addOperations<PtrCastOp, DimOp, SubscriptionOp>();
+	addOperations<ArrayCastOp, DimOp, SubscriptionOp>();
 	addOperations<LoadOp, StoreOp>();
 	addOperations<ArrayCloneOp>();
 

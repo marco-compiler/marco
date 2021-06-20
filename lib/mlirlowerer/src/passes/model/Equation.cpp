@@ -165,8 +165,8 @@ void Equation::getEquationsAmount(mlir::ValueRange values, llvm::SmallVectorImpl
 	{
 		size_t amount = 1;
 
-		if (auto pointerType = value.getType().dyn_cast<PointerType>())
-			amount = pointerType.rawSize();
+		if (auto arrayType = value.getType().dyn_cast<ArrayType>())
+			amount = arrayType.rawSize();
 
 		amounts.push_back(amount);
 	}

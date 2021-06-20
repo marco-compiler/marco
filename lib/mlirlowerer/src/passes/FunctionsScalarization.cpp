@@ -5,15 +5,15 @@
 
 using namespace modelica::codegen;
 
-static mlir::Value allocate(mlir::OpBuilder& builder, mlir::Location loc, PointerType pointerType, mlir::ValueRange dynamicDimensions = llvm::None)
+static mlir::Value allocate(mlir::OpBuilder& builder, mlir::Location loc, ArrayType arrayType, mlir::ValueRange dynamicDimensions = llvm::None)
 {
-	if (pointerType.getAllocationScope() == BufferAllocationScope::unknown)
-		pointerType = pointerType.toMinAllowedAllocationScope();
+	if (arrayType.getAllocationScope() == BufferAllocationScope::unknown)
+		arrayType = arrayType.toMinAllowedAllocationScope();
 
-	if (pointerType.getAllocationScope() == BufferAllocationScope::stack)
-		return builder.create<AllocaOp>(loc, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions);
+	if (arrayType.getAllocationScope() == BufferAllocationScope::stack)
+		return builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), dynamicDimensions);
 
-	return builder.create<AllocOp>(loc, pointerType.getElementType(), pointerType.getShape(), dynamicDimensions, true);
+	return builder.create<AllocOp>(loc, arrayType.getElementType(), arrayType.getShape(), dynamicDimensions, true);
 }
 
 static void scalarize(mlir::OpBuilder& builder, VectorizableOpInterface op, FunctionsScalarizationOptions options)
@@ -30,11 +30,11 @@ static void scalarize(mlir::OpBuilder& builder, VectorizableOpInterface op, Func
 
 	for (const auto& resultType : op->getResultTypes())
 	{
-		assert(resultType.isa<PointerType>());
+		assert(resultType.isa<ArrayType>());
 		llvm::SmallVector<long, 3> shape;
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 
-		for (const auto& dimension : llvm::enumerate(resultType.cast<PointerType>().getShape()))
+		for (const auto& dimension : llvm::enumerate(resultType.cast<ArrayType>().getShape()))
 		{
 			shape.push_back(dimension.value());
 
@@ -48,10 +48,10 @@ static void scalarize(mlir::OpBuilder& builder, VectorizableOpInterface op, Func
 			}
 		}
 
-		auto arrayType = PointerType::get(
+		auto arrayType = ArrayType::get(
 				resultType.getContext(),
-				resultType.cast<PointerType>().getAllocationScope(),
-				resultType.cast<PointerType>().getElementType(),
+				resultType.cast<ArrayType>().getAllocationScope(),
+				resultType.cast<ArrayType>().getElementType(),
 				shape);
 
 		results.push_back(allocate(builder, loc, arrayType, dynamicDimensions));

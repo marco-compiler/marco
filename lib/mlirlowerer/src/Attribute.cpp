@@ -48,7 +48,7 @@ unsigned int BooleanArrayAttributeStorage::hashKey(const KeyTy& key)
 
 BooleanArrayAttributeStorage::KeyTy BooleanArrayAttributeStorage::getKey(mlir::Type type, llvm::ArrayRef<bool> values)
 {
-	assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<BooleanType>());
+	assert(type.isa<ArrayType>() && type.cast<ArrayType>().getElementType().isa<BooleanType>());
 	return KeyTy(type, values);
 }
 
@@ -110,7 +110,7 @@ unsigned int IntegerArrayAttributeStorage::hashKey(const KeyTy& key)
 
 IntegerArrayAttributeStorage::KeyTy IntegerArrayAttributeStorage::getKey(mlir::Type type, llvm::ArrayRef<llvm::APInt> values)
 {
-	assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<IntegerType>());
+	assert(type.isa<ArrayType>() && type.cast<ArrayType>().getElementType().isa<IntegerType>());
 	return KeyTy(type, values);
 }
 
@@ -170,7 +170,7 @@ unsigned int RealArrayAttributeStorage::hashKey(const KeyTy& key)
 
 RealArrayAttributeStorage::KeyTy RealArrayAttributeStorage::getKey(mlir::Type type, llvm::ArrayRef<llvm::APFloat> values)
 {
-	assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<RealType>());
+	assert(type.isa<ArrayType>() && type.cast<ArrayType>().getElementType().isa<RealType>());
 	return KeyTy(type, values);
 }
 
@@ -314,7 +314,7 @@ constexpr llvm::StringRef BooleanArrayAttribute::getAttrName()
 
 BooleanArrayAttribute BooleanArrayAttribute::get(mlir::Type type, llvm::ArrayRef<bool> values)
 {
-	assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<BooleanType>());
+	assert(type.isa<ArrayType>() && type.cast<ArrayType>().getElementType().isa<BooleanType>());
 	return Base::get(type.getContext(), type, values);
 }
 
@@ -351,7 +351,7 @@ constexpr llvm::StringRef IntegerArrayAttribute::getAttrName()
 
 IntegerArrayAttribute IntegerArrayAttribute::get(mlir::Type type, llvm::ArrayRef<long> values)
 {
-	assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<IntegerType>());
+	assert(type.isa<ArrayType>() && type.cast<ArrayType>().getElementType().isa<IntegerType>());
 	llvm::SmallVector<llvm::APInt, 3> vals;
 
 	for (const auto& value : values)
@@ -393,7 +393,7 @@ constexpr llvm::StringRef RealArrayAttribute::getAttrName()
 
 RealArrayAttribute RealArrayAttribute::get(mlir::Type type, llvm::ArrayRef<double> values)
 {
-	assert(type.isa<PointerType>() && type.cast<PointerType>().getElementType().isa<RealType>());
+	assert(type.isa<ArrayType>() && type.cast<ArrayType>().getElementType().isa<RealType>());
 	llvm::SmallVector<llvm::APFloat, 3> vals(values.begin(), values.end());
 	return Base::get(type.getContext(), type, vals);
 }

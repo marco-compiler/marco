@@ -1,10 +1,10 @@
 // RUN: modelica-opt %s --split-input-file --auto-diff | FileCheck %s
 
 // CHECK-LABEL: @foo1
-// CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.ptr<2x!modelica.real>
+// CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<2x!modelica.real>
 // CHECK-SAME: %[[Y:[a-zA-Z0-9]*]] : !modelica.int
 // CHECK-SAME: %[[Z:[a-zA-Z0-9]*]] : !modelica.real
-// CHECK-SAME: %[[DER_X:[a-zA-Z0-9]*]] : !modelica.ptr<2x!modelica.real>
+// CHECK-SAME: %[[DER_X:[a-zA-Z0-9]*]] : !modelica.array<2x!modelica.real>
 // CHECK-SAME: %[[DER_Z:[a-zA-Z0-9]*]] : !modelica.real
 // CHECK-SAME: -> (!modelica.real)
 // CHECK-SAME: args_names = ["x", "y", "z", "der_x", "der_z"]

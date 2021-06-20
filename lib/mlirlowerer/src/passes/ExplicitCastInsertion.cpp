@@ -23,16 +23,16 @@ struct CallOpScalarPattern : public mlir::OpRewritePattern<CallOp>
 		{
 			mlir::Type actualType = arg.getType();
 
-			if (!actualType.isa<PointerType>() && !type.isa<PointerType>())
+			if (!actualType.isa<ArrayType>() && !type.isa<ArrayType>())
 				continue;
 
-			if (!actualType.isa<PointerType>() && type.isa<PointerType>())
+			if (!actualType.isa<ArrayType>() && type.isa<ArrayType>())
 				return mlir::failure();
 
-			if (actualType.isa<PointerType>() && !type.isa<PointerType>())
+			if (actualType.isa<ArrayType>() && !type.isa<ArrayType>())
 				return mlir::failure();
 
-			if (actualType.cast<PointerType>().getRank() != type.cast<PointerType>().getRank())
+			if (actualType.cast<ArrayType>().getRank() != type.cast<ArrayType>().getRank())
 				return mlir::failure();
 		}
 
@@ -52,8 +52,8 @@ struct CallOpScalarPattern : public mlir::OpRewritePattern<CallOp>
 		{
 			if (arg.getType() != type)
 			{
-				if (arg.getType().isa<PointerType>())
-					arg = rewriter.create<PtrCastOp>(location, arg, type);
+				if (arg.getType().isa<ArrayType>())
+					arg = rewriter.create<ArrayCastOp>(location, arg, type);
 				else
 					arg = rewriter.create<CastOp>(location, arg, type);
 			}
@@ -94,7 +94,7 @@ struct StoreOpPattern : public mlir::OpRewritePattern<StoreOp>
 	mlir::LogicalResult matchAndRewrite(StoreOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location location = op->getLoc();
-		mlir::Type elementType = op.memory().getType().cast<PointerType>().getElementType();
+		mlir::Type elementType = op.memory().getType().cast<ArrayType>().getElementType();
 		mlir::Value value = rewriter.create<CastOp>(location, value, elementType);
 		rewriter.replaceOpWithNewOp<StoreOp>(op, value, op.memory(), op.indexes());
 		return mlir::success();
@@ -156,7 +156,7 @@ struct ExplicitCastInsertionTarget : public mlir::ConversionTarget
 		addDynamicallyLegalOp<StoreOp>(
 				[](StoreOp op)
 				{
-					mlir::Type elementType = op.memory().getType().cast<PointerType>().getElementType();
+					mlir::Type elementType = op.memory().getType().cast<ArrayType>().getElementType();
 					return op.value().getType() == elementType;
 				});
 

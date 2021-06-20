@@ -107,14 +107,14 @@ modelica::IndexSet Variable::toIndexSet() const
 modelica::MultiDimInterval Variable::toMultiDimInterval() const
 {
 	llvm::SmallVector<Interval, 2> intervals;
-	assert(impl->reference.getType().isa<PointerType>());
-	auto pointerType = impl->reference.getType().cast<PointerType>();
+	assert(impl->reference.getType().isa<ArrayType>());
+	auto arrayType = impl->reference.getType().cast<ArrayType>();
 
-	if (pointerType.getRank() == 0)
+	if (arrayType.getRank() == 0)
 		intervals.emplace_back(0, 1);
 	else
 	{
-		for (auto size : pointerType.getShape())
+		for (auto size : arrayType.getShape())
 		{
 			assert(size != -1);
 			intervals.emplace_back(0, size);
@@ -126,11 +126,11 @@ modelica::MultiDimInterval Variable::toMultiDimInterval() const
 
 size_t Variable::indexOfElement(llvm::ArrayRef<size_t> access) const
 {
-	assert(impl->reference.getType().isa<PointerType>());
-	auto pointerType = impl->reference.getType().cast<PointerType>();
-	assert(access.size() == pointerType.getRank());
+	assert(impl->reference.getType().isa<ArrayType>());
+	auto arrayType = impl->reference.getType().cast<ArrayType>();
+	assert(access.size() == arrayType.getRank());
 
-	auto shape = pointerType.getShape();
+	auto shape = arrayType.getShape();
 
 	size_t index = 0;
 	size_t maxIndex = 1;

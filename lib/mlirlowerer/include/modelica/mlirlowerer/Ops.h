@@ -817,7 +817,7 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		PointerType resultType();
+		ArrayType resultType();
 		mlir::ValueRange dynamicDimensions();
 		bool isConstant();
 	};
@@ -860,7 +860,7 @@ namespace modelica::codegen
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		PointerType resultType();
+		ArrayType resultType();
 		mlir::ValueRange dynamicDimensions();
 		bool isConstant();
 	};
@@ -905,23 +905,23 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
-	// Modelica::PtrCastOp
+	// Modelica::ArrayCastOp
 	//===----------------------------------------------------------------------===//
 
 	/**
 	 * This operation should be used only for two purposes: the first one is
 	 * for function calls, to remove the allocation scope before passing the
-	 * array pointers as arguments to the functions, or to generalize the sizes
-	 * to unknown ones; the second one is to cast from / to opaque pointers.
+	 * array as arguments to the functions, or to generalize the sizes to
+	 * unknown ones; the second one is to cast from / to opaque pointers.
 	 * The operation is NOT intended to be used to change the allocation scope
 	 * (i.e. stack -> heap or heap -> stack), to cast the element type to a
 	 * different one or to to specialize the shape to a fixed one. This last
 	 * case is a certain sense violated by the opaque pointer casting scenario,
 	 * and must be carefully checked by the user.
 	 */
-	class PtrCastOp;
+	class ArrayCastOp;
 
-	class PtrCastOpAdaptor : public OpAdaptor<PtrCastOp>
+	class ArrayCastOpAdaptor : public OpAdaptor<ArrayCastOp>
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
@@ -929,19 +929,19 @@ namespace modelica::codegen
 		mlir::Value memory();
 	};
 
-	class PtrCastOp : public mlir::Op<PtrCastOp,
-																	 mlir::OpTrait::ZeroRegion,
-																	 mlir::OpTrait::OneOperand,
-																	 mlir::OpTrait::OneResult,
-																	 mlir::ViewLikeOpInterface::Trait>
+	class ArrayCastOp : public mlir::Op<ArrayCastOp,
+																		 mlir::OpTrait::ZeroRegion,
+																		 mlir::OpTrait::OneOperand,
+																		 mlir::OpTrait::OneResult,
+																		 mlir::ViewLikeOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
-		using Adaptor = PtrCastOpAdaptor;
+		using Adaptor = ArrayCastOpAdaptor;
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.ptr_cast";
+			return "modelica.array_cast";
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value, mlir::Type resultType);
@@ -990,7 +990,7 @@ namespace modelica::codegen
 		mlir::LogicalResult verify();
 		mlir::OpFoldResult fold(mlir::ArrayRef<mlir::Attribute> operands);
 
-		PointerType getPointerType();
+		ArrayType getArrayType();
 		mlir::Value memory();
 		mlir::Value dimension();
 	};
@@ -1035,7 +1035,7 @@ namespace modelica::codegen
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
-		PointerType resultType();
+		ArrayType resultType();
 		mlir::Value source();
 		mlir::ValueRange indexes();
 	};
@@ -1080,7 +1080,7 @@ namespace modelica::codegen
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
-		PointerType getPointerType();
+		ArrayType getArrayType();
 		mlir::Value memory();
 		mlir::ValueRange indexes();
 	};
@@ -1127,7 +1127,7 @@ namespace modelica::codegen
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 
-		PointerType getPointerType();
+		ArrayType getArrayType();
 		mlir::Value value();
 		mlir::Value memory();
 		mlir::ValueRange indexes();
@@ -1164,14 +1164,14 @@ namespace modelica::codegen
 			return "modelica.array_clone";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, PointerType resultType, bool shouldBeFreed = true, bool canSourceBeForwarded = false);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, ArrayType resultType, bool shouldBeFreed = true, bool canSourceBeForwarded = false);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		PointerType resultType();
+		ArrayType resultType();
 		mlir::Value source();
 		bool canSourceBeForwarded();
 	};

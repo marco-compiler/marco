@@ -44,46 +44,46 @@ namespace modelica::codegen
 		heap
 	};
 
-	class PointerTypeStorage : public mlir::TypeStorage
+	class ArrayTypeStorage : public mlir::TypeStorage
 	{
 		public:
 		using Shape = llvm::SmallVector<long, 3>;
 		using KeyTy = std::tuple<BufferAllocationScope, mlir::Type, Shape>;
 
-		PointerTypeStorage() = delete;
+		ArrayTypeStorage() = delete;
 
 		bool operator==(const KeyTy& key) const;
 		static unsigned int hashKey(const KeyTy& key);
-		static PointerTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key);
+		static ArrayTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key);
 
 		[[nodiscard]] BufferAllocationScope getAllocationScope() const;
 		[[nodiscard]] Shape getShape() const;
 		[[nodiscard]] mlir::Type getElementType() const;
 
 		private:
-		PointerTypeStorage(BufferAllocationScope allocationScope, mlir::Type elementType, const Shape& shape);
+		ArrayTypeStorage(BufferAllocationScope allocationScope, mlir::Type elementType, const Shape& shape);
 
 		BufferAllocationScope allocationScope;
 		mlir::Type elementType;
 		Shape shape;
 	};
 
-	class UnsizedPointerTypeStorage : public mlir::TypeStorage
+	class UnsizedArrayTypeStorage : public mlir::TypeStorage
 	{
 		public:
 		using KeyTy = mlir::Type;
 
-		UnsizedPointerTypeStorage() = delete;
+		UnsizedArrayTypeStorage() = delete;
 
 		bool operator==(const KeyTy& key) const;
 		static unsigned int hashKey(const KeyTy& key);
-		static UnsizedPointerTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key);
+		static UnsizedArrayTypeStorage* construct(mlir::TypeStorageAllocator& allocator, const KeyTy &key);
 
 		[[nodiscard]] mlir::Type getElementType() const;
 		[[nodiscard]] unsigned int getRank() const;
 
 		private:
-		UnsizedPointerTypeStorage(mlir::Type elementType);
+		UnsizedArrayTypeStorage(mlir::Type elementType);
 
 		mlir::Type elementType;
 	};
@@ -130,7 +130,7 @@ namespace modelica::codegen
 		static RealType get(mlir::MLIRContext* context);
 	};
 
-	class PointerType;
+	class ArrayType;
 
 	class MemberType : public mlir::Type::TypeBase<MemberType, mlir::Type, MemberTypeStorage>
 	{
@@ -139,25 +139,25 @@ namespace modelica::codegen
 		using Shape = MemberTypeStorage::Shape;
 
 		static MemberType get(mlir::MLIRContext* context, MemberAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape = {});
-		static MemberType get(PointerType pointerType);
+		static MemberType get(ArrayType arrayType);
 
 		[[nodiscard]] MemberAllocationScope getAllocationScope() const;
 		[[nodiscard]] mlir::Type getElementType() const;
 		[[nodiscard]] Shape getShape() const;
 		[[nodiscard]] unsigned int getRank() const;
 
-		[[nodiscard]] PointerType toPointerType() const;
+		[[nodiscard]] ArrayType toArrayType() const;
 	};
 
-	class UnsizedPointerType;
+	class UnsizedArrayType;
 
-	class PointerType : public mlir::Type::TypeBase<PointerType, mlir::Type, PointerTypeStorage>
+	class ArrayType : public mlir::Type::TypeBase<ArrayType, mlir::Type, ArrayTypeStorage>
 	{
 		public:
 		using Base::Base;
-		using Shape = PointerTypeStorage::Shape;
+		using Shape = ArrayTypeStorage::Shape;
 
-		static PointerType get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape = {});
+		static ArrayType get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape = {});
 
 		[[nodiscard]] BufferAllocationScope getAllocationScope() const;
 
@@ -176,21 +176,21 @@ namespace modelica::codegen
 
 		[[nodiscard]] bool isScalar() const;
 
-		[[nodiscard]] PointerType slice(unsigned int subscriptsAmount);
-		[[nodiscard]] PointerType toAllocationScope(BufferAllocationScope scope);
-		[[nodiscard]] PointerType toUnknownAllocationScope();
-		[[nodiscard]] PointerType toMinAllowedAllocationScope();
-		[[nodiscard]] UnsizedPointerType toUnsized();
+		[[nodiscard]] ArrayType slice(unsigned int subscriptsAmount);
+		[[nodiscard]] ArrayType toAllocationScope(BufferAllocationScope scope);
+		[[nodiscard]] ArrayType toUnknownAllocationScope();
+		[[nodiscard]] ArrayType toMinAllowedAllocationScope();
+		[[nodiscard]] UnsizedArrayType toUnsized();
 
 		[[nodiscard]] bool canBeOnStack() const;
 	};
 
-	class UnsizedPointerType : public mlir::Type::TypeBase<UnsizedPointerType, mlir::Type, UnsizedPointerTypeStorage>
+	class UnsizedArrayType : public mlir::Type::TypeBase<UnsizedArrayType, mlir::Type, UnsizedArrayTypeStorage>
 	{
 		public:
 		using Base::Base;
 
-		static UnsizedPointerType get(mlir::MLIRContext* context, mlir::Type elementType);
+		static UnsizedArrayType get(mlir::MLIRContext* context, mlir::Type elementType);
 
 		[[nodiscard]] mlir::Type getElementType() const;
 	};

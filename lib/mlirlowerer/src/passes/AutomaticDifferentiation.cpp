@@ -11,8 +11,8 @@ static bool hasFloatBase(mlir::Type type) {
 	if (type.isa<RealType>())
 		return true;
 
-	if (auto pointerType = type.dyn_cast<PointerType>();
-			pointerType && pointerType.getElementType().isa<RealType>())
+	if (auto arrayType = type.dyn_cast<ArrayType>();
+			arrayType && arrayType.getElementType().isa<RealType>())
 		return true;
 
 	return false;
@@ -22,9 +22,9 @@ static void getDynamicDimensions(mlir::OpBuilder& builder,
 																 mlir::Value value,
 																 llvm::SmallVectorImpl<mlir::Value>& dynamicDimensions)
 {
-	if (auto pointerType = value.getType().dyn_cast<PointerType>())
+	if (auto arrayType = value.getType().dyn_cast<ArrayType>())
 	{
-		for (const auto& dimension : llvm::enumerate(pointerType.getShape()))
+		for (const auto& dimension : llvm::enumerate(arrayType.getShape()))
 		{
 			if (dimension.value() == -1)
 			{
@@ -126,8 +126,8 @@ static mlir::LogicalResult createPartialDerFunction(mlir::Location loc, Function
 		if (!independentArgType.hasValue())
 			return mlir::failure();
 
-		if (auto pointerType = independentArgType->dyn_cast<PointerType>())
-			for (const auto& dimension : pointerType.getShape())
+		if (auto arrayType = independentArgType->dyn_cast<ArrayType>())
+			for (const auto& dimension : arrayType.getShape())
 				resultDimensions.push_back(dimension);
 	}
 
@@ -146,20 +146,20 @@ static mlir::LogicalResult createPartialDerFunction(mlir::Location loc, Function
 			llvm::SmallVector<long, 3> dimensions(
 					resultDimensions.begin(), resultDimensions.end());
 
-			if (auto pointerType = type.dyn_cast<PointerType>())
+			if (auto arrayType = type.dyn_cast<ArrayType>())
 			{
-				for (auto dimension : pointerType.getShape())
+				for (auto dimension : arrayType.getShape())
 					dimensions.push_back(dimension);
 
-				resultsTypes.push_back(PointerType::get(
+				resultsTypes.push_back(ArrayType::get(
 						type.getContext(),
-						pointerType.getAllocationScope(),
-						pointerType.getElementType(),
+						arrayType.getAllocationScope(),
+						arrayType.getElementType(),
 						dimensions));
 			}
 			else
 			{
-				resultsTypes.push_back(PointerType::get(
+				resultsTypes.push_back(ArrayType::get(
 						type.getContext(), BufferAllocationScope::heap, type, dimensions));
 			}
 		}
@@ -226,8 +226,8 @@ static mlir::LogicalResult createPartialDerFunction(mlir::Location loc, Function
 
 	for (const auto& [name, value, type] : llvm::zip(argsNames, derivedFunction.getArguments(), derivedFunction.getType().getInputs()))
 	{
-		auto memberType = type.isa<PointerType>() ?
-											MemberType::get(type.cast<PointerType>()) :
+		auto memberType = type.isa<ArrayType>() ?
+											MemberType::get(type.cast<ArrayType>()) :
 											MemberType::get(builder.getContext(), MemberAllocationScope::stack, type);
 
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;

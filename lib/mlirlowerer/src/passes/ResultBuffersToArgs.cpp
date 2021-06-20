@@ -34,10 +34,10 @@ struct FunctionOpPattern : public mlir::OpRewritePattern<FunctionOp>
 		{
 			auto name = op.resultsNames()[resultType.index()].cast<mlir::StringAttr>().getValue();
 
-			if (auto pointerType = resultType.value().dyn_cast<PointerType>();
-					pointerType && pointerType.canBeOnStack())
+			if (auto arrayType = resultType.value().dyn_cast<ArrayType>();
+					arrayType && arrayType.canBeOnStack())
 			{
-				argsTypes.push_back(pointerType.toUnknownAllocationScope());
+				argsTypes.push_back(arrayType.toUnknownAllocationScope());
 				argsNames.push_back(name);
 				erasedResultIndexes.push_back(resultType.index());
 			}
@@ -178,14 +178,14 @@ struct CallOpPattern : public mlir::OpRewritePattern<CallOp>
 				// The buffer can be allocated on the stack, because the result has
 				// been moved precisely because it can be allocated there.
 
-				auto pointerType = result.value().getType().cast<PointerType>();
+				auto arrayType = result.value().getType().cast<ArrayType>();
 
 				mlir::Value buffer = rewriter.create<AllocaOp>(
-						result.value().getLoc(), pointerType.getElementType(), pointerType.getShape());
+						result.value().getLoc(), arrayType.getElementType(), arrayType.getShape());
 
-				buffer = rewriter.create<PtrCastOp>(
+				buffer = rewriter.create<ArrayCastOp>(
 						buffer.getLoc(), buffer,
-						buffer.getType().cast<PointerType>().toUnknownAllocationScope());
+						buffer.getType().cast<ArrayType>().toUnknownAllocationScope());
 
 				buffers.push_back(buffer);
 				removedResultsIndexes.push_back(result.index());
@@ -213,8 +213,8 @@ struct CallOpPattern : public mlir::OpRewritePattern<CallOp>
 
 		for (const auto& result : op.getResults())
 		{
-			if (auto pointerType = result.getType().dyn_cast<PointerType>();
-					pointerType && pointerType.canBeOnStack())
+			if (auto arrayType = result.getType().dyn_cast<ArrayType>();
+					arrayType && arrayType.canBeOnStack())
 			{
 				resultsView.push_back(buffers[buffersIndex++]);
 			}
@@ -251,8 +251,8 @@ class ResultBuffersToArgsPass: public mlir::PassWrapper<ResultBuffersToArgsPass,
 
 		target.addDynamicallyLegalOp<FunctionOp>([](FunctionOp op) {
 			return llvm::none_of(op.getType().getResults(), [](mlir::Type type) {
-				if (auto pointerType = type.dyn_cast<PointerType>())
-					return pointerType.canBeOnStack();
+				if (auto arrayType = type.dyn_cast<ArrayType>())
+					return arrayType.canBeOnStack();
 
 				return false;
 			});
@@ -260,8 +260,8 @@ class ResultBuffersToArgsPass: public mlir::PassWrapper<ResultBuffersToArgsPass,
 
 		target.addDynamicallyLegalOp<CallOp>([](CallOp op) {
 			return llvm::none_of(op->getResults(), [](mlir::Value value) {
-				if (auto pointerType = value.getType().dyn_cast<PointerType>())
-					return pointerType.canBeOnStack();
+				if (auto arrayType = value.getType().dyn_cast<ArrayType>())
+					return arrayType.canBeOnStack();
 
 				return false;
 			});
@@ -271,8 +271,8 @@ class ResultBuffersToArgsPass: public mlir::PassWrapper<ResultBuffersToArgsPass,
 
 		patterns.insert<FunctionOpPattern, CallOpPattern>(
 				&getContext(), [](mlir::Type type) {
-					if (auto pointerType = type.dyn_cast<PointerType>())
-						return pointerType.canBeOnStack();
+					if (auto arrayType = type.dyn_cast<ArrayType>())
+						return arrayType.canBeOnStack();
 
 					return false;
 				});

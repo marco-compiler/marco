@@ -22,9 +22,9 @@ RealType ModelicaBuilder::getRealType()
 	return RealType::get(getContext());
 }
 
-PointerType ModelicaBuilder::getPointerType(BufferAllocationScope allocationScope, mlir::Type elementType, const PointerType::Shape& shape)
+ArrayType ModelicaBuilder::getArrayType(BufferAllocationScope allocationScope, mlir::Type elementType, const ArrayType::Shape& shape)
 {
-	return PointerType::get(getContext(), allocationScope, elementType, shape);
+	return ArrayType::get(getContext(), allocationScope, elementType, shape);
 }
 
 OpaquePointerType ModelicaBuilder::getOpaquePointerType()
