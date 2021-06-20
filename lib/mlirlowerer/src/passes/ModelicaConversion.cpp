@@ -3001,7 +3001,7 @@ struct SizeOpDimensionLowering : public mlir::OpRewritePattern<SizeOp>
 };
 
 /**
- * Get the size of alla the array dimensions.
+ * Get the size of all the array dimensions.
  */
 struct SizeOpArrayLowering : public mlir::OpRewritePattern<SizeOp>
 {

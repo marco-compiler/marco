@@ -50,48 +50,30 @@ unsigned int numDigits(T number)
 	return digits;
 }
 
-static std::string getPartialDerivativeName(llvm::StringRef functionName, llvm::StringRef arg)
-{
-	return "__der_" + functionName.str() + "_" + arg.str();
-}
-
-static std::string getFullDerVariableName(llvm::StringRef variableName, unsigned int order)
-{
-	// Compose the derivative member name according to the derivative order.
-	// If the order is 1, then it is omitted.
-	assert(order > 0);
-
-	if (order == 1)
-		return "der_" + variableName.str();
-
-	return "der_" + std::to_string(order) + "_" + variableName.str();
-}
-
-static std::string getNextFullDerVariableName(llvm::StringRef currentName, unsigned int currentOrder)
-{
-	if (currentOrder == 1)
-		return getFullDerVariableName(currentName, currentOrder);
-
-	assert(currentName.rfind("der_") == 0);
-
-	if (currentOrder == 2)
-		return getFullDerVariableName(currentName.substr(4), currentOrder);
-
-	return getFullDerVariableName(currentName.substr(5 + numDigits(currentOrder - 1)), currentOrder);
-}
-
 static std::string getPartialDerVariableName(llvm::StringRef currentName, llvm::StringRef independentVar)
 {
 	return "pder_" + independentVar.str() + "_" + currentName.str();
 }
 
-static mlir::LogicalResult createPartialDerFunction(mlir::Location loc, FunctionOp base, llvm::StringRef derivativeName, llvm::StringRef independentVar)
+static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, DerFunctionOp derFunction)
 {
-	mlir::OpBuilder builder(base);
-	auto module = base->getParentOfType<mlir::ModuleOp>();
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPointAfter(derFunction);
+
+	mlir::Location loc = derFunction->getLoc();
+	auto module = derFunction->getParentOfType<mlir::ModuleOp>();
+
+	llvm::SmallVector<llvm::StringRef, 3> independentVariables;
+
+	for (const auto& independentVariable : derFunction.independentVariables())
+		independentVariables.push_back(independentVariable.cast<mlir::StringAttr>().getValue());
+
+	llvm::StringRef independentVar = independentVariables[0];
 
 	llvm::SmallVector<llvm::StringRef, 3> argsNames;
 	llvm::SmallVector<llvm::StringRef, 3> resultsNames;
+
+	auto base = module.lookupSymbol<FunctionOp>(derFunction.derivedFunction());
 
 	for (const auto& argName : base.argsNames())
 		argsNames.push_back(argName.cast<mlir::StringAttr>().getValue());
@@ -170,7 +152,7 @@ static mlir::LogicalResult createPartialDerFunction(mlir::Location loc, Function
 	}
 
 	auto derivedFunction = builder.create<FunctionOp>(
-			loc, derivativeName,
+			loc, derFunction.name(),
 			builder.getFunctionType(base.getType().getInputs(), resultsTypes),
 			argsNames, resultsNames);
 
@@ -289,6 +271,45 @@ static mlir::LogicalResult createPartialDerFunction(mlir::Location loc, Function
 	returnOp->erase();
 
 	return mlir::success();
+}
+
+/**
+ * Compose the full derivative member name according to the derivative order.
+ * If the order is 1, then it is omitted.
+ *
+ * @param variableName 	base variable name
+ * @param order 				derivative order
+ * @return derived variable name
+ */
+static std::string getFullDerVariableName(llvm::StringRef baseName, unsigned int order)
+{
+	assert(order > 0);
+
+	if (order == 1)
+		return "der_" + baseName.str();
+
+	return "der_" + std::to_string(order) + "_" + baseName.str();
+}
+
+/**
+ * Given a full derivative variable name of order n, compose the name of the
+ * n + 1 variable order.
+ *
+ * @param currentName 	current variable name
+ * @param currentOrder  current order
+ * @return next order derived variable name
+ */
+static std::string getNextFullDerVariableName(llvm::StringRef currentName, unsigned int currentOrder)
+{
+	if (currentOrder == 1)
+		return getFullDerVariableName(currentName, currentOrder);
+
+	assert(currentName.rfind("der_") == 0);
+
+	if (currentOrder == 2)
+		return getFullDerVariableName(currentName.substr(4), currentOrder);
+
+	return getFullDerVariableName(currentName.substr(5 + numDigits(currentOrder - 1)), currentOrder);
 }
 
 static void mapFullDerivatives(llvm::ArrayRef<llvm::StringRef> names,
@@ -555,22 +576,6 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 	return mlir::success();
 }
 
-/*
-struct DerFunctionOpPattern : public mlir::OpRewritePattern<DerFunctionOp>
-{
-	using mlir::OpRewritePattern<DerFunctionOp>::OpRewritePattern;
-
-	mlir::LogicalResult matchAndRewrite(DerFunctionOp op, mlir::PatternRewriter& rewriter) const override
-	{
-		auto module = op->getParentOfType<mlir::ModuleOp>();
-		auto base = module.lookupSymbol<FunctionOp>(op.derivedFunction());
-		auto result = createPartialDerFunction(base, op.name(), op.independentVariables()[0].cast<mlir::StringAttr>().getValue());
-
-		return mlir::success();
-	}
-};
- */
-
 class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferentiationPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
@@ -598,31 +603,6 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 			mlir::emitError(getOperation().getLoc(), "Error in resolving the trivial derivative calls");
 			return signalPassFailure();
 		}
-
-		/*
-		mlir::ConversionTarget target(getContext());
-		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
-
-		target.addDynamicallyLegalOp<DerFunctionOp>([](DerFunctionOp op) {
-			// Mark the operation as illegal only if the function to be derived
-			// is a standard one. This way, in a chain of partial derivatives one
-			// derivation will take place only when all the previous one have
-			// been computed.
-
-			auto module = op->getParentOfType<mlir::ModuleOp>();
-			auto* derivedFunction = module.lookupSymbol(op.derivedFunction());
-			return !mlir::isa<FunctionOp>(derivedFunction);
-		});
-
-		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<DerFunctionOpPattern>(&getContext());
-
-		if (failed(applyPartialConversion(getOperation(), target, std::move(patterns))))
-		{
-			mlir::emitError(getOperation().getLoc(), "Error during automatic differentiation\n");
-			signalPassFailure();
-		}
-		*/
 	}
 
 	mlir::LogicalResult createFullDerFunctions()
@@ -636,6 +616,9 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 			if (op.hasDerivative())
 				toBeDerived.push_back(op);
 		});
+
+		// Sort the functions so that a function derivative is computed only
+		// when the base function already has its body determined.
 
 		llvm::sort(toBeDerived, [](FunctionOp first, FunctionOp second) {
 			auto annotation = first->getAttrOfType<DerivativeAttribute>("derivative");
@@ -654,14 +637,26 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 		auto module = getOperation();
 		mlir::OpBuilder builder(module);
 
-		llvm::SmallVector<FunctionOp, 3> toBeDerived;
+		llvm::SmallVector<DerFunctionOp, 3> toBeProcessed;
 
 		module->walk([&](DerFunctionOp op) {
-			auto module = op->getParentOfType<mlir::ModuleOp>();
-			auto base = module.lookupSymbol<FunctionOp>(op.derivedFunction());
-			createPartialDerFunction(op.getLoc(), base, op.name(), op.independentVariables()[0].cast<mlir::StringAttr>().getValue());
-			op->erase();
+			toBeProcessed.push_back(op);
 		});
+
+		// Sort the functions so that a function derivative is computed only
+		// when the base function already has its body determined.
+
+		llvm::sort(toBeProcessed, [](DerFunctionOp first, DerFunctionOp second) {
+			return first.name() == second.derivedFunction();
+		});
+
+		for (auto& function : toBeProcessed)
+		{
+			if (auto status = createPartialDerFunction(builder, function); mlir::failed(status))
+				return status;
+
+			function->erase();
+		}
 
 		return mlir::success();
 	}
