@@ -5,7 +5,7 @@
 // CHECK-SAME: %[[DER_X:[a-zA-Z0-9]*]] : !modelica.real
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
 // CHECK: %[[COS:[a-zA-Z0-9]*]] = modelica.cos %[[X]] : !modelica.real -> !modelica.real
-// CHECK: %[[MUL:[a-zA-Z0-9]*]] = modelica.mul %[[COS]], %[[DER_X]] : (!modelica.real, !modelica.real) -> !modelica.real
+// CHECK: %[[MUL:[a-zA-Z0-9]*]] = modelica.mul_ew %[[COS]], %[[DER_X]] : (!modelica.real, !modelica.real) -> !modelica.real
 // CHECK: modelica.member_store %[[Y]], %[[MUL]]
 
 modelica.function @sin(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x", "der_x"], results_names = ["y"]} {

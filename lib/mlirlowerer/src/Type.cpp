@@ -357,6 +357,11 @@ ArrayType ArrayType::toMinAllowedAllocationScope()
 	return toAllocationScope(BufferAllocationScope::heap);
 }
 
+ArrayType ArrayType::toElementType(mlir::Type elementType)
+{
+	return ArrayType::get(getContext(), getAllocationScope(), elementType, getShape());
+}
+
 UnsizedArrayType ArrayType::toUnsized()
 {
 	return UnsizedArrayType::get(getContext(), getElementType());

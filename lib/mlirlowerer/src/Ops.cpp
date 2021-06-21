@@ -17,6 +17,14 @@ static bool isNumeric(mlir::Value value)
 	return isNumeric(value.getType());
 }
 
+static mlir::Type convertToRealType(mlir::Type type)
+{
+	if (auto arrayType = type.dyn_cast<ArrayType>())
+		return arrayType.toElementType(RealType::get(type.getContext()));
+
+	return RealType::get(type.getContext());
+}
+
 static mlir::Value readValue(mlir::OpBuilder& builder, mlir::Value operand)
 {
 	if (auto arrayType = operand.getType().dyn_cast<ArrayType>(); arrayType && arrayType.getRank() == 0)
@@ -1535,7 +1543,7 @@ void MemberLoadOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectIns
 
 mlir::ValueRange MemberLoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
-	auto derivedOp = builder.create<MemberLoadOp>(getLoc(), resultType(), derivatives.lookup(member()));
+	auto derivedOp = builder.create<MemberLoadOp>(getLoc(), convertToRealType(resultType()), derivatives.lookup(member()));
 	return derivedOp->getResults();
 }
 
@@ -4136,7 +4144,7 @@ mlir::Value NegateOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resul
 mlir::ValueRange NegateOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	mlir::Value derivedOperand = derivatives.lookup(operand());
-	auto derivedOp = builder.create<NegateOp>(getLoc(), resultType(), derivedOperand);
+	auto derivedOp = builder.create<NegateOp>(getLoc(), convertToRealType(resultType()), derivedOperand);
 	return derivedOp->getResults();
 }
 
@@ -4322,10 +4330,14 @@ mlir::Value AddOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 
 mlir::ValueRange AddOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
+	mlir::Location loc = getLoc();
+
 	mlir::Value derivedLhs = derivatives.lookup(lhs());
 	mlir::Value derivedRhs = derivatives.lookup(rhs());
 
-	auto derivedOp = builder.create<AddOp>(getLoc(), resultType(), derivedLhs, derivedRhs);
+	auto derivedOp = builder.create<AddOp>(
+			loc, convertToRealType(resultType()), derivedLhs, derivedRhs);
+
 	return derivedOp->getResults();
 }
 
@@ -4346,6 +4358,205 @@ mlir::Value AddOp::lhs()
 }
 
 mlir::Value AddOp::rhs()
+{
+	return Adaptor(*this).rhs();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::AddElementWiseOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value AddElementWiseOpAdaptor::lhs()
+{
+	return getValues()[0];
+}
+
+mlir::Value AddElementWiseOpAdaptor::rhs()
+{
+	return getValues()[1];
+}
+
+void AddElementWiseOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	if (auto arrayType = resultType.dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::unknown)
+			resultType = arrayType.toMinAllowedAllocationScope();
+
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
+}
+
+mlir::ParseResult AddElementWiseOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() || parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() || parser.parseArrow() ||
+			parser.parseType(resultType) ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void AddElementWiseOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << lhs() << ", " << rhs() << " : ("
+					<< lhs().getType() << ", " << rhs().getType()
+					<< ") -> " << resultType();
+}
+
+void AddElementWiseOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (lhs().getType().isa<ArrayType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (rhs().getType().isa<ArrayType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+	{
+		auto scope = arrayType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (scope == BufferAllocationScope::heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
+}
+
+mlir::LogicalResult AddElementWiseOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	if (auto size = currentResult.size(); size != 1)
+		return emitError("Invalid amount of values to be nested: " + std::to_string(size) + " (expected 1)");
+
+	mlir::Value toNest = currentResult[0];
+
+	if (argumentIndex == 0)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<SubElementWiseOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		replaceAllUsesWith(lhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	if (argumentIndex == 1)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<SubElementWiseOp>(getLoc(), nestedOperand.getType(), nestedOperand, lhs());
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		replaceAllUsesWith(rhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+}
+
+mlir::Value AddElementWiseOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeNegateOp(builder, resultType);
+
+		return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = distributeFn(this->rhs());
+
+	return builder.create<AddElementWiseOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value AddElementWiseOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = distributeFn(this->rhs());
+
+	return builder.create<AddElementWiseOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value AddElementWiseOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = distributeFn(this->rhs());
+
+	return builder.create<AddElementWiseOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::ValueRange AddElementWiseOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Location loc = getLoc();
+
+	mlir::Value derivedLhs = derivatives.lookup(lhs());
+	mlir::Value derivedRhs = derivatives.lookup(rhs());
+
+	auto derivedOp = builder.create<AddElementWiseOp>(
+			loc, convertToRealType(resultType()), derivedLhs, derivedRhs);
+
+	return derivedOp->getResults();
+}
+
+void AddElementWiseOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+	toBeDerived.push_back(lhs());
+	toBeDerived.push_back(rhs());
+}
+
+mlir::Type AddElementWiseOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value AddElementWiseOp::lhs()
+{
+	return Adaptor(*this).lhs();
+}
+
+mlir::Value AddElementWiseOp::rhs()
 {
 	return Adaptor(*this).rhs();
 }
@@ -4517,10 +4728,14 @@ mlir::Value SubOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 
 mlir::ValueRange SubOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
+	mlir::Location loc = getLoc();
+
 	mlir::Value derivedLhs = derivatives.lookup(lhs());
 	mlir::Value derivedRhs = derivatives.lookup(rhs());
 
-	auto derivedOp = builder.create<SubOp>(getLoc(), resultType(), derivedLhs, derivedRhs);
+	auto derivedOp = builder.create<SubOp>(
+			loc, convertToRealType(resultType()), derivedLhs, derivedRhs);
+
 	return derivedOp->getResults();
 }
 
@@ -4541,6 +4756,205 @@ mlir::Value SubOp::lhs()
 }
 
 mlir::Value SubOp::rhs()
+{
+	return Adaptor(*this).rhs();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::SubElementWiseOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value SubElementWiseOpAdaptor::lhs()
+{
+	return getValues()[0];
+}
+
+mlir::Value SubElementWiseOpAdaptor::rhs()
+{
+	return getValues()[1];
+}
+
+void SubElementWiseOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	if (auto arrayType = resultType.dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::unknown)
+			resultType = arrayType.toMinAllowedAllocationScope();
+
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
+}
+
+mlir::ParseResult SubElementWiseOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() || parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() || parser.parseArrow() ||
+			parser.parseType(resultType) ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void SubElementWiseOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << lhs() << ", " << rhs() << " : ("
+					<< lhs().getType() << ", " << rhs().getType()
+					<< ") -> " << resultType();
+}
+
+void SubElementWiseOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (lhs().getType().isa<ArrayType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (rhs().getType().isa<ArrayType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+	{
+		auto scope = arrayType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (scope == BufferAllocationScope::heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
+}
+
+mlir::LogicalResult SubElementWiseOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	if (auto size = currentResult.size(); size != 1)
+		return emitError("Invalid amount of values to be nested: " + std::to_string(size) + " (expected 1)");
+
+	mlir::Value toNest = currentResult[0];
+
+	if (argumentIndex == 0)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<AddElementWiseOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		replaceAllUsesWith(lhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	if (argumentIndex == 1)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<SubElementWiseOp>(getLoc(), nestedOperand.getType(), lhs(), nestedOperand);
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		replaceAllUsesWith(rhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+}
+
+mlir::Value SubElementWiseOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeNegateOp(builder, resultType);
+
+		return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = distributeFn(this->rhs());
+
+	return builder.create<AddElementWiseOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value SubElementWiseOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = distributeFn(this->rhs());
+
+	return builder.create<SubElementWiseOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value SubElementWiseOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = distributeFn(this->rhs());
+
+	return builder.create<SubElementWiseOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::ValueRange SubElementWiseOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Location loc = getLoc();
+
+	mlir::Value derivedLhs = derivatives.lookup(lhs());
+	mlir::Value derivedRhs = derivatives.lookup(rhs());
+
+	auto derivedOp = builder.create<SubElementWiseOp>(
+			loc, convertToRealType(resultType()), derivedLhs, derivedRhs);
+
+	return derivedOp->getResults();
+}
+
+void SubElementWiseOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+	toBeDerived.push_back(lhs());
+	toBeDerived.push_back(rhs());
+}
+
+mlir::Type SubElementWiseOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value SubElementWiseOp::lhs()
+{
+	return Adaptor(*this).lhs();
+}
+
+mlir::Value SubElementWiseOp::rhs()
 {
 	return Adaptor(*this).rhs();
 }
@@ -4739,9 +5153,11 @@ mlir::ValueRange MulOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapp
 	mlir::Value derivedLhs = derivatives.lookup(lhs());
 	mlir::Value derivedRhs = derivatives.lookup(rhs());
 
-	mlir::Value firstMul = builder.create<MulOp>(loc, resultType(), derivedLhs, rhs());
-	mlir::Value secondMul = builder.create<MulOp>(loc, resultType(), lhs(), derivedRhs);
-	auto derivedOp = builder.create<AddOp>(loc, resultType(), firstMul, secondMul);
+	mlir::Type type = convertToRealType(resultType());
+
+	mlir::Value firstMul = builder.create<MulOp>(loc, type, derivedLhs, rhs());
+	mlir::Value secondMul = builder.create<MulOp>(loc, type, lhs(), derivedRhs);
+	auto derivedOp = builder.create<AddOp>(loc, type, firstMul, secondMul);
 
 	return derivedOp->getResults();
 }
@@ -4763,6 +5179,230 @@ mlir::Value MulOp::lhs()
 }
 
 mlir::Value MulOp::rhs()
+{
+	return Adaptor(*this).rhs();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::MulElementWiseOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value MulElementWiseOpAdaptor::lhs()
+{
+	return getValues()[0];
+}
+
+mlir::Value MulElementWiseOpAdaptor::rhs()
+{
+	return getValues()[1];
+}
+
+void MulElementWiseOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	if (auto arrayType = resultType.dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::unknown)
+			resultType = arrayType.toMinAllowedAllocationScope();
+
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
+}
+
+mlir::ParseResult MulElementWiseOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() || parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() || parser.parseArrow() ||
+			parser.parseType(resultType) ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void MulElementWiseOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << lhs() << ", " << rhs() << " : ("
+					<< lhs().getType() << ", " << rhs().getType()
+					<< ") -> " << resultType();
+}
+
+void MulElementWiseOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (lhs().getType().isa<ArrayType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (rhs().getType().isa<ArrayType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+	{
+		auto scope = arrayType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (scope == BufferAllocationScope::heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
+}
+
+mlir::LogicalResult MulElementWiseOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	if (auto size = currentResult.size(); size != 1)
+		return emitError("Invalid amount of values to be nested: " + std::to_string(size) + " (expected 1)");
+
+	mlir::Value toNest = currentResult[0];
+
+	if (argumentIndex == 0)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<DivElementWiseOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		replaceAllUsesWith(lhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	if (argumentIndex == 1)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<DivElementWiseOp>(getLoc(), nestedOperand.getType(), nestedOperand, lhs());
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		getResult().replaceAllUsesWith(rhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+}
+
+mlir::Value MulElementWiseOp::distribute(mlir::OpBuilder& builder)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	if (!mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) &&
+			!mlir::isa<MulOpDistributionInterface>(rhs().getDefiningOp()))
+	{
+		// The operation can't be propagated because none of the children
+		// know how to distribute the multiplication to their children.
+		return getResult();
+	}
+
+	MulOpDistributionInterface childOp = mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) ?
+																			 mlir::cast<MulOpDistributionInterface>(lhs().getDefiningOp()) :
+																			 mlir::cast<MulOpDistributionInterface>(rhs().getDefiningOp());
+
+	mlir::Value toDistribute = mlir::isa<MulOpDistributionInterface>(lhs().getDefiningOp()) ? rhs() : lhs();
+
+	return childOp.distributeMulOp(builder, resultType(), toDistribute);
+}
+
+mlir::Value MulElementWiseOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeNegateOp(builder, resultType);
+
+		return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = this->rhs();
+
+	return builder.create<MulElementWiseOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value MulElementWiseOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = this->rhs();
+
+	return builder.create<MulElementWiseOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value MulElementWiseOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = this->rhs();
+
+	return builder.create<MulElementWiseOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::ValueRange MulElementWiseOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Location loc = getLoc();
+
+	mlir::Value derivedLhs = derivatives.lookup(lhs());
+	mlir::Value derivedRhs = derivatives.lookup(rhs());
+
+	mlir::Type type = convertToRealType(resultType());
+
+	mlir::Value firstMul = builder.create<MulElementWiseOp>(loc, type, derivedLhs, rhs());
+	mlir::Value secondMul = builder.create<MulElementWiseOp>(loc, type, lhs(), derivedRhs);
+	auto derivedOp = builder.create<AddElementWiseOp>(loc, type, firstMul, secondMul);
+
+	return derivedOp->getResults();
+}
+
+void MulElementWiseOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+	toBeDerived.push_back(lhs());
+	toBeDerived.push_back(rhs());
+}
+
+mlir::Type MulElementWiseOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value MulElementWiseOp::lhs()
+{
+	return Adaptor(*this).lhs();
+}
+
+mlir::Value MulElementWiseOp::rhs()
 {
 	return Adaptor(*this).rhs();
 }
@@ -4957,17 +5597,18 @@ mlir::Value DivOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 mlir::ValueRange DivOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
 	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
 
 	mlir::Value derivedLhs = derivatives.lookup(lhs());
 	mlir::Value derivedRhs = derivatives.lookup(rhs());
 
-	mlir::Value firstMul = builder.create<MulOp>(loc, realType, derivedLhs, rhs());
-	mlir::Value secondMul = builder.create<MulOp>(loc, realType, lhs(), derivedRhs);
-	mlir::Value numerator = builder.create<SubOp>(loc, realType, firstMul, secondMul);
+	mlir::Type type = convertToRealType(resultType());
+
+	mlir::Value firstMul = builder.create<MulOp>(loc, type, derivedLhs, rhs());
+	mlir::Value secondMul = builder.create<MulOp>(loc, type, lhs(), derivedRhs);
+	mlir::Value numerator = builder.create<SubOp>(loc, type, firstMul, secondMul);
 	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value denominator = builder.create<PowOp>(loc, RealType::get(getContext()), rhs(), two);
-	auto derivedOp = builder.create<DivOp>(loc, resultType(), numerator, denominator);
+	mlir::Value denominator = builder.create<PowOp>(loc, convertToRealType(rhs().getType()), rhs(), two);
+	auto derivedOp = builder.create<DivOp>(loc, type, numerator, denominator);
 
 	return derivedOp->getResults();
 }
@@ -4989,6 +5630,233 @@ mlir::Value DivOp::lhs()
 }
 
 mlir::Value DivOp::rhs()
+{
+	return Adaptor(*this).rhs();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::DivElementWiseOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value DivElementWiseOpAdaptor::lhs()
+{
+	return getValues()[0];
+}
+
+mlir::Value DivElementWiseOpAdaptor::rhs()
+{
+	return getValues()[1];
+}
+
+void DivElementWiseOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
+{
+	if (auto arrayType = resultType.dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::unknown)
+			resultType = arrayType.toMinAllowedAllocationScope();
+
+	state.addTypes(resultType);
+	state.addOperands({ lhs, rhs });
+}
+
+mlir::ParseResult DivElementWiseOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() || parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() || parser.parseArrow() ||
+			parser.parseType(resultType) ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void DivElementWiseOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << lhs() << ", " << rhs() << " : ("
+					<< lhs().getType() << ", " << rhs().getType()
+					<< ") -> " << resultType();
+}
+
+void DivElementWiseOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (lhs().getType().isa<ArrayType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), lhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (rhs().getType().isa<ArrayType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
+
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+	{
+		auto scope = arrayType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (scope == BufferAllocationScope::heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
+}
+
+mlir::LogicalResult DivElementWiseOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	if (auto size = currentResult.size(); size != 1)
+		return emitError("Invalid amount of values to be nested: " + std::to_string(size) + " (expected 1)");
+
+	mlir::Value toNest = currentResult[0];
+
+	if (argumentIndex == 0)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<MulElementWiseOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		getResult().replaceAllUsesWith(lhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	if (argumentIndex == 1)
+	{
+		mlir::Value nestedOperand = readValue(builder, toNest);
+		auto right = builder.create<DivElementWiseOp>(getLoc(), nestedOperand.getType(), lhs(), nestedOperand);
+
+		for (auto& use : toNest.getUses())
+			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
+				use.set(right.getResult());
+
+		getResult().replaceAllUsesWith(rhs());
+		erase();
+
+		return mlir::success();
+	}
+
+	return emitError("Index out of bounds: " + std::to_string(argumentIndex));
+}
+
+mlir::Value DivElementWiseOp::distribute(mlir::OpBuilder& builder)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	if (!mlir::isa<DivOpDistributionInterface>(lhs().getDefiningOp()) &&
+			!mlir::isa<DivOpDistributionInterface>(rhs().getDefiningOp()))
+	{
+		// The operation can't be propagated because none of the children
+		// know how to distribute the multiplication to their children.
+		return getResult();
+	}
+
+	DivOpDistributionInterface childOp = mlir::isa<DivOpDistributionInterface>(lhs().getDefiningOp()) ?
+																			 mlir::cast<DivOpDistributionInterface>(lhs().getDefiningOp()) :
+																			 mlir::cast<DivOpDistributionInterface>(rhs().getDefiningOp());
+
+	mlir::Value toDistribute = mlir::isa<DivOpDistributionInterface>(lhs().getDefiningOp()) ? rhs() : lhs();
+
+	return childOp.distributeDivOp(builder, resultType(), toDistribute);
+}
+
+mlir::Value DivElementWiseOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeNegateOp(builder, resultType);
+
+		return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = this->rhs();
+
+	return builder.create<MulElementWiseOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value DivElementWiseOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<MulOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = this->rhs();
+
+	return builder.create<DivElementWiseOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::Value DivElementWiseOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
+{
+	mlir::OpBuilder::InsertionGuard guard(builder);
+
+	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
+		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeMulOp(builder, resultType, value);
+
+		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
+	};
+
+	mlir::Value lhs = distributeFn(this->lhs());
+	mlir::Value rhs = this->rhs();
+
+	return builder.create<DivElementWiseOp>(getLoc(), resultType, lhs, rhs);
+}
+
+mlir::ValueRange DivElementWiseOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Location loc = getLoc();
+
+	mlir::Value derivedLhs = derivatives.lookup(lhs());
+	mlir::Value derivedRhs = derivatives.lookup(rhs());
+
+	mlir::Type type = convertToRealType(resultType());
+
+	mlir::Value firstMul = builder.create<MulElementWiseOp>(loc, type, derivedLhs, rhs());
+	mlir::Value secondMul = builder.create<MulElementWiseOp>(loc, type, lhs(), derivedRhs);
+	mlir::Value numerator = builder.create<SubElementWiseOp>(loc, type, firstMul, secondMul);
+	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
+	mlir::Value denominator = builder.create<PowElementWiseOp>(loc, convertToRealType(rhs().getType()), rhs(), two);
+	auto derivedOp = builder.create<DivElementWiseOp>(loc, type, numerator, denominator);
+
+	return derivedOp->getResults();
+}
+
+void DivElementWiseOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+	toBeDerived.push_back(lhs());
+	toBeDerived.push_back(rhs());
+}
+
+mlir::Type DivElementWiseOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value DivElementWiseOp::lhs()
+{
+	return Adaptor(*this).lhs();
+}
+
+mlir::Value DivElementWiseOp::rhs()
 {
 	return Adaptor(*this).rhs();
 }
@@ -5128,20 +5996,22 @@ void PowOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 
 mlir::ValueRange PowOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
-	// D[f ^ g] = (f ^ g) * (g' * ln(f) + (g * f') / f)
+	// D[x ^ y] = (x ^ y) * (y' * ln(x) + (y * x') / x)
+
 	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
 
 	mlir::Value derivedBase = derivatives.lookup(base());
 	mlir::Value derivedExponent = derivatives.lookup(exponent());
 
-	mlir::Value pow = builder.create<PowOp>(loc, realType, base(), exponent());
-	mlir::Value ln = builder.create<LogOp>(loc, realType, base());
-	mlir::Value firstOperand = builder.create<MulOp>(loc, realType, derivedExponent, ln);
-	mlir::Value numerator = builder.create<MulOp>(loc, realType, exponent(), derivedBase);
-	mlir::Value secondOperand = builder.create<DivOp>(loc, realType, numerator, base());
-	mlir::Value sum = builder.create<AddOp>(loc, realType, firstOperand, secondOperand);
-	auto derivedOp = builder.create<MulOp>(loc, resultType(), pow, sum);
+	mlir::Type type = convertToRealType(resultType());
+
+	mlir::Value pow = builder.create<PowOp>(loc, type, base(), exponent());
+	mlir::Value ln = builder.create<LogOp>(loc, type, base());
+	mlir::Value firstOperand = builder.create<MulOp>(loc, type, derivedExponent, ln);
+	mlir::Value numerator = builder.create<MulOp>(loc, type, exponent(), derivedBase);
+	mlir::Value secondOperand = builder.create<DivOp>(loc, type, numerator, base());
+	mlir::Value sum = builder.create<AddOp>(loc, type, firstOperand, secondOperand);
+	auto derivedOp = builder.create<MulOp>(loc, type, pow, sum);
 
 	return derivedOp->getResults();
 }
@@ -5163,6 +6033,121 @@ mlir::Value PowOp::base()
 }
 
 mlir::Value PowOp::exponent()
+{
+	return Adaptor(*this).exponent();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::PowElementWiseOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value PowElementWiseOpAdaptor::base()
+{
+	return getValues()[0];
+}
+
+mlir::Value PowElementWiseOpAdaptor::exponent()
+{
+	return getValues()[1];
+}
+
+void PowElementWiseOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value base, mlir::Value exponent)
+{
+	if (auto arrayType = resultType.dyn_cast<ArrayType>())
+		if (arrayType.getAllocationScope() == BufferAllocationScope::unknown)
+			resultType = arrayType.toMinAllowedAllocationScope();
+
+	state.addTypes(resultType);
+	state.addOperands({ base, exponent });
+}
+
+mlir::ParseResult PowElementWiseOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+	llvm::SmallVector<mlir::Type, 3> operandsTypes;
+	mlir::Type resultType;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() || parser.parseLParen() ||
+			parser.parseTypeList(operandsTypes) ||
+			parser.parseRParen() || parser.parseArrow() ||
+			parser.parseType(resultType) ||
+			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+	return mlir::success();
+}
+
+void PowElementWiseOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << base() << ", " << exponent() << " : ("
+					<< base().getType() << ", " << exponent().getType()
+					<< ") -> " << resultType();
+}
+
+void PowElementWiseOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	if (base().getType().isa<ArrayType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), base(), mlir::SideEffects::DefaultResource::get());
+
+	if (exponent().getType().isa<ArrayType>())
+		effects.emplace_back(mlir::MemoryEffects::Read::get(), exponent(), mlir::SideEffects::DefaultResource::get());
+
+	if (auto arrayType = resultType().dyn_cast<ArrayType>())
+	{
+		auto scope = arrayType.getAllocationScope();
+
+		if (scope == BufferAllocationScope::stack)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+		else if (scope == BufferAllocationScope::heap)
+			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+
+		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+	}
+}
+
+mlir::ValueRange PowElementWiseOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	// D[x ^ y] = (x ^ y) * (y' * ln(x) + (y * x') / x)
+
+	mlir::Location loc = getLoc();
+
+	mlir::Value derivedBase = derivatives.lookup(base());
+	mlir::Value derivedExponent = derivatives.lookup(exponent());
+
+	mlir::Type type = convertToRealType(resultType());
+
+	mlir::Value pow = builder.create<PowElementWiseOp>(loc, type, base(), exponent());
+	mlir::Value ln = builder.create<LogOp>(loc, type, base());
+	mlir::Value firstOperand = builder.create<MulElementWiseOp>(loc, type, derivedExponent, ln);
+	mlir::Value numerator = builder.create<MulElementWiseOp>(loc, type, exponent(), derivedBase);
+	mlir::Value secondOperand = builder.create<DivElementWiseOp>(loc, type, numerator, base());
+	mlir::Value sum = builder.create<AddElementWiseOp>(loc, type, firstOperand, secondOperand);
+	auto derivedOp = builder.create<MulElementWiseOp>(loc, type, pow, sum);
+
+	return derivedOp->getResults();
+}
+
+void PowElementWiseOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+	toBeDerived.push_back(base());
+	toBeDerived.push_back(exponent());
+}
+
+mlir::Type PowElementWiseOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::Value PowElementWiseOp::base()
+{
+	return Adaptor(*this).base();
+}
+
+mlir::Value PowElementWiseOp::exponent()
 {
 	return Adaptor(*this).exponent();
 }
@@ -5455,13 +6440,14 @@ mlir::ValueRange SinOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange ind
 
 mlir::ValueRange SinOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
+	// D[sin(x)] = x' * cos(x)
+
 	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
-
 	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Type type = convertToRealType(resultType());
 
-	mlir::Value cos = builder.create<CosOp>(loc, realType, operand());
-	auto derivedOp = builder.create<MulOp>(loc, resultType(), cos, derivedOperand);
+	mlir::Value cos = builder.create<CosOp>(loc, type, operand());
+	auto derivedOp = builder.create<MulElementWiseOp>(loc, type, cos, derivedOperand);
 
 	return derivedOp->getResults();
 }
@@ -5547,14 +6533,16 @@ mlir::ValueRange CosOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange ind
 
 mlir::ValueRange CosOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
+	// D[cos(x)] = -x' * sin(x)
+
 	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
-
 	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Type type = convertToRealType(resultType());
+	bool elementWise = derivedOperand.getType().isa<ArrayType>();
 
-	mlir::Value sin = builder.create<SinOp>(loc, RealType::get(getContext()), operand());
-	mlir::Value negatedSin = builder.create<NegateOp>(loc, sin.getType(), sin);
-	auto derivedOp = builder.create<MulOp>(loc, resultType(), negatedSin, derivedOperand);
+	mlir::Value sin = builder.create<SinOp>(loc, type, operand());
+	mlir::Value negatedSin = builder.create<NegateOp>(loc, type, sin);
+	auto derivedOp = builder.create<MulElementWiseOp>(loc, type, negatedSin, derivedOperand);
 
 	return derivedOp->getResults();
 }
@@ -5640,17 +6628,17 @@ mlir::ValueRange TanOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange ind
 
 mlir::ValueRange TanOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
+	// D[tan(x)] = x' / (cos(x))^2
+
 	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
-
 	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Type type = convertToRealType(resultType());
+	bool elementWise = derivedOperand.getType().isa<ArrayType>();
 
-	mlir::Value one = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 1));
-	mlir::Value cos = builder.create<CosOp>(loc, realType, operand());
+	mlir::Value cos = builder.create<CosOp>(loc, type, operand());
 	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value denominator = builder.create<PowOp>(loc, realType, cos, two);
-	mlir::Value div = builder.create<DivOp>(loc, realType, one, denominator);
-	auto derivedOp = builder.create<MulOp>(loc, resultType(), div, derivedOperand);
+	mlir::Value denominator = builder.create<PowElementWiseOp>(loc, type, cos, two);
+	auto derivedOp = builder.create<DivElementWiseOp>(loc, type, derivedOperand, denominator);
 
 	return derivedOp->getResults();
 }
@@ -5736,18 +6724,19 @@ mlir::ValueRange AsinOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 mlir::ValueRange AsinOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
-	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
+	// D[arcsin(x)] = x' / sqrt(1 - x^2)
 
+	mlir::Location loc = getLoc();
 	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Type type = convertToRealType(resultType());
+	bool elementWise = operand().getType().isa<ArrayType>();
 
 	mlir::Value one = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 1));
 	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value argSquared = builder.create<PowOp>(loc, realType, operand(), two);
-	mlir::Value sub = builder.create<SubOp>(loc, realType, one, argSquared);
-	mlir::Value denominator = builder.create<SqrtOp>(loc, realType, sub);
-	mlir::Value div = builder.create<DivOp>(loc, realType, one, denominator);
-	auto derivedOp = builder.create<MulOp>(loc, resultType(), div, derivedOperand);
+	mlir::Value argSquared = builder.create<PowElementWiseOp>(loc, type, operand(), two);
+	mlir::Value sub = builder.create<SubElementWiseOp>(loc, type, one, argSquared);
+	mlir::Value denominator = builder.create<SqrtOp>(loc, type, sub);
+	auto derivedOp = builder.create<DivElementWiseOp>(loc, type, derivedOperand, denominator);
 
 	return derivedOp->getResults();
 }
@@ -5833,19 +6822,19 @@ mlir::ValueRange AcosOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 mlir::ValueRange AcosOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
-	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
+	// D[acos(x)] = -x' / sqrt(1 - x^2)
 
+	mlir::Location loc = getLoc();
 	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Type type = convertToRealType(resultType());
 
 	mlir::Value one = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 1));
 	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value argSquared = builder.create<PowOp>(loc, realType, operand(), two);
-	mlir::Value sub = builder.create<SubOp>(loc, realType, one, argSquared);
-	mlir::Value denominator = builder.create<SqrtOp>(loc, realType, sub);
-	mlir::Value div = builder.create<DivOp>(loc, realType, one, denominator);
-	mlir::Value negatedDiv = builder.create<NegateOp>(loc, realType, div);
-	auto derivedOp = builder.create<MulOp>(loc, resultType(), negatedDiv, derivedOperand);
+	mlir::Value argSquared = builder.create<PowElementWiseOp>(loc, type, operand(), two);
+	mlir::Value sub = builder.create<SubElementWiseOp>(loc, type, one, argSquared);
+	mlir::Value denominator = builder.create<SqrtOp>(loc, type, sub);
+	mlir::Value div = builder.create<DivElementWiseOp>(loc, type, derivedOperand, denominator);
+	auto derivedOp = builder.create<NegateOp>(loc, type, div);
 
 	return derivedOp->getResults();
 }
@@ -5931,18 +6920,17 @@ mlir::ValueRange AtanOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 mlir::ValueRange AtanOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
-	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
+	// D[atan(x)] = x' / (1 + x^2)
 
+	mlir::Location loc = getLoc();
 	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Type type = convertToRealType(resultType());
 
 	mlir::Value one = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 1));
 	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value argSquared = builder.create<PowOp>(loc, realType, operand(), two);
-	mlir::Value denominator = builder.create<AddOp>(loc, realType, one, argSquared);
-	mlir::Value div = builder.create<DivOp>(loc, realType, one, denominator);
-	mlir::Value negatedDiv = builder.create<NegateOp>(loc, realType, div);
-	auto derivedOp = builder.create<MulOp>(loc, resultType(), negatedDiv, derivedOperand);
+	mlir::Value argSquared = builder.create<PowElementWiseOp>(loc, type, operand(), two);
+	mlir::Value denominator = builder.create<AddElementWiseOp>(loc, type, one, argSquared);
+	auto derivedOp = builder.create<DivElementWiseOp>(loc, type, derivedOperand, denominator);
 
 	return derivedOp->getResults();
 }
@@ -6044,6 +7032,8 @@ mlir::ValueRange Atan2Op::scalarize(mlir::OpBuilder& builder, mlir::ValueRange i
 	return op->getResults();
 }
 
+// TODO: derive
+
 mlir::Type Atan2Op::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -6125,13 +7115,14 @@ mlir::ValueRange SinhOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 mlir::ValueRange SinhOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
+	// D[sinh(x)] = x' * cosh(x)
+
 	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
-
 	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Type type = convertToRealType(resultType());
 
-	mlir::Value cosh = builder.create<CoshOp>(loc, realType, operand());
-	auto derivedOp = builder.create<MulOp>(loc, resultType(), cosh, derivedOperand);
+	mlir::Value cosh = builder.create<CoshOp>(loc, type, operand());
+	auto derivedOp = builder.create<MulElementWiseOp>(loc, type, cosh, derivedOperand);
 
 	return derivedOp->getResults();
 }
@@ -6217,13 +7208,14 @@ mlir::ValueRange CoshOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 mlir::ValueRange CoshOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
+	// D[cosh(x)] = x' * sinh(x)
+
 	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
-
 	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Type type = convertToRealType(resultType());
 
-	mlir::Value sinh = builder.create<SinhOp>(loc, realType, operand());
-	auto derivedOp = builder.create<MulOp>(loc, resultType(), sinh, derivedOperand);
+	mlir::Value sinh = builder.create<SinhOp>(loc, type, operand());
+	auto derivedOp = builder.create<MulElementWiseOp>(loc, type, sinh, derivedOperand);
 
 	return derivedOp->getResults();
 }
@@ -6309,17 +7301,16 @@ mlir::ValueRange TanhOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 mlir::ValueRange TanhOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
+	// D[tanh(x)] = x' / (cosh(x))^2
+
 	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
-
 	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Type type = convertToRealType(resultType());
 
-	mlir::Value one = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 1));
-	mlir::Value cosh = builder.create<CoshOp>(loc, realType, operand());
-	mlir::Value sech = builder.create<DivOp>(loc, realType, one, cosh);
+	mlir::Value cosh = builder.create<CoshOp>(loc, type, operand());
 	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value pow = builder.create<PowOp>(loc, realType, sech, two);
-	auto derivedOp = builder.create<MulOp>(loc, resultType(), pow, derivedOperand);
+	mlir::Value pow = builder.create<PowElementWiseOp>(loc, type, cosh, two);
+	auto derivedOp = builder.create<DivElementWiseOp>(loc, type, derivedOperand, pow);
 
 	return derivedOp->getResults();
 }
@@ -6405,13 +7396,14 @@ mlir::ValueRange ExpOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange ind
 
 mlir::ValueRange ExpOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
+	// D[e^x] = x' * e^x
+
 	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
-
 	mlir::Value derivedExponent = derivatives.lookup(exponent());
+	mlir::Type type = convertToRealType(resultType());
 
-	mlir::Value pow = builder.create<ExpOp>(loc, realType, exponent());
-	auto derivedOp = builder.create<MulOp>(loc, resultType(), pow, derivedExponent);
+	mlir::Value pow = builder.create<ExpOp>(loc, type, exponent());
+	auto derivedOp = builder.create<MulElementWiseOp>(loc, type, pow, derivedExponent);
 
 	return derivedOp->getResults();
 }
@@ -6497,8 +7489,12 @@ mlir::ValueRange LogOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange ind
 
 mlir::ValueRange LogOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
+	// D[ln(x)] = x' / x
+
 	mlir::Value derivedOperand = derivatives.lookup(operand());
-	auto derivedOp = builder.create<DivOp>(getLoc(), resultType(), derivedOperand, operand());
+
+	auto derivedOp = builder.create<DivElementWiseOp>(
+			getLoc(), convertToRealType(resultType()), derivedOperand, operand());
 
 	return derivedOp->getResults();
 }
@@ -6584,15 +7580,16 @@ mlir::ValueRange Log10Op::scalarize(mlir::OpBuilder& builder, mlir::ValueRange i
 
 mlir::ValueRange Log10Op::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 {
-	mlir::Location loc = getLoc();
-	mlir::Type realType = RealType::get(getContext());
+	// D[log10(x)] = x' / (x * ln(10))
 
+	mlir::Location loc = getLoc();
 	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Type type = convertToRealType(resultType());
 
 	mlir::Value ten = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 10));
-	mlir::Value log = builder.create<LogOp>(loc, realType, ten);
-	mlir::Value mul = builder.create<MulOp>(loc, realType, operand(), log);
-	auto derivedOp = builder.create<DivOp>(loc, resultType(), derivedOperand, mul);
+	mlir::Value log = builder.create<LogOp>(loc, RealType::get(getContext()), ten);
+	mlir::Value mul = builder.create<MulElementWiseOp>(loc, type, operand(), log);
+	auto derivedOp = builder.create<DivElementWiseOp>(loc, resultType(), derivedOperand, mul);
 
 	return derivedOp->getResults();
 }

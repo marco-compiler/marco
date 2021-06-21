@@ -1298,13 +1298,14 @@ struct NegateOpArrayLowering : public mlir::OpRewritePattern<NegateOp>
 /**
  * Sum of two numeric scalars.
  */
-struct AddOpScalarLowering : public ModelicaOpConversion<AddOp>
+template<typename FromOp>
+struct AddOpLikeScalarsLowering : public ModelicaOpConversion<FromOp>
 {
-	using ModelicaOpConversion<AddOp>::ModelicaOpConversion;
+	using ModelicaOpConversion<FromOp>::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(AddOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(FromOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		mlir::Location loc = op->getLoc();
+		mlir::Location loc = op.getLoc();
 
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()))
@@ -1317,14 +1318,14 @@ struct AddOpScalarLowering : public ModelicaOpConversion<AddOp>
 		// information loss.
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
 		mlir::Type type = castToMostGenericType(rewriter, op->getOperands(), castedOperands);
-		materializeTargetConversion(rewriter, castedOperands);
-		Adaptor transformed(castedOperands);
+		this->materializeTargetConversion(rewriter, castedOperands);
+		typename ModelicaOpConversion<FromOp>::Adaptor transformed(castedOperands);
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::AddIOp>(loc, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
+			result = this->getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
@@ -1332,7 +1333,7 @@ struct AddOpScalarLowering : public ModelicaOpConversion<AddOp>
 		if (type.isa<RealType>())
 		{
 			mlir::Value result = rewriter.create<mlir::AddFOp>(loc, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
+			result = this->getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
@@ -1344,27 +1345,28 @@ struct AddOpScalarLowering : public ModelicaOpConversion<AddOp>
 /**
  * Sum of two numeric arrays.
  */
-struct AddOpArrayLowering : public mlir::OpRewritePattern<AddOp>
+template<typename FromOp>
+struct AddOpLikeArraysLowering : public mlir::OpRewritePattern<FromOp>
 {
-	AddOpArrayLowering(mlir::MLIRContext* ctx, ModelicaConversionOptions options)
-			: mlir::OpRewritePattern<AddOp>(ctx),
-		    options(std::move(options))
+	AddOpLikeArraysLowering(mlir::MLIRContext* ctx, ModelicaConversionOptions options)
+			: mlir::OpRewritePattern<FromOp>(ctx),
+				options(std::move(options))
 	{
 	}
 
-	mlir::LogicalResult matchAndRewrite(AddOp op, mlir::PatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(FromOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 
 		// Check if the operands are compatible
-		if (!op.lhs().getType().isa<ArrayType>())
+		if (!op.lhs().getType().template isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side value is not an array");
 
-		if (!op.rhs().getType().isa<ArrayType>())
+		if (!op.rhs().getType().template isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Right-hand side value is not an array");
 
-		auto lhsArrayType = op.lhs().getType().cast<ArrayType>();
-		auto rhsArrayType = op.rhs().getType().cast<ArrayType>();
+		auto lhsArrayType = op.lhs().getType().template cast<ArrayType>();
+		auto rhsArrayType = op.rhs().getType().template cast<ArrayType>();
 
 		for (auto pair : llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape()))
 		{
@@ -1403,7 +1405,7 @@ struct AddOpArrayLowering : public mlir::OpRewritePattern<AddOp>
 		}
 
 		// Allocate the result array
-		auto resultType = op.resultType().cast<ArrayType>();
+		auto resultType = op.resultType().template cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		getArrayDynamicDimensions(rewriter, loc, op.lhs(), dynamicDimensions);
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
@@ -1425,16 +1427,81 @@ struct AddOpArrayLowering : public mlir::OpRewritePattern<AddOp>
 	ModelicaConversionOptions options;
 };
 
+struct AddOpScalarsLowering : public AddOpLikeScalarsLowering<AddOp>
+{
+	using AddOpLikeScalarsLowering<AddOp>::AddOpLikeScalarsLowering;
+};
+
+struct AddOpArraysLowering : public AddOpLikeArraysLowering<AddOp>
+{
+	using AddOpLikeArraysLowering<AddOp>::AddOpLikeArraysLowering;
+};
+
+struct AddElementWiseOpScalarsLowering : public AddOpLikeScalarsLowering<AddElementWiseOp>
+{
+	using AddOpLikeScalarsLowering<AddElementWiseOp>::AddOpLikeScalarsLowering;
+};
+
+struct AddElementWiseOpArraysLowering : public AddOpLikeArraysLowering<AddElementWiseOp>
+{
+	using AddOpLikeArraysLowering<AddElementWiseOp>::AddOpLikeArraysLowering;
+};
+
+struct AddElementWiseOpMixedLowering : public mlir::OpRewritePattern<AddElementWiseOp>
+{
+	using mlir::OpRewritePattern<AddElementWiseOp>::OpRewritePattern;
+
+	mlir::LogicalResult matchAndRewrite(AddElementWiseOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op->getLoc();
+
+		if (!op.lhs().getType().isa<ArrayType>() && !op.rhs().getType().isa<ArrayType>())
+			return rewriter.notifyMatchFailure(op, "None of the operands is an array");
+
+		if (op.lhs().getType().isa<ArrayType>() && isNumeric(op.rhs()))
+			return rewriter.notifyMatchFailure(op, "Right-hand side operand is not a scalar");
+
+		if (op.rhs().getType().isa<ArrayType>() && isNumeric(op.lhs()))
+			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not a scalar");
+
+		mlir::Value array = op.lhs().getType().isa<ArrayType>() ? op.lhs() : op.rhs();
+		mlir::Value scalar = op.lhs().getType().isa<ArrayType>() ? op.rhs() : op.lhs();
+
+		// Allocate the result array
+		auto resultType = op.resultType().cast<ArrayType>();
+		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+		getArrayDynamicDimensions(rewriter, loc, array, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
+
+		// Apply the operation on each array position
+		iterateArray(rewriter, loc, array,
+								 [&](mlir::ValueRange position) {
+									 mlir::Value lhs = op.lhs().getType().isa<ArrayType>() ?
+																		 rewriter.create<LoadOp>(loc, op.lhs(), position) : op.lhs();
+
+									 mlir::Value rhs = op.lhs().getType().isa<ArrayType>() ?
+																		 op.rhs() : rewriter.create<LoadOp>(loc, op.rhs(), position);
+
+									 mlir::Value value = rewriter.create<AddOp>(loc, resultType.getElementType(), lhs, rhs);
+									 rewriter.create<StoreOp>(loc, value, result, position);
+								 });
+
+		return mlir::success();
+	}
+};
+
 /**
  * Subtraction of two numeric scalars.
  */
-struct SubOpScalarLowering : public ModelicaOpConversion<SubOp>
+template<typename FromOp>
+struct SubOpLikeScalarsLowering : public ModelicaOpConversion<FromOp>
 {
-	using ModelicaOpConversion<SubOp>::ModelicaOpConversion;
+	using ModelicaOpConversion<FromOp>::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(SubOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(FromOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		mlir::Location loc = op->getLoc();
+		mlir::Location loc = op.getLoc();
 
 		// Check if the operands are compatible
 		if (!isNumeric(op.lhs()))
@@ -1447,14 +1514,14 @@ struct SubOpScalarLowering : public ModelicaOpConversion<SubOp>
 		// information loss.
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
 		mlir::Type type = castToMostGenericType(rewriter, op->getOperands(), castedOperands);
-		materializeTargetConversion(rewriter, castedOperands);
-		Adaptor transformed(castedOperands);
+		this->materializeTargetConversion(rewriter, castedOperands);
+		typename ModelicaOpConversion<FromOp>::Adaptor transformed(castedOperands);
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::SubIOp>(loc, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
+			result = this->getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
@@ -1462,7 +1529,7 @@ struct SubOpScalarLowering : public ModelicaOpConversion<SubOp>
 		if (type.isa<RealType>())
 		{
 			mlir::Value result = rewriter.create<mlir::SubFOp>(loc, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
+			result = this->getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
@@ -1474,27 +1541,28 @@ struct SubOpScalarLowering : public ModelicaOpConversion<SubOp>
 /**
  * Subtraction of two numeric arrays.
  */
-struct SubOpArrayLowering : public mlir::OpRewritePattern<SubOp>
+template<typename FromOp>
+struct SubOpLikeArraysLowering : public mlir::OpRewritePattern<FromOp>
 {
-	SubOpArrayLowering(mlir::MLIRContext* ctx, ModelicaConversionOptions options)
-			: mlir::OpRewritePattern<SubOp>(ctx),
+	SubOpLikeArraysLowering(mlir::MLIRContext* ctx, ModelicaConversionOptions options)
+			: mlir::OpRewritePattern<FromOp>(ctx),
 				options(std::move(options))
 	{
 	}
 
-	mlir::LogicalResult matchAndRewrite(SubOp op, mlir::PatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(FromOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 
 		// Check if the operands are compatible
-		if (!op.lhs().getType().isa<ArrayType>())
+		if (!op.lhs().getType().template isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Left-hand side value is not an array");
 
-		if (!op.rhs().getType().isa<ArrayType>())
+		if (!op.rhs().getType().template isa<ArrayType>())
 			return rewriter.notifyMatchFailure(op, "Right-hand side value is not an array");
 
-		auto lhsArrayType = op.lhs().getType().cast<ArrayType>();
-		auto rhsArrayType = op.rhs().getType().cast<ArrayType>();
+		auto lhsArrayType = op.lhs().getType().template cast<ArrayType>();
+		auto rhsArrayType = op.rhs().getType().template cast<ArrayType>();
 
 		for (auto pair : llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape()))
 		{
@@ -1533,7 +1601,7 @@ struct SubOpArrayLowering : public mlir::OpRewritePattern<SubOp>
 		}
 
 		// Allocate the result array
-		auto resultType = op.resultType().cast<ArrayType>();
+		auto resultType = op.resultType().template cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		getArrayDynamicDimensions(rewriter, loc, op.lhs(), dynamicDimensions);
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
@@ -1555,14 +1623,79 @@ struct SubOpArrayLowering : public mlir::OpRewritePattern<SubOp>
 	ModelicaConversionOptions options;
 };
 
+struct SubOpScalarsLowering : public SubOpLikeScalarsLowering<SubOp>
+{
+	using SubOpLikeScalarsLowering<SubOp>::SubOpLikeScalarsLowering;
+};
+
+struct SubOpArraysLowering : public SubOpLikeArraysLowering<SubOp>
+{
+	using SubOpLikeArraysLowering<SubOp>::SubOpLikeArraysLowering;
+};
+
+struct SubElementWiseOpScalarsLowering : public SubOpLikeScalarsLowering<SubElementWiseOp>
+{
+	using SubOpLikeScalarsLowering<SubElementWiseOp>::SubOpLikeScalarsLowering;
+};
+
+struct SubElementWiseOpArraysLowering : public SubOpLikeArraysLowering<SubElementWiseOp>
+{
+	using SubOpLikeArraysLowering<SubElementWiseOp>::SubOpLikeArraysLowering;
+};
+
+struct SubElementWiseOpMixedLowering : public mlir::OpRewritePattern<SubElementWiseOp>
+{
+	using mlir::OpRewritePattern<SubElementWiseOp>::OpRewritePattern;
+
+	mlir::LogicalResult matchAndRewrite(SubElementWiseOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op->getLoc();
+
+		if (!op.lhs().getType().isa<ArrayType>() && !op.rhs().getType().isa<ArrayType>())
+			return rewriter.notifyMatchFailure(op, "None of the operands is an array");
+
+		if (op.lhs().getType().isa<ArrayType>() && isNumeric(op.rhs()))
+			return rewriter.notifyMatchFailure(op, "Right-hand side operand is not a scalar");
+
+		if (op.rhs().getType().isa<ArrayType>() && isNumeric(op.lhs()))
+			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not a scalar");
+
+		mlir::Value array = op.lhs().getType().isa<ArrayType>() ? op.lhs() : op.rhs();
+		mlir::Value scalar = op.lhs().getType().isa<ArrayType>() ? op.rhs() : op.lhs();
+
+		// Allocate the result array
+		auto resultType = op.resultType().cast<ArrayType>();
+		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+		getArrayDynamicDimensions(rewriter, loc, array, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
+
+		// Apply the operation on each array position
+		iterateArray(rewriter, loc, array,
+								 [&](mlir::ValueRange position) {
+									 mlir::Value lhs = op.lhs().getType().isa<ArrayType>() ?
+									     rewriter.create<LoadOp>(loc, op.lhs(), position) : op.lhs();
+
+									 mlir::Value rhs = op.lhs().getType().isa<ArrayType>() ?
+																		 op.rhs() : rewriter.create<LoadOp>(loc, op.rhs(), position);
+
+									 mlir::Value value = rewriter.create<SubOp>(loc, resultType.getElementType(), lhs, rhs);
+									 rewriter.create<StoreOp>(loc, value, result, position);
+								 });
+
+		return mlir::success();
+	}
+};
+
 /**
  * Product between two scalar values.
  */
-struct MulOpLowering : public ModelicaOpConversion<MulOp>
+template<typename FromOp>
+struct MulOpLikeScalarsLowering : public ModelicaOpConversion<FromOp>
 {
-	using ModelicaOpConversion<MulOp>::ModelicaOpConversion;
+	using ModelicaOpConversion<FromOp>::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(MulOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(FromOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 
@@ -1577,14 +1710,14 @@ struct MulOpLowering : public ModelicaOpConversion<MulOp>
 		// information loss.
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
 		mlir::Type type = castToMostGenericType(rewriter, op->getOperands(), castedOperands);
-		materializeTargetConversion(rewriter, castedOperands);
-		Adaptor transformed(castedOperands);
+		this->materializeTargetConversion(rewriter, castedOperands);
+		typename ModelicaOpConversion<FromOp>::Adaptor transformed(castedOperands);
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::MulIOp>(loc, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
+			result = this->getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
@@ -1592,7 +1725,7 @@ struct MulOpLowering : public ModelicaOpConversion<MulOp>
 		if (type.isa<RealType>())
 		{
 			mlir::Value result = rewriter.create<mlir::MulFOp>(loc, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
+			result = this->getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
@@ -1604,11 +1737,12 @@ struct MulOpLowering : public ModelicaOpConversion<MulOp>
 /**
  * Product between a scalar and an array.
  */
-struct MulOpScalarProductLowering : public mlir::OpRewritePattern<MulOp>
+template<typename FromOp>
+struct MulOpLikeScalarProductLowering : public mlir::OpRewritePattern<FromOp>
 {
-	using mlir::OpRewritePattern<MulOp>::OpRewritePattern;
+	using mlir::OpRewritePattern<FromOp>::OpRewritePattern;
 
-	mlir::LogicalResult matchAndRewrite(MulOp op, mlir::PatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(FromOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op.getLoc();
 
@@ -1618,19 +1752,19 @@ struct MulOpScalarProductLowering : public mlir::OpRewritePattern<MulOp>
 
 		if (isNumeric(op.lhs()))
 		{
-			if (!op.rhs().getType().isa<ArrayType>())
+			if (!op.rhs().getType().template isa<ArrayType>())
 				return rewriter.notifyMatchFailure(op, "Scalar-array product: right-hand size value is not an array");
 
-			if (!isNumericType(op.rhs().getType().cast<ArrayType>().getElementType()))
+			if (!isNumericType(op.rhs().getType().template cast<ArrayType>().getElementType()))
 				return rewriter.notifyMatchFailure(op, "Scalar-array product: right-hand side array has not numeric elements");
 		}
 
 		if (isNumeric(op.rhs()))
 		{
-			if (!op.lhs().getType().isa<ArrayType>())
+			if (!op.lhs().getType().template isa<ArrayType>())
 				return rewriter.notifyMatchFailure(op, "Scalar-array product: right-hand size value is not an array");
 
-			if (!isNumericType(op.lhs().getType().cast<ArrayType>().getElementType()))
+			if (!isNumericType(op.lhs().getType().template cast<ArrayType>().getElementType()))
 				return rewriter.notifyMatchFailure(op, "Scalar-array product: left-hand side array has not numeric elements");
 		}
 
@@ -1638,7 +1772,7 @@ struct MulOpScalarProductLowering : public mlir::OpRewritePattern<MulOp>
 		mlir::Value array = isNumeric(op.rhs()) ? op.lhs() : op.rhs();
 
 		// Allocate the result array
-		auto resultType = op.resultType().cast<ArrayType>();
+		auto resultType = op.resultType().template cast<ArrayType>();
 		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
 		getArrayDynamicDimensions(rewriter, loc, array, dynamicDimensions);
 		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
@@ -1654,6 +1788,16 @@ struct MulOpScalarProductLowering : public mlir::OpRewritePattern<MulOp>
 
 		return mlir::success();
 	}
+};
+
+struct MulOpScalarsLowering : public MulOpLikeScalarsLowering<MulOp>
+{
+	using MulOpLikeScalarsLowering<MulOp>::MulOpLikeScalarsLowering;
+};
+
+struct MulOpScalarProductLowering : public MulOpLikeScalarProductLowering<MulOp>
+{
+	using MulOpLikeScalarProductLowering<MulOp>::MulOpLikeScalarProductLowering;
 };
 
 /**
@@ -2074,14 +2218,106 @@ struct MulOpMatrixLowering : public ModelicaOpConversion<MulOp>
 	}
 };
 
+struct MulElementWiseOpScalarsLowering : public MulOpLikeScalarsLowering<MulElementWiseOp>
+{
+	using MulOpLikeScalarsLowering<MulElementWiseOp>::MulOpLikeScalarsLowering;
+};
+
+struct MulElementWiseOpScalarProductLowering : public MulOpLikeScalarProductLowering<MulElementWiseOp>
+{
+	using MulOpLikeScalarProductLowering<MulElementWiseOp>::MulOpLikeScalarProductLowering;
+};
+
+struct MulElementWiseOpArraysLowering : public mlir::OpRewritePattern<MulElementWiseOp>
+{
+	MulElementWiseOpArraysLowering(mlir::MLIRContext* ctx, ModelicaConversionOptions options)
+			: mlir::OpRewritePattern<MulElementWiseOp>(ctx),
+				options(std::move(options))
+	{
+	}
+
+	mlir::LogicalResult matchAndRewrite(MulElementWiseOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op->getLoc();
+
+		// Check if the operands are compatible
+		if (!op.lhs().getType().isa<ArrayType>())
+			return rewriter.notifyMatchFailure(op, "Left-hand side value is not an array");
+
+		if (!op.rhs().getType().isa<ArrayType>())
+			return rewriter.notifyMatchFailure(op, "Right-hand side value is not an array");
+
+		auto lhsArrayType = op.lhs().getType().cast<ArrayType>();
+		auto rhsArrayType = op.rhs().getType().cast<ArrayType>();
+
+		for (auto pair : llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape()))
+		{
+			auto lhsDimension = std::get<0>(pair);
+			auto rhsDimension = std::get<1>(pair);
+
+			if (lhsDimension != -1 && rhsDimension != -1 && lhsDimension != rhsDimension)
+				return rewriter.notifyMatchFailure(op, "Incompatible array dimensions");
+		}
+
+		if (!isNumericType(lhsArrayType.getElementType()))
+			return rewriter.notifyMatchFailure(op, "Left-hand side array has not numeric elements");
+
+		if (!isNumericType(rhsArrayType.getElementType()))
+			return rewriter.notifyMatchFailure(op, "Right-hand side array has not numeric elements");
+
+		if (options.assertions)
+		{
+			// Check if the dimensions are compatible
+			auto lhsShape = lhsArrayType.getShape();
+			auto rhsShape = rhsArrayType.getShape();
+
+			assert(lhsArrayType.getRank() == rhsArrayType.getRank());
+
+			for (size_t i = 0; i < lhsArrayType.getRank(); ++i)
+			{
+				if (lhsShape[i] == -1 || rhsShape[i] == -1)
+				{
+					mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i));
+					mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
+					mlir::Value rhsDimensionSize = rewriter.create<DimOp>(loc, op.rhs(), dimensionIndex);
+					mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
+					rewriter.create<mlir::AssertOp>(loc, condition, rewriter.getStringAttr("Incompatible dimensions"));
+				}
+			}
+		}
+
+		// Allocate the result array
+		auto resultType = op.resultType().cast<ArrayType>();
+		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+		getArrayDynamicDimensions(rewriter, loc, op.lhs(), dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
+
+		// Apply the operation on each array position
+		iterateArray(rewriter, loc, op.lhs(),
+								 [&](mlir::ValueRange position) {
+									 mlir::Value lhs = rewriter.create<LoadOp>(loc, op.lhs(), position);
+									 mlir::Value rhs = rewriter.create<LoadOp>(loc, op.rhs(), position);
+									 mlir::Value value = rewriter.create<MulOp>(loc, resultType.getElementType(), lhs, rhs);
+									 rewriter.create<StoreOp>(loc, value, result, position);
+								 });
+
+		return mlir::success();
+	}
+
+	private:
+	ModelicaConversionOptions options;
+};
+
 /**
  * Division between two scalar values.
  */
-struct DivOpLowering : public ModelicaOpConversion<DivOp>
+template<typename FromOp>
+struct DivOpLikeScalarsLowering : public ModelicaOpConversion<FromOp>
 {
-	using ModelicaOpConversion<DivOp>::ModelicaOpConversion;
+	using ModelicaOpConversion<FromOp>::ModelicaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(DivOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(FromOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 
@@ -2092,17 +2328,18 @@ struct DivOpLowering : public ModelicaOpConversion<DivOp>
 		if (!isNumeric(op.rhs()))
 			return rewriter.notifyMatchFailure(op, "Scalar-scalar division: right-hand side value is not a scalar");
 
-		// Cast the operands to the most generic type
+		// Cast the operands to the most generic type, in order to avoid
+		// information loss.
 		llvm::SmallVector<mlir::Value, 3> castedOperands;
 		mlir::Type type = castToMostGenericType(rewriter, op->getOperands(), castedOperands);
-		materializeTargetConversion(rewriter, castedOperands);
-		Adaptor transformed(castedOperands);
+		this->materializeTargetConversion(rewriter, castedOperands);
+		typename ModelicaOpConversion<FromOp>::Adaptor transformed(castedOperands);
 
 		// Compute the result
 		if (type.isa<mlir::IndexType, BooleanType, IntegerType>())
 		{
 			mlir::Value result = rewriter.create<mlir::SignedDivIOp>(loc, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
+			result = this->getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
@@ -2110,7 +2347,7 @@ struct DivOpLowering : public ModelicaOpConversion<DivOp>
 		if (type.isa<RealType>())
 		{
 			mlir::Value result = rewriter.create<mlir::DivFOp>(loc, transformed.lhs(), transformed.rhs());
-			result = getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
+			result = this->getTypeConverter()->materializeSourceConversion(rewriter, loc, type, result);
 			rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 			return mlir::success();
 		}
@@ -2119,10 +2356,15 @@ struct DivOpLowering : public ModelicaOpConversion<DivOp>
 	}
 };
 
+struct DivOpScalarsLowering : public DivOpLikeScalarsLowering<DivOp>
+{
+	using DivOpLikeScalarsLowering<DivOp>::DivOpLikeScalarsLowering;
+};
+
 /**
  * Division between an array and a scalar value.
  */
-struct DivOpArrayLowering : public mlir::OpRewritePattern<DivOp>
+struct DivOpArrayScalarLowering : public mlir::OpRewritePattern<DivOp>
 {
 	using mlir::OpRewritePattern<DivOp>::OpRewritePattern;
 
@@ -2157,6 +2399,142 @@ struct DivOpArrayLowering : public mlir::OpRewritePattern<DivOp>
 
 		return mlir::success();
 	}
+};
+
+struct DivElementWiseOpScalarsLowering : public DivOpLikeScalarsLowering<DivElementWiseOp>
+{
+	using DivOpLikeScalarsLowering<DivElementWiseOp>::DivOpLikeScalarsLowering;
+};
+
+/**
+ * Division between an array and a scalar, or the opposite.
+ */
+struct DivElementWiseOpMixedLowering : public mlir::OpRewritePattern<DivElementWiseOp>
+{
+	using mlir::OpRewritePattern<DivElementWiseOp>::OpRewritePattern;
+
+	mlir::LogicalResult matchAndRewrite(DivElementWiseOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op->getLoc();
+
+		if (!op.lhs().getType().isa<ArrayType>() && !op.rhs().getType().isa<ArrayType>())
+			return rewriter.notifyMatchFailure(op, "None of the operands is an array");
+
+		if (op.lhs().getType().isa<ArrayType>() && isNumeric(op.rhs()))
+			return rewriter.notifyMatchFailure(op, "Right-hand side operand is not a scalar");
+
+		if (op.rhs().getType().isa<ArrayType>() && isNumeric(op.lhs()))
+			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not a scalar");
+
+		mlir::Value array = op.lhs().getType().isa<ArrayType>() ? op.lhs() : op.rhs();
+		mlir::Value scalar = op.lhs().getType().isa<ArrayType>() ? op.rhs() : op.lhs();
+
+		// Allocate the result array
+		auto resultType = op.resultType().cast<ArrayType>();
+		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+		getArrayDynamicDimensions(rewriter, loc, array, dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
+
+		// Apply the operation on each array position
+		iterateArray(rewriter, loc, array,
+								 [&](mlir::ValueRange position) {
+									 mlir::Value lhs = op.lhs().getType().isa<ArrayType>() ?
+																		 rewriter.create<LoadOp>(loc, op.lhs(), position) : op.lhs();
+
+									 mlir::Value rhs = op.lhs().getType().isa<ArrayType>() ?
+																		 op.rhs() : rewriter.create<LoadOp>(loc, op.rhs(), position);
+
+									 mlir::Value value = rewriter.create<DivOp>(loc, resultType.getElementType(), lhs, rhs);
+									 rewriter.create<StoreOp>(loc, value, result, position);
+								 });
+
+		return mlir::success();
+	}
+};
+
+/**
+ * Element-wise division of two numeric arrays.
+ */
+struct DivElementWiseOpArraysLowering : public mlir::OpRewritePattern<DivElementWiseOp>
+{
+	DivElementWiseOpArraysLowering(mlir::MLIRContext* ctx, ModelicaConversionOptions options)
+			: mlir::OpRewritePattern<DivElementWiseOp>(ctx),
+				options(std::move(options))
+	{
+	}
+
+	mlir::LogicalResult matchAndRewrite(DivElementWiseOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op->getLoc();
+
+		// Check if the operands are compatible
+		if (!op.lhs().getType().isa<ArrayType>())
+			return rewriter.notifyMatchFailure(op, "Left-hand side value is not an array");
+
+		if (!op.rhs().getType().isa<ArrayType>())
+			return rewriter.notifyMatchFailure(op, "Right-hand side value is not an array");
+
+		auto lhsArrayType = op.lhs().getType().cast<ArrayType>();
+		auto rhsArrayType = op.rhs().getType().cast<ArrayType>();
+
+		for (auto pair : llvm::zip(lhsArrayType.getShape(), rhsArrayType.getShape()))
+		{
+			auto lhsDimension = std::get<0>(pair);
+			auto rhsDimension = std::get<1>(pair);
+
+			if (lhsDimension != -1 && rhsDimension != -1 && lhsDimension != rhsDimension)
+				return rewriter.notifyMatchFailure(op, "Incompatible array dimensions");
+		}
+
+		if (!isNumericType(lhsArrayType.getElementType()))
+			return rewriter.notifyMatchFailure(op, "Left-hand side array has not numeric elements");
+
+		if (!isNumericType(rhsArrayType.getElementType()))
+			return rewriter.notifyMatchFailure(op, "Right-hand side array has not numeric elements");
+
+		if (options.assertions)
+		{
+			// Check if the dimensions are compatible
+			auto lhsShape = lhsArrayType.getShape();
+			auto rhsShape = rhsArrayType.getShape();
+
+			assert(lhsArrayType.getRank() == rhsArrayType.getRank());
+
+			for (size_t i = 0; i < lhsArrayType.getRank(); ++i)
+			{
+				if (lhsShape[i] == -1 || rhsShape[i] == -1)
+				{
+					mlir::Value dimensionIndex = rewriter.create<ConstantOp>(loc, rewriter.getIndexAttr(i));
+					mlir::Value lhsDimensionSize = rewriter.create<DimOp>(loc, op.lhs(), dimensionIndex);
+					mlir::Value rhsDimensionSize = rewriter.create<DimOp>(loc, op.rhs(), dimensionIndex);
+					mlir::Value condition = rewriter.create<mlir::CmpIOp>(loc, mlir::CmpIPredicate::eq, lhsDimensionSize, rhsDimensionSize);
+					rewriter.create<mlir::AssertOp>(loc, condition, rewriter.getStringAttr("Incompatible dimensions"));
+				}
+			}
+		}
+
+		// Allocate the result array
+		auto resultType = op.resultType().cast<ArrayType>();
+		llvm::SmallVector<mlir::Value, 3> dynamicDimensions;
+		getArrayDynamicDimensions(rewriter, loc, op.lhs(), dynamicDimensions);
+		mlir::Value result = allocate(rewriter, loc, resultType, dynamicDimensions);
+		rewriter.replaceOp(op, result);
+
+		// Apply the operation on each array position
+		iterateArray(rewriter, loc, op.lhs(),
+								 [&](mlir::ValueRange position) {
+									 mlir::Value lhs = rewriter.create<LoadOp>(loc, op.lhs(), position);
+									 mlir::Value rhs = rewriter.create<LoadOp>(loc, op.rhs(), position);
+									 mlir::Value value = rewriter.create<DivOp>(loc, resultType.getElementType(), lhs, rhs);
+									 rewriter.create<StoreOp>(loc, value, result, position);
+								 });
+
+		return mlir::success();
+	}
+
+	private:
+	ModelicaConversionOptions options;
 };
 
 /**
@@ -3646,8 +4024,12 @@ static void populateModelicaConversionPatterns(
 			CallOpLowering,
 			NotOpArrayLowering,
 			NegateOpArrayLowering,
+			AddElementWiseOpMixedLowering,
+			SubElementWiseOpMixedLowering,
 			MulOpScalarProductLowering,
-			DivOpArrayLowering,
+			MulElementWiseOpScalarProductLowering,
+			DivOpArrayScalarLowering,
+			DivElementWiseOpMixedLowering,
 			NDimsOpLowering,
 			SizeOpDimensionLowering,
 			SizeOpArrayLowering>(context);
@@ -3655,8 +4037,12 @@ static void populateModelicaConversionPatterns(
 	patterns.insert<
 			AndOpArrayLowering,
 			OrOpArrayLowering,
-			AddOpArrayLowering,
-			SubOpArrayLowering>(context, options);
+			AddOpArraysLowering,
+			AddElementWiseOpArraysLowering,
+			SubOpArraysLowering,
+			SubElementWiseOpArraysLowering,
+			MulElementWiseOpArraysLowering,
+			DivElementWiseOpArraysLowering>(context, options);
 
 	patterns.insert<
 			ConstantOpLowering,
@@ -3673,14 +4059,18 @@ static void populateModelicaConversionPatterns(
 			LtOpLowering,
 			LteOpLowering,
 			NegateOpScalarLowering,
-			AddOpScalarLowering,
-			SubOpScalarLowering,
-			MulOpLowering,
+			AddOpScalarsLowering,
+			AddElementWiseOpScalarsLowering,
+			SubOpScalarsLowering,
+			SubElementWiseOpScalarsLowering,
+			MulOpScalarsLowering,
+			MulElementWiseOpScalarsLowering,
 			MulOpCrossProductLowering,
 			MulOpVectorMatrixLowering,
 			MulOpMatrixVectorLowering,
 			MulOpMatrixLowering,
-			DivOpLowering,
+			DivOpScalarsLowering,
+			DivElementWiseOpScalarsLowering,
 			PowOpLowering,
 			PowOpMatrixLowering>(context, typeConverter, options);
 
@@ -3765,7 +4155,12 @@ class ModelicaConversionPass : public mlir::PassWrapper<ModelicaConversionPass, 
 				PrintOp,
 				NotOp, AndOp, OrOp,
 				EqOp, NotEqOp, GtOp, GteOp, LtOp, LteOp,
-				NegateOp, AddOp, SubOp, MulOp, DivOp, PowOp>();
+				NegateOp,
+				AddOp, AddElementWiseOp,
+				SubOp, SubElementWiseOp,
+				MulOp, MulElementWiseOp,
+				DivOp, DivElementWiseOp,
+				PowOp, PowElementWiseOp>();
 
 		target.addIllegalOp<
 		    AbsOp, AcosOp, AsinOp, AtanOp, Atan2Op, CosOp, CoshOp, DiagonalOp,

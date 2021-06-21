@@ -1,6 +1,6 @@
 // RUN: modelica-opt %s --split-input-file --auto-diff | FileCheck %s
 
-// CHECK-LABEL: @foo1
+// CHECK-LABEL: @bar
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<2x!modelica.real>
 // CHECK-SAME: %[[Y:[a-zA-Z0-9]*]] : !modelica.int
 // CHECK-SAME: %[[Z:[a-zA-Z0-9]*]] : !modelica.real

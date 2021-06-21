@@ -180,6 +180,7 @@ namespace modelica::codegen
 		[[nodiscard]] ArrayType toAllocationScope(BufferAllocationScope scope);
 		[[nodiscard]] ArrayType toUnknownAllocationScope();
 		[[nodiscard]] ArrayType toMinAllowedAllocationScope();
+		[[nodiscard]] ArrayType toElementType(mlir::Type elementType);
 		[[nodiscard]] UnsizedArrayType toUnsized();
 
 		[[nodiscard]] bool canBeOnStack() const;

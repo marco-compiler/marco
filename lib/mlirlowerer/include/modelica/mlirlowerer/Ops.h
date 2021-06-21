@@ -1908,6 +1908,61 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::AddElementWiseOp
+	//===----------------------------------------------------------------------===//
+
+	class AddElementWiseOp;
+
+	class AddElementWiseOpAdaptor : public OpAdaptor<AddElementWiseOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	class AddElementWiseOp : public mlir::Op<AddElementWiseOp,
+																					mlir::OpTrait::NOperands<2>::Impl,
+																					mlir::OpTrait::OneResult,
+																					mlir::OpTrait::IsCommutative,
+																					mlir::MemoryEffectOpInterface::Trait,
+																					InvertibleInterface::Trait,
+																					NegateOpDistributionInterface::Trait,
+																					MulOpDistributionInterface::Trait,
+																					DivOpDistributionInterface::Trait,
+																					DerivativeInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = AddElementWiseOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.add_ew";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
+
+		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
+		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+
+		mlir::Type resultType();
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::SubOp
 	//===----------------------------------------------------------------------===//
 
@@ -1939,6 +1994,60 @@ namespace modelica::codegen
 		static constexpr llvm::StringLiteral getOperationName()
 		{
 			return "modelica.sub";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
+
+		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
+		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+
+		mlir::Type resultType();
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::SubElementWiseOp
+	//===----------------------------------------------------------------------===//
+
+	class SubElementWiseOp;
+
+	class SubElementWiseOpAdaptor : public OpAdaptor<SubElementWiseOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	class SubElementWiseOp : public mlir::Op<SubElementWiseOp,
+																					mlir::OpTrait::NOperands<2>::Impl,
+																					mlir::OpTrait::OneResult,
+																					mlir::MemoryEffectOpInterface::Trait,
+																					InvertibleInterface::Trait,
+																					NegateOpDistributionInterface::Trait,
+																					MulOpDistributionInterface::Trait,
+																					DivOpDistributionInterface::Trait,
+																					DerivativeInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = SubElementWiseOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.sub_ew";
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
@@ -1994,6 +2103,62 @@ namespace modelica::codegen
 		static constexpr llvm::StringLiteral getOperationName()
 		{
 			return "modelica.mul";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
+
+		mlir::Value distribute(mlir::OpBuilder& builder);
+		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
+		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+
+		mlir::Type resultType();
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::MulElementWiseOp
+	//===----------------------------------------------------------------------===//
+
+	class MulElementWiseOp;
+
+	class MulElementWiseOpAdaptor : public OpAdaptor<MulElementWiseOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	class MulElementWiseOp : public mlir::Op<MulElementWiseOp,
+																					mlir::OpTrait::NOperands<2>::Impl,
+																					mlir::OpTrait::OneResult,
+																					mlir::MemoryEffectOpInterface::Trait,
+																					InvertibleInterface::Trait,
+																					DistributableInterface::Trait,
+																					NegateOpDistributionInterface::Trait,
+																					MulOpDistributionInterface::Trait,
+																					DivOpDistributionInterface::Trait,
+																					DerivativeInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = MulElementWiseOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.mul_ew";
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
@@ -2074,6 +2239,62 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Modelica::DivElementWiseOp
+	//===----------------------------------------------------------------------===//
+
+	class DivElementWiseOp;
+
+	class DivElementWiseOpAdaptor : public OpAdaptor<DivElementWiseOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	class DivElementWiseOp : public mlir::Op<DivElementWiseOp,
+																					mlir::OpTrait::NOperands<2>::Impl,
+																					mlir::OpTrait::OneResult,
+																					mlir::MemoryEffectOpInterface::Trait,
+																					InvertibleInterface::Trait,
+																					DistributableInterface::Trait,
+																					NegateOpDistributionInterface::Trait,
+																					MulOpDistributionInterface::Trait,
+																					DivOpDistributionInterface::Trait,
+																					DerivativeInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = DivElementWiseOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.div_ew";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
+
+		mlir::Value distribute(mlir::OpBuilder& builder);
+		mlir::Value distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType);
+		mlir::Value distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+		mlir::Value distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+
+		mlir::Type resultType();
+		mlir::Value lhs();
+		mlir::Value rhs();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Modelica::PowOp
 	//===----------------------------------------------------------------------===//
 
@@ -2107,6 +2328,50 @@ namespace modelica::codegen
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		static void getCanonicalizationPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+
+		mlir::Type resultType();
+		mlir::Value base();
+		mlir::Value exponent();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::PowElementWiseOp
+	//===----------------------------------------------------------------------===//
+
+	class PowElementWiseOp;
+
+	class PowElementWiseOpAdaptor : public OpAdaptor<PowElementWiseOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value base();
+		mlir::Value exponent();
+	};
+
+	class PowElementWiseOp : public mlir::Op<PowElementWiseOp,
+																					mlir::OpTrait::NOperands<2>::Impl,
+																					mlir::OpTrait::OneResult,
+																					mlir::MemoryEffectOpInterface::Trait,
+																					DerivativeInterface::Trait>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = PowElementWiseOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.pow_ew";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value base, mlir::Value exponent);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 

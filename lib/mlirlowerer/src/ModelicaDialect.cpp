@@ -60,7 +60,13 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<ArrayCloneOp>();
 
 	// Math operations
-	addOperations<NegateOp, AddOp, SubOp, MulOp, DivOp, PowOp>();
+	addOperations<
+	    NegateOp,
+			AddOp, AddElementWiseOp,
+			SubOp, SubElementWiseOp,
+			MulOp, MulElementWiseOp,
+			DivOp, DivElementWiseOp,
+			PowOp, PowElementWiseOp>();
 
 	// Logic operations
 	addOperations<NotOp, AndOp, OrOp>();

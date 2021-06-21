@@ -220,6 +220,9 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 			builder.clone(baseOp, mapping);
 	}
 
+	// List of the operations to be derived
+	std::set<mlir::Operation*> derivedOperations;
+	llvm::SmallVector<DerivativeInterface, 3> derivableOps;
 	std::set<mlir::Operation*> notToBeDerivedOps;
 
 	// Create the members derivatives
@@ -315,9 +318,6 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 			names.append(newNames);
 		}
 	}
-	// List of the operations to be derived
-	std::set<mlir::Operation*> derivedOperations;
-	llvm::SmallVector<DerivativeInterface, 3> derivableOps;
 
 	for (const auto& independentVariable : independentVariables)
 	{
@@ -623,6 +623,8 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 		}
 		else
 		{
+			builder.setInsertionPointAfterValue(value);
+
 			mlir::Value der = createDerVariable(builder, value, [name = std::ref(name), &order]() {
 				return getNextFullDerVariableName(name, order);
 			});
