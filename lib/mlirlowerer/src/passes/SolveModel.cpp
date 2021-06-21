@@ -803,15 +803,13 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 	void runOnOperation() override
 	{
-		// TODO: addTimeDerivative
-
-		// Convert the scalar values into arrays of one element
-		if (failed(loopify()))
-			return signalPassFailure();
-
 		// Scalarize the equations consisting in array assignments, by adding
 		// the required inductions.
 		if (failed(scalarizeArrayEquations()))
+			return signalPassFailure();
+
+		// Convert the scalar values into arrays of one element
+		if (failed(loopify()))
 			return signalPassFailure();
 
 		getOperation()->walk([&](SimulationOp simulation) {
@@ -825,8 +823,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (failed(removeDerivatives(builder, model, derivatives)))
 				return signalPassFailure();
 
-			if (failed(instantiateFunctionDerivatives(builder, model, derivatives)))
-				return signalPassFailure();
+			//if (failed(instantiateFunctionDerivatives(builder, model, derivatives)))
+			//	return signalPassFailure();
 
 			// Match
 			if (failed(match(model, options.matchingMaxIterations)))
