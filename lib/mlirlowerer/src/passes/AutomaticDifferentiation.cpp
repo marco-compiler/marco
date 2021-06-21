@@ -360,6 +360,25 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 	return mlir::success();
 }
 
+struct DerSeedOpPattern : public mlir::OpRewritePattern<DerSeedOp>
+{
+	using mlir::OpRewritePattern<DerSeedOp>::OpRewritePattern;
+
+	mlir::LogicalResult matchAndRewrite(DerSeedOp op, mlir::PatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op->getLoc();
+
+		auto memberType = op.member().getType().cast<MemberType>();
+		assert(memberType.toArrayType().isScalar());
+
+		mlir::Value seed = rewriter.create<ConstantOp>(loc, RealAttribute::get(op.getContext(), op.value()));
+		rewriter.create<MemberStoreOp>(loc, op.member(), seed);
+
+		rewriter.eraseOp(op);
+		return mlir::success();
+	}
+};
+
 /**
  * Compose the full derivative member name according to the derivative order.
  * If the order is 1, then it is omitted.
@@ -743,7 +762,15 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 			function->erase();
 		}
 
-		return mlir::success();
+		// Convert the seed operations
+		mlir::ConversionTarget target(getContext());
+		target.addIllegalOp<DerSeedOp>();
+		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
+
+		mlir::OwningRewritePatternList patterns(&getContext());
+		patterns.insert<DerSeedOpPattern>(&getContext());
+
+		return applyFullConversion(module, target, std::move(patterns));
 	}
 
 	mlir::LogicalResult resolveTrivialDerCalls()
