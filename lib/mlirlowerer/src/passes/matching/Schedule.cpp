@@ -126,12 +126,13 @@ mlir::LogicalResult modelica::codegen::model::schedule(Model& model)
 	mlir::Operation* op = model.getOp().body().front().getTerminator();
 
 	for (const auto& res : results)
+	{
 		for (const auto& equation : res)
 		{
 			equation.getOp()->moveBefore(op);
-			op = equation.getOp();
 			equations.push_back(equation);
 		}
+	}
 
 	Model result(model.getOp(), model.getVariables(), equations);
 	model = result;

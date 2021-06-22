@@ -1739,25 +1739,25 @@ mlir::ParseResult AllocaOp::parse(mlir::OpAsmParser& parser, mlir::OperationStat
 
 void AllocaOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName()
-					<< " " << dynamicDimensions()
-					<< ": ";
+	auto dimensions = dynamicDimensions();
+	printer << getOperationName();
 
-	if (isConstant())
-		printer << "{constant = true} ";
+	if (!dimensions.empty())
+		printer << " " << dimensions;
 
-	if (auto dimensionsTypes = dynamicDimensions().getTypes(); !dimensionsTypes.empty())
-	{
-		if (dimensionsTypes.size() > 1)
-			printer << "(";
+	printer.printOptionalAttrDict(getOperation()->getAttrs());
+	printer << " : ";
 
-		printer << dimensionsTypes;
+	if (dimensions.size() > 1)
+		printer << "(";
 
-		if (dimensionsTypes.size() > 1)
-			printer << ")";
+	printer << dimensions.getTypes();
 
+	if (dimensions.size() > 1)
+		printer << ")";
+
+	if (!dimensions.empty())
 		printer << " -> ";
-	}
 
 	printer << resultType();
 }
@@ -1877,8 +1877,11 @@ mlir::ParseResult AllocOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 void AllocOp::print(mlir::OpAsmPrinter& printer)
 {
 	auto dimensions = dynamicDimensions();
+	printer << getOperationName();
 
-	printer << getOperationName() << " " << dimensions;
+	if (!dimensions.empty())
+		printer << " " << dimensions;
+
 	printer.printOptionalAttrDict(getOperation()->getAttrs());
 	printer << " : ";
 
@@ -1890,7 +1893,10 @@ void AllocOp::print(mlir::OpAsmPrinter& printer)
 	if (dimensions.size() > 1)
 		printer << ")";
 
-	printer << " -> " << resultType();
+	if (!dimensions.empty())
+		printer << " -> ";
+
+	printer << resultType();
 }
 
 mlir::LogicalResult AllocOp::verify()

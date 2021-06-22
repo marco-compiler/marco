@@ -92,6 +92,57 @@ Expression Expression::build(mlir::Value value)
 	if (auto op = mlir::dyn_cast<DivOp>(definingOp))
 		return Expression::operation(op, build(op.lhs()), build(op.rhs()));
 
+	if (auto op = mlir::dyn_cast<PowOp>(definingOp))
+		return Expression::operation(op, build(op.base()), build(op.exponent()));
+
+	if (auto op = mlir::dyn_cast<AbsOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<SignOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<SqrtOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<SinOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<CosOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<TanOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<AsinOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<AcosOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<AtanOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<Atan2Op>(definingOp))
+		return Expression::operation(op, build(op.y()), build(op.x()));
+
+	if (auto op = mlir::dyn_cast<SinhOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<CoshOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<TanhOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<ExpOp>(definingOp))
+		return Expression::operation(op, build(op.exponent()));
+
+	if (auto op = mlir::dyn_cast<LogOp>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
+	if (auto op = mlir::dyn_cast<Log10Op>(definingOp))
+		return Expression::operation(op, build(op.operand()));
+
 	assert(false && "Unexpected operation");
 }
 

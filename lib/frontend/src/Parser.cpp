@@ -981,7 +981,7 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::term()
 	TRY(toReturn, factor());
 	loc.extendEnd((*toReturn)->getLocation());
 
-	// if we se no multiply or division sign we return.
+	// if we see no multiply or division sign we return.
 	if (current != Token::Multiply && current != Token::Division)
 		return std::move(*toReturn);
 
@@ -1081,6 +1081,8 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::primary()
 		return Expression::constant(value->getLocation(), makeType<BuiltInType::Boolean>(), value->getValue());
 	}
 
+	std::unique_ptr<Expression> result;
+
 	if (accept<Token::LPar>())
 	{
 		llvm::SmallVector<std::unique_ptr<Expression>, 3> args;
@@ -1094,10 +1096,9 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::primary()
 		if (args.size() == 1)
 			return std::move(args[0]);
 
-		return Expression::tuple(loc, Type::unknown(), args);
+		result = Expression::tuple(loc, Type::unknown(), args);
 	}
-
-	if (accept<Token::LCurly>())
+	else if (accept<Token::LCurly>())
 	{
 		llvm::SmallVector<std::unique_ptr<Expression>, 3> values;
 
@@ -1110,10 +1111,9 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::primary()
 		loc.extendEnd(getPosition());
 		EXPECT(Token::RCurly);
 
-		return Expression::array(loc, Type::unknown(), values);
+		result = Expression::array(loc, Type::unknown(), values);
 	}
-
-	if (accept<Token::DerKeyword>())
+	else if (accept<Token::DerKeyword>())
 	{
 		auto functionLoc = loc;
 		auto argsLocation = getPosition();
@@ -1125,10 +1125,9 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::primary()
 		loc.extendEnd(argsLocation);
 
 		auto function = Expression::reference(functionLoc, Type::unknown(), "der");
-		return Expression::call(loc, Type::unknown(), std::move(function), args);
+		result = Expression::call(loc, Type::unknown(), std::move(function), args);
 	}
-
-	if (current == Token::Ident)
+	else if (current == Token::Ident)
 	{
 		TRY(exp, componentReference());
 		loc.extendEnd((*exp)->getLocation());
@@ -1143,10 +1142,26 @@ llvm::Expected<std::unique_ptr<Expression>> Parser::primary()
 			return std::move(error);
 
 		loc.extendEnd(argsLocation);
-		return Expression::call(loc, Type::unknown(), std::move(*exp), args);
+		result = Expression::call(loc, Type::unknown(), std::move(*exp), args);
 	}
 
-	return llvm::make_error<UnexpectedToken>(tokenRange, current);
+	if (current == Token::LSquare)
+	{
+		auto subscriptsLocation = getPosition();
+		llvm::SmallVector<std::unique_ptr<Expression>, 3> subscripts;
+
+		if (auto error = arraySubscript(subscriptsLocation, subscripts); error)
+			return std::move(error);
+
+		loc.extendEnd(subscriptsLocation);
+		subscripts.insert(subscripts.begin(), std::move(result));
+		result = Expression::operation(loc, Type::unknown(), OperationKind::subscription, subscripts);
+	}
+
+	if (result == nullptr)
+		return llvm::make_error<UnexpectedToken>(tokenRange, current);
+
+	return std::move(result);
 }
 
 llvm::Expected<std::unique_ptr<Expression>> Parser::componentReference()

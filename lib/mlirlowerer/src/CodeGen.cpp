@@ -591,16 +591,18 @@ void MLIRLowerer::lower<frontend::Model>(const Member& member)
 
 	if (auto arrayType = type.dyn_cast<ArrayType>())
 	{
-		mlir::Value ptr = builder.create<AllocOp>(location, arrayType.getElementType(), arrayType.getShape(), llvm::None, false);
+		mlir::Value ptr = builder.create<AllocOp>(location, arrayType.getElementType(), arrayType.getShape(), llvm::None, false, member.isParameter());
 		symbolTable.insert(member.getName(), Reference::memory(&builder, ptr));
 	}
 	else
 	{
-		mlir::Value ptr = builder.create<AllocOp>(location, type, llvm::None, llvm::None, false);
+		mlir::Value ptr = builder.create<AllocOp>(location, type, llvm::None, llvm::None, false, member.isParameter());
 		symbolTable.insert(member.getName(), Reference::memory(&builder, ptr));
 	}
 
 	mlir::Value destination = symbolTable.lookup(member.getName()).getReference();
+	auto name = member.getName();
+	bool isConstant = member.isParameter();
 
 	if (member.hasStartOverload())
 	{
@@ -611,6 +613,12 @@ void MLIRLowerer::lower<frontend::Model>(const Member& member)
 			builder.create<FillOp>(location, *values[0], destination);
 		else
 			builder.create<AssignmentOp>(location, *values[0], destination);
+	}
+	else if (member.hasInitializer())
+	{
+		Reference memory = symbolTable.lookup(member.getName());
+		mlir::Value value = *lower<Expression>(*member.getInitializer())[0];
+		memory.set(value);
 	}
 	else
 	{
@@ -1095,6 +1103,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 		mlir::Value base = *lower<Expression>(*operation->getArg(0))[0];
 		mlir::Value exponent = *lower<Expression>(*operation->getArg(1))[0];
 
+		/*
 		if (base.getType().isa<ArrayType>())
 		{
 			exponent = builder.create<CastOp>(base.getLoc(), exponent, builder.getIntegerType());
@@ -1104,6 +1113,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Operation>(const Expression
 			base = builder.create<CastOp>(base.getLoc(), base, builder.getRealType());
 			exponent = builder.create<CastOp>(base.getLoc(), exponent, builder.getRealType());
 		}
+		 */
 
 		mlir::Value result = builder.create<PowOp>(location, resultType, base, exponent);
 		return { Reference::ssa(&builder, result) };
@@ -1269,7 +1279,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	if (functionName == "abs")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<AbsOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1277,7 +1287,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "acos")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<AcosOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1285,7 +1295,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "asin")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<AsinOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1293,7 +1303,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "atan")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<AtanOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1301,8 +1311,8 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "atan2")
 	{
 		assert(call->argumentsCount() == 2);
-		mlir::Value y = lower<Expression>(*call->getArg(0))[0].getReference();
-		mlir::Value x = lower<Expression>(*call->getArg(1))[0].getReference();
+		mlir::Value y = *lower<Expression>(*call->getArg(0))[0];
+		mlir::Value x = *lower<Expression>(*call->getArg(1))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<Atan2Op>(location, resultType, y, x);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1310,7 +1320,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "cos")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<CosOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1318,7 +1328,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "cosh")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<CoshOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1343,9 +1353,9 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "exp")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value exponent = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
-		mlir::Value result = builder.create<ExpOp>(location, resultType, operand);
+		mlir::Value result = builder.create<ExpOp>(location, resultType, exponent);
 		results.emplace_back(Reference::ssa(&builder, result));
 	}
 	else if (functionName == "identity")
@@ -1369,7 +1379,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "log")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<LogOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1377,7 +1387,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "log10")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<Log10Op>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1437,7 +1447,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "sign")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<SignOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1445,7 +1455,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "sin")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<SinOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1453,7 +1463,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "sinh")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<SinhOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1484,7 +1494,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "sqrt")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<SqrtOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1508,7 +1518,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "tan")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<TanOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));
@@ -1516,7 +1526,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 	else if (functionName == "tanh")
 	{
 		assert(call->argumentsCount() == 1);
-		mlir::Value operand = lower<Expression>(*call->getArg(0))[0].getReference();
+		mlir::Value operand = *lower<Expression>(*call->getArg(0))[0];
 		mlir::Type resultType = lower(call->getType(), BufferAllocationScope::stack);
 		mlir::Value result = builder.create<TanhOp>(location, resultType, operand);
 		results.emplace_back(Reference::ssa(&builder, result));

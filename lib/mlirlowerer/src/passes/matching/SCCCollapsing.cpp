@@ -291,10 +291,16 @@ namespace modelica::codegen::model
 		}
 
 		llvm::SmallVector<Equation, 3> equations;
+		auto* terminator = model.getOp().body().front().getTerminator();
 
 		for (auto& equationsList : possibleEquations)
+		{
 			for (auto& equation : equationsList)
+			{
+				equation.getOp()->moveBefore(terminator);
 				equations.push_back(equation);
+			}
+		}
 
 		model = Model(model.getOp(), model.getVariables(), equations);
 		return mlir::success();
