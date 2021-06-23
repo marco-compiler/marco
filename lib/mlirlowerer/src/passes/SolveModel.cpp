@@ -532,7 +532,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 				mlir::Value increasedTime = rewriter.create<AddOp>(
 						loc, currentTime.getType(), currentTime, timeStep);
 
-				//rewriter.create<StoreOp>(loc, increasedTime, args[0]);
+				rewriter.create<StoreOp>(loc, increasedTime, args[0]);
 			}
 
 			// Check if the current time is less than the end time
@@ -640,24 +640,6 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 				rewriter.create<YieldOp>(loc);
 
 				rewriter.setInsertionPointToStart(&loop.step().front());
-
-				mlir::Value structValue = loadDataFromOpaquePtr(rewriter, loc, data, structType);
-
-				mlir::Value time = rewriter.create<ExtractOp>(
-						loc,
-						structValue.getType().cast<StructType>().getElementTypes()[0],
-						structValue, 0);
-
-				mlir::Value timeStep = rewriter.create<ExtractOp>(
-						loc, op.timeStep().getType(), structValue, 1);
-
-				mlir::Value currentTime = rewriter.create<LoadOp>(loc, time);
-
-				mlir::Value increasedTime = rewriter.create<AddOp>(
-						loc, currentTime.getType(), currentTime, timeStep);
-
-				rewriter.create<StoreOp>(loc, increasedTime, time);
-
 				rewriter.create<YieldOp>(loc);
 			}
 
