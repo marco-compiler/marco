@@ -297,7 +297,7 @@ namespace modelica::codegen::model
 		{
 			for (auto& equation : equationsList)
 			{
-				equation.getOp()->moveBefore(terminator);
+				//equation.getOp()->moveBefore(terminator);
 				equations.push_back(equation);
 			}
 		}

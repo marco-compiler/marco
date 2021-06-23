@@ -492,6 +492,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 
 			// Set the start time
 			mlir::Value startTime = rewriter.create<ConstantOp>(loc, op.startTime());
+			//startTime = rewriter.create<SubOp>(loc, startTime.getType(), startTime, timeStep);
 			rewriter.create<StoreOp>(loc, startTime, values[0]);
 
 			mlir::Value structValue = rewriter.create<PackOp>(terminator->getLoc(), values);
@@ -521,9 +522,23 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			for (size_t i = 2, e = structType.getElementTypes().size(); i < e; ++i)
 				args.push_back(rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i));
 
+			mlir::Value timeStep = rewriter.create<ExtractOp>(
+					loc, op.timeStep().getType(), structValue, 1);
+
+			{
+				// Increment the time
+				mlir::Value currentTime = rewriter.create<LoadOp>(loc, args[0]);
+
+				mlir::Value increasedTime = rewriter.create<AddOp>(
+						loc, currentTime.getType(), currentTime, timeStep);
+
+				//rewriter.create<StoreOp>(loc, increasedTime, args[0]);
+			}
+
 			// Check if the current time is less than the end time
 			mlir::Value currentTime = rewriter.create<LoadOp>(loc, args[0]);
 			mlir::Value endTime = rewriter.create<ConstantOp>(loc, op.endTime());
+			endTime = rewriter.create<AddOp>(loc, endTime.getType(), endTime, timeStep);
 
 			mlir::Value condition = rewriter.create<LtOp>(
 					loc, BooleanType::get(op->getContext()), currentTime, endTime);
@@ -603,6 +618,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 
 			// Initialize the variables
 			mlir::Value data = rewriter.create<CallOp>(loc, "init", opaquePtrType, llvm::None).getResult(0);
+			rewriter.create<CallOp>(loc, "print", llvm::None, data);
 
 			// Create the simulation loop
 			auto loop = rewriter.create<ForOp>(loc);
@@ -623,8 +639,8 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 				rewriter.create<CallOp>(loc, "print", llvm::None, data);
 				rewriter.create<YieldOp>(loc);
 
-				// Increment the time
 				rewriter.setInsertionPointToStart(&loop.step().front());
+
 				mlir::Value structValue = loadDataFromOpaquePtr(rewriter, loc, data, structType);
 
 				mlir::Value time = rewriter.create<ExtractOp>(
@@ -641,6 +657,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 						loc, currentTime.getType(), currentTime, timeStep);
 
 				rewriter.create<StoreOp>(loc, increasedTime, time);
+
 				rewriter.create<YieldOp>(loc);
 			}
 

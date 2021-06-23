@@ -141,7 +141,7 @@ class ArrayDescriptor
 
 	[[nodiscard]] llvm::ArrayRef<unsigned long> getDimensions() const
 	{
-		return llvm::ArrayRef(sizes, rank);
+		return llvm::ArrayRef<unsigned long>(sizes, rank);
 	}
 
 	[[nodiscard]] unsigned long getNumElements() const

@@ -208,8 +208,6 @@ void MatchingGraph::emplaceEdge(Equation eq, ExpressionPath path, size_t useInde
 	if (var.isState() || var.isConstant())
 		return;
 
-	auto dim1 = access.getAccess().mappableDimensions();
-	auto dim2 = eq.dimensions();
 	if (access.getAccess().mappableDimensions() < eq.dimensions())
 		return;
 
@@ -234,6 +232,7 @@ mlir::LogicalResult modelica::codegen::model::match(Model& model, size_t maxIter
 		return model.getOp()->emitError("Not all the equations have been matched");
 
 	llvm::SmallVector<Equation, 3> equations;
+	mlir::OpBuilder builder(model.getOp());
 
 	for (auto& edge : graph)
 	{
@@ -242,14 +241,16 @@ mlir::LogicalResult modelica::codegen::model::match(Model& model, size_t maxIter
 
 		for (const auto& inductionVars : edge.getSet())
 		{
-			// It is sufficient to make a copy of the equation descriptor, as we
-			// don't need to clone the whole equation IR.
 			auto equation = edge.getEquation();
-
-			equation.setInductions(inductionVars);
-			equation.setMatchedExp(edge.getPath().getEquationPath());
-			equations.push_back(equation);
+			builder.setInsertionPoint(equation.getOp());
+			mlir::Operation* clone = builder.clone(*equation.getOp().getOperation());
+			Equation newEquation = Equation::build(clone);
+			newEquation.setInductions(inductionVars);
+			newEquation.setMatchedExp(edge.getPath().getEquationPath());
+			equations.push_back(newEquation);
 		}
+
+		edge.getEquation().getOp()->erase();
 	}
 
 	Model result(model.getOp(), model.getVariables(), equations);
