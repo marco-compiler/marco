@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llvm/ADT/SmallVector.h>
+#include <variant>
 
 #include "Expression.h"
 #include "Model.h"
@@ -8,6 +9,10 @@
 
 namespace marco::codegen::model
 {
+	/**
+	 * This class, given an equation or a blt block, finds and stores pointers
+	 * to subexpressions that are variable accesses.
+	 */
 	class ReferenceMatcher
 	{
 		private:
@@ -18,7 +23,7 @@ namespace marco::codegen::model
 		using const_iterator = Container<ExpressionPath>::const_iterator;
 
 		ReferenceMatcher();
-		ReferenceMatcher(Equation eq);
+		ReferenceMatcher(std::variant<Equation, BltBlock> content);
 
 		[[nodiscard]] ExpressionPath& operator[](size_t index);
 		[[nodiscard]] const ExpressionPath& operator[](size_t index) const;
@@ -38,6 +43,7 @@ namespace marco::codegen::model
 
 		void visit(Expression exp, bool isLeft);
 		void visit(Equation equation, bool ignoreMatched = false);
+		void visit(std::variant<Equation, BltBlock> content, bool ignoreMatched = false);
 
 		private:
 		void removeBack();

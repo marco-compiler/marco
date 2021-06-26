@@ -19,38 +19,42 @@ using namespace llvm;
 using namespace boost;
 using namespace std;
 
-void SVarDepencyGraph::insertNode(LookUp& LookUp, size_t vertexIndex)
+void SVarDependencyGraph::insertNode(LookUp& lookUp, size_t vertexIndex)
 {
 	const IndexesOfEquation& vertex = collapsedGraph[vertexIndex];
-	const auto& interval = vertex.getEquation().getInductions();
-
-	for (auto eqInds : interval.contentRange())
+	
+	for (size_t i : irange(vertex.size()))
 	{
-		auto indicies = vertex.getEqToVar().map(eqInds);
-		auto vertexIndex = add_vertex(SingleEquationReference(vertex, indicies), graph);
-		LookUp[&vertex][vertex.getVariable().indexOfElement(indicies)] = vertexIndex;
+		const MultiDimInterval& interval = vertex.getEquations()[i].getInductions();
+		for (auto eqInds : interval.contentRange())
+		{
+			auto indicies = vertex.getEqToVars()[i].map(eqInds);
+			size_t vertexIndex = add_vertex(SingleEquationReference(vertex, indicies), graph);
+			lookUp[&vertex][vertex.getVariables()[i].indexOfElement(indicies)] = vertexIndex;
+		}
 	}
 }
 
 static Optional<size_t> indexOfScalarVar(
 		ArrayRef<size_t> access,
 		const IndexesOfEquation& var,
-		const SVarDepencyGraph::LookUp& lookUp)
+		const SVarDependencyGraph::LookUp& lookUp)
 {
 	auto v = lookUp.find(&var);
 
 	if (v == lookUp.end())
 		return {};
 
-	auto toReturn = v->second.find(var.getVariable().indexOfElement(access));
-
-	if (toReturn == v->second.end())
-		return {};
-
-	return toReturn->second;
+	for (const Variable variable : var.getVariables())
+	{
+		auto toReturn = v->second.find(variable.indexOfElement(access));
+		if (toReturn != v->second.end())
+			return toReturn->second;
+	}
+	return {};
 }
 
-void SVarDepencyGraph::insertEdge(
+void SVarDependencyGraph::insertEdge(
 		const LookUp& lookUp, const VVarDependencyGraph::EdgeDesc& edge)
 {
 	size_t sourceVertex = source(edge, collImpl());
@@ -63,29 +67,32 @@ void SVarDepencyGraph::insertEdge(
 	const IndexesOfEquation& sourceNode = *collImpl()[sourceVertex];
 	const VectorAccess& varAccess = collImpl()[edge];
 
-	VectorAccess dependencies = targetNode.getVarToEq() * varAccess;
-
-	for (const auto& indecies : targetNode.getInterval().contentRange())
+	for (size_t i : irange(targetNode.size()))
 	{
-		auto sourceIndex = indexOfScalarVar(indecies, sourceNode, lookUp);
+		VectorAccess dependencies = targetNode.getVarToEqs()[i] * varAccess;
 
-		auto scalarVarInduction = dependencies.map(indecies);
-		auto targetIndex = indexOfScalarVar(scalarVarInduction, targetNode, lookUp);
+		for (const auto& indices : targetNode.getIntervals()[i].contentRange())
+		{
+			auto sourceIndex = indexOfScalarVar(indices, sourceNode, lookUp);
 
-		if (!sourceIndex || !targetIndex)
-			continue;
+			auto scalarVarInduction = dependencies.map(indices);
+			auto targetIndex = indexOfScalarVar(scalarVarInduction, targetNode, lookUp);
 
-		add_edge(*sourceIndex, *targetIndex, graph);
+			if (!sourceIndex || !targetIndex)
+				continue;
+
+			add_edge(*sourceIndex, *targetIndex, graph);
+		}
 	}
 }
 
-void SVarDepencyGraph::insertEdges(const LookUp& lookUp, size_t vertexIndex)
+void SVarDependencyGraph::insertEdges(const LookUp& lookUp, size_t vertexIndex)
 {
 	for (const auto& edge : outEdgesRange(vertexIndex, collImpl()))
 		insertEdge(lookUp, edge);
 }
 
-SVarDepencyGraph::SVarDepencyGraph(
+SVarDependencyGraph::SVarDependencyGraph(
 		const VVarDependencyGraph& collapsedGraph, const VVarScc& scc)
 		: scc(scc), collapsedGraph(collapsedGraph)
 {

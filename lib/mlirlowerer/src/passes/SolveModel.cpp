@@ -10,6 +10,7 @@
 #include <marco/mlirlowerer/dialects/modelica/ModelicaBuilder.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <marco/mlirlowerer/passes/SolveModel.h>
+#include <marco/mlirlowerer/passes/TypeConverter.h>
 #include <marco/mlirlowerer/passes/matching/Matching.h>
 #include <marco/mlirlowerer/passes/matching/SCCCollapsing.h>
 #include <marco/mlirlowerer/passes/matching/Schedule.h>
@@ -17,6 +18,7 @@
 #include <marco/mlirlowerer/passes/model/Expression.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/Variable.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
 #include <marco/mlirlowerer/passes/TypeConverter.h>
 #include <marco/utils/VariableFilter.h>
 
@@ -393,7 +395,7 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 			}
 
 			model->addVariable(derVar);
-			variable.setDer(derVar);
+			variable.setDer(model->getVariable(derVar));
 
 			args.push_back(derVar);
 			rewriter.create<YieldOp>(terminator.getLoc(), args);
@@ -1830,6 +1832,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	 */
 	mlir::LogicalResult updateStates(mlir::OpBuilder& builder, Model& model)
 	{
+		// If the model contains algebraic loops, Forward Euler cannot solve this
+		// model, an other solver must be used.
+		if (!model.getBltBlocks().empty())
+			return mlir::failure();
+
 		mlir::OpBuilder::InsertionGuard guard(builder);
 		mlir::Location loc = model.getOp()->getLoc();
 
@@ -1883,7 +1890,22 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	 */
 	mlir::LogicalResult addBltBlocks(mlir::OpBuilder& builder, Model& model)
 	{
+		llvm::SmallVector<Equation, 3> equations;
+		llvm::SmallVector<BltBlock, 3> bltBlocks = model.getBltBlocks();
+
+		for (Equation& eq : model.getEquations())
+		{
+			if (model.getVariable(eq.getDeterminedVariable().getVar()).isDerivative())
+				bltBlocks.push_back(BltBlock(llvm::SmallVector<Equation, 1>(1, eq)));
+			else
+				equations.push_back(eq);
+		}
+
+		Model result(model.getOp(), model.getVariables(), equations, bltBlocks);
+
+		model = result;
 		assert(false && "To be implemented");
+		return mlir::success();
 	}
 
 	mlir::LogicalResult createSimulationFunctions(mlir::BlockAndValueMapping& derivativesMap)

@@ -5,9 +5,11 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/iterator_range.h>
 #include <map>
+#include <modelica/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
+#include <variant>
 
 #include "MatchedEquationLookup.h"
 
@@ -73,12 +75,26 @@ namespace marco::codegen::model
 		}
 
 		private:
-		using EqToVert = std::map<Equation, VertexDesc>;
+		using EqToVert = std::map<const std::variant<Equation, BltBlock>*, VertexDesc>;
+
+		/**
+		 * For every node, add an edge to every other node that depend on the matched
+		 * variable of that node.
+		 */
 		void populateEdge(
-				IndexesOfEquation& equation,
+				const IndexesOfEquation* content,
 				const AccessToVar& toVariable,
 				EqToVert& eqToVert);
-		void populateEq(IndexesOfEquation& eq, EqToVert& eqToVert);
+
+		/**
+		 * Search for all dependencies among nodes and add an edge between them.
+		 */
+		void populateEq(const IndexesOfEquation* content, EqToVert& eqToVert);
+
+		/**
+		 * Add all nodes to the graph. A node is an IndexesOfEquation which contains
+		 * either an Equation or a BltBlock. Then add all edges among these nodes.
+		 */
 		void create();
 
 		const Model& model;

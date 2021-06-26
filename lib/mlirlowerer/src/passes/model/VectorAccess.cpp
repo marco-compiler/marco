@@ -274,7 +274,7 @@ SingleDimensionAccess VectorAccess::combine(const SingleDimensionAccess& other) 
 	if (other.isDirecAccess())
 		return other;
 
-	assert(other.getInductionVar() <= vectorAccess.size());
+	assert(other.getInductionVar() < vectorAccess.size());
 	const auto& mapped = vectorAccess[other.getInductionVar()];
 
 	return SingleDimensionAccess::relative(

@@ -46,14 +46,14 @@ using namespace marco::codegen::model;
 using EquationsVector = llvm::SmallVector<Equation, 3>;
 
 using EdDescVector = llvm::SmallVector<VVarDependencyGraph::EdgeDesc, 3>;
-using DendenciesVector = llvm::SmallVector<VectorAccess, 3>;
-using InexSetVector = llvm::SmallVector<marco::MultiDimInterval, 3>;
+using DependenciesVector = llvm::SmallVector<VectorAccess, 3>;
+using IndexSetVector = llvm::SmallVector<marco::MultiDimInterval, 3>;
 
 static EdDescVector cycleToEdgeVec(
 		std::vector<VVarDependencyGraph::VertexDesc> c, const VVarDependencyGraph& graph)
 {
 	EdDescVector v;
-	for (auto a : marco::irange(c.size()))
+	for (size_t a : marco::irange(c.size()))
 	{
 		auto vertex = c[a];
 		auto nextVertex = c[(a + 1) % c.size()];
@@ -65,14 +65,14 @@ static EdDescVector cycleToEdgeVec(
 	return v;
 }
 
-static DendenciesVector cycleToDependencyVector(
+static DependenciesVector cycleToDependenciesVector(
 		const EdDescVector& c, const VVarDependencyGraph& graph)
 {
-	DendenciesVector v;
+	DependenciesVector v;
 
 	for (auto e : c)
 	{
-		const auto& varToEq = graph[source(e, graph.getImpl())];
+		const IndexesOfEquation& varToEq = graph[source(e, graph.getImpl())];
 		v.emplace_back(varToEq.getVarToEq() * graph[e]);
 	}
 
@@ -82,9 +82,9 @@ static DendenciesVector cycleToDependencyVector(
 static bool cycleHasIndentityDependency(
 		const EdDescVector& c,
 		const VVarDependencyGraph& graph,
-		const DendenciesVector& dep)
+		const DependenciesVector& dep)
 {
-	auto fin = std::accumulate(
+	VectorAccess fin = std::accumulate(
 			dep.begin() + 1, dep.end(), dep[0], [](const auto& l, const auto& r) {
 				return l * r;
 			});
@@ -92,40 +92,40 @@ static bool cycleHasIndentityDependency(
 	return fin.isIdentity();
 }
 
-static marco::MultiDimInterval cyclicDependetSet(
+static marco::MultiDimInterval cyclicDependentSet(
 		const EdDescVector& c,
 		const VVarDependencyGraph& graph,
-		const DendenciesVector& dep)
+		const DependenciesVector& dep)
 {
-	const auto& firstEq = graph[source(c[0], graph.getImpl())];
-	auto set = firstEq.getInterval();
-	for (auto i : marco::irange(c.size()))
+	const IndexesOfEquation& firstEq = graph[source(c[0], graph.getImpl())];
+	marco::MultiDimInterval set = firstEq.getInterval();
+	for (size_t i : marco::irange(c.size()))
 	{
-		const auto& edge = graph[c[i]];
-		auto eq = graph[target(c[i], graph.getImpl())];
-
+		IndexesOfEquation eq = graph[target(c[i], graph.getImpl())];
 		set = intersection(dep[i].map(set), eq.getInterval());
 	}
 
 	return set;
 }
 
-static InexSetVector cyclicDependetSets(
+static IndexSetVector cyclicDependetSets(
 		const EdDescVector& c, const VVarDependencyGraph& graph)
 {
-	auto dep = cycleToDependencyVector(c, graph);
-	auto cyclicSet = cyclicDependetSet(c, graph, dep);
-	InexSetVector v({ cyclicSet });
+	DependenciesVector dep = cycleToDependenciesVector(c, graph);
+	modelica::MultiDimInterval cyclicSet = cyclicDependentSet(c, graph, dep);
+	IndexSetVector v({ cyclicSet });
+
+	for (size_t i : marco::irange(c.size() - 1))
+		v.emplace_back(dep[i].map(v.back()));
+
+	assert(dep.size() == c.size() && v.size() == c.size());
+
 	if (!cycleHasIndentityDependency(c, graph, dep))
 		return v;
 
-	for (auto i : marco::irange(c.size() - 1))
-		v.emplace_back(dep[i].map(v.back()));
-
-	for (auto i : marco::irange(v.size()))
+	for (size_t i : marco::irange(v.size()))
 	{
-		const auto& edge = graph[c[i]];
-		const auto& eq = graph[source(c[i], graph.getImpl())];
+		const IndexesOfEquation& eq = graph[source(c[i], graph.getImpl())];
 		v[i] = eq.getVarToEq().map(v[i]);
 		assert(eq.getEquation().getInductions().contains(v[i]));
 	}
@@ -140,28 +140,30 @@ static mlir::LogicalResult extractEquationWithDependencies(
 		const std::vector<VVarDependencyGraph::VertexDesc>& cycle,
 		const VVarDependencyGraph& g)
 {
-	auto c = cycleToEdgeVec(cycle, g);
-	auto vecSet = cyclicDependetSets(c, g);
+	EdDescVector c = cycleToEdgeVec(cycle, g);
+	IndexSetVector vecSet = cyclicDependetSets(c, g);
 
 	if (vecSet[0].empty())
 		return mlir::failure();
 
 	// For each equation in the cycle
-	for (auto i : marco::irange(cycle.size()))
+	for (size_t i : marco::irange(cycle.size()))
 	{
-		auto original = g[boost::source(c[i], g.getImpl())].getEquation();
+		Equation original = g[boost::source(c[i], g.getImpl())].getEquation();
 
 		// copy the equation
-		auto toFuseEq = original.clone();
+		Equation toFuseEq = original.clone();
 
 		// set induction to those that generate the circular dependency
-		assert(toFuseEq.getInductions().contains(vecSet[i]));
+		if (!toFuseEq.getInductions().contains(vecSet[i]))
+			return mlir::failure();
+
 		toFuseEq.setInductions(vecSet[i]);
 
 		if (auto res = toFuseEq.explicitate(); failed(res))
 			return res;
 
-		// add it to the list of filtered with normalized body
+		// add it to the list of filtered with normalized body it there is no loop
 		if (auto res = toFuseEq.normalize(); failed(res))
 			return res;
 
@@ -169,9 +171,9 @@ static mlir::LogicalResult extractEquationWithDependencies(
 
 		// then for all other index set that
 		// are not in the circular set
-		auto nonUsed = remove(original.getInductions(), vecSet[i]);
+		modelica::IndexSet nonUsed = remove(original.getInductions(), vecSet[i]);
 
-		for (auto set : nonUsed)
+		for (modelica::MultiDimInterval set : nonUsed)
 		{
 			// add the equation to the untouched set
 			untouched.emplace_back(original.clone());
@@ -184,7 +186,7 @@ static mlir::LogicalResult extractEquationWithDependencies(
 
 	// for all equations that were not in the circular set, add it to the
 	// untouched set.
-	for (auto i : marco::irange(source.size()))
+	for (size_t i : marco::irange(source.size()))
 	{
 		if (llvm::find(cycle, i) == cycle.end())
 			untouched.emplace_back(std::move(source[i]));
@@ -218,6 +220,13 @@ class CycleFuser
 		EquationsVector newEquations;
 		EquationsVector filtered;
 
+		if (!canSolveSystem(*equations, graph->getModel()))
+		{
+			*status = mlir::failure();
+			*foundOne = true;
+			return;
+		}
+
 		if (auto err = extractEquationWithDependencies(*equations, filtered, newEquations, cycle, *graph); failed(err))
 		{
 			*status = err;
@@ -232,7 +241,7 @@ class CycleFuser
 			return;
 		}
 
-		for (auto& eq : filtered)
+		for (Equation& eq : filtered)
 			newEquations.emplace_back(eq);
 
 		*foundOne = true;
@@ -282,7 +291,7 @@ static mlir::LogicalResult fuseScc(
 {
 	out.reserve(SCC.size());
 
-	for (const auto& eq : SCC.range(vectorGraph))
+	for (const IndexesOfEquation& eq : SCC.range(vectorGraph))
 		out.push_back(eq.getEquation());
 
 	if (auto res = fuseEquations(builder, out, vectorGraph.getModel(), maxIterations); failed(res))
@@ -299,26 +308,37 @@ namespace marco::codegen::model
 		SCCLookup SCCs(vectorGraph);
 
 		llvm::SmallVector<EquationsVector, 3> possibleEquations(SCCs.count());
+		llvm::SmallVector<BltBlock, 3> algebraicLoops;
 
-		for (size_t i = 0, e = SCCs.count(); i < e; ++i)
+		for (size_t i : irange(SCCs.count()))
 		{
 			if (failed(fuseScc(builder, SCCs[i], vectorGraph, possibleEquations[i], maxIterations)))
-				return mlir::failure();
+			{
+				// If the Scc Collapsing algorithm fails, it means that we have
+				// an Algebraic Loop, which must be handled by a solver afterwards.
+				llvm::SmallVector<Equation, 3> bltEquations;
+				for (Equation& eq : possibleEquations[i])
+					bltEquations.push_back(eq);
+
+				algebraicLoops.push_back(BltBlock(bltEquations));
+
+				possibleEquations[i].clear();
+			}
 		}
 
 		llvm::SmallVector<Equation, 3> equations;
 		auto* terminator = model.getOp().body().front().getTerminator();
 
-		for (auto& equationsList : possibleEquations)
+		for (EquationsVector& equationsList : possibleEquations)
 		{
-			for (auto& equation : equationsList)
+			for (Equation& equation : equationsList)
 			{
 				//equation.getOp()->moveBefore(terminator);
 				equations.push_back(equation);
 			}
 		}
 
-		model = Model(model.getOp(), model.getVariables(), equations);
+		model = Model(model.getOp(), model.getVariables(), equations, algebraicLoops);
 		return mlir::success();
 	}
 }

@@ -1,4 +1,5 @@
 #include <mlir/IR/BuiltinOps.h>
+#include <modelica/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
 #include <marco/utils/ScopeGuard.hpp>
@@ -7,9 +8,9 @@ using namespace marco::codegen::model;
 
 ReferenceMatcher::ReferenceMatcher() = default;
 
-ReferenceMatcher::ReferenceMatcher(Equation eq)
+ReferenceMatcher::ReferenceMatcher(std::variant<Equation, BltBlock> content)
 {
-	visit(eq);
+	visit(content);
 }
 
 ExpressionPath& ReferenceMatcher::operator[](size_t index)
@@ -71,7 +72,7 @@ void ReferenceMatcher::visit(Equation equation, bool ignoreMatched)
 	if (!ignoreMatched)
 		return;
 
-	auto match = equation.getMatchedExp();
+	Expression match = equation.getMatchedExp();
 
 	vars.erase(
 			remove_if(
@@ -93,6 +94,19 @@ void ReferenceMatcher::visit(Expression exp, bool isLeft)
 		currentPath.push_back(i);
 		auto g = makeGuard([this] { removeBack(); });
 		visit(exp.getChild(i), isLeft);
+	}
+}
+
+void ReferenceMatcher::visit(std::variant<Equation, BltBlock> content, bool ignoreMatched)
+{
+	if (std::holds_alternative<Equation>(content))
+	{
+		visit(std::get<Equation>(content), ignoreMatched);
+	}
+	else
+	{
+		for (Equation& equation : std::get<BltBlock>(content).getEquations())
+			visit(equation, ignoreMatched);
 	}
 }
 

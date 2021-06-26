@@ -29,11 +29,12 @@ namespace marco::codegen::model
 
 		[[nodiscard]] bool isState() const;
 		[[nodiscard]] bool isConstant() const;
+		[[nodiscard]] bool isDerivative() const;
 
 		[[nodiscard]] bool isTime() const;
 
 		mlir::Value getDer();
-		void setDer(mlir::Value value);
+		void setDer(Variable variable);
 
 		[[nodiscard]] IndexSet toIndexSet() const;
 		[[nodiscard]] MultiDimInterval toMultiDimInterval() const;

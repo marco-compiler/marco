@@ -14,6 +14,7 @@ set(SOURCES
         src/passes/matching/Schedule.cpp
         src/passes/matching/SVarDependencyGraph.cpp
         src/passes/matching/VVarDependencyGraph.cpp
+        src/passes/model/BltBlock.cpp
         src/passes/model/Constant.cpp
         src/passes/model/Equation.cpp
         src/passes/model/Expression.cpp
