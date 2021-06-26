@@ -50,10 +50,12 @@ class VariablesFinder
 
 Model::Model(SimulationOp op,
 						 llvm::ArrayRef<std::shared_ptr<Variable>> variables,
-						 llvm::ArrayRef<Equation> equations)
+						 llvm::ArrayRef<Equation> equations,
+						 llvm::ArrayRef<BltBlock> bltBlocks)
 		: op(op),
 			variables(variables.begin(), variables.end()),
-			equations(equations.begin(), equations.end())
+			equations(equations.begin(), equations.end()),
+			bltBlocks(bltBlocks.begin(), bltBlocks.end())
 {
 }
 
@@ -70,7 +72,7 @@ Model Model::build(SimulationOp op)
 		equations.push_back(Equation::build(forEquation));
 	});
 
-	for (const auto& equation : equations)
+	for (const Equation& equation : equations)
 	{
 		equation.lhs().visit(VariablesFinder(variables));
 		equation.rhs().visit(VariablesFinder(variables));
@@ -163,12 +165,29 @@ void Model::addEquation(Equation equation)
 	equations.push_back(equation);
 }
 
+Model::Container<BltBlock>& Model::getBltBlocks()
+{
+	return bltBlocks;
+}
+
+const Model::Container<BltBlock>& Model::getBltBlocks() const
+{
+	return bltBlocks;
+}
+
+void Model::addBltBlock(BltBlock bltBlock)
+{
+	bltBlocks.push_back(bltBlock);
+}
+
 size_t Model::equationsCount() const
 {
 	size_t count = 0;
 
-	for (const auto& equation : equations)
+	for (const Equation& equation : equations)
 		count += equation.getInductions().size();
+	for(const BltBlock& bltBlock : bltBlocks)
+		count += bltBlock.equationsCount();
 
 	return count;
 }

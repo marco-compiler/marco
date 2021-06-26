@@ -54,39 +54,48 @@ void VVarDependencyGraph::dump(llvm::raw_ostream& os) const
 	os << "}";
 }
 
-void VVarDependencyGraph::populateEdge(IndexesOfEquation& equation,
-																			 const AccessToVar& toVariable,
-																			 EqToVert& eqToVert)
+void VVarDependencyGraph::populateEdge(
+		const IndexesOfEquation* content,
+		const AccessToVar& toVariable,
+		EqToVert& eqToVert)
 {
-	const auto& variable = model.getVariable(toVariable.getVar());
-	const auto usedIndexes = toVariable.getAccess().map(equation.getEquation().getInductions());
-
-	for (const auto& var : lookUp.eqsDeterminingVar(variable))
+	const Variable& variable = model.getVariable(toVariable.getVar());
+	
+	for (const Equation& equation : content->getEquations())
 	{
-		const auto& setOfVar = var.getInterval();
+		const MultiDimInterval usedIndexes = toVariable.getAccess().map(equation.getInductions());
 
-		if (areDisjoint(usedIndexes, setOfVar))
-			continue;
+		for (const IndexesOfEquation* var : lookUp.eqsDeterminingVar(variable))
+		{
+			for (const MultiDimInterval& setOfVar : var->getIntervals())
+			{
+				if (areDisjoint(usedIndexes, setOfVar))
+					continue;
 
-		add_edge(
-				eqToVert[equation.getEquation()],
-				eqToVert[var.getEquation()],
-				toVariable.getAccess(),
-				graph);
+				add_edge(
+						eqToVert[&content->getContent()],
+						eqToVert[&var->getContent()],
+						toVariable.getAccess(),
+						graph);
+			}
+		}
 	}
 }
 
-void VVarDependencyGraph::populateEq(IndexesOfEquation& equation,
-																		 EqToVert& eqToVert)
+void VVarDependencyGraph::populateEq(const IndexesOfEquation* content, EqToVert& eqToVert)
 {
 	ReferenceMatcher rightHandMatcher;
-	rightHandMatcher.visit(equation.getEquation(), true);
 
-	for (const auto& toVariable : rightHandMatcher)
+	// Search for dependencies among the non-matched variables
+	rightHandMatcher.visit(content->getContent(), true);
+
+	for (const ExpressionPath& toVariable : rightHandMatcher)
 	{
 		assert(VectorAccess::isCanonical(toVariable.getExpression()));
-		auto toAccess = AccessToVar::fromExp(toVariable.getExpression());
-		populateEdge(equation, toAccess, eqToVert);
+		AccessToVar toAccess = AccessToVar::fromExp(toVariable.getExpression());
+		
+		// Add an edge for each dependency
+		populateEdge(content, toAccess, eqToVert);
 	}
 }
 
@@ -94,11 +103,18 @@ void VVarDependencyGraph::create()
 {
 	EqToVert eqToVert;
 
-	for (const auto& eq : lookUp)
-		eqToVert[eq.getEquation()] = add_vertex(&eq, graph);
+	// Add all nodes
+	for (const IndexesOfEquation* content : lookUp)
+	{
+		// Do not add duplicate IndexesOfEquation to the map.
+		// This could be caused by multiple equations in a BltBlock.
+		if (eqToVert.find(&content->getContent()) == eqToVert.end())
+			eqToVert[&content->getContent()] = add_vertex(content, graph);
+	}
 
-	for (auto& eq : lookUp)
-		populateEq(eq, eqToVert);
+	// Add all edges
+	for (const IndexesOfEquation* content : lookUp)
+		populateEq(content, eqToVert);
 }
 
 VVarDependencyGraph::VVarDependencyGraph(const Model& model, ArrayRef<Equation> equations)

@@ -19,12 +19,12 @@ using namespace model;
 
 /**
  * Get the expression that represents the variables explicitated by source
- * and replace each occurence of that variable inside destination with the
- * aformentioned expression.
+ * and replace each occurrence of that variable inside destination with the
+ * aforementioned expression.
  *
  * @param builder			operation builder
  * @param source			equation containing the explicitated variable to be replaced
- * @param destination equation inside which the source variable occurences have to be replaced
+ * @param destination equation inside which the source variable occurrences have to be replaced
  */
 static void replaceUses(mlir::OpBuilder& builder, const Equation& source, Equation& destination)
 {
@@ -382,8 +382,14 @@ namespace marco::codegen::model
 	mlir::LogicalResult linearySolve(mlir::OpBuilder& builder, llvm::SmallVectorImpl<Equation>& equations)
 	{
 		for (auto eq = equations.rbegin(); eq != equations.rend(); ++eq)
+		{
 			for (auto eq2 = eq + 1; eq2 != equations.rend(); ++eq2)
+			{
+				if (auto res = eq->explicitate(); failed(res))
+					return res;
 				replaceUses(builder, *eq, *eq2);
+			}
+		}
 
 		for (auto& equation : equations)
 			if (auto res = groupLeftHand(builder, equation); failed(res))
@@ -416,5 +422,21 @@ namespace marco::codegen::model
 		}
 
 		return mlir::success();
+	}
+
+	bool canSolveSystem(llvm::SmallVectorImpl<Equation>& equations, const Model& model)
+	{
+		// Systems containing derivative operations.
+		for (Equation& eq : equations)
+			if (model.getVariable(eq.getDeterminedVariable().getVar()).isDerivative())
+				return false;
+
+		// Systems with algebraic loops inside the same array.
+		for (auto eq = equations.begin(); eq != equations.end(); ++eq)
+			for (auto eq2 = eq + 1; eq2 != equations.end(); ++eq2)
+				if (eq->getDeterminedVariable().getVar() == eq2->getDeterminedVariable().getVar())
+					return false;
+
+		return true;
 	}
 }

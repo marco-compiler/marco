@@ -3,6 +3,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/Support/LogicalResult.h>
+#include <modelica/mlirlowerer/passes/model/Model.h>
 
 namespace marco::codegen::model
 {
@@ -20,4 +21,15 @@ namespace marco::codegen::model
 	 * @return success if everything went right
 	 */
 	mlir::LogicalResult linearySolve(mlir::OpBuilder& builder, llvm::SmallVectorImpl<Equation>& equations);
-}
+
+	/**
+	 * Check if the given system of equations can be solved by the currently
+	 * implemented algorithm. The current algorithm cannot solve systems where
+	 * the algebraic loop is composed by variables in the same array or when there
+	 * is a derivative operation.
+	 *
+	 * @param equations system of equations
+	 * @return true if the system of equations can be solved
+	 */
+	bool canSolveSystem(llvm::SmallVectorImpl<Equation>& equations, const Model& model);
+}	 // namespace modelica::codegen::model

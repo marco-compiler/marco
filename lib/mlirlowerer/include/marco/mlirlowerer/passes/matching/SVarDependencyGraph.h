@@ -28,7 +28,7 @@ namespace marco::codegen::model
 
 		[[nodiscard]] auto getCollapsedVertex() const
 		{
-			return vertex->getEquation();
+			return vertex->getContent();
 		}
 
 		[[nodiscard]] auto getIndexes() const { return indexes; }
@@ -38,7 +38,7 @@ namespace marco::codegen::model
 		llvm::SmallVector<size_t, 3> indexes;
 	};
 
-	class SVarDepencyGraph
+	class SVarDependencyGraph
 	{
 		public:
 		using GraphImp = boost::adjacency_list<
@@ -56,7 +56,7 @@ namespace marco::codegen::model
 
 		using LookUp = std::map<const IndexesOfEquation*, std::map<size_t, size_t>>;
 
-		SVarDepencyGraph(
+		SVarDependencyGraph(
 				const VVarDependencyGraph& collapsedGraph, const VVarScc& scc);
 
 		[[nodiscard]] const VVarScc& getScc() const { return scc; }

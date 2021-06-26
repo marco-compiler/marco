@@ -7,6 +7,7 @@
 #include <marco/mlirlowerer/passes/matching/SVarDependencyGraph.h>
 #include <marco/mlirlowerer/passes/matching/Schedule.h>
 #include <marco/mlirlowerer/passes/matching/VVarDependencyGraph.h>
+#include <modelica/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
@@ -14,16 +15,15 @@
 
 using namespace marco::codegen::model;
 
-static llvm::SmallVector<Equation, 3> collapseEquations(
-		const SVarDepencyGraph& originalGraph)
+static llvm::SmallVector<std::variant<Equation, BltBlock>, 3> collapseEquations(
+		const SVarDependencyGraph& originalGraph)
 {
-	llvm::SmallVector<Equation, 3> out;
+	llvm::SmallVector<std::variant<Equation, BltBlock>, 3> out;
 
 	marco::IndexSet currentSet;
 
 	const auto onSched = [&](size_t node) {
 		const auto& currentNode = originalGraph[node];
-		const auto& eq = currentNode.getCollapsedVertex();
 		currentSet.insert(currentNode.getIndexes());
 	};
 
@@ -32,17 +32,27 @@ static llvm::SmallVector<Equation, 3> collapseEquations(
 
 		const bool backward = schedulingDirection == khanNextPreferred::backwardPreferred;
 		const auto& currentNode = originalGraph[node];
-		const auto& eq = currentNode.getCollapsedVertex();
+		const auto& content = currentNode.getCollapsedVertex();
 
-		for (const auto& set : currentSet)
+		if (std::holds_alternative<Equation>(content))
 		{
-			Equation clone = eq.clone();
-			clone.setForward(!backward);
-			clone.setInductions(set);
-			out.emplace_back(clone);
+			const Equation& eq = std::get<Equation>(content);
+			for (const modelica::MultiDimInterval& set : currentSet)
+			{
+				Equation clone = eq.clone();
+				clone.setForward(!backward);
+				clone.setInductions(set);
+				out.emplace_back(clone);
+			}
+			eq.getOp()->erase();
+		}
+		else
+		{
+			BltBlock bltBlock = std::get<BltBlock>(content);
+			bltBlock.setForward(!backward);
+			out.emplace_back(bltBlock);
 		}
 
-		eq.getOp()->erase();
 		currentSet = marco::IndexSet();
 	};
 
@@ -65,7 +75,7 @@ static bool isBackward(const VectorAccess* access)
 	});
 }
 
-static llvm::SmallVector<Equation, 3> trivialScheduling(
+static llvm::SmallVector<std::variant<Equation, BltBlock>, 3> trivialScheduling(
 		const SCC<VVarDependencyGraph>& scc,
 		const VVarDependencyGraph& originalGraph)
 {
@@ -74,39 +84,46 @@ static llvm::SmallVector<Equation, 3> trivialScheduling(
 
 	llvm::SmallVector<const VectorAccess*, 3> internalEdges;
 
+	auto content = originalGraph[scc[0]].getContent();
+
+	// If it is an unsolvable algebraic loop, return it.
+	if (std::holds_alternative<BltBlock>(content))
+		return { content };
+
 	for (const auto& edge : originalGraph.outEdges(scc[0]))
 		if (originalGraph.target(edge) == scc[0])
 			internalEdges.push_back(&originalGraph[edge]);
 
 	if (llvm::all_of(internalEdges, isForward))
 	{
-		Equation equation = originalGraph[scc[0]].getEquation();
-		equation.setForward(true);
-		return { equation };
+		std::get<Equation>(content).setForward(true);
+		return { content };
 	}
 
 	if (llvm::all_of(internalEdges, isBackward))
 	{
-		Equation equation = originalGraph[scc[0]].getEquation();
-		equation.setForward(false);
-		return { equation };
+		std::get<Equation>(content).setForward(false);
+		return { content };
 	}
 
 	return {};
 }
 
-static llvm::SmallVector<Equation, 3> schedule(
+static llvm::SmallVector<std::variant<Equation, BltBlock>, 3> schedule(
 		const SCC<VVarDependencyGraph>& scc,
 		const VVarDependencyGraph& originalGraph)
 {
 	if (auto sched = trivialScheduling(scc, originalGraph); !sched.empty())
 		return sched;
 
-	SVarDepencyGraph scalarGraph(originalGraph, scc);
+	// After a topological sort there should be no need of Khan's algorithm.
+	assert(false && "Unreachable?");
+
+	SVarDependencyGraph scalarGraph(originalGraph, scc);
 	return collapseEquations(scalarGraph);
 }
 
-using ResultVector = llvm::SmallVector<llvm::SmallVector<Equation, 3>, 3>;
+using ResultVector = llvm::SmallVector<llvm::SmallVector<std::variant<Equation, BltBlock>, 3>, 3>;
 using SortedSCC = llvm::SmallVector<const SCC<VVarDependencyGraph>*, 3>;
 
 mlir::LogicalResult marco::codegen::model::schedule(Model& model)
@@ -117,24 +134,36 @@ mlir::LogicalResult marco::codegen::model::schedule(Model& model)
 	SortedSCC sortedSCC = sccDependency.topologicalSort();
 	ResultVector results(sortedSCC.size(), {});
 
-	for (size_t i = 0, e = sortedSCC.size(); i < e; ++i)
+	for (size_t i : irange(sortedSCC.size()))
 		results[i] = ::schedule(*sortedSCC[i], vectorGraph);
 
 	llvm::SmallVector<Equation, 3> equations;
+	llvm::SmallVector<BltBlock, 3> bltBlocks;
 
 	assert(model.getOp().body().getBlocks().size() == 1);
 	mlir::Operation* op = model.getOp().body().front().getTerminator();
 
 	for (const auto& res : results)
 	{
-		for (const auto& equation : res)
+		for (const auto& content : res)
 		{
-			equation.getOp()->moveBefore(op);
-			equations.push_back(equation);
+			if (std::holds_alternative<Equation>(content))
+			{
+				const Equation& equation = std::get<Equation>(content);
+				equation.getOp()->moveBefore(op);
+				equations.push_back(equation);
+			}
+			else
+			{
+				const BltBlock& bltBlock = std::get<BltBlock>(content);
+				bltBlocks.push_back(bltBlock);
+				for (const Equation& equation : bltBlock.getEquations())
+					equation.getOp()->moveBefore(op);
+			}
 		}
 	}
 
-	Model result(model.getOp(), model.getVariables(), equations);
+	Model result(model.getOp(), model.getVariables(), equations, bltBlocks);
 	model = result;
 	return mlir::success();
 }

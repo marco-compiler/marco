@@ -9,6 +9,7 @@
 #include <set>
 
 #include "Equation.h"
+#include "BltBlock.h"
 
 namespace marco::codegen::model
 {
@@ -25,7 +26,8 @@ namespace marco::codegen::model
 
 		Model(modelica::SimulationOp op,
 					llvm::ArrayRef<std::shared_ptr<Variable>> variables,
-					llvm::ArrayRef<Equation> equations);
+					llvm::ArrayRef<Equation> equations,
+					llvm::ArrayRef<BltBlock> bltBlocks = {});
 
 		static Model build(modelica::SimulationOp op);
 		void reloadIR();
@@ -48,6 +50,10 @@ namespace marco::codegen::model
 		[[nodiscard]] const Container<Equation>& getEquations() const;
 		void addEquation(Equation equation);
 
+		[[nodiscard]] Container<BltBlock>& getBltBlocks();
+		[[nodiscard]] const Container<BltBlock>& getBltBlocks() const;
+		void addBltBlock(BltBlock bltBlock);
+
 		/**
 		 * Get the number of the equations that will compose the final model.
 		 */
@@ -62,5 +68,6 @@ namespace marco::codegen::model
 		modelica::SimulationOp op;
 		Container<std::shared_ptr<Variable>> variables;
 		Container<Equation> equations;
+		Container<BltBlock> bltBlocks;
 	};
 }
