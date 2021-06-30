@@ -1654,11 +1654,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	{
 		// Scalarize the equations consisting in array assignments, by adding
 		// the required inductions.
-		if (failed(scalarizeArrayEquations()))
+		if (failed(scalarizeArrayEquations(getOperation())))
 			return signalPassFailure();
 
 		// Convert the scalar values into arrays of one element
-		if (failed(loopify()))
+		if (failed(loopify(getOperation())))
 			return signalPassFailure();
 
 		mlir::BlockAndValueMapping derivatives;
@@ -1670,7 +1670,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			Model model = Model::build(simulation);
 
 			// Remove the derivative operations and allocate the appropriate buffers
-			if (failed(removeDerivatives(builder, model, derivatives)))
+			if (failed(removeDerivatives(builder, model, derivatives, getOperation())))
 				return signalPassFailure();
 
 			// Match
@@ -1678,7 +1678,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				return signalPassFailure();
 
 			// Solve circular dependencies
-			if (failed(solveSCCs(builder, model, options.sccMaxIterations)))
+			if (failed(solveSCCs(model, options.sccMaxIterations)))
 				return signalPassFailure();
 
 			// Schedule
@@ -1708,9 +1708,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	 * or a loop equation, and a later optimization pass can easily remove
 	 * the new useless induction.
 	 */
-	mlir::LogicalResult loopify()
+	static mlir::LogicalResult loopify(mlir::ModuleOp moduleOp)
 	{
-		mlir::ConversionTarget target(getContext());
+		mlir::ConversionTarget target(*moduleOp.getContext());
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 
 		target.addDynamicallyLegalOp<SimulationOp>([](SimulationOp op) {
@@ -1727,11 +1727,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		target.addIllegalOp<EquationOp>();
 
-		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<SimulationOpLoopifyPattern, EquationOpLoopifyPattern>(&getContext());
-		patterns.insert<SimulationOpLoopifyPattern>(&getContext());
+		mlir::OwningRewritePatternList patterns(moduleOp.getContext());
+		patterns.insert<SimulationOpLoopifyPattern, EquationOpLoopifyPattern>(moduleOp.getContext());
+		patterns.insert<SimulationOpLoopifyPattern>(moduleOp.getContext());
 
-		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
+		if (auto status = applyPartialConversion(moduleOp, target, std::move(patterns)); failed(status))
 			return status;
 
 		return mlir::success();
@@ -1741,9 +1741,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	 * If an equation consists in an assignment between two arrays, then
 	 * convert it into a for equation, in order to scalarize the assignments.
 	 */
-	mlir::LogicalResult scalarizeArrayEquations()
+	static mlir::LogicalResult scalarizeArrayEquations(mlir::ModuleOp moduleOp)
 	{
-		mlir::ConversionTarget target(getContext());
+		mlir::ConversionTarget target(*moduleOp.getContext());
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 
 		target.addDynamicallyLegalOp<EquationOp>([](EquationOp op) {
@@ -1770,13 +1770,13 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			});
 		});
 
-		mlir::OwningRewritePatternList patterns(&getContext());
+		mlir::OwningRewritePatternList patterns(moduleOp.getContext());
 
 		patterns.insert<
 		    EquationOpScalarizePattern,
-				ForEquationOpScalarizePattern>(&getContext());
+				ForEquationOpScalarizePattern>(moduleOp.getContext());
 
-		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
+		if (auto status = applyPartialConversion(moduleOp, target, std::move(patterns)); failed(status))
 			return status;
 
 		return mlir::success();
@@ -1790,14 +1790,14 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	 * @param model   model
 	 * @return conversion result
 	 */
-	mlir::LogicalResult removeDerivatives(mlir::OpBuilder& builder, Model& model, mlir::BlockAndValueMapping& derivatives)
+	static mlir::LogicalResult removeDerivatives(mlir::OpBuilder& builder, Model& model, mlir::BlockAndValueMapping& derivatives, mlir::ModuleOp moduleOp)
 	{
-		mlir::ConversionTarget target(getContext());
+		mlir::ConversionTarget target(*moduleOp.getContext());
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 		target.addIllegalOp<DerOp>();
 
-		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<DerOpPattern>(&getContext(), model, derivatives);
+		mlir::OwningRewritePatternList patterns(moduleOp.getContext());
+		patterns.insert<DerOpPattern>(moduleOp.getContext(), model, derivatives);
 
 		if (auto status = applyPartialConversion(model.getOp(), target, std::move(patterns)); failed(status))
 			return status;
@@ -1834,6 +1834,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	{
 		// If the model contains algebraic loops, Forward Euler cannot solve this
 		// model, an other solver must be used.
+		assert(model.getBltBlocks().empty() && "Algebraic loops are present");
 		if (!model.getBltBlocks().empty())
 			return mlir::failure();
 
@@ -1927,6 +1928,26 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
+	static llvm::Optional<model::Model> getUnmatchedModel(mlir::ModuleOp moduleOp)
+	{
+		if (failed(scalarizeArrayEquations(moduleOp)))
+			return llvm::None;
+
+		if (failed(loopify(moduleOp)))
+			return llvm::None;
+
+		SimulationOp simulation = mlir::cast<SimulationOp>(*(moduleOp.getOps().begin()));
+		mlir::OpBuilder builder(simulation);
+
+		Model model = Model::build(simulation);
+		mlir::BlockAndValueMapping derivatives;
+
+		if (failed(removeDerivatives(builder, model, derivatives, moduleOp)))
+			return llvm::None;
+
+		return model;
+	}
+
 	private:
 	SolveModelOptions options;
 	unsigned int bitWidth;
@@ -1935,4 +1956,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 std::unique_ptr<mlir::Pass> marco::codegen::createSolveModelPass(SolveModelOptions options, unsigned int bitWidth)
 {
 	return std::make_unique<SolveModelPass>(options, bitWidth);
+}
+
+llvm::Optional<Model> modelica::codegen::getUnmatchedModel(mlir::ModuleOp moduleOp)
+{
+	return SolveModelPass::getUnmatchedModel(moduleOp);
 }

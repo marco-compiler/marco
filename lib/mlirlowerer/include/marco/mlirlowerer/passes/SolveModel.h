@@ -2,6 +2,7 @@
 
 #include <marco/utils/VariableFilter.h>
 #include <mlir/Pass/Pass.h>
+#include <modelica/mlirlowerer/passes/model/Model.h>
 
 namespace marco::codegen
 {
@@ -35,4 +36,10 @@ namespace marco::codegen
 												 return createSolveModelPass();
 											 });
 	}
+
+	/**
+	 * This method must be used for testing purposes only.
+	 * Given a parsed ModuleOp, it return the Model before the matching phase.
+	 */
+	llvm::Optional<model::Model> getUnmatchedModel(mlir::ModuleOp moduleOp);
 }

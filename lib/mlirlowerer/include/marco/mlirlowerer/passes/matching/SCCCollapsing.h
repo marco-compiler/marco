@@ -1,7 +1,6 @@
 #pragma once
 
 #include <llvm/Support/Error.h>
-#include <mlir/IR/Builders.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
 
 namespace marco::codegen::model
@@ -13,10 +12,8 @@ namespace marco::codegen::model
 	 * the corresponding equations are inserted into a BltBlock that can be
 	 * handled with a proper solver in the loweing phase.
 	 *
-	 * @param builder The operation builder.
 	 * @param model The matched model.
 	 * @param maxIterations Maximum depth search for the algorithm.
 	 */
-	mlir::LogicalResult solveSCCs(
-			mlir::OpBuilder& builder, Model& model, size_t maxIterations);
+	mlir::LogicalResult solveSCCs(Model& model, size_t maxIterations);
 }	 // namespace modelica::codegen::model
