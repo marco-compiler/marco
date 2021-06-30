@@ -108,7 +108,7 @@ static marco::MultiDimInterval cyclicDependentSet(
 	return set;
 }
 
-static IndexSetVector cyclicDependetSets(
+static IndexSetVector cyclicDependentSets(
 		const EdDescVector& c, const VVarDependencyGraph& graph)
 {
 	DependenciesVector dep = cycleToDependenciesVector(c, graph);
@@ -141,7 +141,7 @@ static mlir::LogicalResult extractEquationWithDependencies(
 		const VVarDependencyGraph& g)
 {
 	EdDescVector c = cycleToEdgeVec(cycle, g);
-	IndexSetVector vecSet = cyclicDependetSets(c, g);
+	IndexSetVector vecSet = cyclicDependentSets(c, g);
 
 	if (vecSet[0].empty())
 		return mlir::failure();
@@ -155,8 +155,7 @@ static mlir::LogicalResult extractEquationWithDependencies(
 		Equation toFuseEq = original.clone();
 
 		// set induction to those that generate the circular dependency
-		if (!toFuseEq.getInductions().contains(vecSet[i]))
-			return mlir::failure();
+		assert(toFuseEq.getInductions().contains(vecSet[i]));
 
 		toFuseEq.setInductions(vecSet[i]);
 
@@ -302,8 +301,9 @@ static mlir::LogicalResult fuseScc(
 
 namespace marco::codegen::model
 {
-	mlir::LogicalResult solveSCCs(mlir::OpBuilder& builder, Model& model, size_t maxIterations)
+	mlir::LogicalResult solveSCCs(Model& model, size_t maxIterations)
 	{
+		mlir::OpBuilder builder(model.getOp());
 		VVarDependencyGraph vectorGraph(model);
 		SCCLookup SCCs(vectorGraph);
 
