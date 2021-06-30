@@ -1,4 +1,5 @@
 #include <llvm/ADT/STLExtras.h>
+#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -608,8 +609,15 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			// condition (that is, a false value). After each step, it also
 			// prints the values and increments the time.
 
+			llvm::SmallVector<mlir::Type, 3> argsTypes;
+			llvm::SmallVector<mlir::Type, 3> resultsTypes;
+
+			argsTypes.push_back(rewriter.getI32Type());
+			argsTypes.push_back(mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMPointerType::get(rewriter.getIntegerType(8))));
+			resultsTypes.push_back(rewriter.getI32Type());
+
 			auto function = rewriter.create<mlir::FuncOp>(
-					loc, "main", rewriter.getFunctionType(llvm::None, llvm::None));
+					loc, "main", rewriter.getFunctionType(argsTypes, resultsTypes));
 
 			auto* entryBlock = function.addEntryBlock();
 
@@ -643,7 +651,8 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 				rewriter.create<YieldOp>(loc);
 			}
 
-			rewriter.create<mlir::ReturnOp>(loc);
+			mlir::Value returnValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI32IntegerAttr(0));
+			rewriter.create<mlir::ReturnOp>(loc, returnValue);
 		}
 
 		rewriter.eraseOp(op);
