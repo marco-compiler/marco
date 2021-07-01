@@ -15,7 +15,9 @@
 #include "modelica/omcToModel/OmcToModelPass.hpp"
 #include "modelica/passes/ConstantFold.hpp"
 #include "modelica/passes/SolveModel.hpp"
-#include "modelica/frontend/LexerVariableFilter.h"
+
+#include "modelica/utils/VariableFilter.h"
+#include "modelica/utils/VariableFilterParser.h"
 
 using namespace marco;
 using namespace llvm;
@@ -138,11 +140,23 @@ int main(int argc, char* argv[])
 		errs() << error.message();
 	}
 
-	//======= TEMPORARY CODE ====/
-	string test = "ciao[3:10, 0:1, 55:$]";
-	LexerVariableFilter lvf(test);
-	//lvf.split();
-	lvf.splitTest(test);
+	//======= TEMPORARY CODE / Variable Filter ====/
+	modelica::VariableFilter variableFilter;
+
+	string TESTS[6]{"/[a-d1-7]/","ciao[3:10, 0:1, 55:$]",  "der(x_temp)", "der(y)", "_x123_44", "Aldo"};
+
+	for (auto s : TESTS) {
+		modelica::VariableFilterParser lv(s);
+		lv.parseExpressionElement(variableFilter);
+	}
+
+	variableFilter.dump();
+
+	std::cout << "CHECKS" << std::endl;
+
+	variableFilter.matchesRegex("a") ? printf("-regex is working-\n") : printf("error\n"); //should match
+	//variableFilter.matchesRegex("x8") ? printf("-regex is working-\n") : printf("error\n"); //should not match
+
 	//===========================
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	frontend::Parser parser(buffer->getBufferStart());
