@@ -17,49 +17,37 @@ jobs:
         run: echo "SHOULD_RUN=${{secrets.ENABLED}}" >> $GITHUB_ENV
 
       - name: Create package
-        if: ${{env.SHOULD_RUN}} == 'T'
-        run: tar -cvf marco.tar marco
+        run: tar -czvf marco.tar marco
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.5.1
-        if: ${{env.SHOULD_RUN}} == 'T'
         with:
           ssh-private-key: ${{secrets.SSH_KEY}}
 
       - name: Save server fingerprint
         run: echo "$SSH_FINGERPRINT" > /home/runner/.ssh/known_hosts
-        if: ${{env.SHOULD_RUN}} == 'T'
         env:
           SSH_FINGERPRINT: ${{secrets.SERVER_FINGERPRINT}}
 
       - name: Create temporary directory
         id: create-temp-dir
-        if: ${{env.SHOULD_RUN}} == 'T'
         run: echo "TEMP_DIR=$(ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} mktemp -d)" >> $GITHUB_ENV
 
       - name: Copy package to server
         id: copy
-        if: ${{env.SHOULD_RUN}} == 'T'
         run: scp marco.tar ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}}:${{env.TEMP_DIR}}/marco.tar
 
-      - name: Extract package
-        if: ${{env.SHOULD_RUN}} == 'T'
-        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}} '&&' tar -xvf marco.tar
-
       - name: Build
-        if: ${{env.SHOULD_RUN}} == 'T'
-        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}} '&&' mkdir marco/build '&&' cd marco/build '&&' cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_EXE_LINKER_FLAGS='-fuse-ld=gold' -DBOOST_ROOT=${{secrets.BOOST_ROOT}} -DLLVM_DIR=${{secrets.LLVM_PATH}}/lib/cmake/llvm -DMLIR_DIR=${{secrets.LLVM_PATH}}/lib/cmake/mlir '&&' ninja
+        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} sh ci.sh ${{env.TEMP_DIR}} marco.tar.gz
 
       - name: Run regression tests
-        if: ${{env.SHOULD_RUN}} == 'T'
-        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}} '&&' cd marco/build '&&' ninja check
+        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}}/build '&&' ninja check
 
       - name: Run unit tests
-        if: ${{env.SHOULD_RUN}} == 'T'
-        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}} '&&' cd marco/build '&&' ninja test
+        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}}/build '&&' ninja test
 
       - name: Clean remote files
-        if: ${{env.SHOULD_RUN}} == 'T' && steps.copy.outcome == 'success'
+        if: steps.create-temp-dir.outcome == 'success'
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} rm -r ${{env.TEMP_DIR}}
 
 # Old steps to run tests on Github:
