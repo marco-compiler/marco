@@ -50,7 +50,11 @@ jobs:
         if: ${{env.SHOULD_RUN}} == 'T'
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}} '&&' mkdir marco/build '&&' cd marco/build '&&' cmake .. -G Ninja -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DCMAKE_EXE_LINKER_FLAGS='-fuse-ld=gold' -DBOOST_ROOT=${{secrets.BOOST_ROOT}} -DLLVM_DIR=${{secrets.LLVM_PATH}}/lib/cmake/llvm -DMLIR_DIR=${{secrets.LLVM_PATH}}/lib/cmake/mlir '&&' ninja
 
-      - name: Run tests
+      - name: Run regression tests
+        if: ${{env.SHOULD_RUN}} == 'T'
+        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}} '&&' cd marco/build '&&' ninja check
+
+      - name: Run unit tests
         if: ${{env.SHOULD_RUN}} == 'T'
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}} '&&' cd marco/build '&&' ninja test
 

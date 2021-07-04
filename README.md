@@ -19,6 +19,14 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/install_path -DLLVM_USE
 make install
 ```
 
+### LIT
+MARCO uses LLVM's LIT to run the regression tests.
+
+```bash
+sudo apt install python3-pip
+pip3 install lit
+```
+
 ## Optional requirements
 * doxygen to invoke the doc generation target
 * genhtml and lcov to get the coverage report.
@@ -36,11 +44,13 @@ git submodule update --recursive --init
 ```bash
 cd marco
 mkdir build && cd build
-cmake -DLLVM_DIR=/llvm_install_path/lib/cmake/llvm -DMLIR_DIR=/llvm_install_path/lib/cmake/mlir ..
+cmake -DLLVM_DIR=/llvm_install_path/lib/cmake/llvm -DMLIR_DIR=/llvm_install_path/lib/cmake/mlir -DLLVM_EXTERNAL_LIT=/lit_executable_path ..
 make all
 ```
 
-Once built, tests can be run with `make test`
+## Testing
+Regression tests can be run with `make check`
+Unit tests can be run with `make test`
 
 ## Project structure
 The project is divided into tools and libs. Conceptually a lib does something and a tool lets you do the same things from command line.
