@@ -46,9 +46,9 @@ jobs:
       - name: Run unit tests
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}}/build '&&' ninja test
 
-      - name: Clean remote files
-        if: steps.create-temp-dir.outcome == 'success'
-        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} rm -r ${{env.TEMP_DIR}}
+      #- name: Clean remote files
+      #  if: steps.create-temp-dir.outcome == 'success'
+      #  run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} rm -r ${{env.TEMP_DIR}}
 
 # Old steps to run tests on Github:
 #steps:
