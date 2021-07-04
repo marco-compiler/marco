@@ -9,7 +9,8 @@ modelica.function @callee() -> (!modelica.array<heap, 3x!modelica.int>) attribut
 }
 
 // CHECK-LABEL: @caller
-// CHECK: %[[BUFFER:[a-zA-Z0-9]*]] = modelica.alloca : !modelica.array<stack, 3x!modelica.int>
+// CHECK: %[[BUFFER:[a-zA-Z0-9]*]] = modelica.alloca
+// CHECK-SAME: !modelica.array<stack, 3x!modelica.int>
 // CHECK: %[[ARG:[a-zA-Z0-9]*]] = modelica.array_cast %[[BUFFER]] : !modelica.array<3x!modelica.int>
 // CHECK: modelica.call @callee(%[[ARG]])
 // CHECK-SAME: moved_results = 1

@@ -2556,11 +2556,14 @@ struct PowOpLowering: public ModelicaOpConversion<PowOp>
 			return rewriter.notifyMatchFailure(op, "Base is not a scalar");
 
 		// Compute the result
-		Adaptor transformed(operands);
+		mlir::Value base = rewriter.create<CastOp>(loc, op.base(), RealType::get(op.getContext()));
+		base = materializeTargetConversion(rewriter, base);
+
 		mlir::Value exponent = rewriter.create<CastOp>(loc, op.exponent(), RealType::get(op.getContext()));
 		exponent = materializeTargetConversion(rewriter, exponent);
-		mlir::Value result = rewriter.create<mlir::math::PowFOp>(loc, transformed.base(), exponent);
-		result = getTypeConverter()->materializeSourceConversion(rewriter, loc, op.base().getType(), result);
+
+		mlir::Value result = rewriter.create<mlir::math::PowFOp>(loc, base, exponent);
+		result = getTypeConverter()->materializeSourceConversion(rewriter, loc, RealType::get(op.getContext()), result);
 		rewriter.replaceOpWithNewOp<CastOp>(op, result, op.resultType());
 
 		return mlir::success();
