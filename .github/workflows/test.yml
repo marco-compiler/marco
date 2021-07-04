@@ -41,7 +41,7 @@ jobs:
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} sh ci.sh ${{env.TEMP_DIR}} marco.tar.gz
 
       - name: Run regression tests
-        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}}/build '&&' which clang++ '&&' ninja check
+        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}}/build '&&' ninja check
 
       - name: Run unit tests
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}}/build '&&' ninja test
