@@ -48,7 +48,7 @@ jobs:
 
       - name: Clean remote files
         if: steps.create-temp-dir.outcome == 'success'
-        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} rm -r ${{env.TEMP_DIR}}
+        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} rm -rf ${{env.TEMP_DIR}}
 
 # Old steps to run tests on Github:
 #steps:
