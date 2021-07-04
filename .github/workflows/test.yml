@@ -17,7 +17,7 @@ jobs:
         run: echo "SHOULD_RUN=${{secrets.ENABLED}}" >> $GITHUB_ENV
 
       - name: Create package
-        run: tar -czvf marco.tar marco
+        run: tar -czvf marco.tar.gz marco
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.5.1
@@ -35,7 +35,7 @@ jobs:
 
       - name: Copy package to server
         id: copy
-        run: scp marco.tar ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}}:${{env.TEMP_DIR}}/marco.tar
+        run: scp marco.tar.gz ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}}:${{env.TEMP_DIR}}/marco.tar.gz
 
       - name: Build
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} sh ci.sh ${{env.TEMP_DIR}} marco.tar.gz
