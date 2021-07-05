@@ -1,14 +1,11 @@
 #include "gtest/gtest.h"
-#include <llvm/Support/Error.h>
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Support/LogicalResult.h>
-#include <modelica/frontend/Parser.h>
-#include <modelica/frontend/Passes.h>
-#include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/passes/matching/Matching.h>
 #include <modelica/mlirlowerer/passes/matching/SCCCollapsing.h>
 #include <modelica/mlirlowerer/passes/matching/Schedule.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
+
+#include "TestingUtils.h"
 
 using namespace modelica::codegen::model;
 
@@ -26,64 +23,41 @@ TEST(ScheduleTest, SimpleScheduling)
 														"x[3] = 7; "
 														"end Sched1; ";
 
-	modelica::frontend::Parser parser(stringModel);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel, model);
 
-	modelica::codegen::MLIRLowerer lowerer(context);
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
+	if (failed(match(model, 1000)))
 		FAIL();
 
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
-		FAIL();
-
-	if (failed(match(*model, 1000)))
-		FAIL();
-
-	EXPECT_EQ(model->getVariables().size(), 2);
-	EXPECT_EQ(model->getEquations().size(), 6);
-	EXPECT_EQ(model->getBltBlocks().size(), 0);
+	EXPECT_EQ(model.getVariables().size(), 2);
+	EXPECT_EQ(model.getEquations().size(), 6);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
 
 	llvm::SmallVector<Equation, 3> equations;
-	for (Equation eq : model->getEquations())
+	for (Equation eq : model.getEquations())
 		equations.emplace_back(eq);
 
-	if (failed(solveSCCs(*model, 1000)))
+	if (failed(solveSCCs(model, 1000)))
 		FAIL();
 
-	EXPECT_EQ(model->getVariables().size(), 2);
-	EXPECT_EQ(model->getEquations().size(), 6);
-	EXPECT_EQ(model->getBltBlocks().size(), 0);
+	EXPECT_EQ(model.getVariables().size(), 2);
+	EXPECT_EQ(model.getEquations().size(), 6);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
 
-	if (failed(schedule(*model)))
+	if (failed(schedule(model)))
 		FAIL();
 
-	EXPECT_EQ(model->getVariables().size(), 2);
-	EXPECT_EQ(model->getEquations().size(), 6);
-	EXPECT_EQ(model->getBltBlocks().size(), 0);
+	EXPECT_EQ(model.getVariables().size(), 2);
+	EXPECT_EQ(model.getEquations().size(), 6);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
 
-	EXPECT_EQ(model->getEquations()[0], equations[5]);
-	EXPECT_EQ(model->getEquations()[1], equations[2]);
-	EXPECT_EQ(model->getEquations()[2], equations[1]);
-	EXPECT_EQ(model->getEquations()[3], equations[3]);
-	EXPECT_EQ(model->getEquations()[4], equations[0]);
-	EXPECT_EQ(model->getEquations()[5], equations[4]);
+	EXPECT_EQ(model.getEquations()[0], equations[5]);
+	EXPECT_EQ(model.getEquations()[1], equations[2]);
+	EXPECT_EQ(model.getEquations()[2], equations[1]);
+	EXPECT_EQ(model.getEquations()[3], equations[3]);
+	EXPECT_EQ(model.getEquations()[4], equations[0]);
+	EXPECT_EQ(model.getEquations()[5], equations[4]);
 }
 
 TEST(ScheduleTest, EquationBeforeBltBlock)
@@ -96,59 +70,36 @@ TEST(ScheduleTest, EquationBeforeBltBlock)
 														"x[1] - x[2] = x[3]; "
 														"end Sched2; ";
 
-	modelica::frontend::Parser parser(stringModel);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel, model);
 
-	modelica::codegen::MLIRLowerer lowerer(context);
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
+	if (failed(match(model, 1000)))
 		FAIL();
 
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
+	EXPECT_EQ(model.getVariables().size(), 1);
+	EXPECT_EQ(model.getEquations().size(), 3);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
+
+	Equation equation = model.getEquations()[1];
+
+	if (failed(solveSCCs(model, 1000)))
 		FAIL();
 
-	if (failed(match(*model, 1000)))
+	EXPECT_EQ(model.getVariables().size(), 1);
+	EXPECT_EQ(model.getEquations().size(), 1);
+	EXPECT_EQ(model.getBltBlocks().size(), 1);
+
+	if (failed(schedule(model)))
 		FAIL();
 
-	EXPECT_EQ(model->getVariables().size(), 1);
-	EXPECT_EQ(model->getEquations().size(), 3);
-	EXPECT_EQ(model->getBltBlocks().size(), 0);
+	EXPECT_EQ(model.getVariables().size(), 1);
+	EXPECT_EQ(model.getEquations().size(), 1);
+	EXPECT_EQ(model.getBltBlocks().size(), 1);
 
-	Equation equation = model->getEquations()[1];
-
-	if (failed(solveSCCs(*model, 1000)))
-		FAIL();
-
-	EXPECT_EQ(model->getVariables().size(), 1);
-	EXPECT_EQ(model->getEquations().size(), 1);
-	EXPECT_EQ(model->getBltBlocks().size(), 1);
-
-	if (failed(schedule(*model)))
-		FAIL();
-
-	EXPECT_EQ(model->getVariables().size(), 1);
-	EXPECT_EQ(model->getEquations().size(), 1);
-	EXPECT_EQ(model->getBltBlocks().size(), 1);
-
-	EXPECT_EQ(model->getEquations()[0].amount(), 1);
-	EXPECT_EQ(model->getEquations()[0], equation);
-	EXPECT_EQ(model->getBltBlocks()[0].getEquations().size(), 2);
+	EXPECT_EQ(model.getEquations()[0].amount(), 1);
+	EXPECT_EQ(model.getEquations()[0], equation);
+	EXPECT_EQ(model.getBltBlocks()[0].getEquations().size(), 2);
 }
 
 TEST(ScheduleTest, BltBlockBeforeEquation)
@@ -161,59 +112,36 @@ TEST(ScheduleTest, BltBlockBeforeEquation)
 														"x[1] - x[2] = 4; "
 														"end Sched3; ";
 
-	modelica::frontend::Parser parser(stringModel);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel, model);
 
-	modelica::codegen::MLIRLowerer lowerer(context);
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
+	if (failed(match(model, 1000)))
 		FAIL();
 
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
+	EXPECT_EQ(model.getVariables().size(), 1);
+	EXPECT_EQ(model.getEquations().size(), 3);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
+
+	Equation equation = model.getEquations()[1];
+
+	if (failed(solveSCCs(model, 1000)))
 		FAIL();
 
-	if (failed(match(*model, 1000)))
+	EXPECT_EQ(model.getVariables().size(), 1);
+	EXPECT_EQ(model.getEquations().size(), 1);
+	EXPECT_EQ(model.getBltBlocks().size(), 1);
+
+	if (failed(schedule(model)))
 		FAIL();
 
-	EXPECT_EQ(model->getVariables().size(), 1);
-	EXPECT_EQ(model->getEquations().size(), 3);
-	EXPECT_EQ(model->getBltBlocks().size(), 0);
+	EXPECT_EQ(model.getVariables().size(), 1);
+	EXPECT_EQ(model.getEquations().size(), 1);
+	EXPECT_EQ(model.getBltBlocks().size(), 1);
 
-	Equation equation = model->getEquations()[1];
-
-	if (failed(solveSCCs(*model, 1000)))
-		FAIL();
-
-	EXPECT_EQ(model->getVariables().size(), 1);
-	EXPECT_EQ(model->getEquations().size(), 1);
-	EXPECT_EQ(model->getBltBlocks().size(), 1);
-
-	if (failed(schedule(*model)))
-		FAIL();
-
-	EXPECT_EQ(model->getVariables().size(), 1);
-	EXPECT_EQ(model->getEquations().size(), 1);
-	EXPECT_EQ(model->getBltBlocks().size(), 1);
-
-	EXPECT_EQ(model->getEquations()[0].amount(), 1);
-	EXPECT_EQ(model->getEquations()[0], equation);
-	EXPECT_EQ(model->getBltBlocks()[0].getEquations().size(), 2);
+	EXPECT_EQ(model.getEquations()[0].amount(), 1);
+	EXPECT_EQ(model.getEquations()[0], equation);
+	EXPECT_EQ(model.getBltBlocks()[0].getEquations().size(), 2);
 }
 
 TEST(ScheduleTest, MultipleBltBlocksAndEquations)
@@ -241,63 +169,40 @@ TEST(ScheduleTest, MultipleBltBlocksAndEquations)
 														"w[1] - w[2] = 3; "
 														"end Sched4; ";
 
-	modelica::frontend::Parser parser(stringModel);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel, model);
 
-	modelica::codegen::MLIRLowerer lowerer(context);
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
+	EXPECT_EQ(model.getVariables().size(), 4);
+	EXPECT_EQ(model.getEquations().size(), 7);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
+
+	if (failed(match(model, 1000)))
 		FAIL();
 
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
+	EXPECT_EQ(model.getVariables().size(), 4);
+	EXPECT_EQ(model.getEquations().size(), 7);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
+
+	if (failed(solveSCCs(model, 1000)))
 		FAIL();
 
-	EXPECT_EQ(model->getVariables().size(), 4);
-	EXPECT_EQ(model->getEquations().size(), 7);
-	EXPECT_EQ(model->getBltBlocks().size(), 0);
+	EXPECT_EQ(model.getVariables().size(), 4);
+	EXPECT_EQ(model.getEquations().size(), 3);
+	EXPECT_EQ(model.getBltBlocks().size(), 2);
 
-	if (failed(match(*model, 1000)))
+	if (failed(schedule(model)))
 		FAIL();
 
-	EXPECT_EQ(model->getVariables().size(), 4);
-	EXPECT_EQ(model->getEquations().size(), 7);
-	EXPECT_EQ(model->getBltBlocks().size(), 0);
+	EXPECT_EQ(model.getVariables().size(), 4);
+	EXPECT_EQ(model.getEquations().size(), 3);
+	EXPECT_EQ(model.getBltBlocks().size(), 2);
 
-	if (failed(solveSCCs(*model, 1000)))
-		FAIL();
-
-	EXPECT_EQ(model->getVariables().size(), 4);
-	EXPECT_EQ(model->getEquations().size(), 3);
-	EXPECT_EQ(model->getBltBlocks().size(), 2);
-
-	if (failed(schedule(*model)))
-		FAIL();
-
-	EXPECT_EQ(model->getVariables().size(), 4);
-	EXPECT_EQ(model->getEquations().size(), 3);
-	EXPECT_EQ(model->getBltBlocks().size(), 2);
-
-	EXPECT_EQ(model->getEquations()[0].amount(), 3);
-	EXPECT_EQ(model->getEquations()[1].amount(), 2);
-	EXPECT_EQ(model->getEquations()[2].amount(), 1);
-	EXPECT_EQ(model->getBltBlocks()[0].getEquations().size(), 2);
-	EXPECT_EQ(model->getBltBlocks()[1].getEquations().size(), 2);
+	EXPECT_EQ(model.getEquations()[0].amount(), 3);
+	EXPECT_EQ(model.getEquations()[1].amount(), 2);
+	EXPECT_EQ(model.getEquations()[2].amount(), 1);
+	EXPECT_EQ(model.getBltBlocks()[0].getEquations().size(), 2);
+	EXPECT_EQ(model.getBltBlocks()[1].getEquations().size(), 2);
 }
 
 TEST(ScheduleTest, BltBlockAndVectorEquation)
@@ -317,59 +222,36 @@ TEST(ScheduleTest, BltBlockAndVectorEquation)
 														"end for; "
 														"end Sched5; ";
 
-	modelica::frontend::Parser parser(stringModel);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel, model);
 
-	modelica::codegen::MLIRLowerer lowerer(context);
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
+	EXPECT_EQ(model.getVariables().size(), 3);
+	EXPECT_EQ(model.getEquations().size(), 4);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
+
+	if (failed(match(model, 1000)))
 		FAIL();
 
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
+	EXPECT_EQ(model.getVariables().size(), 3);
+	EXPECT_EQ(model.getEquations().size(), 4);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
+
+	if (failed(solveSCCs(model, 1000)))
 		FAIL();
 
-	EXPECT_EQ(model->getVariables().size(), 3);
-	EXPECT_EQ(model->getEquations().size(), 4);
-	EXPECT_EQ(model->getBltBlocks().size(), 0);
+	EXPECT_EQ(model.getVariables().size(), 3);
+	EXPECT_EQ(model.getEquations().size(), 2);
+	EXPECT_EQ(model.getBltBlocks().size(), 1);
 
-	if (failed(match(*model, 1000)))
+	if (failed(schedule(model)))
 		FAIL();
 
-	EXPECT_EQ(model->getVariables().size(), 3);
-	EXPECT_EQ(model->getEquations().size(), 4);
-	EXPECT_EQ(model->getBltBlocks().size(), 0);
+	EXPECT_EQ(model.getVariables().size(), 3);
+	EXPECT_EQ(model.getEquations().size(), 2);
+	EXPECT_EQ(model.getBltBlocks().size(), 1);
 
-	if (failed(solveSCCs(*model, 1000)))
-		FAIL();
-
-	EXPECT_EQ(model->getVariables().size(), 3);
-	EXPECT_EQ(model->getEquations().size(), 2);
-	EXPECT_EQ(model->getBltBlocks().size(), 1);
-
-	if (failed(schedule(*model)))
-		FAIL();
-
-	EXPECT_EQ(model->getVariables().size(), 3);
-	EXPECT_EQ(model->getEquations().size(), 2);
-	EXPECT_EQ(model->getBltBlocks().size(), 1);
-
-	EXPECT_EQ(model->getEquations()[0].amount(), 10);
-	EXPECT_EQ(model->getEquations()[1].amount(), 5);
-	EXPECT_EQ(model->getBltBlocks()[0].getEquations().size(), 2);
+	EXPECT_EQ(model.getEquations()[0].amount(), 10);
+	EXPECT_EQ(model.getEquations()[1].amount(), 5);
+	EXPECT_EQ(model.getBltBlocks()[0].getEquations().size(), 2);
 }

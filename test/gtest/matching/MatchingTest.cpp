@@ -1,14 +1,12 @@
 #include "gtest/gtest.h"
-#include <mlir/Pass/PassManager.h>
 #include <mlir/Support/LogicalResult.h>
-#include <modelica/frontend/Parser.h>
-#include <modelica/frontend/Passes.h>
-#include <modelica/mlirlowerer/CodeGen.h>
 #include <modelica/mlirlowerer/passes/matching/Edge.h>
 #include <modelica/mlirlowerer/passes/matching/Flow.h>
 #include <modelica/mlirlowerer/passes/matching/Matching.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
 #include <modelica/mlirlowerer/passes/model/VectorAccess.h>
+
+#include "TestingUtils.h"
 
 using namespace modelica::codegen::model;
 
@@ -34,34 +32,11 @@ std::string stringModel2 = "model Test "
 
 TEST(MatchingTest, SimpleMatch)
 {
-	modelica::frontend::Parser parser(stringModel1);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel1, model);
 
-	modelica::codegen::MLIRLowerer lowerer(context);
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
-		FAIL();
-
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
-		FAIL();
-
-	MatchingGraph graph(*model);
+	MatchingGraph graph(model);
 
 	EXPECT_EQ(graph.variableCount(), 2);
 	EXPECT_EQ(graph.equationCount(), 2);
@@ -75,34 +50,11 @@ TEST(MatchingTest, SimpleMatch)
 
 TEST(MatchingTest, FirstMatchingSize)
 {
-	modelica::frontend::Parser parser(stringModel1);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel1, model);
 
-	modelica::codegen::MLIRLowerer lowerer(context);
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
-		FAIL();
-
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
-		FAIL();
-
-	MatchingGraph graph(*model);
+	MatchingGraph graph(model);
 	AugmentingPath path(graph);
 	FlowCandidates res = path.selectStartingEdge();
 	EXPECT_EQ(res.getCurrent().getSet().size(), 5);
@@ -112,34 +64,11 @@ TEST(MatchingTest, FirstMatchingSize)
 
 TEST(MatchingTest, EmptyGraph)
 {
-	modelica::frontend::Parser parser(stringModel1);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel1, model);
 
-	modelica::codegen::MLIRLowerer lowerer(context);
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
-		FAIL();
-
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
-		FAIL();
-
-	Model emptyModel = Model((*model).getOp(), {}, {});
+	Model emptyModel = Model(model.getOp(), {}, {});
 	MatchingGraph graph(emptyModel);
 	if (failed(graph.match(4)))
 		FAIL();
@@ -148,130 +77,41 @@ TEST(MatchingTest, EmptyGraph)
 
 TEST(MatchingTest, TestMatchingFailure)
 {
-	modelica::frontend::Parser parser(stringModel1);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel1, model);
 
-	modelica::codegen::MLIRLowerer lowerer(context);
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
-		FAIL();
-
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
-		FAIL();
-
-	EXPECT_TRUE(failed(match(*model, 1000)));
+	EXPECT_TRUE(failed(match(model, 1000)));
 }
 
 TEST(MatchingTest, UnsuccessfulMatchingTest)
 {
-	modelica::frontend::Parser parser(stringModel1);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel1, model);
 
-	modelica::codegen::MLIRLowerer lowerer(
-			context, modelica::codegen::ModelicaOptions::getDefaultOptions());
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
-		FAIL();
-
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
-		FAIL();
-
-	if (!failed(match(*model, 1000)))
+	if (!failed(match(model, 1000)))
 		FAIL();
 }
 
 TEST(MatchingTest, SuccessfulMatchingTest)
 {
-	modelica::frontend::Parser parser(stringModel2);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel2, model);
 
-	modelica::codegen::MLIRLowerer lowerer(
-			context, modelica::codegen::ModelicaOptions::getDefaultOptions());
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
-		FAIL();
-
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
-		FAIL();
-
-	if (failed(match(*model, 1000)))
+	if (failed(match(model, 1000)))
 		FAIL();
 }
 
 TEST(MatchingTest, BaseGraphScalarDependencies)
 {
-	modelica::frontend::Parser parser(stringModel2);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel2, model);
 
-	modelica::codegen::MLIRLowerer lowerer(
-			context, modelica::codegen::ModelicaOptions::getDefaultOptions());
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
-		FAIL();
-
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
-		FAIL();
-
-	MatchingGraph graph(*model);
-	auto range = graph.arcsOf(model->getEquations()[0]);
+	MatchingGraph graph(model);
+	auto range = graph.arcsOf(model.getEquations()[0]);
 	EXPECT_EQ(graph.equationCount(), 1);
 	EXPECT_EQ(graph.variableCount(), 1);
 	EXPECT_EQ(std::distance(range.begin(), range.end()), 1);
@@ -279,33 +119,11 @@ TEST(MatchingTest, BaseGraphScalarDependencies)
 
 TEST(MatchingTest, ScalarMatchingTest)
 {
-	modelica::frontend::Parser parser(stringModel2);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-	if (frontendPassManager.run(classes))
-		FAIL();
-
 	mlir::MLIRContext context;
-	modelica::codegen::ModelicaBuilder builder(&context);
+	Model model;
+	makeModel(context, stringModel2, model);
 
-	modelica::codegen::MLIRLowerer lowerer(
-			context, modelica::codegen::ModelicaOptions::getDefaultOptions());
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
-		FAIL();
-
-	auto model = modelica::codegen::getUnmatchedModel(*moduleOp);
-	if (!model)
-		FAIL();
-
-	MatchingGraph graph(*model);
+	MatchingGraph graph(model);
 	if (failed(graph.match(4)))
 		FAIL();
 	EXPECT_EQ(graph.matchedEdgesCount(), 1);
