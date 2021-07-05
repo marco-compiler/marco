@@ -24,6 +24,7 @@ namespace marco::codegen::model
 		using iterator = Container<Equation>::iterator;
 		using const_iterator = Container<Equation>::const_iterator;
 
+		Model() = default;
 		Model(modelica::SimulationOp op,
 					llvm::ArrayRef<std::shared_ptr<Variable>> variables,
 					llvm::ArrayRef<Equation> equations,
