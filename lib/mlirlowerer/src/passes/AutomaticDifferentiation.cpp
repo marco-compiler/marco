@@ -336,6 +336,7 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 		}
 	}
 
+	/*
 	// Replace the old return operation with a new one returning the derivatives
 	auto returnOp = mlir::cast<ReturnOp>(derivedFunction.getBody().back().getTerminator());
 	llvm::SmallVector<mlir::Value, 3> results;
@@ -356,6 +357,7 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 	builder.setInsertionPoint(returnOp);
 	builder.create<ReturnOp>(returnOp.getLoc(), results);
 	returnOp->erase();
+	 */
 
 	return mlir::success();
 }
@@ -665,6 +667,7 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 	for (auto& op : derivableOps)
 		op.derive(builder, derivatives);
 
+	/*
 	// Replace the old return operation with a new one returning the derivatives
 	auto returnOp = mlir::cast<ReturnOp>(derivedFunction.getRegion().back().getTerminator());
 	llvm::SmallVector<mlir::Value, 3> results;
@@ -676,6 +679,7 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 	builder.setInsertionPoint(returnOp);
 	builder.create<ReturnOp>(returnOp.getLoc(), results);
 	returnOp->erase();
+	 */
 
 	return mlir::success();
 }

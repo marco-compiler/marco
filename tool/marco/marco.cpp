@@ -124,8 +124,6 @@ int main(int argc, char* argv[])
 	frontend::PassManager frontendPassManager;
 	frontendPassManager.addPass(frontend::createTypeCheckingPass());
 	frontendPassManager.addPass(frontend::createConstantFolderPass());
-	frontendPassManager.addPass(frontend::createBreakRemovingPass());
-	frontendPassManager.addPass(frontend::createReturnRemovingPass());
 	exitOnErr(frontendPassManager.run(classes));
 
 	if (printLegalizedAST)

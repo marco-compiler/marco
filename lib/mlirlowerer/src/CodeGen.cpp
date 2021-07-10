@@ -110,19 +110,23 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 {
 	mlir::PassManager passManager(builder.getContext());
 
+	passManager.addPass(createControlFlowCanonicalizationPass(loweringOptions.getBitWidth()));
 	passManager.addPass(createAutomaticDifferentiationPass());
 	passManager.addPass(createSolveModelPass(loweringOptions.solveModelOptions));
 	passManager.addPass(createFunctionsScalarizationPass(loweringOptions.functionsScalarizationOptions));
 	passManager.addPass(createExplicitCastInsertionPass());
-
-	if (loweringOptions.inlining)
-		passManager.addPass(mlir::createInlinerPass());
 
 	if (loweringOptions.resultBuffersToArgs)
 		passManager.addPass(createResultBuffersToArgsPass());
 
 	passManager.addPass(mlir::createCanonicalizerPass());
 	passManager.addPass(createFunctionConversionPass());
+
+	// The inliner pass can be run only after the functions have been converted
+	// to the standard dialect, as the Modelica ones have no terminator.
+
+	if (loweringOptions.inlining)
+		passManager.addPass(mlir::createInlinerPass());
 
 	if (loweringOptions.cse)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
@@ -255,7 +259,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 		const auto* annotation = function.getAnnotation();
 
 		// Inline attribute
-		functionOp->setAttr("inline", builder.getBooleanAttribute(function.getAnnotation()->getInlineProperty()));
+		functionOp->setAttr("inline", builder.getBoolAttr(function.getAnnotation()->getInlineProperty()));
 
 		{
 			// Inverse functions attribute
@@ -329,13 +333,6 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 	// Emit the body of the function
 	const auto& algorithm = function.getAlgorithms()[0];
 
-	// Create the variable to be checked for an early return
-	auto algorithmLocation = loc(algorithm->getLocation());
-	mlir::Value returnCondition = builder.create<AllocaOp>(algorithmLocation, builder.getBooleanType());
-	mlir::Value falseValue = builder.create<ConstantOp>(algorithmLocation, builder.getBooleanAttribute(false));
-	builder.create<StoreOp>(algorithmLocation, falseValue, returnCondition);
-	symbolTable.insert(algorithm->getReturnCheckName(), Reference::memory(&builder, returnCondition));
-
 	// Lower the statements
 	lower(*function.getAlgorithms()[0]);
 
@@ -354,16 +351,6 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 		}
 	}
 
-	// Return statement
-	llvm::SmallVector<mlir::Value, 3> results;
-
-	for (const auto& name : returnNames)
-	{
-		auto ptr = symbolTable.lookup(name);
-		results.push_back(*ptr);
-	}
-
-	builder.create<ReturnOp>(location, results);
 	return functionOp;
 }
 
@@ -863,12 +850,9 @@ void MLIRLowerer::lower(const IfStatement& statement)
 		for (const auto& stmnt : conditionalBlock)
 			lower(*stmnt);
 
-		builder.create<YieldOp>(loc(statement.getLocation()));
-
 		if (i > 0)
 		{
 			builder.setInsertionPointAfter(ifOp);
-			builder.create<YieldOp>(loc(statement.getLocation()));
 		}
 
 		// The next conditional blocks will be placed as new If operations
@@ -885,60 +869,43 @@ void MLIRLowerer::lower(const ForStatement& statement)
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 	auto location = loc(statement.getLocation());
 
-	// Variable to be set when calling "break"
-	mlir::Value breakCondition = builder.create<AllocaOp>(location, builder.getBooleanType());
-	mlir::Value falseValue = builder.create<ConstantOp>(location, builder.getBooleanAttribute(false));
-	builder.create<StoreOp>(location, falseValue, breakCondition);
-	symbolTable.insert(statement.getBreakCheckName(), Reference::memory(&builder, breakCondition));
-
-	// Variable to be set when calling "return"
-	mlir::Value returnCondition = symbolTable.lookup(statement.getReturnCheckName()).getReference();
-
 	const auto& induction = statement.getInduction();
 
 	mlir::Value lowerBound = *lower<Expression>(*induction->getBegin())[0];
-	lowerBound = builder.create<CastOp>(lowerBound.getLoc(), lowerBound, builder.getIndexType());
+	mlir::Value index = builder.create<AllocaOp>(location, lowerBound.getType());
+	symbolTable.insert(induction->getName(), Reference::memory(&builder, index));
+	builder.create<StoreOp>(location, lowerBound, index);
 
-	auto forOp = builder.create<BreakableForOp>(location, breakCondition, returnCondition, lowerBound);
+	auto forOp = builder.create<ForOp>(location);
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	{
 		// Check the loop condition
-		llvm::ScopedHashTableScope<mlir::StringRef, Reference> scope(symbolTable);
-		symbolTable.insert(induction->getName(), Reference::ssa(&builder, forOp.condition().front().getArgument(0)));
-
 		builder.setInsertionPointToStart(&forOp.condition().front());
-
 		mlir::Value upperBound = *lower<Expression>(*induction->getEnd())[0];
-		upperBound = builder.create<CastOp>(lowerBound.getLoc(), upperBound, builder.getIndexType());
-
-		mlir::Value condition = builder.create<LteOp>(location, builder.getBooleanType(), forOp.condition().front().getArgument(0), upperBound);
-		builder.create<ConditionOp>(location, condition, *symbolTable.lookup(induction->getName()));
+		mlir::Value currentIndex = builder.create<LoadOp>(location, index);
+		mlir::Value condition = builder.create<LteOp>(location, builder.getBooleanType(), currentIndex, upperBound);
+		builder.create<ConditionOp>(location, condition);
 	}
 
 	{
 		// Body
 		llvm::ScopedHashTableScope<mlir::StringRef, Reference> scope(symbolTable);
-		symbolTable.insert(induction->getName(), Reference::ssa(&builder, forOp.body().front().getArgument(0)));
-
 		builder.setInsertionPointToStart(&forOp.body().front());
 
 		for (const auto& stmnt : statement)
 			lower(*stmnt);
-
-		builder.create<YieldOp>(location, *symbolTable.lookup(induction->getName()));
 	}
 
 	{
 		// Step
 		llvm::ScopedHashTableScope<mlir::StringRef, Reference> scope(symbolTable);
-		symbolTable.insert(induction->getName(), Reference::ssa(&builder, forOp.step().front().getArgument(0)));
-
 		builder.setInsertionPointToStart(&forOp.step().front());
 
-		mlir::Value step = builder.create<mlir::ConstantOp>(location, builder.getIndexAttribute(1));
-		mlir::Value incremented = builder.create<mlir::AddIOp>(location, *symbolTable.lookup(induction->getName()), step);
-		builder.create<YieldOp>(location, incremented);
+		mlir::Value step = builder.create<ConstantOp>(location, builder.getIndexAttribute(1));
+		mlir::Value currentIndex = builder.create<LoadOp>(location, index);
+		mlir::Value incremented = builder.create<AddOp>(location, currentIndex.getType(), currentIndex, step);
+		builder.create<StoreOp>(location, incremented, index);
 	}
 }
 
@@ -947,17 +914,8 @@ void MLIRLowerer::lower(const WhileStatement& statement)
 	llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 	auto location = loc(statement.getLocation());
 
-	// Variable to be set when calling "break"
-	mlir::Value breakCondition = builder.create<AllocaOp>(location, builder.getBooleanType());
-	mlir::Value falseValue = builder.create<ConstantOp>(location, builder.getBooleanAttribute(false));
-	builder.create<StoreOp>(location, falseValue, breakCondition);
-	symbolTable.insert(statement.getBreakCheckName(), Reference::memory(&builder, breakCondition));
-
-	// Variable to be set when calling "return"
-	mlir::Value returnCondition = symbolTable.lookup(statement.getReturnCheckName()).getReference();
-
 	// Create the operation
-	auto whileOp = builder.create<BreakableWhileOp>(location, breakCondition, returnCondition);
+	auto whileOp = builder.create<WhileOp>(location);
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	{
@@ -979,8 +937,6 @@ void MLIRLowerer::lower(const WhileStatement& statement)
 
 		for (const auto& stmnt : statement)
 			lower(*stmnt);
-
-		builder.create<YieldOp>(location);
 	}
 }
 
@@ -991,12 +947,14 @@ void MLIRLowerer::lower(const WhenStatement& statement)
 
 void MLIRLowerer::lower(const BreakStatement& statement)
 {
-	assert(false && "Break statement encountered. BreakRemovingPass may have not been run before lowering the AST.");
+	mlir::Location location = loc(statement.getLocation());
+	builder.create<BreakOp>(location);
 }
 
 void MLIRLowerer::lower(const ReturnStatement& statement)
 {
-	assert(false && "Return statement encountered. ReturnRemovingPass may have not been run before lowering the AST.");
+	mlir::Location location = loc(statement.getLocation());
+	builder.create<ReturnOp>(location);
 }
 
 template<>

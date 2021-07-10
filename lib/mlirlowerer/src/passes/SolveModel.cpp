@@ -1,5 +1,6 @@
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
@@ -717,74 +718,61 @@ struct ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp>
 
 	mlir::LogicalResult matchAndRewrite(ForEquationOp op, mlir::PatternRewriter& rewriter) const override
 	{
-		// Create the assignment
-		auto sides = mlir::cast<EquationSidesOp>(op.body()->getTerminator());
-		rewriter.setInsertionPoint(sides);
-
-		for (auto [lhs, rhs] : llvm::zip(sides.lhs(), sides.rhs()))
-		{
-			if (auto loadOp = mlir::dyn_cast<LoadOp>(lhs.getDefiningOp()))
-			{
-				assert(loadOp.indexes().empty());
-				rewriter.create<AssignmentOp>(sides.getLoc(), rhs, loadOp.memory());
-			}
-			else
-			{
-				rewriter.create<AssignmentOp>(sides->getLoc(), rhs, lhs);
-			}
-		}
-
-		rewriter.eraseOp(sides);
-
-		// Create the loop
-		rewriter.setInsertionPoint(op);
-		llvm::SmallVector<mlir::Block*, 3> bodies;
-		llvm::SmallVector<mlir::Value, 3> inductions;
-		mlir::Block* innermostBody = rewriter.getInsertionBlock();
+		llvm::SmallVector<mlir::Value, 3> lowerBounds;
+		llvm::SmallVector<mlir::Value, 3> upperBounds;
+		llvm::SmallVector<mlir::Value, 3> steps;
 
 		for (auto induction : op.inductionsDefinitions())
 		{
 			auto inductionOp = mlir::cast<InductionOp>(induction.getDefiningOp());
 
-			// Init value
 			mlir::Value start = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(inductionOp.start()));
+			mlir::Value end = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(inductionOp.end()));
+			mlir::Value step = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(1));
 
-			auto loop = rewriter.create<ForOp>(induction.getLoc(), start);
-			bodies.push_back(&loop.body().front());
-			inductions.push_back(loop.body().getArgument(0));
-
-			{
-				// Condition
-				rewriter.setInsertionPointToStart(&loop.condition().front());
-				mlir::Value end = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(inductionOp.end()));
-				mlir::Value current = loop.condition().getArgument(0);
-				mlir::Value condition = rewriter.create<LteOp>(induction.getLoc(), BooleanType::get(op->getContext()), current, end);
-				rewriter.create<ConditionOp>(induction.getLoc(), condition, loop.condition().getArgument(0));
-			}
-
-			{
-				// Step
-				rewriter.setInsertionPointToStart(&loop.step().front());
-				mlir::Value newInductionValue = rewriter.create<AddOp>(induction.getLoc(),
-																															 loop.step().getArgument(0).getType(),
-																															 loop.step().getArgument(0),
-																															 rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(1)));
-				rewriter.create<YieldOp>(induction.getLoc(), newInductionValue);
-			}
-
-			// The next loop will be built inside the current body
-			innermostBody = &loop.body().front();
-			rewriter.setInsertionPointToStart(innermostBody);
+			lowerBounds.push_back(start);
+			upperBounds.push_back(end);
+			steps.push_back(step);
 		}
 
-		rewriter.mergeBlocks(op.body(), innermostBody, inductions);
+		mlir::scf::buildLoopNest(
+				rewriter, op->getLoc(), lowerBounds, upperBounds, steps, llvm::None,
+				[&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
+					mlir::BlockAndValueMapping mapping;
 
-		// Add the terminator to each body block
-		for (auto [block, induction] : llvm::zip(bodies, inductions))
-		{
-			rewriter.setInsertionPointToEnd(block);
-			rewriter.create<YieldOp>(induction.getLoc(), induction);
-		}
+					for (auto [oldInduction, newInduction] : llvm::zip(op.body()->getArguments(), position))
+						mapping.map(oldInduction, newInduction);
+
+					for (auto& sourceOp : op.body()->getOperations())
+					{
+						if (auto sides = mlir::dyn_cast<EquationSidesOp>(sourceOp))
+						{
+							// Create the assignments
+							for (auto [lhs, rhs] : llvm::zip(sides.lhs(), sides.rhs()))
+							{
+								mlir::Value value = mapping.contains(rhs) ? mapping.lookup(rhs) : rhs;
+
+								if (auto loadOp = mlir::dyn_cast<LoadOp>(lhs.getDefiningOp()))
+								{
+									assert(loadOp.indexes().empty());
+									mlir::Value destination = mapping.contains(loadOp.memory()) ? mapping.lookup(loadOp.memory()) : loadOp.memory();
+									rewriter.create<AssignmentOp>(sides.getLoc(), value, destination);
+								}
+								else
+								{
+									mlir::Value destination = mapping.contains(lhs) ? mapping.lookup(lhs) : lhs;
+									rewriter.create<AssignmentOp>(sides->getLoc(), value, destination);
+								}
+							}
+						}
+						else
+						{
+							rewriter.clone(sourceOp, mapping);
+						}
+					}
+
+					return std::vector<mlir::Value>();
+				});
 
 		rewriter.eraseOp(op);
 		return mlir::success();
@@ -807,6 +795,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
 		registry.insert<ModelicaDialect>();
+		registry.insert<mlir::scf::SCFDialect>();
 	}
 
 	void runOnOperation() override
@@ -830,9 +819,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			// Remove the derivative operations and allocate the appropriate buffers
 			if (failed(removeDerivatives(builder, model, derivatives)))
 				return signalPassFailure();
-
-			//if (failed(instantiateFunctionDerivatives(builder, model, derivatives)))
-			//	return signalPassFailure();
 
 			// Match
 			if (failed(match(model, options.matchingMaxIterations)))
@@ -964,44 +950,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			return status;
 
 		model.reloadIR();
-		return mlir::success();
-	}
-
-	mlir::LogicalResult instantiateFunctionDerivatives(mlir::OpBuilder& builder, Model& model, mlir::BlockAndValueMapping& derivatives)
-	{
-		/*
-		model.getOp()->walk([&](ForEquationOp equation) {
-			equation.walk([&](CallOp call) {
-				auto module = call->getParentOfType<mlir::ModuleOp>();
-				auto simulation = call->getParentOfType<SimulationOp>();
-				auto callee = module.lookupSymbol<FunctionOp>(call.callee());
-
-				if (!callee.hasDerivative())
-					return;
-
-				builder.setInsertionPointAfter(equation);
-				auto derivedEquation = builder.create<ForEquationOp>(equation->getLoc(), equation.inductions().size());
-
-				llvm::SmallVector<mlir::Value, 3> lhs;
-				llvm::SmallVector<mlir::Value, 3> rhs;
-
-				for (mlir::Value lhsValue : equation.lhs())
-				{
-					if (mlir::isa<mlir::BlockArgument>(lhsValue))
-					{
-						auto var = model.getVariable(simulation.getVariableAllocation(lhsValue));
-
-						if (!var.isState())
-							return;
-
-						lhs.push_back()
-					}
-				}
-			});
-		});
-
-		model.reloadIR();
-		 */
 		return mlir::success();
 	}
 

@@ -23,10 +23,8 @@ modelicaAddLibrary(
 		src/ast/Tuple.cpp
 		src/ast/Type.cpp
 		src/ast/TypePrefix.cpp
-		src/passes/BreakRemovingPass.cpp
 		src/passes/ConstantFoldingPass.cpp
 		src/passes/PassManager.cpp
-		src/passes/ReturnRemovingPass.cpp
 		src/passes/TypeCheckingPass.cpp
 		src/Errors.cpp
         src/LexerStateMachine.cpp

@@ -12,25 +12,25 @@ class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
 
 	bool isLegalToInline(mlir::Operation* call, mlir::Operation* callable, bool wouldBeCloned) const final
 	{
-		if (!mlir::isa<FunctionOp>(callable))
+		if (!mlir::isa<mlir::FuncOp>(callable))
 			return false;
 
-		auto function = mlir::cast<FunctionOp>(callable);
+		auto function = mlir::cast<mlir::FuncOp>(callable);
 
 		if (!function->hasAttr("inline"))
 			return false;
 
-		auto inlineAttribute = function->getAttrOfType<BooleanAttribute>("inline");
+		auto inlineAttribute = function->getAttrOfType<mlir::BoolAttr>("inline");
 		return inlineAttribute.getValue();
 	}
 
-	bool isLegalToInline(mlir::Operation* op, mlir::Region* dest, bool wouldBeCloned, mlir::BlockAndValueMapping &valueMapping) const final
+	bool isLegalToInline(mlir::Operation* op, mlir::Region* dest, bool wouldBeCloned, mlir::BlockAndValueMapping& valueMapping) const final
 	{
 		return true;
 	}
 
 	void handleTerminator(mlir::Operation* op, llvm::ArrayRef<mlir::Value> valuesToReplace) const final {
-		auto returnOp = mlir::cast<ReturnOp>(op);
+		auto returnOp = mlir::cast<mlir::ReturnOp>(op);
 
 		// Replace the values directly with the return operands
 		assert(returnOp.getNumOperands() == valuesToReplace.size());
@@ -47,7 +47,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute, DerivativeAttribute, InverseFunctionsAttribute>();
 	addInterfaces<ModelicaInlinerInterface>();
 
-	addOperations<FunctionOp, ReturnOp, DerFunctionOp>();
+	addOperations<FunctionOp, DerFunctionOp>();
 
 	// Basic operations
 	addOperations<ConstantOp, PackOp, ExtractOp, CastOp, AssignmentOp, CallOp, PrintOp>();
@@ -78,12 +78,8 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addOperations<LteOp>();
 
 	// Control flow operations
-	addOperations<IfOp>();
-	addOperations<ForOp>();
-	addOperations<BreakableForOp>();
-	addOperations<BreakableWhileOp>();
-	addOperations<ConditionOp>();
-	addOperations<YieldOp>();
+	addOperations<ForOp, IfOp, WhileOp>();
+	addOperations<ConditionOp, YieldOp, BreakOp, ReturnOp>();
 
 	// Built-in operations
 	addOperations<

@@ -356,10 +356,12 @@ namespace modelica::codegen
 																		mlir::OpTrait::ZeroResult,
 																		mlir::OpTrait::ZeroSuccessor,
 																		mlir::OpTrait::ZeroOperands,
+																		mlir::OpTrait::NoTerminator,
 																		mlir::OpTrait::IsIsolatedFromAbove,
 																		mlir::OpTrait::FunctionLike,
 																		mlir::CallableOpInterface::Trait,
 																		mlir::SymbolOpInterface::Trait,
+																		mlir::OpTrait::AutomaticAllocationScope,
 																		ClassInterface::Trait>
 	{
 		public:
@@ -405,18 +407,12 @@ namespace modelica::codegen
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
-
-		mlir::ValueRange values();
 	};
 
 	class ReturnOp : public mlir::Op<ReturnOp,
 																	mlir::OpTrait::ZeroRegion,
+																	mlir::OpTrait::ZeroOperands,
 																	mlir::OpTrait::ZeroResult,
-																	mlir::OpTrait::ZeroSuccessor,
-																	mlir::OpTrait::VariadicOperands,
-																	mlir::MemoryEffectOpInterface::Trait,
-																	mlir::OpTrait::HasParent<FunctionOp>::Impl,
-																	mlir::OpTrait::ReturnLike,
 																	mlir::OpTrait::IsTerminator>
 	{
 		public:
@@ -428,13 +424,9 @@ namespace modelica::codegen
 			return "modelica.return";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
-
-		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
-
-		mlir::ValueRange values();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -1196,8 +1188,8 @@ namespace modelica::codegen
 															mlir::OpTrait::VariadicResults,
 															mlir::OpTrait::ZeroSuccessor,
 															mlir::OpTrait::OneOperand,
-															mlir::RegionBranchOpInterface::Trait,
-															mlir::OpTrait::SingleBlockImplicitTerminator<YieldOp>::Impl>
+															mlir::OpTrait::NoTerminator,
+															mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1232,14 +1224,13 @@ namespace modelica::codegen
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
-
-		mlir::ValueRange args();
 	};
 
 	class ForOp : public mlir::Op<ForOp,
 															 mlir::OpTrait::NRegions<3>::Impl,
-															 mlir::OpTrait::VariadicOperands,
+															 mlir::OpTrait::ZeroOperands,
 															 mlir::OpTrait::ZeroResult,
+															 mlir::OpTrait::NoTerminator,
 															 mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
@@ -1251,103 +1242,47 @@ namespace modelica::codegen
 			return "modelica.for";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args = llvm::None);
-		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
 
 		mlir::Region& condition();
-		mlir::Region& step();
 		mlir::Region& body();
-
-		mlir::ValueRange args();
+		mlir::Region& step();
 	};
 
 	//===----------------------------------------------------------------------===//
-	// Modelica::BreakableForOp
+	// Modelica::WhileOp
 	//===----------------------------------------------------------------------===//
 
-	class BreakableForOp;
+	class WhileOp;
 
-	class BreakableForOpAdaptor : public OpAdaptor<BreakableForOp>
+	class WhileOpAdaptor : public OpAdaptor<WhileOp>
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
-
-		mlir::Value breakCondition();
-		mlir::Value returnCondition();
-		mlir::ValueRange args();
 	};
 
-	class BreakableForOp : public mlir::Op<BreakableForOp,
-																				mlir::OpTrait::NRegions<3>::Impl,
-																				mlir::OpTrait::AtLeastNOperands<2>::Impl,
-																				mlir::OpTrait::ZeroResult,
-																				mlir::LoopLikeOpInterface::Trait,
-																				mlir::RegionBranchOpInterface::Trait>
+	class WhileOp : public mlir::Op<WhileOp,
+																 mlir::OpTrait::NRegions<2>::Impl,
+																 mlir::OpTrait::ZeroOperands,
+																 mlir::OpTrait::ZeroResult,
+																 mlir::OpTrait::NoTerminator,
+																 mlir::LoopLikeOpInterface::Trait,
+																 mlir::RegionBranchOpInterface::Trait>
 	{
 		public:
 		using Op::Op;
-		using Adaptor = BreakableForOpAdaptor;
+		using Adaptor = WhileOpAdaptor;
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.breakable_for";
+			return "modelica.while";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args = llvm::None);
-		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
-		void print(mlir::OpAsmPrinter& printer);
-		mlir::LogicalResult verify();
-
-		bool isDefinedOutsideOfLoop(mlir::Value value);
-		mlir::Region& getLoopBody();
-		mlir::LogicalResult moveOutOfLoop(llvm::ArrayRef<mlir::Operation*> ops);
-
-		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
-
-		mlir::Region& condition();
-		mlir::Region& step();
-		mlir::Region& body();
-
-		mlir::Value breakCondition();
-		mlir::Value returnCondition();
-		mlir::ValueRange args();
-	};
-
-	//===----------------------------------------------------------------------===//
-	// Modelica::BreakableWhileOp
-	//===----------------------------------------------------------------------===//
-
-	class BreakableWhileOp;
-
-	class BreakableWhileOpAdaptor : public OpAdaptor<BreakableWhileOp>
-	{
-		public:
-		using OpAdaptor::OpAdaptor;
-
-		mlir::Value breakCondition();
-		mlir::Value returnCondition();
-	};
-
-	class BreakableWhileOp : public mlir::Op<BreakableWhileOp,
-																					mlir::OpTrait::NRegions<2>::Impl,
-																					mlir::OpTrait::NOperands<2>::Impl,
-																					mlir::OpTrait::ZeroResult,
-																					mlir::LoopLikeOpInterface::Trait,
-																					mlir::RegionBranchOpInterface::Trait>
-	{
-		public:
-		using Op::Op;
-		using Adaptor = BreakableWhileOpAdaptor;
-
-		static constexpr llvm::StringLiteral getOperationName()
-		{
-			return "modelica.breakable_while";
-		}
-
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition = nullptr, mlir::Value returnCondition = nullptr);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -1360,9 +1295,6 @@ namespace modelica::codegen
 
 		mlir::Region& condition();
 		mlir::Region& body();
-
-		mlir::Value breakCondition();
-		mlir::Value returnCondition();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -1385,7 +1317,7 @@ namespace modelica::codegen
 																		 mlir::OpTrait::VariadicOperands,
 																		 mlir::OpTrait::ZeroResult,
 																		 mlir::OpTrait::ZeroSuccessor,
-																		 mlir::OpTrait::HasParent<ForOp, BreakableForOp, BreakableWhileOp>::Impl,
+																		 mlir::OpTrait::HasParent<ForOp, WhileOp>::Impl,
 																		 mlir::OpTrait::IsTerminator>
 	{
 		public:
@@ -1424,7 +1356,7 @@ namespace modelica::codegen
 																 mlir::OpTrait::ZeroRegion,
 																 mlir::OpTrait::VariadicOperands,
 																 mlir::OpTrait::ZeroResult,
-																 mlir::OpTrait::HasParent<ForEquationOp, IfOp, ForOp, BreakableForOp, BreakableWhileOp, SimulationOp>::Impl,
+																 mlir::OpTrait::HasParent<ForEquationOp, IfOp, ForOp, WhileOp, SimulationOp>::Impl,
 																 mlir::OpTrait::IsTerminator>
 	{
 		public:
@@ -1441,6 +1373,38 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::ValueRange values();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::BreakOp
+	//===----------------------------------------------------------------------===//
+
+	class BreakOp;
+
+	class BreakOpAdaptor : public OpAdaptor<BreakOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+	};
+
+	class BreakOp : public mlir::Op<BreakOp,
+																 mlir::OpTrait::ZeroRegion,
+																 mlir::OpTrait::ZeroOperands,
+																 mlir::OpTrait::ZeroResult,
+																 mlir::OpTrait::IsTerminator>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = BreakOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.break";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
 	};
 
 	//===----------------------------------------------------------------------===//

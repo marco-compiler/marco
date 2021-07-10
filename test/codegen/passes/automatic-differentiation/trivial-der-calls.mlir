@@ -13,6 +13,4 @@ modelica.function @sin(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!mode
     %1 = modelica.sin %arg0 : !modelica.real -> !modelica.real
     %2 = modelica.der %1 : !modelica.real -> !modelica.real
     modelica.member_store %0, %2 : !modelica.member<stack, !modelica.real>
-    %3 = modelica.member_load %0 : !modelica.real
-    modelica.return %3 : !modelica.real
 }

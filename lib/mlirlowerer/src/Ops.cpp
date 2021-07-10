@@ -266,7 +266,7 @@ mlir::Region& SimulationOp::print()
 mlir::Value SimulationOp::getVariableAllocation(mlir::Value var)
 {
 	unsigned int index = var.dyn_cast<mlir::BlockArgument>().getArgNumber();
-	return mlir::cast<YieldOp>(init().back().getTerminator()).getOperand(index);
+	return mlir::cast<YieldOp>(init().back().getTerminator()).values()[index];
 }
 
 mlir::Value SimulationOp::time()
@@ -371,7 +371,7 @@ mlir::Block* ForEquationOp::inductionsBlock()
 
 mlir::ValueRange ForEquationOp::inductionsDefinitions()
 {
-	return mlir::cast<YieldOp>(inductionsBlock()->getTerminator()).getOperands();
+	return mlir::cast<YieldOp>(inductionsBlock()->getTerminator()).values();
 }
 
 mlir::Block* ForEquationOp::body()
@@ -690,6 +690,7 @@ mlir::LogicalResult FunctionOp::verify()
 	if (getNumResults() != resultsNames().size())
 		return emitOpError("requires all the results to have their names defined");
 
+	/*
 	auto returnOp = mlir::cast<ReturnOp>(getBody().back().getTerminator());
 
 	if (getNumResults() != returnOp.values().size())
@@ -698,6 +699,7 @@ mlir::LogicalResult FunctionOp::verify()
 	for (const auto& [returnType, functionType] : llvm::zip(returnOp.values().getTypes(), getType().getResults()))
 		if (returnType != functionType)
 			return emitOpError("requires the return values to match the function signature");
+			*/
 
 	return mlir::success();
 }
@@ -760,50 +762,18 @@ void FunctionOp::getMembers(llvm::SmallVectorImpl<mlir::Value>& members, llvm::S
 // Modelica::ReturnOp
 //===----------------------------------------------------------------------===//
 
-mlir::ValueRange ReturnOpAdaptor::values()
+void ReturnOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
-	return getValues();
-}
-
-void ReturnOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
-{
-	state.addOperands(values);
 }
 
 mlir::ParseResult ReturnOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> values;
-	llvm::SmallVector<mlir::Type, 3> types;
-
-	llvm::SMLoc valuesLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(values) ||
-			parser.parseOptionalColonTypeList(types) ||
-			parser.resolveOperands(values, types, valuesLoc, result.operands))
-		return mlir::failure();
-
 	return mlir::success();
 }
 
 void ReturnOp::print(mlir::OpAsmPrinter& printer)
 {
-	auto operands = values();
-	printer << getOperationName() << " " << operands;
-
-	if (!operands.empty())
-		printer << " : " << operands.getTypes();
-}
-
-void ReturnOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	for (auto value : values())
-		if (value.getType().isa<ArrayType>())
-			effects.emplace_back(mlir::MemoryEffects::Read::get(), value, mlir::SideEffects::DefaultResource::get());
-}
-
-mlir::ValueRange ReturnOp::values()
-{
-	return Adaptor(*this).values();
+	printer << getOperationName();
 }
 
 //===----------------------------------------------------------------------===//
@@ -2788,34 +2758,49 @@ mlir::Region& IfOp::elseRegion()
 // Modelica::ForOp
 //===----------------------------------------------------------------------===//
 
-mlir::ValueRange ForOpAdaptor::args()
-{
-	return getValues();
-}
-
-void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args)
+void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
-	state.addOperands(args);
 
 	// Condition block
-	builder.createBlock(state.addRegion(), {}, args.getTypes());
-
-	// Step block
-	builder.createBlock(state.addRegion(), {}, args.getTypes());
+	builder.createBlock(state.addRegion());
 
 	// Body block
-	builder.createBlock(state.addRegion(), {}, args.getTypes());
+	builder.createBlock(state.addRegion());
+
+	// Step block
+	builder.createBlock(state.addRegion());
+}
+
+mlir::ParseResult ForOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::Region* conditionRegion = result.addRegion();
+
+	if (parser.parseRegion(*conditionRegion))
+		return mlir::failure();
+
+	if (parser.parseKeyword("body"))
+		return mlir::failure();
+
+	mlir::Region* bodyRegion = result.addRegion();
+
+	if (parser.parseRegion(*bodyRegion))
+		return mlir::failure();
+
+	if (parser.parseKeyword("step"))
+		return mlir::failure();
+
+	mlir::Region* stepRegion = result.addRegion();
+
+	if (parser.parseRegion(*stepRegion))
+		return mlir::failure();
+
+	return mlir::success();
 }
 
 void ForOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.for " << args();
-
-	if (!args().empty())
-		printer << " ";
-
-	printer << "condition";
+	printer << "modelica.for ";
 	printer.printRegion(condition(), true);
 	printer << " body";
 	printer.printRegion(body(), true);
@@ -2853,181 +2838,23 @@ mlir::Region& ForOp::condition()
 	return getOperation()->getRegion(0);
 }
 
-mlir::Region& ForOp::step()
-{
-	return getOperation()->getRegion(1);
-}
-
 mlir::Region& ForOp::body()
 {
-	return getOperation()->getRegion(2);
-}
-
-mlir::ValueRange ForOp::args()
-{
-	return Adaptor(*this).args();
-}
-
-//===----------------------------------------------------------------------===//
-// Modelica::BreakableForOp
-//===----------------------------------------------------------------------===//
-
-mlir::Value BreakableForOpAdaptor::breakCondition()
-{
-	return getValues()[0];
-}
-
-mlir::Value BreakableForOpAdaptor::returnCondition()
-{
-	return getValues()[1];
-}
-
-mlir::ValueRange BreakableForOpAdaptor::args()
-{
-	return mlir::ValueRange(std::next(getValues().begin(), 2), getValues().end());
-}
-
-void BreakableForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition, mlir::ValueRange args)
-{
-	mlir::OpBuilder::InsertionGuard guard(builder);
-
-	state.addOperands(breakCondition);
-	state.addOperands(returnCondition);
-	state.addOperands(args);
-
-	// Condition block
-	builder.createBlock(state.addRegion(), {}, args.getTypes());
-
-	// Step block
-	builder.createBlock(state.addRegion(), {}, args.getTypes());
-
-	// Body block
-	builder.createBlock(state.addRegion(), {}, args.getTypes());
-}
-
-void BreakableForOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << getOperationName() << " (";
-	printer << "break = " << breakCondition() << " : " << breakCondition().getType() << ", ";
-	printer << "return = " << returnCondition() << " : " << returnCondition().getType() << ")";
-
-	if (!args().empty())
-		printer << "(" << args() << " : " << args().getTypes() << ")";
-
-	printer << " condition";
-	printer.printRegion(condition(), false);
-	printer << " body";
-	printer.printRegion(body(), true);
-	printer << " step";
-	printer.printRegion(step(), true);
-}
-
-mlir::LogicalResult BreakableForOp::verify()
-{
-	if (auto breakPtr = breakCondition().getType().dyn_cast<ArrayType>();
-			!breakPtr || !breakPtr.getElementType().isa<BooleanType>() || breakPtr.getRank() != 0)
-		return emitOpError("requires the break condition to be a pointer to a single boolean value");
-
-	if (auto returnPtr = breakCondition().getType().dyn_cast<ArrayType>();
-			!returnPtr || !returnPtr.getElementType().isa<BooleanType>() || returnPtr.getRank() != 0)
-		return emitOpError("requires the return condition to be a pointer to a single boolean value");
-
-	return mlir::success();
-}
-
-bool BreakableForOp::isDefinedOutsideOfLoop(mlir::Value value)
-{
-	return !body().isAncestor(value.getParentRegion());
-}
-
-mlir::Region& BreakableForOp::getLoopBody()
-{
-	return body();
-}
-
-mlir::LogicalResult BreakableForOp::moveOutOfLoop(llvm::ArrayRef<mlir::Operation*> ops)
-{
-	for (auto* op : ops)
-		op->moveBefore(*this);
-
-	return mlir::success();
-}
-
-void BreakableForOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
-{
-	if (!index.hasValue())
-	{
-		regions.push_back(mlir::RegionSuccessor(&condition(), condition().getArguments()));
-		return;
-	}
-
-	assert(*index < 3 && "There are only three regions in a BreakableForOp");
-
-	if (*index == 0)
-	{
-		regions.emplace_back(&body(), body().getArguments());
-		regions.emplace_back(getOperation()->getResults());
-	}
-	else if (*index == 1)
-	{
-		regions.emplace_back(&step(), step().getArguments());
-	}
-	else if (*index == 2)
-	{
-		regions.emplace_back(&condition(), condition().getArguments());
-	}
-}
-
-mlir::Region& BreakableForOp::condition()
-{
-	return getOperation()->getRegion(0);
-}
-
-mlir::Region& BreakableForOp::step()
-{
 	return getOperation()->getRegion(1);
 }
 
-mlir::Region& BreakableForOp::body()
+mlir::Region& ForOp::step()
 {
 	return getOperation()->getRegion(2);
 }
 
-mlir::Value BreakableForOp::breakCondition()
-{
-	return Adaptor(*this).breakCondition();
-}
-
-mlir::Value BreakableForOp::returnCondition()
-{
-	return Adaptor(*this).returnCondition();
-}
-
-mlir::ValueRange BreakableForOp::args()
-{
-	return Adaptor(*this).args();
-}
-
 //===----------------------------------------------------------------------===//
-// Modelica::BreakableWhileOp
+// Modelica::WhileOp
 //===----------------------------------------------------------------------===//
 
-mlir::Value BreakableWhileOpAdaptor::breakCondition()
-{
-	return getValues()[0];
-}
-
-mlir::Value BreakableWhileOpAdaptor::returnCondition()
-{
-	return getValues()[1];
-}
-
-void BreakableWhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value breakCondition, mlir::Value returnCondition)
+void WhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
-
-	state.addOperands(breakCondition);
-	state.addOperands(returnCondition);
 
 	// Condition block
 	builder.createBlock(state.addRegion());
@@ -3036,37 +2863,8 @@ void BreakableWhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& sta
 	builder.createBlock(state.addRegion());
 }
 
-mlir::ParseResult BreakableWhileOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+mlir::ParseResult WhileOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	mlir::OpAsmParser::OperandType breakCondition;
-	mlir::Type breakConditionType;
-
-	mlir::OpAsmParser::OperandType returnCondition;
-	mlir::Type returnConditionType;
-
-	if (parser.parseLParen())
-		return mlir::failure();
-
-	if (parser.parseKeyword("break") ||
-			parser.parseEqual() ||
-			parser.parseOperand(breakCondition) ||
-			parser.parseColonType(breakConditionType) ||
-			parser.resolveOperand(breakCondition, breakConditionType, result.operands))
-		return mlir::failure();
-
-	if (parser.parseComma())
-		return mlir::failure();
-
-	if (parser.parseKeyword("return") ||
-			parser.parseEqual() ||
-			parser.parseOperand(returnCondition) ||
-			parser.parseColonType(returnConditionType) ||
-			parser.resolveOperand(returnCondition, returnConditionType, result.operands))
-		return mlir::failure();
-
-	if (parser.parseRParen())
-		return mlir::failure();
-
 	mlir::Region* conditionRegion = result.addRegion();
 
 	if (parser.parseRegion(*conditionRegion))
@@ -3083,40 +2881,30 @@ mlir::ParseResult BreakableWhileOp::parse(mlir::OpAsmParser& parser, mlir::Opera
 	return mlir::success();
 }
 
-void BreakableWhileOp::print(mlir::OpAsmPrinter& printer)
+void WhileOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " (";
-	printer << "break = " << breakCondition() << " : " << breakCondition().getType() << ", ";
-	printer << "return = " << returnCondition() << " : " << returnCondition().getType() << ")";
+	printer << getOperationName();
 	printer.printRegion(condition(), false);
 	printer << " do";
 	printer.printRegion(body(), false);
 }
 
-mlir::LogicalResult BreakableWhileOp::verify()
+mlir::LogicalResult WhileOp::verify()
 {
-	if (auto breakPtr = breakCondition().getType().dyn_cast<ArrayType>();
-			!breakPtr || !breakPtr.getElementType().isa<BooleanType>() || breakPtr.getRank() != 0)
-		return emitOpError("requires the break condition to be a pointer to a single boolean value");
-
-	if (auto returnPtr = breakCondition().getType().dyn_cast<ArrayType>();
-			!returnPtr || !returnPtr.getElementType().isa<BooleanType>() || returnPtr.getRank() != 0)
-		return emitOpError("requires the return condition to be a pointer to a single boolean value");
-
 	return mlir::success();
 }
 
-bool BreakableWhileOp::isDefinedOutsideOfLoop(mlir::Value value)
+bool WhileOp::isDefinedOutsideOfLoop(mlir::Value value)
 {
 	return !body().isAncestor(value.getParentRegion());
 }
 
-mlir::Region& BreakableWhileOp::getLoopBody()
+mlir::Region& WhileOp::getLoopBody()
 {
 	return body();
 }
 
-mlir::LogicalResult BreakableWhileOp::moveOutOfLoop(llvm::ArrayRef<mlir::Operation*> ops)
+mlir::LogicalResult WhileOp::moveOutOfLoop(llvm::ArrayRef<mlir::Operation*> ops)
 {
 	for (auto* op : ops)
 		op->moveBefore(*this);
@@ -3124,7 +2912,7 @@ mlir::LogicalResult BreakableWhileOp::moveOutOfLoop(llvm::ArrayRef<mlir::Operati
 	return mlir::success();
 }
 
-void BreakableWhileOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
+void WhileOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions)
 {
 	if (!index.hasValue())
 	{
@@ -3132,7 +2920,7 @@ void BreakableWhileOp::getSuccessorRegions(llvm::Optional<unsigned int> index, l
 		return;
 	}
 
-	assert(*index < 2 && "There are only two regions in a BreakableWhileOp");
+	assert(*index < 2 && "There are only two regions in a WhileOp");
 
 	if (*index == 0)
 	{
@@ -3145,24 +2933,14 @@ void BreakableWhileOp::getSuccessorRegions(llvm::Optional<unsigned int> index, l
 	}
 }
 
-mlir::Region& BreakableWhileOp::condition()
+mlir::Region& WhileOp::condition()
 {
 	return getOperation()->getRegion(0);
 }
 
-mlir::Region& BreakableWhileOp::body()
+mlir::Region& WhileOp::body()
 {
 	return getOperation()->getRegion(1);
-}
-
-mlir::Value BreakableWhileOp::breakCondition()
-{
-	return Adaptor(*this).breakCondition();
-}
-
-mlir::Value BreakableWhileOp::returnCondition()
-{
-	return Adaptor(*this).returnCondition();
 }
 
 //===----------------------------------------------------------------------===//
@@ -3192,8 +2970,6 @@ mlir::ParseResult ConditionOp::parse(mlir::OpAsmParser& parser, mlir::OperationS
 
 	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> args;
 	llvm::SmallVector<mlir::Type, 3> argsTypes;
-
-	mlir::Type resultType;
 
 	if (parser.parseLParen() ||
 			parser.parseOperand(condition) ||
@@ -3285,6 +3061,24 @@ void YieldOp::print(mlir::OpAsmPrinter& printer)
 mlir::ValueRange YieldOp::values()
 {
 	return Adaptor(*this).values();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::BreakOp
+//===----------------------------------------------------------------------===//
+
+void BreakOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
+{
+}
+
+mlir::ParseResult BreakOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return mlir::success();
+}
+
+void BreakOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName();
 }
 
 //===----------------------------------------------------------------------===//

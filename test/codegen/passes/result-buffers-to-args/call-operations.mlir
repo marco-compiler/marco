@@ -4,8 +4,6 @@
 
 modelica.function @callee() -> (!modelica.array<heap, 3x!modelica.int>) attributes {args_names = [], results_names = ["y"]} {
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, 3x!modelica.int>
-    %1 = modelica.member_load %0 : !modelica.array<heap, 3x!modelica.int>
-    modelica.return %1 : !modelica.array<heap, 3x!modelica.int>
 }
 
 // CHECK-LABEL: @caller
@@ -18,5 +16,4 @@ modelica.function @callee() -> (!modelica.array<heap, 3x!modelica.int>) attribut
 
 modelica.function @caller() -> () attributes {args_names = [], results_names = []} {
     %0 = modelica.call @callee() : () -> (!modelica.array<heap, 3x!modelica.int>)
-    modelica.return
 }
