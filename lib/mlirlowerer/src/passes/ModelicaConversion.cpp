@@ -259,7 +259,7 @@ struct FunctionOpLowering : public mlir::OpRewritePattern<FunctionOp>
 	mlir::LogicalResult matchAndRewrite(FunctionOp op, mlir::PatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
-		auto function = rewriter.replaceOpWithNewOp<mlir::FuncOp>(op, op.name(), op.getType(), op->getAttrs());
+		auto function = rewriter.replaceOpWithNewOp<mlir::FuncOp>(op, op.name(), op.getType());
 
 		auto* body = rewriter.createBlock(&function.getBody(), {}, op.getType().getInputs());
 		rewriter.mergeBlocks(&op.getBody().front(), body, body->getArguments());
@@ -270,6 +270,9 @@ struct FunctionOpLowering : public mlir::OpRewritePattern<FunctionOp>
 		function->walk([&members](MemberCreateOp member) {
 			members[member.name()] = member;
 		});
+
+		auto functionTerminator = mlir::cast<FunctionTerminatorOp>(function.getBody().back().getTerminator());
+		rewriter.eraseOp(functionTerminator);
 
 		rewriter.setInsertionPointToEnd(&function.getBody().back());
 		llvm::SmallVector<mlir::Value, 1> results;
@@ -3692,198 +3695,6 @@ struct ZerosOpLowering : public ModelicaOpConversion<ZerosOp>
 	}
 };
 
-struct IfOpLowering : public ModelicaOpConversion<IfOp>
-{
-	using ModelicaOpConversion<IfOp>::ModelicaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(IfOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		Adaptor adaptor(operands);
-		bool hasElseBlock = !op.elseRegion().empty();
-
-		mlir::scf::IfOp ifOp;
-
-		// In order to move the blocks into the SCF operation, we need to override
-		// its blocks builders. In fact, the default ones already place the
-		// SCF::YieldOp terminators, but our IR already has the Modelica::YieldOps
-		// converted to SCF::YieldOps (note that although in this context the
-		// Modelica::YieldOps don't carry any useful data, we can't avoid creating
-		// them, or the blocks would have no terminator, which is illegal).
-
-		assert(op.thenRegion().getBlocks().size() == 1);
-
-		auto thenBuilder = [&](mlir::OpBuilder& builder, mlir::Location location)
-		{
-			rewriter.mergeBlocks(&op.thenRegion().front(), rewriter.getInsertionBlock(), llvm::None);
-		};
-
-		if (hasElseBlock)
-		{
-			assert(op.elseRegion().getBlocks().size() == 1);
-
-			ifOp = rewriter.replaceOpWithNewOp<mlir::scf::IfOp>(
-					op, op.resultTypes(), adaptor.condition(), thenBuilder,
-					[&](mlir::OpBuilder& builder, mlir::Location location)
-					{
-						rewriter.mergeBlocks(&op.elseRegion().front(), builder.getInsertionBlock(), llvm::None);
-					});
-		}
-		else
-		{
-			ifOp = rewriter.replaceOpWithNewOp<mlir::scf::IfOp>(op, op.resultTypes(), adaptor.condition(), thenBuilder, nullptr);
-		}
-
-		// If present replace the Modelica::YieldOp terminator in the "then"
-		// branch with a SCF::YieldOp. If not present, just create a SCF::YieldOp.
-
-		mlir::Block* thenBlock = &ifOp.thenRegion().front();
-		rewriter.setInsertionPointToEnd(thenBlock);
-		llvm::SmallVector<mlir::Value, 3> thenYieldValues;
-
-		if (auto yieldOp = mlir::dyn_cast<YieldOp>(thenBlock->getTerminator()))
-		{
-			for (mlir::Value value : yieldOp.values())
-				thenYieldValues.push_back(value);
-
-			rewriter.eraseOp(yieldOp);
-		}
-
-		rewriter.create<mlir::scf::YieldOp>(op->getLoc(), thenYieldValues);
-
-		// If the operation also has an "else" block, also replace its
-		// Modelica::YieldOp terminator (if present) with a SCF::YieldOp.
-
-		if (hasElseBlock)
-		{
-			mlir::Block* elseBlock = &ifOp.elseRegion().front();
-			rewriter.setInsertionPointToEnd(elseBlock);
-			llvm::SmallVector<mlir::Value, 3> elseYieldValues;
-
-			if (auto yieldOp = mlir::dyn_cast<YieldOp>(elseBlock->getTerminator()))
-			{
-				for (mlir::Value value : yieldOp.values())
-					elseYieldValues.push_back(value);
-
-				rewriter.eraseOp(yieldOp);
-			}
-
-			rewriter.create<mlir::scf::YieldOp>(op->getLoc(), elseYieldValues);
-		}
-
-		return mlir::success();
-	}
-};
-
-struct ForOpLowering : public ModelicaOpConversion<ForOp>
-{
-	using ModelicaOpConversion<ForOp>::ModelicaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(ForOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		mlir::Location loc = op.getLoc();
-		Adaptor transformed(operands);
-
-		// Split the current block
-		mlir::Block* currentBlock = rewriter.getInsertionBlock();
-		mlir::Block* continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
-
-		// Inline regions
-		mlir::Block* conditionBlock = &op.condition().front();
-		mlir::Block* bodyBlock = &op.body().front();
-		mlir::Block* stepBlock = &op.step().front();
-
-		rewriter.inlineRegionBefore(op.step(), continuation);
-		rewriter.inlineRegionBefore(op.body(), stepBlock);
-		rewriter.inlineRegionBefore(op.condition(), bodyBlock);
-
-		// Start the for loop by branching to the "condition" region
-		rewriter.setInsertionPointToEnd(currentBlock);
-		rewriter.create<mlir::BranchOp>(loc, conditionBlock);
-
-		// Check the condition
-		auto conditionOp = mlir::cast<ConditionOp>(conditionBlock->getTerminator());
-		rewriter.setInsertionPoint(conditionOp);
-		rewriter.replaceOpWithNewOp<mlir::CondBranchOp>(conditionOp, materializeTargetConversion(rewriter, conditionOp.condition()), bodyBlock, conditionOp.args(), continuation, llvm::None);
-
-		// If present, replace "body" block terminator with a branch to the
-		// "step" block. If not present, just place the branch.
-		rewriter.setInsertionPointToEnd(bodyBlock);
-		llvm::SmallVector<mlir::Value, 3> bodyYieldValues;
-
-		if (auto yieldOp = mlir::dyn_cast<YieldOp>(bodyBlock->getTerminator()))
-		{
-			for (mlir::Value value : yieldOp.values())
-				bodyYieldValues.push_back(value);
-
-			rewriter.eraseOp(yieldOp);
-		}
-
-		rewriter.create<mlir::BranchOp>(loc, stepBlock, bodyYieldValues);
-
-		// Branch to the condition check after incrementing the induction variable
-		rewriter.setInsertionPointToEnd(stepBlock);
-		llvm::SmallVector<mlir::Value, 3> stepYieldValues;
-
-		if (auto yieldOp = mlir::dyn_cast<YieldOp>(stepBlock->getTerminator()))
-		{
-			for (mlir::Value value : yieldOp.values())
-				bodyYieldValues.push_back(value);
-
-			rewriter.eraseOp(yieldOp);
-		}
-
-		rewriter.create<mlir::BranchOp>(loc, conditionBlock, stepYieldValues);
-
-		// Create stack save & restore operations
-		rewriter.setInsertionPointToStart(bodyBlock);
-		mlir::Value stackSave = rewriter.create<mlir::LLVM::StackSaveOp>(loc, mlir::LLVM::LLVMPointerType::get(rewriter.getIntegerType(8)));
-		rewriter.setInsertionPoint(bodyBlock->getTerminator());
-		rewriter.create<mlir::LLVM::StackRestoreOp>(loc, stackSave);
-
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-};
-
-struct WhileOpLowering : public ModelicaOpConversion<WhileOp>
-{
-	using ModelicaOpConversion<WhileOp>::ModelicaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(WhileOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		mlir::Location loc = op->getLoc();
-
-		// Split the current block before the WhileOp to create the inlining point
-		mlir::Block* currentBlock = rewriter.getInsertionBlock();
-		mlir::Block* continuation = rewriter.splitBlock(currentBlock, rewriter.getInsertionPoint());
-
-		// Inline both regions
-		mlir::Block* after = &op.body().front();
-		mlir::Block* afterLast = &op.body().back();
-		mlir::Block* before = &op.condition().front();
-		mlir::Block* beforeLast = &op.condition().back();
-		rewriter.inlineRegionBefore(op.body(), continuation);
-		rewriter.inlineRegionBefore(op.condition(), after);
-
-		// Branch to the "condition" region
-		rewriter.setInsertionPointToEnd(currentBlock);
-		rewriter.create<mlir::BranchOp>(loc, before);
-
-		rewriter.setInsertionPointToEnd(beforeLast);
-		auto conditionOp = mlir::cast<ConditionOp>(beforeLast->getTerminator());
-		mlir::Value conditionValue = materializeTargetConversion(rewriter, conditionOp.condition());
-
-		rewriter.replaceOpWithNewOp<mlir::CondBranchOp>(
-				conditionOp, conditionValue, after, mlir::ValueRange(), continuation, mlir::ValueRange());
-
-		rewriter.setInsertionPointToEnd(afterLast);
-		rewriter.create<mlir::BranchOp>(op->getLoc(), before);
-
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-};
-
 class FunctionConversionPass : public mlir::PassWrapper<FunctionConversionPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
@@ -3912,7 +3723,7 @@ class FunctionConversionPass : public mlir::PassWrapper<FunctionConversionPass, 
 		if (failed(applyPartialConversion(module, target, std::move(patterns))))
 		{
 			mlir::emitError(module.getLoc(), "Error in converting the Modelica functions\n");
-			signalPassFailure();
+			return signalPassFailure();
 		}
 	}
 };
@@ -3920,18 +3731,6 @@ class FunctionConversionPass : public mlir::PassWrapper<FunctionConversionPass, 
 std::unique_ptr<mlir::Pass> modelica::codegen::createFunctionConversionPass()
 {
 	return std::make_unique<FunctionConversionPass>();
-}
-
-static void populateModelicaControlFlowConversionPatterns(
-		mlir::OwningRewritePatternList& patterns,
-		mlir::MLIRContext* context,
-		TypeConverter& typeConverter,
-		ModelicaConversionOptions options)
-{
-	patterns.insert<
-	    IfOpLowering,
-			ForOpLowering,
-			WhileOpLowering>(context, typeConverter, options);
 }
 
 static void populateModelicaConversionPatterns(
@@ -4171,51 +3970,4 @@ class ModelicaConversionPass : public mlir::PassWrapper<ModelicaConversionPass, 
 std::unique_ptr<mlir::Pass> modelica::codegen::createModelicaConversionPass(ModelicaConversionOptions options, unsigned int bitWidth)
 {
 	return std::make_unique<ModelicaConversionPass>(options, bitWidth);
-}
-
-class LowerToCFGPass : public mlir::PassWrapper<LowerToCFGPass, mlir::OperationPass<mlir::ModuleOp>>
-{
-	public:
-	explicit LowerToCFGPass(ModelicaConversionOptions options, unsigned int bitWidth)
-			: options(std::move(options)), bitWidth(bitWidth)
-	{
-	}
-
-	void getDependentDialects(mlir::DialectRegistry &registry) const override
-	{
-		registry.insert<mlir::StandardOpsDialect>();
-		registry.insert<mlir::scf::SCFDialect>();
-	}
-
-	void runOnOperation() override
-	{
-		auto module = getOperation();
-
-		mlir::ConversionTarget target(getContext());
-
-		target.addIllegalOp<mlir::scf::ForOp, mlir::scf::IfOp, mlir::scf::ParallelOp, mlir::scf::WhileOp>();
-		target.addIllegalOp<IfOp, ForOp, WhileOp>();
-		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
-
-		mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
-		TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
-
-		mlir::OwningRewritePatternList patterns(&getContext());
-		populateModelicaControlFlowConversionPatterns(patterns, &getContext(), typeConverter, options);
-		mlir::populateLoopToStdConversionPatterns(patterns);
-
-		if (failed(applyPartialConversion(module, target, std::move(patterns))))
-		{
-			mlir::emitError(getOperation().getLoc(), "Error in converting the control flow operations");
-			return signalPassFailure();
-		}
-	}
-
-	ModelicaConversionOptions options;
-	unsigned int bitWidth;
-};
-
-std::unique_ptr<mlir::Pass> modelica::codegen::createLowerToCFGPass(ModelicaConversionOptions options, unsigned int bitWidth)
-{
-	return std::make_unique<LowerToCFGPass>(options, bitWidth);
 }

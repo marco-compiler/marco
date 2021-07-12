@@ -15,4 +15,5 @@ modelica.function @f1() -> (!modelica.array<heap, 3x!modelica.int>) attributes {
     %2 = modelica.constant #modelica.int<1>
     %3 = modelica.constant 0 : index
     modelica.store %1[%3], %2 : !modelica.array<heap, 3x!modelica.int>
+    modelica.function_terminator
 }

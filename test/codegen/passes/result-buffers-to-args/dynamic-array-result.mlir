@@ -14,4 +14,5 @@ modelica.function @f2(%arg0 : !modelica.int) -> (!modelica.array<heap, ?x!modeli
     %2 = modelica.constant #modelica.int<1>
     %3 = modelica.constant 0 : index
     modelica.store %1[%3], %2 : !modelica.array<heap, ?x!modelica.int>
+    modelica.function_terminator
 }

@@ -4,9 +4,9 @@
 
 #include "passes/AutomaticDifferentiation.h"
 #include "passes/BufferDeallocation.h"
-#include "passes/ControlFlowCanonicalization.h"
 #include "passes/ExplicitCastInsertion.h"
 #include "passes/FunctionsScalarization.h"
+#include "passes/LowerToCFG.h"
 #include "passes/LowerToLLVM.h"
 #include "passes/ModelicaConversion.h"
 #include "passes/ResultBuffersToArgs.h"
@@ -18,9 +18,9 @@ namespace modelica::codegen
 	{
 		registerAutomaticDifferentiationPass();
 		registerBufferDeallocationPass();
-		registerControlFlowCanonicalizationPass();
 		registerExplicitCastInsertionPass();
 		registerFunctionsScalarizationPass();
+		registerLowerToCFGPass();
 		registerLLVMLoweringPass();
 		registerFunctionConversionPass();
 		registerModelicaConversionPass();

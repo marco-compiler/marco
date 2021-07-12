@@ -17,6 +17,7 @@ modelica.function @abs(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica.
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.abs %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -38,6 +39,7 @@ modelica.function @acos(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.acos %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -59,6 +61,7 @@ modelica.function @asin(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.asin %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -80,6 +83,7 @@ modelica.function @atan(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.atan %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -104,6 +108,7 @@ modelica.function @atan2(%arg0 : !modelica.array<?x!modelica.real>, %arg1 : !mod
     %0 = modelica.member_create {name = "z"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.atan2 %arg0, %arg1 : (!modelica.array<?x!modelica.real>, !modelica.array<?x!modelica.real>) -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -125,6 +130,7 @@ modelica.function @cos(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica.
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.cos %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -146,6 +152,7 @@ modelica.function @cosh(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.cosh %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -167,6 +174,7 @@ modelica.function @exp(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica.
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.exp %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -188,6 +196,7 @@ modelica.function @log(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica.
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.log %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -209,6 +218,7 @@ modelica.function @log10(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelic
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.log10 %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -230,6 +240,7 @@ modelica.function @sign(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.sign %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -251,6 +262,7 @@ modelica.function @sin(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica.
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.sin %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -272,6 +284,7 @@ modelica.function @sinh(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.sinh %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -293,6 +306,7 @@ modelica.function @sqrt(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.sqrt %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -314,6 +328,7 @@ modelica.function @tan(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica.
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.tan %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -335,4 +350,5 @@ modelica.function @tanh(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.tanh %arg0 : !modelica.array<?x!modelica.real> -> !modelica.array<heap, ?x!modelica.real>
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }

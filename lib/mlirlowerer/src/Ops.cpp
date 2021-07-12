@@ -690,17 +690,6 @@ mlir::LogicalResult FunctionOp::verify()
 	if (getNumResults() != resultsNames().size())
 		return emitOpError("requires all the results to have their names defined");
 
-	/*
-	auto returnOp = mlir::cast<ReturnOp>(getBody().back().getTerminator());
-
-	if (getNumResults() != returnOp.values().size())
-		return emitOpError("requires the return operation to have the same number of values as the result types of the function");
-
-	for (const auto& [returnType, functionType] : llvm::zip(returnOp.values().getTypes(), getType().getResults()))
-		if (returnType != functionType)
-			return emitOpError("requires the return values to match the function signature");
-			*/
-
 	return mlir::success();
 }
 
@@ -759,19 +748,19 @@ void FunctionOp::getMembers(llvm::SmallVectorImpl<mlir::Value>& members, llvm::S
 }
 
 //===----------------------------------------------------------------------===//
-// Modelica::ReturnOp
+// Modelica::FunctionTerminatorOp
 //===----------------------------------------------------------------------===//
 
-void ReturnOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
+void FunctionTerminatorOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
 }
 
-mlir::ParseResult ReturnOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+mlir::ParseResult FunctionTerminatorOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
 	return mlir::success();
 }
 
-void ReturnOp::print(mlir::OpAsmPrinter& printer)
+void FunctionTerminatorOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << getOperationName();
 }
@@ -2608,10 +2597,9 @@ mlir::Value IfOpAdaptor::condition()
 	return getValues()[0];
 }
 
-void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::TypeRange resultTypes, mlir::Value condition, bool withElseRegion)
+void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value condition, bool withElseRegion)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
-	state.addTypes(resultTypes);
 	state.addOperands(condition);
 
 	// "Then" region
@@ -2625,11 +2613,6 @@ void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Ty
 		builder.createBlock(elseRegion);
 }
 
-void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value condition, bool withElseRegion)
-{
-	build(builder, state, llvm::None, condition, withElseRegion);
-}
-
 mlir::ParseResult IfOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
 	mlir::OpAsmParser::OperandType condition;
@@ -2641,19 +2624,6 @@ mlir::ParseResult IfOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& r
 			parser.parseRParen() ||
 			parser.resolveOperand(condition, conditionType, result.operands))
 		return mlir::failure();
-
-	if (mlir::succeeded(parser.parseOptionalArrow()))
-	{
-		mlir::Type resultType;
-		bool paren = mlir::succeeded(parser.parseOptionalLParen());
-
-		if (mlir::succeeded(*parser.parseOptionalType(resultType)))
-			result.addTypes(resultType);
-
-		if (paren)
-			if (parser.parseRParen())
-				return mlir::failure();
-	}
 
 	mlir::Region* thenRegion = result.addRegion();
 
@@ -2675,9 +2645,6 @@ void IfOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << getOperationName()
 					<< " (" << condition() << " : " << condition().getType() << ")";
-
-	if (!resultTypes().empty())
-		printer << " -> " << " (" << resultTypes() << ")";
 
 	printer.printRegion(thenRegion());
 
@@ -2716,7 +2683,7 @@ void IfOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRe
 
 	if (auto condAttr = operands.front().dyn_cast_or_null<BooleanAttribute>())
 	{
-		condition = condAttr.getValue() == true;
+		condition = condAttr.getValue();
 	}
 	else
 	{
@@ -2732,11 +2699,6 @@ void IfOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRe
 
 	// Add the successor regions using the condition
 	regions.push_back(mlir::RegionSuccessor(condition ? &thenRegion() : elseRegion));
-}
-
-mlir::TypeRange IfOp::resultTypes()
-{
-	return getResultTypes();
 }
 
 mlir::Value IfOp::condition()
@@ -2758,23 +2720,51 @@ mlir::Region& IfOp::elseRegion()
 // Modelica::ForOp
 //===----------------------------------------------------------------------===//
 
-void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
+mlir::ValueRange ForOpAdaptor::args()
+{
+	return getValues();
+}
+
+void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
+	state.addOperands(args);
 
 	// Condition block
-	builder.createBlock(state.addRegion());
+	builder.createBlock(state.addRegion(), {}, args.getTypes());
 
 	// Body block
-	builder.createBlock(state.addRegion());
+	builder.createBlock(state.addRegion(), {}, args.getTypes());
 
 	// Step block
-	builder.createBlock(state.addRegion());
+	builder.createBlock(state.addRegion(), {}, args.getTypes());
 }
 
 mlir::ParseResult ForOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
 	mlir::Region* conditionRegion = result.addRegion();
+
+	if (mlir::succeeded(parser.parseOptionalLParen()))
+	{
+		if (mlir::failed(parser.parseRParen()))
+		{
+			do {
+				mlir::OpAsmParser::OperandType arg;
+				mlir::Type argType;
+
+				if (parser.parseOperand(arg) ||
+						parser.parseColonType(argType) ||
+						parser.resolveOperand(arg, argType, result.operands))
+					return mlir::failure();
+			} while (mlir::succeeded(parser.parseOptionalComma()));
+		}
+
+		if (parser.parseRParen())
+			return mlir::failure();
+	}
+
+	if (parser.parseKeyword("condition"))
+		return mlir::failure();
 
 	if (parser.parseRegion(*conditionRegion))
 		return mlir::failure();
@@ -2800,7 +2790,25 @@ mlir::ParseResult ForOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& 
 
 void ForOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << "modelica.for ";
+	auto values = args();
+	printer << "modelica.for";
+
+	if (!values.empty())
+	{
+		printer << " (";
+
+		for (auto arg : llvm::enumerate(values))
+		{
+			if (arg.index() != 0)
+				printer << ", ";
+
+			printer << arg.value() << " : " << arg.value().getType();
+		}
+
+		printer << ")";
+	}
+
+	printer << " condition";
 	printer.printRegion(condition(), true);
 	printer << " body";
 	printer.printRegion(body(), true);
@@ -2846,6 +2854,11 @@ mlir::Region& ForOp::body()
 mlir::Region& ForOp::step()
 {
 	return getOperation()->getRegion(2);
+}
+
+mlir::ValueRange ForOp::args()
+{
+	return Adaptor(*this).args();
 }
 
 //===----------------------------------------------------------------------===//
@@ -3077,6 +3090,24 @@ mlir::ParseResult BreakOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 }
 
 void BreakOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName();
+}
+
+//===----------------------------------------------------------------------===//
+// Modelica::ReturnOp
+//===----------------------------------------------------------------------===//
+
+void ReturnOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
+{
+}
+
+mlir::ParseResult ReturnOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return mlir::success();
+}
+
+void ReturnOp::print(mlir::OpAsmPrinter& printer)
 {
 	printer << getOperationName();
 }

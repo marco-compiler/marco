@@ -22,7 +22,8 @@ namespace modelica::codegen
 	};
 
 	std::unique_ptr<mlir::Pass> createSolveModelPass(
-			SolveModelOptions options = SolveModelOptions::getDefaultOptions());
+			SolveModelOptions options = SolveModelOptions::getDefaultOptions(),
+			unsigned int bitWidth = 64);
 
 	inline void registerSolveModelPass()
 	{

@@ -46,23 +46,4 @@ namespace modelica::codegen
 												 return createModelicaConversionPass();
 											 });
 	}
-
-	/**
-	 * Convert the control flow operations of the Modelica and the SCF
-	 * dialects.
-	 *
-	 * @param options  conversion options
-	 * @param bitWidth bit width
-	 */
-	std::unique_ptr<mlir::Pass> createLowerToCFGPass(
-			ModelicaConversionOptions options = ModelicaConversionOptions::getDefaultOptions(),
-			unsigned int bitWidth = 64);
-
-	inline void registerLowerToCFGPass()
-	{
-		mlir::registerPass("convert-modelica-to-cfg", "Modelica: cfg operations to SCF operations",
-											 []() -> std::unique_ptr<::mlir::Pass> {
-												 return createLowerToCFGPass();
-											 });
-	}
 }

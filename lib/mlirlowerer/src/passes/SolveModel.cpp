@@ -14,6 +14,7 @@
 #include <modelica/mlirlowerer/passes/model/Expression.h>
 #include <modelica/mlirlowerer/passes/model/Model.h>
 #include <modelica/mlirlowerer/passes/model/Variable.h>
+#include <modelica/mlirlowerer/passes/TypeConverter.h>
 
 using namespace modelica;
 using namespace codegen;
@@ -428,15 +429,16 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 	mlir::BlockAndValueMapping* derivatives;
 };
 
-struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
+struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 {
-	SimulationOpPattern(mlir::MLIRContext* context, SolveModelOptions options)
-			: mlir::OpRewritePattern<SimulationOp>(context),
-				options(options)
+	SimulationOpPattern(mlir::MLIRContext* ctx,
+											TypeConverter& typeConverter,
+											SolveModelOptions options)
+			: mlir::OpConversionPattern<SimulationOp>(typeConverter, ctx, 1),
+				options(std::move(options))
 	{
 	}
-
-	mlir::LogicalResult matchAndRewrite(SimulationOp op, mlir::PatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(SimulationOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::Location loc = op->getLoc();
 
@@ -466,7 +468,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			mlir::OpBuilder::InsertionGuard guard(rewriter);
 			rewriter.setInsertionPointToStart(entryBlock);
 
-			rewriter.mergeBlocks(&op.init().front(), &function.body().front());
+			rewriter.mergeBlocks(&op.init().front(), &function.body().front(), llvm::None);
 
 			llvm::SmallVector<mlir::Value, 3> values;
 			auto terminator = mlir::cast<YieldOp>(entryBlock->getTerminator());
@@ -509,7 +511,7 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			// Step function
 			auto function = rewriter.create<mlir::FuncOp>(
 					loc, "step",
-					rewriter.getFunctionType(opaquePtrType, BooleanType::get(op->getContext())));
+					rewriter.getFunctionType(opaquePtrType, rewriter.getI1Type()));
 
 			auto* entryBlock = function.addEntryBlock();
 
@@ -545,7 +547,11 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			mlir::Value condition = rewriter.create<LtOp>(
 					loc, BooleanType::get(op->getContext()), currentTime, endTime);
 
-			auto ifOp = rewriter.create<IfOp>(loc, BooleanType::get(op->getContext()), condition, true);
+			condition = getTypeConverter()->materializeTargetConversion(
+					rewriter, condition.getLoc(), rewriter.getI1Type(), condition);
+
+			auto ifOp = rewriter.create<mlir::scf::IfOp>(
+					loc, rewriter.getI1Type(), condition, true);
 
 			{
 				// If we didn't reach the end time update the variables and return
@@ -553,8 +559,10 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 				mlir::OpBuilder::InsertionGuard g(rewriter);
 				rewriter.setInsertionPointToStart(&ifOp.thenRegion().front());
 
-				mlir::Value trueValue = rewriter.create<ConstantOp>(loc, getBooleanAttribute(op->getContext(), true));
-				auto terminator = rewriter.create<YieldOp>(loc, trueValue);
+				mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(
+						loc, rewriter.getBoolAttr(true));
+
+				auto terminator = rewriter.create<mlir::scf::YieldOp>(loc, trueValue);
 
 				rewriter.eraseOp(op.body().front().getTerminator());
 				rewriter.mergeBlockBefore(&op.body().front(), terminator, args);
@@ -565,8 +573,10 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 				mlir::OpBuilder::InsertionGuard g(rewriter);
 				rewriter.setInsertionPointToStart(&ifOp.elseRegion().front());
 
-				mlir::Value falseValue = rewriter.create<ConstantOp>(loc, getBooleanAttribute(op->getContext(), false));
-				rewriter.create<YieldOp>(loc, falseValue);
+				mlir::Value falseValue = rewriter.create<mlir::ConstantOp>(
+						loc, rewriter.getBoolAttr(false));
+
+				rewriter.create<mlir::scf::YieldOp>(loc, falseValue);
 			}
 
 			rewriter.create<mlir::ReturnOp>(loc, ifOp.getResult(0));
@@ -626,30 +636,27 @@ struct SimulationOpPattern : public mlir::OpRewritePattern<SimulationOp>
 			rewriter.setInsertionPointToStart(entryBlock);
 
 			// Initialize the variables
-			mlir::Value data = rewriter.create<CallOp>(loc, "init", opaquePtrType, llvm::None).getResult(0);
-			rewriter.create<CallOp>(loc, "print", llvm::None, data);
+			mlir::Value data = rewriter.create<mlir::CallOp>(loc, "init", opaquePtrType, llvm::None).getResult(0);
+			rewriter.create<mlir::CallOp>(loc, "print", llvm::None, data);
 
 			// Create the simulation loop
-			auto loop = rewriter.create<ForOp>(loc);
+			auto loop = rewriter.create<mlir::scf::WhileOp>(loc, llvm::None, llvm::None);
 
 			{
 				mlir::OpBuilder::InsertionGuard g(rewriter);
 
-				rewriter.setInsertionPointToStart(&loop.condition().front());
-				mlir::Value shouldContinue = rewriter.create<CallOp>(loc, "step", BooleanType::get(op->getContext()), data).getResult(0);
-				rewriter.create<ConditionOp>(loc, shouldContinue);
+				mlir::Block* conditionBlock = rewriter.createBlock(&loop.before());
+				rewriter.setInsertionPointToStart(conditionBlock);
+				mlir::Value shouldContinue = rewriter.create<mlir::CallOp>(loc, "step", rewriter.getI1Type(), data).getResult(0);
+				rewriter.create<mlir::scf::ConditionOp>(loc, shouldContinue, llvm::None);
 
 				// The body contains just the print call, because the update is
 				// already done by the "step "function in the condition region.
-				// Note that the update is not done if the "step" function detects
-				// that the simulation has already come to the end.
 
-				rewriter.setInsertionPointToStart(&loop.body().front());
-				rewriter.create<CallOp>(loc, "print", llvm::None, data);
-				rewriter.create<YieldOp>(loc);
-
-				rewriter.setInsertionPointToStart(&loop.step().front());
-				rewriter.create<YieldOp>(loc);
+				mlir::Block* bodyBlock = rewriter.createBlock(&loop.after());
+				rewriter.setInsertionPointToStart(bodyBlock);
+				rewriter.create<mlir::CallOp>(loc, "print", llvm::None, data);
+				rewriter.create<mlir::scf::YieldOp>(loc);
 			}
 
 			mlir::Value returnValue = rewriter.create<mlir::ConstantOp>(loc, rewriter.getI32IntegerAttr(0));
@@ -787,8 +794,8 @@ struct ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp>
 class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
-	explicit SolveModelPass(SolveModelOptions options)
-			: options(std::move(options))
+	explicit SolveModelPass(SolveModelOptions options, unsigned int bitWidth)
+			: options(std::move(options)), bitWidth(std::move(bitWidth))
 	{
 	}
 
@@ -1041,8 +1048,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 		target.addIllegalOp<SimulationOp, EquationOp, ForEquationOp>();
 
+		mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
+		TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
+
 		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<SimulationOpPattern>(&getContext(), options);
+		patterns.insert<SimulationOpPattern>(&getContext(), typeConverter, options);
 		patterns.insert<EquationOpPattern, ForEquationOpPattern>(&getContext());
 
 		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
@@ -1053,9 +1063,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 	private:
 	SolveModelOptions options;
+	unsigned int bitWidth;
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createSolveModelPass(SolveModelOptions options)
+std::unique_ptr<mlir::Pass> modelica::codegen::createSolveModelPass(SolveModelOptions options, unsigned int bitWidth)
 {
-	return std::make_unique<SolveModelPass>(options);
+	return std::make_unique<SolveModelPass>(options, bitWidth);
 }

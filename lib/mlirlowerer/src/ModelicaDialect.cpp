@@ -12,10 +12,10 @@ class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
 
 	bool isLegalToInline(mlir::Operation* call, mlir::Operation* callable, bool wouldBeCloned) const final
 	{
-		if (!mlir::isa<mlir::FuncOp>(callable))
+		if (!mlir::isa<FunctionOp>(callable))
 			return false;
 
-		auto function = mlir::cast<mlir::FuncOp>(callable);
+		auto function = mlir::cast<FunctionOp>(callable);
 
 		if (!function->hasAttr("inline"))
 			return false;
@@ -30,13 +30,34 @@ class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
 	}
 
 	void handleTerminator(mlir::Operation* op, llvm::ArrayRef<mlir::Value> valuesToReplace) const final {
-		auto returnOp = mlir::cast<mlir::ReturnOp>(op);
+		auto functionOp = op->getParentOfType<FunctionOp>();
+
+		// Map the members for a faster access
+		llvm::StringMap<mlir::Value> members;
+
+		functionOp->walk([&members](MemberCreateOp member) {
+			members[member.name()] = member;
+		});
+
+		mlir::OpBuilder builder(op);
 
 		// Replace the values directly with the return operands
-		assert(returnOp.getNumOperands() == valuesToReplace.size());
+		assert(functionOp.resultsNames().size() == valuesToReplace.size());
 
-		for (const auto& it : llvm::enumerate(returnOp.getOperands()))
-			valuesToReplace[it.index()].replaceAllUsesWith(it.value());
+		auto newValueFn = [](mlir::OpBuilder& builder, mlir::Value member) -> mlir::Value {
+			auto memberType = member.getType().cast<MemberType>();
+
+			if (memberType.getShape().empty())
+				return builder.create<MemberLoadOp>(member.getLoc(), memberType.getElementType(), member);
+
+			return builder.create<MemberLoadOp>(member.getLoc(), memberType.toArrayType(), member);
+		};
+
+		for (const auto& [name, toBeReplaced] : llvm::zip(functionOp.resultsNames(), valuesToReplace))
+		{
+			mlir::Value member = members[name.cast<mlir::StringAttr>().getValue()];
+			toBeReplaced.replaceAllUsesWith(newValueFn(builder, member));
+		}
 	}
 };
 
@@ -47,7 +68,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute, DerivativeAttribute, InverseFunctionsAttribute>();
 	addInterfaces<ModelicaInlinerInterface>();
 
-	addOperations<FunctionOp, DerFunctionOp>();
+	addOperations<FunctionOp, FunctionTerminatorOp, DerFunctionOp>();
 
 	// Basic operations
 	addOperations<ConstantOp, PackOp, ExtractOp, CastOp, AssignmentOp, CallOp, PrintOp>();

@@ -130,6 +130,8 @@ struct FunctionOpPattern : public mlir::OpRewritePattern<FunctionOp>
 				}
 				else if (auto storeOp = mlir::dyn_cast<MemberStoreOp>(memberUser))
 				{
+					mlir::OpBuilder::InsertionGuard guard(rewriter);
+					rewriter.setInsertionPoint(storeOp);
 					rewriter.replaceOpWithNewOp<AssignmentOp>(storeOp, storeOp.value(), arg);
 				}
 			}

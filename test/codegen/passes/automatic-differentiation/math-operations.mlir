@@ -11,6 +11,7 @@ modelica.function @neg(%arg0 : !modelica.real) -> (!modelica.real) attributes {a
     %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.neg %arg0 : !modelica.real -> !modelica.real
     modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -28,6 +29,7 @@ modelica.function @add(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!mode
     %0 = modelica.member_create {name = "z"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.add %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
     modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -45,6 +47,7 @@ modelica.function @sub(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!mode
     %0 = modelica.member_create {name = "z"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.sub %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
     modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -64,6 +67,7 @@ modelica.function @mul(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!mode
     %0 = modelica.member_create {name = "z"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.mul %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
     modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -86,4 +90,5 @@ modelica.function @div(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!mode
     %0 = modelica.member_create {name = "z"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.div %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
     modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
+    modelica.function_terminator
 }

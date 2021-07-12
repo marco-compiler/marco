@@ -110,7 +110,6 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 {
 	mlir::PassManager passManager(builder.getContext());
 
-	passManager.addPass(createControlFlowCanonicalizationPass(loweringOptions.getBitWidth()));
 	passManager.addPass(createAutomaticDifferentiationPass());
 	passManager.addPass(createSolveModelPass(loweringOptions.solveModelOptions));
 	passManager.addPass(createFunctionsScalarizationPass(loweringOptions.functionsScalarizationOptions));
@@ -119,14 +118,11 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 	if (loweringOptions.resultBuffersToArgs)
 		passManager.addPass(createResultBuffersToArgsPass());
 
-	passManager.addPass(mlir::createCanonicalizerPass());
-	passManager.addPass(createFunctionConversionPass());
-
-	// The inliner pass can be run only after the functions have been converted
-	// to the standard dialect, as the Modelica ones have no terminator.
-
 	if (loweringOptions.inlining)
 		passManager.addPass(mlir::createInlinerPass());
+
+	passManager.addPass(mlir::createCanonicalizerPass());
+	passManager.addPass(createFunctionConversionPass());
 
 	if (loweringOptions.cse)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
@@ -138,7 +134,7 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 	if (loweringOptions.openmp)
 		passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
 
-	passManager.addPass(createLowerToCFGPass(loweringOptions.conversionOptions, loweringOptions.getBitWidth()));
+	passManager.addPass(createLowerToCFGPass(loweringOptions.getBitWidth()));
 	passManager.addPass(createLLVMLoweringPass(loweringOptions.llvmOptions, loweringOptions.getBitWidth()));
 
 	if (!loweringOptions.debug)
@@ -351,6 +347,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 		}
 	}
 
+	builder.create<FunctionTerminatorOp>(location);
 	return functionOp;
 }
 
@@ -872,40 +869,50 @@ void MLIRLowerer::lower(const ForStatement& statement)
 	const auto& induction = statement.getInduction();
 
 	mlir::Value lowerBound = *lower<Expression>(*induction->getBegin())[0];
-	mlir::Value index = builder.create<AllocaOp>(location, lowerBound.getType());
-	symbolTable.insert(induction->getName(), Reference::memory(&builder, index));
-	builder.create<StoreOp>(location, lowerBound, index);
+	lowerBound = builder.create<CastOp>(lowerBound.getLoc(), lowerBound, builder.getIndexType());
 
-	auto forOp = builder.create<ForOp>(location);
+	auto forOp = builder.create<ForOp>(location, lowerBound);
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	{
 		// Check the loop condition
+		llvm::ScopedHashTableScope<mlir::StringRef, Reference> scope(symbolTable);
+		symbolTable.insert(induction->getName(), Reference::ssa(&builder, forOp.condition().front().getArgument(0)));
+
 		builder.setInsertionPointToStart(&forOp.condition().front());
+
 		mlir::Value upperBound = *lower<Expression>(*induction->getEnd())[0];
-		mlir::Value currentIndex = builder.create<LoadOp>(location, index);
-		mlir::Value condition = builder.create<LteOp>(location, builder.getBooleanType(), currentIndex, upperBound);
-		builder.create<ConditionOp>(location, condition);
+		upperBound = builder.create<CastOp>(lowerBound.getLoc(), upperBound, builder.getIndexType());
+
+		mlir::Value condition = builder.create<LteOp>(location, builder.getBooleanType(), forOp.condition().front().getArgument(0), upperBound);
+		builder.create<ConditionOp>(location, condition, *symbolTable.lookup(induction->getName()));
 	}
 
 	{
 		// Body
 		llvm::ScopedHashTableScope<mlir::StringRef, Reference> scope(symbolTable);
+		symbolTable.insert(induction->getName(), Reference::ssa(&builder, forOp.body().front().getArgument(0)));
+
 		builder.setInsertionPointToStart(&forOp.body().front());
 
 		for (const auto& stmnt : statement)
 			lower(*stmnt);
+
+		if (auto terminator = builder.getInsertionBlock()->getTerminator();
+				!terminator || !terminator->hasTrait<mlir::OpTrait::IsTerminator>())
+			builder.create<YieldOp>(location, *symbolTable.lookup(induction->getName()));
 	}
 
 	{
 		// Step
 		llvm::ScopedHashTableScope<mlir::StringRef, Reference> scope(symbolTable);
+		symbolTable.insert(induction->getName(), Reference::ssa(&builder, forOp.step().front().getArgument(0)));
+
 		builder.setInsertionPointToStart(&forOp.step().front());
 
 		mlir::Value step = builder.create<ConstantOp>(location, builder.getIndexAttribute(1));
-		mlir::Value currentIndex = builder.create<LoadOp>(location, index);
-		mlir::Value incremented = builder.create<AddOp>(location, currentIndex.getType(), currentIndex, step);
-		builder.create<StoreOp>(location, incremented, index);
+		mlir::Value incremented = builder.create<AddOp>(location, builder.getIndexType(), *symbolTable.lookup(induction->getName()), step);
+		builder.create<YieldOp>(location, incremented);
 	}
 }
 

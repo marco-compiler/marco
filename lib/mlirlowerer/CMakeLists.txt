@@ -22,10 +22,10 @@ modelicaAddLibrary(
         src/passes/model/VectorAccess.cpp
         src/passes/AutomaticDifferentiation.cpp
         src/passes/BufferDeallocation.cpp
-        src/passes/ControlFlowCanonicalization.cpp
         src/passes/ExplicitCastInsertion.cpp
         src/passes/FunctionsScalarization.cpp
         src/passes/ModelicaConversion.cpp
+        src/passes/LowerToCFG.cpp
         src/passes/LowerToLLVM.cpp
         src/passes/ResultBuffersToArgs.cpp
         src/passes/SolveModel.cpp

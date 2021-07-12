@@ -3,6 +3,7 @@
 modelica.function @callee(%arg0 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x"], results_names = ["y"]} {
     %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
     modelica.member_store %0, %arg0 : !modelica.member<stack, !modelica.real>
+    modelica.function_terminator
 }
 
 // CHECK-LABEL: @caller
@@ -22,4 +23,5 @@ modelica.function @caller(%arg0 : !modelica.array<?x!modelica.real>) -> (!modeli
     %0 = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
     %1 = modelica.call @callee(%arg0) : (!modelica.array<?x!modelica.real>) -> (!modelica.array<heap, ?x!modelica.real>)
     modelica.member_store %0, %1 : !modelica.member<heap, ?x!modelica.real>
+    modelica.function_terminator
 }

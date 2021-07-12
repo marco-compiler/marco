@@ -14,6 +14,7 @@
 
 modelica.function @foo(%arg0 : !modelica.array<2x!modelica.real>, %arg1 : !modelica.int, %arg2 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x", "y", "z"], results_names = ["t"], derivative = #modelica.derivative<"foo1", 1>} {
     %0 = modelica.member_create {name = "t"} : !modelica.member<stack, !modelica.real>
+    modelica.function_terminator
 }
 
 // -----
@@ -36,4 +37,5 @@ modelica.function @foo(%arg0 : !modelica.array<2x!modelica.real>, %arg1 : !model
 modelica.function @foo1(%arg0 : !modelica.array<2x!modelica.real>, %arg1 : !modelica.int, %arg2 : !modelica.real, %arg3 : !modelica.array<2x!modelica.real>, %arg4 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x", "y", "z", "der_x", "der_z"], results_names = ["der_t"], derivative = #modelica.derivative<"foo2", 2>} {
     %0 = modelica.member_create {name = "t"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.member_create {name = "der_t"} : !modelica.member<stack, !modelica.real>
+    modelica.function_terminator
 }

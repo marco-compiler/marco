@@ -398,30 +398,32 @@ namespace modelica::codegen
 	};
 
 	//===----------------------------------------------------------------------===//
-	// Modelica::ReturnOp
+	// Modelica::FunctionTerminatorOp
 	//===----------------------------------------------------------------------===//
 
-	class ReturnOp;
+	class FunctionTerminatorOp;
 
-	class ReturnOpAdaptor : public OpAdaptor<ReturnOp>
+	class FunctionTerminatorOpAdaptor : public OpAdaptor<FunctionTerminatorOp>
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
 	};
 
-	class ReturnOp : public mlir::Op<ReturnOp,
-																	mlir::OpTrait::ZeroRegion,
-																	mlir::OpTrait::ZeroOperands,
-																	mlir::OpTrait::ZeroResult,
-																	mlir::OpTrait::IsTerminator>
+	class FunctionTerminatorOp : public mlir::Op<FunctionTerminatorOp,
+																							mlir::OpTrait::ZeroRegion,
+																							mlir::OpTrait::ZeroResult,
+																							mlir::OpTrait::ZeroSuccessor,
+																							mlir::OpTrait::ZeroOperands,
+																							mlir::OpTrait::HasParent<FunctionOp>::Impl,
+																							mlir::OpTrait::IsTerminator>
 	{
 		public:
 		using Op::Op;
-		using Adaptor = ReturnOpAdaptor;
+		using Adaptor = FunctionOpAdaptor;
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "modelica.return";
+			return "modelica.function_terminator";
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
@@ -1185,7 +1187,7 @@ namespace modelica::codegen
 
 	class IfOp : public mlir::Op<IfOp,
 															mlir::OpTrait::NRegions<2>::Impl,
-															mlir::OpTrait::VariadicResults,
+															mlir::OpTrait::ZeroResult,
 															mlir::OpTrait::ZeroSuccessor,
 															mlir::OpTrait::OneOperand,
 															mlir::OpTrait::NoTerminator,
@@ -1200,7 +1202,6 @@ namespace modelica::codegen
 			return "modelica.if";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::TypeRange resultTypes, mlir::Value cond, bool withElseRegion = false);
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value cond, bool withElseRegion = false);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(::mlir::OpAsmPrinter& printer);
@@ -1208,7 +1209,6 @@ namespace modelica::codegen
 
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
 
-		mlir::TypeRange resultTypes();
 		mlir::Value condition();
 		mlir::Region& thenRegion();
 		mlir::Region& elseRegion();
@@ -1224,11 +1224,13 @@ namespace modelica::codegen
 	{
 		public:
 		using OpAdaptor::OpAdaptor;
+
+		mlir::ValueRange args();
 	};
 
 	class ForOp : public mlir::Op<ForOp,
 															 mlir::OpTrait::NRegions<3>::Impl,
-															 mlir::OpTrait::ZeroOperands,
+															 mlir::OpTrait::VariadicOperands,
 															 mlir::OpTrait::ZeroResult,
 															 mlir::OpTrait::NoTerminator,
 															 mlir::RegionBranchOpInterface::Trait>
@@ -1242,7 +1244,7 @@ namespace modelica::codegen
 			return "modelica.for";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args = llvm::None);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 
@@ -1251,6 +1253,8 @@ namespace modelica::codegen
 		mlir::Region& condition();
 		mlir::Region& body();
 		mlir::Region& step();
+
+		mlir::ValueRange args();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -1400,6 +1404,38 @@ namespace modelica::codegen
 		static constexpr llvm::StringLiteral getOperationName()
 		{
 			return "modelica.break";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::ReturnOp
+	//===----------------------------------------------------------------------===//
+
+	class ReturnOp;
+
+	class ReturnOpAdaptor : public OpAdaptor<ReturnOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+	};
+
+	class ReturnOp : public mlir::Op<ReturnOp,
+			mlir::OpTrait::ZeroRegion,
+			mlir::OpTrait::ZeroOperands,
+			mlir::OpTrait::ZeroResult,
+			mlir::OpTrait::IsTerminator>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = ReturnOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.return";
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);

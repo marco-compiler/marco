@@ -20,6 +20,7 @@ modelica.function @foo(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!mode
     %0 = modelica.member_create {name = "z"} : !modelica.member<stack, !modelica.real>
     %1 = modelica.mul %arg0, %arg1 : (!modelica.real, !modelica.real) -> !modelica.real
     modelica.member_store %0, %1 : !modelica.member<stack, !modelica.real>
+    modelica.function_terminator
 }
 
 modelica.der_function @bar {derived_function = "foo", independent_vars = ["x"]}
