@@ -261,8 +261,10 @@ struct FunctionOpLowering : public mlir::OpRewritePattern<FunctionOp>
 		mlir::Location loc = op->getLoc();
 		auto function = rewriter.replaceOpWithNewOp<mlir::FuncOp>(op, op.name(), op.getType());
 
-		auto* body = rewriter.createBlock(&function.getBody(), {}, op.getType().getInputs());
-		rewriter.mergeBlocks(&op.getBody().front(), body, body->getArguments());
+		rewriter.inlineRegionBefore(op.getBody(),function.getBody(), function.getBody().begin());
+
+		//auto* body = rewriter.createBlock(&function.getBody(), {}, op.getType().getInputs());
+		//rewriter.mergeBlocks(&op.getBody().front(), body, body->getArguments());
 
 		// Map the members for faster access
 		llvm::StringMap<MemberCreateOp> members;
@@ -271,27 +273,24 @@ struct FunctionOpLowering : public mlir::OpRewritePattern<FunctionOp>
 			members[member.name()] = member;
 		});
 
-		auto functionTerminator = mlir::cast<FunctionTerminatorOp>(function.getBody().back().getTerminator());
-		rewriter.eraseOp(functionTerminator);
+		mlir::Block* lastBodyBlock = &function.getBody().back();
+		auto functionTerminator = mlir::cast<FunctionTerminatorOp>(lastBodyBlock->getTerminator());
+		mlir::Block* returnBlock = rewriter.splitBlock(lastBodyBlock, functionTerminator->getIterator());
+		rewriter.setInsertionPointToEnd(lastBodyBlock);
+		rewriter.replaceOpWithNewOp<mlir::BranchOp>(functionTerminator, returnBlock);
 
-		rewriter.setInsertionPointToEnd(&function.getBody().back());
+		rewriter.setInsertionPointToEnd(returnBlock);
+
+		// TODO: free protected members
+
 		llvm::SmallVector<mlir::Value, 1> results;
 
 		for (const auto& name : op.resultsNames())
 		{
 			auto member = members.lookup(name.cast<mlir::StringAttr>().getValue()).getResult();
 			auto memberType = member.getType().cast<MemberType>();
-
-			if (memberType.getShape().empty())
-			{
-				mlir::Value value = rewriter.create<MemberLoadOp>(loc, memberType.getElementType(), member);
-				results.push_back(value);
-			}
-			else
-			{
-				mlir::Value value = rewriter.create<MemberLoadOp>(loc, memberType.toArrayType(), member);
-				results.push_back(value);
-			}
+			mlir::Value value = rewriter.create<MemberLoadOp>(loc, memberType.unwrap(), member);
+			results.push_back(value);
 		}
 
 		rewriter.create<mlir::ReturnOp>(loc, results);
@@ -3710,11 +3709,11 @@ class FunctionConversionPass : public mlir::PassWrapper<FunctionConversionPass, 
 
 		mlir::ConversionTarget target(getContext());
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
-		target.addIllegalOp<FunctionOp>();
+		target.addIllegalOp<FunctionOp, MemberCreateOp>();
 
 		// Provide the set of patterns that will lower the Modelica operations
 		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<FunctionOpLowering>(&getContext());
+		patterns.insert<FunctionOpLowering, MemberAllocOpLowering>(&getContext());
 
 		// With the target and rewrite patterns defined, we can now attempt the
 		// conversion. The conversion will signal failure if any of our "illegal"
@@ -3740,7 +3739,6 @@ static void populateModelicaConversionPatterns(
 		ModelicaConversionOptions options)
 {
 	patterns.insert<
-			MemberAllocOpLowering,
 	    AssignmentOpScalarLowering,
 			AssignmentOpArrayLowering,
 			CallOpLowering,
@@ -3869,7 +3867,6 @@ class ModelicaConversionPass : public mlir::PassWrapper<ModelicaConversionPass, 
 		mlir::ConversionTarget target(getContext());
 
 		target.addIllegalOp<
-				MemberCreateOp, MemberLoadOp, MemberStoreOp,
 				ConstantOp, PackOp, ExtractOp,
 				AssignmentOp,
 				CallOp,

@@ -90,17 +90,23 @@ namespace modelica::codegen
 	};
 }
 
-class BufferDeallocationPass : public PassWrapper<BufferDeallocationPass, OperationPass<FuncOp>>
+// TODO: run on function to enable multithreading
+class BufferDeallocationPass : public mlir::PassWrapper<BufferDeallocationPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
 	void runOnOperation() override
 	{
-		BufferDeallocation deallocation(getOperation());
-		deallocation.deallocate();
+		getOperation().walk([](FunctionOp op) {
+			llvm::errs() << "Current op for dealloc: " << op.getName() << "\n";
+			op.dump();
+			BufferDeallocation deallocation(op);
+			deallocation.deallocate();
+			op.dump();
+		});
 	}
 };
 
-std::unique_ptr<Pass> modelica::codegen::createBufferDeallocationPass()
+std::unique_ptr<mlir::Pass> modelica::codegen::createBufferDeallocationPass()
 {
 	return std::make_unique<BufferDeallocationPass>();
 }

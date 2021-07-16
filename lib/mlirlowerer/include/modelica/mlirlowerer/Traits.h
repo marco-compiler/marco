@@ -9,6 +9,52 @@ namespace modelica::codegen
 {
 	namespace detail
 	{
+		struct BreakableOpTraits
+		{
+			struct Concept
+			{
+				Concept() = default;
+				Concept(const Concept& other) = default;
+				Concept(Concept&& other) = default;
+				Concept& operator=(Concept&& other) = default;
+				virtual ~Concept() = default;
+				Concept& operator=(const Concept& other) = default;
+
+			};
+
+			template <typename ConcreteOp>
+			struct Model : public Concept
+			{
+
+			};
+
+			template<typename ConcreteOp>
+			class FallbackModel : public Concept
+			{
+				public:
+				FallbackModel() = default;
+
+			};
+		};
+	}
+
+	class BreakableOp : public mlir::OpInterface<BreakableOp, detail::BreakableOpTraits>
+	{
+		public:
+		using OpInterface<BreakableOp, detail::BreakableOpTraits>::OpInterface;
+
+		template <typename ConcreteOp>
+		struct BreakableOpTrait : public mlir::OpInterface<BreakableOp, detail::BreakableOpTraits>::Trait<ConcreteOp>
+		{
+
+		};
+
+		template <typename ConcreteOp>
+		struct Trait : public BreakableOpTrait<ConcreteOp> {};
+	};
+
+	namespace detail
+	{
 		struct ClassTraits
 		{
 			struct Concept

@@ -26,37 +26,10 @@ class CFGLowerer
 
 		llvm::SmallVector<mlir::Operation*, 3> bodyOps;
 
-		auto returnBlock = [](mlir::OpBuilder& builder, mlir::Location loc, mlir::Region* body) -> mlir::Block* {
-			mlir::OpBuilder::InsertionGuard guard(builder);
-
-			if (auto* terminator = body->back().getTerminator();
-					terminator && terminator->hasTrait<mlir::OpTrait::IsTerminator>())
-			{
-				mlir::Block* currentBlock = terminator->getBlock();
-				mlir::Operation* splitPoint = terminator;
-
-				for (mlir::Value value : terminator->getOperands())
-					if (auto definingOp = value.getDefiningOp();
-							definingOp && definingOp->isBeforeInBlock(splitPoint))
-						splitPoint = definingOp;
-
-				mlir::Block* continuation = terminator->getBlock()->splitBlock(splitPoint);
-				builder.setInsertionPointToEnd(currentBlock);
-				builder.create<mlir::BranchOp>(loc, continuation);
-				return continuation;
-			}
-
-			mlir::Block* currentBlock = &body->back();
-			mlir::Block* continuation = builder.createBlock(body, body->end());
-			builder.setInsertionPointToEnd(currentBlock);
-			builder.create<mlir::BranchOp>(loc, continuation);
-			return continuation;
-		};
-
 		for (auto& bodyOp : body.getOps())
 			bodyOps.push_back(&bodyOp);
 
-		mlir::Block* functionReturnBlock = returnBlock(builder, function->getLoc(), &body);
+		mlir::Block* functionReturnBlock = &body.back();
 
 		for (auto& bodyOp : bodyOps)
 			if (auto status = run(builder, bodyOp, nullptr, functionReturnBlock); failed(status))

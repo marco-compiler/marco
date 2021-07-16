@@ -246,6 +246,14 @@ ArrayType MemberType::toArrayType() const
 			getShape());
 }
 
+mlir::Type MemberType::unwrap() const
+{
+	if (getRank() == 0)
+		return getElementType();
+
+	return toArrayType();
+}
+
 ArrayType ArrayType::get(mlir::MLIRContext* context, BufferAllocationScope allocationScope, mlir::Type elementType, llvm::ArrayRef<long> shape)
 {
 	return Base::get(context, allocationScope, elementType, Shape(shape.begin(), shape.end()));

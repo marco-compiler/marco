@@ -1,22 +1,19 @@
-// RUN: modelica-opt %s --split-input-file --convert-modelica-to-cfg | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --convert-modelica-functions --convert-modelica-to-cfg | FileCheck %s
 
 // CHECK-LABEL: @foo
-// CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.int
-// CHECK-SAME: -> (!modelica.int)
-// CHECK-SAME: args_names = ["x"]
-// CHECK-SAME: results_names = ["y"]
-// CHECK-NEXT:  %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.int>
+// CHECK-SAME: (%arg0: !modelica.int) -> !modelica.int
+// CHECK-NEXT:  %0 = modelica.alloca {constant = false} : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %1 = modelica.constant #modelica.int<0>
-// CHECK-NEXT:  modelica.member_store %0, %1 : !modelica.member<stack, !modelica.int>
+// CHECK-NEXT:  modelica.assignment %1, %0 : !modelica.int, !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  br ^bb1
-// CHECK-NEXT: ^bb1:  // 2 preds: ^bb0, ^bb4
-// CHECK-NEXT:  %2 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  ^bb1:  // 2 preds: ^bb0, ^bb4
+// CHECK-NEXT:  %2 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %3 = modelica.constant #modelica.int<10>
 // CHECK-NEXT:  %4 = modelica.lt %2, %3 : (!modelica.int, !modelica.int) -> !modelica.bool
 // CHECK-NEXT:  %5 = unrealized_conversion_cast %4 : !modelica.bool to i1
 // CHECK-NEXT:  cond_br %5, ^bb2, ^bb5
 // CHECK-NEXT: ^bb2:  // pred: ^bb1
-// CHECK-NEXT:  %6 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  %6 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %7 = modelica.constant #modelica.int<5>
 // CHECK-NEXT:  %8 = modelica.eq %6, %7 : (!modelica.int, !modelica.int) -> !modelica.bool
 // CHECK-NEXT:  %9 = unrealized_conversion_cast %8 : !modelica.bool to i1
@@ -24,19 +21,20 @@
 // CHECK-NEXT: ^bb3:  // pred: ^bb2
 // CHECK-NEXT:  br ^bb5
 // CHECK-NEXT: ^bb4:  // pred: ^bb2
-// CHECK-NEXT:  %10 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  %10 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %11 = modelica.constant #modelica.int<1>
 // CHECK-NEXT:  %12 = modelica.add %10, %11 : (!modelica.int, !modelica.int) -> !modelica.int
-// CHECK-NEXT:  modelica.member_store %0, %12 : !modelica.member<stack, !modelica.int>
-// CHECK-NEXT:  %13 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  modelica.assignment %12, %0 : !modelica.int, !modelica.array<stack, !modelica.int>
+// CHECK-NEXT:  %13 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %14 = modelica.constant #modelica.int<2>
 // CHECK-NEXT:  %15 = modelica.add %13, %14 : (!modelica.int, !modelica.int) -> !modelica.int
-// CHECK-NEXT:  modelica.member_store %0, %15 : !modelica.member<stack, !modelica.int>
+// CHECK-NEXT:  modelica.assignment %15, %0 : !modelica.int, !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  br ^bb1
 // CHECK-NEXT: ^bb5:  // 2 preds: ^bb1, ^bb3
 // CHECK-NEXT:  br ^bb6
 // CHECK-NEXT: ^bb6:  // pred: ^bb5
-// CHECK-NEXT:  modelica.function_terminator
+// CHECK-NEXT:  %16 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
+// CHECK-NEXT:  return %16 : !modelica.int
 
 modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {args_names = ["x"], results_names = ["y"]} {
     %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.int>
@@ -69,16 +67,13 @@ modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {arg
 // -----
 
 // CHECK-LABEL: @foo
-// CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.int
-// CHECK-SAME: -> (!modelica.int)
-// CHECK-SAME: args_names = ["x"]
-// CHECK-SAME: results_names = ["y"]
-// CHECK-NEXT:  %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.int>
+// CHECK-SAME: (%arg0: !modelica.int) -> !modelica.int
+// CHECK-NEXT:  %0 = modelica.alloca {constant = false} : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %1 = modelica.constant #modelica.int<0>
-// CHECK-NEXT:  modelica.member_store %0, %1 : !modelica.member<stack, !modelica.int>
-// CHECK-NEXT:br ^bb1
-// CHECK-NEXT:  ^bb1:  // 2 preds: ^bb0, ^bb7
-// CHECK-NEXT:  %2 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  modelica.assignment %1, %0 : !modelica.int, !modelica.array<stack, !modelica.int>
+// CHECK-NEXT:  br ^bb1
+// CHECK-NEXT: ^bb1:  // 2 preds: ^bb0, ^bb7
+// CHECK-NEXT:  %2 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %3 = modelica.constant #modelica.int<10>
 // CHECK-NEXT:  %4 = modelica.lt %2, %3 : (!modelica.int, !modelica.int) -> !modelica.bool
 // CHECK-NEXT:  %5 = unrealized_conversion_cast %4 : !modelica.bool to i1
@@ -86,7 +81,7 @@ modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {arg
 // CHECK-NEXT: ^bb2:  // pred: ^bb1
 // CHECK-NEXT:  br ^bb3
 // CHECK-NEXT: ^bb3:  // pred: ^bb2
-// CHECK-NEXT:  %6 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  %6 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %7 = modelica.constant #modelica.int<10>
 // CHECK-NEXT:  %8 = modelica.lt %6, %7 : (!modelica.int, !modelica.int) -> !modelica.bool
 // CHECK-NEXT:  %9 = unrealized_conversion_cast %8 : !modelica.bool to i1
@@ -94,7 +89,7 @@ modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {arg
 // CHECK-NEXT: ^bb4:  // pred: ^bb3
 // CHECK-NEXT:  br ^bb5
 // CHECK-NEXT: ^bb5:  // 2 preds: ^bb3, ^bb4
-// CHECK-NEXT:  %10 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  %10 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %11 = modelica.constant #modelica.int<5>
 // CHECK-NEXT:  %12 = modelica.eq %10, %11 : (!modelica.int, !modelica.int) -> !modelica.bool
 // CHECK-NEXT:  %13 = unrealized_conversion_cast %12 : !modelica.bool to i1
@@ -102,19 +97,20 @@ modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {arg
 // CHECK-NEXT: ^bb6:  // pred: ^bb5
 // CHECK-NEXT:  br ^bb8
 // CHECK-NEXT: ^bb7:  // pred: ^bb5
-// CHECK-NEXT:  %14 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  %14 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %15 = modelica.constant #modelica.int<1>
 // CHECK-NEXT:  %16 = modelica.add %14, %15 : (!modelica.int, !modelica.int) -> !modelica.int
-// CHECK-NEXT:  modelica.member_store %0, %16 : !modelica.member<stack, !modelica.int>
-// CHECK-NEXT:  %17 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  modelica.assignment %16, %0 : !modelica.int, !modelica.array<stack, !modelica.int>
+// CHECK-NEXT:  %17 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %18 = modelica.constant #modelica.int<2>
 // CHECK-NEXT:  %19 = modelica.add %17, %18 : (!modelica.int, !modelica.int) -> !modelica.int
-// CHECK-NEXT:  modelica.member_store %0, %19 : !modelica.member<stack, !modelica.int>
+// CHECK-NEXT:  modelica.assignment %19, %0 : !modelica.int, !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  br ^bb1
 // CHECK-NEXT: ^bb8:  // 2 preds: ^bb1, ^bb6
 // CHECK-NEXT:  br ^bb9
 // CHECK-NEXT: ^bb9:  // pred: ^bb8
-// CHECK-NEXT:  modelica.function_terminator
+// CHECK-NEXT:  %20 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
+// CHECK-NEXT:  return %20 : !modelica.int
 
 modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {args_names = ["x"], results_names = ["y"]} {
     %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.int>
@@ -155,16 +151,13 @@ modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {arg
 // -----
 
 // CHECK-LABEL: @foo
-// CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.int
-// CHECK-SAME: -> (!modelica.int)
-// CHECK-SAME: args_names = ["x"]
-// CHECK-SAME: results_names = ["y"]
-// CHECK-NEXT:  %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.int>
+// CHECK-SAME: (%arg0: !modelica.int) -> !modelica.int
+// CHECK-NEXT:  %0 = modelica.alloca {constant = false} : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %1 = modelica.constant #modelica.int<0>
-// CHECK-NEXT:  modelica.member_store %0, %1 : !modelica.member<stack, !modelica.int>
+// CHECK-NEXT:  modelica.assignment %1, %0 : !modelica.int, !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  br ^bb1
 // CHECK-NEXT: ^bb1:  // 2 preds: ^bb0, ^bb8
-// CHECK-NEXT:  %2 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  %2 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %3 = modelica.constant #modelica.int<10>
 // CHECK-NEXT:  %4 = modelica.lt %2, %3 : (!modelica.int, !modelica.int) -> !modelica.bool
 // CHECK-NEXT:  %5 = unrealized_conversion_cast %4 : !modelica.bool to i1
@@ -180,8 +173,8 @@ modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {arg
 // CHECK-NEXT:  %10 = modelica.lte %8, %9 : (!modelica.int, !modelica.int) -> !modelica.bool
 // CHECK-NEXT:  %11 = unrealized_conversion_cast %10 : !modelica.bool to i1
 // CHECK-NEXT:  cond_br %11, ^bb4, ^bb8
-// CHECK-NEXT: ^bb4:  // pred: ^bb3
-// CHECK-NEXT:  %12 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  ^bb4:  // pred: ^bb3
+// CHECK-NEXT:  %12 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %13 = modelica.constant #modelica.int<5>
 // CHECK-NEXT:  %14 = modelica.eq %12, %13 : (!modelica.int, !modelica.int) -> !modelica.bool
 // CHECK-NEXT:  %15 = unrealized_conversion_cast %14 : !modelica.bool to i1
@@ -189,14 +182,14 @@ modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {arg
 // CHECK-NEXT: ^bb5:  // pred: ^bb4
 // CHECK-NEXT:  br ^bb8
 // CHECK-NEXT: ^bb6:  // pred: ^bb4
-// CHECK-NEXT:  %16 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  %16 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %17 = modelica.constant #modelica.int<1>
 // CHECK-NEXT:  %18 = modelica.add %16, %17 : (!modelica.int, !modelica.int) -> !modelica.int
-// CHECK-NEXT:  modelica.member_store %0, %17 : !modelica.member<stack, !modelica.int>
-// CHECK-NEXT:  %19 = modelica.member_load %0 : !modelica.int
+// CHECK-NEXT:  modelica.assignment %17, %0 : !modelica.int, !modelica.array<stack, !modelica.int>
+// CHECK-NEXT:  %19 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  %20 = modelica.constant #modelica.int<2>
 // CHECK-NEXT:  %21 = modelica.add %19, %20 : (!modelica.int, !modelica.int) -> !modelica.int
-// CHECK-NEXT:  modelica.member_store %0, %21 : !modelica.member<stack, !modelica.int>
+// CHECK-NEXT:  modelica.assignment %21, %0 : !modelica.int, !modelica.array<stack, !modelica.int>
 // CHECK-NEXT:  br ^bb7
 // CHECK-NEXT: ^bb7:  // pred: ^bb6
 // CHECK-NEXT:  %22 = modelica.load %6[] : !modelica.array<stack, !modelica.int>
@@ -209,7 +202,8 @@ modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {arg
 // CHECK-NEXT: ^bb9:  // pred: ^bb1
 // CHECK-NEXT:  br ^bb10
 // CHECK-NEXT: ^bb10:  // pred: ^bb9
-// CHECK-NEXT:  modelica.function_terminator
+// CHECK-NEXT:  %25 = modelica.load %0[] : !modelica.array<stack, !modelica.int>
+// CHECK-NEXT:  return %25 : !modelica.int
 
 modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {args_names = ["x"], results_names = ["y"]} {
     %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.int>

@@ -122,19 +122,18 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 		passManager.addPass(mlir::createInlinerPass());
 
 	passManager.addPass(mlir::createCanonicalizerPass());
-	passManager.addPass(createFunctionConversionPass());
 
 	if (loweringOptions.cse)
-		passManager.addNestedPass<mlir::FuncOp>(mlir::createCSEPass());
-
-	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions, loweringOptions.getBitWidth()));
-	passManager.addNestedPass<mlir::FuncOp>(mlir::createLoopInvariantCodeMotionPass());
-	passManager.addNestedPass<mlir::FuncOp>(createBufferDeallocationPass());
+		passManager.addNestedPass<FunctionOp>(mlir::createCSEPass());
 
 	if (loweringOptions.openmp)
-		passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
+		passManager.addNestedPass<FunctionOp>(mlir::createConvertSCFToOpenMPPass());
 
+	passManager.addPass(createFunctionConversionPass());
+	passManager.addPass(createBufferDeallocationPass());
+	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions, loweringOptions.getBitWidth()));
 	passManager.addPass(createLowerToCFGPass(loweringOptions.getBitWidth()));
+
 	passManager.addPass(createLLVMLoweringPass(loweringOptions.llvmOptions, loweringOptions.getBitWidth()));
 
 	if (!loweringOptions.debug)
@@ -331,21 +330,6 @@ mlir::Operation* MLIRLowerer::lower(const frontend::StandardFunction& function)
 
 	// Lower the statements
 	lower(*function.getAlgorithms()[0]);
-
-	// Free the protected members allocated on the heap
-	for (const auto& member : function.getMembers())
-	{
-		if (!member->isInput() && !member->isOutput())
-		{
-			auto reference = symbolTable.lookup(member->getName());
-
-			if (reference.getReference().getType().cast<MemberType>().getAllocationScope() == MemberAllocationScope::heap)
-			{
-				mlir::Value buffer = *reference;
-				builder.create<FreeOp>(location, buffer);
-			}
-		}
-	}
 
 	builder.create<FunctionTerminatorOp>(location);
 	return functionOp;

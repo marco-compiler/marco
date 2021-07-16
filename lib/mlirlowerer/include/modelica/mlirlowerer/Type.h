@@ -147,6 +147,7 @@ namespace modelica::codegen
 		[[nodiscard]] unsigned int getRank() const;
 
 		[[nodiscard]] ArrayType toArrayType() const;
+		[[nodiscard]] mlir::Type unwrap() const;
 	};
 
 	class UnsizedArrayType;

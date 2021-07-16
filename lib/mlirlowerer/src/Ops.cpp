@@ -33,6 +33,18 @@ static mlir::Value readValue(mlir::OpBuilder& builder, mlir::Value operand)
 	return operand;
 }
 
+static bool isBreakable(mlir::Region& region)
+{
+	bool breakable = false;
+
+	region.walk([&](BreakOp op) {
+		if (auto* breakableParent = op->getParentWithTrait<BreakableOp::Trait>())
+			breakable |= region.getParentOp() == breakableParent;
+	});
+
+	return breakable;
+}
+
 //===----------------------------------------------------------------------===//
 // Modelica::PackOp
 //===----------------------------------------------------------------------===//
@@ -1390,9 +1402,9 @@ void MemberCreateOp::print(mlir::OpAsmPrinter& printer)
 	for (const auto& dynamicDimension : llvm::enumerate(dynamicDimensions()))
 	{
 		if (dynamicDimension.index() > 0)
-			printer << ", ";
+			printer << ",";
 
-		printer << dynamicDimension.value();
+		printer << " " << dynamicDimension.value();
 	}
 
 	printer << " " << getOperation()->getAttrDictionary();
