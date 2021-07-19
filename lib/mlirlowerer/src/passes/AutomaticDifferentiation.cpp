@@ -4,6 +4,7 @@
 #include <mlir/Transforms/DialectConversion.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
 #include <modelica/mlirlowerer/passes/AutomaticDifferentiation.h>
+#include <queue>
 #include <set>
 
 using namespace modelica::codegen;
@@ -222,7 +223,7 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 
 	// List of the operations to be derived
 	std::set<mlir::Operation*> derivedOperations;
-	llvm::SmallVector<DerivativeInterface, 3> derivableOps;
+	std::queue<DerivativeInterface> derivableOps;
 	std::set<mlir::Operation*> notToBeDerivedOps;
 
 	// Create the members derivatives
@@ -325,39 +326,27 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 			if (auto derivableOp = mlir::dyn_cast<DerivativeInterface>(op))
 				if (derivedOperations.count(derivableOp.getOperation()) == 0 &&
 						notToBeDerivedOps.count(derivableOp.getOperation()) == 0)
-					derivableOps.push_back(derivableOp);
+					derivableOps.push(derivableOp);
 		});
 
-		for (auto& op : derivableOps)
+		while (!derivableOps.empty())
 		{
+			auto& op = derivableOps.front();
+
 			builder.setInsertionPoint(op);
 			op.derive(builder, derivatives[independentVariable]);
 			derivedOperations.insert(op.getOperation());
+
+			llvm::SmallVector<mlir::Region*, 3> regions;
+			op.getDerivableRegions(regions);
+
+			for (auto& region : regions)
+				for (auto derivableOp : region->getOps<DerivativeInterface>())
+					derivableOps.push(derivableOp);
+
+			derivableOps.pop();
 		}
 	}
-
-	/*
-	// Replace the old return operation with a new one returning the derivatives
-	auto returnOp = mlir::cast<ReturnOp>(derivedFunction.getBody().back().getTerminator());
-	llvm::SmallVector<mlir::Value, 3> results;
-
-	for (auto value : llvm::enumerate(returnOp.values()))
-	{
-		if (hasFloatBase(base.getType().getResult(value.index())))
-		{
-			mlir::Value result = value.value();
-
-			for (const auto& independentVariable : independentVariables)
-				result = derivatives[independentVariable].lookup(result);
-
-			results.push_back(result);
-		}
-	}
-
-	builder.setInsertionPoint(returnOp);
-	builder.create<ReturnOp>(returnOp.getLoc(), results);
-	returnOp->erase();
-	 */
 
 	return mlir::success();
 }
@@ -656,30 +645,27 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 
 	// Determine the list of the derivable operations. We can't just derive as
 	// we find them, as we would invalidate the operation walk's iterator.
-	llvm::SmallVector<DerivativeInterface> derivableOps;
+	std::queue<DerivativeInterface> derivableOps;
 
-	derivedFunction.walk([&](mlir::Operation* op) {
-		if (auto derivableOp = mlir::dyn_cast<DerivativeInterface>(op))
-			derivableOps.push_back(derivableOp);
-	});
+	for (auto derivableOp : derivedFunction.getBody().getOps<DerivativeInterface>())
+		derivableOps.push(derivableOp);
 
 	// Derive each derivable operation
-	for (auto& op : derivableOps)
+	while (!derivableOps.empty())
+	{
+		auto& op = derivableOps.front();
+
 		op.derive(builder, derivatives);
 
-	/*
-	// Replace the old return operation with a new one returning the derivatives
-	auto returnOp = mlir::cast<ReturnOp>(derivedFunction.getRegion().back().getTerminator());
-	llvm::SmallVector<mlir::Value, 3> results;
+		llvm::SmallVector<mlir::Region*, 3> regions;
+		op.getDerivableRegions(regions);
 
-	for (auto value : llvm::enumerate(returnOp.values()))
-		if (hasFloatBase(base.getType().getResult(value.index())))
-			results.push_back(derivatives.lookup(value.value()));
+		for (auto& region : regions)
+			for (auto derivableOp : region->getOps<DerivativeInterface>())
+				derivableOps.push(derivableOp);
 
-	builder.setInsertionPoint(returnOp);
-	builder.create<ReturnOp>(returnOp.getLoc(), results);
-	returnOp->erase();
-	 */
+		derivableOps.pop();
+	}
 
 	return mlir::success();
 }

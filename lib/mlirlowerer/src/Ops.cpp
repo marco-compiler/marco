@@ -913,6 +913,11 @@ void ConstantOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBe
 
 }
 
+void ConstantOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Attribute ConstantOp::value()
 {
 	return getOperation()->getAttr("value");
@@ -983,6 +988,21 @@ mlir::OpFoldResult CastOp::fold(mlir::ArrayRef<mlir::Attribute> operands)
 	return nullptr;
 }
 
+mlir::ValueRange CastOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	return derivatives.lookup(value());
+}
+
+void CastOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+	toBeDerived.push_back(value());
+}
+
+void CastOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Value CastOp::value()
 {
 	return Adaptor(*this).value();
@@ -1049,6 +1069,27 @@ void AssignmentOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectIns
 
 	if (destination().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), source(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::ValueRange AssignmentOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	mlir::Location loc = getLoc();
+
+	mlir::Value derivedSource = derivatives.lookup(source());
+	mlir::Value derivedDestination = derivatives.lookup(destination());
+
+	auto derivedOp = builder.create<AssignmentOp>(loc, derivedSource, derivedDestination);
+	return llvm::None;
+}
+
+void AssignmentOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+
+}
+
+void AssignmentOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 mlir::Value AssignmentOp::source()
@@ -1523,6 +1564,11 @@ void MemberLoadOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& to
 	toBeDerived.push_back(member());
 }
 
+void MemberLoadOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type MemberLoadOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -1636,6 +1682,11 @@ void MemberStoreOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& t
 {
 	toBeDerived.push_back(value());
 	toBeDerived.push_back(member());
+}
+
+void MemberStoreOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 mlir::Value MemberStoreOp::member()
@@ -2256,6 +2307,11 @@ void SubscriptionOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& 
 	toBeDerived.push_back(source());
 }
 
+void SubscriptionOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 ArrayType SubscriptionOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<ArrayType>();
@@ -2355,6 +2411,11 @@ mlir::ValueRange LoadOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 void LoadOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
 {
 	toBeDerived.push_back(memory());
+}
+
+void LoadOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 ArrayType LoadOp::getArrayType()
@@ -2473,6 +2534,11 @@ void StoreOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDer
 {
 	toBeDerived.push_back(value());
 	toBeDerived.push_back(memory());
+}
+
+void StoreOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 ArrayType StoreOp::getArrayType()
@@ -2713,6 +2779,22 @@ void IfOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayRe
 	regions.push_back(mlir::RegionSuccessor(condition ? &thenRegion() : elseRegion));
 }
 
+mlir::ValueRange IfOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	return llvm::None;
+}
+
+void IfOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+
+}
+
+void IfOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+	regions.push_back(&thenRegion());
+	regions.push_back(&elseRegion());
+}
+
 mlir::Value IfOp::condition()
 {
 	return Adaptor(*this).condition();
@@ -2853,6 +2935,21 @@ void ForOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::ArrayR
 	}
 }
 
+mlir::ValueRange ForOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	return llvm::None;
+}
+
+void ForOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+
+}
+
+void ForOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+	regions.push_back(&body());
+}
+
 mlir::Region& ForOp::condition()
 {
 	return getOperation()->getRegion(0);
@@ -2956,6 +3053,21 @@ void WhileOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm::Arra
 	{
 		regions.emplace_back(&condition(), condition().getArguments());
 	}
+}
+
+mlir::ValueRange WhileOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	return llvm::None;
+}
+
+void WhileOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+
+}
+
+void WhileOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+	regions.push_back(&body());
 }
 
 mlir::Region& WhileOp::condition()
@@ -3996,6 +4108,11 @@ void NegateOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDe
 	toBeDerived.push_back(operand());
 }
 
+void NegateOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type NegateOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -4188,6 +4305,11 @@ void AddOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 {
 	toBeDerived.push_back(lhs());
 	toBeDerived.push_back(rhs());
+}
+
+void AddOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 mlir::Type AddOp::resultType()
@@ -4389,6 +4511,11 @@ void AddElementWiseOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>
 	toBeDerived.push_back(rhs());
 }
 
+void AddElementWiseOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type AddElementWiseOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -4588,6 +4715,11 @@ void SubOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 	toBeDerived.push_back(rhs());
 }
 
+void SubOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type SubOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -4785,6 +4917,11 @@ void SubElementWiseOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>
 {
 	toBeDerived.push_back(lhs());
 	toBeDerived.push_back(rhs());
+}
+
+void SubElementWiseOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 mlir::Type SubElementWiseOp::resultType()
@@ -5011,6 +5148,11 @@ void MulOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 	toBeDerived.push_back(rhs());
 }
 
+void MulOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type MulOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -5233,6 +5375,11 @@ void MulElementWiseOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>
 {
 	toBeDerived.push_back(lhs());
 	toBeDerived.push_back(rhs());
+}
+
+void MulElementWiseOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 mlir::Type MulElementWiseOp::resultType()
@@ -5462,6 +5609,11 @@ void DivOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 	toBeDerived.push_back(rhs());
 }
 
+void DivOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type DivOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -5689,6 +5841,11 @@ void DivElementWiseOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>
 	toBeDerived.push_back(rhs());
 }
 
+void DivElementWiseOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type DivElementWiseOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -5865,6 +6022,11 @@ void PowOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 	toBeDerived.push_back(exponent());
 }
 
+void PowOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type PowOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -5978,6 +6140,11 @@ void PowElementWiseOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>
 {
 	toBeDerived.push_back(base());
 	toBeDerived.push_back(exponent());
+}
+
+void PowElementWiseOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 mlir::Type PowElementWiseOp::resultType()
@@ -6300,6 +6467,11 @@ void SinOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 	toBeDerived.push_back(operand());
 }
 
+void SinOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type SinOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -6393,6 +6565,11 @@ mlir::ValueRange CosOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapp
 void CosOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
 {
 	toBeDerived.push_back(operand());
+}
+
+void CosOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 mlir::Type CosOp::resultType()
@@ -6491,6 +6668,11 @@ void TanOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 	toBeDerived.push_back(operand());
 }
 
+void TanOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type TanOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -6572,7 +6754,6 @@ mlir::ValueRange AsinOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 	mlir::Location loc = getLoc();
 	mlir::Value derivedOperand = derivatives.lookup(operand());
 	mlir::Type type = convertToRealType(resultType());
-	bool elementWise = operand().getType().isa<ArrayType>();
 
 	mlir::Value one = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 1));
 	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
@@ -6587,6 +6768,11 @@ mlir::ValueRange AsinOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 void AsinOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
 {
 	toBeDerived.push_back(operand());
+}
+
+void AsinOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 mlir::Type AsinOp::resultType()
@@ -6687,6 +6873,11 @@ void AcosOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeri
 	toBeDerived.push_back(operand());
 }
 
+void AcosOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type AcosOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -6781,6 +6972,11 @@ mlir::ValueRange AtanOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 void AtanOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
 {
 	toBeDerived.push_back(operand());
+}
+
+void AtanOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 mlir::Type AtanOp::resultType()
@@ -6975,6 +7171,11 @@ void SinhOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeri
 	toBeDerived.push_back(operand());
 }
 
+void SinhOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type SinhOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -7066,6 +7267,11 @@ mlir::ValueRange CoshOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 void CoshOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
 {
 	toBeDerived.push_back(operand());
+}
+
+void CoshOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 mlir::Type CoshOp::resultType()
@@ -7163,6 +7369,11 @@ void TanhOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeri
 	toBeDerived.push_back(operand());
 }
 
+void TanhOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type TanhOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -7256,6 +7467,11 @@ void ExpOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 	toBeDerived.push_back(exponent());
 }
 
+void ExpOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 mlir::Type ExpOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -7345,6 +7561,11 @@ mlir::ValueRange LogOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapp
 void LogOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
 {
 	toBeDerived.push_back(operand());
+}
+
+void LogOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 mlir::Type LogOp::resultType()
@@ -7440,6 +7661,11 @@ mlir::ValueRange Log10Op::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMa
 void Log10Op::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
 {
 	toBeDerived.push_back(operand());
+}
+
+void Log10Op::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 mlir::Type Log10Op::resultType()

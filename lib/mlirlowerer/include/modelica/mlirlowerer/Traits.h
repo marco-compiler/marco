@@ -700,7 +700,7 @@ namespace modelica::codegen
 
 				virtual mlir::ValueRange derive(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const = 0;
 				virtual void getOperandsToBeDerived(mlir::Operation* op, llvm::SmallVectorImpl<mlir::Value>& toBeDerived) const = 0;
-				//virtual mlir::ValueRange deriveTree(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const = 0;
+				virtual void getDerivableRegions(mlir::Operation* op, llvm::SmallVectorImpl<mlir::Region*>& regions) const = 0;
 			};
 
 			template <typename ConcreteOp>
@@ -716,12 +716,10 @@ namespace modelica::codegen
 					return mlir::cast<ConcreteOp>(op).getOperandsToBeDerived(toBeDerived);
 				}
 
-				/*
-				mlir::ValueRange deriveTree(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const final
+				void getDerivableRegions(mlir::Operation* op, llvm::SmallVectorImpl<mlir::Region*>& regions) const final
 				{
-					return mlir::cast<ConcreteOp>(op).deriveTree(builder, derivatives);
+					return mlir::cast<ConcreteOp>(op).getDerivableRegions(regions);
 				}
-				 */
 			};
 
 			template<typename ConcreteOp>
@@ -740,12 +738,10 @@ namespace modelica::codegen
 					return mlir::cast<ConcreteOp>(op).getOperandsToBeDerived(toBeDerived);
 				}
 
-				/*
-				mlir::ValueRange deriveTree(mlir::Operation* op, mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives) const final
+				void getDerivableRegions(mlir::Operation* op, llvm::SmallVectorImpl<mlir::Region*>& regions) const final
 				{
-					return mlir::cast<ConcreteOp>(op).deriveTree(builder, derivatives);
+					return mlir::cast<ConcreteOp>(op).getDerivableRegions(regions);
 				}
-				 */
 			};
 		};
 	}
@@ -758,13 +754,7 @@ namespace modelica::codegen
 		template <typename ConcreteOp>
 		struct DerivativeTrait : public mlir::OpInterface<DerivativeInterface, detail::DerivativeInterfaceTraits>::Trait<ConcreteOp>
 		{
-			/*
-			mlir::ValueRange deriveTree(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
-			{
-				mlir::Operation* op = (*static_cast<ConcreteOp*>(this)).getOperation();
-				return mlir::cast<DerivativeInterface>(op).derive(builder, derivatives);
-			}
-			 */
+
 		};
 
 		template <typename ConcreteOp>
@@ -774,15 +764,12 @@ namespace modelica::codegen
 		{
 			mlir::OpBuilder::InsertionGuard guard(builder);
 
-			// The derivative is placed before the old assignment, in order to avoid
-			// inconsistencies in case of self-assignments (i.e. "y := y * 2" would
-			// invalidate the derivative if placed before "y' := y' * 2").
-			builder.setInsertionPoint(getOperation());
-
+			builder.setInsertionPointAfter(getOperation());
 			mlir::ValueRange ders = getImpl()->derive(getOperation(), builder, derivatives);
 
-			for (const auto& [base, derived] : llvm::zip(getOperation()->getResults(), ders))
-				derivatives.map(base, derived);
+			if (!ders.empty())
+				for (const auto& [base, derived] : llvm::zip(getOperation()->getResults(), ders))
+					derivatives.map(base, derived);
 
 			return ders;
 		}
@@ -790,6 +777,11 @@ namespace modelica::codegen
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
 		{
 			getImpl()->getOperandsToBeDerived(getOperation(), toBeDerived);
+		}
+
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+		{
+			getImpl()->getDerivableRegions(getOperation(), regions);
 		}
 
 		mlir::ValueRange deriveTree(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)

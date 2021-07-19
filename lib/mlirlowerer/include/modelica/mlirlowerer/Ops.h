@@ -510,6 +510,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Attribute value();
 		mlir::Type resultType();
@@ -532,7 +533,8 @@ namespace modelica::codegen
 	class CastOp : public mlir::Op<CastOp,
 																mlir::OpTrait::ZeroRegion,
 																mlir::OpTrait::OneOperand,
-																mlir::OpTrait::OneResult>
+																mlir::OpTrait::OneResult,
+																DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -548,6 +550,10 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
 		mlir::OpFoldResult fold(mlir::ArrayRef<mlir::Attribute> operands);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Value value();
 		mlir::Type resultType();
@@ -572,7 +578,8 @@ namespace modelica::codegen
 																			mlir::OpTrait::ZeroRegion,
 																			mlir::OpTrait::ZeroResult,
 																			mlir::OpTrait::VariadicOperands,
-																			mlir::MemoryEffectOpInterface::Trait>
+																			mlir::MemoryEffectOpInterface::Trait,
+																			DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -588,6 +595,10 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Value source();
 		mlir::Value destination();
@@ -725,6 +736,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value member();
@@ -770,6 +782,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Value member();
 		mlir::Value value();
@@ -1028,6 +1041,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		ArrayType resultType();
 		mlir::Value source();
@@ -1053,7 +1067,8 @@ namespace modelica::codegen
 																mlir::OpTrait::ZeroRegion,
 																mlir::OpTrait::AtLeastNOperands<1>::Impl,
 																mlir::OpTrait::OneResult,
-																mlir::MemoryEffectOpInterface::Trait>
+																mlir::MemoryEffectOpInterface::Trait,
+																DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1073,6 +1088,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		ArrayType getArrayType();
 		mlir::Value memory();
@@ -1120,6 +1136,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		ArrayType getArrayType();
 		mlir::Value value();
@@ -1191,7 +1208,8 @@ namespace modelica::codegen
 															mlir::OpTrait::ZeroSuccessor,
 															mlir::OpTrait::OneOperand,
 															mlir::OpTrait::NoTerminator,
-															mlir::RegionBranchOpInterface::Trait>
+															mlir::RegionBranchOpInterface::Trait,
+															DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1208,6 +1226,10 @@ namespace modelica::codegen
 		mlir::LogicalResult verify();
 
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Value condition();
 		mlir::Region& thenRegion();
@@ -1233,7 +1255,8 @@ namespace modelica::codegen
 															 mlir::OpTrait::VariadicOperands,
 															 mlir::OpTrait::ZeroResult,
 															 mlir::OpTrait::NoTerminator,
-															 mlir::RegionBranchOpInterface::Trait>
+															 mlir::RegionBranchOpInterface::Trait,
+															 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1249,6 +1272,10 @@ namespace modelica::codegen
 		void print(mlir::OpAsmPrinter& printer);
 
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Region& condition();
 		mlir::Region& body();
@@ -1275,7 +1302,8 @@ namespace modelica::codegen
 																 mlir::OpTrait::ZeroResult,
 																 mlir::OpTrait::NoTerminator,
 																 mlir::LoopLikeOpInterface::Trait,
-																 mlir::RegionBranchOpInterface::Trait>
+																 mlir::RegionBranchOpInterface::Trait,
+																 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -1296,6 +1324,10 @@ namespace modelica::codegen
 		mlir::LogicalResult moveOutOfLoop(llvm::ArrayRef<mlir::Operation*> ops);
 
 		void getSuccessorRegions(llvm::Optional<unsigned> index, llvm::ArrayRef<mlir::Attribute> operands, llvm::SmallVectorImpl<mlir::RegionSuccessor>& regions);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Region& condition();
 		mlir::Region& body();
@@ -1847,6 +1879,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -1901,6 +1934,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -1956,6 +1990,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2010,6 +2045,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2064,6 +2100,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2120,6 +2157,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2176,6 +2214,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2232,6 +2271,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2288,6 +2328,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2333,6 +2374,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value base();
@@ -2377,6 +2419,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value base();
@@ -2542,6 +2585,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2586,6 +2630,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2630,6 +2675,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2674,6 +2720,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2718,6 +2765,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2762,6 +2810,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2848,6 +2897,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2892,6 +2942,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2936,6 +2987,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -2980,6 +3032,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value exponent();
@@ -3024,6 +3077,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value operand();
@@ -3068,6 +3122,7 @@ namespace modelica::codegen
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value operand();
