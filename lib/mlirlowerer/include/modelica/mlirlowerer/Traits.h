@@ -128,8 +128,6 @@ namespace modelica::codegen
 				virtual ~Concept() = default;
 				Concept& operator=(const Concept& other) = default;
 
-				virtual bool isVectorized(mlir::Operation* op) const = 0;
-				virtual unsigned int vectorizationRank(mlir::Operation* op) const = 0;
 				virtual mlir::ValueRange getArgs(mlir::Operation* op) const = 0;
 				virtual unsigned int getArgExpectedRank(mlir::Operation* op, unsigned int argIndex) const = 0;
 				virtual mlir::ValueRange scalarize(mlir::Operation* op, mlir::OpBuilder& builder, mlir::ValueRange indexes) const = 0;
@@ -138,78 +136,6 @@ namespace modelica::codegen
 			template <typename ConcreteOp>
 			struct Model : public Concept
 			{
-				bool isVectorized(mlir::Operation* op) const override
-				{
-					return vectorizationRank(op) != 0;
-				}
-
-				unsigned int vectorizationRank(mlir::Operation* op) const override
-				{
-					llvm::SmallVector<long, 2> expectedRanks;
-					llvm::SmallVector<long, 3> dimensions;
-
-					if (getArgs(op).empty())
-						return 0;
-
-					for (auto& arg : llvm::enumerate(getArgs(op)))
-					{
-						mlir::Type argType = arg.value().getType();
-						unsigned int argExpectedRank = getArgExpectedRank(op, arg.index());
-
-						unsigned int argActualRank = argType.isa<ArrayType>() ?
-						    argType.cast<ArrayType>().getRank() : 0;
-
-						// Each argument must have a rank higher than the expected one
-						// for the operation to be vectorized.
-						if (argActualRank <= argExpectedRank)
-							return 0;
-
-						if (arg.index() == 0)
-						{
-							// If this is the first argument, then it will determine the
-							// rank and dimensions of the result array, although the
-							// dimensions can be also specialized by the other arguments
-							// if initially unknown.
-
-							for (size_t i = 0; i < argActualRank - argExpectedRank; ++i)
-							{
-								auto& dimension = argType.cast<ArrayType>().getShape()[arg.index()];
-								dimensions.push_back(dimension);
-							}
-						}
-						else
-						{
-							// The rank difference must match with the one given by the first
-							// argument, independently from the dimensions sizes.
-							if (argActualRank != argExpectedRank + dimensions.size())
-								return 0;
-
-							for (size_t i = 0; i < argActualRank - argExpectedRank; ++i)
-							{
-								auto& dimension = argType.cast<ArrayType>().getShape()[i];
-
-								// If the dimension is dynamic, then no further checks or
-								// specializations are possible.
-								if (dimension == -1)
-									continue;
-
-								// If the dimension determined by the first argument is fixed,
-								// then also the dimension of the other arguments must match
-								// (when that's fixed too).
-								if (dimensions[i] != -1 && dimensions[i] != dimension)
-									return 0;
-
-								// If the dimension determined by the first argument is dynamic, then
-								// set it to a required size.
-								if (dimensions[i] == -1)
-									dimensions[i] = dimension;
-							}
-						}
-					}
-
-					return dimensions.size();
-				}
-
 				mlir::ValueRange getArgs(mlir::Operation* op) const override
 				{
 					return mlir::cast<ConcreteOp>(op).getArgs();
@@ -231,16 +157,6 @@ namespace modelica::codegen
 			{
 				public:
 				FallbackModel() = default;
-
-				bool isVectorized(mlir::Operation* op) const override
-				{
-					return false;
-				}
-
-				unsigned int vectorizationRank(mlir::Operation* op) const override
-				{
-					return 0;
-				}
 
 				mlir::ValueRange getArgs(mlir::Operation* op) const override
 				{
@@ -268,25 +184,10 @@ namespace modelica::codegen
 		template <typename ConcreteOp>
 		struct VectorizableOpTrait : public mlir::OpInterface<VectorizableOpInterface, detail::VectorizableOpTraits>::Trait<ConcreteOp>
 		{
-			unsigned int vectorizationRank()
-			{
-				mlir::Operation* op = (*static_cast<ConcreteOp*>(this)).getOperation();
-				return mlir::cast<VectorizableOpInterface>(op).vectorizationRank();
-			}
 		};
 
 		template <typename ConcreteOp>
 		struct Trait : public VectorizableOpTrait<ConcreteOp> {};
-
-		bool isVectorized()
-		{
-			return getImpl()->isVectorized(getOperation());
-		}
-
-		unsigned int vectorizationRank()
-		{
-			return getImpl()->vectorizationRank(getOperation());
-		}
 
 		mlir::ValueRange getArgs()
 		{

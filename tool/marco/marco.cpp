@@ -174,7 +174,7 @@ int main(int argc, char* argv[])
 
 	if (optimizationLevel == O0)
 	{
-		loweringOptions.functionsScalarizationOptions.assertions = enableAssertions;
+		loweringOptions.functionsVectorizationOptions.assertions = enableAssertions;
 		loweringOptions.conversionOptions.assertions = enableAssertions;
 		loweringOptions.llvmOptions.assertions = enableAssertions;
 	}
@@ -182,13 +182,13 @@ int main(int argc, char* argv[])
 	{
 		if (enableAssertions.getNumOccurrences() == 0)
 		{
-			loweringOptions.functionsScalarizationOptions.assertions = false;
+			loweringOptions.functionsVectorizationOptions.assertions = false;
 			loweringOptions.conversionOptions.assertions = false;
 			loweringOptions.llvmOptions.assertions = false;
 		}
 		else
 		{
-			loweringOptions.functionsScalarizationOptions.assertions = enableAssertions;
+			loweringOptions.functionsVectorizationOptions.assertions = enableAssertions;
 			loweringOptions.conversionOptions.assertions = enableAssertions;
 			loweringOptions.llvmOptions.assertions = enableAssertions;
 		}

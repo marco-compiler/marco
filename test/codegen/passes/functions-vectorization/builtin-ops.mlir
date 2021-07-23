@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --scalarize-functions | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --vectorize-functions | FileCheck %s
 
 // CHECK-LABEL: @abs
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>

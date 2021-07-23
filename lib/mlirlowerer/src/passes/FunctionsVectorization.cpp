@@ -1,9 +1,83 @@
 #include <mlir/Conversion/Passes.h>
 #include <mlir/Dialect/SCF/SCF.h>
 #include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/mlirlowerer/passes/FunctionsScalarization.h>
+#include <modelica/mlirlowerer/passes/FunctionsVectorization.h>
 
 using namespace modelica::codegen;
+
+static unsigned int getVectorizationRank(VectorizableOpInterface op)
+{
+	llvm::SmallVector<long, 2> expectedRanks;
+	llvm::SmallVector<long, 3> dimensions;
+
+	auto args = op.getArgs();
+
+	if (args.empty())
+		return 0;
+
+	for (auto& arg : llvm::enumerate(args))
+	{
+		mlir::Type argType = arg.value().getType();
+		unsigned int argExpectedRank = op.getArgExpectedRank(arg.index());
+
+		unsigned int argActualRank = argType.isa<ArrayType>() ?
+																 argType.cast<ArrayType>().getRank() : 0;
+
+		// Each argument must have a rank higher than the expected one
+		// for the operation to be vectorized.
+		if (argActualRank <= argExpectedRank)
+			return 0;
+
+		if (arg.index() == 0)
+		{
+			// If this is the first argument, then it will determine the
+			// rank and dimensions of the result array, although the
+			// dimensions can be also specialized by the other arguments
+			// if initially unknown.
+
+			for (size_t i = 0; i < argActualRank - argExpectedRank; ++i)
+			{
+				auto& dimension = argType.cast<ArrayType>().getShape()[arg.index()];
+				dimensions.push_back(dimension);
+			}
+		}
+		else
+		{
+			// The rank difference must match with the one given by the first
+			// argument, independently from the dimensions sizes.
+			if (argActualRank != argExpectedRank + dimensions.size())
+				return 0;
+
+			for (size_t i = 0; i < argActualRank - argExpectedRank; ++i)
+			{
+				auto& dimension = argType.cast<ArrayType>().getShape()[i];
+
+				// If the dimension is dynamic, then no further checks or
+				// specializations are possible.
+				if (dimension == -1)
+					continue;
+
+				// If the dimension determined by the first argument is fixed,
+				// then also the dimension of the other arguments must match
+				// (when that's fixed too).
+				if (dimensions[i] != -1 && dimensions[i] != dimension)
+					return 0;
+
+				// If the dimension determined by the first argument is dynamic, then
+				// set it to a required size.
+				if (dimensions[i] == -1)
+					dimensions[i] = dimension;
+			}
+		}
+	}
+
+	return dimensions.size();
+}
+
+static bool isVectorized(VectorizableOpInterface op)
+{
+	return getVectorizationRank(op) != 0;
+}
 
 static mlir::Value allocate(mlir::OpBuilder& builder, mlir::Location loc, ArrayType arrayType, mlir::ValueRange dynamicDimensions = llvm::None)
 {
@@ -16,13 +90,13 @@ static mlir::Value allocate(mlir::OpBuilder& builder, mlir::Location loc, ArrayT
 	return builder.create<AllocOp>(loc, arrayType.getElementType(), arrayType.getShape(), dynamicDimensions, true);
 }
 
-static void scalarize(mlir::OpBuilder& builder, VectorizableOpInterface op, FunctionsScalarizationOptions options)
+static void scalarize(mlir::OpBuilder& builder, VectorizableOpInterface op, FunctionsVectorizationOptions options)
 {
 	mlir::Location loc = op->getLoc();
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(op);
 
-	unsigned int vectorizationRank = op.vectorizationRank();
+	unsigned int vectorizationRank = getVectorizationRank(op);
 	mlir::ValueRange args = op.getArgs();
 
 	// Allocate the result arrays
@@ -106,10 +180,10 @@ static void scalarize(mlir::OpBuilder& builder, VectorizableOpInterface op, Func
 	op->erase();
 }
 
-class FunctionsScalarizationPass: public mlir::PassWrapper<FunctionsScalarizationPass, mlir::OperationPass<mlir::ModuleOp>>
+class FunctionsVectorizationPass: public mlir::PassWrapper<FunctionsVectorizationPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
-	explicit FunctionsScalarizationPass(FunctionsScalarizationOptions options)
+	explicit FunctionsVectorizationPass(FunctionsVectorizationOptions options)
 			: options(std::move(options))
 	{
 	}
@@ -127,16 +201,16 @@ class FunctionsScalarizationPass: public mlir::PassWrapper<FunctionsScalarizatio
 		mlir::OpBuilder builder(module);
 
 		module->walk([&](VectorizableOpInterface op) {
-			if (op.isVectorized())
+			if (isVectorized(op))
 				scalarize(builder, op, options);
 		});
 	}
 
 	private:
-	FunctionsScalarizationOptions options;
+	FunctionsVectorizationOptions options;
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createFunctionsScalarizationPass(FunctionsScalarizationOptions options)
+std::unique_ptr<mlir::Pass> modelica::codegen::createFunctionsVectorizationPass(FunctionsVectorizationOptions options)
 {
-	return std::make_unique<FunctionsScalarizationPass>(options);
+	return std::make_unique<FunctionsVectorizationPass>(options);
 }

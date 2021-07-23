@@ -389,6 +389,46 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp>
 	}
 };
 
+struct PackOpLowering : public ModelicaOpConversion<PackOp>
+{
+	using ModelicaOpConversion<PackOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(PackOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op->getLoc();
+		Adaptor transformed(operands);
+
+		StructType structType = op.resultType();
+		mlir::Type descriptorType = getTypeConverter()->convertType(structType);
+
+		mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, descriptorType);
+
+		for (auto& element : llvm::enumerate(transformed.values()))
+			result = rewriter.create<mlir::LLVM::InsertValueOp>(
+					loc, descriptorType, result, element.value(), rewriter.getIndexArrayAttr(element.index()));
+
+		rewriter.replaceOp(op, result);
+		return mlir::success();
+	}
+};
+
+struct ExtractOpLowering : public ModelicaOpConversion<ExtractOp>
+{
+	using ModelicaOpConversion<ExtractOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(ExtractOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+		Adaptor transformed(operands);
+
+		mlir::Type descriptorType = getTypeConverter()->convertType(op.packedValue().getType());
+		mlir::Type type = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[op.index()];
+		mlir::Value result = rewriter.create<mlir::LLVM::ExtractValueOp>(loc, type, transformed.packedValue(), rewriter.getIndexArrayAttr(op.index()));
+		rewriter.replaceOp(op, result);
+		return mlir::success();
+	}
+};
+
 template<typename FromOp>
 struct AllocLikeOpLowering : public ModelicaOpConversion<FromOp>
 {
@@ -1007,6 +1047,8 @@ struct UnrealizedCastOpLowering : public mlir::OpRewritePattern<mlir::Unrealized
 static void populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatternList& patterns, mlir::MLIRContext* context, mlir::TypeConverter& typeConverter)
 {
 	patterns.insert<
+	    PackOpLowering,
+			ExtractOpLowering,
 			AllocaOpLowering,
 			AllocOpLowering,
 			FreeOpLowering,

@@ -451,13 +451,12 @@ struct ConstantOpLowering : public ModelicaOpConversion<ConstantOp>
 
 	mlir::LogicalResult matchAndRewrite(ConstantOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		mlir::Type resultType = getTypeConverter()->convertType(op.resultType());
-		auto attribute = convertAttribute(rewriter, resultType, op.value());
+		auto attribute = convertAttribute(rewriter, op.resultType(), op.value());
 
 		if (!attribute)
 			return rewriter.notifyMatchFailure(op, "Unknown attribute type");
 
-		rewriter.replaceOpWithNewOp<mlir::LLVM::ConstantOp>(op, resultType, *attribute);
+		rewriter.replaceOpWithNewOp<mlir::ConstantOp>(op, *attribute);
 		return mlir::success();
 	}
 
@@ -466,6 +465,8 @@ struct ConstantOpLowering : public ModelicaOpConversion<ConstantOp>
 	{
 		if (attribute.getType().isa<mlir::IndexType>())
 			return attribute;
+
+		resultType = getTypeConverter()->convertType(resultType);
 
 		if (auto booleanAttribute = attribute.dyn_cast<BooleanAttribute>())
 			return builder.getBoolAttr(booleanAttribute.getValue());
@@ -477,47 +478,6 @@ struct ConstantOpLowering : public ModelicaOpConversion<ConstantOp>
 			return builder.getFloatAttr(resultType, realAttribute.getValue());
 
 		return llvm::None;
-	}
-};
-
-struct PackOpLowering : public ModelicaOpConversion<PackOp>
-{
-	using ModelicaOpConversion<PackOp>::ModelicaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(PackOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		mlir::Location loc = op->getLoc();
-		Adaptor transformed(operands);
-
-		StructType structType = op.resultType();
-		mlir::Type descriptorType = getTypeConverter()->convertType(structType);
-
-		mlir::Value result = rewriter.create<mlir::LLVM::UndefOp>(loc, descriptorType);
-
-		for (auto& element : llvm::enumerate(transformed.values()))
-			result = rewriter.create<mlir::LLVM::InsertValueOp>(
-					loc, descriptorType, result, element.value(), rewriter.getIndexArrayAttr(element.index()));
-
-		rewriter.replaceOp(op, result);
-		return mlir::success();
-	}
-};
-
-struct ExtractOpLowering : public ModelicaOpConversion<ExtractOp>
-{
-	using ModelicaOpConversion<ExtractOp>::ModelicaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(ExtractOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		mlir::Location loc = op.getLoc();
-		Adaptor transformed(operands);
-
-		mlir::Type descriptorType = getTypeConverter()->convertType(op.packedValue().getType());
-		mlir::Type type = descriptorType.cast<mlir::LLVM::LLVMStructType>().getBody()[op.index()];
-		mlir::Value result = rewriter.create<mlir::LLVM::ExtractValueOp>(loc, type, transformed.packedValue(), rewriter.getIndexArrayAttr(op.index()));
-		result = getTypeConverter()->materializeSourceConversion(rewriter, result.getLoc(), op.resultType(), result);
-		rewriter.replaceOp(op, result);
-		return mlir::success();
 	}
 };
 
@@ -1062,10 +1022,10 @@ struct EqOpLowering : public ComparisonOpLowering<EqOp>
 
 	mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Value result = builder.create<mlir::LLVM::ICmpOp>(
+		mlir::Value result = builder.create<mlir::CmpIOp>(
 				loc,
 				builder.getIntegerType(1),
-				mlir::LLVM::ICmpPredicate::eq,
+				mlir::CmpIPredicate::eq,
 				materializeTargetConversion(builder, lhs),
 				materializeTargetConversion(builder, rhs));
 
@@ -1075,10 +1035,10 @@ struct EqOpLowering : public ComparisonOpLowering<EqOp>
 
 	mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Value result = builder.create<mlir::LLVM::FCmpOp>(
+		mlir::Value result = builder.create<mlir::CmpFOp>(
 				loc,
 				builder.getIntegerType(1),
-				mlir::LLVM::FCmpPredicate::oeq,
+				mlir::CmpFPredicate::OEQ,
 				materializeTargetConversion(builder, lhs),
 				materializeTargetConversion(builder, rhs));
 
@@ -1093,10 +1053,10 @@ struct NotEqOpLowering : public ComparisonOpLowering<NotEqOp>
 
 	mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Value result = builder.create<mlir::LLVM::ICmpOp>(
+		mlir::Value result = builder.create<mlir::CmpIOp>(
 				loc,
 				builder.getIntegerType(1),
-				mlir::LLVM::ICmpPredicate::ne,
+				mlir::CmpIPredicate::ne,
 				materializeTargetConversion(builder, lhs),
 				materializeTargetConversion(builder, rhs));
 
@@ -1106,10 +1066,10 @@ struct NotEqOpLowering : public ComparisonOpLowering<NotEqOp>
 
 	mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Value result = builder.create<mlir::LLVM::FCmpOp>(
+		mlir::Value result = builder.create<mlir::CmpFOp>(
 				loc,
 				builder.getIntegerType(1),
-				mlir::LLVM::FCmpPredicate::one,
+				mlir::CmpFPredicate::ONE,
 				materializeTargetConversion(builder, lhs),
 				materializeTargetConversion(builder, rhs));
 
@@ -1124,10 +1084,10 @@ struct GtOpLowering : public ComparisonOpLowering<GtOp>
 
 	mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Value result = builder.create<mlir::LLVM::ICmpOp>(
+		mlir::Value result = builder.create<mlir::CmpIOp>(
 				loc,
 				builder.getIntegerType(1),
-				mlir::LLVM::ICmpPredicate::sgt,
+				mlir::CmpIPredicate::sgt,
 				materializeTargetConversion(builder, lhs),
 				materializeTargetConversion(builder, rhs));
 
@@ -1137,10 +1097,10 @@ struct GtOpLowering : public ComparisonOpLowering<GtOp>
 
 	mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Value result = builder.create<mlir::LLVM::FCmpOp>(
+		mlir::Value result = builder.create<mlir::CmpFOp>(
 				loc,
 				builder.getIntegerType(1),
-				mlir::LLVM::FCmpPredicate::ogt,
+				mlir::CmpFPredicate::OGT,
 				materializeTargetConversion(builder, lhs),
 				materializeTargetConversion(builder, rhs));
 
@@ -1155,10 +1115,10 @@ struct GteOpLowering : public ComparisonOpLowering<GteOp>
 
 	mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Value result = builder.create<mlir::LLVM::ICmpOp>(
+		mlir::Value result = builder.create<mlir::CmpIOp>(
 				loc,
 				builder.getIntegerType(1),
-				mlir::LLVM::ICmpPredicate::sge,
+				mlir::CmpIPredicate::sge,
 				materializeTargetConversion(builder, lhs),
 				materializeTargetConversion(builder, rhs));
 
@@ -1168,10 +1128,10 @@ struct GteOpLowering : public ComparisonOpLowering<GteOp>
 
 	mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Value result = builder.create<mlir::LLVM::FCmpOp>(
+		mlir::Value result = builder.create<mlir::CmpFOp>(
 				loc,
 				builder.getIntegerType(1),
-				mlir::LLVM::FCmpPredicate::oge,
+				mlir::CmpFPredicate::OGE,
 				materializeTargetConversion(builder, lhs),
 				materializeTargetConversion(builder, rhs));
 
@@ -1186,10 +1146,10 @@ struct LtOpLowering : public ComparisonOpLowering<LtOp>
 
 	mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Value result = builder.create<mlir::LLVM::ICmpOp>(
+		mlir::Value result = builder.create<mlir::CmpIOp>(
 				loc,
 				builder.getIntegerType(1),
-				mlir::LLVM::ICmpPredicate::slt,
+				mlir::CmpIPredicate::slt,
 				materializeTargetConversion(builder, lhs),
 				materializeTargetConversion(builder, rhs));
 
@@ -1199,10 +1159,10 @@ struct LtOpLowering : public ComparisonOpLowering<LtOp>
 
 	mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Value result = builder.create<mlir::LLVM::FCmpOp>(
+		mlir::Value result = builder.create<mlir::CmpFOp>(
 				loc,
 				builder.getIntegerType(1),
-				mlir::LLVM::FCmpPredicate::olt,
+				mlir::CmpFPredicate::OLT,
 				materializeTargetConversion(builder, lhs),
 				materializeTargetConversion(builder, rhs));
 
@@ -1217,10 +1177,10 @@ struct LteOpLowering : public ComparisonOpLowering<LteOp>
 
 	mlir::Value compareIntegers(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Value result = builder.create<mlir::LLVM::ICmpOp>(
+		mlir::Value result = builder.create<mlir::CmpIOp>(
 				loc,
 				builder.getIntegerType(1),
-				mlir::LLVM::ICmpPredicate::sle,
+				mlir::CmpIPredicate::sle,
 				materializeTargetConversion(builder, lhs),
 				materializeTargetConversion(builder, rhs));
 
@@ -1230,10 +1190,10 @@ struct LteOpLowering : public ComparisonOpLowering<LteOp>
 
 	mlir::Value compareReals(mlir::OpBuilder& builder, mlir::Location loc, mlir::Value lhs, mlir::Value rhs) const override
 	{
-		mlir::Value result = builder.create<mlir::LLVM::FCmpOp>(
+		mlir::Value result = builder.create<mlir::CmpFOp>(
 				loc,
 				builder.getIntegerType(1),
-				mlir::LLVM::FCmpPredicate::ole,
+				mlir::CmpFPredicate::OLE,
 				materializeTargetConversion(builder, lhs),
 				materializeTargetConversion(builder, rhs));
 
@@ -3766,8 +3726,6 @@ static void populateModelicaConversionPatterns(
 
 	patterns.insert<
 			ConstantOpLowering,
-			PackOpLowering,
-			ExtractOpLowering,
 			PrintOpLowering,
 			NotOpScalarLowering,
 			AndOpScalarLowering,
@@ -3867,7 +3825,7 @@ class ModelicaConversionPass : public mlir::PassWrapper<ModelicaConversionPass, 
 		mlir::ConversionTarget target(getContext());
 
 		target.addIllegalOp<
-				ConstantOp, PackOp, ExtractOp,
+				ConstantOp,
 				AssignmentOp,
 				CallOp,
 				FillOp,

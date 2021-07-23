@@ -112,7 +112,7 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 
 	passManager.addPass(createAutomaticDifferentiationPass());
 	passManager.addPass(createSolveModelPass(loweringOptions.solveModelOptions));
-	passManager.addPass(createFunctionsScalarizationPass(loweringOptions.functionsScalarizationOptions));
+	passManager.addPass(createFunctionsVectorizationPass(loweringOptions.functionsVectorizationOptions));
 	passManager.addPass(createExplicitCastInsertionPass());
 
 	if (loweringOptions.resultBuffersToArgs)

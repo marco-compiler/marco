@@ -1,4 +1,4 @@
-// RUN: modelica-opt %s --split-input-file --scalarize-functions  | FileCheck %s
+// RUN: modelica-opt %s --split-input-file --vectorize-functions  | FileCheck %s
 
 modelica.function @callee(%arg0 : !modelica.real) -> (!modelica.real) attributes {args_names = ["x"], results_names = ["y"]} {
     %0 = modelica.member_create {name = "y"} : !modelica.member<stack, !modelica.real>
