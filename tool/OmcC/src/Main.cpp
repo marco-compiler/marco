@@ -141,6 +141,7 @@ int main(int argc, char* argv[])
 	}
 
 	//======= TEMPORARY CODE / Variable Filter ====/
+	/*
 	modelica::VariableFilter variableFilter;
 
 	string TESTS[6]{"/[a-d1-7]/","ciao[3:10, 0:1, 55:$]",  "der(x_temp)", "der(y)", "_x123_44", "Aldo"};
@@ -157,6 +158,7 @@ int main(int argc, char* argv[])
 	variableFilter.matchesRegex("a") ? printf("-regex is working-\n") : printf("error\n"); //should match
 	//variableFilter.matchesRegex("x8") ? printf("-regex is working-\n") : printf("error\n"); //should not match
 
+	 */
 	//===========================
 	auto buffer = exitOnErr(errorOrToExpected(move(errorOrBuffer)));
 	frontend::Parser parser(buffer->getBufferStart());

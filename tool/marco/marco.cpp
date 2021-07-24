@@ -80,6 +80,7 @@ static llvm::ExitOnError exitOnErr;
 
 int main(int argc, char* argv[])
 {
+	//get command line options
 	llvm::SmallVector<const cl::OptionCategory*> categories;
 	categories.push_back(&modelSolvingOptions);
 	categories.push_back(&codeGenOptions);
