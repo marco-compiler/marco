@@ -5,17 +5,18 @@
 #ifndef PARSER_LEXER_M_VF_VARIABLEFILTER_H
 #define PARSER_LEXER_M_VF_VARIABLEFILTER_H
 
-#include "VariableTracker.h"
-#include <string>
-#include <list>
-
-#include <regex>
 #include <iostream>
+#include <list>
+#include <regex>
+#include <string>
+
+#include "VariableTracker.h"
 
 using namespace std;
 
 /**
- *  Keeps tracks of a variables, arrays, derivatives (and regex for matching) we want to print.
+ *  Keeps tracks of a variables, arrays, derivatives (and regex for matching) we
+ * want to print.
  */
 namespace modelica {
     class VariableFilter {
@@ -29,10 +30,10 @@ namespace modelica {
         /**
          *
          * @param identifier the string that will be matched with all the regexes
-         * @return true if there is a stored regular expression that matches the received identifier
+         * @return true if there is a stored regular expression that matches the
+         * received identifier
          */
         bool matchesRegex(const string &identifier) {
-
             for (const auto &regexString : _regex) {
                 std::regex regex(regexString, std::regex::ECMAScript);
                 if (regex_match(identifier, regex)) {
@@ -48,21 +49,31 @@ namespace modelica {
          * @return the variable tracker associated with that variable
          */
         VariableTracker lookupByIdentifier(const string &identifier) {
-            if (std::any_of(_variables.begin(), _variables.end(), [&identifier](VariableTracker i) {
-                                return i.getName().compare(identifier) ;
-                            }
-            )) {
+            if (std::any_of(
+                    _variables.begin(),
+                    _variables.end(),
+                    [&identifier](VariableTracker i) {
+                        return i.getName().compare(identifier);
+                    })) {
                 for (const auto &varTracker : _variables) {
-                    if (varTracker.getName() == (identifier)) return varTracker;
+                    if (varTracker.getName() == (identifier))
+                        return varTracker;
                 }
             }
+        }
+
+        bool checkTrackedIdentifier(const string &identifier) {
+            for (const auto &varTracker : _variables) {
+                if (varTracker.getName() == (identifier))
+                    return true;
+            }
+            return false;
         }
 
     private:
         list<VariableTracker> _variables;
         list<string> _regex;
     };
-}
+}     // namespace modelica
 
-
-#endif //PARSER_LEXER_M_VF_VARIABLEFILTER_H
+#endif    // PARSER_LEXER_M_VF_VARIABLEFILTER_H
