@@ -411,6 +411,10 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 
 		for (const auto& member : model.getMembers())
 		{
+			std::string variableIdentifier = member->getName().str();
+			bool isTracked = _variableFilter->checkTrackedIdentifier(variableIdentifier);
+			if(!isTracked) continue;
+
 			unsigned int index = symbolTable.lookup(member->getName()).getReference().cast<mlir::BlockArgument>().getArgNumber();
 			variablesToBePrinted.push_back(simulation.print().getArgument(index));
 		}

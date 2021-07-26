@@ -44,6 +44,8 @@ namespace marco::codegen
 		ModelicaToLLVMConversionOptions llvmOptions = ModelicaToLLVMConversionOptions::getDefaultOptions();
 		bool debug = true;
 
+		VariableFilter variableFilter = VariableFilter();
+
 		[[nodiscard]] unsigned int getBitWidth() const
 		{
 			if (x64)
@@ -96,6 +98,10 @@ namespace marco::codegen
 		mlir::LogicalResult convertToLLVMDialect(mlir::ModuleOp& module, ModelicaLoweringOptions options = ModelicaLoweringOptions::getDefaultOptions());
 
 		llvm::Optional<mlir::ModuleOp> run(llvm::ArrayRef<std::unique_ptr<frontend::Class>> classes);
+
+		void setVariableFilter(VariableFilter* variableFilter) {
+			_variableFilter = variableFilter;
+		}
 
 		private:
 		mlir::Operation* lower(const frontend::Class& cls);
