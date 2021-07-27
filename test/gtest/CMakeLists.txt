@@ -1,1 +1,11 @@
-add_subdirectory(matching)
+modelicaAddTest(
+	mlirlowerer
+	matching/LinSolverTest.cpp
+	matching/MatchingTest.cpp
+	matching/SCCCollapsingTest.cpp
+	matching/ScheduleTest.cpp
+	matching/VVarDependencyGraphTest.cpp
+	model/EquationTest.cpp
+	model/ReferenceMatcherTest.cpp
+	model/VectorAccessTest.cpp
+)
