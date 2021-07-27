@@ -6,7 +6,7 @@
 #include <modelica/mlirlowerer/passes/model/Model.h>
 #include <modelica/mlirlowerer/passes/model/VectorAccess.h>
 
-#include "TestingUtils.h"
+#include "../TestingUtils.h"
 
 using namespace modelica::codegen::model;
 

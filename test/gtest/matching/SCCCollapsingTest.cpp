@@ -6,7 +6,7 @@
 #include <modelica/mlirlowerer/passes/model/VectorAccess.h>
 #include <modelica/utils/Interval.hpp>
 
-#include "TestingUtils.h"
+#include "../TestingUtils.h"
 
 using namespace modelica::codegen::model;
 
