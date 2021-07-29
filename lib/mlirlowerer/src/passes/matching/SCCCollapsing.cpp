@@ -154,9 +154,9 @@ static mlir::LogicalResult extractEquationWithDependencies(
 		// copy the equation
 		Equation toFuseEq = original.clone();
 
-		// set induction to those that generate the circular dependency
 		assert(toFuseEq.getInductions().contains(vecSet[i]));
 
+		// set induction to those that generate the circular dependency
 		toFuseEq.setInductions(vecSet[i]);
 
 		if (auto res = toFuseEq.explicitate(); failed(res))
@@ -318,7 +318,10 @@ namespace marco::codegen::model
 				// an Algebraic Loop, which must be handled by a solver afterwards.
 				llvm::SmallVector<Equation, 3> bltEquations;
 				for (Equation& eq : possibleEquations[i])
+				{
+					model.getVariable(eq.getDeterminedVariable().getVar()).setTrivial(false);
 					bltEquations.push_back(eq);
+				}
 
 				algebraicLoops.push_back(BltBlock(bltEquations));
 

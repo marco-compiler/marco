@@ -10,7 +10,7 @@ using namespace modelica;
 class Variable::Impl
 {
 	public:
-	Impl(mlir::Value memory) : reference(memory), state(false), derivative(false)
+	Impl(mlir::Value memory) : reference(memory), state(false), derivative(false), trivial(true)
 	{
 		mlir::Operation* op = memory.getDefiningOp();
 		assert(mlir::isa<AllocaOp>(op) || mlir::isa<AllocOp>(op));
@@ -30,6 +30,7 @@ class Variable::Impl
 	bool state;
 	bool constant;
 	bool derivative;
+	bool trivial;
 	mlir::Value der;
 };
 
@@ -88,6 +89,11 @@ bool Variable::isDerivative() const
 	return impl->derivative;
 }
 
+bool Variable::isTrivial() const
+{
+	return impl->trivial;
+}
+
 bool Variable::isTime() const
 {
 	auto simulation = impl->reference.getParentRegion()->getParentOfType<SimulationOp>();
@@ -105,6 +111,12 @@ void Variable::setDer(Variable variable)
 	impl->state = true;
 	impl->der = variable.getReference();
 	variable.impl->derivative = true;
+	variable.impl->trivial = false;
+}
+
+void Variable::setTrivial(bool value)
+{
+	impl->trivial = value;
 }
 
 marco::IndexSet Variable::toIndexSet() const

@@ -1681,18 +1681,30 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (failed(solveSCCs(model, options.sccMaxIterations)))
 				return signalPassFailure();
 
+			// Add differential equations to non-trivial blt blocks.
+			if (options.solver == CleverDAE)
+				if (failed(addBltBlocks(builder, model)))
+					return signalPassFailure();
+
+			// Explicitate the equations so that the updated variable is the only
+			// one on the left-hand side of the equation. If the equation is implicit
+			// add it to a non-trivial blt block.
+			if (failed(explicitateEquations(model)))
+				return signalPassFailure();
+
 			// Schedule
 			if (failed(schedule(model)))
 				return signalPassFailure();
 
-			// Explicitate the equations so that the updated variable is the only
-			// one on the left-hand side of the equation.
-			if (failed(explicitateEquations(model)))
-				return signalPassFailure();
+			// Calculate the values that the state variables will have in the next
+			// iteration.
+			if (options.solver == ForwardEuler)
+				if (failed(updateStates(builder, model)))
+					return signalPassFailure();
 
-			// Select and use the solver
-			if (failed(selectSolver(builder, model)))
-				return signalPassFailure();
+			if (options.solver == CleverDAE)
+				if (failed(substituteTrivialVariables(builder, model)))
+					return signalPassFailure();
 		});
 
 		// The model has been solved and we can now proceed to create the update
@@ -1806,37 +1818,36 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	mlir::LogicalResult explicitateEquations(Model& model)
+	static mlir::LogicalResult explicitateEquations(Model& model)
 	{
-		for (auto& equation : model.getEquations())
-			if (auto status = equation.explicitate(); failed(status))
-				return status;
+		llvm::SmallVector<Equation, 3> equations;
+		llvm::SmallVector<BltBlock, 3> bltBlocks = model.getBltBlocks();
 
+		for (Equation& equation : model.getEquations())
+		{
+			// If the equation cannot be explicitated, mark it as implicit.
+			if (auto status = equation.explicitate(); failed(status))
+			{
+				model.getVariable(equation.getDeterminedVariable().getVar()).setTrivial(false);
+				bltBlocks.push_back(BltBlock(llvm::SmallVector<Equation, 1>(1, equation)));
+			}
+			else
+			{
+				equations.push_back(equation);
+			}
+		}
+
+		Model result(model.getOp(), model.getVariables(), equations, bltBlocks);
+		model = result;
 		return mlir::success();
 	}
 
-	mlir::LogicalResult selectSolver(mlir::OpBuilder& builder, Model& model)
-	{
-		if (options.solver == ForwardEuler)
-			return updateStates(builder, model);
-
-		if (options.solver == CleverDAE)
-			return addBltBlocks(builder, model);
-
-		return mlir::failure();
-	}
-
-	/**
-	 * Calculate the values that the state variables will have in the next
-	 * iteration.
-	 */
-	mlir::LogicalResult updateStates(mlir::OpBuilder& builder, Model& model)
+	static mlir::LogicalResult updateStates(mlir::OpBuilder& builder, Model& model)
 	{
 		// If the model contains algebraic loops, Forward Euler cannot solve this
 		// model, an other solver must be used.
-		assert(model.getBltBlocks().empty() && "Algebraic loops are present");
 		if (!model.getBltBlocks().empty())
-			return mlir::failure();
+			return model.getOp()->emitError("Algebraic loops are present, the selected solver cannot be used");
 
 		mlir::OpBuilder::InsertionGuard guard(builder);
 		mlir::Location loc = model.getOp()->getLoc();
@@ -1884,12 +1895,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	/**
-	 * This method transforms all differential equations and implicit equations
-	 * into BLT blocks within the model. Then the assigned model, ready for
-	 * lowering, is returned.
-	 */
-	mlir::LogicalResult addBltBlocks(mlir::OpBuilder& builder, Model& model)
+	static mlir::LogicalResult addBltBlocks(mlir::OpBuilder& builder, Model& model)
 	{
 		llvm::SmallVector<Equation, 3> equations;
 		llvm::SmallVector<BltBlock, 3> bltBlocks = model.getBltBlocks();
@@ -1903,8 +1909,14 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		}
 
 		Model result(model.getOp(), model.getVariables(), equations, bltBlocks);
-
 		model = result;
+		return mlir::success();
+	}
+
+	static mlir::LogicalResult substituteTrivialVariables(mlir::OpBuilder& builder, Model& model)
+	{
+		// TODO
+		// For each equation in bltBlocks, if variable.isTrivial, substitute it.
 		assert(false && "To be implemented");
 		return mlir::success();
 	}

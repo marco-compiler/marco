@@ -86,3 +86,45 @@ TEST(EquationTest, ExplicitateEquations)
 		EXPECT_FALSE(eq.rhs().isReferenceAccess());
 	}
 }
+
+TEST(EquationTest, ImplicitEquations)
+{
+	std::string stringModel = "model ImplicitEq "
+														"Real x; "
+														"Real y; "
+														"Real z; "
+														"Real u; "
+														"Real v; "
+														"equation "
+														"3 = x; "
+														"2 * y + 2 = x + 3; "
+														"z*z*z - z + 2 = 3; "
+														"u - 1/u + 2 = 3; "
+														"5 = v - 2 * sin(v); "
+														"end ImplicitEq; ";
+
+	mlir::MLIRContext context;
+	Model model;
+	makeModel(context, stringModel, model);
+
+	if (failed(match(model, 1000)))
+		FAIL();
+
+	EXPECT_TRUE(model.getEquations()[0].isImplicit());
+	EXPECT_TRUE(model.getEquations()[1].isImplicit());
+	EXPECT_TRUE(model.getEquations()[2].isImplicit());
+	EXPECT_TRUE(model.getEquations()[3].isImplicit());
+	EXPECT_TRUE(model.getEquations()[4].isImplicit());
+
+	EXPECT_FALSE(failed(model.getEquations()[0].explicitate()));
+	EXPECT_FALSE(failed(model.getEquations()[1].explicitate()));
+	EXPECT_TRUE(failed(model.getEquations()[2].explicitate()));
+	EXPECT_TRUE(failed(model.getEquations()[3].explicitate()));
+	EXPECT_TRUE(failed(model.getEquations()[4].explicitate()));
+
+	EXPECT_FALSE(model.getEquations()[0].isImplicit());
+	EXPECT_FALSE(model.getEquations()[1].isImplicit());
+	EXPECT_TRUE(model.getEquations()[2].isImplicit());
+	EXPECT_TRUE(model.getEquations()[3].isImplicit());
+	EXPECT_TRUE(model.getEquations()[4].isImplicit());
+}

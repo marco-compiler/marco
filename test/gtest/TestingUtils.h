@@ -22,8 +22,6 @@ static void makeModel(
 	modelica::frontend::PassManager frontendPassManager;
 	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
 	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-	frontendPassManager.addPass(modelica::frontend::createBreakRemovingPass());
-	frontendPassManager.addPass(modelica::frontend::createReturnRemovingPass());
 
 	if (frontendPassManager.run(classes))
 		FAIL();

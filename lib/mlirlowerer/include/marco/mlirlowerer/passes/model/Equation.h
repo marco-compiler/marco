@@ -71,6 +71,8 @@ namespace marco::codegen::model
 		mlir::LogicalResult explicitate(const ExpressionPath& path);
 		mlir::LogicalResult explicitate();
 
+		[[nodiscard]] bool isImplicit();
+
 		[[nodiscard]] Equation clone() const;
 		void update();
 
