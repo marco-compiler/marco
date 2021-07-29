@@ -8,6 +8,7 @@
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaBuilder.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
+#include <queue>
 
 using namespace marco::codegen;
 using namespace marco::codegen::model;
@@ -363,7 +364,7 @@ mlir::LogicalResult Equation::normalize()
 
 mlir::LogicalResult Equation::explicitate(mlir::OpBuilder& builder, size_t argumentIndex, bool left)
 {
-	auto terminator = getTerminator();
+	EquationSidesOp terminator = getTerminator();
 	assert(terminator.lhs().size() == 1);
 	assert(terminator.rhs().size() == 1);
 
@@ -372,18 +373,19 @@ mlir::LogicalResult Equation::explicitate(mlir::OpBuilder& builder, size_t argum
 
 	mlir::Operation* op = toExplicitate.getDefiningOp();
 
+	// If the operation is not invertible, return an error
 	if (!op->hasTrait<InvertibleOpInterface::Trait>())
-		return op->emitError("Operation is not invertible");
+		return mlir::failure();
 
 	return mlir::cast<InvertibleOpInterface>(op).invert(builder, argumentIndex, otherExp);
 }
 
 mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
 {
-	auto terminator = getTerminator();
+	EquationSidesOp terminator = getTerminator();
 	mlir::OpBuilder builder(terminator);
 
-	for (auto index : path)
+	for (size_t index : path)
 	{
 		if (auto status = explicitate(builder, index, path.isOnEquationLeftHand()); failed(status))
 			return status;
@@ -411,7 +413,38 @@ mlir::LogicalResult Equation::explicitate()
 		return status;
 
 	impl->matchedExpPath = EquationPath({}, true);
+
+	// If the explicitation algorithm was not successful, it means that the equation
+	// is implicit and cannot be explicitated.
+	if (isImplicit())
+		return mlir::failure();
+
 	return mlir::success();
+}
+
+bool Equation::isImplicit()
+{
+	if (!lhs().isReferenceAccess())
+		return true;
+
+	std::queue<Expression> expQueue({ rhs() });
+
+	// The equation is implicit only if the accessed variable on the left hand side
+	// also appears in the right hand side of the equation.
+	while (!expQueue.empty())
+	{
+		if (expQueue.front().isReferenceAccess() &&
+			expQueue.front().getReferredVectorAccess() == lhs().getReferredVectorAccess())
+			return true;
+
+		if (!expQueue.front().isReferenceAccess())
+			for (size_t i : modelica::irange(expQueue.front().childrenCount()))
+				expQueue.push(expQueue.front().getChild(i));
+
+		expQueue.pop();
+	}
+
+	return false;
 }
 
 Equation Equation::clone() const
