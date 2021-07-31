@@ -8,4 +8,5 @@ modelicaAddTest(
 	model/EquationTest.cpp
 	model/ReferenceMatcherTest.cpp
 	model/VectorAccessTest.cpp
+	passes/SolveModelTest.cpp
 )
