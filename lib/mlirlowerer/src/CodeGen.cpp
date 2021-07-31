@@ -99,9 +99,10 @@ Reference Reference::member(mlir::OpBuilder* builder, mlir::Value value)
 			});
 }
 
-MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options)
+MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options, ModelicaCodegenOptions codegenOptions)
 		: builder(&context),
-			options(options)
+			options(options),
+			codegenOptions(codegenOptions)
 {
 	context.loadDialect<ModelicaDialect>();
 	context.loadDialect<mlir::StandardOpsDialect>();
@@ -409,10 +410,12 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 
 		variablesToBePrinted.push_back(simulation.print().getArgument(0));
 
+		VariableFilter *vf = codegenOptions.variableFilter; //quick renaming
+
 		for (const auto& member : model.getMembers())
 		{
 			std::string variableIdentifier = member->getName().str();
-			bool isTracked = _variableFilter->checkTrackedIdentifier(variableIdentifier);
+			bool isTracked = vf->checkTrackedIdentifier(variableIdentifier);
 			if(!isTracked) continue;
 
 			unsigned int index = symbolTable.lookup(member->getName()).getReference().cast<mlir::BlockArgument>().getArgNumber();

@@ -61,6 +61,16 @@ namespace marco::codegen
 		}
 	};
 
+	struct ModelicaCodegenOptions {
+	    VariableFilter* variableFilter = nullptr;
+
+	    static const ModelicaCodegenOptions& getDefaultOptions()
+	    {
+	        static ModelicaCodegenOptions options;
+	        return options;
+	    }
+	};
+
 	class Reference
 	{
 		public:
@@ -93,15 +103,12 @@ namespace marco::codegen
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		explicit MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
+		explicit MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions(),
+                             ModelicaCodegenOptions codegenOptions = ModelicaCodegenOptions::getDefaultOptions());
 
 		mlir::LogicalResult convertToLLVMDialect(mlir::ModuleOp& module, ModelicaLoweringOptions options = ModelicaLoweringOptions::getDefaultOptions());
 
 		llvm::Optional<mlir::ModuleOp> run(llvm::ArrayRef<std::unique_ptr<frontend::Class>> classes);
-
-		void setVariableFilter(VariableFilter* variableFilter) {
-			_variableFilter = variableFilter;
-		}
 
 		private:
 		mlir::Operation* lower(const frontend::Class& cls);
@@ -141,6 +148,7 @@ namespace marco::codegen
 		 * this is where the next operations will be introduced.
 		 */
 		modelica::ModelicaBuilder builder;
+
 
 		/**
 		 * The symbol table maps a variable name to a value in the current scope.
@@ -191,6 +199,7 @@ namespace marco::codegen
 		mlir::Location loc(SourceRange location);
 
 		ModelicaOptions options;
+		ModelicaCodegenOptions codegenOptions;
 	};
 
 	template<>
