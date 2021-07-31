@@ -11,6 +11,7 @@
 #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <marco/mlirlowerer/passes/SolveModel.h>
 #include <marco/mlirlowerer/passes/TypeConverter.h>
+#include <marco/mlirlowerer/passes/matching/LinSolver.h>
 #include <marco/mlirlowerer/passes/matching/Matching.h>
 #include <marco/mlirlowerer/passes/matching/SCCCollapsing.h>
 #include <marco/mlirlowerer/passes/matching/Schedule.h>
@@ -1683,7 +1684,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 			// Add differential equations to non-trivial blt blocks.
 			if (options.solver == CleverDAE)
-				if (failed(addBltBlocks(builder, model)))
+				if (failed(addDifferentialEqToBltBlocks(builder, model)))
 					return signalPassFailure();
 
 			// Explicitate the equations so that the updated variable is the only
@@ -1702,9 +1703,15 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				if (failed(updateStates(builder, model)))
 					return signalPassFailure();
 
+			// In order to hide trivial variable from the IDA solver, all trivial
+			// variables present in non-trivial equations must be substituted with
+			// the corresponding equation that computes them.
 			if (options.solver == CleverDAE)
 				if (failed(substituteTrivialVariables(builder, model)))
 					return signalPassFailure();
+
+			if (options.solver == CleverDAE)
+				assert(false && "Lowerer not yet implemented");
 		});
 
 		// The model has been solved and we can now proceed to create the update
@@ -1847,7 +1854,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		// If the model contains algebraic loops, Forward Euler cannot solve this
 		// model, an other solver must be used.
 		if (!model.getBltBlocks().empty())
-			return model.getOp()->emitError("Algebraic loops are present, the selected solver cannot be used");
+			return model.getOp()->emitError("Algebraic loops or implicit equations are present, the selected solver cannot be used");
 
 		mlir::OpBuilder::InsertionGuard guard(builder);
 		mlir::Location loc = model.getOp()->getLoc();
@@ -1895,7 +1902,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	static mlir::LogicalResult addBltBlocks(mlir::OpBuilder& builder, Model& model)
+	static mlir::LogicalResult addDifferentialEqToBltBlocks(mlir::OpBuilder& builder, Model& model)
 	{
 		llvm::SmallVector<Equation, 3> equations;
 		llvm::SmallVector<BltBlock, 3> bltBlocks = model.getBltBlocks();
@@ -1915,9 +1922,54 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 	static mlir::LogicalResult substituteTrivialVariables(mlir::OpBuilder& builder, Model& model)
 	{
-		// TODO
-		// For each equation in bltBlocks, if variable.isTrivial, substitute it.
-		assert(false && "To be implemented");
+		// Add all trivial variables to a map in order to retrieve later the 
+		// equation they are matched with.
+		std::map<Variable, Equation*> trivialVariablesMap;
+
+		for (Equation& equation : model.getEquations())
+		{
+			Variable var = model.getVariable(equation.getDeterminedVariable().getVar());
+			trivialVariablesMap[var] = &equation;
+			assert(var.isTrivial());
+		}
+
+		// For each equation in each bltBlocks, if an expression refers to a trivial
+		// variable, substitute it with the corresponding equation.
+		for (BltBlock& bltBlock : model.getBltBlocks())
+		{
+			for (Equation& equation : bltBlock.getEquations())
+			{
+				std::queue<Expression> expQueue({ equation.lhs(), equation.rhs() });
+
+				while (!expQueue.empty())
+				{
+					if (expQueue.front().isReferenceAccess())
+					{
+						Variable var = model.getVariable(expQueue.front().getReferredVectorAccess());
+
+						// If the variable is trivial, unless it is an induction variable
+						if (var.isTrivial() && trivialVariablesMap.find(var) != trivialVariablesMap.end())
+						{
+							// Replace all occurrences in the non-trivial equation
+							assert(trivialVariablesMap.find(var) != trivialVariablesMap.end());
+							replaceUses(builder, *trivialVariablesMap[var], equation);
+						
+							// Then re-start iterating over the same equation
+							expQueue = std::queue<Expression>({ equation.lhs(), equation.rhs() });
+							continue;
+						}
+					}
+					else if (expQueue.front().isOperation())
+					{
+						for (size_t i : modelica::irange(expQueue.front().childrenCount()))
+							expQueue.push(expQueue.front().getChild(i));
+					}
+
+					expQueue.pop();
+				}
+			}
+		}
+
 		return mlir::success();
 	}
 
@@ -1960,6 +2012,43 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return model;
 	}
 
+	static llvm::Optional<model::Model> getSolvedModel(mlir::ModuleOp moduleOp, SolveModelOptions options)
+	{
+		assert(options.solver == CleverDAE);
+
+		llvm::Optional<model::Model> model = SolveModelPass::getUnmatchedModel(moduleOp);
+		if (!model)
+			return llvm::None;
+
+		mlir::OpBuilder builder(model->getOp());
+		
+		if (failed(match(*model, options.matchingMaxIterations)))
+			return llvm::None;
+
+		if (failed(solveSCCs(*model, options.sccMaxIterations)))
+			return llvm::None;
+
+		if (options.solver == CleverDAE)
+			if (failed(addDifferentialEqToBltBlocks(builder, *model)))
+				return llvm::None;
+
+		if (failed(explicitateEquations(*model)))
+			return llvm::None;
+
+		if (failed(schedule(*model)))
+			return llvm::None;
+		
+		if (options.solver == ForwardEuler)
+			if (failed(updateStates(builder, *model)))
+				return llvm::None;
+
+		if (options.solver == CleverDAE)
+			if (failed(substituteTrivialVariables(builder, *model)))
+				return llvm::None;
+		
+		return model;
+	}
+
 	private:
 	SolveModelOptions options;
 	unsigned int bitWidth;
@@ -1973,4 +2062,9 @@ std::unique_ptr<mlir::Pass> marco::codegen::createSolveModelPass(SolveModelOptio
 llvm::Optional<Model> modelica::codegen::getUnmatchedModel(mlir::ModuleOp moduleOp)
 {
 	return SolveModelPass::getUnmatchedModel(moduleOp);
+}
+
+llvm::Optional<Model> modelica::codegen::getSolvedModel(mlir::ModuleOp moduleOp, SolveModelOptions options)
+{
+	return SolveModelPass::getSolvedModel(moduleOp, options);
 }

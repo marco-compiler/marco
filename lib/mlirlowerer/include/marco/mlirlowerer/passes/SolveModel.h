@@ -42,4 +42,10 @@ namespace marco::codegen
 	 * Given a parsed ModuleOp, it return the Model before the matching phase.
 	 */
 	llvm::Optional<model::Model> getUnmatchedModel(mlir::ModuleOp moduleOp);
+
+	/**
+	 * This method must be used for testing and debugging purposes only.
+	 * Given a parsed ModuleOp, it return the Model at the end of the solving pass.
+	 */
+	llvm::Optional<model::Model> getSolvedModel(mlir::ModuleOp moduleOp, SolveModelOptions options);
 }
