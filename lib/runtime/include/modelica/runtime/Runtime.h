@@ -269,8 +269,8 @@ extern "C"
 
 	void printString(char* str);
 	void printI1(bool value);
-	void printI32(int value);
-	void printI64(long value);
+	void printI32(int32_t value);
+	void printI64(int64_t value);
 	void printF32(float value);
 	void printF64(double value);
 }

@@ -1,5 +1,6 @@
 #include <math.h>
 #include <stdio.h>
+#include <inttypes.h>
 
 extern "C"
 {
@@ -75,14 +76,14 @@ extern "C"
 		printf("%d", value);
 	}
 
-	void printI32(int value)
+	void printI32(int32_t value)
 	{
-		printf("%d", value);
+		printf("%" PRId32, value);
 	}
 
-	void printI64(long value)
+	void printI64(int64_t value)
 	{
-		printf("%ld", value);
+		printf("%" PRId64, value);
 	}
 
 	void printF32(float value)
