@@ -444,7 +444,7 @@ namespace modelica::codegen
 			if (parser.parseComma())
 				return mlir::Type();
 
-			llvm::SmallVector<long, 3> dimensions;
+			llvm::SmallVector<int64_t, 3> dimensions;
 
 			if (parser.parseDimensionList(dimensions))
 				return mlir::Type();
@@ -455,7 +455,8 @@ namespace modelica::codegen
 					parser.parseGreater())
 				return mlir::Type();
 
-			return MemberType::get(builder.getContext(), scope, baseType, dimensions);
+			llvm::SmallVector<long, 3> castedDims(dimensions.begin(), dimensions.end());
+			return MemberType::get(builder.getContext(), scope, baseType, castedDims);
 		}
 
 		if (mlir::succeeded(parser.parseOptionalKeyword("array")))
@@ -491,7 +492,7 @@ namespace modelica::codegen
 					return mlir::Type();
 			}
 
-			llvm::SmallVector<long, 3> dimensions;
+			llvm::SmallVector<int64_t, 3> dimensions;
 
 			if (parser.parseDimensionList(dimensions))
 				return mlir::Type();
@@ -502,7 +503,8 @@ namespace modelica::codegen
 					parser.parseGreater())
 				return mlir::Type();
 
-			return ArrayType::get(builder.getContext(), scope, baseType, dimensions);
+			llvm::SmallVector<long, 3> castedDims(dimensions.begin(), dimensions.end());
+			return ArrayType::get(builder.getContext(), scope, baseType, castedDims);
 		}
 
 		if (mlir::succeeded(parser.parseOptionalKeyword("opaque_ptr")))
