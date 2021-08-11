@@ -308,7 +308,7 @@ static void composeAccess(Expression& exp, const VectorAccess& transformation)
 	{
 		mlir::Value index;
 
-		if (singleDimensionAccess.value().isDirecAccess())
+		if (singleDimensionAccess.value().isDirectAccess())
 			index = builder.create<ConstantOp>(op->getLoc(), builder.getIndexAttr(singleDimensionAccess.value().getOffset()));
 		else
 		{

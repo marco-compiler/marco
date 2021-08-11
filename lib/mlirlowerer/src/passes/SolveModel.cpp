@@ -1682,16 +1682,16 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (failed(solveSCCs(model, options.sccMaxIterations)))
 				return signalPassFailure();
 
-			// Add differential equations to non-trivial blt blocks.
-			if (options.solver == CleverDAE)
-				if (failed(addDifferentialEqToBltBlocks(builder, model)))
-					return signalPassFailure();
-
 			// Explicitate the equations so that the updated variable is the only
 			// one on the left-hand side of the equation. If the equation is implicit
 			// add it to a non-trivial blt block.
 			if (failed(explicitateEquations(model)))
 				return signalPassFailure();
+
+			// Add differential equations to non-trivial blt blocks.
+			if (options.solver == CleverDAE)
+				if (failed(addDifferentialEqToBltBlocks(builder, model)))
+					return signalPassFailure();
 
 			// Schedule
 			if (failed(schedule(model)))
@@ -1907,12 +1907,16 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		llvm::SmallVector<Equation, 3> equations;
 		llvm::SmallVector<BltBlock, 3> bltBlocks = model.getBltBlocks();
 
-		for (Equation& eq : model.getEquations())
+		// If the equation is a differential equation, or if (part of) the matched variable
+		// is not trivial, add the equation to a non-trivial blt block. 
+		for (Equation& equation : model.getEquations())
 		{
-			if (model.getVariable(eq.getDeterminedVariable().getVar()).isDerivative())
-				bltBlocks.push_back(BltBlock(llvm::SmallVector<Equation, 1>(1, eq)));
+			Variable var = model.getVariable(equation.getDeterminedVariable().getVar());
+
+			if (var.isDerivative() || !var.isTrivial())
+				bltBlocks.push_back(BltBlock(llvm::SmallVector<Equation, 1>(1, equation)));
 			else
-				equations.push_back(eq);
+				equations.push_back(equation);
 		}
 
 		Model result(model.getOp(), model.getVariables(), equations, bltBlocks);
@@ -2028,12 +2032,12 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (failed(solveSCCs(*model, options.sccMaxIterations)))
 			return llvm::None;
 
+		if (failed(explicitateEquations(*model)))
+			return llvm::None;
+
 		if (options.solver == CleverDAE)
 			if (failed(addDifferentialEqToBltBlocks(builder, *model)))
 				return llvm::None;
-
-		if (failed(explicitateEquations(*model)))
-			return llvm::None;
 
 		if (failed(schedule(*model)))
 			return llvm::None;

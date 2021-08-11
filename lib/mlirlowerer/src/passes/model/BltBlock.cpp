@@ -43,3 +43,13 @@ void BltBlock::setForward(bool isForward)
 	for (Equation& equation : equations)
 		equation.setForward(isForward);
 }
+
+size_t BltBlock::size() const
+{
+	size_t size = 0;
+
+	for (const Equation& equation : equations)
+		size += equation.getInductions().size();
+
+	return size;
+}

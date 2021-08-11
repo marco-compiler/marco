@@ -1,5 +1,7 @@
 modelicaAddTest(
 	mlirlowerer
+	TestingUtils.cpp
+	ida/IdaSolverTest.cpp
 	matching/LinSolverTest.cpp
 	matching/MatchingTest.cpp
 	matching/SCCCollapsingTest.cpp
@@ -10,3 +12,5 @@ modelicaAddTest(
 	model/VectorAccessTest.cpp
 	passes/SolveModelTest.cpp
 )
+
+target_link_libraries(mlirlowererTest PRIVATE sundials)
