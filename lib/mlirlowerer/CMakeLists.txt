@@ -4,6 +4,7 @@ set(SOURCES
         src/dialects/modelica/ModelicaDialect.cpp
         src/dialects/modelica/Ops.cpp
         src/dialects/modelica/Type.cpp
+        src/passes/ida/IdaSolver.cpp
         src/passes/matching/Edge.cpp
         src/passes/matching/Flow.cpp
         src/passes/matching/LinSolver.cpp
@@ -60,6 +61,7 @@ target_link_libraries(mlirlowerer
         PUBLIC marco::runtime
         PRIVATE ${MLIR_LIBS}
         PRIVATE pthread
-        PRIVATE boost)
+        PRIVATE boost
+        PRIVATE sundials)
 
 add_compile_definitions(RUNTIME_LIBRARY="$<TARGET_FILE:runtime>")

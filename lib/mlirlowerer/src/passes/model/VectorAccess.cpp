@@ -68,14 +68,14 @@ bool SingleDimensionAccess::isOffset() const
 	return !isAbs;
 }
 
-bool SingleDimensionAccess::isDirecAccess() const
+bool SingleDimensionAccess::isDirectAccess() const
 {
 	return isAbs;
 }
 
 marco::Interval SingleDimensionAccess::map(const MultiDimInterval& multiDimInterval) const
 {
-	if (isDirecAccess())
+	if (isDirectAccess())
 		return Interval(value, value + 1);
 
 	return map(multiDimInterval.at(inductionVar));
@@ -271,7 +271,7 @@ VectorAccess VectorAccess::combine(const VectorAccess& other) const
 
 SingleDimensionAccess VectorAccess::combine(const SingleDimensionAccess& other) const
 {
-	if (other.isDirecAccess())
+	if (other.isDirectAccess())
 		return other;
 
 	assert(other.getInductionVar() < vectorAccess.size());

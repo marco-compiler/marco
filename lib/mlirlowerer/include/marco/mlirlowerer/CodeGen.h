@@ -19,6 +19,8 @@ namespace marco::codegen
 		double startTime = 0;
 		double endTime = 10;
 		double timeStep = 0.1;
+		double relativeTolerance = 1e-6;
+		double absoluteTolerance = 1e-6;
 
 		/**
 		 * Get a statically allocated copy of the default options.

@@ -128,7 +128,7 @@ TEST(VectorAccessTest, MapFromExpression)
 	EXPECT_EQ(access.getAccess().getMappingOffset()[2].getInductionVar(), 0);
 	EXPECT_EQ(access.getAccess().getMappingOffset()[2].getOffset(), 19);
 
-	EXPECT_TRUE(access.getAccess().getMappingOffset()[2].isDirecAccess());
+	EXPECT_TRUE(access.getAccess().getMappingOffset()[2].isDirectAccess());
 
 	modelica::MultiDimInterval interval({ { 0, 10 }, { 4, 8 } });
 	modelica::MultiDimInterval out = access.getAccess().map(interval);
@@ -214,7 +214,7 @@ TEST(VectorAccessTest, TestCombineAbsoluteVectorAccess)
 	VectorAccess v2({ SingleDimensionAccess::absolute(10) });
 	VectorAccess result = v1.combine(v2);
 
-	EXPECT_TRUE(result.getMappingOffset()[0].isDirecAccess());
+	EXPECT_TRUE(result.getMappingOffset()[0].isDirectAccess());
 	EXPECT_EQ(result.getMappingOffset()[0].getOffset(), 10);
 }
 

@@ -24,7 +24,7 @@ namespace marco::codegen::model
 		[[nodiscard]] size_t getInductionVar() const;
 
 		[[nodiscard]] bool isOffset() const;
-		[[nodiscard]] bool isDirecAccess() const;
+		[[nodiscard]] bool isDirectAccess() const;
 
 		[[nodiscard]] Interval map(const MultiDimInterval& multiDimInterval) const;
 		[[nodiscard]] Interval map(const Interval& interval) const;

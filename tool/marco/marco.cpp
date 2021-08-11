@@ -86,6 +86,8 @@ static cl::OptionCategory simulationOptions("Simulation options");
 static cl::opt<double> startTime("start-time", cl::desc("Start time (in seconds) (default: 0)"), cl::init(0), cl::cat(simulationOptions));
 static cl::opt<double> endTime("end-time", cl::desc("End time (in seconds) (default: 10)"), cl::init(10), cl::cat(simulationOptions));
 static cl::opt<double> timeStep("time-step", cl::desc("Time step (in seconds) (default: 0.1)"), cl::init(0.1), cl::cat(simulationOptions));
+static cl::opt<double> relativeTolerance("rel-tol", cl::desc("Relative tolerance (default: 1e-6)"), cl::init(1e-6), cl::cat(simulationOptions));
+static cl::opt<double> absoluteTolerance("abs-tol", cl::desc("Absolute tolerance (default: 1e-6)"), cl::init(1e-6), cl::cat(simulationOptions));
 
 static llvm::ExitOnError exitOnErr;
 
@@ -186,6 +188,8 @@ int main(int argc, char* argv[])
 	modelicaOptions.startTime = startTime;
 	modelicaOptions.endTime = endTime;
 	modelicaOptions.timeStep = timeStep;
+	modelicaOptions.relativeTolerance = relativeTolerance;
+	modelicaOptions.absoluteTolerance = absoluteTolerance;
 
 	codegen::MLIRLowerer lowerer(context, modelicaOptions);
 	auto module = lowerer.run(classes);

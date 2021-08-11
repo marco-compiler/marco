@@ -11,6 +11,8 @@
 #include <modelica/mlirlowerer/passes/model/VectorAccess.h>
 #include <queue>
 
+#include "../TestingUtils.h"
+
 using namespace modelica::codegen::model;
 
 TEST(SolveModelTest, SubstituteTrivialVariablesTest)
@@ -36,55 +38,28 @@ TEST(SolveModelTest, SubstituteTrivialVariablesTest)
 														"end SubstituteTrivial; ";
 
 	mlir::MLIRContext context;
+	Model model;
+	makeSolvedModel(context, stringModel, model);
 
-	modelica::frontend::Parser parser(stringModel);
-	auto ast = parser.classDefinition();
-	if (!ast)
-		FAIL();
-
-	llvm::SmallVector<std::unique_ptr<modelica::frontend::Class>, 3> classes;
-	classes.push_back(std::move(*ast));
-
-	modelica::frontend::PassManager frontendPassManager;
-	frontendPassManager.addPass(modelica::frontend::createTypeCheckingPass());
-	frontendPassManager.addPass(modelica::frontend::createConstantFolderPass());
-
-	if (frontendPassManager.run(classes))
-		FAIL();
-
-	modelica::codegen::ModelicaBuilder builder(&context);
-
-	modelica::codegen::MLIRLowerer lowerer(context);
-	auto moduleOp = lowerer.run(classes);
-	if (!moduleOp)
-		FAIL();
-
-	modelica::codegen::SolveModelOptions solveModelOptions;
-	solveModelOptions.solver = modelica::codegen::CleverDAE;
-
-	auto model = modelica::codegen::getSolvedModel(*moduleOp, solveModelOptions);
-	if (!model)
-		FAIL();
-
-	EXPECT_EQ(model->getVariables().size(), 5 + 1 + 1);
-	EXPECT_EQ(model->getEquations().size(), 3);
-	EXPECT_EQ(model->getBltBlocks().size(), 2);
-	EXPECT_EQ(model->getBltBlocks()[0].getEquations().size(), 1);
-	EXPECT_EQ(model->getBltBlocks()[1].getEquations().size(), 1);
+	EXPECT_EQ(model.getVariables().size(), 5 + 1 + 1);
+	EXPECT_EQ(model.getEquations().size(), 3);
+	EXPECT_EQ(model.getBltBlocks().size(), 2);
+	EXPECT_EQ(model.getBltBlocks()[0].getEquations().size(), 1);
+	EXPECT_EQ(model.getBltBlocks()[1].getEquations().size(), 1);
 
 	std::map<Variable, Equation*> trivialVariablesMap;
-	for (Equation& eq : model->getEquations())
+	for (Equation& eq : model.getEquations())
 	{
-		Variable var = model->getVariable(eq.getDeterminedVariable().getVar());
+		Variable var = model.getVariable(eq.getDeterminedVariable().getVar());
 		trivialVariablesMap[var] = &eq;
 		EXPECT_TRUE(var.isTrivial());
 	}
 
-	for (BltBlock& bltBlock : model->getBltBlocks())
+	for (BltBlock& bltBlock : model.getBltBlocks())
 	{
 		for (Equation& eq : bltBlock.getEquations())
 		{
-			Variable var = model->getVariable(eq.getDeterminedVariable().getVar());
+			Variable var = model.getVariable(eq.getDeterminedVariable().getVar());
 			EXPECT_FALSE(var.isTrivial());
 
 			std::queue<Expression> expQueue({ eq.lhs(), eq.rhs() });
@@ -92,7 +67,7 @@ TEST(SolveModelTest, SubstituteTrivialVariablesTest)
 			{
 				if (expQueue.front().isReferenceAccess())
 				{
-					var = model->getVariable(expQueue.front().getReferredVectorAccess());
+					var = model.getVariable(expQueue.front().getReferredVectorAccess());
 					EXPECT_TRUE(
 							!var.isTrivial() ||
 							trivialVariablesMap.find(var) == trivialVariablesMap.end());

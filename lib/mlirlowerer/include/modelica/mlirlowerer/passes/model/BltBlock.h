@@ -30,6 +30,8 @@ namespace modelica::codegen::model
 		[[nodiscard]] bool isForward() const;
 		void setForward(bool isForward);
 
+		[[nodiscard]] size_t size() const;
+
 		private:
 		Container<Equation> equations;
 		bool isForwardDirection;
