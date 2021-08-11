@@ -44,8 +44,6 @@ namespace marco::codegen
 		ModelicaToLLVMConversionOptions llvmOptions = ModelicaToLLVMConversionOptions::getDefaultOptions();
 		bool debug = true;
 
-		VariableFilter variableFilter = VariableFilter();
-
 		[[nodiscard]] unsigned int getBitWidth() const
 		{
 			if (x64)
@@ -62,7 +60,7 @@ namespace marco::codegen
 	};
 
 	struct ModelicaCodegenOptions {
-	    VariableFilter* variableFilter = nullptr;
+	    VariableFilter variableFilter = VariableFilter();
 
 	    static const ModelicaCodegenOptions& getDefaultOptions()
 	    {

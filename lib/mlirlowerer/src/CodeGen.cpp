@@ -410,12 +410,14 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 
 		variablesToBePrinted.push_back(simulation.print().getArgument(0));
 
-		VariableFilter *vf = codegenOptions.variableFilter; //quick renaming
+		VariableFilter vf = codegenOptions.variableFilter; //quick renaming
 
 		for (const auto& member : model.getMembers())
 		{
 			std::string variableIdentifier = member->getName().str();
-			bool isTracked = vf->checkTrackedIdentifier(variableIdentifier);
+
+			//filter only if variable filter is not bypassed
+			bool isTracked = vf.isBypass() || vf.checkTrackedIdentifier(variableIdentifier);
 			if(!isTracked) continue;
 
 			unsigned int index = symbolTable.lookup(member->getName()).getReference().cast<mlir::BlockArgument>().getArgNumber();

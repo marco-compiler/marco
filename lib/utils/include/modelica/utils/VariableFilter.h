@@ -21,6 +21,10 @@ using namespace std;
 namespace modelica {
     class VariableFilter {
     public:
+        [[nodiscard]] bool isBypass() const;
+
+        void setBypass(bool bypass);
+
         void addVariable(VariableTracker var);
 
         void addRegexString(string regex);
@@ -33,46 +37,21 @@ namespace modelica {
          * @return true if there is a stored regular expression that matches the
          * received identifier
          */
-        bool matchesRegex(const string &identifier) {
-            for (const auto &regexString : _regex) {
-                std::regex regex(regexString, std::regex::ECMAScript);
-                if (regex_match(identifier, regex)) {
-                    return true;
-                }
-            }
-            return false;
-        }
+        bool matchesRegex(const string &identifier);
 
         /**
          *
          * @param identifier the variable identifier we want to query
          * @return the variable tracker associated with that variable
          */
-        VariableTracker lookupByIdentifier(const string &identifier) {
-            if (std::any_of(
-                    _variables.begin(),
-                    _variables.end(),
-                    [&identifier](VariableTracker i) {
-                        return i.getName().compare(identifier);
-                    })) {
-                for (const auto &varTracker : _variables) {
-                    if (varTracker.getName() == (identifier))
-                        return varTracker;
-                }
-            }
-        }
+        VariableTracker lookupByIdentifier(const string &identifier);
 
-        bool checkTrackedIdentifier(const string &identifier) {
-            for (const auto &varTracker : _variables) {
-                if (varTracker.getName() == (identifier))
-                    return true;
-            }
-            return false;
-        }
+        bool checkTrackedIdentifier(const string &identifier);
 
     private:
         list<VariableTracker> _variables;
         list<string> _regex;
+        bool _bypass = true;
     };
 }     // namespace modelica
 
