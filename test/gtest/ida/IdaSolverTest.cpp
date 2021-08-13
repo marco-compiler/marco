@@ -76,10 +76,14 @@ TEST(IdaSolverTest, DoubleDerivative)
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_NEAR(idaSolver.getVariables()[0], 2.0 * idaSolver.getTime(), 1e-4);
-	EXPECT_NEAR(idaSolver.getVariables()[1], 1.5 * idaSolver.getTime(), 1e-4);
-	EXPECT_EQ(idaSolver.getDerivatives()[0], 2.0);
-	EXPECT_EQ(idaSolver.getDerivatives()[1], 1.5);
+	EXPECT_NEAR(
+			idaSolver.getVariables()[0],
+			idaSolver.getDerivatives()[0] * idaSolver.getTime(),
+			1e-4);
+	EXPECT_NEAR(
+			idaSolver.getVariables()[1],
+			idaSolver.getDerivatives()[1] * idaSolver.getTime(),
+			1e-4);
 
 	idaSolver.free();
 }
@@ -125,7 +129,7 @@ TEST(IdaSolverTest, DerivativeArray)
 {
 	std::string stringModel = "model DerArray "
 														"final parameter Real tau = 5.0; "
-														"Real[10] x(start = 0.0); "
+														"Real[10] x(start = 1.0); "
 														"equation "
 														"tau*der(x[1]) = 1.0; "
 														"for i in 2:10 loop "
@@ -159,8 +163,8 @@ TEST(IdaSolverTest, DerivativeArray)
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_NEAR(idaSolver.getVariables()[0], 0.2 * idaSolver.getTime(), 1e-4);
-	EXPECT_NEAR(idaSolver.getVariables()[1], 0.4 * idaSolver.getTime(), 1e-4);
+	EXPECT_NEAR(idaSolver.getVariables()[0], 1 + 0.2 * idaSolver.getTime(), 1e-4);
+	EXPECT_NEAR(idaSolver.getVariables()[1], 1 + 0.4 * idaSolver.getTime(), 1e-4);
 	EXPECT_NEAR(idaSolver.getDerivatives()[0], 0.2, 1e-4);
 	EXPECT_NEAR(idaSolver.getDerivatives()[1], 0.4, 1e-4);
 
@@ -220,6 +224,57 @@ TEST(IdaSolverTest, MultidimensionalDerivative)
 	idaSolver.free();
 }
 
+TEST(IdaSolverTest, MultipleArraysWithState)
+{
+	std::string stringModel = "model ArraysWithState "
+														"Real[5] x; "
+														"Real[5] y; "
+														"equation "
+														"for i in 1:5 loop "
+														"der(x[i]) = 1.0; "
+														"end for; "
+														"for i in 1:5 loop "
+														"der(y[i]) = 3 + x[i]; "
+														"end for; "
+														"end ArraysWithState; ";
+
+	mlir::MLIRContext context;
+	Model model;
+	makeSolvedModel(context, stringModel, model);
+
+	modelica::codegen::ida::IdaSolver idaSolver(model);
+	if (failed(idaSolver.init()))
+		FAIL();
+
+	EXPECT_EQ(idaSolver.getData()->rowLength.size(), 2);
+	EXPECT_EQ(idaSolver.getData()->dimensions.size(), 2);
+	EXPECT_EQ(idaSolver.getData()->residuals.size(), 2);
+	EXPECT_EQ(idaSolver.getData()->jacobianMatrix.size(), 2);
+
+	EXPECT_EQ(idaSolver.getData()->rowLength[0], 5);
+	EXPECT_EQ(idaSolver.getData()->rowLength[1], 10);
+	EXPECT_EQ(idaSolver.getData()->dimensions[0].size(), 1);
+	EXPECT_EQ(idaSolver.getData()->dimensions[1].size(), 1);
+
+	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].first, 0);
+	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].second, 5);
+	EXPECT_EQ(idaSolver.getData()->dimensions[1][0].first, 0);
+	EXPECT_EQ(idaSolver.getData()->dimensions[1][0].second, 5);
+
+	if (failed(idaSolver.run()))
+		FAIL();
+
+	EXPECT_NEAR(idaSolver.getVariables()[0], idaSolver.getTime(), 1e-4);
+	EXPECT_NEAR(
+			idaSolver.getVariables()[5],
+			(3.0 + idaSolver.getTime() / 2) * idaSolver.getTime(),
+			1e-4);
+	EXPECT_NEAR(idaSolver.getDerivatives()[0], 1.0, 1e-4);
+	EXPECT_NEAR(idaSolver.getDerivatives()[5], 3.0 + idaSolver.getTime(), 1e-4);
+
+	idaSolver.free();
+}
+
 TEST(IdaSolverTest, AlgebraicLoop)
 {
 	std::string stringModel = "model AlgebraicLoop "
@@ -266,6 +321,77 @@ TEST(IdaSolverTest, AlgebraicLoop)
 	{
 		EXPECT_EQ(idaSolver.getDerivatives()[i], 0.0);
 	}
+
+	idaSolver.free();
+}
+
+TEST(IdaSolverTest, ImplicitEquation)
+{
+	std::string stringModel = "model ImplicitEq "
+														"Real x(start = 1.5); "
+														"equation "
+														"x + x * x * x = 7.0; "
+														"end ImplicitEq; ";
+
+	mlir::MLIRContext context;
+	Model model;
+	makeSolvedModel(context, stringModel, model);
+
+	modelica::codegen::ida::IdaSolver idaSolver(model);
+	if (failed(idaSolver.init()))
+		FAIL();
+
+	EXPECT_EQ(idaSolver.getData()->rowLength.size(), 1);
+	EXPECT_EQ(idaSolver.getData()->dimensions.size(), 1);
+	EXPECT_EQ(idaSolver.getData()->residuals.size(), 1);
+	EXPECT_EQ(idaSolver.getData()->jacobianMatrix.size(), 1);
+
+	EXPECT_EQ(idaSolver.getData()->rowLength[0], 1);
+	EXPECT_EQ(idaSolver.getData()->dimensions[0].size(), 1);
+	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].first, 0);
+	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].second, 1);
+
+	if (failed(idaSolver.run()))
+		FAIL();
+
+	EXPECT_NEAR(idaSolver.getVariables()[0], 1.7392, 1e-4);
+
+	idaSolver.free();
+}
+
+TEST(IdaSolverTest, ImplicitEqKepler)
+{
+	std::string stringModel = "model ImplicitKepler "
+														"Real[2] x(start = 3.7); "
+														"equation "
+														"for i in 1:2 loop "
+														"5.0 = x[i] - 2.72 * sin(x[i]); "
+														"end for; "
+														"end ImplicitKepler; ";
+
+	mlir::MLIRContext context;
+	Model model;
+	makeSolvedModel(context, stringModel, model);
+
+	modelica::codegen::ida::IdaSolver idaSolver(model);
+	if (failed(idaSolver.init()))
+		FAIL();
+
+	EXPECT_EQ(idaSolver.getData()->rowLength.size(), 1);
+	EXPECT_EQ(idaSolver.getData()->dimensions.size(), 1);
+	EXPECT_EQ(idaSolver.getData()->residuals.size(), 1);
+	EXPECT_EQ(idaSolver.getData()->jacobianMatrix.size(), 1);
+
+	EXPECT_EQ(idaSolver.getData()->rowLength[0], 2);
+	EXPECT_EQ(idaSolver.getData()->dimensions[0].size(), 1);
+	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].first, 0);
+	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].second, 2);
+
+	if (failed(idaSolver.run()))
+		FAIL();
+
+	EXPECT_NEAR(idaSolver.getVariables()[0], 3.6577, 1e-4);
+	EXPECT_NEAR(idaSolver.getVariables()[1], 3.6577, 1e-4);
 
 	idaSolver.free();
 }

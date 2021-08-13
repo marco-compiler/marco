@@ -409,15 +409,31 @@ mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
 
 mlir::LogicalResult Equation::explicitate()
 {
-	if (auto status = explicitate(getMatchedExpressionPath()); failed(status))
+	// Clone the equation for backup in case of failure of the algorithm
+	Equation clonedEquation = clone();
+	if (auto status = clonedEquation.explicitate(clonedEquation.getMatchedExpressionPath()); failed(status))
+	{
+		clonedEquation.getOp()->dropAllDefinedValueUses();
+		clonedEquation.getOp()->erase();
 		return status;
+	}
 
-	impl->matchedExpPath = EquationPath({}, true);
+	clonedEquation.impl->matchedExpPath = EquationPath({}, true);
 
 	// If the explicitation algorithm was not successful, it means that the equation
 	// is implicit and cannot be explicitated.
-	if (isImplicit())
+	if (clonedEquation.isImplicit())
+	{
+		clonedEquation.getOp()->dropAllDefinedValueUses();
+		clonedEquation.getOp()->erase();
 		return mlir::failure();
+	}
+
+	// Substitute the current equation with the explicitated one.
+	getOp()->dropAllDefinedValueUses();
+	getOp()->erase();
+	impl = clonedEquation.impl;
+	update();
 
 	return mlir::success();
 }

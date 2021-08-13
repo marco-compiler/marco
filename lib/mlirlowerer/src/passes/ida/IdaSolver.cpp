@@ -238,6 +238,55 @@ void IdaSolver::initData()
 
 	size_t rowLength = 0;
 
+	// Map all vector variables to their initial value.
+	model.getOp().init().walk([&](FillOp fillOp) {
+		if (!model.hasVariable(fillOp.memory()))
+			return;
+
+		Variable var = model.getVariable(fillOp.memory());
+
+		mlir::Operation *op = fillOp.value().getDefiningOp();
+		ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
+		mlir::Attribute attribute = constantOp.value();
+
+		realtype value = 0.0;
+		if (auto integerAttribute = attribute.dyn_cast<IntegerAttribute>())
+			value = integerAttribute.getValue();
+		else if (auto realAttribute = attribute.dyn_cast<RealAttribute>())
+			value = realAttribute.getValue();
+
+		initialValueMap[var] = value;
+		assert(!var.isDerivative());
+		if (var.isState())
+			initialValueMap[model.getVariable(var.getDer())] = value;
+	});
+
+	// Map all scalar variables to their initial value.
+	model.getOp().init().walk([&](AssignmentOp assignmentOp) {
+		mlir::Operation *op = assignmentOp.destination().getDefiningOp();
+		SubscriptionOp subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op);
+
+		if (!model.hasVariable(subscriptionOp.source()))
+			return;
+
+		Variable var = model.getVariable(subscriptionOp.source());
+
+		op = assignmentOp.source().getDefiningOp();
+		ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
+		mlir::Attribute attribute = constantOp.value();
+
+		realtype value = 0.0;
+		if (auto integerAttribute = attribute.dyn_cast<IntegerAttribute>())
+			value = integerAttribute.getValue();
+		else if (auto realAttribute = attribute.dyn_cast<RealAttribute>())
+			value = realAttribute.getValue();
+
+		initialValueMap[var] = value;
+		assert(!var.isDerivative());
+		if (var.isState())
+			initialValueMap[model.getVariable(var.getDer())] = value;
+	});
+
 	for (BltBlock &bltBlock : model.getBltBlocks())
 	{
 		for (Equation &equation : bltBlock.getEquations())
@@ -254,10 +303,16 @@ void IdaSolver::initData()
 				// Note the variable offset from the beginning of the variable array.
 				indexOffsetMap[var] = rowLength;
 
+				if (var.isState())
+					indexOffsetMap[model.getVariable(var.getDer())] = rowLength;
+				else if (var.isDerivative())
+					indexOffsetMap[model.getVariable(var.getState())] = rowLength;
+
 				// Initialize variablesValues, derivativesValues, idValues.
 				for (size_t i : irange(var.toMultiDimInterval().size()))
 				{
-					variablesValues[rowLength + i] = 0.0;
+					assert(initialValueMap.find(var) != initialValueMap.end());
+					variablesValues[rowLength + i] = initialValueMap[var];
 					derivativesValues[rowLength + i] = 0.0;
 					idValues[rowLength + i] = var.isDerivative() ? 1.0 : 0.0;
 				}
