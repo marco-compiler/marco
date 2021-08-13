@@ -34,7 +34,9 @@ namespace marco::codegen::model
 
 		[[nodiscard]] bool isTime() const;
 
-		mlir::Value getDer();
+		[[nodiscard]] mlir::Value getState();
+		[[nodiscard]] mlir::Value getDer();
+
 		void setDer(Variable variable);
 		void setTrivial(bool value);
 

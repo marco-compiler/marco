@@ -127,4 +127,10 @@ TEST(EquationTest, ImplicitEquations)
 	EXPECT_TRUE(model.getEquations()[2].isImplicit());
 	EXPECT_TRUE(model.getEquations()[3].isImplicit());
 	EXPECT_TRUE(model.getEquations()[4].isImplicit());
+
+	EXPECT_TRUE(model.getEquations()[0].lhs().isReferenceAccess());
+	EXPECT_TRUE(model.getEquations()[1].lhs().isReferenceAccess());
+	EXPECT_TRUE(model.getEquations()[2].rhs().isConstant());
+	EXPECT_TRUE(model.getEquations()[3].rhs().isConstant());
+	EXPECT_TRUE(model.getEquations()[4].rhs().isOperation());
 }

@@ -43,6 +43,10 @@ TEST(LinSolverTest, LinearySolveTest)
 	if (failed(linearySolve(builder, equations)))
 		FAIL();
 
+	for (Equation& eq : model.getEquations())
+		if (failed(eq.explicitate()))
+			FAIL();
+
 	EXPECT_TRUE(model.getEquations()[0].lhs().isReferenceAccess());
 	EXPECT_TRUE(model.getEquations()[1].lhs().isReferenceAccess());
 	EXPECT_TRUE(model.getEquations()[0].rhs().isOperation());

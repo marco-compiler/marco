@@ -31,7 +31,8 @@ class Variable::Impl
 	bool constant;
 	bool derivative;
 	bool trivial;
-	mlir::Value der;
+	mlir::Value stateRef;
+	mlir::Value derivativeRef;
 };
 
 Variable::Variable(mlir::Value memory)
@@ -101,17 +102,23 @@ bool Variable::isTime() const
 	return impl->reference == initTerminator.values()[0];
 }
 
+mlir::Value Variable::getState()
+{
+	return impl->stateRef;
+}
+
 mlir::Value Variable::getDer()
 {
-	return impl->der;
+	return impl->derivativeRef;
 }
 
 void Variable::setDer(Variable variable)
 {
 	impl->state = true;
-	impl->der = variable.getReference();
+	impl->derivativeRef = variable.getReference();
 	variable.impl->derivative = true;
 	variable.impl->trivial = false;
+	variable.impl->stateRef = impl->reference;
 }
 
 void Variable::setTrivial(bool value)

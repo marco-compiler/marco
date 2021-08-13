@@ -163,6 +163,7 @@ namespace modelica::codegen::ida
 		private:
 		// Model data
 		model::Model model;
+		std::map<model::Variable, realtype> initialValueMap;
 		std::map<model::Variable, size_t> indexOffsetMap;
 		UserData *data;
 
