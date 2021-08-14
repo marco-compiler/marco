@@ -337,7 +337,7 @@ namespace modelica::codegen
 
 	namespace detail
 	{
-		struct InvertibleInterfaceTraits
+		struct InvertibleOpInterfaceTraits
 		{
 			struct Concept
 			{
@@ -375,10 +375,10 @@ namespace modelica::codegen
 		};
 	}
 
-	class InvertibleInterface : public mlir::OpInterface<InvertibleInterface, detail::InvertibleInterfaceTraits>
+	class InvertibleOpInterface : public mlir::OpInterface<InvertibleOpInterface, detail::InvertibleOpInterfaceTraits>
 	{
 		public:
-		using OpInterface<InvertibleInterface, detail::InvertibleInterfaceTraits>::OpInterface;
+		using OpInterface<InvertibleOpInterface, detail::InvertibleOpInterfaceTraits>::OpInterface;
 
 		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
 		{

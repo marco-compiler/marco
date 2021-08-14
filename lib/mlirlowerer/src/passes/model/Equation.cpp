@@ -371,10 +371,10 @@ mlir::LogicalResult Equation::explicitate(mlir::OpBuilder& builder, size_t argum
 
 	mlir::Operation* op = toExplicitate.getDefiningOp();
 
-	if (!op->hasTrait<InvertibleInterface::Trait>())
+	if (!op->hasTrait<InvertibleOpInterface::Trait>())
 		return op->emitError("Operation is not invertible");
 
-	return mlir::cast<InvertibleInterface>(op).invert(builder, argumentIndex, otherExp);
+	return mlir::cast<InvertibleOpInterface>(op).invert(builder, argumentIndex, otherExp);
 }
 
 mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
