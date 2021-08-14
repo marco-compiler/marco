@@ -882,9 +882,9 @@ void MLIRLowerer::lower(const ForStatement& statement)
 		for (const auto& stmnt : statement)
 			lower(*stmnt);
 
-		if (auto terminator = builder.getInsertionBlock()->getTerminator();
-				!terminator || !terminator->hasTrait<mlir::OpTrait::IsTerminator>())
-			builder.create<YieldOp>(location, *symbolTable.lookup(induction->getName()));
+		if (!builder.getInsertionBlock()->empty())
+			if (auto& op = builder.getInsertionBlock()->back(); !op.hasTrait<mlir::OpTrait::IsTerminator>())
+				builder.create<YieldOp>(location, *symbolTable.lookup(induction->getName()));
 	}
 
 	{

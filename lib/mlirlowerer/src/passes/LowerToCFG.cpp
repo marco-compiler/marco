@@ -139,7 +139,7 @@ class CFGLowerer
 		builder.setInsertionPointToEnd(bodyLast);
 		llvm::SmallVector<mlir::Value, 3> bodyYieldValues;
 
-		if (auto yieldOp = mlir::dyn_cast<YieldOp>(bodyLast->getTerminator()))
+		if (auto yieldOp = mlir::dyn_cast<YieldOp>(bodyLast->back()))
 		{
 			for (mlir::Value value : yieldOp.values())
 				bodyYieldValues.push_back(value);
@@ -153,7 +153,7 @@ class CFGLowerer
 		builder.setInsertionPointToEnd(stepLast);
 		llvm::SmallVector<mlir::Value, 3> stepYieldValues;
 
-		if (auto yieldOp = mlir::dyn_cast<YieldOp>(stepLast->getTerminator()))
+		if (auto yieldOp = mlir::dyn_cast<YieldOp>(stepLast->back()))
 		{
 			for (mlir::Value value : yieldOp.values())
 				stepYieldValues.push_back(value);
@@ -340,6 +340,7 @@ class LowerToCFGPass : public mlir::PassWrapper<LowerToCFGPass, mlir::OperationP
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
 		registry.insert<mlir::StandardOpsDialect>();
+		registry.insert<mlir::LLVM::LLVMDialect>();
 	}
 
 	void runOnOperation() override

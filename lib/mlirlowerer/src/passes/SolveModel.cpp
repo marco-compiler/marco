@@ -734,7 +734,7 @@ struct ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp>
 			auto inductionOp = mlir::cast<InductionOp>(induction.getDefiningOp());
 
 			mlir::Value start = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(inductionOp.start()));
-			mlir::Value end = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(inductionOp.end()));
+			mlir::Value end = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(inductionOp.end() + 1));
 			mlir::Value step = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(1));
 
 			lowerBounds.push_back(start);
