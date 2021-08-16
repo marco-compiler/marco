@@ -37,7 +37,8 @@ TEST(IdaSolverTest, SimpleDerivative)
 	EXPECT_NEAR(idaSolver.getVariables()[0], 2.0 * idaSolver.getTime(), 1e-4);
 	EXPECT_EQ(idaSolver.getDerivatives()[0], 2.0);
 
-	idaSolver.free();
+	if (failed(idaSolver.free()))
+		FAIL();
 }
 
 TEST(IdaSolverTest, DoubleDerivative)
@@ -47,7 +48,7 @@ TEST(IdaSolverTest, DoubleDerivative)
 														"Real y; "
 														"equation "
 														"der(x) = 2.0; "
-														"der(y) = 1.5; "
+														"der(y) = time; "
 														"end DoubleDer; ";
 
 	mlir::MLIRContext context;
@@ -76,16 +77,16 @@ TEST(IdaSolverTest, DoubleDerivative)
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_NEAR(
-			idaSolver.getVariables()[0],
-			idaSolver.getDerivatives()[0] * idaSolver.getTime(),
-			1e-4);
+	EXPECT_NEAR(idaSolver.getVariables()[0], 2.0 * idaSolver.getTime(), 1e-4);
 	EXPECT_NEAR(
 			idaSolver.getVariables()[1],
-			idaSolver.getDerivatives()[1] * idaSolver.getTime(),
+			idaSolver.getTime() * idaSolver.getTime() / 2.0,
 			1e-4);
+	EXPECT_NEAR(idaSolver.getDerivatives()[0], 2.0, 1e-4);
+	EXPECT_NEAR(idaSolver.getDerivatives()[1], idaSolver.getTime(), 1e-4);
 
-	idaSolver.free();
+	if (failed(idaSolver.free()))
+		FAIL();
 }
 
 TEST(IdaSolverTest, SimpleDerWithSubstitution)
@@ -122,7 +123,8 @@ TEST(IdaSolverTest, SimpleDerWithSubstitution)
 	EXPECT_NEAR(idaSolver.getVariables()[0], 2.0 * idaSolver.getTime(), 1e-4);
 	EXPECT_EQ(idaSolver.getDerivatives()[0], 2.0);
 
-	idaSolver.free();
+	if (failed(idaSolver.free()))
+		FAIL();
 }
 
 TEST(IdaSolverTest, DerivativeArray)
@@ -168,7 +170,8 @@ TEST(IdaSolverTest, DerivativeArray)
 	EXPECT_NEAR(idaSolver.getDerivatives()[0], 0.2, 1e-4);
 	EXPECT_NEAR(idaSolver.getDerivatives()[1], 0.4, 1e-4);
 
-	idaSolver.free();
+	if (failed(idaSolver.free()))
+		FAIL();
 }
 
 TEST(IdaSolverTest, MultidimensionalDerivative)
@@ -221,7 +224,8 @@ TEST(IdaSolverTest, MultidimensionalDerivative)
 	EXPECT_EQ(idaSolver.getDerivatives()[1], 2.0);
 	EXPECT_EQ(idaSolver.getDerivatives()[4], 1.0);
 
-	idaSolver.free();
+	if (failed(idaSolver.free()))
+		FAIL();
 }
 
 TEST(IdaSolverTest, MultipleArraysWithState)
@@ -272,7 +276,8 @@ TEST(IdaSolverTest, MultipleArraysWithState)
 	EXPECT_NEAR(idaSolver.getDerivatives()[0], 1.0, 1e-4);
 	EXPECT_NEAR(idaSolver.getDerivatives()[5], 3.0 + idaSolver.getTime(), 1e-4);
 
-	idaSolver.free();
+	if (failed(idaSolver.free()))
+		FAIL();
 }
 
 TEST(IdaSolverTest, AlgebraicLoop)
@@ -322,7 +327,8 @@ TEST(IdaSolverTest, AlgebraicLoop)
 		EXPECT_EQ(idaSolver.getDerivatives()[i], 0.0);
 	}
 
-	idaSolver.free();
+	if (failed(idaSolver.free()))
+		FAIL();
 }
 
 TEST(IdaSolverTest, ImplicitEquation)
@@ -356,7 +362,8 @@ TEST(IdaSolverTest, ImplicitEquation)
 
 	EXPECT_NEAR(idaSolver.getVariables()[0], 1.7392, 1e-4);
 
-	idaSolver.free();
+	if (failed(idaSolver.free()))
+		FAIL();
 }
 
 TEST(IdaSolverTest, ImplicitEqKepler)
@@ -393,5 +400,6 @@ TEST(IdaSolverTest, ImplicitEqKepler)
 	EXPECT_NEAR(idaSolver.getVariables()[0], 3.6577, 1e-4);
 	EXPECT_NEAR(idaSolver.getVariables()[1], 3.6577, 1e-4);
 
-	idaSolver.free();
+	if (failed(idaSolver.free()))
+		FAIL();
 }

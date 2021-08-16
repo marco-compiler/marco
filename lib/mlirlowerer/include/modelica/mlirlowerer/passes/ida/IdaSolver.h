@@ -38,9 +38,9 @@ namespace modelica::codegen::ida
 		IdaSolver(
 				model::Model &model,
 				const realtype startTime = 0.0,
-				const realtype stopTime = 1.0,
+				const realtype stopTime = 10.0,
 				const realtype relativeTolerance = 1e-6,
-				const realtype abstol = 1e-6);
+				const realtype absoluteTolerance = 1e-6);
 
 		/**
 		 * Instantiate and initialize all the classes and data needed by IDA to
@@ -64,7 +64,7 @@ namespace modelica::codegen::ida
 		/**
 		 * Frees all the data allocated by IDA.
 		 */
-		void free();
+		[[nodiscard]] mlir::LogicalResult free();
 
 		/**
 		 * Prints the current time of the computation and the value all variables to
