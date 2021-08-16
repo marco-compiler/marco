@@ -42,6 +42,11 @@ static cl::list<string> inputFiles(
 		cl::cat(codeGenOptions));
 static cl::opt<string> outputFile(
 		"o", cl::desc("<output-file>"), cl::init("-"), cl::cat(codeGenOptions));
+static cl::opt<bool> printModule(
+		"print-module",
+		cl::desc("Print the ModuleOp right before being solved"),
+		cl::init(false),
+		cl::cat(codeGenOptions));
 
 static cl::OptionCategory simulationOptions("Simulation options");
 
@@ -144,6 +149,11 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
+	if (printModule)
+	{
+		model->getOp()->getParentOfType<mlir::ModuleOp>()->dump();
+	}
+
 	ida::IdaSolver idaSolver(
 			*model, startTime, endTime, relativeTolerance, absoluteTolerance);
 
@@ -159,7 +169,11 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	idaSolver.free();
+	if (failed(idaSolver.free()))
+	{
+		errs() << "Failed to correctly free the IDA solver\n";
+		return -1;
+	}
 
 	return 0;
 }

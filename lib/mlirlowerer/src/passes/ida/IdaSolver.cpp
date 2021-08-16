@@ -14,6 +14,20 @@
 using namespace modelica::codegen::ida;
 using namespace modelica::codegen::model;
 
+static double getValue(modelica::codegen::ConstantOp constantOp)
+{
+	mlir::Attribute attribute = constantOp.value();
+
+	if (auto integer = attribute.dyn_cast<modelica::codegen::IntegerAttribute>())
+		return integer.getValue();
+
+	if (auto real = attribute.dyn_cast<modelica::codegen::RealAttribute>())
+		return real.getValue();
+
+	assert(false && "Unreachable");
+	return 0.0;
+}
+
 IdaSolver::IdaSolver(
 		model::Model &model,
 		const realtype startTime,
@@ -53,6 +67,9 @@ mlir::LogicalResult IdaSolver::init()
 
 	retval = IDASetId(idaMemory, idVector);
 	exitOnError(checkRetval(&retval, "IDASetId", 1));
+
+	retval = IDASetStopTime(idaMemory, stopTime);
+	exitOnError(checkRetval(&retval, "IDASetStopTime", 1));
 
 	retval = IDAInit(
 			idaMemory,
@@ -135,16 +152,21 @@ mlir::LogicalResult IdaSolver::run(llvm::raw_ostream &OS)
 	}
 }
 
-void IdaSolver::free()
+mlir::LogicalResult IdaSolver::free()
 {
 	// Free memory
 	IDAFree(&idaMemory);
-	SUNLinSolFree(linearSolver);
-	SUNNonlinSolFree(nonlinearSolver);
+	retval = SUNNonlinSolFree(nonlinearSolver);
+	exitOnError(checkRetval(&retval, "SUNNonlinSolFree", 1));
+	retval = SUNLinSolFree(linearSolver);
+	exitOnError(checkRetval(&retval, "SUNLinSolFree", 1));
 	SUNMatDestroy(sparseMatrix);
 	N_VDestroy(variablesVector);
 	N_VDestroy(derivativesVector);
 	N_VDestroy(idVector);
+	delete data;
+
+	return mlir::success();
 }
 
 void IdaSolver::printOutput(llvm::raw_ostream &OS)
@@ -238,6 +260,8 @@ void IdaSolver::initData()
 
 	size_t rowLength = 0;
 
+	// TODO: Add different value handling for initialization
+
 	// Map all vector variables to their initial value.
 	model.getOp().init().walk([&](FillOp fillOp) {
 		if (!model.hasVariable(fillOp.memory()))
@@ -247,13 +271,7 @@ void IdaSolver::initData()
 
 		mlir::Operation *op = fillOp.value().getDefiningOp();
 		ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
-		mlir::Attribute attribute = constantOp.value();
-
-		realtype value = 0.0;
-		if (auto integerAttribute = attribute.dyn_cast<IntegerAttribute>())
-			value = integerAttribute.getValue();
-		else if (auto realAttribute = attribute.dyn_cast<RealAttribute>())
-			value = realAttribute.getValue();
+		realtype value = getValue(constantOp);
 
 		initialValueMap[var] = value;
 		assert(!var.isDerivative());
@@ -273,13 +291,7 @@ void IdaSolver::initData()
 
 		op = assignmentOp.source().getDefiningOp();
 		ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
-		mlir::Attribute attribute = constantOp.value();
-
-		realtype value = 0.0;
-		if (auto integerAttribute = attribute.dyn_cast<IntegerAttribute>())
-			value = integerAttribute.getValue();
-		else if (auto realAttribute = attribute.dyn_cast<RealAttribute>())
-			value = realAttribute.getValue();
+		realtype value = getValue(constantOp);
 
 		initialValueMap[var] = value;
 		assert(!var.isDerivative());
@@ -311,10 +323,10 @@ void IdaSolver::initData()
 				// Initialize variablesValues, derivativesValues, idValues.
 				for (size_t i : irange(var.toMultiDimInterval().size()))
 				{
-					assert(initialValueMap.find(var) != initialValueMap.end());
 					variablesValues[rowLength + i] = initialValueMap[var];
 					derivativesValues[rowLength + i] = 0.0;
-					idValues[rowLength + i] = var.isDerivative() ? 1.0 : 0.0;
+					idValues[rowLength + i] =
+							(var.isState() || var.isDerivative()) ? 1.0 : 0.0;
 				}
 
 				// Increase the length of the current row.
@@ -388,16 +400,7 @@ Function IdaSolver::getFunction(const Expression &expression)
 	// Constant value.
 	if (auto op = mlir::dyn_cast<ConstantOp>(definingOp))
 	{
-		mlir::Attribute attribute = op.value();
-		double value = 0.0;
-
-		assert(!attribute.getType().isa<mlir::IndexType>());
-		assert(!attribute.isa<BooleanAttribute>());
-
-		if (auto integerAttribute = attribute.dyn_cast<IntegerAttribute>())
-			value = integerAttribute.getValue();
-		else if (auto realAttribute = attribute.dyn_cast<RealAttribute>())
-			value = realAttribute.getValue();
+		realtype value = getValue(op);
 
 		return [value](
 							 double tt,
@@ -411,7 +414,9 @@ Function IdaSolver::getFunction(const Expression &expression)
 	// Scalar variable reference.
 	if (expression.isReference())
 	{
-		if (expression.getReferredVectorAccess() == model.getOp().time())
+		// Time variable
+		Variable var = model.getVariable(expression.getReferredVectorAccess());
+		if (indexOffsetMap.find(var) == indexOffsetMap.end())
 			return [](double tt,
 								double cj,
 								double *yy,
@@ -419,8 +424,6 @@ Function IdaSolver::getFunction(const Expression &expression)
 								Indexes &ind,
 								double var) -> double { return tt; };
 
-		Variable var = model.getVariable(expression.getReferredVectorAccess());
-		assert(indexOffsetMap.find(var) != indexOffsetMap.end());
 		size_t offset = indexOffsetMap[var];
 
 		if (var.isDerivative())
@@ -770,6 +773,8 @@ Function IdaSolver::getFunction(const Expression &expression)
 			return std::tanh(operand(tt, cj, yy, yp, ind, var));
 		};
 
+	// TODO: Handle CallOp
+
 	assert(false && "Unexpected operation");
 }
 
@@ -778,7 +783,7 @@ Function IdaSolver::getDerFunction(const Expression &expression)
 	mlir::Operation *definingOp = expression.getOp();
 
 	// Constant value.
-	if (auto op = mlir::dyn_cast<ConstantOp>(definingOp))
+	if (mlir::isa<ConstantOp>(definingOp))
 	{
 		return [](double tt,
 							double cj,
@@ -791,7 +796,9 @@ Function IdaSolver::getDerFunction(const Expression &expression)
 	// Scalar variable reference.
 	if (expression.isReference())
 	{
-		if (expression.getReferredVectorAccess() == model.getOp().time())
+		// Time variable
+		Variable var = model.getVariable(expression.getReferredVectorAccess());
+		if (indexOffsetMap.find(var) == indexOffsetMap.end())
 			return [](double tt,
 								double cj,
 								double *yy,
@@ -799,8 +806,6 @@ Function IdaSolver::getDerFunction(const Expression &expression)
 								Indexes &ind,
 								double var) -> double { return 0.0; };
 
-		Variable var = model.getVariable(expression.getReferredVectorAccess());
-		assert(indexOffsetMap.find(var) != indexOffsetMap.end());
 		size_t offset = indexOffsetMap[var];
 
 		if (var.isDerivative())
@@ -1188,6 +1193,8 @@ Function IdaSolver::getDerFunction(const Expression &expression)
 			return (1 - tanhOperandValue * tanhOperandValue) *
 						 derOperand(tt, cj, yy, yp, ind, var);
 		};
+
+	// TODO: Handle CallOp
 
 	assert(false && "Unexpected operation");
 }
