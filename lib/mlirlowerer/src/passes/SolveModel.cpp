@@ -124,7 +124,7 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 		}
 
 		// Replace operation with a new one
-		auto result = rewriter.create<SimulationOp>(op->getLoc(), op.startTime(), op.endTime(), op.timeStep(), op.body().getArgumentTypes());
+		auto result = rewriter.create<SimulationOp>(op->getLoc(),op.variableNames(), op.startTime(), op.endTime(), op.timeStep(), op.body().getArgumentTypes());
 		rewriter.mergeBlocks(&op.init().front(), &result.init().front(), result.init().getArguments());
 		rewriter.mergeBlocks(&op.body().front(), &result.body().front(), result.body().getArguments());
 		rewriter.mergeBlocks(&op.print().front(), &result.print().front(), result.print().getArguments());

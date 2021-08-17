@@ -349,6 +349,9 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 	// Time variable
 	args.push_back(builder.getArrayType(BufferAllocationScope::unknown, builder.getRealType()));
 
+
+    std::vector<mlir::Attribute> variableNames;
+
 	for (const auto& member : model.getMembers())
 	{
 		mlir::Type type = lower(member->getType(), BufferAllocationScope::unknown);
@@ -357,10 +360,19 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 			type = builder.getArrayType(BufferAllocationScope::unknown, type);
 
 		args.push_back(type);
+
+		mlir::StringAttr nameAttribute = builder.getStringAttr(member->getName());
+		variableNames.push_back(nameAttribute);
 	}
+
+    llvm::ArrayRef<mlir::Attribute> attributeArray(variableNames);
+    mlir::ArrayAttr variableNamesAttribute = builder.getArrayAttr(attributeArray);
+
+    //create an operation of  specific op. type at insertion point
 
 	auto simulation = builder.create<SimulationOp>(
 			location,
+            variableNamesAttribute,
 			builder.getRealAttribute(options.startTime),
 			builder.getRealAttribute(options.endTime),
 			builder.getRealAttribute(options.timeStep),

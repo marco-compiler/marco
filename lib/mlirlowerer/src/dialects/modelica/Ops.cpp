@@ -187,10 +187,16 @@ unsigned int ExtractOp::index()
 // Modelica::SimulationOp
 //===----------------------------------------------------------------------===//
 
-void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars)
+mlir::ArrayAttr SimulationOp::variableNames() {
+    return getOperation()->getAttrOfType<mlir::ArrayAttr>("variableNames");
+}
+
+void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr variableNames,
+						 RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
+	state.addAttribute("variableNames", variableNames);
 	state.addAttribute("startTime", startTime);
 	state.addAttribute("endTime", endTime);
 	state.addAttribute("timeStep", timeStep);
@@ -245,6 +251,7 @@ void SimulationOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm:
 	}
 }
 
+
 RealAttribute SimulationOp::startTime()
 {
 	return getOperation()->getAttrOfType<RealAttribute>("startTime");
@@ -285,6 +292,8 @@ mlir::Value SimulationOp::time()
 {
 	return body().getArgument(0);
 }
+
+
 
 //===----------------------------------------------------------------------===//
 // Modelica::EquationOp
