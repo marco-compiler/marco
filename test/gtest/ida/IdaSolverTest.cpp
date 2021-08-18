@@ -21,21 +21,19 @@ TEST(IdaSolverTest, SimpleDerivative)
 	if (failed(idaSolver.init()))
 		FAIL();
 
-	EXPECT_EQ(idaSolver.getData()->rowLength.size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions.size(), 1);
-	EXPECT_EQ(idaSolver.getData()->residuals.size(), 1);
-	EXPECT_EQ(idaSolver.getData()->jacobianMatrix.size(), 1);
+	EXPECT_EQ(idaSolver.getProblemSize(), 1);
+	EXPECT_EQ(idaSolver.getEquationsNumber(), 1);
 
-	EXPECT_EQ(idaSolver.getData()->rowLength[0], 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0].size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].first, 0);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].second, 1);
+	EXPECT_EQ(idaSolver.getRowLength(0), 1);
+	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 1);
 
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_NEAR(idaSolver.getVariables()[0], 2.0 * idaSolver.getTime(), 1e-4);
-	EXPECT_EQ(idaSolver.getDerivatives()[0], 2.0);
+	EXPECT_NEAR(idaSolver.getVariable(0), 2.0 * idaSolver.getTime(), 1e-4);
+	EXPECT_EQ(idaSolver.getDerivative(0), 2.0);
 
 	if (failed(idaSolver.free()))
 		FAIL();
@@ -59,31 +57,29 @@ TEST(IdaSolverTest, DoubleDerivative)
 	if (failed(idaSolver.init()))
 		FAIL();
 
-	EXPECT_EQ(idaSolver.getData()->rowLength.size(), 2);
-	EXPECT_EQ(idaSolver.getData()->dimensions.size(), 2);
-	EXPECT_EQ(idaSolver.getData()->residuals.size(), 2);
-	EXPECT_EQ(idaSolver.getData()->jacobianMatrix.size(), 2);
+	EXPECT_EQ(idaSolver.getProblemSize(), 2);
+	EXPECT_EQ(idaSolver.getEquationsNumber(), 2);
 
-	EXPECT_EQ(idaSolver.getData()->rowLength[0], 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0].size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].first, 0);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].second, 1);
+	EXPECT_EQ(idaSolver.getRowLength(0), 1);
+	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 1);
 
-	EXPECT_EQ(idaSolver.getData()->rowLength[1], 2);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1].size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1][0].first, 0);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1][0].second, 1);
+	EXPECT_EQ(idaSolver.getRowLength(1), 2);
+	EXPECT_EQ(idaSolver.getDimension(1).size(), 1);
+	EXPECT_EQ(idaSolver.getDimension(1)[0].first, 0);
+	EXPECT_EQ(idaSolver.getDimension(1)[0].second, 1);
 
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_NEAR(idaSolver.getVariables()[0], 2.0 * idaSolver.getTime(), 1e-4);
+	EXPECT_NEAR(idaSolver.getVariable(0), 2.0 * idaSolver.getTime(), 1e-4);
 	EXPECT_NEAR(
-			idaSolver.getVariables()[1],
+			idaSolver.getVariable(1),
 			idaSolver.getTime() * idaSolver.getTime() / 2.0,
 			1e-4);
-	EXPECT_NEAR(idaSolver.getDerivatives()[0], 2.0, 1e-4);
-	EXPECT_NEAR(idaSolver.getDerivatives()[1], idaSolver.getTime(), 1e-4);
+	EXPECT_NEAR(idaSolver.getDerivative(0), 2.0, 1e-4);
+	EXPECT_NEAR(idaSolver.getDerivative(1), idaSolver.getTime(), 1e-4);
 
 	if (failed(idaSolver.free()))
 		FAIL();
@@ -107,21 +103,19 @@ TEST(IdaSolverTest, SimpleDerWithSubstitution)
 	if (failed(idaSolver.init()))
 		FAIL();
 
-	EXPECT_EQ(idaSolver.getData()->rowLength.size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions.size(), 1);
-	EXPECT_EQ(idaSolver.getData()->residuals.size(), 1);
-	EXPECT_EQ(idaSolver.getData()->jacobianMatrix.size(), 1);
+	EXPECT_EQ(idaSolver.getProblemSize(), 1);
+	EXPECT_EQ(idaSolver.getEquationsNumber(), 1);
 
-	EXPECT_EQ(idaSolver.getData()->rowLength[0], 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0].size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].first, 0);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].second, 1);
+	EXPECT_EQ(idaSolver.getRowLength(0), 1);
+	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 1);
 
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_NEAR(idaSolver.getVariables()[0], 2.0 * idaSolver.getTime(), 1e-4);
-	EXPECT_EQ(idaSolver.getDerivatives()[0], 2.0);
+	EXPECT_NEAR(idaSolver.getVariable(0), 2.0 * idaSolver.getTime(), 1e-4);
+	EXPECT_EQ(idaSolver.getDerivative(0), 2.0);
 
 	if (failed(idaSolver.free()))
 		FAIL();
@@ -147,28 +141,26 @@ TEST(IdaSolverTest, DerivativeArray)
 	if (failed(idaSolver.init()))
 		FAIL();
 
-	EXPECT_EQ(idaSolver.getData()->rowLength.size(), 2);
-	EXPECT_EQ(idaSolver.getData()->dimensions.size(), 2);
-	EXPECT_EQ(idaSolver.getData()->residuals.size(), 2);
-	EXPECT_EQ(idaSolver.getData()->jacobianMatrix.size(), 2);
+	EXPECT_EQ(idaSolver.getProblemSize(), 2);
+	EXPECT_EQ(idaSolver.getEquationsNumber(), 10);
 
-	EXPECT_EQ(idaSolver.getData()->rowLength[0], 10);
-	EXPECT_EQ(idaSolver.getData()->rowLength[1], 10);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0].size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1].size(), 1);
+	EXPECT_EQ(idaSolver.getRowLength(0), 10);
+	EXPECT_EQ(idaSolver.getRowLength(1), 10);
+	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
+	EXPECT_EQ(idaSolver.getDimension(1).size(), 1);
 
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].first, 0);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].second, 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1][0].first, 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1][0].second, 10);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 1);
+	EXPECT_EQ(idaSolver.getDimension(1)[0].first, 1);
+	EXPECT_EQ(idaSolver.getDimension(1)[0].second, 10);
 
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_NEAR(idaSolver.getVariables()[0], 1 + 0.2 * idaSolver.getTime(), 1e-4);
-	EXPECT_NEAR(idaSolver.getVariables()[1], 1 + 0.4 * idaSolver.getTime(), 1e-4);
-	EXPECT_NEAR(idaSolver.getDerivatives()[0], 0.2, 1e-4);
-	EXPECT_NEAR(idaSolver.getDerivatives()[1], 0.4, 1e-4);
+	EXPECT_NEAR(idaSolver.getVariable(0), 1 + 0.2 * idaSolver.getTime(), 1e-4);
+	EXPECT_NEAR(idaSolver.getVariable(1), 1 + 0.4 * idaSolver.getTime(), 1e-4);
+	EXPECT_NEAR(idaSolver.getDerivative(0), 0.2, 1e-4);
+	EXPECT_NEAR(idaSolver.getDerivative(1), 0.4, 1e-4);
 
 	if (failed(idaSolver.free()))
 		FAIL();
@@ -197,32 +189,30 @@ TEST(IdaSolverTest, MultidimensionalDerivative)
 	if (failed(idaSolver.init()))
 		FAIL();
 
-	EXPECT_EQ(idaSolver.getData()->rowLength.size(), 2);
-	EXPECT_EQ(idaSolver.getData()->dimensions.size(), 2);
-	EXPECT_EQ(idaSolver.getData()->residuals.size(), 2);
-	EXPECT_EQ(idaSolver.getData()->jacobianMatrix.size(), 2);
+	EXPECT_EQ(idaSolver.getProblemSize(), 2);
+	EXPECT_EQ(idaSolver.getEquationsNumber(), 12);
 
-	EXPECT_EQ(idaSolver.getData()->rowLength[0], 12);
-	EXPECT_EQ(idaSolver.getData()->rowLength[1], 12);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0].size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1].size(), 2);
+	EXPECT_EQ(idaSolver.getRowLength(0), 12);
+	EXPECT_EQ(idaSolver.getRowLength(1), 12);
+	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
+	EXPECT_EQ(idaSolver.getDimension(1).size(), 2);
 
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].first, 0);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].second, 3);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1][0].first, 0);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1][0].second, 3);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1][1].first, 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1][1].second, 4);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 3);
+	EXPECT_EQ(idaSolver.getDimension(1)[0].first, 0);
+	EXPECT_EQ(idaSolver.getDimension(1)[0].second, 3);
+	EXPECT_EQ(idaSolver.getDimension(1)[1].first, 1);
+	EXPECT_EQ(idaSolver.getDimension(1)[1].second, 4);
 
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_NEAR(idaSolver.getVariables()[0], 1.0 * idaSolver.getTime(), 1e-4);
-	EXPECT_NEAR(idaSolver.getVariables()[1], 2.0 * idaSolver.getTime(), 1e-4);
-	EXPECT_NEAR(idaSolver.getVariables()[4], 1.0 * idaSolver.getTime(), 1e-4);
-	EXPECT_EQ(idaSolver.getDerivatives()[0], 1.0);
-	EXPECT_EQ(idaSolver.getDerivatives()[1], 2.0);
-	EXPECT_EQ(idaSolver.getDerivatives()[4], 1.0);
+	EXPECT_NEAR(idaSolver.getVariable(0), 1.0 * idaSolver.getTime(), 1e-4);
+	EXPECT_NEAR(idaSolver.getVariable(1), 2.0 * idaSolver.getTime(), 1e-4);
+	EXPECT_NEAR(idaSolver.getVariable(4), 1.0 * idaSolver.getTime(), 1e-4);
+	EXPECT_EQ(idaSolver.getDerivative(0), 1.0);
+	EXPECT_EQ(idaSolver.getDerivative(1), 2.0);
+	EXPECT_EQ(idaSolver.getDerivative(4), 1.0);
 
 	if (failed(idaSolver.free()))
 		FAIL();
@@ -250,31 +240,29 @@ TEST(IdaSolverTest, MultipleArraysWithState)
 	if (failed(idaSolver.init()))
 		FAIL();
 
-	EXPECT_EQ(idaSolver.getData()->rowLength.size(), 2);
-	EXPECT_EQ(idaSolver.getData()->dimensions.size(), 2);
-	EXPECT_EQ(idaSolver.getData()->residuals.size(), 2);
-	EXPECT_EQ(idaSolver.getData()->jacobianMatrix.size(), 2);
+	EXPECT_EQ(idaSolver.getProblemSize(), 2);
+	EXPECT_EQ(idaSolver.getEquationsNumber(), 10);
 
-	EXPECT_EQ(idaSolver.getData()->rowLength[0], 5);
-	EXPECT_EQ(idaSolver.getData()->rowLength[1], 10);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0].size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1].size(), 1);
+	EXPECT_EQ(idaSolver.getRowLength(0), 5);
+	EXPECT_EQ(idaSolver.getRowLength(1), 10);
+	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
+	EXPECT_EQ(idaSolver.getDimension(1).size(), 1);
 
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].first, 0);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].second, 5);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1][0].first, 0);
-	EXPECT_EQ(idaSolver.getData()->dimensions[1][0].second, 5);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 5);
+	EXPECT_EQ(idaSolver.getDimension(1)[0].first, 0);
+	EXPECT_EQ(idaSolver.getDimension(1)[0].second, 5);
 
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_NEAR(idaSolver.getVariables()[0], idaSolver.getTime(), 1e-4);
+	EXPECT_NEAR(idaSolver.getVariable(0), idaSolver.getTime(), 1e-4);
 	EXPECT_NEAR(
-			idaSolver.getVariables()[5],
+			idaSolver.getVariable(5),
 			(3.0 + idaSolver.getTime() / 2) * idaSolver.getTime(),
 			1e-4);
-	EXPECT_NEAR(idaSolver.getDerivatives()[0], 1.0, 1e-4);
-	EXPECT_NEAR(idaSolver.getDerivatives()[5], 3.0 + idaSolver.getTime(), 1e-4);
+	EXPECT_NEAR(idaSolver.getDerivative(0), 1.0, 1e-4);
+	EXPECT_NEAR(idaSolver.getDerivative(5), 3.0 + idaSolver.getTime(), 1e-4);
 
 	if (failed(idaSolver.free()))
 		FAIL();
@@ -300,32 +288,28 @@ TEST(IdaSolverTest, AlgebraicLoop)
 	if (failed(idaSolver.init()))
 		FAIL();
 
-	EXPECT_EQ(idaSolver.getData()->rowLength.size(), 5);
-	EXPECT_EQ(idaSolver.getData()->dimensions.size(), 5);
-	EXPECT_EQ(idaSolver.getData()->residuals.size(), 5);
-	EXPECT_EQ(idaSolver.getData()->jacobianMatrix.size(), 5);
+	EXPECT_EQ(idaSolver.getProblemSize(), 5);
+	EXPECT_EQ(idaSolver.getEquationsNumber(), 5);
 
 	for (size_t i : modelica::irange(5))
 	{
-		EXPECT_EQ(idaSolver.getData()->rowLength[i], 5);
-		EXPECT_EQ(idaSolver.getData()->dimensions[i].size(), 1);
-		EXPECT_EQ(idaSolver.getData()->dimensions[i][0].first, 0);
-		EXPECT_EQ(idaSolver.getData()->dimensions[i][0].second, 1);
+		EXPECT_EQ(idaSolver.getRowLength(i), 5);
+		EXPECT_EQ(idaSolver.getDimension(i).size(), 1);
+		EXPECT_EQ(idaSolver.getDimension(i)[0].first, 0);
+		EXPECT_EQ(idaSolver.getDimension(i)[0].second, 1);
 	}
 
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_EQ(idaSolver.getVariables()[0], 3.0);
-	EXPECT_EQ(idaSolver.getVariables()[1], -1.0);
-	EXPECT_EQ(idaSolver.getVariables()[2], 0.0);
-	EXPECT_EQ(idaSolver.getVariables()[3], 1.0);
-	EXPECT_EQ(idaSolver.getVariables()[4], 4.0);
+	EXPECT_EQ(idaSolver.getVariable(0), 3.0);
+	EXPECT_EQ(idaSolver.getVariable(1), -1.0);
+	EXPECT_EQ(idaSolver.getVariable(2), 0.0);
+	EXPECT_EQ(idaSolver.getVariable(3), 1.0);
+	EXPECT_EQ(idaSolver.getVariable(4), 4.0);
 
 	for (size_t i : modelica::irange(5))
-	{
-		EXPECT_EQ(idaSolver.getDerivatives()[i], 0.0);
-	}
+		EXPECT_EQ(idaSolver.getDerivative(i), 0.0);
 
 	if (failed(idaSolver.free()))
 		FAIL();
@@ -347,20 +331,18 @@ TEST(IdaSolverTest, ImplicitEquation)
 	if (failed(idaSolver.init()))
 		FAIL();
 
-	EXPECT_EQ(idaSolver.getData()->rowLength.size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions.size(), 1);
-	EXPECT_EQ(idaSolver.getData()->residuals.size(), 1);
-	EXPECT_EQ(idaSolver.getData()->jacobianMatrix.size(), 1);
+	EXPECT_EQ(idaSolver.getProblemSize(), 1);
+	EXPECT_EQ(idaSolver.getEquationsNumber(), 1);
 
-	EXPECT_EQ(idaSolver.getData()->rowLength[0], 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0].size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].first, 0);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].second, 1);
+	EXPECT_EQ(idaSolver.getRowLength(0), 1);
+	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 1);
 
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_NEAR(idaSolver.getVariables()[0], 1.7392, 1e-4);
+	EXPECT_NEAR(idaSolver.getVariable(0), 1.7392, 1e-4);
 
 	if (failed(idaSolver.free()))
 		FAIL();
@@ -384,21 +366,19 @@ TEST(IdaSolverTest, ImplicitEqKepler)
 	if (failed(idaSolver.init()))
 		FAIL();
 
-	EXPECT_EQ(idaSolver.getData()->rowLength.size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions.size(), 1);
-	EXPECT_EQ(idaSolver.getData()->residuals.size(), 1);
-	EXPECT_EQ(idaSolver.getData()->jacobianMatrix.size(), 1);
+	EXPECT_EQ(idaSolver.getProblemSize(), 1);
+	EXPECT_EQ(idaSolver.getEquationsNumber(), 2);
 
-	EXPECT_EQ(idaSolver.getData()->rowLength[0], 2);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0].size(), 1);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].first, 0);
-	EXPECT_EQ(idaSolver.getData()->dimensions[0][0].second, 2);
+	EXPECT_EQ(idaSolver.getRowLength(0), 2);
+	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 2);
 
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_NEAR(idaSolver.getVariables()[0], 3.6577, 1e-4);
-	EXPECT_NEAR(idaSolver.getVariables()[1], 3.6577, 1e-4);
+	EXPECT_NEAR(idaSolver.getVariable(0), 3.6577, 1e-4);
+	EXPECT_NEAR(idaSolver.getVariable(1), 3.6577, 1e-4);
 
 	if (failed(idaSolver.free()))
 		FAIL();
