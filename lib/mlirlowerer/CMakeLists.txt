@@ -61,7 +61,6 @@ target_link_libraries(mlirlowerer
         PUBLIC marco::runtime
         PRIVATE ${MLIR_LIBS}
         PRIVATE pthread
-        PRIVATE boost
-        PRIVATE sundials)
+        PRIVATE boost)
 
 add_compile_definitions(RUNTIME_LIBRARY="$<TARGET_FILE:runtime>")
