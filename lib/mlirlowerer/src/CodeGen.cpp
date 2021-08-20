@@ -415,7 +415,7 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 	}
 
 	{
-		// Print
+		/* AL  Print
 		builder.setInsertionPointToStart(&simulation.print().front());
 
 		llvm::SmallVector<mlir::Value, 3> variablesToBePrinted;
@@ -436,7 +436,8 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 			variablesToBePrinted.push_back(simulation.print().getArgument(index));
 		}
 
-		builder.create<YieldOp>(location, variablesToBePrinted);
+
+		builder.create<YieldOp>(location, variablesToBePrinted); */
 	}
 
 	return simulation;

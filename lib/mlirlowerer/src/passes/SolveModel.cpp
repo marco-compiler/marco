@@ -105,11 +105,11 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 				}
 
 				{
-					// Fix print argument
+					/* Fix print argument
 					auto originalArgument = op.print().getArgument(index);
 					auto newArgument = op.print().insertArgument(index + 1, value.getType().cast<ArrayType>().toUnknownAllocationScope());
 					originalArgument.replaceAllUsesWith(newArgument);
-					op.print().eraseArgument(index);
+					op.print().eraseArgument(index); AL */
 				}
 			}
 
@@ -127,7 +127,8 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 		auto result = rewriter.create<SimulationOp>(op->getLoc(),op.variableNames(), op.startTime(), op.endTime(), op.timeStep(), op.body().getArgumentTypes());
 		rewriter.mergeBlocks(&op.init().front(), &result.init().front(), result.init().getArguments());
 		rewriter.mergeBlocks(&op.body().front(), &result.body().front(), result.body().getArguments());
-		rewriter.mergeBlocks(&op.print().front(), &result.print().front(), result.print().getArguments());
+
+		//AL rewriter.mergeBlocks(&op.print().front(), &result.print().front(), result.print().getArguments());
 
 		//rewriter.setInsertionPointToStart(&result.body().front());
 		//rewriter.create<YieldOp>(op->getLoc());
@@ -408,7 +409,8 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 
 			auto newArgumentType = derVar.getType().cast<ArrayType>().toUnknownAllocationScope();
 			auto bodyArgument = simulation.body().addArgument(newArgumentType);
-			simulation.print().addArgument(newArgumentType);
+
+			//AL simulation.print().addArgument(newArgumentType);
 
 			derivatives->map(operand, bodyArgument);
 		}
@@ -615,18 +617,18 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 			mlir::Value structValue = loadDataFromOpaquePtr(rewriter, loc, function.getArgument(0), structType);
 			mlir::BlockAndValueMapping mapping;
 
-			mapping.map(op.print().getArgument(0), rewriter.create<ExtractOp>(loc, varTypes[0], structValue, 0));
+			//AL mapping.map(op.print().getArgument(0), rewriter.create<ExtractOp>(loc, varTypes[0], structValue, 0));
 
 			for (size_t i = 2, e = structType.getElementTypes().size(); i < e; ++i)
-				mapping.map(op.print().getArgument(i - 1), rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i));
+                //AL mapping.map(op.print().getArgument(i - 1), rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i));
 
-			auto terminator = mlir::cast<YieldOp>(op.print().front().getTerminator());
+			//AL auto terminator = mlir::cast<YieldOp>(op.print().front().getTerminator());
 			llvm::SmallVector<mlir::Value, 3> valuesToBePrinted;
 
-			for (mlir::Value value : terminator.values())
+			/* AL for (mlir::Value value : terminator.values())
 				valuesToBePrinted.push_back(mapping.lookup(value));
 
-			rewriter.create<PrintOp>(loc, valuesToBePrinted);
+			rewriter.create<PrintOp>(loc, valuesToBePrinted); */
 
 			rewriter.create<mlir::ReturnOp>(loc);
 		}

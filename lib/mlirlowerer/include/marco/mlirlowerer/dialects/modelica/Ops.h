@@ -140,7 +140,7 @@ namespace marco::codegen::modelica
 	};
 
 	class SimulationOp : public mlir::Op<SimulationOp,
-																			mlir::OpTrait::NRegions<3>::Impl,
+																			mlir::OpTrait::NRegions<2>::Impl,
 																			mlir::OpTrait::ZeroOperands,
 																			mlir::OpTrait::ZeroResult,
 																			mlir::RegionBranchOpInterface::Trait,
@@ -170,7 +170,6 @@ namespace marco::codegen::modelica
 
 		mlir::Region& init();
 		mlir::Region& body();
-		mlir::Region& print();
 
 		mlir::Value getVariableAllocation(mlir::Value var);
 

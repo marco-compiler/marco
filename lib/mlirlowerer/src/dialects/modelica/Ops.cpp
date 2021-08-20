@@ -207,8 +207,6 @@ void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 	// Body block
 	builder.createBlock(state.addRegion(), {}, vars);
 
-	// Print block
-	builder.createBlock(state.addRegion(), {}, vars);
 }
 
 void SimulationOp::print(mlir::OpAsmPrinter& printer)
@@ -224,8 +222,8 @@ void SimulationOp::print(mlir::OpAsmPrinter& printer)
 	printer << " step";
 	printer.printRegion(body(), true);
 
-	printer << " print";
-	printer.printRegion(print(), true);
+	//printer << " print";
+	//printer.printRegion(print(), true);
 }
 
 mlir::LogicalResult SimulationOp::verify()
@@ -275,11 +273,6 @@ mlir::Region& SimulationOp::init()
 mlir::Region& SimulationOp::body()
 {
 	return getOperation()->getRegion(1);
-}
-
-mlir::Region& SimulationOp::print()
-{
-	return getOperation()->getRegion(2);
 }
 
 mlir::Value SimulationOp::getVariableAllocation(mlir::Value var)
