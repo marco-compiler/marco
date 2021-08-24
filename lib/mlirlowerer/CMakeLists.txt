@@ -1,5 +1,10 @@
 marcoAddLibrary(
         mlirlowerer SHARED
+        src/dialects/modelica/Attribute.cpp
+        src/dialects/modelica/ModelicaBuilder.cpp
+        src/dialects/modelica/ModelicaDialect.cpp
+        src/dialects/modelica/Ops.cpp
+        src/dialects/modelica/Type.cpp
         src/passes/matching/Edge.cpp
         src/passes/matching/Flow.cpp
         src/passes/matching/LinSolver.cpp
@@ -30,13 +35,8 @@ marcoAddLibrary(
         src/passes/ResultBuffersToArgs.cpp
         src/passes/SolveModel.cpp
         src/passes/TypeConverter.cpp
-        src/Attribute.cpp
         src/CodeGen.cpp
-        src/ModelicaBuilder.cpp
-        src/ModelicaDialect.cpp
-        src/Ops.cpp
         src/Runner.cpp
-        src/Type.cpp
 )
 
 target_link_libraries(

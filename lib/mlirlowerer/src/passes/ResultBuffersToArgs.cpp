@@ -1,5 +1,5 @@
 #include <mlir/Conversion/Passes.h>
-#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <marco/mlirlowerer/passes/ResultBuffersToArgs.h>
 
 using namespace marco::codegen;

@@ -2,8 +2,8 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/FunctionImplementation.h>
 #include <mlir/IR/OpImplementation.h>
-#include <marco/mlirlowerer/Attribute.h>
-#include <marco/mlirlowerer/Ops.h>
+#include <marco/mlirlowerer/dialects/modelica/Attribute.h>
+#include <marco/mlirlowerer/dialects/modelica/Ops.h>
 
 using namespace marco::codegen;
 

@@ -5,7 +5,7 @@
 #include <mlir/Support/MathExtras.h>
 #include <marco/mlirlowerer/passes/LowerToLLVM.h>
 #include <marco/mlirlowerer/passes/TypeConverter.h>
-#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 
 using namespace marco::codegen;
 

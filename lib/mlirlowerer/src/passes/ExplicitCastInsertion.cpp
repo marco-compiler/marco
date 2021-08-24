@@ -3,7 +3,7 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/FunctionSupport.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <marco/mlirlowerer/passes/ExplicitCastInsertion.h>
 
 using namespace marco::codegen;

@@ -3,7 +3,7 @@
 #include <llvm/Support/Error.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/Operation.h>
-#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <marco/utils/IndexSet.hpp>
 
 #include "Expression.h"

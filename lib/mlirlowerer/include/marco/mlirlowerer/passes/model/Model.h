@@ -5,7 +5,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <memory>
 #include <mlir/IR/Value.h>
-#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <set>
 
 #include "Equation.h"

@@ -7,17 +7,9 @@
 #include <mlir/IR/MLIRContext.h>
 #include <marco/frontend/AST.h>
 #include <marco/frontend/SymbolTable.hpp>
-#include <marco/matching/Matching.hpp>
-#include <marco/matching/SccCollapsing.hpp>
-#include <marco/matching/Schedule.hpp>
-#include <marco/model/ModType.hpp>
-#include <marco/model/Model.hpp>
-#include <marco/omcToModel/OmcToModelPass.hpp>
-#include <marco/passes/ConstantFold.hpp>
-#include <marco/passes/SolveModel.hpp>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaBuilder.h>
 #include <marco/utils/SourcePosition.h>
 
-#include "ModelicaBuilder.h"
 #include "Passes.h"
 
 namespace marco::codegen

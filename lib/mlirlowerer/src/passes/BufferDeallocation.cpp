@@ -1,7 +1,7 @@
 #include <mlir/Transforms/BufferUtils.h>
 #include <mlir/Transforms/Passes.h>
 #include <marco/mlirlowerer/passes/BufferDeallocation.h>
-#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 
 using namespace mlir;
 using namespace marco::codegen;

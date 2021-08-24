@@ -9,7 +9,7 @@
 #include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
 #include <marco/mlirlowerer/passes/model/Variable.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
-#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <marco/utils/IndexSet.hpp>
 #include <numeric>
 

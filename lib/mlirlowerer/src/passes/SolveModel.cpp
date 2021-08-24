@@ -4,8 +4,8 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <marco/mlirlowerer/ModelicaBuilder.h>
-#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaBuilder.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <marco/mlirlowerer/passes/SolveModel.h>
 #include <marco/mlirlowerer/passes/matching/Matching.h>
 #include <marco/mlirlowerer/passes/matching/SCCCollapsing.h>

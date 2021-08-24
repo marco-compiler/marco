@@ -6,8 +6,8 @@
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
-#include <marco/mlirlowerer/ModelicaBuilder.h>
-#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaBuilder.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 
 using namespace marco::codegen;
 using namespace marco::codegen::model;

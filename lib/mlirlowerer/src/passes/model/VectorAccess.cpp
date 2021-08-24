@@ -1,6 +1,6 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
-#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/Reference.h>

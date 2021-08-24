@@ -5,7 +5,7 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinDialect.h>
 #include <mlir/IR/MLIRContext.h>
-#include <marco/mlirlowerer/Type.h>
+#include <marco/mlirlowerer/dialects/modelica/Type.h>
 
 namespace marco::codegen
 {

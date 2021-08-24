@@ -1,6 +1,6 @@
 #include <mlir/Conversion/Passes.h>
 #include <mlir/Dialect/SCF/SCF.h>
-#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <marco/mlirlowerer/passes/FunctionsVectorization.h>
 
 using namespace marco::codegen;

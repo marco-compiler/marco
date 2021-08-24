@@ -6,7 +6,7 @@
 #include <marco/frontend/AST.h>
 #include <marco/frontend/SymbolTable.hpp>
 #include <marco/mlirlowerer/CodeGen.h>
-#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <numeric>
 
 using namespace marco;
