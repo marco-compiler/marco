@@ -1,9 +1,9 @@
 #include <boost/range/iterator_range_core.hpp>
 #include <iterator>
-#include <modelica/mlirlowerer/passes/matching/SCCDependencyGraph.h>
-#include <modelica/mlirlowerer/passes/matching/VVarDependencyGraph.h>
+#include <marco/mlirlowerer/passes/matching/SCCDependencyGraph.h>
+#include <marco/mlirlowerer/passes/matching/VVarDependencyGraph.h>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 SCCDependencyGraph::SCCDependencyGraph(VVarDependencyGraph& originalGraph)
 		: sccLookup(originalGraph), originalGraph(originalGraph)

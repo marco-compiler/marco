@@ -1,7 +1,7 @@
-#include <modelica/mlirlowerer/passes/matching/Edge.h>
-#include <modelica/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/matching/Edge.h>
+#include <marco/mlirlowerer/passes/model/Equation.h>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 Edge::Edge(Equation equation,
 					 Variable variable,
@@ -37,22 +37,22 @@ const VectorAccess& Edge::getInvertedAccess() const
 	return invertedAccess;
 }
 
-modelica::IndexSet& Edge::getSet()
+marco::IndexSet& Edge::getSet()
 {
 	return set;
 }
 
-const modelica::IndexSet& Edge::getSet() const
+const marco::IndexSet& Edge::getSet() const
 {
 	return set;
 }
 
-modelica::IndexSet Edge::map(const IndexSet& set) const
+marco::IndexSet Edge::map(const IndexSet& set) const
 {
 	return vectorAccess.map(set);
 }
 
-modelica::IndexSet Edge::invertMap(const IndexSet& set) const
+marco::IndexSet Edge::invertMap(const IndexSet& set) const
 {
 	return invertedAccess.map(set);
 }

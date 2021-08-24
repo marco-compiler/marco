@@ -1,19 +1,19 @@
-#include "modelica/model/ModParser.hpp"
+#include "marco/model/ModParser.hpp"
 
 #include <memory>
 #include <utility>
 
 #include "llvm/ADT/STLExtras.h"
-#include "modelica/model/ModEqTemplate.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModErrors.hpp"
-#include "modelica/model/ModLexerStateMachine.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/model/Model.hpp"
-#include "modelica/model/VectorAccess.hpp"
-#include "modelica/utils/Interval.hpp"
+#include "marco/model/ModEqTemplate.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModErrors.hpp"
+#include "marco/model/ModLexerStateMachine.hpp"
+#include "marco/model/ModVariable.hpp"
+#include "marco/model/Model.hpp"
+#include "marco/model/VectorAccess.hpp"
+#include "marco/utils/Interval.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 using namespace std;
 
@@ -25,7 +25,7 @@ llvm::Expected<bool> ModParser::expect(ModToken t)
 	return make_error<UnexpectedModToken>(current, t, getPosition());
 }
 
-#include "modelica/utils/ParserUtils.hpp"
+#include "marco/utils/ParserUtils.hpp"
 
 Expected<string> ModParser::reference()
 {

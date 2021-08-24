@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
 #include <llvm/Support/Error.h>
-#include <modelica/frontend/Parser.h>
-#include <modelica/frontend/Passes.h>
-#include <modelica/utils/ErrorTest.hpp>
+#include <marco/frontend/Parser.h>
+#include <marco/frontend/Passes.h>
+#include <marco/utils/ErrorTest.hpp>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 using namespace std;
 
 TEST(TypeChecking, arrayOfIntegers)	// NOLINT

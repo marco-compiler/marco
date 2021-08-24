@@ -1,4 +1,4 @@
-modelicaAddTest(
+marcoAddTest(
 	utils
    	src/DefaultTest.cpp
    	src/LexerTest.cpp

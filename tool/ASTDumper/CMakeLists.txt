@@ -1,3 +1,3 @@
-modelicaAddTool(
+marcoAddTool(
 	ASTDumper
-   	modelica::frontend)
+   	marco::frontend)

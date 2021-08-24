@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include <modelica/frontend/AST.h>
-#include <modelica/frontend/Parser.h>
+#include <marco/frontend/AST.h>
+#include <marco/frontend/Parser.h>
 
-using namespace modelica;
+using namespace marco;
 using namespace frontend;
 
 TEST(AST, singleElementTupleCanBeBuilt)	 // NOLINT

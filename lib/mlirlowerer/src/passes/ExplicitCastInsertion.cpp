@@ -3,10 +3,10 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/FunctionSupport.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/mlirlowerer/passes/ExplicitCastInsertion.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/ExplicitCastInsertion.h>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
 struct CallOpScalarPattern : public mlir::OpRewritePattern<CallOp>
 {
@@ -202,7 +202,7 @@ class ExplicitCastInsertionPass: public mlir::PassWrapper<ExplicitCastInsertionP
 	}
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createExplicitCastInsertionPass()
+std::unique_ptr<mlir::Pass> marco::codegen::createExplicitCastInsertionPass()
 {
 	return std::make_unique<ExplicitCastInsertionPass>();
 }

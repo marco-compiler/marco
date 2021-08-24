@@ -1,8 +1,8 @@
-#include <modelica/frontend/AST.h>
-#include <modelica/utils/IRange.hpp>
+#include <marco/frontend/AST.h>
+#include <marco/utils/IRange.hpp>
 #include <numeric>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Tuple::Tuple(SourceRange location,
 						 Type type,
@@ -35,7 +35,7 @@ Tuple& Tuple::operator=(const Tuple& other)
 
 Tuple& Tuple::operator=(Tuple&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Tuple& first, Tuple& second)
 	{
@@ -140,7 +140,7 @@ Tuple::const_iterator Tuple::end() const
 	return expressions.end();
 }
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Tuple& obj)
 	{

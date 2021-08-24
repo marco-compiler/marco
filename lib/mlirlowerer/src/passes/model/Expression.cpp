@@ -1,12 +1,12 @@
 #include <llvm/ADT/SmallVector.h>
-#include <modelica/mlirlowerer/passes/model/Constant.h>
-#include <modelica/mlirlowerer/passes/model/Expression.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/Operation.h>
-#include <modelica/mlirlowerer/passes/model/Reference.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/mlirlowerer/passes/model/Constant.h>
+#include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/Operation.h>
+#include <marco/mlirlowerer/passes/model/Reference.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 Expression::Impl::Impl(mlir::Operation* op, Constant content)
 		: op(op), content(content), name(op->getName().getStringRef().str())

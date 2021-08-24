@@ -10,7 +10,7 @@
 using namespace llvm;
 using namespace std;
 
-namespace modelica
+namespace marco
 {
 	Expected<Value*> invoke(
 			LowererContext& info,
@@ -64,4 +64,4 @@ namespace modelica
 		auto* alloca = info.allocaModType(call.getType());
 		return lowerCall(alloca, info, call);
 	}
-}	 // namespace modelica
+}	 // namespace marco

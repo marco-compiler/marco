@@ -1,9 +1,9 @@
-#include "modelica/utils/ThreadPool.hpp"
+#include "marco/utils/ThreadPool.hpp"
 
 #include <functional>
 
 using namespace std;
-using namespace modelica;
+using namespace marco;
 
 void Thread::run()
 {

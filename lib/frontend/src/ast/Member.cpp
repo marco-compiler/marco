@@ -1,6 +1,6 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica;
+using namespace marco;
 using namespace frontend;
 
 Member::Member(
@@ -59,7 +59,7 @@ Member& Member::operator=(const Member& other)
 
 Member& Member::operator=(Member&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Member& first, Member& second)
 	{

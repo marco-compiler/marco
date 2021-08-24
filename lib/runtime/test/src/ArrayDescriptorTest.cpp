@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <modelica/runtime/Runtime.h>
+#include <marco/runtime/Runtime.h>
 
 TEST(Runtime, arrayDescriptor1D)	 // NOLINT
 {

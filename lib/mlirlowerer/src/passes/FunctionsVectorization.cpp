@@ -1,9 +1,9 @@
 #include <mlir/Conversion/Passes.h>
 #include <mlir/Dialect/SCF/SCF.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/mlirlowerer/passes/FunctionsVectorization.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/FunctionsVectorization.h>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
 static unsigned int getVectorizationRank(VectorizableOpInterface op)
 {
@@ -210,7 +210,7 @@ class FunctionsVectorizationPass: public mlir::PassWrapper<FunctionsVectorizatio
 	FunctionsVectorizationOptions options;
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createFunctionsVectorizationPass(FunctionsVectorizationOptions options)
+std::unique_ptr<mlir::Pass> marco::codegen::createFunctionsVectorizationPass(FunctionsVectorizationOptions options)
 {
 	return std::make_unique<FunctionsVectorizationPass>(options);
 }

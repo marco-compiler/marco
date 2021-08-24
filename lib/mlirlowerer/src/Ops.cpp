@@ -2,10 +2,10 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/FunctionImplementation.h>
 #include <mlir/IR/OpImplementation.h>
-#include <modelica/mlirlowerer/Attribute.h>
-#include <modelica/mlirlowerer/Ops.h>
+#include <marco/mlirlowerer/Attribute.h>
+#include <marco/mlirlowerer/Ops.h>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
 static bool isNumeric(mlir::Type type)
 {

@@ -1,8 +1,8 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(
 			llvm::raw_ostream& stream, const ParameterQualifier& obj)

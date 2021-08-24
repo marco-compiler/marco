@@ -1,24 +1,24 @@
-#include "modelica/omcToModel/OmcToModelPass.hpp"
+#include "marco/omcToModel/OmcToModelPass.hpp"
 
 #include <numeric>
 
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/frontend/AST.h"
-#include "modelica/frontend/Errors.h"
-#include "modelica/frontend/SymbolTable.hpp"
-#include "modelica/model/Assigment.hpp"
-#include "modelica/model/ModCall.hpp"
-#include "modelica/model/ModConst.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModErrors.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModType.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/utils/IRange.hpp"
-#include "modelica/utils/Interval.hpp"
+#include "marco/frontend/AST.h"
+#include "marco/frontend/Errors.h"
+#include "marco/frontend/SymbolTable.hpp"
+#include "marco/model/Assigment.hpp"
+#include "marco/model/ModCall.hpp"
+#include "marco/model/ModConst.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModErrors.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModType.hpp"
+#include "marco/model/ModVariable.hpp"
+#include "marco/utils/IRange.hpp"
+#include "marco/utils/Interval.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace frontend;
 using namespace std;
 using namespace llvm;

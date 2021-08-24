@@ -1,9 +1,9 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
-#include <modelica/frontend/AST.h>
-#include <modelica/frontend/passes/ConstantFoldingPass.h>
+#include <marco/frontend/AST.h>
+#include <marco/frontend/passes/ConstantFoldingPass.h>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 template<>
 llvm::Error ConstantFolder::run<Class>(Class& cls)
@@ -1040,7 +1040,7 @@ llvm::Error ConstantFolder::foldSubscriptionOp(Expression& expression)
 	return llvm::Error::success();
 }
 
-std::unique_ptr<Pass> modelica::frontend::createConstantFolderPass()
+std::unique_ptr<Pass> marco::frontend::createConstantFolderPass()
 {
 	return std::make_unique<ConstantFolder>();
 }

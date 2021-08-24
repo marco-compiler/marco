@@ -1,8 +1,8 @@
 #include <memory>
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 #include <numeric>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Array::Array(SourceRange location,
 						 Type type,
@@ -35,7 +35,7 @@ Array& Array::operator=(const Array& other)
 
 Array& Array::operator=(Array&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Array& first, Array& second)
 	{
@@ -133,7 +133,7 @@ Array::const_iterator Array::end() const
 	return values.end();
 }
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Array& obj)
 	{

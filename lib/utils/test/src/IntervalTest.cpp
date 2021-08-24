@@ -1,10 +1,10 @@
 #include "gtest/gtest.h"
 #include <vector>
 
-#include "modelica/utils/IndexSet.hpp"
-#include "modelica/utils/Interval.hpp"
+#include "marco/utils/IndexSet.hpp"
+#include "marco/utils/Interval.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 
 TEST(IntervalTest, getterTest)

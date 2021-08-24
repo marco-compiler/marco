@@ -7,14 +7,14 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/InitializePasses.h>
 #include <map>
-#include <modelica/mlirlowerer/passes/matching/MatchedEquationLookup.h>
-#include <modelica/mlirlowerer/passes/matching/SVarDependencyGraph.h>
-#include <modelica/mlirlowerer/passes/matching/VVarDependencyGraph.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/Variable.h>
+#include <marco/mlirlowerer/passes/matching/MatchedEquationLookup.h>
+#include <marco/mlirlowerer/passes/matching/SVarDependencyGraph.h>
+#include <marco/mlirlowerer/passes/matching/VVarDependencyGraph.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/Variable.h>
 #include <optional>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 using namespace llvm;
 using namespace boost;
 using namespace std;

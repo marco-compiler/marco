@@ -1,9 +1,9 @@
 #include <fcntl.h>
 #include <llvm/ADT/iterator_range.h>
-#include <modelica/mlirlowerer/passes/matching/Edge.h>
-#include <modelica/mlirlowerer/passes/matching/Flow.h>
+#include <marco/mlirlowerer/passes/matching/Edge.h>
+#include <marco/mlirlowerer/passes/matching/Flow.h>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 Flow::Flow(IndexSet set, IndexSet mapped, Edge& edge, bool isForward)
 		: edge(&edge),
@@ -33,7 +33,7 @@ Equation Flow::getEquation() const
 	return edge->getEquation();
 }
 
-const modelica::IndexSet& Flow::getSet() const
+const marco::IndexSet& Flow::getSet() const
 {
 	return set;
 }
@@ -48,7 +48,7 @@ size_t Flow::size() const
 	return set.size();
 }
 
-const modelica::IndexSet& Flow::getMappedSet() const
+const marco::IndexSet& Flow::getMappedSet() const
 {
 	return mappedFlow;
 }
@@ -66,7 +66,7 @@ void Flow::addFlowAtEnd(IndexSet& set)
 		edge->getSet().remove(set);
 }
 
-modelica::IndexSet Flow::inverseMap(const IndexSet& set) const
+marco::IndexSet Flow::inverseMap(const IndexSet& set) const
 {
 	if (isForwardEdge())
 		return edge->invertMap(set);
@@ -74,7 +74,7 @@ modelica::IndexSet Flow::inverseMap(const IndexSet& set) const
 	return edge->map(set);
 }
 
-modelica::IndexSet Flow::applyAndInvert(IndexSet set)
+marco::IndexSet Flow::applyAndInvert(IndexSet set)
 {
 	if (isForwardEdge())
 		set = inverseMap(set);
@@ -248,7 +248,7 @@ FlowCandidates AugmentingPath::selectStartingEdge() const
 	return FlowCandidates(possibleStarts, graph);
 }
 
-static modelica::IndexSet possibleForwardFlow(
+static marco::IndexSet possibleForwardFlow(
 		const Flow& backEdge, const Edge& forwadEdge, const MatchingGraph& graph)
 {
 	assert(!backEdge.isForwardEdge());
@@ -257,7 +257,7 @@ static modelica::IndexSet possibleForwardFlow(
 	return direct;
 }
 
-modelica::IndexSet AugmentingPath::possibleBackwardFlow(const Edge& backEdge) const
+marco::IndexSet AugmentingPath::possibleBackwardFlow(const Edge& backEdge) const
 {
 	const Flow& forwardEdge = getCurrentFlow();
 	assert(forwardEdge.isForwardEdge());

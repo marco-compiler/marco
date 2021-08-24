@@ -12,19 +12,19 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/iterator_range.h>
 #include <map>
-#include <modelica/mlirlowerer/passes/matching/MatchedEquationLookup.h>
-#include <modelica/mlirlowerer/passes/matching/SCCLookup.h>
-#include <modelica/mlirlowerer/passes/matching/VVarDependencyGraph.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/ReferenceMatcher.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
-#include <modelica/utils/IRange.hpp>
-#include <modelica/utils/IndexSet.hpp>
-#include <modelica/utils/Interval.hpp>
+#include <marco/mlirlowerer/passes/matching/MatchedEquationLookup.h>
+#include <marco/mlirlowerer/passes/matching/SCCLookup.h>
+#include <marco/mlirlowerer/passes/matching/VVarDependencyGraph.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/utils/IRange.hpp>
+#include <marco/utils/IndexSet.hpp>
+#include <marco/utils/Interval.hpp>
 #include <sstream>
 #include <utility>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 using namespace std;
 using namespace llvm;
 using namespace boost;

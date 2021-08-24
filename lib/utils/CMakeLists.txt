@@ -1,4 +1,4 @@
-modelicaAddLibrary(
+marcoAddLibrary(
 		utils SHARED
 		src/Utils.cpp
 		src/Lexer.cpp
@@ -7,4 +7,4 @@ modelicaAddLibrary(
 		src/SourcePosition.cpp
 		src/ThreadPool.cpp)
 
-modelica_link_llvm_libs(utils support)
+marco_link_llvm_libs(utils support)

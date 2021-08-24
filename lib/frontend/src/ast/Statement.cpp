@@ -1,7 +1,7 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica;
-using namespace modelica::frontend;
+using namespace marco;
+using namespace marco::frontend;
 
 Statement::Statement(AssignmentStatement statement)
 		: content(std::move(statement))
@@ -56,7 +56,7 @@ Statement& Statement::operator=(const Statement& other)
 
 Statement& Statement::operator=(Statement&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Statement& first, Statement& second)
 	{
@@ -136,7 +136,7 @@ AssignmentStatement& AssignmentStatement::operator=(const AssignmentStatement& o
 
 AssignmentStatement& AssignmentStatement::operator=(AssignmentStatement&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(AssignmentStatement& first, AssignmentStatement& second)
 	{
@@ -216,7 +216,7 @@ IfStatement& IfStatement::operator=(const IfStatement& other)
 
 IfStatement& IfStatement::operator=(IfStatement&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(IfStatement& first, IfStatement& second)
 	{
@@ -316,7 +316,7 @@ ForStatement& ForStatement::operator=(const ForStatement& other)
 
 ForStatement& ForStatement::operator=(ForStatement&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(ForStatement& first, ForStatement& second)
 	{
@@ -457,7 +457,7 @@ WhileStatement& WhileStatement::operator=(const WhileStatement& other)
 
 WhileStatement& WhileStatement::operator=(WhileStatement&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(WhileStatement& first, WhileStatement& second)
 	{
@@ -547,7 +547,7 @@ WhenStatement& WhenStatement::operator=(const WhenStatement& other)
 
 WhenStatement& WhenStatement::operator=(WhenStatement&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(WhenStatement& first, WhenStatement& second)
 	{
@@ -584,7 +584,7 @@ BreakStatement& BreakStatement::operator=(const BreakStatement& other)
 
 BreakStatement& BreakStatement::operator=(BreakStatement&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(BreakStatement& first, BreakStatement& second)
 	{
@@ -624,7 +624,7 @@ ReturnStatement& ReturnStatement::operator=(const ReturnStatement& other)
 
 ReturnStatement& ReturnStatement::operator=(ReturnStatement&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(ReturnStatement& first, ReturnStatement& second)
 	{

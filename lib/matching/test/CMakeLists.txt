@@ -1,4 +1,4 @@
-modelicaAddTest(
+marcoAddTest(
 	matching 
 	src/MatchingTest.cpp 
 	src/VVarDependencyGraphTest.cpp

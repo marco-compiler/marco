@@ -1,14 +1,14 @@
-#include <modelica/mlirlowerer/passes/model/Equation.h>
-#include <modelica/mlirlowerer/passes/model/Expression.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/Operation.h>
-#include <modelica/mlirlowerer/passes/model/Reference.h>
-#include <modelica/mlirlowerer/passes/model/Variable.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/Operation.h>
+#include <marco/mlirlowerer/passes/model/Reference.h>
+#include <marco/mlirlowerer/passes/model/Variable.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
 
-using namespace modelica::codegen;
-using namespace modelica::codegen::model;
+using namespace marco::codegen;
+using namespace marco::codegen::model;
 
 class VariablesFinder
 {

@@ -1,6 +1,6 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Modification::Modification(SourceRange location,
 													 std::unique_ptr<ClassModification> classModification)
@@ -54,7 +54,7 @@ Modification& Modification::operator=(const Modification& other)
 
 Modification& Modification::operator=(Modification&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Modification& first, Modification& second)
 	{
@@ -133,7 +133,7 @@ ClassModification& ClassModification::operator=(const ClassModification& other)
 
 ClassModification& ClassModification::operator=(ClassModification&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(ClassModification& first, ClassModification& second)
 	{
@@ -202,7 +202,7 @@ Argument& Argument::operator=(const Argument& other)
 
 Argument& Argument::operator=(Argument&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Argument& first, Argument& second)
 	{
@@ -267,7 +267,7 @@ ElementModification& ElementModification::operator=(const ElementModification& o
 
 ElementModification& ElementModification::operator=(ElementModification&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(ElementModification& first, ElementModification& second)
 	{
@@ -341,7 +341,7 @@ ElementReplaceable& ElementReplaceable::operator=(const ElementReplaceable& othe
 
 ElementReplaceable& ElementReplaceable::operator=(ElementReplaceable&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(ElementReplaceable& first, ElementReplaceable& second)
 	{
@@ -379,7 +379,7 @@ ElementRedeclaration& ElementRedeclaration::operator=(const ElementRedeclaration
 
 ElementRedeclaration& ElementRedeclaration::operator=(ElementRedeclaration&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(ElementRedeclaration& first, ElementRedeclaration& second)
 	{

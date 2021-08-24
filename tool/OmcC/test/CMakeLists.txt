@@ -8,7 +8,7 @@ macro(addOmccTest INPUTFILE)
 	### Creates the command that will run the simulator generator and will produce the bc file
 	add_custom_command(OUTPUT ${INPUTFILE}.bc 
 		COMMAND $<TARGET_FILE:omcc> --simTime=10000 -o=${INPUTFILE}.bc ${CMAKE_CURRENT_BINARY_DIR}/${INPUTFILE}.mo
-		DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${INPUTFILE}.mo modelica::omcc
+		DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${INPUTFILE}.mo marco::omcc
 		COMMENT "generates flattenedThermalchp bc file"
 		VERBATIM)
 
@@ -25,7 +25,7 @@ macro(addOmccTest INPUTFILE)
 	add_custom_target(gen${INPUTFILE} ALL DEPENDS ${INPUTFILE}.o)
 
 	add_executable(${INPUTFILE} dummy.cpp)
-	target_link_libraries(${INPUTFILE} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${INPUTFILE}.o modelica::runtime)
+	target_link_libraries(${INPUTFILE} PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/${INPUTFILE}.o marco::runtime)
 	add_dependencies(${INPUTFILE} gen${INPUTFILE})
 endmacro(addOmccTest)
 

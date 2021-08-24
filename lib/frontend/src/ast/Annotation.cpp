@@ -1,7 +1,7 @@
 #include <boost/algorithm/string.hpp>
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Annotation::Annotation(SourceRange location)
 		: ASTNode(std::move(location))
@@ -34,7 +34,7 @@ Annotation& Annotation::operator=(const Annotation& other)
 
 Annotation& Annotation::operator=(Annotation&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Annotation& first, Annotation& second)
 	{

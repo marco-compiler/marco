@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include <algorithm>
 
-#include "modelica/utils/Lexer.hpp"
+#include "marco/utils/Lexer.hpp"
 
 enum class TestToken
 {
@@ -36,7 +36,7 @@ class TestStateMachine
 TEST(LexerTest, TestDefaultValues)
 {
 	std::string s("");
-	auto lexer = modelica::Lexer<TestStateMachine>(s.begin());
+	auto lexer = marco::Lexer<TestStateMachine>(s.begin());
 
 	EXPECT_EQ(lexer.getCurrent(), TestToken::Begin);
 }
@@ -44,7 +44,7 @@ TEST(LexerTest, TestDefaultValues)
 TEST(LexerTest, NullTerminatorShouldReturnEnd)
 {
 	std::string s("");
-	auto lexer = modelica::Lexer<TestStateMachine>(s.begin());
+	auto lexer = marco::Lexer<TestStateMachine>(s.begin());
 
 	EXPECT_EQ(lexer.scan(), TestToken::End);
 }
@@ -52,7 +52,7 @@ TEST(LexerTest, NullTerminatorShouldReturnEnd)
 TEST(LexerTest, CharPointerShouldCompile)
 {
 	std::string s("");
-	auto lexer = modelica::Lexer<TestStateMachine>(&(s[0]));
+	auto lexer = marco::Lexer<TestStateMachine>(&(s[0]));
 
 	EXPECT_EQ(lexer.scan(), TestToken::End);
 }
@@ -60,7 +60,7 @@ TEST(LexerTest, CharPointerShouldCompile)
 TEST(LexerTest, LexerIsAdvanceble)
 {
 	std::string s("bb");
-	using Lex = modelica::Lexer<TestStateMachine>;
+	using Lex = marco::Lexer<TestStateMachine>;
 	auto lexer = Lex(s.begin());
 	EXPECT_EQ(lexer.scan(), TestToken::Ok);
 	EXPECT_EQ(lexer.scan(), TestToken::End);
@@ -70,7 +70,7 @@ TEST(LexerTest, LexerIsAdvanceble)
 TEST(LexerTest, LexerShouldAcceptStrings)
 {
 	std::string s("bb");
-	using Lex = modelica::Lexer<TestStateMachine>;
+	using Lex = marco::Lexer<TestStateMachine>;
 	auto lexer = Lex(s);
 	EXPECT_EQ(lexer.scan(), TestToken::Ok);
 	EXPECT_EQ(lexer.scan(), TestToken::End);
@@ -80,7 +80,7 @@ TEST(LexerTest, LexerShouldAcceptStrings)
 TEST(LexerTest, LexerOFStringEndShouldReturnEnd)
 {
 	std::string s("bb");
-	using Lex = modelica::Lexer<TestStateMachine>;
+	using Lex = marco::Lexer<TestStateMachine>;
 	auto lexer = Lex(s.end());
 	EXPECT_EQ(lexer.scan(), TestToken::End);
 	EXPECT_EQ(lexer.scan(), TestToken::End);
@@ -94,7 +94,7 @@ TEST(LexerTest, LexerIsAIterator)
 	output.resize(s.length());
 	expected.push_back(TestToken::Begin);
 	expected.push_back(TestToken::Ok);
-	using Lex = modelica::Lexer<TestStateMachine>;
+	using Lex = marco::Lexer<TestStateMachine>;
 	auto lexer = Lex(s.begin());
 	int checks = 0;
 

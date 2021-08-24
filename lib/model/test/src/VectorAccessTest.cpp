@@ -1,12 +1,12 @@
 #include "gtest/gtest.h"
 
 #include "llvm/Support/Error.h"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModParser.hpp"
-#include "modelica/model/ModType.hpp"
-#include "modelica/model/VectorAccess.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModParser.hpp"
+#include "marco/model/ModType.hpp"
+#include "marco/model/VectorAccess.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 
 TEST(VectorAccessTest, directAccess)

@@ -1,8 +1,8 @@
 #include <mlir/Conversion/Passes.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/mlirlowerer/passes/ResultBuffersToArgs.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/ResultBuffersToArgs.h>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
 struct FunctionOpPattern : public mlir::OpRewritePattern<FunctionOp>
 {
@@ -262,7 +262,7 @@ class ResultBuffersToArgsPass: public mlir::PassWrapper<ResultBuffersToArgsPass,
 	}
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createResultBuffersToArgsPass()
+std::unique_ptr<mlir::Pass> marco::codegen::createResultBuffersToArgsPass()
 {
 	return std::make_unique<ResultBuffersToArgsPass>();
 }

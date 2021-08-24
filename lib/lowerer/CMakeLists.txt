@@ -1,4 +1,4 @@
-modelicaAddLibrary(
+marcoAddLibrary(
 	lowerer SHARED 
 	src/Lowerer.cpp
    	src/LowererUtils.cpp
@@ -6,10 +6,10 @@ modelicaAddLibrary(
    	src/CallLowerer.cpp
    	src/OperationLowerer.cpp)
 
-modelica_link_llvm_libs(lowerer core bitwriter)
+marco_link_llvm_libs(lowerer core bitwriter)
 
 target_link_libraries(
 	lowerer PUBLIC 
-   	modelica::utils
-   	modelica::passes)
+   	marco::utils
+   	marco::passes)
 

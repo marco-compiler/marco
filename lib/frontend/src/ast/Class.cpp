@@ -1,7 +1,7 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica;
-using namespace modelica::frontend;
+using namespace marco;
+using namespace marco::frontend;
 
 Class::Class(PartialDerFunction content)
 		: content(std::move(content))
@@ -44,7 +44,7 @@ Class& Class::operator=(const Class& other)
 
 Class& Class::operator=(Class&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Class& first, Class& second)
 	{

@@ -1,7 +1,7 @@
-#include <modelica/frontend/AST.h>
-#include <modelica/utils/IRange.hpp>
+#include <marco/frontend/AST.h>
+#include <marco/utils/IRange.hpp>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Induction::Induction(SourceRange location,
 										 llvm::StringRef inductionVariable,
@@ -37,7 +37,7 @@ Induction& Induction::operator=(const Induction& other)
 
 Induction& Induction::operator=(Induction&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Induction& first, Induction& second)
 	{

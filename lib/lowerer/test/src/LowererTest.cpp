@@ -3,15 +3,15 @@
 
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/Support/Error.h"
-#include "modelica/lowerer/Lowerer.hpp"
-#include "modelica/model/Assigment.hpp"
-#include "modelica/model/AssignModel.hpp"
-#include "modelica/model/ModConst.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModType.hpp"
-#include "modelica/model/ModVariable.hpp"
+#include "marco/lowerer/Lowerer.hpp"
+#include "marco/model/Assigment.hpp"
+#include "marco/model/AssignModel.hpp"
+#include "marco/model/ModConst.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModType.hpp"
+#include "marco/model/ModVariable.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 
 TEST(lowererTest, backwardLoopTest)

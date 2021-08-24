@@ -1,11 +1,11 @@
 #include <llvm/ADT/StringRef.h>
-#include <modelica/frontend/AST.h>
-#include <modelica/utils/IRange.hpp>
+#include <marco/frontend/AST.h>
+#include <marco/utils/IRange.hpp>
 #include <numeric>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const OperationKind& obj)
 	{
@@ -91,7 +91,7 @@ Operation& Operation::operator=(const Operation& other)
 
 Operation& Operation::operator=(Operation&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Operation& first, Operation& second)
 	{
@@ -239,7 +239,7 @@ Operation::const_iterator Operation::end() const
 	return args.end();
 }
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Operation& obj)
 	{

@@ -1,4 +1,4 @@
-#include "modelica/lowerer/Lowerer.hpp"
+#include "marco/lowerer/Lowerer.hpp"
 
 #include <utility>
 
@@ -15,15 +15,15 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/model/Assigment.hpp"
-#include "modelica/model/ModErrors.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/passes/PassManager.hpp"
-#include "modelica/utils/Interval.hpp"
+#include "marco/model/Assigment.hpp"
+#include "marco/model/ModErrors.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModVariable.hpp"
+#include "marco/passes/PassManager.hpp"
+#include "marco/utils/Interval.hpp"
 
 using namespace std;
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 
 constexpr auto internalLinkage = GlobalValue::LinkageTypes::InternalLinkage;

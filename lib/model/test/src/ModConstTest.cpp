@@ -1,11 +1,11 @@
 #include "gtest/gtest.h"
 
-#include "modelica/model/ModCall.hpp"
-#include "modelica/model/ModConst.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/Model.hpp"
+#include "marco/model/ModCall.hpp"
+#include "marco/model/ModConst.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/Model.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 
 TEST(ModConstTest, constantVectorCanBeAdded)

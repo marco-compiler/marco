@@ -1,21 +1,21 @@
-#include "modelica/matching/Schedule.hpp"
+#include "marco/matching/Schedule.hpp"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/matching/SCCDependencyGraph.hpp"
-#include "modelica/matching/SVarDependencyGraph.hpp"
-#include "modelica/matching/SccLookup.hpp"
-#include "modelica/matching/VVarDependencyGraph.hpp"
-#include "modelica/model/Assigment.hpp"
-#include "modelica/model/AssignModel.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/VectorAccess.hpp"
-#include "modelica/utils/IndexSet.hpp"
-#include "modelica/utils/ThreadPool.hpp"
+#include "marco/matching/SCCDependencyGraph.hpp"
+#include "marco/matching/SVarDependencyGraph.hpp"
+#include "marco/matching/SccLookup.hpp"
+#include "marco/matching/VVarDependencyGraph.hpp"
+#include "marco/model/Assigment.hpp"
+#include "marco/model/AssignModel.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/VectorAccess.hpp"
+#include "marco/utils/IndexSet.hpp"
+#include "marco/utils/ThreadPool.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 
 static SmallVector<ModEquation, 3> collapseEquations(
@@ -126,7 +126,7 @@ static ResultVector parallelMap(
 	return results;
 }
 
-Model modelica::schedule(const Model& model)
+Model marco::schedule(const Model& model)
 {
 	VVarDependencyGraph vectorGraph(model);
 	SCCDependencyGraph sccDependency(vectorGraph);

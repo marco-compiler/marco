@@ -9,7 +9,7 @@
 
 #include <array>
 #include <iostream>
-#include <modelica/runtime/ArrayDescriptor.h>
+#include <marco/runtime/ArrayDescriptor.h>
 
 extern "C" void __modelica_ciface_foo(
 		ArrayDescriptor<bool, 1>* x, ArrayDescriptor<bool, 1>* y);

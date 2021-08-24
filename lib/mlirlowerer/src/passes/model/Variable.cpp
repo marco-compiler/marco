@@ -1,10 +1,10 @@
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/Variable.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/Variable.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
 
-using namespace modelica::codegen;
-using namespace modelica::codegen::model;
+using namespace marco::codegen;
+using namespace marco::codegen::model;
 
 class Variable::Impl
 {
@@ -99,12 +99,12 @@ void Variable::setDer(mlir::Value value)
 	impl->der = value;
 }
 
-modelica::IndexSet Variable::toIndexSet() const
+marco::IndexSet Variable::toIndexSet() const
 {
 	return IndexSet({ toMultiDimInterval() });
 }
 
-modelica::MultiDimInterval Variable::toMultiDimInterval() const
+marco::MultiDimInterval Variable::toMultiDimInterval() const
 {
 	llvm::SmallVector<Interval, 2> intervals;
 	assert(impl->reference.getType().isa<ArrayType>());

@@ -2,15 +2,15 @@
 #include <iterator>
 
 #include "llvm/InitializePasses.h"
-#include "modelica/matching/KhanAdjacentAlgorithm.hpp"
-#include "modelica/matching/SVarDependencyGraph.hpp"
-#include "modelica/matching/Schedule.hpp"
-#include "modelica/matching/VVarDependencyGraph.hpp"
-#include "modelica/model/ModExpPath.hpp"
+#include "marco/matching/KhanAdjacentAlgorithm.hpp"
+#include "marco/matching/SVarDependencyGraph.hpp"
+#include "marco/matching/Schedule.hpp"
+#include "marco/matching/VVarDependencyGraph.hpp"
+#include "marco/model/ModExpPath.hpp"
 
 using namespace std;
 using namespace llvm;
-using namespace modelica;
+using namespace marco;
 
 TEST(VVarDependencyGraphTest, countTest)
 {
@@ -124,7 +124,7 @@ TEST(VVarDependencyGraphTest, scheduleTest)
 	auto model = makeModel();
 	VVarDependencyGraph graph(model);
 	SccLookup sccContent(graph);
-	auto scheduledModel = modelica::schedule(std::move(model));
+	auto scheduledModel = marco::schedule(std::move(model));
 	EXPECT_EQ(scheduledModel.getEquations().size(), 2);
 	for (const auto& ass : scheduledModel.getEquations())
 		EXPECT_EQ(ass.isForward(), true);

@@ -1,18 +1,18 @@
-#include "modelica/lowerer/LowererUtils.hpp"
+#include "marco/lowerer/LowererUtils.hpp"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/Support/Error.h"
-#include "modelica/lowerer/Lowerer.hpp"
-#include "modelica/model/Assigment.hpp"
-#include "modelica/model/ModConst.hpp"
-#include "modelica/model/ModErrors.hpp"
-#include "modelica/utils/Interval.hpp"
+#include "marco/lowerer/Lowerer.hpp"
+#include "marco/model/Assigment.hpp"
+#include "marco/model/ModConst.hpp"
+#include "marco/model/ModErrors.hpp"
+#include "marco/utils/Interval.hpp"
 
 using namespace llvm;
 using namespace std;
-using namespace modelica;
+using namespace marco;
 
 constexpr auto internalLinkage = GlobalValue::LinkageTypes::InternalLinkage;
 
@@ -82,7 +82,7 @@ void LowererContext::storeToArrayElement(
 	builder.CreateStore(value, ptrToElem);
 }
 
-Type* modelica::builtInToLLVMType(
+Type* marco::builtInToLLVMType(
 		LLVMContext& context, BultinModTypes type, bool useDouble)
 {
 	switch (type)
@@ -99,7 +99,7 @@ Type* modelica::builtInToLLVMType(
 	return nullptr;
 }
 
-ArrayType* modelica::typeToLLVMType(
+ArrayType* marco::typeToLLVMType(
 		LLVMContext& context, const ModType& type, bool useDouble)
 {
 	auto* baseType = builtInToLLVMType(context, type.getBuiltin(), useDouble);
@@ -294,7 +294,7 @@ Expected<BasicBlock*> LowererContext::maybeCreateForArrayElement(
 	return maybeCreatedNestedForCycle(type.getDimensions(), body);
 }
 
-BultinModTypes modelica::builtinTypeFromLLVMType(Type* tp)
+BultinModTypes marco::builtinTypeFromLLVMType(Type* tp)
 {
 	if (tp->isIntegerTy(32))
 		return BultinModTypes::INT;
@@ -306,7 +306,7 @@ BultinModTypes modelica::builtinTypeFromLLVMType(Type* tp)
 	return BultinModTypes::INT;
 }
 
-ModType modelica::modTypeFromLLVMType(ArrayType* type)
+ModType marco::modTypeFromLLVMType(ArrayType* type)
 {
 	SmallVector<size_t, 3> dims;
 	Type* t = type;

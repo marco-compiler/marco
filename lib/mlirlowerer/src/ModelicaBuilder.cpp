@@ -1,6 +1,6 @@
-#include <modelica/mlirlowerer/ModelicaBuilder.h>
+#include <marco/mlirlowerer/ModelicaBuilder.h>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
 ModelicaBuilder::ModelicaBuilder(mlir::MLIRContext* context)
 		: mlir::OpBuilder(context)

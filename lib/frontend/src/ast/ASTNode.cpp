@@ -1,7 +1,7 @@
-#include <modelica/frontend/ast/ASTNode.h>
+#include <marco/frontend/ast/ASTNode.h>
 
-using namespace modelica;
-using namespace modelica::frontend;
+using namespace marco;
+using namespace marco::frontend;
 
 ASTNode::ASTNode(SourceRange location)
 		: location(std::move(location))
@@ -26,7 +26,7 @@ ASTNode& ASTNode::operator=(const ASTNode& other)
 
 ASTNode& ASTNode::operator=(ASTNode&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(ASTNode& first, ASTNode& second)
 	{

@@ -1,9 +1,9 @@
 #include "gtest/gtest.h"
 #include <algorithm>
 
-#include "modelica/utils/IRange.hpp"
+#include "marco/utils/IRange.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 
 TEST(IRangeTest, irangeCanBeUsedInRangeFor)

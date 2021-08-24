@@ -1,8 +1,8 @@
 #pragma once
 
-#include "modelica/lowerer/LowererUtils.hpp"
+#include "marco/lowerer/LowererUtils.hpp"
 
-namespace modelica
+namespace marco
 {
 	llvm::Expected<llvm::Value*> lowerExp(
 			LowererContext& info, const ModExp& exp);
@@ -12,4 +12,4 @@ namespace modelica
 
 	llvm::Expected<llvm::Value*> castReturnValue(
 			LowererContext& info, llvm::Value* val, const ModType& type);
-}	 // namespace modelica
+}	 // namespace marco

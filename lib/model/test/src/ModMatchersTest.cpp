@@ -1,9 +1,9 @@
 #include "gtest/gtest.h"
 
-#include "modelica/model/ModMatchers.hpp"
-#include "modelica/model/ModParser.hpp"
+#include "marco/model/ModMatchers.hpp"
+#include "marco/model/ModParser.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 using namespace std;
 

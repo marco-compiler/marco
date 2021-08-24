@@ -1,3 +1,3 @@
-#include "modelica/utils/Lexer.hpp"
+#include "marco/utils/Lexer.hpp"
 
-using namespace modelica;
+using namespace marco;

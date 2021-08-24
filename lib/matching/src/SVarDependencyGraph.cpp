@@ -1,4 +1,4 @@
-#include "modelica/matching/SVarDependencyGraph.hpp"
+#include "marco/matching/SVarDependencyGraph.hpp"
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/detail/adjacency_list.hpp>
@@ -11,12 +11,12 @@
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/InitializePasses.h"
-#include "modelica/matching/MatchedEquationLookup.hpp"
-#include "modelica/matching/VVarDependencyGraph.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/model/VectorAccess.hpp"
+#include "marco/matching/MatchedEquationLookup.hpp"
+#include "marco/matching/VVarDependencyGraph.hpp"
+#include "marco/model/ModVariable.hpp"
+#include "marco/model/VectorAccess.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 using namespace boost;
 using namespace std;

@@ -2,12 +2,12 @@
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/mlirlowerer/passes/LowerToCFG.h>
-#include <modelica/mlirlowerer/passes/TypeConverter.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/LowerToCFG.h>
+#include <marco/mlirlowerer/passes/TypeConverter.h>
 #include <stack>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
 class CFGLowerer
 {
@@ -402,7 +402,7 @@ class LowerToCFGPass : public mlir::PassWrapper<LowerToCFGPass, mlir::OperationP
 	unsigned int bitWidth;
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createLowerToCFGPass(unsigned int bitWidth)
+std::unique_ptr<mlir::Pass> marco::codegen::createLowerToCFGPass(unsigned int bitWidth)
 {
 	return std::make_unique<LowerToCFGPass>(bitWidth);
 }

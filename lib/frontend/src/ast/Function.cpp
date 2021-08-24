@@ -1,8 +1,8 @@
 #include <algorithm>
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 #include <variant>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Function::Function(SourceRange location, llvm::StringRef name)
 		: ASTNode(std::move(location)),
@@ -34,7 +34,7 @@ Function& Function::operator=(const Function& other)
 
 Function& Function::operator=(Function&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Function& first, Function& second)
 	{
@@ -94,7 +94,7 @@ PartialDerFunction& PartialDerFunction::operator=(const PartialDerFunction& othe
 
 PartialDerFunction& PartialDerFunction::operator=(PartialDerFunction&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(PartialDerFunction& first, PartialDerFunction& second)
 	{
@@ -225,7 +225,7 @@ StandardFunction& StandardFunction::operator=(const StandardFunction& other)
 
 StandardFunction& StandardFunction::operator=(StandardFunction&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(StandardFunction& first, StandardFunction& second)
 	{

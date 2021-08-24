@@ -1,4 +1,4 @@
-modelicaAddTool(
+marcoAddTool(
 	modc 
-	modelica::model 
-	modelica::lowerer)
+	marco::model 
+	marco::lowerer)

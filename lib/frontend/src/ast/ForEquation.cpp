@@ -1,8 +1,8 @@
 #include <memory>
-#include <modelica/frontend/AST.h>
-#include <modelica/utils/IRange.hpp>
+#include <marco/frontend/AST.h>
+#include <marco/utils/IRange.hpp>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 ForEquation::ForEquation(SourceRange location,
 												 llvm::ArrayRef<std::unique_ptr<Induction>> inductions,
@@ -35,7 +35,7 @@ ForEquation& ForEquation::operator=(const ForEquation& other)
 
 ForEquation& ForEquation::operator=(ForEquation&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(ForEquation& first, ForEquation& second)
 	{

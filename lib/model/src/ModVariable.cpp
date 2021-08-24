@@ -1,10 +1,10 @@
-#include "modelica/model/ModVariable.hpp"
+#include "marco/model/ModVariable.hpp"
 
-#include "modelica/utils/Interval.hpp"
+#include "marco/utils/Interval.hpp"
 
 using namespace llvm;
 using namespace std;
-using namespace modelica;
+using namespace marco;
 
 IndexSet ModVariable::toIndexSet() const
 {

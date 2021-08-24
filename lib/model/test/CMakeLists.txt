@@ -1,4 +1,4 @@
-modelicaAddTest(
+marcoAddTest(
 	model
    	src/ModelTest.cpp
    	src/ModLexerStateMachineTest.cpp

@@ -1,8 +1,8 @@
-#include "modelica/model/ModConst.hpp"
+#include "marco/model/ModConst.hpp"
 
-#include "modelica/model/ModType.hpp"
+#include "marco/model/ModType.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 using namespace llvm;
 

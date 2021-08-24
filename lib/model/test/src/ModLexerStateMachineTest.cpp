@@ -1,13 +1,13 @@
 #include "gtest/gtest.h"
 
-#include "modelica/model/ModLexerStateMachine.hpp"
-#include "modelica/utils/Lexer.hpp"
+#include "marco/model/ModLexerStateMachine.hpp"
+#include "marco/utils/Lexer.hpp"
 
-using namespace modelica;
+using namespace marco;
 
 TEST(LexerStateMachineTest, checkDefaults)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("bb");
 	Lex lexer(toParse);
@@ -21,7 +21,7 @@ TEST(LexerStateMachineTest, checkDefaults)
 
 TEST(LexerStateMachineTest, singleLineCommentsShouldBeIgnored)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("//asd");
 	Lex lexer(toParse);
@@ -33,7 +33,7 @@ TEST(LexerStateMachineTest, singleLineCommentsShouldBeIgnored)
 
 TEST(LexerStateMachineTest, multiLineCommentsShouldBeIgnored)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("/*asd\n\n*/");
 	Lex lexer(toParse);
@@ -45,7 +45,7 @@ TEST(LexerStateMachineTest, multiLineCommentsShouldBeIgnored)
 
 TEST(LexerStateMachineTest, integersShouldParse)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("1948");
 	Lex lexer(toParse);
@@ -57,7 +57,7 @@ TEST(LexerStateMachineTest, integersShouldParse)
 
 TEST(LexerStateMachineTest, multipleIntegersShouldParse)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("1948 4000");
 	Lex lexer(toParse);
@@ -71,7 +71,7 @@ TEST(LexerStateMachineTest, multipleIntegersShouldParse)
 
 TEST(LexerStateMachineTest, floatShouldParse)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("19.48  17.3");
 	Lex lexer(toParse);
@@ -85,7 +85,7 @@ TEST(LexerStateMachineTest, floatShouldParse)
 
 TEST(LexerStateMachineTest, exponentialShouldParse)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("2E4  3.0e-2");
 	Lex lexer(toParse);
@@ -99,7 +99,7 @@ TEST(LexerStateMachineTest, exponentialShouldParse)
 
 TEST(LexerStateMachineTest, dotOnlyFloatShouldParse)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("2.  3.0e-2");
 	Lex lexer(toParse);
@@ -113,7 +113,7 @@ TEST(LexerStateMachineTest, dotOnlyFloatShouldParse)
 
 TEST(LexerStateMachineTest, signOnlyFloatShouldFail)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("2E-");
 	Lex lexer(toParse);
@@ -124,7 +124,7 @@ TEST(LexerStateMachineTest, signOnlyFloatShouldFail)
 
 TEST(LexerStateMachineTest, floatEMustBeFollowedBySignOrNumber)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("2E");
 	Lex lexer(toParse);
@@ -135,7 +135,7 @@ TEST(LexerStateMachineTest, floatEMustBeFollowedBySignOrNumber)
 
 TEST(LexerStateMachineTest, identifierShouldParse)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("Asd\nDsa");
 	Lex lexer(toParse);
@@ -149,7 +149,7 @@ TEST(LexerStateMachineTest, identifierShouldParse)
 
 TEST(LexerStateMachineTest, keywordsShouldParse)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("Asd\ninit");
 	Lex lexer(toParse);
@@ -162,7 +162,7 @@ TEST(LexerStateMachineTest, keywordsShouldParse)
 
 TEST(LexerStateMachineTest, singleCharIdentifierShouldParse)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("A");
 	Lex lexer(toParse);
@@ -174,7 +174,7 @@ TEST(LexerStateMachineTest, singleCharIdentifierShouldParse)
 
 TEST(LexerStateMachineTest, symbolsShouldParse)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("*/ -");
 	Lex lexer(toParse);
@@ -187,7 +187,7 @@ TEST(LexerStateMachineTest, symbolsShouldParse)
 
 TEST(LexerStateMachineTest, integerFollowedByTokens)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("[1+ 2 3/ 4]");
 	Lex lexer(toParse);
@@ -204,7 +204,7 @@ TEST(LexerStateMachineTest, integerFollowedByTokens)
 
 TEST(LexerStateMachineTest, unexpectedSymbolShouldFail)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("$");
 	Lex lexer(toParse);
@@ -215,7 +215,7 @@ TEST(LexerStateMachineTest, unexpectedSymbolShouldFail)
 
 TEST(LexerStateMachineTest, multicharTokenShouldParse)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("== <= >=");
 	Lex lexer(toParse);
@@ -228,7 +228,7 @@ TEST(LexerStateMachineTest, multicharTokenShouldParse)
 
 TEST(LexerStateMachineTest, singleDigitNumbers)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("7 8");
 	Lex lexer(toParse);
@@ -240,7 +240,7 @@ TEST(LexerStateMachineTest, singleDigitNumbers)
 
 TEST(LexerStateMachineTest, backwardTest)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("backward");
 	Lex lexer(toParse);
@@ -249,7 +249,7 @@ TEST(LexerStateMachineTest, backwardTest)
 
 TEST(LexerStateMachineTest, constVectorTest)
 {
-	using Lex = modelica::Lexer<ModLexerStateMachine>;
+	using Lex = marco::Lexer<ModLexerStateMachine>;
 
 	std::string toParse("{1.4, 2.1, 3.9}");
 	Lex lexer(toParse);

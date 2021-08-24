@@ -1,9 +1,9 @@
 #include <mlir/IR/BuiltinOps.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Transforms/InliningUtils.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
 class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
 {

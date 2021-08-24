@@ -1,6 +1,6 @@
-#include <modelica/frontend/Symbol.hpp>
+#include <marco/frontend/Symbol.hpp>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Symbol::Symbol() = default;
 

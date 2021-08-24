@@ -1,4 +1,4 @@
-modelicaAddLibrary(
+marcoAddLibrary(
         mlirlowerer SHARED
         src/passes/matching/Edge.cpp
         src/passes/matching/Flow.cpp
@@ -41,12 +41,12 @@ modelicaAddLibrary(
 
 target_link_libraries(
         mlirlowerer PUBLIC
-        modelica::frontend
-        modelica::matching
-        modelica::omcToModel
-        modelica::passes
-        modelica::runtime
-        modelica::utils
+        marco::frontend
+        marco::matching
+        marco::omcToModel
+        marco::passes
+        marco::runtime
+        marco::utils
         MLIRIR
         MLIROpenMPToLLVM
         MLIROpenMPToLLVMIRTranslation

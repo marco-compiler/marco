@@ -1,13 +1,13 @@
 #include <cstdio>
-#include <modelica/frontend/AST.h>
-#include <modelica/frontend/Errors.h>
-#include <modelica/frontend/passes/TypeCheckingPass.h>
+#include <marco/frontend/AST.h>
+#include <marco/frontend/Errors.h>
+#include <marco/frontend/passes/TypeCheckingPass.h>
 #include <numeric>
 #include <queue>
 #include <stack>
 
-using namespace modelica;
-using namespace modelica::frontend;
+using namespace marco;
+using namespace marco::frontend;
 
 static bool operator>=(Type x, Type y)
 {
@@ -34,7 +34,7 @@ static BuiltInType getMostGenericBaseType(Type x, Type y)
 	return x >= y ? x.get<BuiltInType>() : y.get<BuiltInType>();
 }
 
-namespace modelica::frontend::typecheck::detail
+namespace marco::frontend::typecheck::detail
 {
 	struct DerFunction : public BuiltInFunction
 	{
@@ -2390,12 +2390,12 @@ llvm::Error resolveDummyReferences(Model& model)
 	return llvm::Error::success();
 }
 
-std::unique_ptr<Pass> modelica::frontend::createTypeCheckingPass()
+std::unique_ptr<Pass> marco::frontend::createTypeCheckingPass()
 {
 	return std::make_unique<TypeChecker>();
 }
 
-namespace modelica::frontend::detail
+namespace marco::frontend::detail
 {
 	TypeCheckingErrorCategory TypeCheckingErrorCategory::category;
 

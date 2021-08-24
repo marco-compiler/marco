@@ -1,6 +1,6 @@
 #include "gtest/gtest.h"
 
-#include "modelica/model/ModExp.hpp"
+#include "marco/model/ModExp.hpp"
 
 TEST(PassessTest, DefaultTest)	// NOLINT
 {

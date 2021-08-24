@@ -1,10 +1,10 @@
 #include <gtest/gtest.h>
-#include <modelica/frontend/AST.h>
-#include <modelica/frontend/Parser.h>
-#include <modelica/frontend/Passes.h>
-#include <modelica/frontend/SymbolTable.hpp>
+#include <marco/frontend/AST.h>
+#include <marco/frontend/Parser.h>
+#include <marco/frontend/Passes.h>
+#include <marco/frontend/SymbolTable.hpp>
 
-using namespace modelica;
+using namespace marco;
 using namespace frontend;
 using namespace std;
 

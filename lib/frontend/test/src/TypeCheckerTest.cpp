@@ -1,13 +1,13 @@
 #include <gtest/gtest.h>
 #include <llvm/ADT/StringMap.h>
 #include <llvm/Support/Error.h>
-#include <modelica/frontend/AST.h>
-#include <modelica/frontend/Parser.h>
-#include <modelica/frontend/passes/TypeCheckingPass.h>
-#include <modelica/utils/ErrorTest.hpp>
+#include <marco/frontend/AST.h>
+#include <marco/frontend/Parser.h>
+#include <marco/frontend/passes/TypeCheckingPass.h>
+#include <marco/utils/ErrorTest.hpp>
 
 using namespace llvm;
-using namespace modelica;
+using namespace marco;
 using namespace frontend;
 using namespace std;
 

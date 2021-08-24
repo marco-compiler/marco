@@ -1,6 +1,6 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Package::Package(SourceRange location,
 								 llvm::StringRef name,
@@ -33,7 +33,7 @@ Package& Package::operator=(const Package& other)
 
 Package& Package::operator=(Package&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Package& first, Package& second)
 	{

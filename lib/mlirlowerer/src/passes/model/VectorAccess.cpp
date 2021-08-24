@@ -1,16 +1,16 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/mlirlowerer/passes/model/Expression.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/Reference.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
-#include <modelica/utils/IndexSet.hpp>
-#include <modelica/utils/Interval.hpp>
+#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/Reference.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/utils/IndexSet.hpp>
+#include <marco/utils/Interval.hpp>
 #include <string>
 
-using namespace modelica::codegen;
-using namespace modelica::codegen::model;
+using namespace marco::codegen;
+using namespace marco::codegen::model;
 using namespace std;
 using namespace llvm;
 
@@ -72,7 +72,7 @@ bool SingleDimensionAccess::isDirecAccess() const
 	return isAbs;
 }
 
-modelica::Interval SingleDimensionAccess::map(const MultiDimInterval& multiDimInterval) const
+marco::Interval SingleDimensionAccess::map(const MultiDimInterval& multiDimInterval) const
 {
 	if (isDirecAccess())
 		return Interval(value, value + 1);
@@ -80,7 +80,7 @@ modelica::Interval SingleDimensionAccess::map(const MultiDimInterval& multiDimIn
 	return map(multiDimInterval.at(inductionVar));
 }
 
-modelica::Interval SingleDimensionAccess::map(const Interval& interval) const
+marco::Interval SingleDimensionAccess::map(const Interval& interval) const
 {
 	if (isOffset())
 		return Interval(interval.min() + value, interval.max() + value);
@@ -172,7 +172,7 @@ VectorAccess VectorAccess::operator*(const VectorAccess& other) const
 	return combine(other);
 }
 
-modelica::IndexSet VectorAccess::operator*(const IndexSet& other) const
+marco::IndexSet VectorAccess::operator*(const IndexSet& other) const
 {
 	return map(other);
 }
@@ -236,7 +236,7 @@ size_t VectorAccess::mappableDimensions() const
 			vectorAccess, [](const auto& acc) { return acc.isOffset(); });
 }
 
-modelica::IndexSet VectorAccess::map(const IndexSet& indexSet) const
+marco::IndexSet VectorAccess::map(const IndexSet& indexSet) const
 {
 	IndexSet toReturn;
 
@@ -280,7 +280,7 @@ SingleDimensionAccess VectorAccess::combine(const SingleDimensionAccess& other) 
 			mapped.getOffset() + other.getOffset(), mapped.getInductionVar());
 }
 
-modelica::MultiDimInterval VectorAccess::map(const MultiDimInterval& interval) const
+marco::MultiDimInterval VectorAccess::map(const MultiDimInterval& interval) const
 {
 	assert(interval.dimensions() >= mappableDimensions());	// NOLINT
 	SmallVector<Interval, 2> intervals;

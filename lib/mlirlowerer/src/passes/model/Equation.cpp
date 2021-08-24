@@ -1,16 +1,16 @@
 #include <llvm/ADT/STLExtras.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Support/LogicalResult.h>
-#include <modelica/mlirlowerer/passes/model/Equation.h>
-#include <modelica/mlirlowerer/passes/model/Expression.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/ReferenceMatcher.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
-#include <modelica/mlirlowerer/ModelicaBuilder.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/mlirlowerer/ModelicaBuilder.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
 
-using namespace modelica::codegen;
-using namespace modelica::codegen::model;
+using namespace marco::codegen;
+using namespace marco::codegen::model;
 
 class Equation::Impl
 {
@@ -215,7 +215,7 @@ size_t Equation::amount() const
 	return result;
 }
 
-modelica::MultiDimInterval Equation::getInductions() const
+marco::MultiDimInterval Equation::getInductions() const
 {
 	auto forEquationOp = mlir::cast<ForEquationOp>(getOp().getOperation());
 	llvm::SmallVector<Interval, 3> intervals;
@@ -307,7 +307,7 @@ static void composeAccess(Expression& exp, const VectorAccess& transformation)
 		mlir::Value index;
 
 		if (singleDimensionAccess.value().isDirecAccess())
-			index = builder.create<modelica::codegen::ConstantOp>(op->getLoc(), builder.getIndexAttr(singleDimensionAccess.value().getOffset()));
+			index = builder.create<marco::codegen::ConstantOp>(op->getLoc(), builder.getIndexAttr(singleDimensionAccess.value().getOffset()));
 		else
 		{
 			mlir::Value inductionVar = exp.getOp()->getParentOfType<ForEquationOp>().body()->getArgument(singleDimensionAccess.value().getInductionVar());

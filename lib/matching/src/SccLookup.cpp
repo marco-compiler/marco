@@ -1,6 +1,6 @@
-#include "modelica/matching/SccLookup.hpp"
+#include "marco/matching/SccLookup.hpp"
 
 using namespace boost;
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 using namespace std;

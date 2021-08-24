@@ -1,7 +1,7 @@
 #include <gtest/gtest.h>
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica;
+using namespace marco;
 using namespace frontend;
 
 TEST(AST, expressionConstantCanBeBuilt)	 // NOLINT

@@ -1,10 +1,10 @@
 #include "gtest/gtest.h"
 #include <vector>
 
-#include "modelica/utils/IRange.hpp"
-#include "modelica/utils/ThreadPool.hpp"
+#include "marco/utils/IRange.hpp"
+#include "marco/utils/ThreadPool.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 
 TEST(ThreadPoolTest, testCreation)

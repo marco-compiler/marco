@@ -9,7 +9,7 @@
 
 #include <array>
 #include <iostream>
-#include <modelica/runtime/ArrayDescriptor.h>
+#include <marco/runtime/ArrayDescriptor.h>
 
 struct Result {
 	long y = 0;

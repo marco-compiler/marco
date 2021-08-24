@@ -1,3 +1,3 @@
-modelicaAddTest(
+marcoAddTest(
 	passes 
 	src/PassesTest.cpp)

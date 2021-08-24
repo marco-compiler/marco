@@ -1,6 +1,6 @@
-#include <modelica/mlirlowerer/passes/matching/MatchedEquationLookup.h>
+#include <marco/mlirlowerer/passes/matching/MatchedEquationLookup.h>
 
-using namespace modelica;
+using namespace marco;
 using namespace codegen::model;
 
 IndexesOfEquation::IndexesOfEquation(const Model& model, Equation equation)

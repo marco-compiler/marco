@@ -1,6 +1,6 @@
-#include "modelica/matching/Edge.hpp"
+#include "marco/matching/Edge.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 using namespace llvm;
 

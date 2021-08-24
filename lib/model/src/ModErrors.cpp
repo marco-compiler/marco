@@ -1,5 +1,5 @@
-#include "modelica/model/ModErrors.hpp"
-using namespace modelica;
+#include "marco/model/ModErrors.hpp"
+using namespace marco;
 
 LowererErrorCategory LowererErrorCategory::category;
 char TypeMissMatch::ID;
@@ -10,7 +10,7 @@ char UnexpectedModToken::ID;
 char TypeConstantSizeMissMatch::ID;
 char FailedExplicitation::ID;
 
-std::error_condition modelica::make_error_condition(LowererErrorCode errc)
+std::error_condition marco::make_error_condition(LowererErrorCode errc)
 {
 	return std::error_condition(
 			static_cast<int>(errc), LowererErrorCategory::category);

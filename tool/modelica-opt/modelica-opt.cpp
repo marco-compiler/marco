@@ -10,18 +10,18 @@
 #include <llvm/Support/InitLLVM.h>
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/ToolOutputFile.h>
-#include <modelica/mlirlowerer/CodeGen.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/CodeGen.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
 int main(int argc, char* argv[])
 {
 	mlir::registerAllPasses();
-	modelica::codegen::registerModelicaPasses();
+	marco::codegen::registerModelicaPasses();
 
 	mlir::DialectRegistry registry;
-	registry.insert<modelica::codegen::ModelicaDialect>();
+	registry.insert<marco::codegen::ModelicaDialect>();
 	registry.insert<mlir::BuiltinDialect>();
 	registry.insert<mlir::StandardOpsDialect>();
 

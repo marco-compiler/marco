@@ -2,22 +2,22 @@
 #include <iterator>
 
 #include "llvm/Support/Error.h"
-#include "modelica/matching/Flow.hpp"
-#include "modelica/matching/Matching.hpp"
-#include "modelica/matching/MatchingErrors.hpp"
-#include "modelica/model/Assigment.hpp"
-#include "modelica/model/ModConst.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModParser.hpp"
-#include "modelica/model/ModType.hpp"
-#include "modelica/model/Model.hpp"
-#include "modelica/model/VectorAccess.hpp"
-#include "modelica/utils/IndexSet.hpp"
+#include "marco/matching/Flow.hpp"
+#include "marco/matching/Matching.hpp"
+#include "marco/matching/MatchingErrors.hpp"
+#include "marco/model/Assigment.hpp"
+#include "marco/model/ModConst.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModParser.hpp"
+#include "marco/model/ModType.hpp"
+#include "marco/model/Model.hpp"
+#include "marco/model/VectorAccess.hpp"
+#include "marco/utils/IndexSet.hpp"
 
 using namespace std;
 using namespace llvm;
-using namespace modelica;
+using namespace marco;
 
 const string s = "init "
 								 "varA = INT[10] {0, 0, 0, 0, 0, 0, 0, 0, 0, 0} "

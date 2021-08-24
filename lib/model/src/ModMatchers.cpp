@@ -1,10 +1,10 @@
-#include "modelica/model/ModMatchers.hpp"
+#include "marco/model/ModMatchers.hpp"
 
-#include "modelica/model/ModExpPath.hpp"
+#include "marco/model/ModExpPath.hpp"
 
 using namespace llvm;
 using namespace std;
-using namespace modelica;
+using namespace marco;
 
 void ReferenceMatcher::visit(const ModEquation& equation, bool ingnoreMatched)
 {

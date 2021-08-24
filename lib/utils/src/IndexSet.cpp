@@ -1,11 +1,11 @@
-#include "modelica/utils/IndexSet.hpp"
+#include "marco/utils/IndexSet.hpp"
 
 #include <algorithm>
 
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/utils/Interval.hpp"
+#include "marco/utils/Interval.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 using namespace std;
 
@@ -60,7 +60,7 @@ static SmallVector<MultiDimInterval, 3> cuttAll(
 	return toFill;
 }
 
-IndexSet modelica::remove(
+IndexSet marco::remove(
 		const MultiDimInterval& left, const MultiDimInterval& right)
 {
 	if (areDisjoint(left, right))
@@ -105,7 +105,7 @@ void IndexSet::remove(const MultiDimInterval& other)
 {
 	IndexSet newValues;
 	for (const auto& range : *this)
-		newValues.unite(modelica::remove(range, other));
+		newValues.unite(marco::remove(range, other));
 
 	*this = move(newValues);
 }

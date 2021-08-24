@@ -5,16 +5,16 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Support/raw_ostream.h>
-#include <modelica/mlirlowerer/passes/matching/Edge.h>
-#include <modelica/mlirlowerer/passes/matching/Flow.h>
-#include <modelica/mlirlowerer/passes/matching/Matching.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/ReferenceMatcher.h>
-#include <modelica/utils/IRange.hpp>
+#include <marco/mlirlowerer/passes/matching/Edge.h>
+#include <marco/mlirlowerer/passes/matching/Flow.h>
+#include <marco/mlirlowerer/passes/matching/Matching.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
+#include <marco/utils/IRange.hpp>
 #include <string>
 #include <type_traits>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 MatchingGraph::MatchingGraph(const Model& model) : model(model)
 {
@@ -136,21 +136,21 @@ llvm::iterator_range<MatchingGraph::const_out_iterator> MatchingGraph::arcsOf(co
 	return llvm::make_range(const_out_iterator(*this, begin), const_out_iterator(*this, end));
 }
 
-modelica::IndexSet MatchingGraph::getUnmatchedSet(const Variable& variable) const
+marco::IndexSet MatchingGraph::getUnmatchedSet(const Variable& variable) const
 {
 	auto set = variable.toIndexSet();
 	set.remove(getMatchedSet(variable));
 	return set;
 }
 
-modelica::IndexSet MatchingGraph::getUnmatchedSet(const Equation& equation) const
+marco::IndexSet MatchingGraph::getUnmatchedSet(const Equation& equation) const
 {
 	IndexSet set(equation.getInductions());
 	set.remove(getMatchedSet(equation));
 	return set;
 }
 
-modelica::IndexSet MatchingGraph::getMatchedSet(const Variable& variable) const
+marco::IndexSet MatchingGraph::getMatchedSet(const Variable& variable) const
 {
 	IndexSet matched;
 
@@ -160,7 +160,7 @@ modelica::IndexSet MatchingGraph::getMatchedSet(const Variable& variable) const
 	return matched;
 }
 
-modelica::IndexSet MatchingGraph::getMatchedSet(const Equation& eq) const
+marco::IndexSet MatchingGraph::getMatchedSet(const Equation& eq) const
 {
 	IndexSet matched;
 	for (const Edge& edge : arcsOf(eq))
@@ -218,7 +218,7 @@ void MatchingGraph::emplaceEdge(Equation eq, ExpressionPath path, size_t useInde
 	boost::add_edge(eqDesc, varDesc, std::move(e), graph);
 }
 
-mlir::LogicalResult modelica::codegen::model::match(Model& model, size_t maxIterations)
+mlir::LogicalResult marco::codegen::model::match(Model& model, size_t maxIterations)
 {
 	if (model.equationsCount() != model.nonStateNonConstCount())
 		return model.getOp()->emitError("Equations amount (" + std::to_string(model.equationsCount()) + ") doesn't match the non state + non const variables amount (" + std::to_string(model.nonStateNonConstCount()) + ")");

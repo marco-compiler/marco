@@ -1,4 +1,4 @@
-#include "modelica/matching/SccCollapsing.hpp"
+#include "marco/matching/SccCollapsing.hpp"
 
 #include <algorithm>
 #include <iterator>
@@ -17,17 +17,17 @@ void renumber_vertex_indices(const Graph& graph)
 }
 #include "boost/graph/lookup_edge.hpp"
 #include "boost/graph/tiernan_all_cycles.hpp"
-#include "modelica/matching/SccLookup.hpp"
-#include "modelica/matching/VVarDependencyGraph.hpp"
-#include "modelica/model/LinSolver.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/Model.hpp"
-#include "modelica/model/VectorAccess.hpp"
-#include "modelica/utils/IndexSet.hpp"
-#include "modelica/utils/Interval.hpp"
+#include "marco/matching/SccLookup.hpp"
+#include "marco/matching/VVarDependencyGraph.hpp"
+#include "marco/model/LinSolver.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/Model.hpp"
+#include "marco/model/VectorAccess.hpp"
+#include "marco/utils/IndexSet.hpp"
+#include "marco/utils/Interval.hpp"
 
 using namespace std;
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 
 using EqVector = SmallVector<ModEquation, 3>;
@@ -269,7 +269,7 @@ static Error fuseScc(
 	return Error::success();
 }
 
-Expected<Model> modelica::solveScc(Model&& model, size_t maxIterations)
+Expected<Model> marco::solveScc(Model&& model, size_t maxIterations)
 {
 	VVarDependencyGraph vectorGraph(model);
 	SccLookup sccs(vectorGraph);

@@ -1,7 +1,7 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 #include <numeric>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Record::Record(SourceRange location,
 							 llvm::StringRef name,
@@ -34,7 +34,7 @@ Record& Record::operator=(const Record& other)
 
 Record& Record::operator=(Record&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Record& first, Record& second)
 	{
@@ -124,7 +124,7 @@ Record::const_iterator Record::end() const
 	return members.end();
 }
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Record& obj)
 	{

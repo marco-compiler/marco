@@ -1,7 +1,7 @@
-#include <modelica/mlirlowerer/passes/model/Reference.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/model/Reference.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 Reference::Reference(mlir::Value var) : var(var)
 {

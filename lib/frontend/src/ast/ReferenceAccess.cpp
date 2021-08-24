@@ -1,6 +1,6 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 ReferenceAccess::ReferenceAccess(SourceRange location,
 																 Type type,
@@ -37,7 +37,7 @@ ReferenceAccess& ReferenceAccess::operator=(const ReferenceAccess& other)
 
 ReferenceAccess& ReferenceAccess::operator=(ReferenceAccess&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(ReferenceAccess& first, ReferenceAccess& second)
 	{
@@ -114,7 +114,7 @@ std::unique_ptr<Expression> ReferenceAccess::dummy(SourceRange location, Type ty
 	return Expression::reference(location, type, "", false, true);
 }
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const ReferenceAccess& obj)
 	{

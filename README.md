@@ -58,37 +58,37 @@ The project is divided into tools and libs. Conceptually a lib does something an
 No nested libs are allowed, and each lib must be placed in the ./lib folder. The reason for this choice is because dependencies are expressed with the cmake target_link_libraries command rather than with the position in the tree folder. Furthermore this allows for tools to autodetect which targets are available by just querying the subfolder names in lib. Should the need to visually check the library dependecies ever arise then use a cmake dependecy generator.
 
 A library must be composed of
-* A `CMakeLists.txt` file that invokes `modelicaAddLibrary`. It must be located in the root of the library: `./lib/libName/CMakeLists.txt`
+* A `CMakeLists.txt` file that invokes `marcoAddLibrary`. It must be located in the root of the library: `./lib/libName/CMakeLists.txt`
 * An `include` folder. All the headers file in this folder will populate the public interface of this library.
 * A `src` folder. This folder can be structured in any way, since it is private. Private headers can be placed here.
 * A `test` folder. Read in the test section for further information
 
-#### The modelicaAddLibrary macro
+#### The marcoAddLibrary macro
 This macro behaves like CMake's `add_library`, but it also does the following:
 * Specify that the include directory is `pathToLib/include`
-* Create an alias for the library called `modelica::libName`
+* Create an alias for the library called `marco::libName`
 * Set the language level to C++17
 * Select which and where files will be installed
 * Include the tests subfolder
 
 ### Executables
 As is the case for libraries all executables must be placed in the top level of the tool folder. A tool is composed of the following:
-* folder located in ./tool/toolName that contains a CMakeLists.txt that invokes modelicaAddTool
+* folder located in ./tool/toolName that contains a CMakeLists.txt that invokes marcoAddTool
 * a src folder that must contain a Main.cpp file
 * a test folder that can contain anything
 
-### The modelicaAddTool macro
-The modelica add tool macro accepts a name for the tool as first argument and the name of libraries the tool will be depending on. The macro will
+### The marcoAddTool macro
+The marco add tool macro accepts a name for the tool as first argument and the name of libraries the tool will be depending on. The macro will
 * Set the dependencies
-* Create an alias called modelica::toolName for the tool
+* Create an alias called marco::toolName for the tool
 * set the language level to c++17
 * select what will be installed where
 * include the test subdirectory
 
 ### Testing
-Each library and tool should include a `test` subfolder containing its tests. The `CMakeLists.txt` inside this folder can use the `modelicaAddTest` macro. If it does, then the `test` folder must contain a `src` subdirectory with the tests files.
+Each library and tool should include a `test` subfolder containing its tests. The `CMakeLists.txt` inside this folder can use the `marcoAddTest` macro. If it does, then the `test` folder must contain a `src` subdirectory with the tests files.
 
-#### The addModelicaTest macro
+#### The marcoAddTest macro
 This macro takes the name of the executable that will contain the tests, it must be the name of the library itself. the postfix test will be added.
 all other arguments must be the path to the cpp file that will compose the body of the test.
 The macro will
@@ -163,7 +163,7 @@ ninja all
 * LLVM_DIR= the folder in which the finder of llvm will be searched. As an example if llvm is installed in usr/local/lib the correct value is "/usr/local/lib/cmake/llvm" 
 
 ### Installation
-Once it has been built it can be installed. If you run make install or ninja install depending on your configurations modelica will be installed. When running
+Once it has been built it can be installed. If you run make install or ninja install depending on your configurations marco will be installed. When running
 `cmake ..` you can configure the install location with `-DCMAKE_INSTALL_PREFIX=PATH`. After the installation the header, the libraries and the tools will be deployed in the target folder. Notice that debug libraries have a different name thus they can cohexists  with the release library in the install directory.
 
 ### Packaging

@@ -1,4 +1,4 @@
-modelicaAddLibrary(
+marcoAddLibrary(
 	model SHARED 
 	src/ModExp.cpp
    	src/ModErrors.cpp
@@ -14,6 +14,6 @@ modelicaAddLibrary(
    	src/ModConst.cpp
 	src/ModMatchers.cpp)
 
-target_link_libraries(model PUBLIC modelica::utils)
+target_link_libraries(model PUBLIC marco::utils)
 
 

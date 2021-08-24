@@ -1,16 +1,16 @@
 #include "gtest/gtest.h"
 
-#include "modelica/utils/NumbersLexer.hpp"
+#include "marco/utils/NumbersLexer.hpp"
 
 TEST(IntegerLexerTest, defaultShouldBeZero)
 {
-	modelica::IntegerLexer<10> lex;
+	marco::IntegerLexer<10> lex;
 	EXPECT_EQ(lex.get(), 0);
 }
 
 TEST(IntegerLexerTest, insertionShouldWork)
 {
-	modelica::IntegerLexer<10> lex;
+	marco::IntegerLexer<10> lex;
 	lex += 9;
 	EXPECT_EQ(lex.get(), 9);
 	lex += 7;
@@ -19,14 +19,14 @@ TEST(IntegerLexerTest, insertionShouldWork)
 
 TEST(FloatLexerTest, defaultShouldBeZero)
 {
-	modelica::FloatLexer<10> lex;
+	marco::FloatLexer<10> lex;
 	EXPECT_NEAR(lex.get(), 0, 0.01);
 	EXPECT_NEAR(lex.getUpperPart(), 0, 0.01);
 }
 
 TEST(FloatLexerTest, onlyUpperPartShouldWork)
 {
-	modelica::FloatLexer<10> lex;
+	marco::FloatLexer<10> lex;
 	lex.addUpper(9);
 	EXPECT_NEAR(lex.get(), 9, 0.01);
 	lex.addUpper(7);
@@ -35,7 +35,7 @@ TEST(FloatLexerTest, onlyUpperPartShouldWork)
 
 TEST(FloatLexerTest, withoutExponentialShouldWork)
 {
-	modelica::FloatLexer<10> lex;
+	marco::FloatLexer<10> lex;
 	lex.addUpper(9);
 	lex.addLower(5);
 	EXPECT_NEAR(lex.get(), 9.5, 0.01);
@@ -45,7 +45,7 @@ TEST(FloatLexerTest, withoutExponentialShouldWork)
 
 TEST(FloatLexerTest, lessThanOneFloatsShoudlWork)
 {
-	modelica::FloatLexer<10> lex;
+	marco::FloatLexer<10> lex;
 	lex.addUpper(2);
 	lex.addLower(0);
 	lex.addLower(0);
@@ -57,7 +57,7 @@ TEST(FloatLexerTest, lessThanOneFloatsShoudlWork)
 
 TEST(FloatLexerTest, positiveExponentialShouldWork)
 {
-	modelica::FloatLexer<10> lex;
+	marco::FloatLexer<10> lex;
 	lex.addUpper(9);
 	lex.addLower(5);
 	lex.addExponential(0);
@@ -70,7 +70,7 @@ TEST(FloatLexerTest, positiveExponentialShouldWork)
 
 TEST(FloatLexerTest, smallPositiveNumberShouldWokr)
 {
-	modelica::FloatLexer<10> lex;
+	marco::FloatLexer<10> lex;
 	lex.addUpper(0);
 	lex.addLower(0);
 	lex.addLower(0);

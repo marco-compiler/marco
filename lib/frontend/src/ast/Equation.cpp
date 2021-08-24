@@ -1,6 +1,6 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Equation::Equation(SourceRange location,
 									 std::unique_ptr<Expression> lhs,
@@ -31,7 +31,7 @@ Equation& Equation::operator=(const Equation& other)
 
 Equation& Equation::operator=(Equation&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Equation& first, Equation& second)
 	{

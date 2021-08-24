@@ -1,12 +1,12 @@
-#include "modelica/model/VectorAccess.hpp"
+#include "marco/model/VectorAccess.hpp"
 
 #include <string>
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/model/ModExp.hpp"
+#include "marco/model/ModExp.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 using namespace llvm;
 

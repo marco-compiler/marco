@@ -3,15 +3,15 @@
 #include <mlir/IR/Verifier.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Transforms/Passes.h>
-#include <modelica/frontend/AST.h>
-#include <modelica/frontend/SymbolTable.hpp>
-#include <modelica/mlirlowerer/CodeGen.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <marco/frontend/AST.h>
+#include <marco/frontend/SymbolTable.hpp>
+#include <marco/mlirlowerer/CodeGen.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
 #include <numeric>
 
-using namespace modelica;
+using namespace marco;
 using namespace frontend;
-using namespace modelica::codegen;
+using namespace marco::codegen;
 using namespace std;
 
 Reference::Reference()

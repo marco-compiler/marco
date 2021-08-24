@@ -2,19 +2,19 @@
 #include <iterator>
 
 #include "llvm/InitializePasses.h"
-#include "modelica/matching/KhanAdjacentAlgorithm.hpp"
-#include "modelica/matching/SVarDependencyGraph.hpp"
-#include "modelica/matching/Schedule.hpp"
-#include "modelica/matching/VVarDependencyGraph.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModType.hpp"
-#include "modelica/model/VectorAccess.hpp"
-#include "modelica/utils/Interval.hpp"
+#include "marco/matching/KhanAdjacentAlgorithm.hpp"
+#include "marco/matching/SVarDependencyGraph.hpp"
+#include "marco/matching/Schedule.hpp"
+#include "marco/matching/VVarDependencyGraph.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModType.hpp"
+#include "marco/model/VectorAccess.hpp"
+#include "marco/utils/Interval.hpp"
 
 using namespace std;
 using namespace llvm;
-using namespace modelica;
+using namespace marco;
 
 static auto makeModel()
 {

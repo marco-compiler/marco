@@ -1,7 +1,7 @@
-#include <modelica/mlirlowerer/passes/model/Expression.h>
-#include <modelica/mlirlowerer/passes/model/Operation.h>
+#include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Operation.h>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 Operation::Operation(llvm::ArrayRef<Expression> args)
 {

@@ -1,4 +1,4 @@
-#include "modelica/model/ModEquation.hpp"
+#include "marco/model/ModEquation.hpp"
 
 #include <llvm/ADT/StringRef.h>
 #include <memory>
@@ -10,20 +10,20 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/model/ModConst.hpp"
-#include "modelica/model/ModErrors.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModExpPath.hpp"
-#include "modelica/model/ModMatchers.hpp"
-#include "modelica/model/ModType.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/model/VectorAccess.hpp"
-#include "modelica/utils/IndexSet.hpp"
-#include "modelica/utils/Interval.hpp"
+#include "marco/model/ModConst.hpp"
+#include "marco/model/ModErrors.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModExpPath.hpp"
+#include "marco/model/ModMatchers.hpp"
+#include "marco/model/ModType.hpp"
+#include "marco/model/ModVariable.hpp"
+#include "marco/model/VectorAccess.hpp"
+#include "marco/utils/IndexSet.hpp"
+#include "marco/utils/Interval.hpp"
 
 using namespace std;
 using namespace llvm;
-using namespace modelica;
+using namespace marco;
 
 /***
  * \return true if kind is associative and commutative
@@ -32,24 +32,24 @@ static bool isAssComm(ModExpKind kind)
 {
 	switch (kind)
 	{
-		case modelica::ModExpKind::zero:
-		case modelica::ModExpKind::greaterEqual:
-		case modelica::ModExpKind::greaterThan:
-		case modelica::ModExpKind::lessEqual:
-		case modelica::ModExpKind::less:
-		case modelica::ModExpKind::different:
-		case modelica::ModExpKind::negate:
-		case modelica::ModExpKind::divide:
-		case modelica::ModExpKind::sub:
-		case modelica::ModExpKind::induction:
-		case modelica::ModExpKind::at:
-		case modelica::ModExpKind::conditional:
-		case modelica::ModExpKind::elevation:
-		case modelica::ModExpKind::module:
-		case modelica::ModExpKind::equal:
+		case marco::ModExpKind::zero:
+		case marco::ModExpKind::greaterEqual:
+		case marco::ModExpKind::greaterThan:
+		case marco::ModExpKind::lessEqual:
+		case marco::ModExpKind::less:
+		case marco::ModExpKind::different:
+		case marco::ModExpKind::negate:
+		case marco::ModExpKind::divide:
+		case marco::ModExpKind::sub:
+		case marco::ModExpKind::induction:
+		case marco::ModExpKind::at:
+		case marco::ModExpKind::conditional:
+		case marco::ModExpKind::elevation:
+		case marco::ModExpKind::module:
+		case marco::ModExpKind::equal:
 			return false;
-		case modelica::ModExpKind::add:
-		case modelica::ModExpKind::mult:
+		case marco::ModExpKind::add:
+		case marco::ModExpKind::mult:
 			return true;
 	}
 	return false;

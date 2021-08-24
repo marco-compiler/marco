@@ -1,4 +1,4 @@
-#include "modelica/matching/Matching.hpp"
+#include "marco/matching/Matching.hpp"
 
 #include <functional>
 #include <iterator>
@@ -10,17 +10,17 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/matching/Edge.hpp"
-#include "modelica/matching/Flow.hpp"
-#include "modelica/matching/MatchingErrors.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModMatchers.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/model/Model.hpp"
-#include "modelica/model/VectorAccess.hpp"
-#include "modelica/utils/IRange.hpp"
+#include "marco/matching/Edge.hpp"
+#include "marco/matching/Flow.hpp"
+#include "marco/matching/MatchingErrors.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModMatchers.hpp"
+#include "marco/model/ModVariable.hpp"
+#include "marco/model/Model.hpp"
+#include "marco/model/VectorAccess.hpp"
+#include "marco/utils/IRange.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 using namespace llvm;
 
@@ -211,7 +211,7 @@ static Expected<Model> explicitateModel(Model& model, MatchingGraph& graph)
 	return toReturn;
 }
 
-Expected<Model> modelica::match(Model entryModel, size_t maxIterations)
+Expected<Model> marco::match(Model entryModel, size_t maxIterations)
 {
 	if (entryModel.equationsCount() != entryModel.nonStateNonConstCount())
 		return make_error<EquationAndStateMissmatch>(move(entryModel));

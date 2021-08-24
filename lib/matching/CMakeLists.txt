@@ -1,4 +1,4 @@
-modelicaAddLibrary(
+marcoAddLibrary(
 	matching SHARED 
 	src/Matching.cpp
    	src/Edge.cpp
@@ -13,7 +13,7 @@ modelicaAddLibrary(
 
 target_link_libraries(
 	matching PUBLIC 
-	modelica::model 
+	marco::model 
 	pthread
 	boost)
 

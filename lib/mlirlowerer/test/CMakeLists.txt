@@ -1,1 +1,1 @@
-#modelicaAddTest(mlirlowerer)
+#marcoAddTest(mlirlowerer)

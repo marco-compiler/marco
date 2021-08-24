@@ -1,4 +1,4 @@
-modelicaAddTool(
+marcoAddTool(
 	modcollapser 
-	modelica::model 
-	modelica::passes)
+	marco::model 
+	marco::passes)

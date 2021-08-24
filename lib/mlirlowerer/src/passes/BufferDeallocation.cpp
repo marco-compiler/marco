@@ -1,12 +1,12 @@
 #include <mlir/Transforms/BufferUtils.h>
 #include <mlir/Transforms/Passes.h>
-#include <modelica/mlirlowerer/passes/BufferDeallocation.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/BufferDeallocation.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
 
 using namespace mlir;
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
-namespace modelica::codegen
+namespace marco::codegen
 {
 	class BufferDeallocation : BufferPlacementTransformationBase
 	{
@@ -106,7 +106,7 @@ class BufferDeallocationPass : public mlir::PassWrapper<BufferDeallocationPass, 
 	}
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createBufferDeallocationPass()
+std::unique_ptr<mlir::Pass> marco::codegen::createBufferDeallocationPass()
 {
 	return std::make_unique<BufferDeallocationPass>();
 }

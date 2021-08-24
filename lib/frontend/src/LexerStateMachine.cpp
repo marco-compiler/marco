@@ -1,13 +1,13 @@
-#include <modelica/frontend/LexerStateMachine.h>
+#include <marco/frontend/LexerStateMachine.h>
 
 using namespace llvm;
-using namespace modelica;
+using namespace marco;
 using namespace frontend;
 using namespace std;
 
 using State = ModelicaStateMachine::State;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	raw_ostream& operator<<(raw_ostream& stream, const Token& obj)
 	{
@@ -212,7 +212,7 @@ namespace modelica::frontend
 
 		return "unexpected";
 	}
-}	 // namespace modelica
+}	 // namespace marco
 
 static bool isDigit(char c) { return ('0' <= c && c <= '9'); }
 

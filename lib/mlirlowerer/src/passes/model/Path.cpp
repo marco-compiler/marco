@@ -1,8 +1,8 @@
-#include <modelica/mlirlowerer/passes/model/Expression.h>
-#include <modelica/mlirlowerer/passes/model/Path.h>
+#include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Path.h>
 
-using namespace modelica::codegen;
-using namespace modelica::codegen::model;
+using namespace marco::codegen;
+using namespace marco::codegen::model;
 
 EquationPath::EquationPath(llvm::ArrayRef<size_t> path, bool left)
 		: path(path.begin(), path.end()),

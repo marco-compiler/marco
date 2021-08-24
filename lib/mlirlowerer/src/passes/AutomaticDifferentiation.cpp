@@ -2,12 +2,12 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/mlirlowerer/passes/AutomaticDifferentiation.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/AutomaticDifferentiation.h>
 #include <queue>
 #include <set>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
 static bool hasFloatBase(mlir::Type type) {
 	if (type.isa<RealType>())
@@ -803,7 +803,7 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 	}
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createAutomaticDifferentiationPass()
+std::unique_ptr<mlir::Pass> marco::codegen::createAutomaticDifferentiationPass()
 {
 	return std::make_unique<AutomaticDifferentiationPass>();
 }

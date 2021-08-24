@@ -1,4 +1,4 @@
-#include "modelica/matching/VVarDependencyGraph.hpp"
+#include "marco/matching/VVarDependencyGraph.hpp"
 
 #include <algorithm>
 #include <boost/graph/strong_components.hpp>
@@ -15,20 +15,20 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/iterator_range.h"
-#include "modelica/matching/MatchedEquationLookup.hpp"
-#include "modelica/matching/SccLookup.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModExpPath.hpp"
-#include "modelica/model/ModMatchers.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/model/Model.hpp"
-#include "modelica/model/VectorAccess.hpp"
-#include "modelica/utils/IRange.hpp"
-#include "modelica/utils/IndexSet.hpp"
-#include "modelica/utils/Interval.hpp"
+#include "marco/matching/MatchedEquationLookup.hpp"
+#include "marco/matching/SccLookup.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModExpPath.hpp"
+#include "marco/model/ModMatchers.hpp"
+#include "marco/model/ModVariable.hpp"
+#include "marco/model/Model.hpp"
+#include "marco/model/VectorAccess.hpp"
+#include "marco/utils/IRange.hpp"
+#include "marco/utils/IndexSet.hpp"
+#include "marco/utils/Interval.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 using namespace llvm;
 using namespace boost;

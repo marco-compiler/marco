@@ -19,7 +19,7 @@ add_subdirectory(googletest)
 ##############################
 ###        Project         ###
 ##############################
-project(modelica VERSION 1.0 LANGUAGES CXX)
+project(marco VERSION 1.0 LANGUAGES CXX)
 enable_testing()
 include("CPack")
 include(CTest)
@@ -64,7 +64,7 @@ set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 ##############################
 ###       Subfolders       ###
 ##############################
-include(modelicaMacros.cmake)
+include(marcoMacros.cmake)
 include(extra.cmake)
 add_subdirectory(tool)
 add_subdirectory(lib)
@@ -91,4 +91,4 @@ install(TARGETS boost EXPORT BoostTargets
 
 install(EXPORT BoostTargets DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME}
 	FILE boostTargets.cmake
-	NAMESPACE modelica::)
+	NAMESPACE marco::)

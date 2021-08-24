@@ -1,16 +1,16 @@
 #include "gtest/gtest.h"
 
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/model/Assigment.hpp"
-#include "modelica/model/ModConst.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModType.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/utils/IndexSet.hpp"
-#include "modelica/utils/Interval.hpp"
+#include "marco/model/Assigment.hpp"
+#include "marco/model/ModConst.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModType.hpp"
+#include "marco/model/ModVariable.hpp"
+#include "marco/utils/IndexSet.hpp"
+#include "marco/utils/Interval.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 using namespace std;
 

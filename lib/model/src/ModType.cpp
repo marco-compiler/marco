@@ -1,7 +1,7 @@
-#include "modelica/model/ModType.hpp"
+#include "marco/model/ModType.hpp"
 
 using namespace std;
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 
 void ModType::dump(raw_ostream& OS) const

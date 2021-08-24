@@ -1,4 +1,4 @@
-modelicaAddTest(lowerer src/LowererTest.cpp)
+marcoAddTest(lowerer src/LowererTest.cpp)
 
 
 find_program(CLANGC NAMES clang clang-9)
@@ -20,7 +20,7 @@ macro(addLowererSimulationTest simulationName sourceSrc testSrc)
 	### Creates the command that will run the simulator generator and will produce the bc file
 	add_custom_command(OUTPUT ${simulationName}.bc include/${simulationName}.hpp
 		COMMAND $<TARGET_FILE:modc> --entry=runSimulation --publicSymbols=true --simTime=10 --dumpModel=true --o=${simulationName}.bc -header=include/${simulationName}.hpp ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm
-		DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm modelica::modc
+		DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.sm marco::modc
 		COMMENT "generates ${simulationName} simulation bc file"
 		VERBATIM)
 
@@ -42,8 +42,8 @@ macro(addLowererSimulationTest simulationName sourceSrc testSrc)
 
 	### Creates the actual test 
 	add_executable(${simulationName}Test ${testSrc})
-	add_executable(modelica::${simulationName}Test ALIAS ${simulationName}Test) 
-	target_link_libraries(${simulationName}Test PRIVATE gtest gtest_main ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.o modelica::runtime)
+	add_executable(marco::${simulationName}Test ALIAS ${simulationName}Test) 
+	target_link_libraries(${simulationName}Test PRIVATE gtest gtest_main ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.o marco::runtime)
 	target_include_directories(${simulationName}Test PUBLIC include PRIVATE src ${CMAKE_CURRENT_BINARY_DIR}/include)
 	target_compile_features(${simulationName}Test PUBLIC cxx_std_17)
 	add_dependencies(${simulationName}Test gen${simulationName})

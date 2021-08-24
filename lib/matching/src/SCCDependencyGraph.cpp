@@ -1,12 +1,12 @@
-#include "modelica/matching/SCCDependencyGraph.hpp"
+#include "marco/matching/SCCDependencyGraph.hpp"
 
 #include <boost/range/iterator_range_core.hpp>
 #include <iterator>
 
-#include "modelica/matching/VVarDependencyGraph.hpp"
+#include "marco/matching/VVarDependencyGraph.hpp"
 
 using namespace boost;
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 using namespace std;
 

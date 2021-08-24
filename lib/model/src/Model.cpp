@@ -1,7 +1,7 @@
-#include "modelica/model/Model.hpp"
+#include "marco/model/Model.hpp"
 
 using namespace std;
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 
 [[nodiscard]] size_t Model::startingIndex(const string& varName) const

@@ -1,10 +1,10 @@
 #include "gtest/gtest.h"
 
 #include "llvm/Support/Error.h"
-#include "modelica/model/ModEqTemplate.hpp"
-#include "modelica/model/ModParser.hpp"
+#include "marco/model/ModEqTemplate.hpp"
+#include "marco/model/ModParser.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 
 TEST(ModParserTest, contIntVectorShouldParse)

@@ -1,11 +1,11 @@
-#include "modelica/matching/MatchingErrors.hpp"
-using namespace modelica;
+#include "marco/matching/MatchingErrors.hpp"
+using namespace marco;
 
 MatchingErrorCategory MatchingErrorCategory::category;
 char FailedMatching::ID;
 char EquationAndStateMissmatch::ID;
 
-std::error_condition modelica::make_error_condition(MatchingErrorCode errc)
+std::error_condition marco::make_error_condition(MatchingErrorCode errc)
 {
 	return std::error_condition(
 			static_cast<int>(errc), MatchingErrorCategory::category);

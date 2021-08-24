@@ -1,11 +1,11 @@
-#include "modelica/model/ModLexerStateMachine.hpp"
+#include "marco/model/ModLexerStateMachine.hpp"
 
-using namespace modelica;
+using namespace marco;
 using State = ModLexerStateMachine::State;
 using namespace llvm;
 using namespace std;
 
-std::string modelica::tokenToString(ModToken token)
+std::string marco::tokenToString(ModToken token)
 {
 	switch (token)
 	{

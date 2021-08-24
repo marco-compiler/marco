@@ -1,7 +1,7 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica;
-using namespace modelica::frontend;
+using namespace marco;
+using namespace marco::frontend;
 
 Expression::Expression(Array content)
 		: content(std::move(content))
@@ -51,7 +51,7 @@ Expression& Expression::operator=(const Expression& other)
 
 Expression& Expression::operator=(Expression&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Expression& first, Expression& second)
 	{
@@ -112,7 +112,7 @@ bool Expression::isLValue() const
 	});
 }
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Expression& obj)
 	{

@@ -1,8 +1,8 @@
-#include "modelica/utils/ScopeGuard.hpp"
+#include "marco/utils/ScopeGuard.hpp"
 
 #include "gtest/gtest.h"
 
-using namespace modelica;
+using namespace marco;
 
 TEST(ScopeGuardTest, scopeGuardShouldRestoreInteger)
 {

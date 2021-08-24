@@ -14,7 +14,7 @@
 
 #include <array>
 #include <iostream>
-#include <modelica/runtime/ArrayDescriptor.h>
+#include <marco/runtime/ArrayDescriptor.h>
 
 extern "C" double __modelica_ciface_foo(double x);
 

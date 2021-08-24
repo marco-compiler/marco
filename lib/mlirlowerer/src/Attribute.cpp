@@ -1,10 +1,10 @@
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/DialectImplementation.h>
-#include <modelica/mlirlowerer/Attribute.h>
-#include <modelica/mlirlowerer/Type.h>
+#include <marco/mlirlowerer/Attribute.h>
+#include <marco/mlirlowerer/Type.h>
 #include <numeric>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
 bool BooleanAttributeStorage::operator==(const KeyTy& key) const
 {
@@ -472,7 +472,7 @@ unsigned int DerivativeAttribute::getOrder() const
 	return getImpl()->getOrder();
 }
 
-namespace modelica::codegen
+namespace marco::codegen
 {
 	mlir::Attribute parseModelicaAttribute(mlir::DialectAsmParser& parser, mlir::Type type)
 	{

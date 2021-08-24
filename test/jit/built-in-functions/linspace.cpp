@@ -10,7 +10,7 @@
 #include <array>
 #include <iostream>
 #include <llvm/ADT/STLExtras.h>
-#include <modelica/runtime/ArrayDescriptor.h>
+#include <marco/runtime/ArrayDescriptor.h>
 
 extern "C" void __modelica_ciface_foo(ArrayDescriptor<double, 1>* y, long start, long stop, long n);
 

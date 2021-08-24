@@ -1,4 +1,4 @@
-modelicaAddTest(
+marcoAddTest(
         frontend
         src/AlgorithmTest.cpp
         src/ArrayTest.cpp

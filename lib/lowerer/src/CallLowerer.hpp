@@ -5,10 +5,10 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Error.h"
-#include "modelica/lowerer/LowererUtils.hpp"
-#include "modelica/model/ModCall.hpp"
+#include "marco/lowerer/LowererUtils.hpp"
+#include "marco/model/ModCall.hpp"
 
-namespace modelica
+namespace marco
 {
 	llvm::Expected<llvm::Value*> lowerCall(
 			LowererContext& info, const ModCall& call);
@@ -22,4 +22,4 @@ namespace modelica
 			llvm::ArrayRef<llvm::Value*> args,
 			llvm::Type* returnType = nullptr);
 
-}	 // namespace modelica
+}	 // namespace marco

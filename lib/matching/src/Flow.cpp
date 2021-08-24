@@ -1,13 +1,13 @@
-#include "modelica/matching/Flow.hpp"
+#include "marco/matching/Flow.hpp"
 
 #include <fcntl.h>
 
 #include "llvm/ADT/iterator_range.h"
-#include "modelica/matching/Edge.hpp"
-#include "modelica/matching/Matching.hpp"
-#include "modelica/utils/IndexSet.hpp"
+#include "marco/matching/Edge.hpp"
+#include "marco/matching/Matching.hpp"
+#include "marco/utils/IndexSet.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 using namespace llvm;
 

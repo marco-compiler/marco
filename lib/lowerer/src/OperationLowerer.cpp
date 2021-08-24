@@ -6,10 +6,10 @@
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Error.h"
-#include "modelica/lowerer/LowererUtils.hpp"
-#include "modelica/model/ModExp.hpp"
+#include "marco/lowerer/LowererUtils.hpp"
+#include "marco/model/ModExp.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 using namespace std;
 
@@ -19,7 +19,7 @@ static bool isModelicaFloat(llvm::Type* t)
 }
 
 template<>
-Expected<Value*> modelica::op<ModExpKind::negate>(
+Expected<Value*> marco::op<ModExpKind::negate>(
 		LowererContext& info, Value* arg1)
 {
 	auto& builder = info.getBuilder();
@@ -40,7 +40,7 @@ Expected<Value*> modelica::op<ModExpKind::negate>(
 }
 
 template<>
-Expected<Value*> modelica::op<ModExpKind::add>(
+Expected<Value*> marco::op<ModExpKind::add>(
 		LowererContext& info, Value* arg1, Value* arg2)
 {
 	auto& builder = info.getBuilder();
@@ -55,7 +55,7 @@ Expected<Value*> modelica::op<ModExpKind::add>(
 }
 
 template<>
-Expected<Value*> modelica::op<ModExpKind::greaterThan>(
+Expected<Value*> marco::op<ModExpKind::greaterThan>(
 		LowererContext& info, Value* arg1, Value* arg2)
 {
 	auto& builder = info.getBuilder();
@@ -70,7 +70,7 @@ Expected<Value*> modelica::op<ModExpKind::greaterThan>(
 }
 
 template<>
-Expected<Value*> modelica::op<ModExpKind::lessEqual>(
+Expected<Value*> marco::op<ModExpKind::lessEqual>(
 		LowererContext& info, Value* arg1, Value* arg2)
 {
 	auto& builder = info.getBuilder();
@@ -85,7 +85,7 @@ Expected<Value*> modelica::op<ModExpKind::lessEqual>(
 }
 
 template<>
-Expected<Value*> modelica::op<ModExpKind::less>(
+Expected<Value*> marco::op<ModExpKind::less>(
 		LowererContext& info, Value* arg1, Value* arg2)
 {
 	auto& builder = info.getBuilder();
@@ -99,7 +99,7 @@ Expected<Value*> modelica::op<ModExpKind::less>(
 	return nullptr;
 }
 template<>
-Expected<Value*> modelica::op<ModExpKind::greaterEqual>(
+Expected<Value*> marco::op<ModExpKind::greaterEqual>(
 		LowererContext& info, Value* arg1, Value* arg2)
 {
 	auto& builder = info.getBuilder();
@@ -114,7 +114,7 @@ Expected<Value*> modelica::op<ModExpKind::greaterEqual>(
 }
 
 template<>
-Expected<Value*> modelica::op<ModExpKind::equal>(
+Expected<Value*> marco::op<ModExpKind::equal>(
 		LowererContext& info, Value* arg1, Value* arg2)
 {
 	auto& builder = info.getBuilder();
@@ -128,7 +128,7 @@ Expected<Value*> modelica::op<ModExpKind::equal>(
 	return nullptr;
 }
 template<>
-Expected<Value*> modelica::op<ModExpKind::different>(
+Expected<Value*> marco::op<ModExpKind::different>(
 		LowererContext& info, Value* arg1, Value* arg2)
 {
 	auto& builder = info.getBuilder();
@@ -142,7 +142,7 @@ Expected<Value*> modelica::op<ModExpKind::different>(
 	return nullptr;
 }
 template<>
-Expected<Value*> modelica::op<ModExpKind::sub>(
+Expected<Value*> marco::op<ModExpKind::sub>(
 		LowererContext& info, Value* arg1, Value* arg2)
 {
 	auto& builder = info.getBuilder();
@@ -157,7 +157,7 @@ Expected<Value*> modelica::op<ModExpKind::sub>(
 }
 
 template<>
-Expected<Value*> modelica::op<ModExpKind::mult>(
+Expected<Value*> marco::op<ModExpKind::mult>(
 		LowererContext& info, Value* arg1, Value* arg2)
 {
 	auto& builder = info.getBuilder();
@@ -172,7 +172,7 @@ Expected<Value*> modelica::op<ModExpKind::mult>(
 }
 
 template<>
-Expected<Value*> modelica::op<ModExpKind::elevation>(
+Expected<Value*> marco::op<ModExpKind::elevation>(
 		LowererContext& info, Value* arg1, Value* arg2)
 {
 	if (not isModelicaFloat(arg1->getType()) or
@@ -190,7 +190,7 @@ Expected<Value*> modelica::op<ModExpKind::elevation>(
 }
 
 template<>
-Expected<Value*> modelica::op<ModExpKind::divide>(
+Expected<Value*> marco::op<ModExpKind::divide>(
 		LowererContext& info, Value* arg1, Value* arg2)
 {
 	auto& builder = info.getBuilder();
@@ -204,7 +204,7 @@ Expected<Value*> modelica::op<ModExpKind::divide>(
 	return nullptr;
 }
 
-Expected<Value*> modelica::lowerAtOperation(
+Expected<Value*> marco::lowerAtOperation(
 		LowererContext& info, const ModExp& exp)
 {
 	assert(exp.getKind() == ModExpKind::at);	// NOLINT
@@ -224,7 +224,7 @@ Expected<Value*> modelica::lowerAtOperation(
 	return info.getArrayElementPtr(*leftHand, index);
 }
 
-Expected<Value*> modelica::lowerNegate(LowererContext& info, const ModExp& arg1)
+Expected<Value*> marco::lowerNegate(LowererContext& info, const ModExp& arg1)
 {
 	auto lowered = lowerExp(info, arg1);
 	if (!lowered)
@@ -249,7 +249,7 @@ Expected<Value*> modelica::lowerNegate(LowererContext& info, const ModExp& arg1)
 	return exitVal;
 }
 
-Expected<Value*> modelica::lowerInduction(
+Expected<Value*> marco::lowerInduction(
 		LowererContext& info, const ModExp& arg1)
 {
 	auto lowered = lowerExp(info, arg1);

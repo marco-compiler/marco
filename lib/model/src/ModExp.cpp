@@ -1,13 +1,13 @@
-#include "modelica/model/ModExp.hpp"
+#include "marco/model/ModExp.hpp"
 
 #include <algorithm>
 #include <functional>
 
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/model/ModConst.hpp"
+#include "marco/model/ModConst.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 
 static std::string exprKindToString(ModExpKind kind)

@@ -1,4 +1,4 @@
-modelicaAddTool(
+marcoAddTool(
 	modsched 
-	modelica::model 
-	modelica::passes)
+	marco::model 
+	marco::passes)

@@ -1,13 +1,13 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/Error.h>
-#include <modelica/frontend/AST.h>
-#include <modelica/frontend/Errors.h>
-#include <modelica/frontend/LexerStateMachine.h>
-#include <modelica/frontend/Parser.h>
+#include <marco/frontend/AST.h>
+#include <marco/frontend/Errors.h>
+#include <marco/frontend/LexerStateMachine.h>
+#include <marco/frontend/Parser.h>
 #include <optional>
 
-using namespace modelica;
-using namespace modelica::frontend;
+using namespace marco;
+using namespace marco::frontend;
 
 Parser::Parser(llvm::StringRef fileName, const char* source)
 		: filename(fileName.str()),
@@ -72,7 +72,7 @@ void Parser::updateTokenSourceRange()
 	tokenRange.endColumn = lexer.getTokenEndColumn();
 }
 
-#include <modelica/utils/ParserUtils.hpp>
+#include <marco/utils/ParserUtils.hpp>
 
 llvm::Expected<Parser::ValueWrapper<bool>> Parser::getBool()
 {
@@ -1393,7 +1393,7 @@ llvm::Expected<std::unique_ptr<Argument>> Parser::elementReplaceable(bool each, 
 	return llvm::make_error<NotImplemented>("element-replaceable not implemented yet");
 }
 
-namespace modelica::frontend::detail
+namespace marco::frontend::detail
 {
 	ParsingErrorCategory ParsingErrorCategory::category;
 

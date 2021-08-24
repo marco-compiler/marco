@@ -1,12 +1,12 @@
-#include "modelica/model/ModCall.hpp"
+#include "marco/model/ModCall.hpp"
 
 #include <algorithm>
 
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModType.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModType.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 using namespace llvm;
 

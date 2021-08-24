@@ -1,6 +1,6 @@
-#include <modelica/utils/SourcePosition.h>
+#include <marco/utils/SourcePosition.h>
 
-using namespace modelica;
+using namespace marco;
 
 SourcePosition::SourcePosition(std::string file, unsigned int line, unsigned int column)
 		: file(std::make_shared<std::string>(file)),
@@ -14,7 +14,7 @@ SourcePosition SourcePosition::unknown()
 	return SourcePosition("-", 0, 0);
 }
 
-namespace modelica
+namespace marco
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const SourcePosition& obj)
 	{
@@ -193,7 +193,7 @@ void SourceRange::printLines(llvm::raw_ostream& os, std::function<void(llvm::raw
 	}
 }
 
-namespace modelica
+namespace marco
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const SourceRange& obj)
 	{

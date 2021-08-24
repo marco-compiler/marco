@@ -2,24 +2,24 @@
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
-#include <modelica/mlirlowerer/passes/matching/SCCDependencyGraph.h>
-#include <modelica/mlirlowerer/passes/matching/SCCLookup.h>
-#include <modelica/mlirlowerer/passes/matching/SVarDependencyGraph.h>
-#include <modelica/mlirlowerer/passes/matching/Schedule.h>
-#include <modelica/mlirlowerer/passes/matching/VVarDependencyGraph.h>
-#include <modelica/mlirlowerer/passes/model/Equation.h>
-#include <modelica/mlirlowerer/passes/model/Expression.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/utils/IndexSet.hpp>
+#include <marco/mlirlowerer/passes/matching/SCCDependencyGraph.h>
+#include <marco/mlirlowerer/passes/matching/SCCLookup.h>
+#include <marco/mlirlowerer/passes/matching/SVarDependencyGraph.h>
+#include <marco/mlirlowerer/passes/matching/Schedule.h>
+#include <marco/mlirlowerer/passes/matching/VVarDependencyGraph.h>
+#include <marco/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/utils/IndexSet.hpp>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 static llvm::SmallVector<Equation, 3> collapseEquations(
 		const SVarDepencyGraph& originalGraph)
 {
 	llvm::SmallVector<Equation, 3> out;
 
-	modelica::IndexSet currentSet;
+	marco::IndexSet currentSet;
 
 	const auto onSched = [&](size_t node) {
 		const auto& currentNode = originalGraph[node];
@@ -43,7 +43,7 @@ static llvm::SmallVector<Equation, 3> collapseEquations(
 		}
 
 		eq.getOp()->erase();
-		currentSet = modelica::IndexSet();
+		currentSet = marco::IndexSet();
 	};
 
 	originalGraph.topoOrder(onSched, onGroupEnd);
@@ -109,7 +109,7 @@ static llvm::SmallVector<Equation, 3> schedule(
 using ResultVector = llvm::SmallVector<llvm::SmallVector<Equation, 3>, 3>;
 using SortedSCC = llvm::SmallVector<const SCC<VVarDependencyGraph>*, 3>;
 
-mlir::LogicalResult modelica::codegen::model::schedule(Model& model)
+mlir::LogicalResult marco::codegen::model::schedule(Model& model)
 {
 	VVarDependencyGraph vectorGraph(model);
 	SCCDependencyGraph sccDependency(vectorGraph);

@@ -1,17 +1,17 @@
 #include "gtest/gtest.h"
 
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/model/ModCall.hpp"
-#include "modelica/model/ModConst.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModLexerStateMachine.hpp"
-#include "modelica/model/ModParser.hpp"
-#include "modelica/model/ModType.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/model/Model.hpp"
+#include "marco/model/ModCall.hpp"
+#include "marco/model/ModConst.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModLexerStateMachine.hpp"
+#include "marco/model/ModParser.hpp"
+#include "marco/model/ModType.hpp"
+#include "marco/model/ModVariable.hpp"
+#include "marco/model/Model.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 
 TEST(ConstantTest, construtorTest)	// NOLINT

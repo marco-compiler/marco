@@ -1,8 +1,8 @@
 #include <gtest/gtest.h>
-#include <modelica/frontend/LexerStateMachine.h>
-#include <modelica/utils/Lexer.hpp>
+#include <marco/frontend/LexerStateMachine.h>
+#include <marco/utils/Lexer.hpp>
 
-using namespace modelica;
+using namespace marco;
 using namespace frontend;
 
 TEST(LexerStateMachineTest, checkDefaults)

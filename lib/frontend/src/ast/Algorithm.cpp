@@ -1,6 +1,6 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Algorithm::Algorithm(SourceRange location,
 										 llvm::ArrayRef<std::unique_ptr<Statement>> statements)
@@ -31,7 +31,7 @@ Algorithm& Algorithm::operator=(const Algorithm& other)
 
 Algorithm& Algorithm::operator=(Algorithm&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Algorithm& first, Algorithm& second)
 	{

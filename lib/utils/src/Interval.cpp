@@ -1,11 +1,11 @@
-#include "modelica/utils/Interval.hpp"
+#include "marco/utils/Interval.hpp"
 
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/utils/MultiDimensionalIterator.hpp"
+#include "marco/utils/MultiDimensionalIterator.hpp"
 
 using namespace llvm;
-using namespace modelica;
+using namespace marco;
 using namespace std;
 
 bool MultiDimInterval::contains(llvm::ArrayRef<size_t> point) const
@@ -18,7 +18,7 @@ bool MultiDimInterval::contains(llvm::ArrayRef<size_t> point) const
 	return true;
 }
 
-bool modelica::areDisjoint(const Interval& left, const Interval& right)
+bool marco::areDisjoint(const Interval& left, const Interval& right)
 {
 	if (left.min() >= right.max())
 		return true;
@@ -28,7 +28,7 @@ bool modelica::areDisjoint(const Interval& left, const Interval& right)
 	return false;
 }
 
-bool modelica::areDisjoint(
+bool marco::areDisjoint(
 		const MultiDimInterval& left, const MultiDimInterval& right)
 {
 	assert(left.dimensions() == right.dimensions());	// NOLINT
@@ -40,7 +40,7 @@ bool modelica::areDisjoint(
 	return false;
 }
 
-MultiDimInterval modelica::intersection(
+MultiDimInterval marco::intersection(
 		const MultiDimInterval& left, const MultiDimInterval& right)
 {
 	assert(!areDisjoint(left, right));								// NOLINT

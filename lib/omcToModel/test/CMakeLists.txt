@@ -1,4 +1,4 @@
-modelicaAddTest(
+marcoAddTest(
 	omcToModel 
 	src/PassesTest.cpp)
 

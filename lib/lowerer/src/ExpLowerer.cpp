@@ -4,13 +4,13 @@
 #include "OperationLowerer.hpp"
 #include "llvm/IR/Instructions.h"
 #include "llvm/Support/Error.h"
-#include "modelica/model/ModConst.hpp"
-#include "modelica/model/ModErrors.hpp"
-#include "modelica/model/ModExp.hpp"
+#include "marco/model/ModConst.hpp"
+#include "marco/model/ModErrors.hpp"
+#include "marco/model/ModExp.hpp"
 
 using namespace std;
 using namespace llvm;
-using namespace modelica;
+using namespace marco;
 
 Type* flatPtrType(PointerType* t)
 {
@@ -236,7 +236,7 @@ static Value* castSingleElem(LowererContext& info, Value* val, Type* type)
 	return builder.CreateTrunc(val, boolType);
 }
 
-Expected<Value*> modelica::castReturnValue(
+Expected<Value*> marco::castReturnValue(
 		LowererContext& info, Value* val, const ModType& type)
 {
 	auto* ptrArrayType = dyn_cast<PointerType>(val->getType());
@@ -261,7 +261,7 @@ Expected<Value*> modelica::castReturnValue(
 	return alloca;
 }
 
-namespace modelica
+namespace marco
 {
 	Expected<AllocaInst*> lowerConstant(
 			LowererContext& context, const ModExp& exp)
@@ -277,4 +277,4 @@ namespace modelica
 
 		return castReturnValue(info, *retVal, exp.getModType());
 	}
-}	 // namespace modelica
+}	 // namespace marco

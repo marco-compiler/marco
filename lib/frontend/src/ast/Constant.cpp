@@ -1,6 +1,6 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Constant::Constant(SourceRange location, Type type, bool value)
 		: ASTNode(std::move(location)),
@@ -60,7 +60,7 @@ Constant& Constant::operator=(const Constant& other)
 
 Constant& Constant::operator=(Constant&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Constant& first, Constant& second)
 	{
@@ -108,7 +108,7 @@ void Constant::setType(Type tp)
 	type = std::move(tp);
 }
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Constant& obj)
 	{

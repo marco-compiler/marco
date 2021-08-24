@@ -1,9 +1,9 @@
 #include <mlir/IR/BuiltinOps.h>
-#include <modelica/mlirlowerer/passes/model/Equation.h>
-#include <modelica/mlirlowerer/passes/model/ReferenceMatcher.h>
-#include <modelica/utils/ScopeGuard.hpp>
+#include <marco/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
+#include <marco/utils/ScopeGuard.hpp>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 ReferenceMatcher::ReferenceMatcher() = default;
 

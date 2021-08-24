@@ -1,7 +1,7 @@
-#include <modelica/frontend/Errors.h>
+#include <marco/frontend/Errors.h>
 
-using namespace modelica;
-using namespace modelica::frontend;
+using namespace marco;
+using namespace marco::frontend;
 
 AbstractMessage::AbstractMessage() = default;
 AbstractMessage::AbstractMessage(const AbstractMessage& other) = default;
@@ -60,7 +60,7 @@ std::function<void (llvm::raw_ostream &)> WarningMessage::getFormatter() const
 	};
 };
 
-namespace modelica::frontend::detail
+namespace marco::frontend::detail
 {
 	GenericErrorCategory GenericErrorCategory::category;
 

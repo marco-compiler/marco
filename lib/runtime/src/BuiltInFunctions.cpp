@@ -1,4 +1,4 @@
-#include <modelica/runtime/Runtime.h>
+#include <marco/runtime/Runtime.h>
 #include <numeric>
 
 /**

@@ -1,4 +1,4 @@
-modelicaAddLibrary(
+marcoAddLibrary(
         frontend SHARED
 		src/ast/Algorithm.cpp
 		src/ast/Annotation.cpp
@@ -33,4 +33,4 @@ modelicaAddLibrary(
 		src/SymbolTable.cpp
 )
 
-target_link_libraries(frontend PUBLIC modelica::model boost)
+target_link_libraries(frontend PUBLIC marco::model boost)

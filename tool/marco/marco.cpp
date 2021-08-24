@@ -15,12 +15,12 @@
 #include <mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Export.h>
 #include <mlir/Transforms/Passes.h>
-#include <modelica/frontend/Parser.h>
-#include <modelica/frontend/Passes.h>
-#include <modelica/mlirlowerer/CodeGen.h>
+#include <marco/frontend/Parser.h>
+#include <marco/frontend/Passes.h>
+#include <marco/mlirlowerer/CodeGen.h>
 
 using namespace llvm;
-using namespace modelica;
+using namespace marco;
 using namespace std;
 
 static cl::OptionCategory modelSolvingOptions("Model solving options");

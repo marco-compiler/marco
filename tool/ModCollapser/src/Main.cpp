@@ -6,20 +6,20 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "modelica/matching/Flow.hpp"
-#include "modelica/matching/SVarDependencyGraph.hpp"
-#include "modelica/matching/SccCollapsing.hpp"
-#include "modelica/matching/SccLookup.hpp"
-#include "modelica/matching/Schedule.hpp"
-#include "modelica/matching/VVarDependencyGraph.hpp"
-#include "modelica/model/Assigment.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModParser.hpp"
-#include "modelica/model/Model.hpp"
-#include "modelica/passes/ConstantFold.hpp"
-#include "modelica/utils/IRange.hpp"
+#include "marco/matching/Flow.hpp"
+#include "marco/matching/SVarDependencyGraph.hpp"
+#include "marco/matching/SccCollapsing.hpp"
+#include "marco/matching/SccLookup.hpp"
+#include "marco/matching/Schedule.hpp"
+#include "marco/matching/VVarDependencyGraph.hpp"
+#include "marco/model/Assigment.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModParser.hpp"
+#include "marco/model/Model.hpp"
+#include "marco/passes/ConstantFold.hpp"
+#include "marco/utils/IRange.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 using namespace std;
 using namespace cl;

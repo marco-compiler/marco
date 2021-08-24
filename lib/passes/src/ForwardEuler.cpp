@@ -1,18 +1,18 @@
-#include "modelica/passes/ForwardEuler.hpp"
+#include "marco/passes/ForwardEuler.hpp"
 
 #include <memory>
 
 #include "llvm/Support/Error.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/model/ModEqTemplate.hpp"
-#include "modelica/model/ModErrors.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/model/Model.hpp"
-#include "modelica/model/VectorAccess.hpp"
-#include "modelica/utils/IRange.hpp"
+#include "marco/model/ModEqTemplate.hpp"
+#include "marco/model/ModErrors.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModVariable.hpp"
+#include "marco/model/Model.hpp"
+#include "marco/model/VectorAccess.hpp"
+#include "marco/utils/IRange.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 using namespace llvm;
 
@@ -31,7 +31,7 @@ static ModExp varToExp(const ModVariable& var)
 	return access;
 }
 
-Expected<AssignModel> modelica::addApproximation(Model& model, double deltaTime)
+Expected<AssignModel> marco::addApproximation(Model& model, double deltaTime)
 {
 	AssignModel out;
 

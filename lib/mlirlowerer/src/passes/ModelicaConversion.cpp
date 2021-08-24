@@ -4,12 +4,12 @@
 #include <mlir/Dialect/SCF/SCF.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/mlirlowerer/passes/ModelicaConversion.h>
-#include <modelica/mlirlowerer/passes/TypeConverter.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/ModelicaConversion.h>
+#include <marco/mlirlowerer/passes/TypeConverter.h>
 #include <numeric>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
 static bool isNumericType(mlir::Type type)
 {
@@ -181,9 +181,9 @@ class ModelicaOpConversion : public mlir::OpConversionPattern<FromOp>
 	{
 	}
 
-	[[nodiscard]] modelica::codegen::TypeConverter& typeConverter() const
+	[[nodiscard]] marco::codegen::TypeConverter& typeConverter() const
 	{
-		return *static_cast<modelica::codegen::TypeConverter *>(this->getTypeConverter());
+		return *static_cast<marco::codegen::TypeConverter *>(this->getTypeConverter());
 	}
 
 	[[nodiscard]] mlir::Type convertType(mlir::Type type) const
@@ -3687,7 +3687,7 @@ class FunctionConversionPass : public mlir::PassWrapper<FunctionConversionPass, 
 	}
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createFunctionConversionPass()
+std::unique_ptr<mlir::Pass> marco::codegen::createFunctionConversionPass()
 {
 	return std::make_unique<FunctionConversionPass>();
 }
@@ -3695,7 +3695,7 @@ std::unique_ptr<mlir::Pass> modelica::codegen::createFunctionConversionPass()
 static void populateModelicaConversionPatterns(
 		mlir::OwningRewritePatternList& patterns,
 		mlir::MLIRContext* context,
-		modelica::codegen::TypeConverter& typeConverter,
+		marco::codegen::TypeConverter& typeConverter,
 		ModelicaConversionOptions options)
 {
 	patterns.insert<
@@ -3922,7 +3922,7 @@ class ModelicaConversionPass : public mlir::PassWrapper<ModelicaConversionPass, 
 	unsigned int bitWidth;
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createModelicaConversionPass(ModelicaConversionOptions options, unsigned int bitWidth)
+std::unique_ptr<mlir::Pass> marco::codegen::createModelicaConversionPass(ModelicaConversionOptions options, unsigned int bitWidth)
 {
 	return std::make_unique<ModelicaConversionPass>(options, bitWidth);
 }

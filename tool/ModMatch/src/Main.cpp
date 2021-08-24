@@ -5,17 +5,17 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "modelica/lowerer/Lowerer.hpp"
-#include "modelica/matching/Flow.hpp"
-#include "modelica/matching/Matching.hpp"
-#include "modelica/model/Assigment.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModParser.hpp"
-#include "modelica/model/Model.hpp"
-#include "modelica/passes/ConstantFold.hpp"
-#include "modelica/utils/IRange.hpp"
+#include "marco/lowerer/Lowerer.hpp"
+#include "marco/matching/Flow.hpp"
+#include "marco/matching/Matching.hpp"
+#include "marco/model/Assigment.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModParser.hpp"
+#include "marco/model/Model.hpp"
+#include "marco/passes/ConstantFold.hpp"
+#include "marco/utils/IRange.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 using namespace std;
 using namespace cl;

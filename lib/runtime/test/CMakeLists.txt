@@ -1,4 +1,4 @@
-modelicaAddTest(
+marcoAddTest(
 		runtime
 		src/ArrayDescriptorTest.cpp
 		src/BuiltInFunctionsTest.cpp

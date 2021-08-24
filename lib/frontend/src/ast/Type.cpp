@@ -1,10 +1,10 @@
 #include <iostream>
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 #include <numeric>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const BuiltInType& obj)
 	{
@@ -104,7 +104,7 @@ PackedType::const_iterator PackedType::end() const
 	return types.end();
 }
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(
 			llvm::raw_ostream& stream, const PackedType& obj)
@@ -203,7 +203,7 @@ UserDefinedType::const_iterator UserDefinedType::end() const
 	return types.end();
 }
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(
 			llvm::raw_ostream& stream, const UserDefinedType& obj)
@@ -255,7 +255,7 @@ ArrayDimension& ArrayDimension::operator=(const ArrayDimension& other)
 
 ArrayDimension& ArrayDimension::operator=(ArrayDimension&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(ArrayDimension& first, ArrayDimension& second)
 	{
@@ -299,7 +299,7 @@ const Expression* ArrayDimension::getExpression() const
 	return std::get<std::unique_ptr<Expression>>(size).get();
 }
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const ArrayDimension& obj)
 	{
@@ -358,7 +358,7 @@ Type& Type::operator=(const Type& other)
 
 Type& Type::operator=(Type&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Type& first, Type& second)
 	{
@@ -497,7 +497,7 @@ Type Type::to(llvm::ArrayRef<ArrayDimension> dims) const
 	return copy;
 }
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Type& obj)
 	{
@@ -558,7 +558,7 @@ FunctionType& FunctionType::operator=(const FunctionType& other)
 
 FunctionType& FunctionType::operator=(FunctionType&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(FunctionType& first, FunctionType& second)
 	{

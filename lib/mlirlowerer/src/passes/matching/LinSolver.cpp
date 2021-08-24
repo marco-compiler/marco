@@ -2,18 +2,18 @@
 #include <llvm/Support/raw_ostream.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
-#include <modelica/mlirlowerer/passes/matching/LinSolver.h>
-#include <modelica/mlirlowerer/passes/model/Equation.h>
-#include <modelica/mlirlowerer/passes/model/Expression.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/ReferenceMatcher.h>
-#include <modelica/mlirlowerer/passes/model/Variable.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
-#include <modelica/utils/IndexSet.hpp>
+#include <marco/mlirlowerer/passes/matching/LinSolver.h>
+#include <marco/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
+#include <marco/mlirlowerer/passes/model/Variable.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
+#include <marco/utils/IndexSet.hpp>
 #include <numeric>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 using namespace model;
 
 /**
@@ -376,7 +376,7 @@ static mlir::LogicalResult groupLeftHand(mlir::OpBuilder& builder, Equation& equ
 	return mlir::success();
 }
 
-namespace modelica::codegen::model
+namespace marco::codegen::model
 {
 	mlir::LogicalResult linearySolve(mlir::OpBuilder& builder, llvm::SmallVectorImpl<Equation>& equations)
 	{

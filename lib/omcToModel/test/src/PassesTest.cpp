@@ -1,13 +1,13 @@
 #include "gtest/gtest.h"
 
-#include "modelica/frontend/AST.h"
-#include "modelica/frontend/Parser.h"
-#include "modelica/frontend/SymbolTable.hpp"
-#include "modelica/omcToModel/OmcToModelPass.hpp"
+#include "marco/frontend/AST.h"
+#include "marco/frontend/Parser.h"
+#include "marco/frontend/SymbolTable.hpp"
+#include "marco/omcToModel/OmcToModelPass.hpp"
 
 using namespace llvm;
 using namespace std;
-using namespace modelica;
+using namespace marco;
 using namespace frontend;
 
 TEST(OmcToModelTest, singleDeclaration)	 // NOLINT
@@ -20,7 +20,7 @@ TEST(OmcToModelTest, singleDeclaration)	 // NOLINT
 
 	auto ast = move(*expectedAST);
 
-	modelica::Model model;
+	marco::Model model;
 	OmcToModelPass pass(model);
 	auto error = pass.lower<Class>(*ast, SymbolTable());
 	if (error)
@@ -43,7 +43,7 @@ TEST(OmcToModelTest, uninitializedDeclaration)	// NOLINT
 
 	auto ast = move(*expectedAST);
 
-	modelica::Model model;
+	marco::Model model;
 	OmcToModelPass pass(model);
 	auto error = pass.lower<Class>(*ast, SymbolTable());
 	if (error)
@@ -66,7 +66,7 @@ TEST(OmcToModelTest, startDeclaration)	// NOLINT
 
 	auto ast = move(*expectedAST);
 
-	modelica::Model model;
+	marco::Model model;
 	OmcToModelPass pass(model);
 	auto error = pass.lower<Class>(*ast, SymbolTable());
 	if (error)

@@ -1,6 +1,6 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Model::Model(SourceRange location,
 						 llvm::StringRef name,
@@ -61,7 +61,7 @@ Model& Model::operator=(const Model& other)
 
 Model& Model::operator=(Model&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Model& first, Model& second)
 	{

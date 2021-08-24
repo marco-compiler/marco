@@ -3,11 +3,11 @@
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/OpenMP/OpenMPDialect.h>
 #include <mlir/Support/MathExtras.h>
-#include <modelica/mlirlowerer/passes/LowerToLLVM.h>
-#include <modelica/mlirlowerer/passes/TypeConverter.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/LowerToLLVM.h>
+#include <marco/mlirlowerer/passes/TypeConverter.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
 
-using namespace modelica::codegen;
+using namespace marco::codegen;
 
 /**
  * Helper class to produce LLVM dialect operations extracting or inserting
@@ -1121,7 +1121,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 
 		mlir::LowerToLLVMOptions llvmOptions(&getContext());
 		llvmOptions.emitCWrappers = options.emitCWrappers;
-		modelica::codegen::TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
+		marco::codegen::TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
 
 		target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });
 		target.addLegalOp<mlir::omp::TerminatorOp, mlir::omp::TaskyieldOp, mlir::omp::FlushOp, mlir::omp::BarrierOp, mlir::omp::TaskwaitOp>();
@@ -1227,7 +1227,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 	unsigned int bitWidth;
 };
 
-std::unique_ptr<mlir::Pass> modelica::codegen::createLLVMLoweringPass(ModelicaToLLVMConversionOptions options, unsigned int bitWidth)
+std::unique_ptr<mlir::Pass> marco::codegen::createLLVMLoweringPass(ModelicaToLLVMConversionOptions options, unsigned int bitWidth)
 {
 	return std::make_unique<LLVMLoweringPass>(options, bitWidth);
 }

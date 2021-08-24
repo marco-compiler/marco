@@ -1,7 +1,7 @@
-#include <modelica/frontend/AST.h>
+#include <marco/frontend/AST.h>
 #include <numeric>
 
-using namespace modelica::frontend;
+using namespace marco::frontend;
 
 Call::Call(SourceRange location,
 					 Type type,
@@ -37,7 +37,7 @@ Call& Call::operator=(const Call& other)
 
 Call& Call::operator=(Call&& other) = default;
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	void swap(Call& first, Call& second)
 	{
@@ -173,7 +173,7 @@ Call::args_const_iterator Call::end() const
 	return args.end();
 }
 
-namespace modelica::frontend
+namespace marco::frontend
 {
 	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Call& obj)
 	{

@@ -1,7 +1,7 @@
-#include <modelica/mlirlowerer/passes/model/Constant.h>
-#include <modelica/mlirlowerer/ModelicaDialect.h>
+#include <marco/mlirlowerer/passes/model/Constant.h>
+#include <marco/mlirlowerer/ModelicaDialect.h>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 Constant::Constant(mlir::Value value) : value(value)
 {

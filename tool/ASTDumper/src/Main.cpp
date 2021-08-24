@@ -1,9 +1,9 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/MemoryBuffer.h"
-#include "modelica/frontend/Parser.h"
+#include "marco/frontend/Parser.h"
 
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 using namespace std;
 
