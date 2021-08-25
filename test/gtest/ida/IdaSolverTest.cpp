@@ -1,9 +1,9 @@
 #include "gtest/gtest.h"
-#include <modelica/mlirlowerer/passes/ida/IdaSolver.h>
+#include <marco/mlirlowerer/passes/ida/IdaSolver.h>
 
 #include "../TestingUtils.h"
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 TEST(IdaSolverTest, SimpleDerivative)
 {
@@ -17,7 +17,7 @@ TEST(IdaSolverTest, SimpleDerivative)
 	Model model;
 	makeSolvedModel(context, stringModel, model);
 
-	modelica::codegen::ida::IdaSolver idaSolver(model);
+	marco::codegen::ida::IdaSolver idaSolver(model);
 	if (failed(idaSolver.init()))
 		FAIL();
 
@@ -53,7 +53,7 @@ TEST(IdaSolverTest, DoubleDerivative)
 	Model model;
 	makeSolvedModel(context, stringModel, model);
 
-	modelica::codegen::ida::IdaSolver idaSolver(model);
+	marco::codegen::ida::IdaSolver idaSolver(model);
 	if (failed(idaSolver.init()))
 		FAIL();
 
@@ -99,7 +99,7 @@ TEST(IdaSolverTest, SimpleDerWithSubstitution)
 	Model model;
 	makeSolvedModel(context, stringModel, model);
 
-	modelica::codegen::ida::IdaSolver idaSolver(model);
+	marco::codegen::ida::IdaSolver idaSolver(model);
 	if (failed(idaSolver.init()))
 		FAIL();
 
@@ -137,7 +137,7 @@ TEST(IdaSolverTest, DerivativeArray)
 	Model model;
 	makeSolvedModel(context, stringModel, model);
 
-	modelica::codegen::ida::IdaSolver idaSolver(model);
+	marco::codegen::ida::IdaSolver idaSolver(model);
 	if (failed(idaSolver.init()))
 		FAIL();
 
@@ -185,7 +185,7 @@ TEST(IdaSolverTest, MultidimensionalDerivative)
 	Model model;
 	makeSolvedModel(context, stringModel, model);
 
-	modelica::codegen::ida::IdaSolver idaSolver(model);
+	marco::codegen::ida::IdaSolver idaSolver(model);
 	if (failed(idaSolver.init()))
 		FAIL();
 
@@ -236,7 +236,7 @@ TEST(IdaSolverTest, MultipleArraysWithState)
 	Model model;
 	makeSolvedModel(context, stringModel, model);
 
-	modelica::codegen::ida::IdaSolver idaSolver(model);
+	marco::codegen::ida::IdaSolver idaSolver(model);
 	if (failed(idaSolver.init()))
 		FAIL();
 
@@ -284,14 +284,14 @@ TEST(IdaSolverTest, AlgebraicLoop)
 	Model model;
 	makeSolvedModel(context, stringModel, model);
 
-	modelica::codegen::ida::IdaSolver idaSolver(model);
+	marco::codegen::ida::IdaSolver idaSolver(model);
 	if (failed(idaSolver.init()))
 		FAIL();
 
 	EXPECT_EQ(idaSolver.getProblemSize(), 5);
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 5);
 
-	for (size_t i : modelica::irange(5))
+	for (size_t i : marco::irange(5))
 	{
 		EXPECT_EQ(idaSolver.getRowLength(i), 5);
 		EXPECT_EQ(idaSolver.getDimension(i).size(), 1);
@@ -308,7 +308,7 @@ TEST(IdaSolverTest, AlgebraicLoop)
 	EXPECT_EQ(idaSolver.getVariable(3), 1.0);
 	EXPECT_EQ(idaSolver.getVariable(4), 4.0);
 
-	for (size_t i : modelica::irange(5))
+	for (size_t i : marco::irange(5))
 		EXPECT_EQ(idaSolver.getDerivative(i), 0.0);
 
 	if (failed(idaSolver.free()))
@@ -327,7 +327,7 @@ TEST(IdaSolverTest, ImplicitEquation)
 	Model model;
 	makeSolvedModel(context, stringModel, model);
 
-	modelica::codegen::ida::IdaSolver idaSolver(model);
+	marco::codegen::ida::IdaSolver idaSolver(model);
 	if (failed(idaSolver.init()))
 		FAIL();
 
@@ -362,7 +362,7 @@ TEST(IdaSolverTest, ImplicitEqKepler)
 	Model model;
 	makeSolvedModel(context, stringModel, model);
 
-	modelica::codegen::ida::IdaSolver idaSolver(model);
+	marco::codegen::ida::IdaSolver idaSolver(model);
 	if (failed(idaSolver.init()))
 		FAIL();
 

@@ -1,11 +1,11 @@
 #include "gtest/gtest.h"
 
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/SymbolicDifferentiation.hpp"
-#include "modelica/model/VectorAccess.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/SymbolicDifferentiation.hpp"
+#include "marco/model/VectorAccess.hpp"
 
-using namespace modelica;
+using namespace marco;
 
 const ModExp var = ModExp("var", BultinModTypes::FLOAT);
 const ModExp varExp = ModExp(var);

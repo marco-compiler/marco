@@ -1,12 +1,12 @@
 #pragma once
 
 #include <mlir/Support/LogicalResult.h>
-#include <modelica/mlirlowerer/passes/model/Equation.h>
-#include <modelica/mlirlowerer/passes/model/Expression.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/Variable.h>
+#include <marco/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/Variable.h>
 
-namespace modelica::codegen::ida
+namespace marco::codegen::ida
 {
 	class IdaSolver
 	{
@@ -97,4 +97,4 @@ namespace modelica::codegen::ida
 		std::map<model::Variable, size_t> indexOffsetMap;
 		void *userData;
 	};
-}	 // namespace modelica::codegen::ida
+}	 // namespace marco::codegen::ida

@@ -454,7 +454,7 @@ bool Equation::isImplicit()
 			return true;
 
 		if (!expQueue.front().isReferenceAccess())
-			for (size_t i : modelica::irange(expQueue.front().childrenCount()))
+			for (size_t i : marco::irange(expQueue.front().childrenCount()))
 				expQueue.push(expQueue.front().getChild(i));
 
 		expQueue.pop();

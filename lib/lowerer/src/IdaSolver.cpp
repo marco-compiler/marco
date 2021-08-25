@@ -1,10 +1,10 @@
-#include "modelica/lowerer/IdaSolver.hpp"
+#include "marco/lowerer/IdaSolver.hpp"
 
-#include "modelica/model/ModErrors.hpp"
+#include "marco/model/ModErrors.hpp"
 
 using namespace std;
 using namespace llvm;
-using namespace modelica;
+using namespace marco;
 
 IdaSolver::IdaSolver(
 		LowererContext &context,

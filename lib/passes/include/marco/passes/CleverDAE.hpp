@@ -1,8 +1,8 @@
 #pragma once
-#include "modelica/model/AssignModel.hpp"
-#include "modelica/model/ScheduledModel.hpp"
+#include "marco/model/AssignModel.hpp"
+#include "marco/model/ScheduledModel.hpp"
 
-namespace modelica
+namespace marco
 {
 	/**
 	 * This method transforms all differential equations and implicit equations
@@ -13,4 +13,4 @@ namespace modelica
 	 * @return The assigned model.
 	 */
 	[[nodiscard]] llvm::Expected<AssignModel> addBltBlocks(ScheduledModel& model);
-}	 // namespace modelica
+}	 // namespace marco

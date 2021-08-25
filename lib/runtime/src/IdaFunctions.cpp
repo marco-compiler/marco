@@ -1,5 +1,5 @@
 #include <ida/ida.h>
-#include <modelica/runtime/IdaFunctions.h>
+#include <marco/runtime/IdaFunctions.h>
 #include <nvector/nvector_serial.h>
 #include <sundials/sundials_math.h>
 #include <sundials/sundials_types.h>

@@ -1,12 +1,12 @@
 #include "gtest/gtest.h"
-#include <modelica/mlirlowerer/passes/matching/LinSolver.h>
-#include <modelica/mlirlowerer/passes/matching/Matching.h>
-#include <modelica/mlirlowerer/passes/model/Equation.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/matching/LinSolver.h>
+#include <marco/mlirlowerer/passes/matching/Matching.h>
+#include <marco/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
 
 #include "../TestingUtils.h"
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 TEST(LinSolverTest, LinearySolveTest)
 {

@@ -5,7 +5,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/ADT/iterator_range.h>
 #include <map>
-#include <modelica/mlirlowerer/passes/model/BltBlock.h>
+#include <marco/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>

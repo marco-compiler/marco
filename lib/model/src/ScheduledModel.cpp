@@ -1,7 +1,7 @@
-#include "modelica/model/ScheduledModel.hpp"
+#include "marco/model/ScheduledModel.hpp"
 
 using namespace std;
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 
 ScheduledModel::ScheduledModel(llvm::StringMap<ModVariable> variables)

@@ -5,7 +5,7 @@
 
 #include "Equation.h"
 
-namespace modelica::codegen::model
+namespace marco::codegen::model
 {
 	/**
 	 * This class contains a non-trivial block of the BLT matrix. It contains the
@@ -36,4 +36,4 @@ namespace modelica::codegen::model
 		Container<Equation> equations;
 		bool isForwardDirection;
 	};
-}	 // namespace modelica::codegen::model
+}	 // namespace marco::codegen::model

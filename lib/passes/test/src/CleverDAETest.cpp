@@ -1,16 +1,16 @@
 #include "gtest/gtest.h"
 
-#include "modelica/matching/SccCollapsing.hpp"
-#include "modelica/matching/Schedule.hpp"
-#include "modelica/model/ModBltBlock.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModParser.hpp"
-#include "modelica/passes/CleverDAE.hpp"
+#include "marco/matching/SccCollapsing.hpp"
+#include "marco/matching/Schedule.hpp"
+#include "marco/model/ModBltBlock.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModParser.hpp"
+#include "marco/passes/CleverDAE.hpp"
 
 using namespace std;
 using namespace llvm;
-using namespace modelica;
+using namespace marco;
 
 TEST(CleverDAETest, AddDifferentialEqToBltBlock)
 {

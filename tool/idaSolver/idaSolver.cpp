@@ -3,14 +3,14 @@
 #include <llvm/Support/Error.h>
 #include <llvm/Transforms/Utils.h>
 #include <mlir/Transforms/Passes.h>
-#include <modelica/frontend/Parser.h>
-#include <modelica/frontend/Passes.h>
-#include <modelica/mlirlowerer/CodeGen.h>
-#include <modelica/mlirlowerer/passes/ida/IdaSolver.h>
+#include <marco/frontend/Parser.h>
+#include <marco/frontend/Passes.h>
+#include <marco/mlirlowerer/CodeGen.h>
+#include <marco/mlirlowerer/passes/ida/IdaSolver.h>
 
 using namespace std;
 using namespace llvm;
-using namespace modelica;
+using namespace marco;
 using namespace codegen;
 
 static cl::OptionCategory modelSolvingOptions("Model solving options");

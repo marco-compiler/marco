@@ -112,7 +112,7 @@ static IndexSetVector cyclicDependentSets(
 		const EdDescVector& c, const VVarDependencyGraph& graph)
 {
 	DependenciesVector dep = cycleToDependenciesVector(c, graph);
-	modelica::MultiDimInterval cyclicSet = cyclicDependentSet(c, graph, dep);
+	marco::MultiDimInterval cyclicSet = cyclicDependentSet(c, graph, dep);
 	IndexSetVector v({ cyclicSet });
 
 	for (size_t i : marco::irange(c.size() - 1))
@@ -170,9 +170,9 @@ static mlir::LogicalResult extractEquationWithDependencies(
 
 		// then for all other index set that
 		// are not in the circular set
-		modelica::IndexSet nonUsed = remove(original.getInductions(), vecSet[i]);
+		marco::IndexSet nonUsed = remove(original.getInductions(), vecSet[i]);
 
-		for (modelica::MultiDimInterval set : nonUsed)
+		for (marco::MultiDimInterval set : nonUsed)
 		{
 			// add the equation to the untouched set
 			untouched.emplace_back(original.clone());

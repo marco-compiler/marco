@@ -1,5 +1,5 @@
 #include <mlir/IR/BuiltinOps.h>
-#include <modelica/mlirlowerer/passes/model/BltBlock.h>
+#include <marco/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
 #include <marco/utils/ScopeGuard.hpp>

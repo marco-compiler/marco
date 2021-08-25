@@ -1,11 +1,11 @@
-#include "modelica/lowerer/OperationLowerer.hpp"
+#include "marco/lowerer/OperationLowerer.hpp"
 
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Type.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Support/Error.h"
-#include "modelica/lowerer/CallLowerer.hpp"
-#include "modelica/lowerer/ExpLowerer.hpp"
+#include "marco/lowerer/CallLowerer.hpp"
+#include "marco/lowerer/ExpLowerer.hpp"
 #include "marco/lowerer/LowererUtils.hpp"
 #include "marco/model/ModExp.hpp"
 

@@ -5,8 +5,8 @@ set(LIBS
         ${dialect_libs}
         ${conversion_libs}
         MLIROptLib
-        modelica::frontend
-        modelica::mlirlowerer
+        marco::frontend
+        marco::mlirlowerer
         sundials)
 
 add_llvm_executable(idaSolver idaSolver.cpp)

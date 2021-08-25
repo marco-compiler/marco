@@ -1,6 +1,6 @@
-#include "modelica/matching/MatchedEquationLookup.hpp"
+#include "marco/matching/MatchedEquationLookup.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 using namespace llvm;
 

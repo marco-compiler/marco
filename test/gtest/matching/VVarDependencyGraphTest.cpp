@@ -1,15 +1,15 @@
 #include "gtest/gtest.h"
 #include <mlir/Support/LogicalResult.h>
-#include <modelica/mlirlowerer/passes/matching/Matching.h>
-#include <modelica/mlirlowerer/passes/matching/SCCCollapsing.h>
-#include <modelica/mlirlowerer/passes/matching/SVarDependencyGraph.h>
-#include <modelica/mlirlowerer/passes/matching/Schedule.h>
-#include <modelica/mlirlowerer/passes/matching/VVarDependencyGraph.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/matching/Matching.h>
+#include <marco/mlirlowerer/passes/matching/SCCCollapsing.h>
+#include <marco/mlirlowerer/passes/matching/SVarDependencyGraph.h>
+#include <marco/mlirlowerer/passes/matching/Schedule.h>
+#include <marco/mlirlowerer/passes/matching/VVarDependencyGraph.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
 
 #include "../TestingUtils.h"
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 std::string stringModel = "model Test "
 													"int[2] x; "

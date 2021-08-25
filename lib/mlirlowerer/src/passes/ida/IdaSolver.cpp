@@ -1,24 +1,25 @@
-#include <modelica/mlirlowerer/passes/ida/IdaSolver.h>
-#include <modelica/mlirlowerer/passes/model/BltBlock.h>
-#include <modelica/mlirlowerer/passes/model/Equation.h>
-#include <modelica/mlirlowerer/passes/model/Expression.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/Variable.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
-#include <modelica/runtime/Runtime.h>
-#include <modelica/utils/Interval.hpp>
+#include <marco/mlirlowerer/passes/ida/IdaSolver.h>
+#include <marco/mlirlowerer/passes/model/BltBlock.h>
+#include <marco/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/Variable.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/runtime/Runtime.h>
+#include <marco/utils/Interval.hpp>
 
-using namespace modelica::codegen::ida;
-using namespace modelica::codegen::model;
+using namespace marco::codegen::ida;
+using namespace marco::codegen::model;
+using namespace marco::codegen::modelica;
 
-static double getValue(modelica::codegen::ConstantOp constantOp)
+static double getValue(ConstantOp constantOp)
 {
 	mlir::Attribute attribute = constantOp.value();
 
-	if (auto integer = attribute.dyn_cast<modelica::codegen::IntegerAttribute>())
+	if (auto integer = attribute.dyn_cast<IntegerAttribute>())
 		return integer.getValue();
 
-	if (auto real = attribute.dyn_cast<modelica::codegen::RealAttribute>())
+	if (auto real = attribute.dyn_cast<RealAttribute>())
 		return real.getValue();
 
 	assert(false && "Unreachable");
@@ -254,7 +255,7 @@ int64_t IdaSolver::computeNNZ()
 
 void IdaSolver::getDimension(const Equation& equation)
 {
-	for (modelica::Interval& interval : equation.getInductions())
+	for (marco::Interval& interval : equation.getInductions())
 		addDimension(userData, problemSize, interval.min(), interval.max());
 }
 
@@ -318,7 +319,7 @@ size_t IdaSolver::getFunction(const Expression& expression)
 		}
 
 		// Compute the multi-dimensional offset of the array.
-		modelica::MultiDimInterval dimensions = var.toMultiDimInterval();
+		marco::MultiDimInterval dimensions = var.toMultiDimInterval();
 		std::vector<size_t> dim;
 		for (size_t i = 1; i < dimensions.dimensions(); i++)
 		{
@@ -346,7 +347,7 @@ size_t IdaSolver::getFunction(const Expression& expression)
 
 	// Get the lambda functions to compute the values of all the children.
 	std::vector<size_t> children;
-	for (size_t i : modelica::irange(expression.childrenCount()))
+	for (size_t i : marco::irange(expression.childrenCount()))
 		children.push_back(getFunction(expression.getChild(i)));
 
 	if (mlir::isa<NegateOp>(definingOp))

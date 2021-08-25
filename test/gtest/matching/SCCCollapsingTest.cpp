@@ -1,14 +1,14 @@
 #include "gtest/gtest.h"
 #include <mlir/Support/LogicalResult.h>
-#include <modelica/mlirlowerer/passes/matching/Matching.h>
-#include <modelica/mlirlowerer/passes/matching/SCCCollapsing.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
-#include <modelica/utils/Interval.hpp>
+#include <marco/mlirlowerer/passes/matching/Matching.h>
+#include <marco/mlirlowerer/passes/matching/SCCCollapsing.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/utils/Interval.hpp>
 
 #include "../TestingUtils.h"
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 TEST(SCCCollapsingTest, EquationShouldBeNormalizable)
 {
@@ -33,7 +33,7 @@ TEST(SCCCollapsingTest, EquationShouldBeNormalizable)
 
 	EXPECT_EQ(
 			model.getEquations()[1].getInductions(),
-			modelica::MultiDimInterval({ { 3, 5 } }));
+			marco::MultiDimInterval({ { 3, 5 } }));
 
 	for (Equation& eq : model.getEquations())
 		if (failed(eq.explicitate()))
@@ -70,7 +70,7 @@ TEST(SCCCollapsingTest, ThreeDepthNormalization)
 
 	EXPECT_EQ(
 			model.getEquations()[0].getInductions(),
-			modelica::MultiDimInterval({ { 1, 3 }, { 1, 4 }, { 1, 5 } }));
+			marco::MultiDimInterval({ { 1, 3 }, { 1, 4 }, { 1, 5 } }));
 
 	for (Equation& eq : model.getEquations())
 		if (failed(eq.explicitate()))

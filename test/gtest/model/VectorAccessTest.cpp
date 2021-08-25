@@ -1,13 +1,13 @@
 #include "gtest/gtest.h"
-#include <modelica/mlirlowerer/passes/model/Equation.h>
-#include <modelica/mlirlowerer/passes/model/Expression.h>
-#include <modelica/mlirlowerer/passes/model/Variable.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Variable.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
 
 #include "../TestingUtils.h"
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 TEST(VectorAccessTest, DirectAccess)
 {
@@ -80,8 +80,8 @@ TEST(VectorAccessTest, MultiDirectAccess)
 TEST(VectorAccessTest, SingleDimMap)
 {
 	SingleDimensionAccess disp = SingleDimensionAccess::relative(3, 0);
-	modelica::Interval source(0, 10);
-	modelica::Interval dest = disp.map(source);
+	marco::Interval source(0, 10);
+	marco::Interval dest = disp.map(source);
 
 	EXPECT_EQ(dest.min(), 3);
 	EXPECT_EQ(dest.max(), 13);
@@ -90,8 +90,8 @@ TEST(VectorAccessTest, SingleDimMap)
 TEST(VectorAccessTest, MultiDimMap)
 {
 	SingleDimensionAccess disp = SingleDimensionAccess::relative(3, 1);
-	modelica::MultiDimInterval interval({ { 0, 10 }, { 4, 8 } });
-	modelica::Interval dest = disp.map(interval);
+	marco::MultiDimInterval interval({ { 0, 10 }, { 4, 8 } });
+	marco::Interval dest = disp.map(interval);
 
 	EXPECT_EQ(dest.min(), 7);
 	EXPECT_EQ(dest.max(), 11);
@@ -130,8 +130,8 @@ TEST(VectorAccessTest, MapFromExpression)
 
 	EXPECT_TRUE(access.getAccess().getMappingOffset()[2].isDirectAccess());
 
-	modelica::MultiDimInterval interval({ { 0, 10 }, { 4, 8 } });
-	modelica::MultiDimInterval out = access.getAccess().map(interval);
+	marco::MultiDimInterval interval({ { 0, 10 }, { 4, 8 } });
+	marco::MultiDimInterval out = access.getAccess().map(interval);
 
 	EXPECT_EQ(out.at(0).min(), 0 + 3);
 	EXPECT_EQ(out.at(0).max(), 10 + 3);
@@ -199,8 +199,8 @@ TEST(VectorAccessTest, InverseMapFromExpression)
 	EXPECT_EQ(access.getAccess().invert().mappableDimensions(), 2);
 	EXPECT_EQ(access.getVar(), model.getVariables()[0]->getReference());
 
-	modelica::MultiDimInterval interval({ { 8, 12 }, { 10, 20 } });
-	modelica::MultiDimInterval out = access.getAccess().invert().map(interval);
+	marco::MultiDimInterval interval({ { 8, 12 }, { 10, 20 } });
+	marco::MultiDimInterval out = access.getAccess().invert().map(interval);
 
 	EXPECT_EQ(out.at(0).min(), 8 - 3);
 	EXPECT_EQ(out.at(0).max(), 12 - 3);
@@ -221,7 +221,7 @@ TEST(VectorAccessTest, TestCombineAbsoluteVectorAccess)
 TEST(VectorAccessTest, TestMapMultiDimAbsolute)
 {
 	SingleDimensionAccess singleAccess = SingleDimensionAccess::absolute(5);
-	modelica::Interval result = singleAccess.map({ { 0, 1 }, { 3, 6 } });
+	marco::Interval result = singleAccess.map({ { 0, 1 }, { 3, 6 } });
 
 	EXPECT_EQ(result.min(), 5);
 	EXPECT_EQ(result.max(), 6);

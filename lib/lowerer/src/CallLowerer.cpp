@@ -1,11 +1,11 @@
-#include "modelica/lowerer/CallLowerer.hpp"
+#include "marco/lowerer/CallLowerer.hpp"
 
 #include <cstdlib>
 #include <string>
 
 #include "llvm/IR/Value.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/lowerer/ExpLowerer.hpp"
+#include "marco/lowerer/ExpLowerer.hpp"
 
 using namespace llvm;
 using namespace std;

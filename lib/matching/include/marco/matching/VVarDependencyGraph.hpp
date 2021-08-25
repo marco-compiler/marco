@@ -9,7 +9,7 @@
 #include "llvm/ADT/iterator_range.h"
 #include "llvm/Support/raw_ostream.h"
 #include "marco/matching/MatchedEquationLookup.hpp"
-#include "modelica/model/ModBltBlock.hpp"
+#include "marco/model/ModBltBlock.hpp"
 #include "marco/model/ModEquation.hpp"
 #include "marco/model/ModVariable.hpp"
 #include "marco/model/Model.hpp"

@@ -16,4 +16,4 @@ namespace marco::codegen::model
 	 * @param maxIterations Maximum depth search for the algorithm.
 	 */
 	mlir::LogicalResult solveSCCs(Model& model, size_t maxIterations);
-}	 // namespace modelica::codegen::model
+}	 // namespace marco::codegen::model

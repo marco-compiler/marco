@@ -1,12 +1,12 @@
 #include "gtest/gtest.h"
-#include <modelica/mlirlowerer/passes/model/ReferenceMatcher.h>
-#include <modelica/mlirlowerer/passes/model/Variable.h>
-#include <modelica/mlirlowerer/passes/model/Equation.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
+#include <marco/mlirlowerer/passes/model/Variable.h>
+#include <marco/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
 
 #include "../TestingUtils.h"
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 TEST(ReferenceMatcherTest, ScalarRefVariableCollectorTest)
 {

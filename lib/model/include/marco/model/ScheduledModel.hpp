@@ -4,11 +4,11 @@
 #include <variant>
 
 #include "llvm/ADT/StringMap.h"
-#include "modelica/model/ModBltBlock.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModVariable.hpp"
+#include "marco/model/ModBltBlock.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModVariable.hpp"
 
-namespace modelica
+namespace marco
 {
 	/**
 	 * This class contains all the information about the modelica model. This
@@ -64,4 +64,4 @@ namespace modelica
 		llvm::SmallVector<std::variant<ModEquation, ModBltBlock>, 3> updates;
 		TemplateMap templates;
 	};
-}	 // namespace modelica
+}	 // namespace marco

@@ -5,7 +5,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "modelica/model/ModBltBlock.hpp"
+#include "marco/model/ModBltBlock.hpp"
 #include "marco/model/ModEquation.hpp"
 #include "marco/model/ModExp.hpp"
 #include "marco/model/ModExpPath.hpp"
