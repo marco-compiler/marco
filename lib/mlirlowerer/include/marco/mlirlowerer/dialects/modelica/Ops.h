@@ -11,7 +11,7 @@
 #include "Traits.h"
 #include "Type.h"
 
-namespace marco::codegen
+namespace marco::codegen::modelica
 {
 	/**
 	 * Generic operation adaptor.

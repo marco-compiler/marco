@@ -3,7 +3,7 @@
 #include <mlir/IR/DialectImplementation.h>
 #include <marco/mlirlowerer/dialects/modelica/Type.h>
 
-using namespace marco::codegen;
+using namespace marco::codegen::modelica;
 
 bool MemberTypeStorage::operator==(const KeyTy& key) const
 {
@@ -167,7 +167,7 @@ RealType RealType::get(mlir::MLIRContext* context)
 	return Base::get(context);
 }
 
-namespace marco::codegen
+namespace marco::codegen::modelica
 {
 	static BufferAllocationScope memberToBufferAllocationScope(MemberAllocationScope scope)
 	{
@@ -405,7 +405,7 @@ llvm::ArrayRef<mlir::Type> StructType::getElementTypes()
 	return getImpl()->getElementTypes();
 }
 
-namespace marco::codegen
+namespace marco::codegen::modelica
 {
 	mlir::Type parseModelicaType(mlir::DialectAsmParser& parser)
 	{

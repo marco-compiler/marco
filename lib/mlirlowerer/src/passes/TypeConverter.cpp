@@ -1,6 +1,7 @@
 #include <marco/mlirlowerer/passes/TypeConverter.h>
 
 using namespace marco::codegen;
+using namespace modelica;
 
 TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options, unsigned int bitWidth)
 		: mlir::LLVMTypeConverter(context, options), bitWidth(bitWidth)

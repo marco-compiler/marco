@@ -2,6 +2,7 @@
 #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 
 using namespace marco::codegen::model;
+using namespace marco::codegen::modelica;
 
 Reference::Reference(mlir::Value var) : var(var)
 {

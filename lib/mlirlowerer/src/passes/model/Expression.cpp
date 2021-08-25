@@ -7,6 +7,7 @@
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
 
 using namespace marco::codegen::model;
+using namespace marco::codegen::modelica;
 
 Expression::Impl::Impl(mlir::Operation* op, Constant content)
 		: op(op), content(content), name(op->getName().getStringRef().str())

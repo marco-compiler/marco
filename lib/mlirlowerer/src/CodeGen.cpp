@@ -12,6 +12,7 @@
 using namespace marco;
 using namespace frontend;
 using namespace marco::codegen;
+using namespace modelica;
 using namespace std;
 
 Reference::Reference()

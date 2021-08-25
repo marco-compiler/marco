@@ -11,6 +11,7 @@
 
 using namespace marco::codegen;
 using namespace marco::codegen::model;
+using namespace modelica;
 
 class Equation::Impl
 {
@@ -307,7 +308,7 @@ static void composeAccess(Expression& exp, const VectorAccess& transformation)
 		mlir::Value index;
 
 		if (singleDimensionAccess.value().isDirecAccess())
-			index = builder.create<marco::codegen::ConstantOp>(op->getLoc(), builder.getIndexAttr(singleDimensionAccess.value().getOffset()));
+			index = builder.create<ConstantOp>(op->getLoc(), builder.getIndexAttr(singleDimensionAccess.value().getOffset()));
 		else
 		{
 			mlir::Value inductionVar = exp.getOp()->getParentOfType<ForEquationOp>().body()->getArgument(singleDimensionAccess.value().getInductionVar());

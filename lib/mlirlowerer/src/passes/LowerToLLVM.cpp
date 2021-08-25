@@ -8,6 +8,7 @@
 #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 
 using namespace marco::codegen;
+using namespace modelica;
 
 /**
  * Helper class to produce LLVM dialect operations extracting or inserting

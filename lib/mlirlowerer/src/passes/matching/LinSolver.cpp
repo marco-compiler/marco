@@ -14,6 +14,7 @@
 #include <numeric>
 
 using namespace marco::codegen;
+using namespace modelica;
 using namespace model;
 
 /**

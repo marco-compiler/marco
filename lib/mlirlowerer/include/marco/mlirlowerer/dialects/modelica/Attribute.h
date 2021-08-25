@@ -6,7 +6,7 @@
 #include <map>
 #include <mlir/IR/Attributes.h>
 
-namespace marco::codegen
+namespace marco::codegen::modelica
 {
 	class ModelicaDialect;
 

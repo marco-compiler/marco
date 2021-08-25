@@ -23,11 +23,11 @@ namespace marco::codegen::model
 		using iterator = Container<Equation>::iterator;
 		using const_iterator = Container<Equation>::const_iterator;
 
-		Model(SimulationOp op,
+		Model(modelica::SimulationOp op,
 					llvm::ArrayRef<std::shared_ptr<Variable>> variables,
 					llvm::ArrayRef<Equation> equations);
 
-		static Model build(SimulationOp op);
+		static Model build(modelica::SimulationOp op);
 		void reloadIR();
 
 		[[nodiscard]] iterator begin();
@@ -36,7 +36,7 @@ namespace marco::codegen::model
 		[[nodiscard]] iterator end();
 		[[nodiscard]] const_iterator end() const;
 
-		[[nodiscard]] SimulationOp getOp() const;
+		[[nodiscard]] modelica::SimulationOp getOp() const;
 
 		[[nodiscard]] bool hasVariable(mlir::Value var) const;
 		[[nodiscard]] Variable getVariable(mlir::Value var) const;
@@ -59,7 +59,7 @@ namespace marco::codegen::model
 		[[nodiscard]] size_t nonStateNonConstCount() const;
 
 		private:
-		SimulationOp op;
+		modelica::SimulationOp op;
 		Container<std::shared_ptr<Variable>> variables;
 		Container<Equation> equations;
 	};

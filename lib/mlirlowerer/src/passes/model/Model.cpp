@@ -9,6 +9,7 @@
 
 using namespace marco::codegen;
 using namespace marco::codegen::model;
+using namespace modelica;
 
 class VariablesFinder
 {

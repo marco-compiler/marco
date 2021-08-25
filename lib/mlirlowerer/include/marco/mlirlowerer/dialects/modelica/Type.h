@@ -3,7 +3,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/IR/Types.h>
 
-namespace marco::codegen
+namespace marco::codegen::modelica
 {
 	class ModelicaDialect;
 

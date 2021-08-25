@@ -3,6 +3,7 @@
 #include <marco/mlirlowerer/passes/ResultBuffersToArgs.h>
 
 using namespace marco::codegen;
+using namespace modelica;
 
 struct FunctionOpPattern : public mlir::OpRewritePattern<FunctionOp>
 {

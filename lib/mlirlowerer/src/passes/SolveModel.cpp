@@ -19,6 +19,7 @@
 using namespace marco;
 using namespace codegen;
 using namespace model;
+using namespace modelica;
 
 struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 {

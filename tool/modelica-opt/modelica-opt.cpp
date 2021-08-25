@@ -21,7 +21,7 @@ int main(int argc, char* argv[])
 	marco::codegen::registerModelicaPasses();
 
 	mlir::DialectRegistry registry;
-	registry.insert<marco::codegen::ModelicaDialect>();
+	registry.insert<marco::codegen::modelica::ModelicaDialect>();
 	registry.insert<mlir::BuiltinDialect>();
 	registry.insert<mlir::StandardOpsDialect>();
 

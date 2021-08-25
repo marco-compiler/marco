@@ -8,6 +8,7 @@
 #include <set>
 
 using namespace marco::codegen;
+using namespace modelica;
 
 static bool hasFloatBase(mlir::Type type) {
 	if (type.isa<RealType>())

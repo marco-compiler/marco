@@ -5,7 +5,7 @@
 
 #include "Type.h"
 
-namespace marco::codegen
+namespace marco::codegen::modelica
 {
 	namespace detail
 	{

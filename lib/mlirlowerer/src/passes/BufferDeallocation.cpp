@@ -5,6 +5,7 @@
 
 using namespace mlir;
 using namespace marco::codegen;
+using namespace modelica;
 
 namespace marco::codegen
 {

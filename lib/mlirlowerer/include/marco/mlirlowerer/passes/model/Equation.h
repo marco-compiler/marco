@@ -31,8 +31,8 @@ namespace marco::codegen::model
 						 std::optional<EquationPath> path = std::nullopt);
 
 		static Equation build(mlir::Operation* op);
-		static Equation build(EquationOp op);
-		static Equation build(ForEquationOp op);
+		static Equation build(modelica::EquationOp op);
+		static Equation build(modelica::ForEquationOp op);
 
 		bool operator==(const Equation& rhs) const;
 		bool operator!=(const Equation& rhs) const;
@@ -42,7 +42,7 @@ namespace marco::codegen::model
 		bool operator<=(const Equation& rhs) const;
 		bool operator>=(const Equation& rhs) const;
 
-		[[nodiscard]] EquationInterface getOp() const;
+		[[nodiscard]] modelica::EquationInterface getOp() const;
 
 		[[nodiscard]] Expression lhs() const;
 		[[nodiscard]] Expression rhs() const;
@@ -82,7 +82,7 @@ namespace marco::codegen::model
 			return path.isOnEquationLeftHand() ? path.reach(lhs()) : path.reach(rhs());
 		}
 
-		[[nodiscard]] EquationSidesOp getTerminator() const;
+		[[nodiscard]] modelica::EquationSidesOp getTerminator() const;
 
 		private:
 		void getEquationsAmount(mlir::ValueRange values, llvm::SmallVectorImpl<long>& amounts) const;

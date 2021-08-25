@@ -5,7 +5,7 @@
 #include <marco/mlirlowerer/dialects/modelica/Attribute.h>
 #include <marco/mlirlowerer/dialects/modelica/Ops.h>
 
-using namespace marco::codegen;
+using namespace marco::codegen::modelica;
 
 static bool isNumeric(mlir::Type type)
 {

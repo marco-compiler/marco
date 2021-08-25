@@ -5,7 +5,7 @@ using namespace marco::codegen::model;
 
 Constant::Constant(mlir::Value value) : value(value)
 {
-	assert(mlir::isa<ConstantOp>(value.getDefiningOp()));
+	assert(mlir::isa<modelica::ConstantOp>(value.getDefiningOp()));
 }
 
 mlir::Value Constant::getValue() const

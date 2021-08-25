@@ -8,6 +8,7 @@
 #include <stack>
 
 using namespace marco::codegen;
+using namespace modelica;
 
 class CFGLowerer
 {

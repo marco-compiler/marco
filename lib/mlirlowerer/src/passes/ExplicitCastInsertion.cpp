@@ -7,6 +7,7 @@
 #include <marco/mlirlowerer/passes/ExplicitCastInsertion.h>
 
 using namespace marco::codegen;
+using namespace modelica;
 
 struct CallOpScalarPattern : public mlir::OpRewritePattern<CallOp>
 {

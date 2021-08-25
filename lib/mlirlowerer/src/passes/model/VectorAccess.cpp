@@ -11,6 +11,7 @@
 
 using namespace marco::codegen;
 using namespace marco::codegen::model;
+using namespace modelica;
 using namespace std;
 using namespace llvm;
 

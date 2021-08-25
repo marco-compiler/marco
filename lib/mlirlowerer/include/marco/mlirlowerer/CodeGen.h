@@ -105,10 +105,10 @@ namespace marco::codegen
 		mlir::Operation* lower(const frontend::Package& package);
 		mlir::Operation* lower(const frontend::Record& record);
 
-		mlir::Type lower(const frontend::Type& type, BufferAllocationScope allocationScope);
-		mlir::Type lower(const frontend::BuiltInType& type, BufferAllocationScope allocationScope);
-		mlir::Type lower(const frontend::PackedType& type, BufferAllocationScope allocationScope);
-		mlir::Type lower(const frontend::UserDefinedType& type, BufferAllocationScope allocationScope);
+		mlir::Type lower(const frontend::Type& type, modelica::BufferAllocationScope allocationScope);
+		mlir::Type lower(const frontend::BuiltInType& type, modelica::BufferAllocationScope allocationScope);
+		mlir::Type lower(const frontend::PackedType& type, modelica::BufferAllocationScope allocationScope);
+		mlir::Type lower(const frontend::UserDefinedType& type, modelica::BufferAllocationScope allocationScope);
 
 		template<typename Context>
 		void lower(const frontend::Member& member);
@@ -134,7 +134,7 @@ namespace marco::codegen
 		 * builder is stateful, in particular it keeps an "insertion point":
 		 * this is where the next operations will be introduced.
 		 */
-		ModelicaBuilder builder;
+		modelica::ModelicaBuilder builder;
 
 		/**
 		 * The symbol table maps a variable name to a value in the current scope.

@@ -10,6 +10,7 @@
 #include <numeric>
 
 using namespace marco::codegen;
+using namespace modelica;
 
 static bool isNumericType(mlir::Type type)
 {

@@ -4,6 +4,7 @@
 #include <marco/mlirlowerer/passes/FunctionsVectorization.h>
 
 using namespace marco::codegen;
+using namespace modelica;
 
 static unsigned int getVectorizationRank(VectorizableOpInterface op)
 {

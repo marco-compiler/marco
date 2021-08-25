@@ -6,7 +6,7 @@
 #include "Attribute.h"
 #include "Type.h"
 
-namespace marco::codegen
+namespace marco::codegen::modelica
 {
 	class ModelicaBuilder : public mlir::OpBuilder
 	{

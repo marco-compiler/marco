@@ -4,7 +4,7 @@
 #include <marco/mlirlowerer/dialects/modelica/Type.h>
 #include <numeric>
 
-using namespace marco::codegen;
+using namespace marco::codegen::modelica;
 
 bool BooleanAttributeStorage::operator==(const KeyTy& key) const
 {
@@ -472,7 +472,7 @@ unsigned int DerivativeAttribute::getOrder() const
 	return getImpl()->getOrder();
 }
 
-namespace marco::codegen
+namespace marco::codegen::modelica
 {
 	mlir::Attribute parseModelicaAttribute(mlir::DialectAsmParser& parser, mlir::Type type)
 	{

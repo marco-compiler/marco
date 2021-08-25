@@ -6,7 +6,7 @@
 #include "Ops.h"
 #include "Type.h"
 
-namespace marco::codegen
+namespace marco::codegen::modelica
 {
 	class ModelicaDialect : public mlir::Dialect
 	{
