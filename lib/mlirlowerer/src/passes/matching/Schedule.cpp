@@ -7,7 +7,7 @@
 #include <marco/mlirlowerer/passes/matching/SVarDependencyGraph.h>
 #include <marco/mlirlowerer/passes/matching/Schedule.h>
 #include <marco/mlirlowerer/passes/matching/VVarDependencyGraph.h>
-#include <modelica/mlirlowerer/passes/model/BltBlock.h>
+#include <marco/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
@@ -37,7 +37,7 @@ static llvm::SmallVector<std::variant<Equation, BltBlock>, 3> collapseEquations(
 		if (std::holds_alternative<Equation>(content))
 		{
 			const Equation& eq = std::get<Equation>(content);
-			for (const modelica::MultiDimInterval& set : currentSet)
+			for (const marco::MultiDimInterval& set : currentSet)
 			{
 				Equation clone = eq.clone();
 				clone.setForward(!backward);

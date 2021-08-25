@@ -1,15 +1,15 @@
 #include "gtest/gtest.h"
 #include <mlir/Support/LogicalResult.h>
-#include <modelica/mlirlowerer/passes/matching/Matching.h>
-#include <modelica/mlirlowerer/passes/matching/SCCCollapsing.h>
-#include <modelica/mlirlowerer/passes/matching/Schedule.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/Variable.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/mlirlowerer/passes/matching/Matching.h>
+#include <marco/mlirlowerer/passes/matching/SCCCollapsing.h>
+#include <marco/mlirlowerer/passes/matching/Schedule.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/Variable.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
 
 #include "../TestingUtils.h"
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 TEST(ScheduleTest, SimpleScheduling)
 {

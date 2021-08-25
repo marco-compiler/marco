@@ -1,19 +1,19 @@
-#include "modelica/passes/CleverDAE.hpp"
+#include "marco/passes/CleverDAE.hpp"
 
 #include "llvm/Support/Error.h"
-#include "modelica/model/AssignModel.hpp"
-#include "modelica/model/ModBltBlock.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModErrors.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/ModVariable.hpp"
-#include "modelica/model/Model.hpp"
+#include "marco/model/AssignModel.hpp"
+#include "marco/model/ModBltBlock.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModErrors.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/ModVariable.hpp"
+#include "marco/model/Model.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 using namespace llvm;
 
-Expected<AssignModel> modelica::addBltBlocks(ScheduledModel& model)
+Expected<AssignModel> marco::addBltBlocks(ScheduledModel& model)
 {
 	AssignModel out;
 	size_t implicitCount = 0, derivativeCount = 0;

@@ -7,7 +7,7 @@
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/iterator_range.h"
 #include "marco/model/Assigment.hpp"
-#include "modelica/model/ModBltBlock.hpp"
+#include "marco/model/ModBltBlock.hpp"
 #include "marco/model/ModEqTemplate.hpp"
 #include "marco/model/ModEquation.hpp"
 #include "marco/model/ModExp.hpp"

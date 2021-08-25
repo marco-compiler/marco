@@ -3,7 +3,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/Support/LogicalResult.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
 
 namespace marco::codegen::model
 {
@@ -43,4 +43,4 @@ namespace marco::codegen::model
 	 * @return true if the system of equations can be solved
 	 */
 	bool canSolveSystem(llvm::SmallVectorImpl<Equation>& equations, const Model& model);
-}	 // namespace modelica::codegen::model
+}	 // namespace marco::codegen::model

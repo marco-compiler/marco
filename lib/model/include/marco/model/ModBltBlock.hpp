@@ -3,12 +3,12 @@
 #include <memory>
 #include <set>
 
-#include "modelica/model/ModBltTemplate.hpp"
-#include "modelica/model/ModEqTemplate.hpp"
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModExp.hpp"
+#include "marco/model/ModBltTemplate.hpp"
+#include "marco/model/ModEqTemplate.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModExp.hpp"
 
-namespace modelica
+namespace marco
 {
 	/**
 	 * This class contains an Algebraic Loop not solvable by the SccCollapsing
@@ -91,4 +91,4 @@ namespace modelica
 		bool isForwardDirection = true;
 		std::shared_ptr<ModBltTemplate> body;
 	};
-}	 // namespace modelica
+}	 // namespace marco

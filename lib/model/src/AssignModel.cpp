@@ -1,7 +1,7 @@
-#include "modelica/model/AssignModel.hpp"
+#include "marco/model/AssignModel.hpp"
 
 using namespace std;
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 
 void AssignModel::addTemplate(const variant<Assigment, ModBltBlock>& update)

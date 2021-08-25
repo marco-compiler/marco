@@ -3,7 +3,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/iterator_range.h>
 #include <map>
-#include <modelica/mlirlowerer/passes/model/BltBlock.h>
+#include <marco/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/Variable.h>
@@ -92,4 +92,4 @@ namespace marco::codegen::model
 		private:
 		Map variables;
 	};
-}	 // namespace modelica::codegen::model
+}	 // namespace marco::codegen::model

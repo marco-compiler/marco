@@ -22,6 +22,7 @@
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
 #include <marco/mlirlowerer/passes/TypeConverter.h>
 #include <marco/utils/VariableFilter.h>
+#include <queue>
 
 using namespace marco;
 using namespace codegen;
@@ -1965,7 +1966,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 					}
 					else if (expQueue.front().isOperation())
 					{
-						for (size_t i : modelica::irange(expQueue.front().childrenCount()))
+						for (size_t i : marco::irange(expQueue.front().childrenCount()))
 							expQueue.push(expQueue.front().getChild(i));
 					}
 
@@ -2063,12 +2064,12 @@ std::unique_ptr<mlir::Pass> marco::codegen::createSolveModelPass(SolveModelOptio
 	return std::make_unique<SolveModelPass>(options, bitWidth);
 }
 
-llvm::Optional<Model> modelica::codegen::getUnmatchedModel(mlir::ModuleOp moduleOp)
+llvm::Optional<Model> marco::codegen::getUnmatchedModel(mlir::ModuleOp moduleOp)
 {
 	return SolveModelPass::getUnmatchedModel(moduleOp);
 }
 
-llvm::Optional<Model> modelica::codegen::getSolvedModel(mlir::ModuleOp moduleOp, SolveModelOptions options)
+llvm::Optional<Model> marco::codegen::getSolvedModel(mlir::ModuleOp moduleOp, SolveModelOptions options)
 {
 	return SolveModelPass::getSolvedModel(moduleOp, options);
 }

@@ -1,6 +1,6 @@
-#include <modelica/mlirlowerer/passes/model/BltBlock.h>
+#include <marco/mlirlowerer/passes/model/BltBlock.h>
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 BltBlock::BltBlock(llvm::ArrayRef<Equation> equations)
 		: equations(equations.begin(), equations.end()), isForwardDirection(true)

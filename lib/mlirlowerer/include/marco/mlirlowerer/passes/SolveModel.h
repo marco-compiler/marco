@@ -2,7 +2,7 @@
 
 #include <marco/utils/VariableFilter.h>
 #include <mlir/Pass/Pass.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
 
 namespace marco::codegen
 {

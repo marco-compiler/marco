@@ -1,10 +1,10 @@
-#include "modelica/model/SymbolicDifferentiation.hpp"
+#include "marco/model/SymbolicDifferentiation.hpp"
 
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModExp.hpp"
-#include "modelica/model/VectorAccess.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModExp.hpp"
+#include "marco/model/VectorAccess.hpp"
 
-using namespace modelica;
+using namespace marco;
 using namespace std;
 
 template<ModExpKind kind>
@@ -230,7 +230,7 @@ ModExp differentiateOp<ModExpKind::induction>(
 	return ModConst(0.0);
 }
 
-ModExp modelica::differentiate(const ModExp& exp, const ModExp& var)
+ModExp marco::differentiate(const ModExp& exp, const ModExp& var)
 {
 	// If the expression is a constant, return 0.
 	if (exp.isConstant())
@@ -276,7 +276,7 @@ ModExp modelica::differentiate(const ModExp& exp, const ModExp& var)
 	assert(false && "Unreachable");
 }
 
-ModEquation modelica::differentiate(const ModEquation& eq, const ModExp& var)
+ModEquation marco::differentiate(const ModEquation& eq, const ModExp& var)
 {
 	ModExp leftHand = differentiate(eq.getLeft(), var);
 	ModExp rightHand = differentiate(eq.getRight(), var);

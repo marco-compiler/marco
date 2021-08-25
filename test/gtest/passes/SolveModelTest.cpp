@@ -1,19 +1,19 @@
 #include "gtest/gtest.h"
 #include <mlir/Pass/PassManager.h>
-#include <modelica/frontend/Parser.h>
-#include <modelica/frontend/Passes.h>
-#include <modelica/mlirlowerer/CodeGen.h>
-#include <modelica/mlirlowerer/passes/SolveModel.h>
-#include <modelica/mlirlowerer/passes/model/BltBlock.h>
-#include <modelica/mlirlowerer/passes/model/Equation.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/Variable.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/frontend/Parser.h>
+#include <marco/frontend/Passes.h>
+#include <marco/mlirlowerer/CodeGen.h>
+#include <marco/mlirlowerer/passes/SolveModel.h>
+#include <marco/mlirlowerer/passes/model/BltBlock.h>
+#include <marco/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/Variable.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
 #include <queue>
 
 #include "../TestingUtils.h"
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 TEST(SolveModelTest, SubstituteTrivialVariablesTest)
 {
@@ -74,7 +74,7 @@ TEST(SolveModelTest, SubstituteTrivialVariablesTest)
 				}
 				else if (expQueue.front().isOperation())
 				{
-					for (size_t i : modelica::irange(expQueue.front().childrenCount()))
+					for (size_t i : marco::irange(expQueue.front().childrenCount()))
 						expQueue.push(expQueue.front().getChild(i));
 				}
 

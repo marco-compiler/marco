@@ -1,12 +1,12 @@
 #include "gtest/gtest.h"
-#include <modelica/mlirlowerer/passes/matching/Matching.h>
-#include <modelica/mlirlowerer/passes/model/Equation.h>
-#include <modelica/mlirlowerer/passes/model/Expression.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/matching/Matching.h>
+#include <marco/mlirlowerer/passes/model/Equation.h>
+#include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
 
 #include "../TestingUtils.h"
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 TEST(EquationTest, EquationCopyAndClone)
 {
@@ -47,7 +47,7 @@ TEST(EquationTest, EquationToIndexSet)
 
 	EXPECT_EQ(
 			model.getEquations()[0].getInductions(),
-			modelica::MultiDimInterval({ { 1, 4 }, { 1, 8 } }));
+			marco::MultiDimInterval({ { 1, 4 }, { 1, 8 } }));
 }
 
 TEST(EquationTest, ExplicitateEquations)

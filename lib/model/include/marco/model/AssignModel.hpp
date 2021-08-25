@@ -5,7 +5,7 @@
 
 #include "llvm/ADT/StringMap.h"
 #include "marco/model/Assigment.hpp"
-#include "modelica/model/ModBltBlock.hpp"
+#include "marco/model/ModBltBlock.hpp"
 #include "marco/model/ModVariable.hpp"
 
 namespace marco

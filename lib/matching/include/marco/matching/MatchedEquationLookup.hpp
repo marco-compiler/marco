@@ -5,7 +5,7 @@
 #include <variant>
 
 #include "llvm/ADT/iterator_range.h"
-#include "modelica/model/ModBltBlock.hpp"
+#include "marco/model/ModBltBlock.hpp"
 #include "marco/model/ModEquation.hpp"
 #include "marco/model/Model.hpp"
 #include "marco/model/VectorAccess.hpp"

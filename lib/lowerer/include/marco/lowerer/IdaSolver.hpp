@@ -8,10 +8,10 @@
 #include <sunmatrix/sunmatrix_sparse.h>
 
 #include "llvm/Support/Error.h"
-#include "modelica/lowerer/LowererUtils.hpp"
-#include "modelica/model/ModBltBlock.hpp"
+#include "marco/lowerer/LowererUtils.hpp"
+#include "marco/model/ModBltBlock.hpp"
 
-namespace modelica
+namespace marco
 {
 	/**
 	 * This class interfaces with the SUNDIALS IDA library in order to solve a
@@ -130,4 +130,4 @@ namespace modelica
 		SUNMatrix sparseMatrix;
 		SUNLinearSolver linearSolver;
 	};
-}	 // namespace modelica
+}	 // namespace marco

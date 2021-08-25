@@ -2,9 +2,9 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/raw_ostream.h"
-#include "modelica/model/ModEquation.hpp"
+#include "marco/model/ModEquation.hpp"
 
-namespace modelica
+namespace marco
 {
 	class ModBltTemplate
 	{
@@ -43,4 +43,4 @@ namespace modelica
 		llvm::SmallVector<ModEquation, 3> equations;
 		std::string templateName;
 	};
-}	 // namespace modelica
+}	 // namespace marco

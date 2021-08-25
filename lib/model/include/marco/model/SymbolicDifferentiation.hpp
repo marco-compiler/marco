@@ -1,9 +1,9 @@
 #pragma once
 
-#include "modelica/model/ModEquation.hpp"
-#include "modelica/model/ModExp.hpp"
+#include "marco/model/ModEquation.hpp"
+#include "marco/model/ModExp.hpp"
 
-namespace modelica
+namespace marco
 {
 	/**
 	 * Differentiate the expression with respect to a given variable access.
@@ -29,4 +29,4 @@ namespace modelica
 	 */
 	[[nodiscard]] ModEquation differentiate(
 			const ModEquation& equation, const ModExp& variableAccess);
-}	 // namespace modelica
+}	 // namespace marco

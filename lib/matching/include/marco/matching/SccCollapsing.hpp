@@ -18,4 +18,4 @@ namespace marco
 	 * @return The collapsed model.
 	 */
 	llvm::Expected<Model> solveScc(Model&& model, size_t maxIterations = 100);
-}	 // namespace modelica
+}	 // namespace marco

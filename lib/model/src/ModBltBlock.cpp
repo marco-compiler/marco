@@ -1,9 +1,9 @@
-#include "modelica/model/ModBltBlock.hpp"
+#include "marco/model/ModBltBlock.hpp"
 
-#include "modelica/model/SymbolicDifferentiation.hpp"
+#include "marco/model/SymbolicDifferentiation.hpp"
 
 using namespace std;
-using namespace modelica;
+using namespace marco;
 using namespace llvm;
 
 /**

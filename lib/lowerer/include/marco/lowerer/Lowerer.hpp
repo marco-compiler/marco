@@ -7,7 +7,7 @@
 #include "llvm/IR/Module.h"
 #include "marco/lowerer/LowererUtils.hpp"
 #include "marco/model/Assigment.hpp"
-#include "modelica/model/ModBltBlock.hpp"
+#include "marco/model/ModBltBlock.hpp"
 #include "marco/model/ModExp.hpp"
 #include "marco/model/ModVariable.hpp"
 

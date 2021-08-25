@@ -1,4 +1,4 @@
-modelicaAddTest(
+marcoAddTest(
 	mlirlowerer
 	TestingUtils.cpp
 	ida/IdaSolverTest.cpp

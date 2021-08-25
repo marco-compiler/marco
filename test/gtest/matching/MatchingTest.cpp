@@ -1,14 +1,14 @@
 #include "gtest/gtest.h"
 #include <mlir/Support/LogicalResult.h>
-#include <modelica/mlirlowerer/passes/matching/Edge.h>
-#include <modelica/mlirlowerer/passes/matching/Flow.h>
-#include <modelica/mlirlowerer/passes/matching/Matching.h>
-#include <modelica/mlirlowerer/passes/model/Model.h>
-#include <modelica/mlirlowerer/passes/model/VectorAccess.h>
+#include <marco/mlirlowerer/passes/matching/Edge.h>
+#include <marco/mlirlowerer/passes/matching/Flow.h>
+#include <marco/mlirlowerer/passes/matching/Matching.h>
+#include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
 
 #include "../TestingUtils.h"
 
-using namespace modelica::codegen::model;
+using namespace marco::codegen::model;
 
 std::string stringModel1 = "model Test "
 													 "int[10] x = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1}; "
@@ -58,7 +58,7 @@ TEST(MatchingTest, FirstMatchingSize)
 	AugmentingPath path(graph);
 	FlowCandidates res = path.selectStartingEdge();
 	EXPECT_EQ(res.getCurrent().getSet().size(), 5);
-	EXPECT_EQ(res.getCurrent().getEdge().getSet(), modelica::IndexSet());
+	EXPECT_EQ(res.getCurrent().getEdge().getSet(), marco::IndexSet());
 	EXPECT_EQ(res.getCurrent().isForwardEdge(), true);
 }
 
