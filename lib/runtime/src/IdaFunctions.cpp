@@ -11,10 +11,10 @@
 	if (!success)                                                                \
 		return false;
 
-using Dimensions = std::vector<std::pair<size_t, size_t>>;
-using Indexes = std::vector<size_t>;
+using Dimensions = std::vector<std::pair<int64_t, int64_t>>;
+using Indexes = std::vector<int64_t>;
 using Function = std::function<double(
-		double tt, double cj, double *yy, double *yp, Indexes &ind, size_t var)>;
+		double tt, double cj, double *yy, double *yp, Indexes &ind, int64_t var)>;
 
 /**
  * Container for all the data and lambda functions required by IDA in order to
@@ -23,7 +23,7 @@ using Function = std::function<double(
 typedef struct IdaUserData
 {
 	// Model data
-	std::vector<size_t> rowLengths;
+	std::vector<int64_t> rowLengths;
 	std::vector<Dimensions> dimensions;
 	std::vector<Function> residuals;
 	std::vector<Function> jacobians;
@@ -31,7 +31,7 @@ typedef struct IdaUserData
 	// Lambdas
 	std::vector<std::pair<Function, Function>> lambdas;
 	std::vector<std::vector<std::pair<int64_t, int64_t>>> lambdaAccesses;
-	std::vector<std::vector<size_t>> lambdaDimensions;
+	std::vector<std::vector<int64_t>> lambdaDimensions;
 
 	// Simulation times
 	realtype startTime;
@@ -110,7 +110,7 @@ int residualFunction(
 		while (!finished)
 		{
 			// Compute the i-th residual function
-			*rval++ = data->residuals[eq](tt, -1, yval, ypval, indexes, -1);
+			*rval++ = data->residuals[eq](tt, 0, yval, ypval, indexes, 0);
 
 			// Update multidimensional interval, exit while loop if finished
 			finished = updateIndexes(indexes, data->dimensions[eq]);
@@ -151,7 +151,7 @@ int jacobianMatrix(
 
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
-	size_t nnzElements = 0;
+	int64_t nnzElements = 0;
 	*rowptrs++ = nnzElements;
 
 	// For every vector equation
@@ -172,7 +172,7 @@ int jacobianMatrix(
 
 			// For every variable with respect to which every equation must be
 			// partially differentiated
-			for (size_t var = 0; var < data->rowLengths[eq]; var++)
+			for (int64_t var = 0; var < data->rowLengths[eq]; var++)
 			{
 				// Compute the i-th jacobian value
 				*jacobian++ = data->jacobians[eq](tt, cj, yval, ypval, indexes, var);
@@ -270,7 +270,7 @@ bool freeIdaUserData(void *userData)
 /**
  * Set the initial value of the index-th variable and if it is a state variable.
  */
-void setInitialValues(void *userData, size_t index, double value, bool isState)
+void setInitialValues(void *userData, int64_t index, double value, bool isState)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -354,7 +354,7 @@ bool idaInit(void *userData)
  * computation has not reached the 'stopTime' seconds limit, 0 if it has reached
  * the end of the computation, -1 if it fails.
  */
-int8_t idaStep(void *userData)
+int64_t idaStep(void *userData)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -405,7 +405,7 @@ void addTolerances(void *userData, double relTol, double absTol)
 /**
  * Add the length of index-th row of the jacobian matrix to the user data.
  */
-void addRowLength(void *userData, size_t rowLength)
+void addRowLength(void *userData, int64_t rowLength)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -415,11 +415,11 @@ void addRowLength(void *userData, size_t rowLength)
 /**
  * Add the dimension of the index-th equation to the user data.
  */
-void addDimension(void *userData, size_t index, size_t min, size_t max)
+void addDimension(void *userData, int64_t index, int64_t min, int64_t max)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
-	if (index == data->dimensions.size())
+	if (index == (int64_t) data->dimensions.size())
 		data->dimensions.push_back({});
 	data->dimensions[index].push_back({ min - 1, max - 1 });
 }
@@ -427,7 +427,7 @@ void addDimension(void *userData, size_t index, size_t min, size_t max)
 /**
  * Add the lambda that computes the index-th residual function to the user data.
  */
-void addResidual(void *userData, size_t leftIndex, size_t rightIndex)
+void addResidual(void *userData, int64_t leftIndex, int64_t rightIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -453,7 +453,7 @@ void addResidual(void *userData, size_t leftIndex, size_t rightIndex)
 /**
  * Add the lambda that computes the index-th jacobian row to the user data.
  */
-void addJacobian(void *userData, size_t leftIndex, size_t rightIndex)
+void addJacobian(void *userData, int64_t leftIndex, int64_t rightIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -486,26 +486,26 @@ double getIdaTime(void *userData)
 	return data->time;
 }
 
-double getIdaVariable(void *userData, size_t index)
+double getIdaVariable(void *userData, int64_t index)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 	return data->variablesValues[index];
 }
 
-double getIdaDerivative(void *userData, size_t index)
+double getIdaDerivative(void *userData, int64_t index)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 	return data->derivativesValues[index];
 }
 
-size_t getIdaRowLength(void *userData, size_t index)
+int64_t getIdaRowLength(void *userData, int64_t index)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 	return data->rowLengths[index];
 }
 
-std::vector<std::pair<size_t, size_t>> getIdaDimension(
-		void *userData, size_t index)
+std::vector<std::pair<int64_t, int64_t>> getIdaDimension(
+		void *userData, int64_t index)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 	return data->dimensions[index];
@@ -551,23 +551,23 @@ int64_t numNonlinIters(void *userData)
 // Lambda helpers
 //===----------------------------------------------------------------------===//
 
-size_t addNewLambdaAccess(void *userData, int64_t off, int64_t ind)
+int64_t addNewLambdaAccess(void *userData, int64_t off, int64_t ind)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 	data->lambdaAccesses.push_back({ { off, ind } });
 	return data->lambdaAccesses.size() - 1;
 }
 
-void addLambdaAccess(void *userData, size_t index, int64_t off, int64_t ind)
+void addLambdaAccess(void *userData, int64_t index, int64_t off, int64_t ind)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 	data->lambdaAccesses[index].push_back({ off, ind });
 }
 
-void addLambdaDimension(void *userData, size_t index, size_t dim)
+void addLambdaDimension(void *userData, int64_t index, int64_t dim)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
-	if (index == data->lambdaDimensions.size())
+	if (index == (int64_t) data->lambdaDimensions.size())
 		data->lambdaDimensions.push_back({});
 	data->lambdaDimensions[index].push_back(dim);
 }
@@ -576,7 +576,7 @@ void addLambdaDimension(void *userData, size_t index, size_t dim)
 // Lambda constructions
 //===----------------------------------------------------------------------===//
 
-size_t lambdaConstant(void *userData, double constant)
+int64_t lambdaConstant(void *userData, double constant)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -596,7 +596,7 @@ size_t lambdaConstant(void *userData, double constant)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaTime(void *userData)
+int64_t lambdaTime(void *userData)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -612,7 +612,7 @@ size_t lambdaTime(void *userData)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaScalarVariable(void *userData, size_t offset)
+int64_t lambdaScalarVariable(void *userData, int64_t offset)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -640,7 +640,7 @@ size_t lambdaScalarVariable(void *userData, size_t offset)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaScalarDerivative(void *userData, size_t offset)
+int64_t lambdaScalarDerivative(void *userData, int64_t offset)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -668,12 +668,12 @@ size_t lambdaScalarDerivative(void *userData, size_t offset)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaVectorVariable(void *userData, size_t offset, size_t index)
+int64_t lambdaVectorVariable(void *userData, int64_t offset, int64_t index)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
 	std::vector<std::pair<int64_t, int64_t>> access = data->lambdaAccesses[index];
-	std::vector<size_t> dim = data->lambdaDimensions[index];
+	std::vector<int64_t> dim = data->lambdaDimensions[index];
 
 	Function first = [offset, access, dim](
 											 double tt,
@@ -682,12 +682,12 @@ size_t lambdaVectorVariable(void *userData, size_t offset, size_t index)
 											 double *yp,
 											 Indexes &ind,
 											 double var) -> double {
-		size_t varOffset = 0;
+		int64_t varOffset = 0;
 
 		for (size_t i = 0; i < access.size(); i++)
 		{
 			auto acc = access[i];
-			size_t accOffset = acc.first + (acc.second != -1 ? ind[acc.second] : 0);
+			int64_t accOffset = acc.first + (acc.second != -1 ? ind[acc.second] : 0);
 			varOffset += accOffset * dim[i];
 		}
 
@@ -701,12 +701,12 @@ size_t lambdaVectorVariable(void *userData, size_t offset, size_t index)
 												double *yp,
 												Indexes &ind,
 												double var) -> double {
-		size_t varOffset = 0;
+		int64_t varOffset = 0;
 
 		for (size_t i = 0; i < access.size(); i++)
 		{
 			auto acc = access[i];
-			size_t accOffset = acc.first + (acc.second != -1 ? ind[acc.second] : 0);
+			int64_t accOffset = acc.first + (acc.second != -1 ? ind[acc.second] : 0);
 			varOffset += accOffset * dim[i];
 		}
 
@@ -719,12 +719,12 @@ size_t lambdaVectorVariable(void *userData, size_t offset, size_t index)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaVectorDerivative(void *userData, size_t offset, size_t index)
+int64_t lambdaVectorDerivative(void *userData, int64_t offset, int64_t index)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
 	std::vector<std::pair<int64_t, int64_t>> access = data->lambdaAccesses[index];
-	std::vector<size_t> dim = data->lambdaDimensions[index];
+	std::vector<int64_t> dim = data->lambdaDimensions[index];
 
 	Function first = [offset, access, dim](
 											 double tt,
@@ -733,12 +733,12 @@ size_t lambdaVectorDerivative(void *userData, size_t offset, size_t index)
 											 double *yp,
 											 Indexes &ind,
 											 double var) -> double {
-		size_t varOffset = 0;
+		int64_t varOffset = 0;
 
 		for (size_t i = 0; i < access.size(); i++)
 		{
 			auto acc = access[i];
-			size_t accOffset = acc.first + (acc.second != -1 ? ind[acc.second] : 0);
+			int64_t accOffset = acc.first + (acc.second != -1 ? ind[acc.second] : 0);
 			varOffset += accOffset * dim[i];
 		}
 
@@ -752,12 +752,12 @@ size_t lambdaVectorDerivative(void *userData, size_t offset, size_t index)
 												double *yp,
 												Indexes &ind,
 												double var) -> double {
-		size_t varOffset = 0;
+		int64_t varOffset = 0;
 
 		for (size_t i = 0; i < access.size(); i++)
 		{
 			auto acc = access[i];
-			size_t accOffset = acc.first + (acc.second != -1 ? ind[acc.second] : 0);
+			int64_t accOffset = acc.first + (acc.second != -1 ? ind[acc.second] : 0);
 			varOffset += accOffset * dim[i];
 		}
 
@@ -770,7 +770,7 @@ size_t lambdaVectorDerivative(void *userData, size_t offset, size_t index)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaNegate(void *userData, size_t operandIndex)
+int64_t lambdaNegate(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -801,7 +801,7 @@ size_t lambdaNegate(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaAdd(void *userData, size_t leftIndex, size_t rightIndex)
+int64_t lambdaAdd(void *userData, int64_t leftIndex, int64_t rightIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -835,7 +835,7 @@ size_t lambdaAdd(void *userData, size_t leftIndex, size_t rightIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaSub(void *userData, size_t leftIndex, size_t rightIndex)
+int64_t lambdaSub(void *userData, int64_t leftIndex, int64_t rightIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -869,7 +869,7 @@ size_t lambdaSub(void *userData, size_t leftIndex, size_t rightIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaMul(void *userData, size_t leftIndex, size_t rightIndex)
+int64_t lambdaMul(void *userData, int64_t leftIndex, int64_t rightIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -903,7 +903,7 @@ size_t lambdaMul(void *userData, size_t leftIndex, size_t rightIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaDiv(void *userData, size_t leftIndex, size_t rightIndex)
+int64_t lambdaDiv(void *userData, int64_t leftIndex, int64_t rightIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -940,7 +940,7 @@ size_t lambdaDiv(void *userData, size_t leftIndex, size_t rightIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaPow(void *userData, size_t baseIndex, size_t exponentIndex)
+int64_t lambdaPow(void *userData, int64_t baseIndex, int64_t exponentIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -976,7 +976,7 @@ size_t lambdaPow(void *userData, size_t baseIndex, size_t exponentIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaAbs(void *userData, size_t operandIndex)
+int64_t lambdaAbs(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1008,7 +1008,7 @@ size_t lambdaAbs(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaSign(void *userData, size_t operandIndex)
+int64_t lambdaSign(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1034,7 +1034,7 @@ size_t lambdaSign(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaSqrt(void *userData, size_t operandIndex)
+int64_t lambdaSqrt(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1066,7 +1066,7 @@ size_t lambdaSqrt(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaExp(void *userData, size_t operandIndex)
+int64_t lambdaExp(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1098,7 +1098,7 @@ size_t lambdaExp(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaLog(void *userData, size_t operandIndex)
+int64_t lambdaLog(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1130,7 +1130,7 @@ size_t lambdaLog(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaLog10(void *userData, size_t operandIndex)
+int64_t lambdaLog10(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1162,7 +1162,7 @@ size_t lambdaLog10(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaSin(void *userData, size_t operandIndex)
+int64_t lambdaSin(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1194,7 +1194,7 @@ size_t lambdaSin(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaCos(void *userData, size_t operandIndex)
+int64_t lambdaCos(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1226,7 +1226,7 @@ size_t lambdaCos(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaTan(void *userData, size_t operandIndex)
+int64_t lambdaTan(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1259,7 +1259,7 @@ size_t lambdaTan(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaAsin(void *userData, size_t operandIndex)
+int64_t lambdaAsin(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1292,7 +1292,7 @@ size_t lambdaAsin(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaAcos(void *userData, size_t operandIndex)
+int64_t lambdaAcos(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1325,7 +1325,7 @@ size_t lambdaAcos(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaAtan(void *userData, size_t operandIndex)
+int64_t lambdaAtan(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1358,7 +1358,7 @@ size_t lambdaAtan(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaSinh(void *userData, size_t operandIndex)
+int64_t lambdaSinh(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1390,7 +1390,7 @@ size_t lambdaSinh(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaCosh(void *userData, size_t operandIndex)
+int64_t lambdaCosh(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -1422,7 +1422,7 @@ size_t lambdaCosh(void *userData, size_t operandIndex)
 	return data->lambdas.size() - 1;
 }
 
-size_t lambdaTanh(void *userData, size_t operandIndex)
+int64_t lambdaTanh(void *userData, int64_t operandIndex)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 

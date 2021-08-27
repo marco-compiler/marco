@@ -291,7 +291,7 @@ TEST(IdaSolverTest, AlgebraicLoop)
 	EXPECT_EQ(idaSolver.getProblemSize(), 5);
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 5);
 
-	for (size_t i : marco::irange(5))
+	for (int64_t i : marco::irange(5))
 	{
 		EXPECT_EQ(idaSolver.getRowLength(i), 5);
 		EXPECT_EQ(idaSolver.getDimension(i).size(), 1);
@@ -308,7 +308,7 @@ TEST(IdaSolverTest, AlgebraicLoop)
 	EXPECT_EQ(idaSolver.getVariable(3), 1.0);
 	EXPECT_EQ(idaSolver.getVariable(4), 4.0);
 
-	for (size_t i : marco::irange(5))
+	for (int64_t i : marco::irange(5))
 		EXPECT_EQ(idaSolver.getDerivative(i), 0.0);
 
 	if (failed(idaSolver.free()))

@@ -41,7 +41,7 @@ IdaSolver::IdaSolver(
 
 mlir::LogicalResult IdaSolver::init()
 {
-	size_t rowLength = 0;
+	int64_t rowLength = 0;
 
 	// TODO: Add different value handling for initialization
 
@@ -104,7 +104,7 @@ mlir::LogicalResult IdaSolver::init()
 					indexOffsetMap[model.getVariable(var.getState())] = rowLength;
 
 				// Initialize variablesValues, derivativesValues, idValues.
-				for (size_t i : irange(var.toMultiDimInterval().size()))
+				for (int64_t i : irange(var.toMultiDimInterval().size()))
 				{
 					setInitialValues(
 							userData,
@@ -128,7 +128,7 @@ mlir::LogicalResult IdaSolver::init()
 		}
 	}
 
-	assert((int64_t) rowLength == equationsNumber);
+	assert(rowLength == equationsNumber);
 
 	initialValueMap.clear();
 	indexOffsetMap.clear();
@@ -139,13 +139,13 @@ mlir::LogicalResult IdaSolver::init()
 	return mlir::success();
 }
 
-int8_t IdaSolver::step() { return idaStep(userData); }
+int64_t IdaSolver::step() { return idaStep(userData); }
 
 mlir::LogicalResult IdaSolver::run(llvm::raw_ostream& OS)
 {
 	while (true)
 	{
-		int8_t isFinished = idaStep(userData);
+		int64_t isFinished = idaStep(userData);
 
 		if (isFinished == -1)
 			return mlir::failure();
@@ -172,7 +172,7 @@ void IdaSolver::printOutput(llvm::raw_ostream& OS)
 {
 	OS << getTime();
 
-	for (size_t i : irange(equationsNumber))
+	for (int64_t i : irange(equationsNumber))
 		OS << ", " << getVariable(i);
 
 	OS << "\n";
@@ -192,28 +192,28 @@ void IdaSolver::printStats(llvm::raw_ostream& OS)
 	OS << "Number of nonlinear iterations     = " << nni << "\n";
 }
 
-size_t IdaSolver::getProblemSize() { return problemSize; }
+int64_t IdaSolver::getProblemSize() { return problemSize; }
 
 int64_t IdaSolver::getEquationsNumber() { return equationsNumber; }
 
 double IdaSolver::getTime() { return getIdaTime(userData); }
 
-double IdaSolver::getVariable(size_t index)
+double IdaSolver::getVariable(int64_t index)
 {
 	return getIdaVariable(userData, index);
 }
 
-double IdaSolver::getDerivative(size_t index)
+double IdaSolver::getDerivative(int64_t index)
 {
 	return getIdaDerivative(userData, index);
 }
 
-size_t IdaSolver::getRowLength(size_t index)
+int64_t IdaSolver::getRowLength(int64_t index)
 {
 	return getIdaRowLength(userData, index);
 }
 
-std::vector<std::pair<size_t, size_t>> IdaSolver::getDimension(size_t index)
+std::vector<std::pair<int64_t, int64_t>> IdaSolver::getDimension(int64_t index)
 {
 	return getIdaDimension(userData, index);
 }
@@ -261,14 +261,14 @@ void IdaSolver::getDimension(const Equation& equation)
 
 void IdaSolver::getResidualAndJacobian(const Equation& equation)
 {
-	size_t left = getFunction(equation.lhs());
-	size_t right = getFunction(equation.rhs());
+	int64_t left = getFunction(equation.lhs());
+	int64_t right = getFunction(equation.rhs());
 
 	addResidual(userData, left, right);
 	addJacobian(userData, left, right);
 }
 
-size_t IdaSolver::getFunction(const Expression& expression)
+int64_t IdaSolver::getFunction(const Expression& expression)
 {
 	mlir::Operation* definingOp = expression.getOp();
 
@@ -287,7 +287,7 @@ size_t IdaSolver::getFunction(const Expression& expression)
 		if (indexOffsetMap.find(var) == indexOffsetMap.end())
 			return lambdaTime(userData);
 
-		size_t offset = indexOffsetMap[var];
+		int64_t offset = indexOffsetMap[var];
 
 		if (var.isDerivative())
 			return lambdaScalarDerivative(userData, offset);
@@ -303,7 +303,7 @@ size_t IdaSolver::getFunction(const Expression& expression)
 		// Compute the IDA offset of the variable in the 1D array variablesVector.
 		Variable var = model.getVariable(expression.getReferredVectorAccess());
 		assert(indexOffsetMap.find(var) != indexOffsetMap.end());
-		size_t offset = indexOffsetMap[var];
+		int64_t offset = indexOffsetMap[var];
 
 		// Compute the access offset based on the induction variables of the
 		// for-equation.
@@ -312,15 +312,15 @@ size_t IdaSolver::getFunction(const Expression& expression)
 
 		for (auto& acc : vectorAccess.getMappingOffset())
 		{
-			size_t accOffset =
+			int64_t accOffset =
 					acc.isDirectAccess() ? acc.getOffset() : acc.getOffset() + 1;
-			size_t accInduction = acc.isOffset() ? acc.getInductionVar() : -1;
+			int64_t accInduction = acc.isOffset() ? acc.getInductionVar() : -1;
 			access.push_back({ accOffset, accInduction });
 		}
 
 		// Compute the multi-dimensional offset of the array.
 		marco::MultiDimInterval dimensions = var.toMultiDimInterval();
-		std::vector<size_t> dim;
+		std::vector<int64_t> dim;
 		for (size_t i = 1; i < dimensions.dimensions(); i++)
 		{
 			for (size_t j = 0; j < dim.size(); j++)
@@ -330,7 +330,7 @@ size_t IdaSolver::getFunction(const Expression& expression)
 		dim.push_back(1);
 
 		// Add accesses and dimensions of the variable to the ida user data.
-		size_t index =
+		int64_t index =
 				addNewLambdaAccess(userData, access[0].first, access[0].second);
 		for (size_t i = 1; i < access.size(); i++)
 			addLambdaAccess(userData, index, access[i].first, access[i].second);
@@ -346,7 +346,7 @@ size_t IdaSolver::getFunction(const Expression& expression)
 	}
 
 	// Get the lambda functions to compute the values of all the children.
-	std::vector<size_t> children;
+	std::vector<int64_t> children;
 	for (size_t i : marco::irange(expression.childrenCount()))
 		children.push_back(getFunction(expression.getChild(i)));
 
