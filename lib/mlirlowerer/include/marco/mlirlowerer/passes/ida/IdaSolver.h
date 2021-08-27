@@ -30,7 +30,7 @@ namespace marco::codegen::ida
 		 * computation has not reached the 'stopTime' seconds limit, 0 if it has
 		 * reached the end of the computation, -1 if it fails.
 		 */
-		[[nodiscard]] int8_t step();
+		[[nodiscard]] int64_t step();
 
 		/**
 		 * Performs a full run of the system.
@@ -53,14 +53,14 @@ namespace marco::codegen::ida
 		 */
 		void printStats(llvm::raw_ostream &OS = llvm::outs());
 
-		[[nodiscard]] size_t getProblemSize();
+		[[nodiscard]] int64_t getProblemSize();
 		[[nodiscard]] int64_t getEquationsNumber();
 		[[nodiscard]] double getTime();
-		[[nodiscard]] double getVariable(size_t index);
-		[[nodiscard]] double getDerivative(size_t index);
-		[[nodiscard]] size_t getRowLength(size_t index);
-		[[nodiscard]] std::vector<std::pair<size_t, size_t>> getDimension(
-				size_t index);
+		[[nodiscard]] double getVariable(int64_t index);
+		[[nodiscard]] double getDerivative(int64_t index);
+		[[nodiscard]] int64_t getRowLength(int64_t index);
+		[[nodiscard]] std::vector<std::pair<int64_t, int64_t>> getDimension(
+				int64_t index);
 
 		private:
 		[[nodiscard]] int64_t computeNEQ();
@@ -86,15 +86,15 @@ namespace marco::codegen::ida
 		 * computes the expression starting from the data provided
 		 * by IDA and the value of all induction variables.
 		 */
-		size_t getFunction(const model::Expression &exp);
+		int64_t getFunction(const model::Expression &exp);
 
 		private:
 		// Model data
 		model::Model model;
-		size_t problemSize;
+		int64_t problemSize;
 		const int64_t equationsNumber;
 		std::map<model::Variable, double> initialValueMap;
-		std::map<model::Variable, size_t> indexOffsetMap;
+		std::map<model::Variable, int64_t> indexOffsetMap;
 		void *userData;
 	};
 }	 // namespace marco::codegen::ida
