@@ -38,9 +38,6 @@ static mlir::FuncOp getOrDeclareFunction(mlir::OpBuilder& builder, mlir::ModuleO
 template<typename FromOp>
 class IdaOpConversion : public mlir::OpConversionPattern<FromOp>
 {
-	protected:
-	using Adaptor = typename FromOp::Adaptor;
-
 	public:
 	IdaOpConversion(mlir::MLIRContext* ctx, TypeConverter& typeConverter)
 			: mlir::OpConversionPattern<FromOp>(typeConverter, ctx, 1)
@@ -94,24 +91,248 @@ struct ConstantValueOpLowering : public IdaOpConversion<ConstantValueOp>
 	}
 };
 
-struct AllocIdaUserDataOpLowering : public IdaOpConversion<AllocIdaUserDataOp>
+struct AllocUserDataOpLowering : public IdaOpConversion<AllocUserDataOp>
 {
-	using IdaOpConversion<AllocIdaUserDataOp>::IdaOpConversion;
+	using IdaOpConversion<AllocUserDataOp>::IdaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(AllocIdaUserDataOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(AllocUserDataOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		OpaquePointerType opaquePointerType = OpaquePointerType::get(op.getContext());
-
-		llvm::SmallVector<mlir::Value, 2> args = { op.neq(), op.nnz() };
+		OpaquePointerType result = OpaquePointerType::get(op.getContext());
 
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
 				"allocIdaUserData",
-				opaquePointerType,
-				args);
+				result,
+				op.args());
 
-		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), opaquePointerType, args).getResult(0);
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, op.args());
+		return mlir::success();
+	}
+};
+
+struct FreeUserDataOpLowering : public IdaOpConversion<FreeUserDataOp>
+{
+	using IdaOpConversion<FreeUserDataOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(FreeUserDataOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		BooleanType result = BooleanType::get(op.getContext());
+
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"freeIdaUserData",
+				result,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, op.args());
+		return mlir::success();
+	}
+};
+
+struct SetInitialValueOpLowering : public IdaOpConversion<SetInitialValueOp>
+{
+	using IdaOpConversion<SetInitialValueOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(SetInitialValueOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"setInitialValue",
+				llvm::None,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, op.args());
+		return mlir::success();
+	}
+};
+
+struct InitOpLowering : public IdaOpConversion<InitOp>
+{
+	using IdaOpConversion<InitOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(InitOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		BooleanType result = BooleanType::get(op.getContext());
+
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"idaInit",
+				result,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, op.args());
+		return mlir::success();
+	}
+};
+
+struct StepOpLowering : public IdaOpConversion<StepOp>
+{
+	using IdaOpConversion<StepOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(StepOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		BooleanType result = BooleanType::get(op.getContext());
+
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"idaStep",
+				result,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, op.args());
+		return mlir::success();
+	}
+};
+
+struct AddTimeOpLowering : public IdaOpConversion<AddTimeOp>
+{
+	using IdaOpConversion<AddTimeOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(AddTimeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"addTime",
+				llvm::None,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, op.args());
+		return mlir::success();
+	}
+};
+
+struct AddToleranceOpLowering : public IdaOpConversion<AddToleranceOp>
+{
+	using IdaOpConversion<AddToleranceOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(AddToleranceOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"addTolerance",
+				llvm::None,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, op.args());
+		return mlir::success();
+	}
+};
+
+struct AddRowLengthOpLowering : public IdaOpConversion<AddRowLengthOp>
+{
+	using IdaOpConversion<AddRowLengthOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(AddRowLengthOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"addRowLength",
+				llvm::None,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, op.args());
+		return mlir::success();
+	}
+};
+
+struct AddDimensionOpLowering : public IdaOpConversion<AddDimensionOp>
+{
+	using IdaOpConversion<AddDimensionOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(AddDimensionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"addDimension",
+				llvm::None,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, op.args());
+		return mlir::success();
+	}
+};
+
+struct AddResidualOpLowering : public IdaOpConversion<AddResidualOp>
+{
+	using IdaOpConversion<AddResidualOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(AddResidualOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"addResidual",
+				llvm::None,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, op.args());
+		return mlir::success();
+	}
+};
+
+struct AddJacobianOpLowering : public IdaOpConversion<AddJacobianOp>
+{
+	using IdaOpConversion<AddJacobianOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(AddJacobianOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"addJacobian",
+				llvm::None,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, op.args());
+		return mlir::success();
+	}
+};
+
+struct GetTimeOpLowering : public IdaOpConversion<GetTimeOp>
+{
+	using IdaOpConversion<GetTimeOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(GetTimeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		RealType result = RealType::get(op.getContext());
+
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"getIdaTime",
+				result,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, op.args());
+		return mlir::success();
+	}
+};
+
+struct GetVariableOpLowering : public IdaOpConversion<GetVariableOp>
+{
+	using IdaOpConversion<GetVariableOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(GetVariableOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		RealType result = RealType::get(op.getContext());
+
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"getIdaVariable",
+				result,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, op.args());
 		return mlir::success();
 	}
 };
@@ -121,9 +342,28 @@ static void populateIdaConversionPatterns(
 		mlir::MLIRContext* context,
 		marco::codegen::TypeConverter& typeConverter)
 {
+	// Allocation, initialization, usage and deletion.
 	patterns.insert<
-		ConstantValueOpLowering,
-		AllocIdaUserDataOpLowering>(context, typeConverter);
+			ConstantValueOpLowering,
+			AllocUserDataOpLowering,
+			FreeUserDataOpLowering,
+			SetInitialValueOpLowering,
+			InitOpLowering,
+			StepOpLowering>(context, typeConverter);
+
+	// Setters.
+	patterns.insert<
+			AddTimeOpLowering,
+			AddToleranceOpLowering,
+			AddRowLengthOpLowering,
+			AddDimensionOpLowering,
+			AddResidualOpLowering,
+			AddJacobianOpLowering>(context, typeConverter);
+	
+	// Getters.
+	patterns.insert<
+			GetTimeOpLowering,
+			GetVariableOpLowering>(context, typeConverter);
 }
 
 class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::OperationPass<mlir::ModuleOp>>
@@ -158,9 +398,26 @@ class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::Oper
 		auto module = getOperation();
 		mlir::ConversionTarget target(getContext());
 
+		// Allocation, initialization, usage and deletion.
 		target.addIllegalOp<
 				ConstantValueOp,
-				AllocIdaUserDataOp>();
+				AllocUserDataOp,
+				FreeUserDataOp,
+				SetInitialValueOp,
+				InitOp,
+				StepOp>();
+
+		// Setters.
+		target.addIllegalOp<
+				AddTimeOp,
+				AddToleranceOp,
+				AddRowLengthOp,
+				AddDimensionOp,
+				AddResidualOp,
+				AddJacobianOp>();
+
+		// Getters.
+		target.addIllegalOp<GetTimeOp, GetVariableOp>();
 
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 

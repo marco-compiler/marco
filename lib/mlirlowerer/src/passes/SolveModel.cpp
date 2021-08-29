@@ -129,7 +129,7 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 		}
 
 		// Replace operation with a new one
-		auto result = rewriter.create<SimulationOp>(op->getLoc(), op.variableNames(), op.startTime(), op.endTime(), op.timeStep(), op.body().getArgumentTypes());
+		auto result = rewriter.create<SimulationOp>(op->getLoc(), op.variableNames(), op.startTime(), op.endTime(), op.timeStep(), op.relTol(), op.absTol(), op.body().getArgumentTypes());
 		rewriter.mergeBlocks(&op.init().front(), &result.init().front(), result.init().getArguments());
 		rewriter.mergeBlocks(&op.body().front(), &result.body().front(), result.body().getArguments());
 
@@ -1983,6 +1983,74 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				}
 			}
 		}
+
+		return mlir::success();
+	}
+
+	static int64_t computeNEQ(Model& model)
+	{
+		int64_t result = 0;
+
+		for (BltBlock& bltBlock : model.getBltBlocks())
+			result += bltBlock.size();
+
+		return result;
+	}
+
+	static int64_t computeNNZ(Model& model)
+	{
+		int64_t result = 0, rowLength = 0;
+		std::set<Variable> varSet;
+
+		for (BltBlock& bltBlock : model.getBltBlocks())
+		{
+			for (Equation& equation : bltBlock.getEquations())
+			{
+				Variable var =
+						model.getVariable(equation.getDeterminedVariable().getVar());
+
+				if (varSet.find(var) == varSet.end())
+				{
+					varSet.insert(var);
+					rowLength += var.toMultiDimInterval().size();
+				}
+			}
+
+			result += rowLength * bltBlock.size();
+		}
+
+		return result;
+	}
+
+	static mlir::LogicalResult addIdaSolver(mlir::OpBuilder& builder, Model& model, mlir::ModuleOp moduleOp)
+	{
+		if (model.getBltBlocks().empty())
+			return mlir::success();
+
+		SimulationOp simulationOp = model.getOp();
+		YieldOp terminator = mlir::cast<YieldOp>(simulationOp.init().back().getTerminator());
+		builder.setInsertionPoint(terminator);
+		mlir::Location loc = terminator.getLoc();
+
+		// Allocate IDA user data.
+		mlir::Value neq = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(moduleOp.getContext(), computeNEQ(model)));
+		mlir::Value nnz = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(moduleOp.getContext(), computeNNZ(model)));
+		mlir::Value userData = builder.create<AllocUserDataOp>(loc, neq, nnz);
+
+		mlir::Value startTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(moduleOp.getContext(), simulationOp.startTime().getValue()));
+		mlir::Value stopTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(moduleOp.getContext(), simulationOp.endTime().getValue()));
+		builder.create<AddTimeOp>(loc, userData, startTime, stopTime);
+
+		mlir::Value relTol = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(moduleOp.getContext(), simulationOp.relTol().getValue()));
+		mlir::Value absTol = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(moduleOp.getContext(), simulationOp.absTol().getValue()));
+		builder.create<AddToleranceOp>(loc, userData, relTol, absTol);
+
+		// TODO
+		// Initialize IDA user data.
+
+		for (BltBlock& bltBlock : model.getBltBlocks())
+			for (Equation& equation : bltBlock.getEquations())
+				equation.getOp()->erase();
 
 		return mlir::success();
 	}

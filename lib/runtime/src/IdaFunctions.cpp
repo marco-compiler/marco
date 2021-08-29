@@ -213,7 +213,7 @@ bool checkRetval(void *retval, const char *funcname, int opt)
 }
 
 //===----------------------------------------------------------------------===//
-// Allocation, initialization and deletion
+// Allocation, initialization, usage and deletion
 //===----------------------------------------------------------------------===//
 
 /**
@@ -270,7 +270,7 @@ bool freeIdaUserData(void *userData)
 /**
  * Set the initial value of the index-th variable and if it is a state variable.
  */
-void setInitialValues(void *userData, int64_t index, double value, bool isState)
+void setInitialValue(void *userData, int64_t index, double value, bool isState)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -350,11 +350,10 @@ bool idaInit(void *userData)
 }
 
 /**
- * Invoke IDA to perform one step of the computation. Returns 1 if the
- * computation has not reached the 'stopTime' seconds limit, 0 if it has reached
- * the end of the computation, -1 if it fails.
+ * Invoke IDA to perform one step of the computation. Returns false if the
+ * computation failed, true otherwise.
  */
-int64_t idaStep(void *userData)
+bool idaStep(void *userData)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
@@ -368,11 +367,9 @@ int64_t idaStep(void *userData)
 			IDA_ONE_STEP);
 
 	// Check if the solver failed
-	if (!checkRetval(&retval, "IDASolve", 1))
-		return -1;
+	exitOnError(checkRetval(&retval, "IDASolve", 1));
 
-	// Return if the computation has not reached the stop time yet.
-	return data->time < data->stopTime ? 1 : 0;
+	return true;
 }
 
 //===----------------------------------------------------------------------===//
@@ -394,7 +391,7 @@ void addTime(void *userData, double startTime, double stopTime)
 /**
  * Add the relative tolerance and the absolute tolerance to the user data.
  */
-void addTolerances(void *userData, double relTol, double absTol)
+void addTolerance(void *userData, double relTol, double absTol)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 

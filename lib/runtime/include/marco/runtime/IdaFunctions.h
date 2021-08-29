@@ -6,18 +6,18 @@
 
 extern "C"
 {
-	// Allocation, initialization and deletion.
+	// Allocation, initialization, usage and deletion.
 	void *allocIdaUserData(int64_t neq, int64_t nnz);
 	bool freeIdaUserData(void *userData);
 
-	void setInitialValues(
+	void setInitialValue(
 			void *userData, int64_t index, double value, bool isState);
 	bool idaInit(void *userData);
-	int64_t idaStep(void *userData);
+	bool idaStep(void *userData);
 
 	// Setters
 	void addTime(void *userData, double startTime, double stopTime);
-	void addTolerances(void *userData, double relTol, double absTol);
+	void addTolerance(void *userData, double relTol, double absTol);
 
 	void addRowLength(void *userData, int64_t rowLength);
 	void addDimension(void *userData, int64_t index, int64_t min, int64_t max);
