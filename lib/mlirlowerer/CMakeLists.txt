@@ -1,4 +1,9 @@
 set(SOURCES
+        src/dialects/ida/Attribute.cpp
+        src/dialects/ida/IdaBuilder.cpp
+        src/dialects/ida/IdaDialect.cpp
+        src/dialects/ida/Ops.cpp
+        src/dialects/ida/Type.cpp
         src/dialects/modelica/Attribute.cpp
         src/dialects/modelica/ModelicaBuilder.cpp
         src/dialects/modelica/ModelicaDialect.cpp
@@ -30,6 +35,7 @@ set(SOURCES
         src/passes/BufferDeallocation.cpp
         src/passes/ExplicitCastInsertion.cpp
         src/passes/FunctionsVectorization.cpp
+        src/passes/IdaConversion.cpp
         src/passes/ModelicaConversion.cpp
         src/passes/LowerToCFG.cpp
         src/passes/LowerToLLVM.cpp
