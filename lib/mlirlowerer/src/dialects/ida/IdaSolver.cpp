@@ -32,11 +32,11 @@ IdaSolver::IdaSolver(
 		double stopTime,
 		double relativeTolerance,
 		double absoluteTolerance)
-		: model(model), problemSize(0), equationsNumber(computeNEQ())
+		: model(model), stopTime(stopTime), problemSize(0), equationsNumber(computeNEQ())
 {
 	userData = allocIdaUserData(equationsNumber, computeNNZ());
 	addTime(userData, startTime, stopTime);
-	addTolerances(userData, relativeTolerance, absoluteTolerance);
+	addTolerance(userData, relativeTolerance, absoluteTolerance);
 }
 
 mlir::LogicalResult IdaSolver::init()
@@ -106,7 +106,7 @@ mlir::LogicalResult IdaSolver::init()
 				// Initialize variablesValues, derivativesValues, idValues.
 				for (int64_t i : irange(var.toMultiDimInterval().size()))
 				{
-					setInitialValues(
+					setInitialValue(
 							userData,
 							rowLength + i,
 							initialValueMap[var],
@@ -139,20 +139,20 @@ mlir::LogicalResult IdaSolver::init()
 	return mlir::success();
 }
 
-int64_t IdaSolver::step() { return idaStep(userData); }
+bool IdaSolver::step() { return idaStep(userData); }
 
 mlir::LogicalResult IdaSolver::run(llvm::raw_ostream& OS)
 {
 	while (true)
 	{
-		int64_t isFinished = idaStep(userData);
+		bool success = idaStep(userData);
 
-		if (isFinished == -1)
+		if (!success)
 			return mlir::failure();
 
 		printOutput(OS);
 
-		if (isFinished == 0)
+		if (getIdaTime(userData) >= stopTime)
 		{
 			printStats(OS);
 			return mlir::success();

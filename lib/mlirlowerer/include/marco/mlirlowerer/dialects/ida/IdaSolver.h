@@ -31,11 +31,10 @@ namespace marco::codegen::ida
 		[[nodiscard]] mlir::LogicalResult init();
 
 		/**
-		 * Invokes IDA to perform one step of the computation. Returns 1 if the
-		 * computation has not reached the 'stopTime' seconds limit, 0 if it has
-		 * reached the end of the computation, -1 if it fails.
+		 * Invoke IDA to perform one step of the computation. Returns false if the
+		 * computation failed, true otherwise.
 		 */
-		[[nodiscard]] int64_t step();
+		[[nodiscard]] bool step();
 
 		/**
 		 * Performs a full run of the system.
@@ -96,6 +95,7 @@ namespace marco::codegen::ida
 		private:
 		// Model data
 		model::Model model;
+		double stopTime;
 		int64_t problemSize;
 		const int64_t equationsNumber;
 		std::map<model::Variable, double> initialValueMap;

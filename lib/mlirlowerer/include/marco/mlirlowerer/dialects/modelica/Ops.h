@@ -158,7 +158,7 @@ namespace marco::codegen::modelica
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr variableNames, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr variableNames, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, RealAttribute relTol, RealAttribute absTol, mlir::TypeRange vars);
 		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -168,6 +168,8 @@ namespace marco::codegen::modelica
 		RealAttribute startTime();
 		RealAttribute endTime();
 		RealAttribute timeStep();
+		RealAttribute relTol();
+		RealAttribute absTol();
 
 		mlir::Region& init();
 		mlir::Region& body();

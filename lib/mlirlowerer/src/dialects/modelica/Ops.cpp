@@ -269,8 +269,8 @@ mlir::ArrayAttr SimulationOp::variableNames() {
     return getOperation()->getAttrOfType<mlir::ArrayAttr>("variableNames");
 }
 
-void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr variableNames,
-						 RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars)
+void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr variableNames, RealAttribute startTime,
+						 RealAttribute endTime, RealAttribute timeStep, RealAttribute relTol, RealAttribute absTol, mlir::TypeRange vars)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -278,6 +278,8 @@ void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 	state.addAttribute("startTime", startTime);
 	state.addAttribute("endTime", endTime);
 	state.addAttribute("timeStep", timeStep);
+	state.addAttribute("relativeTolerance", relTol);
+	state.addAttribute("absoluteTolerance", absTol);
 
 	// Init block
 	builder.createBlock(state.addRegion());
@@ -291,8 +293,10 @@ void SimulationOp::print(mlir::OpAsmPrinter& printer)
 	printer << "modelica.simulation ("
 					<< "start: " << startTime().getValue()
 					<< ", end: " << endTime().getValue()
-					<< ", step: " << timeStep().getValue() << ")"
-          << ", variables: " << variableNames();
+					<< ", step: " << timeStep().getValue()
+					<< ", variables: " << variableNames()
+					<< ", relTol: " << relTol().getValue()
+					<< ", absTol: " << absTol().getValue() << ")";
 
 	printer << " init";
 	printer.printRegion(init(), false);
@@ -337,6 +341,16 @@ RealAttribute SimulationOp::endTime()
 RealAttribute SimulationOp::timeStep()
 {
 	return getOperation()->getAttrOfType<RealAttribute>("timeStep");
+}
+
+RealAttribute SimulationOp::relTol()
+{
+	return getOperation()->getAttrOfType<RealAttribute>("relativeTolerance");
+}
+
+RealAttribute SimulationOp::absTol()
+{
+	return getOperation()->getAttrOfType<RealAttribute>("absoluteTolerance");
 }
 
 mlir::Region& SimulationOp::init()

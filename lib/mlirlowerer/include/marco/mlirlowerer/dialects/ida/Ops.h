@@ -8,56 +8,9 @@
 
 namespace marco::codegen::ida
 {
-	/**
-	 * Generic operation adaptor.
-	 *
-	 * The purpose of an adaptor is to allow to access specific values in both
-	 * the operation and the conversion pattern without relying on hard-coded
-	 * constants in both places.
-	 *
-	 * @tparam OpType operation class
-	 */
-	template<typename OpType>
-	class OpAdaptor
-	{
-		public:
-		OpAdaptor(mlir::ValueRange values, mlir::DictionaryAttr attrs = nullptr)
-				: values(values), attrs(attrs)
-		{
-		}
-
-		OpAdaptor(OpType& op)
-				: values(op->getOperands()), attrs(op->getAttrDictionary())
-		{
-		}
-
-		protected:
-		[[nodiscard]] mlir::ValueRange getValues() const
-		{
-			return values;
-		}
-
-		[[nodiscard]] mlir::DictionaryAttr getAttrs() const
-		{
-			return attrs;
-		}
-
-		private:
-		mlir::ValueRange values;
-		mlir::DictionaryAttr attrs;
-	};
-
 	//===----------------------------------------------------------------------===//
 	// Ida::ConstantValueOp
 	//===----------------------------------------------------------------------===//
-
-	class ConstantValueOp;
-
-	class ConstantValueOpAdaptor : public OpAdaptor<ConstantValueOp>
-	{
-		public:
-		using OpAdaptor::OpAdaptor;
-	};
 
 	class ConstantValueOp : public mlir::Op<ConstantValueOp,
 																		mlir::OpTrait::ZeroRegion,
@@ -67,7 +20,6 @@ namespace marco::codegen::ida
 	{
 		public:
 		using Op::Op;
-		using Adaptor = ConstantValueOpAdaptor;
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
@@ -84,21 +36,10 @@ namespace marco::codegen::ida
 	};
 
 	//===----------------------------------------------------------------------===//
-	// Ida::AllocIdaUserDataOp
+	// Ida::AllocUserDataOp
 	//===----------------------------------------------------------------------===//
 
-	class AllocIdaUserDataOp;
-
-	class AllocIdaUserDataOpAdaptor : public OpAdaptor<AllocIdaUserDataOp>
-	{
-		public:
-		using OpAdaptor::OpAdaptor;
-
-		mlir::Value neq();
-		mlir::Value nnz();
-	};
-
-	class AllocIdaUserDataOp : public mlir::Op<AllocIdaUserDataOp,
+	class AllocUserDataOp : public mlir::Op<AllocUserDataOp,
 																mlir::OpTrait::ZeroRegion,
 																mlir::OpTrait::NOperands<2>::Impl,
 																mlir::OpTrait::OneResult,
@@ -106,11 +47,10 @@ namespace marco::codegen::ida
 	{
 		public:
 		using Op::Op;
-		using Adaptor = AllocIdaUserDataOpAdaptor;
 
 		static constexpr llvm::StringLiteral getOperationName()
 		{
-			return "ida.alloc_ida_user_data";
+			return "ida.alloc_user_data";
 		}
 
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value neq, mlir::Value nnz);
@@ -123,5 +63,362 @@ namespace marco::codegen::ida
 		mlir::ValueRange args();
 		mlir::Value neq();
 		mlir::Value nnz();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::FreeUserDataOp
+	//===----------------------------------------------------------------------===//
+
+	class FreeUserDataOp : public mlir::Op<FreeUserDataOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.free_user_data";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::ValueRange args();
+		mlir::Value userData();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::SetInitialValueOp
+	//===----------------------------------------------------------------------===//
+
+	class SetInitialValueOp : public mlir::Op<SetInitialValueOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<4>::Impl,
+																mlir::OpTrait::ZeroResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.set_initial_value";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value value, mlir::Value isState);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value index();
+		mlir::Value value();
+		mlir::Value isState();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::InitOp
+	//===----------------------------------------------------------------------===//
+
+	class InitOp : public mlir::Op<InitOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.init";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::ValueRange args();
+		mlir::Value userData();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::StepOp
+	//===----------------------------------------------------------------------===//
+
+	class StepOp : public mlir::Op<StepOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.step";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::ValueRange args();
+		mlir::Value userData();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::AddTimeOp
+	//===----------------------------------------------------------------------===//
+
+	class AddTimeOp : public mlir::Op<AddTimeOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<3>::Impl,
+																mlir::OpTrait::ZeroResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.add_time";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value start, mlir::Value stop);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value start();
+		mlir::Value stop();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::AddToleranceOp
+	//===----------------------------------------------------------------------===//
+
+	class AddToleranceOp : public mlir::Op<AddToleranceOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<3>::Impl,
+																mlir::OpTrait::ZeroResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.add_tolerance";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value relTol, mlir::Value absTol);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value relTol();
+		mlir::Value absTol();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::AddRowLengthOp
+	//===----------------------------------------------------------------------===//
+
+	class AddRowLengthOp : public mlir::Op<AddRowLengthOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<2>::Impl,
+																mlir::OpTrait::ZeroResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.add_row_length";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value rowLength);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value rowLength();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::AddDimensionOp
+	//===----------------------------------------------------------------------===//
+
+	class AddDimensionOp : public mlir::Op<AddDimensionOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<4>::Impl,
+																mlir::OpTrait::ZeroResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.add_dimension";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value min, mlir::Value max);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value index();
+		mlir::Value min();
+		mlir::Value max();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::AddResidualOp
+	//===----------------------------------------------------------------------===//
+
+	class AddResidualOp : public mlir::Op<AddResidualOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<3>::Impl,
+																mlir::OpTrait::ZeroResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.add_residual";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value leftIndex();
+		mlir::Value rightIndex();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::AddJacobianOp
+	//===----------------------------------------------------------------------===//
+
+	class AddJacobianOp : public mlir::Op<AddJacobianOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<3>::Impl,
+																mlir::OpTrait::ZeroResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.add_jacobian";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value leftIndex();
+		mlir::Value rightIndex();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::GetTimeOp
+	//===----------------------------------------------------------------------===//
+
+	class GetTimeOp : public mlir::Op<GetTimeOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::OneResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.get_time";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::ValueRange args();
+		mlir::Value userData();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::GetVariableOp
+	//===----------------------------------------------------------------------===//
+
+	class GetVariableOp : public mlir::Op<GetVariableOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<2>::Impl,
+																mlir::OpTrait::OneResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.get_variable";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::Type resultType();
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value index();
 	};
 }

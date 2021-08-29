@@ -8,7 +8,27 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 {
 	addTypes<BooleanType, IntegerType, RealType, OpaquePointerType>();
 	addAttributes<BooleanAttribute, IntegerAttribute, RealAttribute>();
-	addOperations<ConstantValueOp, AllocIdaUserDataOp>();
+
+	// Allocation, initialization, usage and deletion.
+	addOperations<
+			ConstantValueOp,
+			AllocUserDataOp,
+			FreeUserDataOp,
+			SetInitialValueOp,
+			InitOp,
+			StepOp>();
+
+	// Setters.
+	addOperations<
+			AddTimeOp,
+			AddToleranceOp,
+			AddRowLengthOp,
+			AddDimensionOp,
+			AddResidualOp,
+			AddJacobianOp>();
+
+	// Getters.
+	addOperations<GetTimeOp, GetVariableOp>();
 }
 
 mlir::StringRef IdaDialect::getDialectNamespace()

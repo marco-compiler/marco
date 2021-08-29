@@ -335,6 +335,8 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 			builder.getRealAttribute(options.startTime),
 			builder.getRealAttribute(options.endTime),
 			builder.getRealAttribute(options.timeStep),
+			builder.getRealAttribute(options.relativeTolerance),
+			builder.getRealAttribute(options.absoluteTolerance),
 			args);
 
 	{
