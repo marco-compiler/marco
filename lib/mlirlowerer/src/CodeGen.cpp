@@ -1,6 +1,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <marco/frontend/AST.h>
 #include <marco/mlirlowerer/CodeGen.h>
+#include <marco/mlirlowerer/dialects/ida/IdaDialect.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <mlir/IR/Verifier.h>
 
@@ -99,6 +100,7 @@ MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options)
 			options(options)
 {
 	context.loadDialect<ModelicaDialect>();
+	context.loadDialect<ida::IdaDialect>();
 	context.loadDialect<mlir::StandardOpsDialect>();
 }
 

@@ -2,17 +2,23 @@
 
 using namespace marco::codegen;
 using namespace modelica;
+using namespace ida;
 
 TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options, unsigned int bitWidth)
 		: mlir::LLVMTypeConverter(context, options), bitWidth(bitWidth)
 {
-	addConversion([&](BooleanType type) { return convertBooleanType(type); });
-	addConversion([&](IntegerType type) { return convertIntegerType(type); });
-	addConversion([&](RealType type) { return convertRealType(type); });
+	addConversion([&](modelica::BooleanType type) { return convertBooleanType(type); });
+	addConversion([&](modelica::IntegerType type) { return convertIntegerType(type); });
+	addConversion([&](modelica::RealType type) { return convertRealType(type); });
 	addConversion([&](ArrayType type) { return convertArrayType(type); });
 	addConversion([&](UnsizedArrayType type) { return convertUnsizedArrayType(type); });
-	addConversion([&](OpaquePointerType type) { return convertOpaquePointerType(type); });
+	addConversion([&](modelica::OpaquePointerType type) { return convertOpaquePointerType(type); });
 	addConversion([&](StructType type) { return convertStructType(type); });
+
+	addConversion([&](ida::BooleanType type) { return convertBooleanType(type); });
+	addConversion([&](ida::IntegerType type) { return convertIntegerType(type); });
+	addConversion([&](ida::RealType type) { return convertRealType(type); });
+	addConversion([&](ida::OpaquePointerType type) { return convertOpaquePointerType(type); });
 
 	addTargetMaterialization(
 	[&](mlir::OpBuilder &builder, mlir::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
@@ -20,7 +26,8 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 				if (inputs.size() != 1)
 					return llvm::None;
 
-				if (!inputs[0].getType().isa<BooleanType>() && !inputs[0].getType().isa<IntegerType>())
+				if (!inputs[0].getType().isa<modelica::BooleanType>() && !inputs[0].getType().isa<modelica::IntegerType>()
+					&& !inputs[0].getType().isa<ida::BooleanType>() && !inputs[0].getType().isa<ida::IntegerType>())
 					return llvm::None;
 
 				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
@@ -32,7 +39,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 				if (inputs.size() != 1)
 					return llvm::None;
 
-				if (!inputs[0].getType().isa<RealType>())
+				if (!inputs[0].getType().isa<modelica::RealType>() && !inputs[0].getType().isa<ida::RealType>())
 					return llvm::None;
 
 				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
@@ -58,14 +65,14 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 				if (inputs.size() != 1)
 					return llvm::None;
 
-				if (!inputs[0].getType().isa<OpaquePointerType>())
+				if (!inputs[0].getType().isa<modelica::OpaquePointerType>() && !inputs[0].getType().isa<ida::OpaquePointerType>())
 					return llvm::None;
 
 				return builder.create<mlir::LLVM::BitcastOp>(loc, resultType, inputs[0]).getResult();
 			});
 
 	addSourceMaterialization(
-			[&](mlir::OpBuilder &builder, BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
+			[&](mlir::OpBuilder &builder, modelica::BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
 			{
 				if (inputs.size() != 1)
 					return llvm::None;
@@ -77,7 +84,7 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 			});
 
 	addSourceMaterialization(
-			[&](mlir::OpBuilder &builder, IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
+			[&](mlir::OpBuilder &builder, modelica::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
 			{
 				if (inputs.size() != 1)
 					return llvm::None;
@@ -89,7 +96,43 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 			});
 
 	addSourceMaterialization(
-			[&](mlir::OpBuilder &builder, RealType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
+			[&](mlir::OpBuilder &builder, modelica::RealType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
+			{
+				if (inputs.size() != 1)
+					return llvm::None;
+
+				if (!inputs[0].getType().isa<mlir::FloatType>() || inputs[0].getType().getIntOrFloatBitWidth() != this->bitWidth)
+					return llvm::None;
+
+				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+			});
+
+	addSourceMaterialization(
+			[&](mlir::OpBuilder &builder, ida::BooleanType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
+			{
+				if (inputs.size() != 1)
+					return llvm::None;
+
+				if (!inputs[0].getType().isa<mlir::IntegerType>() || inputs[0].getType().getIntOrFloatBitWidth() != 1)
+					return llvm::None;
+
+				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+			});
+
+	addSourceMaterialization(
+			[&](mlir::OpBuilder &builder, ida::IntegerType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
+			{
+				if (inputs.size() != 1)
+					return llvm::None;
+
+				if (!inputs[0].getType().isa<mlir::IntegerType>() || inputs[0].getType().getIntOrFloatBitWidth() != this->bitWidth)
+					return llvm::None;
+
+				return builder.create<mlir::UnrealizedConversionCastOp>(loc, resultType, inputs[0]).getResult(0);
+			});
+
+	addSourceMaterialization(
+			[&](mlir::OpBuilder &builder, ida::RealType resultType, mlir::ValueRange inputs, mlir::Location loc) -> llvm::Optional<mlir::Value>
 			{
 				if (inputs.size() != 1)
 					return llvm::None;
@@ -170,17 +213,17 @@ TypeConverter::TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOption
 			});
 }
 
-mlir::Type TypeConverter::convertBooleanType(BooleanType type)
+mlir::Type TypeConverter::convertBooleanType(mlir::Type type)
 {
 	return mlir::IntegerType::get(&getContext(), 1);
 }
 
-mlir::Type TypeConverter::convertIntegerType(IntegerType type)
+mlir::Type TypeConverter::convertIntegerType(mlir::Type type)
 {
 	return mlir::IntegerType::get(&getContext(), bitWidth);
 }
 
-mlir::Type TypeConverter::convertRealType(RealType type)
+mlir::Type TypeConverter::convertRealType(mlir::Type type)
 {
 	if (bitWidth == 16)
 		return convertType(mlir::Float16Type::get(&getContext()));
@@ -208,7 +251,7 @@ mlir::Type TypeConverter::convertUnsizedArrayType(UnsizedArrayType type)
 	return mlir::LLVM::LLVMStructType::getLiteral(type.getContext(), types);
 }
 
-mlir::Type TypeConverter::convertOpaquePointerType(OpaquePointerType type)
+mlir::Type TypeConverter::convertOpaquePointerType(mlir::Type type)
 {
 	return mlir::LLVM::LLVMPointerType::get(convertType(mlir::IntegerType::get(type.getContext(), 8)));
 }

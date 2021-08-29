@@ -326,6 +326,7 @@ mlir::LogicalResult lower(mlir::ModuleOp& module, ModelicaLoweringOptions option
   // order to take into consideration their memory effects.
   passManager.addPass(codegen::createBufferDeallocationPass());
 
+  passManager.addPass(codegen::createIdaConversionPass(options.getBitWidth()));
   passManager.addPass(codegen::createModelicaConversionPass(options.conversionOptions, options.getBitWidth()));
 
   if (options.openmp)

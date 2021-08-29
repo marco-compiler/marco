@@ -6,6 +6,7 @@
 #include "passes/BufferDeallocation.h"
 #include "passes/ExplicitCastInsertion.h"
 #include "passes/FunctionsVectorization.h"
+#include "passes/IdaConversion.h"
 #include "passes/LowerToCFG.h"
 #include "passes/LowerToLLVM.h"
 #include "passes/ModelicaConversion.h"
@@ -23,6 +24,7 @@ namespace marco::codegen
 		registerLowerToCFGPass();
 		registerLLVMLoweringPass();
 		registerFunctionConversionPass();
+		registerIdaConversionPass();
 		registerModelicaConversionPass();
 		registerLowerToCFGPass();
 		registerResultBuffersToArgsPass();

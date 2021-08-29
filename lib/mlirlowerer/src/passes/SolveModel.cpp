@@ -7,6 +7,8 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 #include <mlir/Transforms/DialectConversion.h>
+#include <marco/mlirlowerer/dialects/ida/IdaBuilder.h>
+#include <marco/mlirlowerer/dialects/ida/IdaDialect.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaBuilder.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <marco/mlirlowerer/passes/SolveModel.h>
@@ -15,6 +17,7 @@
 #include <marco/mlirlowerer/passes/matching/Matching.h>
 #include <marco/mlirlowerer/passes/matching/SCCCollapsing.h>
 #include <marco/mlirlowerer/passes/matching/Schedule.h>
+#include <marco/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
@@ -28,6 +31,7 @@ using namespace marco;
 using namespace codegen;
 using namespace model;
 using namespace modelica;
+using namespace ida;
 
 struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 {
@@ -176,7 +180,7 @@ struct EquationOpLoopifyPattern : public mlir::OpRewritePattern<EquationOp>
 			if (subscription.indexes().size() == 1)
 			{
 				auto index = subscription.indexes()[0].getDefiningOp<ConstantOp>();
-				auto indexValue = index.value().cast<IntegerAttribute>().getValue();
+				auto indexValue = index.value().cast<modelica::IntegerAttribute>().getValue();
 				rewriter.setInsertionPoint(subscription);
 
 				mlir::Value newIndex = rewriter.create<AddOp>(
@@ -1648,6 +1652,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
 		registry.insert<ModelicaDialect>();
+		registry.insert<IdaDialect>();
 		registry.insert<mlir::scf::SCFDialect>();
 		registry.insert<mlir::LLVM::LLVMDialect>();
 	}
@@ -1711,8 +1716,12 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				if (failed(substituteTrivialVariables(builder, model)))
 					return signalPassFailure();
 
+			// Add IDA to the module. This consists in adding all the necessary calls
+			// to the runtime library which will handle the allocation, interacion and
+			// deallocation of the classes required by IDA.
 			if (options.solver == CleverDAE)
-				assert(false && "Lowerer not yet implemented");
+				if (failed(addIdaSolver(builder, model, getOperation())))
+					return signalPassFailure();
 		});
 
 		// The model has been solved and we can now proceed to create the update
