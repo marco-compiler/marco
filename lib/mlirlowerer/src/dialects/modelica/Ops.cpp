@@ -101,18 +101,6 @@ static void populateWriteEffects(
     effects.emplace_back(mlir::MemoryEffects::Write::get(), value, mlir::SideEffects::DefaultResource::get());
 }
 
-static bool isBreakable(mlir::Region& region)
-{
-	bool breakable = false;
-
-	region.walk([&](BreakOp op) {
-		if (auto* breakableParent = op->getParentWithTrait<BreakableOp::Trait>())
-			breakable |= region.getParentOp() == breakableParent;
-	});
-
-	return breakable;
-}
-
 static std::string getPartialDerFunctionName(llvm::StringRef baseName)
 {
 	return "pder_" + baseName.str();
@@ -1233,7 +1221,7 @@ mlir::ValueRange AssignmentOp::derive(mlir::OpBuilder& builder, mlir::BlockAndVa
 	mlir::Value derivedSource = derivatives.lookup(source());
 	mlir::Value derivedDestination = derivatives.lookup(destination());
 
-	auto derivedOp = builder.create<AssignmentOp>(loc, derivedSource, derivedDestination);
+	builder.create<AssignmentOp>(loc, derivedSource, derivedDestination);
 	return llvm::None;
 }
 
@@ -1726,8 +1714,6 @@ mlir::ParseResult MemberLoadOp::parse(mlir::OpAsmParser& parser, mlir::Operation
 			parser.parseColon())
 		return mlir::failure();
 
-	llvm::SMLoc memberTypeLoc = parser.getCurrentLocation();
-
 	if (parser.parseType(resultType))
 		return mlir::failure();
 
@@ -1941,8 +1927,6 @@ mlir::ParseResult AllocaOp::parse(mlir::OpAsmParser& parser, mlir::OperationStat
 	llvm::SmallVector<mlir::Type, 3> indexesTypes;
 
 	mlir::Type resultType;
-
-	llvm::SMLoc indexesLoc = parser.getCurrentLocation();
 
 	if (parser.parseOperandList(indexes))
 		return mlir::failure();
@@ -8384,8 +8368,6 @@ mlir::ParseResult ZerosOp::parse(mlir::OpAsmParser& parser, mlir::OperationState
 			parser.parseColon())
 		return mlir::failure();
 
-	llvm::SMLoc dimensionsTypesLoc = parser.getCurrentLocation();
-
 	if (dimensions.size() > 1)
     if (parser.parseLParen())
 			return mlir::failure();
@@ -8480,8 +8462,6 @@ mlir::ParseResult OnesOp::parse(mlir::OpAsmParser& parser, mlir::OperationState&
 	if (parser.parseOperandList(dimensions) ||
 			parser.parseColon())
 		return mlir::failure();
-
-	llvm::SMLoc dimensionsTypesLoc = parser.getCurrentLocation();
 
 	if (dimensions.size() > 1)
 		if (parser.parseLParen())
@@ -8737,8 +8717,6 @@ mlir::ParseResult MinOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& 
 	if (operands.empty())
 		return parser.emitError(operandsLoc) << "expected at least one operand";
 
-	llvm::SMLoc dimensionsTypesLoc = parser.getCurrentLocation();
-
 	if (operands.size() > 1)
 		if (parser.parseLParen())
 			return mlir::failure();
@@ -8836,8 +8814,6 @@ mlir::ParseResult MaxOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& 
 
 	if (operands.empty())
 		return parser.emitError(operandsLoc) << "expected at least one operand";
-
-	llvm::SMLoc dimensionsTypesLoc = parser.getCurrentLocation();
 
 	if (operands.size() > 1)
 		if (parser.parseLParen())

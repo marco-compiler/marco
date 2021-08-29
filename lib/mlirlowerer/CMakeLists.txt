@@ -2,6 +2,7 @@ set(SOURCES
         src/dialects/ida/Attribute.cpp
         src/dialects/ida/IdaBuilder.cpp
         src/dialects/ida/IdaDialect.cpp
+        src/dialects/ida/IdaSolver.cpp
         src/dialects/ida/Ops.cpp
         src/dialects/ida/Type.cpp
         src/dialects/modelica/Attribute.cpp
@@ -9,7 +10,6 @@ set(SOURCES
         src/dialects/modelica/ModelicaDialect.cpp
         src/dialects/modelica/Ops.cpp
         src/dialects/modelica/Type.cpp
-        src/passes/ida/IdaSolver.cpp
         src/passes/matching/Edge.cpp
         src/passes/matching/Flow.cpp
         src/passes/matching/LinSolver.cpp

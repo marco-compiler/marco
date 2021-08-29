@@ -1,4 +1,4 @@
-#include <marco/mlirlowerer/passes/ida/IdaSolver.h>
+#include <marco/mlirlowerer/dialects/ida/IdaSolver.h>
 #include <marco/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>

@@ -6,7 +6,7 @@
 #include <marco/frontend/Parser.h>
 #include <marco/frontend/Passes.h>
 #include <marco/mlirlowerer/CodeGen.h>
-#include <marco/mlirlowerer/passes/ida/IdaSolver.h>
+#include <marco/mlirlowerer/dialects/ida/IdaSolver.h>
 
 using namespace std;
 using namespace llvm;

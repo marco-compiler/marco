@@ -61,13 +61,13 @@ void LowererContext::storeToArrayElement(
 Value* LowererContext::loadArrayElement(Value* arrayPtr, size_t index)
 {
 	auto ptrToElem = getArrayElementPtr(arrayPtr, index);
-	return builder.CreateLoad(ptrToElem);
+	return builder.CreateLoad(ptrToElem->getType()->getPointerElementType(), ptrToElem);
 }
 
 Value* LowererContext::loadArrayElement(Value* arrayPtr, Value* index)
 {
 	auto ptrToElem = getArrayElementPtr(arrayPtr, index);
-	return builder.CreateLoad(ptrToElem);
+	return builder.CreateLoad(ptrToElem->getType()->getPointerElementType(), ptrToElem);
 }
 AllocaInst* LowererContext::allocaModType(const ModType& type)
 {

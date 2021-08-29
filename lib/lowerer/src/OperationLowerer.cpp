@@ -219,7 +219,7 @@ Expected<Value*> marco::lowerAtOperation(
 	auto& builder = info.getBuilder();
 	auto* casted = builder.CreatePointerCast(
 			*rightHand, Type::getInt32Ty(builder.getContext())->getPointerTo(0));
-	auto* index = builder.CreateLoad(casted);
+	auto* index = builder.CreateLoad(casted->getType()->getPointerElementType(), casted);
 
 	return info.getArrayElementPtr(*leftHand, index);
 }
