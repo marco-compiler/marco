@@ -1329,7 +1329,6 @@ struct AddElementWiseOpMixedLowering : public mlir::OpRewritePattern<AddElementW
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not a scalar");
 
 		mlir::Value array = op.lhs().getType().isa<ArrayType>() ? op.lhs() : op.rhs();
-		mlir::Value scalar = op.lhs().getType().isa<ArrayType>() ? op.rhs() : op.lhs();
 
 		// Allocate the result array
 		auto resultType = op.resultType().cast<ArrayType>();
@@ -1525,7 +1524,6 @@ struct SubElementWiseOpMixedLowering : public mlir::OpRewritePattern<SubElementW
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not a scalar");
 
 		mlir::Value array = op.lhs().getType().isa<ArrayType>() ? op.lhs() : op.rhs();
-		mlir::Value scalar = op.lhs().getType().isa<ArrayType>() ? op.rhs() : op.lhs();
 
 		// Allocate the result array
 		auto resultType = op.resultType().cast<ArrayType>();
@@ -2291,7 +2289,6 @@ struct DivElementWiseOpMixedLowering : public mlir::OpRewritePattern<DivElementW
 			return rewriter.notifyMatchFailure(op, "Left-hand side operand is not a scalar");
 
 		mlir::Value array = op.lhs().getType().isa<ArrayType>() ? op.lhs() : op.rhs();
-		mlir::Value scalar = op.lhs().getType().isa<ArrayType>() ? op.rhs() : op.lhs();
 
 		// Allocate the result array
 		auto resultType = op.resultType().cast<ArrayType>();

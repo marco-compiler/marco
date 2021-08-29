@@ -1,13 +1,18 @@
 #pragma once
 
-#include <mlir/Support/LogicalResult.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/Variable.h>
+#include <mlir/Support/LogicalResult.h>
 
 namespace marco::codegen::ida
 {
+	/**
+	 * This class is used for testing and debugging purposes only. Given a
+	 * modelica model, it uses the SUNDIALS IDA library to solve non-trivial
+	 * blocks of the BLT matrix.
+	 */
 	class IdaSolver
 	{
 		public:

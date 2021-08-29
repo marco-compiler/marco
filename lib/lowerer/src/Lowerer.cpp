@@ -199,7 +199,7 @@ static Error initGlobal(LowererContext& ctx, const ModVariable& var)
 	auto val = lowerExp(ctx, var.getInit());
 	if (!val)
 		return val.takeError();
-	auto* loaded = builder.CreateLoad(*val);
+	auto* loaded = builder.CreateLoad((*val)->getType()->getPointerElementType(), *val);
 	builder.CreateStore(
 			loaded, ctx.getModule().getGlobalVariable(var.getName(), true));
 	return Error::success();
@@ -238,7 +238,7 @@ static Error createAssigmentBody(
 	if (!val)
 		return val.takeError();
 
-	auto loaded = info.getBuilder().CreateLoad(*val);
+	auto loaded = info.getBuilder().CreateLoad((*val)->getType()->getPointerElementType(), *val);
 	info.getBuilder().CreateStore(loaded, *left);
 	return Error::success();
 }
