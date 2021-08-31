@@ -29,6 +29,46 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 
 	// Getters.
 	addOperations<GetTimeOp, GetVariableOp>();
+
+	// Lambda helpers.
+	addOperations<
+			AddNewLambdaAccessOp,
+			AddLambdaAccessOp,
+			AddLambdaDimensionOp>();
+
+	// Lambda constructions.
+	addOperations<
+			LambdaConstantOp,
+			LambdaTimeOp,
+			LambdaScalarVariableOp,
+			LambdaScalarDerivativeOp,
+			LambdaVectorVariableOp,
+			LambdaVectorDerivativeOp>();
+
+	addOperations<
+			LambdaAddOp,
+			LambdaSubOp,
+			LambdaMulOp,
+			LambdaDivOp,
+			LambdaPowOp,
+			LambdaNegateOp,
+			LambdaAbsOp,
+			LambdaSignOp,
+			LambdaSqrtOp,
+			LambdaExpOp,
+			LambdaLogOp,
+			LambdaLog10Op>();
+
+	addOperations<
+			LambdaSinOp,
+			LambdaCosOp,
+			LambdaTanOp,
+			LambdaAsinOp,
+			LambdaAcosOp,
+			LambdaAtanOp,
+			LambdaSinhOp,
+			LambdaCoshOp,
+			LambdaTanhOp>();
 }
 
 mlir::StringRef IdaDialect::getDialectNamespace()
