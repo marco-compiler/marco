@@ -6,6 +6,52 @@
 
 using namespace marco::codegen::ida;
 
+namespace marco::codegen::ida
+{
+	static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result, int operandsNum)
+	{
+		llvm::SmallVector<mlir::OpAsmParser::OperandType, 4> operands;
+		llvm::SmallVector<mlir::Type, 4> operandTypes;
+		llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+		llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+		if (parser.parseOperandList(operands, operandsNum) ||
+				parser.parseColon() ||
+				parser.parseLParen() ||
+				parser.parseTypeList(operandTypes) ||
+				parser.parseRParen() ||
+				parser.resolveOperands(operands, operandTypes, operandsLoc, result.operands) ||
+				parser.parseOptionalArrowTypeList(resultTypes))
+			return mlir::failure();
+
+		result.addTypes(resultTypes);
+
+		return mlir::success();
+	}
+
+	static void print(mlir::OpAsmPrinter& printer, llvm::StringLiteral opName, mlir::ValueRange values)
+	{
+		printer << opName << " " << values[0];
+
+		for (size_t i = 0; i < values.size(); i++)
+			printer << ", " << values[i];
+
+		printer << " : (" << values[0].getType();
+
+		for (size_t i = 0; i < values.size(); i++)
+			printer << ", " << values[i].getType();
+		
+		printer << ")";
+	}
+
+	static void print(mlir::OpAsmPrinter& printer, llvm::StringLiteral opName, mlir::ValueRange values, mlir::Type resultType)
+	{
+		print(printer, opName, values);
+		printer << " -> " << resultType;
+	}
+}
+
 //===----------------------------------------------------------------------===//
 // Ida::ConstantValueOp
 //===----------------------------------------------------------------------===//
@@ -62,42 +108,22 @@ void AllocUserDataOp::build(mlir::OpBuilder& builder, mlir::OperationState& stat
 
 mlir::ParseResult AllocUserDataOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
-	llvm::SmallVector<mlir::Type, 2> operandsTypes;
-	mlir::Type resultType;
-
-	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(operands, 2) ||
-			parser.parseColon() ||
-			parser.parseLParen() ||
-			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() ||
-			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
-			parser.parseArrow() ||
-			parser.parseType(resultType))
-		return mlir::failure();
-
-	result.addTypes(resultType);
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 2);
 }
 
 void AllocUserDataOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName()
-					<< " " << neq() << ", " << nnz()
-					<< " : (" << neq().getType() << ", " << nnz().getType()
-					<< ") -> " << resultType();
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
 }
 
 void AllocUserDataOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 }
 
-mlir::Type AllocUserDataOp::resultType()
+OpaquePointerType AllocUserDataOp::resultType()
 {
-	return getOperation()->getResultTypes()[0];
+	return getOperation()->getResultTypes()[0].cast<OpaquePointerType>();
 }
 
 mlir::ValueRange AllocUserDataOp::args()
@@ -127,35 +153,22 @@ void FreeUserDataOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 
 mlir::ParseResult FreeUserDataOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	mlir::OpAsmParser::OperandType operand;
-	mlir::Type operandType;
-	mlir::Type resultType;
-
-	if (parser.parseOperand(operand) ||
-			parser.parseColon() ||
-			parser.parseType(operandType) ||
-			parser.resolveOperand(operand, operandType, result.operands) ||
-			parser.parseArrow() ||
-			parser.parseType(resultType))
-		return mlir::failure();
-
-	result.addTypes(resultType);
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 1);
 }
 
 void FreeUserDataOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " " << userData() << " : " << userData().getType() << " -> " << resultType();
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
 }
 
 void FreeUserDataOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Free::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-mlir::Type FreeUserDataOp::resultType()
+BooleanType FreeUserDataOp::resultType()
 {
-	return getOperation()->getResultTypes()[0];
+	return getOperation()->getResultTypes()[0].cast<BooleanType>();
 }
 
 mlir::ValueRange FreeUserDataOp::args()
@@ -182,36 +195,17 @@ void SetInitialValueOp::build(mlir::OpBuilder& builder, mlir::OperationState& st
 
 mlir::ParseResult SetInitialValueOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 4> operands;
-	llvm::SmallVector<mlir::Type, 4> operandsTypes;
-
-	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(operands, 4) ||
-			parser.parseColon() ||
-			parser.parseLParen() ||
-			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() ||
-			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
-		return mlir::failure();
-
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 4);
 }
 
 void SetInitialValueOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " "
-					<< userData() << ", " << index() << ", "
-					<< value() << ", " << isState() << " : ("
-					<< userData().getType() << ", "
-					<< index().getType() << ", "
-					<< value().getType() << ", "
-					<< isState().getType() << ")";
+	marco::codegen::ida::print(printer, getOperationName(), args());
 }
 
 void SetInitialValueOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::ValueRange SetInitialValueOp::args()
@@ -251,35 +245,23 @@ void InitOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 
 mlir::ParseResult InitOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	mlir::OpAsmParser::OperandType operand;
-	mlir::Type operandType;
-	mlir::Type resultType;
-
-	if (parser.parseOperand(operand) ||
-			parser.parseColon() ||
-			parser.parseType(operandType) ||
-			parser.resolveOperand(operand, operandType, result.operands) ||
-			parser.parseArrow() ||
-			parser.parseType(resultType))
-		return mlir::failure();
-
-	result.addTypes(resultType);
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 1);
 }
 
 void InitOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " " << userData() << " : " << userData().getType() << " -> " << resultType();
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
 }
 
 void InitOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-mlir::Type InitOp::resultType()
+BooleanType InitOp::resultType()
 {
-	return getOperation()->getResultTypes()[0];
+	return getOperation()->getResultTypes()[0].cast<BooleanType>();
 }
 
 mlir::ValueRange InitOp::args()
@@ -304,35 +286,23 @@ void StepOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::
 
 mlir::ParseResult StepOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	mlir::OpAsmParser::OperandType operand;
-	mlir::Type operandType;
-	mlir::Type resultType;
-
-	if (parser.parseOperand(operand) ||
-			parser.parseColon() ||
-			parser.parseType(operandType) ||
-			parser.resolveOperand(operand, operandType, result.operands) ||
-			parser.parseArrow() ||
-			parser.parseType(resultType))
-		return mlir::failure();
-
-	result.addTypes(resultType);
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 1);
 }
 
 void StepOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " " << userData() << " : " << userData().getType() << " -> " << resultType();
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
 }
 
 void StepOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-mlir::Type StepOp::resultType()
+BooleanType StepOp::resultType()
 {
-	return getOperation()->getResultTypes()[0];
+	return getOperation()->getResultTypes()[0].cast<BooleanType>();
 }
 
 mlir::ValueRange StepOp::args()
@@ -358,34 +328,17 @@ void AddTimeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mli
 
 mlir::ParseResult AddTimeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
-	llvm::SmallVector<mlir::Type, 3> operandsTypes;
-
-	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(operands, 3) ||
-			parser.parseColon() ||
-			parser.parseLParen() ||
-			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() ||
-			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
-		return mlir::failure();
-
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 3);
 }
 
 void AddTimeOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " "
-					<< userData() << ", " << start() << ", " << stop() << " : ("
-					<< userData().getType() << ", "
-					<< start().getType() << ", "
-					<< stop().getType() << ")";
+	marco::codegen::ida::print(printer, getOperationName(), args());
 }
 
 void AddTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::ValueRange AddTimeOp::args()
@@ -421,34 +374,17 @@ void AddToleranceOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 
 mlir::ParseResult AddToleranceOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
-	llvm::SmallVector<mlir::Type, 3> operandsTypes;
-
-	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(operands, 3) ||
-			parser.parseColon() ||
-			parser.parseLParen() ||
-			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() ||
-			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
-		return mlir::failure();
-
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 3);
 }
 
 void AddToleranceOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " "
-					<< userData() << ", " << relTol() << ", " << absTol() << " : ("
-					<< userData().getType() << ", "
-					<< relTol().getType() << ", "
-					<< absTol().getType() << ")";
+	marco::codegen::ida::print(printer, getOperationName(), args());
 }
 
 void AddToleranceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::ValueRange AddToleranceOp::args()
@@ -483,33 +419,17 @@ void AddRowLengthOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 
 mlir::ParseResult AddRowLengthOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
-	llvm::SmallVector<mlir::Type, 2> operandsTypes;
-
-	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(operands, 2) ||
-			parser.parseColon() ||
-			parser.parseLParen() ||
-			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() ||
-			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
-		return mlir::failure();
-
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 2);
 }
 
 void AddRowLengthOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " "
-					<< userData() << ", " << rowLength() << " : ("
-					<< userData().getType() << ", "
-					<< rowLength().getType() << ")";
+	marco::codegen::ida::print(printer, getOperationName(), args());
 }
 
 void AddRowLengthOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::ValueRange AddRowLengthOp::args()
@@ -541,36 +461,17 @@ void AddDimensionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 
 mlir::ParseResult AddDimensionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 4> operands;
-	llvm::SmallVector<mlir::Type, 4> operandsTypes;
-
-	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(operands, 4) ||
-			parser.parseColon() ||
-			parser.parseLParen() ||
-			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() ||
-			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
-		return mlir::failure();
-
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 4);
 }
 
 void AddDimensionOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " "
-					<< userData() << ", " << index() << ", "
-					<< min() << ", " << max() << " : ("
-					<< userData().getType() << ", "
-					<< index().getType() << ", "
-					<< min().getType() << ", "
-					<< max().getType() << ")";
+	marco::codegen::ida::print(printer, getOperationName(), args());
 }
 
 void AddDimensionOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::ValueRange AddDimensionOp::args()
@@ -611,34 +512,17 @@ void AddResidualOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
 
 mlir::ParseResult AddResidualOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
-	llvm::SmallVector<mlir::Type, 3> operandsTypes;
-
-	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(operands, 3) ||
-			parser.parseColon() ||
-			parser.parseLParen() ||
-			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() ||
-			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
-		return mlir::failure();
-
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 3);
 }
 
 void AddResidualOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " "
-					<< userData() << ", " << leftIndex() << ", " << rightIndex() << " : ("
-					<< userData().getType() << ", "
-					<< leftIndex().getType() << ", "
-					<< rightIndex().getType() << ")";
+	marco::codegen::ida::print(printer, getOperationName(), args());
 }
 
 void AddResidualOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::ValueRange AddResidualOp::args()
@@ -674,34 +558,17 @@ void AddJacobianOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
 
 mlir::ParseResult AddJacobianOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
-	llvm::SmallVector<mlir::Type, 3> operandsTypes;
-
-	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(operands, 3) ||
-			parser.parseColon() ||
-			parser.parseLParen() ||
-			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() ||
-			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
-		return mlir::failure();
-
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 3);
 }
 
 void AddJacobianOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " "
-					<< userData() << ", " << leftIndex() << ", " << rightIndex() << " : ("
-					<< userData().getType() << ", "
-					<< leftIndex().getType() << ", "
-					<< rightIndex().getType() << ")";
+	marco::codegen::ida::print(printer, getOperationName(), args());
 }
 
 void AddJacobianOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::ValueRange AddJacobianOp::args()
@@ -736,35 +603,22 @@ void GetTimeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mli
 
 mlir::ParseResult GetTimeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	mlir::OpAsmParser::OperandType operand;
-	mlir::Type operandType;
-	mlir::Type resultType;
-
-	if (parser.parseOperand(operand) ||
-			parser.parseColon() ||
-			parser.parseType(operandType) ||
-			parser.resolveOperand(operand, operandType, result.operands) ||
-			parser.parseArrow() ||
-			parser.parseType(resultType))
-		return mlir::failure();
-
-	result.addTypes(resultType);
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 1);
 }
 
 void GetTimeOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " " << userData() << " : " << userData().getType() << " -> " << resultType();
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
 }
 
 void GetTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Read::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-mlir::Type GetTimeOp::resultType()
+RealType GetTimeOp::resultType()
 {
-	return getOperation()->getResultTypes()[0];
+	return getOperation()->getResultTypes()[0].cast<RealType>();
 }
 
 mlir::ValueRange GetTimeOp::args()
@@ -790,37 +644,22 @@ void GetVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state,
 
 mlir::ParseResult GetVariableOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
-	llvm::SmallVector<mlir::Type, 2> operandsTypes;
-	mlir::Type resultType;
-
-	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(operands, 2) ||
-			parser.parseColon() ||
-			parser.parseLParen() ||
-			parser.parseTypeList(operandsTypes) ||
-			parser.parseRParen() ||
-			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands) ||
-			parser.parseArrow() ||
-			parser.parseType(resultType))
-		return mlir::failure();
-
-	result.addTypes(resultType);
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 2);
 }
 
 void GetVariableOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName() << " "
-					<< userData() << ", " << index() << " : ("
-					<< userData().getType() << ", "
-					<< index().getType() << ")";
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
 }
 
 void GetVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Read::get(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+RealType GetVariableOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<RealType>();
 }
 
 mlir::ValueRange GetVariableOp::args()
@@ -834,6 +673,1434 @@ mlir::Value GetVariableOp::userData()
 }
 
 mlir::Value GetVariableOp::index()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::AddNewLambdaAccessOp
+//===----------------------------------------------------------------------===//
+
+void AddNewLambdaAccessOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value indices)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(offset);
+	state.addOperands(indices);
+}
+
+mlir::ParseResult AddNewLambdaAccessOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 3);
+}
+
+void AddNewLambdaAccessOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void AddNewLambdaAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType AddNewLambdaAccessOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange AddNewLambdaAccessOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value AddNewLambdaAccessOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value AddNewLambdaAccessOp::offset()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value AddNewLambdaAccessOp::indices()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::AddLambdaAccessOp
+//===----------------------------------------------------------------------===//
+
+void AddLambdaAccessOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value offset, mlir::Value indices)
+{
+	state.addOperands(userData);
+	state.addOperands(index);
+	state.addOperands(offset);
+	state.addOperands(indices);
+}
+
+mlir::ParseResult AddLambdaAccessOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 4);
+}
+
+void AddLambdaAccessOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args());
+}
+
+void AddLambdaAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::ValueRange AddLambdaAccessOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value AddLambdaAccessOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value AddLambdaAccessOp::index()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value AddLambdaAccessOp::offset()
+{
+	return getOperation()->getOperand(2);
+}
+
+mlir::Value AddLambdaAccessOp::indices()
+{
+	return getOperation()->getOperand(3);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::AddLambdaDimensionOp
+//===----------------------------------------------------------------------===//
+
+void AddLambdaDimensionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value dimension)
+{
+	state.addOperands(userData);
+	state.addOperands(index);
+	state.addOperands(dimension);
+}
+
+mlir::ParseResult AddLambdaDimensionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 3);
+}
+
+void AddLambdaDimensionOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args());
+}
+
+void AddLambdaDimensionOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::ValueRange AddLambdaDimensionOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value AddLambdaDimensionOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value AddLambdaDimensionOp::index()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value AddLambdaDimensionOp::dimension()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaConstantOp
+//===----------------------------------------------------------------------===//
+
+void LambdaConstantOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value constant)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(constant);
+}
+
+mlir::ParseResult LambdaConstantOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaConstantOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaConstantOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaConstantOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaConstantOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaConstantOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaConstantOp::constant()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaTimeOp
+//===----------------------------------------------------------------------===//
+
+void LambdaTimeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+}
+
+mlir::ParseResult LambdaTimeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 1);
+}
+
+void LambdaTimeOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaTimeOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaTimeOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaTimeOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaScalarVariableOp
+//===----------------------------------------------------------------------===//
+
+void LambdaScalarVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(offset);
+}
+
+mlir::ParseResult LambdaScalarVariableOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaScalarVariableOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaScalarVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaScalarVariableOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaScalarVariableOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaScalarVariableOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaScalarVariableOp::offset()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaScalarDerivativeOp
+//===----------------------------------------------------------------------===//
+
+void LambdaScalarDerivativeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(offset);
+}
+
+mlir::ParseResult LambdaScalarDerivativeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaScalarDerivativeOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaScalarDerivativeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaScalarDerivativeOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaScalarDerivativeOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaScalarDerivativeOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaScalarDerivativeOp::offset()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaVectorVariableOp
+//===----------------------------------------------------------------------===//
+
+void LambdaVectorVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value index)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(offset);
+	state.addOperands(index);
+}
+
+mlir::ParseResult LambdaVectorVariableOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 3);
+}
+
+void LambdaVectorVariableOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaVectorVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaVectorVariableOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaVectorVariableOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaVectorVariableOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaVectorVariableOp::offset()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value LambdaVectorVariableOp::index()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaVectorDerivativeOp
+//===----------------------------------------------------------------------===//
+
+void LambdaVectorDerivativeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value index)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(offset);
+	state.addOperands(index);
+}
+
+mlir::ParseResult LambdaVectorDerivativeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 3);
+}
+
+void LambdaVectorDerivativeOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaVectorDerivativeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaVectorDerivativeOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaVectorDerivativeOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaVectorDerivativeOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaVectorDerivativeOp::offset()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value LambdaVectorDerivativeOp::index()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaAddOp
+//===----------------------------------------------------------------------===//
+
+void LambdaAddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(leftIndex);
+	state.addOperands(rightIndex);
+}
+
+mlir::ParseResult LambdaAddOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 3);
+}
+
+void LambdaAddOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaAddOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaAddOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaAddOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaAddOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaAddOp::leftIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value LambdaAddOp::rightIndex()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaSubOp
+//===----------------------------------------------------------------------===//
+
+void LambdaSubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(leftIndex);
+	state.addOperands(rightIndex);
+}
+
+mlir::ParseResult LambdaSubOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 3);
+}
+
+void LambdaSubOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaSubOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaSubOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaSubOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaSubOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaSubOp::leftIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value LambdaSubOp::rightIndex()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaMulOp
+//===----------------------------------------------------------------------===//
+
+void LambdaMulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(leftIndex);
+	state.addOperands(rightIndex);
+}
+
+mlir::ParseResult LambdaMulOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 3);
+}
+
+void LambdaMulOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaMulOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaMulOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaMulOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaMulOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaMulOp::leftIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value LambdaMulOp::rightIndex()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaDivOp
+//===----------------------------------------------------------------------===//
+
+void LambdaDivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(leftIndex);
+	state.addOperands(rightIndex);
+}
+
+mlir::ParseResult LambdaDivOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 3);
+}
+
+void LambdaDivOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaDivOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaDivOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaDivOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaDivOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaDivOp::leftIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value LambdaDivOp::rightIndex()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaPowOp
+//===----------------------------------------------------------------------===//
+
+void LambdaPowOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(leftIndex);
+	state.addOperands(rightIndex);
+}
+
+mlir::ParseResult LambdaPowOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 3);
+}
+
+void LambdaPowOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaPowOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaPowOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaPowOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaPowOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaPowOp::leftIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value LambdaPowOp::rightIndex()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaNegateOp
+//===----------------------------------------------------------------------===//
+
+void LambdaNegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaNegateOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaNegateOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaNegateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaNegateOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaNegateOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaNegateOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaNegateOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaAbsOp
+//===----------------------------------------------------------------------===//
+
+void LambdaAbsOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaAbsOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaAbsOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaAbsOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaAbsOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaAbsOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaAbsOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaAbsOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaSignOp
+//===----------------------------------------------------------------------===//
+
+void LambdaSignOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaSignOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaSignOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaSignOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaSignOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaSignOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaSignOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaSignOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaSqrtOp
+//===----------------------------------------------------------------------===//
+
+void LambdaSqrtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaSqrtOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaSqrtOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaSqrtOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaSqrtOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaSqrtOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaSqrtOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaSqrtOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaExpOp
+//===----------------------------------------------------------------------===//
+
+void LambdaExpOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaExpOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaExpOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaExpOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaExpOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaExpOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaExpOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaExpOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaLogOp
+//===----------------------------------------------------------------------===//
+
+void LambdaLogOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaLogOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaLogOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaLogOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaLogOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaLogOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaLogOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaLogOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaLog10Op
+//===----------------------------------------------------------------------===//
+
+void LambdaLog10Op::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaLog10Op::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaLog10Op::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaLog10Op::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaLog10Op::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaLog10Op::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaLog10Op::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaLog10Op::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaSinOp
+//===----------------------------------------------------------------------===//
+
+void LambdaSinOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaSinOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaSinOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaSinOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaSinOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaSinOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaSinOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaSinOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaCosOp
+//===----------------------------------------------------------------------===//
+
+void LambdaCosOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaCosOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaCosOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaCosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaCosOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaCosOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaCosOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaCosOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaTanOp
+//===----------------------------------------------------------------------===//
+
+void LambdaTanOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaTanOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaTanOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaTanOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaTanOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaTanOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaTanOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaTanOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaAsinOp
+//===----------------------------------------------------------------------===//
+
+void LambdaAsinOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaAsinOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaAsinOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaAsinOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaAsinOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaAsinOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaAsinOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaAsinOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaAcosOp
+//===----------------------------------------------------------------------===//
+
+void LambdaAcosOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaAcosOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaAcosOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaAcosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaAcosOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaAcosOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaAcosOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaAcosOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaAtanOp
+//===----------------------------------------------------------------------===//
+
+void LambdaAtanOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaAtanOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaAtanOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaAtanOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaAtanOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaAtanOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaAtanOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaAtanOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaSinhOp
+//===----------------------------------------------------------------------===//
+
+void LambdaSinhOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaSinhOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaSinhOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaSinhOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaSinhOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaSinhOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaSinhOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaSinhOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaCoshOp
+//===----------------------------------------------------------------------===//
+
+void LambdaCoshOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaCoshOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaCoshOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaCoshOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaCoshOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaCoshOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaCoshOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaCoshOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaTanhOp
+//===----------------------------------------------------------------------===//
+
+void LambdaTanhOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+}
+
+mlir::ParseResult LambdaTanhOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaTanhOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+void LambdaTanhOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaTanhOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaTanhOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaTanhOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaTanhOp::operandIndex()
 {
 	return getOperation()->getOperand(1);
 }

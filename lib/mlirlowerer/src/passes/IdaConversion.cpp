@@ -337,6 +337,246 @@ struct GetVariableOpLowering : public IdaOpConversion<GetVariableOp>
 	}
 };
 
+struct AddNewLambdaAccessOpLowering : public IdaOpConversion<AddNewLambdaAccessOp>
+{
+	using IdaOpConversion<AddNewLambdaAccessOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(AddNewLambdaAccessOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		IntegerType result = IntegerType::get(op.getContext());
+
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"addNewLambdaAccess",
+				result,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, op.args());
+		return mlir::success();
+	}
+};
+
+struct AddLambdaAccessOpLowering : public IdaOpConversion<AddLambdaAccessOp>
+{
+	using IdaOpConversion<AddLambdaAccessOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(AddLambdaAccessOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"addLambdaAccess",
+				llvm::None,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, op.args());
+		return mlir::success();
+	}
+};
+
+struct AddLambdaDimensionOpLowering : public IdaOpConversion<AddLambdaDimensionOp>
+{
+	using IdaOpConversion<AddLambdaDimensionOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(AddLambdaDimensionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"addLambdaDimension",
+				llvm::None,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, op.args());
+		return mlir::success();
+	}
+};
+
+template<typename FromOp, typename FromOpLowering>
+struct LambdaLikeLowering : public IdaOpConversion<FromOp>
+{
+	using IdaOpConversion<FromOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(FromOp fromOp, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Operation* op = static_cast<mlir::Operation*>(fromOp);
+		IntegerType result = IntegerType::get(fromOp.getContext());
+
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				FromOpLowering::operationName,
+				result,
+				fromOp.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(fromOp, callee.getName(), result, fromOp.args());
+		return mlir::success();
+	}
+};
+
+struct LambdaConstantOpLowering : public LambdaLikeLowering<LambdaConstantOp, LambdaConstantOpLowering>
+{
+	using LambdaLikeLowering<LambdaConstantOp, LambdaConstantOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaConstant";
+};
+
+struct LambdaTimeOpLowering : public LambdaLikeLowering<LambdaTimeOp, LambdaTimeOpLowering>
+{
+	using LambdaLikeLowering<LambdaTimeOp, LambdaTimeOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaTime";
+};
+
+struct LambdaScalarVariableOpLowering : public LambdaLikeLowering<LambdaScalarVariableOp, LambdaScalarVariableOpLowering>
+{
+	using LambdaLikeLowering<LambdaScalarVariableOp, LambdaScalarVariableOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaScalarVariable";
+};
+
+struct LambdaScalarDerivativeOpLowering : public LambdaLikeLowering<LambdaScalarDerivativeOp, LambdaScalarDerivativeOpLowering>
+{
+	using LambdaLikeLowering<LambdaScalarDerivativeOp, LambdaScalarDerivativeOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaScalarDerivative";
+};
+
+struct LambdaVectorVariableOpLowering : public LambdaLikeLowering<LambdaVectorVariableOp, LambdaVectorVariableOpLowering>
+{
+	using LambdaLikeLowering<LambdaVectorVariableOp, LambdaVectorVariableOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaVectorVariable";
+};
+
+struct LambdaVectorDerivativeOpLowering : public LambdaLikeLowering<LambdaVectorDerivativeOp, LambdaVectorDerivativeOpLowering>
+{
+	using LambdaLikeLowering<LambdaVectorDerivativeOp, LambdaVectorDerivativeOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaVectorDerivative";
+};
+
+struct LambdaAddOpLowering : public LambdaLikeLowering<LambdaAddOp, LambdaAddOpLowering>
+{
+	using LambdaLikeLowering<LambdaAddOp, LambdaAddOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaAdd";
+};
+
+struct LambdaSubOpLowering : public LambdaLikeLowering<LambdaSubOp, LambdaSubOpLowering>
+{
+	using LambdaLikeLowering<LambdaSubOp, LambdaSubOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaSub";
+};
+
+struct LambdaMulOpLowering : public LambdaLikeLowering<LambdaMulOp, LambdaMulOpLowering>
+{
+	using LambdaLikeLowering<LambdaMulOp, LambdaMulOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaMul";
+};
+
+struct LambdaDivOpLowering : public LambdaLikeLowering<LambdaDivOp, LambdaDivOpLowering>
+{
+	using LambdaLikeLowering<LambdaDivOp, LambdaDivOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaDiv";
+};
+
+struct LambdaPowOpLowering : public LambdaLikeLowering<LambdaPowOp, LambdaPowOpLowering>
+{
+	using LambdaLikeLowering<LambdaPowOp, LambdaPowOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaPow";
+};
+
+struct LambdaNegateOpLowering : public LambdaLikeLowering<LambdaNegateOp, LambdaNegateOpLowering>
+{
+	using LambdaLikeLowering<LambdaNegateOp, LambdaNegateOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaNegate";
+};
+
+struct LambdaAbsOpLowering : public LambdaLikeLowering<LambdaAbsOp, LambdaAbsOpLowering>
+{
+	using LambdaLikeLowering<LambdaAbsOp, LambdaAbsOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaAbs";
+};
+
+struct LambdaSignOpLowering : public LambdaLikeLowering<LambdaSignOp, LambdaSignOpLowering>
+{
+	using LambdaLikeLowering<LambdaSignOp, LambdaSignOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaSign";
+};
+
+struct LambdaSqrtOpLowering : public LambdaLikeLowering<LambdaSqrtOp, LambdaSqrtOpLowering>
+{
+	using LambdaLikeLowering<LambdaSqrtOp, LambdaSqrtOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaSqrt";
+};
+
+struct LambdaExpOpLowering : public LambdaLikeLowering<LambdaExpOp, LambdaExpOpLowering>
+{
+	using LambdaLikeLowering<LambdaExpOp, LambdaExpOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaExp";
+};
+
+struct LambdaLogOpLowering : public LambdaLikeLowering<LambdaLogOp, LambdaLogOpLowering>
+{
+	using LambdaLikeLowering<LambdaLogOp, LambdaLogOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaLog";
+};
+
+struct LambdaLog10OpLowering : public LambdaLikeLowering<LambdaLog10Op, LambdaLog10OpLowering>
+{
+	using LambdaLikeLowering<LambdaLog10Op, LambdaLog10OpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaLog10";
+};
+
+struct LambdaSinOpLowering : public LambdaLikeLowering<LambdaSinOp, LambdaSinOpLowering>
+{
+	using LambdaLikeLowering<LambdaSinOp, LambdaSinOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaSin";
+};
+
+struct LambdaCosOpLowering : public LambdaLikeLowering<LambdaCosOp, LambdaCosOpLowering>
+{
+	using LambdaLikeLowering<LambdaCosOp, LambdaCosOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaCos";
+};
+
+struct LambdaTanOpLowering : public LambdaLikeLowering<LambdaTanOp, LambdaTanOpLowering>
+{
+	using LambdaLikeLowering<LambdaTanOp, LambdaTanOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaTan";
+};
+
+struct LambdaAsinOpLowering : public LambdaLikeLowering<LambdaAsinOp, LambdaAsinOpLowering>
+{
+	using LambdaLikeLowering<LambdaAsinOp, LambdaAsinOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaAsin";
+};
+
+struct LambdaAcosOpLowering : public LambdaLikeLowering<LambdaAcosOp, LambdaAcosOpLowering>
+{
+	using LambdaLikeLowering<LambdaAcosOp, LambdaAcosOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaAcos";
+};
+
+struct LambdaAtanOpLowering : public LambdaLikeLowering<LambdaAtanOp, LambdaAtanOpLowering>
+{
+	using LambdaLikeLowering<LambdaAtanOp, LambdaAtanOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaAtan";
+};
+
+struct LambdaSinhOpLowering : public LambdaLikeLowering<LambdaSinhOp, LambdaSinhOpLowering>
+{
+	using LambdaLikeLowering<LambdaSinhOp, LambdaSinhOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaSinh";
+};
+
+struct LambdaCoshOpLowering : public LambdaLikeLowering<LambdaCoshOp, LambdaCoshOpLowering>
+{
+	using LambdaLikeLowering<LambdaCoshOp, LambdaCoshOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaCosh";
+};
+
+struct LambdaTanhOpLowering : public LambdaLikeLowering<LambdaTanhOp, LambdaTanhOpLowering>
+{
+	using LambdaLikeLowering<LambdaTanhOp, LambdaTanhOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaTanh";
+};
+
 static void populateIdaConversionPatterns(
 		mlir::OwningRewritePatternList& patterns,
 		mlir::MLIRContext* context,
@@ -364,6 +604,46 @@ static void populateIdaConversionPatterns(
 	patterns.insert<
 			GetTimeOpLowering,
 			GetVariableOpLowering>(context, typeConverter);
+
+	// Lambda helpers.
+	patterns.insert<
+			AddNewLambdaAccessOpLowering,
+			AddLambdaAccessOpLowering,
+			AddLambdaDimensionOpLowering>(context, typeConverter);
+
+	// Lambda constructions.
+	patterns.insert<
+			LambdaConstantOpLowering,
+			LambdaTimeOpLowering,
+			LambdaScalarVariableOpLowering,
+			LambdaScalarDerivativeOpLowering,
+			LambdaVectorVariableOpLowering,
+			LambdaVectorDerivativeOpLowering>(context, typeConverter);
+
+	patterns.insert<
+			LambdaAddOpLowering,
+			LambdaSubOpLowering,
+			LambdaMulOpLowering,
+			LambdaDivOpLowering,
+			LambdaPowOpLowering,
+			LambdaNegateOpLowering,
+			LambdaAbsOpLowering,
+			LambdaSignOpLowering,
+			LambdaSqrtOpLowering,
+			LambdaExpOpLowering,
+			LambdaLogOpLowering,
+			LambdaLog10OpLowering>(context, typeConverter);
+
+	patterns.insert<
+			LambdaSinOpLowering,
+			LambdaCosOpLowering,
+			LambdaTanOpLowering,
+			LambdaAsinOpLowering,
+			LambdaAcosOpLowering,
+			LambdaAtanOpLowering,
+			LambdaSinhOpLowering,
+			LambdaCoshOpLowering,
+			LambdaTanhOpLowering>(context, typeConverter);
 }
 
 class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::OperationPass<mlir::ModuleOp>>
@@ -418,6 +698,46 @@ class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::Oper
 
 		// Getters.
 		target.addIllegalOp<GetTimeOp, GetVariableOp>();
+
+		// Lambda helpers.
+		target.addIllegalOp<
+				AddNewLambdaAccessOp,
+				AddLambdaAccessOp,
+				AddLambdaDimensionOp>();
+
+		// Lambda constructions.
+		target.addIllegalOp<
+				LambdaConstantOp,
+				LambdaTimeOp,
+				LambdaScalarVariableOp,
+				LambdaScalarDerivativeOp,
+				LambdaVectorVariableOp,
+				LambdaVectorDerivativeOp>();
+
+		target.addIllegalOp<
+				LambdaAddOp,
+				LambdaSubOp,
+				LambdaMulOp,
+				LambdaDivOp,
+				LambdaPowOp,
+				LambdaNegateOp,
+				LambdaAbsOp,
+				LambdaSignOp,
+				LambdaSqrtOp,
+				LambdaExpOp,
+				LambdaLogOp,
+				LambdaLog10Op>();
+
+		target.addIllegalOp<
+				LambdaSinOp,
+				LambdaCosOp,
+				LambdaTanOp,
+				LambdaAsinOp,
+				LambdaAcosOp,
+				LambdaAtanOp,
+				LambdaSinhOp,
+				LambdaCoshOp,
+				LambdaTanhOp>();
 
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 
