@@ -104,14 +104,12 @@ mlir::LogicalResult IdaSolver::init()
 					indexOffsetMap[model.getVariable(var.getState())] = rowLength;
 
 				// Initialize variablesValues, derivativesValues, idValues.
-				for (int64_t i : irange(var.toMultiDimInterval().size()))
-				{
-					setInitialValue(
-							userData,
-							rowLength + i,
-							initialValueMap[var],
-							var.isState() || var.isDerivative());
-				}
+				setInitialValue(
+						userData,
+						rowLength,
+						var.toMultiDimInterval().size(),
+						initialValueMap[var],
+						var.isState() || var.isDerivative());
 
 				// Increase the length of the current row.
 				rowLength += var.toMultiDimInterval().size();

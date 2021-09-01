@@ -3,7 +3,9 @@
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/Interfaces/CallInterfaces.h>
 #include <mlir/Interfaces/SideEffectInterfaces.h>
+#include <marco/mlirlowerer/dialects/modelica/Type.h>
 
+#include "Attribute.h"
 #include "Type.h"
 
 namespace marco::codegen::ida
@@ -100,7 +102,7 @@ namespace marco::codegen::ida
 
 	class SetInitialValueOp : public mlir::Op<SetInitialValueOp,
 																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<4>::Impl,
+																mlir::OpTrait::NOperands<5>::Impl,
 																mlir::OpTrait::ZeroResult,
 																mlir::MemoryEffectOpInterface::Trait>
 	{
@@ -112,7 +114,7 @@ namespace marco::codegen::ida
 			return "ida.set_initial_value";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value value, mlir::Value isState);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value value, mlir::Value isState);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 
@@ -121,6 +123,7 @@ namespace marco::codegen::ida
 		mlir::ValueRange args();
 		mlir::Value userData();
 		mlir::Value index();
+		mlir::Value length();
 		mlir::Value value();
 		mlir::Value isState();
 	};
@@ -387,7 +390,7 @@ namespace marco::codegen::ida
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		RealType resultType();
+		marco::codegen::modelica::RealType resultType();
 		mlir::ValueRange args();
 		mlir::Value userData();
 	};
@@ -416,7 +419,7 @@ namespace marco::codegen::ida
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
-		RealType resultType();
+		marco::codegen::modelica::RealType resultType();
 		mlir::ValueRange args();
 		mlir::Value userData();
 		mlir::Value index();

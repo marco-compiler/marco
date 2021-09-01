@@ -11,7 +11,11 @@ extern "C"
 	bool freeIdaUserData(void *userData);
 
 	void setInitialValue(
-			void *userData, int64_t index, double value, bool isState);
+			void *userData,
+			int64_t index,
+			int64_t length,
+			double value,
+			bool isState);
 	bool idaInit(void *userData);
 	bool idaStep(void *userData);
 
@@ -52,13 +56,13 @@ extern "C"
 	int64_t lambdaVectorVariable(void *userData, int64_t offset, int64_t index);
 	int64_t lambdaVectorDerivative(void *userData, int64_t offset, int64_t index);
 
-	int64_t lambdaNegate(void *userData, int64_t operandIndex);
 	int64_t lambdaAdd(void *userData, int64_t leftIndex, int64_t rightIndex);
 	int64_t lambdaSub(void *userData, int64_t leftIndex, int64_t rightIndex);
 	int64_t lambdaMul(void *userData, int64_t leftIndex, int64_t rightIndex);
 	int64_t lambdaDiv(void *userData, int64_t leftIndex, int64_t rightIndex);
-
 	int64_t lambdaPow(void *userData, int64_t baseIndex, int64_t exponentIndex);
+
+	int64_t lambdaNegate(void *userData, int64_t operandIndex);
 	int64_t lambdaAbs(void *userData, int64_t operandIndex);
 	int64_t lambdaSign(void *userData, int64_t operandIndex);
 	int64_t lambdaSqrt(void *userData, int64_t operandIndex);
