@@ -5,7 +5,7 @@
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <marco/mlirlowerer/dialects/ida/IdaDialect.h>
-// #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
+#include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 #include <marco/mlirlowerer/passes/IdaConversion.h>
 #include <marco/mlirlowerer/passes/TypeConverter.h>
 #include <numeric>
@@ -73,9 +73,6 @@ struct ConstantValueOpLowering : public IdaOpConversion<ConstantValueOp>
 	private:
 	llvm::Optional<mlir::Attribute> convertAttribute(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Attribute attribute) const
 	{
-		if (attribute.getType().isa<mlir::IndexType>())
-			return attribute;
-
 		resultType = getTypeConverter()->convertType(resultType);
 
 		if (auto booleanAttribute = attribute.dyn_cast<BooleanAttribute>())
@@ -85,6 +82,9 @@ struct ConstantValueOpLowering : public IdaOpConversion<ConstantValueOp>
 			return builder.getIntegerAttr(resultType, integerAttribute.getValue());
 
 		if (auto realAttribute = attribute.dyn_cast<RealAttribute>())
+			return builder.getFloatAttr(resultType, realAttribute.getValue());
+
+		if (auto realAttribute = attribute.dyn_cast<modelica::RealAttribute>())
 			return builder.getFloatAttr(resultType, realAttribute.getValue());
 
 		return llvm::None;
@@ -303,7 +303,7 @@ struct GetTimeOpLowering : public IdaOpConversion<GetTimeOp>
 
 	mlir::LogicalResult matchAndRewrite(GetTimeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		RealType result = RealType::get(op.getContext());
+		modelica::RealType result = modelica::RealType::get(op.getContext());
 
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
@@ -323,7 +323,7 @@ struct GetVariableOpLowering : public IdaOpConversion<GetVariableOp>
 
 	mlir::LogicalResult matchAndRewrite(GetVariableOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		RealType result = RealType::get(op.getContext());
+		modelica::RealType result = modelica::RealType::get(op.getContext());
 
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
@@ -657,10 +657,6 @@ class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::Oper
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
 		registry.insert<IdaDialect>();
-		// registry.insert<modelica::ModelicaDialect>();
-		registry.insert<mlir::StandardOpsDialect>();
-		registry.insert<mlir::scf::SCFDialect>();
-		registry.insert<mlir::LLVM::LLVMDialect>();
 	}
 
 	void runOnOperation() override

@@ -3,6 +3,7 @@
 #include <mlir/IR/OpImplementation.h>
 #include <marco/mlirlowerer/dialects/ida/Attribute.h>
 #include <marco/mlirlowerer/dialects/ida/Ops.h>
+#include <marco/mlirlowerer/dialects/modelica/Type.h>
 
 using namespace marco::codegen::ida;
 
@@ -10,8 +11,8 @@ namespace marco::codegen::ida
 {
 	static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result, int operandsNum)
 	{
-		llvm::SmallVector<mlir::OpAsmParser::OperandType, 4> operands;
-		llvm::SmallVector<mlir::Type, 4> operandTypes;
+		llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
+		llvm::SmallVector<mlir::Type, 3> operandTypes;
 		llvm::SmallVector<mlir::Type, 1> resultTypes;
 
 		llvm::SMLoc operandsLoc = parser.getCurrentLocation();
@@ -185,17 +186,18 @@ mlir::Value FreeUserDataOp::userData()
 // Ida::SetInitialValueOp
 //===----------------------------------------------------------------------===//
 
-void SetInitialValueOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value value, mlir::Value isState)
+void SetInitialValueOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value value, mlir::Value isState)
 {
 	state.addOperands(userData);
 	state.addOperands(index);
+	state.addOperands(length);
 	state.addOperands(value);
 	state.addOperands(isState);
 }
 
 mlir::ParseResult SetInitialValueOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	return marco::codegen::ida::parse(parser, result, 4);
+	return marco::codegen::ida::parse(parser, result, 5);
 }
 
 void SetInitialValueOp::print(mlir::OpAsmPrinter& printer)
@@ -223,14 +225,19 @@ mlir::Value SetInitialValueOp::index()
 	return getOperation()->getOperand(1);
 }
 
-mlir::Value SetInitialValueOp::value()
+mlir::Value SetInitialValueOp::length()
 {
 	return getOperation()->getOperand(2);
 }
 
-mlir::Value SetInitialValueOp::isState()
+mlir::Value SetInitialValueOp::value()
 {
 	return getOperation()->getOperand(3);
+}
+
+mlir::Value SetInitialValueOp::isState()
+{
+	return getOperation()->getOperand(4);
 }
 
 //===----------------------------------------------------------------------===//
@@ -597,7 +604,7 @@ mlir::Value AddJacobianOp::rightIndex()
 
 void GetTimeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
 {
-	state.addTypes(RealType::get(builder.getContext()));
+	state.addTypes(marco::codegen::modelica::RealType::get(builder.getContext()));
 	state.addOperands(userData);
 }
 
@@ -616,9 +623,9 @@ void GetTimeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstan
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-RealType GetTimeOp::resultType()
+marco::codegen::modelica::RealType GetTimeOp::resultType()
 {
-	return getOperation()->getResultTypes()[0].cast<RealType>();
+	return getOperation()->getResultTypes()[0].cast<marco::codegen::modelica::RealType>();
 }
 
 mlir::ValueRange GetTimeOp::args()
@@ -657,9 +664,9 @@ void GetVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectIn
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-RealType GetVariableOp::resultType()
+marco::codegen::modelica::RealType GetVariableOp::resultType()
 {
-	return getOperation()->getResultTypes()[0].cast<RealType>();
+	return getOperation()->getResultTypes()[0].cast<marco::codegen::modelica::RealType>();
 }
 
 mlir::ValueRange GetVariableOp::args()

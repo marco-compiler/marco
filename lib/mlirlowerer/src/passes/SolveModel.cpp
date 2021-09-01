@@ -2022,31 +2022,327 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return result;
 	}
 
+	static double getValue(ConstantOp constantOp)
+	{
+		mlir::Attribute attribute = constantOp.value();
+
+		if (auto integer = attribute.dyn_cast<modelica::IntegerAttribute>())
+			return integer.getValue();
+
+		if (auto real = attribute.dyn_cast<modelica::RealAttribute>())
+			return real.getValue();
+
+		assert(false && "Unreachable");
+		return 0.0;
+	}
+
+	static mlir::Value getFunction(
+			mlir::OpBuilder& builder,
+			mlir::Location loc,
+			Model& model,
+			mlir::Value userData,
+			std::map<model::Variable, double> initialValueMap,
+			std::map<model::Variable, int64_t> indexOffsetMap,
+			const Expression& expression)
+	{
+		mlir::MLIRContext* context = model.getOp().getContext();
+		mlir::Operation* definingOp = expression.getOp();
+
+		// Constant value.
+		if (auto op = mlir::dyn_cast<ConstantOp>(definingOp))
+		{
+			mlir::Value value = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, getValue(op)));
+			return builder.create<LambdaConstantOp>(loc, userData, value);
+		}
+
+		// Scalar variable reference.
+		if (expression.isReference())
+		{
+			// Time variable.
+			Variable var = model.getVariable(expression.getReferredVectorAccess());
+			if (indexOffsetMap.find(var) == indexOffsetMap.end())
+				return builder.create<LambdaTimeOp>(loc, userData);
+
+			mlir::Value offset = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, indexOffsetMap[var]));
+
+			if (var.isDerivative())
+				return builder.create<LambdaScalarDerivativeOp>(loc, userData, offset);
+			else
+				return builder.create<LambdaScalarVariableOp>(loc, userData, offset);
+		}
+
+		assert(expression.isOperation());
+
+		// Vector variable reference.
+		if (expression.isReferenceAccess())
+		{
+			// Compute the IDA offset of the variable in the 1D array variablesVector.
+			Variable var = model.getVariable(expression.getReferredVectorAccess());
+			assert(indexOffsetMap.find(var) != indexOffsetMap.end());
+			mlir::Value offset = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, indexOffsetMap[var]));
+
+			// Compute the access offset based on the induction variables of the
+			// for-equation.
+			VectorAccess vectorAccess = AccessToVar::fromExp(expression).getAccess();
+			std::vector<std::pair<int64_t, int64_t>> access;
+
+			for (auto& acc : vectorAccess.getMappingOffset())
+			{
+				int64_t accOffset = acc.isDirectAccess() ? acc.getOffset() : acc.getOffset() + 1;
+				int64_t accInduction = acc.isOffset() ? acc.getInductionVar() : -1;
+				access.push_back({ accOffset, accInduction });
+			}
+
+			// Compute the multi-dimensional offset of the array.
+			marco::MultiDimInterval dimensions = var.toMultiDimInterval();
+			std::vector<int64_t> dims;
+			for (size_t i = 1; i < dimensions.dimensions(); i++)
+			{
+				for (size_t j = 0; j < dims.size(); j++)
+					dims[j] *= dimensions.at(i).size();
+				dims.push_back(dimensions.at(i).size());
+			}
+			dims.push_back(1);
+
+			// Add accesses and dimensions of the variable to the ida user data.
+			mlir::Value acc = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[0].first));
+			mlir::Value ind = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[0].second));
+			mlir::Value index = builder.create<AddNewLambdaAccessOp>(loc, userData, acc, ind);
+
+			for (size_t i = 1; i < access.size(); i++)
+			{
+				acc = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[i].first));
+				ind = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[i].second));
+				builder.create<AddLambdaAccessOp>(loc, userData, index, acc, ind);
+			}
+
+			for (size_t i = 0; i < dims.size(); i++)
+			{
+				mlir::Value dim = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, dims[i]));
+				builder.create<AddLambdaDimensionOp>(loc, userData, index, dim);
+			}
+
+			assert(access.size() == dims.size());
+
+			if (var.isDerivative())
+				return builder.create<LambdaVectorDerivativeOp>(loc, userData, offset, index);
+			else
+				return builder.create<LambdaVectorVariableOp>(loc, userData, offset, index);
+		}
+
+		// Get the lambda functions to compute the values of all the children.
+		std::vector<mlir::Value> children;
+		for (size_t i : marco::irange(expression.childrenCount()))
+			children.push_back(getFunction(builder, loc, model, userData, initialValueMap, indexOffsetMap, expression.getChild(i)));
+
+		if (mlir::isa<AddOp>(definingOp))
+			return builder.create<LambdaAddOp>(loc, userData, children[0], children[1]);
+
+		if (mlir::isa<SubOp>(definingOp))
+			return builder.create<LambdaSubOp>(loc, userData, children[0], children[1]);
+
+		if (mlir::isa<MulOp>(definingOp))
+			return builder.create<LambdaMulOp>(loc, userData, children[0], children[1]);
+
+		if (mlir::isa<DivOp>(definingOp))
+			return builder.create<LambdaDivOp>(loc, userData, children[0], children[1]);
+
+		if (mlir::isa<PowOp>(definingOp))
+			return builder.create<LambdaPowOp>(loc, userData, children[0], children[1]);
+
+		if (mlir::isa<NegateOp>(definingOp))
+			return builder.create<LambdaNegateOp>(loc, userData, children[0]);
+
+		if (mlir::isa<AbsOp>(definingOp))
+			return builder.create<LambdaAbsOp>(loc, userData, children[0]);
+
+		if (mlir::isa<SignOp>(definingOp))
+			return builder.create<LambdaSignOp>(loc, userData, children[0]);
+
+		if (mlir::isa<SqrtOp>(definingOp))
+			return builder.create<LambdaSqrtOp>(loc, userData, children[0]);
+
+		if (mlir::isa<ExpOp>(definingOp))
+			return builder.create<LambdaExpOp>(loc, userData, children[0]);
+
+		if (mlir::isa<LogOp>(definingOp))
+			return builder.create<LambdaLogOp>(loc, userData, children[0]);
+
+		if (mlir::isa<Log10Op>(definingOp))
+			return builder.create<LambdaLog10Op>(loc, userData, children[0]);
+
+		if (mlir::isa<SinOp>(definingOp))
+			return builder.create<LambdaSinOp>(loc, userData, children[0]);
+
+		if (mlir::isa<CosOp>(definingOp))
+			return builder.create<LambdaCosOp>(loc, userData, children[0]);
+
+		if (mlir::isa<TanOp>(definingOp))
+			return builder.create<LambdaTanOp>(loc, userData, children[0]);
+
+		if (mlir::isa<AsinOp>(definingOp))
+			return builder.create<LambdaAsinOp>(loc, userData, children[0]);
+
+		if (mlir::isa<AcosOp>(definingOp))
+			return builder.create<LambdaAcosOp>(loc, userData, children[0]);
+
+		if (mlir::isa<AtanOp>(definingOp))
+			return builder.create<LambdaAtanOp>(loc, userData, children[0]);
+
+		if (mlir::isa<SinhOp>(definingOp))
+			return builder.create<LambdaSinhOp>(loc, userData, children[0]);
+
+		if (mlir::isa<CoshOp>(definingOp))
+			return builder.create<LambdaCoshOp>(loc, userData, children[0]);
+
+		if (mlir::isa<TanhOp>(definingOp))
+			return builder.create<LambdaTanhOp>(loc, userData, children[0]);
+
+		// TODO: Handle CallOp
+
+		assert(false && "Unexpected operation");
+	}
+
 	static mlir::LogicalResult addIdaSolver(mlir::OpBuilder& builder, Model& model, mlir::ModuleOp moduleOp)
 	{
-		if (model.getBltBlocks().empty())
-			return mlir::success();
-
 		SimulationOp simulationOp = model.getOp();
+		mlir::MLIRContext* context = moduleOp.getContext();
 		YieldOp terminator = mlir::cast<YieldOp>(simulationOp.init().back().getTerminator());
 		builder.setInsertionPoint(terminator);
 		mlir::Location loc = terminator.getLoc();
 
 		// Allocate IDA user data.
-		mlir::Value neq = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(moduleOp.getContext(), computeNEQ(model)));
-		mlir::Value nnz = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(moduleOp.getContext(), computeNNZ(model)));
+		int64_t equationsNumber = computeNEQ(model);
+		mlir::Value neq = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, equationsNumber));
+		mlir::Value nnz = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, computeNNZ(model)));
 		mlir::Value userData = builder.create<AllocUserDataOp>(loc, neq, nnz);
 
-		mlir::Value startTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(moduleOp.getContext(), simulationOp.startTime().getValue()));
-		mlir::Value stopTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(moduleOp.getContext(), simulationOp.endTime().getValue()));
+		mlir::Value startTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.startTime().getValue()));
+		mlir::Value stopTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.endTime().getValue()));
 		builder.create<AddTimeOp>(loc, userData, startTime, stopTime);
 
-		mlir::Value relTol = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(moduleOp.getContext(), simulationOp.relTol().getValue()));
-		mlir::Value absTol = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(moduleOp.getContext(), simulationOp.absTol().getValue()));
+		mlir::Value relTol = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.relTol().getValue()));
+		mlir::Value absTol = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.absTol().getValue()));
 		builder.create<AddToleranceOp>(loc, userData, relTol, absTol);
 
-		// TODO
 		// Initialize IDA user data.
+		int64_t rowLength = 0;
+		int64_t problemSize = 0;
+		std::map<model::Variable, double> initialValueMap;
+		std::map<model::Variable, int64_t> indexOffsetMap;
+
+		// TODO: Add different value handling for initialization
+
+		// Map all vector variables to their initial value.
+		model.getOp().init().walk([&](FillOp fillOp) {
+			if (!model.hasVariable(fillOp.memory()))
+				return;
+
+			Variable var = model.getVariable(fillOp.memory());
+
+			mlir::Operation* op = fillOp.value().getDefiningOp();
+			ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
+			double value = getValue(constantOp);
+
+			initialValueMap[var] = value;
+			assert(!var.isDerivative());
+			if (var.isState())
+				initialValueMap[model.getVariable(var.getDer())] = value;
+		});
+
+		// Map all scalar variables to their initial value.
+		model.getOp().init().walk([&](AssignmentOp assignmentOp) {
+			mlir::Operation* op = assignmentOp.destination().getDefiningOp();
+			SubscriptionOp subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op);
+
+			if (!model.hasVariable(subscriptionOp.source()))
+				return;
+
+			Variable var = model.getVariable(subscriptionOp.source());
+
+			op = assignmentOp.source().getDefiningOp();
+			ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
+			double value = getValue(constantOp);
+
+			initialValueMap[var] = value;
+			assert(!var.isDerivative());
+			if (var.isState())
+				initialValueMap[model.getVariable(var.getDer())] = value;
+		});
+
+		for (BltBlock& bltBlock : model.getBltBlocks())
+		{
+			for (Equation& equation : bltBlock.getEquations())
+			{
+				// Get the variable matched with every equation.
+				Variable var = model.getVariable(equation.getDeterminedVariable().getVar());
+
+				assert(!var.isTrivial());
+
+				// If the variable has not been insterted yet, initialize it.
+				if (indexOffsetMap.find(var) == indexOffsetMap.end())
+				{
+					// Note the variable offset from the beginning of the variable array.
+					indexOffsetMap[var] = rowLength;
+
+					if (var.isState())
+						indexOffsetMap[model.getVariable(var.getDer())] = rowLength;
+					else if (var.isDerivative())
+						indexOffsetMap[model.getVariable(var.getState())] = rowLength;
+
+					// Initialize variablesValues, derivativesValues, idValues.
+					mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, rowLength));
+					mlir::Value length = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, var.toMultiDimInterval().size()));
+					mlir::Value value = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, initialValueMap[var]));
+					mlir::Value isState = builder.create<ConstantValueOp>(loc, ida::BooleanAttribute::get(context, var.isState() || var.isDerivative()));
+					builder.create<SetInitialValueOp>(loc, userData, index, length, value, isState);
+
+					// Increase the length of the current row.
+					rowLength += var.toMultiDimInterval().size();
+				}
+			}
+
+			// Initialize UserData with all parameters needed by IDA.
+			for (Equation& equation : bltBlock.getEquations())
+			{
+				// RowLength
+				mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, rowLength));
+				builder.create<AddRowLengthOp>(loc, userData, index);
+
+				// Dimension
+				for (marco::Interval& interval : equation.getInductions())
+				{
+					mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, problemSize));
+					mlir::Value min = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.min()));
+					mlir::Value max = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.max()));
+					builder.create<AddDimensionOp>(loc, userData, index, min, max);
+				}
+
+				// Residual and Jacobian
+				mlir::Value leftIndex = getFunction(builder, loc, model, userData, initialValueMap, indexOffsetMap, equation.lhs());
+				mlir::Value rightIndex = getFunction(builder, loc, model, userData, initialValueMap, indexOffsetMap, equation.rhs());
+				builder.create<AddResidualOp>(loc, userData, leftIndex, rightIndex);
+				builder.create<AddJacobianOp>(loc, userData, leftIndex, rightIndex);
+
+				problemSize++;
+			}
+		}
+
+		assert(rowLength == equationsNumber);
+
+		initialValueMap.clear();
+		indexOffsetMap.clear();
+
+		builder.create<InitOp>(loc, userData);
+
+		// Add userData inside the returned pointer in second position
+		mlir::Value userDataAlloc = builder.create<AllocOp>(loc, ida::OpaquePointerType::get(context), llvm::None, llvm::None, false, false);
+		builder.create<StoreOp>(loc, userData, userDataAlloc);
+
+		llvm::SmallVector<mlir::Value, 3> args = terminator.values();
+		args.insert(args.begin() + 1, userDataAlloc);
+		builder.create<YieldOp>(terminator.getLoc(), args);
+		terminator->erase();
 
 		for (BltBlock& bltBlock : model.getBltBlocks())
 			for (Equation& equation : bltBlock.getEquations())

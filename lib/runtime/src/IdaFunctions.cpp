@@ -270,13 +270,19 @@ bool freeIdaUserData(void *userData)
 /**
  * Set the initial value of the index-th variable and if it is a state variable.
  */
-void setInitialValue(void *userData, int64_t index, double value, bool isState)
+void setInitialValue(
+		void *userData, int64_t index, int64_t length, double value, bool isState)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
 
-	data->variablesValues[index] = value;
-	data->derivativesValues[index] = 0.0;
-	data->idValues[index] = isState ? 1.0 : 0.0;
+	realtype idValue = isState ? 1.0 : 0.0;
+
+	for (int64_t i = 0; i < length; i++)
+	{
+		data->variablesValues[index + i] = value;
+		data->derivativesValues[index + i] = 0.0;
+		data->idValues[index + i] = idValue;
+	}
 }
 
 /**
@@ -287,6 +293,9 @@ void setInitialValue(void *userData, int64_t index, double value, bool isState)
 bool idaInit(void *userData)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
+
+	if (data->equationsNumber == 0)
+		return true;
 
 	// Initialize IDA memory.
 	data->idaMemory = IDACreate();
@@ -356,6 +365,9 @@ bool idaInit(void *userData)
 bool idaStep(void *userData)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
+
+	if (data->equationsNumber == 0)
+		return true;
 
 	// Execute one step
 	int retval = IDASolve(
@@ -480,6 +492,11 @@ void addJacobian(void *userData, int64_t leftIndex, int64_t rightIndex)
 double getIdaTime(void *userData)
 {
 	IdaUserData *data = static_cast<IdaUserData *>(userData);
+
+	// Return the stop time if the whole system is trivial.
+	if (data->equationsNumber == 0)
+		return data->stopTime;
+
 	return data->time;
 }
 
