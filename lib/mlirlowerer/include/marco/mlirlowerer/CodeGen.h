@@ -60,7 +60,6 @@ namespace marco::codegen
 	};
 
 	struct ModelicaCodegenOptions {
-	    VariableFilter variableFilter = VariableFilter();
 
 	    static const ModelicaCodegenOptions& getDefaultOptions()
 	    {

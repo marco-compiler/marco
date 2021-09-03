@@ -628,6 +628,8 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
             llvm::SmallVector<mlir::Value, 3> valuesToBePrinted;
 
 			//RETRIEVE THE NAMES
+
+			modelica::VariableFilter variableFilter = options.variableFilter; // get variable filter state
             mlir::ArrayRef<mlir::Attribute> variableNames = op.variableNames().getValue();
             std::vector<std::string> variableNamesVector;
             for (const mlir::Attribute &item : variableNames) {
