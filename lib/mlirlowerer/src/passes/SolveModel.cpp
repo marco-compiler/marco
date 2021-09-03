@@ -21,6 +21,7 @@ using namespace codegen;
 using namespace model;
 using namespace modelica;
 
+//TODO x2
 struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 {
 	using mlir::OpRewritePattern<SimulationOp>::OpRewritePattern;
@@ -105,7 +106,7 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 				}
 
 				{
-					/* Fix print argument
+					/* Fix print argument TODO
 					auto originalArgument = op.print().getArgument(index);
 					auto newArgument = op.print().insertArgument(index + 1, value.getType().cast<ArrayType>().toUnknownAllocationScope());
 					originalArgument.replaceAllUsesWith(newArgument);
@@ -127,11 +128,14 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 		auto result = rewriter.create<SimulationOp>(op->getLoc(),op.variableNames(), op.startTime(), op.endTime(), op.timeStep(), op.body().getArgumentTypes());
 		rewriter.mergeBlocks(&op.init().front(), &result.init().front(), result.init().getArguments());
 		rewriter.mergeBlocks(&op.body().front(), &result.body().front(), result.body().getArguments());
+		/* no yield op
+        rewriter.setInsertionPointToStart(&result.body().front());
+        rewriter.create<YieldOp>(op->getLoc()); */
 
 		//AL rewriter.mergeBlocks(&op.print().front(), &result.print().front(), result.print().getArguments());
 
-		//rewriter.setInsertionPointToStart(&result.body().front());
-		//rewriter.create<YieldOp>(op->getLoc());
+		//rewriter.setInsertionPointToStart(&result.body().front()); (copied upwards)
+		//rewriter.create<YieldOp>(op->getLoc()); TODO
 
 		rewriter.eraseOp(op);
 		return mlir::success();
@@ -341,6 +345,7 @@ struct ForEquationOpScalarizePattern : public mlir::OpRewritePattern<ForEquation
 	}
 };
 
+//TODO x1
 struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 {
 	DerOpPattern(mlir::MLIRContext* context, Model& model, mlir::BlockAndValueMapping& derivatives)
@@ -410,7 +415,7 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 			auto newArgumentType = derVar.getType().cast<ArrayType>().toUnknownAllocationScope();
 			auto bodyArgument = simulation.body().addArgument(newArgumentType);
 
-			//AL simulation.print().addArgument(newArgumentType);
+			//AL simulation.print().addArgument(newArgumentType); TODO
 
 			derivatives->map(operand, bodyArgument);
 		}
@@ -450,8 +455,10 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 	mlir::BlockAndValueMapping* derivatives;
 };
 
+//TODO x1 - //print function
 struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 {
+    //Constructor
 	SimulationOpPattern(mlir::MLIRContext* ctx,
 											TypeConverter& typeConverter,
 											SolveModelOptions options)
@@ -459,9 +466,10 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 				options(std::move(options))
 	{
 	}
+
 	mlir::LogicalResult matchAndRewrite(SimulationOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		mlir::Location loc = op->getLoc();
+		mlir::Location loc = op->getLoc(); //In MLIR, every operation has a mandatory source location associated with it
 
 		llvm::SmallVector<mlir::Type, 3> varTypes;
 
@@ -605,7 +613,7 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 
 		{
 			// Print function
-			auto function = rewriter.create<mlir::FuncOp>(
+			auto function = rewriter.create<mlir::FuncOp>( //given the insertion point create an Operation of type FuncOp
 					loc, "print",
 					rewriter.getFunctionType(opaquePtrType, llvm::None));
 
@@ -614,23 +622,52 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 			mlir::OpBuilder::InsertionGuard guard(rewriter);
 			rewriter.setInsertionPointToStart(entryBlock);
 
+			//Loaded with values from 'Main'
 			mlir::Value structValue = loadDataFromOpaquePtr(rewriter, loc, function.getArgument(0), structType);
-			mlir::BlockAndValueMapping mapping;
 
-			//AL mapping.map(op.print().getArgument(0), rewriter.create<ExtractOp>(loc, varTypes[0], structValue, 0));
+            llvm::SmallVector<mlir::Value, 3> valuesToBePrinted;
+
+			//RETRIEVE THE NAMES
+            mlir::ArrayRef<mlir::Attribute> variableNames = op.variableNames().getValue();
+            std::vector<std::string> variableNamesVector;
+            for (const mlir::Attribute &item : variableNames) {
+                auto stringAttribute = item.cast<mlir::StringAttr>();
+                std::string variableIdentifier = stringAttribute.getValue().str();
+                variableNamesVector.emplace_back(variableIdentifier);
+            }
+
+            //all variables
+
+            mlir::Value time = rewriter.create<ExtractOp>(loc, varTypes[0], structValue, 0);
+            valuesToBePrinted.push_back(time); //0.00 0.10 0.20 and so on
+            /* OLD CODE:
+             * for (size_t i = 2, e = structType.getElementTypes().size(); i < e; ++i)
+				mapping.map(op.print().getArgument(i - 1), rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i));
+             */
+
+            //Values are in the struct, let's fetch them
+            for (size_t i = 2; i<structType.getElementTypes().size(); ++i) {
+                mlir::Value extracted = rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i);
+                valuesToBePrinted.push_back(extracted);
+            }
+
+            rewriter.create<PrintOp>(loc, valuesToBePrinted);
+            rewriter.create<mlir::ReturnOp>(loc);
+
+            /* {
+
+			mapping.map( ??????? , rewriter.create<ExtractOp>(loc, varTypes[0], structValue, 0));
 
 			for (size_t i = 2, e = structType.getElementTypes().size(); i < e; ++i)
-                //AL mapping.map(op.print().getArgument(i - 1), rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i));
+                mapping.map(??????? , rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i));
 
-			//AL auto terminator = mlir::cast<YieldOp>(op.print().front().getTerminator());
-			llvm::SmallVector<mlir::Value, 3> valuesToBePrinted;
+			auto terminator = mlir::cast<YieldOp>(op.print().front().getTerminator());
 
-			/* AL for (mlir::Value value : terminator.values())
-				valuesToBePrinted.push_back(mapping.lookup(value));
 
-			rewriter.create<PrintOp>(loc, valuesToBePrinted); */
+			for (mlir::Value value : terminator.values())
+				valuesToBePrinted.push_back(mapping.lookup(value));  }*/
 
-			rewriter.create<mlir::ReturnOp>(loc);
+
 		}
 
 		if (options.emitMain)
@@ -834,7 +871,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			return signalPassFailure();
 
 		// Convert the scalar values into arrays of one element
-		if (failed(loopify()))
+		if (failed(loopify())) //TODO FIX
 			return signalPassFailure();
 
 		getOperation()->walk([&](SimulationOp simulation) {
@@ -845,7 +882,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			mlir::BlockAndValueMapping derivatives;
 
 			// Remove the derivative operations and allocate the appropriate buffers
-			if (failed(removeDerivatives(builder, model, derivatives)))
+			if (failed(removeDerivatives(builder, model, derivatives))) //TODO FIX
 				return signalPassFailure();
 
 			// Match
@@ -872,7 +909,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		// The model has been solved and we can now proceed to create the update
 		// functions and, if requested, the main simulation loop.
-		if (auto status = createSimulationFunctions(); failed(status))
+		if (auto status = createSimulationFunctions(); failed(status)) //TODO FIX
 			return signalPassFailure();
 	}
 
