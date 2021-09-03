@@ -644,7 +644,7 @@ mlir::Value GetTimeOp::userData()
 
 void GetVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index)
 {
-	state.addTypes(RealType::get(builder.getContext()));
+	state.addTypes(marco::codegen::modelica::RealType::get(builder.getContext()));
 	state.addOperands(userData);
 	state.addOperands(index);
 }
