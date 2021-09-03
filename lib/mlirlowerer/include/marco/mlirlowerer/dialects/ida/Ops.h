@@ -58,6 +58,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value neq, mlir::Value nnz);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -88,6 +89,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -117,6 +119,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value value, mlir::Value isState);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -149,6 +152,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -178,6 +182,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -207,6 +212,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value start, mlir::Value stop);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -237,6 +243,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value relTol, mlir::Value absTol);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -267,6 +274,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value rowLength);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -296,6 +304,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value min, mlir::Value max);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -327,6 +336,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -357,6 +367,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -387,6 +398,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -416,6 +428,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -446,6 +459,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value indices);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -477,6 +491,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value offset, mlir::Value indices);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -508,6 +523,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value dimension);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -538,6 +554,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value constant);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -568,6 +585,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -597,6 +615,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -627,6 +646,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -657,6 +677,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value index);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -688,6 +709,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value index);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -719,6 +741,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -750,6 +773,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -781,6 +805,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -812,6 +837,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -843,6 +869,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -874,6 +901,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -904,6 +932,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -934,6 +963,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -964,6 +994,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -994,6 +1025,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -1024,6 +1056,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -1054,6 +1087,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -1084,6 +1118,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -1114,6 +1149,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -1144,6 +1180,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -1174,6 +1211,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -1204,6 +1242,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -1234,6 +1273,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -1264,6 +1304,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -1294,6 +1335,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
@@ -1324,6 +1366,7 @@ namespace marco::codegen::ida
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
 
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
