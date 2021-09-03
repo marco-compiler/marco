@@ -645,10 +645,18 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 				mapping.map(op.print().getArgument(i - 1), rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i));
              */
 
+            std::map<std::string, mlir::Value> nameValueMap;
+
             //Values are in the struct, let's fetch them
             for (size_t i = 2; i<structType.getElementTypes().size(); ++i) {
-                mlir::Value extracted = rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i);
-                valuesToBePrinted.push_back(extracted);
+                if (i-2 < variableNamesVector.size()) {
+                    std::string name = variableNamesVector[i-2];
+
+                    mlir::Value extracted = rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i);
+                    nameValueMap.insert(std::pair<std::string,mlir::Value>(name,extracted)); //match a variable name with corresponding mlir::Value
+                    valuesToBePrinted.push_back(extracted); // for now: print only variables (not derivatives)
+                }
+
             }
 
             rewriter.create<PrintOp>(loc, valuesToBePrinted);
