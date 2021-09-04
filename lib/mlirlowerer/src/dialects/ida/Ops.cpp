@@ -1680,6 +1680,69 @@ mlir::Value LambdaPowOp::rightIndex()
 }
 
 //===----------------------------------------------------------------------===//
+// Ida::LambdaAtan2Op
+//===----------------------------------------------------------------------===//
+
+void LambdaAtan2Op::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(leftIndex);
+	state.addOperands(rightIndex);
+}
+
+mlir::ParseResult LambdaAtan2Op::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 3);
+}
+
+void LambdaAtan2Op::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+mlir::LogicalResult LambdaAtan2Op::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!leftIndex().getType().isa<IntegerType>() || !rightIndex().getType().isa<IntegerType>())
+		return emitOpError("Requires left and right lambda indexes to be integers");
+
+	return mlir::success();
+}
+
+void LambdaAtan2Op::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaAtan2Op::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaAtan2Op::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaAtan2Op::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaAtan2Op::leftIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value LambdaAtan2Op::rightIndex()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
 // Ida::LambdaNegateOp
 //===----------------------------------------------------------------------===//
 

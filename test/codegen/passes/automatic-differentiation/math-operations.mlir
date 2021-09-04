@@ -81,8 +81,7 @@ modelica.function @mul(%arg0 : !modelica.real, %arg1 : !modelica.real) -> (!mode
 // CHECK: %[[TMP0:[a-zA-Z0-9]*]] = modelica.mul %[[DER_X]], %[[Y]] : (!modelica.real, !modelica.real) -> !modelica.real
 // CHECK: %[[TMP1:[a-zA-Z0-9]*]] = modelica.mul %[[X]], %[[DER_Y]] : (!modelica.real, !modelica.real) -> !modelica.real
 // CHECK: %[[NUM:[a-zA-Z0-9]*]] = modelica.sub %[[TMP0]], %[[TMP1]] : (!modelica.real, !modelica.real) -> !modelica.real
-// CHECK: %[[TWO:[a-zA-Z0-9]*]] = modelica.constant #modelica.real<2.000000>
-// CHECK: %[[DEN:[a-zA-Z0-9]*]] = modelica.pow %[[Y]], %[[TWO]] : (!modelica.real, !modelica.real) -> !modelica.real
+// CHECK: %[[DEN:[a-zA-Z0-9]*]] = modelica.mul %[[Y]], %[[Y]] : (!modelica.real, !modelica.real) -> !modelica.real
 // CHECK: %[[RESULT:[a-zA-Z0-9]*]] = modelica.div %[[NUM]], %[[DEN]] : (!modelica.real, !modelica.real) -> !modelica.real
 // CHECK: modelica.member_store %[[DER_Z]], %[[RESULT]]
 

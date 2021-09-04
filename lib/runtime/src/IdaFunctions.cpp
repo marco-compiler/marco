@@ -961,6 +961,7 @@ int64_t lambdaPow(void *userData, int64_t baseIndex, int64_t exponentIndex)
 	Function base = data->lambdas[baseIndex].first;
 	Function exponent = data->lambdas[exponentIndex].first;
 	Function derBase = data->lambdas[baseIndex].second;
+	Function derExponent = data->lambdas[exponentIndex].second;
 
 	Function first = [base, exponent](
 											 double tt,
@@ -973,17 +974,55 @@ int64_t lambdaPow(void *userData, int64_t baseIndex, int64_t exponentIndex)
 				base(tt, cj, yy, yp, ind, var), exponent(tt, cj, yy, yp, ind, var));
 	};
 
-	Function second = [base, exponent, derBase](
+	Function second = [base, exponent, derBase, derExponent](
 												double tt,
 												double cj,
 												double *yy,
 												double *yp,
 												Indexes &ind,
 												double var) -> double {
+		double baseValue = base(tt, cj, yy, yp, ind, var);
 		double exponentValue = exponent(tt, cj, yy, yp, ind, var);
-		return exponentValue *
-					 std::pow(base(tt, cj, yy, yp, ind, var), exponentValue) *
-					 derBase(tt, cj, yy, yp, ind, var);
+		return std::pow(baseValue, exponentValue) *
+					 (derExponent(tt, cj, yy, yp, ind, var) * std::log(baseValue) +
+						exponentValue * derBase(tt, cj, yy, yp, ind, var) / baseValue);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+int64_t lambdaAtan2(void *userData, int64_t yIndex, int64_t xIndex)
+{
+	IdaUserData *data = static_cast<IdaUserData *>(userData);
+
+	Function y = data->lambdas[yIndex].first;
+	Function x = data->lambdas[xIndex].first;
+	Function derY = data->lambdas[yIndex].second;
+	Function derX = data->lambdas[xIndex].second;
+
+	Function first = [y, x](
+											 double tt,
+											 double cj,
+											 double *yy,
+											 double *yp,
+											 Indexes &ind,
+											 double var) -> double {
+		return std::atan2(y(tt, cj, yy, yp, ind, var), x(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [y, x, derY, derX](
+												double tt,
+												double cj,
+												double *yy,
+												double *yp,
+												Indexes &ind,
+												double var) -> double {
+		double yValue = y(tt, cj, yy, yp, ind, var);
+		double xValue = x(tt, cj, yy, yp, ind, var);
+		return (derY(tt, cj, yy, yp, ind, var) * xValue -
+						yValue * derX(tt, cj, yy, yp, ind, var)) /
+					 (yValue * yValue + xValue * xValue);
 	};
 
 	data->lambdas.push_back({ std::move(first), std::move(second) });
@@ -1169,7 +1208,7 @@ int64_t lambdaLog10(void *userData, int64_t operandIndex)
 												Indexes &ind,
 												double var) -> double {
 		return derOperand(tt, cj, yy, yp, ind, var) /
-					 operand(tt, cj, yy, yp, ind, var) / std::log(10);
+					 (operand(tt, cj, yy, yp, ind, var) * std::log(10));
 	};
 
 	data->lambdas.push_back({ std::move(first), std::move(second) });
@@ -1264,9 +1303,9 @@ int64_t lambdaTan(void *userData, int64_t operandIndex)
 												double *yp,
 												Indexes &ind,
 												double var) -> double {
-		double tanOperandValue = std::tan(operand(tt, cj, yy, yp, ind, var));
-		return (1 + tanOperandValue * tanOperandValue) *
-					 derOperand(tt, cj, yy, yp, ind, var);
+		double cosOperandValue = std::cos(operand(tt, cj, yy, yp, ind, var));
+		return derOperand(tt, cj, yy, yp, ind, var) /
+					 (cosOperandValue * cosOperandValue);
 	};
 
 	data->lambdas.push_back({ std::move(first), std::move(second) });
@@ -1460,9 +1499,9 @@ int64_t lambdaTanh(void *userData, int64_t operandIndex)
 												double *yp,
 												Indexes &ind,
 												double var) -> double {
-		double tanhOperandValue = std::tanh(operand(tt, cj, yy, yp, ind, var));
-		return (1 - tanhOperandValue * tanhOperandValue) *
-					 derOperand(tt, cj, yy, yp, ind, var);
+		double coshOperandValue = std::cosh(operand(tt, cj, yy, yp, ind, var));
+		return derOperand(tt, cj, yy, yp, ind, var) /
+					 (coshOperandValue * coshOperandValue);
 	};
 
 	data->lambdas.push_back({ std::move(first), std::move(second) });

@@ -66,6 +66,7 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 			LambdaAsinOp,
 			LambdaAcosOp,
 			LambdaAtanOp,
+			LambdaAtan2Op,
 			LambdaSinhOp,
 			LambdaCoshOp,
 			LambdaTanhOp>();

@@ -5916,8 +5916,7 @@ mlir::ValueRange DivOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapp
 	mlir::Value firstMul = builder.create<MulOp>(loc, type, derivedLhs, rhs());
 	mlir::Value secondMul = builder.create<MulOp>(loc, type, lhs(), derivedRhs);
 	mlir::Value numerator = builder.create<SubOp>(loc, type, firstMul, secondMul);
-	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value denominator = builder.create<PowOp>(loc, convertToRealType(rhs().getType()), rhs(), two);
+	mlir::Value denominator = builder.create<MulOp>(loc, convertToRealType(rhs().getType()), rhs(), rhs());
 	auto derivedOp = builder.create<DivOp>(loc, type, numerator, denominator);
 
 	return derivedOp->getResults();
@@ -6146,8 +6145,7 @@ mlir::ValueRange DivElementWiseOp::derive(mlir::OpBuilder& builder, mlir::BlockA
 	mlir::Value firstMul = builder.create<MulElementWiseOp>(loc, type, derivedLhs, rhs());
 	mlir::Value secondMul = builder.create<MulElementWiseOp>(loc, type, lhs(), derivedRhs);
 	mlir::Value numerator = builder.create<SubElementWiseOp>(loc, type, firstMul, secondMul);
-	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value denominator = builder.create<PowElementWiseOp>(loc, convertToRealType(rhs().getType()), rhs(), two);
+	mlir::Value denominator = builder.create<MulElementWiseOp>(loc, convertToRealType(rhs().getType()), rhs(), rhs());
 	auto derivedOp = builder.create<DivElementWiseOp>(loc, type, numerator, denominator);
 
 	return derivedOp->getResults();
@@ -7000,8 +6998,7 @@ mlir::ValueRange TanOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapp
 	bool elementWise = derivedOperand.getType().isa<ArrayType>();
 
 	mlir::Value cos = builder.create<CosOp>(loc, type, operand());
-	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value denominator = builder.create<PowElementWiseOp>(loc, type, cos, two);
+	mlir::Value denominator = builder.create<MulElementWiseOp>(loc, type, cos, cos);
 	auto derivedOp = builder.create<DivElementWiseOp>(loc, type, derivedOperand, denominator);
 
 	return derivedOp->getResults();
@@ -7105,8 +7102,7 @@ mlir::ValueRange AsinOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 	mlir::Type type = convertToRealType(resultType());
 
 	mlir::Value one = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 1));
-	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value argSquared = builder.create<PowElementWiseOp>(loc, type, operand(), two);
+	mlir::Value argSquared = builder.create<MulElementWiseOp>(loc, type, operand(), operand());
 	mlir::Value sub = builder.create<SubElementWiseOp>(loc, type, one, argSquared);
 	mlir::Value denominator = builder.create<SqrtOp>(loc, type, sub);
 	auto derivedOp = builder.create<DivElementWiseOp>(loc, type, derivedOperand, denominator);
@@ -7212,8 +7208,7 @@ mlir::ValueRange AcosOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 	mlir::Type type = convertToRealType(resultType());
 
 	mlir::Value one = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 1));
-	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value argSquared = builder.create<PowElementWiseOp>(loc, type, operand(), two);
+	mlir::Value argSquared = builder.create<MulElementWiseOp>(loc, type, operand(), operand());
 	mlir::Value sub = builder.create<SubElementWiseOp>(loc, type, one, argSquared);
 	mlir::Value denominator = builder.create<SqrtOp>(loc, type, sub);
 	mlir::Value div = builder.create<DivElementWiseOp>(loc, type, derivedOperand, denominator);
@@ -7320,8 +7315,7 @@ mlir::ValueRange AtanOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 	mlir::Type type = convertToRealType(resultType());
 
 	mlir::Value one = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 1));
-	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value argSquared = builder.create<PowElementWiseOp>(loc, type, operand(), two);
+	mlir::Value argSquared = builder.create<MulElementWiseOp>(loc, type, operand(), operand());
 	mlir::Value denominator = builder.create<AddElementWiseOp>(loc, type, one, argSquared);
 	auto derivedOp = builder.create<DivElementWiseOp>(loc, type, derivedOperand, denominator);
 
@@ -7435,7 +7429,37 @@ mlir::ValueRange Atan2Op::scalarize(mlir::OpBuilder& builder, mlir::ValueRange i
 	return op->getResults();
 }
 
-// TODO: derive
+mlir::ValueRange Atan2Op::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	// D[atan2(y, x)] = (y' * x - y * x') / (y^2 + x^2)
+
+	mlir::Location loc = getLoc();
+	mlir::Value derivedY = derivatives.lookup(y());
+	mlir::Value derivedX = derivatives.lookup(x());
+	mlir::Type type = convertToRealType(resultType());
+
+	mlir::Value firstMul = builder.create<MulElementWiseOp>(loc, type, derivedY, x());
+	mlir::Value secondMul = builder.create<MulElementWiseOp>(loc, type, y(), derivedX);
+	mlir::Value numerator = builder.create<SubElementWiseOp>(loc, type, firstMul, secondMul);
+
+	mlir::Value firstSquared = builder.create<MulElementWiseOp>(loc, type, y(), y());
+	mlir::Value secondSquared = builder.create<MulElementWiseOp>(loc, type, x(), x());
+	mlir::Value denominator = builder.create<AddElementWiseOp>(loc, type, firstSquared, secondSquared);
+	auto derivedOp = builder.create<DivElementWiseOp>(loc, type, numerator, denominator);
+
+	return derivedOp->getResults();
+}
+
+void Atan2Op::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+	toBeDerived.push_back(y());
+	toBeDerived.push_back(x());
+}
+
+void Atan2Op::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
 
 mlir::Type Atan2Op::resultType()
 {
@@ -7736,8 +7760,7 @@ mlir::ValueRange TanhOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 	mlir::Type type = convertToRealType(resultType());
 
 	mlir::Value cosh = builder.create<CoshOp>(loc, type, operand());
-	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
-	mlir::Value pow = builder.create<PowElementWiseOp>(loc, type, cosh, two);
+	mlir::Value pow = builder.create<MulElementWiseOp>(loc, type, cosh, cosh);
 	auto derivedOp = builder.create<DivElementWiseOp>(loc, type, derivedOperand, pow);
 
 	return derivedOp->getResults();

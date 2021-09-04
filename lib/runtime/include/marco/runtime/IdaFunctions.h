@@ -60,7 +60,8 @@ extern "C"
 	int64_t lambdaSub(void *userData, int64_t leftIndex, int64_t rightIndex);
 	int64_t lambdaMul(void *userData, int64_t leftIndex, int64_t rightIndex);
 	int64_t lambdaDiv(void *userData, int64_t leftIndex, int64_t rightIndex);
-	int64_t lambdaPow(void *userData, int64_t baseIndex, int64_t exponentIndex);
+	int64_t lambdaPow(void *userData, int64_t leftIndex, int64_t rightIndex);
+	int64_t lambdaAtan2(void *userData, int64_t leftIndex, int64_t rightIndex);
 
 	int64_t lambdaNegate(void *userData, int64_t operandIndex);
 	int64_t lambdaAbs(void *userData, int64_t operandIndex);

@@ -2150,6 +2150,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (mlir::isa<PowOp>(definingOp))
 			return builder.create<LambdaPowOp>(loc, userData, children[0], children[1]);
 
+		if (mlir::isa<Atan2Op>(definingOp))
+			return builder.create<LambdaAtan2Op>(loc, userData, children[0], children[1]);
+
 		if (mlir::isa<NegateOp>(definingOp))
 			return builder.create<LambdaNegateOp>(loc, userData, children[0]);
 
