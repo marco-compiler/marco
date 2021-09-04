@@ -455,6 +455,54 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 	mlir::BlockAndValueMapping* derivatives;
 };
 
+mlir::LLVM::LLVMFuncOp getOrInsertPrintf(mlir::OpBuilder& rewriter, mlir::ModuleOp module)
+{
+    auto *context = module.getContext();
+
+    if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>("printf"))
+        return foo;
+
+    // Create a function declaration for printf, the signature is:
+    //   * `i32 (i8*, ...)`
+    auto llvmI32Ty = mlir::IntegerType::get(context, 32);
+    auto llvmI8PtrTy = mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(context, 8));
+    auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmI8PtrTy, true);
+
+    // Insert the printf function into the body of the parent module.
+    mlir::PatternRewriter::InsertionGuard insertGuard(rewriter);
+    rewriter.setInsertionPointToStart(module.getBody());
+    return rewriter.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), "printf", llvmFnType);
+}
+
+mlir::Value getOrCreateGlobalString(mlir::Location loc, mlir::OpBuilder& builder, mlir::StringRef name, mlir::StringRef value, mlir::ModuleOp module)
+{
+    // Create the global at the entry of the module
+    mlir::LLVM::GlobalOp global;
+
+    if (!(global = module.lookupSymbol<mlir::LLVM::GlobalOp>(name)))
+    {
+        mlir::OpBuilder::InsertionGuard insertGuard(builder);
+        builder.setInsertionPointToStart(module.getBody());
+        auto type = mlir::LLVM::LLVMArrayType::get(mlir::IntegerType::get(builder.getContext(), 8), value.size());
+        global = builder.create<mlir::LLVM::GlobalOp>(loc, type, true, mlir::LLVM::Linkage::Internal, name, builder.getStringAttr(value));
+    }
+
+    // Get the pointer to the first character in the global string
+    mlir::Value globalPtr = builder.create<mlir::LLVM::AddressOfOp>(loc, global);
+
+    mlir::Value cst0 = builder.create<mlir::LLVM::ConstantOp>(
+            loc,
+            mlir::IntegerType::get(builder.getContext(), 64),
+            builder.getIntegerAttr(builder.getIndexType(), 0));
+
+    return builder.create<mlir::LLVM::GEPOp>(
+            loc,
+            mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(builder.getContext(), 8)),
+            globalPtr, llvm::ArrayRef<mlir::Value>({cst0, cst0}));
+}
+
+
+
 //TODO x1 - //print function
 struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 {
@@ -466,6 +514,48 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 				options(std::move(options))
 	{
 	}
+
+    [[nodiscard]] mlir::Value materializeTargetConversion(mlir::OpBuilder& builder, mlir::Value value) const
+    {
+        mlir::Type type = this->getTypeConverter()->convertType(value.getType());
+        return this->getTypeConverter()->materializeTargetConversion(builder, value.getLoc(), type, value);
+    }
+
+    void materializeTargetConversion(mlir::OpBuilder& builder, llvm::SmallVectorImpl<mlir::Value>& values) const
+    {
+        for (auto& value : values)
+            value = materializeTargetConversion(builder, value);
+    }
+
+    void printElement(mlir::OpBuilder& builder, mlir::Value value, mlir::Value printSeparator, mlir::Value separator, mlir::ModuleOp module) const
+    {
+        auto printfRef = getOrInsertPrintf(builder, module);
+
+        mlir::Type type = value.getType();
+
+        // Check if the separator should be printed
+        mlir::Value shouldPrintSeparator = builder.create<LoadOp>(printSeparator.getLoc(), printSeparator);
+        shouldPrintSeparator = materializeTargetConversion(builder, shouldPrintSeparator);
+        auto ifOp = builder.create<mlir::scf::IfOp>(value.getLoc(), shouldPrintSeparator);
+        builder.setInsertionPointToStart(ifOp.getBody());
+        builder.create<mlir::LLVM::CallOp>(value.getLoc(), printfRef, separator);
+        builder.setInsertionPointAfter(ifOp);
+
+        mlir::Value formatSpecifier;
+
+        if (type.isa<mlir::IntegerType>())
+            formatSpecifier = getOrCreateGlobalString(value.getLoc(), builder, "frmt_spec_int", mlir::StringRef("%ld\0", 4), module);
+        else if (type.isa<mlir::FloatType>())
+            formatSpecifier = getOrCreateGlobalString(value.getLoc(), builder, "frmt_spec_float", mlir::StringRef("%.12f\0", 6), module);
+        else
+            assert(false && "Unknown type");
+
+        builder.create<mlir::LLVM::CallOp>(value.getLoc(), printfRef, mlir::ValueRange({ formatSpecifier, value }));
+
+        // Set the separator as to be printed before the next value
+        mlir::Value trueValue = builder.create<ConstantOp>(value.getLoc(), BooleanAttribute::get(BooleanType::get(builder.getContext()), true));
+        builder.create<StoreOp>(value.getLoc(), trueValue, printSeparator);
+    }
 
 	mlir::LogicalResult matchAndRewrite(SimulationOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -661,7 +751,67 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 
             }
 
-            rewriter.create<PrintOp>(loc, valuesToBePrinted);
+            //rewriter.create<PrintOp>(loc, valuesToBePrinted);
+
+            auto module = op->getParentOfType<mlir::ModuleOp>();
+
+            auto printfRef = getOrInsertPrintf(rewriter, module);
+            mlir::Value semicolonCst = getOrCreateGlobalString(loc, rewriter, "semicolon", mlir::StringRef(";\0", 2), module);
+            mlir::Value newLineCst = getOrCreateGlobalString(loc, rewriter, "newline", mlir::StringRef("\n\0", 2), module);
+
+            mlir::Value printSeparator = rewriter.create<AllocaOp>(loc, BooleanType::get(op->getContext()));
+            mlir::Value falseValue = rewriter.create<ConstantOp>(loc, BooleanAttribute::get(BooleanType::get(op->getContext()), false));
+            rewriter.create<StoreOp>(loc, falseValue, printSeparator);
+
+            for (auto var : valuesToBePrinted) {
+
+                    if (auto arrayType = var.getType().dyn_cast<ArrayType>())
+                    {
+                        if (arrayType.getRank() > 0) {
+                            std::cout << "\t printing array rank > 0.." << std::endl;
+                            mlir::Location varLoc = var.getLoc();
+                            auto arrayTypeLocal = var.getType().cast<ArrayType>();
+
+                            mlir::Value zero = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(0));
+                            mlir::Value one = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(1));
+
+                            llvm::SmallVector<mlir::Value, 3> lowerBounds(arrayTypeLocal.getRank(), zero);
+                            llvm::SmallVector<mlir::Value, 3> upperBounds;
+                            llvm::SmallVector<mlir::Value, 3> steps(arrayTypeLocal.getRank(), one);
+
+                            for (unsigned int i = 0, e = arrayTypeLocal.getRank(); i < e; ++i)
+                            {
+                                mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(i));
+                                upperBounds.push_back(rewriter.create<DimOp>(varLoc, var, dim));
+                            }
+
+                            // Create nested loops in order to iterate on each dimension of the array
+                            mlir::scf::buildLoopNest(
+                                    rewriter, varLoc, lowerBounds, upperBounds, steps, llvm::None,
+                                    [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
+                                        //print element at 'position'
+                                        mlir::Value value = rewriter.create<LoadOp>(var.getLoc(), var, position);
+                                        value = materializeTargetConversion(rewriter, value);
+                                        printElement(rewriter, value, printSeparator, semicolonCst, module);
+                                        return std::vector<mlir::Value>();
+                                    });
+                        }
+                        else
+                        {
+                            std::cout << "\t printing single.." << std::endl;
+                            mlir::Value value = rewriter.create<LoadOp>(var.getLoc(), var);
+                            value = materializeTargetConversion(rewriter, value);
+                            printElement(rewriter, value, printSeparator, semicolonCst, module);
+                        }
+                    }
+                    else
+                    {
+                        //?? printElement(rewriter, transformed, printSeparator, semicolonCst, module);
+                    }
+            }
+
+            rewriter.create<mlir::LLVM::CallOp>(op.getLoc(), printfRef, newLineCst);
+
             rewriter.create<mlir::ReturnOp>(loc);
 
             /* {
