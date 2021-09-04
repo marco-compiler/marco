@@ -719,7 +719,9 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 
 			//RETRIEVE THE NAMES
 
-			modelica::VariableFilter variableFilter = options.variableFilter; // get variable filter state
+			modelica::VariableFilter variableFilter = *options.variableFilter; // get variable filter state
+			variableFilter.dump();
+
             mlir::ArrayRef<mlir::Attribute> variableNames = op.variableNames().getValue();
             std::vector<std::string> variableNamesVector;
             for (const mlir::Attribute &item : variableNames) {
@@ -767,8 +769,9 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 
                     if (auto arrayType = var.getType().dyn_cast<ArrayType>())
                     {
-                        if (arrayType.getRank() > 0) {
-                            std::cout << "\t printing array rank > 0.." << std::endl;
+                        unsigned int rank = arrayType.getRank();
+                        if (rank > 0) {
+                            std::cout << "\t printing array of rank " << rank<< std::endl;
                             mlir::Location varLoc = var.getLoc();
                             auto arrayTypeLocal = var.getType().cast<ArrayType>();
 
@@ -790,6 +793,8 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                                     rewriter, varLoc, lowerBounds, upperBounds, steps, llvm::None,
                                     [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
                                         //print element at 'position'
+                                        //
+                                        std::cout << "  printing element: [" << position.size() << std::endl;
                                         mlir::Value value = rewriter.create<LoadOp>(var.getLoc(), var, position);
                                         value = materializeTargetConversion(rewriter, value);
                                         printElement(rewriter, value, printSeparator, semicolonCst, module);
