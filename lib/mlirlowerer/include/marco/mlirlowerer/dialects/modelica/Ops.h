@@ -2920,7 +2920,8 @@ namespace marco::codegen::modelica
 	class Atan2Op : public mlir::Op<Atan2Op,
 																 mlir::OpTrait::NOperands<2>::Impl,
 																 mlir::OpTrait::OneResult,
-																 VectorizableOpInterface::Trait>
+																 VectorizableOpInterface::Trait,
+																DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -2939,6 +2940,10 @@ namespace marco::codegen::modelica
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		mlir::Type resultType();
 		mlir::Value y();

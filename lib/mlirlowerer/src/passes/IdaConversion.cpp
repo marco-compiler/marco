@@ -559,6 +559,12 @@ struct LambdaAtanOpLowering : public LambdaLikeLowering<LambdaAtanOp, LambdaAtan
 	static constexpr llvm::StringRef operationName = "lambdaAtan";
 };
 
+struct LambdaAtan2OpLowering : public LambdaLikeLowering<LambdaAtan2Op, LambdaAtan2OpLowering>
+{
+	using LambdaLikeLowering<LambdaAtan2Op, LambdaAtan2OpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaAtan2";
+};
+
 struct LambdaSinhOpLowering : public LambdaLikeLowering<LambdaSinhOp, LambdaSinhOpLowering>
 {
 	using LambdaLikeLowering<LambdaSinhOp, LambdaSinhOpLowering>::LambdaLikeLowering;
@@ -641,6 +647,7 @@ static void populateIdaConversionPatterns(
 			LambdaAsinOpLowering,
 			LambdaAcosOpLowering,
 			LambdaAtanOpLowering,
+			LambdaAtan2OpLowering,
 			LambdaSinhOpLowering,
 			LambdaCoshOpLowering,
 			LambdaTanhOpLowering>(context, typeConverter);

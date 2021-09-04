@@ -366,6 +366,9 @@ int64_t IdaSolver::getFunction(const Expression& expression)
 	if (mlir::isa<PowOp>(definingOp))
 		return lambdaPow(userData, children[0], children[1]);
 
+	if (mlir::isa<Atan2Op>(definingOp))
+		return lambdaAtan2(userData, children[0], children[1]);
+
 	if (mlir::isa<AbsOp>(definingOp))
 		return lambdaAbs(userData, children[0]);
 

@@ -881,6 +881,38 @@ namespace marco::codegen::ida
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Ida::LambdaAtan2Op
+	//===----------------------------------------------------------------------===//
+
+	class LambdaAtan2Op : public mlir::Op<LambdaAtan2Op,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<2>::Impl,
+																mlir::OpTrait::OneResult,
+																mlir::MemoryEffectOpInterface::Trait> 
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.lambda_atan2";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		IntegerType resultType();
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value leftIndex();
+		mlir::Value rightIndex();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Ida::LambdaNegateOp
 	//===----------------------------------------------------------------------===//
 
