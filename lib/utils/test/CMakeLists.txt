@@ -6,5 +6,6 @@ marcoAddTest(
    	src/IntervalTest.cpp
    	src/IRangeTest.cpp
    	src/ScopeGuard.cpp
-   	src/ThreadPoolTest.cpp)
+   	src/ThreadPoolTest.cpp
+	src/VariableFilterParserTest.cpp)
 

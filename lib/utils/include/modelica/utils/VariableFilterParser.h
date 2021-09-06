@@ -79,6 +79,10 @@ namespace modelica {
                 if ((inputString[i]) == ')') {
                     return tok_identifier;
                 }
+                if (inputString[i] == '[') {
+                    parsingArray = true;
+                    return tok_identifier;
+                }
                 //identifier: [a-zA-Z][a-zA-Z0-9]* or underscore
                 while (isValidIDChar((LastChar = inputString[i++]))) {    // keep reading until identifier stops
                     IdentifierStr += LastChar;
@@ -328,8 +332,21 @@ namespace modelica {
         explicit VariableFilterParser(string commandLineString)
                 : inputStringReference(std::move(commandLineString)) {
         }
+        explicit VariableFilterParser() {}
 
-        /** receives a command line specified element and carries out parsing into var-regex-array-derivative by
+        void parseCommandLine(string commandLineArguments, VariableFilter &vf) {
+            size_t pos = 0;
+            std::string delimiter = ";";
+            std::string token;
+            while ((pos = commandLineArguments.find(delimiter)) != std::string::npos) {
+                token = commandLineArguments.substr(0, pos);
+                //std::cout << token << std::endl;
+                inputStringReference = token;
+                parseExpressionElement(vf); //parse each token
+                commandLineArguments.erase(0, pos + delimiter.length());
+            }
+        }
+        /** parses the current input string and carries out parsing into var-regex-array-derivative by
          * adding a tracker in the VariableFilter vf*/
         void parseExpressionElement(VariableFilter &vf) {
             //SmallVector<StringRef> elements;

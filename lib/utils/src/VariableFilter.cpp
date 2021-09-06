@@ -33,7 +33,7 @@ void modelica::VariableFilter::setBypass(bool bypass) { _bypass = bypass; }
 bool modelica::VariableFilter::matchesRegex(const string &identifier)
 {
 	for (const auto &regexString : _regex) {
-		std::regex regex(regexString, std::regex::ECMAScript);
+		std::regex regex(regexString);
 		if (regex_match(identifier, regex)) {
 			return true;
 		}
