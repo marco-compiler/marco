@@ -1,6 +1,8 @@
 #ifndef MARCO_RUNTIME_BUILTINFUNCTIONS_H
 #define MARCO_RUNTIME_BUILTINFUNCTIONS_H
 
+#include <sundials/sundials_types.h>
+
 #include "ArrayDescriptor.h"
 #include "Mangling.h"
 

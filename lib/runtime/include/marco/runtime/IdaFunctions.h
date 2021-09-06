@@ -6,80 +6,74 @@
 
 extern "C"
 {
-	// Allocation, initialization, usage and deletion.
-	void *allocIdaUserData(int64_t neq, int64_t nnz);
-	bool freeIdaUserData(void *userData);
+	// Allocation, initialization, usage and deletion
+	void* allocIdaUserData(sunindextype neq, sunindextype nnz);
+	bool freeIdaUserData(void* userData);
 
-	void setInitialValue(
-			void *userData,
-			int64_t index,
-			int64_t length,
-			double value,
-			bool isState);
-	bool idaInit(void *userData);
-	bool idaStep(void *userData);
+	void setInitialValue(void* userData, sunindextype index, sunindextype length, realtype value, bool isState);
+	bool idaInit(void* userData);
+	bool idaStep(void* userData);
 
 	// Setters
-	void addTime(void *userData, double startTime, double stopTime);
-	void addTolerance(void *userData, double relTol, double absTol);
+	void addTime(void* userData, realtype startTime, realtype stopTime);
+	void addTolerance(void* userData, realtype relTol, realtype absTol);
 
-	void addRowLength(void *userData, int64_t rowLength);
-	void addDimension(void *userData, int64_t index, int64_t min, int64_t max);
-	void addResidual(void *userData, int64_t leftIndex, int64_t rightIndex);
-	void addJacobian(void *userData, int64_t leftIndex, int64_t rightIndex);
+	void addRowLength(void* userData, sunindextype rowLength);
+	void addDimension(void* userData, sunindextype index, sunindextype min, sunindextype max);
+	void addResidual(void* userData, sunindextype leftIndex, sunindextype rightIndex);
+	void addJacobian(void* userData, sunindextype leftIndex, sunindextype rightIndex);
 
 	// Getters
-	double getIdaTime(void *userData);
-	double getIdaVariable(void *userData, int64_t index);
-	double getIdaDerivative(void *userData, int64_t index);
+	realtype getIdaTime(void* userData);
+	realtype getIdaVariable(void* userData, sunindextype index);
+	realtype getIdaDerivative(void* userData, sunindextype index);
 
-	int64_t getIdaRowLength(void *userData, int64_t index);
-	std::vector<std::pair<int64_t, int64_t>> getIdaDimension(
-			void *userData, int64_t index);
+	sunindextype getIdaRowLength(void* userData, sunindextype index);
+	std::vector<std::pair<sunindextype, sunindextype>> getIdaDimension(void* userData, sunindextype index);
 
 	// Statistics
-	int64_t numSteps(void *userData);
-	int64_t numResEvals(void *userData);
-	int64_t numJacEvals(void *userData);
-	int64_t numNonlinIters(void *userData);
+	sunindextype numSteps(void* userData);
+	sunindextype numResEvals(void* userData);
+	sunindextype numJacEvals(void* userData);
+	sunindextype numNonlinIters(void* userData);
 
 	// Lambda helpers
-	int64_t addNewLambdaAccess(void *userData, int64_t off, int64_t ind);
-	void addLambdaAccess(void *userData, int64_t index, int64_t off, int64_t ind);
-	void addLambdaDimension(void *userData, int64_t index, int64_t dim);
+	sunindextype addNewLambdaAccess(void* userData, sunindextype off, sunindextype ind);
+	void addLambdaAccess(void* userData, sunindextype index, sunindextype off, sunindextype ind);
+	void addLambdaDimension(void* userData, sunindextype index, sunindextype dim);
 
 	// Lambda constructions
-	int64_t lambdaConstant(void *userData, double constant);
-	int64_t lambdaTime(void *userData);
-	int64_t lambdaScalarVariable(void *userData, int64_t offset);
-	int64_t lambdaScalarDerivative(void *userData, int64_t offset);
-	int64_t lambdaVectorVariable(void *userData, int64_t offset, int64_t index);
-	int64_t lambdaVectorDerivative(void *userData, int64_t offset, int64_t index);
+	sunindextype lambdaConstant(void* userData, realtype constant);
+	sunindextype lambdaTime(void* userData);
+	sunindextype lambdaScalarVariable(void* userData, sunindextype offset);
+	sunindextype lambdaScalarDerivative(void* userData, sunindextype offset);
+	sunindextype lambdaVectorVariable(void* userData, sunindextype offset, sunindextype index);
+	sunindextype lambdaVectorDerivative(void* userData, sunindextype offset, sunindextype index);
 
-	int64_t lambdaAdd(void *userData, int64_t leftIndex, int64_t rightIndex);
-	int64_t lambdaSub(void *userData, int64_t leftIndex, int64_t rightIndex);
-	int64_t lambdaMul(void *userData, int64_t leftIndex, int64_t rightIndex);
-	int64_t lambdaDiv(void *userData, int64_t leftIndex, int64_t rightIndex);
-	int64_t lambdaPow(void *userData, int64_t leftIndex, int64_t rightIndex);
-	int64_t lambdaAtan2(void *userData, int64_t leftIndex, int64_t rightIndex);
+	sunindextype lambdaAdd(void* userData, sunindextype leftIndex, sunindextype rightIndex);
+	sunindextype lambdaSub(void* userData, sunindextype leftIndex, sunindextype rightIndex);
+	sunindextype lambdaMul(void* userData, sunindextype leftIndex, sunindextype rightIndex);
+	sunindextype lambdaDiv(void* userData, sunindextype leftIndex, sunindextype rightIndex);
+	sunindextype lambdaPow(void* userData, sunindextype leftIndex, sunindextype rightIndex);
+	sunindextype lambdaAtan2(void* userData, sunindextype leftIndex, sunindextype rightIndex);
 
-	int64_t lambdaNegate(void *userData, int64_t operandIndex);
-	int64_t lambdaAbs(void *userData, int64_t operandIndex);
-	int64_t lambdaSign(void *userData, int64_t operandIndex);
-	int64_t lambdaSqrt(void *userData, int64_t operandIndex);
-	int64_t lambdaExp(void *userData, int64_t operandIndex);
-	int64_t lambdaLog(void *userData, int64_t operandIndex);
-	int64_t lambdaLog10(void *userData, int64_t operandIndex);
+	sunindextype lambdaNegate(void* userData, sunindextype operandIndex);
+	sunindextype lambdaAbs(void* userData, sunindextype operandIndex);
+	sunindextype lambdaSign(void* userData, sunindextype operandIndex);
+	sunindextype lambdaSqrt(void* userData, sunindextype operandIndex);
+	sunindextype lambdaExp(void* userData, sunindextype operandIndex);
+	sunindextype lambdaLog(void* userData, sunindextype operandIndex);
+	sunindextype lambdaLog10(void* userData, sunindextype operandIndex);
 
-	int64_t lambdaSin(void *userData, int64_t operandIndex);
-	int64_t lambdaCos(void *userData, int64_t operandIndex);
-	int64_t lambdaTan(void *userData, int64_t operandIndex);
-	int64_t lambdaAsin(void *userData, int64_t operandIndex);
-	int64_t lambdaAcos(void *userData, int64_t operandIndex);
-	int64_t lambdaAtan(void *userData, int64_t operandIndex);
-	int64_t lambdaSinh(void *userData, int64_t operandIndex);
-	int64_t lambdaCosh(void *userData, int64_t operandIndex);
-	int64_t lambdaTanh(void *userData, int64_t operandIndex);
+	sunindextype lambdaSin(void* userData, sunindextype operandIndex);
+	sunindextype lambdaCos(void* userData, sunindextype operandIndex);
+	sunindextype lambdaTan(void* userData, sunindextype operandIndex);
+	sunindextype lambdaAsin(void* userData, sunindextype operandIndex);
+	sunindextype lambdaAcos(void* userData, sunindextype operandIndex);
+	sunindextype lambdaAtan(void* userData, sunindextype operandIndex);
+	sunindextype lambdaSinh(void* userData, sunindextype operandIndex);
+	sunindextype lambdaCosh(void* userData, sunindextype operandIndex);
+	sunindextype lambdaTanh(void* userData, sunindextype operandIndex);
 }
 
 #endif	// MARCO_RUNTIME_IDAFUNCTIONS_H
