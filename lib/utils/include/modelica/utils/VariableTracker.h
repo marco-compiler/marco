@@ -18,7 +18,8 @@ class Range {
 
 public:
     Range(int leftValue, int rightValue);
-
+    bool noUpperBound() const; //-1 represents "unbounded"
+    bool noLowerBound() const;
     int leftValue, rightValue;
 };
 

@@ -49,3 +49,10 @@ void VariableTracker::dump(void) const {
 
 
 Range::Range(int leftValue, int rightValue) : leftValue(leftValue), rightValue(rightValue) {}
+
+bool Range::noUpperBound() const {
+    return rightValue == -1;
+}
+bool Range::noLowerBound() {
+    return leftValue == -1;
+}
