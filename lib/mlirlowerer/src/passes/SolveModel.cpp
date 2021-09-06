@@ -501,7 +501,25 @@ mlir::Value getOrCreateGlobalString(mlir::Location loc, mlir::OpBuilder& builder
             globalPtr, llvm::ArrayRef<mlir::Value>({cst0, cst0}));
 }
 
+bool performRangeBoundCheck(ArrayType array, VariableFilter filter, string name) {
 
+    std::cout << "Checking print ranges for variable " << name << std::endl;
+    //for each array dimension
+    for (unsigned int i = 0, e = array.getRank(); i < e; ++i) {
+        std::cout << "\tdimension #" << i;
+        //get the number of elements, 'length' of the dimension
+        auto shapeOfYou = array.getShape()[i];
+        std::cout << " is made of " << shapeOfYou <<  " elements.\n";
+
+        shapeOfYou--; //indexes go from 0 to S-1
+        Range dimensionRange = filter.lookupByIdentifier(name).getRangeOfDimensionN(i);
+        if (dimensionRange.rightValue > shapeOfYou ||  //if the specified range has a bound that it's bigger than the array dimension
+            dimensionRange.leftValue  > shapeOfYou) {
+            return false;
+        }
+    }
+    return true;
+}
 
 //TODO x1 - //print function
 struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
@@ -762,7 +780,7 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
             rewriter.create<StoreOp>(loc, falseValue, printSeparator);
 
             int cur = 0;
-            std::cout << "Values To Be printed: " << valuesToBePrinted.size() << std::endl;
+
             for (auto var : valuesToBePrinted) {
 
                     if (auto arrayType = var.getType().dyn_cast<ArrayType>())
@@ -784,16 +802,21 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 
                                 std::cout << "printing " << varName << std::endl;
 
-                                VariableTracker currentTracker = variableFilter.lookupByIdentifier(varName);
-
 
                                 llvm::SmallVector<mlir::Value, 3> lowerBounds; //starting from position zero
                                 llvm::SmallVector<mlir::Value, 3> upperBounds;
 
                                 for (unsigned int i = 0, e = arrayTypeLocal.getRank(); i < e; ++i) {
 
-                                    Range dimensionRange = currentTracker.getRangeOfDimensionN(i);
-                                    assert(dimensionRange.leftValue < dimensionRange.rightValue); //a range that makes sense
+                                    Range dimensionRange(-1,-1);
+
+                                    if(!variableFilter.isBypass()) {
+                                        VariableTracker currentTracker = variableFilter.lookupByIdentifier(varName);
+                                        dimensionRange = currentTracker.getRangeOfDimensionN(i);
+                                        bool rangesAreOk = performRangeBoundCheck(arrayTypeLocal, variableFilter, varName); //checks if provided bounds are contained in array dimensions
+                                        if (!rangesAreOk) assert(false); //please use the variable filter correctly
+                                    }
+
                                     /// ============ FIX LOWER BOUNDs ============== //
                                     if(variableFilter.isBypass() || dimensionRange.noLowerBound()) {
                                         lowerBounds.push_back(zero); // start from the beginning of the array

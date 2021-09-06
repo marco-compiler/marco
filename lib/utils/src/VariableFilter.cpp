@@ -65,6 +65,7 @@ VariableTracker modelica::VariableFilter::lookupByIdentifier(
 }
 bool modelica::VariableFilter::checkTrackedIdentifier(const string &identifier)
 {
+    if (_bypass) return true;
 	for (const auto &varTracker : _variables) {
 		if (varTracker.getName() == (identifier))
 			return true;
