@@ -94,7 +94,7 @@ int main(int argc, char* argv[])
 	llvm::raw_fd_ostream os(outputFile, error, llvm::sys::fs::F_None);
 
 	VariableFilter vf = VariableFilter();
-	std::string test = "x1[0:3]";
+	std::string test = "x1[0:$]";
 	VariableFilterParser parser(test);
 	parser.parseExpressionElement(vf);
 

@@ -53,6 +53,6 @@ Range::Range(int leftValue, int rightValue) : leftValue(leftValue), rightValue(r
 bool Range::noUpperBound() const {
     return rightValue == -1;
 }
-bool Range::noLowerBound() {
+bool Range::noLowerBound() const {
     return leftValue == -1;
 }

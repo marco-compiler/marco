@@ -780,11 +780,11 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                             mlir::Value zero = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(0));
                             mlir::Value one = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(1));
 
-                            mlir::Value dimResult = rewriter.create<DimOp>(varLoc, var, zero);
 
                             if (variableFilter.checkTrackedIdentifier(varName)) { //tracked by VF
                                 std::cout << "printing " << varName << std::endl;
 
+                                Range dummyRange(0,2);
 
                                 //da 0 fino a 3 (vettore di 4 elementi)
                                 mlir::Value fromIndex = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(0)); //iterate FROM
@@ -793,8 +793,17 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                                 llvm::SmallVector<mlir::Value, 3> upperBounds;
 
                                 for (unsigned int i = 0, e = arrayTypeLocal.getRank(); i < e; ++i) {
-                                    mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(i));
-                                    upperBounds.push_back(rewriter.create<DimOp>(varLoc, var, dim));
+
+                                    //print the full dimension, no upper bound specified
+                                    if(dummyRange.noUpperBound()) {
+                                        mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(i));
+                                        upperBounds.push_back(rewriter.create<DimOp>(varLoc, var, dim));
+                                    }
+                                    else { //else if a bound of the dimension is specified es. "until the third element"
+                                        mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr((int)dummyRange.rightValue));
+                                        upperBounds.push_back(dim);
+                                    }
+
                                 }
                                 llvm::SmallVector<mlir::Value, 3> steps(arrayTypeLocal.getRank(), one);
 
