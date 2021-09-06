@@ -29,7 +29,7 @@ public:
 class VariableTracker {
 public:
 
-    VariableTracker(const string &name, const bool isArray, const bool isDerivative, const uint16_t dim);
+    VariableTracker(const string &name, const bool isArray, const bool isDerivative, const unsigned int dim);
 
     void setRanges(const list <Range> &ranges);
 
@@ -42,6 +42,16 @@ public:
     const uint16_t getDim() const;
 
     const list <Range> &getRanges() const;
+
+    const Range getRangeOfDimensionN(unsigned int N) {
+        int i = 0;
+        for (auto &range : _ranges){
+            if (i == N) {
+                return range;
+            }
+            i++;
+        }
+    }
 
     void dump(void) const;
 
