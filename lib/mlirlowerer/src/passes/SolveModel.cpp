@@ -734,10 +734,6 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 
             mlir::Value time = rewriter.create<ExtractOp>(loc, varTypes[0], structValue, 0);
             valuesToBePrinted.push_back(time); //0.00 0.10 0.20 and so on
-            /* OLD CODE:
-             * for (size_t i = 2, e = structType.getElementTypes().size(); i < e; ++i)
-				mapping.map(op.print().getArgument(i - 1), rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i));
-             */
 
             std::map<std::string, mlir::Value> nameValueMap;
 
@@ -765,54 +761,101 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
             mlir::Value falseValue = rewriter.create<ConstantOp>(loc, BooleanAttribute::get(BooleanType::get(op->getContext()), false));
             rewriter.create<StoreOp>(loc, falseValue, printSeparator);
 
+            int cur = 0;
+            std::cout << "Values To Be printed: " << valuesToBePrinted.size() << std::endl;
             for (auto var : valuesToBePrinted) {
 
                     if (auto arrayType = var.getType().dyn_cast<ArrayType>())
                     {
+                        std::string varName = variableNamesVector[cur];
                         unsigned int rank = arrayType.getRank();
+
+
+                        //Arrays of Rank > 0
                         if (rank > 0) {
-                            std::cout << "\t printing array of rank " << rank<< std::endl;
+
                             mlir::Location varLoc = var.getLoc();
                             auto arrayTypeLocal = var.getType().cast<ArrayType>();
 
                             mlir::Value zero = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(0));
                             mlir::Value one = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(1));
 
-                            llvm::SmallVector<mlir::Value, 3> lowerBounds(arrayTypeLocal.getRank(), zero);
-                            llvm::SmallVector<mlir::Value, 3> upperBounds;
-                            llvm::SmallVector<mlir::Value, 3> steps(arrayTypeLocal.getRank(), one);
+                            mlir::Value dimResult = rewriter.create<DimOp>(varLoc, var, zero);
 
-                            for (unsigned int i = 0, e = arrayTypeLocal.getRank(); i < e; ++i)
-                            {
-                                mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(i));
-                                upperBounds.push_back(rewriter.create<DimOp>(varLoc, var, dim));
-                            }
+                            if (variableFilter.checkTrackedIdentifier(varName)) { //tracked by VF
+                                std::cout << "printing " << varName << std::endl;
 
-                            // Create nested loops in order to iterate on each dimension of the array
-                            mlir::scf::buildLoopNest(
-                                    rewriter, varLoc, lowerBounds, upperBounds, steps, llvm::None,
-                                    [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
-                                        //print element at 'position'
-                                        //
-                                        std::cout << "  printing element: [" << position.size() << std::endl;
-                                        mlir::Value value = rewriter.create<LoadOp>(var.getLoc(), var, position);
-                                        value = materializeTargetConversion(rewriter, value);
-                                        printElement(rewriter, value, printSeparator, semicolonCst, module);
-                                        return std::vector<mlir::Value>();
-                                    });
+
+                                //da 0 fino a 3 (vettore di 4 elementi)
+                                mlir::Value fromIndex = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(0)); //iterate FROM
+                                llvm::SmallVector<mlir::Value, 3> lowerBounds(arrayTypeLocal.getRank(), zero);
+                                //mlir::Value toIndex   = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr((int)testRange.leftValue));  //iterate TO
+                                llvm::SmallVector<mlir::Value, 3> upperBounds;
+
+                                for (unsigned int i = 0, e = arrayTypeLocal.getRank(); i < e; ++i) {
+                                    mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(i));
+                                    upperBounds.push_back(rewriter.create<DimOp>(varLoc, var, dim));
+                                }
+                                llvm::SmallVector<mlir::Value, 3> steps(arrayTypeLocal.getRank(), one);
+
+                                mlir::scf::buildLoopNest(
+                                        rewriter, varLoc, lowerBounds, upperBounds, steps, llvm::None,
+                                        [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
+                                            //print element at 'position'
+                                            mlir::Value value = rewriter.create<LoadOp>(var.getLoc(), var, position);
+                                            value = materializeTargetConversion(rewriter, value);
+                                            printElement(rewriter, value, printSeparator, semicolonCst, module);
+                                            return std::vector<mlir::Value>();
+                                        });
+                                /* MANUAL FOR GENERATION
+                                mlir::Value toIndex = rewriter.create<DimOp>(varLoc, var, dimResult);
+
+                                auto forOp = rewriter.create<mlir::scf::ForOp>(varLoc, fromIndex, toIndex, one);
+
+                                rewriter.setInsertionPointToStart(forOp.getBody());
+                                //for loop
+
+                                mlir::Value value = rewriter.create<LoadOp>(var.getLoc(), var, forOp.getInductionVar());
+                                value = materializeTargetConversion(rewriter, value);
+                                printElement(rewriter, value, printSeparator, semicolonCst, module);
+
+                                rewriter.setInsertionPointAfter(forOp); */
+                            } //if variable "is tracked by VF"
+                            cur = cur + 1;
+
+                            /*
+                              llvm::SmallVector<mlir::Value, 3> lowerBounds(arrayTypeLocal.getRank(), zero);
+                              llvm::SmallVector<mlir::Value, 3> upperBounds;
+                              llvm::SmallVector<mlir::Value, 3> steps(arrayTypeLocal.getRank(), one);
+
+                              for (unsigned int i = 0, e = arrayTypeLocal.getRank(); i < e; ++i) {
+                                  mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(i));
+                                  upperBounds.push_back(rewriter.create<DimOp>(varLoc, var, dim));
+                              }
+
+                              // Create nested loops in order to iterate on each dimension of the array
+                              mlir::scf::buildLoopNest(
+                                      rewriter, varLoc, lowerBounds, upperBounds, steps, llvm::None,
+                                      [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
+                                          //print element at 'position'
+                                          mlir::Value value = rewriter.create<LoadOp>(var.getLoc(), var, position);
+                                          value = materializeTargetConversion(rewriter, value);
+                                          printElement(rewriter, value, printSeparator, semicolonCst, module);
+                                          return std::vector<mlir::Value>();
+                                      }); */
                         }
-                        else
-                        {
-                            std::cout << "\t printing single.." << std::endl;
+                        else { //Arrays of Rank = 0
+                            std::cout << "printing time" << std::endl;
                             mlir::Value value = rewriter.create<LoadOp>(var.getLoc(), var);
                             value = materializeTargetConversion(rewriter, value);
                             printElement(rewriter, value, printSeparator, semicolonCst, module);
                         }
-                    }
-                    else
+                    } else //non arrays
                     {
-                        //?? printElement(rewriter, transformed, printSeparator, semicolonCst, module);
+                        std::cout << "printing time" << std::endl;
+                        printElement(rewriter, var, printSeparator, semicolonCst, module);
                     }
+
             }
 
             rewriter.create<mlir::LLVM::CallOp>(op.getLoc(), printfRef, newLineCst);

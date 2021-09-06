@@ -93,6 +93,12 @@ int main(int argc, char* argv[])
 	error_code error;
 	llvm::raw_fd_ostream os(outputFile, error, llvm::sys::fs::F_None);
 
+	VariableFilter vf = VariableFilter();
+	std::string test = "x1[0:3]";
+	VariableFilterParser parser(test);
+	parser.parseExpressionElement(vf);
+
+
 	if (error)
 	{
 		llvm::errs() << error.message();
@@ -161,6 +167,7 @@ int main(int argc, char* argv[])
 	// Convert to LLVM dialect
 	codegen::ModelicaLoweringOptions loweringOptions;
 	loweringOptions.solveModelOptions.emitMain = emitMain;
+	loweringOptions.solveModelOptions.variableFilter = &vf;
 	loweringOptions.solveModelOptions.matchingMaxIterations = matchingMaxIterations;
 	loweringOptions.solveModelOptions.sccMaxIterations = sccMaxIterations;
 	loweringOptions.solveModelOptions.solver = solver;

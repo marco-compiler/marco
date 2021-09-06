@@ -43,6 +43,14 @@ bool modelica::VariableFilter::matchesRegex(const string &identifier)
 VariableTracker modelica::VariableFilter::lookupByIdentifier(
 		const string &identifier)
 {
+    for (const auto &varTracker : _variables) {
+        if (varTracker.getName() == (identifier))
+            return varTracker;
+    }
+    //todo if called on a non existing identifier
+
+
+    /*
 	if (std::any_of(
 			_variables.begin(),
 			_variables.end(),
@@ -53,7 +61,7 @@ VariableTracker modelica::VariableFilter::lookupByIdentifier(
 			if (varTracker.getName() == (identifier))
 				return varTracker;
 		}
-	}
+	} */
 }
 bool modelica::VariableFilter::checkTrackedIdentifier(const string &identifier)
 {
