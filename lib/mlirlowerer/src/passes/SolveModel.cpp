@@ -511,8 +511,7 @@ bool performRangeBoundCheck(ArrayType array, VariableFilter filter, string name)
         //get the number of elements, 'length' of the dimension
         auto shapeOfYou = array.getShape()[i];
         std::cout << " is made of " << shapeOfYou <<  " elements.\n";
-
-        shapeOfYou--; //indexes go from 0 to S-1
+        
         Range dimensionRange = filter.lookupByIdentifier(name).getRangeOfDimensionN(i);
         if (dimensionRange.rightValue > shapeOfYou ||  //if the specified range has a bound that it's bigger than the array dimension
             dimensionRange.leftValue  > shapeOfYou) {
