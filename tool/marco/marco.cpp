@@ -94,10 +94,11 @@ int main(int argc, char* argv[])
 	llvm::raw_fd_ostream os(outputFile, error, llvm::sys::fs::F_None);
 
 	VariableFilter vf = VariableFilter();
-    /*
-	std::string test = "x1[1:2]";
-	VariableFilterParser parser(test);
-	parser.parseExpressionElement(vf); */
+
+	std::string test = "tau;x1[1:2];y;";
+	VariableFilterParser parser = VariableFilterParser();
+	parser.parseCommandLine(test, vf);
+
 
 
 	if (error)

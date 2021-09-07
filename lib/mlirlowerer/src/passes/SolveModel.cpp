@@ -455,6 +455,7 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 	mlir::BlockAndValueMapping* derivatives;
 };
 
+//// PRINT VARIABLES ///
 mlir::LLVM::LLVMFuncOp getOrInsertPrintf(mlir::OpBuilder& rewriter, mlir::ModuleOp module)
 {
     auto *context = module.getContext();
@@ -521,7 +522,8 @@ bool performRangeBoundCheck(ArrayType array, VariableFilter filter, string name)
     return true;
 }
 
-//TODO x1 - //print function
+/////
+
 struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 {
     //Constructor
@@ -781,14 +783,17 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 
             int cur = 0;
 
+            std::cout << "**** 🖨 GENERATING PRINT CODE **** " << std::endl;
+            //for each Value to be printed (with bypass activated means 'time' + all variables)
             for (auto var : valuesToBePrinted) {
-
+                    //if current value is an array
                     if (auto arrayType = var.getType().dyn_cast<ArrayType>())
                     {
+                        //get the name of the variable the value belongs too
                         std::string varName = variableNamesVector[cur];
                         unsigned int rank = arrayType.getRank();
 
-                        //Arrays of Rank > 0
+                        //Arrays of Rank > 0, 1D,2D,3D.. Arrays
                         if (rank > 0) {
 
                             mlir::Location varLoc = var.getLoc();
@@ -797,38 +802,49 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                             mlir::Value zero = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(0));
                             mlir::Value one = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(1));
 
-
-                            if (variableFilter.isBypass() || variableFilter.checkTrackedIdentifier(varName) ) { //tracked by VF or no filtering
-
-                                std::cout << "printing " << varName << std::endl;
+                            //no filtering or no filter or specified to print by CL args
+                            if (variableFilter.isBypass() || variableFilter.checkTrackedIdentifier(varName) ) {
 
 
+
+                                //check if custom ranges are specified, boolean 'isArray' e.g.
+                                    // x prints all the array with all its dimensions from 0 to len(dim) (is Array = false)
+                                    // x[$:3,1:50] prints custom ranges for dimensions 0 and 1 (all of them)
+                                bool fullRange = variableFilter.isBypass() || !variableFilter.lookupByIdentifier(varName).getIsArray(); // only the name has been provided
+                                std::cout << "printing " << varName << " - fullRange=" << fullRange <<std::endl;
+                                //Upper and lower bound vectors (for each iteration of the loop, from LB to UB)
                                 llvm::SmallVector<mlir::Value, 3> lowerBounds; //starting from position zero
                                 llvm::SmallVector<mlir::Value, 3> upperBounds;
 
+                                //specified ranges must match the number of dimension and be 'feasible'
+                                bool rangesAreOk = fullRange || performRangeBoundCheck(arrayTypeLocal, variableFilter, varName); //checks if provided bounds are contained in array dimensions
+                                if (!rangesAreOk) assert(false); //please use the variable filter correctly
+
+                                //for each of the array dimensions (rank)
                                 for (unsigned int i = 0, e = arrayTypeLocal.getRank(); i < e; ++i) {
 
-                                    Range dimensionRange(-1,-1);
+                                    Range dimensionRange(-1,-1); //default value
 
-                                    if(!variableFilter.isBypass()) {
+                                    //get specified range for dimension 'i' if is specified and it's not full range
+                                    if(!(variableFilter.isBypass() || fullRange)) {
                                         VariableTracker currentTracker = variableFilter.lookupByIdentifier(varName);
                                         dimensionRange = currentTracker.getRangeOfDimensionN(i);
-                                        bool rangesAreOk = performRangeBoundCheck(arrayTypeLocal, variableFilter, varName); //checks if provided bounds are contained in array dimensions
-                                        if (!rangesAreOk) assert(false); //please use the variable filter correctly
                                     }
 
                                     /// ============ FIX LOWER BOUNDs ============== //
-                                    if(variableFilter.isBypass() || dimensionRange.noLowerBound()) {
+                                    //print the full dimension, no upper bound specified, starting from [0] element
+                                    if(variableFilter.isBypass() || fullRange || dimensionRange.noLowerBound()) {
                                         lowerBounds.push_back(zero); // start from the beginning of the array
                                     }
-                                    else { //else if a bound of the dimension is specified es. "starting from the fourth element"
+                                    //else if a bound of the dimension is specified es. "starting from the fourth element"
+                                    else {
                                         mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr((int)dimensionRange.leftValue));
                                         lowerBounds.push_back(dim);
                                     }
 
                                     /// ============ FIX UPPER BOUNDs ============== //
                                     //print the full dimension, no upper bound specified
-                                    if(variableFilter.isBypass() || dimensionRange.noUpperBound()) {
+                                    if(variableFilter.isBypass() || fullRange || dimensionRange.noUpperBound()) {
                                         mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(i));
                                         upperBounds.push_back(rewriter.create<DimOp>(varLoc, var, dim));
                                     }
@@ -839,7 +855,7 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 
                                 }
 
-                                //step (1)
+                                //step e.g. what in C++ is "i++"
                                 llvm::SmallVector<mlir::Value, 3> steps(arrayTypeLocal.getRank(), one);
 
                                 mlir::scf::buildLoopNest(
@@ -853,7 +869,7 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                                         });
 
                             } //if variable "is tracked by VF"
-                            cur = cur + 1;
+                            cur = cur + 1; //keep the match between variable value and variable name consistent
                         }
                         else { //Arrays of Rank = 0
                             std::cout << "printing time" << std::endl;
@@ -863,7 +879,7 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                         }
                     } else //non arrays
                     {
-                        std::cout << "printing time" << std::endl;
+                        std::cout << "printing a non array value" << std::endl;
                         printElement(rewriter, var, printSeparator, semicolonCst, module);
                     }
 
@@ -872,19 +888,6 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
             rewriter.create<mlir::LLVM::CallOp>(op.getLoc(), printfRef, newLineCst);
 
             rewriter.create<mlir::ReturnOp>(loc);
-
-            /* {
-
-			mapping.map( ??????? , rewriter.create<ExtractOp>(loc, varTypes[0], structValue, 0));
-
-			for (size_t i = 2, e = structType.getElementTypes().size(); i < e; ++i)
-                mapping.map(??????? , rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i));
-
-			auto terminator = mlir::cast<YieldOp>(op.print().front().getTerminator());
-
-
-			for (mlir::Value value : terminator.values())
-				valuesToBePrinted.push_back(mapping.lookup(value));  }*/
 
 
 		}
