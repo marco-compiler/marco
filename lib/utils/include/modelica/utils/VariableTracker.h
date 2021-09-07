@@ -57,10 +57,10 @@ public:
 
 private:
 
-    const string _name;
-    const bool _isArray;
-    const bool _isDerivative;
-    const uint16_t _dim;
+    string _name;
+    bool _isArray;
+    bool _isDerivative;
+    unsigned int _dim;
 
     //-1 means "all"
     list <Range> _ranges;

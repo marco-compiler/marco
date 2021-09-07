@@ -8,8 +8,8 @@ void modelica::VariableFilter::dump() {
     for (int s = 0; s < 12; ++s) printf("#");
     cout << "\n *** TRACKED VARIABLES *** : " << endl;
 
-    for (const auto &vt : _variables) {
-        vt.dump();
+    for (const std::pair<std::string, VariableTracker> vt  : _variables) {
+        vt.second.dump(); //dump current variable tracker
     }
     for (int s = 0; s < 12; ++s) printf("#");
     cout << "\n *** TRACKED REGEX(s) *** : " << endl;
@@ -26,49 +26,52 @@ void modelica::VariableFilter::addRegexString(string regex) {
 
 void modelica::VariableFilter::addVariable(VariableTracker var) {
     _bypass = false; //turnoff bypass by default
-    _variables.push_back(var);
+    _variables.insert_or_assign(var.getName(), var); //overwrite if key already exists
 }
+
 bool modelica::VariableFilter::isBypass() const { return _bypass; }
+
 void modelica::VariableFilter::setBypass(bool bypass) { _bypass = bypass; }
-bool modelica::VariableFilter::matchesRegex(const string &identifier)
-{
-	for (const auto &regexString : _regex) {
-		std::regex regex(regexString);
-		if (regex_match(identifier, regex)) {
-			return true;
-		}
-	}
-	return false;
-}
-VariableTracker modelica::VariableFilter::lookupByIdentifier(
-		const string &identifier)
-{
-    for (const auto &varTracker : _variables) {
-        if (varTracker.getName() == (identifier))
-            return varTracker;
+
+bool modelica::VariableFilter::matchesRegex(const string &identifier) {
+    for (const auto &regexString : _regex) {
+        std::regex regex(regexString);
+        if (regex_match(identifier, regex)) {
+            return true;
+        }
     }
-    //todo if called on a non existing identifier
-
-
-    /*
-	if (std::any_of(
-			_variables.begin(),
-			_variables.end(),
-			[&identifier](VariableTracker i) {
-				return i.getName().compare(identifier);
-			})) {
-		for (const auto &varTracker : _variables) {
-			if (varTracker.getName() == (identifier))
-				return varTracker;
-		}
-	} */
+    return false;
 }
-bool modelica::VariableFilter::checkTrackedIdentifier(const string &identifier)
-{
+
+
+
+bool checkIfPresent(unordered_map<std::string, VariableTracker> m, std::string key) {
+
+    // Key is not present
+    if (m.find(key) == m.end())
+        return false;
+
+    return true;
+
+}
+
+VariableTracker modelica::VariableFilter::lookupByIdentifier(const string &identifier) {
+    assert(checkIfPresent(_variables, identifier));
+    return _variables.find(identifier)->second; //return variable tracker with key <identifier>
+}
+
+bool modelica::VariableFilter::checkTrackedIdentifier(const string &identifier) {
     if (_bypass) return true;
-	for (const auto &varTracker : _variables) {
-		if (varTracker.getName() == (identifier))
-			return true;
-	}
-	return false;
+    return checkIfPresent(_variables, identifier);
+}
+
+
+void modelica::VariableFilter::addDerivative(VariableTracker var) {
+    assert(var.getIsDerivative()); //add only derivatives
+    _derivatives.insert_or_assign(var.getName(), var);
+}
+
+bool modelica::VariableFilter::printDerivative(const string &derivedVariableIdentifier) {
+    if(checkIfPresent(_derivatives, derivedVariableIdentifier)) return true;
+    return false;
 }

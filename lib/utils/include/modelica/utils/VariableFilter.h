@@ -9,6 +9,7 @@
 #include <list>
 #include <regex>
 #include <string>
+#include <unordered_map>
 
 #include "VariableTracker.h"
 
@@ -26,6 +27,7 @@ namespace modelica {
         void setBypass(bool bypass);
 
         void addVariable(VariableTracker var);
+        void addDerivative(VariableTracker var);
 
         void addRegexString(string regex);
 
@@ -48,8 +50,17 @@ namespace modelica {
 
         bool checkTrackedIdentifier(const string &identifier);
 
+        /**
+         * Check if derivative of var must be printed
+         * @param derivedVariableIdentifier a model variable identifier
+         * @return true if by command line arguments is specified that the derivative of provided variable identifier must be printed
+         */
+        bool printDerivative(const string &derivedVariableIdentifier);
+
     private:
-        list<VariableTracker> _variables;
+        std::unordered_map<string, VariableTracker> _variables;
+        std::unordered_map<string, VariableTracker> _derivatives;
+
         list<string> _regex;
         bool _bypass = true;
     };
