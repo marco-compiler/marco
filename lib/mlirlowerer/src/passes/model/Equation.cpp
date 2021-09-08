@@ -443,25 +443,30 @@ bool Equation::isImplicit()
 	if (!lhs().isReferenceAccess())
 		return true;
 
-	std::queue<Expression> expQueue({ rhs() });
+	ReferenceMatcher matcher;
+	matcher.visit(rhs(), false);
 
 	// The equation is implicit only if the accessed variable on the left hand side
 	// also appears in the right hand side of the equation.
-	while (!expQueue.empty())
-	{
-		if (expQueue.front().isReferenceAccess() &&
-			expQueue.front().getReferredVectorAccess() == lhs().getReferredVectorAccess())
+	for (ExpressionPath& path : matcher)
+		if (path.getExpression().getReferredVectorAccess() == getDeterminedVariable().getVar())
 			return true;
-
-		if (!expQueue.front().isReferenceAccess())
-			for (size_t i : marco::irange(expQueue.front().childrenCount()))
-				expQueue.push(expQueue.front().getChild(i));
-
-		expQueue.pop();
-	}
 
 	return false;
 }
+
+bool Equation::containsAtMostOne(mlir::Value variable)
+{
+	ReferenceMatcher matcher(*this);
+
+	unsigned int count = 0;
+	for (ExpressionPath& path : matcher)
+		if (path.getExpression().getReferredVectorAccess() == variable)
+			count++;
+
+	return count <= 1;
+}
+
 
 Equation Equation::clone() const
 {

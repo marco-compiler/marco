@@ -337,6 +337,26 @@ struct GetVariableOpLowering : public IdaOpConversion<GetVariableOp>
 	}
 };
 
+struct GetDerivativeOpLowering : public IdaOpConversion<GetDerivativeOp>
+{
+	using IdaOpConversion<GetDerivativeOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(GetDerivativeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		modelica::RealType result = modelica::RealType::get(op.getContext());
+
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"getIdaDerivative",
+				result,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, op.args());
+		return mlir::success();
+	}
+};
+
 struct AddNewLambdaAccessOpLowering : public IdaOpConversion<AddNewLambdaAccessOp>
 {
 	using IdaOpConversion<AddNewLambdaAccessOp>::IdaOpConversion;
@@ -609,7 +629,8 @@ static void populateIdaConversionPatterns(
 	// Getters.
 	patterns.insert<
 			GetTimeOpLowering,
-			GetVariableOpLowering>(context, typeConverter);
+			GetVariableOpLowering,
+			GetDerivativeOpLowering>(context, typeConverter);
 
 	// Lambda helpers.
 	patterns.insert<
@@ -700,7 +721,7 @@ class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::Oper
 				AddJacobianOp>();
 
 		// Getters.
-		target.addIllegalOp<GetTimeOp, GetVariableOp>();
+		target.addIllegalOp<GetTimeOp, GetVariableOp, GetDerivativeOp>();
 
 		// Lambda helpers.
 		target.addIllegalOp<

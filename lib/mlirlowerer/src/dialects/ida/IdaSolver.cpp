@@ -32,7 +32,10 @@ IdaSolver::IdaSolver(
 		double stopTime,
 		double relativeTolerance,
 		double absoluteTolerance)
-		: model(model), stopTime(stopTime), problemSize(0), equationsNumber(computeNEQ())
+		: model(model),
+			stopTime(stopTime),
+			problemSize(0),
+			equationsNumber(computeNEQ())
 {
 	userData = allocIdaUserData(equationsNumber, computeNNZ());
 	addTime(userData, startTime, stopTime);
@@ -116,10 +119,17 @@ mlir::LogicalResult IdaSolver::init()
 			}
 		}
 
-		// Initialize UserData with all parameters needed by IDA.
 		for (Equation& equation : bltBlock.getEquations())
 		{
 			addRowLength(userData, rowLength);
+		}
+	}
+
+	for (BltBlock& bltBlock : model.getBltBlocks())
+	{
+		// Initialize UserData with all parameters needed by IDA.
+		for (Equation& equation : bltBlock.getEquations())
+		{
 			getDimension(equation);
 			getResidualAndJacobian(equation);
 			problemSize++;
@@ -254,7 +264,7 @@ int64_t IdaSolver::computeNNZ()
 void IdaSolver::getDimension(const Equation& equation)
 {
 	for (marco::Interval& interval : equation.getInductions())
-		addDimension(userData, problemSize, interval.min(), interval.max());
+		addDimension(userData, problemSize, interval.min() - 1, interval.max() - 1);
 }
 
 void IdaSolver::getResidualAndJacobian(const Equation& equation)
