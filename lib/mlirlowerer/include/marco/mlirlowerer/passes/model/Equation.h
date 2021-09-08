@@ -72,6 +72,7 @@ namespace marco::codegen::model
 		mlir::LogicalResult explicitate();
 
 		[[nodiscard]] bool isImplicit();
+		[[nodiscard]] bool containsAtMostOne(mlir::Value variable);
 
 		[[nodiscard]] Equation clone() const;
 		void update();

@@ -440,11 +440,12 @@ void addDimension(
 
 	if (index == (sunindextype) data->dimensions.size())
 		data->dimensions.push_back({});
-	data->dimensions[index].push_back({ min - 1, max - 1 });
+	data->dimensions[index].push_back({ min, max });
 }
 
 /**
  * Add the lambda that computes the index-th residual function to the user data.
+ * Must be used before the add jacobian function.
  */
 void addResidual(
 		void* userData, sunindextype leftIndex, sunindextype rightIndex)
@@ -472,6 +473,7 @@ void addResidual(
 
 /**
  * Add the lambda that computes the index-th jacobian row to the user data.
+ * Must be used after the add residual function.
  */
 void addJacobian(
 		void* userData, sunindextype leftIndex, sunindextype rightIndex)
@@ -519,18 +521,21 @@ realtype getIdaTime(void* userData)
 realtype getIdaVariable(void* userData, sunindextype index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	assert(index < data->rowLengths.back());
 	return data->variablesValues[index];
 }
 
 realtype getIdaDerivative(void* userData, sunindextype index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	assert(index < data->rowLengths.back());
 	return data->derivativesValues[index];
 }
 
 sunindextype getIdaRowLength(void* userData, sunindextype index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	assert(index < data->equationsNumber);
 	return data->rowLengths[index];
 }
 
@@ -538,6 +543,7 @@ std::vector<std::pair<sunindextype, sunindextype>> getIdaDimension(
 		void* userData, sunindextype index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	assert(index < data->equationsNumber);
 	return data->dimensions[index];
 }
 

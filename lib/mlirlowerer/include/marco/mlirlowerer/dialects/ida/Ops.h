@@ -439,6 +439,37 @@ namespace marco::codegen::ida
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Ida::GetDerivativeOp
+	//===----------------------------------------------------------------------===//
+
+	class GetDerivativeOp : public mlir::Op<GetDerivativeOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<2>::Impl,
+																mlir::OpTrait::OneResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.get_derivative";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		marco::codegen::modelica::RealType resultType();
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value index();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Ida::AddNewLambdaAccessOp
 	//===----------------------------------------------------------------------===//
 

@@ -1,10 +1,10 @@
 #include "gtest/gtest.h"
-#include <mlir/Support/LogicalResult.h>
 #include <marco/mlirlowerer/passes/matching/Matching.h>
 #include <marco/mlirlowerer/passes/matching/SCCCollapsing.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
 #include <marco/utils/Interval.hpp>
+#include <mlir/Support/LogicalResult.h>
 
 #include "../TestingUtils.h"
 
@@ -183,6 +183,39 @@ TEST(SCCCollapsingTest, CyclesWithThreeEquationsSolved)
 	EXPECT_EQ(model.getVariables().size(), 3);
 	EXPECT_EQ(model.getEquations().size(), 3);
 	EXPECT_EQ(model.getBltBlocks().size(), 0);
+}
+
+TEST(SCCCollapsingTest, CyclesWithThreeDenseEquations)
+{
+	std::string stringModel = "model Loop16 "
+														"Real[2] x; "
+														"Real[2] y; "
+														"Real[2] z; "
+														"equation "
+														"for i in 1:2 loop "
+														"x[i] + y[i] - z[i] = 1.0; "
+														"x[i] - y[i] + z[i] = 2.0; "
+														"-x[i] + y[i] + z[i] = 3.0; "
+														"end for; "
+														"end Loop16; ";
+
+	mlir::MLIRContext context;
+	Model model;
+	makeModel(context, stringModel, model);
+
+	if (failed(match(model, 1000)))
+		FAIL();
+
+	EXPECT_EQ(model.getVariables().size(), 3);
+	EXPECT_EQ(model.getEquations().size(), 3);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
+
+	if (failed(solveSCCs(model, 1000)))
+		FAIL();
+
+	EXPECT_EQ(model.getVariables().size(), 3);
+	EXPECT_EQ(model.getEquations().size(), 0);
+	EXPECT_EQ(model.getBltBlocks().size(), 1);
 }
 
 TEST(SCCCollapsingTest, CyclesWithForEquationsInBltBlock)

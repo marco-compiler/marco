@@ -356,7 +356,9 @@ namespace marco::codegen::model
 					//    modelica.equation_sides (%newValue, ...)
 
 					loadOp->replaceAllUsesWith(clonedTerminator.rhs()[0].getDefiningOp());
+					mlir::Operation* subscriptionOp = loadOp.memory().getDefiningOp();
 					loadOp->erase();
+					subscriptionOp->erase();
 				}
 				else
 				{
@@ -373,14 +375,8 @@ namespace marco::codegen::model
 	mlir::LogicalResult linearySolve(mlir::OpBuilder& builder, llvm::SmallVectorImpl<Equation>& equations)
 	{
 		for (auto eq = equations.rbegin(); eq != equations.rend(); ++eq)
-		{
 			for (auto eq2 = eq + 1; eq2 != equations.rend(); ++eq2)
-			{
-				if (auto res = eq->explicitate(); failed(res))
-					return res;
 				replaceUses(builder, *eq, *eq2);
-			}
-		}
 
 		for (auto& equation : equations)
 			if (auto res = groupLeftHand(builder, equation); failed(res))
@@ -422,11 +418,40 @@ namespace marco::codegen::model
 			if (model.getVariable(eq.getDeterminedVariable().getVar()).isDerivative())
 				return false;
 
+		// Systems containing equations where the matched variable appears more than once.
+		for (Equation& eq : equations)
+			if (!eq.containsAtMostOne(eq.getDeterminedVariable().getVar()))
+				return false;
+
 		// Systems with algebraic loops inside the same array.
 		for (auto eq = equations.begin(); eq != equations.end(); ++eq)
 			for (auto eq2 = eq + 1; eq2 != equations.end(); ++eq2)
 				if (eq->getDeterminedVariable().getVar() == eq2->getDeterminedVariable().getVar())
 					return false;
+
+		// Systems with more than two equations and dense variable accesses.
+		if (equations.size() > 2)
+		{
+			std::set<Variable> sccVarSet;
+			for (Equation& eq : equations)
+				sccVarSet.insert(model.getVariable(eq.getDeterminedVariable().getVar()));
+
+			for (Equation& eq : equations)
+			{
+				std::set<Variable> currentEqSet;
+				ReferenceMatcher matcher(eq);
+
+				for (ExpressionPath& exp : matcher)
+				{
+					Variable curr = model.getVariable(exp.getExpression().getReferredVectorAccess());
+					if (sccVarSet.find(curr) != sccVarSet.end())
+						currentEqSet.insert(curr);
+				}
+
+				if (currentEqSet.size() > 2)
+					return false;
+			}
+		}
 
 		return true;
 	}

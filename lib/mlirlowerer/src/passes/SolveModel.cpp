@@ -1694,9 +1694,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (failed(explicitateEquations(model)))
 				return signalPassFailure();
 
-			// Add differential equations to non-trivial blt blocks.
+			// Add differential equations to non-trivial blt blocks. Also add all
+			// equations where the matched variable is marked as non-trivial.
 			if (options.solver == CleverDAE)
-				if (failed(addDifferentialEqToBltBlocks(builder, model)))
+				if (failed(addDifferentialEqToBltBlocks(model)))
 					return signalPassFailure();
 
 			// Schedule
@@ -1912,7 +1913,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	static mlir::LogicalResult addDifferentialEqToBltBlocks(mlir::OpBuilder& builder, Model& model)
+	static mlir::LogicalResult addDifferentialEqToBltBlocks(Model& model)
 	{
 		llvm::SmallVector<Equation, 3> equations;
 		llvm::SmallVector<BltBlock, 3> bltBlocks = model.getBltBlocks();
@@ -1967,7 +1968,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 							// Replace all occurrences in the non-trivial equation
 							assert(trivialVariablesMap.find(var) != trivialVariablesMap.end());
 							replaceUses(builder, *trivialVariablesMap[var], equation);
-						
+
 							// Then re-start iterating over the same equation
 							expQueue = std::queue<Expression>({ equation.lhs(), equation.rhs() });
 							continue;
@@ -2041,8 +2042,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			mlir::Location loc,
 			Model& model,
 			mlir::Value userData,
-			std::map<model::Variable, double> initialValueMap,
-			std::map<model::Variable, int64_t> indexOffsetMap,
+			std::map<model::Variable, double>& initialValueMap,
+			std::map<model::Variable, int64_t>& indexOffsetMap,
 			const Expression& expression)
 	{
 		mlir::MLIRContext* context = model.getOp().getContext();
@@ -2305,19 +2306,25 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				}
 			}
 
-			// Initialize UserData with all parameters needed by IDA.
 			for (Equation& equation : bltBlock.getEquations())
 			{
 				// RowLength
 				mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, rowLength));
 				builder.create<AddRowLengthOp>(loc, userData, index);
+			}
+		}
 
+		for (BltBlock& bltBlock : model.getBltBlocks())
+		{
+			// Initialize UserData with all parameters needed by IDA.
+			for (Equation& equation : bltBlock.getEquations())
+			{
 				// Dimension
 				for (marco::Interval& interval : equation.getInductions())
 				{
 					mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, problemSize));
-					mlir::Value min = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.min()));
-					mlir::Value max = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.max()));
+					mlir::Value min = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.min() - 1));
+					mlir::Value max = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.max() - 1));
 					builder.create<AddDimensionOp>(loc, userData, index, min, max);
 				}
 
@@ -2343,6 +2350,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		args.insert(args.begin() + 1, userDataAlloc);
 		YieldOp newTerminator = builder.create<YieldOp>(terminator.getLoc(), args);
 		terminator->erase();
+
+		//===--------------------------------------------------------------===//
 
 		// Add the IDA user data to the argument list of the step block and load it.
 		mlir::Block& stepBlock = simulationOp.body().front();
@@ -2422,6 +2431,15 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 					mlir::Value destination = builder.create<SubscriptionOp>(loc, varArgMap[*variable], position);
 					builder.create<AssignmentOp>(loc, value, destination);
 
+					// If the variable is a state, also update its derivative.
+					if (variable->isState())
+					{
+						Variable derivative = model.getVariable(variable->getDer());
+						value = builder.create<GetDerivativeOp>(loc, userData, varIndex);
+						destination = builder.create<SubscriptionOp>(loc, varArgMap[derivative], position);
+						builder.create<AssignmentOp>(loc, value, destination);
+					}
+
 					return std::vector<mlir::Value>();
 				});
 		}
@@ -2429,7 +2447,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		// Delete all equations that were replaced by IDA.
 		for (BltBlock& bltBlock : model.getBltBlocks())
 			for (Equation& equation : bltBlock.getEquations())
+			{
+				equation.getOp()->dropAllDefinedValueUses();
 				equation.getOp()->erase();
+			}
 
 		return mlir::success();
 	}
@@ -2496,7 +2517,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			return llvm::None;
 
 		if (options.solver == CleverDAE)
-			if (failed(addDifferentialEqToBltBlocks(builder, *model)))
+			if (failed(addDifferentialEqToBltBlocks(*model)))
 				return llvm::None;
 
 		if (failed(schedule(*model)))

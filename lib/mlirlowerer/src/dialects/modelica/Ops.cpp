@@ -106,6 +106,26 @@ static std::string getPartialDerFunctionName(llvm::StringRef baseName)
 	return "pder_" + baseName.str();
 }
 
+static mlir::Type getMostGenericType(mlir::Type x, mlir::Type y)
+{
+	if (x.isa<BooleanType>())
+		return y;
+
+	if (y.isa<BooleanType>())
+		return x;
+
+	if (x.isa<RealType>())
+		return x;
+
+	if (y.isa<RealType>())
+		return y;
+
+	if (x.isa<IntegerType>())
+		return x;
+
+	return y;
+}
+
 //===----------------------------------------------------------------------===//
 // Modelica::PackOp
 //===----------------------------------------------------------------------===//
@@ -4539,7 +4559,8 @@ mlir::LogicalResult AddOp::invert(mlir::OpBuilder& builder, unsigned int argumen
 	if (argumentIndex == 0)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<SubOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+		mlir::Type subType = getMostGenericType(rhs().getType(), nestedOperand.getType());
+		auto right = builder.create<SubOp>(getLoc(), subType, nestedOperand, rhs());
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -4554,7 +4575,8 @@ mlir::LogicalResult AddOp::invert(mlir::OpBuilder& builder, unsigned int argumen
 	if (argumentIndex == 1)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<SubOp>(getLoc(), nestedOperand.getType(), nestedOperand, lhs());
+		mlir::Type subType = getMostGenericType(lhs().getType(), nestedOperand.getType());
+		auto right = builder.create<SubOp>(getLoc(), subType, nestedOperand, lhs());
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -4741,7 +4763,8 @@ mlir::LogicalResult AddElementWiseOp::invert(mlir::OpBuilder& builder, unsigned 
 	if (argumentIndex == 0)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<SubElementWiseOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+		mlir::Type subType = getMostGenericType(rhs().getType(), nestedOperand.getType());
+		auto right = builder.create<SubElementWiseOp>(getLoc(), subType, nestedOperand, rhs());
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -4756,7 +4779,8 @@ mlir::LogicalResult AddElementWiseOp::invert(mlir::OpBuilder& builder, unsigned 
 	if (argumentIndex == 1)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<SubElementWiseOp>(getLoc(), nestedOperand.getType(), nestedOperand, lhs());
+		mlir::Type subType = getMostGenericType(lhs().getType(), nestedOperand.getType());
+		auto right = builder.create<SubElementWiseOp>(getLoc(), subType, nestedOperand, lhs());
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -4943,7 +4967,8 @@ mlir::LogicalResult SubOp::invert(mlir::OpBuilder& builder, unsigned int argumen
 	if (argumentIndex == 0)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<AddOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+		mlir::Type addType = getMostGenericType(rhs().getType(), nestedOperand.getType());
+		auto right = builder.create<AddOp>(getLoc(), addType, nestedOperand, rhs());
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -4958,7 +4983,8 @@ mlir::LogicalResult SubOp::invert(mlir::OpBuilder& builder, unsigned int argumen
 	if (argumentIndex == 1)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<SubOp>(getLoc(), nestedOperand.getType(), lhs(), nestedOperand);
+		mlir::Type addType = getMostGenericType(lhs().getType(), nestedOperand.getType());
+		auto right = builder.create<SubOp>(getLoc(), addType, lhs(), nestedOperand);
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -5145,7 +5171,8 @@ mlir::LogicalResult SubElementWiseOp::invert(mlir::OpBuilder& builder, unsigned 
 	if (argumentIndex == 0)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<AddElementWiseOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+		mlir::Type addType = getMostGenericType(rhs().getType(), nestedOperand.getType());
+		auto right = builder.create<AddElementWiseOp>(getLoc(), addType, nestedOperand, rhs());
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -5160,7 +5187,8 @@ mlir::LogicalResult SubElementWiseOp::invert(mlir::OpBuilder& builder, unsigned 
 	if (argumentIndex == 1)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<SubElementWiseOp>(getLoc(), nestedOperand.getType(), lhs(), nestedOperand);
+		mlir::Type addType = getMostGenericType(lhs().getType(), nestedOperand.getType());
+		auto right = builder.create<SubElementWiseOp>(getLoc(), addType, lhs(), nestedOperand);
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -5347,7 +5375,8 @@ mlir::LogicalResult MulOp::invert(mlir::OpBuilder& builder, unsigned int argumen
 	if (argumentIndex == 0)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<DivOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+		mlir::Type divType = getMostGenericType(rhs().getType(), nestedOperand.getType());
+		auto right = builder.create<DivOp>(getLoc(), divType, nestedOperand, rhs());
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -5362,7 +5391,8 @@ mlir::LogicalResult MulOp::invert(mlir::OpBuilder& builder, unsigned int argumen
 	if (argumentIndex == 1)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<DivOp>(getLoc(), nestedOperand.getType(), nestedOperand, lhs());
+		mlir::Type divType = getMostGenericType(lhs().getType(), nestedOperand.getType());
+		auto right = builder.create<DivOp>(getLoc(), divType, nestedOperand, lhs());
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -5574,7 +5604,8 @@ mlir::LogicalResult MulElementWiseOp::invert(mlir::OpBuilder& builder, unsigned 
 	if (argumentIndex == 0)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<DivElementWiseOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+		mlir::Type divType = getMostGenericType(rhs().getType(), nestedOperand.getType());
+		auto right = builder.create<DivElementWiseOp>(getLoc(), divType, nestedOperand, rhs());
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -5589,7 +5620,8 @@ mlir::LogicalResult MulElementWiseOp::invert(mlir::OpBuilder& builder, unsigned 
 	if (argumentIndex == 1)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<DivElementWiseOp>(getLoc(), nestedOperand.getType(), nestedOperand, lhs());
+		mlir::Type divType = getMostGenericType(lhs().getType(), nestedOperand.getType());
+		auto right = builder.create<DivElementWiseOp>(getLoc(), divType, nestedOperand, lhs());
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -5801,7 +5833,8 @@ mlir::LogicalResult DivOp::invert(mlir::OpBuilder& builder, unsigned int argumen
 	if (argumentIndex == 0)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<MulOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+		mlir::Type mulType = getMostGenericType(rhs().getType(), nestedOperand.getType());
+		auto right = builder.create<MulOp>(getLoc(), mulType, nestedOperand, rhs());
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -5816,7 +5849,8 @@ mlir::LogicalResult DivOp::invert(mlir::OpBuilder& builder, unsigned int argumen
 	if (argumentIndex == 1)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<DivOp>(getLoc(), nestedOperand.getType(), lhs(), nestedOperand);
+		mlir::Type mulType = getMostGenericType(lhs().getType(), nestedOperand.getType());
+		auto right = builder.create<DivOp>(getLoc(), mulType, lhs(), nestedOperand);
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -6030,7 +6064,8 @@ mlir::LogicalResult DivElementWiseOp::invert(mlir::OpBuilder& builder, unsigned 
 	if (argumentIndex == 0)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<MulElementWiseOp>(getLoc(), nestedOperand.getType(), nestedOperand, rhs());
+		mlir::Type mulType = getMostGenericType(rhs().getType(), nestedOperand.getType());
+		auto right = builder.create<MulElementWiseOp>(getLoc(), mulType, nestedOperand, rhs());
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))
@@ -6045,7 +6080,8 @@ mlir::LogicalResult DivElementWiseOp::invert(mlir::OpBuilder& builder, unsigned 
 	if (argumentIndex == 1)
 	{
 		mlir::Value nestedOperand = readValue(builder, toNest);
-		auto right = builder.create<DivElementWiseOp>(getLoc(), nestedOperand.getType(), lhs(), nestedOperand);
+		mlir::Type mulType = getMostGenericType(lhs().getType(), nestedOperand.getType());
+		auto right = builder.create<DivElementWiseOp>(getLoc(), mulType, lhs(), nestedOperand);
 
 		for (auto& use : toNest.getUses())
 			if (auto* owner = use.getOwner(); owner != right && !owner->isBeforeInBlock(right))

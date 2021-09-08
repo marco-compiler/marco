@@ -1,11 +1,11 @@
 #include "gtest/gtest.h"
-#include <mlir/Support/LogicalResult.h>
 #include <marco/mlirlowerer/passes/matching/Matching.h>
 #include <marco/mlirlowerer/passes/matching/SCCCollapsing.h>
 #include <marco/mlirlowerer/passes/matching/Schedule.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/Variable.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
+#include <mlir/Support/LogicalResult.h>
 
 #include "../TestingUtils.h"
 
@@ -210,9 +210,9 @@ TEST(ScheduleTest, MultipleBltBlocksAndEquations)
 TEST(ScheduleTest, BltBlockAndVectorEquation)
 {
 	std::string stringModel = "model Sched5 "
-														"int[5] z; "
+														"int[2] z; "
 														"int[10] x; "
-														"int[2] y; "
+														"int[5] y; "
 														"equation "
 														"y[1] + y[2] = x[3]; "
 														"for i in 1:5 loop "

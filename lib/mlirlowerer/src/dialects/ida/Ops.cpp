@@ -825,6 +825,63 @@ mlir::Value GetVariableOp::index()
 }
 
 //===----------------------------------------------------------------------===//
+// Ida::GetDerivativeOp
+//===----------------------------------------------------------------------===//
+
+void GetDerivativeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index)
+{
+	state.addTypes(marco::codegen::modelica::RealType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(index);
+}
+
+mlir::ParseResult GetDerivativeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void GetDerivativeOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+mlir::LogicalResult GetDerivativeOp::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!index().getType().isa<IntegerType>() && !index().getType().isa<marco::codegen::modelica::IntegerType>())
+		return emitOpError("Requires variable index to be an integer");
+
+	return mlir::success();
+}
+
+void GetDerivativeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+marco::codegen::modelica::RealType GetDerivativeOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<marco::codegen::modelica::RealType>();
+}
+
+mlir::ValueRange GetDerivativeOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value GetDerivativeOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value GetDerivativeOp::index()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
 // Ida::AddNewLambdaAccessOp
 //===----------------------------------------------------------------------===//
 

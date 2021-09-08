@@ -28,7 +28,7 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 			AddJacobianOp>();
 
 	// Getters.
-	addOperations<GetTimeOp, GetVariableOp>();
+	addOperations<GetTimeOp, GetVariableOp, GetDerivativeOp>();
 
 	// Lambda helpers.
 	addOperations<
