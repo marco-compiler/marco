@@ -95,7 +95,7 @@ int main(int argc, char* argv[])
 
 	VariableFilter vf = VariableFilter();
 
-	std::string test = "x1[1:2];y;mat[$:$,1:3];";
+	std::string test = "x1[1:2];y;mat[$:$,1:3];der(x1);";
 	VariableFilterParser parser = VariableFilterParser();
 	parser.parseCommandLine(test, vf);
 

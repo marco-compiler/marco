@@ -369,7 +369,9 @@ namespace modelica {
                         VariableTracker tracker(derivativeNode->getDerivedVariable().getIdentifier(), false, true,
                                                 0);
 
-                        vf.addVariable(tracker);
+                        //vf.addVariable(tracker);
+                        //new derivative map
+                        vf.addDerivative(tracker);
                         return;
                     }
                     case tok_identifier: {

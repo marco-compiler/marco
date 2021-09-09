@@ -786,8 +786,6 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                     nameValueMap.insert(std::pair<std::string,mlir::Value>(name,extracted)); //match a variable name with corresponding mlir::Value
                     valuesToBePrinted.push_back(extracted); // for now: print only variables (not derivatives)
 
-
-
                 }
                 else /* derivatives */ {
                     mlir::Value derivativeExtractedValue = rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i);
@@ -912,10 +910,10 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                     }
 
             }
-            
+
             std::cout << "**** 🖨 GENERATING DER PRINT CODE **** " << std::endl;
 
-            //add the derivatives to a 'Queue', FIFO Policy is needed
+            //add the derivatives to a 'Queue', FIFO Policy is needed for coherency
             std::queue<mlir::Value> derValueQueue;
             for (auto var : derivativesValues) {
                 derValueQueue.emplace(var);
@@ -927,13 +925,73 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                 //for each variable check if it has derivative in the model
                 auto got = hasDerivativeMap.find(name);
                 if (!(got==hasDerivativeMap.end()) && got->second) { //if it has derivative
-                    std::cout << name << " has der."<< std::endl;
                     //where is the derivative value placed? After the variables
                     //pop the value from the queue
                     mlir::Value derivativeValue = derValueQueue.front();
-                    derValueQueue.pop();
+                    derValueQueue.pop(); //remove it from the queue, First come, first served!
 
-                    //prints derivativeValue
+                    //now check if the VF is filtering it or if it's not filtering at all
+                    if(variableFilter.isBypass() || variableFilter.printDerivative(name)) {
+                        //Derivative of variable 'name' must be printed, generate the print code
+                        //if current value is an array
+                        std::cout << "printing in full derivative of var " << name << std::endl;
+                        if (auto arrayType = derivativeValue.getType().dyn_cast<ArrayType>())
+                        {
+                            //get the name of the variable the value belongs too
+                            std::string varName = variableNamesVector[cur];
+                            unsigned int rank = arrayType.getRank();
+
+                            //Arrays of Rank > 0, 1D,2D,3D.. Arrays
+                            if (rank > 0) {
+
+                                mlir::Location varLoc = derivativeValue.getLoc();
+                                auto arrayTypeLocal = derivativeValue.getType().cast<ArrayType>();
+
+                                mlir::Value zero = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(0));
+                                mlir::Value one = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(1));
+
+
+                                //Upper and lower bound vectors (for each iteration of the loop, from LB to UB)
+                                llvm::SmallVector<mlir::Value, 3> lowerBounds; //starting from position zero
+                                llvm::SmallVector<mlir::Value, 3> upperBounds;
+
+
+                                //for each of the array dimensions (rank)
+                                for (unsigned int i = 0, e = arrayTypeLocal.getRank(); i < e; ++i) {
+
+                                    Range dimensionRange(-1, -1); //default value
+
+                                    /// ============ FIX LOWER BOUNDs ============== //
+                                    lowerBounds.push_back(zero); // start from the beginning of the array
+                                    /// ============ FIX UPPER BOUNDs ============== //
+                                    mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc,
+                                                                                        rewriter.getIndexAttr(i));
+                                    upperBounds.push_back(rewriter.create<DimOp>(varLoc, derivativeValue, dim));
+                                }
+                                    //step e.g. what in C++ is "i++"
+                                llvm::SmallVector<mlir::Value, 3> steps(arrayTypeLocal.getRank(), one);
+
+                                mlir::scf::buildLoopNest(
+                                            rewriter, varLoc, lowerBounds, upperBounds, steps, llvm::None,
+                                            [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
+                                                //print element at 'position'
+                                                mlir::Value value = rewriter.create<LoadOp>(derivativeValue.getLoc(), derivativeValue, position);
+                                                value = materializeTargetConversion(rewriter, value);
+                                                printElement(rewriter, value, printSeparator, semicolonCst, module);
+                                                return std::vector<mlir::Value>();
+                                            });
+
+                                cur = cur + 1; //keep the match between variable value and variable name consistent
+                            }
+                            else { //Arrays of Rank = 0
+                                mlir::Value value = rewriter.create<LoadOp>(derivativeValue.getLoc(), derivativeValue);
+                                value = materializeTargetConversion(rewriter, value);
+                                printElement(rewriter, value, printSeparator, semicolonCst, module);
+                            }
+                        }
+                    }//prints derivativeValue
+
+
                 }
 
             }
