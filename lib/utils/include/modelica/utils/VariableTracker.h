@@ -39,7 +39,7 @@ public:
 
     const bool getIsDerivative() const;
 
-    const uint16_t getDim() const;
+    const unsigned int getDim() const;
 
     const list <Range> &getRanges() const;
 

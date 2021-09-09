@@ -100,7 +100,6 @@ int main(int argc, char* argv[])
 	parser.parseCommandLine(test, vf);
 
 
-
 	if (error)
 	{
 		llvm::errs() << error.message();

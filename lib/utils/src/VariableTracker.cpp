@@ -25,7 +25,7 @@ const bool VariableTracker::getIsDerivative() const {
     return _isDerivative;
 }
 
-const uint16_t VariableTracker::getDim() const {
+const unsigned int VariableTracker::getDim() const {
     return _dim;
 }
 

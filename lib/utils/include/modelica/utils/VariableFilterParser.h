@@ -17,7 +17,7 @@ namespace modelica {
     class VariableFilterParser {
 
         static void throwGenericError(void) {
-            cout << "ERROR | generic." << endl;
+            cout << "VF: ERROR when parsing | generic." << endl;
             exit(0);
         }
 
@@ -111,7 +111,7 @@ namespace modelica {
                 while ((LastChar = inputString[i++]) != '/') {
                     RegexStr += LastChar;
                 }
-								/* TODO: add regex check without exceptions
+				/* TODO: add regex check without exceptions
                 try {
                     std::regex checkRegex(RegexStr, std::regex::ECMAScript);
                     return tok_regex_expr;
@@ -177,11 +177,11 @@ namespace modelica {
         public:
             ArrayRangeAST(const int lvalue, const int rvalue) : lvalue(lvalue), rvalue(rvalue) {}
 
-            const int getLvalue() const {
+             int getLvalue() const {
                 return lvalue;
             }
 
-            const int getRvalue() const {
+             int getRvalue() const {
                 return rvalue;
             }
 
@@ -356,6 +356,7 @@ namespace modelica {
             string ele = inputStringReference;
             // cout << "\n\n*** NEW PARSING of " << ele << endl;
             inputString = ele.c_str();
+
             bool flag = true;
             lexerReset();
             while (flag) {
