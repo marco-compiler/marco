@@ -87,6 +87,26 @@ void testArray() {
 
 }
 
+void testDerivative() {
+
+    for (int i = 0; i < 8; ++i) {
+        std::cout << "dD";
+        if (i==7) std::cout << std::endl;
+    }
+    string commandLineInput = "der(x);der(_y22);y[$:199];";
+    modelica::VariableFilter vf = VariableFilter();
+    modelica::VariableFilterParser parser = VariableFilterParser();
+    parser.parseCommandLine(commandLineInput, vf);
+    assert(vf.printDerivative("x"));
+    assert(vf.printDerivative("_y22"));
+    assert(!vf.printDerivative("y"));
+
+    assert(!vf.printDerivative("der(x)"));
+    assert(!vf.printDerivative("der(y)"));
+
+    vf.dump();
+
+}
 void testRegex() {
     string commandLineInput = "/[a-z]+/;";
     modelica::VariableFilter vf = VariableFilter();
@@ -112,6 +132,7 @@ int main() {
     testNormal();
     testArray();
     testRegex();
+    testDerivative();
 
 }
 

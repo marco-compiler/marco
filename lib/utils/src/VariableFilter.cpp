@@ -5,12 +5,19 @@
 #include "../include/modelica/utils/VariableFilter.h"
 
 void modelica::VariableFilter::dump() {
+
     for (int s = 0; s < 12; ++s) printf("#");
     cout << "\n *** TRACKED VARIABLES *** : " << endl;
-
     for (const std::pair<std::string, VariableTracker> vt  : _variables) {
         vt.second.dump(); //dump current variable tracker
     }
+
+    for (int s = 0; s < 12; ++s) printf("#");
+    cout << "\n *** TRACKED DERIVATIVES *** : " << endl;
+    for (const std::pair<std::string, VariableTracker> vt  : _derivatives) {
+        vt.second.dump(); //dump current variable tracker
+    }
+
     for (int s = 0; s < 12; ++s) printf("#");
     cout << "\n *** TRACKED REGEX(s) *** : " << endl;
     for (const auto &regex : _regex) {

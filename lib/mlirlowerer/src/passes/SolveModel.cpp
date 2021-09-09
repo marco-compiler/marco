@@ -818,6 +818,7 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                         //get the name of the variable the value belongs too
                         std::string varName = variableNamesVector[cur];
                         unsigned int rank = arrayType.getRank();
+                        bool regexMatched = variableFilter.matchesRegex(varName);
 
                         //Arrays of Rank > 0, 1D,2D,3D.. Arrays
                         if (rank > 0) {
@@ -829,14 +830,14 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                             mlir::Value one = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(1));
 
                             //no filtering or no filter or specified to print by CL args
-                            if (variableFilter.isBypass() || variableFilter.checkTrackedIdentifier(varName) ) {
-
+                            if (variableFilter.isBypass() || regexMatched || variableFilter.checkTrackedIdentifier(varName) ) {
 
 
                                 //check if custom ranges are specified, boolean 'isArray' e.g.
                                     // x prints all the array with all its dimensions from 0 to len(dim) (is Array = false)
                                     // x[$:3,1:50] prints custom ranges for dimensions 0 and 1 (all of them)
-                                bool fullRange = variableFilter.isBypass() || !variableFilter.lookupByIdentifier(varName).getIsArray(); // only the name has been provided
+                                bool fullRange = variableFilter.isBypass() || regexMatched ||
+                                        !variableFilter.lookupByIdentifier(varName).getIsArray(); // only the name has been provided
                                 std::cout << "printing " << varName << " - fullRange=" << fullRange <<std::endl;
                                 //Upper and lower bound vectors (for each iteration of the loop, from LB to UB)
                                 llvm::SmallVector<mlir::Value, 3> lowerBounds; //starting from position zero
