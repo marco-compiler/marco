@@ -5,6 +5,7 @@ model SimpleDer
   Real y(start=9.99);
 equation
   tau*der(x1[1]) = 1.0;
+  2.0*der(y) = tau;
   for i in 2:4 loop
 	tau*der(x1[i]) = 2.0*i;
   end for;

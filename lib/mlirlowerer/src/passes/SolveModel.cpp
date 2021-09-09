@@ -15,13 +15,16 @@
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/Variable.h>
 #include <marco/mlirlowerer/passes/TypeConverter.h>
+#include <unordered_map>
+#include <modelica/utils/VariableFilter.h>
+#include <queue>
 
 using namespace marco;
 using namespace codegen;
 using namespace model;
 using namespace modelica;
 
-//TODO x2
+
 struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 {
 	using mlir::OpRewritePattern<SimulationOp>::OpRewritePattern;
@@ -408,6 +411,7 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 			model->addVariable(derVar);
 			variable.setDer(derVar);
 
+
 			args.push_back(derVar);
 			rewriter.create<YieldOp>(terminator.getLoc(), args);
 			rewriter.eraseOp(terminator);
@@ -415,9 +419,12 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 			auto newArgumentType = derVar.getType().cast<ArrayType>().toUnknownAllocationScope();
 			auto bodyArgument = simulation.body().addArgument(newArgumentType);
 
-			//AL simulation.print().addArgument(newArgumentType); TODO
+
 
 			derivatives->map(operand, bodyArgument);
+
+            //AL simulation.print().addArgument(newArgumentType); TODO
+
 		}
 		else
 		{
@@ -453,6 +460,7 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 
 	Model* model;
 	mlir::BlockAndValueMapping* derivatives;
+
 };
 
 //// PRINT VARIABLES ///
@@ -511,7 +519,7 @@ bool performRangeBoundCheck(ArrayType array, VariableFilter filter, string name)
         //get the number of elements, 'length' of the dimension
         auto shapeOfYou = array.getShape()[i];
         std::cout << " is made of " << shapeOfYou <<  " elements.\n";
-        
+
         Range dimensionRange = filter.lookupByIdentifier(name).getRangeOfDimensionN(i);
         if (dimensionRange.rightValue > shapeOfYou ||  //if the specified range has a bound that it's bigger than the array dimension
             dimensionRange.leftValue  > shapeOfYou) {
@@ -528,9 +536,9 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
     //Constructor
 	SimulationOpPattern(mlir::MLIRContext* ctx,
 											TypeConverter& typeConverter,
-											SolveModelOptions options)
+											SolveModelOptions options, mlir::BlockAndValueMapping derVarMapping)
 			: mlir::OpConversionPattern<SimulationOp>(typeConverter, ctx, 1),
-				options(std::move(options))
+				options(std::move(options)), derivatives(derVarMapping)
 	{
 	}
 
@@ -538,12 +546,6 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
     {
         mlir::Type type = this->getTypeConverter()->convertType(value.getType());
         return this->getTypeConverter()->materializeTargetConversion(builder, value.getLoc(), type, value);
-    }
-
-    void materializeTargetConversion(mlir::OpBuilder& builder, llvm::SmallVectorImpl<mlir::Value>& values) const
-    {
-        for (auto& value : values)
-            value = materializeTargetConversion(builder, value);
     }
 
     void printElement(mlir::OpBuilder& builder, mlir::Value value, mlir::Value printSeparator, mlir::Value separator, mlir::ModuleOp module) const
@@ -592,6 +594,21 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 			for (auto it = ++terminator.values().begin(); it != terminator.values().end(); ++it)
 				varTypes.push_back((*it).getType().cast<ArrayType>().toUnknownAllocationScope());
 		}
+
+        mlir::ArrayRef<mlir::Attribute> variableNamesAttributes = op.variableNames().getValue();
+
+	    std::unordered_map<std::string, bool> hasDerivativeMap;
+
+	    int a = 1; //skipping 'time' variable
+
+	    //for each variable of the model, check if it has a derivative too and create a map with key variableName
+        for (const mlir::Attribute &item : variableNamesAttributes) {
+            std::string variableIdentifier = item.cast<mlir::StringAttr>().getValue().str();
+            mlir::Value bodyValue = op.body().getArgument(a++); //then increment a
+            bool hasDer = derivatives.contains(bodyValue); //check in the value / derivative map if there is an entry
+            //std::cout << variableIdentifier << " has der? " << hasDer << std::endl;
+            hasDerivativeMap.insert_or_assign(variableIdentifier, hasDer);
+        }
 
 		auto structType = StructType::get(op->getContext(), varTypes);
 		auto structPtrType = ArrayType::get(structType.getContext(), BufferAllocationScope::unknown, structType);
@@ -735,6 +752,7 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 			mlir::Value structValue = loadDataFromOpaquePtr(rewriter, loc, function.getArgument(0), structType);
 
             llvm::SmallVector<mlir::Value, 3> valuesToBePrinted;
+            llvm::SmallVector<mlir::Value, 3> derivativesValues;
 
 			//RETRIEVE THE NAMES
 
@@ -749,6 +767,7 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                 variableNamesVector.emplace_back(variableIdentifier);
             }
 
+
             //all variables
 
             mlir::Value time = rewriter.create<ExtractOp>(loc, varTypes[0], structValue, 0);
@@ -757,13 +776,23 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
             std::map<std::string, mlir::Value> nameValueMap;
 
             //Values are in the struct, let's fetch them
-            for (size_t i = 2; i<structType.getElementTypes().size(); ++i) {
-                if (i-2 < variableNamesVector.size()) {
-                    std::string name = variableNamesVector[i-2];
 
+            size_t NUM_VAR = variableNamesVector.size();
+            for (size_t i = 2; i<structType.getElementTypes().size(); ++i) {
+
+                if (i-2 < NUM_VAR) {
+                    std::string name = variableNamesVector[i-2];
                     mlir::Value extracted = rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i);
                     nameValueMap.insert(std::pair<std::string,mlir::Value>(name,extracted)); //match a variable name with corresponding mlir::Value
                     valuesToBePrinted.push_back(extracted); // for now: print only variables (not derivatives)
+
+
+
+                }
+                else /* derivatives */ {
+                    mlir::Value derivativeExtractedValue = rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i);
+                    derivativesValues.push_back(derivativeExtractedValue);
+
                 }
 
             }
@@ -780,7 +809,7 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
             mlir::Value falseValue = rewriter.create<ConstantOp>(loc, BooleanAttribute::get(BooleanType::get(op->getContext()), false));
             rewriter.create<StoreOp>(loc, falseValue, printSeparator);
 
-            int cur = 0;
+            int cur = 0; //auxiliary variable to keep the index of the currently printed variable name
 
             std::cout << "**** 🖨 GENERATING PRINT CODE **** " << std::endl;
             //for each Value to be printed (with bypass activated means 'time' + all variables)
@@ -883,6 +912,31 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                     }
 
             }
+            
+            std::cout << "**** 🖨 GENERATING DER PRINT CODE **** " << std::endl;
+
+            //add the derivatives to a 'Queue', FIFO Policy is needed
+            std::queue<mlir::Value> derValueQueue;
+            for (auto var : derivativesValues) {
+                derValueQueue.emplace(var);
+            }
+
+            //After the variables have been printed, start to print derivatives
+            for (std::string name : variableNamesVector) {
+
+                //for each variable check if it has derivative in the model
+                auto got = hasDerivativeMap.find(name);
+                if (!(got==hasDerivativeMap.end()) && got->second) { //if it has derivative
+                    std::cout << name << " has der."<< std::endl;
+                    //where is the derivative value placed? After the variables
+                    //pop the value from the queue
+                    mlir::Value derivativeValue = derValueQueue.front();
+                    derValueQueue.pop();
+
+                    //prints derivativeValue
+                }
+
+            }
 
             rewriter.create<mlir::LLVM::CallOp>(op.getLoc(), printfRef, newLineCst);
 
@@ -961,6 +1015,7 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 		return builder.create<LoadOp>(loc, castedPtr);
 	}
 
+	mlir::BlockAndValueMapping derivatives;
 	SolveModelOptions options;
 };
 
@@ -1095,12 +1150,15 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (failed(loopify())) //TODO FIX
 			return signalPassFailure();
 
+        mlir::BlockAndValueMapping derivatives;
+
+
 		getOperation()->walk([&](SimulationOp simulation) {
 			mlir::OpBuilder builder(simulation);
 
 			// Create the model
 			Model model = Model::build(simulation);
-			mlir::BlockAndValueMapping derivatives;
+
 
 			// Remove the derivative operations and allocate the appropriate buffers
 			if (failed(removeDerivatives(builder, model, derivatives))) //TODO FIX
@@ -1130,7 +1188,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		// The model has been solved and we can now proceed to create the update
 		// functions and, if requested, the main simulation loop.
-		if (auto status = createSimulationFunctions(); failed(status)) //TODO FIX
+		if (auto status = createSimulationFunctions(derivatives); failed(status)) //TODO FIX
 			return signalPassFailure();
 	}
 
@@ -1321,7 +1379,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		assert(false && "To be implemented");
 	}
 
-	mlir::LogicalResult createSimulationFunctions()
+	mlir::LogicalResult createSimulationFunctions(mlir::BlockAndValueMapping derVarMapping)
 	{
 		mlir::ConversionTarget target(getContext());
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
@@ -1331,7 +1389,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
 
 		mlir::OwningRewritePatternList patterns(&getContext());
-		patterns.insert<SimulationOpPattern>(&getContext(), typeConverter, options);
+		patterns.insert<SimulationOpPattern>(&getContext(), typeConverter, options, derVarMapping);
 		patterns.insert<EquationOpPattern, ForEquationOpPattern>(&getContext());
 
 		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
