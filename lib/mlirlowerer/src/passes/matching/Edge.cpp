@@ -3,18 +3,24 @@
 
 using namespace marco::codegen::model;
 
-Edge::Edge(Equation equation,
-					 Variable variable,
-					 VectorAccess vectorAccess,
-					 ExpressionPath access,
-					 size_t index)
+Edge::Edge(
+		const Equation equation,
+		const Variable variable,
+		VectorAccess vectorAccess,
+		ExpressionPath access,
+		size_t index,
+		size_t eqDesc,
+		size_t varDesc)
 		: equation(std::move(equation)),
 			variable(std::move(variable)),
 			vectorAccess(vectorAccess),
-			invertedAccess(vectorAccess.invert()),
 			index(index),
-			pathToExp(std::move(access))
+			pathToExp(std::move(access)),
+			eqDesc(eqDesc),
+			varDesc(varDesc)
 {
+	if (this->equation.isForLoop())
+		invertedAccess = vectorAccess.invert();
 }
 
 Equation Edge::getEquation() const
@@ -47,14 +53,14 @@ const marco::IndexSet& Edge::getSet() const
 	return set;
 }
 
-marco::IndexSet Edge::map(const IndexSet& set) const
+marco::IndexSet Edge::map(const IndexSet& currentSet) const
 {
-	return vectorAccess.map(set);
+	return vectorAccess.map(currentSet);
 }
 
-marco::IndexSet Edge::invertMap(const IndexSet& set) const
+marco::IndexSet Edge::invertMap(const IndexSet& currentSet) const
 {
-	return invertedAccess.map(set);
+	return invertedAccess.map(currentSet);
 }
 
 bool Edge::empty() const
@@ -75,4 +81,17 @@ ExpressionPath& Edge::getPath()
 const ExpressionPath& Edge::getPath() const
 {
 	return pathToExp;
+}
+
+void Edge::dump(llvm::raw_ostream& OS) const
+{
+	OS << "EDGE: Eq " << eqDesc << " to Var " << varDesc;
+	OS << "\n";
+	OS << "\tForward Map: ";
+	vectorAccess.dump(OS);
+	OS << " -> Backward Map: ";
+	invertedAccess.dump(OS);
+	OS << "\n\tCurrent Flow: ";
+	set.dump(OS);
+	OS << "\n";
 }

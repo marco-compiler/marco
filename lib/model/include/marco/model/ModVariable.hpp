@@ -33,7 +33,7 @@ namespace marco
 		void setIsState(bool isState) { contribuitesToState = isState; }
 		[[nodiscard]] bool isState() const { return contribuitesToState; }
 		[[nodiscard]] bool isConstant() const { return isConst; }
-		void dump(llvm::raw_ostream& OS) const;
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 		[[nodiscard]] size_t size() const { return init.getModType().flatSize(); }
 		[[nodiscard]] size_t indexOfElement(llvm::ArrayRef<size_t> access) const
 		{

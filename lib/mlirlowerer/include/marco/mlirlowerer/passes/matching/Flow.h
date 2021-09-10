@@ -47,6 +47,8 @@ namespace marco::codegen::model
 
 		[[nodiscard]] static bool compare(const Flow& l, const Flow& r, const MatchingGraph& g);
 
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
+
 		private:
 		Flow(IndexSet set, IndexSet mapped, Edge& edge, bool isForward);
 
@@ -79,6 +81,8 @@ namespace marco::codegen::model
 
 		void pop();
 
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
+
 		private:
 		Container<Flow> choices;
 	};
@@ -106,6 +110,8 @@ namespace marco::codegen::model
 		[[nodiscard]] bool valid() const;
 
 		void apply();
+
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
 		private:
 		[[nodiscard]] FlowCandidates getBackwardMatchable() const;

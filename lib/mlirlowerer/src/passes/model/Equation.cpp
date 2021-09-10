@@ -179,6 +179,17 @@ EquationSidesOp Equation::getTerminator() const
 	return mlir::cast<EquationSidesOp>(getOp().body()->getTerminator());
 }
 
+bool Equation::isForLoop() const
+{
+	ForEquationOp forEquationOp = mlir::cast<ForEquationOp>(getOp().getOperation());
+
+	for (mlir::BlockArgument arg : forEquationOp.body()->getArguments())
+		if (!arg.use_empty())
+			return true;
+
+	return false;
+}
+
 size_t Equation::amount() const
 {
 	llvm::SmallVector<long, 3> lhsEquations;
@@ -219,6 +230,9 @@ size_t Equation::amount() const
 
 marco::MultiDimInterval Equation::getInductions() const
 {
+	if (!isForLoop())
+		return { { 0, 1 } };
+
 	auto forEquationOp = mlir::cast<ForEquationOp>(getOp().getOperation());
 	llvm::SmallVector<Interval, 3> intervals;
 
@@ -252,7 +266,7 @@ void Equation::setInductions(MultiDimInterval inductions)
 
 size_t Equation::dimensions() const
 {
-	return getInductions().dimensions();
+	return isForLoop() ? getInductions().dimensions() : 0;
 }
 
 bool Equation::isForward() const

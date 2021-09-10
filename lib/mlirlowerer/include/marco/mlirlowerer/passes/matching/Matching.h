@@ -149,6 +149,8 @@ namespace marco::codegen::model
 			return std::distance(r.begin(), r.end());
 		}
 
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
+
 		private:
 		void addEquation(Equation eq);
 		void emplaceEdge(Equation eq, ExpressionPath path, size_t index);

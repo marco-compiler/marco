@@ -47,6 +47,8 @@ namespace marco::codegen::model
 		[[nodiscard]] Expression lhs() const;
 		[[nodiscard]] Expression rhs() const;
 
+		[[nodiscard]] bool isForLoop() const;
+
 		[[nodiscard]] size_t amount() const;
 
 		[[nodiscard]] MultiDimInterval getInductions() const;
