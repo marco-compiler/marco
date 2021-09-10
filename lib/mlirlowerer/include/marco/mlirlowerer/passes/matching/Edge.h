@@ -14,7 +14,14 @@ namespace marco::codegen::model
 	class Edge
 	{
 		public:
-		Edge(Equation equation, Variable variable, VectorAccess vectorAccess, ExpressionPath access, size_t index);
+		Edge(
+				const Equation equation,
+				const Variable variable,
+				VectorAccess vectorAccess,
+				ExpressionPath access,
+				size_t index,
+				size_t eqDesc,
+				size_t varDesc);
 
 		[[nodiscard]] Equation getEquation() const;
 		[[nodiscard]] Variable getVariable() const;
@@ -33,13 +40,17 @@ namespace marco::codegen::model
 		[[nodiscard]] ExpressionPath& getPath();
 		[[nodiscard]] const ExpressionPath& getPath() const;
 
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
+
 		private:
-		Equation equation;
-		Variable variable;
+		const Equation equation;
+		const Variable variable;
 		VectorAccess vectorAccess;
 		VectorAccess invertedAccess;
 		IndexSet set;
 		size_t index;
 		ExpressionPath pathToExp;
+		size_t eqDesc;
+		size_t varDesc;
 	};
 }

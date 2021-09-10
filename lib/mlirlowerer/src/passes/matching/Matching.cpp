@@ -214,8 +214,15 @@ void MatchingGraph::emplaceEdge(Equation eq, ExpressionPath path, size_t useInde
 	auto eqDesc = getDesc(eq);
 	auto varDesc = getDesc(var);
 
-	Edge e(eq, var, std::move(access.getAccess()), std::move(path), useIndex);
+	Edge e(eq, var, std::move(access.getAccess()), std::move(path), useIndex, eqDesc, varDesc);
 	boost::add_edge(eqDesc, varDesc, std::move(e), graph);
+}
+
+
+void MatchingGraph::dump(llvm::raw_ostream& OS) const
+{
+	for (const auto& edge : *this)
+		edge.dump(OS);
 }
 
 mlir::LogicalResult marco::codegen::model::match(Model& model, size_t maxIterations)

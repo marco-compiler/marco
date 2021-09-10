@@ -58,32 +58,31 @@ bool Flow::isForwardEdge() const
 	return isForward;
 }
 
-void Flow::addFlowAtEnd(IndexSet& set)
+void Flow::addFlowAtEnd(IndexSet& currentSet)
 {
 	if (isForwardEdge())
-		edge->getSet().unite(set);
+		edge->getSet().unite(currentSet);
 	else
-		edge->getSet().remove(set);
+		edge->getSet().remove(currentSet);
 }
 
-marco::IndexSet Flow::inverseMap(const IndexSet& set) const
+marco::IndexSet Flow::inverseMap(const IndexSet& currentSet) const
 {
 	if (isForwardEdge())
-		return edge->invertMap(set);
+		return edge->invertMap(currentSet);
 
-	return edge->map(set);
+	return edge->map(currentSet);
 }
 
-marco::IndexSet Flow::applyAndInvert(IndexSet set)
+marco::IndexSet Flow::applyAndInvert(IndexSet currentSet)
 {
 	if (isForwardEdge())
-		set = inverseMap(set);
-
-	addFlowAtEnd(set);
+		currentSet = inverseMap(currentSet);
+	addFlowAtEnd(currentSet);
 
 	if (!isForwardEdge())
-		set = inverseMap(set);
-	return set;
+		currentSet = inverseMap(currentSet);
+	return currentSet;
 }
 
 Flow Flow::forwardEdge(Edge& edge, IndexSet set)
@@ -117,6 +116,16 @@ bool Flow::compare(const Flow& l, const Flow& r, const MatchingGraph& g)
 
 	return l.size() < r.size();
 };
+
+void Flow::dump(llvm::raw_ostream& OS) const
+{
+	edge->dump(OS);
+	OS << "\t Forward=" << static_cast<int>(isForwardEdge()) << " Source Set:";
+	set.dump(OS);
+	OS << "-> Arriving Set:";
+	mappedFlow.dump(OS);
+	OS << "\n";
+}
 
 FlowCandidates::FlowCandidates(llvm::SmallVector<Flow, 2> c, const MatchingGraph& g)
 		: choices(std::move(c))
@@ -169,6 +178,13 @@ void FlowCandidates::pop()
 	auto last = choices.end();
 	last--;
 	choices.erase(last, choices.end());
+}
+
+void FlowCandidates::dump(llvm::raw_ostream& OS) const
+{
+	OS << "CURRENT:\n";
+	for (const auto& c : llvm::make_range(std::rbegin(choices), std::rend(choices)))
+		c.dump(OS);
 }
 
 AugmentingPath::AugmentingPath(MatchingGraph& graph, size_t maxDepth)
@@ -309,6 +325,14 @@ void AugmentingPath::apply()
 		Flow& flow = edge.getCurrent();
 		set = flow.applyAndInvert(set);
 	}
+}
+
+void AugmentingPath::dump(llvm::raw_ostream& OS) const
+{
+	OS << "valid path = " << (valid() ? "true" : "false");
+	OS << '\n';
+	for (const auto& e : frontier)
+		e.dump(OS);
 }
 
 FlowCandidates AugmentingPath::getBackwardMatchable() const
