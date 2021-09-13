@@ -21,11 +21,11 @@
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
 #include <marco/mlirlowerer/passes/model/Variable.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
 #include <marco/mlirlowerer/passes/TypeConverter.h>
 #include <marco/utils/VariableFilter.h>
-#include <queue>
 
 using namespace marco;
 using namespace codegen;
@@ -1847,7 +1847,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if (auto status = equation.explicitate(); failed(status))
 			{
 				model.getVariable(equation.getDeterminedVariable().getVar()).setTrivial(false);
-				bltBlocks.push_back(BltBlock(llvm::SmallVector<Equation, 1>(1, equation)));
+				bltBlocks.push_back(BltBlock(llvm::SmallVector<Equation, 3>(1, equation)));
 			}
 			else
 			{
@@ -1925,7 +1925,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			Variable var = model.getVariable(equation.getDeterminedVariable().getVar());
 
 			if (var.isDerivative() || !var.isTrivial())
-				bltBlocks.push_back(BltBlock(llvm::SmallVector<Equation, 1>(1, equation)));
+				bltBlocks.push_back(BltBlock(llvm::SmallVector<Equation, 3>(1, equation)));
 			else
 				equations.push_back(equation);
 		}
@@ -1937,54 +1937,96 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 	static mlir::LogicalResult substituteTrivialVariables(mlir::OpBuilder& builder, Model& model)
 	{
+		llvm::SmallVector<BltBlock, 3> bltBlocks = model.getBltBlocks();
+
 		// Add all trivial variables to a map in order to retrieve later the 
 		// equation they are matched with.
-		std::map<Variable, Equation*> trivialVariablesMap;
+		std::map<Variable, llvm::SmallVector<Equation*, 1>> trivialVariablesMap;
 
 		for (Equation& equation : model.getEquations())
 		{
 			Variable var = model.getVariable(equation.getDeterminedVariable().getVar());
-			trivialVariablesMap[var] = &equation;
+			trivialVariablesMap[var].push_back(&equation);
 			assert(var.isTrivial());
 		}
 
 		// For each equation in each bltBlocks, if an expression refers to a trivial
 		// variable, substitute it with the corresponding equation.
-		for (BltBlock& bltBlock : model.getBltBlocks())
+		for (size_t i = 0; i < bltBlocks.size(); i++)
 		{
-			for (Equation& equation : bltBlock.getEquations())
+			for (size_t j = 0; j < bltBlocks[i].size(); j++)
 			{
-				std::queue<Expression> expQueue({ equation.lhs(), equation.rhs() });
+				ReferenceMatcher matcher(bltBlocks[i][j]);
 
-				while (!expQueue.empty())
+				for (size_t k = 0; k < matcher.size(); k++)
 				{
-					if (expQueue.front().isReferenceAccess())
-					{
-						Variable var = model.getVariable(expQueue.front().getReferredVectorAccess());
+					Variable var = model.getVariable(matcher[k].getExpression().getReferredVectorAccess());
 
-						// If the variable is trivial, unless it is an induction variable
-						if (var.isTrivial() && trivialVariablesMap.find(var) != trivialVariablesMap.end())
+					// If the variable is trivial, unless it is an induction variable.
+					if (var.isTrivial() && trivialVariablesMap.find(var) != trivialVariablesMap.end())
+					{
+						// Replace all occurrences in the non-trivial equation.
+						assert(trivialVariablesMap.find(var) != trivialVariablesMap.end());
+						if (trivialVariablesMap[var].size() == 1)
 						{
-							// Replace all occurrences in the non-trivial equation
-							assert(trivialVariablesMap.find(var) != trivialVariablesMap.end());
-							replaceUses(builder, *trivialVariablesMap[var], equation);
-
-							// Then re-start iterating over the same equation
-							expQueue = std::queue<Expression>({ equation.lhs(), equation.rhs() });
-							continue;
+							replaceUses(builder, *trivialVariablesMap[var][0], bltBlocks[i][j]);
 						}
-					}
-					else if (expQueue.front().isOperation())
-					{
-						for (size_t i : marco::irange(expQueue.front().childrenCount()))
-							expQueue.push(expQueue.front().getChild(i));
-					}
+						else
+						{
+							// In case a trivial variable is computed differently depending on the index,
+							// we must split the non-trivial equation based on the trivial variable.
+							for (Equation* trivialEq : trivialVariablesMap[var])
+							{
+								// Total dimension of the trivial equation.
+								VectorAccess sourceAccess = AccessToVar::fromExp(trivialEq->getMatchedExp()).getAccess();
+								MultiDimInterval sourceInductions = sourceAccess.map(trivialEq->getInductions());
 
-					expQueue.pop();
+								// Dimension of trivial variable in non-trivial equation.
+								VectorAccess destinationAccess = AccessToVar::fromExp(matcher[k].getExpression()).getAccess();
+								MultiDimInterval destinationInductions = destinationAccess.map(bltBlocks[i][j].getInductions());
+
+								if (marco::areDisjoint(sourceInductions, destinationInductions))
+									continue;
+
+								// Compute the new inductions.
+								MultiDimInterval usedInductions = marco::intersection(sourceInductions, destinationInductions);
+								MultiDimInterval newInductions = bltBlocks[i][j].getInductions();
+								for (auto& access : llvm::enumerate(destinationAccess))
+								{
+									if (access.value().isOffset())
+									{
+										size_t index = access.value().getInductionVar();
+										newInductions = newInductions.replacedDimension(
+											index,
+											std::max(newInductions.at(index).min(),
+												usedInductions.at(access.index()).min() - access.value().getOffset()),
+											std::min(newInductions.at(index).max(),
+												usedInductions.at(access.index()).max() - access.value().getOffset()));
+									}
+								}
+
+								// Compose the new equation and add it to the BLT block.
+								Equation newEquation = bltBlocks[i][j].clone();
+								newEquation.setInductions(newInductions);
+								replaceUses(builder, *trivialEq, newEquation);
+								bltBlocks[i].insert(j + 1, newEquation);
+							}
+
+							// Erase the old equation.
+							bltBlocks[i][j].getOp()->erase();
+							bltBlocks[i].erase(j);
+						}
+
+						// Then re-start iterating over the same equation
+						matcher = ReferenceMatcher(bltBlocks[i][j]);
+						k = 0;
+					}
 				}
 			}
 		}
 
+		Model result(model.getOp(), model.getVariables(), model.getEquations(), bltBlocks);
+		model = result;
 		return mlir::success();
 	}
 
@@ -1993,7 +2035,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		int64_t result = 0;
 
 		for (BltBlock& bltBlock : model.getBltBlocks())
-			result += bltBlock.size();
+			result += bltBlock.equationsCount();
 
 		return result;
 	}
@@ -2017,7 +2059,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				}
 			}
 
-			result += rowLength * bltBlock.size();
+			result += rowLength * bltBlock.equationsCount();
 		}
 
 		return result;

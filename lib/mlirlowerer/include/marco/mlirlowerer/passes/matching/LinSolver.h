@@ -18,7 +18,7 @@ namespace marco::codegen::model
 	 * @param source equation containing the explicitated variable to be replaced
 	 * @param destination equation inside which the source variable occurrences have to be replaced
 	 */
-	void replaceUses(mlir::OpBuilder& builder, const Equation& source, Equation& destination);
+	void replaceUses(mlir::OpBuilder& builder, const Equation source, Equation destination);
 
 	/**
 	 * Solve the linear system by using the variable elimination method.
