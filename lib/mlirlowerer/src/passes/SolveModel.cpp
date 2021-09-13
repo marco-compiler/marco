@@ -348,7 +348,6 @@ struct ForEquationOpScalarizePattern : public mlir::OpRewritePattern<ForEquation
 	}
 };
 
-//TODO x1
 struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 {
 	DerOpPattern(mlir::MLIRContext* context, Model& model, mlir::BlockAndValueMapping& derivatives)
@@ -778,6 +777,8 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
             //Values are in the struct, let's fetch them
 
             size_t NUM_VAR = variableNamesVector.size();
+
+            //starting from i = 2 because first two values are time and step
             for (size_t i = 2; i<structType.getElementTypes().size(); ++i) {
 
                 if (i-2 < NUM_VAR) {
