@@ -17,6 +17,30 @@ const BltBlock::Container<Equation>& BltBlock::getEquations() const
 	return equations;
 }
 
+Equation BltBlock::operator[](size_t index)
+{
+	assert(index < equations.size());
+	return equations[index];
+}
+
+Equation BltBlock::operator[](size_t index) const
+{
+	assert(index < equations.size());
+	return equations[index];
+}
+
+void BltBlock::insert(size_t index, Equation equation)
+{
+	assert(index <= equations.size());
+	equations.insert(equations.begin() + index, equation);
+}
+
+void BltBlock::erase(size_t index)
+{
+	assert(index < equations.size());
+	equations.erase(equations.begin() + index);
+}
+
 size_t BltBlock::equationsCount() const
 {
 	size_t count = 0;
@@ -25,11 +49,6 @@ size_t BltBlock::equationsCount() const
 		count += equation.getInductions().size();
 
 	return count;
-}
-
-void BltBlock::addEquation(Equation equation)
-{
-	equations.push_back(equation);
 }
 
 bool BltBlock::isForward() const
@@ -46,10 +65,5 @@ void BltBlock::setForward(bool isForward)
 
 size_t BltBlock::size() const
 {
-	size_t size = 0;
-
-	for (const Equation& equation : equations)
-		size += equation.getInductions().size();
-
-	return size;
+	return equations.size();
 }

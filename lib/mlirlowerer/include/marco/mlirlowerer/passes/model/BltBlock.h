@@ -23,7 +23,12 @@ namespace marco::codegen::model
 
 		[[nodiscard]] Container<Equation>& getEquations();
 		[[nodiscard]] const Container<Equation>& getEquations() const;
-		void addEquation(Equation equation);
+
+		[[nodiscard]] Equation operator[](size_t index);
+		[[nodiscard]] Equation operator[](size_t index) const;
+
+		void insert(size_t index, Equation equation);
+		void erase(size_t index);
 
 		[[nodiscard]] size_t equationsCount() const;
 

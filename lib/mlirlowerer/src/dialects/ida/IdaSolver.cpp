@@ -231,7 +231,7 @@ int64_t IdaSolver::computeNEQ()
 	int64_t result = 0;
 
 	for (BltBlock& bltBlock : model.getBltBlocks())
-		result += bltBlock.size();
+		result += bltBlock.equationsCount();
 
 	return result;
 }
@@ -255,7 +255,7 @@ int64_t IdaSolver::computeNNZ()
 			}
 		}
 
-		result += rowLength * bltBlock.size();
+		result += rowLength * bltBlock.equationsCount();
 	}
 
 	return result;

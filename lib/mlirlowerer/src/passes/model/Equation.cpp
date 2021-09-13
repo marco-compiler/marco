@@ -8,7 +8,6 @@
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaBuilder.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
-#include <queue>
 
 using namespace marco::codegen;
 using namespace marco::codegen::model;
@@ -310,42 +309,49 @@ ExpressionPath Equation::getMatchedExpressionPath() const
 
 static void composeAccess(Expression& exp, const VectorAccess& transformation)
 {
-	auto access = AccessToVar::fromExp(exp);
-	auto combinedAccess = transformation * access.getAccess();
+	AccessToVar access = AccessToVar::fromExp(exp);
+	VectorAccess combinedAccess = transformation * access.getAccess();
 
 	assert(mlir::isa<SubscriptionOp>(exp.getOp()));
-	auto op = mlir::cast<SubscriptionOp>(exp.getOp());
+	SubscriptionOp op = mlir::cast<SubscriptionOp>(exp.getOp());
 	mlir::OpBuilder builder(op);
+	mlir::Location loc = op->getLoc();
 	llvm::SmallVector<mlir::Value, 3> indexes;
 
-	for (const auto& singleDimensionAccess : llvm::enumerate(combinedAccess))
+	// Compute new indexes of the SubscriptionOp.
+	for (const SingleDimensionAccess& singleDimensionAccess : combinedAccess)
 	{
 		mlir::Value index;
 
-		if (singleDimensionAccess.value().isDirectAccess())
-			index = builder.create<ConstantOp>(op->getLoc(), builder.getIndexAttr(singleDimensionAccess.value().getOffset()));
+		if (singleDimensionAccess.isDirectAccess())
+			index = builder.create<ConstantOp>(loc, builder.getIndexAttr(singleDimensionAccess.getOffset()));
 		else
 		{
-			mlir::Value inductionVar = exp.getOp()->getParentOfType<ForEquationOp>().body()->getArgument(singleDimensionAccess.value().getInductionVar());
-			mlir::Value offset = builder.create<ConstantOp>(op->getLoc(), builder.getIndexAttr(singleDimensionAccess.value().getOffset()));
-			index = builder.create<AddOp>(op->getLoc(), builder.getIndexType(), inductionVar, offset);
+			mlir::Value inductionVar = exp.getOp()->getParentOfType<ForEquationOp>().body()->getArgument(singleDimensionAccess.getInductionVar());
+			mlir::Value offset = builder.create<ConstantOp>(loc, builder.getIndexAttr(singleDimensionAccess.getOffset()));
+			index = builder.create<AddOp>(loc, builder.getIndexType(), inductionVar, offset);
 		}
 
-		op.indexes()[singleDimensionAccess.index()].replaceAllUsesWith(index);
+		indexes.push_back(index);
 	}
+
+	// Replace the old SubscriptionOp with a new one using the computed indexes.
+	mlir::Value newSubscriptionOp = builder.create<SubscriptionOp>(loc, op.source(), indexes);
+	op.replaceAllUsesWith(newSubscriptionOp);
+	op->erase();
 }
 
 Equation Equation::composeAccess(const VectorAccess& transformation) const
 {
-	auto toReturn = clone();
-	auto inverted = transformation.invert();
+	Equation toReturn = clone();
+	VectorAccess inverted = transformation.invert();
 	toReturn.setInductions(inverted.map(getInductions()));
 
 	ReferenceMatcher matcher(toReturn);
 
-	for (auto& matchedExp : matcher)
+	for (ExpressionPath& matchedExp : matcher)
 	{
-		auto exp = toReturn.reachExp(matchedExp);
+		Expression exp = toReturn.reachExp(matchedExp);
 		::composeAccess(exp, transformation);
 	}
 
@@ -355,23 +361,21 @@ Equation Equation::composeAccess(const VectorAccess& transformation) const
 mlir::LogicalResult Equation::normalize()
 {
 	// Get how the left-hand side variable is currently accessed
-	auto access = AccessToVar::fromExp(getMatchedExp()).getAccess();
+	VectorAccess access = AccessToVar::fromExp(getMatchedExp()).getAccess();
 
 	// Apply the transformation to the induction range
 	setInductions(access.map(getInductions()));
 
-	auto invertedAccess = access.invert();
+	VectorAccess invertedAccess = access.invert();
 	ReferenceMatcher matcher(*this);
 
-	for (auto& matchedExp : matcher)
+	for (ExpressionPath& matchedExp : matcher)
 	{
-		auto exp = reachExp(matchedExp);
+		Expression exp = reachExp(matchedExp);
 		::composeAccess(exp, invertedAccess);
 	}
 
-	auto terminator = getTerminator();
-	impl->left = Expression::build(terminator.lhs()[0]);
-	impl->right = Expression::build(terminator.rhs()[0]);
+	update();
 
 	return mlir::success();
 }
@@ -405,8 +409,7 @@ mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
 			return status;
 	}
 
-	impl->left = Expression::build(terminator.lhs()[0]);
-	impl->right = Expression::build(terminator.rhs()[0]);
+	update();
 
 	if (!path.isOnEquationLeftHand())
 	{
@@ -485,7 +488,7 @@ bool Equation::containsAtMostOne(mlir::Value variable)
 Equation Equation::clone() const
 {
 	mlir::OpBuilder builder(getOp());
-	auto* newOp = builder.clone(*getOp());
+	mlir::Operation* newOp = builder.clone(*getOp());
 	Equation clone = build(newOp);
 
 	clone.impl->isForwardDirection = impl->isForwardDirection;
@@ -494,9 +497,25 @@ Equation Equation::clone() const
 	return clone;
 }
 
+void Equation::cleanOperation()
+{
+	llvm::SmallVector<mlir::Operation*, 3> operations;
+
+	for (mlir::Operation& operation : getOp().body()->getOperations())
+		if (!mlir::isa<EquationSidesOp>(operation))
+			operations.push_back(&operation);
+
+	// If an operation has no uses, erase it.
+	for (mlir::Operation* operation : llvm::reverse(operations))
+		if (operation->use_empty())
+			operation->erase();
+}
+
 void Equation::update()
 {
-	auto terminator = getTerminator();
+	cleanOperation();
+
+	EquationSidesOp terminator = getTerminator();
 	impl->left = Expression::build(terminator.lhs()[0]);
 	impl->right = Expression::build(terminator.rhs()[0]);
 }

@@ -286,7 +286,7 @@ static mlir::LogicalResult groupLeftHand(mlir::OpBuilder& builder, Equation& equ
 
 namespace marco::codegen::model
 {
-	void replaceUses(mlir::OpBuilder& builder, const Equation& source, Equation& destination)
+	void replaceUses(mlir::OpBuilder& builder, const Equation source, Equation destination)
 	{
 		mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -356,9 +356,7 @@ namespace marco::codegen::model
 					//    modelica.equation_sides (%newValue, ...)
 
 					loadOp->replaceAllUsesWith(clonedTerminator.rhs()[0].getDefiningOp());
-					mlir::Operation* subscriptionOp = loadOp.memory().getDefiningOp();
 					loadOp->erase();
-					subscriptionOp->erase();
 				}
 				else
 				{
@@ -366,6 +364,7 @@ namespace marco::codegen::model
 				}
 			}
 
+			composedSource.getOp()->dropAllDefinedValueUses();
 			composedSource.getOp()->erase();
 		}
 

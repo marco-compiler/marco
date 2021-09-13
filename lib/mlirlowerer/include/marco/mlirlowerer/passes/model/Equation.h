@@ -77,6 +77,7 @@ namespace marco::codegen::model
 		[[nodiscard]] bool containsAtMostOne(mlir::Value variable);
 
 		[[nodiscard]] Equation clone() const;
+		void cleanOperation();
 		void update();
 
 		[[nodiscard]] Equation composeAccess(const VectorAccess& transformation) const;
