@@ -127,12 +127,22 @@ void testRegex() {
     parser2.parseCommandLine("/([a-z]+)([_.a-z0-9]*)([a-z0-9]+)(@)([a-z]+)([.a-z]+)([a-z]+)/;", vf2);
     assert(vf2.matchesRegex("ciro@postino.it"));
 }
+void testUnexpected() {
+    std::cout << "\n\n <<<<<< TEST OF WRONG INPUT >>>>>>" << std::endl;
+    string commandLineInput = "x:";
+    modelica::VariableFilter vf = VariableFilter();
+    modelica::VariableFilterParser parser = VariableFilterParser();
+    parser.parseCommandLine(commandLineInput, vf);
+    std::cout << "\n\t >Parsing Done" << std::endl;
+    vf.dump();
+}
 int main() {
 
     testNormal();
     testArray();
     testRegex();
     testDerivative();
+    testUnexpected();
 
 }
 

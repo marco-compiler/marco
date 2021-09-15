@@ -327,6 +327,10 @@ namespace modelica {
             parsingArray = false;
         }
 
+        void displayWarning(std::string msg) {
+            cout << "\n\t(⚠️) VF Warning:️" << msg << endl;
+        }
+
 
     public:
         explicit VariableFilterParser(string commandLineString)
@@ -338,12 +342,17 @@ namespace modelica {
             size_t pos = 0;
             std::string delimiter = ";";
             std::string token;
+            bool atLeastOne = false;
             while ((pos = commandLineArguments.find(delimiter)) != std::string::npos) {
                 token = commandLineArguments.substr(0, pos);
                 //std::cout << token << std::endl;
                 inputStringReference = token;
                 parseExpressionElement(vf); //parse each token
                 commandLineArguments.erase(0, pos + delimiter.length());
+                atLeastOne = true;
+            }
+            if(!atLeastOne) {
+                displayWarning("No VF input provided.");
             }
         }
         /** parses the current input string and carries out parsing into var-regex-array-derivative by
