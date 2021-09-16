@@ -108,7 +108,7 @@ void testDerivative() {
 
 }
 void testRegex() {
-    string commandLineInput = "/[a-z]+/;";
+    string commandLineInput = "/^[a-z]+$/;";
     modelica::VariableFilter vf = VariableFilter();
     modelica::VariableFilterParser parser = VariableFilterParser();
     parser.parseCommandLine(commandLineInput, vf);
@@ -125,7 +125,7 @@ void testRegex() {
     auto testRegex = regex("([a-z]+)([_.a-z0-9]*)([a-z0-9]+)(@)([a-z]+)([.a-z]+)([a-z]+)");
     assert(regex_match("alelisi@polimi.it", testRegex));
     parser2.parseCommandLine("/([a-z]+)([_.a-z0-9]*)([a-z0-9]+)(@)([a-z]+)([.a-z]+)([a-z]+)/;", vf2);
-    assert(vf2.matchesRegex("ciro@postino.it"));
+    assert(vf2.matchesRegex("marco@ryanair.eu"));
 }
 void testUnexpected() {
     std::cout << "\n\n <<<<<< TEST OF WRONG INPUT >>>>>>" << std::endl;
@@ -179,11 +179,11 @@ void testUnexpected() {
 }
 int main() {
 
-    /*testNormal();
+    testNormal();
     testArray();
     testRegex();
-    testDerivative(); */
-    testUnexpected();
+    testDerivative();
+    //testUnexpected();
 
 }
 

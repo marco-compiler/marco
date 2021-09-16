@@ -9,7 +9,9 @@
 #include <iostream>
 #include <cstring>
 #include <list>
+#include <llvm/ADT/StringRef.h>
 #include "VariableFilter.h"
+#include "llvm/Support/Regex.h"
 
 using namespace std;
 namespace modelica {
@@ -75,6 +77,11 @@ namespace modelica {
             }
 
             // VARIABLES AND DERIVATIVES (cannot start with a number)
+
+            /**
+             * The first form always start with a letter or underscore (_),
+             * followed by any number of letters, digits, or underscores.
+             */
             if (isalpha(LastChar) || (LastChar == '_')) {     // identifier: [a-zA-Z][a-zA-Z0-9]* or underscore
 
                 IdentifierStr = LastChar;
@@ -331,8 +338,10 @@ namespace modelica {
         std::unique_ptr<RegexExprAST> ParseRegex() {
 
             std::string regex = RegexStr;
+            llvm::StringRef regexRef(regex);
             if(regex.empty()) throwError("provided regex is empty");
-            std::regex regexObj(regex); //try to build a regex to see if it's correct
+            llvm::Regex regexObj(regexRef); //try to build a regex to see if it's correct
+            if(!regexObj.isValid()) throwError("provided regex is not valid");
             auto result = std::make_unique<RegexExprAST>(regex);
             return result;
         }

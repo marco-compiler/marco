@@ -2,7 +2,10 @@
 // Created by Ale on 21/06/2021.
 //
 
+#include <llvm/ADT/StringRef.h>
 #include "../include/modelica/utils/VariableFilter.h"
+#include "llvm/Support/Regex.h"
+
 
 void modelica::VariableFilter::dump() {
 
@@ -41,9 +44,15 @@ bool modelica::VariableFilter::isBypass() const { return _bypass; }
 void modelica::VariableFilter::setBypass(bool bypass) { _bypass = bypass; }
 
 bool modelica::VariableFilter::matchesRegex(const string &identifier) {
-    for (const auto &regexString : _regex) {
-        std::regex regex(regexString);
-        if (regex_match(identifier, regex)) {
+
+    llvm::StringRef testRef("[a-z]+");
+    llvm::Regex testReg(testRef, llvm::Regex::NoFlags);
+    bool t = testReg.match("!abcde99");
+
+    for (const string &regexString : _regex) {
+        llvm::StringRef regexRef(regexString);
+        llvm::Regex llvmRegex(regexRef);
+        if (llvmRegex.match(identifier)) {
             return true;
         }
     }
