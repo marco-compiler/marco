@@ -18,7 +18,11 @@ namespace modelica {
 
         static void throwGenericError(void) {
             cout << "VF: ERROR when parsing | generic." << endl;
-            exit(0);
+            exit(1);
+        }
+        static void throwError(string msg) {
+            cout << "\n\tVF Error: " << msg << endl;
+            exit(1); //can't proceed with parsing
         }
 
         //	LEXER 	//
@@ -44,7 +48,7 @@ namespace modelica {
             tok_rng_value = -9,
 
             //regex support
-            tok_regex_expr
+            tok_regex_expr = -10
 
 
         };
@@ -79,10 +83,23 @@ namespace modelica {
                 if ((inputString[i]) == ')') {
                     return tok_identifier;
                 }
-                if (inputString[i] == '[') {
+                if (inputString[i] == '[') { //starting to parse an array
                     parsingArray = true;
                     return tok_identifier;
                 }
+
+                if (LastChar == '_' && inputString[i] == '\0') {
+                    return LastChar;
+                }
+                else if (!isValidIDChar((inputString[i]))) {
+                    if(inputString[i] == '\0') {
+                        return tok_identifier;
+                    }
+                    else {
+                        return inputString[i]; //generic
+                    }
+                }
+
                 //identifier: [a-zA-Z][a-zA-Z0-9]* or underscore
                 while (isValidIDChar((LastChar = inputString[i++]))) {    // keep reading until identifier stops
                     IdentifierStr += LastChar;
@@ -101,43 +118,39 @@ namespace modelica {
                     if (IdentifierStr == ")") {
                         return tok_der_close;
                     }
-                }
+                } //while
+                if(LastChar=='\0') return tok_identifier;
 
-                return tok_identifier;
             }
 
-            if (LastChar == '/') {
+            else if (LastChar == '/') {
                 //keep reading
                 while ((LastChar = inputString[i++]) != '/') {
                     RegexStr += LastChar;
                 }
-				/* TODO: add regex check without exceptions
-                try {
-                    std::regex checkRegex(RegexStr, std::regex::ECMAScript);
-                    return tok_regex_expr;
-                }
-                catch (regex_error e) {
-                    throwGenericError();
-                } */
                 return tok_regex_expr;
             }
 
-            switch (LastChar) {
-                case ('['):
-                    return tok_sq_bracket_l;
-                case (']'):
-                    return tok_sq_bracket_r;
-                case (','):
-                    return tok_comma;
-                case (':'):
-                    return tok_colon;
-                case ('$'):
-                    rangeValue += (char) LastChar;
-                    return tok_rng_value;
-                default:
-                    break;
+            else {
+                switch (LastChar) {
+                    case ('['):
+                        return tok_sq_bracket_l;
+                    case (']'):
+                        return tok_sq_bracket_r;
+                    case (','):
+                        return tok_comma;
+                    case (':'):
+                        return tok_colon;
+                    case ('$'):
+                        rangeValue += (char) LastChar;
+                        return tok_rng_value;
+                    default:
+                        if(parsingArray) break; //integer is array range value
+                        else return LastChar;
 
+                }
             }
+
 
             //range value of an array
             if (isdigit(LastChar)) {
@@ -247,7 +260,9 @@ namespace modelica {
         /// the lexer and updates CurTok with its results.
         int CurTok;
 
-        int getNextToken() { return CurTok = gettok(); }
+        int getNextToken() {
+            return CurTok = gettok();
+        }
 
         //===========================================GRAMMAR PRODUCTIONS=================================================//
         //===============================================================================================================//
@@ -262,6 +277,8 @@ namespace modelica {
         std::unique_ptr<DerivativeExprAST> ParseDerivative() {
             getNextToken();     // eat "der("
 
+            if(CurTok>=0) throwError("expecting derivative identifier");
+            else if(CurTok == tok_der) throwError("nested derivatives are not allowed");
             // create derivative
             std::string IdName = IdentifierStr;
             auto Result = std::make_unique<DerivativeExprAST>(IdName);
@@ -273,7 +290,9 @@ namespace modelica {
         std::unique_ptr<ArrayExprAST> ParseArray() {
 
             //indices begin
-            if (getNextToken() != tok_sq_bracket_l) throwGenericError(); //[
+            if (getNextToken() != tok_sq_bracket_l) { //[
+                throwError("expecting an array opening bracket '['");
+            }
             //cout << "\n opening bracket [";
             std::string arrayName = IdentifierStr;
             uint16_t dimension = 0;
@@ -283,13 +302,13 @@ namespace modelica {
             int rtemp, ltemp;
             do {
                 //cout << "\n\tnew range:: ";
-                if (getNextToken() != tok_rng_value) throwGenericError();           //left-value
+                if (getNextToken() != tok_rng_value) throwError("expecting a range left value");           //left-value
                 // cout << "lval=" << rangeValue;
                 ltemp = 0 == strncmp(rangeValue.c_str(), "$", 1) ? -1 : atoi(rangeValue.c_str());
 
-                if (getNextToken() != tok_colon) throwGenericError();      // :
+                if (getNextToken() != tok_colon) throwError("expecting a separating colon ':'");      // :
                 // cout << " : ";
-                if (getNextToken() != tok_rng_value) throwGenericError();    //right value
+                if (getNextToken() != tok_rng_value) throwError("expecting a range right value");    //right value
                 // cout << "r-val=" << rangeValue;
                 rtemp = 0 == strncmp(rangeValue.c_str(), "$", 1) ? -1 : atoi(rangeValue.c_str());
 
@@ -300,7 +319,7 @@ namespace modelica {
             } while (getNextToken() == tok_comma);
 
             //indices end
-            if (CurTok != tok_sq_bracket_r) throwGenericError();
+            if (CurTok != tok_sq_bracket_r) throwError("expecting a closing bracket ']'");
             //cout << " \nclosing bracket ]" << endl;
 
             auto result = std::make_unique<ArrayExprAST>(arrayName, dimension, local_ranges);
@@ -312,8 +331,10 @@ namespace modelica {
         std::unique_ptr<RegexExprAST> ParseRegex() {
 
             std::string regex = RegexStr;
+            if(regex.empty()) throwError("provided regex is empty");
+            std::regex regexObj(regex); //try to build a regex to see if it's correct
             auto result = std::make_unique<RegexExprAST>(regex);
-            return std::move(result);
+            return result;
         }
 
 
@@ -353,32 +374,36 @@ namespace modelica {
             }
             if(!atLeastOne) {
                 displayWarning("No VF input provided.");
+                return;
             }
         }
         /** parses the current input string and carries out parsing into var-regex-array-derivative by
          * adding a tracker in the VariableFilter vf*/
         void parseExpressionElement(VariableFilter &vf) {
-            //SmallVector<StringRef> elements;
-            //cout << "Splitting: " << inputStringReference.str() << endl;
-            //inputStringReference.split(elements, ',', -1, false);
 
             string ele = inputStringReference;
             // cout << "\n\n*** NEW PARSING of " << ele << endl;
             inputString = ele.c_str();
 
             bool flag = true;
-            lexerReset();
+            lexerReset(); //reset the state (fresh start)
+            getNextToken(); //start
+
+            if (CurTok>=0) {
+                std::string base = "wrong input, unexpected token: ";
+                throwError(base + ((char)CurTok));
+                return;
+            }
             while (flag) {
                 //cout << "ready:";
                 switch (CurTok) {
-                    case tok_eof:
+                    case tok_eof: //end of input
                         return;
                     case tok_der: {
                         unique_ptr<DerivativeExprAST> derivativeNode = ParseDerivative();
                         // cout << "\nDERIVATIVE DONE" << endl;
                         VariableTracker tracker(derivativeNode->getDerivedVariable().getIdentifier(), false, true,
                                                 0);
-
                         //vf.addVariable(tracker);
                         //new derivative map
                         vf.addDerivative(tracker);
@@ -387,9 +412,8 @@ namespace modelica {
                     case tok_identifier: {
 
                         if (parsingArray) {
-                            //cout << "\n 🏁 parsing an array" << endl;
+
                             unique_ptr<ArrayExprAST> arrayNode = ParseArray();
-                            //cout << "\nARRAY DONE" << endl;
 
                             string id = arrayNode->getArrayVariableIdentifier().getIdentifier();
                             VariableTracker tracker(id, true, false, arrayNode->getDimension());
@@ -404,9 +428,7 @@ namespace modelica {
                             return;
                         }
 
-                        //cout << "parsing a variable identifier: ";
                         unique_ptr<VariableExprAST> varExpr = ParseVariableExpr();
-                        // cout << "\nVAR ID DONE" << endl;
 
                         VariableTracker tracker(varExpr->getIdentifier(), false, false, 0);
 
@@ -421,7 +443,6 @@ namespace modelica {
                         vf.addRegexString(regNode->getRegex());
                         return;
                     }
-
 
                     default:
                         getNextToken();

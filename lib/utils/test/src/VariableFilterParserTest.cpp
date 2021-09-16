@@ -129,19 +129,60 @@ void testRegex() {
 }
 void testUnexpected() {
     std::cout << "\n\n <<<<<< TEST OF WRONG INPUT >>>>>>" << std::endl;
-    string commandLineInput = "x:";
+    string commandLineInput = "x_3:"; //missing ";"
     modelica::VariableFilter vf = VariableFilter();
     modelica::VariableFilterParser parser = VariableFilterParser();
-    parser.parseCommandLine(commandLineInput, vf);
+
+    unsigned short selection = 7;
+
+
+    switch(selection) {
+        case 1:
+            parser.parseCommandLine(commandLineInput, vf); //x_3:, missing ;
+            break;
+        case 2:
+            commandLineInput = "x:;"; //wrong identifier ':'
+            parser.parseCommandLine(commandLineInput, vf);
+            break;
+        case 3:
+            commandLineInput = "wrongArray[:;"; //wrong form
+            parser.parseCommandLine(commandLineInput, vf);
+            break;
+        case 4:
+            commandLineInput = "der(55);"; //number can't be an identifier
+            parser.parseCommandLine(commandLineInput, vf);
+            break;
+        case 5:
+            commandLineInput = "der(der(x));"; //no nesting
+            parser.parseCommandLine(commandLineInput, vf);
+            break;
+        case 6:
+            commandLineInput = "////bigregex//;"; //wrong regex form
+            parser.parseCommandLine(commandLineInput, vf);
+            break;
+        case 7:
+            commandLineInput = "/?òc'ìs/;"; //wrong regex form
+            parser.parseCommandLine(commandLineInput, vf);
+            break;
+        default:
+            cout << "wrong index." << endl;
+            break;
+
+    }
+
+
+
+
+
     std::cout << "\n\t >Parsing Done" << std::endl;
     vf.dump();
 }
 int main() {
 
-    testNormal();
+    /*testNormal();
     testArray();
     testRegex();
-    testDerivative();
+    testDerivative(); */
     testUnexpected();
 
 }
