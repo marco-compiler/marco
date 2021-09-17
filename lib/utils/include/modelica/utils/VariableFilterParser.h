@@ -18,14 +18,9 @@ namespace modelica {
 
     class VariableFilterParser {
 
-        static void throwGenericError(void) {
-            cout << "VF: ERROR when parsing | generic." << endl;
-            exit(1);
-        }
-        static void throwError(string msg) {
-            cout << "\n\tVF Error: " << msg << endl;
-            exit(1); //can't proceed with parsing
-        }
+        [[maybe_unused]] static void throwGenericError(void);
+
+        static void throwError(string msg);
 
         //	LEXER 	//
         //============================================================================================================//
@@ -62,116 +57,10 @@ namespace modelica {
         bool parsingArray;
         string rangeValue;
 
-        bool isValidIDChar(char c) {
-            return (isalnum(c) || (c == '(') || (c == ')') || (c == '_'));
-        }
+        bool isValidIDChar(char c);
 
         /// gettok - Return the next token from the input string. T O K E N I Z E R
-        int gettok() {
-            int LastChar = 32;    //start from white space 32 === ' '
-            rangeValue = ""; //empty the range value buffer
-            // Skip any whitespace between tokens.
-            while (isspace(LastChar)) {
-                LastChar = (unsigned char) inputString[i];
-                i++;
-            }
-
-            // VARIABLES AND DERIVATIVES (cannot start with a number)
-
-            /**
-             * The first form always start with a letter or underscore (_),
-             * followed by any number of letters, digits, or underscores.
-             */
-            if (isalpha(LastChar) || (LastChar == '_')) {     // identifier: [a-zA-Z][a-zA-Z0-9]* or underscore
-
-                IdentifierStr = LastChar;
-
-                //single variable derivative der(x)
-                if ((inputString[i]) == ')') {
-                    return tok_identifier;
-                }
-                if (inputString[i] == '[') { //starting to parse an array
-                    parsingArray = true;
-                    return tok_identifier;
-                }
-
-                if (LastChar == '_' && inputString[i] == '\0') {
-                    return LastChar;
-                }
-                else if (!isValidIDChar((inputString[i]))) {
-                    if(inputString[i] == '\0') {
-                        return tok_identifier;
-                    }
-                    else {
-                        return inputString[i]; //generic
-                    }
-                }
-
-                //identifier: [a-zA-Z][a-zA-Z0-9]* or underscore
-                while (isValidIDChar((LastChar = inputString[i++]))) {    // keep reading until identifier stops
-                    IdentifierStr += LastChar;
-
-                    if (IdentifierStr == "der(")
-                        return tok_der;
-
-                    //check next character
-                    if ((inputString[i]) == ')') {
-                        return tok_identifier;
-                    }
-                    if ((inputString[i]) == '[') {
-                        parsingArray = true;
-                        return tok_identifier;
-                    }
-                    if (IdentifierStr == ")") {
-                        return tok_der_close;
-                    }
-                } //while
-                if(LastChar=='\0') return tok_identifier;
-
-            }
-
-            else if (LastChar == '/') {
-                //keep reading
-                while ((LastChar = inputString[i++]) != '/') {
-                    RegexStr += LastChar;
-                }
-                return tok_regex_expr;
-            }
-
-            else {
-                switch (LastChar) {
-                    case ('['):
-                        return tok_sq_bracket_l;
-                    case (']'):
-                        return tok_sq_bracket_r;
-                    case (','):
-                        return tok_comma;
-                    case (':'):
-                        return tok_colon;
-                    case ('$'):
-                        rangeValue += (char) LastChar;
-                        return tok_rng_value;
-                    default:
-                        if(parsingArray) break; //integer is array range value
-                        else return LastChar;
-
-                }
-            }
-
-
-            //range value of an array
-            if (isdigit(LastChar)) {
-                rangeValue += (char) LastChar;
-                while (isdigit(LastChar = inputString[i])) {
-                    rangeValue += (char) LastChar;
-                    i++;
-                }
-                return tok_rng_value;
-            }
-
-
-            return LastChar;
-        }
+        int gettok();
 
         // === AST / PARSER === //
         //============================================================================================================//
@@ -197,11 +86,11 @@ namespace modelica {
         public:
             ArrayRangeAST(const int lvalue, const int rvalue) : lvalue(lvalue), rvalue(rvalue) {}
 
-             int getLvalue() const {
+            int getLvalue() const {
                 return lvalue;
             }
 
-             int getRvalue() const {
+            int getRvalue() const {
                 return rvalue;
             }
 
@@ -284,8 +173,8 @@ namespace modelica {
         std::unique_ptr<DerivativeExprAST> ParseDerivative() {
             getNextToken();     // eat "der("
 
-            if(CurTok>=0) throwError("expecting derivative identifier");
-            else if(CurTok == tok_der) throwError("nested derivatives are not allowed");
+            if (CurTok >= 0) throwError("expecting derivative identifier");
+            else if (CurTok == tok_der) throwError("nested derivatives are not allowed");
             // create derivative
             std::string IdName = IdentifierStr;
             auto Result = std::make_unique<DerivativeExprAST>(IdName);
@@ -339,9 +228,9 @@ namespace modelica {
 
             std::string regex = RegexStr;
             llvm::StringRef regexRef(regex);
-            if(regex.empty()) throwError("provided regex is empty");
+            if (regex.empty()) throwError("provided regex is empty");
             llvm::Regex regexObj(regexRef); //try to build a regex to see if it's correct
-            if(!regexObj.isValid()) throwError("provided regex is not valid");
+            if (!regexObj.isValid()) throwError("provided regex is not valid");
             auto result = std::make_unique<RegexExprAST>(regex);
             return result;
         }
@@ -351,41 +240,20 @@ namespace modelica {
 
         string inputStringReference;
 
-        void lexerReset() {
-            CurTok = 0;
-            i = 0;
-            parsingArray = false;
-        }
+        void lexerReset();
 
-        void displayWarning(std::string msg) {
-            cout << "\n\t(⚠️) VF Warning:️" << msg << endl;
-        }
+        void displayWarning(std::string msg);
 
 
     public:
         explicit VariableFilterParser(string commandLineString)
                 : inputStringReference(std::move(commandLineString)) {
         }
+
         explicit VariableFilterParser() {}
 
-        void parseCommandLine(string commandLineArguments, VariableFilter &vf) {
-            size_t pos = 0;
-            std::string delimiter = ";";
-            std::string token;
-            bool atLeastOne = false;
-            while ((pos = commandLineArguments.find(delimiter)) != std::string::npos) {
-                token = commandLineArguments.substr(0, pos);
-                //std::cout << token << std::endl;
-                inputStringReference = token;
-                parseExpressionElement(vf); //parse each token
-                commandLineArguments.erase(0, pos + delimiter.length());
-                atLeastOne = true;
-            }
-            if(!atLeastOne) {
-                displayWarning("No VF input provided.");
-                return;
-            }
-        }
+        void parseCommandLine(string commandLineArguments, VariableFilter &vf);
+
         /** parses the current input string and carries out parsing into var-regex-array-derivative by
          * adding a tracker in the VariableFilter vf*/
         void parseExpressionElement(VariableFilter &vf) {
@@ -398,9 +266,9 @@ namespace modelica {
             lexerReset(); //reset the state (fresh start)
             getNextToken(); //start
 
-            if (CurTok>=0) {
+            if (CurTok >= 0) {
                 std::string base = "wrong input, unexpected token: ";
-                throwError(base + ((char)CurTok));
+                throwError(base + ((char) CurTok));
                 return;
             }
             while (flag) {

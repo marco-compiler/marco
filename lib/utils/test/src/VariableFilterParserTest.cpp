@@ -91,7 +91,7 @@ void testDerivative() {
 
     for (int i = 0; i < 8; ++i) {
         std::cout << "dD";
-        if (i==7) std::cout << std::endl;
+        if (i == 7) std::cout << std::endl;
     }
     string commandLineInput = "der(x);der(_y22);y[$:199];";
     modelica::VariableFilter vf = VariableFilter();
@@ -107,6 +107,7 @@ void testDerivative() {
     vf.dump();
 
 }
+
 void testRegex() {
     string commandLineInput = "/^[a-z]+$/;";
     modelica::VariableFilter vf = VariableFilter();
@@ -127,6 +128,7 @@ void testRegex() {
     parser2.parseCommandLine("/([a-z]+)([_.a-z0-9]*)([a-z0-9]+)(@)([a-z]+)([.a-z]+)([a-z]+)/;", vf2);
     assert(vf2.matchesRegex("marco@ryanair.eu"));
 }
+
 void testUnexpected() {
     std::cout << "\n\n <<<<<< TEST OF WRONG INPUT >>>>>>" << std::endl;
     string commandLineInput = "x_3:"; //missing ";"
@@ -136,7 +138,7 @@ void testUnexpected() {
     unsigned short selection = 7;
 
 
-    switch(selection) {
+    switch (selection) {
         case 1:
             parser.parseCommandLine(commandLineInput, vf); //x_3:, missing ;
             break;
@@ -171,12 +173,10 @@ void testUnexpected() {
     }
 
 
-
-
-
     std::cout << "\n\t >Parsing Done" << std::endl;
     vf.dump();
 }
+
 int main() {
 
     testNormal();

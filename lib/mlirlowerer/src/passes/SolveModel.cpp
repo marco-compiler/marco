@@ -108,13 +108,6 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 					op.body().eraseArgument(index);
 				}
 
-				{
-					/* Fix print argument TODO
-					auto originalArgument = op.print().getArgument(index);
-					auto newArgument = op.print().insertArgument(index + 1, value.getType().cast<ArrayType>().toUnknownAllocationScope());
-					originalArgument.replaceAllUsesWith(newArgument);
-					op.print().eraseArgument(index); AL */
-				}
 			}
 
 			newVars.push_back(value);
@@ -131,14 +124,6 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 		auto result = rewriter.create<SimulationOp>(op->getLoc(),op.variableNames(), op.startTime(), op.endTime(), op.timeStep(), op.body().getArgumentTypes());
 		rewriter.mergeBlocks(&op.init().front(), &result.init().front(), result.init().getArguments());
 		rewriter.mergeBlocks(&op.body().front(), &result.body().front(), result.body().getArguments());
-		/* no yield op
-        rewriter.setInsertionPointToStart(&result.body().front());
-        rewriter.create<YieldOp>(op->getLoc()); */
-
-		//AL rewriter.mergeBlocks(&op.print().front(), &result.print().front(), result.print().getArguments());
-
-		//rewriter.setInsertionPointToStart(&result.body().front()); (copied upwards)
-		//rewriter.create<YieldOp>(op->getLoc()); TODO
 
 		rewriter.eraseOp(op);
 		return mlir::success();
@@ -418,26 +403,20 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 			auto newArgumentType = derVar.getType().cast<ArrayType>().toUnknownAllocationScope();
 			auto bodyArgument = simulation.body().addArgument(newArgumentType);
 
-
-
 			derivatives->map(operand, bodyArgument);
 
-            //AL simulation.print().addArgument(newArgumentType); TODO
-
-		}
-		else
-		{
-			derVar = variable.getDer();
-		}
+		} else {
+            derVar = variable.getDer();
+        }
 
 		rewriter.setInsertionPoint(op);
 		derVar = derivatives->lookup(operand);
 
-		if (!subscriptions.empty())
-			derVar = rewriter.create<SubscriptionOp>(loc, derVar, subscriptions);
+        if (!subscriptions.empty())
+            derVar = rewriter.create<SubscriptionOp>(loc, derVar, subscriptions);
 
-		if (auto arrayType = derVar.getType().cast<ArrayType>(); arrayType.getRank() == 0)
-			derVar = rewriter.create<LoadOp>(loc, derVar);
+        if (auto arrayType = derVar.getType().cast<ArrayType>(); arrayType.getRank() == 0)
+            derVar = rewriter.create<LoadOp>(loc, derVar);
 
 		rewriter.replaceOp(op, derVar);
 
@@ -463,8 +442,7 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 };
 
 //// PRINT VARIABLES ///
-mlir::LLVM::LLVMFuncOp getOrInsertPrintf(mlir::OpBuilder& rewriter, mlir::ModuleOp module)
-{
+mlir::LLVM::LLVMFuncOp getOrInsertPrintf(mlir::OpBuilder &rewriter, mlir::ModuleOp module) {
     auto *context = module.getContext();
 
     if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>("printf"))
@@ -482,17 +460,18 @@ mlir::LLVM::LLVMFuncOp getOrInsertPrintf(mlir::OpBuilder& rewriter, mlir::Module
     return rewriter.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), "printf", llvmFnType);
 }
 
-mlir::Value getOrCreateGlobalString(mlir::Location loc, mlir::OpBuilder& builder, mlir::StringRef name, mlir::StringRef value, mlir::ModuleOp module)
-{
+mlir::Value
+getOrCreateGlobalString(mlir::Location loc, mlir::OpBuilder &builder, mlir::StringRef name, mlir::StringRef value,
+                        mlir::ModuleOp module) {
     // Create the global at the entry of the module
     mlir::LLVM::GlobalOp global;
 
-    if (!(global = module.lookupSymbol<mlir::LLVM::GlobalOp>(name)))
-    {
+    if (!(global = module.lookupSymbol<mlir::LLVM::GlobalOp>(name))) {
         mlir::OpBuilder::InsertionGuard insertGuard(builder);
         builder.setInsertionPointToStart(module.getBody());
         auto type = mlir::LLVM::LLVMArrayType::get(mlir::IntegerType::get(builder.getContext(), 8), value.size());
-        global = builder.create<mlir::LLVM::GlobalOp>(loc, type, true, mlir::LLVM::Linkage::Internal, name, builder.getStringAttr(value));
+        global = builder.create<mlir::LLVM::GlobalOp>(loc, type, true, mlir::LLVM::Linkage::Internal, name,
+                                                      builder.getStringAttr(value));
     }
 
     // Get the pointer to the first character in the global string
@@ -517,11 +496,12 @@ bool performRangeBoundCheck(ArrayType array, VariableFilter filter, string name)
         std::cout << "\tdimension #" << i;
         //get the number of elements, 'length' of the dimension
         auto shapeOfYou = array.getShape()[i];
-        std::cout << " is made of " << shapeOfYou <<  " elements.\n";
+        std::cout << " is made of " << shapeOfYou << " elements.\n";
 
         Range dimensionRange = filter.lookupByIdentifier(name).getRangeOfDimensionN(i);
-        if (dimensionRange.rightValue > shapeOfYou ||  //if the specified range has a bound that it's bigger than the array dimension
-            dimensionRange.leftValue  > shapeOfYou) {
+        if (dimensionRange.rightValue > shapeOfYou ||
+            //if the specified range has a bound that it's bigger than the array dimension
+            dimensionRange.leftValue > shapeOfYou) {
             return false;
         }
     }
@@ -736,27 +716,27 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 			rewriter.create<mlir::ReturnOp>(loc, ifOp.getResult(0));
 		}
 
-		{
-			// Print function
-			auto function = rewriter.create<mlir::FuncOp>( //given the insertion point create an Operation of type FuncOp
-					loc, "print",
-					rewriter.getFunctionType(opaquePtrType, llvm::None));
+        {
+            // Print function
+            auto function = rewriter.create<mlir::FuncOp>( //given the insertion point create an Operation of type FuncOp
+                    loc, "print",
+                    rewriter.getFunctionType(opaquePtrType, llvm::None));
 
-			auto* entryBlock = function.addEntryBlock();
+            auto *entryBlock = function.addEntryBlock();
 
-			mlir::OpBuilder::InsertionGuard guard(rewriter);
-			rewriter.setInsertionPointToStart(entryBlock);
+            mlir::OpBuilder::InsertionGuard guard(rewriter);
+            rewriter.setInsertionPointToStart(entryBlock);
 
-			//Loaded with values from 'Main'
-			mlir::Value structValue = loadDataFromOpaquePtr(rewriter, loc, function.getArgument(0), structType);
+            //Loaded with values from 'Main'
+            mlir::Value structValue = loadDataFromOpaquePtr(rewriter, loc, function.getArgument(0), structType);
 
             llvm::SmallVector<mlir::Value, 3> valuesToBePrinted;
             llvm::SmallVector<mlir::Value, 3> derivativesValues;
 
-			//RETRIEVE THE NAMES
+            //RETRIEVE THE NAMES
 
-			modelica::VariableFilter variableFilter = *options.variableFilter; // get variable filter state
-			variableFilter.dump();
+            modelica::VariableFilter variableFilter = *options.variableFilter; // get variable filter state
+            variableFilter.dump();
 
             mlir::ArrayRef<mlir::Attribute> variableNames = op.variableNames().getValue();
             std::vector<std::string> variableNamesVector;
@@ -779,16 +759,16 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
             size_t NUM_VAR = variableNamesVector.size();
 
             //starting from i = 2 because first two values are time and step
-            for (size_t i = 2; i<structType.getElementTypes().size(); ++i) {
+            for (size_t i = 2; i < structType.getElementTypes().size(); ++i) {
 
-                if (i-2 < NUM_VAR) {
-                    std::string name = variableNamesVector[i-2];
+                if (i - 2 < NUM_VAR) {
+                    std::string name = variableNamesVector[i - 2];
                     mlir::Value extracted = rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i);
-                    nameValueMap.insert(std::pair<std::string,mlir::Value>(name,extracted)); //match a variable name with corresponding mlir::Value
+                    nameValueMap.insert(std::pair<std::string, mlir::Value>(name,
+                                                                            extracted)); //match a variable name with corresponding mlir::Value
                     valuesToBePrinted.push_back(extracted); // for now: print only variables (not derivatives)
 
-                }
-                else /* derivatives */ {
+                } else /* derivatives */ {
                     mlir::Value derivativeExtractedValue = rewriter.create<ExtractOp>(loc, varTypes[i], structValue, i);
                     derivativesValues.push_back(derivativeExtractedValue);
 
@@ -801,11 +781,14 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
             auto module = op->getParentOfType<mlir::ModuleOp>();
 
             auto printfRef = getOrInsertPrintf(rewriter, module);
-            mlir::Value semicolonCst = getOrCreateGlobalString(loc, rewriter, "semicolon", mlir::StringRef(";\0", 2), module);
-            mlir::Value newLineCst = getOrCreateGlobalString(loc, rewriter, "newline", mlir::StringRef("\n\0", 2), module);
+            mlir::Value semicolonCst = getOrCreateGlobalString(loc, rewriter, "semicolon", mlir::StringRef(";\0", 2),
+                                                               module);
+            mlir::Value newLineCst = getOrCreateGlobalString(loc, rewriter, "newline", mlir::StringRef("\n\0", 2),
+                                                             module);
 
             mlir::Value printSeparator = rewriter.create<AllocaOp>(loc, BooleanType::get(op->getContext()));
-            mlir::Value falseValue = rewriter.create<ConstantOp>(loc, BooleanAttribute::get(BooleanType::get(op->getContext()), false));
+            mlir::Value falseValue = rewriter.create<ConstantOp>(loc, BooleanAttribute::get(
+                    BooleanType::get(op->getContext()), false));
             rewriter.create<StoreOp>(loc, falseValue, printSeparator);
 
             int cur = 0; //auxiliary variable to keep the index of the currently printed variable name
@@ -813,103 +796,107 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
             std::cout << "**** 🖨 GENERATING PRINT CODE **** " << std::endl;
             //for each Value to be printed (with bypass activated means 'time' + all variables)
             for (auto var : valuesToBePrinted) {
-                    //if current value is an array
-                    if (auto arrayType = var.getType().dyn_cast<ArrayType>())
-                    {
-                        //get the name of the variable the value belongs too
-                        std::string varName = variableNamesVector[cur];
-                        unsigned int rank = arrayType.getRank();
-                        bool regexMatched = variableFilter.matchesRegex(varName);
+                //if current value is an array
+                if (auto arrayType = var.getType().dyn_cast<ArrayType>()) {
+                    //get the name of the variable the value belongs too
+                    std::string varName = variableNamesVector[cur];
+                    unsigned int rank = arrayType.getRank();
+                    bool regexMatched = variableFilter.matchesRegex(varName);
 
-                        //Arrays of Rank > 0, 1D,2D,3D.. Arrays
-                        if (rank > 0) {
+                    //Arrays of Rank > 0, 1D,2D,3D.. Arrays
+                    if (rank > 0) {
 
-                            mlir::Location varLoc = var.getLoc();
-                            auto arrayTypeLocal = var.getType().cast<ArrayType>();
+                        mlir::Location varLoc = var.getLoc();
+                        auto arrayTypeLocal = var.getType().cast<ArrayType>();
 
-                            mlir::Value zero = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(0));
-                            mlir::Value one = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(1));
+                        mlir::Value zero = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(0));
+                        mlir::Value one = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(1));
 
-                            //no filtering or no filter or specified to print by CL args
-                            if (variableFilter.isBypass() || regexMatched || variableFilter.checkTrackedIdentifier(varName) ) {
+                        //no filtering or no filter or specified to print by CL args
+                        if (variableFilter.isBypass() || regexMatched ||
+                            variableFilter.checkTrackedIdentifier(varName)) {
 
 
-                                //check if custom ranges are specified, boolean 'isArray' e.g.
-                                    // x prints all the array with all its dimensions from 0 to len(dim) (is Array = false)
-                                    // x[$:3,1:50] prints custom ranges for dimensions 0 and 1 (all of them)
-                                bool fullRange = variableFilter.isBypass() || regexMatched ||
-                                        !variableFilter.lookupByIdentifier(varName).getIsArray(); // only the name has been provided
-                                std::cout << "printing " << varName << " - fullRange=" << fullRange <<std::endl;
-                                //Upper and lower bound vectors (for each iteration of the loop, from LB to UB)
-                                llvm::SmallVector<mlir::Value, 3> lowerBounds; //starting from position zero
-                                llvm::SmallVector<mlir::Value, 3> upperBounds;
+                            //check if custom ranges are specified, boolean 'isArray' e.g.
+                            // x prints all the array with all its dimensions from 0 to len(dim) (is Array = false)
+                            // x[$:3,1:50] prints custom ranges for dimensions 0 and 1 (all of them)
+                            bool fullRange = variableFilter.isBypass() || regexMatched ||
+                                             !variableFilter.lookupByIdentifier(
+                                                     varName).getIsArray(); // only the name has been provided
+                            std::cout << "printing " << varName << " - fullRange=" << fullRange << std::endl;
+                            //Upper and lower bound vectors (for each iteration of the loop, from LB to UB)
+                            llvm::SmallVector<mlir::Value, 3> lowerBounds; //starting from position zero
+                            llvm::SmallVector<mlir::Value, 3> upperBounds;
 
-                                //specified ranges must match the number of dimension and be 'feasible'
-                                bool rangesAreOk = fullRange || performRangeBoundCheck(arrayTypeLocal, variableFilter, varName); //checks if provided bounds are contained in array dimensions
-                                if (!rangesAreOk) assert(false); //please use the variable filter correctly
+                            //specified ranges must match the number of dimension and be 'feasible'
+                            bool rangesAreOk = fullRange || performRangeBoundCheck(arrayTypeLocal, variableFilter,
+                                                                                   varName); //checks if provided bounds are contained in array dimensions
+                            if (!rangesAreOk) assert(false); //please use the variable filter correctly
 
-                                //for each of the array dimensions (rank)
-                                for (unsigned int i = 0, e = arrayTypeLocal.getRank(); i < e; ++i) {
+                            //for each of the array dimensions (rank)
+                            for (unsigned int i = 0, e = arrayTypeLocal.getRank(); i < e; ++i) {
 
-                                    Range dimensionRange(-1,-1); //default value
+                                Range dimensionRange(-1, -1); //default value
 
-                                    //get specified range for dimension 'i' if is specified and it's not full range
-                                    if(!(variableFilter.isBypass() || fullRange)) {
-                                        VariableTracker currentTracker = variableFilter.lookupByIdentifier(varName);
-                                        dimensionRange = currentTracker.getRangeOfDimensionN(i);
-                                    }
-
-                                    /// ============ FIX LOWER BOUNDs ============== //
-                                    //print the full dimension, no upper bound specified, starting from [0] element
-                                    if(variableFilter.isBypass() || fullRange || dimensionRange.noLowerBound()) {
-                                        lowerBounds.push_back(zero); // start from the beginning of the array
-                                    }
-                                    //else if a bound of the dimension is specified es. "starting from the fourth element"
-                                    else {
-                                        mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr((int)dimensionRange.leftValue));
-                                        lowerBounds.push_back(dim);
-                                    }
-
-                                    /// ============ FIX UPPER BOUNDs ============== //
-                                    //print the full dimension, no upper bound specified
-                                    if(variableFilter.isBypass() || fullRange || dimensionRange.noUpperBound()) {
-                                        mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(i));
-                                        upperBounds.push_back(rewriter.create<DimOp>(varLoc, var, dim));
-                                    }
-                                    else { //else if a bound of the dimension is specified es. "until the third element"
-                                        mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr((int)dimensionRange.rightValue));
-                                        upperBounds.push_back(dim);
-                                    }
-
+                                //get specified range for dimension 'i' if is specified and it's not full range
+                                if (!(variableFilter.isBypass() || fullRange)) {
+                                    VariableTracker currentTracker = variableFilter.lookupByIdentifier(varName);
+                                    dimensionRange = currentTracker.getRangeOfDimensionN(i);
                                 }
 
-                                //step e.g. what in C++ is "i++"
-                                llvm::SmallVector<mlir::Value, 3> steps(arrayTypeLocal.getRank(), one);
+                                /// ============ FIX LOWER BOUNDs ============== //
+                                //print the full dimension, no upper bound specified, starting from [0] element
+                                if (variableFilter.isBypass() || fullRange || dimensionRange.noLowerBound()) {
+                                    lowerBounds.push_back(zero); // start from the beginning of the array
+                                }
+                                    //else if a bound of the dimension is specified es. "starting from the fourth element"
+                                else {
+                                    mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(
+                                            (int) dimensionRange.leftValue));
+                                    lowerBounds.push_back(dim);
+                                }
 
-                                mlir::scf::buildLoopNest(
-                                        rewriter, varLoc, lowerBounds, upperBounds, steps, llvm::None,
-                                        [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
-                                            //print element at 'position'
-                                            mlir::Value value = rewriter.create<LoadOp>(var.getLoc(), var, position);
-                                            value = materializeTargetConversion(rewriter, value);
-                                            printElement(rewriter, value, printSeparator, semicolonCst, module);
-                                            return std::vector<mlir::Value>();
-                                        });
+                                /// ============ FIX UPPER BOUNDs ============== //
+                                //print the full dimension, no upper bound specified
+                                if (variableFilter.isBypass() || fullRange || dimensionRange.noUpperBound()) {
+                                    mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc,
+                                                                                        rewriter.getIndexAttr(i));
+                                    upperBounds.push_back(rewriter.create<DimOp>(varLoc, var, dim));
+                                } else { //else if a bound of the dimension is specified es. "until the third element"
+                                    mlir::Value dim = rewriter.create<mlir::ConstantOp>(varLoc, rewriter.getIndexAttr(
+                                            (int) dimensionRange.rightValue));
+                                    upperBounds.push_back(dim);
+                                }
 
-                            } //if variable "is tracked by VF"
-                            cur = cur + 1; //keep the match between variable value and variable name consistent
-                        }
-                        else { //Arrays of Rank = 0
-                            std::cout << "printing time" << std::endl;
-                            mlir::Value value = rewriter.create<LoadOp>(var.getLoc(), var);
-                            value = materializeTargetConversion(rewriter, value);
-                            printElement(rewriter, value, printSeparator, semicolonCst, module);
-                        }
-                    } else //non arrays
-                    {
-                        std::cout << "printing a non array value" << std::endl;
-                        printElement(rewriter, var, printSeparator, semicolonCst, module);
+                            }
+
+                            //step e.g. what in C++ is "i++"
+                            llvm::SmallVector<mlir::Value, 3> steps(arrayTypeLocal.getRank(), one);
+
+                            mlir::scf::buildLoopNest(
+                                    rewriter, varLoc, lowerBounds, upperBounds, steps, llvm::None,
+                                    [&](mlir::OpBuilder &nestedBuilder, mlir::Location loc, mlir::ValueRange position,
+                                        mlir::ValueRange args) -> std::vector<mlir::Value> {
+                                        //print element at 'position'
+                                        mlir::Value value = rewriter.create<LoadOp>(var.getLoc(), var, position);
+                                        value = materializeTargetConversion(rewriter, value);
+                                        printElement(rewriter, value, printSeparator, semicolonCst, module);
+                                        return std::vector<mlir::Value>();
+                                    });
+
+                        } //if variable "is tracked by VF"
+                        cur = cur + 1; //keep the match between variable value and variable name consistent
+                    } else { //Arrays of Rank = 0
+                        std::cout << "printing time" << std::endl;
+                        mlir::Value value = rewriter.create<LoadOp>(var.getLoc(), var);
+                        value = materializeTargetConversion(rewriter, value);
+                        printElement(rewriter, value, printSeparator, semicolonCst, module);
                     }
+                } else //non arrays
+                {
+                    std::cout << "printing a non array value" << std::endl;
+                    printElement(rewriter, var, printSeparator, semicolonCst, module);
+                }
 
             }
 
@@ -926,19 +913,18 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 
                 //for each variable check if it has derivative in the model
                 auto got = hasDerivativeMap.find(name);
-                if (!(got==hasDerivativeMap.end()) && got->second) { //if it has derivative
+                if (!(got == hasDerivativeMap.end()) && got->second) { //if it has derivative
                     //where is the derivative value placed? After the variables
                     //pop the value from the queue
                     mlir::Value derivativeValue = derValueQueue.front();
                     derValueQueue.pop(); //remove it from the queue, First come, first served!
 
                     //now check if the VF is filtering it or if it's not filtering at all
-                    if(variableFilter.isBypass() || variableFilter.printDerivative(name)) {
+                    if (variableFilter.isBypass() || variableFilter.printDerivative(name)) {
                         //Derivative of variable 'name' must be printed, generate the print code
                         //if current value is an array
                         std::cout << "printing in full derivative of var " << name << std::endl;
-                        if (auto arrayType = derivativeValue.getType().dyn_cast<ArrayType>())
-                        {
+                        if (auto arrayType = derivativeValue.getType().dyn_cast<ArrayType>()) {
                             //get the name of the variable the value belongs too
                             std::string varName = variableNamesVector[cur];
                             unsigned int rank = arrayType.getRank();
@@ -970,22 +956,24 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
                                                                                         rewriter.getIndexAttr(i));
                                     upperBounds.push_back(rewriter.create<DimOp>(varLoc, derivativeValue, dim));
                                 }
-                                    //step e.g. what in C++ is "i++"
+                                //step e.g. what in C++ is "i++"
                                 llvm::SmallVector<mlir::Value, 3> steps(arrayTypeLocal.getRank(), one);
 
                                 mlir::scf::buildLoopNest(
-                                            rewriter, varLoc, lowerBounds, upperBounds, steps, llvm::None,
-                                            [&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
-                                                //print element at 'position'
-                                                mlir::Value value = rewriter.create<LoadOp>(derivativeValue.getLoc(), derivativeValue, position);
-                                                value = materializeTargetConversion(rewriter, value);
-                                                printElement(rewriter, value, printSeparator, semicolonCst, module);
-                                                return std::vector<mlir::Value>();
-                                            });
+                                        rewriter, varLoc, lowerBounds, upperBounds, steps, llvm::None,
+                                        [&](mlir::OpBuilder &nestedBuilder, mlir::Location loc,
+                                            mlir::ValueRange position,
+                                            mlir::ValueRange args) -> std::vector<mlir::Value> {
+                                            //print element at 'position'
+                                            mlir::Value value = rewriter.create<LoadOp>(derivativeValue.getLoc(),
+                                                                                        derivativeValue, position);
+                                            value = materializeTargetConversion(rewriter, value);
+                                            printElement(rewriter, value, printSeparator, semicolonCst, module);
+                                            return std::vector<mlir::Value>();
+                                        });
 
                                 cur = cur + 1; //keep the match between variable value and variable name consistent
-                            }
-                            else { //Arrays of Rank = 0
+                            } else { //Arrays of Rank = 0
                                 mlir::Value value = rewriter.create<LoadOp>(derivativeValue.getLoc(), derivativeValue);
                                 value = materializeTargetConversion(rewriter, value);
                                 printElement(rewriter, value, printSeparator, semicolonCst, module);
@@ -1207,7 +1195,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			return signalPassFailure();
 
 		// Convert the scalar values into arrays of one element
-		if (failed(loopify())) //TODO FIX
+		if (failed(loopify()))
 			return signalPassFailure();
 
         mlir::BlockAndValueMapping derivatives;
@@ -1221,7 +1209,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 
 			// Remove the derivative operations and allocate the appropriate buffers
-			if (failed(removeDerivatives(builder, model, derivatives))) //TODO FIX
+			if (failed(removeDerivatives(builder, model, derivatives)))
 				return signalPassFailure();
 
 			// Match
@@ -1248,7 +1236,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		// The model has been solved and we can now proceed to create the update
 		// functions and, if requested, the main simulation loop.
-		if (auto status = createSimulationFunctions(derivatives); failed(status)) //TODO FIX
+		if (auto status = createSimulationFunctions(derivatives); failed(status))
 			return signalPassFailure();
 	}
 

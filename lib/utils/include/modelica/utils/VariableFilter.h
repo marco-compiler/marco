@@ -27,6 +27,7 @@ namespace modelica {
         void setBypass(bool bypass);
 
         void addVariable(VariableTracker var);
+
         void addDerivative(VariableTracker var);
 
         void addRegexString(string regex);

@@ -4,7 +4,8 @@
 
 #include "../include/modelica/utils/VariableTracker.h"
 
-VariableTracker::VariableTracker(const string &name, const bool isArray, const bool isDerivative, const unsigned int dim)
+VariableTracker::VariableTracker(const string &name, const bool isArray, const bool isDerivative,
+                                 const unsigned int dim)
         : _name(name), _isArray(isArray), _isDerivative(isDerivative), _dim(dim) {
 
 }
@@ -53,6 +54,7 @@ Range::Range(int leftValue, int rightValue) : leftValue(leftValue), rightValue(r
 bool Range::noUpperBound() const {
     return rightValue == -1;
 }
+
 bool Range::noLowerBound() const {
     return leftValue == -1;
 }
