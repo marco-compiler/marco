@@ -256,78 +256,7 @@ namespace modelica {
 
         /** parses the current input string and carries out parsing into var-regex-array-derivative by
          * adding a tracker in the VariableFilter vf*/
-        void parseExpressionElement(VariableFilter &vf) {
-
-            string ele = inputStringReference;
-            // cout << "\n\n*** NEW PARSING of " << ele << endl;
-            inputString = ele.c_str();
-
-            bool flag = true;
-            lexerReset(); //reset the state (fresh start)
-            getNextToken(); //start
-
-            if (CurTok >= 0) {
-                std::string base = "wrong input, unexpected token: ";
-                throwError(base + ((char) CurTok));
-                return;
-            }
-            while (flag) {
-                //cout << "ready:";
-                switch (CurTok) {
-                    case tok_eof: //end of input
-                        return;
-                    case tok_der: {
-                        unique_ptr<DerivativeExprAST> derivativeNode = ParseDerivative();
-                        // cout << "\nDERIVATIVE DONE" << endl;
-                        VariableTracker tracker(derivativeNode->getDerivedVariable().getIdentifier(), false, true,
-                                                0);
-                        //vf.addVariable(tracker);
-                        //new derivative map
-                        vf.addDerivative(tracker);
-                        return;
-                    }
-                    case tok_identifier: {
-
-                        if (parsingArray) {
-
-                            unique_ptr<ArrayExprAST> arrayNode = ParseArray();
-
-                            string id = arrayNode->getArrayVariableIdentifier().getIdentifier();
-                            VariableTracker tracker(id, true, false, arrayNode->getDimension());
-                            list<ArrayRangeAST> rangeNodes = arrayNode->getRanges();
-                            list<Range> rangeList;
-                            for (auto r : rangeNodes) {
-                                rangeList.emplace_back(Range(r.getLvalue(), r.getRvalue()));
-                            }
-
-                            tracker.setRanges(rangeList);
-                            vf.addVariable(tracker);
-                            return;
-                        }
-
-                        unique_ptr<VariableExprAST> varExpr = ParseVariableExpr();
-
-                        VariableTracker tracker(varExpr->getIdentifier(), false, false, 0);
-
-                        vf.addVariable(tracker);
-                        flag = false;
-                        return;
-                        //variable identifier parsed correctly
-                    }
-
-                    case tok_regex_expr : {
-                        unique_ptr<RegexExprAST> regNode = ParseRegex();
-                        vf.addRegexString(regNode->getRegex());
-                        return;
-                    }
-
-                    default:
-                        getNextToken();
-                        break;
-                }
-            }
-
-        };
+        void parseExpressionElement(VariableFilter &vf);;
     };
 
 }
