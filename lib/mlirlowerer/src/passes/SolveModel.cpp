@@ -387,10 +387,16 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 				args.push_back(arg);
 
 			if (auto arrayType = variable.getReference().getType().dyn_cast<ArrayType>())
+			{
 				derVar = rewriter.create<AllocOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, false);
+				mlir::Value zero = createZeroValue(rewriter, loc, arrayType.getElementType());
+				rewriter.create<FillOp>(loc, zero, derVar);
+			}
 			else
 			{
 				derVar = rewriter.create<AllocOp>(loc, variable.getReference().getType(), llvm::None, llvm::None, false);
+				mlir::Value zero = createZeroValue(rewriter, loc, variable.getReference().getType());
+				rewriter.create<AssignmentOp>(loc, zero, derVar);
 			}
 
 			model->addVariable(derVar);
@@ -426,6 +432,18 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 	}
 
 	private:
+	mlir::Value createZeroValue(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const
+	{
+		if (type.isa<BooleanType>())
+			return builder.create<ConstantOp>(loc, BooleanAttribute::get(type, false));
+
+		if (type.isa<IntegerType>())
+			return builder.create<ConstantOp>(loc, IntegerAttribute::get(type, 0));
+
+		assert(type.isa<RealType>());
+		return builder.create<ConstantOp>(loc, RealAttribute::get(type, 0));
+	}
+
 	Model* model;
 	mlir::BlockAndValueMapping* derivatives;
 };
