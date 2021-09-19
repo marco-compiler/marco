@@ -18,6 +18,8 @@
 #include <marco/frontend/Parser.h>
 #include <marco/frontend/Passes.h>
 #include <marco/mlirlowerer/CodeGen.h>
+#include <marco/utils/VariableFilterParser.h>
+#include <marco/utils/VariableFilter.h>
 
 using namespace llvm;
 using namespace marco;

@@ -16,8 +16,8 @@
 #include "modelica/passes/ConstantFold.hpp"
 #include "modelica/passes/SolveModel.hpp"
 
-#include "modelica/utils/VariableFilter.h"
-#include "modelica/utils/VariableFilterParser.h"
+#include "marco/utils/VariableFilter.h"
+#include "marco/utils/VariableFilterParser.h"
 
 using namespace marco;
 using namespace llvm;

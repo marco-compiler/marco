@@ -1,7 +1,7 @@
 #pragma once
 
 #include <mlir/Pass/Pass.h>
-#include <modelica/utils/VariableFilter.h>
+#include <marco/utils/VariableFilter.h>
 
 namespace marco::codegen
 {
@@ -15,7 +15,7 @@ namespace marco::codegen
 		int matchingMaxIterations = 1000;
 		int sccMaxIterations = 1000;
 		Solver solver = ForwardEuler;
-        modelica::VariableFilter *variableFilter; // Variable Filter is used in solve model pass to filter out variables to be printed
+        marco::VariableFilter *variableFilter; // Variable Filter is used in solve model pass to filter out variables to be printed
 
 
         static const SolveModelOptions& getDefaultOptions() {

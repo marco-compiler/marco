@@ -3,23 +3,23 @@
 //
 
 
-#include "../include/modelica/utils/VariableFilterParser.h"
+#include "marco/utils/VariableFilterParser.h"
 
-void modelica::VariableFilterParser::throwError(string msg) {
+void marco::VariableFilterParser::throwError(string msg) {
 	cout << "\n\tVF Error: " << msg << endl;
 	exit(1); //can't proceed with parsing
 }
 
-void modelica::VariableFilterParser::throwGenericError(void) {
+void marco::VariableFilterParser::throwGenericError(void) {
 	cout << "VF: ERROR when parsing | generic." << endl;
 	exit(1);
 }
 
-bool modelica::VariableFilterParser::isValidIDChar(char c) {
+bool marco::VariableFilterParser::isValidIDChar(char c) {
 	return (isalnum(c) || (c == '(') || (c == ')') || (c == '_'));
 }
 
-int modelica::VariableFilterParser::gettok() {
+int marco::VariableFilterParser::gettok() {
 	int LastChar = 32;    //start from white space 32 === ' '
 	rangeValue = ""; //empty the range value buffer
 	// Skip any whitespace between tokens.
@@ -119,17 +119,17 @@ int modelica::VariableFilterParser::gettok() {
 	return LastChar;
 }
 
-void modelica::VariableFilterParser::lexerReset() {
+void marco::VariableFilterParser::lexerReset() {
 	CurTok = 0;
 	i = 0;
 	parsingArray = false;
 }
 
-void modelica::VariableFilterParser::displayWarning(std::string msg) {
+void marco::VariableFilterParser::displayWarning(std::string msg) {
 	cout << "\n\t(⚠️) VF Warning:️" << msg << endl;
 }
 
-void modelica::VariableFilterParser::parseCommandLine(string commandLineArguments, modelica::VariableFilter &vf) {
+void marco::VariableFilterParser::parseCommandLine(string commandLineArguments, marco::VariableFilter &vf) {
 	size_t pos = 0;
 	std::string delimiter = ";";
 	std::string token;
@@ -156,7 +156,7 @@ void modelica::VariableFilterParser::parseCommandLine(string commandLineArgument
 
 }
 
-void modelica::VariableFilterParser::parseExpressionElement(modelica::VariableFilter &vf) {
+void marco::VariableFilterParser::parseExpressionElement(marco::VariableFilter &vf) {
 
 	string ele = inputStringReference;
 	// cout << "\n\n*** NEW PARSING of " << ele << endl;

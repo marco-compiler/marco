@@ -2,7 +2,7 @@
 // Created by Ale on 21/06/2021.
 //
 
-#include "../include/modelica/utils/VariableTracker.h"
+#include "marco/utils/VariableTracker.h"
 
 VariableTracker::VariableTracker(const string &name, const bool isArray, const bool isDerivative,
                                  const unsigned int dim)

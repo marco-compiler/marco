@@ -15,9 +15,9 @@
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/Variable.h>
 #include <marco/mlirlowerer/passes/TypeConverter.h>
-#include <unordered_map>
-#include <modelica/utils/VariableFilter.h>
+
 #include <queue>
+#include <unordered_map>
 
 using namespace marco;
 using namespace codegen;
@@ -735,7 +735,7 @@ struct SimulationOpPattern : public mlir::OpConversionPattern<SimulationOp>
 
 			//RETRIEVE THE NAMES
 
-			modelica::VariableFilter variableFilter = *options.variableFilter; // get variable filter state
+			marco::VariableFilter variableFilter = *options.variableFilter; // get variable filter state
 			variableFilter.dump();
 
 			mlir::ArrayRef<mlir::Attribute> variableNames = op.variableNames().getValue();

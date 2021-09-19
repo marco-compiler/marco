@@ -14,7 +14,7 @@
 #include "llvm/Support/Regex.h"
 
 using namespace std;
-namespace modelica {
+namespace marco {
 
 	class VariableFilterParser {
 

@@ -2,20 +2,20 @@
 // Created by Ale on 06/09/2021.
 //
 #include <iostream>
-#include "../../utils/include/modelica/utils/VariableFilter.h"
-#include "../../utils/include/modelica/utils/VariableFilterParser.h"
-#include "../../utils/include/modelica/utils/VariableTracker.h"
+#include "marco/utils/VariableFilter.h"
+#include "marco/utils/VariableFilterParser.h"
+#include "marco/utils/VariableTracker.h"
 
 using namespace std;
-using namespace modelica;
+using namespace marco;
 
 void testNormal() {
 
 	cout << "** SIMPLE VARIABLES **" << endl;
 
 	string commandLineInput = "x;x1;_x22;x_var;";
-	modelica::VariableFilter vf = VariableFilter();
-	modelica::VariableFilterParser parser = VariableFilterParser();
+	marco::VariableFilter vf = VariableFilter();
+	marco::VariableFilterParser parser = VariableFilterParser();
 	parser.parseCommandLine(commandLineInput, vf);
 	assert(vf.isBypass() == false); //variable filtering is been used
 	assert(vf.checkTrackedIdentifier("x") &&
@@ -49,8 +49,8 @@ void testArray() {
 	cout << "\n\n** ARRAYS VARIABLES **" << endl;
 
 	string commandLineInput = "x[$:$];xArray[0:10];y[$:199];ann[3:$,2:10,$:55];const;";
-	modelica::VariableFilter vf = VariableFilter();
-	modelica::VariableFilterParser parser = VariableFilterParser();
+	marco::VariableFilter vf = VariableFilter();
+	marco::VariableFilterParser parser = VariableFilterParser();
 	parser.parseCommandLine(commandLineInput, vf);
 	assert(vf.isBypass() == false); //variable filtering is been used
 	assert(vf.checkTrackedIdentifier("x") &&
@@ -83,8 +83,8 @@ void testArray() {
 
 
 	string commandLineInputSingle = "single[3:$,2:10,$:55]";
-	modelica::VariableFilter vfSingle = VariableFilter();
-	modelica::VariableFilterParser parserSingle = VariableFilterParser();
+	marco::VariableFilter vfSingle = VariableFilter();
+	marco::VariableFilterParser parserSingle = VariableFilterParser();
 	parser.parseCommandLine(commandLineInputSingle, vfSingle);
 
 	vf.dump();
@@ -101,8 +101,8 @@ void testDerivative() {
 		if (i == 7) std::cout << std::endl;
 	}
 	string commandLineInput = "der(x);der(_y22);y[$:199];";
-	modelica::VariableFilter vf = VariableFilter();
-	modelica::VariableFilterParser parser = VariableFilterParser();
+	marco::VariableFilter vf = VariableFilter();
+	marco::VariableFilterParser parser = VariableFilterParser();
 	parser.parseCommandLine(commandLineInput, vf);
 	assert(vf.printDerivative("x"));
 	assert(vf.printDerivative("_y22"));
@@ -117,8 +117,8 @@ void testDerivative() {
 
 void testRegex() {
 	string commandLineInput = "/^[a-z]+$/;";
-	modelica::VariableFilter vf = VariableFilter();
-	modelica::VariableFilterParser parser = VariableFilterParser();
+	marco::VariableFilter vf = VariableFilter();
+	marco::VariableFilterParser parser = VariableFilterParser();
 	parser.parseCommandLine(commandLineInput, vf);
 	assert(vf.matchesRegex("a"));
 	assert(vf.matchesRegex("ab"));
@@ -127,8 +127,8 @@ void testRegex() {
 	assert(!vf.matchesRegex("abCCdEEc000iaOOO"));
 	assert(!vf.matchesRegex(""));
 
-	modelica::VariableFilter vf2 = VariableFilter();
-	modelica::VariableFilterParser parser2 = VariableFilterParser();
+	marco::VariableFilter vf2 = VariableFilter();
+	marco::VariableFilterParser parser2 = VariableFilterParser();
 
 	auto testRegex = regex("([a-z]+)([_.a-z0-9]*)([a-z0-9]+)(@)([a-z]+)([.a-z]+)([a-z]+)");
 	assert(regex_match("alelisi@polimi.it", testRegex));
@@ -139,8 +139,8 @@ void testRegex() {
 void testUnexpected() {
 	std::cout << "\n\n <<<<<< TEST OF WRONG INPUT >>>>>>" << std::endl;
 	string commandLineInput = "x_3:"; //missing ";"
-	modelica::VariableFilter vf = VariableFilter();
-	modelica::VariableFilterParser parser = VariableFilterParser();
+	marco::VariableFilter vf = VariableFilter();
+	marco::VariableFilterParser parser = VariableFilterParser();
 
 	unsigned short selection = 7;
 

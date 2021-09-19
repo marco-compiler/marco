@@ -19,7 +19,7 @@ using namespace std;
  *  Keeps tracks of a variables, arrays, derivatives (and regex for matching) we
  * want to print.
  */
-namespace modelica {
+namespace marco {
 	class VariableFilter {
 	public:
 		[[nodiscard]] bool isBypass() const;

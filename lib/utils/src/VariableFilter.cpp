@@ -3,11 +3,11 @@
 //
 
 #include <llvm/ADT/StringRef.h>
-#include "../include/modelica/utils/VariableFilter.h"
+#include "marco/utils/VariableFilter.h"
 #include "llvm/Support/Regex.h"
 
 
-void modelica::VariableFilter::dump() {
+void marco::VariableFilter::dump() {
 
 	for (int s = 0; s < 12; ++s) printf("#");
 	cout << "\n *** TRACKED VARIABLES *** : " << endl;
@@ -29,27 +29,27 @@ void modelica::VariableFilter::dump() {
 
 }
 
-void modelica::VariableFilter::addRegexString(string regex) {
+void marco::VariableFilter::addRegexString(string regex) {
 	_bypass = false; //turnoff bypass by default
 	_regex.push_back(regex);
 }
 
-void modelica::VariableFilter::addVariable(VariableTracker var) {
+void marco::VariableFilter::addVariable(VariableTracker var) {
 	_bypass = false; //turnoff bypass by default
 	_variables.insert_or_assign(var.getName(), var); //overwrite if key already exists
 }
 
-void modelica::VariableFilter::addDerivative(VariableTracker var) {
+void marco::VariableFilter::addDerivative(VariableTracker var) {
 	assert(var.getIsDerivative()); //add only derivatives
 	_bypass = true; //turnoff bypass by default
 	_derivatives.insert_or_assign(var.getName(), var);
 }
 
-bool modelica::VariableFilter::isBypass() const { return _bypass; }
+bool marco::VariableFilter::isBypass() const { return _bypass; }
 
-void modelica::VariableFilter::setBypass(bool bypass) { _bypass = bypass; }
+void marco::VariableFilter::setBypass(bool bypass) { _bypass = bypass; }
 
-bool modelica::VariableFilter::matchesRegex(const string &identifier) {
+bool marco::VariableFilter::matchesRegex(const string &identifier) {
 
 	llvm::StringRef testRef("[a-z]+");
 	llvm::Regex testReg(testRef, llvm::Regex::NoFlags);
@@ -76,18 +76,18 @@ bool checkIfPresent(unordered_map<std::string, VariableTracker> m, std::string k
 
 }
 
-VariableTracker modelica::VariableFilter::lookupByIdentifier(const string &identifier) {
+VariableTracker marco::VariableFilter::lookupByIdentifier(const string &identifier) {
 	assert(checkIfPresent(_variables, identifier));
 	return _variables.find(identifier)->second; //return variable tracker with key <identifier>
 }
 
-bool modelica::VariableFilter::checkTrackedIdentifier(const string &identifier) {
+bool marco::VariableFilter::checkTrackedIdentifier(const string &identifier) {
 	if (_bypass) return true;
 	return checkIfPresent(_variables, identifier);
 }
 
 
-bool modelica::VariableFilter::printDerivative(const string &derivedVariableIdentifier) {
+bool marco::VariableFilter::printDerivative(const string &derivedVariableIdentifier) {
 	if (checkIfPresent(_derivatives, derivedVariableIdentifier)) return true;
 	return false;
 }
