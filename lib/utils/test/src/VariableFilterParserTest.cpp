@@ -81,7 +81,14 @@ void testArray() {
 	       && ann.getRangeOfDimensionN(2).noLowerBound() && ann.getRangeOfDimensionN(2).rightValue == 55
 	);
 
+
+	string commandLineInputSingle = "single[3:$,2:10,$:55]";
+	modelica::VariableFilter vfSingle = VariableFilter();
+	modelica::VariableFilterParser parserSingle = VariableFilterParser();
+	parser.parseCommandLine(commandLineInputSingle, vfSingle);
+
 	vf.dump();
+	vfSingle.dump();
 	//Check if parsing of all informations is correct
 
 
