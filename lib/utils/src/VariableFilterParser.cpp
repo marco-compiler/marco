@@ -134,18 +134,26 @@ void modelica::VariableFilterParser::parseCommandLine(string commandLineArgument
 	std::string delimiter = ";";
 	std::string token;
 	bool atLeastOne = false;
-	while ((pos = commandLineArguments.find(delimiter)) != std::string::npos) {
-		token = commandLineArguments.substr(0, pos);
-		//std::cout << token << std::endl;
-		inputStringReference = token;
+
+	/* no ';' => just one token */
+
+	if (commandLineArguments.find(delimiter) == std::string::npos) {
+		inputStringReference = commandLineArguments;
 		parseExpressionElement(vf); //parse each token
-		commandLineArguments.erase(0, pos + delimiter.length());
-		atLeastOne = true;
+	} else {
+		while ((pos = commandLineArguments.find(delimiter)) != std::string::npos) {
+			token = commandLineArguments.substr(0, pos);
+			inputStringReference = token;
+			parseExpressionElement(vf); //parse each token
+			commandLineArguments.erase(0, pos + delimiter.length());
+			atLeastOne = true;
+		}
+		if (!atLeastOne) {
+			displayWarning("No VF input provided.");
+			return;
+		}
 	}
-	if (!atLeastOne) {
-		displayWarning("No VF input provided.");
-		return;
-	}
+
 }
 
 void modelica::VariableFilterParser::parseExpressionElement(modelica::VariableFilter &vf) {
