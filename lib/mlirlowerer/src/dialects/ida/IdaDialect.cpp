@@ -70,6 +70,8 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 			LambdaSinhOp,
 			LambdaCoshOp,
 			LambdaTanhOp>();
+	
+	addOperations<LambdaCallOp>();
 }
 
 mlir::StringRef IdaDialect::getDialectNamespace()

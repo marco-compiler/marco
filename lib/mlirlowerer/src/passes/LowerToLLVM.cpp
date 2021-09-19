@@ -7,6 +7,7 @@
 #include <mlir/Support/MathExtras.h>
 #include <marco/mlirlowerer/passes/LowerToLLVM.h>
 #include <marco/mlirlowerer/passes/TypeConverter.h>
+#include <marco/mlirlowerer/dialects/ida/IdaDialect.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
 
 using namespace marco::codegen;
@@ -946,6 +947,51 @@ struct UnrealizedCastOpLowering : public mlir::OpRewritePattern<mlir::Unrealized
 	}
 };
 
+struct LambdaCallOpLowering : public mlir::ConvertOpToLLVMPattern<ida::LambdaCallOp>
+{
+	using mlir::ConvertOpToLLVMPattern<ida::LambdaCallOp>::ConvertOpToLLVMPattern;
+
+	mlir::LogicalResult matchAndRewrite(ida::LambdaCallOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::ModuleOp module = op->getParentOfType<mlir::ModuleOp>();
+
+		if (mlir::LLVM::LLVMFuncOp function = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(op.callee()))
+		{
+			assert(function.getNumArguments() == 1 && function.getNumResults() == 1);
+
+			// Create a pointer of type "double (double)*" to the mlir FunctionOp
+			mlir::Value functionPointer = rewriter.create<mlir::LLVM::AddressOfOp>(op.getLoc(), function);
+
+			IntegerType result = IntegerType::get(op.getContext());
+			mlir::ValueRange args = { op.userData(), op.operandIndex(), functionPointer };
+
+			mlir::FuncOp callee = getOrDeclareFunction(
+					rewriter,
+					module,
+					"lambdaCall",
+					result,
+					args.getTypes());
+
+			rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, args);
+			return mlir::success();
+		}
+
+		return mlir::failure();
+	}
+
+	static mlir::FuncOp getOrDeclareFunction(mlir::OpBuilder& builder, mlir::ModuleOp module, llvm::StringRef name, mlir::TypeRange results, mlir::TypeRange args)
+	{
+		if (mlir::FuncOp foo = module.lookupSymbol<mlir::FuncOp>(name))
+			return foo;
+
+		mlir::PatternRewriter::InsertionGuard insertGuard(builder);
+		builder.setInsertionPointToStart(module.getBody());
+		mlir::FuncOp foo = builder.create<mlir::FuncOp>(module.getLoc(), name, builder.getFunctionType(args, results));
+		foo.setPrivate();
+		return foo;
+	}
+};
+
 static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& typeConverter, mlir::OwningRewritePatternList& patterns)
 {
 	patterns.insert<
@@ -962,7 +1008,8 @@ static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& ty
 			CastOpBooleanLowering,
 			CastOpIntegerLowering,
 			CastOpRealLowering,
-			ArrayCastOpLowering>(typeConverter);
+			ArrayCastOpLowering,
+			LambdaCallOpLowering>(typeConverter);
 }
 
 class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>>
@@ -1016,7 +1063,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		marco::codegen::TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
 
 		mlir::ConversionTarget target(getContext());
-		target.addIllegalDialect<ModelicaDialect, mlir::StandardOpsDialect>();
+		target.addIllegalDialect<ModelicaDialect, ida::IdaDialect, mlir::StandardOpsDialect>();
 		target.addIllegalOp<mlir::FuncOp>();
 
 		target.addLegalDialect<mlir::LLVM::LLVMDialect>();

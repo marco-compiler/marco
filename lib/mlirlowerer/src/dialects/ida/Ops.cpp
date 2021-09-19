@@ -2710,3 +2710,94 @@ mlir::Value LambdaTanhOp::operandIndex()
 {
 	return getOperation()->getOperand(1);
 }
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaCallOp
+//===----------------------------------------------------------------------===//
+
+void LambdaCallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex, mlir::StringRef callee)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(operandIndex);
+	state.addAttribute("callee", builder.getSymbolRefAttr(callee));
+}
+
+mlir::ParseResult LambdaCallOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::Builder& builder = parser.getBuilder();
+
+	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
+	mlir::Type userData;
+	mlir::Type operandIndex;
+	mlir::FlatSymbolRefAttr calleeAttr;
+	llvm::SmallVector<mlir::Type, 1> resultTypes;
+
+	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
+
+	if (parser.parseOperandList(operands, 2) ||
+			parser.parseColon() ||
+			parser.parseLParen() ||
+			parser.parseType(userData) || 
+			parser.parseComma() ||
+			parser.parseType(operandIndex) ||
+			parser.parseComma() ||
+			parser.parseAttribute(calleeAttr, builder.getType<mlir::NoneType>(), "callee", result.attributes) ||
+			parser.parseRParen() ||
+			parser.resolveOperands(operands, { userData, operandIndex }, operandsLoc, result.operands) ||
+			parser.parseOptionalArrowTypeList(resultTypes))
+		return mlir::failure();
+
+	result.addTypes(resultTypes);
+
+	return mlir::success();
+}
+
+void LambdaCallOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName()
+					<< " " << userData() << ", " << operandIndex() << " : ("
+					<< userData().getType() << ", " << operandIndex().getType() << ", @" << callee()
+					<< ") -> " << resultType();
+}
+
+mlir::LogicalResult LambdaCallOp::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!operandIndex().getType().isa<IntegerType>())
+		return emitOpError("Requires operand lambda index to be an integer");
+
+	return mlir::success();
+}
+
+void LambdaCallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaCallOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaCallOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaCallOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaCallOp::operandIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::StringRef LambdaCallOp::callee()
+{
+	return getOperation()->getAttrOfType<mlir::FlatSymbolRefAttr>("callee").getValue();
+}
