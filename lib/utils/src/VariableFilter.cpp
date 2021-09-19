@@ -41,7 +41,7 @@ void marco::VariableFilter::addVariable(VariableTracker var) {
 
 void marco::VariableFilter::addDerivative(VariableTracker var) {
 	assert(var.getIsDerivative()); //add only derivatives
-	_bypass = true; //turnoff bypass by default
+	_bypass = false; //turnoff bypass by default
 	_derivatives.insert_or_assign(var.getName(), var);
 }
 
