@@ -20,51 +20,51 @@ using namespace std;
  * want to print.
  */
 namespace modelica {
-    class VariableFilter {
-    public:
-        [[nodiscard]] bool isBypass() const;
+	class VariableFilter {
+	public:
+		[[nodiscard]] bool isBypass() const;
 
-        void setBypass(bool bypass);
+		void setBypass(bool bypass);
 
-        void addVariable(VariableTracker var);
+		void addVariable(VariableTracker var);
 
-        void addDerivative(VariableTracker var);
+		void addDerivative(VariableTracker var);
 
-        void addRegexString(string regex);
+		void addRegexString(string regex);
 
-        void dump();
+		void dump();
 
-        /**
-         *
-         * @param identifier the string that will be matched with all the regexes
-         * @return true if there is a stored regular expression that matches the
-         * received identifier
-         */
-        bool matchesRegex(const string &identifier);
+		/**
+		 *
+		 * @param identifier the string that will be matched with all the regexes
+		 * @return true if there is a stored regular expression that matches the
+		 * received identifier
+		 */
+		bool matchesRegex(const string &identifier);
 
-        /**
-         *
-         * @param identifier the variable identifier we want to query
-         * @return the variable tracker associated with that variable
-         */
-        VariableTracker lookupByIdentifier(const string &identifier);
+		/**
+		 *
+		 * @param identifier the variable identifier we want to query
+		 * @return the variable tracker associated with that variable
+		 */
+		VariableTracker lookupByIdentifier(const string &identifier);
 
-        bool checkTrackedIdentifier(const string &identifier);
+		bool checkTrackedIdentifier(const string &identifier);
 
-        /**
-         * Check if derivative of var must be printed
-         * @param derivedVariableIdentifier a model variable identifier
-         * @return true if by command line arguments is specified that the derivative of provided variable identifier must be printed
-         */
-        bool printDerivative(const string &derivedVariableIdentifier);
+		/**
+		 * Check if derivative of var must be printed
+		 * @param derivedVariableIdentifier a model variable identifier
+		 * @return true if by command line arguments is specified that the derivative of provided variable identifier must be printed
+		 */
+		bool printDerivative(const string &derivedVariableIdentifier);
 
-    private:
-        std::unordered_map<string, VariableTracker> _variables;
-        std::unordered_map<string, VariableTracker> _derivatives;
+	private:
+		std::unordered_map<string, VariableTracker> _variables;
+		std::unordered_map<string, VariableTracker> _derivatives;
 
-        list<string> _regex;
-        bool _bypass = true;
-    };
+		list<string> _regex;
+		bool _bypass = true;
+	};
 }     // namespace modelica
 
 #endif    // PARSER_LEXER_M_VF_VARIABLEFILTER_H

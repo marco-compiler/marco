@@ -47,7 +47,8 @@ static cl::opt<bool> openmp("omp", cl::desc("Enable OpenMP usage"), cl::init(fal
 static cl::opt<bool> disableRuntimeLibrary("disable-runtime-library", cl::desc("Avoid the calls to the external runtime library functions (only when a native implementation of the operation exists)"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> emitCWrappers("emit-c-wrappers", cl::desc("Emit C wrappers"), cl::init(false), cl::cat(codeGenOptions));
 
-static cl::opt<string> variableFilterString("vf", cl::desc("<variable-filter-string>"), cl::init("bypass"), cl::value_desc("vfstring"));
+static cl::opt<string> variableFilterString("vf", cl::desc("<variable-filter-string>"), cl::init("bypass"),
+                                            cl::value_desc("vfstring"));
 
 enum OptLevel {
 	O0, O1, O2, O3
@@ -99,19 +100,15 @@ int main(int argc, char* argv[])
 
 	//std::string test = "x1[1:2];y;mat[$:$,1:3];der(x1);";
 
-	if(variableFilterString.getValue() == "bypass") {
-        vf.setBypass(true);
+	if (variableFilterString.getValue() == "bypass") {
+		vf.setBypass(true);
+	} else {
+		std::string vfInput = variableFilterString.getValue();
+		VariableFilterParser parser = VariableFilterParser();
+		parser.parseCommandLine(vfInput, vf);
 	}
-	else {
-        std::string vfInput = variableFilterString.getValue();
-        VariableFilterParser parser = VariableFilterParser();
-        parser.parseCommandLine(vfInput, vf);
-	}
 
-
-
-	if (error)
-	{
+	if (error) {
 		llvm::errs() << error.message();
 		return -1;
 	}

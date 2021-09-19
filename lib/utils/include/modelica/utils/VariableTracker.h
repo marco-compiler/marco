@@ -17,10 +17,12 @@ using namespace std;
 class Range {
 
 public:
-    Range(int leftValue, int rightValue);
-    bool noUpperBound() const; //-1 represents "unbounded"
-    bool noLowerBound() const;
-    int leftValue, rightValue;
+	Range(int leftValue, int rightValue);
+
+	bool noUpperBound() const; //-1 represents "unbounded"
+	bool noLowerBound() const;
+
+	int leftValue, rightValue;
 };
 
 /**
@@ -29,41 +31,41 @@ public:
 class VariableTracker {
 public:
 
-    VariableTracker(const string &name, const bool isArray, const bool isDerivative, const unsigned int dim);
+	VariableTracker(const string &name, const bool isArray, const bool isDerivative, const unsigned int dim);
 
-    void setRanges(const list <Range> &ranges);
+	void setRanges(const list<Range> &ranges);
 
-    const string &getName() const;
+	const string &getName() const;
 
-    const bool getIsArray() const;
+	const bool getIsArray() const;
 
-    const bool getIsDerivative() const;
+	const bool getIsDerivative() const;
 
-    const unsigned int getDim() const;
+	const unsigned int getDim() const;
 
-    const list <Range> &getRanges() const;
+	const list<Range> &getRanges() const;
 
-    const Range getRangeOfDimensionN(unsigned int N) {
-        int i = 0;
-        for (auto &range : _ranges){
-            if (i == N) {
-                return range;
-            }
-            i++;
-        }
-    }
+	const Range getRangeOfDimensionN(unsigned int N) {
+		int i = 0;
+		for (auto &range : _ranges) {
+			if (i == N) {
+				return range;
+			}
+			i++;
+		}
+	}
 
-    void dump(void) const;
+	void dump(void) const;
 
 private:
 
-    string _name;
-    bool _isArray;
-    bool _isDerivative;
-    unsigned int _dim;
+	string _name;
+	bool _isArray;
+	bool _isDerivative;
+	unsigned int _dim;
 
-    //-1 means "all"
-    list <Range> _ranges;
+	//-1 means "all"
+	list<Range> _ranges;
 
 
 };
