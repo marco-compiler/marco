@@ -55,12 +55,14 @@ mlir::LogicalResult IdaSolver::init()
 
 		Variable var = model.getVariable(fillOp.memory());
 
+		if (var.isDerivative())
+			return;
+
 		mlir::Operation* op = fillOp.value().getDefiningOp();
 		ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
 		double value = getValue(constantOp);
 
 		initialValueMap[var] = value;
-		assert(!var.isDerivative());
 		if (var.isState())
 			initialValueMap[model.getVariable(var.getDer())] = value;
 	});
@@ -75,12 +77,14 @@ mlir::LogicalResult IdaSolver::init()
 
 		Variable var = model.getVariable(subscriptionOp.source());
 
+		if (var.isDerivative())
+			return;
+
 		op = assignmentOp.source().getDefiningOp();
 		ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
 		double value = getValue(constantOp);
 
 		initialValueMap[var] = value;
-		assert(!var.isDerivative());
 		if (var.isState())
 			initialValueMap[model.getVariable(var.getDer())] = value;
 	});

@@ -434,14 +434,14 @@ struct DerOpPattern : public mlir::OpRewritePattern<DerOp>
 	private:
 	mlir::Value createZeroValue(mlir::OpBuilder& builder, mlir::Location loc, mlir::Type type) const
 	{
-		if (type.isa<BooleanType>())
-			return builder.create<ConstantOp>(loc, BooleanAttribute::get(type, false));
+		if (type.isa<modelica::BooleanType>())
+			return builder.create<ConstantOp>(loc, modelica::BooleanAttribute::get(type, false));
 
-		if (type.isa<IntegerType>())
-			return builder.create<ConstantOp>(loc, IntegerAttribute::get(type, 0));
+		if (type.isa<modelica::IntegerType>())
+			return builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(type, 0));
 
-		assert(type.isa<RealType>());
-		return builder.create<ConstantOp>(loc, RealAttribute::get(type, 0));
+		assert(type.isa<modelica::RealType>());
+		return builder.create<ConstantOp>(loc, modelica::RealAttribute::get(type, 0));
 	}
 
 	Model* model;
@@ -2244,7 +2244,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (mlir::isa<TanhOp>(definingOp))
 			return builder.create<LambdaTanhOp>(loc, userData, children[0]);
 
-		// TODO: Handle CallOp
+		if (CallOp callOp = mlir::dyn_cast<CallOp>(definingOp))
+			return builder.create<LambdaCallOp>(loc, userData, children[0], callOp.callee());
 
 		assert(false && "Unexpected operation");
 	}
@@ -2286,12 +2287,14 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 			Variable var = model.getVariable(fillOp.memory());
 
+			if (var.isDerivative())
+				return;
+
 			mlir::Operation* op = fillOp.value().getDefiningOp();
 			ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
 			double value = getValue(constantOp);
 
 			initialValueMap[var] = value;
-			assert(!var.isDerivative());
 			if (var.isState())
 				initialValueMap[model.getVariable(var.getDer())] = value;
 		});
@@ -2306,12 +2309,14 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 			Variable var = model.getVariable(subscriptionOp.source());
 
+			if (var.isDerivative())
+				return;
+
 			op = assignmentOp.source().getDefiningOp();
 			ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
 			double value = getValue(constantOp);
 
 			initialValueMap[var] = value;
-			assert(!var.isDerivative());
 			if (var.isState())
 				initialValueMap[model.getVariable(var.getDer())] = value;
 		});
@@ -2348,12 +2353,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				}
 			}
 
+			// RowLength
+			mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, rowLength));
 			for (Equation& equation : bltBlock.getEquations())
-			{
-				// RowLength
-				mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, rowLength));
 				builder.create<AddRowLengthOp>(loc, userData, index);
-			}
 		}
 
 		for (BltBlock& bltBlock : model.getBltBlocks())
