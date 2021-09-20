@@ -1,4 +1,5 @@
 #include "gtest/gtest.h"
+#include <marco/mlirlowerer/dialects/modelica/Ops.h>
 #include <marco/mlirlowerer/passes/matching/Matching.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
@@ -6,7 +7,9 @@
 
 #include "../TestingUtils.h"
 
-using namespace marco::codegen::model;
+using namespace marco::codegen;
+using namespace modelica;
+using namespace model;
 
 TEST(EquationTest, EquationCopyAndClone)
 {
@@ -133,4 +136,44 @@ TEST(EquationTest, ImplicitEquations)
 	EXPECT_TRUE(model.getEquations()[2].rhs().isConstant());
 	EXPECT_TRUE(model.getEquations()[3].rhs().isConstant());
 	EXPECT_TRUE(model.getEquations()[4].rhs().isOperation());
+}
+
+TEST(EquationTest, FoldConstants)
+{
+	std::string stringModel = "model FoldConstants "
+														"Real x; "
+														"Real y; "
+														"Real z; "
+														"equation "
+														"x = 2; "
+														"der(y) = x + 1 + z; "
+														"z = 1; "
+														"end FoldConstants; ";
+
+	mlir::MLIRContext context;
+	Model model;
+	makeModel(context, stringModel, model);
+
+	EXPECT_EQ(model.getEquations().size(), 3);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
+	
+	mlir::Operation* op = model.getEquations()[1].getOp().body()->getTerminator();
+	EquationSidesOp sides = mlir::cast<EquationSidesOp>(op);
+
+	EXPECT_EQ(sides.rhs().size(), 1);
+	EXPECT_TRUE(mlir::isa<AddOp>(sides.rhs()[0].getDefiningOp()));
+
+	makeSolvedModel(context, stringModel, model);
+
+	EXPECT_EQ(model.getEquations().size(), 2);
+	EXPECT_EQ(model.getBltBlocks().size(), 1);
+
+	op = model.getBltBlocks()[0][0].getOp().body()->getTerminator();
+	sides = mlir::cast<EquationSidesOp>(op);
+
+	EXPECT_EQ(sides.rhs().size(), 1);
+	EXPECT_TRUE(mlir::isa<ConstantOp>(sides.rhs()[0].getDefiningOp()));
+
+	ConstantOp constantOp = mlir::cast<ConstantOp>(sides.rhs()[0].getDefiningOp());
+	EXPECT_EQ(constantOp.value().cast<RealAttribute>().getValue(), 4);
 }

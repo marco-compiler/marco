@@ -2025,6 +2025,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			}
 		}
 
+		// Clean the equation and fold the constants.
+		for (BltBlock& bltBlock : model.getBltBlocks())
+			for (Equation& equation : bltBlock.getEquations())
+				equation.foldConstants();
+
 		Model result(model.getOp(), model.getVariables(), model.getEquations(), bltBlocks);
 		model = result;
 		return mlir::success();
