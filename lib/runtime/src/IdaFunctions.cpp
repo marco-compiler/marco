@@ -302,6 +302,7 @@ void setInitialValue(
 bool idaInit(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	data->lambdaDimensions.clear();
 
 	if (data->equationsNumber == 0)
 		return true;
@@ -500,7 +501,6 @@ void addJacobian(
 
 	data->lambdas.clear();
 	data->lambdaAccesses.clear();
-	data->lambdaDimensions.clear();
 }
 
 //===----------------------------------------------------------------------===//
@@ -599,14 +599,21 @@ void addLambdaAccess(
 		void* userData, sunindextype index, sunindextype off, sunindextype ind)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	assert((size_t) index < data->lambdaAccesses.size());
 	data->lambdaAccesses[index].push_back({ off, ind });
+}
+
+sunindextype addNewLambdaDimension(void* userData, sunindextype dim)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	data->lambdaDimensions.push_back({ dim });
+	return data->lambdaDimensions.size() - 1;
 }
 
 void addLambdaDimension(void* userData, sunindextype index, sunindextype dim)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	if (index == (sunindextype) data->lambdaDimensions.size())
-		data->lambdaDimensions.push_back({});
+	assert((size_t) index < data->lambdaDimensions.size());
 	data->lambdaDimensions[index].push_back(dim);
 }
 
@@ -716,13 +723,16 @@ sunindextype lambdaScalarDerivative(void* userData, sunindextype offset)
 }
 
 sunindextype lambdaVectorVariable(
-		void* userData, sunindextype offset, sunindextype index)
+		void* userData,
+		sunindextype offset,
+		sunindextype accessIndex,
+		sunindextype dimensionIndex)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
 	std::vector<std::pair<sunindextype, sunindextype>> access =
-			data->lambdaAccesses[index];
-	std::vector<sunindextype> dim = data->lambdaDimensions[index];
+			data->lambdaAccesses[accessIndex];
+	std::vector<sunindextype> dim = data->lambdaDimensions[dimensionIndex];
 
 	Function first = [offset, access, dim](
 											 realtype tt,
@@ -771,13 +781,16 @@ sunindextype lambdaVectorVariable(
 }
 
 sunindextype lambdaVectorDerivative(
-		void* userData, sunindextype offset, sunindextype index)
+		void* userData,
+		sunindextype offset,
+		sunindextype accessIndex,
+		sunindextype dimensionIndex)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
 	std::vector<std::pair<sunindextype, sunindextype>> access =
-			data->lambdaAccesses[index];
-	std::vector<sunindextype> dim = data->lambdaDimensions[index];
+			data->lambdaAccesses[accessIndex];
+	std::vector<sunindextype> dim = data->lambdaDimensions[dimensionIndex];
 
 	Function first = [offset, access, dim](
 											 realtype tt,
@@ -1572,7 +1585,8 @@ sunindextype lambdaCall(
 											 realtype* yp,
 											 Indexes& ind,
 											 realtype var) -> realtype {
-		return ((realtype(*)(realtype)) function)(operand(tt, cj, yy, yp, ind, var));
+		return (
+				(realtype(*)(realtype)) function) (operand(tt, cj, yy, yp, ind, var));
 	};
 
 	Function second = [](realtype tt,

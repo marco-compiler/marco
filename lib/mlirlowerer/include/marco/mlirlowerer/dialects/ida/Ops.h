@@ -534,6 +534,37 @@ namespace marco::codegen::ida
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Ida::AddNewLambdaDimensionOp
+	//===----------------------------------------------------------------------===//
+
+	class AddNewLambdaDimensionOp : public mlir::Op<AddNewLambdaDimensionOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<2>::Impl,
+																mlir::OpTrait::OneResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.add_new_lambda_dimension";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value dimension);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		IntegerType resultType();
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value dimension();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Ida::AddLambdaDimensionOp
 	//===----------------------------------------------------------------------===//
 
@@ -693,7 +724,7 @@ namespace marco::codegen::ida
 
 	class LambdaVectorVariableOp : public mlir::Op<LambdaVectorVariableOp,
 																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<3>::Impl,
+																mlir::OpTrait::NOperands<4>::Impl,
 																mlir::OpTrait::OneResult,
 																mlir::MemoryEffectOpInterface::Trait>
 	{
@@ -705,7 +736,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_vector_variable";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value index);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value accessIndex, mlir::Value dimensionIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -716,7 +747,8 @@ namespace marco::codegen::ida
 		mlir::ValueRange args();
 		mlir::Value userData();
 		mlir::Value offset();
-		mlir::Value index();
+		mlir::Value accessIndex();
+		mlir::Value dimensionIndex();
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -725,7 +757,7 @@ namespace marco::codegen::ida
 
 	class LambdaVectorDerivativeOp : public mlir::Op<LambdaVectorDerivativeOp,
 																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<3>::Impl,
+																mlir::OpTrait::NOperands<4>::Impl,
 																mlir::OpTrait::OneResult,
 																mlir::MemoryEffectOpInterface::Trait>
 	{
@@ -737,7 +769,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_vector_derivative";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value index);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value accessIndex, mlir::Value dimensionIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -748,7 +780,8 @@ namespace marco::codegen::ida
 		mlir::ValueRange args();
 		mlir::Value userData();
 		mlir::Value offset();
-		mlir::Value index();
+		mlir::Value accessIndex();
+		mlir::Value dimensionIndex();
 	};
 
 	//===----------------------------------------------------------------------===//

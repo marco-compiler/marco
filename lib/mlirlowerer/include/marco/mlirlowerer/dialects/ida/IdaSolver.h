@@ -100,6 +100,7 @@ namespace marco::codegen::ida
 		const int64_t equationsNumber;
 		std::map<model::Variable, double> initialValueMap;
 		std::map<model::Variable, int64_t> indexOffsetMap;
+		std::map<model::Variable, int64_t> dimensionsMap;
 		void *userData;
 	};
 }	 // namespace marco::codegen::ida

@@ -102,6 +102,8 @@ mlir::LogicalResult IdaSolver::init()
 			// If the variable has not been insterted yet, initialize it.
 			if (indexOffsetMap.find(var) == indexOffsetMap.end())
 			{
+				assert(dimensionsMap.find(var) == dimensionsMap.end());
+
 				// Note the variable offset from the beginning of the variable array.
 				indexOffsetMap[var] = rowLength;
 
@@ -120,6 +122,29 @@ mlir::LogicalResult IdaSolver::init()
 
 				// Increase the length of the current row.
 				rowLength += var.toMultiDimInterval().size();
+
+				// Compute the multi-dimensional offset of the array.
+				marco::MultiDimInterval dimensions = var.toMultiDimInterval();
+				std::vector<int64_t> dims;
+				for (size_t i = 1; i < dimensions.dimensions(); i++)
+				{
+					for (size_t j = 0; j < dims.size(); j++)
+						dims[j] *= dimensions.at(i).size();
+					dims.push_back(dimensions.at(i).size());
+				}
+				dims.push_back(1);
+
+				// Add dimensions of the variable to the ida user data.
+				int64_t dimensionIndex = addNewLambdaDimension(userData, dims[0]);
+				for (size_t i = 1; i < dims.size(); i++)
+					addLambdaDimension(userData, dimensionIndex, dims[i]);
+
+				dimensionsMap[var] = dimensionIndex;
+
+				if (var.isState())
+					dimensionsMap[model.getVariable(var.getDer())] = dimensionIndex;
+				else if (var.isDerivative())
+					dimensionsMap[model.getVariable(var.getState())] = dimensionIndex;
 			}
 		}
 
@@ -144,6 +169,7 @@ mlir::LogicalResult IdaSolver::init()
 
 	initialValueMap.clear();
 	indexOffsetMap.clear();
+	dimensionsMap.clear();
 
 	bool success = idaInit(userData);
 	if (!success)
@@ -315,7 +341,9 @@ int64_t IdaSolver::getFunction(const Expression& expression)
 		// Compute the IDA offset of the variable in the 1D array variablesVector.
 		Variable var = model.getVariable(expression.getReferredVectorAccess());
 		assert(indexOffsetMap.find(var) != indexOffsetMap.end());
+		assert(dimensionsMap.find(var) != dimensionsMap.end());
 		int64_t offset = indexOffsetMap[var];
+		int64_t dimensionIndex = dimensionsMap[var];
 
 		// Compute the access offset based on the induction variables of the
 		// for-equation.
@@ -330,31 +358,18 @@ int64_t IdaSolver::getFunction(const Expression& expression)
 			access.push_back({ accOffset, accInduction });
 		}
 
-		// Compute the multi-dimensional offset of the array.
-		marco::MultiDimInterval dimensions = var.toMultiDimInterval();
-		std::vector<int64_t> dim;
-		for (size_t i = 1; i < dimensions.dimensions(); i++)
-		{
-			for (size_t j = 0; j < dim.size(); j++)
-				dim[j] *= dimensions.at(i).size();
-			dim.push_back(dimensions.at(i).size());
-		}
-		dim.push_back(1);
-
-		// Add accesses and dimensions of the variable to the ida user data.
-		int64_t index =
+		// Add accesses of the variable to the ida user data.
+		int64_t accessIndex =
 				addNewLambdaAccess(userData, access[0].first, access[0].second);
 		for (size_t i = 1; i < access.size(); i++)
-			addLambdaAccess(userData, index, access[i].first, access[i].second);
-		for (size_t i = 0; i < dim.size(); i++)
-			addLambdaDimension(userData, index, dim[i]);
-
-		assert(access.size() == dim.size());
+			addLambdaAccess(userData, accessIndex, access[i].first, access[i].second);
 
 		if (var.isDerivative())
-			return lambdaVectorDerivative(userData, offset, index);
+			return lambdaVectorDerivative(
+					userData, offset, accessIndex, dimensionIndex);
 		else
-			return lambdaVectorVariable(userData, offset, index);
+			return lambdaVectorVariable(
+					userData, offset, accessIndex, dimensionIndex);
 	}
 
 	// Get the lambda functions to compute the values of all the children.
