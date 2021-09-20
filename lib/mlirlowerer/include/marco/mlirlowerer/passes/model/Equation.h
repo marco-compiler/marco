@@ -77,6 +77,7 @@ namespace marco::codegen::model
 		[[nodiscard]] bool containsAtMostOne(mlir::Value variable);
 
 		[[nodiscard]] Equation clone() const;
+		void foldConstants();
 		void cleanOperation();
 		void update();
 
