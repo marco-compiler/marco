@@ -126,6 +126,34 @@ static mlir::Type getMostGenericType(mlir::Type x, mlir::Type y)
 	return y;
 }
 
+static double getAttributeValue(mlir::Attribute attribute)
+{
+	if (IntegerAttribute integer = attribute.dyn_cast<IntegerAttribute>())
+		return integer.getValue();
+
+	if (RealAttribute real = attribute.dyn_cast<RealAttribute>())
+		return real.getValue();
+
+	assert(false && "Unreachable");
+	return 0.0;
+}
+
+static bool isOperandFoldable(mlir::Value operand)
+{
+	if (operand.isa<mlir::BlockArgument>())
+		return false;
+
+	if (!mlir::isa<ConstantOp>(operand.getDefiningOp()))
+		return false;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand.getDefiningOp());
+
+	if (operandOp.value().getType().isa<mlir::IndexType>())
+		return false;
+
+	return true;
+}
+
 //===----------------------------------------------------------------------===//
 // Modelica::PackOp
 //===----------------------------------------------------------------------===//
@@ -4467,6 +4495,25 @@ void NegateOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions
 
 }
 
+void NegateOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), -operand));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
+}
+
 mlir::Type NegateOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -4664,6 +4711,28 @@ void AddOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 void AddOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 {
 
+}
+
+void AddOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(lhs()) || !isOperandFoldable(rhs()))
+		return;
+
+	ConstantOp leftOp = mlir::cast<ConstantOp>(lhs().getDefiningOp());
+	ConstantOp rightOp = mlir::cast<ConstantOp>(rhs().getDefiningOp());
+
+	double left = getAttributeValue(leftOp.value());
+	double right = getAttributeValue(rightOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), left + right));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	leftOp->erase();
+	rightOp->erase();
 }
 
 mlir::Type AddOp::resultType()
@@ -5072,6 +5141,28 @@ void SubOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 void SubOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 {
 
+}
+
+void SubOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(lhs()) || !isOperandFoldable(rhs()))
+		return;
+
+	ConstantOp leftOp = mlir::cast<ConstantOp>(lhs().getDefiningOp());
+	ConstantOp rightOp = mlir::cast<ConstantOp>(rhs().getDefiningOp());
+
+	double left = getAttributeValue(leftOp.value());
+	double right = getAttributeValue(rightOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), left - right));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	leftOp->erase();
+	rightOp->erase();
 }
 
 mlir::Type SubOp::resultType()
@@ -5505,6 +5596,28 @@ void MulOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 void MulOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 {
 
+}
+
+void MulOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(lhs()) || !isOperandFoldable(rhs()))
+		return;
+
+	ConstantOp leftOp = mlir::cast<ConstantOp>(lhs().getDefiningOp());
+	ConstantOp rightOp = mlir::cast<ConstantOp>(rhs().getDefiningOp());
+
+	double left = getAttributeValue(leftOp.value());
+	double right = getAttributeValue(rightOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), left * right));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	leftOp->erase();
+	rightOp->erase();
 }
 
 mlir::Type MulOp::resultType()
@@ -5967,6 +6080,28 @@ void DivOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 }
 
+void DivOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(lhs()) || !isOperandFoldable(rhs()))
+		return;
+
+	ConstantOp leftOp = mlir::cast<ConstantOp>(lhs().getDefiningOp());
+	ConstantOp rightOp = mlir::cast<ConstantOp>(rhs().getDefiningOp());
+
+	double left = getAttributeValue(leftOp.value());
+	double right = getAttributeValue(rightOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), left / right));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	leftOp->erase();
+	rightOp->erase();
+}
+
 mlir::Type DivOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -6377,6 +6512,28 @@ void PowOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 }
 
+void PowOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(base()) || !isOperandFoldable(exponent()))
+		return;
+
+	ConstantOp baseOp = mlir::cast<ConstantOp>(base().getDefiningOp());
+	ConstantOp exponentOp = mlir::cast<ConstantOp>(exponent().getDefiningOp());
+
+	double base = getAttributeValue(baseOp.value());
+	double exponent = getAttributeValue(exponentOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), pow(base, exponent)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	baseOp->erase();
+	exponentOp->erase();
+}
+
 mlir::Type PowOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -6579,6 +6736,25 @@ mlir::ValueRange AbsOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange ind
 	return op->getResults();
 }
 
+void AbsOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), abs(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
+}
+
 mlir::Type AbsOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -6658,6 +6834,26 @@ mlir::ValueRange SignOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 	return op->getResults();
 }
 
+void SignOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(
+		getLoc(), RealAttribute::get(getContext(), (operand > 0.0) - (operand < 0.0)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
+}
+
 mlir::Type SignOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -6735,6 +6931,25 @@ mlir::ValueRange SqrtOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 	auto op = builder.create<SqrtOp>(getLoc(), newResultType, newOperand);
 	return op->getResults();
+}
+
+void SqrtOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), sqrt(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
 }
 
 mlir::Type SqrtOp::resultType()
@@ -6838,6 +7053,25 @@ void SinOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 void SinOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 {
 
+}
+
+void SinOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), sin(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
 }
 
 mlir::Type SinOp::resultType()
@@ -6945,6 +7179,25 @@ void CosOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 }
 
+void CosOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), cos(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
+}
+
 mlir::Type CosOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -7048,6 +7301,25 @@ void TanOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 void TanOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 {
 
+}
+
+void TanOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), tan(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
 }
 
 mlir::Type TanOp::resultType()
@@ -7154,6 +7426,25 @@ void AsinOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeri
 void AsinOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 {
 
+}
+
+void AsinOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), asin(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
 }
 
 mlir::Type AsinOp::resultType()
@@ -7263,6 +7554,25 @@ void AcosOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 }
 
+void AcosOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), acos(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
+}
+
 mlir::Type AcosOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -7366,6 +7676,25 @@ void AtanOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeri
 void AtanOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 {
 
+}
+
+void AtanOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), atan(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
 }
 
 mlir::Type AtanOp::resultType()
@@ -7497,6 +7826,28 @@ void Atan2Op::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 }
 
+void Atan2Op::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(y()) || !isOperandFoldable(x()))
+		return;
+
+	ConstantOp yOp = mlir::cast<ConstantOp>(y().getDefiningOp());
+	ConstantOp xOp = mlir::cast<ConstantOp>(x().getDefiningOp());
+
+	double y = getAttributeValue(yOp.value());
+	double x = getAttributeValue(xOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), atan2(y, x)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	yOp->erase();
+	xOp->erase();
+}
+
 mlir::Type Atan2Op::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -7605,6 +7956,25 @@ void SinhOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 }
 
+void SinhOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), sinh(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
+}
+
 mlir::Type SinhOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -7706,6 +8076,25 @@ void CoshOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeri
 void CoshOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 {
 
+}
+
+void CoshOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), cosh(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
 }
 
 mlir::Type CoshOp::resultType()
@@ -7812,6 +8201,25 @@ void TanhOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 }
 
+void TanhOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), tanh(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
+}
+
 mlir::Type TanhOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -7915,6 +8323,25 @@ void ExpOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 }
 
+void ExpOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(exponent()))
+		return;
+
+	ConstantOp exponentOp = mlir::cast<ConstantOp>(exponent().getDefiningOp());
+
+	double exponent = getAttributeValue(exponentOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), exp(exponent)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	exponentOp->erase();
+}
+
 mlir::Type ExpOp::resultType()
 {
 	return getOperation()->getResultTypes()[0];
@@ -8014,6 +8441,25 @@ void LogOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDeriv
 void LogOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 {
 
+}
+
+void LogOp::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), log(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
 }
 
 mlir::Type LogOp::resultType()
@@ -8119,6 +8565,25 @@ void Log10Op::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDer
 void Log10Op::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 {
 
+}
+
+void Log10Op::foldConstants(mlir::OpBuilder& builder)
+{
+	if (!isOperandFoldable(operand()))
+		return;
+
+	ConstantOp operandOp = mlir::cast<ConstantOp>(operand().getDefiningOp());
+
+	double operand = getAttributeValue(operandOp.value());
+
+	mlir::OpBuilder::InsertionGuard guard(builder);
+	builder.setInsertionPoint(*this);
+
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), log10(operand)));
+
+	replaceAllUsesWith(newOp);
+	erase();
+	operandOp->erase();
 }
 
 mlir::Type Log10Op::resultType()
