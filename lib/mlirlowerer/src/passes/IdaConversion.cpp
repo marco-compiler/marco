@@ -1,8 +1,3 @@
-#include <mlir/Conversion/SCFToStandard/SCFToStandard.h>
-#include <mlir/Dialect/Math/IR/Math.h>
-#include <mlir/Dialect/MemRef/IR/MemRef.h>
-#include <mlir/Dialect/SCF/SCF.h>
-#include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Transforms/DialectConversion.h>
 #include <marco/mlirlowerer/dialects/ida/IdaDialect.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
@@ -395,6 +390,26 @@ struct AddLambdaAccessOpLowering : public IdaOpConversion<AddLambdaAccessOp>
 	}
 };
 
+struct AddNewLambdaDimensionOpLowering : public IdaOpConversion<AddNewLambdaDimensionOp>
+{
+	using IdaOpConversion<AddNewLambdaDimensionOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(AddNewLambdaDimensionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		IntegerType result = IntegerType::get(op.getContext());
+
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"addNewLambdaDimension",
+				result,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, op.args());
+		return mlir::success();
+	}
+};
+
 struct AddLambdaDimensionOpLowering : public IdaOpConversion<AddLambdaDimensionOp>
 {
 	using IdaOpConversion<AddLambdaDimensionOp>::IdaOpConversion;
@@ -636,6 +651,7 @@ static void populateIdaConversionPatterns(
 	patterns.insert<
 			AddNewLambdaAccessOpLowering,
 			AddLambdaAccessOpLowering,
+			AddNewLambdaDimensionOpLowering,
 			AddLambdaDimensionOpLowering>(context, typeConverter);
 
 	// Lambda constructions.
@@ -727,6 +743,7 @@ class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::Oper
 		target.addIllegalOp<
 				AddNewLambdaAccessOp,
 				AddLambdaAccessOp,
+				AddNewLambdaDimensionOp,
 				AddLambdaDimensionOp>();
 
 		// Lambda constructions.

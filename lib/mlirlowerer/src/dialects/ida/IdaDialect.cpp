@@ -34,6 +34,7 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 	addOperations<
 			AddNewLambdaAccessOp,
 			AddLambdaAccessOp,
+			AddNewLambdaDimensionOp,
 			AddLambdaDimensionOp>();
 
 	// Lambda constructions.

@@ -40,6 +40,7 @@ extern "C"
 	// Lambda helpers
 	sunindextype addNewLambdaAccess(void* userData, sunindextype off, sunindextype ind);
 	void addLambdaAccess(void* userData, sunindextype index, sunindextype off, sunindextype ind);
+	sunindextype addNewLambdaDimension(void* userData, sunindextype dim);
 	void addLambdaDimension(void* userData, sunindextype index, sunindextype dim);
 
 	// Lambda constructions
@@ -47,8 +48,8 @@ extern "C"
 	sunindextype lambdaTime(void* userData);
 	sunindextype lambdaScalarVariable(void* userData, sunindextype offset);
 	sunindextype lambdaScalarDerivative(void* userData, sunindextype offset);
-	sunindextype lambdaVectorVariable(void* userData, sunindextype offset, sunindextype index);
-	sunindextype lambdaVectorDerivative(void* userData, sunindextype offset, sunindextype index);
+	sunindextype lambdaVectorVariable(void* userData, sunindextype offset, sunindextype accessIndex, sunindextype dimensionIndex);
+	sunindextype lambdaVectorDerivative(void* userData, sunindextype offset, sunindextype accessIndex, sunindextype dimensionIndex);
 
 	sunindextype lambdaAdd(void* userData, sunindextype leftIndex, sunindextype rightIndex);
 	sunindextype lambdaSub(void* userData, sunindextype leftIndex, sunindextype rightIndex);

@@ -2086,6 +2086,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			mlir::Value userData,
 			std::map<model::Variable, double>& initialValueMap,
 			std::map<model::Variable, int64_t>& indexOffsetMap,
+			std::map<model::Variable, mlir::Value>&  dimensionsMap,
 			const Expression& expression)
 	{
 		mlir::MLIRContext* context = model.getOp().getContext();
@@ -2122,7 +2123,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			// Compute the IDA offset of the variable in the 1D array variablesVector.
 			Variable var = model.getVariable(expression.getReferredVectorAccess());
 			assert(indexOffsetMap.find(var) != indexOffsetMap.end());
+			assert(dimensionsMap.find(var) != dimensionsMap.end());
 			mlir::Value offset = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, indexOffsetMap[var]));
+			mlir::Value dimensionIndex = dimensionsMap[var];
 
 			// Compute the access offset based on the induction variables of the
 			// for-equation.
@@ -2136,47 +2139,28 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				access.push_back({ accOffset, accInduction });
 			}
 
-			// Compute the multi-dimensional offset of the array.
-			marco::MultiDimInterval dimensions = var.toMultiDimInterval();
-			std::vector<int64_t> dims;
-			for (size_t i = 1; i < dimensions.dimensions(); i++)
-			{
-				for (size_t j = 0; j < dims.size(); j++)
-					dims[j] *= dimensions.at(i).size();
-				dims.push_back(dimensions.at(i).size());
-			}
-			dims.push_back(1);
-
-			// Add accesses and dimensions of the variable to the ida user data.
+			// Add accesses of the variable to the ida user data.
 			mlir::Value acc = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[0].first));
 			mlir::Value ind = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[0].second));
-			mlir::Value index = builder.create<AddNewLambdaAccessOp>(loc, userData, acc, ind);
+			mlir::Value accessIndex = builder.create<AddNewLambdaAccessOp>(loc, userData, acc, ind);
 
 			for (size_t i = 1; i < access.size(); i++)
 			{
 				acc = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[i].first));
 				ind = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[i].second));
-				builder.create<AddLambdaAccessOp>(loc, userData, index, acc, ind);
+				builder.create<AddLambdaAccessOp>(loc, userData, accessIndex, acc, ind);
 			}
-
-			for (size_t i = 0; i < dims.size(); i++)
-			{
-				mlir::Value dim = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, dims[i]));
-				builder.create<AddLambdaDimensionOp>(loc, userData, index, dim);
-			}
-
-			assert(access.size() == dims.size());
 
 			if (var.isDerivative())
-				return builder.create<LambdaVectorDerivativeOp>(loc, userData, offset, index);
+				return builder.create<LambdaVectorDerivativeOp>(loc, userData, offset, accessIndex, dimensionIndex);
 			else
-				return builder.create<LambdaVectorVariableOp>(loc, userData, offset, index);
+				return builder.create<LambdaVectorVariableOp>(loc, userData, offset, accessIndex, dimensionIndex);
 		}
 
 		// Get the lambda functions to compute the values of all the children.
 		std::vector<mlir::Value> children;
 		for (size_t i : marco::irange(expression.childrenCount()))
-			children.push_back(getFunction(builder, loc, model, userData, initialValueMap, indexOffsetMap, expression.getChild(i)));
+			children.push_back(getFunction(builder, loc, model, userData, initialValueMap, indexOffsetMap, dimensionsMap, expression.getChild(i)));
 
 		if (mlir::isa<AddOp>(definingOp))
 			return builder.create<LambdaAddOp>(loc, userData, children[0], children[1]);
@@ -2277,6 +2261,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		int64_t problemSize = 0;
 		std::map<model::Variable, double> initialValueMap;
 		std::map<model::Variable, int64_t> indexOffsetMap;
+		std::map<model::Variable, mlir::Value> dimensionsMap;
 
 		// TODO: Add different value handling for initialization
 
@@ -2333,6 +2318,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				// If the variable has not been insterted yet, initialize it.
 				if (indexOffsetMap.find(var) == indexOffsetMap.end())
 				{
+					assert(dimensionsMap.find(var) == dimensionsMap.end());
+
 					// Note the variable offset from the beginning of the variable array.
 					indexOffsetMap[var] = rowLength;
 
@@ -2350,6 +2337,34 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 					// Increase the length of the current row.
 					rowLength += var.toMultiDimInterval().size();
+
+					// Compute the multi-dimensional offset of the array.
+					marco::MultiDimInterval dimensions = var.toMultiDimInterval();
+					std::vector<int64_t> dims;
+					for (size_t i = 1; i < dimensions.dimensions(); i++)
+					{
+						for (size_t j = 0; j < dims.size(); j++)
+							dims[j] *= dimensions.at(i).size();
+						dims.push_back(dimensions.at(i).size());
+					}
+					dims.push_back(1);
+
+					// Add dimensions of the variable to the ida user data.
+					mlir::Value dim = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, dims[0]));
+					mlir::Value dimensionIndex = builder.create<AddNewLambdaDimensionOp>(loc, userData, dim);
+
+					for (size_t i = 1; i < dims.size(); i++)
+					{
+						dim = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, dims[i]));
+						builder.create<AddLambdaDimensionOp>(loc, userData, dimensionIndex, dim);
+					}
+
+					dimensionsMap[var] = dimensionIndex;
+
+					if (var.isState())
+						dimensionsMap[model.getVariable(var.getDer())] = dimensionIndex;
+					else if (var.isDerivative())
+						dimensionsMap[model.getVariable(var.getState())] = dimensionIndex;
 				}
 			}
 
@@ -2374,8 +2389,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				}
 
 				// Residual and Jacobian
-				mlir::Value leftIndex = getFunction(builder, loc, model, userData, initialValueMap, indexOffsetMap, equation.lhs());
-				mlir::Value rightIndex = getFunction(builder, loc, model, userData, initialValueMap, indexOffsetMap, equation.rhs());
+				mlir::Value leftIndex = getFunction(builder, loc, model, userData, initialValueMap, indexOffsetMap, dimensionsMap, equation.lhs());
+				mlir::Value rightIndex = getFunction(builder, loc, model, userData, initialValueMap, indexOffsetMap, dimensionsMap, equation.rhs());
 				builder.create<AddResidualOp>(loc, userData, leftIndex, rightIndex);
 				builder.create<AddJacobianOp>(loc, userData, leftIndex, rightIndex);
 
