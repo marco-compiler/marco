@@ -497,141 +497,25 @@ Equation Equation::clone() const
 	return clone;
 }
 
-static bool isOperandConstant(const mlir::Value operand)
-{
-	if (operand.isa<mlir::BlockArgument>())
-		return false;
-
-	if (ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(operand.getDefiningOp()))
-		if (!constantOp.value().getType().isa<mlir::IndexType>())
-			return true;
-
-	return false;
-}
-
-static double getValue(ConstantOp constantOp)
-{
-	mlir::Attribute attribute = constantOp.value();
-
-	if (IntegerAttribute integer = attribute.dyn_cast<IntegerAttribute>())
-		return integer.getValue();
-
-	if (RealAttribute real = attribute.dyn_cast<RealAttribute>())
-		return real.getValue();
-
-	assert(false && "Unreachable");
-	return 0.0;
-}
-
 void Equation::foldConstants()
 {
-	mlir::MLIRContext* context = getOp()->getContext();
 	mlir::OpBuilder builder(getOp());
 	llvm::SmallVector<mlir::Operation*, 3> operations;
 
 	for (mlir::Operation& operation : getOp().body()->getOperations())
-		if (!mlir::isa<EquationSidesOp>(operation))
-			operations.push_back(&operation);
+		operations.push_back(&operation);
 
-	// Check if an operation has only constants as operands.
+	// If an operation has only constants as operands, we can substitute it with
+	// the corresponding constant value and erase the old operation.
 	for (mlir::Operation* operation : operations)
 	{
-		if (!llvm::all_of(operation->getOperands(), isOperandConstant))
+		if (!operation->hasTrait<FoldableOpInterface::Trait>())
 			continue;
 
-		llvm::SmallVector<mlir::Value, 2> operands;
-		llvm::SmallVector<double, 2> values;
-
-		for (mlir::Value operand : operation->getOperands())
-		{
-			operands.push_back(operand);
-			values.push_back(getValue(mlir::cast<ConstantOp>(operand.getDefiningOp())));
-		}
-
-		// At this point, we have an operation where all the operands are constants.
-		// So we can substitute the operation with the correct constant value.
-		ConstantOp newOp;
-		mlir::Location loc = operation->getLoc();
-		builder.setInsertionPoint(operation);
-
-		if (mlir::isa<AddOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, values[0] + values[1]));
-
-		else if (mlir::isa<SubOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, values[0] - values[1]));
-
-		else if (mlir::isa<MulOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, values[0] * values[1]));
-
-		else if (mlir::isa<DivOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, values[0] / values[1]));
-
-		else if (mlir::isa<PowOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, pow(values[0], values[1])));
-
-		else if (mlir::isa<Atan2Op>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, atan2(values[0], values[1])));
-
-		else if (mlir::isa<NegateOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, -values[0]));
-
-		else if (mlir::isa<AbsOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, abs(values[0])));
-
-		else if (mlir::isa<SignOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, (values[0] > 0.0) - (values[0] < 0.0)));
-
-		else if (mlir::isa<SqrtOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, sqrt(values[0])));
-
-		else if (mlir::isa<ExpOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, exp(values[0])));
-
-		else if (mlir::isa<LogOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, log(values[0])));
-
-		else if (mlir::isa<Log10Op>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, log10(values[0])));
-
-		else if (mlir::isa<SinOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, sin(values[0])));
-
-		else if (mlir::isa<CosOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, cos(values[0])));
-
-		else if (mlir::isa<TanOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, tan(values[0])));
-
-		else if (mlir::isa<AsinOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, asin(values[0])));
-
-		else if (mlir::isa<AcosOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, acos(values[0])));
-
-		else if (mlir::isa<AtanOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, atan(values[0])));
-
-		else if (mlir::isa<SinhOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, sinh(values[0])));
-
-		else if (mlir::isa<CoshOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, cosh(values[0])));
-
-		else if (mlir::isa<TanhOp>(operation))
-			newOp = builder.create<ConstantOp>(loc, RealAttribute::get(context, tanh(values[0])));
-
-		else
-			continue;
-
-		// Replace the old operation with the new constant and erase it.
-		operation->replaceAllUsesWith(newOp);
-		operation->erase();
-
-		for (mlir::Value operand : operands)
-			operand.getDefiningOp()->erase();
-
-		update();
+		mlir::cast<FoldableOpInterface>(operation).foldConstants(builder);
 	}
+
+	update();
 }
 
 void Equation::cleanOperation()
