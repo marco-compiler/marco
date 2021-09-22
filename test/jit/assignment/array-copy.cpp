@@ -1,6 +1,6 @@
 // RUN: marco %s.mo --O0 --emit-c-wrappers | llc -o %basename_t.mo.s
 // RUN: clang++ %s -g -c -std=c++1z -I %runtime_h -I %llvm_include_dirs -o %basename_t.o
-// RUN: clang++ %basename_t.o %basename_t.mo.s -g -L%libs/runtime $(llvm-config --ldflags --libs) -lruntime -Wl,-R%libs/runtime -o %t
+// RUN: clang++ %basename_t.o %basename_t.mo.s -g $(llvm-config --ldflags --libs) %runtime_lib -Wl,-R%libs/runtime -o %t
 // RUN: %t | FileCheck %s
 
 // CHECK-LABEL: results
@@ -16,7 +16,7 @@ extern "C" long __modelica_ciface_foo(
 using namespace std;
 
 int main() {
-array<long, 2> x = { 0, 1 };
+	array<long, 2> x = { 0, 1 };
 	ArrayDescriptor<long, 1> xDescriptor(x);
 
 	array<long, 2> y = { 2, 3 };

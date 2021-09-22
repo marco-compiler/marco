@@ -1,3 +1,10 @@
+add_compile_definitions(RUNTIME_LIBRARY="$<TARGET_FILE:runtime>")
+message("test: ${RUNTIME_LIBRARY}")
+message("test: ${CMAKE_BUILD_TYPE}")
+
+string(TOUPPER ${CMAKE_BUILD_TYPE} BUILD_TYPE)
+get_property(RUNTIME_LIB_POSTFIX TARGET runtime PROPERTY ${BUILD_TYPE}_POSTFIX)
+
 configure_lit_site_cfg(
         ${CMAKE_CURRENT_SOURCE_DIR}/lit.site.cfg.py.in
         ${CMAKE_CURRENT_BINARY_DIR}/lit.site.cfg.py
