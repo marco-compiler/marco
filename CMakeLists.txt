@@ -23,11 +23,22 @@ project(marco VERSION 1.0 LANGUAGES CXX)
 enable_testing()
 include("CPack")
 include(CTest)
-set(CMAKE_DEBUG_POSTFIX "-d")
 
 ##############################
 ###        Globals         ###
 ##############################
+
+# Set the default build type if none was specified
+
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+	message(STATUS "Setting build type to 'Release' as none was specified")
+	set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+
+	# Set the possible values of build type for cmake-gui
+	set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"  "MinSizeRel" "RelWithDebInfo")
+endif()
+
+# Disable exceptions and RTTI
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
 
 #set_tests_properties(${noArgsTests} PROPERTIES TIMEOUT 10)
