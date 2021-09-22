@@ -40,7 +40,7 @@ static cl::list<std::string> inputFiles(cl::Positional, cl::desc("<input files>"
 static cl::opt<string> outputFile("o", cl::desc("<output-file>"), cl::init("-"), cl::cat(codeGenOptions));
 static cl::opt<bool> emitMain("emit-main", cl::desc("Whether to emit the main function that will start the simulation (default: true)"), cl::init(true), cl::cat(codeGenOptions));
 static cl::opt<bool> x86("32", cl::desc("Use 32-bit values instead of 64-bit ones"), cl::init(false), cl::cat(codeGenOptions));
-static cl::opt<bool> inlining("no-inlining", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(codeGenOptions));
+static cl::opt<bool> inlining("no-inlining", cl::desc("Disable the inlining pass"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> resultBuffersToArgs("no-result-buffers-to-args", cl::desc("Don't move the static output buffer to input arguments"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> cse("no-cse", cl::desc("Disable CSE pass"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> openmp("omp", cl::desc("Enable OpenMP usage"), cl::init(false), cl::cat(codeGenOptions));
