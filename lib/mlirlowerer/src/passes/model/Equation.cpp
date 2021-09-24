@@ -310,7 +310,7 @@ ExpressionPath Equation::getMatchedExpressionPath() const
 static void composeAccess(Expression& exp, const VectorAccess& transformation)
 {
 	AccessToVar access = AccessToVar::fromExp(exp);
-	VectorAccess combinedAccess = transformation * access.getAccess();
+	VectorAccess combinedAccess = access.getAccess() * transformation;
 
 	assert(mlir::isa<SubscriptionOp>(exp.getOp()));
 	SubscriptionOp op = mlir::cast<SubscriptionOp>(exp.getOp());
@@ -344,15 +344,19 @@ static void composeAccess(Expression& exp, const VectorAccess& transformation)
 Equation Equation::composeAccess(const VectorAccess& transformation) const
 {
 	Equation toReturn = clone();
+
 	VectorAccess inverted = transformation.invert();
-	toReturn.setInductions(inverted.map(getInductions()));
+	VectorAccess currentAccess = AccessToVar::fromExp(getMatchedExp()).getAccess();
+	toReturn.setInductions(inverted.map(currentAccess.map(getInductions())));
+
 
 	ReferenceMatcher matcher(toReturn);
+	VectorAccess composedTransformation = currentAccess.invert() * transformation;
 
 	for (ExpressionPath& matchedExp : matcher)
 	{
 		Expression exp = toReturn.reachExp(matchedExp);
-		::composeAccess(exp, transformation);
+		::composeAccess(exp, composedTransformation);
 	}
 
 	return toReturn;

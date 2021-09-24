@@ -226,10 +226,30 @@ struct AddRowLengthOpLowering : public IdaOpConversion<AddRowLengthOp>
 
 	mlir::LogicalResult matchAndRewrite(AddRowLengthOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
+		IntegerType result = IntegerType::get(op.getContext());
+
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
 				"addRowLength",
+				result,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, op.args());
+		return mlir::success();
+	}
+};
+
+struct AddColumnIndexOpLowering : public IdaOpConversion<AddColumnIndexOp>
+{
+	using IdaOpConversion<AddColumnIndexOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(AddColumnIndexOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"addColumnIndex",
 				llvm::None,
 				op.args());
 
@@ -238,16 +258,16 @@ struct AddRowLengthOpLowering : public IdaOpConversion<AddRowLengthOp>
 	}
 };
 
-struct AddDimensionOpLowering : public IdaOpConversion<AddDimensionOp>
+struct AddEquationDimensionOpLowering : public IdaOpConversion<AddEquationDimensionOp>
 {
-	using IdaOpConversion<AddDimensionOp>::IdaOpConversion;
+	using IdaOpConversion<AddEquationDimensionOp>::IdaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(AddDimensionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(AddEquationDimensionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addDimension",
+				"addEquationDimension",
 				llvm::None,
 				op.args());
 
@@ -352,18 +372,18 @@ struct GetDerivativeOpLowering : public IdaOpConversion<GetDerivativeOp>
 	}
 };
 
-struct AddNewLambdaAccessOpLowering : public IdaOpConversion<AddNewLambdaAccessOp>
+struct AddVariableOffsetOpLowering : public IdaOpConversion<AddVariableOffsetOp>
 {
-	using IdaOpConversion<AddNewLambdaAccessOp>::IdaOpConversion;
+	using IdaOpConversion<AddVariableOffsetOp>::IdaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(AddNewLambdaAccessOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(AddVariableOffsetOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		IntegerType result = IntegerType::get(op.getContext());
 
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addNewLambdaAccess",
+				"addVariableOffset",
 				result,
 				op.args());
 
@@ -372,16 +392,16 @@ struct AddNewLambdaAccessOpLowering : public IdaOpConversion<AddNewLambdaAccessO
 	}
 };
 
-struct AddLambdaAccessOpLowering : public IdaOpConversion<AddLambdaAccessOp>
+struct AddVariableDimensionOpLowering : public IdaOpConversion<AddVariableDimensionOp>
 {
-	using IdaOpConversion<AddLambdaAccessOp>::IdaOpConversion;
+	using IdaOpConversion<AddVariableDimensionOp>::IdaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(AddLambdaAccessOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(AddVariableDimensionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addLambdaAccess",
+				"addVariableDimension",
 				llvm::None,
 				op.args());
 
@@ -390,18 +410,18 @@ struct AddLambdaAccessOpLowering : public IdaOpConversion<AddLambdaAccessOp>
 	}
 };
 
-struct AddNewLambdaDimensionOpLowering : public IdaOpConversion<AddNewLambdaDimensionOp>
+struct AddNewVariableAccessOpLowering : public IdaOpConversion<AddNewVariableAccessOp>
 {
-	using IdaOpConversion<AddNewLambdaDimensionOp>::IdaOpConversion;
+	using IdaOpConversion<AddNewVariableAccessOp>::IdaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(AddNewLambdaDimensionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(AddNewVariableAccessOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		IntegerType result = IntegerType::get(op.getContext());
 
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addNewLambdaDimension",
+				"addNewVariableAccess",
 				result,
 				op.args());
 
@@ -410,16 +430,16 @@ struct AddNewLambdaDimensionOpLowering : public IdaOpConversion<AddNewLambdaDime
 	}
 };
 
-struct AddLambdaDimensionOpLowering : public IdaOpConversion<AddLambdaDimensionOp>
+struct AddVariableAccessOpLowering : public IdaOpConversion<AddVariableAccessOp>
 {
-	using IdaOpConversion<AddLambdaDimensionOp>::IdaOpConversion;
+	using IdaOpConversion<AddVariableAccessOp>::IdaOpConversion;
 
-	mlir::LogicalResult matchAndRewrite(AddLambdaDimensionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(AddVariableAccessOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addLambdaDimension",
+				"addVariableAccess",
 				llvm::None,
 				op.args());
 
@@ -462,28 +482,16 @@ struct LambdaTimeOpLowering : public LambdaLikeLowering<LambdaTimeOp, LambdaTime
 	static constexpr llvm::StringRef operationName = "lambdaTime";
 };
 
-struct LambdaScalarVariableOpLowering : public LambdaLikeLowering<LambdaScalarVariableOp, LambdaScalarVariableOpLowering>
+struct LambdaVariableOpLowering : public LambdaLikeLowering<LambdaVariableOp, LambdaVariableOpLowering>
 {
-	using LambdaLikeLowering<LambdaScalarVariableOp, LambdaScalarVariableOpLowering>::LambdaLikeLowering;
-	static constexpr llvm::StringRef operationName = "lambdaScalarVariable";
+	using LambdaLikeLowering<LambdaVariableOp, LambdaVariableOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaVariable";
 };
 
-struct LambdaScalarDerivativeOpLowering : public LambdaLikeLowering<LambdaScalarDerivativeOp, LambdaScalarDerivativeOpLowering>
+struct LambdaDerivativeOpLowering : public LambdaLikeLowering<LambdaDerivativeOp, LambdaDerivativeOpLowering>
 {
-	using LambdaLikeLowering<LambdaScalarDerivativeOp, LambdaScalarDerivativeOpLowering>::LambdaLikeLowering;
-	static constexpr llvm::StringRef operationName = "lambdaScalarDerivative";
-};
-
-struct LambdaVectorVariableOpLowering : public LambdaLikeLowering<LambdaVectorVariableOp, LambdaVectorVariableOpLowering>
-{
-	using LambdaLikeLowering<LambdaVectorVariableOp, LambdaVectorVariableOpLowering>::LambdaLikeLowering;
-	static constexpr llvm::StringRef operationName = "lambdaVectorVariable";
-};
-
-struct LambdaVectorDerivativeOpLowering : public LambdaLikeLowering<LambdaVectorDerivativeOp, LambdaVectorDerivativeOpLowering>
-{
-	using LambdaLikeLowering<LambdaVectorDerivativeOp, LambdaVectorDerivativeOpLowering>::LambdaLikeLowering;
-	static constexpr llvm::StringRef operationName = "lambdaVectorDerivative";
+	using LambdaLikeLowering<LambdaDerivativeOp, LambdaDerivativeOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaDerivative";
 };
 
 struct LambdaAddOpLowering : public LambdaLikeLowering<LambdaAddOp, LambdaAddOpLowering>
@@ -637,7 +645,8 @@ static void populateIdaConversionPatterns(
 			AddTimeOpLowering,
 			AddToleranceOpLowering,
 			AddRowLengthOpLowering,
-			AddDimensionOpLowering,
+			AddColumnIndexOpLowering,
+			AddEquationDimensionOpLowering,
 			AddResidualOpLowering,
 			AddJacobianOpLowering>(context, typeConverter);
 	
@@ -649,19 +658,17 @@ static void populateIdaConversionPatterns(
 
 	// Lambda helpers.
 	patterns.insert<
-			AddNewLambdaAccessOpLowering,
-			AddLambdaAccessOpLowering,
-			AddNewLambdaDimensionOpLowering,
-			AddLambdaDimensionOpLowering>(context, typeConverter);
+			AddVariableOffsetOpLowering,
+			AddVariableDimensionOpLowering,
+			AddNewVariableAccessOpLowering,
+			AddVariableAccessOpLowering>(context, typeConverter);
 
 	// Lambda constructions.
 	patterns.insert<
 			LambdaConstantOpLowering,
 			LambdaTimeOpLowering,
-			LambdaScalarVariableOpLowering,
-			LambdaScalarDerivativeOpLowering,
-			LambdaVectorVariableOpLowering,
-			LambdaVectorDerivativeOpLowering>(context, typeConverter);
+			LambdaVariableOpLowering,
+			LambdaDerivativeOpLowering>(context, typeConverter);
 
 	patterns.insert<
 			LambdaAddOpLowering,
@@ -727,33 +734,32 @@ class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::Oper
 				InitOp,
 				StepOp>();
 
-		// Setters.
+		// Equation setters.
 		target.addIllegalOp<
 				AddTimeOp,
 				AddToleranceOp,
 				AddRowLengthOp,
-				AddDimensionOp,
+				AddColumnIndexOp,
+				AddEquationDimensionOp,
 				AddResidualOp,
 				AddJacobianOp>();
 
+		// Variable setters.
+		target.addIllegalOp<
+				AddVariableOffsetOp,
+				AddVariableDimensionOp,
+				AddNewVariableAccessOp,
+				AddVariableAccessOp>();
+
 		// Getters.
 		target.addIllegalOp<GetTimeOp, GetVariableOp, GetDerivativeOp>();
-
-		// Lambda helpers.
-		target.addIllegalOp<
-				AddNewLambdaAccessOp,
-				AddLambdaAccessOp,
-				AddNewLambdaDimensionOp,
-				AddLambdaDimensionOp>();
 
 		// Lambda constructions.
 		target.addIllegalOp<
 				LambdaConstantOp,
 				LambdaTimeOp,
-				LambdaScalarVariableOp,
-				LambdaScalarDerivativeOp,
-				LambdaVectorVariableOp,
-				LambdaVectorDerivativeOp>();
+				LambdaVariableOp,
+				LambdaDerivativeOp>();
 
 		target.addIllegalOp<
 				LambdaAddOp,

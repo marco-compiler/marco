@@ -15,7 +15,13 @@ namespace marco::codegen::model
 		public:
 		SingleDimensionAccess();
 
-		bool operator==(const SingleDimensionAccess& other) const;
+		[[nodiscard]] bool operator==(const SingleDimensionAccess& other) const;
+		[[nodiscard]] bool operator!=(const SingleDimensionAccess& other) const;
+		
+		[[nodiscard]] bool operator<(const SingleDimensionAccess& other) const;
+		[[nodiscard]] bool operator>(const SingleDimensionAccess& other) const;
+		[[nodiscard]] bool operator<=(const SingleDimensionAccess& other) const;
+		[[nodiscard]] bool operator>=(const SingleDimensionAccess& other) const;
 
 		void dump() const;
 		void dump(llvm::raw_ostream& os) const;
@@ -62,6 +68,11 @@ namespace marco::codegen::model
 
 		[[nodiscard]] bool operator==(const VectorAccess& other) const;
 		[[nodiscard]] bool operator!=(const VectorAccess& other) const;
+
+		[[nodiscard]] bool operator<(const VectorAccess& other) const;
+		[[nodiscard]] bool operator>(const VectorAccess& other) const;
+		[[nodiscard]] bool operator<=(const VectorAccess& other) const;
+		[[nodiscard]] bool operator>=(const VectorAccess& other) const;
 
 		[[nodiscard]] VectorAccess operator*(const VectorAccess& other) const;
 		[[nodiscard]] IndexSet operator*(const IndexSet& other) const;

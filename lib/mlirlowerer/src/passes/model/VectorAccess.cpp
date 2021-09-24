@@ -36,6 +36,43 @@ bool SingleDimensionAccess::operator==(const SingleDimensionAccess& other) const
 	return value == other.value && inductionVar == other.inductionVar;
 }
 
+bool SingleDimensionAccess::operator!=(const SingleDimensionAccess& other) const
+{
+	return !(other == *this);
+}
+
+bool SingleDimensionAccess::operator<(const SingleDimensionAccess& other) const
+{
+	if (isAbs && other.isAbs)
+		return value < other.value;
+
+	if (isAbs)
+		return true;
+
+	if (other.isAbs)
+		return false;
+	
+	if (inductionVar == other.inductionVar)
+		return value < other.value;
+	
+	return inductionVar < other.inductionVar;
+}
+
+bool SingleDimensionAccess::operator>(const SingleDimensionAccess& other) const
+{
+	return other < *this;
+}
+
+bool SingleDimensionAccess::operator<=(const SingleDimensionAccess& other) const
+{
+	return !(other < *this);
+}
+
+bool SingleDimensionAccess::operator>=(const SingleDimensionAccess& other) const
+{
+	return !(*this < other);
+}
+
 void SingleDimensionAccess::dump() const
 {
 	dump(llvm::outs());
@@ -166,6 +203,26 @@ bool VectorAccess::operator==(const VectorAccess& other) const
 bool VectorAccess::operator!=(const VectorAccess& other) const
 {
 	return !(*this == other);
+}
+
+bool VectorAccess::operator<(const VectorAccess& other) const
+{
+	return vectorAccess < other.vectorAccess;
+}
+
+bool VectorAccess::operator>(const VectorAccess& other) const
+{
+	return other < *this;
+}
+
+bool VectorAccess::operator<=(const VectorAccess& other) const
+{
+	return !(other < *this);
+}
+
+bool VectorAccess::operator>=(const VectorAccess& other) const
+{
+	return !(*this < other);
 }
 
 VectorAccess VectorAccess::operator*(const VectorAccess& other) const

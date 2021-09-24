@@ -18,33 +18,32 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 			InitOp,
 			StepOp>();
 
-	// Setters.
+	// Equation setters.
 	addOperations<
 			AddTimeOp,
 			AddToleranceOp,
 			AddRowLengthOp,
-			AddDimensionOp,
+			AddColumnIndexOp,
+			AddEquationDimensionOp,
 			AddResidualOp,
 			AddJacobianOp>();
 
+	// Variable setters.
+	addOperations<
+			AddVariableOffsetOp,
+			AddVariableDimensionOp,
+			AddNewVariableAccessOp,
+			AddVariableAccessOp>();
+
 	// Getters.
 	addOperations<GetTimeOp, GetVariableOp, GetDerivativeOp>();
-
-	// Lambda helpers.
-	addOperations<
-			AddNewLambdaAccessOp,
-			AddLambdaAccessOp,
-			AddNewLambdaDimensionOp,
-			AddLambdaDimensionOp>();
 
 	// Lambda constructions.
 	addOperations<
 			LambdaConstantOp,
 			LambdaTimeOp,
-			LambdaScalarVariableOp,
-			LambdaScalarDerivativeOp,
-			LambdaVectorVariableOp,
-			LambdaVectorDerivativeOp>();
+			LambdaVariableOp,
+			LambdaDerivativeOp>();
 
 	addOperations<
 			LambdaAddOp,

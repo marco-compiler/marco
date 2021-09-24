@@ -4,6 +4,7 @@
 #include <marco/mlirlowerer/passes/model/Expression.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/Variable.h>
+#include <marco/mlirlowerer/passes/model/VectorAccess.h>
 #include <mlir/Support/LogicalResult.h>
 
 namespace marco::codegen::ida
@@ -17,7 +18,7 @@ namespace marco::codegen::ida
 	{
 		public:
 		IdaSolver(
-				model::Model &model,
+				const model::Model &model,
 				double startTime = 0.0,
 				double stopTime = 10.0,
 				double relativeTolerance = 1e-6,
@@ -57,8 +58,9 @@ namespace marco::codegen::ida
 		 */
 		void printStats(llvm::raw_ostream &OS = llvm::outs());
 
-		[[nodiscard]] int64_t getProblemSize();
+		[[nodiscard]] int64_t getForEquationsNumber();
 		[[nodiscard]] int64_t getEquationsNumber();
+		[[nodiscard]] int64_t getNonZeroValuesNumber();
 		[[nodiscard]] double getTime();
 		[[nodiscard]] double getVariable(int64_t index);
 		[[nodiscard]] double getDerivative(int64_t index);
@@ -94,13 +96,16 @@ namespace marco::codegen::ida
 
 		private:
 		// Model data
-		model::Model model;
-		double stopTime;
-		int64_t problemSize;
+		const model::Model model;
+		const double stopTime;
+		int64_t forEquationsNumber;
 		const int64_t equationsNumber;
+		const int64_t nonZeroValuesNumber;
+
 		std::map<model::Variable, double> initialValueMap;
-		std::map<model::Variable, int64_t> indexOffsetMap;
-		std::map<model::Variable, int64_t> dimensionsMap;
+		std::map<model::Variable, int64_t> variableIndexMap;
+		std::map<std::pair<model::Variable, model::VectorAccess>, int64_t>
+				accessesMap;
 		void *userData;
 	};
 }	 // namespace marco::codegen::ida

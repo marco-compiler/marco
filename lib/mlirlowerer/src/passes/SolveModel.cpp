@@ -2026,7 +2026,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		}
 
 		// Clean the equation and fold the constants.
-		for (BltBlock& bltBlock : model.getBltBlocks())
+		for (BltBlock& bltBlock : bltBlocks)
 			for (Equation& equation : bltBlock.getEquations())
 				equation.foldConstants();
 
@@ -2047,24 +2047,32 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 	static int64_t computeNNZ(Model& model)
 	{
-		int64_t result = 0, rowLength = 0;
-		std::set<Variable> varSet;
+		int64_t result = 0;
 
+		// For each equation, compute how many different variables are accessed.
 		for (BltBlock& bltBlock : model.getBltBlocks())
 		{
 			for (Equation& equation : bltBlock.getEquations())
 			{
-				Variable var =
-						model.getVariable(equation.getDeterminedVariable().getVar());
+				ReferenceMatcher matcher(equation);
+				std::set<std::pair<Variable, VectorAccess>> varSet;
 
-				if (varSet.find(var) == varSet.end())
+				for (ExpressionPath& path : matcher)
 				{
-					varSet.insert(var);
-					rowLength += var.toMultiDimInterval().size();
-				}
-			}
+					Variable var = model.getVariable(path.getExpression().getReferredVectorAccess());
+					if (var.isTime())
+						continue;
 
-			result += rowLength * bltBlock.equationsCount();
+					VectorAccess acc = AccessToVar::fromExp(path.getExpression()).getAccess();
+
+					if (var.isDerivative())
+						varSet.insert({ model.getVariable(var.getState()), acc });
+					else
+						varSet.insert({ var, acc });
+				}
+
+				result += varSet.size() * equation.getInductions().size();
+			}
 		}
 
 		return result;
@@ -2089,9 +2097,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			mlir::Location loc,
 			Model& model,
 			mlir::Value userData,
-			std::map<model::Variable, double>& initialValueMap,
-			std::map<model::Variable, int64_t>& indexOffsetMap,
-			std::map<model::Variable, mlir::Value>&  dimensionsMap,
+			std::map<Variable, mlir::Value> variableIndexMap,
+			std::map<std::pair<Variable, VectorAccess>, mlir::Value> accessesMap,
 			const Expression& expression)
 	{
 		mlir::MLIRContext* context = model.getOp().getContext();
@@ -2104,68 +2111,33 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			return builder.create<LambdaConstantOp>(loc, userData, value);
 		}
 
-		// Scalar variable reference.
-		if (expression.isReference())
-		{
-			// Time variable.
-			Variable var = model.getVariable(expression.getReferredVectorAccess());
-			if (indexOffsetMap.find(var) == indexOffsetMap.end())
-				return builder.create<LambdaTimeOp>(loc, userData);
-
-			mlir::Value offset = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, indexOffsetMap[var]));
-
-			if (var.isDerivative())
-				return builder.create<LambdaScalarDerivativeOp>(loc, userData, offset);
-			else
-				return builder.create<LambdaScalarVariableOp>(loc, userData, offset);
-		}
-
-		assert(expression.isOperation());
-
-		// Vector variable reference.
+		// Variable reference.
 		if (expression.isReferenceAccess())
 		{
 			// Compute the IDA offset of the variable in the 1D array variablesVector.
 			Variable var = model.getVariable(expression.getReferredVectorAccess());
-			assert(indexOffsetMap.find(var) != indexOffsetMap.end());
-			assert(dimensionsMap.find(var) != dimensionsMap.end());
-			mlir::Value offset = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, indexOffsetMap[var]));
-			mlir::Value dimensionIndex = dimensionsMap[var];
 
-			// Compute the access offset based on the induction variables of the
-			// for-equation.
+			// Time variable.
+			if (variableIndexMap.find(var) == variableIndexMap.end())
+				return builder.create<LambdaTimeOp>(loc, userData);
+
 			VectorAccess vectorAccess = AccessToVar::fromExp(expression).getAccess();
-			std::vector<std::pair<int64_t, int64_t>> access;
 
-			for (auto& acc : vectorAccess.getMappingOffset())
-			{
-				int64_t accOffset = acc.isDirectAccess() ? acc.getOffset() : acc.getOffset() + 1;
-				int64_t accInduction = acc.isOffset() ? acc.getInductionVar() : -1;
-				access.push_back({ accOffset, accInduction });
-			}
+			assert(variableIndexMap.find(var) != variableIndexMap.end());
+			assert(accessesMap.find({ var, vectorAccess }) != accessesMap.end());
 
-			// Add accesses of the variable to the ida user data.
-			mlir::Value acc = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[0].first));
-			mlir::Value ind = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[0].second));
-			mlir::Value accessIndex = builder.create<AddNewLambdaAccessOp>(loc, userData, acc, ind);
-
-			for (size_t i = 1; i < access.size(); i++)
-			{
-				acc = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[i].first));
-				ind = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[i].second));
-				builder.create<AddLambdaAccessOp>(loc, userData, accessIndex, acc, ind);
-			}
+			mlir::Value accessIndex = accessesMap[{ var, vectorAccess }];
 
 			if (var.isDerivative())
-				return builder.create<LambdaVectorDerivativeOp>(loc, userData, offset, accessIndex, dimensionIndex);
+				return builder.create<LambdaDerivativeOp>(loc, userData, accessIndex);
 			else
-				return builder.create<LambdaVectorVariableOp>(loc, userData, offset, accessIndex, dimensionIndex);
+				return builder.create<LambdaVariableOp>(loc, userData, accessIndex);
 		}
 
 		// Get the lambda functions to compute the values of all the children.
 		std::vector<mlir::Value> children;
 		for (size_t i : marco::irange(expression.childrenCount()))
-			children.push_back(getFunction(builder, loc, model, userData, initialValueMap, indexOffsetMap, dimensionsMap, expression.getChild(i)));
+			children.push_back(getFunction(builder, loc, model, userData, variableIndexMap, accessesMap, expression.getChild(i)));
 
 		if (mlir::isa<AddOp>(definingOp))
 			return builder.create<LambdaAddOp>(loc, userData, children[0], children[1]);
@@ -2247,10 +2219,15 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		builder.setInsertionPoint(terminator);
 		mlir::Location loc = terminator.getLoc();
 
+		//===--------------------------------------------------------------===//
+		// IDA INIT
+		//===--------------------------------------------------------------===//
+
 		// Allocate IDA user data.
 		int64_t equationsNumber = computeNEQ(model);
+		int64_t nonZeroValuesNumber = computeNNZ(model);
 		mlir::Value neq = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, equationsNumber));
-		mlir::Value nnz = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, computeNNZ(model)));
+		mlir::Value nnz = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, nonZeroValuesNumber));
 		mlir::Value userData = builder.create<AllocUserDataOp>(loc, neq, nnz);
 
 		mlir::Value startTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.startTime().getValue()));
@@ -2262,11 +2239,12 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		builder.create<AddToleranceOp>(loc, userData, relTol, absTol);
 
 		// Initialize IDA user data.
-		int64_t rowLength = 0;
-		int64_t problemSize = 0;
-		std::map<model::Variable, double> initialValueMap;
-		std::map<model::Variable, int64_t> indexOffsetMap;
-		std::map<model::Variable, mlir::Value> dimensionsMap;
+		int64_t varOffset = 0;
+		int64_t forEquationsNumber = 0;
+		std::map<Variable, double> initialValueMap;
+		std::map<Variable, int64_t> offsetMap;
+		std::map<Variable, mlir::Value> variableIndexMap;
+		std::map<std::pair<Variable, VectorAccess>, mlir::Value> accessesMap;
 
 		// TODO: Add different value handling for initialization
 
@@ -2311,6 +2289,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				initialValueMap[model.getVariable(var.getDer())] = value;
 		});
 
+		// Compute all non-trivial variable offsets and dimensions.
 		for (BltBlock& bltBlock : model.getBltBlocks())
 		{
 			for (Equation& equation : bltBlock.getEquations())
@@ -2321,27 +2300,33 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				assert(!var.isTrivial());
 
 				// If the variable has not been insterted yet, initialize it.
-				if (indexOffsetMap.find(var) == indexOffsetMap.end())
+				if (variableIndexMap.find(var) == variableIndexMap.end())
 				{
-					assert(dimensionsMap.find(var) == dimensionsMap.end());
-
 					// Note the variable offset from the beginning of the variable array.
-					indexOffsetMap[var] = rowLength;
+					mlir::Value varOffsetOp = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, varOffset));
+					mlir::Value varIndex = builder.create<AddVariableOffsetOp>(loc, userData, varOffsetOp);
+					variableIndexMap[var] = varIndex;
+					offsetMap[var] = varOffset;
 
 					if (var.isState())
-						indexOffsetMap[model.getVariable(var.getDer())] = rowLength;
+					{
+						offsetMap[model.getVariable(var.getDer())] = varOffset;
+						variableIndexMap[model.getVariable(var.getDer())] = varIndex;
+					}
 					else if (var.isDerivative())
-						indexOffsetMap[model.getVariable(var.getState())] = rowLength;
+					{
+						offsetMap[model.getVariable(var.getState())] = varOffset;
+						variableIndexMap[model.getVariable(var.getState())] = varIndex;
+					}
 
 					// Initialize variablesValues, derivativesValues, idValues.
-					mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, rowLength));
 					mlir::Value length = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, var.toMultiDimInterval().size()));
 					mlir::Value value = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, initialValueMap[var]));
 					mlir::Value isState = builder.create<ConstantValueOp>(loc, ida::BooleanAttribute::get(context, var.isState() || var.isDerivative()));
-					builder.create<SetInitialValueOp>(loc, userData, index, length, value, isState);
+					builder.create<SetInitialValueOp>(loc, userData, varIndex, length, value, isState);
 
 					// Increase the length of the current row.
-					rowLength += var.toMultiDimInterval().size();
+					varOffset += var.toMultiDimInterval().size();
 
 					// Compute the multi-dimensional offset of the array.
 					marco::MultiDimInterval dimensions = var.toMultiDimInterval();
@@ -2355,55 +2340,118 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 					dims.push_back(1);
 
 					// Add dimensions of the variable to the ida user data.
-					mlir::Value dim = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, dims[0]));
-					mlir::Value dimensionIndex = builder.create<AddNewLambdaDimensionOp>(loc, userData, dim);
-
-					for (size_t i = 1; i < dims.size(); i++)
+					for (size_t i = 0; i < dims.size(); i++)
 					{
-						dim = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, dims[i]));
-						builder.create<AddLambdaDimensionOp>(loc, userData, dimensionIndex, dim);
+						mlir::Value dim = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, dims[i]));
+						builder.create<AddVariableDimensionOp>(loc, userData, varIndex, dim);
 					}
-
-					dimensionsMap[var] = dimensionIndex;
-
-					if (var.isState())
-						dimensionsMap[model.getVariable(var.getDer())] = dimensionIndex;
-					else if (var.isDerivative())
-						dimensionsMap[model.getVariable(var.getState())] = dimensionIndex;
 				}
 			}
-
-			// RowLength
-			mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, rowLength));
-			for (Equation& equation : bltBlock.getEquations())
-				builder.create<AddRowLengthOp>(loc, userData, index);
 		}
 
+		// Compute all non-trivial variable accesses.
 		for (BltBlock& bltBlock : model.getBltBlocks())
 		{
-			// Initialize UserData with all parameters needed by IDA.
+			for (Equation& equation : bltBlock.getEquations())
+			{
+				ReferenceMatcher matcher(equation);
+				std::set<std::pair<Variable, VectorAccess>> varSet;
+
+				// Add all different variable accesses to a set.
+				for (ExpressionPath& path : matcher)
+				{
+					Variable var = model.getVariable(path.getExpression().getReferredVectorAccess());
+					if (var.isTime())
+						continue;
+
+					VectorAccess acc = AccessToVar::fromExp(path.getExpression()).getAccess();
+
+					if (var.isDerivative())
+						varSet.insert({ model.getVariable(var.getState()), acc });
+					else
+						varSet.insert({ var, acc });
+				}
+
+				// Add to IDA the number of non-zero values of the current equation.
+				mlir::Value rowLength = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, varSet.size()));
+				mlir::Value rowIndex = builder.create<AddRowLengthOp>(loc, userData, rowLength);
+
+				for (ExpressionPath& path : matcher)
+				{
+					Variable var = model.getVariable(path.getExpression().getReferredVectorAccess());
+
+					if (var.isTime())
+						continue;
+
+					VectorAccess vectorAccess = AccessToVar::fromExp(path.getExpression()).getAccess();
+
+					// If the variable access has not been insterted yet, initialize it.
+					if (accessesMap.find({ var, vectorAccess }) == accessesMap.end())
+					{
+						// Compute the access offset based on the induction variables of the
+						// for-equation.
+						VectorAccess vectorAccess = AccessToVar::fromExp(path.getExpression()).getAccess();
+						std::vector<std::pair<int64_t, int64_t>> access;
+
+						for (auto& acc : vectorAccess.getMappingOffset())
+						{
+							int64_t accOffset = acc.isDirectAccess() ? acc.getOffset() : acc.getOffset() + 1;
+							int64_t accInduction = acc.isOffset() ? acc.getInductionVar() : -1;
+							access.push_back({ accOffset, accInduction });
+						}
+
+						// Add accesses of the variable to the ida user data.
+						mlir::Value acc = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[0].first));
+						mlir::Value ind = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[0].second));
+						mlir::Value accessIndex = builder.create<AddNewVariableAccessOp>(loc, userData, variableIndexMap[var], acc, ind);
+
+						for (size_t i = 1; i < access.size(); i++)
+						{
+							acc = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[i].first));
+							ind = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[i].second));
+							builder.create<AddVariableAccessOp>(loc, userData, accessIndex, acc, ind);
+						}
+
+						accessesMap[{ var, vectorAccess }] = accessIndex;
+
+						if (var.isState())
+							accessesMap[{ model.getVariable(var.getDer()), vectorAccess }] = accessIndex;
+						else if (var.isDerivative())
+							accessesMap[{ model.getVariable(var.getState()), vectorAccess }] = accessIndex;
+					}
+
+					// Add to IDA the indexes of non-zero values of the current equation.
+					builder.create<AddColumnIndexOp>(loc, userData, rowIndex, accessesMap[{ var, vectorAccess }]);
+				}
+			}
+		}
+
+		// Add to IDA the dimensions of each equation and the lambda functions needed
+		// to compute the residual function and the jacobian matrix of the system.
+		for (BltBlock& bltBlock : model.getBltBlocks())
+		{
 			for (Equation& equation : bltBlock.getEquations())
 			{
 				// Dimension
 				for (marco::Interval& interval : equation.getInductions())
 				{
-					mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, problemSize));
+					mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, forEquationsNumber));
 					mlir::Value min = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.min() - 1));
 					mlir::Value max = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.max() - 1));
-					builder.create<AddDimensionOp>(loc, userData, index, min, max);
+					builder.create<AddEquationDimensionOp>(loc, userData, index, min, max);
 				}
 
 				// Residual and Jacobian
-				mlir::Value leftIndex = getFunction(builder, loc, model, userData, initialValueMap, indexOffsetMap, dimensionsMap, equation.lhs());
-				mlir::Value rightIndex = getFunction(builder, loc, model, userData, initialValueMap, indexOffsetMap, dimensionsMap, equation.rhs());
+				mlir::Value leftIndex = getFunction(builder, loc, model, userData, variableIndexMap, accessesMap, equation.lhs());
+				mlir::Value rightIndex = getFunction(builder, loc, model, userData, variableIndexMap, accessesMap, equation.rhs());
 				builder.create<AddResidualOp>(loc, userData, leftIndex, rightIndex);
 				builder.create<AddJacobianOp>(loc, userData, leftIndex, rightIndex);
 
-				problemSize++;
+				forEquationsNumber++;
 			}
 		}
 
-		assert(rowLength == equationsNumber);
+		assert(varOffset == equationsNumber);
 
 		builder.create<InitOp>(loc, userData);
 
@@ -2417,6 +2465,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		terminator->erase();
 
 		//===--------------------------------------------------------------===//
+		// IDA STEP
+		//===--------------------------------------------------------------===//
 
 		// Add the IDA user data to the argument list of the step block and load it.
 		mlir::Block& stepBlock = simulationOp.body().front();
@@ -2426,7 +2476,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		userData = builder.create<LoadOp>(loc, stepBlock.getArgument(1));
 
 		// Map all variables to the argument they are loaded from.
-		std::map<model::Variable, mlir::Value> varArgMap;
+		std::map<Variable, mlir::Value> varArgMap;
 		mlir::ValueRange maybeVariables = newTerminator.values();
 		for (size_t i = 2; i < maybeVariables.size(); i++)
 			if (model.hasVariable(maybeVariables[i]))
@@ -2442,7 +2492,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			if ((variable->isTrivial() && !variable->isState()) || variable->isDerivative() || variable->isTime())
 				continue;
 
-			assert(indexOffsetMap.find(*variable) != indexOffsetMap.end());
+			assert(offsetMap.find(*variable) != offsetMap.end());
 			assert(varArgMap.find(*variable) != varArgMap.end());
 
 			// Compute the iteration paramters.
@@ -2488,7 +2538,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 						varIndex = builder.create<AddOp>(loc, modelica::IntegerType::get(context), varIndex, mul);
 					}
 
-					mlir::Value offset = builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, indexOffsetMap[*variable]));
+					mlir::Value offset = builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, offsetMap[*variable]));
 					varIndex = builder.create<AddOp>(loc, modelica::IntegerType::get(context), varIndex, offset);
 
 					// Create the assignment operation.
@@ -2539,7 +2589,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	static llvm::Optional<model::Model> getUnmatchedModel(mlir::ModuleOp moduleOp)
+	static llvm::Optional<Model> getUnmatchedModel(mlir::ModuleOp moduleOp)
 	{
 		if (failed(scalarizeArrayEquations(moduleOp)))
 			return llvm::None;
@@ -2547,7 +2597,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (failed(loopify(moduleOp)))
 			return llvm::None;
 
-		llvm::Optional<model::Model> model;
+		llvm::Optional<Model> model;
 
 		moduleOp->walk([&](SimulationOp simulation) {
 			mlir::OpBuilder builder(simulation);
@@ -2562,16 +2612,14 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return model;
 	}
 
-	static llvm::Optional<model::Model> getSolvedModel(mlir::ModuleOp moduleOp, SolveModelOptions options)
+	static llvm::Optional<Model> getSolvedModel(mlir::ModuleOp moduleOp, SolveModelOptions options)
 	{
-		assert(options.solver == CleverDAE);
-
-		llvm::Optional<model::Model> model = SolveModelPass::getUnmatchedModel(moduleOp);
+		llvm::Optional<Model> model = SolveModelPass::getUnmatchedModel(moduleOp);
 		if (!model)
 			return llvm::None;
 
 		mlir::OpBuilder builder(model->getOp());
-		
+
 		if (failed(match(*model, options.matchingMaxIterations)))
 			return llvm::None;
 
@@ -2587,7 +2635,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		if (failed(schedule(*model)))
 			return llvm::None;
-		
+
 		if (options.solver == ForwardEuler)
 			if (failed(updateStates(builder, *model)))
 				return llvm::None;
@@ -2595,7 +2643,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (options.solver == CleverDAE)
 			if (failed(substituteTrivialVariables(builder, *model)))
 				return llvm::None;
-		
+
 		return model;
 	}
 

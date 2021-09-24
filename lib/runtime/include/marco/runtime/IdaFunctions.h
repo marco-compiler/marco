@@ -14,14 +14,21 @@ extern "C"
 	bool idaInit(void* userData);
 	bool idaStep(void* userData);
 
-	// Setters
+	// Equation setters
 	void addTime(void* userData, realtype startTime, realtype stopTime);
 	void addTolerance(void* userData, realtype relTol, realtype absTol);
 
-	void addRowLength(void* userData, sunindextype rowLength);
-	void addDimension(void* userData, sunindextype index, sunindextype min, sunindextype max);
+	sunindextype addRowLength(void* userData, sunindextype rowLength);
+	void addColumnIndex(void* userData, sunindextype rowIndex, sunindextype accessIndex);
+	void addEquationDimension(void* userData, sunindextype index, sunindextype min, sunindextype max);
 	void addResidual(void* userData, sunindextype leftIndex, sunindextype rightIndex);
 	void addJacobian(void* userData, sunindextype leftIndex, sunindextype rightIndex);
+
+	// Variable setters
+	sunindextype addVariableOffset(void* userData, sunindextype offset);
+	void addVariableDimension(void* userData, sunindextype index, sunindextype dim);
+	sunindextype addNewVariableAccess(void* userData, sunindextype var, sunindextype off, sunindextype ind);
+	void addVariableAccess(void* userData, sunindextype index, sunindextype off, sunindextype ind);
 
 	// Getters
 	realtype getIdaTime(void* userData);
@@ -37,19 +44,11 @@ extern "C"
 	sunindextype numJacEvals(void* userData);
 	sunindextype numNonlinIters(void* userData);
 
-	// Lambda helpers
-	sunindextype addNewLambdaAccess(void* userData, sunindextype off, sunindextype ind);
-	void addLambdaAccess(void* userData, sunindextype index, sunindextype off, sunindextype ind);
-	sunindextype addNewLambdaDimension(void* userData, sunindextype dim);
-	void addLambdaDimension(void* userData, sunindextype index, sunindextype dim);
-
 	// Lambda constructions
 	sunindextype lambdaConstant(void* userData, realtype constant);
 	sunindextype lambdaTime(void* userData);
-	sunindextype lambdaScalarVariable(void* userData, sunindextype offset);
-	sunindextype lambdaScalarDerivative(void* userData, sunindextype offset);
-	sunindextype lambdaVectorVariable(void* userData, sunindextype offset, sunindextype accessIndex, sunindextype dimensionIndex);
-	sunindextype lambdaVectorDerivative(void* userData, sunindextype offset, sunindextype accessIndex, sunindextype dimensionIndex);
+	sunindextype lambdaVariable(void* userData, sunindextype accessIndex);
+	sunindextype lambdaDerivative(void* userData, sunindextype accessIndex);
 
 	sunindextype lambdaAdd(void* userData, sunindextype leftIndex, sunindextype rightIndex);
 	sunindextype lambdaSub(void* userData, sunindextype leftIndex, sunindextype rightIndex);
