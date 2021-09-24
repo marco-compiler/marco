@@ -47,6 +47,7 @@ extern "C"
 	// Lambda constructions
 	sunindextype lambdaConstant(void* userData, realtype constant);
 	sunindextype lambdaTime(void* userData);
+	sunindextype lambdaInduction(void* userData, sunindextype induction);
 	sunindextype lambdaVariable(void* userData, sunindextype accessIndex);
 	sunindextype lambdaDerivative(void* userData, sunindextype accessIndex);
 

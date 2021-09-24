@@ -8,12 +8,14 @@
 #include "Constant.h"
 #include "Operation.h"
 #include "Reference.h"
+#include "Induction.h"
 
 namespace marco::codegen::model
 {
 	class Constant;
 	class Reference;
 	class Operation;
+	class Induction;
 
 	class Expression
 	{
@@ -24,12 +26,13 @@ namespace marco::codegen::model
 			Impl(mlir::Operation* op, Constant content);
 			Impl(mlir::Operation* op, Reference content);
 			Impl(mlir::Operation* op, Operation content);
+			Impl(mlir::Operation* op, Induction content);
 
 			private:
 			friend class Expression;
 
 			mlir::Operation* op;
-			std::variant<Constant, Reference, Operation> content;
+			std::variant<Constant, Reference, Operation, Induction> content;
 			std::string name;
 		};
 
@@ -39,6 +42,7 @@ namespace marco::codegen::model
 		Expression(mlir::Operation* op, Constant content);
 		Expression(mlir::Operation* op, Reference content);
 		Expression(mlir::Operation* op, Operation content);
+		Expression(mlir::Operation* op, Induction content);
 
 		bool operator==(const Expression& rhs) const;
 		bool operator!=(const Expression& rhs) const;
@@ -48,6 +52,7 @@ namespace marco::codegen::model
 		static Expression constant(mlir::Value value);
 		static Expression reference(mlir::Value value);
 		static Expression operation(mlir::Operation* operation, llvm::ArrayRef<Expression> args);
+		static Expression induction(mlir::BlockArgument argument);
 
 		template<typename... Args>
 		static Expression operation(mlir::Operation* operation, Args&&... args)
@@ -87,6 +92,7 @@ namespace marco::codegen::model
 		[[nodiscard]] bool isReference() const;
 		[[nodiscard]] bool isReferenceAccess() const;
 		[[nodiscard]] bool isOperation() const;
+		[[nodiscard]] bool isInduction() const;
 
 		[[nodiscard]] size_t childrenCount() const;
 

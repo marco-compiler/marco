@@ -684,3 +684,44 @@ TEST(IdaSolverTest, MultipleBltBlocksAndEquations)
 	if (failed(idaSolver.free()))
 		FAIL();
 }
+
+TEST(IdaSolverTest, EquationWithInduction)
+{
+	std::string stringModel = "model IdaInduction "
+														"Real[5] x; "
+														"equation "
+														"for i in 1:5 loop "
+														"der(x[i]) = i; "
+														"end for; "
+														"end IdaInduction; ";
+
+	mlir::MLIRContext context;
+	Model model;
+	makeSolvedModel(context, stringModel, model);
+
+	marco::codegen::ida::IdaSolver idaSolver(model);
+	if (failed(idaSolver.init()))
+		FAIL();
+
+	EXPECT_EQ(idaSolver.getForEquationsNumber(), 1);
+	EXPECT_EQ(idaSolver.getEquationsNumber(), 5);
+	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 5);
+
+	EXPECT_EQ(idaSolver.getRowLength(0), 1);
+	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
+
+	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
+	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 5);
+
+	if (failed(idaSolver.run()))
+		FAIL();
+
+	for (int64_t i : marco::irange(3))
+	{
+		EXPECT_EQ(idaSolver.getVariable(i), idaSolver.getTime() * i);
+		EXPECT_EQ(idaSolver.getDerivative(i), i);
+	}
+
+	if (failed(idaSolver.free()))
+		FAIL();
+}

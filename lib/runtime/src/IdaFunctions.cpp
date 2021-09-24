@@ -709,6 +709,29 @@ sunindextype lambdaTime(void* userData)
 	return data->lambdas.size() - 1;
 }
 
+sunindextype lambdaInduction(void* userData, sunindextype induction)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function first = [induction](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype { return ind[induction]; };
+
+	Function second = [](realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype { return 0.0; };
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
 sunindextype lambdaVariable(void* userData, sunindextype accessIndex)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
@@ -1566,8 +1589,8 @@ sunindextype lambdaCall(
 											 realtype* yp,
 											 Indexes& ind,
 											 realtype var) -> realtype {
-		return (
-				(realtype(*)(realtype)) function) (operand(tt, cj, yy, yp, ind, var));
+		return ((realtype(*)(realtype)) function)(
+				operand(tt, cj, yy, yp, ind, var));
 	};
 
 	Function second = [](realtype tt,

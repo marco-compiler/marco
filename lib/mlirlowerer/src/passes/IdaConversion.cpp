@@ -482,6 +482,12 @@ struct LambdaTimeOpLowering : public LambdaLikeLowering<LambdaTimeOp, LambdaTime
 	static constexpr llvm::StringRef operationName = "lambdaTime";
 };
 
+struct LambdaInductionOpLowering : public LambdaLikeLowering<LambdaInductionOp, LambdaInductionOpLowering>
+{
+	using LambdaLikeLowering<LambdaInductionOp, LambdaInductionOpLowering>::LambdaLikeLowering;
+	static constexpr llvm::StringRef operationName = "lambdaInduction";
+};
+
 struct LambdaVariableOpLowering : public LambdaLikeLowering<LambdaVariableOp, LambdaVariableOpLowering>
 {
 	using LambdaLikeLowering<LambdaVariableOp, LambdaVariableOpLowering>::LambdaLikeLowering;
@@ -667,6 +673,7 @@ static void populateIdaConversionPatterns(
 	patterns.insert<
 			LambdaConstantOpLowering,
 			LambdaTimeOpLowering,
+			LambdaInductionOpLowering,
 			LambdaVariableOpLowering,
 			LambdaDerivativeOpLowering>(context, typeConverter);
 
@@ -758,6 +765,7 @@ class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::Oper
 		target.addIllegalOp<
 				LambdaConstantOp,
 				LambdaTimeOp,
+				LambdaInductionOp,
 				LambdaVariableOp,
 				LambdaDerivativeOp>();
 

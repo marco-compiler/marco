@@ -404,6 +404,13 @@ sunindextype IdaSolver::getFunction(const Expression& expression)
 		return lambdaConstant(userData, value);
 	}
 
+	// Induction argument.
+	if (expression.isInduction())
+	{
+		return lambdaInduction(
+				userData, expression.get<Induction>().getArgument().getArgNumber());
+	}
+
 	// Variable reference.
 	if (expression.isReferenceAccess())
 	{
@@ -411,7 +418,7 @@ sunindextype IdaSolver::getFunction(const Expression& expression)
 		Variable var = model.getVariable(expression.getReferredVectorAccess());
 
 		// Time variable
-		if (variableIndexMap.find(var) == variableIndexMap.end())
+		if (var.isTime())
 			return lambdaTime(userData);
 
 		VectorAccess vectorAccess = AccessToVar::fromExp(expression).getAccess();

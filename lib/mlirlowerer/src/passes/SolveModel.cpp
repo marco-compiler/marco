@@ -2097,7 +2097,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			mlir::Location loc,
 			Model& model,
 			mlir::Value userData,
-			std::map<Variable, mlir::Value> variableIndexMap,
 			std::map<std::pair<Variable, VectorAccess>, mlir::Value> accessesMap,
 			const Expression& expression)
 	{
@@ -2111,6 +2110,14 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			return builder.create<LambdaConstantOp>(loc, userData, value);
 		}
 
+		// Induction argument.
+		if (expression.isInduction())
+		{
+			unsigned int argNumber = expression.get<Induction>().getArgument().getArgNumber();
+			mlir::Value induction = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, argNumber));
+			return builder.create<LambdaInductionOp>(loc, userData, induction);
+		}
+
 		// Variable reference.
 		if (expression.isReferenceAccess())
 		{
@@ -2118,12 +2125,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			Variable var = model.getVariable(expression.getReferredVectorAccess());
 
 			// Time variable.
-			if (variableIndexMap.find(var) == variableIndexMap.end())
+			if (var.isTime())
 				return builder.create<LambdaTimeOp>(loc, userData);
 
 			VectorAccess vectorAccess = AccessToVar::fromExp(expression).getAccess();
 
-			assert(variableIndexMap.find(var) != variableIndexMap.end());
 			assert(accessesMap.find({ var, vectorAccess }) != accessesMap.end());
 
 			mlir::Value accessIndex = accessesMap[{ var, vectorAccess }];
@@ -2137,7 +2143,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		// Get the lambda functions to compute the values of all the children.
 		std::vector<mlir::Value> children;
 		for (size_t i : marco::irange(expression.childrenCount()))
-			children.push_back(getFunction(builder, loc, model, userData, variableIndexMap, accessesMap, expression.getChild(i)));
+			children.push_back(getFunction(builder, loc, model, userData, accessesMap, expression.getChild(i)));
 
 		if (mlir::isa<AddOp>(definingOp))
 			return builder.create<LambdaAddOp>(loc, userData, children[0], children[1]);
@@ -2442,8 +2448,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				}
 
 				// Residual and Jacobian
-				mlir::Value leftIndex = getFunction(builder, loc, model, userData, variableIndexMap, accessesMap, equation.lhs());
-				mlir::Value rightIndex = getFunction(builder, loc, model, userData, variableIndexMap, accessesMap, equation.rhs());
+				mlir::Value leftIndex = getFunction(builder, loc, model, userData, accessesMap, equation.lhs());
+				mlir::Value rightIndex = getFunction(builder, loc, model, userData, accessesMap, equation.rhs());
 				builder.create<AddResidualOp>(loc, userData, leftIndex, rightIndex);
 				builder.create<AddJacobianOp>(loc, userData, leftIndex, rightIndex);
 
@@ -2452,6 +2458,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		}
 
 		assert(varOffset == equationsNumber);
+
+		initialValueMap.clear();
+		variableIndexMap.clear();
+		accessesMap.clear();
 
 		builder.create<InitOp>(loc, userData);
 

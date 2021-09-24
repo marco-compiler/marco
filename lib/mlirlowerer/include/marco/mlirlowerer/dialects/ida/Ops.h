@@ -689,6 +689,37 @@ namespace marco::codegen::ida
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Ida::LambdaInductionOp
+	//===----------------------------------------------------------------------===//
+
+	class LambdaInductionOp : public mlir::Op<LambdaInductionOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<2>::Impl,
+																mlir::OpTrait::OneResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.lambda_induction";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value induction);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		IntegerType resultType();
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value induction();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Ida::LambdaVariableOp
 	//===----------------------------------------------------------------------===//
 

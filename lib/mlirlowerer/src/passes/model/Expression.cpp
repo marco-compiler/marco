@@ -1,6 +1,7 @@
 #include <llvm/ADT/SmallVector.h>
 #include <marco/mlirlowerer/passes/model/Constant.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Induction.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/Operation.h>
 #include <marco/mlirlowerer/passes/model/Reference.h>
@@ -24,6 +25,11 @@ Expression::Impl::Impl(mlir::Operation* op, Operation content)
 {
 }
 
+Expression::Impl::Impl(mlir::Operation* op, Induction content)
+		: op(op), content(content), name(op->getName().getStringRef().str())
+{
+}
+
 Expression::Expression(mlir::Operation* op, Constant content)
 		: impl(std::make_shared<Impl>(op, content))
 {
@@ -35,6 +41,11 @@ Expression::Expression(mlir::Operation* op, Reference content)
 }
 
 Expression::Expression(mlir::Operation* op, Operation content)
+		: impl(std::make_shared<Impl>(op, content))
+{
+}
+
+Expression::Expression(mlir::Operation* op, Induction content)
 		: impl(std::make_shared<Impl>(op, content))
 {
 }
@@ -53,8 +64,14 @@ Expression Expression::build(mlir::Value value)
 {
 	mlir::Operation* definingOp = value.getDefiningOp();
 
-	if (value.isa<mlir::BlockArgument>())
+	if (auto arg = value.dyn_cast<mlir::BlockArgument>())
+	{
+		if (mlir::isa<ForEquationOp>(arg.getOwner()->getParentOp()))
+			return Expression::induction(arg);
+
+		assert(mlir::isa<SimulationOp>(arg.getOwner()->getParentOp()));
 		return Expression::reference(value.getParentRegion()->getParentOfType<SimulationOp>().getVariableAllocation(value));
+	}
 
 	if (auto op = mlir::dyn_cast<LoadOp>(definingOp))
 		return build(op.memory());
@@ -162,6 +179,11 @@ Expression Expression::operation(mlir::Operation* op, llvm::ArrayRef<Expression>
 	return Expression(op, Operation(args));
 }
 
+Expression Expression::induction(mlir::BlockArgument arg)
+{
+	return Expression(arg.getOwner()->getParentOp(), Induction(arg));
+}
+
 mlir::Operation* Expression::getOp() const
 {
 	return impl->op;
@@ -194,12 +216,14 @@ bool Expression::isOperation() const
 	return std::holds_alternative<Operation>(impl->content);
 }
 
+bool Expression::isInduction() const
+{
+	return std::holds_alternative<Induction>(impl->content);
+}
+
 size_t Expression::childrenCount() const
 {
-	if (isConstant())
-		return 0;
-
-	if (isReference())
+	if (!isOperation())
 		return 0;
 
 	return get<Operation>().size();

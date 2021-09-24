@@ -1,5 +1,6 @@
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
+#include <marco/mlirlowerer/passes/model/Induction.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
 #include <marco/mlirlowerer/passes/model/Operation.h>
 #include <marco/mlirlowerer/passes/model/Reference.h>
@@ -34,6 +35,11 @@ class VariablesFinder
 	{
 		for (const auto& arg : operation)
 			arg->visit(*this);
+	}
+
+	void operator()(const Induction& constant) const
+	{
+
 	}
 
 	private:
