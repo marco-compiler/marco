@@ -1,5 +1,5 @@
 add_subdirectory(ASTDumper)
-add_subdirectory(idaSolver)
+add_subdirectory(ida-solver)
 add_subdirectory(marco)
 add_subdirectory(modelica-opt)
 add_subdirectory(ModC)

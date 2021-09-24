@@ -13,4 +13,8 @@ marcoAddTest(
 	passes/SolveModelTest.cpp
 )
 
-target_link_libraries(mlirlowererTest PUBLIC sundials)
+target_link_libraries(
+	mlirlowererTest PUBLIC
+	marco::ida
+	sundials
+)

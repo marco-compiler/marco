@@ -1,4 +1,4 @@
-#include <marco/mlirlowerer/dialects/ida/IdaSolver.h>
+#include <marco/ida/IdaSolver.h>
 #include <marco/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
@@ -13,7 +13,7 @@ using namespace marco::codegen::ida;
 using namespace marco::codegen::model;
 using namespace marco::codegen::modelica;
 
-static double getValue(ConstantOp constantOp)
+static realtype getValue(ConstantOp constantOp)
 {
 	mlir::Attribute attribute = constantOp.value();
 
@@ -29,10 +29,10 @@ static double getValue(ConstantOp constantOp)
 
 IdaSolver::IdaSolver(
 		const Model& model,
-		double startTime,
-		double stopTime,
-		double relativeTolerance,
-		double absoluteTolerance)
+		realtype startTime,
+		realtype stopTime,
+		realtype relativeTolerance,
+		realtype absoluteTolerance)
 		: model(model),
 			stopTime(stopTime),
 			forEquationsNumber(0),
@@ -46,7 +46,7 @@ IdaSolver::IdaSolver(
 
 mlir::LogicalResult IdaSolver::init()
 {
-	int64_t varOffset = 0;
+	sunindextype varOffset = 0;
 
 	// TODO: Add different value handling for initialization
 
@@ -62,7 +62,7 @@ mlir::LogicalResult IdaSolver::init()
 
 		mlir::Operation* op = fillOp.value().getDefiningOp();
 		ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
-		double value = getValue(constantOp);
+		realtype value = getValue(constantOp);
 
 		initialValueMap[var] = value;
 		if (var.isState())
@@ -84,7 +84,7 @@ mlir::LogicalResult IdaSolver::init()
 
 		op = assignmentOp.source().getDefiningOp();
 		ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
-		double value = getValue(constantOp);
+		realtype value = getValue(constantOp);
 
 		initialValueMap[var] = value;
 		if (var.isState())
@@ -106,7 +106,7 @@ mlir::LogicalResult IdaSolver::init()
 			if (variableIndexMap.find(var) == variableIndexMap.end())
 			{
 				// Note the variable offset from the beginning of the variable array.
-				int64_t varIndex = addVariableOffset(userData, varOffset);
+				sunindextype varIndex = addVariableOffset(userData, varOffset);
 				variableIndexMap[var] = varIndex;
 
 				if (var.isState())
@@ -127,7 +127,7 @@ mlir::LogicalResult IdaSolver::init()
 
 				// Compute the multi-dimensional offset of the array.
 				marco::MultiDimInterval dimensions = var.toMultiDimInterval();
-				std::vector<int64_t> dims;
+				std::vector<sunindextype> dims;
 				for (size_t i = 1; i < dimensions.dimensions(); i++)
 				{
 					for (size_t j = 0; j < dims.size(); j++)
@@ -169,7 +169,7 @@ mlir::LogicalResult IdaSolver::init()
 			}
 
 			// Add to IDA the number of non-zero values of the current equation.
-			int64_t rowIndex = addRowLength(userData, varSet.size());
+			sunindextype rowIndex = addRowLength(userData, varSet.size());
 
 			for (ExpressionPath& path : matcher)
 			{
@@ -187,18 +187,19 @@ mlir::LogicalResult IdaSolver::init()
 				{
 					// Compute the access offset based on the induction variables of the
 					// for-equation.
-					std::vector<std::pair<int64_t, int64_t>> access;
+					std::vector<std::pair<sunindextype, sunindextype>> access;
 
 					for (auto& acc : vectorAccess.getMappingOffset())
 					{
-						int64_t accOffset =
+						sunindextype accOffset =
 								acc.isDirectAccess() ? acc.getOffset() : acc.getOffset() + 1;
-						int64_t accInduction = acc.isOffset() ? acc.getInductionVar() : -1;
+						sunindextype accInduction =
+								acc.isOffset() ? acc.getInductionVar() : -1;
 						access.push_back({ accOffset, accInduction });
 					}
 
 					// Add accesses of the variable to the ida user data.
-					int64_t accessIndex = addNewVariableAccess(
+					sunindextype accessIndex = addNewVariableAccess(
 							userData,
 							variableIndexMap[var],
 							access[0].first,
@@ -280,7 +281,7 @@ void IdaSolver::printOutput(llvm::raw_ostream& OS)
 {
 	OS << getTime();
 
-	for (int64_t i : irange(equationsNumber))
+	for (sunindextype i : irange(equationsNumber))
 		OS << ", " << getVariable(i);
 
 	OS << "\n";
@@ -288,10 +289,10 @@ void IdaSolver::printOutput(llvm::raw_ostream& OS)
 
 void IdaSolver::printStats(llvm::raw_ostream& OS)
 {
-	int64_t nst = numSteps(userData);
-	int64_t nre = numResEvals(userData);
-	int64_t nje = numJacEvals(userData);
-	int64_t nni = numNonlinIters(userData);
+	sunindextype nst = numSteps(userData);
+	sunindextype nre = numResEvals(userData);
+	sunindextype nje = numJacEvals(userData);
+	sunindextype nni = numNonlinIters(userData);
 
 	OS << "\nFinal Run Statistics:\n\n";
 	OS << "Number of for-equations            = " << forEquationsNumber << "\n";
@@ -303,37 +304,37 @@ void IdaSolver::printStats(llvm::raw_ostream& OS)
 	OS << "Number of nonlinear iterations     = " << nni << "\n";
 }
 
-int64_t IdaSolver::getForEquationsNumber() { return forEquationsNumber; }
+sunindextype IdaSolver::getForEquationsNumber() { return forEquationsNumber; }
 
-int64_t IdaSolver::getEquationsNumber() { return equationsNumber; }
+sunindextype IdaSolver::getEquationsNumber() { return equationsNumber; }
 
-int64_t IdaSolver::getNonZeroValuesNumber() { return nonZeroValuesNumber; }
+sunindextype IdaSolver::getNonZeroValuesNumber() { return nonZeroValuesNumber; }
 
-double IdaSolver::getTime() { return getIdaTime(userData); }
+realtype IdaSolver::getTime() { return getIdaTime(userData); }
 
-double IdaSolver::getVariable(int64_t index)
+realtype IdaSolver::getVariable(sunindextype index)
 {
 	return getIdaVariable(userData, index);
 }
 
-double IdaSolver::getDerivative(int64_t index)
+realtype IdaSolver::getDerivative(sunindextype index)
 {
 	return getIdaDerivative(userData, index);
 }
 
-int64_t IdaSolver::getRowLength(int64_t index)
+sunindextype IdaSolver::getRowLength(sunindextype index)
 {
 	return getIdaRowLength(userData, index);
 }
 
-std::vector<std::pair<int64_t, int64_t>> IdaSolver::getDimension(int64_t index)
+IdaSolver::Dimension IdaSolver::getDimension(sunindextype index)
 {
 	return getIdaDimension(userData, index);
 }
 
-int64_t IdaSolver::computeNEQ()
+sunindextype IdaSolver::computeNEQ()
 {
-	int64_t result = 0;
+	sunindextype result = 0;
 
 	for (const BltBlock& bltBlock : model.getBltBlocks())
 		result += bltBlock.equationsCount();
@@ -341,9 +342,9 @@ int64_t IdaSolver::computeNEQ()
 	return result;
 }
 
-int64_t IdaSolver::computeNNZ()
+sunindextype IdaSolver::computeNNZ()
 {
-	int64_t result = 0;
+	sunindextype result = 0;
 
 	// For each equation, compute how many different variables are accessed.
 	for (const BltBlock& bltBlock : model.getBltBlocks())
@@ -385,21 +386,21 @@ void IdaSolver::getDimension(const Equation& equation)
 
 void IdaSolver::getResidualAndJacobian(const Equation& equation)
 {
-	int64_t left = getFunction(equation.lhs());
-	int64_t right = getFunction(equation.rhs());
+	sunindextype left = getFunction(equation.lhs());
+	sunindextype right = getFunction(equation.rhs());
 
 	addResidual(userData, left, right);
 	addJacobian(userData, left, right);
 }
 
-int64_t IdaSolver::getFunction(const Expression& expression)
+sunindextype IdaSolver::getFunction(const Expression& expression)
 {
 	mlir::Operation* definingOp = expression.getOp();
 
 	// Constant value.
 	if (auto op = mlir::dyn_cast<ConstantOp>(definingOp))
 	{
-		double value = getValue(op);
+		realtype value = getValue(op);
 		return lambdaConstant(userData, value);
 	}
 
@@ -418,7 +419,7 @@ int64_t IdaSolver::getFunction(const Expression& expression)
 		assert(variableIndexMap.find(var) != variableIndexMap.end());
 		assert(accessesMap.find({ var, vectorAccess }) != accessesMap.end());
 
-		int64_t accessIndex = accessesMap[{ var, vectorAccess }];
+		sunindextype accessIndex = accessesMap[{ var, vectorAccess }];
 
 		if (var.isDerivative())
 			return lambdaDerivative(userData, accessIndex);
@@ -427,7 +428,7 @@ int64_t IdaSolver::getFunction(const Expression& expression)
 	}
 
 	// Get the lambda functions to compute the values of all the children.
-	std::vector<int64_t> children;
+	std::vector<sunindextype> children;
 	for (size_t i : marco::irange(expression.childrenCount()))
 		children.push_back(getFunction(expression.getChild(i)));
 

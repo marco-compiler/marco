@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include <marco/mlirlowerer/dialects/ida/IdaSolver.h>
+#include <marco/ida/IdaSolver.h>
 
 #include "../TestingUtils.h"
 

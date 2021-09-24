@@ -6,6 +6,7 @@
 #include <marco/mlirlowerer/passes/model/Variable.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
 #include <mlir/Support/LogicalResult.h>
+#include <sundials/sundials_types.h>
 
 namespace marco::codegen::ida
 {
@@ -16,13 +17,15 @@ namespace marco::codegen::ida
 	 */
 	class IdaSolver
 	{
+		using Dimension = std::vector<std::pair<sunindextype, sunindextype>>;
+
 		public:
 		IdaSolver(
 				const model::Model &model,
-				double startTime = 0.0,
-				double stopTime = 10.0,
-				double relativeTolerance = 1e-6,
-				double absoluteTolerance = 1e-6);
+				realtype startTime = 0.0,
+				realtype stopTime = 10.0,
+				realtype relativeTolerance = 1e-6,
+				realtype absoluteTolerance = 1e-6);
 
 		/**
 		 * Instantiate and initialize all the classes and data needed by IDA to
@@ -58,19 +61,18 @@ namespace marco::codegen::ida
 		 */
 		void printStats(llvm::raw_ostream &OS = llvm::outs());
 
-		[[nodiscard]] int64_t getForEquationsNumber();
-		[[nodiscard]] int64_t getEquationsNumber();
-		[[nodiscard]] int64_t getNonZeroValuesNumber();
-		[[nodiscard]] double getTime();
-		[[nodiscard]] double getVariable(int64_t index);
-		[[nodiscard]] double getDerivative(int64_t index);
-		[[nodiscard]] int64_t getRowLength(int64_t index);
-		[[nodiscard]] std::vector<std::pair<int64_t, int64_t>> getDimension(
-				int64_t index);
+		[[nodiscard]] sunindextype getForEquationsNumber();
+		[[nodiscard]] sunindextype getEquationsNumber();
+		[[nodiscard]] sunindextype getNonZeroValuesNumber();
+		[[nodiscard]] realtype getTime();
+		[[nodiscard]] realtype getVariable(sunindextype index);
+		[[nodiscard]] realtype getDerivative(sunindextype index);
+		[[nodiscard]] sunindextype getRowLength(sunindextype index);
+		[[nodiscard]] Dimension getDimension(sunindextype index);
 
 		private:
-		[[nodiscard]] int64_t computeNEQ();
-		[[nodiscard]] int64_t computeNNZ();
+		[[nodiscard]] sunindextype computeNEQ();
+		[[nodiscard]] sunindextype computeNNZ();
 
 		/**
 		 * Given an equation from the model, returns the multidimensional interval
@@ -92,19 +94,19 @@ namespace marco::codegen::ida
 		 * computes the expression starting from the data provided
 		 * by IDA and the value of all induction variables.
 		 */
-		int64_t getFunction(const model::Expression &exp);
+		sunindextype getFunction(const model::Expression &exp);
 
 		private:
 		// Model data
 		const model::Model model;
-		const double stopTime;
-		int64_t forEquationsNumber;
-		const int64_t equationsNumber;
-		const int64_t nonZeroValuesNumber;
+		const realtype stopTime;
+		sunindextype forEquationsNumber;
+		const sunindextype equationsNumber;
+		const sunindextype nonZeroValuesNumber;
 
-		std::map<model::Variable, double> initialValueMap;
-		std::map<model::Variable, int64_t> variableIndexMap;
-		std::map<std::pair<model::Variable, model::VectorAccess>, int64_t>
+		std::map<model::Variable, realtype> initialValueMap;
+		std::map<model::Variable, sunindextype> variableIndexMap;
+		std::map<std::pair<model::Variable, model::VectorAccess>, sunindextype>
 				accessesMap;
 		void *userData;
 	};

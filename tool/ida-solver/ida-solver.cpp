@@ -2,11 +2,11 @@
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Error.h>
 #include <llvm/Transforms/Utils.h>
-#include <mlir/Transforms/Passes.h>
 #include <marco/frontend/Parser.h>
 #include <marco/frontend/Passes.h>
+#include <marco/ida/IdaSolver.h>
 #include <marco/mlirlowerer/CodeGen.h>
-#include <marco/mlirlowerer/dialects/ida/IdaSolver.h>
+#include <mlir/Transforms/Passes.h>
 
 using namespace std;
 using namespace llvm;
@@ -152,6 +152,14 @@ int main(int argc, char *argv[])
 	if (printModule)
 	{
 		model->getOp()->getParentOfType<mlir::ModuleOp>()->dump();
+		return 0;
+	}
+
+	if (model->getBltBlocks().empty())
+	{
+		errs() << "The model is composed of trivial equations only, "
+							"there is no need to use IDA.\n";
+		return 0;
 	}
 
 	ida::IdaSolver idaSolver(
