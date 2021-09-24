@@ -1,4 +1,5 @@
 add_subdirectory(frontend)
+add_subdirectory(ida)
 add_subdirectory(lowerer)
 add_subdirectory(mlirlowerer)
 add_subdirectory(utils)

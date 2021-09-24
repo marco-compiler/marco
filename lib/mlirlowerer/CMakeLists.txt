@@ -2,7 +2,6 @@ set(SOURCES
         src/dialects/ida/Attribute.cpp
         src/dialects/ida/IdaBuilder.cpp
         src/dialects/ida/IdaDialect.cpp
-        src/dialects/ida/IdaSolver.cpp
         src/dialects/ida/Ops.cpp
         src/dialects/ida/Type.cpp
         src/dialects/modelica/Attribute.cpp
