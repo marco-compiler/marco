@@ -1,15 +1,11 @@
 #include "gtest/gtest.h"
-#include <mlir/Pass/PassManager.h>
-#include <marco/frontend/Parser.h>
-#include <marco/frontend/Passes.h>
-#include <marco/mlirlowerer/CodeGen.h>
 #include <marco/mlirlowerer/passes/SolveModel.h>
 #include <marco/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
 #include <marco/mlirlowerer/passes/model/Variable.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
-#include <queue>
 
 #include "../TestingUtils.h"
 
@@ -41,7 +37,7 @@ TEST(SolveModelTest, SubstituteTrivialVariablesTest)
 	Model model;
 	makeSolvedModel(context, stringModel, model);
 
-	EXPECT_EQ(model.getVariables().size(), 5 + 1 + 1);
+	EXPECT_EQ(model.getVariables().size(), 6);
 	EXPECT_EQ(model.getEquations().size(), 3);
 	EXPECT_EQ(model.getBltBlocks().size(), 2);
 	EXPECT_EQ(model.getBltBlocks()[0].getEquations().size(), 1);
@@ -62,23 +58,15 @@ TEST(SolveModelTest, SubstituteTrivialVariablesTest)
 			Variable var = model.getVariable(eq.getDeterminedVariable().getVar());
 			EXPECT_FALSE(var.isTrivial());
 
-			std::queue<Expression> expQueue({ eq.lhs(), eq.rhs() });
-			while (!expQueue.empty())
+			ReferenceMatcher matcher(eq);
+			for (ExpressionPath expPath : matcher)
 			{
-				if (expQueue.front().isReferenceAccess())
-				{
-					var = model.getVariable(expQueue.front().getReferredVectorAccess());
-					EXPECT_TRUE(
-							!var.isTrivial() ||
-							trivialVariablesMap.find(var) == trivialVariablesMap.end());
-				}
-				else if (expQueue.front().isOperation())
-				{
-					for (size_t i : marco::irange(expQueue.front().childrenCount()))
-						expQueue.push(expQueue.front().getChild(i));
-				}
-
-				expQueue.pop();
+				EXPECT_TRUE(expPath.getExpression().isReferenceAccess());
+				var = model.getVariable(
+						expPath.getExpression().getReferredVectorAccess());
+				EXPECT_TRUE(
+						!var.isTrivial() ||
+						trivialVariablesMap.find(var) == trivialVariablesMap.end());
 			}
 		}
 	}

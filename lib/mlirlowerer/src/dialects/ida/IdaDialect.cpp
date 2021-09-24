@@ -42,6 +42,7 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 	addOperations<
 			LambdaConstantOp,
 			LambdaTimeOp,
+			LambdaInductionOp,
 			LambdaVariableOp,
 			LambdaDerivativeOp>();
 

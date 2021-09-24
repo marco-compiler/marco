@@ -1308,6 +1308,63 @@ mlir::Value LambdaTimeOp::userData()
 }
 
 //===----------------------------------------------------------------------===//
+// Ida::LambdaInductionOp
+//===----------------------------------------------------------------------===//
+
+void LambdaInductionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value induction)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(induction);
+}
+
+mlir::ParseResult LambdaInductionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void LambdaInductionOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+mlir::LogicalResult LambdaInductionOp::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!induction().getType().isa<IntegerType>())
+		return emitOpError("Requires induction index to be an integer");
+
+	return mlir::success();
+}
+
+void LambdaInductionOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType LambdaInductionOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange LambdaInductionOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value LambdaInductionOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value LambdaInductionOp::induction()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
 // Ida::LambdaVariableOp
 //===----------------------------------------------------------------------===//
 
