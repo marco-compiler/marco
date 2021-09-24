@@ -3,6 +3,7 @@
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
+#include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
 #include <marco/mlirlowerer/passes/model/Variable.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
 #include <marco/runtime/Runtime.h>
@@ -27,24 +28,25 @@ static double getValue(ConstantOp constantOp)
 }
 
 IdaSolver::IdaSolver(
-		Model& model,
+		const Model& model,
 		double startTime,
 		double stopTime,
 		double relativeTolerance,
 		double absoluteTolerance)
 		: model(model),
 			stopTime(stopTime),
-			problemSize(0),
-			equationsNumber(computeNEQ())
+			forEquationsNumber(0),
+			equationsNumber(computeNEQ()),
+			nonZeroValuesNumber(computeNNZ())
 {
-	userData = allocIdaUserData(equationsNumber, computeNNZ());
+	userData = allocIdaUserData(equationsNumber, nonZeroValuesNumber);
 	addTime(userData, startTime, stopTime);
 	addTolerance(userData, relativeTolerance, absoluteTolerance);
 }
 
 mlir::LogicalResult IdaSolver::init()
 {
-	int64_t rowLength = 0;
+	int64_t varOffset = 0;
 
 	// TODO: Add different value handling for initialization
 
@@ -89,9 +91,10 @@ mlir::LogicalResult IdaSolver::init()
 			initialValueMap[model.getVariable(var.getDer())] = value;
 	});
 
-	for (BltBlock& bltBlock : model.getBltBlocks())
+	// Compute all non-trivial variable offsets and dimensions.
+	for (const BltBlock& bltBlock : model.getBltBlocks())
 	{
-		for (Equation& equation : bltBlock.getEquations())
+		for (const Equation& equation : bltBlock.getEquations())
 		{
 			// Get the variable matched with every equation.
 			Variable var =
@@ -100,28 +103,27 @@ mlir::LogicalResult IdaSolver::init()
 			assert(!var.isTrivial());
 
 			// If the variable has not been insterted yet, initialize it.
-			if (indexOffsetMap.find(var) == indexOffsetMap.end())
+			if (variableIndexMap.find(var) == variableIndexMap.end())
 			{
-				assert(dimensionsMap.find(var) == dimensionsMap.end());
-
 				// Note the variable offset from the beginning of the variable array.
-				indexOffsetMap[var] = rowLength;
+				int64_t varIndex = addVariableOffset(userData, varOffset);
+				variableIndexMap[var] = varIndex;
 
 				if (var.isState())
-					indexOffsetMap[model.getVariable(var.getDer())] = rowLength;
+					variableIndexMap[model.getVariable(var.getDer())] = varIndex;
 				else if (var.isDerivative())
-					indexOffsetMap[model.getVariable(var.getState())] = rowLength;
+					variableIndexMap[model.getVariable(var.getState())] = varIndex;
 
 				// Initialize variablesValues, derivativesValues, idValues.
 				setInitialValue(
 						userData,
-						rowLength,
+						varIndex,
 						var.toMultiDimInterval().size(),
 						initialValueMap[var],
 						var.isState() || var.isDerivative());
 
 				// Increase the length of the current row.
-				rowLength += var.toMultiDimInterval().size();
+				varOffset += var.toMultiDimInterval().size();
 
 				// Compute the multi-dimensional offset of the array.
 				marco::MultiDimInterval dimensions = var.toMultiDimInterval();
@@ -135,41 +137,109 @@ mlir::LogicalResult IdaSolver::init()
 				dims.push_back(1);
 
 				// Add dimensions of the variable to the ida user data.
-				int64_t dimensionIndex = addNewLambdaDimension(userData, dims[0]);
-				for (size_t i = 1; i < dims.size(); i++)
-					addLambdaDimension(userData, dimensionIndex, dims[i]);
-
-				dimensionsMap[var] = dimensionIndex;
-
-				if (var.isState())
-					dimensionsMap[model.getVariable(var.getDer())] = dimensionIndex;
-				else if (var.isDerivative())
-					dimensionsMap[model.getVariable(var.getState())] = dimensionIndex;
+				for (size_t i = 0; i < dims.size(); i++)
+					addVariableDimension(userData, varIndex, dims[i]);
 			}
-		}
-
-		for (Equation& equation : bltBlock.getEquations())
-		{
-			addRowLength(userData, rowLength);
 		}
 	}
 
-	for (BltBlock& bltBlock : model.getBltBlocks())
+	// Compute all non-trivial variable accesses of each equation.
+	for (const BltBlock& bltBlock : model.getBltBlocks())
 	{
-		// Initialize UserData with all parameters needed by IDA.
-		for (Equation& equation : bltBlock.getEquations())
+		for (const Equation& equation : bltBlock.getEquations())
+		{
+			ReferenceMatcher matcher(equation);
+			std::set<std::pair<Variable, VectorAccess>> varSet;
+
+			// Add all different variable accesses to a set.
+			for (ExpressionPath& path : matcher)
+			{
+				Variable var =
+						model.getVariable(path.getExpression().getReferredVectorAccess());
+				if (var.isTime())
+					continue;
+
+				VectorAccess acc =
+						AccessToVar::fromExp(path.getExpression()).getAccess();
+
+				if (var.isDerivative())
+					varSet.insert({ model.getVariable(var.getState()), acc });
+				else
+					varSet.insert({ var, acc });
+			}
+
+			// Add to IDA the number of non-zero values of the current equation.
+			int64_t rowIndex = addRowLength(userData, varSet.size());
+
+			for (ExpressionPath& path : matcher)
+			{
+				Variable var =
+						model.getVariable(path.getExpression().getReferredVectorAccess());
+
+				if (var.isTime())
+					continue;
+
+				VectorAccess vectorAccess =
+						AccessToVar::fromExp(path.getExpression()).getAccess();
+
+				// If the variable access has not been insterted yet, initialize it.
+				if (accessesMap.find({ var, vectorAccess }) == accessesMap.end())
+				{
+					// Compute the access offset based on the induction variables of the
+					// for-equation.
+					std::vector<std::pair<int64_t, int64_t>> access;
+
+					for (auto& acc : vectorAccess.getMappingOffset())
+					{
+						int64_t accOffset =
+								acc.isDirectAccess() ? acc.getOffset() : acc.getOffset() + 1;
+						int64_t accInduction = acc.isOffset() ? acc.getInductionVar() : -1;
+						access.push_back({ accOffset, accInduction });
+					}
+
+					// Add accesses of the variable to the ida user data.
+					int64_t accessIndex = addNewVariableAccess(
+							userData,
+							variableIndexMap[var],
+							access[0].first,
+							access[0].second);
+					for (size_t i = 1; i < access.size(); i++)
+						addVariableAccess(
+								userData, accessIndex, access[i].first, access[i].second);
+
+					accessesMap[{ var, vectorAccess }] = accessIndex;
+
+					if (var.isState())
+						accessesMap[{ model.getVariable(var.getDer()), vectorAccess }] =
+								accessIndex;
+					else if (var.isDerivative())
+						accessesMap[{ model.getVariable(var.getState()), vectorAccess }] =
+								accessIndex;
+				}
+
+				// Add to IDA the indexes of non-zero values of the current equation.
+				addColumnIndex(userData, rowIndex, accessesMap[{ var, vectorAccess }]);
+			}
+		}
+	}
+
+	// Add to IDA the dimensions of each equation and the lambda functions needed
+	// to compute the residual function and the jacobian matrix of the system.
+	for (const BltBlock& bltBlock : model.getBltBlocks())
+	{
+		for (const Equation& equation : bltBlock.getEquations())
 		{
 			getDimension(equation);
 			getResidualAndJacobian(equation);
-			problemSize++;
+			forEquationsNumber++;
 		}
 	}
 
-	assert(rowLength == equationsNumber);
+	assert(varOffset == equationsNumber);
 
 	initialValueMap.clear();
-	indexOffsetMap.clear();
-	dimensionsMap.clear();
+	variableIndexMap.clear();
+	accessesMap.clear();
 
 	bool success = idaInit(userData);
 	if (!success)
@@ -224,15 +294,20 @@ void IdaSolver::printStats(llvm::raw_ostream& OS)
 	int64_t nni = numNonlinIters(userData);
 
 	OS << "\nFinal Run Statistics:\n\n";
+	OS << "Number of for-equations            = " << forEquationsNumber << "\n";
+	OS << "Number of scalar equations         = " << equationsNumber << "\n";
+	OS << "Number of non-zero values          = " << nonZeroValuesNumber << "\n";
 	OS << "Number of steps                    = " << nst << "\n";
 	OS << "Number of residual evaluations     = " << nre << "\n";
 	OS << "Number of Jacobian evaluations     = " << nje << "\n";
 	OS << "Number of nonlinear iterations     = " << nni << "\n";
 }
 
-int64_t IdaSolver::getProblemSize() { return problemSize; }
+int64_t IdaSolver::getForEquationsNumber() { return forEquationsNumber; }
 
 int64_t IdaSolver::getEquationsNumber() { return equationsNumber; }
+
+int64_t IdaSolver::getNonZeroValuesNumber() { return nonZeroValuesNumber; }
 
 double IdaSolver::getTime() { return getIdaTime(userData); }
 
@@ -260,7 +335,7 @@ int64_t IdaSolver::computeNEQ()
 {
 	int64_t result = 0;
 
-	for (BltBlock& bltBlock : model.getBltBlocks())
+	for (const BltBlock& bltBlock : model.getBltBlocks())
 		result += bltBlock.equationsCount();
 
 	return result;
@@ -268,24 +343,34 @@ int64_t IdaSolver::computeNEQ()
 
 int64_t IdaSolver::computeNNZ()
 {
-	int64_t result = 0, rowLength = 0;
-	std::set<Variable> varSet;
+	int64_t result = 0;
 
-	for (BltBlock& bltBlock : model.getBltBlocks())
+	// For each equation, compute how many different variables are accessed.
+	for (const BltBlock& bltBlock : model.getBltBlocks())
 	{
-		for (Equation& equation : bltBlock.getEquations())
+		for (const Equation& equation : bltBlock.getEquations())
 		{
-			Variable var =
-					model.getVariable(equation.getDeterminedVariable().getVar());
+			ReferenceMatcher matcher(equation);
+			std::set<std::pair<Variable, VectorAccess>> varSet;
 
-			if (varSet.find(var) == varSet.end())
+			for (ExpressionPath& path : matcher)
 			{
-				varSet.insert(var);
-				rowLength += var.toMultiDimInterval().size();
-			}
-		}
+				Variable var =
+						model.getVariable(path.getExpression().getReferredVectorAccess());
+				if (var.isTime())
+					continue;
 
-		result += rowLength * bltBlock.equationsCount();
+				VectorAccess acc =
+						AccessToVar::fromExp(path.getExpression()).getAccess();
+
+				if (var.isDerivative())
+					varSet.insert({ model.getVariable(var.getState()), acc });
+				else
+					varSet.insert({ var, acc });
+			}
+
+			result += varSet.size() * equation.getInductions().size();
+		}
 	}
 
 	return result;
@@ -294,7 +379,8 @@ int64_t IdaSolver::computeNNZ()
 void IdaSolver::getDimension(const Equation& equation)
 {
 	for (marco::Interval& interval : equation.getInductions())
-		addDimension(userData, problemSize, interval.min() - 1, interval.max() - 1);
+		addEquationDimension(
+				userData, forEquationsNumber, interval.min() - 1, interval.max() - 1);
 }
 
 void IdaSolver::getResidualAndJacobian(const Equation& equation)
@@ -317,59 +403,27 @@ int64_t IdaSolver::getFunction(const Expression& expression)
 		return lambdaConstant(userData, value);
 	}
 
-	// Scalar variable reference.
-	if (expression.isReference())
-	{
-		// Time variable
-		Variable var = model.getVariable(expression.getReferredVectorAccess());
-		if (indexOffsetMap.find(var) == indexOffsetMap.end())
-			return lambdaTime(userData);
-
-		int64_t offset = indexOffsetMap[var];
-
-		if (var.isDerivative())
-			return lambdaScalarDerivative(userData, offset);
-		else
-			return lambdaScalarVariable(userData, offset);
-	}
-
-	assert(expression.isOperation());
-
-	// Vector variable reference.
+	// Variable reference.
 	if (expression.isReferenceAccess())
 	{
 		// Compute the IDA offset of the variable in the 1D array variablesVector.
 		Variable var = model.getVariable(expression.getReferredVectorAccess());
-		assert(indexOffsetMap.find(var) != indexOffsetMap.end());
-		assert(dimensionsMap.find(var) != dimensionsMap.end());
-		int64_t offset = indexOffsetMap[var];
-		int64_t dimensionIndex = dimensionsMap[var];
 
-		// Compute the access offset based on the induction variables of the
-		// for-equation.
+		// Time variable
+		if (variableIndexMap.find(var) == variableIndexMap.end())
+			return lambdaTime(userData);
+
 		VectorAccess vectorAccess = AccessToVar::fromExp(expression).getAccess();
-		std::vector<std::pair<int64_t, int64_t>> access;
 
-		for (auto& acc : vectorAccess.getMappingOffset())
-		{
-			int64_t accOffset =
-					acc.isDirectAccess() ? acc.getOffset() : acc.getOffset() + 1;
-			int64_t accInduction = acc.isOffset() ? acc.getInductionVar() : -1;
-			access.push_back({ accOffset, accInduction });
-		}
+		assert(variableIndexMap.find(var) != variableIndexMap.end());
+		assert(accessesMap.find({ var, vectorAccess }) != accessesMap.end());
 
-		// Add accesses of the variable to the ida user data.
-		int64_t accessIndex =
-				addNewLambdaAccess(userData, access[0].first, access[0].second);
-		for (size_t i = 1; i < access.size(); i++)
-			addLambdaAccess(userData, accessIndex, access[i].first, access[i].second);
+		int64_t accessIndex = accessesMap[{ var, vectorAccess }];
 
 		if (var.isDerivative())
-			return lambdaVectorDerivative(
-					userData, offset, accessIndex, dimensionIndex);
+			return lambdaDerivative(userData, accessIndex);
 		else
-			return lambdaVectorVariable(
-					userData, offset, accessIndex, dimensionIndex);
+			return lambdaVariable(userData, accessIndex);
 	}
 
 	// Get the lambda functions to compute the values of all the children.

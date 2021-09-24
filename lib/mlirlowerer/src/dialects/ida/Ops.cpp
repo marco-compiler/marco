@@ -494,6 +494,7 @@ mlir::Value AddToleranceOp::absTol()
 
 void AddRowLengthOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value rowLength)
 {
+	state.addTypes(IntegerType::get(builder.getContext()));
 	state.addOperands(userData);
 	state.addOperands(rowLength);
 }
@@ -505,7 +506,7 @@ mlir::ParseResult AddRowLengthOp::parse(mlir::OpAsmParser& parser, mlir::Operati
 
 void AddRowLengthOp::print(mlir::OpAsmPrinter& printer)
 {
-	marco::codegen::ida::print(printer, getOperationName(), args());
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
 }
 
 mlir::LogicalResult AddRowLengthOp::verify()
@@ -514,7 +515,7 @@ mlir::LogicalResult AddRowLengthOp::verify()
 		return emitOpError("Requires user data to be an opaque pointer");
 
 	if (!rowLength().getType().isa<IntegerType>())
-		return emitOpError("Requires BLT row length to be an integer");
+		return emitOpError("Requires BLT row pointer to be an integer");
 
 	return mlir::success();
 }
@@ -522,6 +523,11 @@ mlir::LogicalResult AddRowLengthOp::verify()
 void AddRowLengthOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType AddRowLengthOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
 }
 
 mlir::ValueRange AddRowLengthOp::args()
@@ -540,10 +546,70 @@ mlir::Value AddRowLengthOp::rowLength()
 }
 
 //===----------------------------------------------------------------------===//
-// Ida::AddDimensionOp
+// Ida::AddColumnIndexOp
 //===----------------------------------------------------------------------===//
 
-void AddDimensionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value min, mlir::Value max)
+void AddColumnIndexOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value rowIndex, mlir::Value accessIndex)
+{
+	state.addOperands(userData);
+	state.addOperands(rowIndex);
+	state.addOperands(accessIndex);
+}
+
+mlir::ParseResult AddColumnIndexOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 3);
+}
+
+void AddColumnIndexOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args());
+}
+
+mlir::LogicalResult AddColumnIndexOp::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!rowIndex().getType().isa<IntegerType>())
+		return emitOpError("Requires BLT row pointer to be an integer");
+
+	if (!accessIndex().getType().isa<IntegerType>())
+		return emitOpError("Requires BLT column index to be an integer");
+
+	return mlir::success();
+}
+
+void AddColumnIndexOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::ValueRange AddColumnIndexOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value AddColumnIndexOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value AddColumnIndexOp::rowIndex()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value AddColumnIndexOp::accessIndex()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::AddEquationDimensionOp
+//===----------------------------------------------------------------------===//
+
+void AddEquationDimensionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value min, mlir::Value max)
 {
 	state.addOperands(userData);
 	state.addOperands(index);
@@ -551,17 +617,17 @@ void AddDimensionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state
 	state.addOperands(max);
 }
 
-mlir::ParseResult AddDimensionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+mlir::ParseResult AddEquationDimensionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
 	return marco::codegen::ida::parse(parser, result, 4);
 }
 
-void AddDimensionOp::print(mlir::OpAsmPrinter& printer)
+void AddEquationDimensionOp::print(mlir::OpAsmPrinter& printer)
 {
 	marco::codegen::ida::print(printer, getOperationName(), args());
 }
 
-mlir::LogicalResult AddDimensionOp::verify()
+mlir::LogicalResult AddEquationDimensionOp::verify()
 {
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
@@ -575,32 +641,32 @@ mlir::LogicalResult AddDimensionOp::verify()
 	return mlir::success();
 }
 
-void AddDimensionOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+void AddEquationDimensionOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-mlir::ValueRange AddDimensionOp::args()
+mlir::ValueRange AddEquationDimensionOp::args()
 {
 	return mlir::ValueRange(getOperation()->getOperands());
 }
 
-mlir::Value AddDimensionOp::userData()
+mlir::Value AddEquationDimensionOp::userData()
 {
 	return getOperation()->getOperand(0);
 }
 
-mlir::Value AddDimensionOp::index()
+mlir::Value AddEquationDimensionOp::index()
 {
 	return getOperation()->getOperand(1);
 }
 
-mlir::Value AddDimensionOp::min()
+mlir::Value AddEquationDimensionOp::min()
 {
 	return getOperation()->getOperand(2);
 }
 
-mlir::Value AddDimensionOp::max()
+mlir::Value AddEquationDimensionOp::max()
 {
 	return getOperation()->getOperand(3);
 }
@@ -717,6 +783,261 @@ mlir::Value AddJacobianOp::leftIndex()
 mlir::Value AddJacobianOp::rightIndex()
 {
 	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::AddVariableOffsetOp
+//===----------------------------------------------------------------------===//
+
+void AddVariableOffsetOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value dimension)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(dimension);
+}
+
+mlir::ParseResult AddVariableOffsetOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 2);
+}
+
+void AddVariableOffsetOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+mlir::LogicalResult AddVariableOffsetOp::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!offset().getType().isa<IntegerType>())
+		return emitOpError("Requires lambda dimension to be an integer");
+
+	return mlir::success();
+}
+
+void AddVariableOffsetOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType AddVariableOffsetOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange AddVariableOffsetOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value AddVariableOffsetOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value AddVariableOffsetOp::offset()
+{
+	return getOperation()->getOperand(1);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::AddVariableDimensionOp
+//===----------------------------------------------------------------------===//
+
+void AddVariableDimensionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value dimension)
+{
+	state.addOperands(userData);
+	state.addOperands(variable);
+	state.addOperands(dimension);
+}
+
+mlir::ParseResult AddVariableDimensionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 3);
+}
+
+void AddVariableDimensionOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args());
+}
+
+mlir::LogicalResult AddVariableDimensionOp::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!variable().getType().isa<IntegerType>())
+		return emitOpError("Requires variable index to be an integer");
+
+	if (!dimension().getType().isa<IntegerType>())
+		return emitOpError("Requires variable dimension to be an integer");
+
+	return mlir::success();
+}
+
+void AddVariableDimensionOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::ValueRange AddVariableDimensionOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value AddVariableDimensionOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value AddVariableDimensionOp::variable()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value AddVariableDimensionOp::dimension()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::AddNewVariableAccessOp
+//===----------------------------------------------------------------------===//
+
+void AddNewVariableAccessOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value offset, mlir::Value induction)
+{
+	state.addTypes(IntegerType::get(builder.getContext()));
+	state.addOperands(userData);
+	state.addOperands(variable);
+	state.addOperands(offset);
+	state.addOperands(induction);
+}
+
+mlir::ParseResult AddNewVariableAccessOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 4);
+}
+
+void AddNewVariableAccessOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
+}
+
+mlir::LogicalResult AddNewVariableAccessOp::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!variable().getType().isa<IntegerType>())
+		return emitOpError("Requires variable index to be an integer");
+
+	if (!offset().getType().isa<IntegerType>() || !induction().getType().isa<IntegerType>())
+		return emitOpError("Requires variable offset and induction to be integers");
+
+	return mlir::success();
+}
+
+void AddNewVariableAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+IntegerType AddNewVariableAccessOp::resultType()
+{
+	return getOperation()->getResultTypes()[0].cast<IntegerType>();
+}
+
+mlir::ValueRange AddNewVariableAccessOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value AddNewVariableAccessOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value AddNewVariableAccessOp::variable()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value AddNewVariableAccessOp::offset()
+{
+	return getOperation()->getOperand(2);
+}
+
+mlir::Value AddNewVariableAccessOp::induction()
+{
+	return getOperation()->getOperand(3);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::AddVariableAccessOp
+//===----------------------------------------------------------------------===//
+
+void AddVariableAccessOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value offset, mlir::Value induction)
+{
+	state.addOperands(userData);
+	state.addOperands(index);
+	state.addOperands(offset);
+	state.addOperands(induction);
+}
+
+mlir::ParseResult AddVariableAccessOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 4);
+}
+
+void AddVariableAccessOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args());
+}
+
+mlir::LogicalResult AddVariableAccessOp::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!index().getType().isa<IntegerType>())
+		return emitOpError("Requires variable access index to be an integer");
+
+	if (!offset().getType().isa<IntegerType>() || !induction().getType().isa<IntegerType>())
+		return emitOpError("Requires variable offset and induction to be integers");
+
+	return mlir::success();
+}
+
+void AddVariableAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::ValueRange AddVariableAccessOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value AddVariableAccessOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value AddVariableAccessOp::index()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value AddVariableAccessOp::offset()
+{
+	return getOperation()->getOperand(2);
+}
+
+mlir::Value AddVariableAccessOp::induction()
+{
+	return getOperation()->getOperand(3);
 }
 
 //===----------------------------------------------------------------------===//
@@ -882,252 +1203,6 @@ mlir::Value GetDerivativeOp::index()
 }
 
 //===----------------------------------------------------------------------===//
-// Ida::AddNewLambdaAccessOp
-//===----------------------------------------------------------------------===//
-
-void AddNewLambdaAccessOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value indices)
-{
-	state.addTypes(IntegerType::get(builder.getContext()));
-	state.addOperands(userData);
-	state.addOperands(offset);
-	state.addOperands(indices);
-}
-
-mlir::ParseResult AddNewLambdaAccessOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return marco::codegen::ida::parse(parser, result, 3);
-}
-
-void AddNewLambdaAccessOp::print(mlir::OpAsmPrinter& printer)
-{
-	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
-}
-
-mlir::LogicalResult AddNewLambdaAccessOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!offset().getType().isa<IntegerType>() || !indices().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda offset and indices to be integers");
-
-	return mlir::success();
-}
-
-void AddNewLambdaAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-IntegerType AddNewLambdaAccessOp::resultType()
-{
-	return getOperation()->getResultTypes()[0].cast<IntegerType>();
-}
-
-mlir::ValueRange AddNewLambdaAccessOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value AddNewLambdaAccessOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value AddNewLambdaAccessOp::offset()
-{
-	return getOperation()->getOperand(1);
-}
-
-mlir::Value AddNewLambdaAccessOp::indices()
-{
-	return getOperation()->getOperand(2);
-}
-
-//===----------------------------------------------------------------------===//
-// Ida::AddLambdaAccessOp
-//===----------------------------------------------------------------------===//
-
-void AddLambdaAccessOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value offset, mlir::Value indices)
-{
-	state.addOperands(userData);
-	state.addOperands(index);
-	state.addOperands(offset);
-	state.addOperands(indices);
-}
-
-mlir::ParseResult AddLambdaAccessOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return marco::codegen::ida::parse(parser, result, 4);
-}
-
-void AddLambdaAccessOp::print(mlir::OpAsmPrinter& printer)
-{
-	marco::codegen::ida::print(printer, getOperationName(), args());
-}
-
-mlir::LogicalResult AddLambdaAccessOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!index().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda access index to be an integer");
-
-	if (!offset().getType().isa<IntegerType>() || !indices().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda offset and indices to be integers");
-
-	return mlir::success();
-}
-
-void AddLambdaAccessOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-mlir::ValueRange AddLambdaAccessOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value AddLambdaAccessOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value AddLambdaAccessOp::index()
-{
-	return getOperation()->getOperand(1);
-}
-
-mlir::Value AddLambdaAccessOp::offset()
-{
-	return getOperation()->getOperand(2);
-}
-
-mlir::Value AddLambdaAccessOp::indices()
-{
-	return getOperation()->getOperand(3);
-}
-
-//===----------------------------------------------------------------------===//
-// Ida::AddNewLambdaDimensionOp
-//===----------------------------------------------------------------------===//
-
-void AddNewLambdaDimensionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value dimension)
-{
-	state.addTypes(IntegerType::get(builder.getContext()));
-	state.addOperands(userData);
-	state.addOperands(dimension);
-}
-
-mlir::ParseResult AddNewLambdaDimensionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return marco::codegen::ida::parse(parser, result, 2);
-}
-
-void AddNewLambdaDimensionOp::print(mlir::OpAsmPrinter& printer)
-{
-	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
-}
-
-mlir::LogicalResult AddNewLambdaDimensionOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!dimension().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda dimension to be an integer");
-
-	return mlir::success();
-}
-
-void AddNewLambdaDimensionOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-IntegerType AddNewLambdaDimensionOp::resultType()
-{
-	return getOperation()->getResultTypes()[0].cast<IntegerType>();
-}
-
-mlir::ValueRange AddNewLambdaDimensionOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value AddNewLambdaDimensionOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value AddNewLambdaDimensionOp::dimension()
-{
-	return getOperation()->getOperand(1);
-}
-
-//===----------------------------------------------------------------------===//
-// Ida::AddLambdaDimensionOp
-//===----------------------------------------------------------------------===//
-
-void AddLambdaDimensionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value dimension)
-{
-	state.addOperands(userData);
-	state.addOperands(index);
-	state.addOperands(dimension);
-}
-
-mlir::ParseResult AddLambdaDimensionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return marco::codegen::ida::parse(parser, result, 3);
-}
-
-void AddLambdaDimensionOp::print(mlir::OpAsmPrinter& printer)
-{
-	marco::codegen::ida::print(printer, getOperationName(), args());
-}
-
-mlir::LogicalResult AddLambdaDimensionOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!index().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda access index to be an integer");
-
-	if (!dimension().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda dimension to be an integer");
-
-	return mlir::success();
-}
-
-void AddLambdaDimensionOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-mlir::ValueRange AddLambdaDimensionOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value AddLambdaDimensionOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value AddLambdaDimensionOp::index()
-{
-	return getOperation()->getOperand(1);
-}
-
-mlir::Value AddLambdaDimensionOp::dimension()
-{
-	return getOperation()->getOperand(2);
-}
-
-//===----------------------------------------------------------------------===//
 // Ida::LambdaConstantOp
 //===----------------------------------------------------------------------===//
 
@@ -1233,267 +1308,117 @@ mlir::Value LambdaTimeOp::userData()
 }
 
 //===----------------------------------------------------------------------===//
-// Ida::LambdaScalarVariableOp
+// Ida::LambdaVariableOp
 //===----------------------------------------------------------------------===//
 
-void LambdaScalarVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset)
+void LambdaVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value accessIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
 	state.addOperands(userData);
-	state.addOperands(offset);
+	state.addOperands(accessIndex);
 }
 
-mlir::ParseResult LambdaScalarVariableOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+mlir::ParseResult LambdaVariableOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
 	return marco::codegen::ida::parse(parser, result, 2);
 }
 
-void LambdaScalarVariableOp::print(mlir::OpAsmPrinter& printer)
+void LambdaVariableOp::print(mlir::OpAsmPrinter& printer)
 {
 	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
 }
 
-mlir::LogicalResult LambdaScalarVariableOp::verify()
+mlir::LogicalResult LambdaVariableOp::verify()
 {
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
 
-	if (!offset().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda offset index to be an integer");
+	if (!accessIndex().getType().isa<IntegerType>())
+		return emitOpError("Requires lambda access index to be an integer");
 
 	return mlir::success();
 }
 
-void LambdaScalarVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+void LambdaVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-IntegerType LambdaScalarVariableOp::resultType()
+IntegerType LambdaVariableOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<IntegerType>();
 }
 
-mlir::ValueRange LambdaScalarVariableOp::args()
+mlir::ValueRange LambdaVariableOp::args()
 {
 	return mlir::ValueRange(getOperation()->getOperands());
 }
 
-mlir::Value LambdaScalarVariableOp::userData()
+mlir::Value LambdaVariableOp::userData()
 {
 	return getOperation()->getOperand(0);
 }
 
-mlir::Value LambdaScalarVariableOp::offset()
+mlir::Value LambdaVariableOp::accessIndex()
 {
 	return getOperation()->getOperand(1);
 }
 
 //===----------------------------------------------------------------------===//
-// Ida::LambdaScalarDerivativeOp
+// Ida::LambdaDerivativeOp
 //===----------------------------------------------------------------------===//
 
-void LambdaScalarDerivativeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset)
+void LambdaDerivativeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value accessIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
 	state.addOperands(userData);
-	state.addOperands(offset);
+	state.addOperands(accessIndex);
 }
 
-mlir::ParseResult LambdaScalarDerivativeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+mlir::ParseResult LambdaDerivativeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
 	return marco::codegen::ida::parse(parser, result, 2);
 }
 
-void LambdaScalarDerivativeOp::print(mlir::OpAsmPrinter& printer)
+void LambdaDerivativeOp::print(mlir::OpAsmPrinter& printer)
 {
 	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
 }
 
-mlir::LogicalResult LambdaScalarDerivativeOp::verify()
+mlir::LogicalResult LambdaDerivativeOp::verify()
 {
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!offset().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda offset index to be an integer");
-
-	return mlir::success();
-}
-
-void LambdaScalarDerivativeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-IntegerType LambdaScalarDerivativeOp::resultType()
-{
-	return getOperation()->getResultTypes()[0].cast<IntegerType>();
-}
-
-mlir::ValueRange LambdaScalarDerivativeOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value LambdaScalarDerivativeOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value LambdaScalarDerivativeOp::offset()
-{
-	return getOperation()->getOperand(1);
-}
-
-//===----------------------------------------------------------------------===//
-// Ida::LambdaVectorVariableOp
-//===----------------------------------------------------------------------===//
-
-void LambdaVectorVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value accessIndex, mlir::Value dimensionIndex)
-{
-	state.addTypes(IntegerType::get(builder.getContext()));
-	state.addOperands(userData);
-	state.addOperands(offset);
-	state.addOperands(accessIndex);
-	state.addOperands(dimensionIndex);
-}
-
-mlir::ParseResult LambdaVectorVariableOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return marco::codegen::ida::parse(parser, result, 4);
-}
-
-void LambdaVectorVariableOp::print(mlir::OpAsmPrinter& printer)
-{
-	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
-}
-
-mlir::LogicalResult LambdaVectorVariableOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!offset().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda offset index to be an integer");
 
 	if (!accessIndex().getType().isa<IntegerType>())
 		return emitOpError("Requires lambda access index to be an integer");
 
-	if (!dimensionIndex().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda dimension index to be an integer");
-
 	return mlir::success();
 }
 
-void LambdaVectorVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+void LambdaDerivativeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-IntegerType LambdaVectorVariableOp::resultType()
+IntegerType LambdaDerivativeOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<IntegerType>();
 }
 
-mlir::ValueRange LambdaVectorVariableOp::args()
+mlir::ValueRange LambdaDerivativeOp::args()
 {
 	return mlir::ValueRange(getOperation()->getOperands());
 }
 
-mlir::Value LambdaVectorVariableOp::userData()
+mlir::Value LambdaDerivativeOp::userData()
 {
 	return getOperation()->getOperand(0);
 }
 
-mlir::Value LambdaVectorVariableOp::offset()
+mlir::Value LambdaDerivativeOp::accessIndex()
 {
 	return getOperation()->getOperand(1);
-}
-
-mlir::Value LambdaVectorVariableOp::accessIndex()
-{
-	return getOperation()->getOperand(2);
-}
-
-mlir::Value LambdaVectorVariableOp::dimensionIndex()
-{
-	return getOperation()->getOperand(3);
-}
-
-//===----------------------------------------------------------------------===//
-// Ida::LambdaVectorDerivativeOp
-//===----------------------------------------------------------------------===//
-
-void LambdaVectorDerivativeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset, mlir::Value accessIndex, mlir::Value dimensionIndex)
-{
-	state.addTypes(IntegerType::get(builder.getContext()));
-	state.addOperands(userData);
-	state.addOperands(offset);
-	state.addOperands(accessIndex);
-	state.addOperands(dimensionIndex);
-}
-
-mlir::ParseResult LambdaVectorDerivativeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return marco::codegen::ida::parse(parser, result, 4);
-}
-
-void LambdaVectorDerivativeOp::print(mlir::OpAsmPrinter& printer)
-{
-	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
-}
-
-mlir::LogicalResult LambdaVectorDerivativeOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!offset().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda offset index to be an integer");
-
-	if (!accessIndex().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda access index to be an integer");
-
-	if (!dimensionIndex().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda dimension index to be an integer");
-
-	return mlir::success();
-}
-
-void LambdaVectorDerivativeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-IntegerType LambdaVectorDerivativeOp::resultType()
-{
-	return getOperation()->getResultTypes()[0].cast<IntegerType>();
-}
-
-mlir::ValueRange LambdaVectorDerivativeOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value LambdaVectorDerivativeOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value LambdaVectorDerivativeOp::offset()
-{
-	return getOperation()->getOperand(1);
-}
-
-mlir::Value LambdaVectorDerivativeOp::accessIndex()
-{
-	return getOperation()->getOperand(2);
-}
-
-mlir::Value LambdaVectorDerivativeOp::dimensionIndex()
-{
-	return getOperation()->getOperand(3);
 }
 
 //===----------------------------------------------------------------------===//
