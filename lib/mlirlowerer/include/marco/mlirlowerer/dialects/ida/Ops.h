@@ -1475,7 +1475,7 @@ namespace marco::codegen::ida
 
 	class LambdaCallOp : public mlir::Op<LambdaCallOp,
 																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<2>::Impl,
+																mlir::OpTrait::NOperands<3>::Impl,
 																mlir::OpTrait::OneResult,
 																mlir::MemoryEffectOpInterface::Trait> 
 	{
@@ -1487,7 +1487,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_call";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex, mlir::StringRef callee);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex, mlir::Value calleeAddress);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -1498,6 +1498,32 @@ namespace marco::codegen::ida
 		mlir::ValueRange args();
 		mlir::Value userData();
 		mlir::Value operandIndex();
+		mlir::Value calleeAddress();
+	};
+
+	//===----------------------------------------------------------------------===//
+	// Ida::LambdaAddressOfOp
+	//===----------------------------------------------------------------------===//
+
+	class LambdaAddressOfOp : public mlir::Op<LambdaAddressOfOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::ZeroOperands,
+																mlir::OpTrait::OneResult> 
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.lambda_addressof";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::Type realType);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		mlir::Type resultType();
 		mlir::StringRef callee();
 	};
 }

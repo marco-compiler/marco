@@ -947,11 +947,11 @@ struct UnrealizedCastOpLowering : public mlir::OpRewritePattern<mlir::Unrealized
 	}
 };
 
-struct LambdaCallOpLowering : public mlir::ConvertOpToLLVMPattern<ida::LambdaCallOp>
+struct LambdaAddressOfOpLowering : public mlir::ConvertOpToLLVMPattern<ida::LambdaAddressOfOp>
 {
-	using mlir::ConvertOpToLLVMPattern<ida::LambdaCallOp>::ConvertOpToLLVMPattern;
+	using mlir::ConvertOpToLLVMPattern<ida::LambdaAddressOfOp>::ConvertOpToLLVMPattern;
 
-	mlir::LogicalResult matchAndRewrite(ida::LambdaCallOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	mlir::LogicalResult matchAndRewrite(ida::LambdaAddressOfOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::ModuleOp module = op->getParentOfType<mlir::ModuleOp>();
 
@@ -959,36 +959,13 @@ struct LambdaCallOpLowering : public mlir::ConvertOpToLLVMPattern<ida::LambdaCal
 		{
 			assert(function.getNumArguments() == 1 && function.getNumResults() == 1);
 
-			// Create a pointer of type "double (double)*" to the mlir FunctionOp
-			mlir::Value functionPointer = rewriter.create<mlir::LLVM::AddressOfOp>(op.getLoc(), function);
+			// Create a pointer of type "double (double)*" to the mlir LLVMFuncOp
+			rewriter.replaceOpWithNewOp<mlir::LLVM::AddressOfOp>(op, function);
 
-			IntegerType result = IntegerType::get(op.getContext());
-			mlir::ValueRange args = { op.userData(), op.operandIndex(), functionPointer };
-
-			mlir::FuncOp callee = getOrDeclareFunction(
-					rewriter,
-					module,
-					"lambdaCall",
-					result,
-					args.getTypes());
-
-			rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, args);
 			return mlir::success();
 		}
 
 		return mlir::failure();
-	}
-
-	static mlir::FuncOp getOrDeclareFunction(mlir::OpBuilder& builder, mlir::ModuleOp module, llvm::StringRef name, mlir::TypeRange results, mlir::TypeRange args)
-	{
-		if (mlir::FuncOp foo = module.lookupSymbol<mlir::FuncOp>(name))
-			return foo;
-
-		mlir::PatternRewriter::InsertionGuard insertGuard(builder);
-		builder.setInsertionPointToStart(module.getBody());
-		mlir::FuncOp foo = builder.create<mlir::FuncOp>(module.getLoc(), name, builder.getFunctionType(args, results));
-		foo.setPrivate();
-		return foo;
 	}
 };
 
@@ -1009,7 +986,7 @@ static void populateModelicaToLLVMConversionPatterns(mlir::LLVMTypeConverter& ty
 			CastOpIntegerLowering,
 			CastOpRealLowering,
 			ArrayCastOpLowering,
-			LambdaCallOpLowering>(typeConverter);
+			LambdaAddressOfOpLowering>(typeConverter);
 }
 
 class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>>

@@ -3,6 +3,8 @@
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/APInt.h>
 #include <mlir/IR/Attributes.h>
+#include <mlir/IR/DialectImplementation.h>
+#include <mlir/IR/Types.h>
 
 namespace marco::codegen::ida
 {

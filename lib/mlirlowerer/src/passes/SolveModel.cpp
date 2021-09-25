@@ -2212,7 +2212,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			return builder.create<LambdaTanhOp>(loc, userData, children[0]);
 
 		if (CallOp callOp = mlir::dyn_cast<CallOp>(definingOp))
-			return builder.create<LambdaCallOp>(loc, userData, children[0], callOp.callee());
+		{
+			ida::RealType realType = ida::RealType::get(builder.getContext());
+			mlir::Value callee = builder.create<LambdaAddressOfOp>(loc, callOp.callee(), realType);
+			return builder.create<LambdaCallOp>(loc, userData, children[0], callee);
+		}
 
 		assert(false && "Unexpected operation");
 	}
