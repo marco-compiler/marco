@@ -1,4 +1,5 @@
 #include <mlir/Conversion/Passes.h>
+#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/IR/Builders.h>
 #include <mlir/IR/OpImplementation.h>
 #include <marco/mlirlowerer/dialects/ida/Attribute.h>
@@ -2772,50 +2773,22 @@ mlir::Value LambdaTanhOp::operandIndex()
 // Ida::LambdaCallOp
 //===----------------------------------------------------------------------===//
 
-void LambdaCallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex, mlir::StringRef callee)
+void LambdaCallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex, mlir::Value calleeAddress)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
 	state.addOperands(userData);
 	state.addOperands(operandIndex);
-	state.addAttribute("callee", builder.getSymbolRefAttr(callee));
+	state.addOperands(calleeAddress);
 }
 
 mlir::ParseResult LambdaCallOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	mlir::Builder& builder = parser.getBuilder();
-
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 2> operands;
-	mlir::Type userData;
-	mlir::Type operandIndex;
-	mlir::FlatSymbolRefAttr calleeAttr;
-	llvm::SmallVector<mlir::Type, 1> resultTypes;
-
-	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(operands, 2) ||
-			parser.parseColon() ||
-			parser.parseLParen() ||
-			parser.parseType(userData) || 
-			parser.parseComma() ||
-			parser.parseType(operandIndex) ||
-			parser.parseComma() ||
-			parser.parseAttribute(calleeAttr, builder.getType<mlir::NoneType>(), "callee", result.attributes) ||
-			parser.parseRParen() ||
-			parser.resolveOperands(operands, { userData, operandIndex }, operandsLoc, result.operands) ||
-			parser.parseOptionalArrowTypeList(resultTypes))
-		return mlir::failure();
-
-	result.addTypes(resultTypes);
-
-	return mlir::success();
+	return marco::codegen::ida::parse(parser, result, 3);
 }
 
 void LambdaCallOp::print(mlir::OpAsmPrinter& printer)
 {
-	printer << getOperationName()
-					<< " " << userData() << ", " << operandIndex() << " : ("
-					<< userData().getType() << ", " << operandIndex().getType() << ", @" << callee()
-					<< ") -> " << resultType();
+	marco::codegen::ida::print(printer, getOperationName(), args(), resultType());
 }
 
 mlir::LogicalResult LambdaCallOp::verify()
@@ -2825,6 +2798,9 @@ mlir::LogicalResult LambdaCallOp::verify()
 
 	if (!operandIndex().getType().isa<IntegerType>())
 		return emitOpError("Requires operand lambda index to be an integer");
+
+	if (!calleeAddress().getType().isa<mlir::LLVM::LLVMPointerType>())
+		return emitOpError("Requires callee address to be a pointer to a function");
 
 	return mlir::success();
 }
@@ -2854,7 +2830,54 @@ mlir::Value LambdaCallOp::operandIndex()
 	return getOperation()->getOperand(1);
 }
 
-mlir::StringRef LambdaCallOp::callee()
+mlir::Value LambdaCallOp::calleeAddress()
+{
+	return getOperation()->getOperand(2);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::LambdaAddressOfOp
+//===----------------------------------------------------------------------===//
+
+void LambdaAddressOfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::Type realType)
+{
+	state.addTypes(mlir::LLVM::LLVMPointerType::get(mlir::LLVM::LLVMFunctionType::get(realType, realType)));
+	state.addAttribute("callee", builder.getSymbolRefAttr(callee));
+}
+
+mlir::ParseResult LambdaAddressOfOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::Builder& builder = parser.getBuilder();
+
+	mlir::FlatSymbolRefAttr calleeAttr;
+	mlir::Type resultType;
+
+	if (parser.parseAttribute(calleeAttr, builder.getType<mlir::NoneType>(), "callee", result.attributes) ||
+			parser.parseColon() ||
+			parser.parseType(resultType))
+		return mlir::failure();
+
+	result.addTypes(resultType);
+
+	return mlir::success();
+}
+
+void LambdaAddressOfOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " @" << callee() << " : " << resultType();
+}
+
+mlir::LogicalResult LambdaAddressOfOp::verify()
+{
+	return mlir::success();
+}
+
+mlir::Type LambdaAddressOfOp::resultType()
+{
+	return getOperation()->getResultTypes()[0];
+}
+
+mlir::StringRef LambdaAddressOfOp::callee()
 {
 	return getOperation()->getAttrOfType<mlir::FlatSymbolRefAttr>("callee").getValue();
 }
