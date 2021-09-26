@@ -176,9 +176,6 @@ int jacobianMatrix(
 		// For every scalar equation in the vector equation
 		while (!finished)
 		{
-			nnzElements += data->rowLengths[eq];
-			*rowptrs++ = nnzElements;
-
 			// Compute the column indexes that may be non-zeros.
 			std::set<sunindextype> columnIndexesSet;
 			for (sunindextype accessIndex : data->columnIndexes[eq])
@@ -200,7 +197,10 @@ int jacobianMatrix(
 				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
 			}
 
-			assert((size_t) data->rowLengths[eq] == columnIndexesSet.size());
+			assert(columnIndexesSet.size() <= (size_t) data->rowLengths[eq]);
+
+			nnzElements += columnIndexesSet.size();
+			*rowptrs++ = nnzElements;
 
 			// For every variable with respect to which every equation must be
 			// partially differentiated
@@ -215,6 +215,8 @@ int jacobianMatrix(
 			finished = updateIndexes(indexes, data->equationDimensions[eq]);
 		}
 	}
+
+	assert(nnzElements == data->nonZeroValuesNumber);
 
 	return 0;
 }
@@ -252,12 +254,11 @@ bool checkRetval(void* retval, const char* funcname, int opt)
  * number of equations and the maximum number of non-zero values of the jacobian
  * matrix.
  */
-void* allocIdaUserData(sunindextype neq, sunindextype nnz)
+void* allocIdaUserData(sunindextype equationsNumber)
 {
 	IdaUserData* data = new IdaUserData;
 
-	data->equationsNumber = neq;
-	data->nonZeroValuesNumber = nnz;
+	data->equationsNumber = equationsNumber;
 
 	// Create and initialize the required N-vectors for the variables.
 	data->variablesVector = N_VNew_Serial(data->equationsNumber);
@@ -322,6 +323,58 @@ void setInitialValue(
 }
 
 /**
+ * Compute the total number of non-zero values in the Jacobian Matrix. This
+ * number corresponds to number of variables, in each scalar equation, where
+ * their derivative may be non-zero.
+ */
+sunindextype computeNNZ(IdaUserData* data)
+{
+	sunindextype result = 0;
+
+	for (size_t eq = 0; eq < data->equationDimensions.size(); eq++)
+	{
+		bool finished = false;
+
+		// Initialize the multidimensional interval of the vector equation
+		Indexes indexes;
+		for (size_t dim = 0; dim < data->equationDimensions[eq].size(); dim++)
+			indexes.push_back(data->equationDimensions[eq][dim].first);
+
+		// For every scalar equation in the vector equation
+		while (!finished)
+		{
+			// Compute the column indexes that may be non-zeros.
+			std::set<sunindextype> columnIndexesSet;
+			for (sunindextype accessIndex : data->columnIndexes[eq])
+			{
+				sunindextype varOffset = 0;
+				sunindextype varIndex = data->variableAccesses[accessIndex].first;
+				auto dimensions = data->variableDimensions[varIndex];
+
+				for (size_t i = 0;
+						 i < data->variableAccesses[accessIndex].second.size();
+						 i++)
+				{
+					auto acc = data->variableAccesses[accessIndex].second[i];
+					sunindextype accOffset =
+							acc.first + (acc.second != -1 ? indexes[acc.second] : 0);
+					varOffset += accOffset * dimensions[i];
+				}
+
+				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
+			}
+
+			result += columnIndexesSet.size();
+
+			// Update multidimensional interval, exit while loop if finished
+			finished = updateIndexes(indexes, data->equationDimensions[eq]);
+		}
+	}
+
+	return result;
+}
+
+/**
  * Instantiate and initialize all the classes needed by IDA in order to solve
  * the given system of equations. It must be called before the first usage of
  * step(). It may fail in case of malformed model.
@@ -332,6 +385,9 @@ bool idaInit(void* userData)
 
 	if (data->equationsNumber == 0)
 		return true;
+
+	// Compute the total amount of non-zero values in the Jacobian Matrix.
+	data->nonZeroValuesNumber = computeNNZ(data);
 
 	// Initialize IDA memory.
 	data->idaMemory = IDACreate();
@@ -622,6 +678,18 @@ Dimension getIdaDimension(void* userData, sunindextype index)
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	assert(index < data->equationsNumber);
 	return data->equationDimensions[index];
+}
+
+sunindextype getNumberOfEquations(void* userData)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	return data->equationsNumber;
+}
+
+sunindextype getNumberOfNonZeroValues(void* userData)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	return data->nonZeroValuesNumber;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1589,8 +1657,8 @@ sunindextype lambdaCall(
 											 realtype* yp,
 											 Indexes& ind,
 											 realtype var) -> realtype {
-		return ((realtype(*)(realtype)) function)(
-				operand(tt, cj, yy, yp, ind, var));
+		return (
+				(realtype(*)(realtype)) function) (operand(tt, cj, yy, yp, ind, var));
 	};
 
 	Function second = [](realtype tt,

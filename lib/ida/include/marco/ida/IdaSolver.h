@@ -71,9 +71,6 @@ namespace marco::codegen::ida
 		[[nodiscard]] Dimension getDimension(sunindextype index);
 
 		private:
-		[[nodiscard]] sunindextype computeNEQ();
-		[[nodiscard]] sunindextype computeNNZ();
-
 		/**
 		 * Given an equation from the model, returns the multidimensional interval
 		 * through which the equation iterates. Every interval is 0-indexed, with
@@ -101,8 +98,6 @@ namespace marco::codegen::ida
 		const model::Model model;
 		const realtype stopTime;
 		sunindextype forEquationsNumber;
-		const sunindextype equationsNumber;
-		const sunindextype nonZeroValuesNumber;
 
 		std::map<model::Variable, realtype> initialValueMap;
 		std::map<model::Variable, sunindextype> variableIndexMap;

@@ -27,19 +27,25 @@ static realtype getValue(ConstantOp constantOp)
 	return 0.0;
 }
 
+static sunindextype computeNEQ(const Model& model)
+{
+	sunindextype result = 0;
+
+	for (const BltBlock& bltBlock : model.getBltBlocks())
+		result += bltBlock.equationsCount();
+
+	return result;
+}
+
 IdaSolver::IdaSolver(
 		const Model& model,
 		realtype startTime,
 		realtype stopTime,
 		realtype relativeTolerance,
 		realtype absoluteTolerance)
-		: model(model),
-			stopTime(stopTime),
-			forEquationsNumber(0),
-			equationsNumber(computeNEQ()),
-			nonZeroValuesNumber(computeNNZ())
+		: model(model), stopTime(stopTime), forEquationsNumber(0)
 {
-	userData = allocIdaUserData(equationsNumber, nonZeroValuesNumber);
+	userData = allocIdaUserData(computeNEQ(model));
 	addTime(userData, startTime, stopTime);
 	addTolerance(userData, relativeTolerance, absoluteTolerance);
 }
@@ -236,7 +242,7 @@ mlir::LogicalResult IdaSolver::init()
 		}
 	}
 
-	assert(varOffset == equationsNumber);
+	assert(varOffset == getEquationsNumber());
 
 	initialValueMap.clear();
 	variableIndexMap.clear();
@@ -281,7 +287,7 @@ void IdaSolver::printOutput(llvm::raw_ostream& OS)
 {
 	OS << getTime();
 
-	for (sunindextype i : irange(equationsNumber))
+	for (sunindextype i : irange(getEquationsNumber()))
 		OS << ", " << getVariable(i);
 
 	OS << "\n";
@@ -294,21 +300,27 @@ void IdaSolver::printStats(llvm::raw_ostream& OS)
 	sunindextype nje = numJacEvals(userData);
 	sunindextype nni = numNonlinIters(userData);
 
-	OS << "\nFinal Run Statistics:\n\n";
-	OS << "Number of for-equations            = " << forEquationsNumber << "\n";
-	OS << "Number of scalar equations         = " << equationsNumber << "\n";
-	OS << "Number of non-zero values          = " << nonZeroValuesNumber << "\n";
-	OS << "Number of steps                    = " << nst << "\n";
-	OS << "Number of residual evaluations     = " << nre << "\n";
-	OS << "Number of Jacobian evaluations     = " << nje << "\n";
-	OS << "Number of nonlinear iterations     = " << nni << "\n";
+	OS << "\nFinal Run Statistics:\n";
+	OS << "Number of for-equations        = " << getForEquationsNumber() << "\n";
+	OS << "Number of scalar equations     = " << getEquationsNumber() << "\n";
+	OS << "Number of non-zero values      = " << getNonZeroValuesNumber() << "\n";
+	OS << "Number of steps                = " << nst << "\n";
+	OS << "Number of residual evaluations = " << nre << "\n";
+	OS << "Number of Jacobian evaluations = " << nje << "\n";
+	OS << "Number of nonlinear iterations = " << nni << "\n";
 }
 
 sunindextype IdaSolver::getForEquationsNumber() { return forEquationsNumber; }
 
-sunindextype IdaSolver::getEquationsNumber() { return equationsNumber; }
+sunindextype IdaSolver::getEquationsNumber()
+{
+	return getNumberOfEquations(userData);
+}
 
-sunindextype IdaSolver::getNonZeroValuesNumber() { return nonZeroValuesNumber; }
+sunindextype IdaSolver::getNonZeroValuesNumber()
+{
+	return getNumberOfNonZeroValues(userData);
+}
 
 realtype IdaSolver::getTime() { return getIdaTime(userData); }
 
@@ -330,51 +342,6 @@ sunindextype IdaSolver::getRowLength(sunindextype index)
 IdaSolver::Dimension IdaSolver::getDimension(sunindextype index)
 {
 	return getIdaDimension(userData, index);
-}
-
-sunindextype IdaSolver::computeNEQ()
-{
-	sunindextype result = 0;
-
-	for (const BltBlock& bltBlock : model.getBltBlocks())
-		result += bltBlock.equationsCount();
-
-	return result;
-}
-
-sunindextype IdaSolver::computeNNZ()
-{
-	sunindextype result = 0;
-
-	// For each equation, compute how many different variables are accessed.
-	for (const BltBlock& bltBlock : model.getBltBlocks())
-	{
-		for (const Equation& equation : bltBlock.getEquations())
-		{
-			ReferenceMatcher matcher(equation);
-			std::set<std::pair<Variable, VectorAccess>> varSet;
-
-			for (ExpressionPath& path : matcher)
-			{
-				Variable var =
-						model.getVariable(path.getExpression().getReferredVectorAccess());
-				if (var.isTime())
-					continue;
-
-				VectorAccess acc =
-						AccessToVar::fromExp(path.getExpression()).getAccess();
-
-				if (var.isDerivative())
-					varSet.insert({ model.getVariable(var.getState()), acc });
-				else
-					varSet.insert({ var, acc });
-			}
-
-			result += varSet.size() * equation.getInductions().size();
-		}
-	}
-
-	return result;
 }
 
 void IdaSolver::getDimension(const Equation& equation)

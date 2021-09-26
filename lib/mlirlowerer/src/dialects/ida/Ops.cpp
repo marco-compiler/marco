@@ -101,16 +101,15 @@ mlir::Type ConstantValueOp::resultType()
 // Ida::AllocUserDataOp
 //===----------------------------------------------------------------------===//
 
-void AllocUserDataOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value neq, mlir::Value nnz)
+void AllocUserDataOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value equationsNumber)
 {
 	state.addTypes(OpaquePointerType::get(builder.getContext()));
-	state.addOperands(neq);
-	state.addOperands(nnz);
+	state.addOperands(equationsNumber);
 }
 
 mlir::ParseResult AllocUserDataOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	return marco::codegen::ida::parse(parser, result, 2);
+	return marco::codegen::ida::parse(parser, result, 1);
 }
 
 void AllocUserDataOp::print(mlir::OpAsmPrinter& printer)
@@ -120,8 +119,8 @@ void AllocUserDataOp::print(mlir::OpAsmPrinter& printer)
 
 mlir::LogicalResult AllocUserDataOp::verify()
 {
-	if (!neq().getType().isa<IntegerType>() || !nnz().getType().isa<IntegerType>())
-		return emitOpError("Requires number of equation and number of non-zero value to be integers");
+	if (!equationsNumber().getType().isa<IntegerType>())
+		return emitOpError("Requires number of equations to be an integer");
 
 	return mlir::success();
 }
@@ -141,14 +140,9 @@ mlir::ValueRange AllocUserDataOp::args()
 	return mlir::ValueRange(getOperation()->getOperands());
 }
 
-mlir::Value AllocUserDataOp::neq()
+mlir::Value AllocUserDataOp::equationsNumber()
 {
 	return getOperation()->getOperand(0);
-}
-
-mlir::Value AllocUserDataOp::nnz()
-{
-	return getOperation()->getOperand(1);
 }
 
 //===----------------------------------------------------------------------===//
