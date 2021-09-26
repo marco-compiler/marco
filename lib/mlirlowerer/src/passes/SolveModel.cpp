@@ -2045,39 +2045,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return result;
 	}
 
-	static int64_t computeNNZ(Model& model)
-	{
-		int64_t result = 0;
-
-		// For each equation, compute how many different variables are accessed.
-		for (BltBlock& bltBlock : model.getBltBlocks())
-		{
-			for (Equation& equation : bltBlock.getEquations())
-			{
-				ReferenceMatcher matcher(equation);
-				std::set<std::pair<Variable, VectorAccess>> varSet;
-
-				for (ExpressionPath& path : matcher)
-				{
-					Variable var = model.getVariable(path.getExpression().getReferredVectorAccess());
-					if (var.isTime())
-						continue;
-
-					VectorAccess acc = AccessToVar::fromExp(path.getExpression()).getAccess();
-
-					if (var.isDerivative())
-						varSet.insert({ model.getVariable(var.getState()), acc });
-					else
-						varSet.insert({ var, acc });
-				}
-
-				result += varSet.size() * equation.getInductions().size();
-			}
-		}
-
-		return result;
-	}
-
 	static double getValue(ConstantOp constantOp)
 	{
 		mlir::Attribute attribute = constantOp.value();
@@ -2235,10 +2202,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		// Allocate IDA user data.
 		int64_t equationsNumber = computeNEQ(model);
-		int64_t nonZeroValuesNumber = computeNNZ(model);
 		mlir::Value neq = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, equationsNumber));
-		mlir::Value nnz = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, nonZeroValuesNumber));
-		mlir::Value userData = builder.create<AllocUserDataOp>(loc, neq, nnz);
+		mlir::Value userData = builder.create<AllocUserDataOp>(loc, neq);
 
 		mlir::Value startTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.startTime().getValue()));
 		mlir::Value stopTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.endTime().getValue()));

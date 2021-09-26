@@ -7,7 +7,7 @@
 extern "C"
 {
 	// Allocation, initialization, usage and deletion
-	void* allocIdaUserData(sunindextype neq, sunindextype nnz);
+	void* allocIdaUserData(sunindextype equationsNumber);
 	bool freeIdaUserData(void* userData);
 
 	void setInitialValue(void* userData, sunindextype index, sunindextype length, realtype value, bool isState);
@@ -34,6 +34,8 @@ extern "C"
 	realtype getIdaTime(void* userData);
 	realtype getIdaVariable(void* userData, sunindextype index);
 	realtype getIdaDerivative(void* userData, sunindextype index);
+	sunindextype getNumberOfEquations(void* userData);
+	sunindextype getNumberOfNonZeroValues(void* userData);
 
 	sunindextype getIdaRowLength(void* userData, sunindextype index);
 	std::vector<std::pair<sunindextype, sunindextype>> getIdaDimension(void* userData, sunindextype index);

@@ -43,7 +43,7 @@ namespace marco::codegen::ida
 
 	class AllocUserDataOp : public mlir::Op<AllocUserDataOp,
 																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<2>::Impl,
+																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
 																mlir::MemoryEffectOpInterface::Trait>
 	{
@@ -55,7 +55,7 @@ namespace marco::codegen::ida
 			return "ida.alloc_user_data";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value neq, mlir::Value nnz);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value equationsNumber);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -64,8 +64,7 @@ namespace marco::codegen::ida
 
 		OpaquePointerType resultType();
 		mlir::ValueRange args();
-		mlir::Value neq();
-		mlir::Value nnz();
+		mlir::Value equationsNumber();
 	};
 
 	//===----------------------------------------------------------------------===//
