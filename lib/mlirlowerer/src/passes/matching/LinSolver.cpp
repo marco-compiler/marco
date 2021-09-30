@@ -286,39 +286,56 @@ static mlir::LogicalResult groupLeftHand(mlir::OpBuilder& builder, Equation& equ
 
 namespace marco::codegen::model
 {
-	void replaceUses(mlir::OpBuilder& builder, const Equation source, Equation destination)
+	void replaceUses(mlir::OpBuilder& builder, const Equation source, Equation& destination)
 	{
 		mlir::OpBuilder::InsertionGuard guard(builder);
 
-		auto var = source.getDeterminedVariable();
+		AccessToVar var = source.getDeterminedVariable();
 		ReferenceMatcher matcher(destination);
 
-		for (auto& access : matcher)
+		for (ExpressionPath& access : matcher)
 		{
-			auto pathToVar = AccessToVar::fromExp(access.getExpression());
+			AccessToVar pathToVar = AccessToVar::fromExp(access.getExpression());
 
 			if (pathToVar.getVar() != var.getVar())
 				continue;
 
-			auto composedSource = source.composeAccess(pathToVar.getAccess());
+			// Compose the source equation with the correct indexes from the destination access
+			VectorAccess sourceAccess = AccessToVar::fromExp(source.lhs()).getAccess();
+			VectorAccess destAccess = pathToVar.getAccess();
+			Equation composedSource = source.composeAccess(destAccess);
+
+			mlir::ValueRange sourceInductions = composedSource.getOp().inductions();
+			mlir::ValueRange destInductions = destination.getOp().inductions();
+			SubscriptionOp destSubOp = mlir::cast<SubscriptionOp>(access.getExpression().getOp());
+			assert(mlir::cast<SubscriptionOp>(source.lhs().getOp()).indexes().size() == destSubOp.indexes().size());
 
 			// Map the old induction values with the ones in the new equation
 			mlir::BlockAndValueMapping mapper;
+			builder.setInsertionPoint(destSubOp);
 
-			for (auto [oldInduction, newInduction] :
-					llvm::zip(composedSource.getOp().inductions(), destination.getOp().inductions()))
-				mapper.map(oldInduction, newInduction);
+			for (size_t i : marco::irange(destAccess.size()))
+			{
+				if (destAccess[i].isOffset() && sourceAccess[i].isOffset())
+				{
+					mapper.map(sourceInductions[sourceAccess[i].getInductionVar()], destInductions[destAccess[i].getInductionVar()]);
+				}
+				else if (sourceAccess[i].isOffset())
+				{
+					assert(mlir::isa<ConstantOp>(destSubOp.indexes()[i].getDefiningOp()));
+					mapper.map(sourceInductions[sourceAccess[i].getInductionVar()], destSubOp.indexes()[i]);
+				}
+			}
 
 			// Copy all the operations from the explicitated equation into the
 			// one whose member has to be replaced.
-			builder.setInsertionPointToStart(destination.getOp().body());
 			EquationSidesOp clonedTerminator;
 
-			for (auto& op : composedSource.getOp().body()->getOperations())
+			for (mlir::Operation& op : composedSource.getOp().body()->getOperations())
 			{
 				mlir::Operation* clonedOp = builder.clone(op, mapper);
 
-				if (auto terminator = mlir::dyn_cast<EquationSidesOp>(clonedOp))
+				if (EquationSidesOp terminator = mlir::dyn_cast<EquationSidesOp>(clonedOp))
 					clonedTerminator = terminator;
 			}
 
@@ -330,7 +347,7 @@ namespace marco::codegen::model
 			clonedTerminator.erase();
 
 			// Replace the uses of the value we want to replace.
-			for (auto& use : destination.reachExp(access).getOp()->getUses())
+			for (mlir::OpOperand& use : destination.reachExp(access).getOp()->getUses())
 			{
 				// We need to check if we are inside the equation body block. In fact,
 				// if the value to be replaced is an array (and not a scalar or a
@@ -340,7 +357,7 @@ namespace marco::codegen::model
 				if (!destination.getOp()->isAncestor(use.getOwner()))
 					continue;
 
-				if (auto loadOp = mlir::dyn_cast<LoadOp>(use.getOwner()); loadOp.indexes().empty())
+				if (LoadOp loadOp = mlir::dyn_cast<LoadOp>(use.getOwner()); loadOp.indexes().empty())
 				{
 					// If the value to be replaced is the declaration of a scalar
 					// variable, we instead need to replace the load operations which
@@ -364,7 +381,6 @@ namespace marco::codegen::model
 				}
 			}
 
-			composedSource.getOp()->dropAllDefinedValueUses();
 			composedSource.getOp()->erase();
 		}
 

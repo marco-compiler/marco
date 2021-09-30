@@ -20,11 +20,9 @@ static realtype getValue(ConstantOp constantOp)
 	if (auto integer = attribute.dyn_cast<IntegerAttribute>())
 		return integer.getValue();
 
-	if (auto real = attribute.dyn_cast<RealAttribute>())
-		return real.getValue();
+	assert(attribute.isa<RealAttribute>());
 
-	assert(false && "Unreachable");
-	return 0.0;
+	return attribute.cast<RealAttribute>().getValue();
 }
 
 static sunindextype computeNEQ(const Model& model)

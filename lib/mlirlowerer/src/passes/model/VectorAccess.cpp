@@ -97,6 +97,7 @@ int64_t SingleDimensionAccess::getOffset() const
 
 size_t SingleDimensionAccess::getInductionVar() const
 {
+	assert(isOffset());
 	return inductionVar;
 }
 
@@ -225,6 +226,18 @@ bool VectorAccess::operator>=(const VectorAccess& other) const
 	return !(*this < other);
 }
 
+SingleDimensionAccess& VectorAccess::operator[](size_t index)
+{
+	assert(index < vectorAccess.size());
+	return vectorAccess[index];
+}
+
+const SingleDimensionAccess& VectorAccess::operator[](size_t index) const
+{
+	assert(index < vectorAccess.size());
+	return vectorAccess[index];
+}
+
 VectorAccess VectorAccess::operator*(const VectorAccess& other) const
 {
 	return combine(other);
@@ -288,10 +301,20 @@ bool VectorAccess::isIdentity() const
 	return true;
 }
 
+size_t VectorAccess::size() const
+{
+	return vectorAccess.size();
+}
+
 size_t VectorAccess::mappableDimensions() const
 {
 	return llvm::count_if(
 			vectorAccess, [](const auto& acc) { return acc.isOffset(); });
+}
+
+void VectorAccess::sort()
+{
+	llvm::sort(vectorAccess);
 }
 
 marco::IndexSet VectorAccess::map(const IndexSet& indexSet) const

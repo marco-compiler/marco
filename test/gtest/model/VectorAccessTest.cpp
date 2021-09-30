@@ -71,9 +71,9 @@ TEST(VectorAccessTest, MultiDirectAccess)
 
 	EXPECT_EQ(access.getVar(), model.getVariables()[0]->getReference());
 	EXPECT_EQ(access.getAccess().getMappingOffset().size(), 2);
-	EXPECT_EQ(access.getAccess().getMappingOffset()[0].getInductionVar(), 0);
+	EXPECT_TRUE(access.getAccess().getMappingOffset()[0].isDirectAccess());
 	EXPECT_EQ(access.getAccess().getMappingOffset()[0].getOffset(), 3);
-	EXPECT_EQ(access.getAccess().getMappingOffset()[1].getInductionVar(), 0);
+	EXPECT_TRUE(access.getAccess().getMappingOffset()[1].isDirectAccess());
 	EXPECT_EQ(access.getAccess().getMappingOffset()[1].getOffset(), 1);
 }
 
@@ -121,14 +121,16 @@ TEST(VectorAccessTest, MapFromExpression)
 	EXPECT_EQ(access.getVar(), model.getVariables()[0]->getReference());
 	EXPECT_EQ(access.getAccess().getMappingOffset().size(), 3);
 
+	EXPECT_TRUE(access.getAccess().getMappingOffset()[0].isOffset());
 	EXPECT_EQ(access.getAccess().getMappingOffset()[0].getInductionVar(), 0);
 	EXPECT_EQ(access.getAccess().getMappingOffset()[0].getOffset(), 3);
+
+	EXPECT_TRUE(access.getAccess().getMappingOffset()[1].isOffset());
 	EXPECT_EQ(access.getAccess().getMappingOffset()[1].getInductionVar(), 1);
 	EXPECT_EQ(access.getAccess().getMappingOffset()[1].getOffset(), 9);
-	EXPECT_EQ(access.getAccess().getMappingOffset()[2].getInductionVar(), 0);
-	EXPECT_EQ(access.getAccess().getMappingOffset()[2].getOffset(), 19);
 
 	EXPECT_TRUE(access.getAccess().getMappingOffset()[2].isDirectAccess());
+	EXPECT_EQ(access.getAccess().getMappingOffset()[2].getOffset(), 19);
 
 	marco::MultiDimInterval interval({ { 0, 10 }, { 4, 8 } });
 	marco::MultiDimInterval out = access.getAccess().map(interval);

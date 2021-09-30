@@ -120,6 +120,12 @@ static mlir::Type getMostGenericType(mlir::Type x, mlir::Type y)
 	if (y.isa<RealType>())
 		return y;
 
+	if (x.isa<mlir::IndexType>())
+		return x;
+
+	if (y.isa<mlir::IndexType>())
+		return y;
+
 	if (x.isa<IntegerType>())
 		return x;
 
@@ -134,8 +140,23 @@ static double getAttributeValue(mlir::Attribute attribute)
 	if (RealAttribute real = attribute.dyn_cast<RealAttribute>())
 		return real.getValue();
 
-	assert(false && "Unreachable");
-	return 0.0;
+	assert(attribute.getType().isa<mlir::IndexType>());
+
+	return attribute.cast<mlir::IntegerAttr>().getInt();
+}
+
+static mlir::Attribute getAttribute(mlir::OpBuilder& builder, mlir::Type type, int value)
+{
+	if (type.isa<BooleanType>())
+		return BooleanAttribute::get(type, value > 0);
+
+	if (type.isa<IntegerType>())
+		return IntegerAttribute::get(type, value);
+
+	if (type.isa<RealType>())
+		return RealAttribute::get(type, value);
+
+	return builder.getIndexAttr(value);
 }
 
 static bool isOperandFoldable(mlir::Value operand)
@@ -144,11 +165,6 @@ static bool isOperandFoldable(mlir::Value operand)
 		return false;
 
 	if (!mlir::isa<ConstantOp>(operand.getDefiningOp()))
-		return false;
-
-	ConstantOp operandOp = mlir::cast<ConstantOp>(operand.getDefiningOp());
-
-	if (operandOp.value().getType().isa<mlir::IndexType>())
 		return false;
 
 	return true;
@@ -4727,12 +4743,17 @@ void AddOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), left + right));
+	mlir::Type type = getMostGenericType(leftOp.resultType(), rightOp.resultType());
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), getAttribute(builder, type, left + right));
 
 	replaceAllUsesWith(newOp);
 	erase();
-	leftOp->erase();
-	rightOp->erase();
+
+	if (leftOp.use_empty())
+		leftOp->erase();
+
+	if (rightOp.use_empty())
+		rightOp->erase();
 }
 
 mlir::Type AddOp::resultType()
@@ -5157,12 +5178,17 @@ void SubOp::foldConstants(mlir::OpBuilder& builder)
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
 
-	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), left - right));
+	mlir::Type type = getMostGenericType(leftOp.resultType(), rightOp.resultType());
+	mlir::Value newOp = builder.create<ConstantOp>(getLoc(), getAttribute(builder, type, left - right));
 
 	replaceAllUsesWith(newOp);
 	erase();
-	leftOp->erase();
-	rightOp->erase();
+
+	if (leftOp.use_empty())
+		leftOp->erase();
+
+	if (rightOp.use_empty())
+		rightOp->erase();
 }
 
 mlir::Type SubOp::resultType()
