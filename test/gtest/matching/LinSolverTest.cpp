@@ -27,6 +27,11 @@ TEST(LinSolverTest, LinearySolveTest)
 
 	EXPECT_EQ(model.getEquations().size(), 2);
 
+	EXPECT_TRUE(model.getEquations()[0].lhs().isOperation());
+	EXPECT_TRUE(model.getEquations()[1].lhs().isOperation());
+	EXPECT_TRUE(model.getEquations()[0].rhs().isConstant());
+	EXPECT_TRUE(model.getEquations()[1].rhs().isConstant());
+
 	llvm::SmallVector<Equation, 3> equations;
 	for (Equation& eq : model.getEquations())
 	{
@@ -39,6 +44,11 @@ TEST(LinSolverTest, LinearySolveTest)
 
 	EXPECT_TRUE(canSolveSystem(model.getEquations(), model));
 
+	EXPECT_TRUE(model.getEquations()[0].lhs().isReferenceAccess());
+	EXPECT_TRUE(model.getEquations()[1].lhs().isReferenceAccess());
+	EXPECT_TRUE(model.getEquations()[0].rhs().isOperation());
+	EXPECT_TRUE(model.getEquations()[1].rhs().isOperation());
+
 	mlir::OpBuilder builder(model.getOp());
 	if (failed(linearySolve(builder, equations)))
 		FAIL();
@@ -49,6 +59,4 @@ TEST(LinSolverTest, LinearySolveTest)
 
 	EXPECT_TRUE(model.getEquations()[0].lhs().isReferenceAccess());
 	EXPECT_TRUE(model.getEquations()[1].lhs().isReferenceAccess());
-	EXPECT_TRUE(model.getEquations()[0].rhs().isOperation());
-	EXPECT_TRUE(model.getEquations()[1].rhs().isOperation());
 }

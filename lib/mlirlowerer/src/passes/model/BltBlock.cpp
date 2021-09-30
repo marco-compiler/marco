@@ -17,13 +17,13 @@ const BltBlock::Container<Equation>& BltBlock::getEquations() const
 	return equations;
 }
 
-Equation BltBlock::operator[](size_t index)
+Equation& BltBlock::operator[](size_t index)
 {
 	assert(index < equations.size());
 	return equations[index];
 }
 
-Equation BltBlock::operator[](size_t index) const
+const Equation& BltBlock::operator[](size_t index) const
 {
 	assert(index < equations.size());
 	return equations[index];

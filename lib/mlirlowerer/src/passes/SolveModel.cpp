@@ -2018,6 +2018,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 						}
 
 						// Then re-start iterating over the same equation
+						bltBlocks[i][j].update();
 						matcher = ReferenceMatcher(bltBlocks[i][j]);
 						k = 0;
 					}
@@ -2028,7 +2029,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		// Clean the equation and fold the constants.
 		for (BltBlock& bltBlock : bltBlocks)
 			for (Equation& equation : bltBlock.getEquations())
-				equation.foldConstants();
+				equation.update();
 
 		Model result(model.getOp(), model.getVariables(), model.getEquations(), bltBlocks);
 		model = result;

@@ -309,8 +309,11 @@ ExpressionPath Equation::getMatchedExpressionPath() const
 
 static void composeAccess(Expression& exp, const VectorAccess& transformation)
 {
+	// Return if the variable is the time variable.
+	if (!mlir::isa<SubscriptionOp>(exp.getOp()))
+		return;
+
 	AccessToVar access = AccessToVar::fromExp(exp);
-	VectorAccess combinedAccess = access.getAccess() * transformation;
 
 	assert(mlir::isa<SubscriptionOp>(exp.getOp()));
 	SubscriptionOp op = mlir::cast<SubscriptionOp>(exp.getOp());
@@ -319,20 +322,19 @@ static void composeAccess(Expression& exp, const VectorAccess& transformation)
 	llvm::SmallVector<mlir::Value, 3> indexes;
 
 	// Compute new indexes of the SubscriptionOp.
-	for (const SingleDimensionAccess& singleDimensionAccess : combinedAccess)
+	for (const SingleDimensionAccess& singleDimAccess : access.getAccess())
 	{
-		mlir::Value index;
-
-		if (singleDimensionAccess.isDirectAccess())
-			index = builder.create<ConstantOp>(loc, builder.getIndexAttr(singleDimensionAccess.getOffset()));
+		if (singleDimAccess.isDirectAccess())
+		{
+			indexes.push_back(builder.create<ConstantOp>(loc, builder.getIndexAttr(singleDimAccess.getOffset())));
+		}
 		else
 		{
-			mlir::Value inductionVar = exp.getOp()->getParentOfType<ForEquationOp>().body()->getArgument(singleDimensionAccess.getInductionVar());
-			mlir::Value offset = builder.create<ConstantOp>(loc, builder.getIndexAttr(singleDimensionAccess.getOffset()));
-			index = builder.create<AddOp>(loc, builder.getIndexType(), inductionVar, offset);
+			mlir::Value inductionVar = exp.getOp()->getParentOfType<ForEquationOp>().body()->getArgument(singleDimAccess.getInductionVar());
+			mlir::Value offset = builder.create<ConstantOp>(loc, builder.getIndexAttr(
+					singleDimAccess.getOffset() + transformation[singleDimAccess.getInductionVar()].getOffset()));
+			indexes.push_back(builder.create<AddOp>(loc, builder.getIndexType(), inductionVar, offset));
 		}
-
-		indexes.push_back(index);
 	}
 
 	// Replace the old SubscriptionOp with a new one using the computed indexes.
@@ -343,15 +345,25 @@ static void composeAccess(Expression& exp, const VectorAccess& transformation)
 
 Equation Equation::composeAccess(const VectorAccess& transformation) const
 {
-	Equation toReturn = clone();
-
-	VectorAccess inverted = transformation.invert();
 	VectorAccess currentAccess = AccessToVar::fromExp(getMatchedExp()).getAccess();
-	toReturn.setInductions(inverted.map(currentAccess.map(getInductions())));
+	assert(transformation.size() == currentAccess.size());
 
+	Equation toReturn = clone();
+	llvm::SmallVector<SingleDimensionAccess, 3> accesses;
+
+	// Compute the indexes transformation of right hand side of the equation.
+	for (size_t i : marco::irange(transformation.size()))
+	{
+		if (transformation[i].isOffset() && currentAccess[i].isOffset())
+			accesses.push_back(SingleDimensionAccess::relative(
+				transformation[i].getOffset() - currentAccess[i].getOffset(), currentAccess[i].getInductionVar()));
+		else if (currentAccess[i].isOffset())
+			accesses.push_back(SingleDimensionAccess::relative(-currentAccess[i].getOffset(), currentAccess[i].getInductionVar()));
+	}
 
 	ReferenceMatcher matcher(toReturn);
-	VectorAccess composedTransformation = currentAccess.invert() * transformation;
+	VectorAccess composedTransformation(accesses);
+	composedTransformation.sort();
 
 	for (ExpressionPath& matchedExp : matcher)
 	{
@@ -518,8 +530,6 @@ void Equation::foldConstants()
 
 		mlir::cast<FoldableOpInterface>(operation).foldConstants(builder);
 	}
-
-	update();
 }
 
 void Equation::cleanOperation()
@@ -539,6 +549,7 @@ void Equation::cleanOperation()
 void Equation::update()
 {
 	cleanOperation();
+	foldConstants();
 
 	EquationSidesOp terminator = getTerminator();
 	impl->left = Expression::build(terminator.lhs()[0]);

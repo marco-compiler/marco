@@ -74,6 +74,9 @@ namespace marco::codegen::model
 		[[nodiscard]] bool operator<=(const VectorAccess& other) const;
 		[[nodiscard]] bool operator>=(const VectorAccess& other) const;
 
+		[[nodiscard]] SingleDimensionAccess& operator[](size_t index);
+		[[nodiscard]] const SingleDimensionAccess& operator[](size_t index) const;
+
 		[[nodiscard]] VectorAccess operator*(const VectorAccess& other) const;
 		[[nodiscard]] IndexSet operator*(const IndexSet& other) const;
 
@@ -90,7 +93,10 @@ namespace marco::codegen::model
 
 		[[nodiscard]] bool isIdentity() const;
 
+		[[nodiscard]] size_t size() const;
 		[[nodiscard]] size_t mappableDimensions() const;
+
+		void sort();
 
 		[[nodiscard]] IndexSet map(const IndexSet& indexSet) const;
 		[[nodiscard]] MultiDimInterval map(const MultiDimInterval& interval) const;
