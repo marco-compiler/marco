@@ -175,6 +175,11 @@ void PartialDerFunction::setResultsTypes(llvm::ArrayRef<Type> types)
 		this->results.push_back(type);
 }
 
+FunctionType PartialDerFunction::getType() const
+{
+	return FunctionType(args, results);
+}
+
 StandardFunction::StandardFunction(SourceRange location,
 																	 bool pure,
 																	 llvm::StringRef name,

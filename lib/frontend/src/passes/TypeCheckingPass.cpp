@@ -790,6 +790,9 @@ llvm::Error TypeChecker::run<PartialDerFunction>(Class& cls)
 	SymbolTable::ScopeTy varScope(symbolTable);
 	auto* derFunction = cls.get<PartialDerFunction>();
 
+	// Populate the symbol table
+	symbolTable.insert(derFunction->getName(), Symbol(cls));
+
 	if (auto* derivedFunction = derFunction->getDerivedFunction(); !derivedFunction->isa<ReferenceAccess>())
 		return llvm::make_error<BadSemantic>(derivedFunction->getLocation(), "the derived function must be a reference");
 
@@ -1369,6 +1372,9 @@ llvm::Error TypeChecker::run<Call>(Expression& expression)
 			{
 				if (const auto* standardFunction = cls->dyn_get<StandardFunction>())
 					return standardFunction->getType();
+
+				if (const auto* partialDerFunction = cls->dyn_get<PartialDerFunction>())
+					return partialDerFunction->getType();
 			}
 
 			return llvm::None;

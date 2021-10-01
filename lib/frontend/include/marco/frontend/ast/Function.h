@@ -65,6 +65,8 @@ namespace marco::frontend
 		[[nodiscard]] llvm::ArrayRef<Type> getResultsTypes() const;
 		void setResultsTypes(llvm::ArrayRef<Type> types);
 
+		[[nodiscard]] FunctionType getType() const;
+
 		private:
 		friend class Class;
 
