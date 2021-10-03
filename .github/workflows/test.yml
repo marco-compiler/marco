@@ -36,15 +36,23 @@ jobs:
       - name: Copy package to server
         id: copy
         run: scp marco.tar.gz ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}}:${{env.TEMP_DIR}}/marco.tar.gz
+        continue-on-error: true
 
       - name: Build
+        id: build
+        if: steps.copy.outcome == 'success'
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} sh ci.sh ${{env.TEMP_DIR}} marco.tar.gz
+        continue-on-error: true
 
       - name: Run regression tests
+        if: steps.build.outcome == 'success'
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}}/build '&&' ninja check
+        continue-on-error: true
 
       - name: Run unit tests
+        if: steps.build.outcome == 'success'
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}}/build '&&' ninja test
+        continue-on-error: true
 
       - name: Clean remote files
         if: steps.create-temp-dir.outcome == 'success'
