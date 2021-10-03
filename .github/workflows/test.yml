@@ -45,11 +45,13 @@ jobs:
         continue-on-error: true
 
       - name: Run regression tests
+        id: regression-tests
         if: steps.build.outcome == 'success'
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}}/build '&&' ninja check
         continue-on-error: true
 
       - name: Run unit tests
+        id: unit-tests
         if: steps.build.outcome == 'success'
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} cd ${{env.TEMP_DIR}}/build '&&' ninja test
         continue-on-error: true
@@ -57,6 +59,10 @@ jobs:
       - name: Clean remote files
         if: steps.create-temp-dir.outcome == 'success'
         run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} rm -rf ${{env.TEMP_DIR}}
+
+      - name: Check on failures
+        if: steps.regression-tests.outcome != 'success' || steps.unit-tests.outcome != 'success'
+        run: exit 1
 
 # Old steps to run tests on Github:
 #steps:
