@@ -1,8 +1,7 @@
 # -*- Python -*-
 
-import os
-
 import lit.util
+import os
 from lit.llvm import llvm_config
 
 # Configuration file for the 'lit' test runner.
@@ -27,7 +26,7 @@ config.substitutions.append(('%shlibext', config.llvm_shlib_ext))
 config.substitutions.append(('%llvm_include_dirs', config.llvm_include_dirs))
 config.substitutions.append(('%runtime_h', os.path.join(config.standalone_src_root, 'lib/runtime/include')))
 config.substitutions.append(('%libs', os.path.join(config.standalone_obj_root, 'lib')))
-config.substitutions.append(('%runtime_lib', os.path.join(config.standalone_obj_root, 'lib', 'runtime', 'libruntime') + config.llvm_shlib_ext))
+config.substitutions.append(('%runtime_lib', os.path.join(config.standalone_obj_root, 'lib', 'runtime', 'libMARCORuntime') + config.llvm_shlib_ext))
 
 llvm_config.with_system_environment(
     ['HOME', 'INCLUDE', 'LIB', 'TMP', 'TEMP'])
