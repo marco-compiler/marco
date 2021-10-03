@@ -46,8 +46,8 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
 find_package(LLVM REQUIRED CONFIG)
 find_package(MLIR REQUIRED CONFIG)
 
-message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
 message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+message(STATUS "Using MLIRConfig.cmake in: ${MLIR_DIR}")
 
 set(LLVM_RUNTIME_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/bin)
 set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_BINARY_DIR}/lib)
@@ -87,19 +87,9 @@ add_subdirectory(test)
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)
-find_package(Boost 1.45.0 COMPONENTS graph)
+find_package(Boost 1.45.0 COMPONENTS graph exception REQUIRED)
 
 add_library(boost INTERFACE)
 target_include_directories(boost INTERFACE ${Boost_INCLUDE_DIRS})
 target_compile_definitions(boost INTERFACE -DBOOST_NO_EXCEPTIONS)
 target_compile_features(boost INTERFACE cxx_std_17)
-
-install(TARGETS boost EXPORT BoostTargets
-	LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-	RUNTIME DESTINATION bin
-	INCLUDES DESTINATION include)
-
-install(EXPORT BoostTargets DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${CMAKE_PROJECT_NAME}
-	FILE boostTargets.cmake
-	NAMESPACE marco::)

@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
 		constantFoldedModel.dump();
 
 	error_code error;
-	raw_fd_ostream OS(outputFile, error, sys::fs::F_None);
+	raw_fd_ostream OS(outputFile, error, sys::fs::OF_None);
 	if (error)
 	{
 		errs() << error.message();
@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 		{
 			string fileName = to_string(i) + "_" + outputFile;
 			SVarDepencyGraph scalarGraph(graph, scc);
-			raw_fd_ostream OS(outputFile, error, sys::fs::F_None);
+			raw_fd_ostream OS(outputFile, error, sys::fs::OF_None);
 			if (error)
 			{
 				errs() << error.message();

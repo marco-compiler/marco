@@ -192,6 +192,7 @@ mlir::Type TypeConverter::convertRealType(RealType type)
 		return convertType(mlir::Float64Type::get(&getContext()));
 
 	mlir::emitError(mlir::UnknownLoc::get(&getContext())) << "Unsupported type: !modelica.real<" << bitWidth << ">";
+	assert(false && "Unreachable");
 	return {};
 }
 

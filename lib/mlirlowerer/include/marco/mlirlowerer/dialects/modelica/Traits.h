@@ -19,7 +19,6 @@ namespace marco::codegen::modelica
 				Concept& operator=(Concept&& other) = default;
 				virtual ~Concept() = default;
 				Concept& operator=(const Concept& other) = default;
-
 			};
 
 			template <typename ConcreteOp>
@@ -33,6 +32,11 @@ namespace marco::codegen::modelica
 			{
 				public:
 				FallbackModel() = default;
+			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel>
+			{
 
 			};
 		};
@@ -42,15 +46,6 @@ namespace marco::codegen::modelica
 	{
 		public:
 		using OpInterface<BreakableOp, detail::BreakableOpTraits>::OpInterface;
-
-		template <typename ConcreteOp>
-		struct BreakableOpTrait : public mlir::OpInterface<BreakableOp, detail::BreakableOpTraits>::Trait<ConcreteOp>
-		{
-
-		};
-
-		template <typename ConcreteOp>
-		struct Trait : public BreakableOpTrait<ConcreteOp> {};
 	};
 
 	namespace detail
@@ -66,6 +61,13 @@ namespace marco::codegen::modelica
 				virtual ~Concept() = default;
 				Concept& operator=(const Concept& other) = default;
 
+				/**
+				 * Get the members of the class.
+				 *
+				 * @param op				operation
+				 * @param members 	members list to be populated
+				 * @param names			names list to be populated
+				 */
 				virtual void getMembers(mlir::Operation* op, llvm::SmallVectorImpl<mlir::Value>& members, llvm::SmallVectorImpl<llvm::StringRef>& names) const = 0;
 			};
 
@@ -86,7 +88,14 @@ namespace marco::codegen::modelica
 
 				void getMembers(mlir::Operation* op, llvm::SmallVectorImpl<mlir::Value>& members, llvm::SmallVectorImpl<llvm::StringRef>& names) const override
 				{
+
 				}
+			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel>
+			{
+
 			};
 		};
 	}
@@ -107,7 +116,10 @@ namespace marco::codegen::modelica
 		};
 
 		template <typename ConcreteOp>
-		struct Trait : public ClassTrait<ConcreteOp> {};
+		struct Trait : public ClassTrait<ConcreteOp>
+		{
+
+		};
 
 		void getMembers(llvm::SmallVectorImpl<mlir::Value>& members, llvm::SmallVectorImpl<llvm::StringRef>& names)
 		{
@@ -119,8 +131,7 @@ namespace marco::codegen::modelica
 	{
 		struct VectorizableOpTraits
 		{
-			struct Concept
-			{
+			struct Concept {
 				Concept() = default;
 				Concept(const Concept& other) = default;
 				Concept(Concept&& other) = default;
@@ -128,8 +139,32 @@ namespace marco::codegen::modelica
 				virtual ~Concept() = default;
 				Concept& operator=(const Concept& other) = default;
 
+				/**
+				 * Get the arguments of the operation.
+				 *
+				 * @param op 	operation
+				 * @return arguments
+				 */
 				virtual mlir::ValueRange getArgs(mlir::Operation* op) const = 0;
+
+				/**
+				 * Get the expected rank of an argument in case of a scalar usage of
+				 * the operation.
+				 *
+				 * @param op 				operation
+				 * @param argIndex 	argument index
+				 * @return expected rank
+				 */
 				virtual unsigned int getArgExpectedRank(mlir::Operation* op, unsigned int argIndex) const = 0;
+
+				/**
+				 * Convert the vectorized operation into a scalar one.
+				 *
+				 * @param op				vectorized operation
+				 * @param builder 	operation builder
+				 * @param indexes 	indexes upon which to iterate
+				 * @return new results of the vectorized operation
+				 */
 				virtual mlir::ValueRange scalarize(mlir::Operation* op, mlir::OpBuilder& builder, mlir::ValueRange indexes) const = 0;
 			};
 
@@ -160,18 +195,27 @@ namespace marco::codegen::modelica
 
 				mlir::ValueRange getArgs(mlir::Operation* op) const override
 				{
+					// Consider all the operands
 					return op->getOperands();
 				}
 
 				unsigned int getArgExpectedRank(mlir::Operation* op, unsigned int argIndex) const override
 				{
+					// The operands are expected to be scalars
 					return 0;
 				}
 
 				mlir::ValueRange scalarize(mlir::Operation* op, mlir::OpBuilder& builder, mlir::ValueRange indexes) const override
 				{
-					return mlir::cast<ConcreteOp>(op).scalarize(indexes);
+					// Don't touch the operation
+					return op->getResults();
 				}
+			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel>
+			{
+
 			};
 		};
 	}
@@ -180,14 +224,6 @@ namespace marco::codegen::modelica
 	{
 		public:
 		using OpInterface<VectorizableOpInterface, detail::VectorizableOpTraits>::OpInterface;
-
-		template <typename ConcreteOp>
-		struct VectorizableOpTrait : public mlir::OpInterface<VectorizableOpInterface, detail::VectorizableOpTraits>::Trait<ConcreteOp>
-		{
-		};
-
-		template <typename ConcreteOp>
-		struct Trait : public VectorizableOpTrait<ConcreteOp> {};
 
 		mlir::ValueRange getArgs()
 		{
@@ -296,6 +332,12 @@ namespace marco::codegen::modelica
 					return mlir::cast<ConcreteOp>(op).rhs();
 				}
 			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel>
+			{
+
+			};
 		};
 	}
 
@@ -348,8 +390,17 @@ namespace marco::codegen::modelica
 				virtual ~Concept() = default;
 				Concept& operator=(const Concept& other) = default;
 
+				/**
+				 * Invert the operation with respect to one of its arguments.
+				 *
+				 * @param op							operation to be inverted
+				 * @param builder 				operation builder
+				 * @param argumentIndex 	index of the operand with respect to invert
+				 * @param currentResult 	current operation results
+				 * @return success status
+				 */
 				// TODO: keep ValueRange or switch to Value?
-				virtual mlir::LogicalResult invert(mlir::Operation* op, mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult) const = 0;
+				virtual mlir::LogicalResult invert(mlir::Operation* op, mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResults) const = 0;
 			};
 
 			template <typename ConcreteOp>
@@ -371,6 +422,12 @@ namespace marco::codegen::modelica
 				{
 					return mlir::cast<ConcreteOp>(op).invert(builder, argumentIndex, currentResult);
 				}
+			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel>
+			{
+
 			};
 		};
 	}
@@ -399,6 +456,13 @@ namespace marco::codegen::modelica
 				virtual ~Concept() = default;
 				Concept& operator=(const Concept& other) = default;
 
+				/**
+				 * Distribute the operation among its arguments, if possible.
+				 *
+				 * @param op				operation to be distributed
+				 * @param builder 	operation builder
+				 * @return value that will replace the previous operation result
+				 */
 				virtual mlir::Value distribute(mlir::Operation* op, mlir::OpBuilder& builder) const = 0;
 			};
 
@@ -422,9 +486,19 @@ namespace marco::codegen::modelica
 					return mlir::cast<ConcreteOp>(op).distribute(builder);
 				}
 			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel>
+			{
+
+			};
 		};
 	}
 
+	/**
+	 * This interface is used to abstract an operation that can be propagated
+	 * down into the operations tree (i.e. towards the leaf values).
+	 */
 	class DistributableInterface : public mlir::OpInterface<DistributableInterface, detail::DistributableInterfaceTraits>
 	{
 		public:
@@ -449,6 +523,14 @@ namespace marco::codegen::modelica
 				virtual ~Concept() = default;
 				Concept& operator=(const Concept& other) = default;
 
+				/**
+				 * Distribute a negate operation among the arguments.
+				 *
+				 * @param op 					operation
+				 * @param builder 		operation builder
+				 * @param resultType	desired result type after propagation
+				 * @return result after propagation
+				 */
 				virtual mlir::Value distributeNegateOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType) const = 0;
 			};
 
@@ -462,8 +544,7 @@ namespace marco::codegen::modelica
 			};
 
 			template<typename ConcreteOp>
-			class FallbackModel : public Concept
-			{
+			class FallbackModel : public Concept {
 				public:
 				FallbackModel() = default;
 
@@ -471,6 +552,12 @@ namespace marco::codegen::modelica
 				{
 					return mlir::cast<ConcreteOp>(op).distributeNegateOp(builder, resultType);
 				}
+			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel>
+			{
+
 			};
 		};
 	}
@@ -499,6 +586,14 @@ namespace marco::codegen::modelica
 				virtual ~Concept() = default;
 				Concept& operator=(const Concept& other) = default;
 
+				/**
+				 * Distribute a multiplication among the arguments.
+				 *
+				 * @param op 					operation
+				 * @param builder 		operation builder
+				 * @param resultType	desired result type after propagation
+				 * @return result after propagation
+				 */
 				virtual mlir::Value distributeMulOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const = 0;
 			};
 
@@ -512,8 +607,7 @@ namespace marco::codegen::modelica
 			};
 
 			template<typename ConcreteOp>
-			class FallbackModel : public Concept
-			{
+			class FallbackModel : public Concept {
 				public:
 				FallbackModel() = default;
 
@@ -521,6 +615,12 @@ namespace marco::codegen::modelica
 				{
 					return mlir::cast<ConcreteOp>(op).distributeMulOp(builder, resultType, value);
 				}
+			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel>
+			{
+
 			};
 		};
 	}
@@ -549,6 +649,14 @@ namespace marco::codegen::modelica
 				virtual ~Concept() = default;
 				Concept& operator=(const Concept& other) = default;
 
+				/**
+				 * Distribute a division among the arguments.
+				 *
+				 * @param op 					operation
+				 * @param builder 		operation builder
+				 * @param resultType	desired result type after propagation
+				 * @return result after propagation
+				 */
 				virtual mlir::Value distributeDivOp(mlir::Operation* op, mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value) const = 0;
 			};
 
@@ -572,6 +680,12 @@ namespace marco::codegen::modelica
 					return mlir::cast<ConcreteOp>(op).distributeDivOp(builder, resultType, value);
 				}
 			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel>
+			{
+
+			};
 		};
 	}
 
@@ -590,8 +704,7 @@ namespace marco::codegen::modelica
 	{
 		struct DerivativeInterfaceTraits
 		{
-			struct Concept
-			{
+			struct Concept {
 				Concept() = default;
 				Concept(const Concept& other) = default;
 				Concept(Concept&& other) = default;
@@ -644,6 +757,11 @@ namespace marco::codegen::modelica
 					return mlir::cast<ConcreteOp>(op).getDerivableRegions(regions);
 				}
 			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel> {
+
+			};
 		};
 	}
 
@@ -651,15 +769,6 @@ namespace marco::codegen::modelica
 	{
 		public:
 		using OpInterface<DerivativeInterface, detail::DerivativeInterfaceTraits>::OpInterface;
-
-		template <typename ConcreteOp>
-		struct DerivativeTrait : public mlir::OpInterface<DerivativeInterface, detail::DerivativeInterfaceTraits>::Trait<ConcreteOp>
-		{
-
-		};
-
-		template <typename ConcreteOp>
-		struct Trait : public DerivativeTrait<ConcreteOp> {};
 
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
 		{
@@ -776,6 +885,12 @@ namespace marco::codegen::modelica
 				{
 					return true;
 				}
+			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel>
+			{
+
 			};
 		};
 	}

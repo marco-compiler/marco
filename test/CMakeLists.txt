@@ -9,7 +9,7 @@ set(MARCO_TEST_DEPENDS
         mlir-cpu-runner count not
         marco
         modelica-opt
-        runtime)
+        marco::runtime)
 
 add_lit_testsuite(check "Running the regression tests"
         ${CMAKE_CURRENT_BINARY_DIR}

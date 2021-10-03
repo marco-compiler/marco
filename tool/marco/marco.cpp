@@ -1,3 +1,5 @@
+#include <iostream>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/Analysis/CGSCCPassManager.h>
 #include <llvm/Analysis/LoopAnalysisManager.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
@@ -8,18 +10,21 @@
 #include <llvm/Support/MemoryBuffer.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Transforms/Utils.h>
+#include <marco/frontend/Parser.h>
+#include <marco/frontend/Passes.h>
+#include <marco/mlirlowerer/CodeGen.h>
+#include <marco/utils/VariableFilter.h>
 #include <mlir/Conversion/Passes.h>
+#include <mlir/Dialect/LLVMIR/LLVMDialect.h>
+#include <mlir/Dialect/StandardOps/IR/Ops.h>
+#include <mlir/Dialect/StandardOps/Transforms/Passes.h>
 #include <mlir/ExecutionEngine/OptUtils.h>
+#include <mlir/IR/MLIRContext.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Dialect/OpenMP/OpenMPToLLVMIRTranslation.h>
 #include <mlir/Target/LLVMIR/Export.h>
 #include <mlir/Transforms/Passes.h>
-#include <marco/frontend/Parser.h>
-#include <marco/frontend/Passes.h>
-#include <marco/mlirlowerer/CodeGen.h>
-#include <marco/utils/VariableFilterParser.h>
-#include <marco/utils/VariableFilter.h>
 
 using namespace llvm;
 using namespace marco;
@@ -36,6 +41,8 @@ static cl::opt<codegen::Solver> solver(cl::desc("Solvers:"),
 																			 cl::init(codegen::ForwardEuler),
 																			 cl::cat(modelSolvingOptions));
 
+static cl::opt<string> filter("filter", cl::desc("Variable filtering expression"), cl::init(""), cl::cat(modelSolvingOptions));
+
 static cl::OptionCategory codeGenOptions("Code generation options");
 
 static cl::list<std::string> inputFiles(cl::Positional, cl::desc("<input files>"), cl::OneOrMore, cl::cat(codeGenOptions));
@@ -48,9 +55,6 @@ static cl::opt<bool> cse("no-cse", cl::desc("Disable CSE pass"), cl::init(false)
 static cl::opt<bool> openmp("omp", cl::desc("Enable OpenMP usage"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> disableRuntimeLibrary("disable-runtime-library", cl::desc("Avoid the calls to the external runtime library functions (only when a native implementation of the operation exists)"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> emitCWrappers("emit-c-wrappers", cl::desc("Emit C wrappers"), cl::init(false), cl::cat(codeGenOptions));
-
-static cl::opt<string> variableFilterString("vf", cl::desc("<variable-filter-string>"), cl::init("..."),
-                                            cl::value_desc("vfstring"));
 
 enum OptLevel {
 	O0, O1, O2, O3
@@ -85,7 +89,6 @@ static llvm::ExitOnError exitOnErr;
 
 int main(int argc, char* argv[])
 {
-	//get command line options
 	llvm::SmallVector<const cl::OptionCategory*> categories;
 	categories.push_back(&modelSolvingOptions);
 	categories.push_back(&codeGenOptions);
@@ -96,24 +99,15 @@ int main(int argc, char* argv[])
 	cl::ParseCommandLineOptions(argc, argv);
 
 	error_code error;
-	llvm::raw_fd_ostream os(outputFile, error, llvm::sys::fs::F_None);
+	llvm::raw_fd_ostream os(outputFile, error, llvm::sys::fs::OF_None);
 
-	VariableFilter vf = VariableFilter();
-
-	//std::string test = "x1[1:2];y;mat[$:$,1:3];der(x1);";
-
-	if (variableFilterString.getNumOccurrences()<1) {
-		vf.setBypass(true);
-	} else {
-		std::string vfInput = variableFilterString.getValue();
-		VariableFilterParser parser = VariableFilterParser();
-		parser.parseCommandLine(vfInput, vf);
-	}
-
-	if (error) {
+	if (error)
+	{
 		llvm::errs() << error.message();
 		return -1;
 	}
+
+	auto variableFilter = exitOnErr(VariableFilter::fromString(filter));
 
 	llvm::SmallVector<std::unique_ptr<frontend::Class>, 3> classes;
 
@@ -177,7 +171,7 @@ int main(int argc, char* argv[])
 	// Convert to LLVM dialect
 	codegen::ModelicaLoweringOptions loweringOptions;
 	loweringOptions.solveModelOptions.emitMain = emitMain;
-	loweringOptions.solveModelOptions.variableFilter = &vf;
+	loweringOptions.solveModelOptions.variableFilter = &variableFilter;
 	loweringOptions.solveModelOptions.matchingMaxIterations = matchingMaxIterations;
 	loweringOptions.solveModelOptions.sccMaxIterations = sccMaxIterations;
 	loweringOptions.solveModelOptions.solver = solver;
@@ -262,4 +256,61 @@ int main(int argc, char* argv[])
 
 	llvm::WriteBitcodeToFile(*llvmModule, os);
 	return 0;
+
+	 /*
+	llvm::InitLLVM y(argc, argv);
+	mlir::registerMLIRContextCLOptions();
+	mlir::registerPassManagerCLOptions();
+
+	mlir::MLIRContext context;
+	context.loadDialect<mlir::StandardOpsDialect>();
+	context.loadDialect<mlir::LLVM::LLVMDialect>();
+
+	mlir::OpBuilder builder(&context);
+	mlir::Location loc = builder.getUnknownLoc();
+
+	// Create module and function
+	mlir::ModuleOp module = mlir::ModuleOp::create(loc);
+
+	llvm::SmallVector<mlir::Type, 3> argTypes;
+	llvm::SmallVector<mlir::Type, 3> returnTypes;
+
+	argTypes.push_back(builder.getF64Type());
+	returnTypes.push_back(builder.getF64Type());
+
+	auto functionType = mlir::LLVM::LLVMFunctionType::get(builder.getF64Type(), argTypes);
+	auto function = builder.create<mlir::LLVM::LLVMFuncOp>(loc, "foo", functionType);
+
+	module.push_back(function);
+
+	// Create function body
+	auto& entryBlock = *function.addEntryBlock();
+	builder.setInsertionPointToStart(&entryBlock);
+
+	mlir::Value v0 = builder.create<mlir::LLVM::ConstantOp>(loc, builder.getF64Type(), builder.getF64FloatAttr(2));
+	builder.create<mlir::LLVM::ReturnOp>(loc, v0);
+
+	// Dump and verify the module
+	module.dump();
+
+	if (mlir::failed(module.verify()))
+	{
+		llvm::errs() << "Verification failed\n";
+		return 1;
+	}
+
+	// Convert to LLVM-IR
+	mlir::registerLLVMDialectTranslation(*module->getContext());
+	llvm::LLVMContext llvmContext;
+	auto llvmModule = mlir::translateModuleToLLVMIR(module, llvmContext);
+
+	if (!llvmModule) {
+		llvm::errs() << "Failed to emit LLVM IR\n";
+		return 2;
+	}
+
+	llvm::outs() << *llvmModule;
+
+	return 0;
+	 */
 }

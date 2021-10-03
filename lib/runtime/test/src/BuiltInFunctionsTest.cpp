@@ -1,3 +1,4 @@
+#include <cmath>
 #include <gtest/gtest.h>
 #include <marco/runtime/Runtime.h>
 #include <mlir/ExecutionEngine/CRunnerUtils.h>

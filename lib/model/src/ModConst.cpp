@@ -1,6 +1,6 @@
 #include "marco/model/ModConst.hpp"
-
 #include "marco/model/ModType.hpp"
+#include <cmath>
 
 using namespace marco;
 using namespace std;

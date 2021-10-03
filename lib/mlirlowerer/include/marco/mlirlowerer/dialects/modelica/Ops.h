@@ -80,6 +80,7 @@ namespace marco::codegen::modelica
 			return "modelica.pack";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -117,6 +118,7 @@ namespace marco::codegen::modelica
 			return "modelica.extract";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value packedValue, unsigned int index);
 		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -155,9 +157,8 @@ namespace marco::codegen::modelica
 			return "modelica.simulation";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr variableNames,
-                          RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars);
-
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ArrayAttr variableNames, RealAttribute startTime, RealAttribute endTime, RealAttribute timeStep, mlir::TypeRange vars);
 		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -205,6 +206,7 @@ namespace marco::codegen::modelica
 			return "modelica.equation";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -245,6 +247,7 @@ namespace marco::codegen::modelica
 			return "modelica.for_equation";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, size_t inductionsAmount);
 		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -292,6 +295,7 @@ namespace marco::codegen::modelica
 			return "modelica.induction";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, long start, long end);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -331,6 +335,7 @@ namespace marco::codegen::modelica
 			return "modelica.equation_sides";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange lhs, mlir::ValueRange rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -376,6 +381,7 @@ namespace marco::codegen::modelica
 			return "modelica.function";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::FunctionType type, llvm::ArrayRef<llvm::StringRef> argsNames, llvm::ArrayRef<llvm::StringRef> resultsNames);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -429,6 +435,7 @@ namespace marco::codegen::modelica
 			return "modelica.function_terminator";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -465,6 +472,7 @@ namespace marco::codegen::modelica
 			return "modelica.der_function";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, llvm::StringRef derivedFunction, llvm::ArrayRef<llvm::StringRef> independentVariables);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -506,6 +514,7 @@ namespace marco::codegen::modelica
 			return "modelica.constant";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Attribute value);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -548,6 +557,7 @@ namespace marco::codegen::modelica
 			return "modelica.cast";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& Builder, mlir::OperationState& state, mlir::Value value, mlir::Type resultType);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -593,6 +603,7 @@ namespace marco::codegen::modelica
 			return "modelica.assignment";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::Value destination);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -639,6 +650,7 @@ namespace marco::codegen::modelica
 			return "modelica.call";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::TypeRange results, mlir::ValueRange args, unsigned int movedResults = 0);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -688,6 +700,7 @@ namespace marco::codegen::modelica
 			return "modelica.member_create";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::Type type, mlir::ValueRange dynamicDimensions, mlir::NamedAttrList attributes = {});
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -730,6 +743,7 @@ namespace marco::codegen::modelica
 			return "modelica.member_load";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value member);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -776,6 +790,7 @@ namespace marco::codegen::modelica
 			return "modelica.member_store";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value member, mlir::Value value);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -820,6 +835,7 @@ namespace marco::codegen::modelica
 			return "modelica.alloca";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = {}, mlir::ValueRange dimensions = {}, bool constant = false);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -863,6 +879,7 @@ namespace marco::codegen::modelica
 			return "modelica.alloc";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape = llvm::None, mlir::ValueRange dimensions = llvm::None, bool shouldBeFreed = true, bool isConstant = false);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -904,6 +921,7 @@ namespace marco::codegen::modelica
 			return "modelica.free";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -954,6 +972,7 @@ namespace marco::codegen::modelica
 			return "modelica.array_cast";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value, mlir::Type resultType);
 		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -994,6 +1013,7 @@ namespace marco::codegen::modelica
 			return "modelica.dim";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::Value dimension);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1036,6 +1056,7 @@ namespace marco::codegen::modelica
 			return "modelica.subscription";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::ValueRange indexes);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1082,6 +1103,7 @@ namespace marco::codegen::modelica
 			return "modelica.load";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::ValueRange indexes = llvm::None);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1130,6 +1152,7 @@ namespace marco::codegen::modelica
 			return "modelica.store";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory, mlir::ValueRange indexes = llvm::None);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1178,6 +1201,7 @@ namespace marco::codegen::modelica
 			return "modelica.array_clone";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, ArrayType resultType, bool shouldBeFreed = true, bool canSourceBeForwarded = false);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1223,6 +1247,7 @@ namespace marco::codegen::modelica
 			return "modelica.if";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value cond, bool withElseRegion = false);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(::mlir::OpAsmPrinter& printer);
@@ -1270,6 +1295,7 @@ namespace marco::codegen::modelica
 			return "modelica.for";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args = llvm::None);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1317,6 +1343,7 @@ namespace marco::codegen::modelica
 			return "modelica.while";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1368,6 +1395,7 @@ namespace marco::codegen::modelica
 			return "modelica.condition";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value condition, mlir::ValueRange args = llvm::None);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(::mlir::OpAsmPrinter& printer);
@@ -1407,6 +1435,7 @@ namespace marco::codegen::modelica
 			return "modelica.yield";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args = llvm::None);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1441,6 +1470,7 @@ namespace marco::codegen::modelica
 			return "modelica.break";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1473,6 +1503,7 @@ namespace marco::codegen::modelica
 			return "modelica.return";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1506,6 +1537,7 @@ namespace marco::codegen::modelica
 			return "modelica.not";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1547,6 +1579,7 @@ namespace marco::codegen::modelica
 			return "modelica.and";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1590,6 +1623,7 @@ namespace marco::codegen::modelica
 			return "modelica.or";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1632,6 +1666,7 @@ namespace marco::codegen::modelica
 			return "modelica.eq";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1671,6 +1706,7 @@ namespace marco::codegen::modelica
 			return "modelica.neq";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1709,6 +1745,7 @@ namespace marco::codegen::modelica
 			return "modelica.gt";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1747,6 +1784,7 @@ namespace marco::codegen::modelica
 			return "modelica.gte";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1785,6 +1823,7 @@ namespace marco::codegen::modelica
 			return "modelica.lt";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1823,6 +1862,7 @@ namespace marco::codegen::modelica
 			return "modelica.lte";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1867,6 +1907,7 @@ namespace marco::codegen::modelica
 			return "modelica.neg";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value value);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1923,6 +1964,7 @@ namespace marco::codegen::modelica
 			return "modelica.add";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1979,6 +2021,7 @@ namespace marco::codegen::modelica
 			return "modelica.add_ew";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2034,6 +2077,7 @@ namespace marco::codegen::modelica
 			return "modelica.sub";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2089,6 +2133,7 @@ namespace marco::codegen::modelica
 			return "modelica.sub_ew";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2145,6 +2190,7 @@ namespace marco::codegen::modelica
 			return "modelica.mul";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2202,6 +2248,7 @@ namespace marco::codegen::modelica
 			return "modelica.mul_ew";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2259,6 +2306,7 @@ namespace marco::codegen::modelica
 			return "modelica.div";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2316,6 +2364,7 @@ namespace marco::codegen::modelica
 			return "modelica.div_ew";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2368,6 +2417,7 @@ namespace marco::codegen::modelica
 			return "modelica.pow";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value base, mlir::Value exponent);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2414,6 +2464,7 @@ namespace marco::codegen::modelica
 			return "modelica.pow_ew";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value base, mlir::Value exponent);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2457,6 +2508,7 @@ namespace marco::codegen::modelica
 			return "modelica.abs";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2497,6 +2549,7 @@ namespace marco::codegen::modelica
 			return "modelica.sign";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2537,6 +2590,7 @@ namespace marco::codegen::modelica
 			return "modelica.sqrt";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2578,6 +2632,7 @@ namespace marco::codegen::modelica
 			return "modelica.sin";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2623,6 +2678,7 @@ namespace marco::codegen::modelica
 			return "modelica.cos";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2668,6 +2724,7 @@ namespace marco::codegen::modelica
 			return "modelica.tan";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2713,6 +2770,7 @@ namespace marco::codegen::modelica
 			return "modelica.asin";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2758,6 +2816,7 @@ namespace marco::codegen::modelica
 			return "modelica.acos";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2803,6 +2862,7 @@ namespace marco::codegen::modelica
 			return "modelica.atan";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2848,6 +2908,7 @@ namespace marco::codegen::modelica
 			return "modelica.atan2";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value y, mlir::Value x);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2890,6 +2951,7 @@ namespace marco::codegen::modelica
 			return "modelica.sinh";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2935,6 +2997,7 @@ namespace marco::codegen::modelica
 			return "modelica.cosh";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -2980,6 +3043,7 @@ namespace marco::codegen::modelica
 			return "modelica.tanh";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3025,6 +3089,7 @@ namespace marco::codegen::modelica
 			return "modelica.exp";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value exponent);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3070,6 +3135,7 @@ namespace marco::codegen::modelica
 			return "modelica.log";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3115,6 +3181,7 @@ namespace marco::codegen::modelica
 			return "modelica.log10";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3158,6 +3225,7 @@ namespace marco::codegen::modelica
 			return "modelica.ndims";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3195,6 +3263,7 @@ namespace marco::codegen::modelica
 			return "modelica.size";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory, mlir::Value index = nullptr);
 		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3237,6 +3306,7 @@ namespace marco::codegen::modelica
 			return "modelica.identity";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value size);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3276,6 +3346,7 @@ namespace marco::codegen::modelica
 			return "modelica.diagonal";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value values);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3315,6 +3386,7 @@ namespace marco::codegen::modelica
 			return "modelica.zeros";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange sizes);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3354,6 +3426,7 @@ namespace marco::codegen::modelica
 			return "modelica.ones";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange sizes);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3395,6 +3468,7 @@ namespace marco::codegen::modelica
 			return "modelica.linspace";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value start, mlir::Value end, mlir::Value steps);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3436,6 +3510,7 @@ namespace marco::codegen::modelica
 			return "modelica.fill";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3471,6 +3546,7 @@ namespace marco::codegen::modelica
 			return "modelica.min";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3507,6 +3583,7 @@ namespace marco::codegen::modelica
 			return "modelica.max";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3543,6 +3620,7 @@ namespace marco::codegen::modelica
 			return "modelica.sum";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value array);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3579,6 +3657,7 @@ namespace marco::codegen::modelica
 			return "modelica.product";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value array);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3616,6 +3695,7 @@ namespace marco::codegen::modelica
 			return "modelica.transpose";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value matrix);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3655,6 +3735,7 @@ namespace marco::codegen::modelica
 			return "modelica.symmetric";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value matrix);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3693,6 +3774,7 @@ namespace marco::codegen::modelica
 			return "modelica.der";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -3729,48 +3811,12 @@ namespace marco::codegen::modelica
 			return "modelica.der_seed";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value member, unsigned int value);
 		// TODO: static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 
 		mlir::Value member();
 		unsigned int value();
-	};
-
-	//===----------------------------------------------------------------------===//
-	// Modelica::PrintOp
-	//===----------------------------------------------------------------------===//
-
-	class PrintOp;
-
-	class PrintOpAdaptor : public OpAdaptor<PrintOp>
-	{
-		public:
-		using OpAdaptor::OpAdaptor;
-
-		mlir::ValueRange values();
-	};
-
-	class PrintOp : public mlir::Op<PrintOp,
-																 mlir::OpTrait::VariadicOperands,
-																 mlir::OpTrait::ZeroResult,
-																 mlir::MemoryEffectOpInterface::Trait>
-	{
-		public:
-		using Op::Op;
-		using Adaptor = PrintOpAdaptor;
-
-		static constexpr llvm::StringLiteral getOperationName()
-		{
-			return "modelica.print";
-		}
-
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values);
-		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
-		void print(mlir::OpAsmPrinter& printer);
-
-		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
-
-		mlir::ValueRange values();
 	};
 }

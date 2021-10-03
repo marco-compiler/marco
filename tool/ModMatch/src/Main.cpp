@@ -93,7 +93,7 @@ ExitOnError exitOnErr;
 static int dumpGraph(const MatchingGraph& graph)
 {
 	error_code error;
-	raw_fd_ostream OS(dumpMatchingGraph, error, sys::fs::F_None);
+	raw_fd_ostream OS(dumpMatchingGraph, error, sys::fs::OF_None);
 	if (error)
 	{
 		errs() << error.message();
@@ -107,7 +107,7 @@ static int dumpGraph(const MatchingGraph& graph)
 static int dumpAugmentingPath(const AugmentingPath& path)
 {
 	error_code error;
-	raw_fd_ostream OS(dumpMatchingGraph, error, sys::fs::F_None);
+	raw_fd_ostream OS(dumpMatchingGraph, error, sys::fs::OF_None);
 	if (error)
 	{
 		errs() << error.message();

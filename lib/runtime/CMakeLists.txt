@@ -1,6 +1,9 @@
-marcoAddLibrary(
-		runtime SHARED
+set(SOURCES
 		src/BuiltInFunctions.cpp
 		src/PrintFunctions.cpp)
 
-marco_link_llvm_libs(runtime support)
+marco_add_library(runtime SHARED ${SOURCES})
+
+llvm_config(runtime USE_SHARED support)
+
+add_subdirectory(test)

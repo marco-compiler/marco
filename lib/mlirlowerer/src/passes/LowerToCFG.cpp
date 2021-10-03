@@ -20,7 +20,7 @@ class CFGLowerer
 	mlir::LogicalResult run(mlir::OpBuilder& builder, mlir::Operation* function)
 	{
 		assert(function->hasTrait<mlir::OpTrait::FunctionLike>());
-		auto& body = mlir::impl::getFunctionBody(function);
+		auto& body = mlir::function_like_impl::getFunctionBody(function);
 
 		if (body.empty())
 			return mlir::success();

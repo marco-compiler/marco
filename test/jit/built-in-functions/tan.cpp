@@ -8,7 +8,10 @@
 // CHECK-NEXT: 5.773503e-01
 // CHECK-NEXT: 1.000000e+00
 
+#define _USE_MATH_DEFINES
+
 #include <array>
+#include <cmath>
 #include <iostream>
 #include <marco/runtime/ArrayDescriptor.h>
 

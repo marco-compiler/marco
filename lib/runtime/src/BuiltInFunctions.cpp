@@ -1,3 +1,4 @@
+#include <cmath>
 #include <marco/runtime/Runtime.h>
 #include <numeric>
 

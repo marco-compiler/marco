@@ -1,5 +1,4 @@
-marcoAddLibrary(
-        mlirlowerer SHARED
+set(SOURCES
         src/dialects/modelica/Attribute.cpp
         src/dialects/modelica/ModelicaBuilder.cpp
         src/dialects/modelica/ModelicaDialect.cpp
@@ -36,18 +35,11 @@ marcoAddLibrary(
         src/passes/SolveModel.cpp
         src/passes/TypeConverter.cpp
         src/CodeGen.cpp
-        src/Runner.cpp
-)
+        src/Runner.cpp)
 
-target_link_libraries(
-        mlirlowerer PUBLIC
-        marco::frontend
-        marco::matching
-        marco::omcToModel
-        marco::passes
-        marco::runtime
-        marco::utils
+set(MLIR_LIBS
         MLIRIR
+        MLIRMathToLLVM
         MLIROpenMPToLLVM
         MLIROpenMPToLLVMIRTranslation
         MLIRSCF
@@ -57,9 +49,16 @@ target_link_libraries(
         MLIRStandardToLLVM
         MLIRTransforms
         MLIRTranslation
-        MLIRExecutionEngine
-        pthread
-        boost
-)
+        MLIRExecutionEngine)
+
+marco_add_library(mlirlowerer SHARED ${SOURCES})
+
+target_link_libraries(mlirlowerer
+        PUBLIC marco::frontend
+        PUBLIC marco::utils
+        PUBLIC marco::runtime
+        PRIVATE ${MLIR_LIBS}
+        PRIVATE pthread
+        PRIVATE boost)
 
 add_compile_definitions(RUNTIME_LIBRARY="$<TARGET_FILE:runtime>")

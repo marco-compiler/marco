@@ -1,5 +1,12 @@
-marcoAddTest(lowerer src/LowererTest.cpp)
+set(SOURCES
+		src/LowererTest.cpp)
 
+marco_add_unittest(MARCOTest LowererTest ${SOURCES})
+
+llvm_config(LowererTest core support)
+
+target_link_libraries(LowererTest
+		PRIVATE marco::lowerer)
 
 find_program(CLANGC NAMES clang clang-9)
 
@@ -42,7 +49,7 @@ macro(addLowererSimulationTest simulationName sourceSrc testSrc)
 
 	### Creates the actual test 
 	add_executable(${simulationName}Test ${testSrc})
-	add_executable(marco::${simulationName}Test ALIAS ${simulationName}Test) 
+	add_executable(marco::${simulationName}Test ALIAS ${simulationName}Test)
 	target_link_libraries(${simulationName}Test PRIVATE gtest gtest_main ${CMAKE_CURRENT_BINARY_DIR}/${simulationName}.o marco::runtime)
 	target_include_directories(${simulationName}Test PUBLIC include PRIVATE src ${CMAKE_CURRENT_BINARY_DIR}/include)
 	target_compile_features(${simulationName}Test PUBLIC cxx_std_17)

@@ -1,70 +1,121 @@
-//
-// Created by Ale on 21/06/2021.
-//
+#pragma once
 
-#ifndef PARSER_LEXER_M_VF_VARIABLEFILTER_H
-#define PARSER_LEXER_M_VF_VARIABLEFILTER_H
-
-#include <iostream>
-#include <list>
-#include <regex>
+#include <llvm/ADT/StringMap.h>
+#include <llvm/ADT/StringRef.h>
+#include <llvm/Support/Error.h>
+#include <llvm/Support/raw_ostream.h>
 #include <string>
-#include <unordered_map>
-
-#include "VariableTracker.h"
-
-using namespace std;
 
 /**
- *  Keeps tracks of a variables, arrays, derivatives (and regex for matching) we
- * want to print.
+ * Keeps track of variables, arrays, derivatives (and regex for matching)
+ * that has to be printed during the simulation.
  */
-namespace marco {
-	class VariableFilter {
-	public:
-		[[nodiscard]] bool isBypass() const;
+namespace marco
+{
+	namespace variableFilter
+	{
+		/**
+		 * Represents an array range, $ special character is '-1'.
+		 */
+		class ArrayRange
+		{
+			public:
+			static constexpr long unbounded = -1;
 
-		void setBypass(bool bypass);
+			ArrayRange(long lowerBound, long upperBound);
 
-		void addVariable(VariableTracker var);
+			bool hasLowerBound() const;
+			long getLowerBound() const;
 
-		void addDerivative(VariableTracker var);
+			bool hasUpperBound() const;
+			long getUpperBound() const;
 
-		void addRegexString(string regex);
-
-		void dump();
+			private:
+			long lowerBound, upperBound;
+		};
 
 		/**
+		 * Keeps tracks of a single variable, array or derivative that has been
+		 * specified by command line argument.
+		 */
+		class Tracker
+		{
+			public:
+			Tracker();
+			Tracker(llvm::StringRef name);
+			Tracker(llvm::StringRef name, llvm::ArrayRef<ArrayRange> ranges);
+
+			void setRanges(llvm::ArrayRef<ArrayRange> ranges);
+
+			llvm::StringRef getName() const;
+
+			llvm::ArrayRef<ArrayRange> getRanges() const;
+
+			ArrayRange getRangeOfDimension(unsigned int dimensionIndex) const;
+
+			private:
+			std::string name;
+			llvm::SmallVector<ArrayRange, 3> ranges;
+		};
+
+		class Filter
+		{
+			public:
+			Filter(bool visibility, llvm::ArrayRef<ArrayRange> ranges);
+
+			bool isVisible() const;
+
+			llvm::ArrayRef<ArrayRange> getRanges() const;
+
+			static Filter visibleScalar();
+			static Filter visibleArray(llvm::ArrayRef<long> shape);
+
+			private:
+			bool _visibility;
+			llvm::SmallVector<ArrayRange, 3> _ranges;
+		};
+	}
+
+	class VariableFilter
+	{
+		public:
+		using Tracker = variableFilter::Tracker;
+		using Filter = variableFilter::Filter;
+
+		void dump() const;
+
+		void dump(llvm::raw_ostream& os) const;
+
+		[[nodiscard]] bool isEnabled() const;
+
+		void setEnabled(bool enabled);
+
+		void addVariable(Tracker var);
+
+		void addDerivative(Tracker var);
+
+		void addRegexString(llvm::StringRef regex);
+
+		Filter getVariableInfo(llvm::StringRef name, unsigned int expectedRank = 0) const;
+
+		Filter getVariableDerInfo(llvm::StringRef name, unsigned int expectedRank = 0) const;
+
+		static llvm::Expected<VariableFilter> fromString(llvm::StringRef str);
+
+		private:
+		/**
+		 * Check whether a variable identifier matches any of the regular
+		 * expressions stored within the variable filter.
 		 *
-		 * @param identifier the string that will be matched with all the regexes
-		 * @return true if there is a stored regular expression that matches the
-		 * received identifier
+		 * @param identifier	variable identifier
+		 * @return true if a regular expression has been matched
 		 */
-		bool matchesRegex(const string &identifier);
+		bool matchesRegex(llvm::StringRef identifier) const;
 
-		/**
-		 *
-		 * @param identifier the variable identifier we want to query
-		 * @return the variable tracker associated with that variable
-		 */
-		VariableTracker lookupByIdentifier(const string &identifier);
-
-		bool checkTrackedIdentifier(const string &identifier);
-
-		/**
-		 * Check if derivative of var must be printed
-		 * @param derivedVariableIdentifier a model variable identifier
-		 * @return true if by command line arguments is specified that the derivative of provided variable identifier must be printed
-		 */
-		bool printDerivative(const string &derivedVariableIdentifier);
-
-	private:
-		std::unordered_map<string, VariableTracker> _variables;
-		std::unordered_map<string, VariableTracker> _derivatives;
-
-		list<string> _regex;
-		bool _bypass = true;
+		private:
+		llvm::StringMap<Tracker> _variables;
+		llvm::StringMap<Tracker> _derivatives;
+		llvm::SmallVector<std::string> _regex;
+		bool _enabled = false;
 	};
-}     // namespace modelica
-
-#endif    // PARSER_LEXER_M_VF_VARIABLEFILTER_H
+}

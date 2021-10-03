@@ -54,6 +54,11 @@ mlir::ValueRange PackOpAdaptor::values()
 	return getValues();
 }
 
+llvm::ArrayRef<llvm::StringRef> PackOp::getAttributeNames()
+{
+	return {};
+}
+
 void PackOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
 {
 	llvm::SmallVector<mlir::Type, 3> types;
@@ -143,6 +148,12 @@ unsigned int ExtractOpAdaptor::index()
 	return getAttrs().getAs<mlir::IntegerAttr>("index").getInt();
 }
 
+llvm::ArrayRef<llvm::StringRef> ExtractOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("index")};
+	return llvm::makeArrayRef(attrNames);
+}
+
 void ExtractOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value packedValue, unsigned int index)
 {
 	state.addTypes(resultType);
@@ -187,6 +198,12 @@ unsigned int ExtractOp::index()
 // Modelica::SimulationOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> SimulationOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("variableNames"), llvm::StringRef("startTime"), llvm::StringRef("endTime"), llvm::StringRef("timeStep")};
+	return llvm::makeArrayRef(attrNames);
+}
+
 mlir::ArrayAttr SimulationOp::variableNames() {
     return getOperation()->getAttrOfType<mlir::ArrayAttr>("variableNames");
 }
@@ -206,7 +223,6 @@ void SimulationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, 
 
 	// Body block
 	builder.createBlock(state.addRegion(), {}, vars);
-
 }
 
 void SimulationOp::print(mlir::OpAsmPrinter& printer)
@@ -221,9 +237,6 @@ void SimulationOp::print(mlir::OpAsmPrinter& printer)
 
 	printer << " step";
 	printer.printRegion(body(), true);
-
-	//printer << " print";
-	//printer.printRegion(print(), true);
 }
 
 mlir::LogicalResult SimulationOp::verify()
@@ -248,7 +261,6 @@ void SimulationOp::getSuccessorRegions(llvm::Optional<unsigned int> index, llvm:
 		regions.emplace_back(getOperation()->getResults());
 	}
 }
-
 
 RealAttribute SimulationOp::startTime()
 {
@@ -286,11 +298,14 @@ mlir::Value SimulationOp::time()
 	return body().getArgument(0);
 }
 
-
-
 //===----------------------------------------------------------------------===//
 // Modelica::EquationOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> EquationOp::getAttributeNames()
+{
+	return {};
+}
 
 void EquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
@@ -351,6 +366,11 @@ mlir::ValueRange EquationOp::rhs()
 //===----------------------------------------------------------------------===//
 // Modelica::ForEquationOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> ForEquationOp::getAttributeNames()
+{
+	return {};
+}
 
 void ForEquationOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, size_t inductionsAmount)
 {
@@ -433,6 +453,12 @@ mlir::ValueRange ForEquationOp::rhs()
 // Modelica::InductionOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> InductionOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("start"), llvm::StringRef("end")};
+	return llvm::makeArrayRef(attrNames);
+}
+
 long InductionOpAdaptor::start()
 {
 	return getAttrs().getAs<mlir::IntegerAttr>("start").getInt();
@@ -488,6 +514,12 @@ long InductionOp::end()
 //===----------------------------------------------------------------------===//
 // Modelica::EquationSidesOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> EquationSidesOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("lhs"), llvm::StringRef("rhs")};
+	return llvm::makeArrayRef(attrNames);
+}
 
 mlir::ValueRange EquationSidesOpAdaptor::lhs()
 {
@@ -571,6 +603,12 @@ mlir::ValueRange EquationSidesOp::rhs()
 // Modelica::FunctionOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> FunctionOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("args_names"), llvm::StringRef("results_names")};
+	return llvm::makeArrayRef(attrNames);
+}
+
 llvm::ArrayRef<mlir::Attribute> FunctionOpAdaptor::argsNames()
 {
 	return getAttrs().getAs<mlir::ArrayAttr>("args_names").getValue();
@@ -608,7 +646,7 @@ mlir::ParseResult FunctionOp::parse(mlir::OpAsmParser& parser, mlir::OperationSt
 	bool isVariadic = false;
 
 	// TODO: don't rely on FunctionLike parsing
-	if (mlir::impl::parseFunctionArgumentList(parser, false, false, args, argsTypes, argsAttrs, isVariadic))
+	if (mlir::function_like_impl::parseFunctionArgumentList(parser, false, false, args, argsTypes, argsAttrs, isVariadic))
 		return mlir::failure();
 
 	if (parser.parseArrow() ||
@@ -765,6 +803,11 @@ void FunctionOp::getMembers(llvm::SmallVectorImpl<mlir::Value>& members, llvm::S
 // Modelica::FunctionTerminatorOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> FunctionTerminatorOp::getAttributeNames()
+{
+	return {};
+}
+
 void FunctionTerminatorOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
 }
@@ -782,6 +825,12 @@ void FunctionTerminatorOp::print(mlir::OpAsmPrinter& printer)
 //===----------------------------------------------------------------------===//
 // Modelica::DerFunctionOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> DerFunctionOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("derived_function"), llvm::StringRef("independent_vars")};
+	return llvm::makeArrayRef(attrNames);
+}
 
 void DerFunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, llvm::StringRef derivedFunction, llvm::ArrayRef<llvm::StringRef> independentVariables)
 {
@@ -875,6 +924,12 @@ llvm::ArrayRef<mlir::Attribute> DerFunctionOp::independentVariables()
 // Modelica::ConstantOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> ConstantOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("value")};
+	return llvm::makeArrayRef(attrNames);
+}
+
 void ConstantOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Attribute attribute)
 {
 	state.addAttribute("value", attribute);
@@ -933,6 +988,11 @@ mlir::Type ConstantOp::resultType()
 //===----------------------------------------------------------------------===//
 // Modelica::CastOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> CastOp::getAttributeNames()
+{
+	return {};
+}
 
 mlir::Value CastOpAdaptor::value()
 {
@@ -1018,6 +1078,11 @@ mlir::Type CastOp::resultType()
 //===----------------------------------------------------------------------===//
 // Modelica::AssignmentOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> AssignmentOp::getAttributeNames()
+{
+	return {};
+}
 
 mlir::Value AssignmentOpAdaptor::source()
 {
@@ -1107,6 +1172,12 @@ mlir::Value AssignmentOp::destination()
 //===----------------------------------------------------------------------===//
 // Modelica::CallOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> CallOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("callee"), llvm::StringRef("moved_results")};
+	return llvm::makeArrayRef(attrNames);
+}
 
 mlir::ValueRange CallOpAdaptor::args()
 {
@@ -1382,6 +1453,12 @@ mlir::ValueRange MemberCreateOpAdaptor::dynamicDimensions()
 	return getValues();
 }
 
+llvm::ArrayRef<llvm::StringRef> MemberCreateOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("name")};
+	return llvm::makeArrayRef(attrNames);
+}
+
 void MemberCreateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::Type type, mlir::ValueRange dynamicDimensions, mlir::NamedAttrList attributes)
 {
 	state.addAttribute("name", builder.getStringAttr(name));
@@ -1506,6 +1583,11 @@ mlir::Value MemberLoadOpAdaptor::member()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> MemberLoadOp::getAttributeNames()
+{
+	return {};
+}
+
 void MemberLoadOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value member)
 {
 	state.addTypes(resultType);
@@ -1593,6 +1675,11 @@ mlir::Value MemberStoreOpAdaptor::member()
 mlir::Value MemberStoreOpAdaptor::value()
 {
 	return getValues()[1];
+}
+
+llvm::ArrayRef<llvm::StringRef> MemberStoreOp::getAttributeNames()
+{
+	return {};
 }
 
 void MemberStoreOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value member, mlir::Value value)
@@ -1708,6 +1795,12 @@ mlir::Value MemberStoreOp::value()
 mlir::ValueRange AllocaOpAdaptor::dynamicDimensions()
 {
 	return getValues();
+}
+
+llvm::ArrayRef<llvm::StringRef> AllocaOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("constant")};
+	return llvm::makeArrayRef(attrNames);
 }
 
 void AllocaOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool constant)
@@ -1841,6 +1934,12 @@ bool AllocOpAdaptor::isConstant()
 		return false;
 
 	return attr->second.cast<mlir::BoolAttr>().getValue();
+}
+
+llvm::ArrayRef<llvm::StringRef> AllocOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("constant")};
+	return llvm::makeArrayRef(attrNames);
 }
 
 void AllocOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type elementType, llvm::ArrayRef<long> shape, mlir::ValueRange dimensions, bool shouldBeFreed, bool constant)
@@ -1981,6 +2080,11 @@ mlir::Value FreeOpAdaptor::memory()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> FreeOp::getAttributeNames()
+{
+	return {};
+}
+
 void FreeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory)
 {
 	state.addOperands(memory);
@@ -2036,6 +2140,11 @@ mlir::Value FreeOp::memory()
 mlir::Value ArrayCastOpAdaptor::memory()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> ArrayCastOp::getAttributeNames()
+{
+	return {};
 }
 
 void ArrayCastOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::Type resultType)
@@ -2134,6 +2243,11 @@ mlir::Value DimOpAdaptor::dimension()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> DimOp::getAttributeNames()
+{
+	return {};
+}
+
 void DimOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::Value dimension)
 {
 	state.addOperands(memory);
@@ -2228,6 +2342,11 @@ mlir::Value SubscriptionOpAdaptor::source()
 mlir::ValueRange SubscriptionOpAdaptor::indexes()
 {
 	return mlir::ValueRange(std::next(getValues().begin(), 1), getValues().end());
+}
+
+llvm::ArrayRef<llvm::StringRef> SubscriptionOp::getAttributeNames()
+{
+	return {};
 }
 
 void SubscriptionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, mlir::ValueRange indexes)
@@ -2343,6 +2462,11 @@ mlir::ValueRange LoadOpAdaptor::indexes()
 	return mlir::ValueRange(std::next(getValues().begin(), 1), getValues().end());
 }
 
+llvm::ArrayRef<llvm::StringRef> LoadOp::getAttributeNames()
+{
+	return {};
+}
+
 void LoadOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value memory, mlir::ValueRange indexes)
 {
 	state.addOperands(memory);
@@ -2452,6 +2576,11 @@ mlir::ValueRange StoreOpAdaptor::indexes()
 mlir::Value StoreOpAdaptor::value()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> StoreOp::getAttributeNames()
+{
+	return {};
 }
 
 void StoreOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory, mlir::ValueRange indexes)
@@ -2582,6 +2711,12 @@ bool ArrayCloneOpAdaptor::canSourceBeForwarded()
 	return false;
 }
 
+llvm::ArrayRef<llvm::StringRef> ArrayCloneOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("forward")};
+	return llvm::makeArrayRef(attrNames);
+}
+
 void ArrayCloneOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value source, ArrayType resultType, bool shouldBeFreed, bool canSourceBeForwarded)
 {
 	state.addOperands(source);
@@ -2675,6 +2810,11 @@ bool ArrayCloneOp::canSourceBeForwarded()
 mlir::Value IfOpAdaptor::condition()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> IfOp::getAttributeNames()
+{
+	return {};
 }
 
 void IfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value condition, bool withElseRegion)
@@ -2819,6 +2959,11 @@ mlir::Region& IfOp::elseRegion()
 mlir::ValueRange ForOpAdaptor::args()
 {
 	return getValues();
+}
+
+llvm::ArrayRef<llvm::StringRef> ForOp::getAttributeNames()
+{
+	return {};
 }
 
 void ForOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange args)
@@ -2976,6 +3121,11 @@ mlir::ValueRange ForOp::args()
 // Modelica::WhileOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> WhileOp::getAttributeNames()
+{
+	return {};
+}
+
 void WhileOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
@@ -3096,6 +3246,11 @@ mlir::ValueRange ConditionOpAdaptor::args()
 	return mlir::ValueRange(std::next(getValues().begin()), getValues().end());
 }
 
+llvm::ArrayRef<llvm::StringRef> ConditionOp::getAttributeNames()
+{
+	return {};
+}
+
 void ConditionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value condition, mlir::ValueRange args)
 {
 	state.addOperands(condition);
@@ -3163,6 +3318,11 @@ mlir::ValueRange YieldOpAdaptor::values()
 	return getValues();
 }
 
+llvm::ArrayRef<llvm::StringRef> YieldOp::getAttributeNames()
+{
+	return {};
+}
+
 void YieldOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange operands)
 {
 	state.addOperands(operands);
@@ -3206,6 +3366,11 @@ mlir::ValueRange YieldOp::values()
 // Modelica::BreakOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> BreakOp::getAttributeNames()
+{
+	return {};
+}
+
 void BreakOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
 }
@@ -3223,6 +3388,11 @@ void BreakOp::print(mlir::OpAsmPrinter& printer)
 //===----------------------------------------------------------------------===//
 // Modelica::ReturnOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> ReturnOp::getAttributeNames()
+{
+	return {};
+}
 
 void ReturnOp::build(mlir::OpBuilder& builder, mlir::OperationState& state)
 {
@@ -3245,6 +3415,11 @@ void ReturnOp::print(mlir::OpAsmPrinter& printer)
 mlir::Value NotOpAdaptor::operand()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> NotOp::getAttributeNames()
+{
+	return {};
 }
 
 void NotOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
@@ -3325,6 +3500,11 @@ mlir::Value AndOpAdaptor::lhs()
 mlir::Value AndOpAdaptor::rhs()
 {
 	return getValues()[1];
+}
+
+llvm::ArrayRef<llvm::StringRef> AndOp::getAttributeNames()
+{
+	return {};
 }
 
 void AndOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
@@ -3429,6 +3609,11 @@ mlir::Value OrOpAdaptor::rhs()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> OrOp::getAttributeNames()
+{
+	return {};
+}
+
 void OrOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
@@ -3531,6 +3716,11 @@ mlir::Value EqOpAdaptor::rhs()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> EqOp::getAttributeNames()
+{
+	return {};
+}
+
 void EqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
@@ -3602,6 +3792,11 @@ mlir::Value NotEqOpAdaptor::lhs()
 mlir::Value NotEqOpAdaptor::rhs()
 {
 	return getValues()[1];
+}
+
+llvm::ArrayRef<llvm::StringRef> NotEqOp::getAttributeNames()
+{
+	return {};
 }
 
 void NotEqOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
@@ -3677,6 +3872,11 @@ mlir::Value GtOpAdaptor::rhs()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> GtOp::getAttributeNames()
+{
+	return {};
+}
+
 void GtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
@@ -3748,6 +3948,11 @@ mlir::Value GteOpAdaptor::lhs()
 mlir::Value GteOpAdaptor::rhs()
 {
 	return getValues()[1];
+}
+
+llvm::ArrayRef<llvm::StringRef> GteOp::getAttributeNames()
+{
+	return {};
 }
 
 void GteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
@@ -3823,6 +4028,11 @@ mlir::Value LtOpAdaptor::rhs()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> LtOp::getAttributeNames()
+{
+	return {};
+}
+
 void LtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
@@ -3896,6 +4106,11 @@ mlir::Value LteOpAdaptor::rhs()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> LteOp::getAttributeNames()
+{
+	return {};
+}
+
 void LteOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	state.addTypes(resultType);
@@ -3962,6 +4177,11 @@ mlir::Value LteOp::rhs()
 mlir::Value NegateOpAdaptor::operand()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> NegateOp::getAttributeNames()
+{
+	return {};
 }
 
 void NegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value value)
@@ -4137,6 +4357,11 @@ mlir::Value AddOpAdaptor::lhs()
 mlir::Value AddOpAdaptor::rhs()
 {
 	return getValues()[1];
+}
+
+llvm::ArrayRef<llvm::StringRef> AddOp::getAttributeNames()
+{
+	return {};
 }
 
 void AddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
@@ -4343,6 +4568,11 @@ mlir::Value AddElementWiseOpAdaptor::rhs()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> AddElementWiseOp::getAttributeNames()
+{
+	return {};
+}
+
 void AddElementWiseOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	if (auto arrayType = resultType.dyn_cast<ArrayType>())
@@ -4545,6 +4775,11 @@ mlir::Value SubOpAdaptor::lhs()
 mlir::Value SubOpAdaptor::rhs()
 {
 	return getValues()[1];
+}
+
+llvm::ArrayRef<llvm::StringRef> SubOp::getAttributeNames()
+{
+	return {};
 }
 
 void SubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
@@ -4751,6 +4986,11 @@ mlir::Value SubElementWiseOpAdaptor::rhs()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> SubElementWiseOp::getAttributeNames()
+{
+	return {};
+}
+
 void SubElementWiseOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	if (auto arrayType = resultType.dyn_cast<ArrayType>())
@@ -4953,6 +5193,11 @@ mlir::Value MulOpAdaptor::lhs()
 mlir::Value MulOpAdaptor::rhs()
 {
 	return getValues()[1];
+}
+
+llvm::ArrayRef<llvm::StringRef> MulOp::getAttributeNames()
+{
+	return {};
 }
 
 void MulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
@@ -5184,6 +5429,11 @@ mlir::Value MulElementWiseOpAdaptor::rhs()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> MulElementWiseOp::getAttributeNames()
+{
+	return {};
+}
+
 void MulElementWiseOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
 {
 	if (auto arrayType = resultType.dyn_cast<ArrayType>())
@@ -5411,6 +5661,11 @@ mlir::Value DivOpAdaptor::lhs()
 mlir::Value DivOpAdaptor::rhs()
 {
 	return getValues()[1];
+}
+
+llvm::ArrayRef<llvm::StringRef> DivOp::getAttributeNames()
+{
+	return {};
 }
 
 void DivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
@@ -5643,6 +5898,11 @@ mlir::Value DivElementWiseOpAdaptor::lhs()
 mlir::Value DivElementWiseOpAdaptor::rhs()
 {
 	return getValues()[1];
+}
+
+llvm::ArrayRef<llvm::StringRef> DivElementWiseOp::getAttributeNames()
+{
+	return {};
 }
 
 void DivElementWiseOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value lhs, mlir::Value rhs)
@@ -5933,6 +6193,11 @@ mlir::Value PowOpAdaptor::exponent()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> PowOp::getAttributeNames()
+{
+	return {};
+}
+
 void PowOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value base, mlir::Value exponent)
 {
 	if (auto arrayType = resultType.dyn_cast<ArrayType>())
@@ -6058,6 +6323,11 @@ mlir::Value PowElementWiseOpAdaptor::exponent()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> PowElementWiseOp::getAttributeNames()
+{
+	return {};
+}
+
 void PowElementWiseOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value base, mlir::Value exponent)
 {
 	if (auto arrayType = resultType.dyn_cast<ArrayType>())
@@ -6173,6 +6443,11 @@ mlir::Value AbsOpAdaptor::operand()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> AbsOp::getAttributeNames()
+{
+	return {};
+}
+
 void AbsOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
 {
 	state.addTypes(resultType);
@@ -6245,6 +6520,11 @@ mlir::Value AbsOp::operand()
 mlir::Value SignOpAdaptor::operand()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> SignOp::getAttributeNames()
+{
+	return {};
 }
 
 void SignOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
@@ -6321,6 +6601,11 @@ mlir::Value SqrtOpAdaptor::operand()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> SqrtOp::getAttributeNames()
+{
+	return {};
+}
+
 void SqrtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
 {
 	state.addTypes(resultType);
@@ -6393,6 +6678,11 @@ mlir::Value SqrtOp::operand()
 mlir::Value SinOpAdaptor::operand()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> SinOp::getAttributeNames()
+{
+	return {};
 }
 
 void SinOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
@@ -6491,6 +6781,11 @@ mlir::Value SinOp::operand()
 mlir::Value CosOpAdaptor::operand()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> CosOp::getAttributeNames()
+{
+	return {};
 }
 
 void CosOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
@@ -6593,6 +6888,11 @@ mlir::Value TanOpAdaptor::operand()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> TanOp::getAttributeNames()
+{
+	return {};
+}
+
 void TanOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
 {
 	state.addTypes(resultType);
@@ -6692,6 +6992,11 @@ mlir::Value TanOp::operand()
 mlir::Value AsinOpAdaptor::operand()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> AsinOp::getAttributeNames()
+{
+	return {};
 }
 
 void AsinOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
@@ -6796,6 +7101,11 @@ mlir::Value AcosOpAdaptor::operand()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> AcosOp::getAttributeNames()
+{
+	return {};
+}
+
 void AcosOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
 {
 	state.addTypes(resultType);
@@ -6897,6 +7207,11 @@ mlir::Value AcosOp::operand()
 mlir::Value AtanOpAdaptor::operand()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> AtanOp::getAttributeNames()
+{
+	return {};
 }
 
 void AtanOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
@@ -7005,6 +7320,11 @@ mlir::Value Atan2OpAdaptor::x()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> Atan2Op::getAttributeNames()
+{
+	return {};
+}
+
 void Atan2Op::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value y, mlir::Value x)
 {
 	state.addTypes(resultType);
@@ -7097,6 +7417,11 @@ mlir::Value Atan2Op::x()
 mlir::Value SinhOpAdaptor::operand()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> SinhOp::getAttributeNames()
+{
+	return {};
 }
 
 void SinhOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
@@ -7197,6 +7522,11 @@ mlir::Value CoshOpAdaptor::operand()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> CoshOp::getAttributeNames()
+{
+	return {};
+}
+
 void CoshOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
 {
 	state.addTypes(resultType);
@@ -7293,6 +7623,11 @@ mlir::Value CoshOp::operand()
 mlir::Value TanhOpAdaptor::operand()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> TanhOp::getAttributeNames()
+{
+	return {};
 }
 
 void TanhOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
@@ -7395,6 +7730,11 @@ mlir::Value ExpOpAdaptor::exponent()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> ExpOp::getAttributeNames()
+{
+	return {};
+}
+
 void ExpOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value exponent)
 {
 	state.addTypes(resultType);
@@ -7493,6 +7833,11 @@ mlir::Value LogOpAdaptor::operand()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> LogOp::getAttributeNames()
+{
+	return {};
+}
+
 void LogOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
 {
 	state.addTypes(resultType);
@@ -7587,6 +7932,11 @@ mlir::Value LogOp::operand()
 mlir::Value Log10OpAdaptor::operand()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> Log10Op::getAttributeNames()
+{
+	return {};
 }
 
 void Log10Op::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
@@ -7689,6 +8039,11 @@ mlir::Value NDimsOpAdaptor::memory()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> NDimsOp::getAttributeNames()
+{
+	return {};
+}
+
 void NDimsOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory)
 {
 	state.addTypes(resultType);
@@ -7740,6 +8095,11 @@ mlir::Value SizeOpAdaptor::memory()
 mlir::Value SizeOpAdaptor::index()
 {
 	return getValues()[1];
+}
+
+llvm::ArrayRef<llvm::StringRef> SizeOp::getAttributeNames()
+{
+	return {};
 }
 
 void SizeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value memory, mlir::Value index)
@@ -7810,6 +8170,11 @@ mlir::Value IdentityOpAdaptor::size()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> IdentityOp::getAttributeNames()
+{
+	return {};
+}
+
 void IdentityOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value size)
 {
 	state.addTypes(resultType);
@@ -7872,6 +8237,11 @@ mlir::Value IdentityOp::size()
 mlir::Value DiagonalOpAdaptor::values()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> DiagonalOp::getAttributeNames()
+{
+	return {};
 }
 
 void DiagonalOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value values)
@@ -7939,6 +8309,11 @@ mlir::Value DiagonalOp::values()
 mlir::ValueRange ZerosOpAdaptor::sizes()
 {
 	return getValues();
+}
+
+llvm::ArrayRef<llvm::StringRef> ZerosOp::getAttributeNames()
+{
+	return {};
 }
 
 void ZerosOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange sizes)
@@ -8032,6 +8407,11 @@ mlir::ValueRange ZerosOp::sizes()
 mlir::ValueRange OnesOpAdaptor::sizes()
 {
 	return getValues();
+}
+
+llvm::ArrayRef<llvm::StringRef> OnesOp::getAttributeNames()
+{
+	return {};
 }
 
 void OnesOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange sizes)
@@ -8137,6 +8517,11 @@ mlir::Value LinspaceOpAdaptor::steps()
 	return getValues()[2];
 }
 
+llvm::ArrayRef<llvm::StringRef> LinspaceOp::getAttributeNames()
+{
+	return {};
+}
+
 void LinspaceOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value start, mlir::Value end, mlir::Value steps)
 {
 	state.addTypes(resultType);
@@ -8229,6 +8614,11 @@ mlir::Value FillOpAdaptor::memory()
 	return getValues()[1];
 }
 
+llvm::ArrayRef<llvm::StringRef> FillOp::getAttributeNames()
+{
+	return {};
+}
+
 void FillOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value, mlir::Value memory)
 {
 	state.addOperands(value);
@@ -8272,6 +8662,11 @@ mlir::Value FillOp::memory()
 mlir::ValueRange MinOpAdaptor::values()
 {
 	return getValues();
+}
+
+llvm::ArrayRef<llvm::StringRef> MinOp::getAttributeNames()
+{
+	return {};
 }
 
 void MinOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values)
@@ -8369,6 +8764,11 @@ mlir::ValueRange MaxOpAdaptor::values()
 	return getValues();
 }
 
+llvm::ArrayRef<llvm::StringRef> MaxOp::getAttributeNames()
+{
+	return {};
+}
+
 void MaxOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::ValueRange values)
 {
 	state.addTypes(resultType);
@@ -8464,6 +8864,11 @@ mlir::Value SumOpAdaptor::array()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> SumOp::getAttributeNames()
+{
+	return {};
+}
+
 void SumOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value array)
 {
 	state.addTypes(resultType);
@@ -8524,6 +8929,11 @@ mlir::Value ProductOpAdaptor::array()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> ProductOp::getAttributeNames()
+{
+	return {};
+}
+
 void ProductOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value array)
 {
 	state.addTypes(resultType);
@@ -8582,6 +8992,11 @@ mlir::Value ProductOp::array()
 mlir::Value TransposeOpAdaptor::matrix()
 {
 	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> TransposeOp::getAttributeNames()
+{
+	return {};
 }
 
 void TransposeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value matrix)
@@ -8673,6 +9088,11 @@ mlir::Value SymmetricOpAdaptor::matrix()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> SymmetricOp::getAttributeNames()
+{
+	return {};
+}
+
 void SymmetricOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value matrix)
 {
 	state.addTypes(resultType);
@@ -8762,6 +9182,11 @@ mlir::Value DerOpAdaptor::operand()
 	return getValues()[0];
 }
 
+llvm::ArrayRef<llvm::StringRef> DerOp::getAttributeNames()
+{
+	return {};
+}
+
 void DerOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Type resultType, mlir::Value operand)
 {
 	state.addTypes(resultType);
@@ -8816,6 +9241,12 @@ unsigned int DerSeedOpAdaptor::value()
 	return getAttrs().getAs<mlir::IntegerAttr>("value").getInt();
 }
 
+llvm::ArrayRef<llvm::StringRef> DerSeedOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("value")};
+	return llvm::makeArrayRef(attrNames);
+}
+
 void DerSeedOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value member, unsigned int value)
 {
 	state.addOperands(member);
@@ -8836,53 +9267,4 @@ mlir::Value DerSeedOp::member()
 unsigned int DerSeedOp::value()
 {
 	return Adaptor(*this).value();
-}
-
-//===----------------------------------------------------------------------===//
-// Modelica::PrintOp
-//===----------------------------------------------------------------------===//
-
-mlir::ValueRange PrintOpAdaptor::values()
-{
-	return getValues();
-}
-
-void PrintOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::ValueRange values)
-{
-	state.addOperands(values);
-}
-
-mlir::ParseResult PrintOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	llvm::SmallVector<mlir::OpAsmParser::OperandType, 3> operands;
-	llvm::SmallVector<mlir::Type, 3> operandsTypes;
-	mlir::Type resultType;
-
-	llvm::SMLoc operandsLoc = parser.getCurrentLocation();
-
-	if (parser.parseOperandList(operands) ||
-			parser.parseColonTypeList(operandsTypes) ||
-			parser.resolveOperands(operands, operandsTypes, operandsLoc, result.operands))
-		return mlir::failure();
-
-	return mlir::success();
-}
-
-void PrintOp::print(mlir::OpAsmPrinter& printer)
-{
-	printer << getOperationName() << " " << values() << " : " << values().getTypes();
-}
-
-mlir::ValueRange PrintOp::values()
-{
-	return Adaptor(*this).values();
-}
-
-void PrintOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
-
-	for (mlir::Value value : values())
-		if (value.getType().isa<ArrayType>())
-			effects.emplace_back(mlir::MemoryEffects::Read::get(), value, mlir::SideEffects::DefaultResource::get());
 }

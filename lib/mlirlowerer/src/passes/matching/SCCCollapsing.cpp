@@ -14,6 +14,10 @@
 #include <numeric>
 #include <vector>
 
+void boost::throw_exception(std::exception const & e) {
+	// Do nothing
+}
+
 namespace marco::codegen::model
 {
 	template<typename Graph>

@@ -94,13 +94,13 @@ int main(int argc, char* argv[])
 		sim.setVarsLinkage(GlobalValue::LinkageTypes::ExternalLinkage);
 
 	error_code error;
-	raw_fd_ostream OS(outputFile, error, sys::fs::F_None);
+	raw_fd_ostream OS(outputFile, error, sys::fs::OF_None);
 	if (error)
 	{
 		errs() << error.message();
 		return -1;
 	}
-	raw_fd_ostream headerOS(headerFile, error, sys::fs::F_None);
+	raw_fd_ostream headerOS(headerFile, error, sys::fs::OF_None);
 	if (error)
 	{
 		errs() << error.message();

@@ -1,12 +1,11 @@
-marcoAddLibrary(
-        frontend SHARED
+set(SOURCES
 		src/ast/Algorithm.cpp
 		src/ast/Annotation.cpp
 		src/ast/Array.cpp
-        src/ast/ASTNode.cpp
+		src/ast/ASTNode.cpp
 		src/ast/Call.cpp
 		src/ast/Class.cpp
-        src/ast/Model.cpp
+		src/ast/Model.cpp
 		src/ast/Constant.cpp
 		src/ast/Equation.cpp
 		src/ast/Expression.cpp
@@ -27,10 +26,17 @@ marcoAddLibrary(
 		src/passes/PassManager.cpp
 		src/passes/TypeCheckingPass.cpp
 		src/Errors.cpp
-        src/LexerStateMachine.cpp
-        src/Parser.cpp
+		src/LexerStateMachine.cpp
+		src/Parser.cpp
 		src/Symbol.cpp
-		src/SymbolTable.cpp
-)
+		src/SymbolTable.cpp)
 
-target_link_libraries(frontend PUBLIC marco::model boost)
+marco_add_library(frontend SHARED ${SOURCES})
+
+llvm_config(frontend USE_SHARED core support)
+
+target_link_libraries(frontend
+		PUBLIC marco::utils
+		PRIVATE boost)
+
+add_subdirectory(test)

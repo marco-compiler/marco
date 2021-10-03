@@ -1,16 +1,15 @@
 #pragma once
 
-#include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
+#include <mlir/Conversion/LLVMCommon/TypeConverter.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/IR/BuiltinDialect.h>
 #include <mlir/IR/MLIRContext.h>
+#include <mlir/Transforms/DialectConversion.h>
 #include <marco/mlirlowerer/dialects/modelica/Type.h>
 
-namespace marco::codegen
-{
-	class TypeConverter : public mlir::LLVMTypeConverter
-	{
+namespace marco::codegen {
+	class TypeConverter : public mlir::LLVMTypeConverter {
 		public:
 		TypeConverter(mlir::MLIRContext* context, mlir::LowerToLLVMOptions options, unsigned int bitWidth);
 

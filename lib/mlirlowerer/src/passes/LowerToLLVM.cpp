@@ -1,4 +1,6 @@
-#include <mlir/Conversion/Passes.h>
+//#include <mlir/Conversion/Passes.h>
+#include <mlir/Conversion/StandardToLLVM/ConvertStandardToLLVM.h>
+#include <mlir/Conversion/OpenMPToLLVM/ConvertOpenMPToLLVM.h>
 #include <mlir/Dialect/LLVMIR/FunctionCallUtils.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/OpenMP/OpenMPDialect.h>
@@ -473,8 +475,7 @@ struct AllocLikeOpLowering : public ModelicaOpConversion<FromOp>
 		// Buffer size in bytes
 		mlir::Type elementPtrType = mlir::LLVM::LLVMPointerType::get(this->convertType(arrayType.getElementType()));
 		mlir::Value nullPtr = rewriter.create<mlir::LLVM::NullOp>(loc, elementPtrType);
-		mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(
-				loc, elementPtrType, llvm::ArrayRef<mlir::Value>{nullPtr, totalSize});
+		mlir::Value gepPtr = rewriter.create<mlir::LLVM::GEPOp>(loc, elementPtrType, llvm::ArrayRef<mlir::Value>{nullPtr, totalSize});
 		mlir::Value sizeBytes = rewriter.create<mlir::LLVM::PtrToIntOp>(loc, indexType, gepPtr);
 
 		// Allocate the underlying buffer
@@ -693,96 +694,6 @@ class StoreOpLowering: public ModelicaOpConversion<StoreOp>
 		rewriter.replaceOpWithNewOp<mlir::LLVM::StoreOp>(op, adaptor.value(), ptr);
 
 		return mlir::success();
-	}
-};
-
-class PrintOpLowering: public ModelicaOpConversion<PrintOp>
-{
-	using ModelicaOpConversion::ModelicaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(PrintOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		mlir::Location loc = op.getLoc();
-		auto module = op->getParentOfType<mlir::ModuleOp>();
-
-		auto printfRef = getOrInsertPrintf(rewriter, module);
-		mlir::Value semicolonCst = getOrCreateGlobalString(loc, rewriter, "semicolon", mlir::StringRef(";\0", 2), module);
-		mlir::Value newLineCst = getOrCreateGlobalString(loc, rewriter, "newline", mlir::StringRef("\n\0", 2), module);
-
-		for (auto value : Adaptor(operands).values())
-			printElement(rewriter, value, semicolonCst, module);
-
-		rewriter.create<mlir::LLVM::CallOp>(op.getLoc(), printfRef, newLineCst);
-
-		rewriter.eraseOp(op);
-		return mlir::success();
-	}
-
-	mlir::Value getOrCreateGlobalString(mlir::Location loc, mlir::OpBuilder &builder, mlir::StringRef name, mlir::StringRef value, mlir::ModuleOp module) const
-	{
-		// Create the global at the entry of the module
-		mlir::LLVM::GlobalOp global;
-
-		if (!(global = module.lookupSymbol<mlir::LLVM::GlobalOp>(name)))
-		{
-			mlir::OpBuilder::InsertionGuard insertGuard(builder);
-			builder.setInsertionPointToStart(module.getBody());
-			auto type = mlir::LLVM::LLVMArrayType::get(mlir::IntegerType::get(builder.getContext(), 8), value.size());
-			global = builder.create<mlir::LLVM::GlobalOp>(loc, type, true, mlir::LLVM::Linkage::Internal, name, builder.getStringAttr(value));
-		}
-
-		// Get the pointer to the first character in the global string
-		mlir::Value globalPtr = builder.create<mlir::LLVM::AddressOfOp>(loc, global);
-
-		mlir::Value cst0 = builder.create<mlir::LLVM::ConstantOp>(
-				loc,
-				mlir::IntegerType::get(builder.getContext(), 64),
-				builder.getIntegerAttr(builder.getIndexType(), 0));
-
-		return builder.create<mlir::LLVM::GEPOp>(
-				loc,
-				mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(builder.getContext(), 8)),
-				globalPtr, llvm::ArrayRef<mlir::Value>({cst0, cst0}));
-	}
-
-	mlir::LLVM::LLVMFuncOp getOrInsertPrintf(mlir::OpBuilder& rewriter, mlir::ModuleOp module) const
-	{
-		auto* context = module.getContext();
-
-		if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>("printf"))
-			return foo;
-
-		// Create a function declaration for printf, the signature is:
-		//   * `i32 (i8*, ...)`
-		auto llvmI32Ty = mlir::IntegerType::get(context, 32);
-		auto llvmI8PtrTy = mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(context, 8));
-		auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmI8PtrTy, true);
-
-		// Insert the printf function into the body of the parent module.
-		mlir::PatternRewriter::InsertionGuard insertGuard(rewriter);
-		rewriter.setInsertionPointToStart(module.getBody());
-		return rewriter.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), "printf", llvmFnType);
-	}
-
-	void printElement(mlir::OpBuilder& builder, mlir::Value value, mlir::Value separator, mlir::ModuleOp module) const
-	{
-		auto printfRef = getOrInsertPrintf(builder, module);
-
-		mlir::Type type = value.getType();
-
-		// Check if the separator should be printed
-		builder.create<mlir::LLVM::CallOp>(value.getLoc(), printfRef, separator);
-
-		mlir::Value formatSpecifier;
-
-		if (type.isa<mlir::IntegerType>())
-			formatSpecifier = getOrCreateGlobalString(value.getLoc(), builder, "frmt_spec_int", mlir::StringRef("%ld\0", 4), module);
-		else if (type.isa<mlir::FloatType>())
-			formatSpecifier = getOrCreateGlobalString(value.getLoc(), builder, "frmt_spec_float", mlir::StringRef("%.12f\0", 6), module);
-		else
-			assert(false && "Unknown type");
-
-		builder.create<mlir::LLVM::CallOp>(value.getLoc(), printfRef, mlir::ValueRange({ formatSpecifier, value }));
 	}
 };
 
@@ -1061,8 +972,7 @@ static void populateModelicaToLLVMConversionPatterns(mlir::OwningRewritePatternL
 			CastOpBooleanLowering,
 			CastOpIntegerLowering,
 			CastOpRealLowering,
-			ArrayCastOpLowering,
-			PrintOpLowering>(typeConverter, context);
+			ArrayCastOpLowering>(typeConverter, context);
 }
 
 class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::OperationPass<mlir::ModuleOp>>
@@ -1116,7 +1026,7 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		target.addIllegalOp<mlir::FuncOp>();
 
 		target.addLegalDialect<mlir::LLVM::LLVMDialect>();
-		target.addIllegalOp<mlir::LLVM::DialectCastOp>();
+		//target.addIllegalOp<mlir::LLVM::DialectCastOp>();
 		target.addLegalOp<mlir::UnrealizedConversionCastOp>();
 		target.addLegalOp<mlir::ModuleOp>();
 
@@ -1124,13 +1034,13 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		llvmOptions.emitCWrappers = options.emitCWrappers;
 		marco::codegen::TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
 
-		target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });
-		target.addLegalOp<mlir::omp::TerminatorOp, mlir::omp::TaskyieldOp, mlir::omp::FlushOp, mlir::omp::BarrierOp, mlir::omp::TaskwaitOp>();
+		//target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });
+		//target.addLegalOp<mlir::omp::TerminatorOp, mlir::omp::TaskyieldOp, mlir::omp::FlushOp, mlir::omp::BarrierOp, mlir::omp::TaskwaitOp>();
 
 		mlir::OwningRewritePatternList patterns(&getContext());
 		populateModelicaToLLVMConversionPatterns(patterns, &getContext(), typeConverter);
 		mlir::populateStdToLLVMConversionPatterns(typeConverter, patterns);
-		mlir::populateOpenMPToLLVMConversionPatterns(typeConverter, patterns);
+		//mlir::populateOpenMPToLLVMConversionPatterns(typeConverter, patterns);
 
 		return applyPartialConversion(module, target, std::move(patterns));
 	}

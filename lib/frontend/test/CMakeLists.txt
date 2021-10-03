@@ -1,5 +1,4 @@
-marcoAddTest(
-        frontend
+set(SOURCES
         src/AlgorithmTest.cpp
         src/ArrayTest.cpp
         src/AnnotationTest.cpp
@@ -14,3 +13,10 @@ marcoAddTest(
         src/StatementTest.cpp
         src/TupleTest.cpp
         src/TypeCheckerTest.cpp)
+
+marco_add_unittest(MARCOTest FrontendTest ${SOURCES})
+
+llvm_config(FrontendTest core support)
+
+target_link_libraries(FrontendTest
+        PRIVATE marco::frontend)

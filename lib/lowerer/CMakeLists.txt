@@ -1,15 +1,16 @@
-marcoAddLibrary(
-	lowerer SHARED 
-	src/Lowerer.cpp
-   	src/LowererUtils.cpp
-   	src/ExpLowerer.cpp
-   	src/CallLowerer.cpp
-   	src/OperationLowerer.cpp)
+set(SOURCES
+		src/Lowerer.cpp
+		src/LowererUtils.cpp
+		src/ExpLowerer.cpp
+		src/CallLowerer.cpp
+		src/OperationLowerer.cpp)
 
-marco_link_llvm_libs(lowerer core bitwriter)
+marco_add_library(lowerer SHARED ${SOURCES})
 
-target_link_libraries(
-	lowerer PUBLIC 
-   	marco::utils
-   	marco::passes)
+llvm_config(lowerer USE_SHARED bitwriter core support)
 
+target_link_libraries(lowerer
+		PUBLIC marco::passes
+		PUBLIC marco::utils)
+
+add_subdirectory(test)

@@ -136,6 +136,7 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions, loweringOptions.getBitWidth()));
 	passManager.addPass(createLowerToCFGPass(loweringOptions.getBitWidth()));
 
+	passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertMathToLLVMPass());
 	passManager.addPass(createLLVMLoweringPass(loweringOptions.llvmOptions, loweringOptions.getBitWidth()));
 
 	if (!loweringOptions.debug)
@@ -349,8 +350,8 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 	// Time variable
 	args.push_back(builder.getArrayType(BufferAllocationScope::unknown, builder.getRealType()));
 
-
-    std::vector<mlir::Attribute> variableNames;
+	// Other variables
+	llvm::SmallVector<mlir::Attribute, 3> variableNames;
 
 	for (const auto& member : model.getMembers())
 	{
@@ -365,14 +366,13 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 		variableNames.push_back(nameAttribute);
 	}
 
-    llvm::ArrayRef<mlir::Attribute> attributeArray(variableNames);
-    mlir::ArrayAttr variableNamesAttribute = builder.getArrayAttr(attributeArray);
+	llvm::ArrayRef<mlir::Attribute> attributeArray(variableNames);
+	mlir::ArrayAttr variableNamesAttribute = builder.getArrayAttr(attributeArray);
 
-    //create an operation of  specific op. type at insertion point
-
+	// Create the operation
 	auto simulation = builder.create<SimulationOp>(
 			location,
-            variableNamesAttribute,
+			variableNamesAttribute,
 			builder.getRealAttribute(options.startTime),
 			builder.getRealAttribute(options.endTime),
 			builder.getRealAttribute(options.timeStep),
@@ -412,32 +412,6 @@ mlir::Operation* MLIRLowerer::lower(const frontend::Model& model)
 			lower(*forEquation);
 
 		builder.create<YieldOp>(location);
-	}
-
-	{
-		/* AL  Print
-		builder.setInsertionPointToStart(&simulation.print().front());
-
-		llvm::SmallVector<mlir::Value, 3> variablesToBePrinted;
-
-		variablesToBePrinted.push_back(simulation.print().getArgument(0));
-
-		VariableFilter vf = codegenOptions.variableFilter; //quick renaming
-
-		for (const auto& member : model.getMembers())
-		{
-			std::string variableIdentifier = member->getName().str();
-
-			//filter only if variable filter is not bypassed
-			bool isTracked = vf.isBypass() || vf.checkTrackedIdentifier(variableIdentifier);
-			if(!isTracked) continue;
-
-			unsigned int index = symbolTable.lookup(member->getName()).getReference().cast<mlir::BlockArgument>().getArgNumber();
-			variablesToBePrinted.push_back(simulation.print().getArgument(index));
-		}
-
-
-		builder.create<YieldOp>(location, variablesToBePrinted); */
 	}
 
 	return simulation;
@@ -592,7 +566,6 @@ void MLIRLowerer::lower<frontend::Model>(const Member& member)
 	}
 
 	mlir::Value destination = symbolTable.lookup(member.getName()).getReference();
-	auto name = member.getName();
 	bool isConstant = member.isParameter();
 
 	if (member.hasStartOverload())
@@ -934,7 +907,7 @@ void MLIRLowerer::lower(const WhileStatement& statement)
 
 	{
 		// Condition
-		llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
+		llvm::ScopedHashTableScope<mlir::StringRef, Reference> scope(symbolTable);
 		mlir::Block* conditionBlock = &whileOp.condition().front();
 		builder.setInsertionPointToStart(conditionBlock);
 		const auto* condition = statement.getCondition();
@@ -946,7 +919,7 @@ void MLIRLowerer::lower(const WhileStatement& statement)
 
 	{
 		// Body
-		llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
+		llvm::ScopedHashTableScope<mlir::StringRef, Reference> scope(symbolTable);
 		builder.setInsertionPointToStart(&whileOp.body().front());
 
 		for (const auto& stmnt : statement)
@@ -1529,7 +1502,7 @@ MLIRLowerer::Container<Reference> MLIRLowerer::lower<Call>(const Expression& exp
 
 		for (const auto& arg : *call)
 		{
-			auto& reference = lower<Expression>(*arg)[0];
+			auto reference = lower<Expression>(*arg)[0];
 			args.push_back(*reference);
 		}
 
