@@ -37,6 +37,6 @@ llvm_config(frontend USE_SHARED core support)
 
 target_link_libraries(frontend
 		PUBLIC marco::utils
-		PRIVATE boost)
+		PUBLIC boost)
 
 add_subdirectory(test)

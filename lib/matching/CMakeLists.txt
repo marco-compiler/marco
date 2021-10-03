@@ -16,6 +16,7 @@ llvm_config(matching USE_SHARED core support)
 
 target_link_libraries(matching
 		PUBLIC marco::model
-		PRIVATE pthread boost)
+		PUBLIC boost
+		PRIVATE pthread)
 
 add_subdirectory(test)

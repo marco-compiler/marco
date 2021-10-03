@@ -765,6 +765,17 @@ class Parser
 
 	llvm::Error run()
 	{
+		// In case of empty string
+		if (current == Token::EndOfFile)
+			return llvm::Error::success();
+
+		// Consume consecutive semicolons
+		while(accept<Token::Semicolons>());
+
+		// Check if we reached the end of the string
+		if (current == Token::EndOfFile)
+			return llvm::Error::success();
+
 		if (auto error = token(); error)
 			return error;
 
@@ -774,8 +785,9 @@ class Parser
 			if (current == Token::EndOfFile)
 				return llvm::Error::success();
 
-			if (auto error = token(); error)
-        return error;
+			if (current != Token::Semicolons)
+				if (auto error = token(); error)
+					return error;
 		}
 
 		return llvm::Error::success();
