@@ -2217,52 +2217,66 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		// Initialize IDA user data.
 		int64_t varOffset = 0;
 		int64_t forEquationsNumber = 0;
-		std::map<Variable, double> initialValueMap;
+		std::map<Variable, mlir::Operation*> initialValueMap;
 		std::map<Variable, int64_t> offsetMap;
 		std::map<Variable, mlir::Value> variableIndexMap;
 		std::map<std::pair<Variable, VectorAccess>, mlir::Value> accessesMap;
 
-		// TODO: Add different value handling for initialization
-
-		// Map all vector variables to their initial value.
 		model.getOp().init().walk([&](FillOp fillOp) {
-			if (!model.hasVariable(fillOp.memory()))
-				return;
-
+			// Map all vector variables to their initial value.
 			Variable var = model.getVariable(fillOp.memory());
 
 			if (var.isDerivative())
 				return;
 
-			mlir::Operation* op = fillOp.value().getDefiningOp();
-			ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
-			double value = getValue(constantOp);
+			mlir::Operation* constantOp = fillOp.value().getDefiningOp();
+			assert(mlir::isa<ConstantOp>(constantOp));
 
-			initialValueMap[var] = value;
+			initialValueMap[var] = constantOp;
 			if (var.isState())
-				initialValueMap[model.getVariable(var.getDer())] = value;
+				initialValueMap[model.getVariable(var.getDer())] = constantOp;
 		});
 
-		// Map all scalar variables to their initial value.
 		model.getOp().init().walk([&](AssignmentOp assignmentOp) {
 			mlir::Operation* op = assignmentOp.destination().getDefiningOp();
-			SubscriptionOp subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op);
 
-			if (!model.hasVariable(subscriptionOp.source()))
-				return;
+			if (SubscriptionOp subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op))
+			{
+				// Map all scalar variables to their initial value.
+				if (!model.hasVariable(subscriptionOp.source()))
+					return;
 
-			Variable var = model.getVariable(subscriptionOp.source());
+				Variable var = model.getVariable(subscriptionOp.source());
 
-			if (var.isDerivative())
-				return;
+				if (var.isDerivative())
+					return;
 
-			op = assignmentOp.source().getDefiningOp();
-			ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
-			double value = getValue(constantOp);
+				mlir::Operation* constantOp = assignmentOp.source().getDefiningOp();
+				assert(mlir::isa<ConstantOp>(constantOp));
 
-			initialValueMap[var] = value;
-			if (var.isState())
-				initialValueMap[model.getVariable(var.getDer())] = value;
+				initialValueMap[var] = constantOp;
+				if (var.isState())
+					initialValueMap[model.getVariable(var.getDer())] = constantOp;
+			}
+			else if (AllocOp allocOp = mlir::dyn_cast<AllocOp>(op))
+			{
+				// Initialize all other vector variables to zero.
+				if (!model.hasVariable(allocOp))
+					return;
+
+				Variable var = model.getVariable(allocOp);
+
+				if (var.isDerivative())
+					return;
+
+				mlir::Operation* allocaOp = assignmentOp.source().getDefiningOp();
+				assert(mlir::isa<AllocaOp>(allocaOp));
+
+				initialValueMap[var] = allocaOp;
+				if (var.isState())
+					initialValueMap[model.getVariable(var.getDer())] = allocaOp;
+
+			}
 		});
 
 		// Compute all non-trivial variable offsets and dimensions.
@@ -2295,32 +2309,26 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 						variableIndexMap[model.getVariable(var.getState())] = varIndex;
 					}
 
+					// Add dimensions of the variable to the ida user data.
+					marco::MultiDimInterval dimensions = var.toMultiDimInterval();
+					for (size_t i = 0; i < dimensions.dimensions(); i++)
+					{
+						mlir::Value dim = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, dimensions[i].size()));
+						builder.create<AddVariableDimensionOp>(loc, userData, varIndex, dim);
+					}
+
 					// Initialize variablesValues, derivativesValues, idValues.
+					mlir::Operation* valueOp = initialValueMap[var];
 					mlir::Value length = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, var.toMultiDimInterval().size()));
-					mlir::Value value = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, initialValueMap[var]));
 					mlir::Value isState = builder.create<ConstantValueOp>(loc, ida::BooleanAttribute::get(context, var.isState() || var.isDerivative()));
-					builder.create<SetInitialValueOp>(loc, userData, varIndex, length, value, isState);
+
+					if (ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(valueOp))
+						builder.create<SetInitialValueOp>(loc, userData, varIndex, length, constantOp, isState);
+					else if (AllocaOp allocaOp = mlir::cast<AllocaOp>(valueOp))
+						builder.create<SetInitialArrayOp>(loc, userData, varIndex, length, allocaOp, isState);
 
 					// Increase the length of the current row.
 					varOffset += var.toMultiDimInterval().size();
-
-					// Compute the multi-dimensional offset of the array.
-					marco::MultiDimInterval dimensions = var.toMultiDimInterval();
-					std::vector<int64_t> dims;
-					for (size_t i = 1; i < dimensions.dimensions(); i++)
-					{
-						for (size_t j = 0; j < dims.size(); j++)
-							dims[j] *= dimensions.at(i).size();
-						dims.push_back(dimensions.at(i).size());
-					}
-					dims.push_back(1);
-
-					// Add dimensions of the variable to the ida user data.
-					for (size_t i = 0; i < dims.size(); i++)
-					{
-						mlir::Value dim = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, dims[i]));
-						builder.create<AddVariableDimensionOp>(loc, userData, varIndex, dim);
-					}
 				}
 			}
 		}
@@ -2408,14 +2416,32 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		{
 			for (Equation& equation : bltBlock.getEquations())
 			{
+				mlir::Value eqIndex = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, forEquationsNumber));
+				SubscriptionOp subscriptionOp = mlir::cast<SubscriptionOp>(equation.getMatchedExp().getOp());
+				marco::MultiDimInterval inductions = equation.getInductions();
+				size_t i = 0;
+
 				// Dimension
-				for (marco::Interval& interval : equation.getInductions())
+				for (mlir::Value index : subscriptionOp.indexes())
 				{
-					mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, forEquationsNumber));
-					mlir::Value min = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.min() - 1));
-					mlir::Value max = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.max() - 1));
-					builder.create<AddEquationDimensionOp>(loc, userData, index, min, max);
+					if (index.isa<mlir::BlockArgument>() || !mlir::isa<ConstantOp>(index.getDefiningOp()))
+					{
+						// If the variable access is an offset, add the correspoding induction.
+						mlir::Value min = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, inductions[i].min() - 1));
+						mlir::Value max = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, inductions[i].max() - 1));
+						builder.create<AddEquationDimensionOp>(loc, userData, eqIndex, min, max);
+						i++;
+					}
+					else
+					{
+						// If the variable access is a direct access, add an empty induction.
+						mlir::Value min = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, 0));
+						mlir::Value max = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, 1));
+						builder.create<AddEquationDimensionOp>(loc, userData, eqIndex, min, max);
+					}
 				}
+
+				assert(i == inductions.dimensions() || inductions.size() <= 1);
 
 				// Residual and Jacobian
 				mlir::Value leftIndex = getFunction(builder, loc, model, userData, accessesMap, equation.lhs());

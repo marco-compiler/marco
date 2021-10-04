@@ -15,6 +15,7 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 			AllocUserDataOp,
 			FreeUserDataOp,
 			SetInitialValueOp,
+			SetInitialArrayOp,
 			InitOp,
 			StepOp>();
 

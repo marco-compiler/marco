@@ -131,6 +131,39 @@ namespace marco::codegen::ida
 	};
 
 	//===----------------------------------------------------------------------===//
+	// Ida::SetInitialArrayOp
+	//===----------------------------------------------------------------------===//
+
+	class SetInitialArrayOp : public mlir::Op<SetInitialArrayOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::NOperands<5>::Impl,
+																mlir::OpTrait::ZeroResult,
+																mlir::MemoryEffectOpInterface::Trait>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.set_initial_array";
+		}
+
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value array, mlir::Value isState);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
+
+		mlir::ValueRange args();
+		mlir::Value userData();
+		mlir::Value index();
+		mlir::Value length();
+		mlir::Value array();
+		mlir::Value isState();
+	};
+
+	//===----------------------------------------------------------------------===//
 	// Ida::InitOp
 	//===----------------------------------------------------------------------===//
 

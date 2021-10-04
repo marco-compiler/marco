@@ -11,6 +11,7 @@ extern "C"
 	bool freeIdaUserData(void* userData);
 
 	void setInitialValue(void* userData, sunindextype index, sunindextype length, realtype value, bool isState);
+	void setInitialArray(void* userData, sunindextype index, sunindextype length, UnsizedArrayDescriptor<realtype> array, bool isState);
 	bool idaInit(void* userData);
 	bool idaStep(void* userData);
 
@@ -38,7 +39,7 @@ extern "C"
 	sunindextype getNumberOfNonZeroValues(void* userData);
 
 	sunindextype getIdaRowLength(void* userData, sunindextype index);
-	std::vector<std::pair<sunindextype, sunindextype>> getIdaDimension(void* userData, sunindextype index);
+	std::vector<std::pair<size_t, size_t>> getIdaDimension(void* userData, sunindextype index);
 
 	// Statistics
 	sunindextype numSteps(void* userData);

@@ -52,20 +52,15 @@ mlir::LogicalResult IdaSolver::init()
 {
 	sunindextype varOffset = 0;
 
-	// TODO: Add different value handling for initialization
-
-	// Map all vector variables to their initial value.
 	model.getOp().init().walk([&](FillOp fillOp) {
-		if (!model.hasVariable(fillOp.memory()))
-			return;
-
+		// Map all vector variables to their initial value.
 		Variable var = model.getVariable(fillOp.memory());
 
 		if (var.isDerivative())
 			return;
 
 		mlir::Operation* op = fillOp.value().getDefiningOp();
-		ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
+		ConstantOp constantOp = mlir::cast<ConstantOp>(op);
 		realtype value = getValue(constantOp);
 
 		initialValueMap[var] = value;
@@ -73,26 +68,43 @@ mlir::LogicalResult IdaSolver::init()
 			initialValueMap[model.getVariable(var.getDer())] = value;
 	});
 
-	// Map all scalar variables to their initial value.
 	model.getOp().init().walk([&](AssignmentOp assignmentOp) {
 		mlir::Operation* op = assignmentOp.destination().getDefiningOp();
-		SubscriptionOp subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op);
 
-		if (!model.hasVariable(subscriptionOp.source()))
-			return;
+		if (SubscriptionOp subscriptionOp = mlir::dyn_cast<SubscriptionOp>(op))
+		{
+			// Map all scalar variables to their initial value.
+			if (!model.hasVariable(subscriptionOp.source()))
+				return;
 
-		Variable var = model.getVariable(subscriptionOp.source());
+			Variable var = model.getVariable(subscriptionOp.source());
 
-		if (var.isDerivative())
-			return;
+			if (var.isDerivative())
+				return;
 
-		op = assignmentOp.source().getDefiningOp();
-		ConstantOp constantOp = mlir::dyn_cast<ConstantOp>(op);
-		realtype value = getValue(constantOp);
+			op = assignmentOp.source().getDefiningOp();
+			ConstantOp constantOp = mlir::cast<ConstantOp>(op);
+			double value = getValue(constantOp);
 
-		initialValueMap[var] = value;
-		if (var.isState())
-			initialValueMap[model.getVariable(var.getDer())] = value;
+			initialValueMap[var] = value;
+			if (var.isState())
+				initialValueMap[model.getVariable(var.getDer())] = value;
+		}
+		else if (AllocOp allocOp = mlir::dyn_cast<AllocOp>(op))
+		{
+			// Initialize all other vector variables to zero.
+			if (!model.hasVariable(allocOp))
+				return;
+
+			Variable var = model.getVariable(allocOp);
+
+			if (var.isDerivative())
+				return;
+
+			initialValueMap[var] = 0.0;
+			if (var.isState())
+				initialValueMap[model.getVariable(var.getDer())] = 0.0;
+		}
 	});
 
 	// Compute all non-trivial variable offsets and dimensions.
@@ -118,6 +130,11 @@ mlir::LogicalResult IdaSolver::init()
 				else if (var.isDerivative())
 					variableIndexMap[model.getVariable(var.getState())] = varIndex;
 
+				// Add dimensions of the variable to the ida user data.
+				marco::MultiDimInterval dimensions = var.toMultiDimInterval();
+				for (size_t i = 0; i < dimensions.dimensions(); i++)
+					addVariableDimension(userData, varIndex, dimensions[i].size());
+
 				// Initialize variablesValues, derivativesValues, idValues.
 				setInitialValue(
 						userData,
@@ -128,21 +145,6 @@ mlir::LogicalResult IdaSolver::init()
 
 				// Increase the length of the current row.
 				varOffset += var.toMultiDimInterval().size();
-
-				// Compute the multi-dimensional offset of the array.
-				marco::MultiDimInterval dimensions = var.toMultiDimInterval();
-				std::vector<sunindextype> dims;
-				for (size_t i = 1; i < dimensions.dimensions(); i++)
-				{
-					for (size_t j = 0; j < dims.size(); j++)
-						dims[j] *= dimensions.at(i).size();
-					dims.push_back(dimensions.at(i).size());
-				}
-				dims.push_back(1);
-
-				// Add dimensions of the variable to the ida user data.
-				for (size_t i = 0; i < dims.size(); i++)
-					addVariableDimension(userData, varIndex, dims[i]);
 			}
 		}
 	}
@@ -344,9 +346,32 @@ IdaSolver::Dimension IdaSolver::getDimension(sunindextype index)
 
 void IdaSolver::getDimension(const Equation& equation)
 {
-	for (marco::Interval& interval : equation.getInductions())
-		addEquationDimension(
-				userData, forEquationsNumber, interval.min() - 1, interval.max() - 1);
+	SubscriptionOp subscriptionOp =
+			mlir::cast<SubscriptionOp>(equation.getMatchedExp().getOp());
+	marco::MultiDimInterval inductions = equation.getInductions();
+	size_t i = 0;
+
+	for (mlir::Value index : subscriptionOp.indexes())
+	{
+		if (index.isa<mlir::BlockArgument>() ||
+				!mlir::isa<ConstantOp>(index.getDefiningOp()))
+		{
+			// If the variable access is an offset, add the correspoding induction.
+			addEquationDimension(
+					userData,
+					forEquationsNumber,
+					inductions[i].min() - 1,
+					inductions[i].max() - 1);
+			i++;
+		}
+		else
+		{
+			// If the variable access is a direct access, add an empty induction.
+			addEquationDimension(userData, forEquationsNumber, 0, 1);
+		}
+	}
+
+	assert(i == inductions.dimensions() || inductions.size() <= 1);
 }
 
 void IdaSolver::getResidualAndJacobian(const Equation& equation)
