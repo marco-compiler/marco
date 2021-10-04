@@ -119,6 +119,29 @@ struct SetInitialValueOpLowering : public mlir::OpConversionPattern<SetInitialVa
 	}
 };
 
+struct SetInitialArrayOpLowering : public mlir::OpConversionPattern<SetInitialArrayOp>
+{
+	using mlir::OpConversionPattern<SetInitialArrayOp>::OpConversionPattern;
+
+	mlir::LogicalResult matchAndRewrite(SetInitialArrayOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		// Cast sized array into unsized array.
+		auto arrayType = op.array().getType().cast<modelica::ArrayType>();
+		llvm::SmallVector<mlir::Value, 5> args = op.args();
+		args[3] = rewriter.create<modelica::ArrayCastOp>(op.getLoc(), op.array(), arrayType.toUnsized());
+
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				"setInitialArray",
+				llvm::None,
+				mlir::ValueRange(args).getTypes());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, args);
+		return mlir::success();
+	}
+};
+
 struct InitOpLowering : public mlir::OpConversionPattern<InitOp>
 {
 	using mlir::OpConversionPattern<InitOp>::OpConversionPattern;
@@ -647,6 +670,7 @@ static void populateIdaConversionPatterns(
 			AllocUserDataOpLowering,
 			FreeUserDataOpLowering,
 			SetInitialValueOpLowering,
+			SetInitialArrayOpLowering,
 			InitOpLowering,
 			StepOpLowering>(typeConverter, context);
 
@@ -744,6 +768,7 @@ class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::Oper
 				AllocUserDataOp,
 				FreeUserDataOp,
 				SetInitialValueOp,
+				SetInitialArrayOp,
 				InitOp,
 				StepOp>();
 

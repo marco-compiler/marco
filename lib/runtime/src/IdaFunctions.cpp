@@ -12,9 +12,12 @@
 	if (!success)                                                                \
 		return false;
 
-using Dimension = std::vector<std::pair<sunindextype, sunindextype>>;
+using EqDimension = std::vector<std::pair<size_t, size_t>>;
+
 using Access = std::vector<std::pair<sunindextype, sunindextype>>;
-using Indexes = std::vector<sunindextype>;
+using Indexes = std::vector<size_t>;
+using VarDimension = std::vector<size_t>;
+
 using Function = std::function<realtype(
 		realtype tt,
 		realtype cj,
@@ -30,17 +33,17 @@ using Function = std::function<realtype(
 typedef struct IdaUserData
 {
 	// Equations data
-	std::vector<sunindextype> rowLengths;
-	std::vector<std::vector<sunindextype>> columnIndexes;
-	std::vector<Dimension> equationDimensions;
+	std::vector<size_t> rowLengths;
+	std::vector<std::vector<size_t>> columnIndexes;
+	std::vector<EqDimension> equationDimensions;
 	std::vector<Function> residuals;
 	std::vector<Function> jacobians;
 	std::vector<std::pair<Function, Function>> lambdas;
 
 	// Variables data
-	std::vector<sunindextype> variableOffsets;
+	std::vector<size_t> variableOffsets;
 	std::vector<std::pair<sunindextype, Access>> variableAccesses;
-	std::vector<std::vector<sunindextype>> variableDimensions;
+	std::vector<VarDimension> variableDimensions;
 
 	// Matrix size
 	sunindextype equationsNumber;
@@ -70,7 +73,7 @@ typedef struct IdaUserData
 	SUNNonlinearSolver nonlinearSolver;
 } IdaUserData;
 
-bool updateIndexes(Indexes& indexes, Dimension dimension)
+static bool updateIndexes(Indexes& indexes, const EqDimension& dimension)
 {
 	for (sunindextype dim = dimension.size() - 1; true; dim--)
 	{
@@ -89,6 +92,73 @@ bool updateIndexes(Indexes& indexes, Dimension dimension)
 	}
 
 	assert(false && "Unreachable");
+}
+
+static bool updateIndexes(Indexes& indexes, const VarDimension& dimension)
+{
+	for (sunindextype dim = dimension.size() - 1; true; dim--)
+	{
+		indexes[dim]++;
+		if (indexes[dim] == dimension[dim])
+		{
+			if (dim == 0)
+				return true;
+			else
+				indexes[dim] = 0;
+		}
+		else
+		{
+			return false;
+		}
+	}
+
+	assert(false && "Unreachable");
+}
+
+static sunindextype computeOffset(
+		const Indexes& indexes,
+		const VarDimension& dimensions,
+		const Access& access)
+{
+	assert(dimensions.size() == access.size());
+
+	sunindextype offset =
+			access[0].first +
+			(access[0].second != -1 ? indexes[access[0].second] : 0);
+
+	for (size_t i = 1; i < indexes.size(); ++i)
+	{
+		sunindextype accessOffset =
+				access[i].first +
+				(access[i].second != -1 ? indexes[access[i].second] : 0);
+		offset = offset * dimensions[i] + accessOffset;
+	}
+
+	return offset;
+}
+
+/**
+ * Check an IDA function return value in order to find possible failures.
+ */
+static bool checkRetval(void* retval, const char* funcname, int opt)
+{
+	// Check if SUNDIALS function returned NULL pointer (no memory allocated)
+	if (opt == 0 && retval == NULL)
+	{
+		llvm::errs() << "SUNDIALS_ERROR: " << funcname
+								 << "() failed - returned NULL pointer\n";
+		return false;
+	}
+
+	// Check if SUNDIALS function returned a positive integer value
+	if (opt == 1 && *((int*) retval) < 0)
+	{
+		llvm::errs() << "SUNDIALS_ERROR: " << funcname
+								 << "() failed  with return value = " << *(int*) retval << "\n";
+		return false;
+	}
+
+	return true;
 }
 
 /**
@@ -180,24 +250,17 @@ int jacobianMatrix(
 			std::set<sunindextype> columnIndexesSet;
 			for (sunindextype accessIndex : data->columnIndexes[eq])
 			{
-				sunindextype varOffset = 0;
 				sunindextype varIndex = data->variableAccesses[accessIndex].first;
-				auto dimensions = data->variableDimensions[varIndex];
 
-				for (size_t i = 0;
-						 i < data->variableAccesses[accessIndex].second.size();
-						 i++)
-				{
-					auto acc = data->variableAccesses[accessIndex].second[i];
-					sunindextype accOffset =
-							acc.first + (acc.second != -1 ? indexes[acc.second] : 0);
-					varOffset += accOffset * dimensions[i];
-				}
+				VarDimension dimensions = data->variableDimensions[varIndex];
+				Access access = data->variableAccesses[accessIndex].second;
+
+				sunindextype varOffset = computeOffset(indexes, dimensions, access);
 
 				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
 			}
 
-			assert(columnIndexesSet.size() <= (size_t) data->rowLengths[eq]);
+			assert(columnIndexesSet.size() <= data->rowLengths[eq]);
 
 			nnzElements += columnIndexesSet.size();
 			*rowptrs++ = nnzElements;
@@ -219,30 +282,6 @@ int jacobianMatrix(
 	assert(nnzElements == data->nonZeroValuesNumber);
 
 	return 0;
-}
-
-/**
- * Check an IDA function return value in order to find possible failures.
- */
-bool checkRetval(void* retval, const char* funcname, int opt)
-{
-	// Check if SUNDIALS function returned NULL pointer (no memory allocated)
-	if (opt == 0 && retval == NULL)
-	{
-		llvm::errs() << "SUNDIALS_ERROR: " << funcname
-								 << "() failed - returned NULL pointer\n";
-		return false;
-	}
-
-	// Check if SUNDIALS function returned a positive integer value
-	if (opt == 1 && *((int*) retval) < 0)
-	{
-		llvm::errs() << "SUNDIALS_ERROR: " << funcname
-								 << "() failed  with return value = " << *(int*) retval << "\n";
-		return false;
-	}
-
-	return true;
 }
 
 //===----------------------------------------------------------------------===//
@@ -286,14 +325,17 @@ bool freeIdaUserData(void* userData)
 
 	// Free IDA memory
 	IDAFree(&data->idaMemory);
+
 	int retval = SUNNonlinSolFree(data->nonlinearSolver);
 	exitOnError(checkRetval(&retval, "SUNNonlinSolFree", 1));
 	retval = SUNLinSolFree(data->linearSolver);
 	exitOnError(checkRetval(&retval, "SUNLinSolFree", 1));
+
 	SUNMatDestroy(data->sparseMatrix);
 	N_VDestroy(data->variablesVector);
 	N_VDestroy(data->derivativesVector);
 	N_VDestroy(data->idVector);
+
 	delete data;
 
 	return true;
@@ -323,6 +365,45 @@ void setInitialValue(
 }
 
 /**
+ * Set the initial values of the index-th variable given its array, which is
+ * represented as a modelica alloca operation. Initialize every other value not
+ * included in the array to zero.
+ */
+void setInitialArray(
+		void* userData,
+		sunindextype index,
+		sunindextype length,
+		UnsizedArrayDescriptor<realtype> array,
+		bool isState)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	sunindextype offset = data->variableOffsets[index];
+	VarDimension dimensions = data->variableDimensions[index];
+
+	realtype* arrayData = array.getData();
+	realtype idValue = isState ? 1.0 : 0.0;
+
+	Indexes indexes;
+	for (size_t dim = 0; dim < dimensions.size(); dim++)
+		indexes.push_back(0);
+
+	bool finished = false;
+	while (!finished)
+	{
+		if (array.hasData(indexes))
+			data->variablesValues[offset] = *arrayData++;
+		else
+			data->variablesValues[offset] = 0;
+
+		data->derivativesValues[offset] = 0.0;
+		data->idValues[offset++] = idValue;
+
+		finished = updateIndexes(indexes, dimensions);
+	}
+}
+
+/**
  * Compute the total number of non-zero values in the Jacobian Matrix. This
  * number corresponds to number of variables, in each scalar equation, where
  * their derivative may be non-zero.
@@ -347,19 +428,12 @@ sunindextype computeNNZ(IdaUserData* data)
 			std::set<sunindextype> columnIndexesSet;
 			for (sunindextype accessIndex : data->columnIndexes[eq])
 			{
-				sunindextype varOffset = 0;
 				sunindextype varIndex = data->variableAccesses[accessIndex].first;
-				auto dimensions = data->variableDimensions[varIndex];
 
-				for (size_t i = 0;
-						 i < data->variableAccesses[accessIndex].second.size();
-						 i++)
-				{
-					auto acc = data->variableAccesses[accessIndex].second[i];
-					sunindextype accOffset =
-							acc.first + (acc.second != -1 ? indexes[acc.second] : 0);
-					varOffset += accOffset * dimensions[i];
-				}
+				VarDimension dimensions = data->variableDimensions[varIndex];
+				Access access = data->variableAccesses[accessIndex].second;
+
+				sunindextype varOffset = computeOffset(indexes, dimensions, access);
 
 				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
 			}
@@ -524,7 +598,7 @@ void addColumnIndex(
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
 	if ((size_t) rowIndex == data->columnIndexes.size())
-		data->columnIndexes.push_back({ accessIndex });
+		data->columnIndexes.push_back({ (size_t) accessIndex });
 	else
 		data->columnIndexes[rowIndex].push_back(accessIndex);
 }
@@ -616,7 +690,7 @@ void addVariableDimension(void* userData, sunindextype index, sunindextype dim)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	if ((size_t) index == data->variableDimensions.size())
-		data->variableDimensions.push_back({ dim });
+		data->variableDimensions.push_back({ (size_t) dim });
 	else
 		data->variableDimensions[index].push_back(dim);
 }
@@ -673,7 +747,7 @@ sunindextype getIdaRowLength(void* userData, sunindextype index)
 	return data->rowLengths[index];
 }
 
-Dimension getIdaDimension(void* userData, sunindextype index)
+EqDimension getIdaDimension(void* userData, sunindextype index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	assert(index < data->equationsNumber);
@@ -806,7 +880,7 @@ sunindextype lambdaVariable(void* userData, sunindextype accessIndex)
 
 	sunindextype variableIndex = data->variableAccesses[accessIndex].first;
 	sunindextype offset = data->variableOffsets[variableIndex];
-	std::vector<sunindextype> dim = data->variableDimensions[variableIndex];
+	VarDimension dim = data->variableDimensions[variableIndex];
 	Access access = data->variableAccesses[accessIndex].second;
 
 	Function first = [offset, dim, access](
@@ -816,15 +890,7 @@ sunindextype lambdaVariable(void* userData, sunindextype accessIndex)
 											 realtype* yp,
 											 Indexes& ind,
 											 realtype var) -> realtype {
-		sunindextype varOffset = 0;
-
-		for (size_t i = 0; i < access.size(); i++)
-		{
-			auto acc = access[i];
-			sunindextype accOffset =
-					acc.first + (acc.second != -1 ? ind[acc.second] : 0);
-			varOffset += accOffset * dim[i];
-		}
+		sunindextype varOffset = computeOffset(ind, dim, access);
 
 		return yy[offset + varOffset];
 	};
@@ -836,15 +902,7 @@ sunindextype lambdaVariable(void* userData, sunindextype accessIndex)
 												realtype* yp,
 												Indexes& ind,
 												realtype var) -> realtype {
-		sunindextype varOffset = 0;
-
-		for (size_t i = 0; i < access.size(); i++)
-		{
-			auto acc = access[i];
-			sunindextype accOffset =
-					acc.first + (acc.second != -1 ? ind[acc.second] : 0);
-			varOffset += accOffset * dim[i];
-		}
+		sunindextype varOffset = computeOffset(ind, dim, access);
 
 		if (offset + varOffset == var)
 			return 1.0;
@@ -861,7 +919,7 @@ sunindextype lambdaDerivative(void* userData, sunindextype accessIndex)
 
 	sunindextype variableIndex = data->variableAccesses[accessIndex].first;
 	sunindextype offset = data->variableOffsets[variableIndex];
-	std::vector<sunindextype> dim = data->variableDimensions[variableIndex];
+	VarDimension dim = data->variableDimensions[variableIndex];
 	Access access = data->variableAccesses[accessIndex].second;
 
 	Function first = [offset, dim, access](
@@ -871,15 +929,7 @@ sunindextype lambdaDerivative(void* userData, sunindextype accessIndex)
 											 realtype* yp,
 											 Indexes& ind,
 											 realtype var) -> realtype {
-		sunindextype varOffset = 0;
-
-		for (size_t i = 0; i < access.size(); i++)
-		{
-			auto acc = access[i];
-			sunindextype accOffset =
-					acc.first + (acc.second != -1 ? ind[acc.second] : 0);
-			varOffset += accOffset * dim[i];
-		}
+		sunindextype varOffset = computeOffset(ind, dim, access);
 
 		return yp[offset + varOffset];
 	};
@@ -891,15 +941,7 @@ sunindextype lambdaDerivative(void* userData, sunindextype accessIndex)
 												realtype* yp,
 												Indexes& ind,
 												realtype var) -> realtype {
-		sunindextype varOffset = 0;
-
-		for (size_t i = 0; i < access.size(); i++)
-		{
-			auto acc = access[i];
-			sunindextype accOffset =
-					acc.first + (acc.second != -1 ? ind[acc.second] : 0);
-			varOffset += accOffset * dim[i];
-		}
+		sunindextype varOffset = computeOffset(ind, dim, access);
 
 		if (offset + varOffset == var)
 			return cj;

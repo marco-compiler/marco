@@ -227,7 +227,7 @@ mlir::LogicalResult SetInitialValueOp::verify()
 	if (!length().getType().isa<IntegerType>())
 		return emitOpError("Requires variable size to be an integer");
 
-	if (!value().getType().isa<RealType>() && !value().getType().isa<IntegerType>())
+	if (!value().getType().isa<modelica::RealType>() && !value().getType().isa<modelica::IntegerType>())
 		return emitOpError("Requires initialization value to be a number");
 
 	if (!isState().getType().isa<BooleanType>())
@@ -267,6 +267,84 @@ mlir::Value SetInitialValueOp::value()
 }
 
 mlir::Value SetInitialValueOp::isState()
+{
+	return getOperation()->getOperand(4);
+}
+
+//===----------------------------------------------------------------------===//
+// Ida::SetInitialArrayOp
+//===----------------------------------------------------------------------===//
+
+void SetInitialArrayOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value array, mlir::Value isState)
+{
+	state.addOperands(userData);
+	state.addOperands(index);
+	state.addOperands(length);
+	state.addOperands(array);
+	state.addOperands(isState);
+}
+
+mlir::ParseResult SetInitialArrayOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return marco::codegen::ida::parse(parser, result, 5);
+}
+
+void SetInitialArrayOp::print(mlir::OpAsmPrinter& printer)
+{
+	marco::codegen::ida::print(printer, getOperationName(), args());
+}
+
+mlir::LogicalResult SetInitialArrayOp::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!index().getType().isa<IntegerType>())
+		return emitOpError("Requires variable index to be an integer");
+
+	if (!length().getType().isa<IntegerType>())
+		return emitOpError("Requires variable size to be an integer");
+
+	if (!array().getType().isa<modelica::ArrayType>())
+		return emitOpError("Requires initialization array to be an array");
+
+	if (!isState().getType().isa<BooleanType>())
+		return emitOpError("Requires variable state to be a boolean");
+
+	return mlir::success();
+}
+
+void SetInitialArrayOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+{
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
+}
+
+mlir::ValueRange SetInitialArrayOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value SetInitialArrayOp::userData()
+{
+	return getOperation()->getOperand(0);
+}
+
+mlir::Value SetInitialArrayOp::index()
+{
+	return getOperation()->getOperand(1);
+}
+
+mlir::Value SetInitialArrayOp::length()
+{
+	return getOperation()->getOperand(2);
+}
+
+mlir::Value SetInitialArrayOp::array()
+{
+	return getOperation()->getOperand(3);
+}
+
+mlir::Value SetInitialArrayOp::isState()
 {
 	return getOperation()->getOperand(4);
 }

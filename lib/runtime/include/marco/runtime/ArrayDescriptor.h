@@ -126,6 +126,18 @@ class ArrayDescriptor
 		(*this)[offset] = value;
 	}
 
+	[[nodiscard]] bool hasData(llvm::ArrayRef<unsigned long> indexes) const
+	{
+		if (indexes.size() != rank)
+			return false;
+
+		for (unsigned long i = 0; i < indexes.size(); ++i)
+			if (indexes[i] >= getDimension(i))
+				return false;
+
+		return true;
+	}
+
 	[[nodiscard]] T* getData() const
 	{
 		return data;
@@ -306,6 +318,11 @@ class UnsizedArrayDescriptor
 	void set(llvm::ArrayRef<dimension_t> indexes, T value)
 	{
 		getDescriptor()->set(indexes, value);
+	}
+
+	[[nodiscard]] bool hasData(llvm::ArrayRef<unsigned long> indexes) const
+	{
+		return getDescriptor()->hasData(indexes);
 	}
 
 	[[nodiscard]] T* getData() const

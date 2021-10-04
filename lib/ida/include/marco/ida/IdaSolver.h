@@ -17,7 +17,7 @@ namespace marco::codegen::ida
 	 */
 	class IdaSolver
 	{
-		using Dimension = std::vector<std::pair<sunindextype, sunindextype>>;
+		using Dimension = std::vector<std::pair<size_t, size_t>>;
 
 		public:
 		IdaSolver(

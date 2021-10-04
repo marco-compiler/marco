@@ -202,7 +202,7 @@ TEST(IdaSolverTest, MultidimensionalDerivative)
 
 	EXPECT_EQ(idaSolver.getRowLength(0), 1);
 	EXPECT_EQ(idaSolver.getRowLength(1), 1);
-	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
+	EXPECT_EQ(idaSolver.getDimension(0).size(), 2);
 	EXPECT_EQ(idaSolver.getDimension(1).size(), 2);
 
 	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
