@@ -239,6 +239,7 @@ mlir::LogicalResult marco::codegen::model::match(Model& model, size_t maxIterati
 		return model.getOp()->emitError("Not all the equations have been matched");
 
 	llvm::SmallVector<Equation, 3> equations;
+	std::set<Equation> toBeDeletedEquations;
 	mlir::OpBuilder builder(model.getOp());
 
 	for (auto& edge : graph)
@@ -257,8 +258,11 @@ mlir::LogicalResult marco::codegen::model::match(Model& model, size_t maxIterati
 			equations.push_back(newEquation);
 		}
 
-		edge.getEquation().getOp()->erase();
+		toBeDeletedEquations.insert(edge.getEquation());
 	}
+
+	for (const Equation& eq : toBeDeletedEquations)
+		eq.getOp()->erase();
 
 	Model result(model.getOp(), model.getVariables(), equations);
 

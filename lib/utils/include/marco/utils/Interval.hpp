@@ -109,6 +109,10 @@ namespace marco
 		{
 			return intervals[index];
 		}
+		[[nodiscard]] const Interval& operator[](size_t index) const
+		{
+			return at(index);
+		}
 
 		[[nodiscard]] bool contains(const MultiDimInterval& other) const
 		{

@@ -318,10 +318,12 @@ namespace marco::codegen::model
 			{
 				if (destAccess[i].isOffset() && sourceAccess[i].isOffset())
 				{
+					// Map the source index with the correct index obtained from the destination subscription op.
 					mapper.map(sourceInductions[sourceAccess[i].getInductionVar()], destInductions[destAccess[i].getInductionVar()]);
 				}
 				else if (sourceAccess[i].isOffset())
 				{
+					// If the destination is accessing the value with a constant, use it instead.
 					assert(mlir::isa<ConstantOp>(destSubOp.indexes()[i].getDefiningOp()));
 					mapper.map(sourceInductions[sourceAccess[i].getInductionVar()], destSubOp.indexes()[i]);
 				}
