@@ -2174,6 +2174,7 @@ mlir::LogicalResult ArrayCastOp::verify()
 				return emitOpError("requires the result pointer type to have the same rank as the operand");
 
 			if (destination.getAllocationScope() != BufferAllocationScope::unknown &&
+					source.getAllocationScope() != BufferAllocationScope::unknown &&
 					destination.getAllocationScope() != source.getAllocationScope())
 				return emitOpError("can change the allocation scope only to the unknown one");
 
@@ -2188,24 +2189,6 @@ mlir::LogicalResult ArrayCastOp::verify()
 		{
 			if (source.getElementType() != destination.getElementType())
 				return emitOpError("requires the result pointer type to have the same element type of the operand");
-
-			return mlir::success();
-		}
-
-		if (destinationType.isa<OpaquePointerType>())
-			return mlir::success();
-	}
-
-	if (auto source = sourceType.dyn_cast<OpaquePointerType>())
-	{
-		if (auto destination = destinationType.dyn_cast<ArrayType>())
-		{
-			// If the destination is a non-opaque pointer type, its shape must not
-			// contain dynamic sizes.
-
-			for (auto size : destination.getShape())
-				if (size == -1)
-					return emitOpError("requires the non-opaque pointer type to have fixed shape");
 
 			return mlir::success();
 		}

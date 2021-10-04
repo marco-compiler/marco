@@ -940,12 +940,12 @@ namespace marco::codegen::modelica
 	 * This operation should be used only for two purposes: the first one is
 	 * for function calls, to remove the allocation scope before passing the
 	 * array as arguments to the functions, or to generalize the sizes to
-	 * unknown ones; the second one is to cast from / to opaque pointers.
+	 * unknown ones; the second one is to cast from an array with unknown
+	 * allocation scope to an array with a known one.
 	 * The operation is NOT intended to be used to change the allocation scope
-	 * (i.e. stack -> heap or heap -> stack), to cast the element type to a
-	 * different one or to to specialize the shape to a fixed one. This last
-	 * case is a certain sense violated by the opaque pointer casting scenario,
-	 * and must be carefully checked by the user.
+	 * between known ones (i.e. stack -> heap or heap -> stack), to cast the
+	 * element type to a different one or to to specialize the shape to a fixed
+	 * one.
 	 */
 	class ArrayCastOp;
 
