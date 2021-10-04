@@ -641,9 +641,13 @@ struct LambdaCallOpLowering : public mlir::OpConversionPattern<LambdaCallOp>
 		// Update the address-of operation with the lowered type of the LLVM function.
 		mlir::Type realType = getTypeConverter()->convertType(RealType::get(rewriter.getContext()));
 
-		LambdaAddressOfOp oldAddressOfOp = mlir::cast<LambdaAddressOfOp>(op.calleeAddress().getDefiningOp());
+		LambdaAddressOfOp oldAddressOfOp = mlir::cast<LambdaAddressOfOp>(op.functionAddress().getDefiningOp());
 		LambdaAddressOfOp newAddressOfOp = rewriter.create<LambdaAddressOfOp>(op.getLoc(), oldAddressOfOp.callee(), realType);
+		oldAddressOfOp->replaceAllUsesWith(newAddressOfOp);
+		oldAddressOfOp->erase();
 
+		oldAddressOfOp = mlir::cast<LambdaAddressOfOp>(op.pderAddress().getDefiningOp());
+		newAddressOfOp = rewriter.create<LambdaAddressOfOp>(op.getLoc(), oldAddressOfOp.callee(), realType);
 		oldAddressOfOp->replaceAllUsesWith(newAddressOfOp);
 		oldAddressOfOp->erase();
 

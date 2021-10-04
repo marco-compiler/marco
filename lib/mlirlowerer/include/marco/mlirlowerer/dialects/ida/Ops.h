@@ -1507,7 +1507,7 @@ namespace marco::codegen::ida
 
 	class LambdaCallOp : public mlir::Op<LambdaCallOp,
 																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<3>::Impl,
+																mlir::OpTrait::NOperands<4>::Impl,
 																mlir::OpTrait::OneResult,
 																mlir::MemoryEffectOpInterface::Trait> 
 	{
@@ -1519,7 +1519,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_call";
 		}
 
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex, mlir::Value calleeAddress);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex, mlir::Value functionAddress, mlir::Value pderAddress);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -1530,7 +1530,8 @@ namespace marco::codegen::ida
 		mlir::ValueRange args();
 		mlir::Value userData();
 		mlir::Value operandIndex();
-		mlir::Value calleeAddress();
+		mlir::Value functionAddress();
+		mlir::Value pderAddress();
 	};
 
 	//===----------------------------------------------------------------------===//

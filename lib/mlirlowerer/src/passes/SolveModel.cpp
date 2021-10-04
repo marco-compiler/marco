@@ -2182,8 +2182,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (CallOp callOp = mlir::dyn_cast<CallOp>(definingOp))
 		{
 			ida::RealType realType = ida::RealType::get(builder.getContext());
-			mlir::Value callee = builder.create<LambdaAddressOfOp>(loc, callOp.callee(), realType);
-			return builder.create<LambdaCallOp>(loc, userData, children[0], callee);
+			mlir::StringRef partialDerName("_ida_pder_" + callOp.callee().str());
+			mlir::Value functionName = builder.create<LambdaAddressOfOp>(loc, callOp.callee(), realType);
+			mlir::Value pderName = builder.create<LambdaAddressOfOp>(loc, partialDerName, realType);
+			return builder.create<LambdaCallOp>(loc, userData, children[0], functionName, pderName);
 		}
 
 		assert(false && "Unexpected operation");

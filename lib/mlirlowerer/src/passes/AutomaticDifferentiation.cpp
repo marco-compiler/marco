@@ -745,6 +745,12 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
 	void runOnOperation() override
 	{
+		if (mlir::failed(addPartialDerFunctions()))
+		{
+			mlir::emitError(getOperation().getLoc(), "Error in adding the functions partial derivatives");
+			return signalPassFailure();
+		}
+
 		if (mlir::failed(createFullDerFunctions()))
 		{
 			mlir::emitError(getOperation().getLoc(), "Error in creating the functions full derivatives");
@@ -762,6 +768,31 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 			mlir::emitError(getOperation().getLoc(), "Error in resolving the trivial derivative calls");
 			return signalPassFailure();
 		}
+	}
+
+	mlir::LogicalResult addPartialDerFunctions()
+	{
+		mlir::ModuleOp module = getOperation();
+		mlir::OpBuilder builder(module);
+		mlir::OpBuilder::InsertionGuard guard(builder);
+
+		llvm::SmallVector<FunctionOp, 3> toBePartiallyDerived;
+
+		module->walk([&](FunctionOp op) {
+			if (op.getNumArguments() == 1 && op.getNumResults() == 1)
+				toBePartiallyDerived.push_back(op);
+		});
+
+		for (FunctionOp& function : toBePartiallyDerived)
+		{
+			builder.setInsertionPointAfter(function);
+			mlir::Location location = function.getLoc();
+			llvm::StringRef name("_ida_pder_" + function.name().str());
+			mlir::Attribute independentVariable = function.argsNames()[0];
+			builder.create<DerFunctionOp>(location, name, function.getName(), independentVariable);
+		}
+
+		return mlir::success();
 	}
 
 	mlir::LogicalResult createFullDerFunctions()
