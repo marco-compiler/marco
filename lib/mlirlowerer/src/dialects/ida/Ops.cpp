@@ -2845,12 +2845,13 @@ mlir::Value LambdaTanhOp::operandIndex()
 // Ida::LambdaCallOp
 //===----------------------------------------------------------------------===//
 
-void LambdaCallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex, mlir::Value calleeAddress)
+void LambdaCallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex, mlir::Value functionAddress, mlir::Value pderAddress)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
 	state.addOperands(userData);
 	state.addOperands(operandIndex);
-	state.addOperands(calleeAddress);
+	state.addOperands(functionAddress);
+	state.addOperands(pderAddress);
 }
 
 mlir::ParseResult LambdaCallOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -2871,8 +2872,8 @@ mlir::LogicalResult LambdaCallOp::verify()
 	if (!operandIndex().getType().isa<IntegerType>())
 		return emitOpError("Requires operand lambda index to be an integer");
 
-	if (!calleeAddress().getType().isa<mlir::LLVM::LLVMPointerType>())
-		return emitOpError("Requires callee address to be a pointer to a function");
+	if (!functionAddress().getType().isa<mlir::LLVM::LLVMPointerType>() || !pderAddress().getType().isa<mlir::LLVM::LLVMPointerType>())
+		return emitOpError("Requires callee addresses to be a pointeres to functions");
 
 	return mlir::success();
 }
@@ -2902,9 +2903,14 @@ mlir::Value LambdaCallOp::operandIndex()
 	return getOperation()->getOperand(1);
 }
 
-mlir::Value LambdaCallOp::calleeAddress()
+mlir::Value LambdaCallOp::functionAddress()
 {
 	return getOperation()->getOperand(2);
+}
+
+mlir::Value LambdaCallOp::pderAddress()
+{
+	return getOperation()->getOperand(3);
 }
 
 //===----------------------------------------------------------------------===//

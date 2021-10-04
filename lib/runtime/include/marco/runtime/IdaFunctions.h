@@ -79,7 +79,7 @@ extern "C"
 	sunindextype lambdaCosh(void* userData, sunindextype operandIndex);
 	sunindextype lambdaTanh(void* userData, sunindextype operandIndex);
 
-	sunindextype lambdaCall(void* userData, sunindextype operandIndex, realtype (*function)(realtype));
+	sunindextype lambdaCall(void* userData, sunindextype operandIndex, realtype (*function)(realtype), realtype (*pderFunc)(realtype));
 }
 
 #endif	// MARCO_RUNTIME_IDAFUNCTIONS_H

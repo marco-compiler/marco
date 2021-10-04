@@ -1686,11 +1686,15 @@ sunindextype lambdaTanh(void* userData, sunindextype operandIndex)
 }
 
 sunindextype lambdaCall(
-		void* userData, sunindextype operandIndex, realtype (*function)(realtype))
+		void* userData,
+		sunindextype operandIndex,
+		realtype (*function)(realtype),
+		realtype (*pderFunc)(realtype))
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
 	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
 
 	Function first = [function, operand](
 											 realtype tt,
@@ -1703,12 +1707,17 @@ sunindextype lambdaCall(
 				(realtype(*)(realtype)) function) (operand(tt, cj, yy, yp, ind, var));
 	};
 
-	Function second = [](realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype { return 0.0; };
+	Function second = [pderFunc, operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return derOperand(tt, cj, yy, yp, ind, var) *
+					 ((realtype(*)(realtype)) pderFunc) (operand(
+							 tt, cj, yy, yp, ind, var));
+	};
 
 	data->lambdas.push_back({ std::move(first), std::move(second) });
 	return data->lambdas.size() - 1;
