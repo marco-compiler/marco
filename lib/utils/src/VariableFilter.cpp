@@ -1026,18 +1026,18 @@ ArrayRange Tracker::getRangeOfDimension(unsigned int dimensionIndex) const
 }
 
 Filter::Filter(bool visibility, llvm::ArrayRef<ArrayRange> ranges)
-		: _visibility(visibility), _ranges(ranges.begin(), ranges.end())
+		: visibility(visibility), ranges(ranges.begin(), ranges.end())
 {
 }
 
 bool Filter::isVisible() const
 {
-	return _visibility;
+	return visibility;
 }
 
 llvm::ArrayRef<ArrayRange> Filter::getRanges() const
 {
-	return _ranges;
+	return ranges;
 }
 
 Filter Filter::visibleScalar()

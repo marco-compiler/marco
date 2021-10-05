@@ -64,15 +64,14 @@ namespace marco
 			Filter(bool visibility, llvm::ArrayRef<ArrayRange> ranges);
 
 			bool isVisible() const;
-
 			llvm::ArrayRef<ArrayRange> getRanges() const;
 
 			static Filter visibleScalar();
 			static Filter visibleArray(llvm::ArrayRef<long> shape);
 
 			private:
-			bool _visibility;
-			llvm::SmallVector<ArrayRange, 3> _ranges;
+			bool visibility;
+			llvm::SmallVector<ArrayRange, 3> ranges;
 		};
 	}
 
