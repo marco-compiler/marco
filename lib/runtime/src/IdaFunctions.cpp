@@ -861,7 +861,7 @@ sunindextype lambdaInduction(void* userData, sunindextype induction)
 											 realtype* yy,
 											 realtype* yp,
 											 Indexes& ind,
-											 realtype var) -> realtype { return ind[induction]; };
+											 realtype var) -> realtype { return ind[induction] + 1; };
 
 	Function second = [](realtype tt,
 											 realtype cj,
@@ -1703,8 +1703,8 @@ sunindextype lambdaCall(
 											 realtype* yp,
 											 Indexes& ind,
 											 realtype var) -> realtype {
-		return (
-				(realtype(*)(realtype)) function) (operand(tt, cj, yy, yp, ind, var));
+		return ((realtype(*)(realtype)) function)(
+				operand(tt, cj, yy, yp, ind, var));
 	};
 
 	Function second = [pderFunc, operand, derOperand](
@@ -1715,8 +1715,8 @@ sunindextype lambdaCall(
 												Indexes& ind,
 												realtype var) -> realtype {
 		return derOperand(tt, cj, yy, yp, ind, var) *
-					 ((realtype(*)(realtype)) pderFunc) (operand(
-							 tt, cj, yy, yp, ind, var));
+					 ((realtype(*)(realtype)) pderFunc)(
+							 operand(tt, cj, yy, yp, ind, var));
 	};
 
 	data->lambdas.push_back({ std::move(first), std::move(second) });
