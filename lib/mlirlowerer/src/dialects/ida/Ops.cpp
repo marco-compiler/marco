@@ -58,6 +58,12 @@ namespace marco::codegen::ida
 // Ida::ConstantValueOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> ConstantValueOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("value")};
+	return llvm::makeArrayRef(attrNames);
+}
+
 void ConstantValueOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Attribute attribute)
 {
 	state.addAttribute("value", attribute);
@@ -100,6 +106,11 @@ mlir::Type ConstantValueOp::resultType()
 //===----------------------------------------------------------------------===//
 // Ida::AllocUserDataOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> AllocUserDataOp::getAttributeNames()
+{
+	return {};
+}
 
 void AllocUserDataOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value equationsNumber)
 {
@@ -149,6 +160,11 @@ mlir::Value AllocUserDataOp::equationsNumber()
 // Ida::FreeUserDataOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> FreeUserDataOp::getAttributeNames()
+{
+	return {};
+}
+
 void FreeUserDataOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
 {
 	state.addTypes(BooleanType::get(builder.getContext()));
@@ -196,6 +212,11 @@ mlir::Value FreeUserDataOp::userData()
 //===----------------------------------------------------------------------===//
 // Ida::SetInitialValueOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> SetInitialValueOp::getAttributeNames()
+{
+	return {};
+}
 
 void SetInitialValueOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value value, mlir::Value isState)
 {
@@ -275,6 +296,11 @@ mlir::Value SetInitialValueOp::isState()
 // Ida::SetInitialArrayOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> SetInitialArrayOp::getAttributeNames()
+{
+	return {};
+}
+
 void SetInitialArrayOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value array, mlir::Value isState)
 {
 	state.addOperands(userData);
@@ -353,6 +379,11 @@ mlir::Value SetInitialArrayOp::isState()
 // Ida::InitOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> InitOp::getAttributeNames()
+{
+	return {};
+}
+
 void InitOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
 {
 	state.addTypes(BooleanType::get(builder.getContext()));
@@ -402,6 +433,11 @@ mlir::Value InitOp::userData()
 // Ida::StepOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> StepOp::getAttributeNames()
+{
+	return {};
+}
+
 void StepOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
 {
 	state.addTypes(BooleanType::get(builder.getContext()));
@@ -450,6 +486,11 @@ mlir::Value StepOp::userData()
 //===----------------------------------------------------------------------===//
 // Ida::AddTimeOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> AddTimeOp::getAttributeNames()
+{
+	return {};
+}
 
 void AddTimeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value start, mlir::Value stop)
 {
@@ -508,6 +549,11 @@ mlir::Value AddTimeOp::stop()
 // Ida::AddToleranceOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> AddToleranceOp::getAttributeNames()
+{
+	return {};
+}
+
 void AddToleranceOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value relTol, mlir::Value absTol)
 {
 	state.addOperands(userData);
@@ -565,6 +611,11 @@ mlir::Value AddToleranceOp::absTol()
 // Ida::AddRowLengthOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> AddRowLengthOp::getAttributeNames()
+{
+	return {};
+}
+
 void AddRowLengthOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value rowLength)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -621,6 +672,11 @@ mlir::Value AddRowLengthOp::rowLength()
 //===----------------------------------------------------------------------===//
 // Ida::AddColumnIndexOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> AddColumnIndexOp::getAttributeNames()
+{
+	return {};
+}
 
 void AddColumnIndexOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value rowIndex, mlir::Value accessIndex)
 {
@@ -681,6 +737,11 @@ mlir::Value AddColumnIndexOp::accessIndex()
 //===----------------------------------------------------------------------===//
 // Ida::AddEquationDimensionOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> AddEquationDimensionOp::getAttributeNames()
+{
+	return {};
+}
 
 void AddEquationDimensionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value min, mlir::Value max)
 {
@@ -748,6 +809,11 @@ mlir::Value AddEquationDimensionOp::max()
 // Ida::AddResidualOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> AddResidualOp::getAttributeNames()
+{
+	return {};
+}
+
 void AddResidualOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
 {
 	state.addOperands(userData);
@@ -804,6 +870,11 @@ mlir::Value AddResidualOp::rightIndex()
 //===----------------------------------------------------------------------===//
 // Ida::AddJacobianOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> AddJacobianOp::getAttributeNames()
+{
+	return {};
+}
 
 void AddJacobianOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
 {
@@ -862,6 +933,11 @@ mlir::Value AddJacobianOp::rightIndex()
 // Ida::AddVariableOffsetOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> AddVariableOffsetOp::getAttributeNames()
+{
+	return {};
+}
+
 void AddVariableOffsetOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value dimension)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -918,6 +994,11 @@ mlir::Value AddVariableOffsetOp::offset()
 //===----------------------------------------------------------------------===//
 // Ida::AddVariableDimensionOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> AddVariableDimensionOp::getAttributeNames()
+{
+	return {};
+}
 
 void AddVariableDimensionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value dimension)
 {
@@ -978,6 +1059,11 @@ mlir::Value AddVariableDimensionOp::dimension()
 //===----------------------------------------------------------------------===//
 // Ida::AddNewVariableAccessOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> AddNewVariableAccessOp::getAttributeNames()
+{
+	return {};
+}
 
 void AddNewVariableAccessOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value offset, mlir::Value induction)
 {
@@ -1051,6 +1137,11 @@ mlir::Value AddNewVariableAccessOp::induction()
 // Ida::AddVariableAccessOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> AddVariableAccessOp::getAttributeNames()
+{
+	return {};
+}
+
 void AddVariableAccessOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value offset, mlir::Value induction)
 {
 	state.addOperands(userData);
@@ -1117,6 +1208,11 @@ mlir::Value AddVariableAccessOp::induction()
 // Ida::GetTimeOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> GetTimeOp::getAttributeNames()
+{
+	return {};
+}
+
 void GetTimeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
 {
 	state.addTypes(marco::codegen::modelica::RealType::get(builder.getContext()));
@@ -1164,6 +1260,11 @@ mlir::Value GetTimeOp::userData()
 //===----------------------------------------------------------------------===//
 // Ida::GetVariableOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> GetVariableOp::getAttributeNames()
+{
+	return {};
+}
 
 void GetVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index)
 {
@@ -1222,6 +1323,11 @@ mlir::Value GetVariableOp::index()
 // Ida::GetDerivativeOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> GetDerivativeOp::getAttributeNames()
+{
+	return {};
+}
+
 void GetDerivativeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index)
 {
 	state.addTypes(marco::codegen::modelica::RealType::get(builder.getContext()));
@@ -1278,6 +1384,11 @@ mlir::Value GetDerivativeOp::index()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaConstantOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaConstantOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaConstantOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value constant)
 {
@@ -1336,6 +1447,11 @@ mlir::Value LambdaConstantOp::constant()
 // Ida::LambdaTimeOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaTimeOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaTimeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -1383,6 +1499,11 @@ mlir::Value LambdaTimeOp::userData()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaInductionOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaInductionOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaInductionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value induction)
 {
@@ -1441,6 +1562,11 @@ mlir::Value LambdaInductionOp::induction()
 // Ida::LambdaVariableOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaVariableOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value accessIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -1498,6 +1624,11 @@ mlir::Value LambdaVariableOp::accessIndex()
 // Ida::LambdaDerivativeOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaDerivativeOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaDerivativeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value accessIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -1554,6 +1685,11 @@ mlir::Value LambdaDerivativeOp::accessIndex()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaAddOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaAddOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaAddOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
 {
@@ -1618,6 +1754,11 @@ mlir::Value LambdaAddOp::rightIndex()
 // Ida::LambdaSubOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaSubOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaSubOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -1680,6 +1821,11 @@ mlir::Value LambdaSubOp::rightIndex()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaMulOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaMulOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaMulOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
 {
@@ -1744,6 +1890,11 @@ mlir::Value LambdaMulOp::rightIndex()
 // Ida::LambdaDivOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaDivOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaDivOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -1806,6 +1957,11 @@ mlir::Value LambdaDivOp::rightIndex()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaPowOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaPowOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaPowOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
 {
@@ -1870,6 +2026,11 @@ mlir::Value LambdaPowOp::rightIndex()
 // Ida::LambdaAtan2Op
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaAtan2Op::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaAtan2Op::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -1933,6 +2094,11 @@ mlir::Value LambdaAtan2Op::rightIndex()
 // Ida::LambdaNegateOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaNegateOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaNegateOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -1989,6 +2155,11 @@ mlir::Value LambdaNegateOp::operandIndex()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaAbsOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaAbsOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaAbsOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
@@ -2047,6 +2218,11 @@ mlir::Value LambdaAbsOp::operandIndex()
 // Ida::LambdaSignOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaSignOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaSignOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -2103,6 +2279,11 @@ mlir::Value LambdaSignOp::operandIndex()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaSqrtOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaSqrtOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaSqrtOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
@@ -2161,6 +2342,11 @@ mlir::Value LambdaSqrtOp::operandIndex()
 // Ida::LambdaExpOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaExpOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaExpOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -2217,6 +2403,11 @@ mlir::Value LambdaExpOp::operandIndex()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaLogOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaLogOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaLogOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
@@ -2275,6 +2466,11 @@ mlir::Value LambdaLogOp::operandIndex()
 // Ida::LambdaLog10Op
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaLog10Op::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaLog10Op::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -2331,6 +2527,11 @@ mlir::Value LambdaLog10Op::operandIndex()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaSinOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaSinOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaSinOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
@@ -2389,6 +2590,11 @@ mlir::Value LambdaSinOp::operandIndex()
 // Ida::LambdaCosOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaCosOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaCosOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -2445,6 +2651,11 @@ mlir::Value LambdaCosOp::operandIndex()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaTanOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaTanOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaTanOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
@@ -2503,6 +2714,11 @@ mlir::Value LambdaTanOp::operandIndex()
 // Ida::LambdaAsinOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaAsinOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaAsinOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -2559,6 +2775,11 @@ mlir::Value LambdaAsinOp::operandIndex()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaAcosOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaAcosOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaAcosOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
@@ -2617,6 +2838,11 @@ mlir::Value LambdaAcosOp::operandIndex()
 // Ida::LambdaAtanOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaAtanOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaAtanOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -2673,6 +2899,11 @@ mlir::Value LambdaAtanOp::operandIndex()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaSinhOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaSinhOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaSinhOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
@@ -2731,6 +2962,11 @@ mlir::Value LambdaSinhOp::operandIndex()
 // Ida::LambdaCoshOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaCoshOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaCoshOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -2788,6 +3024,11 @@ mlir::Value LambdaCoshOp::operandIndex()
 // Ida::LambdaTanhOp
 //===----------------------------------------------------------------------===//
 
+llvm::ArrayRef<llvm::StringRef> LambdaTanhOp::getAttributeNames()
+{
+	return {};
+}
+
 void LambdaTanhOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
@@ -2844,6 +3085,11 @@ mlir::Value LambdaTanhOp::operandIndex()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaCallOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaCallOp::getAttributeNames()
+{
+	return {};
+}
 
 void LambdaCallOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex, mlir::Value functionAddress, mlir::Value pderAddress)
 {
@@ -2916,6 +3162,12 @@ mlir::Value LambdaCallOp::pderAddress()
 //===----------------------------------------------------------------------===//
 // Ida::LambdaAddressOfOp
 //===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> LambdaAddressOfOp::getAttributeNames()
+{
+	static llvm::StringRef attrNames[] = {llvm::StringRef("callee")};
+	return llvm::makeArrayRef(attrNames);
+}
 
 void LambdaAddressOfOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::Type realType)
 {

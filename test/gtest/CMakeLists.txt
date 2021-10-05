@@ -1,20 +1,21 @@
-marcoAddTest(
-	mlirlowerer
-	TestingUtils.cpp
-	ida/IdaSolverTest.cpp
-	matching/LinSolverTest.cpp
-	matching/MatchingTest.cpp
-	matching/SCCCollapsingTest.cpp
-	matching/ScheduleTest.cpp
-	matching/VVarDependencyGraphTest.cpp
-	model/EquationTest.cpp
-	model/ReferenceMatcherTest.cpp
-	model/VectorAccessTest.cpp
-	passes/SolveModelTest.cpp
-)
+set(SOURCES
+		TestingUtils.cpp
+		ida/IdaSolverTest.cpp
+		matching/LinSolverTest.cpp
+		matching/MatchingTest.cpp
+		matching/SCCCollapsingTest.cpp
+		matching/ScheduleTest.cpp
+		matching/VVarDependencyGraphTest.cpp
+		model/EquationTest.cpp
+		model/ReferenceMatcherTest.cpp
+		model/VectorAccessTest.cpp
+		passes/SolveModelTest.cpp)
 
-target_link_libraries(
-	mlirlowererTest PUBLIC
-	marco::ida
-	sundials
-)
+marco_add_unittest(MARCOTest GtestTest ${SOURCES})
+
+llvm_config(GtestTest core support)
+
+target_link_libraries(GtestTest
+		PRIVATE marco::ida
+		PRIVATE marco::mlirlowerer
+		PRIVATE sundials)

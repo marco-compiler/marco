@@ -2127,6 +2127,8 @@ namespace marco::codegen::modelica
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
+		void foldConstants(mlir::OpBuilder& builder);
+
 		mlir::Type resultType();
 		mlir::Value lhs();
 		mlir::Value rhs();
@@ -2243,6 +2245,8 @@ namespace marco::codegen::modelica
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value lhs();
@@ -2362,6 +2366,8 @@ namespace marco::codegen::modelica
 		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
 		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
 		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
+		void foldConstants(mlir::OpBuilder& builder);
 
 		mlir::Type resultType();
 		mlir::Value lhs();

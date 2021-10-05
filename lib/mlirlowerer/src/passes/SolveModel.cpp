@@ -480,8 +480,6 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 
 	mlir::LogicalResult matchAndRewrite(SimulationOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		mlir::Location loc = op->getLoc();
-
 		// Save the types of the variables which compose the data structure
 		llvm::SmallVector<mlir::Type, 3> varTypes;
 		auto terminator = mlir::cast<YieldOp>(op.init().back().getTerminator());
@@ -706,6 +704,14 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 		// Extract the data from the struct
 		mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
 
+		// Free the allocated IDA user data
+		if (options.solver == CleverDAE)
+		{
+			mlir::Value userData = extractValue(builder, structValue, varTypes[1], 1);
+			userData = builder.create<LoadOp>(loc, userData);
+			builder.create<FreeUserDataOp>(loc, userData);
+		}
+
 		// Deallocate the arrays
 		for (const auto& type : llvm::enumerate(varTypes))
 		{
@@ -758,68 +764,72 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 		for (const auto& varType : llvm::enumerate(varTypes))
 			vars.push_back(extractValue(rewriter, structValue, varTypes[varType.index()], varType.index()));
 
-		// Increment the time
-		mlir::Value timeStep = rewriter.create<ConstantOp>(loc, op.timeStep());
-		mlir::Value currentTime = rewriter.create<LoadOp>(loc, vars[0]);
-		mlir::Value increasedTime = rewriter.create<AddOp>(loc, currentTime.getType(), currentTime, timeStep);
-		rewriter.create<StoreOp>(loc, increasedTime, vars[0]);
+		mlir::Value increasedTime;
+		mlir::Value idaStepResult;
+
+		if (options.solver == ForwardEuler)
+		{
+			// Increment the time
+			mlir::Value timeStep = rewriter.create<ConstantOp>(loc, op.timeStep());
+			mlir::Value currentTime = rewriter.create<LoadOp>(loc, vars[0]);
+			increasedTime = rewriter.create<AddOp>(loc, currentTime.getType(), currentTime, timeStep);
+			rewriter.create<StoreOp>(loc, increasedTime, vars[0]);
+		}
+		else if (options.solver == CleverDAE)
+		{
+			// Run one step of the ida solver
+			mlir::Value userData = rewriter.create<LoadOp>(loc, vars[1]);
+			mlir::Value stepOp = rewriter.create<StepOp>(loc, userData);
+			idaStepResult = getTypeConverter()->materializeTargetConversion(
+					rewriter, loc, rewriter.getI1Type(), stepOp);
+
+			// Update the time based on ida
+			increasedTime = rewriter.create<GetTimeOp>(loc, userData);
+			rewriter.create<StoreOp>(loc, increasedTime, vars[0]);
+		}
 
 		// Check if the current time is less than the end time
 		mlir::Value endTime = rewriter.create<ConstantOp>(loc, op.endTime());
-		//endTime = rewriter.create<AddOp>(loc, endTime.getType(), endTime, timeStep);
 
-		mlir::Value condition = rewriter.create<LteOp>(loc, BooleanType::get(op->getContext()), increasedTime, endTime);
+		mlir::Value condition = rewriter.create<LtOp>(loc, modelica::BooleanType::get(op->getContext()), increasedTime, endTime);
 		condition = getTypeConverter()->materializeTargetConversion(rewriter, condition.getLoc(), rewriter.getI1Type(), condition);
 
-		auto ifOp = rewriter.create<mlir::scf::IfOp>(loc, rewriter.getI1Type(), condition, true);
-		rewriter.create<mlir::ReturnOp>(loc, ifOp.getResult(0));
+		// Check if the IDA solver failed
+		if (options.solver == CleverDAE)
+			condition = rewriter.create<mlir::AndOp>(loc, rewriter.getI1Type(), condition, idaStepResult);
 
-		// If we didn't reach the end time update the variables and return
-		// true to continue the simulation.
-		rewriter.setInsertionPointToStart(&ifOp.thenRegion().front());
+		// If we didn't reach the end time, update the variables and return true to
+		// continue the simulation, otherwise return false to stop the simulation.
+		mlir::ReturnOp returnOp = rewriter.create<mlir::ReturnOp>(loc, condition);
 
-		auto trueValue = rewriter.create<mlir::ConstantOp>(
-				loc, rewriter.getBoolAttr(true));
+		// Copy the body of the simulation
+		mlir::BlockAndValueMapping mapping;
 
-		rewriter.create<mlir::scf::YieldOp>(loc, trueValue.getResult());
+		for (const auto& [oldVar, newVar] : llvm::zip(op.body().getArguments(), vars))
+			mapping.map(oldVar, newVar);
 
-    // Copy the body of the simulation
-    mlir::BlockAndValueMapping mapping;
+		// We need to keep track of the amount of equations processed, so that
+		// we can give a unique name to each function generated.
+		llvm::SmallVector<mlir::Value, 3> usedVars;
+		size_t equationCounter = 0;
 
-    for (const auto& [oldVar, newVar] : llvm::zip(op.body().getArguments(), vars))
-      mapping.map(oldVar, newVar);
+		rewriter.setInsertionPoint(returnOp);
 
-    // We need to keep track of the amount of equations processed, so that
-    // we can give a unique name to each function generated.
-    llvm::SmallVector<mlir::Value, 3> usedVars;
-    size_t equationCounter = 0;
+		for (auto& bodyOp : op.body().front().without_terminator())
+		{
+			if (auto equation = mlir::dyn_cast<ForEquationOp>(bodyOp))
+			{
+				usedVars.clear();
 
-    rewriter.setInsertionPoint(trueValue);
-
-    for (auto& bodyOp : op.body().front().without_terminator())
-    {
-      if (auto equation = mlir::dyn_cast<ForEquationOp>(bodyOp))
-      {
-        usedVars.clear();
-
-        mlir::FuncOp equationFunction = convertForEquation(rewriter, equation, equationCounter, vars, usedVars);
-        rewriter.create<mlir::CallOp>(equation->getLoc(), equationFunction, usedVars);
-        ++equationCounter;
-      }
-      else
-      {
-        rewriter.clone(bodyOp, mapping);
-      }
-    }
-
-		// Otherwise, return false to stop the simulation
-		mlir::OpBuilder::InsertionGuard g(rewriter);
-		rewriter.setInsertionPointToStart(&ifOp.elseRegion().front());
-
-		mlir::Value falseValue = rewriter.create<mlir::ConstantOp>(
-				loc, rewriter.getBoolAttr(false));
-
-		rewriter.create<mlir::scf::YieldOp>(loc, falseValue);
+				mlir::FuncOp equationFunction = convertForEquation(rewriter, equation, equationCounter, vars, usedVars);
+				rewriter.create<mlir::CallOp>(equation->getLoc(), equationFunction, usedVars);
+				++equationCounter;
+			}
+			else
+			{
+				rewriter.clone(bodyOp, mapping);
+			}
+		}
 
 		return mlir::success();
 	}
@@ -951,7 +961,8 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
       }
     }
 
-    looplike.moveOutOfLoop(opsToMove);
+    auto result = looplike.moveOutOfLoop(opsToMove);
+	assert(mlir::succeeded(result));
   }
 
   // To be removed once the new matching & scheduling process is finished
@@ -1385,9 +1396,13 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 
 		assert(op.variableNames().size() <= varTypes.size());
 		llvm::StringMap<size_t> variablePositionByName;
+		unsigned int varsToSkip = 1; // + 1 to skip the "time" variable.
+
+		if (options.solver == CleverDAE)
+			varsToSkip++; // + 1 to skip the ida user data opaque pointer variable.
 
 		for (const auto& var : llvm::enumerate(variableNames))
-			variablePositionByName[var.value()] = var.index() + 1; // + 1 to skip the "time" variable
+			variablePositionByName[var.value()] = var.index() + varsToSkip;
 
 		// The positions have been saved, so we can now sort the names
 		llvm::sort(variableNames, [](llvm::StringRef x, llvm::StringRef y) -> bool {
@@ -1504,17 +1519,17 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 		{
 			mlir::OpBuilder::InsertionGuard g(builder);
 
+			// The body contains just the print call, because the update is
+			// already done by the "step" function in the condition region.
+
 			mlir::Block* conditionBlock = builder.createBlock(&loop.before());
 			builder.setInsertionPointToStart(conditionBlock);
 			mlir::Value shouldContinue = builder.create<mlir::CallOp>(loc, stepFunctionName, builder.getI1Type(), data).getResult(0);
+			builder.create<mlir::CallOp>(loc, printFunctionName, llvm::None, data);
 			builder.create<mlir::scf::ConditionOp>(loc, shouldContinue, llvm::None);
-
-			// The body contains just the print call, because the update is
-			// already done by the "step "function in the condition region.
 
 			mlir::Block* bodyBlock = builder.createBlock(&loop.after());
 			builder.setInsertionPointToStart(bodyBlock);
-			builder.create<mlir::CallOp>(loc, printFunctionName, llvm::None, data);
 			builder.create<mlir::scf::YieldOp>(loc);
 		}
 
