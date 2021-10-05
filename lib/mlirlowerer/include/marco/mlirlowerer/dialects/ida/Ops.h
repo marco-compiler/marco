@@ -28,6 +28,7 @@ namespace marco::codegen::ida
 			return "ida.constant";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Attribute value);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -55,6 +56,7 @@ namespace marco::codegen::ida
 			return "ida.alloc_user_data";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value equationsNumber);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -85,6 +87,7 @@ namespace marco::codegen::ida
 			return "ida.free_user_data";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -115,6 +118,7 @@ namespace marco::codegen::ida
 			return "ida.set_initial_value";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value value, mlir::Value isState);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -148,6 +152,7 @@ namespace marco::codegen::ida
 			return "ida.set_initial_array";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value array, mlir::Value isState);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -181,6 +186,7 @@ namespace marco::codegen::ida
 			return "ida.init";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -211,6 +217,7 @@ namespace marco::codegen::ida
 			return "ida.step";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -241,6 +248,7 @@ namespace marco::codegen::ida
 			return "ida.add_time";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value start, mlir::Value stop);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -272,6 +280,7 @@ namespace marco::codegen::ida
 			return "ida.add_tolerance";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value relTol, mlir::Value absTol);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -303,6 +312,7 @@ namespace marco::codegen::ida
 			return "ida.add_row_pointer";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value rowLength);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -334,6 +344,7 @@ namespace marco::codegen::ida
 			return "ida.add_column_index";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value rowIndex, mlir::Value accessIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -365,6 +376,7 @@ namespace marco::codegen::ida
 			return "ida.add_eq_dimension";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value min, mlir::Value max);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -397,6 +409,7 @@ namespace marco::codegen::ida
 			return "ida.add_residual";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -428,6 +441,7 @@ namespace marco::codegen::ida
 			return "ida.add_jacobian";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -459,6 +473,7 @@ namespace marco::codegen::ida
 			return "ida.add_var_offset";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value offset);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -490,6 +505,7 @@ namespace marco::codegen::ida
 			return "ida.add_var_dimension";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value dimension);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -520,6 +536,7 @@ namespace marco::codegen::ida
 			return "ida.add_new_lambda_access";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value variable, mlir::Value offset, mlir::Value induction);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -553,6 +570,7 @@ namespace marco::codegen::ida
 			return "ida.add_lambda_access";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value offset, mlir::Value induction);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -585,6 +603,7 @@ namespace marco::codegen::ida
 			return "ida.get_time";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -615,6 +634,7 @@ namespace marco::codegen::ida
 			return "ida.get_variable";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -646,6 +666,7 @@ namespace marco::codegen::ida
 			return "ida.get_derivative";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -677,6 +698,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_constant";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value constant);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -708,6 +730,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_time";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -738,6 +761,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_induction";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value induction);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -769,6 +793,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_variable";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value accessIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -800,6 +825,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_derivative";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value accessIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -831,6 +857,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_add";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -863,6 +890,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_sub";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -895,6 +923,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_mul";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -927,6 +956,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_div";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -959,6 +989,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_pow";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -991,6 +1022,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_atan2";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value leftIndex, mlir::Value rightIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1023,6 +1055,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_negate";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1054,6 +1087,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_abs";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1085,6 +1119,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_sign";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1116,6 +1151,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_sqrt";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1147,6 +1183,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_exp";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1178,6 +1215,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_log";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1209,6 +1247,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_log10";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1240,6 +1279,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_sin";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1271,6 +1311,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_cos";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1302,6 +1343,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_tan";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1333,6 +1375,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_asin";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1364,6 +1407,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_acos";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1395,6 +1439,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_atan";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1426,6 +1471,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_sinh";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1457,6 +1503,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_cosh";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1488,6 +1535,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_tanh";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1519,6 +1567,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_call";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value operandIndex, mlir::Value functionAddress, mlir::Value pderAddress);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
@@ -1551,6 +1600,7 @@ namespace marco::codegen::ida
 			return "ida.lambda_addressof";
 		}
 
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::StringRef callee, mlir::Type realType);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);

@@ -85,22 +85,6 @@ static void populateAllocationEffects(
   }
 }
 
-static void populateReadEffects(
-        mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects,
-        mlir::Value value)
-{
-  if (value.getType().isa<ArrayType>())
-    effects.emplace_back(mlir::MemoryEffects::Read::get(), value, mlir::SideEffects::DefaultResource::get());
-}
-
-static void populateWriteEffects(
-        mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects,
-        mlir::Value value)
-{
-  if (value.getType().isa<ArrayType>())
-    effects.emplace_back(mlir::MemoryEffects::Write::get(), value, mlir::SideEffects::DefaultResource::get());
-}
-
 static std::string getPartialDerFunctionName(llvm::StringRef baseName)
 {
 	return "pder_" + baseName.str();

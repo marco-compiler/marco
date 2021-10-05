@@ -4,7 +4,6 @@ set(SOURCES
 		src/ExpLowerer.cpp
 		src/CallLowerer.cpp
 		src/OperationLowerer.cpp)
-		src/IdaSolver.cpp
 
 marco_add_library(lowerer SHARED ${SOURCES})
 

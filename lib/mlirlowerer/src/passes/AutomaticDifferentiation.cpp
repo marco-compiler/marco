@@ -745,8 +745,9 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
 	void runOnOperation() override
 	{
-		if (mlir::failed(addPartialDerFunctions()))
+		if (false && mlir::failed(addPartialDerFunctions()))
 		{
+			// TODO: Fix partial derivatives of arrays and matrixes.
 			mlir::emitError(getOperation().getLoc(), "Error in adding the functions partial derivatives");
 			return signalPassFailure();
 		}

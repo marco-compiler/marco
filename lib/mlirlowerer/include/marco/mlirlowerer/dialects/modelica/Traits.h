@@ -988,6 +988,12 @@ namespace marco::codegen::modelica
 					mlir::cast<ConcreteOp>(op).foldConstants(builder);
 				}
 			};
+
+			template <typename ConcreteModel, typename ConcreteOp>
+			struct ExternalModel : public FallbackModel<ConcreteModel>
+			{
+
+			};
 		};
 	}
 

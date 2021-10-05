@@ -36,7 +36,7 @@ Value* LowererContext::getArrayElementPtr(Value* arrayPtr, Value* index)
 	if (index->getType()->isIntegerTy())
 	{
 		SmallVector<Value*, 2> args = { zero, index };
-		return builder.CreateGEP(arrayPtr, args);
+		return builder.CreateGEP(arrayPtr->getType()->getScalarType()->getPointerElementType(), arrayPtr, args);
 	}
 
 	auto* ptrType = dyn_cast<PointerType>(index->getType());
@@ -46,7 +46,7 @@ Value* LowererContext::getArrayElementPtr(Value* arrayPtr, Value* index)
 	{
 		auto* partialIndex = loadArrayElement(index, a);
 		SmallVector<Value*, 2> args = { zero, partialIndex };
-		val = builder.CreateGEP(val, args);
+		val = builder.CreateGEP(val->getType()->getScalarType()->getPointerElementType(), val, args);
 	}
 	return val;
 }
@@ -198,7 +198,7 @@ Expected<BasicBlock*> LowererContext::maybeCreateForCycle(
 
 	auto* unsignedInt = Type::getInt32Ty(context);
 
-	// alocates iteration counter
+	// allocates iteration counter
 	auto* iterationCounter = builder.CreateAlloca(unsignedInt);
 	makeConstantStore<int>(start, iterationCounter);
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <llvm/Support/raw_ostream.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
 #include <marco/mlirlowerer/passes/model/Model.h>

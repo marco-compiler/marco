@@ -11,6 +11,6 @@ marco_add_library(runtime SHARED ${SOURCES})
 
 marco_link_llvm_libs(runtime USE_SHARED support)
 
-target_link_libraries(runtime PRIVATE sundials)
+target_link_libraries(runtime PUBLIC sundials)
 
 add_subdirectory(test)
