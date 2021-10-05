@@ -135,7 +135,7 @@ TEST(IdaSolverTest, DerivativeArray)
 														"equation "
 														"tau*der(x[1]) = 1.0; "
 														"for i in 2:10 loop "
-														"tau*der(x[i]) = 2.0; "
+														"tau*der(x[i]) = 2.0 * i; "
 														"end for; "
 														"end DerArray; ";
 
@@ -165,9 +165,16 @@ TEST(IdaSolverTest, DerivativeArray)
 		FAIL();
 
 	EXPECT_NEAR(idaSolver.getVariable(0), 1 + 0.2 * idaSolver.getTime(), 1e-4);
-	EXPECT_NEAR(idaSolver.getVariable(1), 1 + 0.4 * idaSolver.getTime(), 1e-4);
 	EXPECT_NEAR(idaSolver.getDerivative(0), 0.2, 1e-4);
-	EXPECT_NEAR(idaSolver.getDerivative(1), 0.4, 1e-4);
+
+	for (size_t i : marco::irange(1, 10))
+	{
+		EXPECT_NEAR(
+				idaSolver.getVariable(i),
+				1 + 0.4 * (i + 1) * idaSolver.getTime(),
+				1e-4);
+		EXPECT_NEAR(idaSolver.getDerivative(i), 0.4 * (i + 1), 1e-4);
+	}
 
 	if (failed(idaSolver.free()))
 		FAIL();
@@ -503,7 +510,7 @@ TEST(IdaSolverTest, Robertson)
 	Model model;
 	makeSolvedModel(context, stringModel, model);
 
-	marco::codegen::ida::IdaSolver idaSolver(model);
+	marco::codegen::ida::IdaSolver idaSolver(model, 0, 4000);
 	if (failed(idaSolver.init()))
 		FAIL();
 
@@ -524,13 +531,8 @@ TEST(IdaSolverTest, Robertson)
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	double y3 = 1.0 - idaSolver.getVariable(0) - idaSolver.getVariable(1);
-	double derY1 =
-			-0.04 * idaSolver.getVariable(0) + 1e4 * idaSolver.getVariable(1) * y3;
-	double derY2 =
-			-derY1 - 3e7 * idaSolver.getVariable(1) * idaSolver.getVariable(1);
-	EXPECT_NEAR(idaSolver.getDerivative(0), derY1, 1e-4);
-	EXPECT_NEAR(idaSolver.getDerivative(1), derY2, 1e-4);
+	EXPECT_NEAR(
+			idaSolver.getVariable(0) + idaSolver.getVariable(1), 0.1832, 1e-2);
 
 	if (failed(idaSolver.free()))
 		FAIL();
@@ -716,10 +718,10 @@ TEST(IdaSolverTest, EquationWithInduction)
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	for (size_t i : marco::irange(3))
+	for (size_t i : marco::irange(5))
 	{
-		EXPECT_EQ(idaSolver.getVariable(i), idaSolver.getTime() * i);
-		EXPECT_EQ(idaSolver.getDerivative(i), i);
+		EXPECT_NEAR(idaSolver.getVariable(i), idaSolver.getTime() * (i + 1), 1e-4);
+		EXPECT_NEAR(idaSolver.getDerivative(i), (i + 1), 1e-4);
 	}
 
 	if (failed(idaSolver.free()))
