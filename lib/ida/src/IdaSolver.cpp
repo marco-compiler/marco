@@ -9,6 +9,9 @@
 #include <marco/runtime/Runtime.h>
 #include <marco/utils/Interval.hpp>
 
+#define setInitialValue                                                        \
+	NAME_MANGLED(setInitialValue, void, voidptr, int32_t, int32_t, int32_t, bool)
+
 using namespace marco::codegen::ida;
 using namespace marco::codegen::model;
 using namespace marco::codegen::modelica;

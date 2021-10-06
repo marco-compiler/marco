@@ -8,17 +8,14 @@ extern "C"
 {
 	// Allocation, initialization, usage and deletion
 	void* allocIdaUserData(sunindextype equationsNumber);
-	bool freeIdaUserData(void* userData);
-
-	void setInitialValue(void* userData, sunindextype index, sunindextype length, realtype value, bool isState);
-	void setInitialArray(void* userData, sunindextype index, sunindextype length, UnsizedArrayDescriptor<realtype> array, bool isState);
 	bool idaInit(void* userData);
 	bool idaStep(void* userData);
+	bool freeIdaUserData(void* userData);
 
-	// Equation setters
 	void addTime(void* userData, realtype startTime, realtype stopTime);
 	void addTolerance(void* userData, realtype relTol, realtype absTol);
 
+	// Equation setters
 	sunindextype addRowLength(void* userData, sunindextype rowLength);
 	void addColumnIndex(void* userData, sunindextype rowIndex, sunindextype accessIndex);
 	void addEquationDimension(void* userData, sunindextype index, sunindextype min, sunindextype max);
@@ -30,6 +27,16 @@ extern "C"
 	void addVariableDimension(void* userData, sunindextype index, sunindextype dim);
 	sunindextype addNewVariableAccess(void* userData, sunindextype var, sunindextype off, sunindextype ind);
 	void addVariableAccess(void* userData, sunindextype index, sunindextype off, sunindextype ind);
+
+	RUNTIME_FUNC_DECL(setInitialValue, void, voidptr, int32_t, int32_t, int32_t, bool)
+	RUNTIME_FUNC_DECL(setInitialValue, void, voidptr, int32_t, int32_t, float, bool)
+	RUNTIME_FUNC_DECL(setInitialValue, void, voidptr, int64_t, int64_t, int64_t, bool)
+	RUNTIME_FUNC_DECL(setInitialValue, void, voidptr, int64_t, int64_t, double, bool)
+
+	RUNTIME_FUNC_DECL(setInitialArray, void, voidptr, int32_t, int32_t, ARRAY(int32_t), bool)
+	RUNTIME_FUNC_DECL(setInitialArray, void, voidptr, int32_t, int32_t, ARRAY(float), bool)
+	RUNTIME_FUNC_DECL(setInitialArray, void, voidptr, int64_t, int64_t, ARRAY(int64_t), bool)
+	RUNTIME_FUNC_DECL(setInitialArray, void, voidptr, int64_t, int64_t, ARRAY(double), bool)
 
 	// Getters
 	realtype getIdaTime(void* userData);
