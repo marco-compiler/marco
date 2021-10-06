@@ -96,41 +96,30 @@ static bool updateIndexes(Indexes& indexes, const EqDimension& dimension)
 
 static bool updateIndexes(Indexes& indexes, const VarDimension& dimension)
 {
-	for (sunindextype dim = dimension.size() - 1; true; dim--)
-	{
-		indexes[dim]++;
-		if (indexes[dim] == dimension[dim])
-		{
-			if (dim == 0)
-				return true;
-			else
-				indexes[dim] = 0;
-		}
-		else
-		{
-			return false;
-		}
-	}
+	EqDimension eqDimension;
 
-	assert(false && "Unreachable");
+	for (size_t dim : dimension)
+		eqDimension.push_back({ 0, dim });
+
+	return updateIndexes(indexes, eqDimension);
 }
 
 static sunindextype computeOffset(
 		const Indexes& indexes,
 		const VarDimension& dimensions,
-		const Access& access)
+		const Access& accesses)
 {
-	assert(dimensions.size() == access.size());
+	assert(accesses.size() == dimensions.size());
 
 	sunindextype offset =
-			access[0].first +
-			(access[0].second != -1 ? indexes[access[0].second] : 0);
+			accesses[0].first +
+			(accesses[0].second != -1 ? indexes[accesses[0].second] : 0);
 
-	for (size_t i = 1; i < indexes.size(); ++i)
+	for (size_t i = 1; i < accesses.size(); ++i)
 	{
 		sunindextype accessOffset =
-				access[i].first +
-				(access[i].second != -1 ? indexes[access[i].second] : 0);
+				accesses[i].first +
+				(accesses[i].second != -1 ? indexes[accesses[i].second] : 0);
 		offset = offset * dimensions[i] + accessOffset;
 	}
 
@@ -182,8 +171,8 @@ int residualFunction(
 
 		// Initialize the multidimensional interval of the vector equation
 		Indexes indexes;
-		for (size_t dim = 0; dim < data->equationDimensions[eq].size(); dim++)
-			indexes.push_back(data->equationDimensions[eq][dim].first);
+		for (const auto& dim : data->equationDimensions[eq])
+			indexes.push_back(dim.first);
 
 		// For every scalar equation in the vector equation
 		while (!finished)
@@ -226,7 +215,6 @@ int jacobianMatrix(
 	sunindextype* colvals = SUNSparseMatrix_IndexValues(JJ);
 
 	realtype* jacobian = SUNSparseMatrix_Data(JJ);
-	// SUNMatZero(JJ);
 
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -240,8 +228,8 @@ int jacobianMatrix(
 
 		// Initialize the multidimensional interval of the vector equation
 		Indexes indexes;
-		for (size_t dim = 0; dim < data->equationDimensions[eq].size(); dim++)
-			indexes.push_back(data->equationDimensions[eq][dim].first);
+		for (const auto& dim : data->equationDimensions[eq])
+			indexes.push_back(dim.first);
 
 		// For every scalar equation in the vector equation
 		while (!finished)
@@ -910,30 +898,30 @@ sunindextype lambdaVariable(void* userData, sunindextype accessIndex)
 	sunindextype variableIndex = data->variableAccesses[accessIndex].first;
 	sunindextype offset = data->variableOffsets[variableIndex];
 	VarDimension dim = data->variableDimensions[variableIndex];
-	Access access = data->variableAccesses[accessIndex].second;
+	Access acc = data->variableAccesses[accessIndex].second;
 
-	Function first = [offset, dim, access](
+	Function first = [offset, dim, acc](
 											 realtype tt,
 											 realtype cj,
 											 realtype* yy,
 											 realtype* yp,
 											 Indexes& ind,
 											 realtype var) -> realtype {
-		sunindextype varOffset = computeOffset(ind, dim, access);
+		sunindextype accessOffset = computeOffset(ind, dim, acc);
 
-		return yy[offset + varOffset];
+		return yy[offset + accessOffset];
 	};
 
-	Function second = [offset, dim, access](
+	Function second = [offset, dim, acc](
 												realtype tt,
 												realtype cj,
 												realtype* yy,
 												realtype* yp,
 												Indexes& ind,
 												realtype var) -> realtype {
-		sunindextype varOffset = computeOffset(ind, dim, access);
+		sunindextype accessOffset = computeOffset(ind, dim, acc);
 
-		if (offset + varOffset == var)
+		if (offset + accessOffset == var)
 			return 1.0;
 		return 0.0;
 	};
@@ -949,30 +937,30 @@ sunindextype lambdaDerivative(void* userData, sunindextype accessIndex)
 	sunindextype variableIndex = data->variableAccesses[accessIndex].first;
 	sunindextype offset = data->variableOffsets[variableIndex];
 	VarDimension dim = data->variableDimensions[variableIndex];
-	Access access = data->variableAccesses[accessIndex].second;
+	Access acc = data->variableAccesses[accessIndex].second;
 
-	Function first = [offset, dim, access](
+	Function first = [offset, dim, acc](
 											 realtype tt,
 											 realtype cj,
 											 realtype* yy,
 											 realtype* yp,
 											 Indexes& ind,
 											 realtype var) -> realtype {
-		sunindextype varOffset = computeOffset(ind, dim, access);
+		sunindextype accessOffset = computeOffset(ind, dim, acc);
 
-		return yp[offset + varOffset];
+		return yp[offset + accessOffset];
 	};
 
-	Function second = [offset, dim, access](
+	Function second = [offset, dim, acc](
 												realtype tt,
 												realtype cj,
 												realtype* yy,
 												realtype* yp,
 												Indexes& ind,
 												realtype var) -> realtype {
-		sunindextype varOffset = computeOffset(ind, dim, access);
+		sunindextype accessOffset = computeOffset(ind, dim, acc);
 
-		if (offset + varOffset == var)
+		if (offset + accessOffset == var)
 			return cj;
 		return 0.0;
 	};

@@ -10,7 +10,7 @@
 #include <marco/utils/Interval.hpp>
 
 #define setInitialValue                                                        \
-	NAME_MANGLED(setInitialValue, void, voidptr, int32_t, int32_t, int32_t, bool)
+	NAME_MANGLED(setInitialValue, void, voidptr, int64_t, int64_t, double, bool)
 
 using namespace marco::codegen::ida;
 using namespace marco::codegen::model;
@@ -201,7 +201,7 @@ mlir::LogicalResult IdaSolver::init()
 					for (auto& acc : vectorAccess.getMappingOffset())
 					{
 						sunindextype accOffset =
-								acc.isDirectAccess() ? acc.getOffset() : acc.getOffset() + 1;
+								acc.isDirectAccess() ? acc.getOffset() : (acc.getOffset() + 1);
 						sunindextype accInduction =
 								acc.isOffset() ? acc.getInductionVar() : -1;
 						access.push_back({ accOffset, accInduction });
@@ -349,32 +349,9 @@ IdaSolver::Dimension IdaSolver::getDimension(sunindextype index)
 
 void IdaSolver::getDimension(const Equation& equation)
 {
-	SubscriptionOp subscriptionOp =
-			mlir::cast<SubscriptionOp>(equation.getMatchedExp().getOp());
-	marco::MultiDimInterval inductions = equation.getInductions();
-	size_t i = 0;
-
-	for (mlir::Value index : subscriptionOp.indexes())
-	{
-		if (index.isa<mlir::BlockArgument>() ||
-				!mlir::isa<ConstantOp>(index.getDefiningOp()))
-		{
-			// If the variable access is an offset, add the correspoding induction.
-			addEquationDimension(
-					userData,
-					forEquationsNumber,
-					inductions[i].min() - 1,
-					inductions[i].max() - 1);
-			i++;
-		}
-		else
-		{
-			// If the variable access is a direct access, add an empty induction.
-			addEquationDimension(userData, forEquationsNumber, 0, 1);
-		}
-	}
-
-	assert(i == inductions.dimensions() || inductions.size() <= 1);
+	for (marco::Interval& interval : equation.getInductions())
+		addEquationDimension(
+				userData, forEquationsNumber, interval.min() - 1, interval.max() - 1);
 }
 
 void IdaSolver::getResidualAndJacobian(const Equation& equation)
