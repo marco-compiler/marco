@@ -738,6 +738,11 @@ static mlir::LogicalResult createFullDerFunction(mlir::OpBuilder& builder, Funct
 class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferentiationPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
+	explicit AutomaticDifferentiationPass(SolveModelOptions options)
+			: options(std::move(options))
+	{
+	}
+
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
 		registry.insert<ModelicaDialect>();
@@ -745,7 +750,7 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
 	void runOnOperation() override
 	{
-		if (false && mlir::failed(addPartialDerFunctions()))
+		if (options.solver == CleverDAE && mlir::failed(addPartialDerFunctions()))
 		{
 			// TODO: Fix partial derivatives of arrays and matrixes.
 			mlir::emitError(getOperation().getLoc(), "Error in adding the functions partial derivatives");
@@ -911,9 +916,12 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
 		return mlir::success();
 	}
+
+	private:
+	SolveModelOptions options;
 };
 
-std::unique_ptr<mlir::Pass> marco::codegen::createAutomaticDifferentiationPass()
+std::unique_ptr<mlir::Pass> marco::codegen::createAutomaticDifferentiationPass(SolveModelOptions options)
 {
-	return std::make_unique<AutomaticDifferentiationPass>();
+	return std::make_unique<AutomaticDifferentiationPass>(options);
 }

@@ -2248,6 +2248,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 			mlir::Operation* constantOp = fillOp.value().getDefiningOp();
 			assert(mlir::isa<ConstantOp>(constantOp));
+			fillOp->erase();
 
 			initialValueMap[var] = constantOp;
 			if (var.isState())
@@ -2270,6 +2271,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 				mlir::Operation* constantOp = assignmentOp.source().getDefiningOp();
 				assert(mlir::isa<ConstantOp>(constantOp));
+				assignmentOp->erase();
 
 				initialValueMap[var] = constantOp;
 				if (var.isState())
@@ -2288,6 +2290,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 				mlir::Operation* allocaOp = assignmentOp.source().getDefiningOp();
 				assert(mlir::isa<AllocaOp>(allocaOp));
+				assignmentOp->erase();
 
 				initialValueMap[var] = allocaOp;
 				if (var.isState())
