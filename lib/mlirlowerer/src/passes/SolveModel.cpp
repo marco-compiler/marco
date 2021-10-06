@@ -2248,7 +2248,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 			mlir::Operation* constantOp = fillOp.value().getDefiningOp();
 			assert(mlir::isa<ConstantOp>(constantOp));
-			fillOp->erase();
 
 			initialValueMap[var] = constantOp;
 			if (var.isState())
@@ -2271,7 +2270,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 				mlir::Operation* constantOp = assignmentOp.source().getDefiningOp();
 				assert(mlir::isa<ConstantOp>(constantOp));
-				assignmentOp->erase();
 
 				initialValueMap[var] = constantOp;
 				if (var.isState())
@@ -2290,7 +2288,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 				mlir::Operation* allocaOp = assignmentOp.source().getDefiningOp();
 				assert(mlir::isa<AllocaOp>(allocaOp));
-				assignmentOp->erase();
 
 				initialValueMap[var] = allocaOp;
 				if (var.isState())
@@ -2399,7 +2396,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 						for (auto& acc : vectorAccess.getMappingOffset())
 						{
-							int64_t accOffset = acc.isDirectAccess() ? acc.getOffset() : acc.getOffset() + 1;
+							int64_t accOffset = acc.isDirectAccess() ? acc.getOffset() : (acc.getOffset() + 1);
 							int64_t accInduction = acc.isOffset() ? acc.getInductionVar() : -1;
 							access.push_back({ accOffset, accInduction });
 						}
@@ -2436,32 +2433,14 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		{
 			for (Equation& equation : bltBlock.getEquations())
 			{
-				mlir::Value eqIndex = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, forEquationsNumber));
-				SubscriptionOp subscriptionOp = mlir::cast<SubscriptionOp>(equation.getMatchedExp().getOp());
-				marco::MultiDimInterval inductions = equation.getInductions();
-				size_t i = 0;
-
 				// Dimension
-				for (mlir::Value index : subscriptionOp.indexes())
+				for (marco::Interval& interval : equation.getInductions())
 				{
-					if (index.isa<mlir::BlockArgument>() || !mlir::isa<ConstantOp>(index.getDefiningOp()))
-					{
-						// If the variable access is an offset, add the correspoding induction.
-						mlir::Value min = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, inductions[i].min() - 1));
-						mlir::Value max = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, inductions[i].max() - 1));
-						builder.create<AddEquationDimensionOp>(loc, userData, eqIndex, min, max);
-						i++;
-					}
-					else
-					{
-						// If the variable access is a direct access, add an empty induction.
-						mlir::Value min = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, 0));
-						mlir::Value max = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, 1));
-						builder.create<AddEquationDimensionOp>(loc, userData, eqIndex, min, max);
-					}
+					mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, forEquationsNumber));
+					mlir::Value min = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.min() - 1));
+					mlir::Value max = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.max() - 1));
+					builder.create<AddEquationDimensionOp>(loc, userData, index, min, max);
 				}
-
-				assert(i == inductions.dimensions() || inductions.size() <= 1);
 
 				// Residual and Jacobian
 				mlir::Value leftIndex = getFunction(builder, loc, model, userData, accessesMap, equation.lhs());
