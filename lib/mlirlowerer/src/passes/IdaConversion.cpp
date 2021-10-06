@@ -25,6 +25,80 @@ static mlir::FuncOp getOrDeclareFunction(mlir::OpBuilder& builder, mlir::ModuleO
 	return getOrDeclareFunction(builder, module, name, results, args.getTypes());
 }
 
+template<typename FromOp>
+class IdaOpConversion : public mlir::OpConversionPattern<FromOp>
+{
+	public:
+	IdaOpConversion(TypeConverter& typeConverter, mlir::MLIRContext* context)
+			: mlir::OpConversionPattern<FromOp>(typeConverter, context)
+	{
+	}
+
+	[[nodiscard]] marco::codegen::TypeConverter& typeConverter() const
+	{
+		return *static_cast<marco::codegen::TypeConverter *>(this->getTypeConverter());
+	}
+
+	[[nodiscard]] mlir::Type convertType(mlir::Type type) const
+	{
+		return typeConverter().convertType(type);
+	}
+
+	[[nodiscard]] std::string getMangledFunctionName(llvm::StringRef name, llvm::Optional<mlir::Type> returnType, mlir::ValueRange args) const
+	{
+		return getMangledFunctionName(name, returnType, args.getTypes());
+	}
+
+	[[nodiscard]] std::string getMangledFunctionName(llvm::StringRef name, llvm::Optional<mlir::Type> returnType, mlir::TypeRange argsTypes) const
+	{
+		std::string resultType = returnType.hasValue() ? getMangledType(*returnType) : "void";
+
+		return "_M" + name.str() +
+					 "_" + resultType +
+					 std::accumulate(
+							 argsTypes.begin(), argsTypes.end(), std::string(),
+							 [&](const std::string& result, mlir::Type type) {
+								 return result + "_" + getMangledType(type);
+							 });
+	}
+
+	private:
+	[[nodiscard]] std::string getMangledType(mlir::Type type) const
+	{
+		if (type.isa<BooleanType>() || type.isa<modelica::BooleanType>())
+			return "i1";
+
+		if (auto integerType = type.dyn_cast<IntegerType>())
+			return "i" + std::to_string(convertType(integerType).getIntOrFloatBitWidth());
+
+		if (auto integerType = type.dyn_cast<modelica::IntegerType>())
+			return "i" + std::to_string(convertType(integerType).getIntOrFloatBitWidth());
+
+		if (auto realType = type.dyn_cast<RealType>())
+			return "f" + std::to_string(convertType(realType).getIntOrFloatBitWidth());
+
+		if (auto realType = type.dyn_cast<modelica::RealType>())
+			return "f" + std::to_string(convertType(realType).getIntOrFloatBitWidth());
+
+		if (type.isa<OpaquePointerType>())
+			return "vptr";
+
+		if (auto arrayType = type.dyn_cast<modelica::UnsizedArrayType>())
+			return "a" + getMangledType(arrayType.getElementType());
+
+		if (type.isa<mlir::IndexType>())
+			return getMangledType(this->getTypeConverter()->convertType(type));
+
+		if (auto integerType = type.dyn_cast<mlir::IntegerType>())
+			return "i" + std::to_string(integerType.getWidth());
+
+		if (auto floatType = type.dyn_cast<mlir::FloatType>())
+			return "f" + std::to_string(floatType.getWidth());
+
+		assert(false && "Unreachable");
+	}
+};
+
 struct ConstantValueOpLowering : public mlir::OpConversionPattern<ConstantValueOp>
 {
 	using mlir::OpConversionPattern<ConstantValueOp>::OpConversionPattern;
@@ -101,16 +175,16 @@ struct FreeUserDataOpLowering : public mlir::OpConversionPattern<FreeUserDataOp>
 	}
 };
 
-struct SetInitialValueOpLowering : public mlir::OpConversionPattern<SetInitialValueOp>
+struct SetInitialValueOpLowering : public IdaOpConversion<SetInitialValueOp>
 {
-	using mlir::OpConversionPattern<SetInitialValueOp>::OpConversionPattern;
+	using IdaOpConversion<SetInitialValueOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(SetInitialValueOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"setInitialValue",
+				getMangledFunctionName("setInitialValue", llvm::None, op.args()),
 				llvm::None,
 				op.args());
 
@@ -119,9 +193,9 @@ struct SetInitialValueOpLowering : public mlir::OpConversionPattern<SetInitialVa
 	}
 };
 
-struct SetInitialArrayOpLowering : public mlir::OpConversionPattern<SetInitialArrayOp>
+struct SetInitialArrayOpLowering : public IdaOpConversion<SetInitialArrayOp>
 {
-	using mlir::OpConversionPattern<SetInitialArrayOp>::OpConversionPattern;
+	using IdaOpConversion<SetInitialArrayOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(SetInitialArrayOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -133,7 +207,7 @@ struct SetInitialArrayOpLowering : public mlir::OpConversionPattern<SetInitialAr
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"setInitialArray",
+				getMangledFunctionName("setInitialArray", llvm::None, args),
 				llvm::None,
 				mlir::ValueRange(args).getTypes());
 

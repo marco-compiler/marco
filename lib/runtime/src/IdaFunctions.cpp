@@ -317,93 +317,6 @@ void* allocIdaUserData(sunindextype equationsNumber)
 }
 
 /**
- * Free all the data allocated by IDA.
- */
-bool freeIdaUserData(void* userData)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	// Free IDA memory
-	IDAFree(&data->idaMemory);
-
-	int retval = SUNNonlinSolFree(data->nonlinearSolver);
-	exitOnError(checkRetval(&retval, "SUNNonlinSolFree", 1));
-	retval = SUNLinSolFree(data->linearSolver);
-	exitOnError(checkRetval(&retval, "SUNLinSolFree", 1));
-
-	SUNMatDestroy(data->sparseMatrix);
-	N_VDestroy(data->variablesVector);
-	N_VDestroy(data->derivativesVector);
-	N_VDestroy(data->idVector);
-
-	delete data;
-
-	return true;
-}
-
-/**
- * Set the initial value of the index-th variable and if it is a state variable.
- */
-void setInitialValue(
-		void* userData,
-		sunindextype index,
-		sunindextype length,
-		realtype value,
-		bool isState)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	sunindextype offset = data->variableOffsets[index];
-	realtype idValue = isState ? 1.0 : 0.0;
-
-	for (sunindextype i = 0; i < length; i++)
-	{
-		data->variablesValues[offset + i] = value;
-		data->derivativesValues[offset + i] = 0.0;
-		data->idValues[offset + i] = idValue;
-	}
-}
-
-/**
- * Set the initial values of the index-th variable given its array, which is
- * represented as a modelica alloca operation. Initialize every other value not
- * included in the array to zero.
- */
-void setInitialArray(
-		void* userData,
-		sunindextype index,
-		sunindextype length,
-		UnsizedArrayDescriptor<realtype> array,
-		bool isState)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	sunindextype offset = data->variableOffsets[index];
-	VarDimension dimensions = data->variableDimensions[index];
-
-	realtype* arrayData = array.getData();
-	realtype idValue = isState ? 1.0 : 0.0;
-
-	Indexes indexes;
-	for (size_t dim = 0; dim < dimensions.size(); dim++)
-		indexes.push_back(0);
-
-	bool finished = false;
-	while (!finished)
-	{
-		if (array.hasData(indexes))
-			data->variablesValues[offset] = *arrayData++;
-		else
-			data->variablesValues[offset] = 0;
-
-		data->derivativesValues[offset] = 0.0;
-		data->idValues[offset++] = idValue;
-
-		finished = updateIndexes(indexes, dimensions);
-	}
-}
-
-/**
  * Compute the total number of non-zero values in the Jacobian Matrix. This
  * number corresponds to number of variables, in each scalar equation, where
  * their derivative may be non-zero.
@@ -550,9 +463,30 @@ bool idaStep(void* userData)
 	return true;
 }
 
-//===----------------------------------------------------------------------===//
-// Setters
-//===----------------------------------------------------------------------===//
+/**
+ * Free all the data allocated by IDA.
+ */
+bool freeIdaUserData(void* userData)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	// Free IDA memory
+	IDAFree(&data->idaMemory);
+
+	int retval = SUNNonlinSolFree(data->nonlinearSolver);
+	exitOnError(checkRetval(&retval, "SUNNonlinSolFree", 1));
+	retval = SUNLinSolFree(data->linearSolver);
+	exitOnError(checkRetval(&retval, "SUNLinSolFree", 1));
+
+	SUNMatDestroy(data->sparseMatrix);
+	N_VDestroy(data->variablesVector);
+	N_VDestroy(data->derivativesVector);
+	N_VDestroy(data->idVector);
+
+	delete data;
+
+	return true;
+}
 
 /**
  * Add the start time and stop time to the user data.
@@ -576,6 +510,10 @@ void addTolerance(void* userData, realtype relTol, realtype absTol)
 	data->relativeTolerance = relTol;
 	data->absoluteTolerance = absTol;
 }
+
+//===----------------------------------------------------------------------===//
+// Equation setters
+//===----------------------------------------------------------------------===//
 
 /**
  * Add the length of index-th row of the jacobian matrix to the user data.
@@ -679,6 +617,10 @@ void addJacobian(
 // Variable setters
 //===----------------------------------------------------------------------===//
 
+/**
+ * Add a new variable given its monodimensional length.
+ * Return the variable index.
+ */
 sunindextype addVariableOffset(void* userData, sunindextype offset)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
@@ -686,6 +628,9 @@ sunindextype addVariableOffset(void* userData, sunindextype offset)
 	return data->variableOffsets.size() - 1;
 }
 
+/**
+ * Add a new dimension to the index-th variable of size dim.
+ */
 void addVariableDimension(void* userData, sunindextype index, sunindextype dim)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
@@ -695,6 +640,10 @@ void addVariableDimension(void* userData, sunindextype index, sunindextype dim)
 		data->variableDimensions[index].push_back(dim);
 }
 
+/**
+ * Add a new variable access to the var-th variable, where ind is the induction
+ * variable and off is the access offset.
+ */
 sunindextype addNewVariableAccess(
 		void* userData, sunindextype var, sunindextype off, sunindextype ind)
 {
@@ -703,6 +652,10 @@ sunindextype addNewVariableAccess(
 	return data->variableAccesses.size() - 1;
 }
 
+/**
+ * Add a new induction to the index-th variable access, where ind is the
+ * induction variable and off is the access offset.
+ */
 void addVariableAccess(
 		void* userData, sunindextype index, sunindextype off, sunindextype ind)
 {
@@ -710,6 +663,82 @@ void addVariableAccess(
 	assert((size_t) index == data->variableAccesses.size() - 1);
 	data->variableAccesses[index].second.push_back({ off, ind });
 }
+
+/**
+ * Set the initial value of the index-th variable and if it is a state variable.
+ */
+template<typename T, typename U>
+inline void setInitialValue(
+		void* userData, T index, T length, U value, bool isState)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	sunindextype offset = data->variableOffsets[index];
+	realtype idValue = isState ? 1.0 : 0.0;
+
+	for (sunindextype i = 0; i < length; i++)
+	{
+		data->variablesValues[offset + i] = value;
+		data->derivativesValues[offset + i] = 0.0;
+		data->idValues[offset + i] = idValue;
+	}
+}
+
+RUNTIME_FUNC_DEF(
+		setInitialValue, void, voidptr, int32_t, int32_t, int32_t, bool)
+RUNTIME_FUNC_DEF(setInitialValue, void, voidptr, int32_t, int32_t, float, bool)
+RUNTIME_FUNC_DEF(
+		setInitialValue, void, voidptr, int64_t, int64_t, int64_t, bool)
+RUNTIME_FUNC_DEF(setInitialValue, void, voidptr, int64_t, int64_t, double, bool)
+
+/**
+ * Set the initial values of the index-th variable given its array, which is
+ * represented as a modelica alloca operation. Initialize every other value not
+ * included in the array to zero.
+ */
+template<typename T, typename U>
+inline void setInitialArray(
+		void* userData,
+		T index,
+		T length,
+		UnsizedArrayDescriptor<U> array,
+		bool isState)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	sunindextype offset = data->variableOffsets[index];
+	VarDimension dimensions = data->variableDimensions[index];
+
+	U* arrayData = array.getData();
+	realtype idValue = isState ? 1.0 : 0.0;
+
+	Indexes indexes;
+	for (size_t dim = 0; dim < dimensions.size(); dim++)
+		indexes.push_back(0);
+
+	bool finished = false;
+	while (!finished)
+	{
+		if (array.hasData(indexes))
+			data->variablesValues[offset] = *arrayData++;
+		else
+			data->variablesValues[offset] = 0;
+
+		data->derivativesValues[offset] = 0.0;
+		data->idValues[offset++] = idValue;
+
+		finished = updateIndexes(indexes, dimensions);
+	}
+}
+
+RUNTIME_FUNC_DEF(
+		setInitialArray, void, voidptr, int32_t, int32_t, ARRAY(int32_t), bool)
+RUNTIME_FUNC_DEF(
+		setInitialArray, void, voidptr, int32_t, int32_t, ARRAY(float), bool)
+RUNTIME_FUNC_DEF(
+		setInitialArray, void, voidptr, int64_t, int64_t, ARRAY(int64_t), bool)
+RUNTIME_FUNC_DEF(
+		setInitialArray, void, voidptr, int64_t, int64_t, ARRAY(double), bool)
 
 //===----------------------------------------------------------------------===//
 // Getters

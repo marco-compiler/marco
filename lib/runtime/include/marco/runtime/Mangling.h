@@ -1,8 +1,10 @@
 #ifndef MARCO_RUNTIME_MANGLING_H
 #define MARCO_RUNTIME_MANGLING_H
 
-#define NUM_ARGS_H1(dummy, x6, x5, x4, x3, x2, x1, x0, ...) x0
-#define NUM_ARGS(...) NUM_ARGS_H1(dummy, ##__VA_ARGS__, 6, 5, 4, 3, 2, 1, 0)
+typedef void* voidptr;
+
+#define NUM_ARGS_H1(dummy, x9, x8, x7, x6, x5, x4, x3, x2, x1, x0, ...) x0
+#define NUM_ARGS(...) NUM_ARGS_H1(dummy, ##__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
 
 #define APPLY0(t, n, dummy)
 #define APPLY1(t, n, a) t(n, a)
@@ -11,6 +13,8 @@
 #define APPLY4(t, n, a, b, c, d) APPLY3(t, 3, a, b, c), t(n, d)
 #define APPLY5(t, n, a, b, c, d, e) APPLY4(t, 4, a, b, c, d), t(n, e)
 #define APPLY6(t, n, a, b, c, d, e, f) APPLY5(t, 5, a, b, c, d, e), t(n, f)
+#define APPLY7(t, n, a, b, c, d, e, f, g) APPLY6(t, 6, a, b, c, d, e, f), t(n, g)
+#define APPLY8(t, n, a, b, c, d, e, f, g, h) APPLY7(t, 7, a, b, c, d, e, f, g), t(n, h)
 
 #define APPLY_ALL_H3(t, n, ...) APPLY##n(t, n, __VA_ARGS__)
 #define APPLY_ALL_H2(t, n, ...) APPLY_ALL_H3(t, n, __VA_ARGS__)
@@ -23,12 +27,15 @@
 #define CONCAT4(a, b, c, d) a ##b ##c ##d
 #define CONCAT5(a, b, c, d, e) a ##b ##c ##d ##e
 #define CONCAT6(a, b, c, d, e, f) a ##b ##c ##d ##e ##f
+#define CONCAT7(a, b, c, d, e, f, g) a ##b ##c ##d ##e ##f ##g
+#define CONCAT8(a, b, c, d, e, f, g, h) a ##b ##c ##d ##e ##f ##g ##h
 
 #define CONCAT_ALL_H3(n, ...) CONCAT##n(__VA_ARGS__)
 #define CONCAT_ALL_H2(n, ...) CONCAT_ALL_H3(n, __VA_ARGS__)
 #define CONCAT_ALL(...) CONCAT_ALL_H2(NUM_ARGS(__VA_ARGS__), __VA_ARGS__)
 
 #define void_CPP void
+#define voidptr_CPP void*
 #define bool_CPP bool
 #define int32_t_CPP int32_t
 #define int64_t_CPP int64_t
@@ -36,6 +43,7 @@
 #define double_CPP double
 
 #define void_MANGLED _void
+#define voidptr_MANGLED _vptr
 #define bool_MANGLED _i1
 #define int32_t_MANGLED _i32
 #define int64_t_MANGLED _i64
@@ -93,8 +101,8 @@
 	TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)))
 
 #define RUNTIME_FUNC_DECL(name, returnType, ...) \
-  extern "C" TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))); \
-  extern "C" TYPES_CPP(returnType) CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, returnType, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)));
+	extern "C" TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))); \
+	extern "C" TYPES_CPP(returnType) CONCAT_ALL(MLIR_PREFIX, NAME_MANGLED(name, returnType, __VA_ARGS__)) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__)));
 
 #define RUNTIME_FUNC_DEF(name, returnType, ...) \
 	TYPES_CPP(returnType) NAME_MANGLED(name, returnType, __VA_ARGS__) (ARGS_DECLARATIONS(TYPES_CPP(__VA_ARGS__))) \
