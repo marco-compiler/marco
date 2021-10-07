@@ -271,10 +271,7 @@ mlir::LogicalResult IdaSolver::run(llvm::raw_ostream& OS)
 		printOutput(OS);
 
 		if (getIdaTime(userData) >= stopTime)
-		{
-			printStats(OS);
 			return mlir::success();
-		}
 	}
 }
 
@@ -311,6 +308,11 @@ void IdaSolver::printStats(llvm::raw_ostream& OS)
 	OS << "Number of residual evaluations = " << nre << "\n";
 	OS << "Number of Jacobian evaluations = " << nje << "\n";
 	OS << "Number of nonlinear iterations = " << nni << "\n";
+}
+
+void IdaSolver::printIncidenceMatrix(llvm::raw_ostream& OS)
+{
+	OS << getIncidenceMatrix(userData);
 }
 
 sunindextype IdaSolver::getForEquationsNumber() { return forEquationsNumber; }

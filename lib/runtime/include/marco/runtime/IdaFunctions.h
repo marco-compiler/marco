@@ -54,6 +54,8 @@ extern "C"
 	sunindextype numJacEvals(void* userData);
 	sunindextype numNonlinIters(void* userData);
 
+	std::string getIncidenceMatrix(void* userData);
+
 	// Lambda constructions
 	sunindextype lambdaConstant(void* userData, realtype constant);
 	sunindextype lambdaTime(void* userData);

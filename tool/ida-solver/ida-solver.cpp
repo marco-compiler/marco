@@ -177,6 +177,9 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
+	idaSolver.printIncidenceMatrix(OS);
+	idaSolver.printStats(OS);
+
 	if (failed(idaSolver.free()))
 	{
 		errs() << "Failed to correctly free the IDA solver\n";

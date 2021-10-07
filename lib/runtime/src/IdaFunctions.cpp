@@ -2,6 +2,7 @@
 #include <marco/runtime/IdaFunctions.h>
 #include <nvector/nvector_serial.h>
 #include <set>
+#include <sstream>
 #include <sundials/sundials_math.h>
 #include <sundials/sundials_types.h>
 #include <sunlinsol/sunlinsol_klu.h>
@@ -817,6 +818,72 @@ sunindextype numNonlinIters(void* userData)
 	sunindextype nni;
 	IDAGetNumNonlinSolvIters(data->idaMemory, &nni);
 	return nni;
+}
+
+/**
+ * Returns the Jacobian incidence matrix of the system inside a string.
+ */
+std::string getIncidenceMatrix(void* userData)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	std::stringstream result;
+
+	result << "\n┌─";
+	result << std::string(2 * (data->equationsNumber - 1) - 1, ' ');
+	result << "─┐\n";
+
+	// For every vector equation
+	for (size_t eq = 0; eq < data->equationDimensions.size(); eq++)
+	{
+		bool finished = false;
+
+		// Initialize the multidimensional interval of the vector equation
+		Indexes indexes;
+		for (const auto& dim : data->equationDimensions[eq])
+			indexes.push_back(dim.first);
+
+		// For every scalar equation in the vector equation
+		while (!finished)
+		{
+			result << "│";
+
+			// Compute the column indexes that may be non-zeros.
+			std::set<sunindextype> columnIndexesSet;
+			for (sunindextype accessIndex : data->columnIndexes[eq])
+			{
+				sunindextype varIndex = data->variableAccesses[accessIndex].first;
+
+				VarDimension dimensions = data->variableDimensions[varIndex];
+				Access access = data->variableAccesses[accessIndex].second;
+
+				sunindextype varOffset = computeOffset(indexes, dimensions, access);
+
+				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
+			}
+
+			for (sunindextype i = 0; i < data->equationsNumber; i++)
+			{
+				if (columnIndexesSet.find(i) != columnIndexesSet.end())
+					result << "*";
+				else
+					result << " ";
+
+				if (i < data->equationsNumber - 1)
+					result << " ";
+			}
+
+			// Update multidimensional interval, exit while loop if finished
+			finished = updateIndexes(indexes, data->equationDimensions[eq]);
+
+			result << "│\n";
+		}
+	}
+
+	result << "└─";
+	result << std::string(2 * (data->equationsNumber - 1) - 1, ' ');
+	result << "─┘\n";
+
+	return result.str();
 }
 
 //===----------------------------------------------------------------------===//
