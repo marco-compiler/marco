@@ -62,6 +62,11 @@ namespace marco::codegen::ida
 		 */
 		void printStats(llvm::raw_ostream &OS = llvm::outs());
 
+		/**
+		 * Prints the Jacobian incidence matrix of the system.
+		 */
+		void printIncidenceMatrix(llvm::raw_ostream &OS = llvm::outs());
+
 		[[nodiscard]] sunindextype getForEquationsNumber();
 		[[nodiscard]] sunindextype getEquationsNumber();
 		[[nodiscard]] sunindextype getNonZeroValuesNumber();
