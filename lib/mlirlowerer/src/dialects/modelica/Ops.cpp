@@ -129,7 +129,7 @@ static double getAttributeValue(mlir::Attribute attribute)
 	return attribute.cast<mlir::IntegerAttr>().getInt();
 }
 
-static mlir::Attribute getAttribute(mlir::OpBuilder& builder, mlir::Type type, int value)
+static mlir::Attribute getAttribute(mlir::OpBuilder& builder, mlir::Type type, double value)
 {
 	if (type.isa<BooleanType>())
 		return BooleanAttribute::get(type, value > 0);
@@ -4718,6 +4718,7 @@ void AddOp::foldConstants(mlir::OpBuilder& builder)
 	if (!isOperandFoldable(lhs()) || !isOperandFoldable(rhs()))
 		return;
 
+	// Note: this constant folding is done also on Subscription indexes.
 	ConstantOp leftOp = mlir::cast<ConstantOp>(lhs().getDefiningOp());
 	ConstantOp rightOp = mlir::cast<ConstantOp>(rhs().getDefiningOp());
 
@@ -5153,6 +5154,7 @@ void SubOp::foldConstants(mlir::OpBuilder& builder)
 	if (!isOperandFoldable(lhs()) || !isOperandFoldable(rhs()))
 		return;
 
+	// Note: this constant folding is done also on Subscription indexes.
 	ConstantOp leftOp = mlir::cast<ConstantOp>(lhs().getDefiningOp());
 	ConstantOp rightOp = mlir::cast<ConstantOp>(rhs().getDefiningOp());
 

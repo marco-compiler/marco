@@ -325,7 +325,12 @@ namespace marco::codegen::model
 				{
 					// If the destination is accessing the value with a constant, use it instead.
 					assert(mlir::isa<ConstantOp>(destSubOp.indexes()[i].getDefiningOp()));
-					mapper.map(sourceInductions[sourceAccess[i].getInductionVar()], destSubOp.indexes()[i]);
+					// Note: the +1 is both for variable accesses in SubscriptionOp and for
+					// outside induction variable uses (which must remain 1-indexed).
+					mlir::Value one = builder.create<ConstantOp>(destSubOp.getLoc(), IntegerAttribute::get(builder.getContext(), 1));
+					mlir::Value newInduction = builder.create<AddOp>(
+							destSubOp.getLoc(), IntegerType::get(builder.getContext()), destSubOp.indexes()[i], one);
+					mapper.map(sourceInductions[sourceAccess[i].getInductionVar()], newInduction);
 				}
 			}
 

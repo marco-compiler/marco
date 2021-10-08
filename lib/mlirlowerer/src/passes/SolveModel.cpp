@@ -2068,11 +2068,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (auto integer = attribute.dyn_cast<modelica::IntegerAttribute>())
 			return integer.getValue();
 
-		if (auto real = attribute.dyn_cast<modelica::RealAttribute>())
-			return real.getValue();
-
-		assert(false && "Unreachable");
-		return 0.0;
+		return attribute.cast<modelica::RealAttribute>().getValue();
 	}
 
 	static mlir::Value getFunction(
@@ -2124,7 +2120,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		}
 
 		// Get the lambda functions to compute the values of all the children.
-		std::vector<mlir::Value> children;
+		llvm::SmallVector<mlir::Value, 2> children;
 		for (size_t i : marco::irange(expression.childrenCount()))
 			children.push_back(getFunction(builder, loc, model, userData, accessesMap, expression.getChild(i)));
 
@@ -2392,7 +2388,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 						// Compute the access offset based on the induction variables of the
 						// for-equation.
 						VectorAccess vectorAccess = AccessToVar::fromExp(path.getExpression()).getAccess();
-						std::vector<std::pair<int64_t, int64_t>> access;
+						llvm::SmallVector<std::pair<int64_t, int64_t>, 3> access;
 
 						for (auto& acc : vectorAccess.getMappingOffset())
 						{
@@ -2516,7 +2512,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			}
 
 			// Store the dimensions of the variable, needed to compute the flattened index.
-			std::vector<int64_t> dimValues;
+			llvm::SmallVector<int64_t, 3> dimValues;
 			for (size_t i = 1; i < dimensions.dimensions(); i++)
 			{
 				for (size_t j = 0; j < dimValues.size(); j++)
@@ -2525,7 +2521,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			}
 			dimValues.push_back(1);
 
-			std::vector<mlir::Value> dimOps;
+			llvm::SmallVector<mlir::Value, 3> dimOps;
 			for (size_t i = 0; i < dimValues.size(); i++)
 				dimOps.push_back(builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, dimValues[i])));
 
