@@ -1,3 +1,4 @@
+#include <llvm/ADT/SmallVector.h>
 #include <marco/ida/IdaSolver.h>
 #include <marco/mlirlowerer/passes/model/BltBlock.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
@@ -196,7 +197,7 @@ mlir::LogicalResult IdaSolver::init()
 				{
 					// Compute the access offset based on the induction variables of the
 					// for-equation.
-					std::vector<std::pair<sunindextype, sunindextype>> access;
+					llvm::SmallVector<std::pair<sunindextype, sunindextype>, 3> access;
 
 					for (auto& acc : vectorAccess.getMappingOffset())
 					{
@@ -407,7 +408,7 @@ sunindextype IdaSolver::getFunction(const Expression& expression)
 	}
 
 	// Get the lambda functions to compute the values of all the children.
-	std::vector<sunindextype> children;
+	llvm::SmallVector<sunindextype, 2> children;
 	for (size_t i : marco::irange(expression.childrenCount()))
 		children.push_back(getFunction(expression.getChild(i)));
 

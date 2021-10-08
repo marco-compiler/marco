@@ -358,7 +358,8 @@ Equation Equation::composeAccess(const VectorAccess& transformation) const
 			accesses.push_back(SingleDimensionAccess::relative(
 				transformation[i].getOffset() - currentAccess[i].getOffset(), currentAccess[i].getInductionVar()));
 		else if (currentAccess[i].isOffset())
-			accesses.push_back(SingleDimensionAccess::relative(-currentAccess[i].getOffset(), currentAccess[i].getInductionVar()));
+			accesses.push_back(SingleDimensionAccess::relative(
+				-currentAccess[i].getOffset() - 1, currentAccess[i].getInductionVar()));
 	}
 
 	ReferenceMatcher matcher(toReturn);
