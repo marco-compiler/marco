@@ -533,6 +533,15 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 	}
 
 	private:
+	/**
+	 * Load the data structure from the opaque pointer that is passed around the
+	 * simulation functions.
+	 *
+	 * @param builder		operation builder
+	 * @param ptr 			opaque pointer
+	 * @param varTypes 	types of the variables
+	 * @return data structure containing the variables
+	 */
 	mlir::Value loadDataFromOpaquePtr(mlir::OpBuilder& builder, mlir::Value ptr, mlir::TypeRange varTypes) const
 	{
 		mlir::Location loc = ptr.getLoc();
@@ -543,7 +552,6 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 
 		mlir::Type structType = mlir::LLVM::LLVMStructType::getLiteral(ptr.getContext(), structTypes);
 		mlir::Type structPtrType = mlir::LLVM::LLVMPointerType::get(structType);
-
 		mlir::Value structPtr = builder.create<mlir::LLVM::BitcastOp>(loc, structPtrType, ptr);
 		mlir::Value structValue = builder.create<mlir::LLVM::LoadOp>(loc, structPtr);
 
@@ -562,10 +570,14 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 	 */
 	mlir::Value extractValue(mlir::OpBuilder& builder, mlir::Value structValue, mlir::Type type, unsigned int position) const
 	{
-		assert(structValue.getType().isa<mlir::LLVM::LLVMStructType>());
 		mlir::Location loc = structValue.getLoc();
-		mlir::Type convertedType = this->getTypeConverter()->convertType(type);
-		mlir::Value var = builder.create<mlir::LLVM::ExtractValueOp>(loc, convertedType, structValue, builder.getIndexArrayAttr(position));
+
+		assert(structValue.getType().isa<mlir::LLVM::LLVMStructType>() && "Not an LLVM struct");
+		auto structType = structValue.getType().cast<mlir::LLVM::LLVMStructType>();
+		auto structTypes = structType.getBody();
+		assert (position < structTypes.size() && "LLVM struct: index is out of bounds");
+
+		mlir::Value var = builder.create<mlir::LLVM::ExtractValueOp>(loc, structTypes[position], structValue, builder.getIndexArrayAttr(position));
 		return this->getTypeConverter()->materializeSourceConversion(builder, loc, type, var);
 	}
 
@@ -774,20 +786,6 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 		rewriter.create<mlir::scf::YieldOp>(loc, falseValue);
 
 		return mlir::success();
-	}
-
-	/**
-	 * Sort the names of the variables.
-	 * A dedicated method is created in order to ensure consistency among the
-	 * printed names list and the values order.
-	 *
-	 * @param names 	names to be sorted
-	 */
-	void sortVariableNames(llvm::MutableArrayRef<llvm::StringRef> names) const
-	{
-		llvm::sort(names, [](llvm::StringRef x, llvm::StringRef y) -> bool {
-			return x.compare_insensitive(y) < 0;
-		});
 	}
 
 	void printSeparator(mlir::OpBuilder& builder, mlir::Value separator) const
@@ -1253,9 +1251,12 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 			if (!filter.isVisible())
 				continue;
 
-			auto derName = "der(" + name + ")";
+			llvm::SmallString<15> derName;
+			derName.append("der(");
+			derName.append(name);
+			derName.append(")");
 
-			if (auto status = elementCallback(structValueCallback, derName.getSingleStringRef(), derivedVarPosition, filter, separator); failed(status))
+			if (auto status = elementCallback(structValueCallback, derName, derivedVarPosition, filter, separator); failed(status))
 				return status;
 		}
 

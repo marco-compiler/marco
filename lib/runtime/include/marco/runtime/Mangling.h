@@ -30,14 +30,14 @@
 #define ARRAY(type) ARRAY_ ##type
 
 #define bool_CPP bool
-#define int_CPP int
-#define long_CPP long
+#define int32_t_CPP int32_t
+#define int64_t_CPP int64_t
 #define float_CPP float
 #define double_CPP double
 
 #define ARRAY_bool_CPP UnsizedArrayDescriptor<bool_CPP>
-#define ARRAY_int_CPP UnsizedArrayDescriptor<int_CPP>
-#define ARRAY_long_CPP UnsizedArrayDescriptor<long_CPP>
+#define ARRAY_int32_t_CPP UnsizedArrayDescriptor<int32_t_CPP>
+#define ARRAY_int64_t_CPP UnsizedArrayDescriptor<int64_t_CPP>
 #define ARRAY_float_CPP UnsizedArrayDescriptor<float_CPP>
 #define ARRAY_double_CPP UnsizedArrayDescriptor<double_CPP>
 
@@ -46,14 +46,14 @@
 
 #define void_MANGLED _void
 #define bool_MANGLED _i1
-#define int_MANGLED _i32
-#define long_MANGLED _i64
+#define int32_t_MANGLED _i32
+#define int64_t_MANGLED _i64
 #define float_MANGLED _f32
 #define double_MANGLED _f64
 
 #define ARRAY_bool_MANGLED _ai1
-#define ARRAY_int_MANGLED _ai32
-#define ARRAY_long_MANGLED _ai64
+#define ARRAY_int32_t_MANGLED _ai32
+#define ARRAY_int64_t_MANGLED _ai64
 #define ARRAY_float_MANGLED _af32
 #define ARRAY_double_MANGLED _af64
 

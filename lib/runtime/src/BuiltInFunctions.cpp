@@ -24,8 +24,8 @@ inline bool abs(bool value)
 }
 
 RUNTIME_FUNC_DEF(abs, bool, bool)
-RUNTIME_FUNC_DEF(abs, int, int)
-RUNTIME_FUNC_DEF(abs, long, long)
+RUNTIME_FUNC_DEF(abs, int32_t, int32_t)
+RUNTIME_FUNC_DEF(abs, int64_t, int64_t)
 RUNTIME_FUNC_DEF(abs, float, float)
 RUNTIME_FUNC_DEF(abs, double, double)
 
@@ -115,40 +115,40 @@ inline void clone(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<
 template<typename T>
 inline void clone(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
 {
-	unsigned long sourceSize = source.getNumElements();
-	unsigned long destinationSize = destination.getNumElements();
+	auto sourceSize = source.getNumElements();
+	auto destinationSize = destination.getNumElements();
 
 	assert(sourceSize == destinationSize);
 	memcpy(destination.getData(), source.getData(), destinationSize * sizeof(T));
 }
 
 RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(bool))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(int))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(long))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(float))
 RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(double))
 
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int), ARRAY(bool))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int), ARRAY(int))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int), ARRAY(long))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int), ARRAY(float))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int), ARRAY(double))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int32_t), ARRAY(bool))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int32_t), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int32_t), ARRAY(int64_t))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int32_t), ARRAY(float))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int32_t), ARRAY(double))
 
-RUNTIME_FUNC_DEF(clone, void, ARRAY(long), ARRAY(bool))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(long), ARRAY(int))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(long), ARRAY(long))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(long), ARRAY(float))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(long), ARRAY(double))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int64_t), ARRAY(bool))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int64_t), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int64_t), ARRAY(int64_t))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int64_t), ARRAY(float))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(int64_t), ARRAY(double))
 
 RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(bool))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(int))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(long))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(float))
 RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(double))
 
 RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(bool))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(int))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(long))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(double))
 
@@ -227,32 +227,32 @@ inline void diagonal(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescript
 }
 
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(bool), ARRAY(bool))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(bool), ARRAY(int))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(bool), ARRAY(long))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(bool), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(bool), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(bool), ARRAY(float))
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(bool), ARRAY(double))
 
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int), ARRAY(bool))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int), ARRAY(int))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int), ARRAY(long))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int), ARRAY(float))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int), ARRAY(double))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int32_t), ARRAY(bool))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int32_t), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int32_t), ARRAY(int64_t))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int32_t), ARRAY(float))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int32_t), ARRAY(double))
 
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(long), ARRAY(bool))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(long), ARRAY(int))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(long), ARRAY(long))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(long), ARRAY(float))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(long), ARRAY(double))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int64_t), ARRAY(bool))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int64_t), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int64_t), ARRAY(int64_t))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int64_t), ARRAY(float))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(int64_t), ARRAY(double))
 
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(float), ARRAY(bool))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(float), ARRAY(int))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(float), ARRAY(long))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(float), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(float), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(float), ARRAY(float))
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(float), ARRAY(double))
 
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(bool))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(int))
-RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(long))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DEF(diagonal, void, ARRAY(double), ARRAY(double))
 
@@ -287,8 +287,8 @@ inline void fill(UnsizedArrayDescriptor<T> array, T value)
 }
 
 RUNTIME_FUNC_DEF(fill, void, ARRAY(bool), bool)
-RUNTIME_FUNC_DEF(fill, void, ARRAY(int), int)
-RUNTIME_FUNC_DEF(fill, void, ARRAY(long), long)
+RUNTIME_FUNC_DEF(fill, void, ARRAY(int32_t), int32_t)
+RUNTIME_FUNC_DEF(fill, void, ARRAY(int64_t), int64_t)
 RUNTIME_FUNC_DEF(fill, void, ARRAY(float), float)
 RUNTIME_FUNC_DEF(fill, void, ARRAY(double), double)
 
@@ -325,8 +325,8 @@ inline void identity(UnsizedArrayDescriptor<T> array)
 }
 
 RUNTIME_FUNC_DEF(identity, void, ARRAY(bool))
-RUNTIME_FUNC_DEF(identity, void, ARRAY(int))
-RUNTIME_FUNC_DEF(identity, void, ARRAY(long))
+RUNTIME_FUNC_DEF(identity, void, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(identity, void, ARRAY(int64_t))
 RUNTIME_FUNC_DEF(identity, void, ARRAY(float))
 RUNTIME_FUNC_DEF(identity, void, ARRAY(double))
 
@@ -341,21 +341,22 @@ RUNTIME_FUNC_DEF(identity, void, ARRAY(double))
 template<typename T>
 inline void linspace(UnsizedArrayDescriptor<T> array, double start, double end)
 {
+	using dimension_t = typename UnsizedArrayDescriptor<T>::dimension_t;
 	assert(array.getRank() == 1);
 
-	unsigned long n = array.getDimensionSize(0);
+	auto n = array.getDimensionSize(0);
 	double step = (end - start) / ((double) n - 1);
 
-	for (unsigned long i = 0; i < n; ++i)
+	for (dimension_t i = 0; i < n; ++i)
 		array.get(i) = start + static_cast<double>(i) * step;
 }
 
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(bool), float, float)
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(bool), double, double)
-RUNTIME_FUNC_DEF(linspace, void, ARRAY(int), float, float)
-RUNTIME_FUNC_DEF(linspace, void, ARRAY(int), double, double)
-RUNTIME_FUNC_DEF(linspace, void, ARRAY(long), float, float)
-RUNTIME_FUNC_DEF(linspace, void, ARRAY(long), double, double)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(int32_t), float, float)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(int32_t), double, double)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(int64_t), float, float)
+RUNTIME_FUNC_DEF(linspace, void, ARRAY(int64_t), double, double)
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(float), float, float)
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(float), double, double)
 RUNTIME_FUNC_DEF(linspace, void, ARRAY(double), float, float)
@@ -409,8 +410,8 @@ inline T max(UnsizedArrayDescriptor<T> array)
 }
 
 RUNTIME_FUNC_DEF(max, bool, ARRAY(bool))
-RUNTIME_FUNC_DEF(max, int, ARRAY(int))
-RUNTIME_FUNC_DEF(max, long, ARRAY(long))
+RUNTIME_FUNC_DEF(max, int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(max, int64_t, ARRAY(int64_t))
 RUNTIME_FUNC_DEF(max, float, ARRAY(float))
 RUNTIME_FUNC_DEF(max, double, ARRAY(double))
 
@@ -429,8 +430,8 @@ inline T max(T x, T y)
 }
 
 RUNTIME_FUNC_DEF(max, bool, bool, bool)
-RUNTIME_FUNC_DEF(max, int, int, int)
-RUNTIME_FUNC_DEF(max, long, long, long)
+RUNTIME_FUNC_DEF(max, int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DEF(max, int64_t, int64_t, int64_t)
 RUNTIME_FUNC_DEF(max, float, float, float)
 RUNTIME_FUNC_DEF(max, double, double, double)
 
@@ -448,8 +449,8 @@ inline T min(UnsizedArrayDescriptor<T> array)
 }
 
 RUNTIME_FUNC_DEF(min, bool, ARRAY(bool))
-RUNTIME_FUNC_DEF(min, int, ARRAY(int))
-RUNTIME_FUNC_DEF(min, long, ARRAY(long))
+RUNTIME_FUNC_DEF(min, int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(min, int64_t, ARRAY(int64_t))
 RUNTIME_FUNC_DEF(min, float, ARRAY(float))
 RUNTIME_FUNC_DEF(min, double, ARRAY(double))
 
@@ -468,8 +469,8 @@ inline T min(T x, T y)
 }
 
 RUNTIME_FUNC_DEF(min, bool, bool, bool)
-RUNTIME_FUNC_DEF(min, int, int, int)
-RUNTIME_FUNC_DEF(min, long, long, long)
+RUNTIME_FUNC_DEF(min, int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DEF(min, int64_t, int64_t, int64_t)
 RUNTIME_FUNC_DEF(min, float, float, float)
 RUNTIME_FUNC_DEF(min, double, double, double)
 
@@ -487,8 +488,8 @@ inline void ones(UnsizedArrayDescriptor<T> array)
 }
 
 RUNTIME_FUNC_DEF(ones, void, ARRAY(bool))
-RUNTIME_FUNC_DEF(ones, void, ARRAY(int))
-RUNTIME_FUNC_DEF(ones, void, ARRAY(long))
+RUNTIME_FUNC_DEF(ones, void, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(ones, void, ARRAY(int64_t))
 RUNTIME_FUNC_DEF(ones, void, ARRAY(float))
 RUNTIME_FUNC_DEF(ones, void, ARRAY(double))
 
@@ -506,8 +507,8 @@ inline T product(UnsizedArrayDescriptor<T> array)
 }
 
 RUNTIME_FUNC_DEF(product, bool, ARRAY(bool))
-RUNTIME_FUNC_DEF(product, int, ARRAY(int))
-RUNTIME_FUNC_DEF(product, long, ARRAY(long))
+RUNTIME_FUNC_DEF(product, int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(product, int64_t, ARRAY(int64_t))
 RUNTIME_FUNC_DEF(product, float, ARRAY(float))
 RUNTIME_FUNC_DEF(product, double, ARRAY(double))
 
@@ -530,17 +531,17 @@ inline long sign(T value)
 	return -1;
 }
 
-RUNTIME_FUNC_DEF(sign, int, bool)
-RUNTIME_FUNC_DEF(sign, int, int)
-RUNTIME_FUNC_DEF(sign, int, long)
-RUNTIME_FUNC_DEF(sign, int, float)
-RUNTIME_FUNC_DEF(sign, int, double)
+RUNTIME_FUNC_DEF(sign, int32_t, bool)
+RUNTIME_FUNC_DEF(sign, int32_t, int32_t)
+RUNTIME_FUNC_DEF(sign, int32_t, int64_t)
+RUNTIME_FUNC_DEF(sign, int32_t, float)
+RUNTIME_FUNC_DEF(sign, int32_t, double)
 
-RUNTIME_FUNC_DEF(sign, long, bool)
-RUNTIME_FUNC_DEF(sign, long, int)
-RUNTIME_FUNC_DEF(sign, long, long)
-RUNTIME_FUNC_DEF(sign, long, float)
-RUNTIME_FUNC_DEF(sign, long, double)
+RUNTIME_FUNC_DEF(sign, int64_t, bool)
+RUNTIME_FUNC_DEF(sign, int64_t, int32_t)
+RUNTIME_FUNC_DEF(sign, int64_t, int64_t)
+RUNTIME_FUNC_DEF(sign, int64_t, float)
+RUNTIME_FUNC_DEF(sign, int64_t, double)
 
 /**
  * Get the sine of a value.
@@ -605,8 +606,8 @@ inline T sum(UnsizedArrayDescriptor<T> array)
 }
 
 RUNTIME_FUNC_DEF(sum, bool, ARRAY(bool))
-RUNTIME_FUNC_DEF(sum, int, ARRAY(int))
-RUNTIME_FUNC_DEF(sum, long, ARRAY(long))
+RUNTIME_FUNC_DEF(sum, int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(sum, int64_t, ARRAY(int64_t))
 RUNTIME_FUNC_DEF(sum, float, ARRAY(float))
 RUNTIME_FUNC_DEF(sum, double, ARRAY(double))
 
@@ -622,6 +623,8 @@ RUNTIME_FUNC_DEF(sum, double, ARRAY(double))
 template<typename Destination, typename Source>
 void symmetric(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDescriptor<Source> source)
 {
+	using dimension_t = typename UnsizedArrayDescriptor<Destination>::dimension_t;
+
 	// The two arrays must have exactly two dimensions
 	assert(destination.getRank() == 2);
 	assert(source.getRank() == 2);
@@ -630,14 +633,14 @@ void symmetric(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDesc
 	assert(destination.getDimensionSize(0) == source.getDimensionSize(0));
 	assert(destination.getDimensionSize(1) == source.getDimensionSize(1));
 
-	unsigned long size = destination.getDimensionSize(0);
+	auto size = destination.getDimensionSize(0);
 
 	// Manually iterate on the dimensions, so that we can explore just half
 	// of the source matrix.
 
-	for (unsigned long i = 0; i < size; ++i)
+	for (dimension_t i = 0; i < size; ++i)
 	{
-		for (unsigned long j = i; j < size; ++j)
+		for (dimension_t j = i; j < size; ++j)
 		{
 			destination.set({ i, j }, source.get(i, j));
 
@@ -648,32 +651,32 @@ void symmetric(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDesc
 }
 
 RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(bool))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(int))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(float))
 RUNTIME_FUNC_DEF(symmetric, void, ARRAY(bool), ARRAY(double))
 
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(bool))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(int))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(long))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(float))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int), ARRAY(double))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int32_t), ARRAY(bool))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int32_t), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int32_t), ARRAY(int64_t))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int32_t), ARRAY(float))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int32_t), ARRAY(double))
 
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(bool))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(int))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(long))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(float))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(long), ARRAY(double))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int64_t), ARRAY(bool))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int64_t), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int64_t), ARRAY(int64_t))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int64_t), ARRAY(float))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(int64_t), ARRAY(double))
 
 RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(bool))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(int))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(float))
 RUNTIME_FUNC_DEF(symmetric, void, ARRAY(float), ARRAY(double))
 
 RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(bool))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(int))
-RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(long))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DEF(symmetric, void, ARRAY(double), ARRAY(double))
 
@@ -720,6 +723,8 @@ RUNTIME_FUNC_DEF(tanh, double, double)
 template<typename Destination, typename Source>
 void transpose(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDescriptor<Source> source)
 {
+	using dimension_t = typename UnsizedArrayDescriptor<Source>::dimension_t;
+
 	// The two arrays must have exactly two dimensions
 	assert(destination.getRank() == 2);
 	assert(source.getRank() == 2);
@@ -736,7 +741,7 @@ void transpose(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDesc
 		auto indexes = it.getCurrentIndexes();
 		assert(indexes.size() == 2);
 
-		llvm::SmallVector<unsigned long, 2> transposedIndexes;
+		llvm::SmallVector<dimension_t, 2> transposedIndexes;
 
 		for (auto revIt = indexes.rbegin(), revEnd = indexes.rend(); revIt != revEnd; ++revIt)
 			transposedIndexes.push_back(*revIt);
@@ -746,32 +751,32 @@ void transpose(UnsizedArrayDescriptor<Destination> destination, UnsizedArrayDesc
 }
 
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(bool), ARRAY(bool))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(bool), ARRAY(int))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(bool), ARRAY(long))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(bool), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(bool), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(bool), ARRAY(float))
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(bool), ARRAY(double))
 
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(int), ARRAY(bool))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(int), ARRAY(int))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(int), ARRAY(long))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(int), ARRAY(float))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(int), ARRAY(double))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int32_t), ARRAY(bool))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int32_t), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int32_t), ARRAY(int64_t))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int32_t), ARRAY(float))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int32_t), ARRAY(double))
 
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(long), ARRAY(bool))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(long), ARRAY(int))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(long), ARRAY(long))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(long), ARRAY(float))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(long), ARRAY(double))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int64_t), ARRAY(bool))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int64_t), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int64_t), ARRAY(int64_t))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int64_t), ARRAY(float))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(int64_t), ARRAY(double))
 
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(float), ARRAY(bool))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(float), ARRAY(int))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(float), ARRAY(long))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(float), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(float), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(float), ARRAY(float))
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(float), ARRAY(double))
 
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(bool))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(int))
-RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(long))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(int64_t))
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(float))
 RUNTIME_FUNC_DEF(transpose, void, ARRAY(double), ARRAY(double))
 
@@ -789,7 +794,7 @@ inline void zeros(UnsizedArrayDescriptor<T> array)
 }
 
 RUNTIME_FUNC_DEF(zeros, void, ARRAY(bool))
-RUNTIME_FUNC_DEF(zeros, void, ARRAY(int))
-RUNTIME_FUNC_DEF(zeros, void, ARRAY(long))
+RUNTIME_FUNC_DEF(zeros, void, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(zeros, void, ARRAY(int64_t))
 RUNTIME_FUNC_DEF(zeros, void, ARRAY(float))
 RUNTIME_FUNC_DEF(zeros, void, ARRAY(double))
