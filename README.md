@@ -13,7 +13,7 @@ MLIR is not currently included in the prebuilt packages, and thus we need to bui
 ```bash
 git clone https://github.com/llvm/llvm-project.git
 cd llvm-project
-git checkout 753185031d939711f8733639a77a6fdc3bdbad22
+git checkout d7b669b3a30345cfcdb2fde2af6f48aa4b94845d
 mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/install_path -DLLVM_USE_LINKER=gold -DLLVM_BUILD_LLVM_DYLIB=ON -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_INSTALL_UTILS=True -DLLVM_ENABLE_PROJECTS="clang;clang-tools-extra;libcxx;libcxxabi;mlir;openmp" ../llvm
 make install
@@ -50,6 +50,7 @@ make all
 
 ## Testing
 Regression tests can be run with `make check`
+
 Unit tests can be run with `make test`
 
 ## Project structure
