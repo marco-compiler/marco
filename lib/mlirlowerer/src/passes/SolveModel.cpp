@@ -1940,9 +1940,14 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			Variable var = model.getVariable(equation.getDeterminedVariable().getVar());
 
 			if (var.isDerivative() || !var.isTrivial())
+			{
+				var.setTrivial(false);
 				bltBlocks.push_back(BltBlock(llvm::SmallVector<Equation, 3>(1, equation)));
+			}
 			else
+			{
 				equations.push_back(equation);
+			}
 		}
 
 		Model result(model.getOp(), model.getVariables(), equations, bltBlocks);
@@ -1956,7 +1961,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		// Add all trivial variables to a map in order to retrieve later the 
 		// equation they are matched with.
-		std::map<Variable, llvm::SmallVector<Equation*, 1>> trivialVariablesMap;
+		std::map<Variable, llvm::SmallVector<Equation*, 3>> trivialVariablesMap;
+		std::map<Variable, ConstantOp> parametersMap;
 
 		for (Equation& equation : model.getEquations())
 		{
@@ -1964,6 +1970,16 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			trivialVariablesMap[var].push_back(&equation);
 			assert(var.isTrivial());
 		}
+
+		// Map also all parameters that are only initialized and not matched with any equation.
+		model.getOp().init().walk([&](FillOp fillOp) {
+			if (!model.hasVariable(fillOp.memory()))
+					return;
+
+			Variable var = model.getVariable(fillOp.memory());
+			ConstantOp constantOp = mlir::cast<ConstantOp>(fillOp.value().getDefiningOp());
+			parametersMap[var] = constantOp;
+		});
 
 		// For each equation in each bltBlocks, if an expression refers to a trivial
 		// variable, substitute it with the corresponding equation.
@@ -1976,67 +1992,82 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				for (size_t k = 0; k < matcher.size(); k++)
 				{
 					Variable var = model.getVariable(matcher[k].getExpression().getReferredVectorAccess());
+					if (!var.isTrivial() || var.isState())
+						continue;
 
-					// If the variable is trivial, unless it is an induction variable.
-					if (var.isTrivial() && trivialVariablesMap.find(var) != trivialVariablesMap.end())
+					// If the variable is trivial, replace all occurrences in the non-trivial equation.
+					if (trivialVariablesMap.find(var) == trivialVariablesMap.end())
 					{
-						// Replace all occurrences in the non-trivial equation.
-						assert(trivialVariablesMap.find(var) != trivialVariablesMap.end());
-						if (trivialVariablesMap[var].size() == 1)
+						// If the variable is a constant parameter, substitute the
+						// subscription operation with the corresponding constant.
+						mlir::Operation* subOp = matcher[k].getExpression().getOp();
+						mlir::Operation* loadOp = subOp->getNextNode();
+
+						assert(parametersMap.find(var) != parametersMap.end());
+						assert(mlir::isa<SubscriptionOp>(subOp) && subOp->hasOneUse());
+						assert(mlir::isa<LoadOp>(loadOp) && loadOp->getNumResults() == 1);
+
+						builder.setInsertionPoint(loadOp);
+						mlir::Value constantOp = builder.create<ConstantOp>(loadOp->getLoc(),
+								modelica::RealAttribute::get(builder.getContext(), getValue(parametersMap[var])));
+						loadOp->getResult(0).replaceAllUsesWith(constantOp);
+					}
+					else if (trivialVariablesMap[var].size() == 1)
+					{
+						// If the variable is computed by an equation, use that equation.
+						replaceUses(builder, *trivialVariablesMap[var][0], bltBlocks[i][j]);
+					}
+					else
+					{
+						// In case a trivial variable is computed by more than one
+						// equation depending on the index, we must split the non-trivial
+						// equation based on the trivial variable.
+						for (Equation* trivialEq : trivialVariablesMap[var])
 						{
-							replaceUses(builder, *trivialVariablesMap[var][0], bltBlocks[i][j]);
-						}
-						else
-						{
-							// In case a trivial variable is computed differently depending on the index,
-							// we must split the non-trivial equation based on the trivial variable.
-							for (Equation* trivialEq : trivialVariablesMap[var])
+							// Total dimension of the trivial equation.
+							VectorAccess sourceAccess = AccessToVar::fromExp(trivialEq->getMatchedExp()).getAccess();
+							MultiDimInterval sourceInductions = sourceAccess.map(trivialEq->getInductions());
+
+							// Dimension of trivial variable in non-trivial equation.
+							VectorAccess destinationAccess = AccessToVar::fromExp(matcher[k].getExpression()).getAccess();
+							MultiDimInterval destinationInductions = destinationAccess.map(bltBlocks[i][j].getInductions());
+
+							if (marco::areDisjoint(sourceInductions, destinationInductions))
+								continue;
+
+							// Compute the new inductions.
+							MultiDimInterval usedInductions = marco::intersection(sourceInductions, destinationInductions);
+							MultiDimInterval newInductions = bltBlocks[i][j].getInductions();
+							for (auto& access : llvm::enumerate(destinationAccess))
 							{
-								// Total dimension of the trivial equation.
-								VectorAccess sourceAccess = AccessToVar::fromExp(trivialEq->getMatchedExp()).getAccess();
-								MultiDimInterval sourceInductions = sourceAccess.map(trivialEq->getInductions());
-
-								// Dimension of trivial variable in non-trivial equation.
-								VectorAccess destinationAccess = AccessToVar::fromExp(matcher[k].getExpression()).getAccess();
-								MultiDimInterval destinationInductions = destinationAccess.map(bltBlocks[i][j].getInductions());
-
-								if (marco::areDisjoint(sourceInductions, destinationInductions))
-									continue;
-
-								// Compute the new inductions.
-								MultiDimInterval usedInductions = marco::intersection(sourceInductions, destinationInductions);
-								MultiDimInterval newInductions = bltBlocks[i][j].getInductions();
-								for (auto& access : llvm::enumerate(destinationAccess))
+								if (access.value().isOffset())
 								{
-									if (access.value().isOffset())
-									{
-										size_t index = access.value().getInductionVar();
-										newInductions = newInductions.replacedDimension(
-											index,
-											std::max(newInductions.at(index).min(),
-												usedInductions.at(access.index()).min() - access.value().getOffset()),
-											std::min(newInductions.at(index).max(),
-												usedInductions.at(access.index()).max() - access.value().getOffset()));
-									}
+									size_t index = access.value().getInductionVar();
+									newInductions = newInductions.replacedDimension(
+										index,
+										std::max(newInductions.at(index).min(),
+											usedInductions.at(access.index()).min() - access.value().getOffset()),
+										std::min(newInductions.at(index).max(),
+											usedInductions.at(access.index()).max() - access.value().getOffset()));
 								}
-
-								// Compose the new equation and add it to the BLT block.
-								Equation newEquation = bltBlocks[i][j].clone();
-								newEquation.setInductions(newInductions);
-								replaceUses(builder, *trivialEq, newEquation);
-								bltBlocks[i].insert(j + 1, newEquation);
 							}
 
-							// Erase the old equation.
-							bltBlocks[i][j].getOp()->erase();
-							bltBlocks[i].erase(j);
+							// Compose the new equation and add it to the BLT block.
+							Equation newEquation = bltBlocks[i][j].clone();
+							newEquation.setInductions(newInductions);
+							replaceUses(builder, *trivialEq, newEquation);
+							bltBlocks[i].insert(j + 1, newEquation);
 						}
 
-						// Then re-start iterating over the same equation
-						bltBlocks[i][j].update();
-						matcher = ReferenceMatcher(bltBlocks[i][j]);
-						k = 0;
+						// Erase the old equation.
+						bltBlocks[i][j].getOp()->erase();
+						bltBlocks[i].erase(j);
 					}
+
+					// Then re-start iterating over the same equation
+					bltBlocks[i][j].update();
+					matcher = ReferenceMatcher(bltBlocks[i][j]);
+					k = 0;
 				}
 			}
 		}
@@ -2237,6 +2268,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		model.getOp().init().walk([&](FillOp fillOp) {
 			// Map all vector variables to their initial value.
+			if (!model.hasVariable(fillOp.memory()))
+					return;
+
 			Variable var = model.getVariable(fillOp.memory());
 
 			if (var.isDerivative())
@@ -2380,6 +2414,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 					if (var.isTime())
 						continue;
 
+					assert(variableIndexMap.find(var) != variableIndexMap.end());
 					VectorAccess vectorAccess = AccessToVar::fromExp(path.getExpression()).getAccess();
 
 					// If the variable access has not been insterted yet, initialize it.

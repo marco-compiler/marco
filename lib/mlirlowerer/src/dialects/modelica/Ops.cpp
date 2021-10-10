@@ -4512,7 +4512,6 @@ void NegateOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type NegateOp::resultType()
@@ -4734,12 +4733,6 @@ void AddOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-
-	if (leftOp.use_empty())
-		leftOp->erase();
-
-	if (rightOp.use_empty())
-		rightOp->erase();
 }
 
 mlir::Type AddOp::resultType()
@@ -5170,12 +5163,6 @@ void SubOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-
-	if (leftOp.use_empty())
-		leftOp->erase();
-
-	if (rightOp.use_empty())
-		rightOp->erase();
 }
 
 mlir::Type SubOp::resultType()
@@ -5629,8 +5616,6 @@ void MulOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	leftOp->erase();
-	rightOp->erase();
 }
 
 mlir::Type MulOp::resultType()
@@ -6111,8 +6096,6 @@ void DivOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	leftOp->erase();
-	rightOp->erase();
 }
 
 mlir::Type DivOp::resultType()
@@ -6543,8 +6526,6 @@ void PowOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	baseOp->erase();
-	exponentOp->erase();
 }
 
 mlir::Type PowOp::resultType()
@@ -6765,7 +6746,6 @@ void AbsOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type AbsOp::resultType()
@@ -6864,7 +6844,6 @@ void SignOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type SignOp::resultType()
@@ -6962,7 +6941,6 @@ void SqrtOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type SqrtOp::resultType()
@@ -7084,7 +7062,6 @@ void SinOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type SinOp::resultType()
@@ -7208,7 +7185,6 @@ void CosOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type CosOp::resultType()
@@ -7332,7 +7308,6 @@ void TanOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type TanOp::resultType()
@@ -7457,7 +7432,6 @@ void AsinOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type AsinOp::resultType()
@@ -7583,7 +7557,6 @@ void AcosOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type AcosOp::resultType()
@@ -7707,7 +7680,6 @@ void AtanOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type AtanOp::resultType()
@@ -7857,8 +7829,6 @@ void Atan2Op::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	yOp->erase();
-	xOp->erase();
 }
 
 mlir::Type Atan2Op::resultType()
@@ -7985,7 +7955,6 @@ void SinhOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type SinhOp::resultType()
@@ -8107,7 +8076,6 @@ void CoshOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type CoshOp::resultType()
@@ -8230,7 +8198,6 @@ void TanhOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type TanhOp::resultType()
@@ -8352,7 +8319,6 @@ void ExpOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	exponentOp->erase();
 }
 
 mlir::Type ExpOp::resultType()
@@ -8472,7 +8438,6 @@ void LogOp::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type LogOp::resultType()
@@ -8596,7 +8561,6 @@ void Log10Op::foldConstants(mlir::OpBuilder& builder)
 
 	replaceAllUsesWith(newOp);
 	erase();
-	operandOp->erase();
 }
 
 mlir::Type Log10Op::resultType()

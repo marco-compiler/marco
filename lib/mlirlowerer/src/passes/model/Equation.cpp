@@ -549,8 +549,8 @@ void Equation::cleanOperation()
 
 void Equation::update()
 {
-	cleanOperation();
 	foldConstants();
+	cleanOperation();
 
 	EquationSidesOp terminator = getTerminator();
 	impl->left = Expression::build(terminator.lhs()[0]);
