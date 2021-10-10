@@ -6027,7 +6027,7 @@ mlir::Value DivOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resul
 	mlir::Value lhs = distributeFn(this->lhs());
 	mlir::Value rhs = this->rhs();
 
-	return builder.create<MulOp>(getLoc(), resultType, lhs, rhs);
+	return builder.create<DivOp>(getLoc(), resultType, lhs, rhs);
 }
 
 mlir::Value DivOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
@@ -6280,7 +6280,7 @@ mlir::Value DivElementWiseOp::distributeNegateOp(mlir::OpBuilder& builder, mlir:
 	mlir::Value lhs = distributeFn(this->lhs());
 	mlir::Value rhs = this->rhs();
 
-	return builder.create<MulElementWiseOp>(getLoc(), resultType, lhs, rhs);
+	return builder.create<DivElementWiseOp>(getLoc(), resultType, lhs, rhs);
 }
 
 mlir::Value DivElementWiseOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)

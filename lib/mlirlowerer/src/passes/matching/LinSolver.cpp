@@ -114,20 +114,20 @@ static bool usesMember(mlir::Value value, AccessToVar access)
 
 	if (mlir::isa<LoadOp, SubscriptionOp>(op))
 	{
-		auto subscriptionAccess = AccessToVar::fromExp(Expression::build(value));
+		AccessToVar subscriptionAccess = AccessToVar::fromExp(Expression::build(value));
 
 		if (access == subscriptionAccess)
 			return true;
 	}
 
-	if (auto negateOp = mlir::dyn_cast<NegateOp>(op))
+	if (NegateOp negateOp = mlir::dyn_cast<NegateOp>(op))
 		if (usesMember(negateOp.operand(), access))
 			return true;
 
-	if (auto mulOp = mlir::dyn_cast<MulOp>(op))
+	if (MulOp mulOp = mlir::dyn_cast<MulOp>(op))
 	{
 		if (usesMember(mulOp.lhs(), access) ||
-				usesMember(mulOp.lhs(), access))
+				usesMember(mulOp.rhs(), access))
 			return true;
 	}
 
@@ -400,35 +400,9 @@ namespace marco::codegen::model
 			for (auto eq2 = eq + 1; eq2 != equations.rend(); ++eq2)
 				replaceUses(builder, *eq, *eq2);
 
-		for (auto& equation : equations)
+		for (Equation& equation : equations)
 			if (auto res = groupLeftHand(builder, equation); failed(res))
 				return res;
-
-		// Erase the useless operations that are remains of the previous
-		// transformations.
-		for (auto& equation : equations)
-		{
-			mlir::Block::reverse_iterator it(equation.getOp().body()->getTerminator());
-			auto end = equation.getOp().body()->rend();
-
-			while (it != end)
-			{
-				if (it->getNumResults() != 0 && it->getUses().empty())
-				{
-					// We can't just erase the operation, because we would invalidate
-					// the iteration. Instead, we have to keep track of the current
-					// operation, advance the iterator and only then erase the
-					// operation.
-					auto curr = it;
-					++it;
-					curr->erase();
-				}
-				else
-				{
-					++it;
-				}
-			}
-		}
 
 		return mlir::success();
 	}

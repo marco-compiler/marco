@@ -32,8 +32,7 @@ namespace marco::codegen::model
 		VVarDependencyGraph(const Model& model);
 		VVarDependencyGraph(const Model& model, llvm::ArrayRef<Equation> equations);
 
-		void dump() const;
-		void dump(llvm::raw_ostream& os) const;
+		void dump(llvm::raw_ostream& OS = llvm::outs()) const;
 
 		[[nodiscard]] size_t count() const { return graph.m_vertices.size(); }
 		[[nodiscard]] const GraphImp& getImpl() const { return graph; }
