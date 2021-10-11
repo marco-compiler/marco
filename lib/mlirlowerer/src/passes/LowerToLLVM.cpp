@@ -166,7 +166,6 @@ class ArrayDescriptor
 	 */
 	mlir::Value computeSize(mlir::OpBuilder& builder, mlir::Location loc)
 	{
-		mlir::Type rankType = getRankType();
 		mlir::Type sizeType = getSizeType();
 		mlir::Type indexType = typeConverter->convertType(builder.getIndexType());
 
@@ -477,9 +476,6 @@ class AllocOpLowering : public AllocLikeOpLowering<AllocOp>
 
 	[[nodiscard]] mlir::Value allocateBuffer(mlir::ConversionPatternRewriter& rewriter, mlir::Location loc, AllocOp op, mlir::Value sizeBytes) const override
 	{
-		auto typeConverter = getTypeConverter();
-		mlir::Type indexType = convertType(rewriter.getIndexType());
-
 		// Insert the "malloc" declaration if it is not already present in the module
 		auto heapAllocFunc = lookupOrCreateHeapAllocFn(rewriter, op->getParentOfType<mlir::ModuleOp>());
 
@@ -547,7 +543,6 @@ class DimOpLowering: public ModelicaOpConversion<DimOp>
 	{
 		mlir::Location location = op.getLoc();
 		Adaptor adaptor(operands);
-		mlir::Type indexType = convertType(rewriter.getIndexType());
 
 		// The actual size of each dimensions is stored in the memory description
 		// structure.

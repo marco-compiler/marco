@@ -2008,9 +2008,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 						assert(mlir::isa<LoadOp>(loadOp) && loadOp->getNumResults() == 1);
 
 						builder.setInsertionPoint(loadOp);
-						mlir::Value constantOp = builder.create<ConstantOp>(loadOp->getLoc(),
-								modelica::RealAttribute::get(builder.getContext(), getValue(parametersMap[var])));
-						loadOp->getResult(0).replaceAllUsesWith(constantOp);
+						mlir::Operation* constantOp = builder.clone(*parametersMap[var]);
+						loadOp->getResult(0).replaceAllUsesWith(constantOp->getResult(0));
 					}
 					else if (trivialVariablesMap[var].size() == 1)
 					{
@@ -2060,7 +2059,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 						}
 
 						// Erase the old equation.
-						bltBlocks[i][j].getOp()->erase();
+						bltBlocks[i][j].erase();
 						bltBlocks[i].erase(j);
 					}
 
@@ -2598,10 +2597,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		// Delete all equations that were replaced by IDA.
 		for (BltBlock& bltBlock : model.getBltBlocks())
 			for (Equation& equation : bltBlock.getEquations())
-			{
-				equation.getOp()->dropAllDefinedValueUses();
-				equation.getOp()->erase();
-			}
+				equation.erase();
 
 		return mlir::success();
 	}

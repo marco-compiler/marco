@@ -192,6 +192,7 @@ size_t Model::equationsCount() const
 
 	for (const Equation& equation : equations)
 		count += equation.getInductions().size();
+
 	for (const BltBlock& bltBlock : bltBlocks)
 		count += bltBlock.equationsCount();
 

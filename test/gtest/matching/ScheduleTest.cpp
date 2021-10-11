@@ -328,23 +328,17 @@ TEST(ScheduleTest, DerivativesInsideScc)
 	EXPECT_EQ(model.getEquations().size(), 3);
 	EXPECT_EQ(model.getBltBlocks().size(), 0);
 
-	Equation equation = model.getEquations()[1];
-
 	if (failed(solveSCCs(model, 1000)))
 		FAIL();
 
 	EXPECT_EQ(model.getVariables().size(), 4);
-	EXPECT_EQ(model.getEquations().size(), 1);
-	EXPECT_EQ(model.getBltBlocks().size(), 1);
+	EXPECT_EQ(model.getEquations().size(), 3);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
 
 	if (failed(schedule(model)))
 		FAIL();
 
 	EXPECT_EQ(model.getVariables().size(), 4);
-	EXPECT_EQ(model.getEquations().size(), 1);
-	EXPECT_EQ(model.getBltBlocks().size(), 1);
-
-	EXPECT_EQ(model.getEquations()[0].amount(), 1);
-	EXPECT_EQ(model.getEquations()[0], equation);
-	EXPECT_EQ(model.getBltBlocks()[0].getEquations().size(), 2);
+	EXPECT_EQ(model.getEquations().size(), 3);
+	EXPECT_EQ(model.getBltBlocks().size(), 0);
 }

@@ -40,8 +40,7 @@ TEST(SCCCollapsingTest, EquationShouldBeNormalizable)
 			FAIL();
 
 	for (Equation& eq : model.getEquations())
-		if (failed(eq.normalize()))
-			FAIL();
+		eq.normalize();
 
 	auto acc = AccessToVar::fromExp(model.getEquations()[0].lhs());
 	EXPECT_TRUE(acc.getAccess().isIdentity());
@@ -77,8 +76,7 @@ TEST(SCCCollapsingTest, ThreeDepthNormalization)
 			FAIL();
 
 	for (Equation& eq : model.getEquations())
-		if (failed(eq.normalize()))
-			FAIL();
+		eq.normalize();
 
 	auto acc = AccessToVar::fromExp(model.getEquations()[0].lhs());
 	EXPECT_TRUE(acc.getAccess().isIdentity());

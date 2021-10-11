@@ -235,6 +235,7 @@ static mlir::LogicalResult groupLeftHand(mlir::OpBuilder& builder, Equation& equ
 	if (pos == summedValues.begin())
 	{
 		// There is nothing to be moved to the left-hand side of the equation
+		equation.update();
 		return mlir::success();
 	}
 
@@ -247,6 +248,7 @@ static mlir::LogicalResult groupLeftHand(mlir::OpBuilder& builder, Equation& equ
 		builder.setInsertionPointAfter(terminator);
 		builder.create<EquationSidesOp>(terminator.getLoc(), terminator.lhs(), zeroValue);
 		terminator.erase();
+		equation.update();
 		return mlir::success();
 	}
 
@@ -277,16 +279,32 @@ static mlir::LogicalResult groupLeftHand(mlir::OpBuilder& builder, Equation& equ
 
 	auto terminator = equation.getTerminator();
 	builder.setInsertionPointAfter(terminator);
-	builder.create<EquationSidesOp>(terminator.getLoc(), terminator.lhs(), rhs);
+	auto newTerminator = builder.create<EquationSidesOp>(terminator.getLoc(), terminator.lhs(), rhs);
 	terminator->erase();
 
 	equation.update();
+
+	// Return failure if this method produced an equation with a division by zero.
+	if (auto divOp = mlir::dyn_cast<DivOp>(newTerminator.rhs()[0].getDefiningOp()))
+	{
+		if (auto constOp = mlir::dyn_cast<ConstantOp>(divOp.rhs().getDefiningOp()))
+		{
+			if (auto integer = constOp.value().dyn_cast<IntegerAttribute>())
+				if (integer.getValue() == 0.0)
+					return mlir::failure();
+
+			if (auto real = constOp.value().dyn_cast<RealAttribute>())
+				if (real.getValue() == 0.0)
+					return mlir::failure();
+		}
+	}
+
 	return mlir::success();
 }
 
 namespace marco::codegen::model
 {
-	void replaceUses(mlir::OpBuilder& builder, const Equation source, Equation& destination)
+	void replaceUses(mlir::OpBuilder& builder, const Equation& source, Equation& destination)
 	{
 		mlir::OpBuilder::InsertionGuard guard(builder);
 
@@ -388,7 +406,7 @@ namespace marco::codegen::model
 				}
 			}
 
-			composedSource.getOp()->erase();
+			composedSource.erase();
 		}
 
 		destination.update();
@@ -396,58 +414,41 @@ namespace marco::codegen::model
 
 	mlir::LogicalResult linearySolve(mlir::OpBuilder& builder, llvm::SmallVectorImpl<Equation>& equations)
 	{
-		for (auto eq = equations.rbegin(); eq != equations.rend(); ++eq)
-			for (auto eq2 = eq + 1; eq2 != equations.rend(); ++eq2)
-				replaceUses(builder, *eq, *eq2);
-
+		// Clone the equations for backup in case of failure of the algorithm.
+		llvm::SmallVector<Equation, 3> clonedEquations;
 		for (Equation& equation : equations)
-			if (auto res = groupLeftHand(builder, equation); failed(res))
-				return res;
+			clonedEquations.push_back(equation.clone());
+
+		for (auto eq = clonedEquations.rbegin(); eq != clonedEquations.rend(); ++eq)
+		{
+			for (auto eq2 = eq + 1; eq2 != clonedEquations.rend(); ++eq2)
+			{
+				replaceUses(builder, *eq, *eq2);
+				if (auto res = groupLeftHand(builder, *eq2); failed(res))
+				{
+					for (Equation& equation : clonedEquations)
+						equation.erase();
+					return res;
+				}
+			}
+		}
+
+		// Replace the equations with the solved ones.
+		for (Equation& equation : equations)
+			equation.erase();
+		
+		equations = clonedEquations;
 
 		return mlir::success();
 	}
 
-	bool canSolveSystem(llvm::SmallVectorImpl<Equation>& equations, const Model& model)
+	bool canSolveSystem(llvm::SmallVectorImpl<Equation>& equations)
 	{
-		// Systems containing derivative operations.
-		for (Equation& eq : equations)
-			if (model.getVariable(eq.getDeterminedVariable().getVar()).isDerivative())
-				return false;
-
-		// Systems containing equations where the matched variable appears more than once.
-		for (Equation& eq : equations)
-			if (!eq.containsAtMostOne(eq.getDeterminedVariable().getVar()))
-				return false;
-
-		// Systems with algebraic loops inside the same array.
+		// Systems where multiple equations determine the same variable.
 		for (auto eq = equations.begin(); eq != equations.end(); ++eq)
 			for (auto eq2 = eq + 1; eq2 != equations.end(); ++eq2)
 				if (eq->getDeterminedVariable().getVar() == eq2->getDeterminedVariable().getVar())
 					return false;
-
-		// Systems with more than two equations and dense variable accesses.
-		if (equations.size() > 2)
-		{
-			std::set<Variable> sccVarSet;
-			for (Equation& eq : equations)
-				sccVarSet.insert(model.getVariable(eq.getDeterminedVariable().getVar()));
-
-			for (Equation& eq : equations)
-			{
-				std::set<Variable> currentEqSet;
-				ReferenceMatcher matcher(eq);
-
-				for (ExpressionPath& exp : matcher)
-				{
-					Variable curr = model.getVariable(exp.getExpression().getReferredVectorAccess());
-					if (sccVarSet.find(curr) != sccVarSet.end())
-						currentEqSet.insert(curr);
-				}
-
-				if (currentEqSet.size() > 2)
-					return false;
-			}
-		}
 
 		return true;
 	}
