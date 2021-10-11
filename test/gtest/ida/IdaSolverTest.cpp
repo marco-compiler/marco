@@ -403,8 +403,6 @@ TEST(IdaSolverTest, AlgebraicLoopDenseEquations)
 	{
 		EXPECT_EQ(idaSolver.getRowLength(i), 3);
 		EXPECT_EQ(idaSolver.getDimension(i).size(), 1);
-		EXPECT_EQ(idaSolver.getDimension(i)[0].first, 0);
-		EXPECT_EQ(idaSolver.getDimension(i)[0].second, 2);
 	}
 
 	if (failed(idaSolver.run()))
@@ -556,28 +554,19 @@ TEST(IdaSolverTest, LoopWithDerivative)
 	if (failed(idaSolver.init()))
 		FAIL();
 
-	EXPECT_EQ(idaSolver.getForEquationsNumber(), 2);
-	EXPECT_EQ(idaSolver.getEquationsNumber(), 2);
-	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 4);
+	EXPECT_EQ(idaSolver.getForEquationsNumber(), 1);
+	EXPECT_EQ(idaSolver.getEquationsNumber(), 1);
+	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 1);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 2);
-	EXPECT_EQ(idaSolver.getRowLength(1), 2);
+	EXPECT_EQ(idaSolver.getRowLength(0), 1);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
-	EXPECT_EQ(idaSolver.getDimension(1).size(), 1);
-
-	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
-	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 1);
-	EXPECT_EQ(idaSolver.getDimension(1)[0].first, 0);
-	EXPECT_EQ(idaSolver.getDimension(1)[0].second, 1);
 
 	if (failed(idaSolver.run()))
 		FAIL();
 
-	EXPECT_EQ(
-			idaSolver.getVariable(0) + idaSolver.getVariable(1),
-			1.0 + 3.0 * idaSolver.getTime());
+	EXPECT_NEAR(idaSolver.getVariable(0), 3.0 * idaSolver.getTime(), 1e-4);
 
-	EXPECT_EQ(idaSolver.getDerivative(0) + idaSolver.getDerivative(1), 3.0);
+	EXPECT_NEAR(idaSolver.getDerivative(0), 3.0, 1e-4);
 
 	if (failed(idaSolver.free()))
 		FAIL();

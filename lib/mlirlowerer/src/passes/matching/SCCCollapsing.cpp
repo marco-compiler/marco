@@ -140,6 +140,15 @@ static mlir::LogicalResult extractEquationWithDependencies(
 		const std::vector<VVarDependencyGraph::VertexDesc>& cycle,
 		const VVarDependencyGraph& g)
 {
+	if (!canSolveSystem(source))
+		return mlir::failure();
+
+	// Explicitate all the equations in the cycle, return failure if the current
+	// algebraic loop contains implicit equations.
+	for (Equation& equation : source)
+		if (auto err = equation.explicitate(); failed(err))
+			return err;
+
 	EdDescVector c = cycleToEdgeVec(cycle, g);
 	IndexSetVector vecSet = cyclicDependentSets(c, g);
 
@@ -159,12 +168,8 @@ static mlir::LogicalResult extractEquationWithDependencies(
 		// set induction to those that generate the circular dependency
 		toFuseEq.setInductions(vecSet[i]);
 
-		if (auto res = toFuseEq.explicitate(); failed(res))
-			return res;
-
 		// add it to the list of filtered with normalized body it there is no loop
-		if (auto res = toFuseEq.normalize(); failed(res))
-			return res;
+		toFuseEq.normalize();
 
 		filtered.emplace_back(toFuseEq);
 
@@ -180,7 +185,7 @@ static mlir::LogicalResult extractEquationWithDependencies(
 			untouched.back().setInductions(set);
 		}
 
-		original.getOp()->erase();
+		original.erase();
 	}
 
 	// for all equations that were not in the circular set, add it to the
@@ -219,13 +224,6 @@ class CycleFuser
 		EquationsVector newEquations;
 		EquationsVector filtered;
 
-		if (!canSolveSystem(*equations, graph->getModel()))
-		{
-			*status = mlir::failure();
-			*foundOne = true;
-			return;
-		}
-
 		if (auto err = extractEquationWithDependencies(*equations, filtered, newEquations, cycle, *graph); failed(err))
 		{
 			*status = err;
@@ -235,6 +233,7 @@ class CycleFuser
 
 		if (auto err = linearySolve(*builder, filtered); failed(err))
 		{
+			*equations = std::move(filtered);
 			*status = err;
 			*foundOne = true;
 			return;

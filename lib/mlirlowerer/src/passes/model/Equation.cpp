@@ -375,7 +375,7 @@ Equation Equation::composeAccess(const VectorAccess& transformation) const
 	return toReturn;
 }
 
-mlir::LogicalResult Equation::normalize()
+void Equation::normalize()
 {
 	// Get how the left-hand side variable is currently accessed
 	VectorAccess access = AccessToVar::fromExp(getMatchedExp()).getAccess();
@@ -393,8 +393,6 @@ mlir::LogicalResult Equation::normalize()
 	}
 
 	update();
-
-	return mlir::success();
 }
 
 mlir::LogicalResult Equation::explicitate(mlir::OpBuilder& builder, size_t argumentIndex, bool left)
@@ -447,8 +445,7 @@ mlir::LogicalResult Equation::explicitate()
 	Equation clonedEquation = clone();
 	if (auto status = clonedEquation.explicitate(clonedEquation.getMatchedExpressionPath()); failed(status))
 	{
-		clonedEquation.getOp()->dropAllDefinedValueUses();
-		clonedEquation.getOp()->erase();
+		clonedEquation.erase();
 		return status;
 	}
 
@@ -458,15 +455,14 @@ mlir::LogicalResult Equation::explicitate()
 	// is implicit and cannot be explicitated.
 	if (clonedEquation.isImplicit())
 	{
-		clonedEquation.getOp()->dropAllDefinedValueUses();
-		clonedEquation.getOp()->erase();
+		clonedEquation.erase();
 		return mlir::failure();
 	}
 
 	// Substitute the current equation with the explicitated one.
-	getOp()->dropAllDefinedValueUses();
-	getOp()->erase();
-	impl = clonedEquation.impl;
+	erase();
+	impl->op = clonedEquation.impl->op;
+	impl->matchedExpPath = clonedEquation.impl->matchedExpPath;
 	update();
 
 	return mlir::success();
@@ -488,19 +484,6 @@ bool Equation::isImplicit()
 
 	return false;
 }
-
-bool Equation::containsAtMostOne(mlir::Value variable)
-{
-	ReferenceMatcher matcher(*this);
-
-	unsigned int count = 0;
-	for (ExpressionPath& path : matcher)
-		if (path.getExpression().getReferredVectorAccess() == variable)
-			count++;
-
-	return count <= 1;
-}
-
 
 Equation Equation::clone() const
 {
@@ -555,4 +538,10 @@ void Equation::update()
 	EquationSidesOp terminator = getTerminator();
 	impl->left = Expression::build(terminator.lhs()[0]);
 	impl->right = Expression::build(terminator.rhs()[0]);
+}
+
+void Equation::erase()
+{
+	getOp()->dropAllDefinedValueUses();
+	getOp()->erase();
 }

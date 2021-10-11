@@ -37,12 +37,11 @@ TEST(LinSolverTest, LinearySolveTest)
 	{
 		if (failed(eq.explicitate()))
 			FAIL();
-		if (failed(eq.normalize()))
-			FAIL();
+		eq.normalize();
 		equations.push_back(eq);
 	}
 
-	EXPECT_TRUE(canSolveSystem(model.getEquations(), model));
+	EXPECT_TRUE(canSolveSystem(model.getEquations()));
 
 	EXPECT_TRUE(model.getEquations()[0].lhs().isReferenceAccess());
 	EXPECT_TRUE(model.getEquations()[1].lhs().isReferenceAccess());
@@ -53,10 +52,10 @@ TEST(LinSolverTest, LinearySolveTest)
 	if (failed(linearySolve(builder, equations)))
 		FAIL();
 
-	for (Equation& eq : model.getEquations())
+	for (Equation& eq : equations)
 		if (failed(eq.explicitate()))
 			FAIL();
 
-	EXPECT_TRUE(model.getEquations()[0].lhs().isReferenceAccess());
-	EXPECT_TRUE(model.getEquations()[1].lhs().isReferenceAccess());
+	EXPECT_TRUE(equations[0].lhs().isReferenceAccess());
+	EXPECT_TRUE(equations[1].lhs().isReferenceAccess());
 }

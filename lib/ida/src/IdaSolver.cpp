@@ -58,6 +58,9 @@ mlir::LogicalResult IdaSolver::init()
 
 	model.getOp().init().walk([&](FillOp fillOp) {
 		// Map all vector variables to their initial value.
+		if (!model.hasVariable(fillOp.memory()))
+			return;
+
 		Variable var = model.getVariable(fillOp.memory());
 
 		if (var.isDerivative())
@@ -166,6 +169,7 @@ mlir::LogicalResult IdaSolver::init()
 			{
 				Variable var =
 						model.getVariable(path.getExpression().getReferredVectorAccess());
+
 				if (var.isTime())
 					continue;
 
@@ -189,6 +193,7 @@ mlir::LogicalResult IdaSolver::init()
 				if (var.isTime())
 					continue;
 
+				assert(variableIndexMap.find(var) != variableIndexMap.end());
 				VectorAccess vectorAccess =
 						AccessToVar::fromExp(path.getExpression()).getAccess();
 

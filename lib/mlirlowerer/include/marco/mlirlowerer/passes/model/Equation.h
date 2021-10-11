@@ -67,19 +67,19 @@ namespace marco::codegen::model
 
 		[[nodiscard]] ExpressionPath getMatchedExpressionPath() const;
 
-		[[nodiscard]] mlir::LogicalResult normalize();
+		void normalize();
 
 		mlir::LogicalResult explicitate(mlir::OpBuilder& builder, size_t argumentIndex, bool left);
 		mlir::LogicalResult explicitate(const ExpressionPath& path);
 		mlir::LogicalResult explicitate();
 
 		[[nodiscard]] bool isImplicit();
-		[[nodiscard]] bool containsAtMostOne(mlir::Value variable);
 
 		[[nodiscard]] Equation clone() const;
 		void foldConstants();
 		void cleanOperation();
 		void update();
+		void erase();
 
 		[[nodiscard]] Equation composeAccess(const VectorAccess& transformation) const;
 

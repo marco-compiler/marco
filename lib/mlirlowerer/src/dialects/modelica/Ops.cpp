@@ -4433,17 +4433,7 @@ mlir::Value NegateOp::distribute(mlir::OpBuilder& builder)
 mlir::Value NegateOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
-
-	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-		if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
-			return casted.distributeNegateOp(builder, resultType);
-
-		return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
-	};
-
-	mlir::Value operand = distributeFn(this->operand());
-
-	return builder.create<NegateOp>(getLoc(), resultType, operand);
+	return builder.clone(*operand().getDefiningOp())->getResult(0);
 }
 
 mlir::Value NegateOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
@@ -4467,8 +4457,8 @@ mlir::Value NegateOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resul
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
-			return casted.distributeMulOp(builder, resultType, value);
+		if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeDivOp(builder, resultType, value);
 
 		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
 	};
@@ -4676,8 +4666,8 @@ mlir::Value AddOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
-			return casted.distributeMulOp(builder, resultType, value);
+		if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeDivOp(builder, resultType, value);
 
 		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
 	};
@@ -4902,8 +4892,8 @@ mlir::Value AddElementWiseOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Ty
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
-			return casted.distributeMulOp(builder, resultType, value);
+		if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeDivOp(builder, resultType, value);
 
 		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
 	};
@@ -5070,18 +5060,7 @@ mlir::LogicalResult SubOp::invert(mlir::OpBuilder& builder, unsigned int argumen
 mlir::Value SubOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
-
-	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-		if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
-			return casted.distributeNegateOp(builder, resultType);
-
-		return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
-	};
-
-	mlir::Value lhs = distributeFn(this->lhs());
-	mlir::Value rhs = distributeFn(this->rhs());
-
-	return builder.create<AddOp>(getLoc(), resultType, lhs, rhs);
+	return builder.create<SubOp>(getLoc(), resultType, rhs(), lhs());
 }
 
 mlir::Value SubOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
@@ -5106,8 +5085,8 @@ mlir::Value SubOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
-			return casted.distributeMulOp(builder, resultType, value);
+		if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeDivOp(builder, resultType, value);
 
 		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
 	};
@@ -5296,18 +5275,7 @@ mlir::LogicalResult SubElementWiseOp::invert(mlir::OpBuilder& builder, unsigned 
 mlir::Value SubElementWiseOp::distributeNegateOp(mlir::OpBuilder& builder, mlir::Type resultType)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
-
-	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-		if (auto casted = mlir::dyn_cast<NegateOpDistributionInterface>(child.getDefiningOp()))
-			return casted.distributeNegateOp(builder, resultType);
-
-		return builder.create<NegateOp>(child.getLoc(), child.getType(), child);
-	};
-
-	mlir::Value lhs = distributeFn(this->lhs());
-	mlir::Value rhs = distributeFn(this->rhs());
-
-	return builder.create<AddElementWiseOp>(getLoc(), resultType, lhs, rhs);
+	return builder.create<SubElementWiseOp>(getLoc(), resultType, rhs(), lhs());
 }
 
 mlir::Value SubElementWiseOp::distributeMulOp(mlir::OpBuilder& builder, mlir::Type resultType, mlir::Value value)
@@ -5332,8 +5300,8 @@ mlir::Value SubElementWiseOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Ty
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
-			return casted.distributeMulOp(builder, resultType, value);
+		if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeDivOp(builder, resultType, value);
 
 		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
 	};
@@ -5558,8 +5526,8 @@ mlir::Value MulOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
-			return casted.distributeMulOp(builder, resultType, value);
+		if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeDivOp(builder, resultType, value);
 
 		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
 	};
@@ -5807,8 +5775,8 @@ mlir::Value MulElementWiseOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Ty
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
-			return casted.distributeMulOp(builder, resultType, value);
+		if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeDivOp(builder, resultType, value);
 
 		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
 	};
@@ -6036,8 +6004,8 @@ mlir::Value DivOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Type resultTy
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
-			return casted.distributeMulOp(builder, resultType, value);
+		if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeDivOp(builder, resultType, value);
 
 		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
 	};
@@ -6087,6 +6055,7 @@ void DivOp::foldConstants(mlir::OpBuilder& builder)
 
 	double left = getAttributeValue(leftOp.value());
 	double right = getAttributeValue(rightOp.value());
+	assert(right != 0.0);
 
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
@@ -6287,8 +6256,8 @@ mlir::Value DivElementWiseOp::distributeDivOp(mlir::OpBuilder& builder, mlir::Ty
 	mlir::OpBuilder::InsertionGuard guard(builder);
 
 	auto distributeFn = [&](mlir::Value child) -> mlir::Value {
-		if (auto casted = mlir::dyn_cast<MulOpDistributionInterface>(child.getDefiningOp()))
-			return casted.distributeMulOp(builder, resultType, value);
+		if (auto casted = mlir::dyn_cast<DivOpDistributionInterface>(child.getDefiningOp()))
+			return casted.distributeDivOp(builder, resultType, value);
 
 		return builder.create<DivOp>(child.getLoc(), child.getType(), child, value);
 	};

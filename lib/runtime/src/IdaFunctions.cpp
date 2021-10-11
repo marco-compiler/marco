@@ -828,9 +828,7 @@ std::string getIncidenceMatrix(void* userData)
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	std::stringstream result;
 
-	result << "\n┌─";
-	result << std::string(2 * (data->equationsNumber - 1) - 1, ' ');
-	result << "─┐\n";
+	result << "\n";
 
 	// For every vector equation
 	for (size_t eq = 0; eq < data->equationDimensions.size(); eq++)
@@ -878,10 +876,6 @@ std::string getIncidenceMatrix(void* userData)
 			result << "│\n";
 		}
 	}
-
-	result << "└─";
-	result << std::string(2 * (data->equationsNumber - 1) - 1, ' ');
-	result << "─┘\n";
 
 	return result.str();
 }

@@ -18,7 +18,7 @@ namespace marco::codegen::model
 	 * @param source equation containing the explicitated variable to be replaced
 	 * @param destination equation inside which the source variable occurrences have to be replaced
 	 */
-	void replaceUses(mlir::OpBuilder& builder, const Equation source, Equation& destination);
+	void replaceUses(mlir::OpBuilder& builder, const Equation& source, Equation& destination);
 
 	/**
 	 * Solve the linear system by using the variable elimination method.
@@ -42,5 +42,5 @@ namespace marco::codegen::model
 	 * @param equations system of equations
 	 * @return true if the system of equations can be solved
 	 */
-	bool canSolveSystem(llvm::SmallVectorImpl<Equation>& equations, const Model& model);
+	bool canSolveSystem(llvm::SmallVectorImpl<Equation>& equations);
 }	 // namespace marco::codegen::model
