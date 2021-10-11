@@ -4,12 +4,13 @@
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.abs %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -26,12 +27,13 @@ modelica.function @abs(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica.
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.acos %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -48,12 +50,13 @@ modelica.function @acos(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.asin %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -70,12 +73,13 @@ modelica.function @asin(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.atan %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -93,7 +97,7 @@ modelica.function @atan(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Z:[a-zA-Z0-9]*]] = modelica.member_create {name = "z"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[Y_SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[Y]][%[[INDEX]]]
 // CHECK-NEXT: %[[Y_LOAD:[a-zA-Z0-9]*]] = modelica.load %[[Y_SUBSCRIPTION]][]
 // CHECK-NEXT: %[[X_SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
@@ -101,6 +105,7 @@ modelica.function @atan(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.atan2 %[[Y_LOAD]], %[[X_LOAD]] : (!modelica.real, !modelica.real) -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Z]], %[[ARRAY]]
 
@@ -117,12 +122,13 @@ modelica.function @atan2(%arg0 : !modelica.array<?x!modelica.real>, %arg1 : !mod
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.cos %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -139,12 +145,13 @@ modelica.function @cos(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica.
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.cosh %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -161,12 +168,13 @@ modelica.function @cosh(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.exp %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -183,12 +191,13 @@ modelica.function @exp(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica.
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.log %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -205,12 +214,13 @@ modelica.function @log(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica.
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.log10 %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -227,12 +237,13 @@ modelica.function @log10(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelic
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.sign %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -249,12 +260,13 @@ modelica.function @sign(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.sin %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -271,12 +283,13 @@ modelica.function @sin(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica.
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.sinh %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -293,12 +306,13 @@ modelica.function @sinh(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.sqrt %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -315,12 +329,13 @@ modelica.function @sqrt(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.tan %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 
@@ -337,12 +352,13 @@ modelica.function @tan(%arg0 : !modelica.array<?x!modelica.real>) -> (!modelica.
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.tanh %[[LOAD]] : !modelica.real -> !modelica.real
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 

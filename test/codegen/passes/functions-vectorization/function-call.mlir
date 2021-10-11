@@ -10,12 +10,13 @@ modelica.function @callee(%arg0 : !modelica.real) -> (!modelica.real) attributes
 // CHECK-SAME: %[[X:[a-zA-Z0-9]*]] : !modelica.array<?x!modelica.real>
 // CHECK: %[[Y:[a-zA-Z0-9]*]] = modelica.member_create {name = "y"} : !modelica.member<heap, ?x!modelica.real>
 // CHECK: %[[ARRAY:[a-zA-Z0-9]*]] = modelica.alloc %{{.*}} : index -> !modelica.array<heap, ?x!modelica.real>
-// CHECK: scf.for %[[INDEX:[a-zA-Z0-9]*]]
+// CHECK: scf.parallel (%[[INDEX:[a-zA-Z0-9]*]])
 // CHECK-NEXT: %[[SUBSCRIPTION:[a-zA-Z0-9]*]] = modelica.subscription %[[X]][%[[INDEX]]]
 // CHECK-NEXT: %[[LOAD:[a-zA-Z0-9]*]] = modelica.load %[[SUBSCRIPTION]][]
 // CHECK-NEXT: %[[SCALAR:[a-zA-Z0-9]*]] = modelica.call @callee(%[[LOAD]]) : (!modelica.real) -> (!modelica.real)
 // CHECK-NEXT: %[[DESTINATION:[a-zA-Z0-9]*]] = modelica.subscription %[[ARRAY]]
 // CHECK-NEXT: modelica.assignment %[[SCALAR]], %[[DESTINATION]]
+// CHECK-NEXT: scf.yield
 // CHECK-NEXT: }
 // CHECK: modelica.member_store %[[Y]], %[[ARRAY]]
 

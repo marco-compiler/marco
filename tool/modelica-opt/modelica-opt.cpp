@@ -17,7 +17,7 @@ using namespace marco::codegen;
 
 int main(int argc, char* argv[])
 {
-	mlir::registerAllPasses();
+	//mlir::registerAllPasses();
 	marco::codegen::registerModelicaPasses();
 
 	mlir::DialectRegistry registry;

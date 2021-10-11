@@ -172,11 +172,6 @@ class ArrayDescriptor
 		mlir::Value pointerSize = builder.create<mlir::LLVM::ConstantOp>(loc, indexType, builder.getIntegerAttr(indexType, typeConverter->getPointerBitwidth()));
 
 		mlir::Value rank = getRank(builder, loc);
-		assert(rankType.getIntOrFloatBitWidth() <= indexType.getIntOrFloatBitWidth());
-
-		if (rankType.getIntOrFloatBitWidth() < indexType.getIntOrFloatBitWidth())
-			rank = builder.create<mlir::LLVM::ZExtOp>(loc, indexType, rank);
-
 		mlir::Value one = builder.create<mlir::LLVM::ConstantOp>(loc, indexType, builder.getIntegerAttr(indexType, 1));
 		mlir::Value rankIncremented = builder.create<mlir::LLVM::AddOp>(loc, indexType, rank, one);
 
@@ -562,7 +557,10 @@ class SubscriptOpLowering : public ModelicaOpConversion<SubscriptionOp>
 			index = rewriter.create<mlir::LLVM::MulOp>(loc, indexType, index, size);
 
 			if (i < adaptor.indexes().size())
-				index = rewriter.create<mlir::LLVM::AddOp>(loc, indexType, index, adaptor.indexes()[i]);
+			{
+				mlir::Value offset = adaptor.indexes()[i];
+				index = rewriter.create<mlir::LLVM::AddOp>(loc, indexType, index, offset);
+			}
 		}
 
 		mlir::Value base = sourceDescriptor.getPtr(rewriter, loc);
@@ -597,9 +595,16 @@ class LoadOpLowering: public ModelicaOpConversion<LoadOp>
 
 		// Determine the address into which the value has to be stored.
 		ArrayDescriptor descriptor(typeConverter, adaptor.memory());
-
 		auto indexType = convertType(rewriter.getIndexType());
-		mlir::Value index = indexes.empty() ? rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(0)) : indexes[0];
+
+		auto indexFn = [&]() -> mlir::Value {
+			if (indexes.empty())
+				return rewriter.create<mlir::LLVM::ConstantOp>(loc, indexType, rewriter.getIndexAttr(0));
+
+			return indexes[0];
+		};
+
+		mlir::Value index = indexFn();
 
 		for (size_t i = 1, e = indexes.size(); i < e; ++i)
 		{
@@ -980,6 +985,10 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 	private:
 	mlir::LogicalResult stdToLLVMConversionPass(mlir::ModuleOp module)
 	{
+		mlir::LowerToLLVMOptions llvmOptions(&getContext());
+		llvmOptions.emitCWrappers = options.emitCWrappers;
+		marco::codegen::TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
+
 		mlir::ConversionTarget target(getContext());
 		target.addIllegalDialect<ModelicaDialect, mlir::StandardOpsDialect>();
 		target.addIllegalOp<mlir::FuncOp>();
@@ -988,17 +997,24 @@ class LLVMLoweringPass : public mlir::PassWrapper<LLVMLoweringPass, mlir::Operat
 		target.addLegalOp<mlir::UnrealizedConversionCastOp>();
 		target.addLegalOp<mlir::ModuleOp>();
 
-		mlir::LowerToLLVMOptions llvmOptions(&getContext());
-		llvmOptions.emitCWrappers = options.emitCWrappers;
-		marco::codegen::TypeConverter typeConverter(&getContext(), llvmOptions, bitWidth);
+		target.addDynamicallyLegalOp<
+				mlir::omp::MasterOp,
+				mlir::omp::ParallelOp,
+				mlir::omp::WsLoopOp>([&](mlir::Operation *op) {
+			return typeConverter.isLegal(&op->getRegion(0));
+		});
 
-		//target.addDynamicallyLegalOp<mlir::omp::ParallelOp, mlir::omp::WsLoopOp>([&](mlir::Operation *op) { return typeConverter.isLegal(&op->getRegion(0)); });
-		//target.addLegalOp<mlir::omp::TerminatorOp, mlir::omp::TaskyieldOp, mlir::omp::FlushOp, mlir::omp::BarrierOp, mlir::omp::TaskwaitOp>();
+		target.addLegalOp<
+		    mlir::omp::TerminatorOp,
+				mlir::omp::TaskyieldOp,
+				mlir::omp::FlushOp,
+				mlir::omp::BarrierOp,
+				mlir::omp::TaskwaitOp>();
 
 		mlir::OwningRewritePatternList patterns(&getContext());
 		populateModelicaToLLVMConversionPatterns(typeConverter, patterns);
 		mlir::populateStdToLLVMConversionPatterns(typeConverter, patterns);
-		//mlir::populateOpenMPToLLVMConversionPatterns(typeConverter, patterns);
+		mlir::populateOpenMPToLLVMConversionPatterns(typeConverter, patterns);
 
 		return applyPartialConversion(module, target, std::move(patterns));
 	}

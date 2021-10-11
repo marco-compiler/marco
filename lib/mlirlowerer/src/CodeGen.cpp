@@ -128,14 +128,14 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 	if (loweringOptions.cse)
 		passManager.addNestedPass<FunctionOp>(mlir::createCSEPass());
 
-	if (loweringOptions.openmp)
-		passManager.addNestedPass<FunctionOp>(mlir::createConvertSCFToOpenMPPass());
-
 	passManager.addPass(createFunctionConversionPass());
 	passManager.addPass(createBufferDeallocationPass());
 	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions, loweringOptions.getBitWidth()));
-	passManager.addPass(createLowerToCFGPass(loweringOptions.getBitWidth()));
 
+	if (loweringOptions.openmp)
+		passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
+
+	passManager.addPass(createLowerToCFGPass(loweringOptions.getBitWidth()));
 	passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertMathToLLVMPass());
 	passManager.addPass(createLLVMLoweringPass(loweringOptions.llvmOptions, loweringOptions.getBitWidth()));
 

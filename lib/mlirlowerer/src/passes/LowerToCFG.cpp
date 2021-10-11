@@ -27,8 +27,10 @@ class CFGLowerer
 
 		llvm::SmallVector<mlir::Operation*, 3> bodyOps;
 
-		for (auto& bodyOp : body.getOps())
-			bodyOps.push_back(&bodyOp);
+		for (auto &region : function->getRegions())
+			for (auto& block : region)
+				for (auto& nestedOp : llvm::make_early_inc_range(block))
+					bodyOps.push_back(&nestedOp);
 
 		mlir::Block* functionReturnBlock = &body.back();
 
@@ -88,7 +90,7 @@ class CFGLowerer
 		builder.setInsertionPoint(op);
 
 		mlir::Block* currentBlock = builder.getInsertionBlock();
-		mlir::Block* continuation = currentBlock->splitBlock(op);
+		currentBlock->splitBlock(op);
 
 		builder.setInsertionPointToEnd(currentBlock);
 		builder.create<mlir::BranchOp>(op->getLoc(), loopExitBlock);
@@ -296,7 +298,7 @@ class CFGLowerer
 		builder.setInsertionPoint(op);
 
 		mlir::Block* currentBlock = builder.getInsertionBlock();
-		mlir::Block* continuation = currentBlock->splitBlock(op);
+		currentBlock->splitBlock(op);
 
 		builder.setInsertionPointToEnd(currentBlock);
 		builder.create<mlir::BranchOp>(op->getLoc(), functionReturnBlock);
@@ -346,15 +348,17 @@ class LowerToCFGPass : public mlir::PassWrapper<LowerToCFGPass, mlir::OperationP
 
 	void runOnOperation() override
 	{
+		auto module = getOperation();
+
 		if (failed(convertModelicaLoops()))
 		{
-			mlir::emitError(getOperation().getLoc(), "Error in converting the Modelica control flow operations");
+			mlir::emitError(module.getLoc(), "Error in converting the Modelica control flow operations");
 			return signalPassFailure();
 		}
 
 		if (failed(convertSCF()))
 		{
-			mlir::emitError(getOperation().getLoc(), "Error in converting the SCF ops");
+			mlir::emitError(module.getLoc(), "Error in converting the SCF ops");
 			return signalPassFailure();
 		}
 	}

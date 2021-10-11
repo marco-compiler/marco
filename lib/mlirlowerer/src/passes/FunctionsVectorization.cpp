@@ -135,7 +135,7 @@ class FunctionsVectorizationPass: public mlir::PassWrapper<FunctionsVectorizatio
 
 		mlir::ValueRange args = op.getArgs();
 
-		// Allocate the result arrays. In theory, vectorizable operation has one
+		// Allocate the result arrays. In theory, a vectorizable operation has one
 		// and only one result as per the Modelica language specification.
 		// However, in order to be resilient to specification changes, the
 		// scalarization process has been implemented also to consider multiple
@@ -206,9 +206,24 @@ class FunctionsVectorizationPass: public mlir::PassWrapper<FunctionsVectorizatio
 		{
 			mlir::Value index = builder.create<ConstantOp>(op->getLoc(), builder.getIndexAttr(i));
 			mlir::Value dimension = builder.create<DimOp>(op->getLoc(), op.getArgs()[0], index);
-			auto forOp = builder.create<mlir::scf::ForOp>(op->getLoc(), zero, dimension, one);
-			indexes.push_back(forOp.getInductionVar());
-			builder.setInsertionPointToStart(forOp.getBody());
+
+			// The scf.parallel operation supports multiple indexes, but
+			// unfortunately the OpenMP -> LLVM-IR doesn't do it yet. For now,
+			// let's keep the parallelization only on one index, and especially
+			// on the outer one so that we can take advantage of data locality.
+
+			if (i == 0)
+			{
+				auto parallelOp = builder.create<mlir::scf::ParallelOp>(loc, zero, dimension, one);
+				indexes.push_back(parallelOp.getInductionVars()[0]);
+				builder.setInsertionPointToStart(parallelOp.getBody());
+			}
+			else
+			{
+				auto forOp = builder.create<mlir::scf::ForOp>(loc, zero, dimension, one);
+				indexes.push_back(forOp.getInductionVar());
+				builder.setInsertionPointToStart(forOp.getBody());
+			}
 		}
 
 		mlir::ValueRange scalarizedResults = op.scalarize(builder, indexes);
