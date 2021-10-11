@@ -13,9 +13,6 @@ jobs:
           submodules: recursive
           path: marco
 
-      - name: Check run condition
-        run: echo "SHOULD_RUN=${{secrets.ENABLED}}" >> $GITHUB_ENV
-
       - name: Create package
         run: tar -czvf marco.tar.gz marco
 
