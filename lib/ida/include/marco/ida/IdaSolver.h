@@ -24,7 +24,8 @@ namespace marco::codegen::ida
 		IdaSolver(
 				const model::Model &model,
 				realtype startTime = 0.0,
-				realtype stopTime = 10.0,
+				realtype endTime = 10.0,
+				realtype timeStep = 0.1,
 				realtype relativeTolerance = 1e-6,
 				realtype absoluteTolerance = 1e-6);
 
@@ -102,7 +103,7 @@ namespace marco::codegen::ida
 		private:
 		// Model data
 		const model::Model model;
-		const realtype stopTime;
+		const realtype endTime;
 		sunindextype forEquationsNumber;
 
 		std::map<model::Variable, realtype> initialValueMap;

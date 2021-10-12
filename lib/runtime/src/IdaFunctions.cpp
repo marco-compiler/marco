@@ -52,8 +52,11 @@ typedef struct IdaUserData
 
 	// Simulation times
 	realtype startTime;
-	realtype stopTime;
+	realtype endTime;
+	realtype timeStep;
 	realtype time;
+	realtype nextStop;
+	int equidistantTimeGrid;
 
 	// Error tolerances
 	realtype relativeTolerance;
@@ -375,7 +378,7 @@ bool idaInit(void* userData)
 	retval = IDASetId(data->idaMemory, data->idVector);
 	exitOnError(checkRetval(&retval, "IDASetId", 1));
 
-	retval = IDASetStopTime(data->idaMemory, data->stopTime);
+	retval = IDASetStopTime(data->idaMemory, data->endTime);
 	exitOnError(checkRetval(&retval, "IDASetStopTime", 1));
 
 	retval = IDAInit(
@@ -420,7 +423,7 @@ bool idaInit(void* userData)
 	exitOnError(checkRetval(&retval, "IDASetJacFn", 1));
 
 	// Call IDACalcIC to correct the initial values.
-	retval = IDACalcIC(data->idaMemory, IDA_YA_YDP_INIT, data->stopTime);
+	retval = IDACalcIC(data->idaMemory, IDA_YA_YDP_INIT, data->timeStep);
 	exitOnError(checkRetval(&retval, "IDACalcIC", 1));
 
 	return true;
@@ -440,11 +443,14 @@ bool idaStep(void* userData)
 	// Execute one step
 	int retval = IDASolve(
 			data->idaMemory,
-			data->stopTime,
+			data->nextStop,
 			&data->time,
 			data->variablesVector,
 			data->derivativesVector,
-			IDA_ONE_STEP);
+			data->equidistantTimeGrid);
+
+	if (data->nextStop < data->endTime)
+		data->nextStop += data->timeStep;
 
 	// Check if the solver failed
 	exitOnError(checkRetval(&retval, "IDASolve", 1));
@@ -478,15 +484,22 @@ bool freeIdaUserData(void* userData)
 }
 
 /**
- * Add the start time and stop time to the user data.
+ * Add the start time, the end time and the step time to the user data. If the
+ * step is equal to the end time, the output will show the variables at every
+ * step of the computation. Otherwise the output will show the variables in an
+ * equidistant time grid based on the step time paramter.
  */
-void addTime(void* userData, realtype startTime, realtype stopTime)
+void addTime(
+		void* userData, realtype startTime, realtype endTime, realtype timeStep)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
 	data->startTime = startTime;
-	data->stopTime = stopTime;
+	data->endTime = endTime;
+	data->timeStep = timeStep;
 	data->time = startTime;
+	data->nextStop = timeStep;
+	data->equidistantTimeGrid = (endTime == timeStep) ? IDA_ONE_STEP : IDA_NORMAL;
 }
 
 /**
@@ -739,7 +752,7 @@ realtype getIdaTime(void* userData)
 
 	// Return the stop time if the whole system is trivial.
 	if (data->equationsNumber == 0)
-		return data->stopTime;
+		return data->endTime;
 
 	return data->time;
 }

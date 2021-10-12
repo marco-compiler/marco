@@ -788,8 +788,11 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 			rewriter.create<StoreOp>(loc, increasedTime, vars[0]);
 		}
 
-		// Check if the current time is less than the end time
+		// Check if the current time is less than the end time, minus an epsilon
+		// because of floating points
 		mlir::Value endTime = rewriter.create<ConstantOp>(loc, op.endTime());
+		mlir::Value epsilon = rewriter.create<ConstantOp>(loc, modelica::RealAttribute::get(op.getContext(), 1e-12));
+		endTime = rewriter.create<SubOp>(loc, endTime.getType(), endTime, epsilon);
 
 		mlir::Value condition = rewriter.create<LtOp>(loc, modelica::BooleanType::get(op->getContext()), increasedTime, endTime);
 		condition = getTypeConverter()->materializeTargetConversion(rewriter, condition.getLoc(), rewriter.getI1Type(), condition);
@@ -1736,7 +1739,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			// to the runtime library which will handle the allocation, interacion and
 			// deallocation of the classes required by IDA.
 			if (options.solver == CleverDAE)
-				if (failed(addIdaSolver(builder, model, getOperation())))
+				if (failed(addIdaSolver(builder, model)))
 					return signalPassFailure();
 		});
 
@@ -2232,10 +2235,10 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		assert(false && "Unexpected operation");
 	}
 
-	static mlir::LogicalResult addIdaSolver(mlir::OpBuilder& builder, Model& model, mlir::ModuleOp moduleOp)
+	mlir::LogicalResult addIdaSolver(mlir::OpBuilder& builder, Model& model)
 	{
 		SimulationOp simulationOp = model.getOp();
-		mlir::MLIRContext* context = moduleOp.getContext();
+		mlir::MLIRContext* context = getOperation().getContext();
 		YieldOp terminator = mlir::cast<YieldOp>(simulationOp.init().back().getTerminator());
 		builder.setInsertionPoint(terminator);
 		mlir::Location loc = terminator.getLoc();
@@ -2250,8 +2253,15 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		mlir::Value userData = builder.create<AllocUserDataOp>(loc, neq);
 
 		mlir::Value startTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.startTime().getValue()));
-		mlir::Value stopTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.endTime().getValue()));
-		builder.create<AddTimeOp>(loc, userData, startTime, stopTime);
+		mlir::Value endTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.endTime().getValue()));
+
+		mlir::Value timeStep;
+		if (options.equidistantTimeGrid)
+			timeStep = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.timeStep().getValue()));
+		else
+			timeStep = endTime;
+
+		builder.create<AddTimeOp>(loc, userData, startTime, endTime, timeStep);
 
 		mlir::Value relTol = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.relTol().getValue()));
 		mlir::Value absTol = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.absTol().getValue()));

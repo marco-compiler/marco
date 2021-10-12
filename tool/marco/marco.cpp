@@ -44,6 +44,7 @@ static cl::opt<codegen::Solver> solver(cl::desc("Solvers:"),
 																			 cl::cat(modelSolvingOptions));
 
 static cl::opt<string> filter("filter", cl::desc("Variable filtering expression"), cl::init(""), cl::cat(modelSolvingOptions));
+static cl::opt<bool> equidistantTimeGrid("equidistant", cl::desc("Equidistant time grid based on the time step value (only for IDA)"), cl::init(false), cl::cat(modelSolvingOptions));
 
 static cl::OptionCategory codeGenOptions("Code generation options");
 
@@ -213,6 +214,7 @@ int main(int argc, char* argv[])
 	loweringOptions.solveModelOptions.matchingMaxIterations = matchingMaxIterations;
 	loweringOptions.solveModelOptions.sccMaxIterations = sccMaxIterations;
 	loweringOptions.solveModelOptions.solver = solver;
+	loweringOptions.solveModelOptions.equidistantTimeGrid = equidistantTimeGrid;
 	loweringOptions.inlining = !inlining;
 	loweringOptions.resultBuffersToArgs = !resultBuffersToArgs;
 	loweringOptions.cse = !cse;

@@ -32,6 +32,12 @@ static cl::opt<codegen::Solver> solver(
 		cl::values(clEnumValN(codegen::CleverDAE, "clever-dae", "Clever DAE")),
 		cl::init(codegen::CleverDAE),
 		cl::cat(modelSolvingOptions));
+static cl::opt<bool> equidistantTimeGrid(
+		"equidistant",
+		cl::desc(
+				"Equidistant time grid based on the time step value (only for IDA)"),
+		cl::init(false),
+		cl::cat(modelSolvingOptions));
 
 static cl::OptionCategory codeGenOptions("Code generation options");
 
@@ -140,6 +146,7 @@ int main(int argc, char *argv[])
 	solveModelOptions.matchingMaxIterations = matchingMaxIterations;
 	solveModelOptions.sccMaxIterations = sccMaxIterations;
 	solveModelOptions.solver = solver;
+	solveModelOptions.equidistantTimeGrid = equidistantTimeGrid;
 
 	auto model = codegen::getSolvedModel(*module, solveModelOptions);
 
@@ -163,7 +170,12 @@ int main(int argc, char *argv[])
 	}
 
 	ida::IdaSolver idaSolver(
-			*model, startTime, endTime, relativeTolerance, absoluteTolerance);
+			*model,
+			startTime,
+			endTime,
+			equidistantTimeGrid ? timeStep : endTime,
+			relativeTolerance,
+			absoluteTolerance);
 
 	if (failed(idaSolver.init()))
 	{

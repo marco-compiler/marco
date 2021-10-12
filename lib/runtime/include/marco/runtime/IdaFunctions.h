@@ -12,7 +12,7 @@ extern "C"
 	bool idaStep(void* userData);
 	bool freeIdaUserData(void* userData);
 
-	void addTime(void* userData, realtype startTime, realtype stopTime);
+	void addTime(void* userData, realtype startTime, realtype endTime, realtype timeStep);
 	void addTolerance(void* userData, realtype relTol, realtype absTol);
 
 	// Equation setters

@@ -236,7 +236,7 @@ namespace marco::codegen::ida
 
 	class AddTimeOp : public mlir::Op<AddTimeOp,
 																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<3>::Impl,
+																mlir::OpTrait::NOperands<4>::Impl,
 																mlir::OpTrait::ZeroResult,
 																mlir::MemoryEffectOpInterface::Trait>
 	{
@@ -249,7 +249,7 @@ namespace marco::codegen::ida
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value start, mlir::Value stop);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value start, mlir::Value end, mlir::Value step);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -259,7 +259,8 @@ namespace marco::codegen::ida
 		mlir::ValueRange args();
 		mlir::Value userData();
 		mlir::Value start();
-		mlir::Value stop();
+		mlir::Value end();
+		mlir::Value step();
 	};
 
 	//===----------------------------------------------------------------------===//
