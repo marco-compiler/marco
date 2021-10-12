@@ -492,11 +492,12 @@ llvm::ArrayRef<llvm::StringRef> AddTimeOp::getAttributeNames()
 	return {};
 }
 
-void AddTimeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value start, mlir::Value stop)
+void AddTimeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value start, mlir::Value end, mlir::Value step)
 {
 	state.addOperands(userData);
 	state.addOperands(start);
-	state.addOperands(stop);
+	state.addOperands(end);
+	state.addOperands(step);
 }
 
 mlir::ParseResult AddTimeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
@@ -514,8 +515,8 @@ mlir::LogicalResult AddTimeOp::verify()
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
 
-	if (!start().getType().isa<RealType>() || !stop().getType().isa<RealType>())
-		return emitOpError("Requires start and stop time to be real numbers");
+	if (!start().getType().isa<RealType>() || !end().getType().isa<RealType>() || !step().getType().isa<RealType>())
+		return emitOpError("Requires start, end and step time to be real numbers");
 
 	return mlir::success();
 }
@@ -540,9 +541,14 @@ mlir::Value AddTimeOp::start()
 	return getOperation()->getOperand(1);
 }
 
-mlir::Value AddTimeOp::stop()
+mlir::Value AddTimeOp::end()
 {
 	return getOperation()->getOperand(2);
+}
+
+mlir::Value AddTimeOp::step()
+{
+	return getOperation()->getOperand(3);
 }
 
 //===----------------------------------------------------------------------===//

@@ -42,13 +42,14 @@ static sunindextype computeNEQ(const Model& model)
 IdaSolver::IdaSolver(
 		const Model& model,
 		realtype startTime,
-		realtype stopTime,
+		realtype endTime,
+		realtype timeStep,
 		realtype relativeTolerance,
 		realtype absoluteTolerance)
-		: model(model), stopTime(stopTime), forEquationsNumber(0)
+		: model(model), endTime(endTime), forEquationsNumber(0)
 {
 	userData = allocIdaUserData(computeNEQ(model));
-	addTime(userData, startTime, stopTime);
+	addTime(userData, startTime, endTime, timeStep);
 	addTolerance(userData, relativeTolerance, absoluteTolerance);
 }
 
@@ -276,7 +277,7 @@ mlir::LogicalResult IdaSolver::run(llvm::raw_ostream& OS)
 
 		printOutput(OS);
 
-		if (getIdaTime(userData) >= stopTime)
+		if (getIdaTime(userData) >= endTime - 1e-12)
 			return mlir::success();
 	}
 }

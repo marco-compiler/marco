@@ -17,7 +17,7 @@ namespace marco::codegen
 		int sccMaxIterations = 1000;
 		Solver solver = ForwardEuler;
         marco::VariableFilter *variableFilter; // Variable Filter is used in solve model pass to filter out variables to be printed
-
+		bool equidistantTimeGrid = false;
 
         static const SolveModelOptions& getDefaultOptions() {
 			static SolveModelOptions options;
