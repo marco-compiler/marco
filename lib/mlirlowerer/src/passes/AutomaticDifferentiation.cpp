@@ -104,16 +104,27 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 
 	llvm::StringRef independentVar = independentVariables[0];
 
-	llvm::SmallVector<llvm::StringRef, 3> argsNames;
-	llvm::SmallVector<llvm::StringRef, 3> resultsNames;
+	llvm::SmallVector<mlir::Attribute, 3> argsNames;
+	llvm::SmallVector<mlir::Attribute, 3> resultsNames;
 
 	auto base = module.lookupSymbol<FunctionOp>(derFunction.derivedFunction());
 
+	// The arguments remain the same, and so their names
 	for (const auto& argName : base.argsNames())
-		argsNames.push_back(argName.cast<mlir::StringAttr>().getValue());
+		argsNames.push_back(argName);
+
+	// The results are not the same anymore, as they are replaced by the
+	// partial derivatives.
 
 	for (const auto& argName : base.resultsNames())
-		resultsNames.push_back(argName.cast<mlir::StringAttr>().getValue());
+	{
+		std::string derivativeName = argName.cast<mlir::StringAttr>().getValue().str();
+
+		for (const auto& independentVariable : independentVariables)
+			derivativeName = getPartialDerVariableName(derivativeName, independentVariable);
+
+		resultsNames.push_back(builder.getStringAttr(derivativeName));
+	}
 
 	// Determine how many dimensions should be added to the results.
 	// In fact, if the derivation is done with respect to an array argument,
@@ -188,7 +199,8 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 	auto derivedFunction = builder.create<FunctionOp>(
 			loc, derFunction.name(),
 			builder.getFunctionType(base.getType().getInputs(), resultsTypes),
-			argsNames, resultsNames);
+			builder.getArrayAttr(argsNames),
+			builder.getArrayAttr(resultsNames));
 
 	mlir::BlockAndValueMapping mapping;
 
@@ -209,6 +221,7 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 
 	// Clone the original operations, which will be interleaved in the
 	// resulting derivative function.
+
 	for (auto& sourceBlock : llvm::enumerate(base.getBody().getBlocks()))
 	{
 		auto& block = *std::next(derivedFunction.getBlocks().begin(), sourceBlock.index());
@@ -231,104 +244,141 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 	builder.setInsertionPointToStart(&derivedFunction.getBody().front());
 	llvm::StringMap<mlir::BlockAndValueMapping> derivatives;
 
+	// The members are mapped before creating the derivatives of the arguments,
+	// as they would introduce new member operations that would be considered
+	// twice.
 	llvm::StringMap<mlir::Value> membersMap;
 
 	derivedFunction.walk([&](MemberCreateOp op) {
 		membersMap[op.name()] = op.getResult();
 	});
 
+	// Utility function to create the derivative of a member.
+	// The callback function will receive the original variable, the new one
+	// representing the derivative, and the independent variable name with
+	// respect to which the derivative has been created.
+
+	using varDerFnType = std::function<void(mlir::Value, mlir::Value, llvm::StringRef)>;
+
+	auto createMemberDerivativeFn = [&](mlir::Value value,
+																			llvm::StringRef name,
+																			varDerFnType onDerivativeCreatedCallback = nullptr)
+	{
+		llvm::SmallVector<mlir::Value, 8> variables;
+		llvm::SmallVector<std::string, 8> names;
+
+		variables.push_back(value);
+		names.push_back(name.str());
+
+		// Each independent variable will lead to a new derivative for each
+		// existing member up to that point.
+
+		for (const auto& independentVariable : independentVariables)
+		{
+			llvm::SmallVector<mlir::Value, 3> newVariables;
+			llvm::SmallVector<std::string, 3> newNames;
+
+			assert(variables.size() == names.size());
+
+			for (const auto& [var, name] : llvm::zip(variables, names))
+			{
+				// Create the new derivative variable
+				auto derivativeName = getPartialDerVariableName(name, independentVariable);
+
+				mlir::Value derVar = createDerVariable(builder, value, [&derivativeName]() {
+					return derivativeName;
+				});
+
+				newVariables.push_back(derVar);
+				newNames.push_back(derivativeName);
+
+				// Create the seed
+				builder.create<DerSeedOp>(loc, derVar, name == independentVariable ? 1 : 0);
+
+				// Invoke the callback so that additional operations can be done on
+				// the just created derivative.
+
+				if (onDerivativeCreatedCallback != nullptr)
+					onDerivativeCreatedCallback(var, derVar, independentVariable);
+			}
+
+			variables.append(newVariables);
+			names.append(newNames);
+		}
+	};
+
+	// Create the derivatives of the arguments of the function.
 	for (const auto& [name, value, type] : llvm::zip(argsNames, derivedFunction.getArguments(), derivedFunction.getType().getInputs()))
 	{
-		llvm::SmallVector<mlir::Value, 3> variables;
-		llvm::SmallVector<std::string, 3> names;
+		createMemberDerivativeFn(
+				value,
+				name.cast<mlir::StringAttr>().getValue(),
+				[&](mlir::Value var, mlir::Value derVar, llvm::StringRef independentVariable) {
+					// Input arguments should not be mapped to the member itself, but rather
+					// to the value (seed) they contain. This way, existing operations that
+					// refer to the input arguments don't have to check whether to load
+					// or not the value from the member. This is possible also because
+					// input arguments get never written as per the Modelica standard.
 
-		variables.push_back(value);
-		names.push_back(name.str());
+					assert(derVar.getType().isa<MemberType>());
+					mlir::Type type = derVar.getType().cast<MemberType>().unwrap();
+					auto seed = builder.create<MemberLoadOp>(base->getLoc(), type, derVar);
+					derivatives[independentVariable].map(var, seed.getResult());
 
-		for (const auto& independentVariable : independentVariables)
-		{
-			llvm::SmallVector<mlir::Value, 3> newVariables;
-			llvm::SmallVector<std::string, 3> newNames;
-
-			for (const auto& [variable, name] : llvm::zip(variables, names))
-			{
-				auto derivativeName = getPartialDerVariableName(name, independentVariable);
-
-				mlir::Value der = createDerVariable(builder, value, [&derivativeName]() {
-					return derivativeName;
+					// The load operation is created just to provide access to the seed,
+					// and thus should not be derived.
+					notToBeDerivedOps.insert(seed.getOperation());
 				});
-
-				newVariables.push_back(der);
-				newNames.push_back(derivativeName);
-
-				// Create the seed
-				builder.create<DerSeedOp>(loc, der, name == independentVariable ? 1 : 0);
-
-				// Input arguments should not be mapped to the member itself, but rather
-				// to the value (seed) they contain. This way, existing operations that
-				// refer to the input arguments don't have to check whether to load
-				// or not the value from the member. This is possible also because
-				// input arguments get never written as per the Modelica standard.
-
-				auto seed = builder.create<MemberLoadOp>(base->getLoc(), type, der);
-				derivatives[independentVariable].map(value, seed.getResult());
-
-				// The load operation is created just to provide access to the seed,
-				// and thus should not be derived.
-				notToBeDerivedOps.insert(seed.getOperation());
-			}
-
-			variables.append(newVariables);
-			names.append(newNames);
-		}
 	}
 
+	// Create the derivatives of the other members.
 	for (const auto& member : membersMap)
 	{
-		llvm::StringRef name = member.getKey();
-		mlir::Value value = member.getValue();
-
-		llvm::SmallVector<mlir::Value, 3> variables;
-		llvm::SmallVector<std::string, 3> names;
-
-		variables.push_back(value);
-		names.push_back(name.str());
-
-		for (const auto& independentVariable : independentVariables)
-		{
-			llvm::SmallVector<mlir::Value, 3> newVariables;
-			llvm::SmallVector<std::string, 3> newNames;
-
-			for (const auto& [variable, name] : llvm::zip(variables, names))
-			{
-				auto derivativeName = getPartialDerVariableName(name, independentVariable);
-
-				mlir::Value der = createDerVariable(builder, value, [&derivativeName]() {
-					return derivativeName;
+		createMemberDerivativeFn(
+				member.getValue(),
+				member.getKey(),
+				[&](mlir::Value var, mlir::Value derVar, llvm::StringRef independentVariable) {
+					derivatives[independentVariable].map(var, derVar);
 				});
-
-				newVariables.push_back(der);
-				newNames.push_back(derivativeName);
-
-				derivatives[independentVariable].map(value, der);
-
-				// Create the seed
-				builder.create<DerSeedOp>(loc, der, name == independentVariable ? 1 : 0);
-			}
-
-			variables.append(newVariables);
-			names.append(newNames);
-		}
 	}
+
+	// Utility function that determines whether an operation should be derived
+	// with respect to a given independent variable. Multiple factors are taken
+	// into account, such as if it has already been derived
+
+	auto shouldOperationBeDerived = [&](mlir::Operation* op, llvm::StringRef independentVariable) {
+		if (auto derivativeInterface = mlir::dyn_cast<DerivativeInterface>(op))
+		{
+			if (derivedOperations.count(derivativeInterface.getOperation()) != 0 ||
+					notToBeDerivedOps.count(derivativeInterface.getOperation()) != 0)
+				return false;
+
+			// If an operation needs the derivative of a block argument, then
+			// the argument is either an input to the function (which has
+			// already been derived) or a loop argument. In this last case,
+			// the argument is not derived and thus also the operation is not.
+
+			llvm::SmallVector<mlir::Value, 3> operandsToBeDerived;
+			derivativeInterface.getOperandsToBeDerived(operandsToBeDerived);
+
+			for (const auto& arg : operandsToBeDerived)
+				if (arg.isa<mlir::BlockArgument>() &&
+						!derivatives[independentVariable].contains(arg))
+					return false;
+
+			return true;
+		}
+
+		return false;
+	};
 
 	for (const auto& independentVariable : independentVariables)
 	{
-		derivedFunction.walk([&](mlir::Operation* op) {
-			if (auto derivableOp = mlir::dyn_cast<DerivativeInterface>(op))
-				if (derivedOperations.count(derivableOp.getOperation()) == 0 &&
-						notToBeDerivedOps.count(derivableOp.getOperation()) == 0)
-					derivableOps.push(derivableOp);
-		});
+		for (auto &region : derivedFunction->getRegions())
+			for (auto& block : region)
+				for (auto& nestedOp : llvm::make_early_inc_range(block))
+					if (shouldOperationBeDerived(&nestedOp, independentVariable))
+						derivableOps.push(&nestedOp);
 
 		while (!derivableOps.empty())
 		{
@@ -342,8 +392,9 @@ static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, De
 			op.getDerivableRegions(regions);
 
 			for (auto& region : regions)
-				for (auto derivableOp : region->getOps<DerivativeInterface>())
-					derivableOps.push(derivableOp);
+				for (auto nestedOp : region->getOps<DerivativeInterface>())
+					if (shouldOperationBeDerived(nestedOp, independentVariable))
+						derivableOps.push(nestedOp);
 
 			derivableOps.pop();
 		}
@@ -361,10 +412,23 @@ struct DerSeedOpPattern : public mlir::OpRewritePattern<DerSeedOp>
 		mlir::Location loc = op->getLoc();
 
 		auto memberType = op.member().getType().cast<MemberType>();
-		assert(memberType.toArrayType().isScalar());
+		auto arrayType = memberType.toArrayType();
+
+		// TODO To be reconsidered when the derivation with respect to arrays will be supported
 
 		mlir::Value seed = rewriter.create<ConstantOp>(loc, RealAttribute::get(op.getContext(), op.value()));
-		rewriter.create<MemberStoreOp>(loc, op.member(), seed);
+
+		if (arrayType.isScalar())
+		{
+			rewriter.create<MemberStoreOp>(loc, op.member(), seed);
+		}
+		else
+		{
+			auto memberCreateOp = op.member().getDefiningOp<MemberCreateOp>();
+			auto buffer = rewriter.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), memberCreateOp.dynamicDimensions());
+			rewriter.create<FillOp>(loc, buffer, seed);
+			rewriter.create<MemberStoreOp>(loc, op.member(), buffer);
+		}
 
 		rewriter.eraseOp(op);
 		return mlir::success();

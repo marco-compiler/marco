@@ -383,6 +383,7 @@ namespace marco::codegen::modelica
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::FunctionType type, llvm::ArrayRef<llvm::StringRef> argsNames, llvm::ArrayRef<llvm::StringRef> resultsNames);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::FunctionType type, mlir::ArrayAttr argsNames, mlir::ArrayAttr resultsNames);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -824,7 +825,8 @@ namespace marco::codegen::modelica
 																	mlir::OpTrait::ZeroRegion,
 																	mlir::OpTrait::VariadicOperands,
 																	mlir::OpTrait::OneResult,
-																	mlir::MemoryEffectOpInterface::Trait>
+																	mlir::MemoryEffectOpInterface::Trait,
+																	DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -846,6 +848,10 @@ namespace marco::codegen::modelica
 		ArrayType resultType();
 		mlir::ValueRange dynamicDimensions();
 		bool isConstant();
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -868,7 +874,8 @@ namespace marco::codegen::modelica
 																 mlir::OpTrait::VariadicOperands,
 																 mlir::OpTrait::OneResult,
 																 mlir::MemoryEffectOpInterface::Trait,
-																 HeapAllocator::Trait>
+																 HeapAllocator::Trait,
+																 DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -890,6 +897,10 @@ namespace marco::codegen::modelica
 		ArrayType resultType();
 		mlir::ValueRange dynamicDimensions();
 		bool isConstant();
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -910,7 +921,8 @@ namespace marco::codegen::modelica
 																mlir::OpTrait::ZeroRegion,
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::ZeroResult,
-																mlir::MemoryEffectOpInterface::Trait>
+																mlir::MemoryEffectOpInterface::Trait,
+																DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -930,6 +942,10 @@ namespace marco::codegen::modelica
 		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
 
 		mlir::Value memory();
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 	};
 
 	//===----------------------------------------------------------------------===//
@@ -3799,7 +3815,7 @@ namespace marco::codegen::modelica
 	};
 
 	class DerSeedOp : public mlir::Op<DerSeedOp,
-																	 mlir::OpTrait::OneOperand,
+																	 mlir::OpTrait::AtLeastNOperands<1>::Impl,
 																	 mlir::OpTrait::ZeroResult>
 	{
 		public:

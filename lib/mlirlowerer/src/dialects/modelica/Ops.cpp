@@ -621,11 +621,18 @@ llvm::ArrayRef<mlir::Attribute> FunctionOpAdaptor::resultsNames()
 
 void FunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::FunctionType type, llvm::ArrayRef<llvm::StringRef> argsNames, llvm::ArrayRef<llvm::StringRef> resultsNames)
 {
+	build(builder, state, name, type,
+				builder.getStrArrayAttr(argsNames),
+				builder.getStrArrayAttr(resultsNames));
+}
+
+void FunctionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, mlir::FunctionType type, mlir::ArrayAttr argsNames, mlir::ArrayAttr resultsNames)
+{
 	state.addAttribute(mlir::SymbolTable::getSymbolAttrName(), builder.getStringAttr(name));
 	state.addAttribute(getTypeAttrName(), mlir::TypeAttr::get(type));
 
-	state.addAttribute("args_names", builder.getStrArrayAttr(argsNames));
-	state.addAttribute("results_names", builder.getStrArrayAttr(resultsNames));
+	state.addAttribute("args_names", argsNames);
+	state.addAttribute("results_names", resultsNames);
 
 	state.addRegion();
 }
@@ -1824,8 +1831,12 @@ mlir::ParseResult AllocaOp::parse(mlir::OpAsmParser& parser, mlir::OperationStat
 	if (parser.parseOperandList(indexes))
 		return mlir::failure();
 
-	// TODO: parse constant attribute
-	result.addAttribute("constant", builder.getBoolAttr(false));
+	mlir::NamedAttrList attributes;
+
+	if (parser.parseOptionalAttrDict(attributes))
+		return mlir::failure();
+
+	result.attributes.append(attributes);
 
 	if (parser.parseColon())
 		return mlir::failure();
@@ -1915,6 +1926,21 @@ mlir::ValueRange AllocaOp::dynamicDimensions()
 bool AllocaOp::isConstant()
 {
 	return getOperation()->getAttrOfType<mlir::BoolAttr>("constant").getValue();
+}
+
+mlir::ValueRange AllocaOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	return builder.clone(*getOperation())->getResults();
+}
+
+void AllocaOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+
+}
+
+void AllocaOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 //===----------------------------------------------------------------------===//
@@ -2071,6 +2097,21 @@ bool AllocOp::isConstant()
 	return Adaptor(*this).isConstant();
 }
 
+mlir::ValueRange AllocOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	return builder.clone(*getOperation())->getResults();
+}
+
+void AllocOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+
+}
+
+void AllocOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 //===----------------------------------------------------------------------===//
 // Modelica::FreeOp
 //===----------------------------------------------------------------------===//
@@ -2131,6 +2172,22 @@ void FreeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 mlir::Value FreeOp::memory()
 {
 	return Adaptor(*this).memory();
+}
+
+mlir::ValueRange FreeOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	builder.create<FreeOp>(getLoc(), derivatives.lookup(memory()));
+	return llvm::None;
+}
+
+void FreeOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+	toBeDerived.push_back(memory());
+}
+
+void FreeOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 //===----------------------------------------------------------------------===//
@@ -2970,7 +3027,7 @@ mlir::ParseResult ForOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& 
 
 	if (mlir::succeeded(parser.parseOptionalLParen()))
 	{
-		if (mlir::failed(parser.parseRParen()))
+		if (mlir::failed(parser.parseOptionalRParen()))
 		{
 			do {
 				mlir::OpAsmParser::OperandType arg;
