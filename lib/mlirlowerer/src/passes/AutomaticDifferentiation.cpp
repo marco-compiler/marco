@@ -798,23 +798,36 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
 		llvm::SmallVector<DerFunctionOp, 3> toBeProcessed;
 
-		module->walk([&](DerFunctionOp op) {
-			toBeProcessed.push_back(op);
-		});
+		// The conversion is done in an iterative way, because new derivative
+		// functions may be created while converting the existing one (i.e. when
+		// a function to be derived contains a call to an another function).
 
-		// Sort the functions so that a function derivative is computed only
-		// when the base function already has its body determined.
+		auto findDerFunctions = [&]() -> bool {
+			module->walk([&](DerFunctionOp op) {
+				toBeProcessed.push_back(op);
+			});
 
-		llvm::sort(toBeProcessed, [](DerFunctionOp first, DerFunctionOp second) {
-			return first.name() == second.derivedFunction();
-		});
+			return !toBeProcessed.empty();
+		};
 
-		for (auto& function : toBeProcessed)
+		while (findDerFunctions())
 		{
-			if (auto status = createPartialDerFunction(builder, function); mlir::failed(status))
-				return status;
+			// Sort the functions so that a function derivative is computed only
+			// when the base function already has its body determined.
 
-			function->erase();
+			llvm::sort(toBeProcessed, [](DerFunctionOp first, DerFunctionOp second) {
+				return first.name() == second.derivedFunction();
+			});
+
+			for (auto& function : toBeProcessed)
+			{
+				if (auto status = createPartialDerFunction(builder, function); mlir::failed(status))
+					return status;
+
+				function->erase();
+			}
+
+			toBeProcessed.clear();
 		}
 
 		// Convert the seed operations
