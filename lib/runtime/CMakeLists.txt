@@ -1,6 +1,7 @@
 set(SOURCES
 		src/BuiltInFunctions.cpp
-		src/PrintFunctions.cpp)
+		src/OldRuntime.cpp
+		src/UtilityFunctions.cpp)
 
 marco_add_library(runtime SHARED ${SOURCES})
 

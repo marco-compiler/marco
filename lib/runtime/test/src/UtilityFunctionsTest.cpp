@@ -1,5 +1,5 @@
 #include <gtest/gtest.h>
-#include <marco/runtime/Runtime.h>
+#include <marco/runtime/UtilityFunctions.h>
 #include <mlir/ExecutionEngine/CRunnerUtils.h>
 
 TEST(Runtime, clone_ai1_ai1)

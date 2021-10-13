@@ -1,5 +1,5 @@
 #include <cmath>
-#include <marco/runtime/Runtime.h>
+#include <marco/runtime/BuiltInFunctions.h>
 #include <numeric>
 
 /**
@@ -93,64 +93,6 @@ inline double atan2(T y, T x)
 
 RUNTIME_FUNC_DEF(atan2, float, float, float)
 RUNTIME_FUNC_DEF(atan2, double, double, double)
-
-/**
- * Clone an array into another one.
- *
- * @tparam T 					destination array type
- * @tparam U 					source array type
- * @param destination destination array
- * @param values 			source values
- */
-template<typename T, typename U>
-inline void clone(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<U> source)
-{
-	assert(source.getNumElements() == destination.getNumElements());
-
-	for (const auto& [source, destination] : llvm::zip(source, destination))
-		destination = source;
-}
-
-// Optimization for arrays with the same type
-template<typename T>
-inline void clone(UnsizedArrayDescriptor<T> destination, UnsizedArrayDescriptor<T> source)
-{
-	auto sourceSize = source.getNumElements();
-	auto destinationSize = destination.getNumElements();
-
-	assert(sourceSize == destinationSize);
-	memcpy(destination.getData(), source.getData(), destinationSize * sizeof(T));
-}
-
-RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(bool))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(int32_t))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(int64_t))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(float))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(bool), ARRAY(double))
-
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int32_t), ARRAY(bool))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int32_t), ARRAY(int32_t))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int32_t), ARRAY(int64_t))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int32_t), ARRAY(float))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int32_t), ARRAY(double))
-
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int64_t), ARRAY(bool))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int64_t), ARRAY(int32_t))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int64_t), ARRAY(int64_t))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int64_t), ARRAY(float))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(int64_t), ARRAY(double))
-
-RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(bool))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(int32_t))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(int64_t))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(float))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(float), ARRAY(double))
-
-RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(bool))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(int32_t))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(int64_t))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(float))
-RUNTIME_FUNC_DEF(clone, void, ARRAY(double), ARRAY(double))
 
 /**
  * Get the cosine of a value.

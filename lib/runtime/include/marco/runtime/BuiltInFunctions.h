@@ -1,4 +1,5 @@
-#pragma once
+#ifndef MARCO_RUNTIME_BUILTINFUNCTIONS_H
+#define MARCO_RUNTIME_BUILTINFUNCTIONS_H
 
 #include "ArrayDescriptor.h"
 #include "Mangling.h"
@@ -20,36 +21,6 @@ RUNTIME_FUNC_DECL(atan, double, double)
 
 RUNTIME_FUNC_DECL(atan2, float, float, float)
 RUNTIME_FUNC_DECL(atan2, double, double, double)
-
-RUNTIME_FUNC_DECL(clone, void, ARRAY(bool), ARRAY(bool))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(bool), ARRAY(int32_t))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(bool), ARRAY(int64_t))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(bool), ARRAY(float))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(bool), ARRAY(double))
-
-RUNTIME_FUNC_DECL(clone, void, ARRAY(int32_t), ARRAY(bool))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(int32_t), ARRAY(int32_t))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(int32_t), ARRAY(int64_t))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(int32_t), ARRAY(float))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(int32_t), ARRAY(double))
-
-RUNTIME_FUNC_DECL(clone, void, ARRAY(int64_t), ARRAY(bool))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(int64_t), ARRAY(int32_t))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(int64_t), ARRAY(int64_t))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(int64_t), ARRAY(float))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(int64_t), ARRAY(double))
-
-RUNTIME_FUNC_DECL(clone, void, ARRAY(float), ARRAY(bool))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(float), ARRAY(int32_t))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(float), ARRAY(int64_t))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(float), ARRAY(float))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(float), ARRAY(double))
-
-RUNTIME_FUNC_DECL(clone, void, ARRAY(double), ARRAY(bool))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(double), ARRAY(int32_t))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(double), ARRAY(int64_t))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(double), ARRAY(float))
-RUNTIME_FUNC_DECL(clone, void, ARRAY(double), ARRAY(double))
 
 RUNTIME_FUNC_DECL(cos, float, float)
 RUNTIME_FUNC_DECL(cos, double, double)
@@ -254,35 +225,4 @@ RUNTIME_FUNC_DECL(zeros, void, ARRAY(int64_t))
 RUNTIME_FUNC_DECL(zeros, void, ARRAY(float))
 RUNTIME_FUNC_DECL(zeros, void, ARRAY(double))
 
-RUNTIME_FUNC_DECL(print, void, bool)
-RUNTIME_FUNC_DECL(print, void, int32_t)
-RUNTIME_FUNC_DECL(print, void, int64_t)
-RUNTIME_FUNC_DECL(print, void, float)
-RUNTIME_FUNC_DECL(print, void, double)
-
-RUNTIME_FUNC_DECL(print, void, ARRAY(bool))
-RUNTIME_FUNC_DECL(print, void, ARRAY(int32_t))
-RUNTIME_FUNC_DECL(print, void, ARRAY(int64_t))
-RUNTIME_FUNC_DECL(print, void, ARRAY(float))
-RUNTIME_FUNC_DECL(print, void, ARRAY(double))
-
-extern "C"
-{
-	void modelicaPrint(char* name, float value);
-
-	void modelicaPrintFVector(char* name, float* value, int count);
-	void modelicaPrintBVector(char* name, char* value, int count);
-	void modelicaPrintIVector(char* name, int* value, int count);
-
-	void fill(float* out, long* outDim, float* filler, long* dim);
-
-	float modelicaPow(float b, float exp);
-	double modelicaPowD(double b, double exp);
-
-	void printString(char* str);
-	void printI1(bool value);
-	void printI32(int32_t value);
-	void printI64(int64_t value);
-	void printF32(float value);
-	void printF64(double value);
-}
+#endif	// MARCO_RUNTIME_BUILTINFUNCTIONS_H
