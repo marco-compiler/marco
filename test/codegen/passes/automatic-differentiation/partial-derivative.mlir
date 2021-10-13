@@ -5,7 +5,7 @@
 // CHECK-SAME: %[[Y:[a-zA-Z0-9]*]] : !modelica.real
 // CHECK-SAME: -> (!modelica.real)
 // CHECK-SAME: args_names = ["x", "y"]
-// CHECK-SAME: results_names = ["z"]
+// CHECK-SAME: results_names = ["pder_x_z"]
 // CHECK: %[[PDER_X_X:[a-zA-Z0-9]*]] = modelica.member_create {name = "pder_x_x"} : !modelica.member<stack, !modelica.real>
 // CHECK: %[[PDER_X_X_SEED:[a-zA-Z0-9]*]] = modelica.constant #modelica.real<1.000000>
 // CHECK: modelica.member_store %[[PDER_X_X]], %[[PDER_X_X_SEED]]

@@ -1838,6 +1838,9 @@ mlir::ParseResult AllocaOp::parse(mlir::OpAsmParser& parser, mlir::OperationStat
 
 	result.attributes.append(attributes);
 
+	if (!result.attributes.getNamed("constant"))
+		result.addAttribute("constant", builder.getBoolAttr(false));
+
 	if (parser.parseColon())
 		return mlir::failure();
 
