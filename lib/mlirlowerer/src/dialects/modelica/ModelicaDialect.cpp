@@ -122,6 +122,7 @@ ModelicaDialect::ModelicaDialect(mlir::MLIRContext* context)
 			SymmetricOp>();
 
 	addOperations<SimulationOp, EquationOp, InductionOp, ForEquationOp, EquationSidesOp, DerOp, DerSeedOp>();
+	addOperations<PrintOp>();
 }
 
 mlir::StringRef ModelicaDialect::getDialectNamespace()

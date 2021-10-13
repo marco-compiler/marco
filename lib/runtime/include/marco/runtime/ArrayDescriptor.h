@@ -269,6 +269,13 @@ std::ostream& operator<<(
  * @tparam T data type
  */
 template<typename T>
+class UnsizedArrayDescriptor;
+
+template<typename T>
+llvm::raw_ostream& operator<<(
+		llvm::raw_ostream& stream, const UnsizedArrayDescriptor<T>& descriptor);
+
+template<typename T>
 class UnsizedArrayDescriptor
 {
 	public:
@@ -352,6 +359,9 @@ class UnsizedArrayDescriptor
 		return getDescriptor()->hasSameSizes();
 	}
 
+	friend llvm::raw_ostream& operator<< <>(
+			llvm::raw_ostream& stream, const UnsizedArrayDescriptor<T>& descriptor);
+
 	private:
 	[[nodiscard]] ArrayDescriptor<T, 0>* getDescriptor() const
 	{
@@ -368,6 +378,21 @@ class UnsizedArrayDescriptor
 	rank_t rank;
 	void* descriptor;
 };
+
+template<typename T>
+llvm::raw_ostream& operator<<(
+		llvm::raw_ostream& stream, const UnsizedArrayDescriptor<T>& descriptor)
+{
+	return stream << *descriptor.getDescriptor();
+}
+
+template<typename T>
+std::ostream& operator<<(
+		std::ostream& stream, const UnsizedArrayDescriptor<T>& descriptor)
+{
+	llvm::raw_os_ostream(stream) << descriptor;
+	return stream;
+}
 
 /**
  * Iterate over all the elements of a multi-dimensional array as if it was

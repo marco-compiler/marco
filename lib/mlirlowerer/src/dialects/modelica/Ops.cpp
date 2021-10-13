@@ -9311,3 +9311,46 @@ unsigned int DerSeedOp::value()
 {
 	return Adaptor(*this).value();
 }
+
+//===----------------------------------------------------------------------===//
+// Modelica::PrintOp
+//===----------------------------------------------------------------------===//
+
+mlir::Value PrintOpAdaptor::value()
+{
+	return getValues()[0];
+}
+
+llvm::ArrayRef<llvm::StringRef> PrintOp::getAttributeNames()
+{
+	return {};
+}
+
+void PrintOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value)
+{
+	state.addOperands(value);
+}
+
+mlir::ParseResult PrintOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	mlir::OpAsmParser::OperandType operand;
+	mlir::Type operandType;
+
+	if (parser.parseOperand(operand) ||
+			parser.parseColon() ||
+			parser.parseType(operandType) ||
+			parser.resolveOperand(operand, operandType, result.operands))
+		return mlir::failure();
+
+	return mlir::success();
+}
+
+void PrintOp::print(mlir::OpAsmPrinter& printer)
+{
+	printer << getOperationName() << " " << value() << ", " << value() << " : " << value().getType();
+}
+
+mlir::Value PrintOp::value()
+{
+	return Adaptor(*this).value();
+}

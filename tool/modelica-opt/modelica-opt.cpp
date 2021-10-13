@@ -17,14 +17,13 @@ using namespace marco::codegen;
 
 int main(int argc, char* argv[])
 {
-	//mlir::registerAllPasses();
-	marco::codegen::registerModelicaPasses();
+	registerModelicaPasses();
 
 	mlir::DialectRegistry registry;
-	registry.insert<marco::codegen::modelica::ModelicaDialect>();
+	registry.insert<modelica::ModelicaDialect>();
 	registry.insert<mlir::BuiltinDialect>();
 	registry.insert<mlir::StandardOpsDialect>();
 
 	auto result = mlir::MlirOptMain(argc, argv, "Modelica optimizer driver\n", registry);
-	return mlir::failed(result) ? 1 : 0;
+	return mlir::asMainReturnCode(result);
 }

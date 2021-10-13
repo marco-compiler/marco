@@ -3527,6 +3527,30 @@ struct ZerosOpLowering : public ModelicaOpConversion<ZerosOp>
 	}
 };
 
+struct PrintOpLowering : public ModelicaOpConversion<PrintOp>
+{
+	using ModelicaOpConversion<PrintOp>::ModelicaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(PrintOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::Location loc = op.getLoc();
+		mlir::Value arg = op.value();
+
+		if (auto arrayType = arg.getType().dyn_cast<ArrayType>())
+			arg = rewriter.create<ArrayCastOp>(loc, arg, arrayType.toUnsized());
+
+		auto callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("print", llvm::None, arg),
+				llvm::None,
+				arg.getType());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, arg);
+		return mlir::success();
+	}
+};
+
 class FunctionConversionPass : public mlir::PassWrapper<FunctionConversionPass, mlir::OperationPass<mlir::ModuleOp>>
 {
 	public:
@@ -3655,6 +3679,8 @@ static void populateModelicaConversionPatterns(
 			TanhOpLowering,
 			TransposeOpLowering,
 			ZerosOpLowering>(context, typeConverter, options);
+
+	patterns.insert<PrintOpLowering>(context, typeConverter, options);
 }
 
 class ModelicaConversionPass : public mlir::PassWrapper<ModelicaConversionPass, mlir::OperationPass<mlir::ModuleOp>>
@@ -3715,6 +3741,8 @@ class ModelicaConversionPass : public mlir::PassWrapper<ModelicaConversionPass, 
 				ExpOp, IdentityOp, FillOp, LinspaceOp, LogOp, Log10Op, MaxOp, MinOp,
 				NDimsOp, OnesOp, ProductOp, SignOp, SinOp, SinhOp, SizeOp, SqrtOp,
 				SumOp, SymmetricOp, TanOp, TanhOp, TransposeOp, ZerosOp>();
+
+		target.addIllegalOp<PrintOp>();
 
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 

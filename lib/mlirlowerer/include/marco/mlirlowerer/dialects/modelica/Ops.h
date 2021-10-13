@@ -3835,4 +3835,39 @@ namespace marco::codegen::modelica
 		mlir::Value member();
 		unsigned int value();
 	};
+
+	//===----------------------------------------------------------------------===//
+	// Modelica::PrintOp
+	//===----------------------------------------------------------------------===//
+
+	class PrintOp;
+
+	class PrintOpAdaptor : public OpAdaptor<PrintOp>
+	{
+		public:
+		using OpAdaptor::OpAdaptor;
+
+		mlir::Value value();
+	};
+
+	class PrintOp : public mlir::Op<PrintOp,
+																 mlir::OpTrait::OneOperand,
+																 mlir::OpTrait::ZeroResult>
+	{
+		public:
+		using Op::Op;
+		using Adaptor = PrintOpAdaptor;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "modelica.print";
+		}
+
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value value);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+
+		mlir::Value value();
+	};
 }

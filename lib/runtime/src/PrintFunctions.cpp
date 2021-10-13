@@ -1,6 +1,54 @@
+#include <iostream>
+#include <marco/runtime/Runtime.h>
+
 #include <math.h>
 #include <stdio.h>
 #include <inttypes.h>
+
+template<typename T>
+inline void print(T value)
+{
+	std::cout << value << std::endl;
+}
+
+inline void print(bool value)
+{
+	std::cout << std::boolalpha << value << std::endl;
+}
+
+inline void print(float value)
+{
+	std::cout << std::scientific << value << std::endl;
+}
+
+inline void print(double value)
+{
+	std::cout << std::scientific << value << std::endl;
+}
+
+RUNTIME_FUNC_DEF(print, void, bool)
+RUNTIME_FUNC_DEF(print, void, int32_t)
+RUNTIME_FUNC_DEF(print, void, int64_t)
+RUNTIME_FUNC_DEF(print, void, float)
+RUNTIME_FUNC_DEF(print, void, double)
+
+template<typename T>
+inline void print(UnsizedArrayDescriptor<T> array)
+{
+	std::cout << array << std::endl;
+}
+
+inline void print(UnsizedArrayDescriptor<bool> array)
+{
+	for (const auto& value : array)
+		std::cout << std::boolalpha << value << std::endl;
+}
+
+RUNTIME_FUNC_DEF(print, void, ARRAY(bool))
+RUNTIME_FUNC_DEF(print, void, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(print, void, ARRAY(int64_t))
+RUNTIME_FUNC_DEF(print, void, ARRAY(float))
+RUNTIME_FUNC_DEF(print, void, ARRAY(double))
 
 extern "C"
 {
