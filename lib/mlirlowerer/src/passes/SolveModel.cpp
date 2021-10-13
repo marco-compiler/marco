@@ -2104,6 +2104,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return attribute.cast<modelica::RealAttribute>().getValue();
 	}
 
+	static std::string getPartialDerFunctionName(llvm::StringRef baseName)
+	{
+		return "pder_" + baseName.str();
+	}
+
 	static mlir::Value getFunction(
 			mlir::OpBuilder& builder,
 			mlir::Location loc,
@@ -2226,7 +2231,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (CallOp callOp = mlir::dyn_cast<CallOp>(definingOp))
 		{
 			ida::RealType realType = ida::RealType::get(builder.getContext());
-			mlir::StringRef partialDerName("_ida_pder_" + callOp.callee().str());
+			llvm::StringRef partialDerName(getPartialDerFunctionName(callOp.callee()));
 			mlir::Value functionName = builder.create<LambdaAddressOfOp>(loc, callOp.callee(), realType);
 			mlir::Value pderName = builder.create<LambdaAddressOfOp>(loc, partialDerName, realType);
 			return builder.create<LambdaCallOp>(loc, userData, children[0], functionName, pderName);

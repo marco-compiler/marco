@@ -7,7 +7,7 @@
 #include <marco/mlirlowerer/passes/model/ReferenceMatcher.h>
 #include <marco/mlirlowerer/passes/model/Variable.h>
 #include <marco/mlirlowerer/passes/model/VectorAccess.h>
-#include <marco/runtime/Runtime.h>
+#include <marco/runtime/IdaFunctions.h>
 #include <marco/utils/Interval.hpp>
 
 #define setInitialValue                                                        \
@@ -484,7 +484,5 @@ sunindextype IdaSolver::getFunction(const Expression& expression)
 	if (mlir::isa<TanhOp>(definingOp))
 		return lambdaTanh(userData, children[0]);
 
-	// TODO: Handle CallOp
-
-	assert(false && "Unexpected operation");
+	assert(false && "CallOp is not supported in this tool");
 }
