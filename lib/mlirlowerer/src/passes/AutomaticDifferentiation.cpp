@@ -426,7 +426,7 @@ struct DerSeedOpPattern : public mlir::OpRewritePattern<DerSeedOp>
 		{
 			auto memberCreateOp = op.member().getDefiningOp<MemberCreateOp>();
 			auto buffer = rewriter.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), memberCreateOp.dynamicDimensions());
-			rewriter.create<FillOp>(loc, buffer, seed);
+			rewriter.create<FillOp>(loc, seed, buffer);
 			rewriter.create<MemberStoreOp>(loc, op.member(), buffer);
 		}
 
