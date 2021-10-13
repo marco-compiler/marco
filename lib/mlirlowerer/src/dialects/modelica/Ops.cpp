@@ -1565,7 +1565,8 @@ mlir::ValueRange CallOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 	mlir::ModuleOp moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
 
 	// Create the partial derivative function if it does not exist already.
-	if (moduleOp.lookupSymbol<DerFunctionOp>(pderName) == nullptr)
+	if (moduleOp.lookupSymbol<FunctionOp>(pderName) == nullptr &&
+			moduleOp.lookupSymbol<DerFunctionOp>(pderName) == nullptr)
 	{
 		FunctionOp base = moduleOp.lookupSymbol<FunctionOp>(callee());
 		assert(base != nullptr);

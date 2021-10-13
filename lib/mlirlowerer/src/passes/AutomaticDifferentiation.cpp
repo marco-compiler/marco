@@ -89,6 +89,11 @@ static std::string getPartialDerVariableName(llvm::StringRef currentName, llvm::
 	return "pder_" + independentVar.str() + "_" + currentName.str();
 }
 
+static std::string getPartialDerFunctionName(llvm::StringRef baseName)
+{
+	return "pder_" + baseName.str();
+}
+
 static mlir::LogicalResult createPartialDerFunction(mlir::OpBuilder& builder, DerFunctionOp derFunction)
 {
 	mlir::OpBuilder::InsertionGuard guard(builder);
@@ -778,6 +783,9 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
 	mlir::LogicalResult addPartialDerFunctions()
 	{
+		// If using the SUNDIALS IDA library as a solver, we also need the partial
+		// function derivatives of all call operations in order to compute the
+		// symbolic jacobian.
 		mlir::ModuleOp module = getOperation();
 		mlir::OpBuilder builder(module);
 		mlir::OpBuilder::InsertionGuard guard(builder);
@@ -791,11 +799,15 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
 		for (FunctionOp& function : toBePartiallyDerived)
 		{
-			builder.setInsertionPointAfter(function);
-			mlir::Location location = function.getLoc();
-			llvm::StringRef name("_ida_pder_" + function.name().str());
-			mlir::Attribute independentVariable = function.argsNames()[0];
-			builder.create<DerFunctionOp>(location, name, function.getName(), independentVariable);
+			llvm::StringRef pderName(getPartialDerFunctionName(function.name()));
+
+			if (module.lookupSymbol<FunctionOp>(pderName) == nullptr &&
+					module.lookupSymbol<DerFunctionOp>(pderName) == nullptr)
+			{
+				builder.setInsertionPointAfter(function);
+				mlir::Attribute independentVariable = function.argsNames()[0];
+				builder.create<DerFunctionOp>(function.getLoc(), pderName, function.getName(), independentVariable);
+			}
 		}
 
 		return mlir::success();
