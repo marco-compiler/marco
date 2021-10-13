@@ -475,6 +475,7 @@ namespace marco::codegen::modelica
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
 		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, llvm::StringRef derivedFunction, llvm::ArrayRef<llvm::StringRef> independentVariables);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, llvm::StringRef name, llvm::StringRef derivedFunction, llvm::ArrayRef<mlir::Attribute> independentVariables);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -640,7 +641,8 @@ namespace marco::codegen::modelica
 																mlir::MemoryEffectOpInterface::Trait,
 																mlir::CallOpInterface::Trait,
 																VectorizableOpInterface::Trait,
-																InvertibleOpInterface::Trait>
+																InvertibleOpInterface::Trait,
+																DerivativeInterface::Trait>
 	{
 		public:
 		using Op::Op;
@@ -667,7 +669,12 @@ namespace marco::codegen::modelica
 
 		mlir::LogicalResult invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult);
 
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
+
 		mlir::StringRef callee();
+		mlir::TypeRange resultTypes();
 		mlir::ValueRange args();
 		unsigned int movedResults();
 	};
