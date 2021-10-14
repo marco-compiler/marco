@@ -285,7 +285,8 @@ int jacobianMatrix(
  * number of equations and the maximum number of non-zero values of the jacobian
  * matrix.
  */
-void* allocIdaUserData(sunindextype equationsNumber)
+template<typename T>
+inline void* allocIdaUserData(T equationsNumber)
 {
 	IdaUserData* data = new IdaUserData;
 
@@ -307,6 +308,9 @@ void* allocIdaUserData(sunindextype equationsNumber)
 
 	return static_cast<void*>(data);
 }
+
+RUNTIME_FUNC_DEF(allocIdaUserData, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(allocIdaUserData, PTR(void), int64_t)
 
 /**
  * Compute the total number of non-zero values in the Jacobian Matrix. This
@@ -358,7 +362,7 @@ sunindextype computeNNZ(IdaUserData* data)
  * the given system of equations. It must be called before the first usage of
  * step(). It may fail in case of malformed model.
  */
-bool idaInit(void* userData)
+inline bool idaInit(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -429,11 +433,13 @@ bool idaInit(void* userData)
 	return true;
 }
 
+RUNTIME_FUNC_DEF(idaInit, bool, PTR(void))
+
 /**
  * Invoke IDA to perform one step of the computation. Returns false if the
  * computation failed, true otherwise.
  */
-bool idaStep(void* userData)
+inline bool idaStep(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -458,10 +464,12 @@ bool idaStep(void* userData)
 	return true;
 }
 
+RUNTIME_FUNC_DEF(idaStep, bool, PTR(void))
+
 /**
  * Free all the data allocated by IDA.
  */
-bool freeIdaUserData(void* userData)
+inline bool freeIdaUserData(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -483,14 +491,16 @@ bool freeIdaUserData(void* userData)
 	return true;
 }
 
+RUNTIME_FUNC_DEF(freeIdaUserData, bool, PTR(void))
+
 /**
  * Add the start time, the end time and the step time to the user data. If the
  * step is equal to the end time, the output will show the variables at every
  * step of the computation. Otherwise the output will show the variables in an
  * equidistant time grid based on the step time paramter.
  */
-void addTime(
-		void* userData, realtype startTime, realtype endTime, realtype timeStep)
+template<typename T>
+inline void addTime(void* userData, T startTime, T endTime, T timeStep)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -502,16 +512,23 @@ void addTime(
 	data->equidistantTimeGrid = (endTime == timeStep) ? IDA_ONE_STEP : IDA_NORMAL;
 }
 
+RUNTIME_FUNC_DEF(addTime, void, PTR(void), float, float, float)
+RUNTIME_FUNC_DEF(addTime, void, PTR(void), double, double, double)
+
 /**
  * Add the relative tolerance and the absolute tolerance to the user data.
  */
-void addTolerance(void* userData, realtype relTol, realtype absTol)
+template<typename T>
+inline void addTolerance(void* userData, T relTol, T absTol)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
 	data->relativeTolerance = relTol;
 	data->absoluteTolerance = absTol;
 }
+
+RUNTIME_FUNC_DEF(addTolerance, void, PTR(void), float, float)
+RUNTIME_FUNC_DEF(addTolerance, void, PTR(void), double, double)
 
 //===----------------------------------------------------------------------===//
 // Equation setters
@@ -520,7 +537,8 @@ void addTolerance(void* userData, realtype relTol, realtype absTol)
 /**
  * Add the length of index-th row of the jacobian matrix to the user data.
  */
-sunindextype addRowLength(void* userData, sunindextype rowLength)
+template<typename T>
+inline sunindextype addRowLength(void* userData, T rowLength)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -528,12 +546,15 @@ sunindextype addRowLength(void* userData, sunindextype rowLength)
 	return data->rowLengths.size() - 1;
 }
 
+RUNTIME_FUNC_DEF(addRowLength, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(addRowLength, int64_t, PTR(void), int64_t)
+
 /**
  * Add the access index of a non-zero value contained in the rowIndex-th row of
  * the jacobian matrix to the user data.
  */
-void addColumnIndex(
-		void* userData, sunindextype rowIndex, sunindextype accessIndex)
+template<typename T>
+inline void addColumnIndex(void* userData, T rowIndex, T accessIndex)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -543,11 +564,14 @@ void addColumnIndex(
 		data->columnIndexes[rowIndex].push_back(accessIndex);
 }
 
+RUNTIME_FUNC_DEF(addColumnIndex, void, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DEF(addColumnIndex, void, PTR(void), int64_t, int64_t)
+
 /**
  * Add the dimension of the index-th equation to the user data.
  */
-void addEquationDimension(
-		void* userData, sunindextype index, sunindextype min, sunindextype max)
+template<typename T>
+inline void addEquationDimension(void* userData, T index, T min, T max)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -557,12 +581,15 @@ void addEquationDimension(
 		data->equationDimensions[index].push_back({ min, max });
 }
 
+RUNTIME_FUNC_DEF(addEquationDimension, void, PTR(void), int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DEF(addEquationDimension, void, PTR(void), int64_t, int64_t, int64_t)
+
 /**
  * Add the lambda that computes the index-th residual function to the user data.
  * Must be used before the add jacobian function.
  */
-void addResidual(
-		void* userData, sunindextype leftIndex, sunindextype rightIndex)
+template<typename T>
+inline void addResidual(void* userData, T leftIndex, T rightIndex)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -585,12 +612,15 @@ void addResidual(
 	data->residuals.push_back(std::move(residual));
 }
 
+RUNTIME_FUNC_DEF(addResidual, void, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DEF(addResidual, void, PTR(void), int64_t, int64_t)
+
 /**
  * Add the lambda that computes the index-th jacobian row to the user data.
  * Must be used after the add residual function.
  */
-void addJacobian(
-		void* userData, sunindextype leftIndex, sunindextype rightIndex)
+template<typename T>
+inline void addJacobian(void* userData, T leftIndex, T rightIndex)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -615,6 +645,9 @@ void addJacobian(
 	data->lambdas.clear();
 }
 
+RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), int64_t, int64_t)
+
 //===----------------------------------------------------------------------===//
 // Variable setters
 //===----------------------------------------------------------------------===//
@@ -623,17 +656,22 @@ void addJacobian(
  * Add a new variable given its monodimensional length.
  * Return the variable index.
  */
-sunindextype addVariableOffset(void* userData, sunindextype offset)
+template<typename T>
+inline T addVariableOffset(void* userData, T offset)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	data->variableOffsets.push_back(offset);
 	return data->variableOffsets.size() - 1;
 }
 
+RUNTIME_FUNC_DEF(addVariableOffset, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(addVariableOffset, int64_t, PTR(void), int64_t)
+
 /**
  * Add a new dimension to the index-th variable of size dim.
  */
-void addVariableDimension(void* userData, sunindextype index, sunindextype dim)
+template<typename T>
+inline void addVariableDimension(void* userData, T index, T dim)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	if ((size_t) index == data->variableDimensions.size())
@@ -642,29 +680,40 @@ void addVariableDimension(void* userData, sunindextype index, sunindextype dim)
 		data->variableDimensions[index].push_back(dim);
 }
 
+RUNTIME_FUNC_DEF(addVariableDimension, void, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DEF(addVariableDimension, void, PTR(void), int64_t, int64_t)
+
 /**
  * Add a new variable access to the var-th variable, where ind is the induction
  * variable and off is the access offset.
  */
-sunindextype addNewVariableAccess(
-		void* userData, sunindextype var, sunindextype off, sunindextype ind)
+template<typename T>
+inline T addNewVariableAccess(void* userData, T var, T off, T ind)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	data->variableAccesses.push_back({ var, { { off, ind } } });
 	return data->variableAccesses.size() - 1;
 }
 
+RUNTIME_FUNC_DEF(
+		addNewVariableAccess, int32_t, PTR(void), int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DEF(
+		addNewVariableAccess, int64_t, PTR(void), int64_t, int64_t, int64_t)
+
 /**
  * Add a new induction to the index-th variable access, where ind is the
  * induction variable and off is the access offset.
  */
-void addVariableAccess(
-		void* userData, sunindextype index, sunindextype off, sunindextype ind)
+template<typename T>
+inline void addVariableAccess(void* userData, T index, T off, T ind)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	assert((size_t) index == data->variableAccesses.size() - 1);
 	data->variableAccesses[index].second.push_back({ off, ind });
 }
+
+RUNTIME_FUNC_DEF(addVariableAccess, void, PTR(void), int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DEF(addVariableAccess, void, PTR(void), int64_t, int64_t, int64_t)
 
 /**
  * Set the initial value of the index-th variable and if it is a state variable.
@@ -687,11 +736,11 @@ inline void setInitialValue(
 }
 
 RUNTIME_FUNC_DEF(
-		setInitialValue, void, voidptr, int32_t, int32_t, int32_t, bool)
-RUNTIME_FUNC_DEF(setInitialValue, void, voidptr, int32_t, int32_t, float, bool)
+		setInitialValue, void, PTR(void), int32_t, int32_t, int32_t, bool)
+RUNTIME_FUNC_DEF(setInitialValue, void, PTR(void), int32_t, int32_t, float, bool)
 RUNTIME_FUNC_DEF(
-		setInitialValue, void, voidptr, int64_t, int64_t, int64_t, bool)
-RUNTIME_FUNC_DEF(setInitialValue, void, voidptr, int64_t, int64_t, double, bool)
+		setInitialValue, void, PTR(void), int64_t, int64_t, int64_t, bool)
+RUNTIME_FUNC_DEF(setInitialValue, void, PTR(void), int64_t, int64_t, double, bool)
 
 /**
  * Set the initial values of the index-th variable given its array, which is
@@ -734,19 +783,19 @@ inline void setInitialArray(
 }
 
 RUNTIME_FUNC_DEF(
-		setInitialArray, void, voidptr, int32_t, int32_t, ARRAY(int32_t), bool)
+		setInitialArray, void, PTR(void), int32_t, int32_t, ARRAY(int32_t), bool)
 RUNTIME_FUNC_DEF(
-		setInitialArray, void, voidptr, int32_t, int32_t, ARRAY(float), bool)
+		setInitialArray, void, PTR(void), int32_t, int32_t, ARRAY(float), bool)
 RUNTIME_FUNC_DEF(
-		setInitialArray, void, voidptr, int64_t, int64_t, ARRAY(int64_t), bool)
+		setInitialArray, void, PTR(void), int64_t, int64_t, ARRAY(int64_t), bool)
 RUNTIME_FUNC_DEF(
-		setInitialArray, void, voidptr, int64_t, int64_t, ARRAY(double), bool)
+		setInitialArray, void, PTR(void), int64_t, int64_t, ARRAY(double), bool)
 
 //===----------------------------------------------------------------------===//
 // Getters
 //===----------------------------------------------------------------------===//
 
-realtype getIdaTime(void* userData)
+inline double getIdaTime(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -757,78 +806,1114 @@ realtype getIdaTime(void* userData)
 	return data->time;
 }
 
-realtype getIdaVariable(void* userData, sunindextype index)
+RUNTIME_FUNC_DEF(getIdaTime, float, PTR(void))
+RUNTIME_FUNC_DEF(getIdaTime, double, PTR(void))
+
+template<typename T>
+inline realtype getIdaVariable(void* userData, T index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	assert(index < data->equationsNumber);
 	return data->variablesValues[index];
 }
 
-realtype getIdaDerivative(void* userData, sunindextype index)
+RUNTIME_FUNC_DEF(getIdaVariable, float, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(getIdaVariable, double, PTR(void), int64_t)
+
+template<typename T>
+inline double getIdaDerivative(void* userData, T index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	assert(index < data->equationsNumber);
 	return data->derivativesValues[index];
 }
 
-sunindextype getIdaRowLength(void* userData, sunindextype index)
+RUNTIME_FUNC_DEF(getIdaDerivative, float, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(getIdaDerivative, double, PTR(void), int64_t)
+
+//===----------------------------------------------------------------------===//
+// Lambda constructions
+//===----------------------------------------------------------------------===//
+
+template<typename T>
+inline int64_t lambdaConstant(void* userData, T constant)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function first = [constant](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype { return constant; };
+
+	Function second = [](realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype { return 0.0; };
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaConstant, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaConstant, int64_t, PTR(void), int64_t)
+RUNTIME_FUNC_DEF(lambdaConstant, int32_t, PTR(void), float)
+RUNTIME_FUNC_DEF(lambdaConstant, int64_t, PTR(void), double)
+
+inline int64_t lambdaTime(void* userData)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function first = [](realtype tt,
+											realtype cj,
+											realtype* yy,
+											realtype* yp,
+											Indexes& ind,
+											realtype var) -> realtype { return tt; };
+
+	Function second = [](realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype { return 0.0; };
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaTime, int32_t, PTR(void))
+RUNTIME_FUNC_DEF(lambdaTime, int64_t, PTR(void))
+
+template<typename T>
+inline int64_t lambdaInduction(void* userData, T induction)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function first = [induction](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype { return ind[induction] + 1; };
+
+	Function second = [](realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype { return 0.0; };
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaInduction, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaInduction, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaVariable(void* userData, T accessIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	sunindextype variableIndex = data->variableAccesses[accessIndex].first;
+	sunindextype offset = data->variableOffsets[variableIndex];
+	VarDimension dim = data->variableDimensions[variableIndex];
+	Access acc = data->variableAccesses[accessIndex].second;
+
+	Function first = [offset, dim, acc](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		sunindextype accessOffset = computeOffset(ind, dim, acc);
+
+		return yy[offset + accessOffset];
+	};
+
+	Function second = [offset, dim, acc](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		sunindextype accessOffset = computeOffset(ind, dim, acc);
+
+		if (offset + accessOffset == var)
+			return 1.0;
+		return 0.0;
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaVariable, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaVariable, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaDerivative(void* userData, T accessIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	sunindextype variableIndex = data->variableAccesses[accessIndex].first;
+	sunindextype offset = data->variableOffsets[variableIndex];
+	VarDimension dim = data->variableDimensions[variableIndex];
+	Access acc = data->variableAccesses[accessIndex].second;
+
+	Function first = [offset, dim, acc](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		sunindextype accessOffset = computeOffset(ind, dim, acc);
+
+		return yp[offset + accessOffset];
+	};
+
+	Function second = [offset, dim, acc](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		sunindextype accessOffset = computeOffset(ind, dim, acc);
+
+		if (offset + accessOffset == var)
+			return cj;
+		return 0.0;
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaDerivative, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaDerivative, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaNegate(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return -operand(tt, cj, yy, yp, ind, var);
+	};
+
+	Function second = [derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return -derOperand(tt, cj, yy, yp, ind, var);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaNegate, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaNegate, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaAdd(void* userData, T leftIndex, T rightIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function left = data->lambdas[leftIndex].first;
+	Function right = data->lambdas[rightIndex].first;
+	Function derLeft = data->lambdas[leftIndex].second;
+	Function derRight = data->lambdas[rightIndex].second;
+
+	Function first = [left, right](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return left(tt, cj, yy, yp, ind, var) + right(tt, cj, yy, yp, ind, var);
+	};
+
+	Function second = [derLeft, derRight](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return derLeft(tt, cj, yy, yp, ind, var) +
+					 derRight(tt, cj, yy, yp, ind, var);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaAdd, int32_t, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DEF(lambdaAdd, int64_t, PTR(void), int64_t, int64_t)
+
+template<typename T>
+inline int64_t lambdaSub(void* userData, T leftIndex, T rightIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function left = data->lambdas[leftIndex].first;
+	Function right = data->lambdas[rightIndex].first;
+	Function derLeft = data->lambdas[leftIndex].second;
+	Function derRight = data->lambdas[rightIndex].second;
+
+	Function first = [left, right](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return left(tt, cj, yy, yp, ind, var) - right(tt, cj, yy, yp, ind, var);
+	};
+
+	Function second = [derLeft, derRight](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return derLeft(tt, cj, yy, yp, ind, var) -
+					 derRight(tt, cj, yy, yp, ind, var);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaSub, int32_t, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DEF(lambdaSub, int64_t, PTR(void), int64_t, int64_t)
+
+template<typename T>
+inline int64_t lambdaMul(void* userData, T leftIndex, T rightIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function left = data->lambdas[leftIndex].first;
+	Function right = data->lambdas[rightIndex].first;
+	Function derLeft = data->lambdas[leftIndex].second;
+	Function derRight = data->lambdas[rightIndex].second;
+
+	Function first = [left, right](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return left(tt, cj, yy, yp, ind, var) * right(tt, cj, yy, yp, ind, var);
+	};
+
+	Function second = [left, right, derLeft, derRight](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return left(tt, cj, yy, yp, ind, var) * derRight(tt, cj, yy, yp, ind, var) +
+					 right(tt, cj, yy, yp, ind, var) * derLeft(tt, cj, yy, yp, ind, var);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaMul, int32_t, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DEF(lambdaMul, int64_t, PTR(void), int64_t, int64_t)
+
+template<typename T>
+inline int64_t lambdaDiv(void* userData, T leftIndex, T rightIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function left = data->lambdas[leftIndex].first;
+	Function right = data->lambdas[rightIndex].first;
+	Function derLeft = data->lambdas[leftIndex].second;
+	Function derRight = data->lambdas[rightIndex].second;
+
+	Function first = [left, right](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return left(tt, cj, yy, yp, ind, var) / right(tt, cj, yy, yp, ind, var);
+	};
+
+	Function second = [left, right, derLeft, derRight](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		realtype rightValue = right(tt, cj, yy, yp, ind, var);
+		realtype dividend =
+				rightValue * derLeft(tt, cj, yy, yp, ind, var) -
+				left(tt, cj, yy, yp, ind, var) * derRight(tt, cj, yy, yp, ind, var);
+		return dividend / (rightValue * rightValue);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaDiv, int32_t, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DEF(lambdaDiv, int64_t, PTR(void), int64_t, int64_t)
+
+template<typename T>
+inline int64_t lambdaPow(void* userData, T baseIndex, T exponentIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function base = data->lambdas[baseIndex].first;
+	Function exponent = data->lambdas[exponentIndex].first;
+	Function derBase = data->lambdas[baseIndex].second;
+	Function derExponent = data->lambdas[exponentIndex].second;
+
+	Function first = [base, exponent](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::pow(
+				base(tt, cj, yy, yp, ind, var), exponent(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [base, exponent, derBase, derExponent](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		realtype baseValue = base(tt, cj, yy, yp, ind, var);
+		realtype exponentValue = exponent(tt, cj, yy, yp, ind, var);
+		return std::pow(baseValue, exponentValue) *
+					 (derExponent(tt, cj, yy, yp, ind, var) * std::log(baseValue) +
+						exponentValue * derBase(tt, cj, yy, yp, ind, var) / baseValue);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaPow, int32_t, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DEF(lambdaPow, int64_t, PTR(void), int64_t, int64_t)
+
+template<typename T>
+inline int64_t lambdaAtan2(void* userData, T yIndex, T xIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function y = data->lambdas[yIndex].first;
+	Function x = data->lambdas[xIndex].first;
+	Function derY = data->lambdas[yIndex].second;
+	Function derX = data->lambdas[xIndex].second;
+
+	Function first = [y, x](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::atan2(y(tt, cj, yy, yp, ind, var), x(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [y, x, derY, derX](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		realtype yValue = y(tt, cj, yy, yp, ind, var);
+		realtype xValue = x(tt, cj, yy, yp, ind, var);
+		return (derY(tt, cj, yy, yp, ind, var) * xValue -
+						yValue * derX(tt, cj, yy, yp, ind, var)) /
+					 (yValue * yValue + xValue * xValue);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaAtan2, int32_t, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DEF(lambdaAtan2, int64_t, PTR(void), int64_t, int64_t)
+
+template<typename T>
+inline int64_t lambdaAbs(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::abs(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		realtype x = operand(tt, cj, yy, yp, ind, var);
+
+		return (x > 0.0) - (x < 0.0);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaAbs, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaAbs, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaSign(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		realtype x = operand(tt, cj, yy, yp, ind, var);
+
+		return (x > 0.0) - (x < 0.0);
+	};
+
+	Function second = [](realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype { return 0.0; };
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaSign, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaSign, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaSqrt(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::sqrt(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return derOperand(tt, cj, yy, yp, ind, var) /
+					 std::sqrt(operand(tt, cj, yy, yp, ind, var)) / 2;
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaSqrt, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaSqrt, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaExp(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::exp(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return std::exp(operand(tt, cj, yy, yp, ind, var)) *
+					 derOperand(tt, cj, yy, yp, ind, var);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaExp, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaExp, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaLog(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::log(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return derOperand(tt, cj, yy, yp, ind, var) /
+					 operand(tt, cj, yy, yp, ind, var);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaLog, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaLog, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaLog10(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::log10(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return derOperand(tt, cj, yy, yp, ind, var) /
+					 (operand(tt, cj, yy, yp, ind, var) * std::log(10));
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaLog10, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaLog10, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaSin(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::sin(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return std::cos(operand(tt, cj, yy, yp, ind, var)) *
+					 derOperand(tt, cj, yy, yp, ind, var);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaSin, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaSin, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaCos(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::cos(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return -std::sin(operand(tt, cj, yy, yp, ind, var)) *
+					 derOperand(tt, cj, yy, yp, ind, var);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaCos, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaCos, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaTan(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::tan(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		realtype cosOperandValue = std::cos(operand(tt, cj, yy, yp, ind, var));
+		return derOperand(tt, cj, yy, yp, ind, var) /
+					 (cosOperandValue * cosOperandValue);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaTan, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaTan, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaAsin(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::asin(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		realtype operandValue = operand(tt, cj, yy, yp, ind, var);
+		return derOperand(tt, cj, yy, yp, ind, var) /
+					 (std::sqrt(1 - operandValue * operandValue));
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaAsin, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaAsin, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaAcos(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::acos(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		realtype operandValue = operand(tt, cj, yy, yp, ind, var);
+		return -derOperand(tt, cj, yy, yp, ind, var) /
+					 (std::sqrt(1 - operandValue * operandValue));
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaAcos, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaAcos, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaAtan(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::atan(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		realtype operandValue = operand(tt, cj, yy, yp, ind, var);
+		return derOperand(tt, cj, yy, yp, ind, var) /
+					 (1 + operandValue * operandValue);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaAtan, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaAtan, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaSinh(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::sinh(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return std::cosh(operand(tt, cj, yy, yp, ind, var)) *
+					 derOperand(tt, cj, yy, yp, ind, var);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaSinh, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaSinh, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaCosh(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::cosh(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return std::sinh(operand(tt, cj, yy, yp, ind, var)) *
+					 derOperand(tt, cj, yy, yp, ind, var);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaCosh, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaCosh, int64_t, PTR(void), int64_t)
+
+template<typename T>
+inline int64_t lambdaTanh(void* userData, T operandIndex)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return std::tanh(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		realtype coshOperandValue = std::cosh(operand(tt, cj, yy, yp, ind, var));
+		return derOperand(tt, cj, yy, yp, ind, var) /
+					 (coshOperandValue * coshOperandValue);
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(lambdaTanh, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(lambdaTanh, int64_t, PTR(void), int64_t)
+
+template<typename T, typename U>
+inline int64_t lambdaCall(
+		void* userData, T operandIndex, U function, U pderFunc)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	Function operand = data->lambdas[operandIndex].first;
+	Function derOperand = data->lambdas[operandIndex].second;
+
+	Function first = [function, operand](
+											 realtype tt,
+											 realtype cj,
+											 realtype* yy,
+											 realtype* yp,
+											 Indexes& ind,
+											 realtype var) -> realtype {
+		return function(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	Function second = [pderFunc, operand, derOperand](
+												realtype tt,
+												realtype cj,
+												realtype* yy,
+												realtype* yp,
+												Indexes& ind,
+												realtype var) -> realtype {
+		return derOperand(tt, cj, yy, yp, ind, var) *
+					 pderFunc(operand(tt, cj, yy, yp, ind, var));
+	};
+
+	data->lambdas.push_back({ std::move(first), std::move(second) });
+	return data->lambdas.size() - 1;
+}
+
+RUNTIME_FUNC_DEF(
+		lambdaCall, int32_t, PTR(void), int32_t, FUNCTION(float), FUNCTION(float))
+RUNTIME_FUNC_DEF(
+		lambdaCall, int64_t, PTR(void), int64_t, FUNCTION(double), FUNCTION(double))
+
+//===----------------------------------------------------------------------===//
+// Debugging and Statistics
+//===----------------------------------------------------------------------===//
+
+int64_t getNumberOfEquations(void* userData)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	return data->equationsNumber;
+}
+
+int64_t getNumberOfNonZeroValues(void* userData)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	return data->nonZeroValuesNumber;
+}
+
+int64_t getIdaRowLength(void* userData, int64_t index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	assert(index < data->equationsNumber);
 	return data->rowLengths[index];
 }
 
-EqDimension getIdaDimension(void* userData, sunindextype index)
+EqDimension getIdaDimension(void* userData, int64_t index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	assert(index < data->equationsNumber);
 	return data->equationDimensions[index];
 }
 
-sunindextype getNumberOfEquations(void* userData)
+int64_t numSteps(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	return data->equationsNumber;
-}
-
-sunindextype getNumberOfNonZeroValues(void* userData)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	return data->nonZeroValuesNumber;
-}
-
-//===----------------------------------------------------------------------===//
-// Statistics
-//===----------------------------------------------------------------------===//
-
-sunindextype numSteps(void* userData)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	sunindextype nst;
+	int64_t nst;
 	IDAGetNumSteps(data->idaMemory, &nst);
 	return nst;
 }
 
-sunindextype numResEvals(void* userData)
+int64_t numResEvals(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	sunindextype nre;
+	int64_t nre;
 	IDAGetNumResEvals(data->idaMemory, &nre);
 	return nre;
 }
 
-sunindextype numJacEvals(void* userData)
+int64_t numJacEvals(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	sunindextype nje;
+	int64_t nje;
 	IDAGetNumJacEvals(data->idaMemory, &nje);
 	return nje;
 }
 
-sunindextype numNonlinIters(void* userData)
+int64_t numNonlinIters(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	sunindextype nni;
+	int64_t nni;
 	IDAGetNumNonlinSolvIters(data->idaMemory, &nni);
 	return nni;
 }
@@ -891,925 +1976,4 @@ std::string getIncidenceMatrix(void* userData)
 	}
 
 	return result.str();
-}
-
-//===----------------------------------------------------------------------===//
-// Lambda constructions
-//===----------------------------------------------------------------------===//
-
-sunindextype lambdaConstant(void* userData, realtype constant)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function first = [constant](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype { return constant; };
-
-	Function second = [](realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype { return 0.0; };
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaTime(void* userData)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function first = [](realtype tt,
-											realtype cj,
-											realtype* yy,
-											realtype* yp,
-											Indexes& ind,
-											realtype var) -> realtype { return tt; };
-
-	Function second = [](realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype { return 0.0; };
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaInduction(void* userData, sunindextype induction)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function first = [induction](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype { return ind[induction] + 1; };
-
-	Function second = [](realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype { return 0.0; };
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaVariable(void* userData, sunindextype accessIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	sunindextype variableIndex = data->variableAccesses[accessIndex].first;
-	sunindextype offset = data->variableOffsets[variableIndex];
-	VarDimension dim = data->variableDimensions[variableIndex];
-	Access acc = data->variableAccesses[accessIndex].second;
-
-	Function first = [offset, dim, acc](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		sunindextype accessOffset = computeOffset(ind, dim, acc);
-
-		return yy[offset + accessOffset];
-	};
-
-	Function second = [offset, dim, acc](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		sunindextype accessOffset = computeOffset(ind, dim, acc);
-
-		if (offset + accessOffset == var)
-			return 1.0;
-		return 0.0;
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaDerivative(void* userData, sunindextype accessIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	sunindextype variableIndex = data->variableAccesses[accessIndex].first;
-	sunindextype offset = data->variableOffsets[variableIndex];
-	VarDimension dim = data->variableDimensions[variableIndex];
-	Access acc = data->variableAccesses[accessIndex].second;
-
-	Function first = [offset, dim, acc](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		sunindextype accessOffset = computeOffset(ind, dim, acc);
-
-		return yp[offset + accessOffset];
-	};
-
-	Function second = [offset, dim, acc](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		sunindextype accessOffset = computeOffset(ind, dim, acc);
-
-		if (offset + accessOffset == var)
-			return cj;
-		return 0.0;
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaNegate(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return -operand(tt, cj, yy, yp, ind, var);
-	};
-
-	Function second = [derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return -derOperand(tt, cj, yy, yp, ind, var);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaAdd(
-		void* userData, sunindextype leftIndex, sunindextype rightIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function left = data->lambdas[leftIndex].first;
-	Function right = data->lambdas[rightIndex].first;
-	Function derLeft = data->lambdas[leftIndex].second;
-	Function derRight = data->lambdas[rightIndex].second;
-
-	Function first = [left, right](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return left(tt, cj, yy, yp, ind, var) + right(tt, cj, yy, yp, ind, var);
-	};
-
-	Function second = [derLeft, derRight](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return derLeft(tt, cj, yy, yp, ind, var) +
-					 derRight(tt, cj, yy, yp, ind, var);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaSub(
-		void* userData, sunindextype leftIndex, sunindextype rightIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function left = data->lambdas[leftIndex].first;
-	Function right = data->lambdas[rightIndex].first;
-	Function derLeft = data->lambdas[leftIndex].second;
-	Function derRight = data->lambdas[rightIndex].second;
-
-	Function first = [left, right](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return left(tt, cj, yy, yp, ind, var) - right(tt, cj, yy, yp, ind, var);
-	};
-
-	Function second = [derLeft, derRight](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return derLeft(tt, cj, yy, yp, ind, var) -
-					 derRight(tt, cj, yy, yp, ind, var);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaMul(
-		void* userData, sunindextype leftIndex, sunindextype rightIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function left = data->lambdas[leftIndex].first;
-	Function right = data->lambdas[rightIndex].first;
-	Function derLeft = data->lambdas[leftIndex].second;
-	Function derRight = data->lambdas[rightIndex].second;
-
-	Function first = [left, right](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return left(tt, cj, yy, yp, ind, var) * right(tt, cj, yy, yp, ind, var);
-	};
-
-	Function second = [left, right, derLeft, derRight](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return left(tt, cj, yy, yp, ind, var) * derRight(tt, cj, yy, yp, ind, var) +
-					 right(tt, cj, yy, yp, ind, var) * derLeft(tt, cj, yy, yp, ind, var);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaDiv(
-		void* userData, sunindextype leftIndex, sunindextype rightIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function left = data->lambdas[leftIndex].first;
-	Function right = data->lambdas[rightIndex].first;
-	Function derLeft = data->lambdas[leftIndex].second;
-	Function derRight = data->lambdas[rightIndex].second;
-
-	Function first = [left, right](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return left(tt, cj, yy, yp, ind, var) / right(tt, cj, yy, yp, ind, var);
-	};
-
-	Function second = [left, right, derLeft, derRight](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		realtype rightValue = right(tt, cj, yy, yp, ind, var);
-		realtype dividend =
-				rightValue * derLeft(tt, cj, yy, yp, ind, var) -
-				left(tt, cj, yy, yp, ind, var) * derRight(tt, cj, yy, yp, ind, var);
-		return dividend / (rightValue * rightValue);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaPow(
-		void* userData, sunindextype baseIndex, sunindextype exponentIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function base = data->lambdas[baseIndex].first;
-	Function exponent = data->lambdas[exponentIndex].first;
-	Function derBase = data->lambdas[baseIndex].second;
-	Function derExponent = data->lambdas[exponentIndex].second;
-
-	Function first = [base, exponent](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::pow(
-				base(tt, cj, yy, yp, ind, var), exponent(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [base, exponent, derBase, derExponent](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		realtype baseValue = base(tt, cj, yy, yp, ind, var);
-		realtype exponentValue = exponent(tt, cj, yy, yp, ind, var);
-		return std::pow(baseValue, exponentValue) *
-					 (derExponent(tt, cj, yy, yp, ind, var) * std::log(baseValue) +
-						exponentValue * derBase(tt, cj, yy, yp, ind, var) / baseValue);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaAtan2(
-		void* userData, sunindextype yIndex, sunindextype xIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function y = data->lambdas[yIndex].first;
-	Function x = data->lambdas[xIndex].first;
-	Function derY = data->lambdas[yIndex].second;
-	Function derX = data->lambdas[xIndex].second;
-
-	Function first = [y, x](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::atan2(y(tt, cj, yy, yp, ind, var), x(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [y, x, derY, derX](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		realtype yValue = y(tt, cj, yy, yp, ind, var);
-		realtype xValue = x(tt, cj, yy, yp, ind, var);
-		return (derY(tt, cj, yy, yp, ind, var) * xValue -
-						yValue * derX(tt, cj, yy, yp, ind, var)) /
-					 (yValue * yValue + xValue * xValue);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaAbs(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::abs(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		realtype x = operand(tt, cj, yy, yp, ind, var);
-
-		return (x > 0.0) - (x < 0.0);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaSign(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		realtype x = operand(tt, cj, yy, yp, ind, var);
-
-		return (x > 0.0) - (x < 0.0);
-	};
-
-	Function second = [](realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype { return 0.0; };
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaSqrt(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::sqrt(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return derOperand(tt, cj, yy, yp, ind, var) /
-					 std::sqrt(operand(tt, cj, yy, yp, ind, var)) / 2;
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaExp(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::exp(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return std::exp(operand(tt, cj, yy, yp, ind, var)) *
-					 derOperand(tt, cj, yy, yp, ind, var);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaLog(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::log(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return derOperand(tt, cj, yy, yp, ind, var) /
-					 operand(tt, cj, yy, yp, ind, var);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaLog10(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::log10(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return derOperand(tt, cj, yy, yp, ind, var) /
-					 (operand(tt, cj, yy, yp, ind, var) * std::log(10));
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaSin(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::sin(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return std::cos(operand(tt, cj, yy, yp, ind, var)) *
-					 derOperand(tt, cj, yy, yp, ind, var);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaCos(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::cos(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return -std::sin(operand(tt, cj, yy, yp, ind, var)) *
-					 derOperand(tt, cj, yy, yp, ind, var);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaTan(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::tan(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		realtype cosOperandValue = std::cos(operand(tt, cj, yy, yp, ind, var));
-		return derOperand(tt, cj, yy, yp, ind, var) /
-					 (cosOperandValue * cosOperandValue);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaAsin(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::asin(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		realtype operandValue = operand(tt, cj, yy, yp, ind, var);
-		return derOperand(tt, cj, yy, yp, ind, var) /
-					 (std::sqrt(1 - operandValue * operandValue));
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaAcos(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::acos(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		realtype operandValue = operand(tt, cj, yy, yp, ind, var);
-		return -derOperand(tt, cj, yy, yp, ind, var) /
-					 (std::sqrt(1 - operandValue * operandValue));
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaAtan(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::atan(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		realtype operandValue = operand(tt, cj, yy, yp, ind, var);
-		return derOperand(tt, cj, yy, yp, ind, var) /
-					 (1 + operandValue * operandValue);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaSinh(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::sinh(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return std::cosh(operand(tt, cj, yy, yp, ind, var)) *
-					 derOperand(tt, cj, yy, yp, ind, var);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaCosh(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::cosh(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return std::sinh(operand(tt, cj, yy, yp, ind, var)) *
-					 derOperand(tt, cj, yy, yp, ind, var);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaTanh(void* userData, sunindextype operandIndex)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return std::tanh(operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		realtype coshOperandValue = std::cosh(operand(tt, cj, yy, yp, ind, var));
-		return derOperand(tt, cj, yy, yp, ind, var) /
-					 (coshOperandValue * coshOperandValue);
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
-}
-
-sunindextype lambdaCall(
-		void* userData,
-		sunindextype operandIndex,
-		realtype (*function)(realtype),
-		realtype (*pderFunc)(realtype))
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	Function operand = data->lambdas[operandIndex].first;
-	Function derOperand = data->lambdas[operandIndex].second;
-
-	Function first = [function, operand](
-											 realtype tt,
-											 realtype cj,
-											 realtype* yy,
-											 realtype* yp,
-											 Indexes& ind,
-											 realtype var) -> realtype {
-		return ((realtype(*)(realtype)) function)(
-				operand(tt, cj, yy, yp, ind, var));
-	};
-
-	Function second = [pderFunc, operand, derOperand](
-												realtype tt,
-												realtype cj,
-												realtype* yy,
-												realtype* yp,
-												Indexes& ind,
-												realtype var) -> realtype {
-		return derOperand(tt, cj, yy, yp, ind, var) *
-					 ((realtype(*)(realtype)) pderFunc)(
-							 operand(tt, cj, yy, yp, ind, var));
-	};
-
-	data->lambdas.push_back({ std::move(first), std::move(second) });
-	return data->lambdas.size() - 1;
 }

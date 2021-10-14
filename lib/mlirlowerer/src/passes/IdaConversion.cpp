@@ -81,19 +81,25 @@ class IdaOpConversion : public mlir::OpConversionPattern<FromOp>
 			return "f" + std::to_string(convertType(realType).getIntOrFloatBitWidth());
 
 		if (type.isa<OpaquePointerType>())
-			return "vptr";
+			return "pvoid";
 
 		if (auto arrayType = type.dyn_cast<modelica::UnsizedArrayType>())
 			return "a" + getMangledType(arrayType.getElementType());
 
 		if (type.isa<mlir::IndexType>())
-			return getMangledType(this->getTypeConverter()->convertType(type));
+			return getMangledType(convertType(type));
 
 		if (auto integerType = type.dyn_cast<mlir::IntegerType>())
 			return "i" + std::to_string(integerType.getWidth());
 
 		if (auto floatType = type.dyn_cast<mlir::FloatType>())
 			return "f" + std::to_string(floatType.getWidth());
+
+		if (auto ptrType = type.dyn_cast<mlir::LLVM::LLVMPointerType>())
+		{
+			auto funcType = ptrType.getElementType().cast<mlir::LLVM::LLVMFunctionType>();
+			return getMangledType(funcType.getReturnType()) + "ptr";
+		}
 
 		assert(false && "Unreachable");
 	}
@@ -135,9 +141,9 @@ struct ConstantValueOpLowering : public mlir::OpConversionPattern<ConstantValueO
 	}
 };
 
-struct AllocUserDataOpLowering : public mlir::OpConversionPattern<AllocUserDataOp>
+struct AllocUserDataOpLowering : public IdaOpConversion<AllocUserDataOp>
 {
-	using mlir::OpConversionPattern<AllocUserDataOp>::OpConversionPattern;
+	using IdaOpConversion<AllocUserDataOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(AllocUserDataOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -146,7 +152,7 @@ struct AllocUserDataOpLowering : public mlir::OpConversionPattern<AllocUserDataO
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"allocIdaUserData",
+				getMangledFunctionName("allocIdaUserData", result, op.args()),
 				result,
 				op.args());
 
@@ -155,9 +161,9 @@ struct AllocUserDataOpLowering : public mlir::OpConversionPattern<AllocUserDataO
 	}
 };
 
-struct FreeUserDataOpLowering : public mlir::OpConversionPattern<FreeUserDataOp>
+struct FreeUserDataOpLowering : public IdaOpConversion<FreeUserDataOp>
 {
-	using mlir::OpConversionPattern<FreeUserDataOp>::OpConversionPattern;
+	using IdaOpConversion<FreeUserDataOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(FreeUserDataOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -166,7 +172,7 @@ struct FreeUserDataOpLowering : public mlir::OpConversionPattern<FreeUserDataOp>
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"freeIdaUserData",
+				getMangledFunctionName("freeIdaUserData", result, op.args()),
 				result,
 				op.args());
 
@@ -216,9 +222,9 @@ struct SetInitialArrayOpLowering : public IdaOpConversion<SetInitialArrayOp>
 	}
 };
 
-struct InitOpLowering : public mlir::OpConversionPattern<InitOp>
+struct InitOpLowering : public IdaOpConversion<InitOp>
 {
-	using mlir::OpConversionPattern<InitOp>::OpConversionPattern;
+	using IdaOpConversion<InitOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(InitOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -227,7 +233,7 @@ struct InitOpLowering : public mlir::OpConversionPattern<InitOp>
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"idaInit",
+				getMangledFunctionName("idaInit", result, op.args()),
 				result,
 				op.args());
 
@@ -236,9 +242,9 @@ struct InitOpLowering : public mlir::OpConversionPattern<InitOp>
 	}
 };
 
-struct StepOpLowering : public mlir::OpConversionPattern<StepOp>
+struct StepOpLowering : public IdaOpConversion<StepOp>
 {
-	using mlir::OpConversionPattern<StepOp>::OpConversionPattern;
+	using IdaOpConversion<StepOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(StepOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -247,7 +253,7 @@ struct StepOpLowering : public mlir::OpConversionPattern<StepOp>
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"idaStep",
+				getMangledFunctionName("idaStep", result, op.args()),
 				result,
 				op.args());
 
@@ -256,16 +262,16 @@ struct StepOpLowering : public mlir::OpConversionPattern<StepOp>
 	}
 };
 
-struct AddTimeOpLowering : public mlir::OpConversionPattern<AddTimeOp>
+struct AddTimeOpLowering : public IdaOpConversion<AddTimeOp>
 {
-	using mlir::OpConversionPattern<AddTimeOp>::OpConversionPattern;
+	using IdaOpConversion<AddTimeOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(AddTimeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addTime",
+				getMangledFunctionName("addTime", llvm::None, op.args()),
 				llvm::None,
 				op.args());
 
@@ -274,16 +280,16 @@ struct AddTimeOpLowering : public mlir::OpConversionPattern<AddTimeOp>
 	}
 };
 
-struct AddToleranceOpLowering : public mlir::OpConversionPattern<AddToleranceOp>
+struct AddToleranceOpLowering : public IdaOpConversion<AddToleranceOp>
 {
-	using mlir::OpConversionPattern<AddToleranceOp>::OpConversionPattern;
+	using IdaOpConversion<AddToleranceOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(AddToleranceOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addTolerance",
+				getMangledFunctionName("addTolerance", llvm::None, op.args()),
 				llvm::None,
 				op.args());
 
@@ -292,9 +298,9 @@ struct AddToleranceOpLowering : public mlir::OpConversionPattern<AddToleranceOp>
 	}
 };
 
-struct AddRowLengthOpLowering : public mlir::OpConversionPattern<AddRowLengthOp>
+struct AddRowLengthOpLowering : public IdaOpConversion<AddRowLengthOp>
 {
-	using mlir::OpConversionPattern<AddRowLengthOp>::OpConversionPattern;
+	using IdaOpConversion<AddRowLengthOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(AddRowLengthOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -303,7 +309,7 @@ struct AddRowLengthOpLowering : public mlir::OpConversionPattern<AddRowLengthOp>
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addRowLength",
+				getMangledFunctionName("addRowLength", result, op.args()),
 				result,
 				op.args());
 
@@ -312,16 +318,16 @@ struct AddRowLengthOpLowering : public mlir::OpConversionPattern<AddRowLengthOp>
 	}
 };
 
-struct AddColumnIndexOpLowering : public mlir::OpConversionPattern<AddColumnIndexOp>
+struct AddColumnIndexOpLowering : public IdaOpConversion<AddColumnIndexOp>
 {
-	using mlir::OpConversionPattern<AddColumnIndexOp>::OpConversionPattern;
+	using IdaOpConversion<AddColumnIndexOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(AddColumnIndexOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addColumnIndex",
+				getMangledFunctionName("addColumnIndex", llvm::None, op.args()),
 				llvm::None,
 				op.args());
 
@@ -330,16 +336,16 @@ struct AddColumnIndexOpLowering : public mlir::OpConversionPattern<AddColumnInde
 	}
 };
 
-struct AddEquationDimensionOpLowering : public mlir::OpConversionPattern<AddEquationDimensionOp>
+struct AddEquationDimensionOpLowering : public IdaOpConversion<AddEquationDimensionOp>
 {
-	using mlir::OpConversionPattern<AddEquationDimensionOp>::OpConversionPattern;
+	using IdaOpConversion<AddEquationDimensionOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(AddEquationDimensionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addEquationDimension",
+				getMangledFunctionName("addEquationDimension", llvm::None, op.args()),
 				llvm::None,
 				op.args());
 
@@ -348,16 +354,16 @@ struct AddEquationDimensionOpLowering : public mlir::OpConversionPattern<AddEqua
 	}
 };
 
-struct AddResidualOpLowering : public mlir::OpConversionPattern<AddResidualOp>
+struct AddResidualOpLowering : public IdaOpConversion<AddResidualOp>
 {
-	using mlir::OpConversionPattern<AddResidualOp>::OpConversionPattern;
+	using IdaOpConversion<AddResidualOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(AddResidualOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addResidual",
+				getMangledFunctionName("addResidual", llvm::None, op.args()),
 				llvm::None,
 				op.args());
 
@@ -366,16 +372,16 @@ struct AddResidualOpLowering : public mlir::OpConversionPattern<AddResidualOp>
 	}
 };
 
-struct AddJacobianOpLowering : public mlir::OpConversionPattern<AddJacobianOp>
+struct AddJacobianOpLowering : public IdaOpConversion<AddJacobianOp>
 {
-	using mlir::OpConversionPattern<AddJacobianOp>::OpConversionPattern;
+	using IdaOpConversion<AddJacobianOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(AddJacobianOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addJacobian",
+				getMangledFunctionName("addJacobian", llvm::None, op.args()),
 				llvm::None,
 				op.args());
 
@@ -384,9 +390,9 @@ struct AddJacobianOpLowering : public mlir::OpConversionPattern<AddJacobianOp>
 	}
 };
 
-struct GetTimeOpLowering : public mlir::OpConversionPattern<GetTimeOp>
+struct GetTimeOpLowering : public IdaOpConversion<GetTimeOp>
 {
-	using mlir::OpConversionPattern<GetTimeOp>::OpConversionPattern;
+	using IdaOpConversion<GetTimeOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(GetTimeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -395,7 +401,7 @@ struct GetTimeOpLowering : public mlir::OpConversionPattern<GetTimeOp>
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"getIdaTime",
+				getMangledFunctionName("getIdaTime", result, op.args()),
 				result,
 				op.args());
 
@@ -404,9 +410,9 @@ struct GetTimeOpLowering : public mlir::OpConversionPattern<GetTimeOp>
 	}
 };
 
-struct GetVariableOpLowering : public mlir::OpConversionPattern<GetVariableOp>
+struct GetVariableOpLowering : public IdaOpConversion<GetVariableOp>
 {
-	using mlir::OpConversionPattern<GetVariableOp>::OpConversionPattern;
+	using IdaOpConversion<GetVariableOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(GetVariableOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -415,7 +421,7 @@ struct GetVariableOpLowering : public mlir::OpConversionPattern<GetVariableOp>
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"getIdaVariable",
+				getMangledFunctionName("getIdaVariable", result, op.args()),
 				result,
 				op.args());
 
@@ -424,9 +430,9 @@ struct GetVariableOpLowering : public mlir::OpConversionPattern<GetVariableOp>
 	}
 };
 
-struct GetDerivativeOpLowering : public mlir::OpConversionPattern<GetDerivativeOp>
+struct GetDerivativeOpLowering : public IdaOpConversion<GetDerivativeOp>
 {
-	using mlir::OpConversionPattern<GetDerivativeOp>::OpConversionPattern;
+	using IdaOpConversion<GetDerivativeOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(GetDerivativeOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -435,7 +441,7 @@ struct GetDerivativeOpLowering : public mlir::OpConversionPattern<GetDerivativeO
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"getIdaDerivative",
+				getMangledFunctionName("getIdaDerivative", result, op.args()),
 				result,
 				op.args());
 
@@ -444,9 +450,9 @@ struct GetDerivativeOpLowering : public mlir::OpConversionPattern<GetDerivativeO
 	}
 };
 
-struct AddVariableOffsetOpLowering : public mlir::OpConversionPattern<AddVariableOffsetOp>
+struct AddVariableOffsetOpLowering : public IdaOpConversion<AddVariableOffsetOp>
 {
-	using mlir::OpConversionPattern<AddVariableOffsetOp>::OpConversionPattern;
+	using IdaOpConversion<AddVariableOffsetOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(AddVariableOffsetOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -455,7 +461,7 @@ struct AddVariableOffsetOpLowering : public mlir::OpConversionPattern<AddVariabl
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addVariableOffset",
+				getMangledFunctionName("addVariableOffset", result, op.args()),
 				result,
 				op.args());
 
@@ -464,16 +470,16 @@ struct AddVariableOffsetOpLowering : public mlir::OpConversionPattern<AddVariabl
 	}
 };
 
-struct AddVariableDimensionOpLowering : public mlir::OpConversionPattern<AddVariableDimensionOp>
+struct AddVariableDimensionOpLowering : public IdaOpConversion<AddVariableDimensionOp>
 {
-	using mlir::OpConversionPattern<AddVariableDimensionOp>::OpConversionPattern;
+	using IdaOpConversion<AddVariableDimensionOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(AddVariableDimensionOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addVariableDimension",
+				getMangledFunctionName("addVariableDimension", llvm::None, op.args()),
 				llvm::None,
 				op.args());
 
@@ -482,9 +488,9 @@ struct AddVariableDimensionOpLowering : public mlir::OpConversionPattern<AddVari
 	}
 };
 
-struct AddNewVariableAccessOpLowering : public mlir::OpConversionPattern<AddNewVariableAccessOp>
+struct AddNewVariableAccessOpLowering : public IdaOpConversion<AddNewVariableAccessOp>
 {
-	using mlir::OpConversionPattern<AddNewVariableAccessOp>::OpConversionPattern;
+	using IdaOpConversion<AddNewVariableAccessOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(AddNewVariableAccessOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -493,7 +499,7 @@ struct AddNewVariableAccessOpLowering : public mlir::OpConversionPattern<AddNewV
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addNewVariableAccess",
+				getMangledFunctionName("addNewVariableAccess", result, op.args()),
 				result,
 				op.args());
 
@@ -502,16 +508,16 @@ struct AddNewVariableAccessOpLowering : public mlir::OpConversionPattern<AddNewV
 	}
 };
 
-struct AddVariableAccessOpLowering : public mlir::OpConversionPattern<AddVariableAccessOp>
+struct AddVariableAccessOpLowering : public IdaOpConversion<AddVariableAccessOp>
 {
-	using mlir::OpConversionPattern<AddVariableAccessOp>::OpConversionPattern;
+	using IdaOpConversion<AddVariableAccessOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(AddVariableAccessOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"addVariableAccess",
+				getMangledFunctionName("addVariableAccess", llvm::None, op.args()),
 				llvm::None,
 				op.args());
 
@@ -521,9 +527,9 @@ struct AddVariableAccessOpLowering : public mlir::OpConversionPattern<AddVariabl
 };
 
 template<typename FromOp, typename FromOpLowering>
-struct LambdaLikeLowering : public mlir::OpConversionPattern<FromOp>
+struct LambdaLikeLowering : public IdaOpConversion<FromOp>
 {
-	using mlir::OpConversionPattern<FromOp>::OpConversionPattern;
+	using IdaOpConversion<FromOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(FromOp fromOp, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -533,7 +539,7 @@ struct LambdaLikeLowering : public mlir::OpConversionPattern<FromOp>
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				FromOpLowering::operationName,
+				this->getMangledFunctionName(FromOpLowering::operationName, result, fromOp.args()),
 				result,
 				fromOp.args());
 
@@ -704,9 +710,9 @@ struct LambdaTanhOpLowering : public LambdaLikeLowering<LambdaTanhOp, LambdaTanh
 	static constexpr llvm::StringRef operationName = "lambdaTanh";
 };
 
-struct LambdaCallOpLowering : public mlir::OpConversionPattern<LambdaCallOp>
+struct LambdaCallOpLowering : public IdaOpConversion<LambdaCallOp>
 {
-	using mlir::OpConversionPattern<LambdaCallOp>::OpConversionPattern;
+	using IdaOpConversion<LambdaCallOp>::IdaOpConversion;
 
 	mlir::LogicalResult matchAndRewrite(LambdaCallOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
@@ -728,7 +734,7 @@ struct LambdaCallOpLowering : public mlir::OpConversionPattern<LambdaCallOp>
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				"lambdaCall",
+				getMangledFunctionName("lambdaCall", result, op.args()),
 				result,
 				op.args());
 

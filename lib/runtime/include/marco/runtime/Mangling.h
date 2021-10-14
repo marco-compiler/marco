@@ -1,7 +1,8 @@
 #ifndef MARCO_RUNTIME_MANGLING_H
 #define MARCO_RUNTIME_MANGLING_H
 
-typedef void* voidptr;
+typedef float (*float_function)(float);
+typedef double (*double_function)(double);
 
 #define NUM_ARGS_H1(dummy, x9, x8, x7, x6, x5, x4, x3, x2, x1, x0, ...) x0
 #define NUM_ARGS(...) NUM_ARGS_H1(dummy, ##__VA_ARGS__, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0)
@@ -35,7 +36,6 @@ typedef void* voidptr;
 #define CONCAT_ALL(...) CONCAT_ALL_H2(NUM_ARGS(__VA_ARGS__), __VA_ARGS__)
 
 #define void_CPP void
-#define voidptr_CPP void*
 #define bool_CPP bool
 #define int32_t_CPP int32_t
 #define int64_t_CPP int64_t
@@ -43,7 +43,6 @@ typedef void* voidptr;
 #define double_CPP double
 
 #define void_MANGLED _void
-#define voidptr_MANGLED _vptr
 #define bool_MANGLED _i1
 #define int32_t_MANGLED _i32
 #define int64_t_MANGLED _i64
@@ -82,6 +81,14 @@ typedef void* voidptr;
 #define PTR_int64_t_MANGLED _pi64
 #define PTR_float_MANGLED _pf32
 #define PTR_double_MANGLED _pf64
+
+#define FUNCTION(type) FUNCTION_ ##type
+
+#define FUNCTION_float_CPP float_function
+#define FUNCTION_double_CPP double_function
+
+#define FUNCTION_float_MANGLED _f32ptr
+#define FUNCTION_double_MANGLED _f64ptr
 
 #define TYPE_MANGLED(n, type) type ##_MANGLED
 #define TYPES_MANGLED(...) APPLY_ALL(TYPE_MANGLED, __VA_ARGS__)

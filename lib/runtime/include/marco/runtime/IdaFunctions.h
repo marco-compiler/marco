@@ -4,91 +4,192 @@
 #include "ArrayDescriptor.h"
 #include "Mangling.h"
 
+//===----------------------------------------------------------------------===//
+// Allocation, initialization, usage and deletion
+//===----------------------------------------------------------------------===//
+
+RUNTIME_FUNC_DECL(allocIdaUserData, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(allocIdaUserData, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(idaInit, bool, PTR(void))
+
+RUNTIME_FUNC_DECL(idaStep, bool, PTR(void))
+
+RUNTIME_FUNC_DECL(freeIdaUserData, bool, PTR(void))
+
+RUNTIME_FUNC_DECL(addTime, void, PTR(void), float, float, float)
+RUNTIME_FUNC_DECL(addTime, void, PTR(void), double, double, double)
+
+RUNTIME_FUNC_DECL(addTolerance, void, PTR(void), float, float)
+RUNTIME_FUNC_DECL(addTolerance, void, PTR(void), double, double)
+
+//===----------------------------------------------------------------------===//
+// Equation setters
+//===----------------------------------------------------------------------===//
+
+RUNTIME_FUNC_DECL(addRowLength, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(addRowLength, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(addColumnIndex, void, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DECL(addColumnIndex, void, PTR(void), int64_t, int64_t)
+
+RUNTIME_FUNC_DECL(addEquationDimension, void, PTR(void), int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DECL(addEquationDimension, void, PTR(void), int64_t, int64_t, int64_t)
+
+RUNTIME_FUNC_DECL(addResidual, void, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DECL(addResidual, void, PTR(void), int64_t, int64_t)
+
+RUNTIME_FUNC_DECL(addJacobian, void, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DECL(addJacobian, void, PTR(void), int64_t, int64_t)
+
+
+//===----------------------------------------------------------------------===//
+// Variable setters
+//===----------------------------------------------------------------------===//
+
+RUNTIME_FUNC_DECL(addVariableOffset, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(addVariableOffset, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(addVariableDimension, void, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DECL(addVariableDimension, void, PTR(void), int64_t, int64_t)
+
+RUNTIME_FUNC_DECL(addNewVariableAccess, int32_t, PTR(void), int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DECL(addNewVariableAccess, int64_t, PTR(void), int64_t, int64_t, int64_t)
+
+RUNTIME_FUNC_DECL(addVariableAccess, void, PTR(void), int32_t, int32_t, int32_t)
+RUNTIME_FUNC_DECL(addVariableAccess, void, PTR(void), int64_t, int64_t, int64_t)
+
+RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int32_t, int32_t, int32_t, bool)
+RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int32_t, int32_t, float, bool)
+RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int64_t, int64_t, int64_t, bool)
+RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int64_t, int64_t, double, bool)
+
+RUNTIME_FUNC_DECL(setInitialArray, void, PTR(void), int32_t, int32_t, ARRAY(int32_t), bool)
+RUNTIME_FUNC_DECL(setInitialArray, void, PTR(void), int32_t, int32_t, ARRAY(float), bool)
+RUNTIME_FUNC_DECL(setInitialArray, void, PTR(void), int64_t, int64_t, ARRAY(int64_t), bool)
+RUNTIME_FUNC_DECL(setInitialArray, void, PTR(void), int64_t, int64_t, ARRAY(double), bool)
+
+//===----------------------------------------------------------------------===//
+// Getters
+//===----------------------------------------------------------------------===//
+
+RUNTIME_FUNC_DECL(getIdaTime, float, PTR(void))
+RUNTIME_FUNC_DECL(getIdaTime, double, PTR(void))
+
+RUNTIME_FUNC_DECL(getIdaVariable, float, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(getIdaVariable, double, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(getIdaDerivative, float, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(getIdaDerivative, double, PTR(void), int64_t)
+
+//===----------------------------------------------------------------------===//
+// Lambda constructions
+//===----------------------------------------------------------------------===//
+
+RUNTIME_FUNC_DECL(lambdaConstant, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaConstant, int64_t, PTR(void), int64_t)
+RUNTIME_FUNC_DECL(lambdaConstant, int32_t, PTR(void), float)
+RUNTIME_FUNC_DECL(lambdaConstant, int64_t, PTR(void), double)
+
+RUNTIME_FUNC_DECL(lambdaTime, int32_t, PTR(void))
+RUNTIME_FUNC_DECL(lambdaTime, int64_t, PTR(void))
+
+RUNTIME_FUNC_DECL(lambdaInduction, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaInduction, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaVariable, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaVariable, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaDerivative, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaDerivative, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaNegate, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaNegate, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaAdd, int32_t, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DECL(lambdaAdd, int64_t, PTR(void), int64_t, int64_t)
+
+RUNTIME_FUNC_DECL(lambdaSub, int32_t, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DECL(lambdaSub, int64_t, PTR(void), int64_t, int64_t)
+
+RUNTIME_FUNC_DECL(lambdaMul, int32_t, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DECL(lambdaMul, int64_t, PTR(void), int64_t, int64_t)
+
+RUNTIME_FUNC_DECL(lambdaDiv, int32_t, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DECL(lambdaDiv, int64_t, PTR(void), int64_t, int64_t)
+
+RUNTIME_FUNC_DECL(lambdaPow, int32_t, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DECL(lambdaPow, int64_t, PTR(void), int64_t, int64_t)
+
+RUNTIME_FUNC_DECL(lambdaAtan2, int32_t, PTR(void), int32_t, int32_t)
+RUNTIME_FUNC_DECL(lambdaAtan2, int64_t, PTR(void), int64_t, int64_t)
+
+RUNTIME_FUNC_DECL(lambdaAbs, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaAbs, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaSign, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaSign, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaSqrt, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaSqrt, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaExp, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaExp, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaLog, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaLog, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaLog10, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaLog10, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaSin, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaSin, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaCos, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaCos, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaTan, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaTan, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaAsin, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaAsin, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaAcos, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaAcos, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaAtan, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaAtan, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaSinh, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaSinh, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaCosh, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaCosh, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaTanh, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(lambdaTanh, int64_t, PTR(void), int64_t)
+
+RUNTIME_FUNC_DECL(lambdaCall, int32_t, PTR(void), int32_t, FUNCTION(float), FUNCTION(float))
+RUNTIME_FUNC_DECL(lambdaCall, int64_t, PTR(void), int64_t, FUNCTION(double), FUNCTION(double))
+
+//===----------------------------------------------------------------------===//
+// Debugging and Statistics
+//===----------------------------------------------------------------------===//
+
 extern "C"
 {
-	// Allocation, initialization, usage and deletion
-	void* allocIdaUserData(sunindextype equationsNumber);
-	bool idaInit(void* userData);
-	bool idaStep(void* userData);
-	bool freeIdaUserData(void* userData);
+	int64_t getNumberOfEquations(void* userData);
+	int64_t getNumberOfNonZeroValues(void* userData);
 
-	void addTime(void* userData, realtype startTime, realtype endTime, realtype timeStep);
-	void addTolerance(void* userData, realtype relTol, realtype absTol);
+	int64_t getIdaRowLength(void* userData, int64_t index);
+	std::vector<std::pair<size_t, size_t>> getIdaDimension(void* userData, int64_t index);
 
-	// Equation setters
-	sunindextype addRowLength(void* userData, sunindextype rowLength);
-	void addColumnIndex(void* userData, sunindextype rowIndex, sunindextype accessIndex);
-	void addEquationDimension(void* userData, sunindextype index, sunindextype min, sunindextype max);
-	void addResidual(void* userData, sunindextype leftIndex, sunindextype rightIndex);
-	void addJacobian(void* userData, sunindextype leftIndex, sunindextype rightIndex);
-
-	// Variable setters
-	sunindextype addVariableOffset(void* userData, sunindextype offset);
-	void addVariableDimension(void* userData, sunindextype index, sunindextype dim);
-	sunindextype addNewVariableAccess(void* userData, sunindextype var, sunindextype off, sunindextype ind);
-	void addVariableAccess(void* userData, sunindextype index, sunindextype off, sunindextype ind);
-
-	RUNTIME_FUNC_DECL(setInitialValue, void, voidptr, int32_t, int32_t, int32_t, bool)
-	RUNTIME_FUNC_DECL(setInitialValue, void, voidptr, int32_t, int32_t, float, bool)
-	RUNTIME_FUNC_DECL(setInitialValue, void, voidptr, int64_t, int64_t, int64_t, bool)
-	RUNTIME_FUNC_DECL(setInitialValue, void, voidptr, int64_t, int64_t, double, bool)
-
-	RUNTIME_FUNC_DECL(setInitialArray, void, voidptr, int32_t, int32_t, ARRAY(int32_t), bool)
-	RUNTIME_FUNC_DECL(setInitialArray, void, voidptr, int32_t, int32_t, ARRAY(float), bool)
-	RUNTIME_FUNC_DECL(setInitialArray, void, voidptr, int64_t, int64_t, ARRAY(int64_t), bool)
-	RUNTIME_FUNC_DECL(setInitialArray, void, voidptr, int64_t, int64_t, ARRAY(double), bool)
-
-	// Getters
-	realtype getIdaTime(void* userData);
-	realtype getIdaVariable(void* userData, sunindextype index);
-	realtype getIdaDerivative(void* userData, sunindextype index);
-	sunindextype getNumberOfEquations(void* userData);
-	sunindextype getNumberOfNonZeroValues(void* userData);
-
-	sunindextype getIdaRowLength(void* userData, sunindextype index);
-	std::vector<std::pair<size_t, size_t>> getIdaDimension(void* userData, sunindextype index);
-
-	// Statistics
-	sunindextype numSteps(void* userData);
-	sunindextype numResEvals(void* userData);
-	sunindextype numJacEvals(void* userData);
-	sunindextype numNonlinIters(void* userData);
+	int64_t numSteps(void* userData);
+	int64_t numResEvals(void* userData);
+	int64_t numJacEvals(void* userData);
+	int64_t numNonlinIters(void* userData);
 
 	std::string getIncidenceMatrix(void* userData);
-
-	// Lambda constructions
-	sunindextype lambdaConstant(void* userData, realtype constant);
-	sunindextype lambdaTime(void* userData);
-	sunindextype lambdaInduction(void* userData, sunindextype induction);
-	sunindextype lambdaVariable(void* userData, sunindextype accessIndex);
-	sunindextype lambdaDerivative(void* userData, sunindextype accessIndex);
-
-	sunindextype lambdaAdd(void* userData, sunindextype leftIndex, sunindextype rightIndex);
-	sunindextype lambdaSub(void* userData, sunindextype leftIndex, sunindextype rightIndex);
-	sunindextype lambdaMul(void* userData, sunindextype leftIndex, sunindextype rightIndex);
-	sunindextype lambdaDiv(void* userData, sunindextype leftIndex, sunindextype rightIndex);
-	sunindextype lambdaPow(void* userData, sunindextype leftIndex, sunindextype rightIndex);
-	sunindextype lambdaAtan2(void* userData, sunindextype leftIndex, sunindextype rightIndex);
-
-	sunindextype lambdaNegate(void* userData, sunindextype operandIndex);
-	sunindextype lambdaAbs(void* userData, sunindextype operandIndex);
-	sunindextype lambdaSign(void* userData, sunindextype operandIndex);
-	sunindextype lambdaSqrt(void* userData, sunindextype operandIndex);
-	sunindextype lambdaExp(void* userData, sunindextype operandIndex);
-	sunindextype lambdaLog(void* userData, sunindextype operandIndex);
-	sunindextype lambdaLog10(void* userData, sunindextype operandIndex);
-
-	sunindextype lambdaSin(void* userData, sunindextype operandIndex);
-	sunindextype lambdaCos(void* userData, sunindextype operandIndex);
-	sunindextype lambdaTan(void* userData, sunindextype operandIndex);
-	sunindextype lambdaAsin(void* userData, sunindextype operandIndex);
-	sunindextype lambdaAcos(void* userData, sunindextype operandIndex);
-	sunindextype lambdaAtan(void* userData, sunindextype operandIndex);
-	sunindextype lambdaSinh(void* userData, sunindextype operandIndex);
-	sunindextype lambdaCosh(void* userData, sunindextype operandIndex);
-	sunindextype lambdaTanh(void* userData, sunindextype operandIndex);
-
-	sunindextype lambdaCall(void* userData, sunindextype operandIndex, realtype (*function)(realtype), realtype (*pderFunc)(realtype));
 }
 
 #endif	// MARCO_RUNTIME_IDAFUNCTIONS_H
