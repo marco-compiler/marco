@@ -538,7 +538,7 @@ RUNTIME_FUNC_DEF(addTolerance, void, PTR(void), double, double)
  * Add the length of index-th row of the jacobian matrix to the user data.
  */
 template<typename T>
-inline sunindextype addRowLength(void* userData, T rowLength)
+inline int64_t addRowLength(void* userData, T rowLength)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -571,18 +571,22 @@ RUNTIME_FUNC_DEF(addColumnIndex, void, PTR(void), int64_t, int64_t)
  * Add the dimension of the index-th equation to the user data.
  */
 template<typename T>
-inline void addEquationDimension(void* userData, T index, T min, T max)
+inline void addEqDimension(
+		void* userData,
+		UnsizedArrayDescriptor<T> start,
+		UnsizedArrayDescriptor<T> end)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	assert(start.getRank() == 1 && end.getRank() == 1);
+	assert(start.getDimensionSize(0) == end.getDimensionSize(0));
 
-	if ((size_t) index == data->equationDimensions.size())
-		data->equationDimensions.push_back({ { min, max } });
-	else
-		data->equationDimensions[index].push_back({ min, max });
+	data->equationDimensions.push_back({});
+	for (size_t i = 0; i < start.getNumElements(); i++)
+		data->equationDimensions.back().push_back({ start[i], end[i] });
 }
 
-RUNTIME_FUNC_DEF(addEquationDimension, void, PTR(void), int32_t, int32_t, int32_t)
-RUNTIME_FUNC_DEF(addEquationDimension, void, PTR(void), int64_t, int64_t, int64_t)
+RUNTIME_FUNC_DEF(addEqDimension, void, PTR(void), ARRAY(int32_t), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(addEqDimension, void, PTR(void), ARRAY(int64_t), ARRAY(int64_t))
 
 /**
  * Add the lambda that computes the index-th residual function to the user data.
@@ -657,63 +661,60 @@ RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), int64_t, int64_t)
  * Return the variable index.
  */
 template<typename T>
-inline T addVariableOffset(void* userData, T offset)
+inline int64_t addVarOffset(void* userData, T offset)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	data->variableOffsets.push_back(offset);
 	return data->variableOffsets.size() - 1;
 }
 
-RUNTIME_FUNC_DEF(addVariableOffset, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DEF(addVariableOffset, int64_t, PTR(void), int64_t)
+RUNTIME_FUNC_DEF(addVarOffset, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(addVarOffset, int64_t, PTR(void), int64_t)
 
 /**
  * Add a new dimension to the index-th variable of size dim.
  */
 template<typename T>
-inline void addVariableDimension(void* userData, T index, T dim)
+inline void addVarDimension(
+		void* userData, UnsizedArrayDescriptor<T> dimensions)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	if ((size_t) index == data->variableDimensions.size())
-		data->variableDimensions.push_back({ (size_t) dim });
-	else
-		data->variableDimensions[index].push_back(dim);
+	assert(dimensions.getRank() == 1);
+
+	data->variableDimensions.push_back({});
+	for (T& dim : dimensions)
+		data->variableDimensions.back().push_back(dim);
 }
 
-RUNTIME_FUNC_DEF(addVariableDimension, void, PTR(void), int32_t, int32_t)
-RUNTIME_FUNC_DEF(addVariableDimension, void, PTR(void), int64_t, int64_t)
+RUNTIME_FUNC_DEF(addVarDimension, void, PTR(void), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(addVarDimension, void, PTR(void), ARRAY(int64_t))
 
 /**
- * Add a new variable access to the var-th variable, where ind is the induction
+ * Add a variable access to the var-th variable, where ind is the induction
  * variable and off is the access offset.
  */
 template<typename T>
-inline T addNewVariableAccess(void* userData, T var, T off, T ind)
+inline int64_t addVarAccess(
+		void* userData,
+		T var,
+		UnsizedArrayDescriptor<T> off,
+		UnsizedArrayDescriptor<T> ind)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	data->variableAccesses.push_back({ var, { { off, ind } } });
+	assert(off.getRank() == 1 && ind.getRank() == 1);
+	assert(off.getDimensionSize(0) == ind.getDimensionSize(0));
+
+	data->variableAccesses.push_back({ var, {} });
+	for (size_t i = 0; i < off.getNumElements(); i++)
+		data->variableAccesses.back().second.push_back({ off[i], ind[i] });
+
 	return data->variableAccesses.size() - 1;
 }
 
 RUNTIME_FUNC_DEF(
-		addNewVariableAccess, int32_t, PTR(void), int32_t, int32_t, int32_t)
+		addVarAccess, int32_t, PTR(void), int32_t, ARRAY(int32_t), ARRAY(int32_t))
 RUNTIME_FUNC_DEF(
-		addNewVariableAccess, int64_t, PTR(void), int64_t, int64_t, int64_t)
-
-/**
- * Add a new induction to the index-th variable access, where ind is the
- * induction variable and off is the access offset.
- */
-template<typename T>
-inline void addVariableAccess(void* userData, T index, T off, T ind)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	assert((size_t) index == data->variableAccesses.size() - 1);
-	data->variableAccesses[index].second.push_back({ off, ind });
-}
-
-RUNTIME_FUNC_DEF(addVariableAccess, void, PTR(void), int32_t, int32_t, int32_t)
-RUNTIME_FUNC_DEF(addVariableAccess, void, PTR(void), int64_t, int64_t, int64_t)
+		addVarAccess, int64_t, PTR(void), int64_t, ARRAY(int64_t), ARRAY(int64_t))
 
 /**
  * Set the initial value of the index-th variable and if it is a state variable.
@@ -810,7 +811,7 @@ RUNTIME_FUNC_DEF(getIdaTime, float, PTR(void))
 RUNTIME_FUNC_DEF(getIdaTime, double, PTR(void))
 
 template<typename T>
-inline realtype getIdaVariable(void* userData, T index)
+inline double getIdaVariable(void* userData, T index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	assert(index < data->equationsNumber);

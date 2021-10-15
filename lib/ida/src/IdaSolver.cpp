@@ -90,7 +90,7 @@ mlir::LogicalResult IdaSolver::init()
 
 			op = assignmentOp.source().getDefiningOp();
 			ConstantOp constantOp = mlir::cast<ConstantOp>(op);
-			double value = getValue(constantOp);
+			realtype value = getValue(constantOp);
 
 			initialValueMap[var] = value;
 			if (var.isState())
@@ -128,7 +128,7 @@ mlir::LogicalResult IdaSolver::init()
 			if (variableIndexMap.find(var) == variableIndexMap.end())
 			{
 				// Note the variable offset from the beginning of the variable array.
-				sunindextype varIndex = addVariableOffset(userData, varOffset);
+				sunindextype varIndex = addVarOffset(userData, varOffset);
 				variableIndexMap[var] = varIndex;
 
 				if (var.isState())
@@ -137,9 +137,15 @@ mlir::LogicalResult IdaSolver::init()
 					variableIndexMap[model.getVariable(var.getState())] = varIndex;
 
 				// Add dimensions of the variable to the ida user data.
-				marco::MultiDimInterval dimensions = var.toMultiDimInterval();
-				for (size_t i = 0; i < dimensions.dimensions(); i++)
-					addVariableDimension(userData, varIndex, dimensions[i].size());
+				marco::MultiDimInterval multiDimInterval = var.toMultiDimInterval();
+				llvm::SmallVector<sunindextype, 3> dimensions;
+
+				for (Interval& interval : multiDimInterval)
+					dimensions.push_back(interval.size());
+
+				ArrayDescriptor<sunindextype, 1> dims(
+						&dimensions[0], { dimensions.size() });
+				addVarDimension(userData, dims);
 
 				// Initialize variablesValues, derivativesValues, idValues.
 				setInitialValue(
@@ -201,7 +207,8 @@ mlir::LogicalResult IdaSolver::init()
 				{
 					// Compute the access offset based on the induction variables of the
 					// for-equation.
-					llvm::SmallVector<std::pair<sunindextype, sunindextype>, 3> access;
+					llvm::SmallVector<sunindextype, 3> offsets;
+					llvm::SmallVector<sunindextype, 3> inductions;
 
 					for (auto& acc : vectorAccess.getMappingOffset())
 					{
@@ -209,18 +216,18 @@ mlir::LogicalResult IdaSolver::init()
 								acc.isDirectAccess() ? acc.getOffset() : (acc.getOffset() + 1);
 						sunindextype accInduction =
 								acc.isOffset() ? acc.getInductionVar() : -1;
-						access.push_back({ accOffset, accInduction });
+						offsets.push_back(accOffset);
+						inductions.push_back(accInduction);
 					}
 
+					ArrayDescriptor<sunindextype, 1> unsizedAcc(
+							&offsets[0], { offsets.size() });
+					ArrayDescriptor<sunindextype, 1> unsizedInd(
+							&inductions[0], { inductions.size() });
+
 					// Add accesses of the variable to the ida user data.
-					sunindextype accessIndex = addNewVariableAccess(
-							userData,
-							variableIndexMap[var],
-							access[0].first,
-							access[0].second);
-					for (size_t i = 1; i < access.size(); i++)
-						addVariableAccess(
-								userData, accessIndex, access[i].first, access[i].second);
+					sunindextype accessIndex = addVarAccess(
+							userData, variableIndexMap[var], unsizedAcc, unsizedInd);
 
 					accessesMap[{ var, vectorAccess }] = accessIndex;
 
@@ -356,9 +363,19 @@ IdaSolver::Dimension IdaSolver::getDimension(sunindextype index)
 
 void IdaSolver::getDimension(const Equation& equation)
 {
+	llvm::SmallVector<sunindextype, 3> start;
+	llvm::SmallVector<sunindextype, 3> end;
+
 	for (marco::Interval& interval : equation.getInductions())
-		addEquationDimension(
-				userData, forEquationsNumber, interval.min() - 1, interval.max() - 1);
+	{
+		start.push_back(interval.min() - 1);
+		end.push_back(interval.max() - 1);
+	}
+
+	ArrayDescriptor<sunindextype, 1> unsizedMins(&start[0], { start.size() });
+	ArrayDescriptor<sunindextype, 1> unsizedMaxes(&end[0], { end.size() });
+
+	addEqDimension(userData, unsizedMins, unsizedMaxes);
 }
 
 void IdaSolver::getResidualAndJacobian(const Equation& equation)

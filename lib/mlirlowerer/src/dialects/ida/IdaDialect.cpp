@@ -13,28 +13,27 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 	addOperations<
 			ConstantValueOp,
 			AllocUserDataOp,
-			FreeUserDataOp,
-			SetInitialValueOp,
-			SetInitialArrayOp,
 			InitOp,
-			StepOp>();
+			StepOp,
+			FreeUserDataOp,
+			AddTimeOp,
+			AddToleranceOp>();
 
 	// Equation setters.
 	addOperations<
-			AddTimeOp,
-			AddToleranceOp,
 			AddRowLengthOp,
 			AddColumnIndexOp,
-			AddEquationDimensionOp,
+			AddEqDimensionOp,
 			AddResidualOp,
 			AddJacobianOp>();
 
 	// Variable setters.
 	addOperations<
-			AddVariableOffsetOp,
-			AddVariableDimensionOp,
-			AddNewVariableAccessOp,
-			AddVariableAccessOp>();
+			AddVarOffsetOp,
+			AddVarDimensionOp,
+			AddVarAccessOp,
+			SetInitialValueOp,
+			SetInitialArrayOp>();
 
 	// Getters.
 	addOperations<GetTimeOp, GetVariableOp, GetDerivativeOp>();

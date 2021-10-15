@@ -303,6 +303,16 @@ class UnsizedArrayDescriptor
 	{
 	}
 
+	T& operator[](dimension_t offset)
+	{
+		return getDescriptor()->operator[](offset);
+	}
+
+	const T& operator[](dimension_t offset) const
+	{
+		return getDescriptor()->operator[](offset);
+	}
+
 	template<typename... Index>
 	T& get(Index... indexes)
 	{
