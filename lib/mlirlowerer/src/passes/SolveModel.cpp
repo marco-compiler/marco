@@ -2094,16 +2094,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return result;
 	}
 
-	static double getValue(ConstantOp constantOp)
-	{
-		mlir::Attribute attribute = constantOp.value();
-
-		if (auto integer = attribute.dyn_cast<modelica::IntegerAttribute>())
-			return integer.getValue();
-
-		return attribute.cast<modelica::RealAttribute>().getValue();
-	}
-
 	static std::string getPartialDerFunctionName(llvm::StringRef baseName)
 	{
 		return "pder_" + baseName.str();
@@ -2123,7 +2113,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		// Constant value.
 		if (auto op = mlir::dyn_cast<ConstantOp>(definingOp))
 		{
-			mlir::Value value = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, getValue(op)));
+			mlir::Value value = builder.clone(*op)->getResult(0);
 			return builder.create<LambdaConstantOp>(loc, userData, value);
 		}
 
@@ -2274,7 +2264,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		// Initialize IDA user data.
 		int64_t varOffset = 0;
-		int64_t forEquationsNumber = 0;
 		std::map<Variable, mlir::Operation*> initialValueMap;
 		std::map<Variable, int64_t> offsetMap;
 		std::map<Variable, mlir::Value> variableIndexMap;
@@ -2355,7 +2344,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				{
 					// Note the variable offset from the beginning of the variable array.
 					mlir::Value varOffsetOp = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, varOffset));
-					mlir::Value varIndex = builder.create<AddVariableOffsetOp>(loc, userData, varOffsetOp);
+					mlir::Value varIndex = builder.create<AddVarOffsetOp>(loc, userData, varOffsetOp);
 					variableIndexMap[var] = varIndex;
 					offsetMap[var] = varOffset;
 
@@ -2371,12 +2360,21 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 					}
 
 					// Add dimensions of the variable to the ida user data.
-					marco::MultiDimInterval dimensions = var.toMultiDimInterval();
-					for (size_t i = 0; i < dimensions.dimensions(); i++)
+					marco::MultiDimInterval multiDimInterval = var.toMultiDimInterval();
+
+					ArrayType arrayType = ArrayType::get(
+							context, BufferAllocationScope::stack, modelica::IntegerType::get(context), { (long) multiDimInterval.dimensions() });
+					AllocaOp dimensions = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
+
+					for (size_t i = 0; i < multiDimInterval.dimensions(); i++)
 					{
-						mlir::Value dim = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, dimensions[i].size()));
-						builder.create<AddVariableDimensionOp>(loc, userData, varIndex, dim);
+						mlir::Value dimIndex = builder.create<ConstantOp>(loc, builder.getIndexAttr(i));
+						mlir::Value dim = builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, multiDimInterval[i].size()));
+						mlir::Value subscriptionOp = builder.create<SubscriptionOp>(loc, dimensions, dimIndex);
+						builder.create<AssignmentOp>(loc, dim, subscriptionOp);
 					}
+
+					builder.create<AddVarDimensionOp>(loc, userData, dimensions);
 
 					// Initialize variablesValues, derivativesValues, idValues.
 					mlir::Operation* valueOp = initialValueMap[var];
@@ -2447,16 +2445,24 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 						}
 
 						// Add accesses of the variable to the ida user data.
-						mlir::Value acc = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[0].first));
-						mlir::Value ind = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[0].second));
-						mlir::Value accessIndex = builder.create<AddNewVariableAccessOp>(loc, userData, variableIndexMap[var], acc, ind);
+						ArrayType arrayType = ArrayType::get(
+								context, BufferAllocationScope::stack, modelica::IntegerType::get(context), { (long) access.size() });
+						AllocaOp offsets = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
+						AllocaOp inductions = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
 
-						for (size_t i = 1; i < access.size(); i++)
+						for (size_t i = 0; i < access.size(); i++)
 						{
-							acc = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[i].first));
-							ind = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, access[i].second));
-							builder.create<AddVariableAccessOp>(loc, userData, accessIndex, acc, ind);
+							mlir::Value accIndex = builder.create<ConstantOp>(loc, builder.getIndexAttr(i));
+							mlir::Value acc = builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, access[i].first));
+							mlir::Value subscriptionOp = builder.create<SubscriptionOp>(loc, offsets, accIndex);
+							builder.create<AssignmentOp>(loc, acc, subscriptionOp);
+
+							mlir::Value ind = builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, access[i].second));
+							subscriptionOp = builder.create<SubscriptionOp>(loc, inductions, accIndex);
+							builder.create<AssignmentOp>(loc, ind, subscriptionOp);
 						}
+
+						mlir::Value accessIndex = builder.create<AddVarAccessOp>(loc, userData, variableIndexMap[var], offsets, inductions);
 
 						accessesMap[{ var, vectorAccess }] = accessIndex;
 
@@ -2479,21 +2485,32 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 			for (Equation& equation : bltBlock.getEquations())
 			{
 				// Dimension
-				for (marco::Interval& interval : equation.getInductions())
+				MultiDimInterval inductions = equation.getInductions();
+
+				ArrayType arrayType = ArrayType::get(
+						context, BufferAllocationScope::stack, modelica::IntegerType::get(context), { (long) inductions.dimensions() });
+				AllocaOp start = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
+				AllocaOp end = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
+
+				for (size_t i = 0; i < inductions.dimensions(); i++)
 				{
-					mlir::Value index = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, forEquationsNumber));
-					mlir::Value min = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.min() - 1));
-					mlir::Value max = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, interval.max() - 1));
-					builder.create<AddEquationDimensionOp>(loc, userData, index, min, max);
+					mlir::Value dimIndex = builder.create<ConstantOp>(loc, builder.getIndexAttr(i));
+					mlir::Value min = builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, inductions[i].min() - 1));
+					mlir::Value subscriptionOp = builder.create<SubscriptionOp>(loc, start, dimIndex);
+					builder.create<AssignmentOp>(loc, min, subscriptionOp);
+
+					mlir::Value max = builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, inductions[i].max() - 1));
+					subscriptionOp = builder.create<SubscriptionOp>(loc, end, dimIndex);
+					builder.create<AssignmentOp>(loc, max, subscriptionOp);
 				}
+
+				builder.create<AddEqDimensionOp>(loc, userData, start, end);
 
 				// Residual and Jacobian
 				mlir::Value leftIndex = getFunction(builder, loc, model, userData, accessesMap, equation.lhs());
 				mlir::Value rightIndex = getFunction(builder, loc, model, userData, accessesMap, equation.rhs());
 				builder.create<AddResidualOp>(loc, userData, leftIndex, rightIndex);
 				builder.create<AddJacobianOp>(loc, userData, leftIndex, rightIndex);
-
-				forEquationsNumber++;
 			}
 		}
 

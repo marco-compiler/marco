@@ -33,8 +33,8 @@ RUNTIME_FUNC_DECL(addRowLength, int64_t, PTR(void), int64_t)
 RUNTIME_FUNC_DECL(addColumnIndex, void, PTR(void), int32_t, int32_t)
 RUNTIME_FUNC_DECL(addColumnIndex, void, PTR(void), int64_t, int64_t)
 
-RUNTIME_FUNC_DECL(addEquationDimension, void, PTR(void), int32_t, int32_t, int32_t)
-RUNTIME_FUNC_DECL(addEquationDimension, void, PTR(void), int64_t, int64_t, int64_t)
+RUNTIME_FUNC_DECL(addEqDimension, void, PTR(void), ARRAY(int32_t), ARRAY(int32_t))
+RUNTIME_FUNC_DECL(addEqDimension, void, PTR(void), ARRAY(int64_t), ARRAY(int64_t))
 
 RUNTIME_FUNC_DECL(addResidual, void, PTR(void), int32_t, int32_t)
 RUNTIME_FUNC_DECL(addResidual, void, PTR(void), int64_t, int64_t)
@@ -47,17 +47,14 @@ RUNTIME_FUNC_DECL(addJacobian, void, PTR(void), int64_t, int64_t)
 // Variable setters
 //===----------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(addVariableOffset, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(addVariableOffset, int64_t, PTR(void), int64_t)
+RUNTIME_FUNC_DECL(addVarOffset, int32_t, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(addVarOffset, int64_t, PTR(void), int64_t)
 
-RUNTIME_FUNC_DECL(addVariableDimension, void, PTR(void), int32_t, int32_t)
-RUNTIME_FUNC_DECL(addVariableDimension, void, PTR(void), int64_t, int64_t)
+RUNTIME_FUNC_DECL(addVarDimension, void, PTR(void), ARRAY(int32_t))
+RUNTIME_FUNC_DECL(addVarDimension, void, PTR(void), ARRAY(int64_t))
 
-RUNTIME_FUNC_DECL(addNewVariableAccess, int32_t, PTR(void), int32_t, int32_t, int32_t)
-RUNTIME_FUNC_DECL(addNewVariableAccess, int64_t, PTR(void), int64_t, int64_t, int64_t)
-
-RUNTIME_FUNC_DECL(addVariableAccess, void, PTR(void), int32_t, int32_t, int32_t)
-RUNTIME_FUNC_DECL(addVariableAccess, void, PTR(void), int64_t, int64_t, int64_t)
+RUNTIME_FUNC_DECL(addVarAccess, int32_t, PTR(void), int32_t, ARRAY(int32_t), ARRAY(int32_t))
+RUNTIME_FUNC_DECL(addVarAccess, int64_t, PTR(void), int64_t, ARRAY(int64_t), ARRAY(int64_t))
 
 RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int32_t, int32_t, int32_t, bool)
 RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int32_t, int32_t, float, bool)

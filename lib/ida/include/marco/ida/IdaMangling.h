@@ -21,7 +21,7 @@
 #define addRowLength NAME_MANGLED(addRowLength, int64_t, PTR(void), int64_t)
 #define addColumnIndex NAME_MANGLED(addColumnIndex, void, PTR(void), int64_t, int64_t)
 
-#define addEquationDimension NAME_MANGLED(addEquationDimension, void, PTR(void), int64_t, int64_t, int64_t)
+#define addEqDimension NAME_MANGLED(addEqDimension, void, PTR(void), ARRAY(int64_t), ARRAY(int64_t))
 #define addResidual NAME_MANGLED(addResidual, void, PTR(void), int64_t, int64_t)
 #define addJacobian NAME_MANGLED(addJacobian, void, PTR(void), int64_t, int64_t)
 
@@ -29,11 +29,9 @@
 // Variable setters
 //===----------------------------------------------------------------------===//
 
-#define addVariableOffset NAME_MANGLED(addVariableOffset, int64_t, PTR(void), int64_t)
-#define addVariableDimension NAME_MANGLED(addVariableDimension, void, PTR(void), int64_t, int64_t)
-
-#define addNewVariableAccess NAME_MANGLED(addNewVariableAccess, int64_t, PTR(void), int64_t, int64_t, int64_t)
-#define addVariableAccess NAME_MANGLED(addVariableAccess, void, PTR(void), int64_t, int64_t, int64_t)
+#define addVarOffset NAME_MANGLED(addVarOffset, int64_t, PTR(void), int64_t)
+#define addVarDimension NAME_MANGLED(addVarDimension, void, PTR(void), ARRAY(int64_t))
+#define addVarAccess NAME_MANGLED(addVarAccess, int64_t, PTR(void), int64_t, ARRAY(int64_t), ARRAY(int64_t))
 
 #define setInitialValue NAME_MANGLED(setInitialValue, void, PTR(void), int64_t, int64_t, double, bool)
 
