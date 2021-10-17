@@ -101,10 +101,8 @@ namespace marco::codegen::ida
 		sunindextype getFunction(const model::Expression &exp);
 
 		private:
-		// Model data
 		const model::Model model;
 		const realtype endTime;
-		sunindextype forEquationsNumber;
 
 		std::map<model::Variable, realtype> initialValueMap;
 		std::map<model::Variable, sunindextype> variableIndexMap;

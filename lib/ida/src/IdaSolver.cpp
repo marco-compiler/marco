@@ -44,7 +44,7 @@ IdaSolver::IdaSolver(
 		realtype timeStep,
 		realtype relativeTolerance,
 		realtype absoluteTolerance)
-		: model(model), endTime(endTime), forEquationsNumber(0)
+		: model(model), endTime(endTime)
 {
 	userData = allocIdaUserData(computeNEQ(model));
 	addTime(userData, startTime, endTime, timeStep);
@@ -253,7 +253,6 @@ mlir::LogicalResult IdaSolver::init()
 		{
 			getDimension(equation);
 			getResidualAndJacobian(equation);
-			forEquationsNumber++;
 		}
 	}
 
@@ -313,7 +312,7 @@ void IdaSolver::printStats(llvm::raw_ostream& OS)
 	sunindextype nni = numNonlinIters(userData);
 
 	OS << "\nFinal Run Statistics:\n";
-	OS << "Number of for-equations        = " << getForEquationsNumber() << "\n";
+	OS << "Number of vector equations     = " << getForEquationsNumber() << "\n";
 	OS << "Number of scalar equations     = " << getEquationsNumber() << "\n";
 	OS << "Number of non-zero values      = " << getNonZeroValuesNumber() << "\n";
 	OS << "Number of steps                = " << nst << "\n";
@@ -327,7 +326,10 @@ void IdaSolver::printIncidenceMatrix(llvm::raw_ostream& OS)
 	OS << getIncidenceMatrix(userData);
 }
 
-sunindextype IdaSolver::getForEquationsNumber() { return forEquationsNumber; }
+sunindextype IdaSolver::getForEquationsNumber()
+{
+	return getNumberOfForEquations(userData);
+}
 
 sunindextype IdaSolver::getEquationsNumber()
 {
