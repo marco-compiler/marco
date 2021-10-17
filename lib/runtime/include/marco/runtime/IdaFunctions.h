@@ -175,6 +175,7 @@ RUNTIME_FUNC_DECL(lambdaCall, int64_t, PTR(void), int64_t, FUNCTION(double), FUN
 
 extern "C"
 {
+	int64_t getNumberOfForEquations(void* userData);
 	int64_t getNumberOfEquations(void* userData);
 	int64_t getNumberOfNonZeroValues(void* userData);
 

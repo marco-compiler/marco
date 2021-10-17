@@ -35,20 +35,26 @@ typedef struct IdaUserData
 {
 	// Equations data
 	std::vector<size_t> rowLengths;
-	std::vector<std::vector<size_t>> columnIndexes;
+	std::vector<std::vector<size_t>> accessIndexes;
 	std::vector<EqDimension> equationDimensions;
 	std::vector<Function> residuals;
 	std::vector<Function> jacobians;
 	std::vector<std::pair<Function, Function>> lambdas;
 
 	// Variables data
-	std::vector<size_t> variableOffsets;
+	std::vector<sunindextype> variableOffsets;
 	std::vector<std::pair<sunindextype, Access>> variableAccesses;
 	std::vector<VarDimension> variableDimensions;
 
 	// Matrix size
+	size_t forEquationsNumber;
 	sunindextype equationsNumber;
 	sunindextype nonZeroValuesNumber;
+
+	// Jacobian indexes
+	std::vector<size_t> equationIndexes;
+	std::vector<std::vector<size_t>> nnzElements;
+	std::vector<std::vector<std::vector<size_t>>> columnIndexes;
 
 	// Simulation times
 	realtype startTime;
@@ -77,25 +83,25 @@ typedef struct IdaUserData
 	SUNNonlinearSolver nonlinearSolver;
 } IdaUserData;
 
+/**
+ * Given a list of indexes and the dimension of an equation, increase the
+ * indexes within the induction bounds of the equation. Return false if the
+ * indexes exceed the equation bounds, which means the computation has finished,
+ * true otherwise.
+ */
 static bool updateIndexes(Indexes& indexes, const EqDimension& dimension)
 {
-	for (sunindextype dim = dimension.size() - 1; true; dim--)
+	for (sunindextype dim = dimension.size() - 1; dim >= 0; dim--)
 	{
 		indexes[dim]++;
+
 		if (indexes[dim] == dimension[dim].second)
-		{
-			if (dim == 0)
-				return true;
-			else
-				indexes[dim] = dimension[dim].first;
-		}
+			indexes[dim] = dimension[dim].first;
 		else
-		{
-			return false;
-		}
+			return true;
 	}
 
-	assert(false && "Unreachable");
+	return false;
 }
 
 static bool updateIndexes(Indexes& indexes, const VarDimension& dimension)
@@ -108,6 +114,10 @@ static bool updateIndexes(Indexes& indexes, const VarDimension& dimension)
 	return updateIndexes(indexes, eqDimension);
 }
 
+/**
+ * Given a set of indexes, the dimension of a variable and the type of access,
+ * return the index needed to access the flattened multidimensional variable.
+ */
 static sunindextype computeOffset(
 		const Indexes& indexes,
 		const VarDimension& dimensions,
@@ -168,10 +178,11 @@ int residualFunction(
 
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-	// For every vector equation
-	for (size_t eq = 0; eq < data->equationDimensions.size(); eq++)
+#pragma omp parallel for default(shared) schedule(dynamic, 1)
+	for (size_t eq = 0; eq < data->forEquationsNumber; eq++)
 	{
-		bool finished = false;
+		// For every vector equation
+		size_t residualIndex = data->equationIndexes[eq];
 
 		// Initialize the multidimensional interval of the vector equation
 		Indexes indexes;
@@ -179,14 +190,12 @@ int residualFunction(
 			indexes.push_back(dim.first);
 
 		// For every scalar equation in the vector equation
-		while (!finished)
+		do
 		{
 			// Compute the i-th residual function
-			*rval++ = data->residuals[eq](tt, 0, yval, ypval, indexes, 0);
-
-			// Update multidimensional interval, exit while loop if finished
-			finished = updateIndexes(indexes, data->equationDimensions[eq]);
-		}
+			rval[residualIndex++] =
+					data->residuals[eq](tt, 0, yval, ypval, indexes, 0);
+		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 	}
 
 	return 0;
@@ -210,8 +219,6 @@ int jacobianMatrix(
 		N_Vector tempv2,
 		N_Vector tempv3)
 {
-	assert(SUNSparseMatrix_SparseType(JJ) == CSR_MAT);
-
 	realtype* yval = N_VGetArrayPointer(yy);
 	realtype* ypval = N_VGetArrayPointer(yp);
 
@@ -222,13 +229,12 @@ int jacobianMatrix(
 
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-	sunindextype nnzElements = 0;
-	*rowptrs++ = nnzElements;
-
-	// For every vector equation
-	for (size_t eq = 0; eq < data->equationDimensions.size(); eq++)
+#pragma omp parallel for default(shared) schedule(dynamic, 1)
+	for (size_t eq = 0; eq < data->forEquationsNumber; eq++)
 	{
-		bool finished = false;
+		// For every vector equation
+		size_t rowIndex = data->equationIndexes[eq];
+		size_t columnIndex = 0;
 
 		// Initialize the multidimensional interval of the vector equation
 		Indexes indexes;
@@ -236,42 +242,27 @@ int jacobianMatrix(
 			indexes.push_back(dim.first);
 
 		// For every scalar equation in the vector equation
-		while (!finished)
+		do
 		{
-			// Compute the column indexes that may be non-zeros.
-			std::set<sunindextype> columnIndexesSet;
-			for (sunindextype accessIndex : data->columnIndexes[eq])
-			{
-				sunindextype varIndex = data->variableAccesses[accessIndex].first;
-
-				VarDimension dimensions = data->variableDimensions[varIndex];
-				Access access = data->variableAccesses[accessIndex].second;
-
-				sunindextype varOffset = computeOffset(indexes, dimensions, access);
-
-				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
-			}
-
-			assert(columnIndexesSet.size() <= data->rowLengths[eq]);
-
-			nnzElements += columnIndexesSet.size();
-			*rowptrs++ = nnzElements;
+			size_t jacobianIndex = data->nnzElements[eq][columnIndex];
+			rowptrs[rowIndex++] = data->nnzElements[eq][columnIndex];
 
 			// For every variable with respect to which every equation must be
 			// partially differentiated
-			for (sunindextype var : columnIndexesSet)
+			for (sunindextype var : data->columnIndexes[eq][columnIndex])
 			{
 				// Compute the i-th jacobian value
-				*jacobian++ = data->jacobians[eq](tt, cj, yval, ypval, indexes, var);
-				*colvals++ = var;
+				jacobian[jacobianIndex] =
+						data->jacobians[eq](tt, cj, yval, ypval, indexes, var);
+				colvals[jacobianIndex++] = var;
 			}
 
 			// Update multidimensional interval, exit while loop if finished
-			finished = updateIndexes(indexes, data->equationDimensions[eq]);
-		}
+			columnIndex++;
+		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 	}
 
-	assert(nnzElements == data->nonZeroValuesNumber);
+	rowptrs[data->equationsNumber] = data->nonZeroValuesNumber;
 
 	return 0;
 }
@@ -313,48 +304,65 @@ RUNTIME_FUNC_DEF(allocIdaUserData, PTR(void), int32_t)
 RUNTIME_FUNC_DEF(allocIdaUserData, PTR(void), int64_t)
 
 /**
- * Compute the total number of non-zero values in the Jacobian Matrix. This
- * number corresponds to number of variables, in each scalar equation, where
- * their derivative may be non-zero.
+ * Precompute the row and column indexes of all non-zero values in the Jacobian
+ * Matrix. This avoids the recomputation of such indexes and allows
+ * parallelization of the Jacobian computation. Returns the number of non-zero
+ * values in the Jacobian Matrix.
  */
-sunindextype computeNNZ(IdaUserData* data)
+sunindextype precomputeJacobianIndexes(IdaUserData* data)
 {
-	sunindextype result = 0;
+	sunindextype nnzElements = 0;
+	data->forEquationsNumber = data->equationDimensions.size();
 
-	for (size_t eq = 0; eq < data->equationDimensions.size(); eq++)
+	data->equationIndexes.resize(data->forEquationsNumber + 1);
+	data->columnIndexes.resize(data->forEquationsNumber);
+	data->nnzElements.resize(data->forEquationsNumber);
+
+	data->equationIndexes[0] = 0;
+
+	for (size_t eq = 0; eq < data->forEquationsNumber; eq++)
 	{
-		bool finished = false;
+		sunindextype equationSize = 1;
 
 		// Initialize the multidimensional interval of the vector equation
 		Indexes indexes;
-		for (size_t dim = 0; dim < data->equationDimensions[eq].size(); dim++)
-			indexes.push_back(data->equationDimensions[eq][dim].first);
+		for (const auto& dim : data->equationDimensions[eq])
+		{
+			indexes.push_back(dim.first);
+			equationSize *= (dim.second - dim.first);
+		}
+
+		// Compute the number of scalar equations in every vector equation
+		data->equationIndexes[eq + 1] = equationSize + data->equationIndexes[eq];
 
 		// For every scalar equation in the vector equation
-		while (!finished)
+		do
 		{
-			// Compute the column indexes that may be non-zeros.
-			std::set<sunindextype> columnIndexesSet;
-			for (sunindextype accessIndex : data->columnIndexes[eq])
+			// Compute the column indexes that may be non-zeros
+			std::set<size_t> columnIndexesSet;
+			for (sunindextype accessIndex : data->accessIndexes[eq])
 			{
 				sunindextype varIndex = data->variableAccesses[accessIndex].first;
-
 				VarDimension dimensions = data->variableDimensions[varIndex];
 				Access access = data->variableAccesses[accessIndex].second;
 
 				sunindextype varOffset = computeOffset(indexes, dimensions, access);
-
 				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
 			}
 
-			result += columnIndexesSet.size();
+			assert(columnIndexesSet.size() <= data->rowLengths[eq]);
+
+			// Compute the number of non-zero values in each scalar equation
+			data->columnIndexes[eq].push_back(
+					std::vector(columnIndexesSet.begin(), columnIndexesSet.end()));
+			data->nnzElements[eq].push_back(nnzElements);
+			nnzElements += data->columnIndexes[eq].back().size();
 
 			// Update multidimensional interval, exit while loop if finished
-			finished = updateIndexes(indexes, data->equationDimensions[eq]);
-		}
+		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 	}
 
-	return result;
+	return nnzElements;
 }
 
 /**
@@ -370,7 +378,7 @@ inline bool idaInit(void* userData)
 		return true;
 
 	// Compute the total amount of non-zero values in the Jacobian Matrix.
-	data->nonZeroValuesNumber = computeNNZ(data);
+	data->nonZeroValuesNumber = precomputeJacobianIndexes(data);
 
 	// Initialize IDA memory.
 	data->idaMemory = IDACreate();
@@ -558,10 +566,10 @@ inline void addColumnIndex(void* userData, T rowIndex, T accessIndex)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-	if ((size_t) rowIndex == data->columnIndexes.size())
-		data->columnIndexes.push_back({ (size_t) accessIndex });
+	if ((size_t) rowIndex == data->accessIndexes.size())
+		data->accessIndexes.push_back({ (size_t) accessIndex });
 	else
-		data->columnIndexes[rowIndex].push_back(accessIndex);
+		data->accessIndexes[rowIndex].push_back(accessIndex);
 }
 
 RUNTIME_FUNC_DEF(addColumnIndex, void, PTR(void), int32_t, int32_t)
@@ -768,8 +776,7 @@ inline void setInitialArray(
 	for (size_t dim = 0; dim < dimensions.size(); dim++)
 		indexes.push_back(0);
 
-	bool finished = false;
-	while (!finished)
+	do
 	{
 		if (array.hasData(indexes))
 			data->variablesValues[offset] = *arrayData++;
@@ -778,9 +785,7 @@ inline void setInitialArray(
 
 		data->derivativesValues[offset] = 0.0;
 		data->idValues[offset++] = idValue;
-
-		finished = updateIndexes(indexes, dimensions);
-	}
+	} while (updateIndexes(indexes, dimensions));
 }
 
 RUNTIME_FUNC_DEF(
@@ -1861,6 +1866,12 @@ RUNTIME_FUNC_DEF(
 // Debugging and Statistics
 //===----------------------------------------------------------------------===//
 
+int64_t getNumberOfForEquations(void* userData)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	return data->forEquationsNumber;
+}
+
 int64_t getNumberOfEquations(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
@@ -1930,31 +1941,27 @@ std::string getIncidenceMatrix(void* userData)
 	result << "\n";
 
 	// For every vector equation
-	for (size_t eq = 0; eq < data->equationDimensions.size(); eq++)
+	for (size_t eq = 0; eq < data->forEquationsNumber; eq++)
 	{
-		bool finished = false;
-
 		// Initialize the multidimensional interval of the vector equation
 		Indexes indexes;
 		for (const auto& dim : data->equationDimensions[eq])
 			indexes.push_back(dim.first);
 
 		// For every scalar equation in the vector equation
-		while (!finished)
+		do
 		{
 			result << "│";
 
 			// Compute the column indexes that may be non-zeros.
 			std::set<sunindextype> columnIndexesSet;
-			for (sunindextype accessIndex : data->columnIndexes[eq])
+			for (size_t accessIndex : data->accessIndexes[eq])
 			{
 				sunindextype varIndex = data->variableAccesses[accessIndex].first;
-
 				VarDimension dimensions = data->variableDimensions[varIndex];
 				Access access = data->variableAccesses[accessIndex].second;
 
 				sunindextype varOffset = computeOffset(indexes, dimensions, access);
-
 				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
 			}
 
@@ -1969,11 +1976,8 @@ std::string getIncidenceMatrix(void* userData)
 					result << " ";
 			}
 
-			// Update multidimensional interval, exit while loop if finished
-			finished = updateIndexes(indexes, data->equationDimensions[eq]);
-
 			result << "│\n";
-		}
+		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 	}
 
 	return result.str();
