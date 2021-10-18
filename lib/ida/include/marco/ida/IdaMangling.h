@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #define allocIdaUserData NAME_MANGLED(allocIdaUserData, PTR(void), int64_t)
-#define idaInit NAME_MANGLED(idaInit, bool, PTR(void))
+#define idaInit NAME_MANGLED(idaInit, bool, PTR(void), int64_t)
 #define idaStep NAME_MANGLED(idaStep, bool, PTR(void))
 #define freeIdaUserData NAME_MANGLED(freeIdaUserData, bool, PTR(void))
 #define addTime NAME_MANGLED(addTime, void, PTR(void), double, double, double)

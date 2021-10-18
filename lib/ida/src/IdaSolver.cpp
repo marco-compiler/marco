@@ -43,8 +43,9 @@ IdaSolver::IdaSolver(
 		realtype endTime,
 		realtype timeStep,
 		realtype relativeTolerance,
-		realtype absoluteTolerance)
-		: model(model), endTime(endTime)
+		realtype absoluteTolerance,
+		sunindextype threads)
+		: model(model), endTime(endTime), threads(threads)
 {
 	userData = allocIdaUserData(computeNEQ(model));
 	addTime(userData, startTime, endTime, timeStep);
@@ -262,7 +263,7 @@ mlir::LogicalResult IdaSolver::init()
 	variableIndexMap.clear();
 	accessesMap.clear();
 
-	bool success = idaInit(userData);
+	bool success = idaInit(userData, threads);
 	if (!success)
 		return mlir::failure();
 	return mlir::success();

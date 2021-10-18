@@ -32,12 +32,6 @@ static cl::opt<codegen::Solver> solver(
 		cl::values(clEnumValN(codegen::CleverDAE, "clever-dae", "Clever DAE")),
 		cl::init(codegen::CleverDAE),
 		cl::cat(modelSolvingOptions));
-static cl::opt<bool> equidistantTimeGrid(
-		"equidistant",
-		cl::desc(
-				"Equidistant time grid based on the time step value (only for IDA)"),
-		cl::init(false),
-		cl::cat(modelSolvingOptions));
 
 static cl::OptionCategory codeGenOptions("Code generation options");
 
@@ -48,10 +42,28 @@ static cl::list<string> inputFiles(
 		cl::cat(codeGenOptions));
 static cl::opt<string> outputFile(
 		"o", cl::desc("<output-file>"), cl::init("-"), cl::cat(codeGenOptions));
+static cl::opt<bool> openmp(
+		"omp",
+		cl::desc("Enable OpenMP usage"),
+		cl::init(false),
+		cl::cat(codeGenOptions));
 static cl::opt<bool> printModule(
 		"print-module",
 		cl::desc("Print the ModuleOp right before being solved"),
 		cl::init(false),
+		cl::cat(codeGenOptions));
+static cl::opt<bool> equidistantTimeGrid(
+		"equidistant",
+		cl::desc(
+				"Equidistant time grid based on the time step value (only for IDA)"),
+		cl::init(false),
+		cl::cat(codeGenOptions));
+static cl::opt<int> idaThreads(
+		"ida-threads",
+		cl::desc(
+				"Number of threads for simulation with IDA if omp is enabled, 0 means "
+				"the number of threads available in the machine (default: 0)"),
+		cl::init(0),
 		cl::cat(codeGenOptions));
 
 static cl::OptionCategory simulationOptions("Simulation options");
@@ -147,6 +159,7 @@ int main(int argc, char *argv[])
 	solveModelOptions.sccMaxIterations = sccMaxIterations;
 	solveModelOptions.solver = solver;
 	solveModelOptions.equidistantTimeGrid = equidistantTimeGrid;
+	solveModelOptions.threads = openmp ? idaThreads : 1;
 
 	auto model = codegen::getSolvedModel(*module, solveModelOptions);
 
@@ -175,7 +188,8 @@ int main(int argc, char *argv[])
 			endTime,
 			equidistantTimeGrid ? timeStep : endTime,
 			relativeTolerance,
-			absoluteTolerance);
+			absoluteTolerance,
+			solveModelOptions.threads);
 
 	if (failed(idaSolver.init()))
 	{
