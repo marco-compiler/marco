@@ -1,8 +1,3 @@
 add_subdirectory(ASTDumper)
 add_subdirectory(marco)
 add_subdirectory(modelica-opt)
-add_subdirectory(ModC)
-add_subdirectory(OmcC)
-add_subdirectory(ModMatch)
-add_subdirectory(ModSched)
-add_subdirectory(ModCollapser)

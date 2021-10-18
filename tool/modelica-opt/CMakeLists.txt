@@ -10,7 +10,7 @@ target_link_libraries(modelica-opt
         PRIVATE ${dialect_libs}
         PRIVATE ${conversion_libs}
         PRIVATE MLIROptLib
-        PRIVATE marco::frontend
-        PRIVATE marco::mlirlowerer)
+        PRIVATE marco::codegen
+        PRIVATE marco::frontend)
 
 mlir_check_all_link_libraries(modelica-opt)

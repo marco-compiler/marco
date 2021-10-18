@@ -1,7 +1,0 @@
-init
-
-Int = INT[1]{2}
-IntConst = INT[1]{3}
-
-update
-Int = INT[1]call mult INT[1](INT[1]{2}, INT[1]IntConst)

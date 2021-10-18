@@ -1,7 +1,6 @@
 set(SOURCES
 		src/BuiltInFunctions.cpp
 		src/MemoryManagement.cpp
-		src/OldRuntime.cpp
 		src/Profiling.cpp
 		src/Runtime.cpp
 		src/UtilityFunctions.cpp)

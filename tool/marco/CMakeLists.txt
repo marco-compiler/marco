@@ -12,8 +12,8 @@ set(MLIR_LIBS
         MLIROptLib)
 
 target_link_libraries(marco
+        PRIVATE marco::codegen
         PRIVATE marco::frontend
-        PRIVATE marco::mlirlowerer
         PRIVATE marco::utils
         PRIVATE ${MLIR_LIBS})
 
