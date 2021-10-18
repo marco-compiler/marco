@@ -1,3 +1,5 @@
+#include <iomanip>
+#include <iostream>
 #include <llvm/ADT/SmallVector.h>
 #include <marco/ida/IdaMangling.h>
 #include <marco/ida/IdaSolver.h>
@@ -271,7 +273,7 @@ mlir::LogicalResult IdaSolver::init()
 
 bool IdaSolver::step() { return idaStep(userData); }
 
-mlir::LogicalResult IdaSolver::run(llvm::raw_ostream& OS)
+mlir::LogicalResult IdaSolver::run()
 {
 	while (true)
 	{
@@ -280,7 +282,7 @@ mlir::LogicalResult IdaSolver::run(llvm::raw_ostream& OS)
 		if (!success)
 			return mlir::failure();
 
-		printOutput(OS);
+		printOutput();
 
 		if (getIdaTime(userData) >= endTime - 1e-12)
 			return mlir::success();
@@ -295,36 +297,42 @@ mlir::LogicalResult IdaSolver::free()
 	return mlir::success();
 }
 
-void IdaSolver::printOutput(llvm::raw_ostream& OS)
+void IdaSolver::printOutput()
 {
-	OS << getTime();
+	std::cout << std::fixed << std::setprecision(12);
+	std::cout << getTime();
 
 	for (sunindextype i : irange(getEquationsNumber()))
-		OS << ", " << getVariable(i);
+		std::cout << ", " << getVariable(i);
 
-	OS << "\n";
+	std::cout << std::endl;
 }
 
-void IdaSolver::printStats(llvm::raw_ostream& OS)
+void IdaSolver::printStats()
 {
 	sunindextype nst = numSteps(userData);
 	sunindextype nre = numResEvals(userData);
 	sunindextype nje = numJacEvals(userData);
 	sunindextype nni = numNonlinIters(userData);
+	sunindextype nli = numLinIters(userData);
 
-	OS << "\nFinal Run Statistics:\n";
-	OS << "Number of vector equations     = " << getForEquationsNumber() << "\n";
-	OS << "Number of scalar equations     = " << getEquationsNumber() << "\n";
-	OS << "Number of non-zero values      = " << getNonZeroValuesNumber() << "\n";
-	OS << "Number of steps                = " << nst << "\n";
-	OS << "Number of residual evaluations = " << nre << "\n";
-	OS << "Number of Jacobian evaluations = " << nje << "\n";
-	OS << "Number of nonlinear iterations = " << nni << "\n";
+	std::cout << "\nFinal Run Statistics:\n";
+	std::cout << "Number of vector equations     = ";
+	std::cout << getForEquationsNumber() << std::endl;
+	std::cout << "Number of scalar equations     = ";
+	std::cout << getEquationsNumber() << std::endl;
+	std::cout << "Number of non-zero values      = ";
+	std::cout << getNonZeroValuesNumber() << std::endl;
+	std::cout << "Number of steps                = " << nst << std::endl;
+	std::cout << "Number of residual evaluations = " << nre << std::endl;
+	std::cout << "Number of Jacobian evaluations = " << nje << std::endl;
+	std::cout << "Number of nonlinear iterations = " << nni << std::endl;
+	std::cout << "Number of linear iterations    = " << nli << std::endl;
 }
 
-void IdaSolver::printIncidenceMatrix(llvm::raw_ostream& OS)
+void IdaSolver::printIncidenceMatrix()
 {
-	OS << getIncidenceMatrix(userData);
+	std::cout << getIncidenceMatrix(userData);
 }
 
 sunindextype IdaSolver::getForEquationsNumber()

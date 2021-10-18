@@ -1020,7 +1020,7 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 
 	mlir::Value getSeparatorString(mlir::Location loc, mlir::OpBuilder& builder, mlir::ModuleOp module) const
 	{
-		return getOrCreateGlobalString(loc, builder, "semicolon", mlir::StringRef(";\0", 2), module);
+		return getOrCreateGlobalString(loc, builder, "comma", mlir::StringRef(",\0", 2), module);
 	}
 
 	mlir::Value getNewlineString(mlir::Location loc, mlir::OpBuilder& builder, mlir::ModuleOp module) const

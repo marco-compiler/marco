@@ -1,6 +1,5 @@
 #pragma once
 
-#include <llvm/Support/raw_ostream.h>
 #include <marco/mlirlowerer/passes/model/Equation.h>
 #include <marco/mlirlowerer/passes/model/Expression.h>
 #include <marco/mlirlowerer/passes/model/Model.h>
@@ -46,7 +45,7 @@ namespace marco::codegen::ida
 		/**
 		 * Performs a full run of the system.
 		 */
-		[[nodiscard]] mlir::LogicalResult run(llvm::raw_ostream &OS = llvm::outs());
+		[[nodiscard]] mlir::LogicalResult run();
 
 		/**
 		 * Frees all the data allocated by IDA.
@@ -57,17 +56,17 @@ namespace marco::codegen::ida
 		 * Prints the current time of the computation and the value all variables to
 		 * the given stream.
 		 */
-		void printOutput(llvm::raw_ostream &OS = llvm::outs());
+		void printOutput();
 
 		/**
 		 * Prints statistics about the computation of the system.
 		 */
-		void printStats(llvm::raw_ostream &OS = llvm::outs());
+		void printStats();
 
 		/**
 		 * Prints the Jacobian incidence matrix of the system.
 		 */
-		void printIncidenceMatrix(llvm::raw_ostream &OS = llvm::outs());
+		void printIncidenceMatrix();
 
 		[[nodiscard]] sunindextype getForEquationsNumber();
 		[[nodiscard]] sunindextype getEquationsNumber();
