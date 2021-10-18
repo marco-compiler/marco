@@ -187,6 +187,7 @@ extern "C"
 	int64_t numResEvals(void* userData);
 	int64_t numJacEvals(void* userData);
 	int64_t numNonlinIters(void* userData);
+	int64_t numLinIters(void* userData);
 
 	std::string getIncidenceMatrix(void* userData);
 }

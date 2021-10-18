@@ -1,14 +1,13 @@
+#include <cmath>
 #include <ida/ida.h>
 #include <marco/runtime/IdaFunctions.h>
 #include <nvector/nvector_serial.h>
 #include <omp.h>
 #include <set>
 #include <sstream>
-#include <sundials/sundials_math.h>
 #include <sundials/sundials_types.h>
 #include <sunlinsol/sunlinsol_klu.h>
 #include <sunmatrix/sunmatrix_sparse.h>
-#include <sunnonlinsol/sunnonlinsol_newton.h>
 
 #define exitOnError(success)                                                   \
 	if (!success)                                                                \
@@ -84,7 +83,6 @@ typedef struct IdaUserData
 	void* idaMemory;
 	SUNMatrix sparseMatrix;
 	SUNLinearSolver linearSolver;
-	SUNNonlinearSolver nonlinearSolver;
 } IdaUserData;
 
 /**
@@ -428,14 +426,6 @@ inline bool idaInit(void* userData, T threads)
 			data->idaMemory, data->linearSolver, data->sparseMatrix);
 	exitOnError(checkRetval(&retval, "IDASetLinearSolver", 1));
 
-	// Create and attach a Newton NonlinearSolver object.
-	data->nonlinearSolver = SUNNonlinSol_Newton(data->variablesVector);
-	exitOnError(
-			checkRetval((void*) data->nonlinearSolver, "SUNNonlinSol_Newton", 0));
-
-	retval = IDASetNonlinearSolver(data->idaMemory, data->nonlinearSolver);
-	exitOnError(checkRetval(&retval, "IDASetNonlinearSolver", 1));
-
 	// Set the user-supplied Jacobian routine.
 	retval = IDASetJacFn(data->idaMemory, jacobianMatrix);
 	exitOnError(checkRetval(&retval, "IDASetJacFn", 1));
@@ -491,9 +481,7 @@ inline bool freeIdaUserData(void* userData)
 	// Free IDA memory
 	IDAFree(&data->idaMemory);
 
-	int retval = SUNNonlinSolFree(data->nonlinearSolver);
-	exitOnError(checkRetval(&retval, "SUNNonlinSolFree", 1));
-	retval = SUNLinSolFree(data->linearSolver);
+	int retval = SUNLinSolFree(data->linearSolver);
 	exitOnError(checkRetval(&retval, "SUNLinSolFree", 1));
 
 	SUNMatDestroy(data->sparseMatrix);
@@ -1935,6 +1923,14 @@ int64_t numNonlinIters(void* userData)
 	int64_t nni;
 	IDAGetNumNonlinSolvIters(data->idaMemory, &nni);
 	return nni;
+}
+
+int64_t numLinIters(void* userData)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	int64_t nli;
+	IDAGetNumLinIters(data->idaMemory, &nli);
+	return nli;
 }
 
 /**

@@ -107,7 +107,6 @@ int main(int argc, char *argv[])
 	cl::ParseCommandLineOptions(argc, argv);
 
 	error_code error;
-	raw_fd_ostream OS(outputFile, error, sys::fs::OF_None);
 
 	if (error)
 	{
@@ -197,14 +196,14 @@ int main(int argc, char *argv[])
 		return -1;
 	}
 
-	if (failed(idaSolver.run(OS)))
+	if (failed(idaSolver.run()))
 	{
 		errs() << "Failed to run the IDA solver\n";
 		return -1;
 	}
 
-	idaSolver.printIncidenceMatrix(OS);
-	idaSolver.printStats(OS);
+	idaSolver.printIncidenceMatrix();
+	idaSolver.printStats();
 
 	if (failed(idaSolver.free()))
 	{
