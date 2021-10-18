@@ -11,7 +11,8 @@
 RUNTIME_FUNC_DECL(allocIdaUserData, PTR(void), int32_t)
 RUNTIME_FUNC_DECL(allocIdaUserData, PTR(void), int64_t)
 
-RUNTIME_FUNC_DECL(idaInit, bool, PTR(void))
+RUNTIME_FUNC_DECL(idaInit, bool, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(idaInit, bool, PTR(void), int64_t)
 
 RUNTIME_FUNC_DECL(idaStep, bool, PTR(void))
 

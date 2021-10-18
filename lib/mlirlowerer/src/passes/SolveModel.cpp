@@ -2520,7 +2520,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		variableIndexMap.clear();
 		accessesMap.clear();
 
-		builder.create<InitOp>(loc, userData);
+		mlir::Value threads = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, options.threads));
+		builder.create<InitOp>(loc, userData, threads);
 
 		// Add userData inside the returned pointer in second position
 		mlir::Value userDataAlloc = builder.create<AllocOp>(loc, ida::OpaquePointerType::get(context), llvm::None, llvm::None, false, false);

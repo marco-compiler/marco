@@ -44,7 +44,6 @@ static cl::opt<codegen::Solver> solver(cl::desc("Solvers:"),
 																			 cl::cat(modelSolvingOptions));
 
 static cl::opt<string> filter("filter", cl::desc("Variable filtering expression"), cl::init(""), cl::cat(modelSolvingOptions));
-static cl::opt<bool> equidistantTimeGrid("equidistant", cl::desc("Equidistant time grid based on the time step value (only for IDA)"), cl::init(false), cl::cat(modelSolvingOptions));
 
 static cl::OptionCategory codeGenOptions("Code generation options");
 
@@ -58,6 +57,8 @@ static cl::opt<bool> cse("no-cse", cl::desc("Disable CSE pass"), cl::init(false)
 static cl::opt<bool> openmp("omp", cl::desc("Enable OpenMP usage"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> disableRuntimeLibrary("disable-runtime-library", cl::desc("Avoid the calls to the external runtime library functions (only when a native implementation of the operation exists)"), cl::init(false), cl::cat(codeGenOptions));
 static cl::opt<bool> emitCWrappers("emit-c-wrappers", cl::desc("Emit C wrappers"), cl::init(false), cl::cat(codeGenOptions));
+static cl::opt<bool> equidistantTimeGrid("equidistant", cl::desc("Equidistant time grid based on the time step value (only for IDA)"), cl::init(false), cl::cat(codeGenOptions));
+static cl::opt<int> idaThreads("ida-threads", cl::desc("Number of threads for simulation with IDA if omp is enabled, 0 means the number of threads available in the machine (default: 0)"), cl::init(0), cl::cat(codeGenOptions));
 
 enum OptLevel {
 	O0, O1, O2, O3
@@ -215,10 +216,11 @@ int main(int argc, char* argv[])
 	loweringOptions.solveModelOptions.sccMaxIterations = sccMaxIterations;
 	loweringOptions.solveModelOptions.solver = solver;
 	loweringOptions.solveModelOptions.equidistantTimeGrid = equidistantTimeGrid;
+	loweringOptions.solveModelOptions.threads = openmp ? idaThreads : 1;
 	loweringOptions.inlining = !inlining;
 	loweringOptions.resultBuffersToArgs = !resultBuffersToArgs;
 	loweringOptions.cse = !cse;
-	loweringOptions.openmp = openmp;
+	loweringOptions.openmp = openmp || idaThreads != 0;
 	loweringOptions.x64 = !x86.getValue();
 	loweringOptions.conversionOptions.useRuntimeLibrary = !disableRuntimeLibrary;
 	loweringOptions.llvmOptions.emitCWrappers = emitCWrappers;

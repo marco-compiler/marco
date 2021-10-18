@@ -1,6 +1,7 @@
 #include <ida/ida.h>
 #include <marco/runtime/IdaFunctions.h>
 #include <nvector/nvector_serial.h>
+#include <omp.h>
 #include <set>
 #include <sstream>
 #include <sundials/sundials_math.h>
@@ -62,7 +63,10 @@ typedef struct IdaUserData
 	realtype timeStep;
 	realtype time;
 	realtype nextStop;
-	int equidistantTimeGrid;
+
+	// Simulation options
+	bool equidistantTimeGrid;
+	sunindextype threads;
 
 	// Error tolerances
 	realtype relativeTolerance;
@@ -178,7 +182,7 @@ int residualFunction(
 
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-#pragma omp parallel for default(shared) schedule(dynamic, 1)
+#pragma omp parallel for schedule(dynamic, 1) num_threads(data->threads)
 	for (size_t eq = 0; eq < data->forEquationsNumber; eq++)
 	{
 		// For every vector equation
@@ -229,7 +233,7 @@ int jacobianMatrix(
 
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-#pragma omp parallel for default(shared) schedule(dynamic, 1)
+#pragma omp parallel for schedule(dynamic, 1) num_threads(data->threads)
 	for (size_t eq = 0; eq < data->forEquationsNumber; eq++)
 	{
 		// For every vector equation
@@ -370,7 +374,8 @@ sunindextype precomputeJacobianIndexes(IdaUserData* data)
  * the given system of equations. It must be called before the first usage of
  * step(). It may fail in case of malformed model.
  */
-inline bool idaInit(void* userData)
+template<typename T>
+inline bool idaInit(void* userData, T threads)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -379,6 +384,7 @@ inline bool idaInit(void* userData)
 
 	// Compute the total amount of non-zero values in the Jacobian Matrix.
 	data->nonZeroValuesNumber = precomputeJacobianIndexes(data);
+	data->threads = threads == 0 ? omp_get_max_threads() : threads;
 
 	// Initialize IDA memory.
 	data->idaMemory = IDACreate();
@@ -441,7 +447,8 @@ inline bool idaInit(void* userData)
 	return true;
 }
 
-RUNTIME_FUNC_DEF(idaInit, bool, PTR(void))
+RUNTIME_FUNC_DEF(idaInit, bool, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(idaInit, bool, PTR(void), int64_t)
 
 /**
  * Invoke IDA to perform one step of the computation. Returns false if the
@@ -461,7 +468,7 @@ inline bool idaStep(void* userData)
 			&data->time,
 			data->variablesVector,
 			data->derivativesVector,
-			data->equidistantTimeGrid);
+			data->equidistantTimeGrid ? IDA_NORMAL : IDA_ONE_STEP);
 
 	if (data->nextStop < data->endTime)
 		data->nextStop += data->timeStep;
@@ -517,7 +524,7 @@ inline void addTime(void* userData, T startTime, T endTime, T timeStep)
 	data->timeStep = timeStep;
 	data->time = startTime;
 	data->nextStop = timeStep;
-	data->equidistantTimeGrid = (endTime == timeStep) ? IDA_ONE_STEP : IDA_NORMAL;
+	data->equidistantTimeGrid = endTime != timeStep;
 }
 
 RUNTIME_FUNC_DEF(addTime, void, PTR(void), float, float, float)

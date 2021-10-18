@@ -27,7 +27,8 @@ namespace marco::codegen::ida
 				realtype endTime = 10.0,
 				realtype timeStep = 0.1,
 				realtype relativeTolerance = 1e-6,
-				realtype absoluteTolerance = 1e-6);
+				realtype absoluteTolerance = 1e-6,
+				sunindextype threads = 0);
 
 		/**
 		 * Instantiate and initialize all the classes and data needed by IDA to
@@ -103,6 +104,7 @@ namespace marco::codegen::ida
 		private:
 		const model::Model model;
 		const realtype endTime;
+		const sunindextype threads;
 
 		std::map<model::Variable, realtype> initialValueMap;
 		std::map<model::Variable, sunindextype> variableIndexMap;

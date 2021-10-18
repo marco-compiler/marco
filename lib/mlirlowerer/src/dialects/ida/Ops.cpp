@@ -176,15 +176,16 @@ llvm::ArrayRef<llvm::StringRef> InitOp::getAttributeNames()
 	return {};
 }
 
-void InitOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
+void InitOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value threads)
 {
 	state.addTypes(BooleanType::get(builder.getContext()));
 	state.addOperands(userData);
+	state.addOperands(threads);
 }
 
 mlir::ParseResult InitOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	return ida::parse(parser, result, 1);
+	return ida::parse(parser, result, 2);
 }
 
 void InitOp::print(mlir::OpAsmPrinter& printer)
@@ -196,6 +197,9 @@ mlir::LogicalResult InitOp::verify()
 {
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
+
+	if (!threads().getType().isa<IntegerType>())
+		return emitOpError("Requires number of threads to be an integer");
 
 	return mlir::success();
 }
@@ -219,6 +223,11 @@ mlir::ValueRange InitOp::args()
 mlir::Value InitOp::userData()
 {
 	return getOperation()->getOperand(0);
+}
+
+mlir::Value InitOp::threads()
+{
+	return getOperation()->getOperand(1);
 }
 
 //===----------------------------------------------------------------------===//
