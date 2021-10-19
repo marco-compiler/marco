@@ -95,3 +95,41 @@ function(marco_map_components_to_libnames out_libs)
 
 	set(${out_libs} ${expanded_components} PARENT_SCOPE)
 endfunction()
+
+###
+###  marco_link_llvm_libs  
+###
+###  Same as llvm_config, but automatically turns on shared libs if the
+###  LLVM we are linking with has them available. Everything is linked as
+###  PUBLIC so that everything works with the way we use CMake.
+###    "Shouldn't have this been done by LLVM's Cmake stuff already?" You bet!
+###  "Does it do that then?" NO!!
+###
+###             ----->>>> DO NOT REMOVE THIS FUNCTION! <<<<----
+###
+###   EVEN IF IT SEEMS NOT NECESSARY ON ***YOUR*** MACHINE IT DOES NOT MEAN
+###                     IT IS USELESS FOR EVERYBODY
+###
+###    ----->>>> NEVER USE llvm_config, USE THIS FUNCTION INSTEAD <<<<-----
+###
+###     IF YOU DON'T, THE BUILD WILL BREAK FOR EVERYBODY WHO HAS BOTH THE
+###                STATIC AND DYNAMIC LLVM LIBRARIES AVAILABLE
+###
+function(marco_link_llvm_libs target)
+  set(link_components ${ARGN})
+
+	if(LLVM IN_LIST LLVM_AVAILABLE_LIBS)
+	  if (DEFINED link_components AND DEFINED LLVM_DYLIB_COMPONENTS)
+      if("${LLVM_DYLIB_COMPONENTS}" STREQUAL "all")
+        set(link_components "")
+      else()
+        list(REMOVE_ITEM link_components ${LLVM_DYLIB_COMPONENTS})
+      endif()
+    endif()
+
+    target_link_libraries(${target} PUBLIC LLVM)
+	endif()
+	
+	llvm_map_components_to_libnames(libs ${link_components})
+	target_link_libraries(${target} PUBLIC ${libs})
+endfunction(marco_link_llvm_libs)

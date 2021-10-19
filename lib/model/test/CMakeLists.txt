@@ -9,7 +9,7 @@ set(SOURCES
 
 marco_add_unittest(MARCOTest ModelTest ${SOURCES})
 
-llvm_config(ModelTest core support)
+marco_link_llvm_libs(ModelTest core support)
 
 target_link_libraries(ModelTest
 		PRIVATE marco::model)

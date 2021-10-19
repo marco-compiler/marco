@@ -3,7 +3,7 @@ set(SOURCES
 
 marco_add_unittest(MARCOTest PassesTest ${SOURCES})
 
-llvm_config(PassesTest core support)
+marco_link_llvm_libs(PassesTest core support)
 
 target_link_libraries(PassesTest
 		PRIVATE marco::passes)

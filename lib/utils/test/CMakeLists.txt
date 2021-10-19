@@ -10,7 +10,7 @@ set(SOURCES
 
 marco_add_unittest(MARCOTest UtilsTest ${SOURCES})
 
-llvm_config(UtilsTest core support)
+marco_link_llvm_libs(UtilsTest core support)
 
 target_link_libraries(UtilsTest
 		PRIVATE marco::utils)

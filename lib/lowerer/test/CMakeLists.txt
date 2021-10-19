@@ -3,7 +3,7 @@ set(SOURCES
 
 marco_add_unittest(MARCOTest LowererTest ${SOURCES})
 
-llvm_config(LowererTest core support)
+marco_link_llvm_libs(LowererTest core support)
 
 target_link_libraries(LowererTest
 		PRIVATE marco::lowerer)

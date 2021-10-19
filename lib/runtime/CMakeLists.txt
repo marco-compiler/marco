@@ -5,6 +5,6 @@ set(SOURCES
 
 marco_add_library(runtime SHARED ${SOURCES})
 
-llvm_config(runtime USE_SHARED support)
+marco_link_llvm_libs(runtime USE_SHARED support)
 
 add_subdirectory(test)

@@ -16,7 +16,7 @@ set(SOURCES
 
 marco_add_unittest(MARCOTest FrontendTest ${SOURCES})
 
-llvm_config(FrontendTest core support)
+marco_link_llvm_libs(FrontendTest core support)
 
 target_link_libraries(FrontendTest
         PRIVATE marco::frontend)

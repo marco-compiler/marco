@@ -5,7 +5,7 @@ set(SOURCES
 
 marco_add_unittest(MARCOTest MatchingTest ${SOURCES})
 
-llvm_config(MatchingTest core support)
+marco_link_llvm_libs(MatchingTest core support)
 
 target_link_libraries(MatchingTest
 		PRIVATE marco::matching)

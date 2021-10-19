@@ -12,7 +12,7 @@ set(SOURCES
 
 marco_add_library(matching SHARED ${SOURCES})
 
-llvm_config(matching USE_SHARED core support)
+marco_link_llvm_libs(matching USE_SHARED core support)
 
 target_link_libraries(matching
 		PUBLIC marco::model

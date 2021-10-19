@@ -33,7 +33,7 @@ set(SOURCES
 
 marco_add_library(frontend SHARED ${SOURCES})
 
-llvm_config(frontend USE_SHARED core support)
+marco_link_llvm_libs(frontend USE_SHARED core support)
 
 target_link_libraries(frontend
 		PUBLIC marco::utils

@@ -10,6 +10,6 @@ set(SOURCES
 
 marco_add_library(utils SHARED ${SOURCES})
 
-llvm_config(utils USE_SHARED core support)
+marco_link_llvm_libs(utils USE_SHARED core support)
 
 add_subdirectory(test)

@@ -7,7 +7,7 @@ set(SOURCES
 
 marco_add_library(lowerer SHARED ${SOURCES})
 
-llvm_config(lowerer USE_SHARED bitwriter core support)
+marco_link_llvm_libs(lowerer USE_SHARED bitwriter core support)
 
 target_link_libraries(lowerer
 		PUBLIC marco::passes

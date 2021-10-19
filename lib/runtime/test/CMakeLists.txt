@@ -5,7 +5,7 @@ set(SOURCES
 
 marco_add_unittest(MARCOTest RuntimeTest ${SOURCES})
 
-llvm_config(RuntimeTest core support)
+marco_link_llvm_libs(RuntimeTest core support)
 
 target_link_libraries(RuntimeTest
 		PRIVATE marco::runtime)

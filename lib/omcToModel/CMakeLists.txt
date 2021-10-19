@@ -3,7 +3,7 @@ set(SOURCES
 
 marco_add_library(omcToModel SHARED ${SOURCES})
 
-llvm_config(omcToModel USE_SHARED core support)
+marco_link_llvm_libs(omcToModel USE_SHARED core support)
 
 target_link_libraries(omcToModel
 		PUBLIC marco::frontend
