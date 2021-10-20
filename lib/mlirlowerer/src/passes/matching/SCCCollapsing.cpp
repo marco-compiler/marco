@@ -15,8 +15,20 @@
 #include <vector>
 
 void boost::throw_exception(std::exception const & e) {
-	// Do nothing
+	llvm::errs() << e.what();
+	abort();
 }
+
+#if BOOST_VERSION >= 107300 /* source_location only exists in boost >= 1.73 */
+
+void boost::throw_exception(const std::exception& e, const boost::source_location& loc)
+{
+	llvm::errs() << e.what();
+	abort();
+}
+
+#endif
+
 
 namespace marco::codegen::model
 {
