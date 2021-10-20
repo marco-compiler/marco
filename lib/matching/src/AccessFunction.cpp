@@ -17,7 +17,7 @@ SingleDimensionAccess SingleDimensionAccess::constant(int64_t position)
 	return SingleDimensionAccess(position, true);
 }
 
-SingleDimensionAccess SingleDimensionAccess::relative(int64_t relativePosition, unsigned int inductionVariableIndex)
+SingleDimensionAccess SingleDimensionAccess::relative(unsigned int inductionVariableIndex, int64_t relativePosition)
 {
 	return SingleDimensionAccess(relativePosition, false, inductionVariableIndex);
 }

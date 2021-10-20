@@ -2,7 +2,7 @@
 #define MARCO_MATCHING_TEST_COMMON_H
 
 #include <llvm/ADT/StringRef.h>
-#include <marco/matching/IndexSet.h>
+#include <marco/matching/Range.h>
 
 namespace marco::matching
 {
@@ -57,9 +57,29 @@ namespace marco::matching
 			return getName();
 		}
 
-		void getVariableAccesses(llvm::SmallVectorImpl<Access<Variable>>& accesses) const
+		unsigned int getNumOfIterationVars() const
 		{
+			return ranges.size();
+		}
 
+		Range getIterationRange(size_t index) const
+		{
+			return ranges[index];
+		}
+
+		void addIterationRange(Range range)
+		{
+			ranges.push_back(range);
+		}
+
+		void getVariableAccesses(llvm::SmallVectorImpl<Access<Variable>>& v) const
+		{
+			v.insert(v.begin(), this->accesses.begin(), this->accesses.end());
+		}
+
+		void addVariableAccess(Access<Variable> access)
+		{
+			accesses.push_back(access);
 		}
 
 		llvm::StringRef getName() const
@@ -69,6 +89,8 @@ namespace marco::matching
 
 		private:
 		std::string name;
+		llvm::SmallVector<Range, 3> ranges;
+		llvm::SmallVector<Access<Variable>, 3> accesses;
 	};
 }
 

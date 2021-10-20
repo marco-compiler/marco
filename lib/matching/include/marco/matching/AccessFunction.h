@@ -13,7 +13,7 @@ namespace marco::matching
 
 		public:
 		static SingleDimensionAccess constant(int64_t position);
-		static SingleDimensionAccess relative(int64_t relativePosition, unsigned int inductionVariableIndex);
+		static SingleDimensionAccess relative(unsigned int inductionVariableIndex, int64_t relativePosition);
 
 		bool isConstantAccess() const;
 

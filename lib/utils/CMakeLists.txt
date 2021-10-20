@@ -2,7 +2,7 @@ set(SOURCES
 		src/Utils.cpp
 		src/Lexer.cpp
 		src/Interval.cpp
-		src/IndexSet.cpp
+        src/Range.cpp
 		src/LogMessage.cpp
 		src/SourcePosition.cpp
 		src/ThreadPool.cpp

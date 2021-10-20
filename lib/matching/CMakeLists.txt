@@ -1,7 +1,9 @@
 set(SOURCES
         src/AccessFunction.cpp
         src/Graph.cpp
-        src/IndexSet.cpp)
+        src/MCIM.cpp
+        src/MCIS.cpp
+        src/Range.cpp)
 
 marco_add_library(matching SHARED ${SOURCES})
 

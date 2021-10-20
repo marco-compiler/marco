@@ -1,5 +1,7 @@
 set(SOURCES
-        src/GraphTest.cpp)
+        src/DataStructuresTest.cpp
+        src/GraphTest.cpp
+        src/RealScenarios.cpp)
 
 marco_add_unittest(MARCOTest MatchingTest ${SOURCES})
 

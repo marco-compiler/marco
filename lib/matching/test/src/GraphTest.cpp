@@ -36,3 +36,20 @@ TEST(Matching, multidimensionalVariableInsertion)
 	EXPECT_EQ(var.getDimensionSize(2), 4);
 }
 
+TEST(Matching, addEquation)
+{
+	MatchingGraph<Variable, Equation> graph;
+
+	Variable x("x", { 2 });
+
+	Equation eq1("eq1");
+	eq1.addIterationRange(Range(0, 1));
+	eq1.addVariableAccess(Access(x, SingleDimensionAccess::constant(0)));
+	eq1.addVariableAccess(Access(x, SingleDimensionAccess::constant(1)));
+
+	graph.addVariable(x);
+	graph.addEquation(eq1);
+
+	ASSERT_TRUE(graph.hasEquation("eq1"));
+	ASSERT_TRUE(graph.hasEdge("eq1", "x"));
+}
