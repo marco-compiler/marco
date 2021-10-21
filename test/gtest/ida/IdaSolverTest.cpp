@@ -680,9 +680,13 @@ TEST(IdaSolverTest, EquationWithInduction)
 {
 	std::string stringModel = "model IdaInduction "
 														"Real[5] x; "
+														"Real[10] y; "
 														"equation "
+														"for i in 1:10 loop "
+														"y[i] = i + sin(time * 100); "
+														"end for; "
 														"for i in 1:5 loop "
-														"der(x[i]) = i; "
+														"der(x[i]) = y[i+5]; "
 														"end for; "
 														"end IdaInduction; ";
 
@@ -690,7 +694,7 @@ TEST(IdaSolverTest, EquationWithInduction)
 	Model model;
 	makeSolvedModel(context, stringModel, model);
 
-	marco::codegen::ida::IdaSolver idaSolver(model);
+	marco::codegen::ida::IdaSolver idaSolver(model, 0, 1, 0.1, 1e-10, 1e-10);
 	if (failed(idaSolver.init()))
 		FAIL();
 
@@ -709,8 +713,10 @@ TEST(IdaSolverTest, EquationWithInduction)
 
 	for (size_t i : marco::irange(5))
 	{
-		EXPECT_NEAR(idaSolver.getVariable(i), idaSolver.getTime() * (i + 1), 1e-4);
-		EXPECT_NEAR(idaSolver.getDerivative(i), (i + 1), 1e-4);
+		EXPECT_NEAR(
+				idaSolver.getDerivative(i),
+				i + 6 + sin(idaSolver.getTime() * 100),
+				1e-4);
 	}
 
 	if (failed(idaSolver.free()))
