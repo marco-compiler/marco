@@ -318,13 +318,16 @@ namespace marco::codegen::model
 			if (pathToVar.getVar() != var.getVar())
 				continue;
 
-			// Compose the source equation with the correct indexes from the destination access
-			VectorAccess sourceAccess = AccessToVar::fromExp(source.lhs()).getAccess();
-			VectorAccess destAccess = pathToVar.getAccess();
-			Equation composedSource = source.composeAccess(destAccess);
+			// Normalize the source equation.
+			Equation normalizedSource = source.clone();
+			normalizedSource.normalize();
 
-			mlir::ValueRange sourceInductions = composedSource.getOp().inductions();
+			VectorAccess sourceAccess = AccessToVar::fromExp(normalizedSource.lhs()).getAccess();
+			VectorAccess destAccess = pathToVar.getAccess();
+
+			mlir::ValueRange sourceInductions = normalizedSource.getOp().inductions();
 			mlir::ValueRange destInductions = destination.getOp().inductions();
+
 			SubscriptionOp destSubOp = mlir::cast<SubscriptionOp>(access.getExpression().getOp());
 			assert(mlir::cast<SubscriptionOp>(source.lhs().getOp()).indexes().size() == destSubOp.indexes().size());
 
@@ -336,19 +339,18 @@ namespace marco::codegen::model
 			{
 				if (destAccess[i].isOffset() && sourceAccess[i].isOffset())
 				{
-					// Map the source index with the correct index obtained from the destination subscription op.
-					mapper.map(sourceInductions[sourceAccess[i].getInductionVar()], destInductions[destAccess[i].getInductionVar()]);
+					// Map the source index with the correct indexes obtained from the destination subscription op.
+					mlir::Value offset = builder.create<ConstantOp>(
+							destSubOp.getLoc(), IntegerAttribute::get(builder.getContext(), destAccess[i].getOffset() - sourceAccess[i].getOffset()));
+					mlir::Value newInduction = builder.create<AddOp>(
+							destSubOp.getLoc(), IntegerType::get(builder.getContext()), destInductions[destAccess[i].getInductionVar()], offset);
+					mapper.map(sourceInductions[sourceAccess[i].getInductionVar()], newInduction);
 				}
 				else if (sourceAccess[i].isOffset())
 				{
 					// If the destination is accessing the value with a constant, use it instead.
 					assert(mlir::isa<ConstantOp>(destSubOp.indexes()[i].getDefiningOp()));
-					// Note: the +1 is both for variable accesses in SubscriptionOp and for
-					// outside induction variable uses (which must remain 1-indexed).
-					mlir::Value one = builder.create<ConstantOp>(destSubOp.getLoc(), IntegerAttribute::get(builder.getContext(), 1));
-					mlir::Value newInduction = builder.create<AddOp>(
-							destSubOp.getLoc(), IntegerType::get(builder.getContext()), destSubOp.indexes()[i], one);
-					mapper.map(sourceInductions[sourceAccess[i].getInductionVar()], newInduction);
+					mapper.map(sourceInductions[sourceAccess[i].getInductionVar()], destSubOp.indexes()[i]);
 				}
 			}
 
@@ -356,7 +358,7 @@ namespace marco::codegen::model
 			// one whose member has to be replaced.
 			EquationSidesOp clonedTerminator;
 
-			for (mlir::Operation& op : composedSource.getOp().body()->getOperations())
+			for (mlir::Operation& op : normalizedSource.getOp().body()->getOperations())
 			{
 				mlir::Operation* clonedOp = builder.clone(op, mapper);
 
@@ -406,9 +408,10 @@ namespace marco::codegen::model
 				}
 			}
 
-			composedSource.erase();
+			normalizedSource.erase();
 		}
 
+		destination.restoreCanonicity();
 		destination.update();
 	}
 

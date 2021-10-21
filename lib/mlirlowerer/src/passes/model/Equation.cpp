@@ -307,91 +307,50 @@ ExpressionPath Equation::getMatchedExpressionPath() const
 	return ExpressionPath(getMatchedExp(), *impl->matchedExpPath);
 }
 
-static void composeAccess(Expression& exp, const VectorAccess& transformation)
-{
-	// Return if the variable is the time variable.
-	if (!mlir::isa<SubscriptionOp>(exp.getOp()))
-		return;
-
-	AccessToVar access = AccessToVar::fromExp(exp);
-
-	assert(mlir::isa<SubscriptionOp>(exp.getOp()));
-	SubscriptionOp op = mlir::cast<SubscriptionOp>(exp.getOp());
-	mlir::OpBuilder builder(op);
-	mlir::Location loc = op->getLoc();
-	llvm::SmallVector<mlir::Value, 3> indexes;
-
-	// Compute new indexes of the SubscriptionOp.
-	for (const SingleDimensionAccess& singleDimAccess : access.getAccess())
-	{
-		if (singleDimAccess.isDirectAccess())
-		{
-			indexes.push_back(builder.create<ConstantOp>(loc, builder.getIndexAttr(singleDimAccess.getOffset())));
-		}
-		else
-		{
-			mlir::Value inductionVar = exp.getOp()->getParentOfType<ForEquationOp>().body()->getArgument(singleDimAccess.getInductionVar());
-			mlir::Value offset = builder.create<ConstantOp>(loc, builder.getIndexAttr(
-					singleDimAccess.getOffset() + transformation[singleDimAccess.getInductionVar()].getOffset()));
-			indexes.push_back(builder.create<AddOp>(loc, builder.getIndexType(), inductionVar, offset));
-		}
-	}
-
-	// Replace the old SubscriptionOp with a new one using the computed indexes.
-	mlir::Value newSubscriptionOp = builder.create<SubscriptionOp>(loc, op.source(), indexes);
-	op.replaceAllUsesWith(newSubscriptionOp);
-	op->erase();
-}
-
-Equation Equation::composeAccess(const VectorAccess& transformation) const
-{
-	VectorAccess currentAccess = AccessToVar::fromExp(getMatchedExp()).getAccess();
-	assert(transformation.size() == currentAccess.size());
-
-	Equation toReturn = clone();
-	llvm::SmallVector<SingleDimensionAccess, 3> accesses;
-
-	// Compute the indexes transformation of right hand side of the equation.
-	for (size_t i : marco::irange(transformation.size()))
-	{
-		if (transformation[i].isOffset() && currentAccess[i].isOffset())
-			accesses.push_back(SingleDimensionAccess::relative(
-				transformation[i].getOffset() - currentAccess[i].getOffset(), currentAccess[i].getInductionVar()));
-		else if (currentAccess[i].isOffset())
-			accesses.push_back(SingleDimensionAccess::relative(
-				-currentAccess[i].getOffset() - 1, currentAccess[i].getInductionVar()));
-	}
-
-	ReferenceMatcher matcher(toReturn);
-	VectorAccess composedTransformation(accesses);
-	composedTransformation.sort();
-
-	for (ExpressionPath& matchedExp : matcher)
-	{
-		Expression exp = toReturn.reachExp(matchedExp);
-		::composeAccess(exp, composedTransformation);
-	}
-
-	return toReturn;
-}
-
+/**
+ * Transform the equation such that the left hand side, which must correspond to
+ * the determined variables, has only induction variables as indexes.
+ */
 void Equation::normalize()
 {
 	// Get how the left-hand side variable is currently accessed
+	assert(lhs() == getMatchedExp());
 	VectorAccess access = AccessToVar::fromExp(getMatchedExp()).getAccess();
 
 	// Apply the transformation to the induction range
 	setInductions(access.map(getInductions()));
 
-	VectorAccess invertedAccess = access.invert();
-	ReferenceMatcher matcher(*this);
+	// Create a clone of the equation with an empty body.
+	Equation clonedEquation = clone();
+	EquationInterface clonedOp = clonedEquation.getOp();
+	clonedOp.body()->clear();
 
-	for (ExpressionPath& matchedExp : matcher)
+	mlir::OpBuilder builder(clonedOp);
+	mlir::Location loc = clonedOp->getLoc();
+	mlir::BlockAndValueMapping mapper;
+	builder.setInsertionPointToStart(clonedOp.body());
+
+	// Map the old induction values with the normalized ones.
+	for (size_t i : marco::irange(access.size()))
 	{
-		Expression exp = reachExp(matchedExp);
-		::composeAccess(exp, invertedAccess);
+		if (access[i].isOffset())
+		{
+			mlir::Value offset = builder.create<ConstantOp>(
+					loc, IntegerAttribute::get(builder.getContext(), -access[i].getOffset()));
+			mlir::Value newInduction = builder.create<AddOp>(
+					loc, IntegerType::get(builder.getContext()), clonedOp.induction(access[i].getInductionVar()), offset);
+			mapper.map(getOp().induction(access[i].getInductionVar()), newInduction);
+		}
 	}
 
+	// Copy all the operations into the cloned equation, by using the new mapped induction values.
+	for (mlir::Operation& op : getOp().body()->getOperations())
+		builder.clone(op, mapper);
+
+	// Replace the current equation with the normalized equation.
+	erase();
+	impl->op = clonedEquation.impl->op;
+	restoreCanonicity();
 	update();
 }
 
@@ -439,6 +398,11 @@ mlir::LogicalResult Equation::explicitate(const ExpressionPath& path)
 	return mlir::success();
 }
 
+/**
+ * Explicitate the equation by moving to the left hand side the determined
+ * variable and the rest to the right hand side. It will fail if the equation is
+ * implicit.
+ */
 mlir::LogicalResult Equation::explicitate()
 {
 	// Clone the equation for backup in case of failure of the algorithm
@@ -516,6 +480,9 @@ void Equation::foldConstants()
 	}
 }
 
+/**
+ * Remove opeartions that has no uses inside the MLIR body of the equation.
+ */
 void Equation::cleanOperation()
 {
 	llvm::SmallVector<mlir::Operation*, 3> operations;
@@ -528,6 +495,54 @@ void Equation::cleanOperation()
 	for (mlir::Operation* operation : llvm::reverse(operations))
 		if (operation->use_empty())
 			operation->erase();
+}
+
+/**
+ * Restore canonicity of array accesses if it was undone by some transformation
+ * like normalize() or replaceUses(). For example x[(i+1)+1] must become x[i+2].
+ */
+void Equation::restoreCanonicity()
+{
+	foldConstants();
+
+	for (mlir::Operation& op : getOp().body()->getOperations())
+	{
+		if (!mlir::isa<SubscriptionOp>(op))
+			continue;
+		SubscriptionOp subOp = mlir::cast<SubscriptionOp>(op);
+
+		for (mlir::Value index : subOp.indexes())
+		{
+			if (index.isa<mlir::BlockArgument>())
+					continue;
+
+			mlir::OpBuilder builder(subOp.getContext());
+			builder.setInsertionPoint(subOp);
+
+			if (AddOp outerOp = mlir::dyn_cast<AddOp>(index.getDefiningOp()))
+			{
+				if (outerOp.lhs().isa<mlir::BlockArgument>() || !mlir::isa<AddOp>(outerOp.lhs().getDefiningOp()))
+					continue;
+				AddOp innerOp = mlir::cast<AddOp>(outerOp.lhs().getDefiningOp());
+				assert(innerOp.lhs().isa<mlir::BlockArgument>());
+
+				mlir::Value offset = builder.create<AddOp>(subOp.getLoc(), outerOp.resultType(), innerOp.rhs(), outerOp.rhs());
+				mlir::Value newIndex = builder.create<AddOp>(subOp.getLoc(), outerOp.resultType(), innerOp.lhs(), offset);
+				outerOp.getResult().replaceAllUsesWith(newIndex);
+			}
+			else if (SubOp outerOp = mlir::dyn_cast<SubOp>(index.getDefiningOp()))
+			{
+				if (outerOp.lhs().isa<mlir::BlockArgument>() || !mlir::isa<AddOp>(outerOp.lhs().getDefiningOp()))
+					continue;
+				AddOp innerOp = mlir::cast<AddOp>(outerOp.lhs().getDefiningOp());
+				assert(innerOp.lhs().isa<mlir::BlockArgument>());
+
+				mlir::Value offset = builder.create<SubOp>(subOp.getLoc(), outerOp.resultType(), innerOp.rhs(), outerOp.rhs());
+				mlir::Value newIndex = builder.create<AddOp>(subOp.getLoc(), outerOp.resultType(), innerOp.lhs(), offset);
+				outerOp.getResult().replaceAllUsesWith(newIndex);
+			}
+		}
+	}
 }
 
 void Equation::update()

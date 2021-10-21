@@ -76,12 +76,13 @@ namespace marco::codegen::model
 		[[nodiscard]] bool isImplicit();
 
 		[[nodiscard]] Equation clone() const;
+
 		void foldConstants();
 		void cleanOperation();
+		void restoreCanonicity();
+
 		void update();
 		void erase();
-
-		[[nodiscard]] Equation composeAccess(const VectorAccess& transformation) const;
 
 		template<typename Path>
 		[[nodiscard]] Expression reachExp(Path& path) const
