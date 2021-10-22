@@ -150,16 +150,16 @@ static bool checkRetval(void* retval, const char* funcname, int opt)
 	// Check if SUNDIALS function returned NULL pointer (no memory allocated)
 	if (opt == 0 && retval == NULL)
 	{
-		llvm::errs() << "SUNDIALS_ERROR: " << funcname
-								 << "() failed - returned NULL pointer\n";
+		llvm::errs() << "SUNDIALS_ERROR: " << funcname;
+		llvm::errs() << "() failed - returned NULL pointer\n";
 		return false;
 	}
 
 	// Check if SUNDIALS function returned a positive integer value
 	if (opt == 1 && *((int*) retval) < 0)
 	{
-		llvm::errs() << "SUNDIALS_ERROR: " << funcname
-								 << "() failed  with return value = " << *(int*) retval << "\n";
+		llvm::errs() << "SUNDIALS_ERROR: " << funcname;
+		llvm::errs() << "() failed  with return value = " << *(int*) retval << "\n";
 		return false;
 	}
 
@@ -384,20 +384,11 @@ inline bool idaInit(void* userData, T threads)
 	data->nonZeroValuesNumber = precomputeJacobianIndexes(data);
 	data->threads = threads == 0 ? omp_get_max_threads() : threads;
 
-	// Initialize IDA memory.
+	// Create and initialize IDA memory.
 	data->idaMemory = IDACreate();
 	exitOnError(checkRetval((void*) data->idaMemory, "IDACreate", 0));
 
-	int retval = IDASetUserData(data->idaMemory, (void*) data);
-	exitOnError(checkRetval(&retval, "IDASetUserData", 1));
-
-	retval = IDASetId(data->idaMemory, data->idVector);
-	exitOnError(checkRetval(&retval, "IDASetId", 1));
-
-	retval = IDASetStopTime(data->idaMemory, data->endTime);
-	exitOnError(checkRetval(&retval, "IDASetStopTime", 1));
-
-	retval = IDAInit(
+	int retval = IDAInit(
 			data->idaMemory,
 			residualFunction,
 			data->startTime,
@@ -429,6 +420,29 @@ inline bool idaInit(void* userData, T threads)
 	// Set the user-supplied Jacobian routine.
 	retval = IDASetJacFn(data->idaMemory, jacobianMatrix);
 	exitOnError(checkRetval(&retval, "IDASetJacFn", 1));
+
+	// Add the remaining optional paramters.
+	retval = IDASetUserData(data->idaMemory, (void*) data);
+	exitOnError(checkRetval(&retval, "IDASetUserData", 1));
+
+	retval = IDASetId(data->idaMemory, data->idVector);
+	exitOnError(checkRetval(&retval, "IDASetId", 1));
+
+	retval = IDASetStopTime(data->idaMemory, data->endTime);
+	exitOnError(checkRetval(&retval, "IDASetStopTime", 1));
+
+	// Increase the maximum number of steps taken by IDA before failing.
+	retval = IDASetMaxNumSteps(data->idaMemory, 1000);
+	exitOnError(checkRetval(&retval, "IDASetMaxNumSteps", 1));
+
+	retval = IDASetMaxNumStepsIC(data->idaMemory, 50);
+	exitOnError(checkRetval(&retval, "IDASetMaxNumStepsIC", 1));
+
+	retval = IDASetMaxNumJacsIC(data->idaMemory, 40);
+	exitOnError(checkRetval(&retval, "IDASetMaxNumJacsIC", 1));
+
+	retval = IDASetMaxNumItersIC(data->idaMemory, 100);
+	exitOnError(checkRetval(&retval, "IDASetMaxNumItersIC", 1));
 
 	// Call IDACalcIC to correct the initial values.
 	retval = IDACalcIC(data->idaMemory, IDA_YA_YDP_INIT, data->timeStep);
