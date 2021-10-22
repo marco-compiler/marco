@@ -1562,7 +1562,7 @@ mlir::ValueRange CallOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 	assert(args().size() == 1 && resultTypes().size() == 1 &&
 		"CallOp differentiation with multiple arguments or multiple return values is not supported yet");
 
-	llvm::StringRef pderName(getPartialDerFunctionName(callee()));
+	std::string pderName = getPartialDerFunctionName(callee());
 	mlir::ModuleOp moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
 
 	// Create the partial derivative function if it does not exist already.

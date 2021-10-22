@@ -2221,7 +2221,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		if (CallOp callOp = mlir::dyn_cast<CallOp>(definingOp))
 		{
 			ida::RealType realType = ida::RealType::get(builder.getContext());
-			llvm::StringRef partialDerName(getPartialDerFunctionName(callOp.callee()));
+			std::string partialDerName = getPartialDerFunctionName(callOp.callee());
 			mlir::Value functionName = builder.create<LambdaAddressOfOp>(loc, callOp.callee(), realType);
 			mlir::Value pderName = builder.create<LambdaAddressOfOp>(loc, partialDerName, realType);
 			return builder.create<LambdaCallOp>(loc, userData, children[0], functionName, pderName);

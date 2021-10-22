@@ -799,7 +799,7 @@ class AutomaticDifferentiationPass: public mlir::PassWrapper<AutomaticDifferenti
 
 		for (FunctionOp& function : toBePartiallyDerived)
 		{
-			llvm::StringRef pderName(getPartialDerFunctionName(function.name()));
+			std::string pderName = getPartialDerFunctionName(function.name());
 
 			if (module.lookupSymbol<FunctionOp>(pderName) == nullptr &&
 					module.lookupSymbol<DerFunctionOp>(pderName) == nullptr)
