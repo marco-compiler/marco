@@ -305,6 +305,9 @@ void IdaSolver::printOutput()
 	for (sunindextype i : irange(getEquationsNumber()))
 		std::cout << ", " << getVariable(i);
 
+	for (sunindextype i : irange(getEquationsNumber()))
+		std::cout << ", " << getDerivative(i);
+
 	std::cout << std::endl;
 }
 
