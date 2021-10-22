@@ -46,8 +46,7 @@ namespace marco::matching
 				return descriptor.getDimensionSize(index);
 			}
 
-			/*
-			RangeSet getRanges() const
+			MultidimensionalRange getRanges() const
 			{
 				llvm::SmallVector<Range, 3> ranges;
 
@@ -58,9 +57,8 @@ namespace marco::matching
 					ranges.emplace_back(0, size);
 				}
 
-				return RangeSet(ranges);
+				return MultidimensionalRange(ranges);
 			}
-			 */
 
 			unsigned int flatSize() const
 			{
@@ -169,13 +167,11 @@ namespace marco::matching
 		class EdgeProperty
 		{
 			public:
-			EdgeProperty(unsigned int equations, unsigned int variables, llvm::ArrayRef<AccessFunction> accessFunctions = llvm::None)
+			EdgeProperty(unsigned int equations, unsigned int variables)
 					: equations(equations),
 						variables(variables),
-						accessFunctions(accessFunctions.begin(), accessFunctions.end()),
 						visible(true)
 			{
-
 			}
 
 			unsigned int getNumberOfEquations() const
@@ -193,9 +189,10 @@ namespace marco::matching
 				return accessFunctions;
 			}
 
-			void addAccessFunction(AccessFunction accessFunction)
+			void addAccessFunction(AccessFunction accessFunction, MultidimensionalRange equationRange, MultidimensionalRange variableRange)
 			{
 				accessFunctions.push_back(accessFunction);
+				//incidenceMatrix.apply(accessFunction, equationRange, variableRange);
 			}
 
 			bool isVisible() const
@@ -283,10 +280,18 @@ namespace marco::matching
 			{
 				auto variableVertex = getVariableVertex(access.getVariable().getId());
 				unsigned int numberOfEquations = equation.getIterationRanges().flatSize();
-				unsigned int numberOfVariables = std::get<Variable>(graph[variableVertex]).flatSize();
+				auto& variable = std::get<Variable>(graph[variableVertex]);
+				unsigned int numberOfVariables = variable.flatSize();
 
-				detail::EdgeProperty edge(numberOfEquations, numberOfVariables, access.getAccessFunction());
-				boost::add_edge(equationVertex, variableVertex, edge, graph);
+				detail::EdgeProperty edgeProperty(numberOfEquations, numberOfVariables);
+				auto edge = boost::add_edge(equationVertex, variableVertex, edgeProperty, graph);
+
+				/*
+				graph[edge.second].addAccessFunction(
+						access.getAccessFunction(),
+						equation.getIterationRanges(),
+						variable.getRanges());
+						*/
 			}
 		}
 

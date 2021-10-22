@@ -2,19 +2,20 @@
 
 using namespace marco::matching;
 
-Range::Range(long begin, long end)
-		: begin(begin), end(end)
+Range::Range(Range::data_type begin, Range::data_type end)
+		: _begin(begin), _end(end)
 {
+	assert(begin < end && "Range is not well-formed");
 }
 
-long Range::getBegin() const
+Range::data_type Range::getBegin() const
 {
-	return begin;
+	return _begin;
 }
 
-long Range::getEnd() const
+Range::data_type Range::getEnd() const
 {
-	return end;
+	return _end;
 }
 
 size_t Range::size() const
@@ -22,9 +23,34 @@ size_t Range::size() const
 	return getEnd() - getBegin();
 }
 
+bool Range::contains(Range::data_type value) const
+{
+	return value >= getBegin() && value < getEnd();
+}
+
 bool Range::intersects(Range other) const
 {
-	return getBegin() <= other.getEnd() && getEnd() >= other.getBegin();
+	return getBegin() < other.getEnd() && getEnd() > other.getBegin();
+}
+
+Range::iterator Range::begin()
+{
+	return iterator(getBegin(), getBegin(), getEnd());
+}
+
+Range::const_iterator Range::begin() const
+{
+	return const_iterator(getBegin(), getBegin(), getEnd());
+}
+
+Range::iterator Range::end()
+{
+	return iterator(getBegin(), getEnd(), getEnd());
+}
+
+Range::const_iterator Range::end() const
+{
+	return const_iterator(getBegin(), getEnd(), getEnd());
 }
 
 MultidimensionalRange::MultidimensionalRange(llvm::ArrayRef<Range> ranges)
@@ -58,29 +84,41 @@ bool MultidimensionalRange::intersects(MultidimensionalRange other) const
 	assert(rank() == other.rank() &&
 				 "Can't compare ranges defined on different hyper-spaces");
 
-	for (const auto& [x, y] : llvm::zip(*this, other))
-		if (x.intersects(y))
-			return true;
+	for (const auto& [x, y] : llvm::zip(ranges, other.ranges))
+		if (!x.intersects(y))
+			return false;
 
-	return false;
+	return true;
 }
 
 MultidimensionalRange::iterator MultidimensionalRange::begin()
 {
-	return ranges.begin();
+	return iterator(
+			ranges, [](const Range& range) {
+				return range.begin();
+			});
 }
 
 MultidimensionalRange::const_iterator MultidimensionalRange::begin() const
 {
-	return ranges.begin();
+	return const_iterator(
+			ranges, [](const Range& range) {
+				return range.begin();
+			});
 }
 
 MultidimensionalRange::iterator MultidimensionalRange::end()
 {
-	return ranges.end();
+	return iterator(
+			ranges, [](const Range& range) {
+				return range.end();
+			});
 }
 
 MultidimensionalRange::const_iterator MultidimensionalRange::end() const
 {
-	return ranges.end();
+	return const_iterator(
+			ranges, [](const Range& range) {
+				return range.end();
+			});
 }

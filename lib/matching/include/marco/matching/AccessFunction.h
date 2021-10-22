@@ -9,32 +9,54 @@ namespace marco::matching
 	class SingleDimensionAccess
 	{
 		private:
-		SingleDimensionAccess(bool constantAccess, int64_t position, unsigned int inductionVariableIndex = 0);
+		SingleDimensionAccess(bool constantAccess, long position, unsigned int inductionVariableIndex = 0);
 
 		public:
-		static SingleDimensionAccess constant(int64_t position);
-		static SingleDimensionAccess relative(unsigned int inductionVariableIndex, int64_t relativePosition);
+		static SingleDimensionAccess constant(long position);
+		static SingleDimensionAccess relative(unsigned int inductionVariableIndex, long relativePosition);
+
+		size_t operator()(llvm::ArrayRef<long> equationIndexes) const;
 
 		bool isConstantAccess() const;
 
-		int64_t getPosition() const;
+		size_t getPosition() const;
 
-		int64_t getOffset() const;
+		size_t getOffset() const;
 		unsigned int getInductionVariableIndex() const;
 
 		private:
 		bool constantAccess;
-		int64_t position;
+		long position;
 		unsigned int inductionVariableIndex;
 	};
 
 	class AccessFunction
 	{
+		private:
+		using Container = llvm::SmallVector<SingleDimensionAccess, 3>;
+
 		public:
+		using iterator = Container::iterator;
+		using const_iterator = Container::const_iterator;
+
 		AccessFunction(llvm::ArrayRef<SingleDimensionAccess> functions);
 
+		SingleDimensionAccess operator[](size_t index) const;
+
+		llvm::ArrayRef<SingleDimensionAccess> getDimensionAccesses() const;
+
+		void map(llvm::SmallVectorImpl<size_t>& results, llvm::ArrayRef<long> equationIndexes) const;
+
+		size_t size() const;
+
+		iterator begin();
+		const_iterator begin() const;
+
+		iterator end();
+		const_iterator end() const;
+
 		private:
-		llvm::SmallVector<SingleDimensionAccess, 3> functions;
+		Container functions;
 	};
 }
 
