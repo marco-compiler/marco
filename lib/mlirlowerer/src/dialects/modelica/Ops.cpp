@@ -4705,6 +4705,20 @@ void AddOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 void AddOp::foldConstants(mlir::OpBuilder& builder)
 {
+	if (isOperandFoldable(lhs()) && getAttributeValue(mlir::cast<ConstantOp>(lhs().getDefiningOp()).value()) == 0.0)
+	{
+		replaceAllUsesWith(rhs());
+		erase();
+		return;
+	}
+
+	if (isOperandFoldable(rhs()) && getAttributeValue(mlir::cast<ConstantOp>(rhs().getDefiningOp()).value()) == 0.0)
+	{
+		replaceAllUsesWith(lhs());
+		erase();
+		return;
+	}
+
 	if (!isOperandFoldable(lhs()) || !isOperandFoldable(rhs()))
 		return;
 
@@ -5124,6 +5138,24 @@ void SubOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 void SubOp::foldConstants(mlir::OpBuilder& builder)
 {
+	if (isOperandFoldable(lhs()) && getAttributeValue(mlir::cast<ConstantOp>(lhs().getDefiningOp()).value()) == 0.0)
+	{
+		mlir::OpBuilder::InsertionGuard guard(builder);
+		builder.setInsertionPoint(*this);
+		mlir::Value newOp = builder.create<NegateOp>(getLoc(), resultType(), rhs());
+
+		replaceAllUsesWith(newOp);
+		erase();
+		return;
+	}
+
+	if (isOperandFoldable(rhs()) && getAttributeValue(mlir::cast<ConstantOp>(rhs().getDefiningOp()).value()) == 0.0)
+	{
+		replaceAllUsesWith(lhs());
+		erase();
+		return;
+	}
+
 	if (!isOperandFoldable(lhs()) || !isOperandFoldable(rhs()))
 		return;
 
@@ -5568,6 +5600,44 @@ void MulOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 void MulOp::foldConstants(mlir::OpBuilder& builder)
 {
+	if (isOperandFoldable(lhs()))
+	{
+		double value = getAttributeValue(mlir::cast<ConstantOp>(lhs().getDefiningOp()).value());
+
+		if (value == 0.0)
+		{
+			replaceAllUsesWith(lhs());
+			erase();
+			return;
+		}
+
+		if (value == 1.0)
+		{
+			replaceAllUsesWith(rhs());
+			erase();
+			return;
+		}
+	}
+
+	if (isOperandFoldable(rhs()))
+	{
+		double value = getAttributeValue(mlir::cast<ConstantOp>(rhs().getDefiningOp()).value());
+
+		if (value == 0.0)
+		{
+			replaceAllUsesWith(rhs());
+			erase();
+			return;
+		}
+
+		if (value == 1.0)
+		{
+			replaceAllUsesWith(lhs());
+			erase();
+			return;
+		}
+	}
+
 	if (!isOperandFoldable(lhs()) || !isOperandFoldable(rhs()))
 		return;
 
@@ -6048,6 +6118,20 @@ void DivOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 void DivOp::foldConstants(mlir::OpBuilder& builder)
 {
+	if (isOperandFoldable(lhs()) && getAttributeValue(mlir::cast<ConstantOp>(lhs().getDefiningOp()).value()) == 0.0)
+	{
+		replaceAllUsesWith(lhs());
+		erase();
+		return;
+	}
+
+	if (isOperandFoldable(rhs()) && getAttributeValue(mlir::cast<ConstantOp>(rhs().getDefiningOp()).value()) == 1.0)
+	{
+		replaceAllUsesWith(lhs());
+		erase();
+		return;
+	}
+
 	if (!isOperandFoldable(lhs()) || !isOperandFoldable(rhs()))
 		return;
 
@@ -6056,7 +6140,6 @@ void DivOp::foldConstants(mlir::OpBuilder& builder)
 
 	double left = getAttributeValue(leftOp.value());
 	double right = getAttributeValue(rightOp.value());
-	assert(right != 0.0);
 
 	mlir::OpBuilder::InsertionGuard guard(builder);
 	builder.setInsertionPoint(*this);
@@ -6479,6 +6562,41 @@ void PowOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
 
 void PowOp::foldConstants(mlir::OpBuilder& builder)
 {
+	if (isOperandFoldable(exponent()))
+	{
+		double value = getAttributeValue(mlir::cast<ConstantOp>(exponent().getDefiningOp()).value());
+
+		if (value == 0.0)
+		{
+			mlir::OpBuilder::InsertionGuard guard(builder);
+			builder.setInsertionPoint(*this);
+			mlir::Value newOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 1));
+
+			replaceAllUsesWith(newOp);
+			erase();
+			return;
+		}
+
+		if (value == 1.0)
+		{
+			replaceAllUsesWith(base());
+			erase();
+			return;
+		}
+	}
+
+	if (isOperandFoldable(base()))
+	{
+		double value = getAttributeValue(mlir::cast<ConstantOp>(base().getDefiningOp()).value());
+
+		if (value == 0.0 || value == 1.0)
+		{
+			replaceAllUsesWith(base());
+			erase();
+			return;
+		}
+	}
+
 	if (!isOperandFoldable(base()) || !isOperandFoldable(exponent()))
 		return;
 
