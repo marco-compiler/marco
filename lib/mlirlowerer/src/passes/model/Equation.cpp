@@ -472,12 +472,8 @@ void Equation::foldConstants()
 	// If an operation has only constants as operands, we can substitute it with
 	// the corresponding constant value and erase the old operation.
 	for (mlir::Operation* operation : operations)
-	{
-		if (!operation->hasTrait<FoldableOpInterface::Trait>())
-			continue;
-
-		mlir::cast<FoldableOpInterface>(operation).foldConstants(builder);
-	}
+		if (operation->hasTrait<FoldableOpInterface::Trait>())
+			mlir::cast<FoldableOpInterface>(operation).foldConstants(builder);
 }
 
 /**

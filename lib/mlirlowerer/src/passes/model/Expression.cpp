@@ -79,10 +79,10 @@ Expression Expression::build(mlir::Value value)
 	if (mlir::isa<ConstantOp>(definingOp))
 		return Expression::constant(value);
 
-	llvm::SmallVector<Expression, 3> args;
-
 	if (auto op = mlir::dyn_cast<CallOp>(definingOp))
 	{
+		llvm::SmallVector<Expression, 3> args;
+
 		for (auto arg : op.args())
 			args.push_back(build(arg));
 
