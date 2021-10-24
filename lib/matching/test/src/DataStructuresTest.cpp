@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
-#include <marco/matching/MCIM.h>
-#include <marco/matching/Range.h>
+#include <marco/matching/IncidenceMatrix.h>
 
 using namespace marco::matching;
 
@@ -125,15 +124,40 @@ TEST(Matching, multidimensionalRangesWithTouchingBorders)
 	EXPECT_FALSE(y.intersects(x));
 }
 
-TEST(Matching, MCIM)
+TEST(Matching, incidenceMatrixEdgesSet)
 {
 	MultidimensionalRange eq({
-			Range(1, 3),
+			Range(4, 6),
 			Range(2, 4)
 	});
 
-	MultidimensionalRange x(Range(1, 9));
+	MultidimensionalRange var(Range(0, 9));
 
-	MCIM mcim(eq, x);
-	mcim.apply(AccessFunction(SingleDimensionAccess::relative(1, 3)));
+	IncidenceMatrix matrix(eq, var);
+	matrix.set({ 4, 2, 0 });
+	matrix.set({ 4, 2, 8 });
+	matrix.set({ 5, 3, 0 });
+	matrix.set({ 5, 3, 8 });
+
+	for (long i = 4; i < 6; ++i)
+	{
+		for (long j = 2; j < 4; ++j)
+		{
+			for (long k = 0; k < 9; ++k)
+			{
+				bool value = matrix.get({ i, j, k });
+
+				if (i == 4 && j == 2 && k == 0)
+					EXPECT_TRUE(value);
+				else if (i == 4 && j == 2 && k == 8)
+					EXPECT_TRUE(value);
+				else if (i == 5 && j == 3 && k == 0)
+					EXPECT_TRUE(value);
+				else if (i == 5 && j == 3 && k == 8)
+					EXPECT_TRUE(value);
+				else
+					EXPECT_FALSE(value);
+			}
+		}
+	}
 }

@@ -30,17 +30,9 @@ namespace marco::matching
 	class MCIM
 	{
 		public:
-		MCIM(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
-
-		void apply(AccessFunction accessFunction);
+		MCIM();
 
 		private:
-		void set(llvm::ArrayRef<size_t> indexes);
-
-		MultidimensionalRange equationRanges;
-		MultidimensionalRange variableRanges;
-		Matrix data;
-		//llvm::SmallVector<MCIMElement, 3> elements;
 	};
 }
 

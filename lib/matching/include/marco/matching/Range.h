@@ -219,6 +219,8 @@ namespace marco::matching
 
 		unsigned int rank() const;
 
+		void getSizes(llvm::SmallVectorImpl<size_t>& sizes) const;
+
 		unsigned int flatSize() const;
 
 		bool intersects(MultidimensionalRange other) const;

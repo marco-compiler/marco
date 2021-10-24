@@ -45,7 +45,7 @@ namespace marco::matching
 
 		llvm::ArrayRef<SingleDimensionAccess> getDimensionAccesses() const;
 
-		void map(llvm::SmallVectorImpl<size_t>& results, llvm::ArrayRef<long> equationIndexes) const;
+		void map(llvm::SmallVectorImpl<long>& results, llvm::ArrayRef<long> equationIndexes) const;
 
 		size_t size() const;
 

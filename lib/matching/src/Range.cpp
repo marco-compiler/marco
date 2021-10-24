@@ -69,6 +69,12 @@ unsigned int MultidimensionalRange::rank() const
 	return ranges.size();
 }
 
+void MultidimensionalRange::getSizes(llvm::SmallVectorImpl<size_t>& sizes) const
+{
+	for (size_t i = 0, e = rank(); i < e; ++i)
+		sizes.push_back(ranges[i].size());
+}
+
 unsigned int MultidimensionalRange::flatSize() const
 {
 	unsigned int result = 1;
