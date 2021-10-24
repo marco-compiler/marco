@@ -328,6 +328,12 @@ namespace marco::codegen::model
 			mlir::ValueRange sourceInductions = normalizedSource.getOp().inductions();
 			mlir::ValueRange destInductions = destination.getOp().inductions();
 
+			MultiDimInterval sourceIntervals = sourceAccess.map(normalizedSource.getInductions());
+			MultiDimInterval destinationIntervals = destAccess.map(destination.getInductions());
+
+			if (marco::areDisjoint(sourceIntervals, destinationIntervals))
+				continue;
+
 			SubscriptionOp destSubOp = mlir::cast<SubscriptionOp>(access.getExpression().getOp());
 			assert(mlir::cast<SubscriptionOp>(source.lhs().getOp()).indexes().size() == destSubOp.indexes().size());
 
