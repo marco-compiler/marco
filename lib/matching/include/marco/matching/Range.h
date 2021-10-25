@@ -73,6 +73,9 @@ namespace marco::matching
 
 		Range(data_type begin, data_type end);
 
+		bool operator==(const Range& other) const;
+		bool operator!=(const Range& other) const;
+
 		long getBegin() const;
 		long getEnd() const;
 
@@ -214,6 +217,9 @@ namespace marco::matching
 		using const_iterator = MultidimensionalRangeIterator<data_type>;
 
 		MultidimensionalRange(llvm::ArrayRef<Range> ranges);
+
+		bool operator==(const MultidimensionalRange& other) const;
+		bool operator!=(const MultidimensionalRange& other) const;
 
 		Range operator[](size_t index) const;
 

@@ -1,4 +1,5 @@
 #include <marco/matching/IncidenceMatrix.h>
+#include <numeric>
 
 using namespace marco::matching;
 
@@ -34,6 +35,16 @@ IncidenceMatrix::IncidenceMatrix(MultidimensionalRange equationRanges, Multidime
 			data(equationRanges.flatSize(), variableRanges.flatSize(), false)
 {
 	assert(variableRanges.rank() <= equationRanges.rank());
+}
+
+const MultidimensionalRange& IncidenceMatrix::getEquationRanges() const
+{
+	return equationRanges;
+}
+
+const MultidimensionalRange& IncidenceMatrix::getVariableRanges() const
+{
+	return variableRanges;
 }
 
 void IncidenceMatrix::apply(AccessFunction access)
@@ -74,26 +85,13 @@ void IncidenceMatrix::unset(llvm::ArrayRef<long> indexes)
 	data(matrixIndexes.first, matrixIndexes.second) = false;
 }
 
-void IncidenceMatrix::splitIndexes(llvm::ArrayRef<long> indexes, llvm::SmallVectorImpl<size_t>& equationIndexes, llvm::SmallVectorImpl<size_t>& variableIndexes) const
+IncidenceMatrix& IncidenceMatrix::operator+=(const IncidenceMatrix& rhs)
 {
-	assert(equationRanges.rank() + variableRanges.rank() == indexes.size());
+	assert(getEquationRanges() == rhs.getEquationRanges() && "Different equation ranges");
+	assert(getVariableRanges() == rhs.getVariableRanges() && "Different variable ranges");
 
-	for (size_t i = 0, e = equationRanges.rank(); i < e; ++i)
-	{
-		auto range = equationRanges[i];
-		auto scaledIndex = indexes[i] - range.getBegin();
-		assert(scaledIndex >= 0 && scaledIndex < range.getEnd());
-	}
-
-	equationIndexes.insert(equationIndexes.begin(), indexes.begin(), indexes.begin() + equationRanges.rank());
-	variableIndexes.insert(variableIndexes.begin(), indexes.begin() + equationRanges.rank(), indexes.end());
-
-	for (size_t i = equationRanges.rank() + 1, e = equationRanges.rank() + variableRanges.rank(); i < e; ++i)
-	{
-		auto range = equationRanges[i];
-		auto scaledIndex = indexes[i] - range.getBegin();
-		assert(scaledIndex >= 0 && scaledIndex < range.getEnd());
-	}
+	data += rhs.data;
+	return *this;
 }
 
 std::pair<size_t, size_t> IncidenceMatrix::getMatrixIndexes(llvm::ArrayRef<long> indexes) const
@@ -118,7 +116,7 @@ std::pair<size_t, size_t> IncidenceMatrix::getMatrixIndexes(llvm::ArrayRef<long>
 	{
 		auto range = equationRanges[i];
 		auto scaledIndex = indexes[i] - range.getBegin();
-		assert(scaledIndex >= 0 && scaledIndex < range.getEnd());
+		assert(scaledIndex >= 0 && scaledIndex < range.getEnd() - range.getBegin());
 		equationIndexes.push_back(scaledIndex);
 	}
 
@@ -126,12 +124,180 @@ std::pair<size_t, size_t> IncidenceMatrix::getMatrixIndexes(llvm::ArrayRef<long>
 	{
 		auto range = variableRanges[i - equationRanges.rank()];
 		auto scaledIndex = indexes[i] - range.getBegin();
-		assert(scaledIndex >= 0 && scaledIndex < range.getEnd());
+		assert(scaledIndex >= 0 && scaledIndex < range.getEnd() - range.getBegin());
 		variableIndexes.push_back(scaledIndex);
 	}
+
+	// Flatten the sets of indexes so that they can be used to uniquely refer to
+	// an element within the 2D data structure.
 
 	size_t row = flattenAccess(equationDimensions, equationIndexes);
 	size_t column = flattenAccess(variableDimensions, variableIndexes);
 
 	return std::make_pair(row, column);
+}
+
+template <class T>
+static size_t numDigits(T value)
+{
+	if (value > -10 && value < 10)
+		return 1;
+
+	size_t digits = 0;
+
+	while (value != 0) {
+		value /= 10;
+		++digits;
+	}
+
+	return digits;
+}
+
+static size_t getRangeMaxColumns(const Range& range)
+{
+	size_t beginDigits = numDigits(range.getBegin());
+	size_t endDigits = numDigits(range.getEnd());
+
+	if (range.getBegin() < 0)
+		++beginDigits;
+
+	if (range.getEnd() < 0)
+		++endDigits;
+
+	return std::max(beginDigits, endDigits);
+}
+
+static size_t getIndexesWidth(llvm::ArrayRef<long> indexes)
+{
+	size_t result = 0;
+
+	for (const auto& index : indexes)
+	{
+		result += numDigits(index);
+
+		if (index < 0)
+			++result;
+	}
+
+	return result;
+}
+
+static size_t getWrappedIndexesLength(size_t indexesLength, size_t numberOfIndexes)
+{
+	size_t result = indexesLength;
+
+	result += 1; // '(' character
+	result += numberOfIndexes - 1; // ',' characters
+	result += 1; // ')' character
+
+	return result;
+}
+
+static void printIndexes(llvm::raw_ostream& stream, llvm::ArrayRef<long> indexes)
+{
+	bool separator = false;
+	stream << "(";
+
+	for (const auto& index : indexes)
+	{
+		if (separator)
+			stream << ",";
+
+		separator = true;
+		stream << index;
+	}
+
+	stream << ")";
+}
+
+namespace marco::matching
+{
+	llvm::raw_ostream& operator<<(
+			llvm::raw_ostream& stream, const IncidenceMatrix& matrix)
+	{
+		const auto& equationRanges = matrix.getEquationRanges();
+		const auto& variableRanges = matrix.getVariableRanges();
+
+		// Determine the max widths of the indexes of the equation, so that they
+		// will be properly aligned.
+		llvm::SmallVector<size_t, 3> equationIndexesCols;
+
+		for (size_t i = 0, e = equationRanges.rank(); i < e; ++i)
+			equationIndexesCols.push_back(getRangeMaxColumns(equationRanges[i]));
+
+		size_t equationIndexesMaxWidth = std::accumulate(equationIndexesCols.begin(), equationIndexesCols.end(), 0);
+		size_t equationIndexesColumnWidth = getWrappedIndexesLength(equationIndexesMaxWidth, equationRanges.rank());
+
+		// Determine the max column width, so that the horizontal spacing is the
+		// same among all the items.
+		llvm::SmallVector<size_t, 3> variableIndexesCols;
+
+		for (size_t i = 0, e = variableRanges.rank(); i < e; ++i)
+			variableIndexesCols.push_back(getRangeMaxColumns(variableRanges[i]));
+
+		size_t variableIndexesMaxWidth = std::accumulate(variableIndexesCols.begin(), variableIndexesCols.end(), 0);
+		size_t variableIndexesColumnWidth = getWrappedIndexesLength(variableIndexesMaxWidth, variableRanges.rank());
+
+		// Print the spacing of the first line
+		for (size_t i = 0, e = equationIndexesColumnWidth; i < e; ++i)
+			stream << " ";
+
+		// Print the variable indexes
+		for (const auto& variableIndexes : variableRanges)
+		{
+			stream << " ";
+			size_t columnWidth = getIndexesWidth(variableIndexes);
+
+			for (size_t i = columnWidth; i < variableIndexesMaxWidth; ++i)
+				stream << " ";
+
+			printIndexes(stream, variableIndexes);
+		}
+
+		// The first line containing the variable indexes is finished
+		stream << "\n";
+
+		// Print a line for each equation
+		llvm::SmallVector<long, 4> indexes;
+
+		for (const auto& equationIndexes : equationRanges)
+		{
+			for (size_t i = getIndexesWidth(equationIndexes); i < equationIndexesMaxWidth; ++i)
+				stream << " ";
+
+			printIndexes(stream, equationIndexes);
+			stream << " ";
+
+			for (const auto& variableIndexes : variableRanges)
+			{
+				stream << " ";
+
+				indexes.clear();
+				indexes.insert(indexes.end(), equationIndexes.begin(), equationIndexes.end());
+				indexes.insert(indexes.end(), variableIndexes.begin(), variableIndexes.end());
+
+				size_t columnWidth = variableIndexesColumnWidth;
+				size_t spacesBefore = (columnWidth - 1) / 2;
+				size_t spacesAfter = columnWidth - 1 - spacesBefore;
+
+				for (size_t i = 0; i < spacesBefore; ++i)
+					stream << " ";
+
+				stream << (matrix.get(indexes) ? 1 : 0);
+
+				for (size_t i = 0; i < spacesAfter; ++i)
+					stream << " ";
+			}
+
+			stream << "\n";
+		}
+
+		return stream;
+	}
+
+	std::ostream& operator<<(std::ostream& stream, const IncidenceMatrix& matrix)
+	{
+		llvm::raw_os_ostream(stream) << matrix;
+		return stream;
+	}
 }

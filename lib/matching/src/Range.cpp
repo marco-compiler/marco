@@ -8,6 +8,16 @@ Range::Range(Range::data_type begin, Range::data_type end)
 	assert(begin < end && "Range is not well-formed");
 }
 
+bool Range::operator==(const Range& other) const
+{
+	return getBegin() == other.getBegin() && getEnd() == other.getEnd();
+}
+
+bool Range::operator!=(const Range& other) const
+{
+	return getBegin() != other.getBegin() || getEnd() != other.getEnd();
+}
+
 Range::data_type Range::getBegin() const
 {
 	return _begin;
@@ -56,6 +66,30 @@ Range::const_iterator Range::end() const
 MultidimensionalRange::MultidimensionalRange(llvm::ArrayRef<Range> ranges)
 		: ranges(ranges.begin(), ranges.end())
 {
+}
+
+bool MultidimensionalRange::operator==(const MultidimensionalRange& other) const
+{
+	if (rank() != other.rank())
+		return false;
+
+	for (const auto& [lhs, rhs] : llvm::zip(ranges, other.ranges))
+		if (lhs != rhs)
+			return false;
+
+	return true;
+}
+
+bool MultidimensionalRange::operator!=(const MultidimensionalRange& other) const
+{
+	if (rank() != other.rank())
+		return true;
+
+	for (const auto& [lhs, rhs] : llvm::zip(ranges, other.ranges))
+		if (lhs != rhs)
+			return true;
+
+	return false;
 }
 
 Range MultidimensionalRange::operator[](size_t index) const

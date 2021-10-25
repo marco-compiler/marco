@@ -10,6 +10,7 @@
 #include <variant>
 
 #include "AccessFunction.h"
+#include "IncidenceMatrix.h"
 #include "MCIM.h"
 #include "MCIS.h"
 #include "Range.h"
@@ -167,9 +168,11 @@ namespace marco::matching
 		class EdgeProperty
 		{
 			public:
-			EdgeProperty(unsigned int equations, unsigned int variables)
-					: equations(equations),
-						variables(variables),
+			EdgeProperty(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
+					: equations(equationRanges.flatSize()),
+						variables(variableRanges.flatSize()),
+						incidenceMatrix(equationRanges, variableRanges),
+						matchMatrix(equationRanges, variableRanges),
 						visible(true)
 			{
 			}
@@ -189,10 +192,20 @@ namespace marco::matching
 				return accessFunctions;
 			}
 
-			void addAccessFunction(AccessFunction accessFunction, MultidimensionalRange equationRange, MultidimensionalRange variableRange)
+			void addAccessFunction(AccessFunction accessFunction)
 			{
 				accessFunctions.push_back(accessFunction);
-				//incidenceMatrix.apply(accessFunction, equationRange, variableRange);
+				incidenceMatrix.apply(accessFunction);
+			}
+
+			const IncidenceMatrix& getIncidenceMatrix() const
+			{
+				return incidenceMatrix;
+			}
+
+			void addMatch(IncidenceMatrix match)
+			{
+				incidenceMatrix += match;
 			}
 
 			bool isVisible() const
@@ -209,8 +222,8 @@ namespace marco::matching
 			unsigned int equations;
 			unsigned int variables;
 			llvm::SmallVector<AccessFunction, 3> accessFunctions;
-			//MCIM incidenceMatrix;
-			//MCIM matchingMatrix;
+			IncidenceMatrix incidenceMatrix;
+			IncidenceMatrix matchMatrix;
 			bool visible;
 		};
 	}
@@ -276,6 +289,10 @@ namespace marco::matching
 			llvm::SmallVector<Access<VariableDescriptor>, 3> accesses;
 			equation.getVariableAccesses(accesses);
 
+			// The equation may access multiple variables or even multiple indexes
+			// of the same variable. Add an edge to the graph for each of those
+			// accesses.
+
 			for (const auto& access : accesses)
 			{
 				auto variableVertex = getVariableVertex(access.getVariable().getId());
@@ -283,15 +300,10 @@ namespace marco::matching
 				auto& variable = std::get<Variable>(graph[variableVertex]);
 				unsigned int numberOfVariables = variable.flatSize();
 
-				detail::EdgeProperty edgeProperty(numberOfEquations, numberOfVariables);
+				detail::EdgeProperty edgeProperty(equation.getIterationRanges(), variable.getRanges());
 				auto edge = boost::add_edge(equationVertex, variableVertex, edgeProperty, graph);
 
-				/*
-				graph[edge.second].addAccessFunction(
-						access.getAccessFunction(),
-						equation.getIterationRanges(),
-						variable.getRanges());
-						*/
+				graph[edge.first].addAccessFunction(access.getAccessFunction());
 			}
 		}
 
@@ -354,12 +366,76 @@ namespace marco::matching
 				Vertex v1 = candidates.front();
 				candidates.pop_front();
 
-				bool shouldRemoveV2 = false;
 				Edge edge = getFirstOutEdge(v1);
+				Vertex v2 = (boost::source(edge) == v1) ? boost::target(edge, graph) : boost::source(edge, graph);
+				bool shouldRemoveOppositeNode = false;
 
+				auto matchOptions = solveLocalMatchingProblem(edge);
+
+				// The simplification steps is executed only in case of a single
+				// matching option. In case of multiple ones, in fact, the choice
+				// would be arbitrary and may affect the feasibility of the
+				// array-aware matching problem.
+
+				if (matchOptions.size() == 1)
+				{
+					graph[edge].addMatch(matchOptions.front());
+
+					if (shouldRemoveOppositeNode)
+					{
+
+					}
+					else
+					{
+
+					}
+				}
 			}
 
 			return true;
+		}
+
+		std::list<IncidenceMatrix> solveLocalMatchingProblem(Edge edge) const
+		{
+			std::list<IncidenceMatrix> result;
+
+			detail::EdgeProperty& edgeProperty = graph[edge];
+			IncidenceMatrix& u = edge.getIncidenceMatrix();
+			auto equationRanges = u.getEquationRanges();
+			auto variableRanges = u.getVariableRanges();
+
+			for (const auto& accessFunction : edgeProperty.getAccessFunctions())
+			{
+				auto accesses = accessFunction.getDimensionAccesses();
+
+				bool constantAccess = llvm::any_of(accesses, [](const SingleDimensionAccess& acc) {
+					return acc.isConstantAccess();
+				});
+
+				assert(variableRanges.rank() <= equationRanges.rank());
+				bool underDimensioned = variableRanges.rank() < equationRanges.rank();
+
+				if (constantAccess || underDimensioned)
+				{
+					for (const auto& equationIndexes : equationRanges)
+					{
+						llvm::SmallVector<long, 3> indexes;
+						indexes.insert(indexes.begin(), equationIndexes.begin(), equationIndexes.end());
+						accessFunction.map(indexes, equationIndexes);
+						IncidenceMatrix m(equationRanges, variableRanges);
+						m.set(indexes);
+						result.push_back(std::move(m));
+					}
+				}
+				else
+				{
+					IncidenceMatrix m(equationRanges, variableRanges);
+					m.apply(accessFunction);
+					result.push_back(std::move(m));
+				}
+			}
+
+			return result;
 		}
 
 		private:

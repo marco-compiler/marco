@@ -2,6 +2,7 @@ set(SOURCES
         src/AccessFunction.cpp
         src/Graph.cpp
         src/IncidenceMatrix.cpp
+        src/Matching.cpp
         src/MCIM.cpp
         src/MCIS.cpp
         src/Range.cpp)
