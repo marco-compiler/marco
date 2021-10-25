@@ -38,7 +38,7 @@ jobs:
       - name: Build
         id: build
         if: steps.copy.outcome == 'success'
-        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} sh ci.sh ${{env.TEMP_DIR}} marco.tar.gz
+        run: ssh ${{secrets.SERVER_USERNAME}}@${{secrets.SERVER_ADDRESS}} sh /ci.sh ${{env.TEMP_DIR}} marco.tar.gz
         continue-on-error: true
 
       - name: Run regression tests
