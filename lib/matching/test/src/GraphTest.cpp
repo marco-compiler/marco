@@ -4,6 +4,7 @@
 #include "Common.h"
 
 using namespace marco::matching;
+using namespace marco::matching::detail;
 
 TEST(Matching, singleVariableInsertion)
 {
@@ -44,8 +45,8 @@ TEST(Matching, addEquation)
 
 	Equation eq1("eq1");
 	eq1.addIterationRange(Range(0, 1));
-	eq1.addVariableAccess(Access(x, SingleDimensionAccess::constant(0)));
-	eq1.addVariableAccess(Access(x, SingleDimensionAccess::constant(1)));
+	eq1.addVariableAccess(Access(x, DimensionAccess::constant(0)));
+	eq1.addVariableAccess(Access(x, DimensionAccess::constant(1)));
 
 	graph.addVariable(x);
 	graph.addEquation(eq1);

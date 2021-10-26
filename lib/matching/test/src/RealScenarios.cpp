@@ -1,9 +1,10 @@
 #include <gtest/gtest.h>
-#include <marco/matching/Graph.h>
+#include <marco/matching/Matching.h>
 
 #include "Common.h"
 
 using namespace marco::matching;
+using namespace marco::matching::detail;
 
 /**
  * var
@@ -22,15 +23,49 @@ TEST(Matching, testCase1)
 
 	Equation eq1("eq1");
 	eq1.addIterationRange(Range(0, 2));
-	eq1.addVariableAccess(Access(x, SingleDimensionAccess::relative(0, 0)));
-	eq1.addVariableAccess(Access(x, SingleDimensionAccess::relative(0, 1)));
+	eq1.addVariableAccess(Access(x, DimensionAccess::relative(0, 0)));
+	eq1.addVariableAccess(Access(x, DimensionAccess::relative(0, 1)));
 	graph.addEquation(eq1);
 
 	Equation eq2("eq2");
 	eq2.addIterationRange(Range(0, 1));
-	eq2.addVariableAccess(Access(x, SingleDimensionAccess::constant(2)));
+	eq2.addVariableAccess(Access(x, DimensionAccess::constant(2)));
 	graph.addEquation(eq2);
 
 	std::cout << "Equations: " << graph.getNumberOfScalarEquations() << std::endl;
 	std::cout << "Variables: " << graph.getNumberOfScalarVariables() << std::endl;
+
+	simplify(graph);
+}
+
+TEST(Matching, test1)
+{
+	MatchingGraph<Variable, Equation> graph;
+
+	Variable x("x", { 3, 4 });
+	graph.addVariable(x);
+
+	Equation eq1("eq1");
+	eq1.addIterationRange(Range(1, 4));
+	eq1.addIterationRange(Range(2, 4));
+	eq1.addVariableAccess(Access(x, DimensionAccess::relative(1, -1), DimensionAccess::constant(2)));
+	graph.addEquation(eq1);
+
+	simplify(graph);
+}
+
+TEST(Matching, test2)
+{
+	MatchingGraph<Variable, Equation> graph;
+
+	Variable x("x", { 3, 4 });
+	graph.addVariable(x);
+
+	Equation eq1("eq1");
+	eq1.addIterationRange(Range(1, 4));
+	eq1.addIterationRange(Range(2, 4));
+	eq1.addVariableAccess(Access(x, DimensionAccess::relative(1, -1), DimensionAccess::relative(1, -1)));
+	graph.addEquation(eq1);
+
+	simplify(graph);
 }

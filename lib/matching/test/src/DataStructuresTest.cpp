@@ -2,6 +2,7 @@
 #include <marco/matching/IncidenceMatrix.h>
 
 using namespace marco::matching;
+using namespace marco::matching::detail;
 
 TEST(Matching, oneDimensionalRange)
 {

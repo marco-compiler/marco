@@ -63,6 +63,20 @@ Range::const_iterator Range::end() const
 	return const_iterator(getBegin(), getEnd(), getEnd());
 }
 
+namespace marco::matching
+{
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Range& range)
+	{
+		return stream << "[" << range.getBegin() << "," << range.getEnd() << ")";
+	}
+
+	std::ostream& operator<<(std::ostream& stream, const Range& range)
+	{
+		llvm::raw_os_ostream(stream) << range;
+		return stream;
+	}
+}
+
 MultidimensionalRange::MultidimensionalRange(llvm::ArrayRef<Range> ranges)
 		: ranges(ranges.begin(), ranges.end())
 {
@@ -161,4 +175,31 @@ MultidimensionalRange::const_iterator MultidimensionalRange::end() const
 			ranges, [](const Range& range) {
 				return range.end();
 			});
+}
+
+namespace marco::matching
+{
+	llvm::raw_ostream& operator<<(
+			llvm::raw_ostream& stream, const MultidimensionalRange& range)
+	{
+		stream << "[";
+
+		for (size_t i = 0, e = range.rank(); i < e; ++i)
+		{
+			if (i != 0)
+				stream << ",";
+
+			stream << range[i];
+		}
+
+		stream << "]";
+		return stream;
+	}
+
+	std::ostream& operator<<(
+			std::ostream& stream, const MultidimensionalRange& range)
+	{
+		llvm::raw_os_ostream(stream) << range;
+		return stream;
+	}
 }

@@ -6,14 +6,14 @@
 
 namespace marco::matching
 {
-	class SingleDimensionAccess
+	class DimensionAccess
 	{
 		private:
-		SingleDimensionAccess(bool constantAccess, long position, unsigned int inductionVariableIndex = 0);
+		DimensionAccess(bool constantAccess, long position, unsigned int inductionVariableIndex = 0);
 
 		public:
-		static SingleDimensionAccess constant(long position);
-		static SingleDimensionAccess relative(unsigned int inductionVariableIndex, long relativePosition);
+		static DimensionAccess constant(long position);
+		static DimensionAccess relative(unsigned int inductionVariableIndex, long relativePosition);
 
 		size_t operator()(llvm::ArrayRef<long> equationIndexes) const;
 
@@ -33,17 +33,17 @@ namespace marco::matching
 	class AccessFunction
 	{
 		private:
-		using Container = llvm::SmallVector<SingleDimensionAccess, 3>;
+		using Container = llvm::SmallVector<DimensionAccess, 3>;
 
 		public:
 		using iterator = Container::iterator;
 		using const_iterator = Container::const_iterator;
 
-		AccessFunction(llvm::ArrayRef<SingleDimensionAccess> functions);
+		AccessFunction(llvm::ArrayRef<DimensionAccess> functions);
 
-		SingleDimensionAccess operator[](size_t index) const;
+		DimensionAccess operator[](size_t index) const;
 
-		llvm::ArrayRef<SingleDimensionAccess> getDimensionAccesses() const;
+		llvm::ArrayRef<DimensionAccess> getDimensionAccesses() const;
 
 		void map(llvm::SmallVectorImpl<long>& results, llvm::ArrayRef<long> equationIndexes) const;
 

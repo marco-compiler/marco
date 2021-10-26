@@ -1,5 +1,5 @@
-#ifndef MARCO_MATCHING_MATCHINGGRAPH_H
-#define MARCO_MATCHING_MATCHINGGRAPH_H
+#ifndef MARCO_MATCHING_GRAPH_H
+#define MARCO_MATCHING_GRAPH_H
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
@@ -93,7 +93,7 @@ namespace marco::matching
 		template<typename... T>
 		Access(VariableDescriptor variable, T&&... accesses)
 				: variable(std::move(variable)),
-					accessFunction(llvm::ArrayRef<SingleDimensionAccess>({ std::forward<T>(accesses)... }))
+					accessFunction(llvm::ArrayRef<DimensionAccess>({ std::forward<T>(accesses)... }))
 		{
 		}
 
@@ -165,10 +165,10 @@ namespace marco::matching
 			EquationDescriptor descriptor;
 		};
 
-		class EdgeProperty
+		class Edge
 		{
 			public:
-			EdgeProperty(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
+			Edge(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
 					: equations(equationRanges.flatSize()),
 						variables(variableRanges.flatSize()),
 						incidenceMatrix(equationRanges, variableRanges),
@@ -236,6 +236,7 @@ namespace marco::matching
 		public:
 		using Variable = detail::VariableVertex<VariableDescriptor>;
 		using Equation = detail::EquationVertex<EquationDescriptor, VariableDescriptor>;
+		using Edge = detail::Edge;
 
 		private:
 		using Graph = boost::adjacency_list<
@@ -243,14 +244,27 @@ namespace marco::matching
 				boost::listS,       // VertexList  = list (efficient node removal)
 				boost::undirectedS, // Graph is undirected
 				std::variant<Variable, Equation>,
-				detail::EdgeProperty>;
+				detail::Edge>;
 
-		using Vertex = typename boost::graph_traits<Graph>::vertex_descriptor;
+		public:
+		using VertexDescriptor = typename boost::graph_traits<Graph>::vertex_descriptor;
+		using EdgeDescriptor = typename boost::graph_traits<Graph>::edge_descriptor;
+
+		private:
 		using VertexIterator = typename boost::graph_traits<Graph>::vertex_iterator;
-		using Edge = typename boost::graph_traits<Graph>::edge_descriptor;
 		using EdgeIterator = typename boost::graph_traits<Graph>::edge_iterator;
 
 		public:
+		Edge& operator[](EdgeDescriptor edge)
+		{
+			return graph[edge];
+		}
+
+		const Edge& operator[](EdgeDescriptor edge) const
+		{
+			return graph[edge];
+		}
+
 		bool hasVariable(typename Variable::Id id) const
 		{
 			return hasVertex<Variable>(id);
@@ -300,23 +314,18 @@ namespace marco::matching
 				auto& variable = std::get<Variable>(graph[variableVertex]);
 				unsigned int numberOfVariables = variable.flatSize();
 
-				detail::EdgeProperty edgeProperty(equation.getIterationRanges(), variable.getRanges());
-				auto edge = boost::add_edge(equationVertex, variableVertex, edgeProperty, graph);
+				Edge edge(equation.getIterationRanges(), variable.getRanges());
+				auto edgeDescriptor = boost::add_edge(equationVertex, variableVertex, edge, graph);
 
-				graph[edge.first].addAccessFunction(access.getAccessFunction());
+				graph[edgeDescriptor.first].addAccessFunction(access.getAccessFunction());
 			}
-		}
-
-		bool hasEdge(typename EquationDescriptor::Id equationId, typename VariableDescriptor::Id variableId) const
-		{
-			return findEdge<Equation, Variable>(equationId, variableId).first;
 		}
 
 		unsigned int getNumberOfScalarEquations() const
 		{
 			unsigned int result = 0;
 
-			for (Vertex v : boost::make_iterator_range(boost::vertices(graph)))
+			for (const auto& v : boost::make_iterator_range(boost::vertices(graph)))
 			{
 				if (auto& vertex = graph[v]; std::holds_alternative<Equation>(vertex))
 				{
@@ -332,7 +341,7 @@ namespace marco::matching
 		{
 			unsigned int result = 0;
 
-			for (Vertex v : boost::make_iterator_range(boost::vertices(graph)))
+			for (const auto& v : boost::make_iterator_range(boost::vertices(graph)))
 			{
 				if (auto& vertex = graph[v]; std::holds_alternative<Variable>(vertex))
 				{
@@ -344,6 +353,35 @@ namespace marco::matching
 			return result;
 		}
 
+		auto getVertices()
+		{
+			return boost::make_iterator_range(boost::vertices(graph));
+		}
+
+		unsigned int getVertexVisibilityDegree(const VertexDescriptor& vertex) const
+		{
+			return boost::out_degree(vertex, graph);
+		}
+
+		bool hasEdge(typename EquationDescriptor::Id equationId, typename VariableDescriptor::Id variableId) const
+		{
+			return findEdge<Equation, Variable>(equationId, variableId).first;
+		}
+
+		EdgeDescriptor getFirstOutEdge(const VertexDescriptor& vertex) const
+		{
+			for (const auto& edge : boost::make_iterator_range(boost::out_edges(vertex, graph)))
+				return edge;
+
+			assert(false && "Unreachable");
+		}
+
+		std::pair<VertexDescriptor, VertexDescriptor> getEdgeVertices(EdgeDescriptor edge)
+		{
+			return std::make_pair(boost::source(edge, graph), boost::target(edge, graph));
+		}
+
+		/*
 		bool simplify()
 		{
 			// Vertices that are candidate for the first simplification phase.
@@ -367,10 +405,16 @@ namespace marco::matching
 				candidates.pop_front();
 
 				Edge edge = getFirstOutEdge(v1);
-				Vertex v2 = (boost::source(edge) == v1) ? boost::target(edge, graph) : boost::source(edge, graph);
+				Vertex v2 = (boost::source(edge, graph) == v1) ? boost::target(edge, graph) : boost::source(edge, graph);
 				bool shouldRemoveOppositeNode = false;
 
+				const auto& u = graph[edge].getIncidenceMatrix();
+				std::cout << "u\n" << u << "\n\n";
+
 				auto matchOptions = solveLocalMatchingProblem(edge);
+
+				for (const auto& m : matchOptions)
+					std::cout << "m\n" << m << "\n\n";
 
 				// The simplification steps is executed only in case of a single
 				// matching option. In case of multiple ones, in fact, the choice
@@ -379,7 +423,7 @@ namespace marco::matching
 
 				if (matchOptions.size() == 1)
 				{
-					graph[edge].addMatch(matchOptions.front());
+					//graph[edge].addMatch(matchOptions.front());
 
 					if (shouldRemoveOppositeNode)
 					{
@@ -394,49 +438,7 @@ namespace marco::matching
 
 			return true;
 		}
-
-		std::list<IncidenceMatrix> solveLocalMatchingProblem(Edge edge) const
-		{
-			std::list<IncidenceMatrix> result;
-
-			detail::EdgeProperty& edgeProperty = graph[edge];
-			IncidenceMatrix& u = edge.getIncidenceMatrix();
-			auto equationRanges = u.getEquationRanges();
-			auto variableRanges = u.getVariableRanges();
-
-			for (const auto& accessFunction : edgeProperty.getAccessFunctions())
-			{
-				auto accesses = accessFunction.getDimensionAccesses();
-
-				bool constantAccess = llvm::any_of(accesses, [](const SingleDimensionAccess& acc) {
-					return acc.isConstantAccess();
-				});
-
-				assert(variableRanges.rank() <= equationRanges.rank());
-				bool underDimensioned = variableRanges.rank() < equationRanges.rank();
-
-				if (constantAccess || underDimensioned)
-				{
-					for (const auto& equationIndexes : equationRanges)
-					{
-						llvm::SmallVector<long, 3> indexes;
-						indexes.insert(indexes.begin(), equationIndexes.begin(), equationIndexes.end());
-						accessFunction.map(indexes, equationIndexes);
-						IncidenceMatrix m(equationRanges, variableRanges);
-						m.set(indexes);
-						result.push_back(std::move(m));
-					}
-				}
-				else
-				{
-					IncidenceMatrix m(equationRanges, variableRanges);
-					m.apply(accessFunction);
-					result.push_back(std::move(m));
-				}
-			}
-
-			return result;
-		}
+		 */
 
 		private:
 		template<typename T>
@@ -451,7 +453,7 @@ namespace marco::matching
 			VertexIterator begin, end;
 			std::tie(begin, end) = boost::vertices(graph);
 
-			auto it = std::find_if(begin, end, [&](const Vertex& v) {
+			auto it = std::find_if(begin, end, [&](const VertexDescriptor& v) {
 				const auto& vertex = graph[v];
 
 				if (!std::holds_alternative<T>(vertex))
@@ -463,14 +465,14 @@ namespace marco::matching
 			return std::make_pair(it != end, it);
 		}
 
-		Vertex getVariableVertex(typename Variable::Id id) const
+		VertexDescriptor getVariableVertex(typename Variable::Id id) const
 		{
 			auto search = findVertex<Variable>(id);
 			assert(search.first && "Variable not found");
 			return *search.second;
 		}
 
-		Vertex getEquationVertex(typename Equation::Id id) const
+		VertexDescriptor getEquationVertex(typename Equation::Id id) const
 		{
 			auto search = findVertex<Equation>(id);
 			assert(search.first && "Equation not found");
@@ -483,7 +485,7 @@ namespace marco::matching
 			EdgeIterator begin, end;
 			std::tie(begin, end) = boost::edges(graph);
 
-			auto it = std::find_if(begin, end, [&](const Edge& e) {
+			auto it = std::find_if(begin, end, [&](const EdgeDescriptor& e) {
 				auto& source = graph[boost::source(e, graph)];
 				auto& target = graph[boost::target(e, graph)];
 
@@ -496,21 +498,8 @@ namespace marco::matching
 			return std::make_pair(it != end, it);
 		}
 
-		unsigned int getVertexVisibilityDegree(const Vertex& vertex) const
-		{
-			return boost::out_degree(vertex, graph);
-		}
-
-		Edge getFirstOutEdge(const Vertex& vertex) const
-		{
-			for (Edge edge : boost::make_iterator_range(boost::out_edges(vertex, graph)))
-				return edge;
-
-			assert(false && "Unreachable");
-		}
-
 		Graph graph;
 	};
 }
 
-#endif	// MARCO_MATCHING_MATCHINGGRAPH_H
+#endif	// MARCO_MATCHING_GRAPH_H

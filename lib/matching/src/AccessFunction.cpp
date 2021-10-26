@@ -2,7 +2,7 @@
 
 using namespace marco::matching;
 
-SingleDimensionAccess::SingleDimensionAccess(
+DimensionAccess::DimensionAccess(
 		bool constantAccess,
 		long position,
 		unsigned int inductionVariableIndex)
@@ -12,17 +12,17 @@ SingleDimensionAccess::SingleDimensionAccess(
 {
 }
 
-SingleDimensionAccess SingleDimensionAccess::constant(long position)
+DimensionAccess DimensionAccess::constant(long position)
 {
-	return SingleDimensionAccess(true, position);
+	return DimensionAccess(true, position);
 }
 
-SingleDimensionAccess SingleDimensionAccess::relative(unsigned int inductionVariableIndex, long relativePosition)
+DimensionAccess DimensionAccess::relative(unsigned int inductionVariableIndex, long relativePosition)
 {
-	return SingleDimensionAccess(false, relativePosition, inductionVariableIndex);
+	return DimensionAccess(false, relativePosition, inductionVariableIndex);
 }
 
-size_t SingleDimensionAccess::operator()(llvm::ArrayRef<long> equationIndexes) const
+size_t DimensionAccess::operator()(llvm::ArrayRef<long> equationIndexes) const
 {
 	if (isConstantAccess())
 		return getPosition();
@@ -30,42 +30,42 @@ size_t SingleDimensionAccess::operator()(llvm::ArrayRef<long> equationIndexes) c
 	return equationIndexes[getInductionVariableIndex()] + getOffset();
 }
 
-bool SingleDimensionAccess::isConstantAccess() const
+bool DimensionAccess::isConstantAccess() const
 {
 	return constantAccess;
 }
 
-size_t SingleDimensionAccess::getPosition() const
+size_t DimensionAccess::getPosition() const
 {
 	assert(isConstantAccess());
 	return position;
 }
 
-size_t SingleDimensionAccess::getOffset() const
+size_t DimensionAccess::getOffset() const
 {
 	assert(!isConstantAccess());
 	return position;
 }
 
-unsigned int SingleDimensionAccess::getInductionVariableIndex() const
+unsigned int DimensionAccess::getInductionVariableIndex() const
 {
 	assert(!isConstantAccess());
 	return inductionVariableIndex;
 }
 
-AccessFunction::AccessFunction(llvm::ArrayRef<SingleDimensionAccess> functions)
+AccessFunction::AccessFunction(llvm::ArrayRef<DimensionAccess> functions)
 		: functions(functions.begin(), functions.end())
 {
 }
 
-SingleDimensionAccess AccessFunction::operator[](size_t index) const
+DimensionAccess AccessFunction::operator[](size_t index) const
 {
 	assert(index < size());
 	return functions[index];
 }
 
 
-llvm::ArrayRef<SingleDimensionAccess> AccessFunction::getDimensionAccesses() const
+llvm::ArrayRef<DimensionAccess> AccessFunction::getDimensionAccesses() const
 {
 	return functions;
 }

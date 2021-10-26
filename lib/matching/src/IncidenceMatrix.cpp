@@ -2,6 +2,7 @@
 #include <numeric>
 
 using namespace marco::matching;
+using namespace marco::matching::detail;
 
 /**
  * Get the index to be used to access the flattened array.
@@ -58,11 +59,9 @@ void IncidenceMatrix::apply(AccessFunction access)
 
 		indexes.clear();
 		indexes.insert(indexes.begin(), equationIndexes.begin(), equationIndexes.end());
-
-		for (const auto& singleDimensionAccess : access)
-			access.map(indexes, equationIndexes);
-
+		access.map(indexes, equationIndexes);
 		assert(indexes.size() == equationRanges.rank() + variableRanges.rank());
+
 		set(indexes);
 	}
 }
@@ -83,6 +82,11 @@ void IncidenceMatrix::unset(llvm::ArrayRef<long> indexes)
 {
 	auto matrixIndexes = getMatrixIndexes(indexes);
 	data(matrixIndexes.first, matrixIndexes.second) = false;
+}
+
+void IncidenceMatrix::clear()
+{
+	data.clear();
 }
 
 IncidenceMatrix& IncidenceMatrix::operator+=(const IncidenceMatrix& rhs)
@@ -210,7 +214,7 @@ static void printIndexes(llvm::raw_ostream& stream, llvm::ArrayRef<long> indexes
 	stream << ")";
 }
 
-namespace marco::matching
+namespace marco::matching::detail
 {
 	llvm::raw_ostream& operator<<(
 			llvm::raw_ostream& stream, const IncidenceMatrix& matrix)
@@ -266,7 +270,6 @@ namespace marco::matching
 				stream << " ";
 
 			printIndexes(stream, equationIndexes);
-			stream << " ";
 
 			for (const auto& variableIndexes : variableRanges)
 			{
@@ -277,8 +280,8 @@ namespace marco::matching
 				indexes.insert(indexes.end(), variableIndexes.begin(), variableIndexes.end());
 
 				size_t columnWidth = variableIndexesColumnWidth;
-				size_t spacesBefore = (columnWidth - 1) / 2;
-				size_t spacesAfter = columnWidth - 1 - spacesBefore;
+				size_t spacesAfter = (columnWidth - 1) / 2;
+				size_t spacesBefore = columnWidth - 1 - spacesAfter;
 
 				for (size_t i = 0; i < spacesBefore; ++i)
 					stream << " ";

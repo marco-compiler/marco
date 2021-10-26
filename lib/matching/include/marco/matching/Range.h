@@ -1,8 +1,10 @@
-#ifndef MARCO_MATCHING_INDEXSET_H
-#define MARCO_MATCHING_INDEXSET_H
+#ifndef MARCO_MATCHING_RANGE_H
+#define MARCO_MATCHING_RANGE_H
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/raw_ostream.h>
+#include <llvm/Support/raw_os_ostream.h>
 
 namespace marco::matching
 {
@@ -95,6 +97,10 @@ namespace marco::matching
 		data_type _begin;
 		data_type _end;
 	};
+
+	llvm::raw_ostream& operator<<(llvm::raw_ostream& stream, const Range& range);
+
+	std::ostream& operator<<(std::ostream& stream, const Range& range);
 
 	template<typename ValueType>
 	class MultidimensionalRangeIterator
@@ -240,6 +246,12 @@ namespace marco::matching
 		private:
 		Container ranges;
 	};
+
+	llvm::raw_ostream& operator<<(
+			llvm::raw_ostream& stream, const MultidimensionalRange& range);
+
+	std::ostream& operator<<(
+			std::ostream& stream, const MultidimensionalRange& range);
 }
 
-#endif	// MARCO_MATCHING_INDEXSET_H
+#endif	// MARCO_MATCHING_RANGE_H

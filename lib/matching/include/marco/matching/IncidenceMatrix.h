@@ -8,10 +8,9 @@
 #include <llvm/Support/raw_os_ostream.h>
 
 #include "AccessFunction.h"
-#include "MCIS.h"
 #include "Range.h"
 
-namespace marco::matching
+namespace marco::matching::detail
 {
 	class IncidenceMatrix
 	{
@@ -26,6 +25,8 @@ namespace marco::matching
 		void set(llvm::ArrayRef<long> indexes);
 		void unset(llvm::ArrayRef<long> indexes);
 
+		void clear();
+
 		IncidenceMatrix& operator+=(const IncidenceMatrix& rhs);
 
 		private:
@@ -39,7 +40,8 @@ namespace marco::matching
 	llvm::raw_ostream& operator<<(
 			llvm::raw_ostream& stream, const IncidenceMatrix& matrix);
 
-	std::ostream& operator<<(std::ostream& stream, const IncidenceMatrix& matrix);
+	std::ostream& operator<<(
+			std::ostream& stream, const IncidenceMatrix& matrix);
 }
 
 #endif	// MARCO_MATCHING_INCIDENCEMATRIX_H
