@@ -39,7 +39,6 @@ using Function = std::function<realtype(
 typedef struct IdaUserData
 {
 	// Equations data
-	std::vector<size_t> rowLengths;
 	std::vector<std::vector<size_t>> accessIndexes;
 	std::vector<EqDimension> equationDimensions;
 	std::vector<Function> residuals;
@@ -361,8 +360,6 @@ sunindextype precomputeJacobianIndexes(IdaUserData* data)
 				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
 			}
 
-			assert(columnIndexesSet.size() <= data->rowLengths[eq]);
-
 			// Compute the number of non-zero values in each scalar equation
 			data->columnIndexes[eq].push_back(
 					std::vector(columnIndexesSet.begin(), columnIndexesSet.end()));
@@ -501,6 +498,9 @@ inline bool freeIdaUserData(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
+	if (data->equationsNumber == 0)
+		return true;
+
 	// Free IDA memory
 	IDAFree(&data->idaMemory);
 
@@ -559,21 +559,6 @@ RUNTIME_FUNC_DEF(addTolerance, void, PTR(void), double, double)
 //===----------------------------------------------------------------------===//
 // Equation setters
 //===----------------------------------------------------------------------===//
-
-/**
- * Add the length of index-th row of the jacobian matrix to the user data.
- */
-template<typename T>
-inline int64_t addRowLength(void* userData, T rowLength)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	data->rowLengths.push_back(rowLength);
-	return data->rowLengths.size() - 1;
-}
-
-RUNTIME_FUNC_DEF(addRowLength, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DEF(addRowLength, int64_t, PTR(void), int64_t)
 
 /**
  * Add the access index of a non-zero value contained in the rowIndex-th row of
@@ -701,8 +686,7 @@ RUNTIME_FUNC_DEF(addVarOffset, int64_t, PTR(void), int64_t)
  * Add a new dimension to the index-th variable of size dim.
  */
 template<typename T>
-inline void addVarDimension(
-		void* userData, UnsizedArrayDescriptor<T> dimensions)
+inline void addVarDimension(void* userData, UnsizedArrayDescriptor<T> dimensions)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	assert(dimensions.getRank() == 1);
@@ -737,48 +721,18 @@ inline int64_t addVarAccess(
 	return data->variableAccesses.size() - 1;
 }
 
-RUNTIME_FUNC_DEF(
-		addVarAccess, int32_t, PTR(void), int32_t, ARRAY(int32_t), ARRAY(int32_t))
-RUNTIME_FUNC_DEF(
-		addVarAccess, int64_t, PTR(void), int64_t, ARRAY(int64_t), ARRAY(int64_t))
-
-/**
- * Set the initial value of the index-th variable and if it is a state variable.
- */
-template<typename T, typename U>
-inline void setInitialValue(
-		void* userData, T index, T length, U value, bool isState)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	sunindextype offset = data->variableOffsets[index];
-	realtype idValue = isState ? 1.0 : 0.0;
-
-	for (sunindextype i = 0; i < length; i++)
-	{
-		data->variablesValues[offset + i] = value;
-		data->derivativesValues[offset + i] = 0.0;
-		data->idValues[offset + i] = idValue;
-	}
-}
-
-RUNTIME_FUNC_DEF(
-		setInitialValue, void, PTR(void), int32_t, int32_t, int32_t, bool)
-RUNTIME_FUNC_DEF(setInitialValue, void, PTR(void), int32_t, int32_t, float, bool)
-RUNTIME_FUNC_DEF(
-		setInitialValue, void, PTR(void), int64_t, int64_t, int64_t, bool)
-RUNTIME_FUNC_DEF(setInitialValue, void, PTR(void), int64_t, int64_t, double, bool)
+RUNTIME_FUNC_DEF(addVarAccess, int32_t, PTR(void), int32_t, ARRAY(int32_t), ARRAY(int32_t))
+RUNTIME_FUNC_DEF(addVarAccess, int64_t, PTR(void), int64_t, ARRAY(int64_t), ARRAY(int64_t))
 
 /**
  * Set the initial values of the index-th variable given its array, which is
- * represented as a modelica alloca operation. Initialize every other value not
+ * represented as a modelica alloc operation. Initialize every other value not
  * included in the array to zero.
  */
 template<typename T, typename U>
-inline void setInitialArray(
+inline void setInitialValue(
 		void* userData,
 		T index,
-		T length,
 		UnsizedArrayDescriptor<U> array,
 		bool isState)
 {
@@ -806,14 +760,10 @@ inline void setInitialArray(
 	} while (updateIndexes(indexes, dimensions));
 }
 
-RUNTIME_FUNC_DEF(
-		setInitialArray, void, PTR(void), int32_t, int32_t, ARRAY(int32_t), bool)
-RUNTIME_FUNC_DEF(
-		setInitialArray, void, PTR(void), int32_t, int32_t, ARRAY(float), bool)
-RUNTIME_FUNC_DEF(
-		setInitialArray, void, PTR(void), int64_t, int64_t, ARRAY(int64_t), bool)
-RUNTIME_FUNC_DEF(
-		setInitialArray, void, PTR(void), int64_t, int64_t, ARRAY(double), bool)
+RUNTIME_FUNC_DEF(setInitialValue, void, PTR(void), int32_t, ARRAY(int32_t), bool)
+RUNTIME_FUNC_DEF(setInitialValue, void, PTR(void), int32_t, ARRAY(float), bool)
+RUNTIME_FUNC_DEF(setInitialValue, void, PTR(void), int64_t, ARRAY(int64_t), bool)
+RUNTIME_FUNC_DEF(setInitialValue, void, PTR(void), int64_t, ARRAY(double), bool)
 
 //===----------------------------------------------------------------------===//
 // Getters
@@ -1842,8 +1792,7 @@ RUNTIME_FUNC_DEF(lambdaTanh, int32_t, PTR(void), int32_t)
 RUNTIME_FUNC_DEF(lambdaTanh, int64_t, PTR(void), int64_t)
 
 template<typename T, typename U>
-inline int64_t lambdaCall(
-		void* userData, T operandIndex, U function, U pderFunc)
+inline int64_t lambdaCall(void* userData, T operandIndex, U function, U pderFunc)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -1875,14 +1824,27 @@ inline int64_t lambdaCall(
 	return data->lambdas.size() - 1;
 }
 
-RUNTIME_FUNC_DEF(
-		lambdaCall, int32_t, PTR(void), int32_t, FUNCTION(float), FUNCTION(float))
-RUNTIME_FUNC_DEF(
-		lambdaCall, int64_t, PTR(void), int64_t, FUNCTION(double), FUNCTION(double))
+RUNTIME_FUNC_DEF(lambdaCall, int32_t, PTR(void), int32_t, FUNCTION(float), FUNCTION(float))
+RUNTIME_FUNC_DEF(lambdaCall, int64_t, PTR(void), int64_t, FUNCTION(double), FUNCTION(double))
 
 //===----------------------------------------------------------------------===//
 // Debugging and Statistics
 //===----------------------------------------------------------------------===//
+
+void setInitialValue(void* userData, int64_t index, int64_t length, double value, bool isState)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	sunindextype offset = data->variableOffsets[index];
+	realtype idValue = isState ? 1.0 : 0.0;
+
+	for (sunindextype i = 0; i < length; i++)
+	{
+		data->variablesValues[offset + i] = value;
+		data->derivativesValues[offset + i] = 0.0;
+		data->idValues[offset + i] = idValue;
+	}
+}
 
 int64_t getNumberOfForEquations(void* userData)
 {
@@ -1900,13 +1862,6 @@ int64_t getNumberOfNonZeroValues(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	return data->nonZeroValuesNumber;
-}
-
-int64_t getIdaRowLength(void* userData, int64_t index)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	assert(index < data->equationsNumber);
-	return data->rowLengths[index];
 }
 
 EqDimension getIdaDimension(void* userData, int64_t index)

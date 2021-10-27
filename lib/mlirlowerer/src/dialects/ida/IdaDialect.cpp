@@ -21,7 +21,6 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 
 	// Equation setters.
 	addOperations<
-			AddRowLengthOp,
 			AddColumnIndexOp,
 			AddEqDimensionOp,
 			AddResidualOp,
@@ -32,8 +31,7 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 			AddVarOffsetOp,
 			AddVarDimensionOp,
 			AddVarAccessOp,
-			SetInitialValueOp,
-			SetInitialArrayOp>();
+			SetInitialValueOp>();
 
 	// Getters.
 	addOperations<GetTimeOp, GetVariableOp, GetDerivativeOp>();

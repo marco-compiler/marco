@@ -229,38 +229,6 @@ namespace marco::codegen::ida
 	};
 
 	//===----------------------------------------------------------------------===//
-	// Ida::AddRowLengthOp
-	//===----------------------------------------------------------------------===//
-
-	class AddRowLengthOp : public mlir::Op<AddRowLengthOp,
-																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<2>::Impl,
-																mlir::OpTrait::OneResult,
-																mlir::MemoryEffectOpInterface::Trait>
-	{
-		public:
-		using Op::Op;
-
-		static constexpr llvm::StringLiteral getOperationName()
-		{
-			return "ida.add_row_pointer";
-		}
-
-		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value rowLength);
-		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
-		void print(mlir::OpAsmPrinter& printer);
-		mlir::LogicalResult verify();
-
-		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
-
-		IntegerType resultType();
-		mlir::ValueRange args();
-		mlir::Value userData();
-		mlir::Value rowLength();
-	};
-
-	//===----------------------------------------------------------------------===//
 	// Ida::AddColumnIndexOp
 	//===----------------------------------------------------------------------===//
 
@@ -485,14 +453,13 @@ namespace marco::codegen::ida
 		mlir::Value inductions();
 	};
 
-	
 	//===----------------------------------------------------------------------===//
 	// Ida::SetInitialValueOp
 	//===----------------------------------------------------------------------===//
 
 	class SetInitialValueOp : public mlir::Op<SetInitialValueOp,
 																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<5>::Impl,
+																mlir::OpTrait::NOperands<4>::Impl,
 																mlir::OpTrait::ZeroResult,
 																mlir::MemoryEffectOpInterface::Trait>
 	{
@@ -505,7 +472,7 @@ namespace marco::codegen::ida
 		}
 
 		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value value, mlir::Value isState);
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value array, mlir::Value isState);
 		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
 		void print(mlir::OpAsmPrinter& printer);
 		mlir::LogicalResult verify();
@@ -515,41 +482,6 @@ namespace marco::codegen::ida
 		mlir::ValueRange args();
 		mlir::Value userData();
 		mlir::Value index();
-		mlir::Value length();
-		mlir::Value value();
-		mlir::Value isState();
-	};
-
-	//===----------------------------------------------------------------------===//
-	// Ida::SetInitialArrayOp
-	//===----------------------------------------------------------------------===//
-
-	class SetInitialArrayOp : public mlir::Op<SetInitialArrayOp,
-																mlir::OpTrait::ZeroRegion,
-																mlir::OpTrait::NOperands<5>::Impl,
-																mlir::OpTrait::ZeroResult,
-																mlir::MemoryEffectOpInterface::Trait>
-	{
-		public:
-		using Op::Op;
-
-		static constexpr llvm::StringLiteral getOperationName()
-		{
-			return "ida.set_initial_array";
-		}
-
-		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
-		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value array, mlir::Value isState);
-		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
-		void print(mlir::OpAsmPrinter& printer);
-		mlir::LogicalResult verify();
-
-		void getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects);
-
-		mlir::ValueRange args();
-		mlir::Value userData();
-		mlir::Value index();
-		mlir::Value length();
 		mlir::Value array();
 		mlir::Value isState();
 	};

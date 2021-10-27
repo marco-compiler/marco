@@ -468,68 +468,6 @@ mlir::Value AddToleranceOp::absTol()
 }
 
 //===----------------------------------------------------------------------===//
-// Ida::AddRowLengthOp
-//===----------------------------------------------------------------------===//
-
-llvm::ArrayRef<llvm::StringRef> AddRowLengthOp::getAttributeNames()
-{
-	return {};
-}
-
-void AddRowLengthOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value rowLength)
-{
-	state.addTypes(IntegerType::get(builder.getContext()));
-	state.addOperands(userData);
-	state.addOperands(rowLength);
-}
-
-mlir::ParseResult AddRowLengthOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return ida::parse(parser, result, 2);
-}
-
-void AddRowLengthOp::print(mlir::OpAsmPrinter& printer)
-{
-	ida::print(printer, getOperationName(), args(), resultType());
-}
-
-mlir::LogicalResult AddRowLengthOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!rowLength().getType().isa<IntegerType>())
-		return emitOpError("Requires BLT row pointer to be an integer");
-
-	return mlir::success();
-}
-
-void AddRowLengthOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-IntegerType AddRowLengthOp::resultType()
-{
-	return getOperation()->getResultTypes()[0].cast<IntegerType>();
-}
-
-mlir::ValueRange AddRowLengthOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value AddRowLengthOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value AddRowLengthOp::rowLength()
-{
-	return getOperation()->getOperand(1);
-}
-
-//===----------------------------------------------------------------------===//
 // Ida::AddColumnIndexOp
 //===----------------------------------------------------------------------===//
 
@@ -984,18 +922,17 @@ llvm::ArrayRef<llvm::StringRef> SetInitialValueOp::getAttributeNames()
 	return {};
 }
 
-void SetInitialValueOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value value, mlir::Value isState)
+void SetInitialValueOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value array, mlir::Value isState)
 {
 	state.addOperands(userData);
 	state.addOperands(index);
-	state.addOperands(length);
-	state.addOperands(value);
+	state.addOperands(array);
 	state.addOperands(isState);
 }
 
 mlir::ParseResult SetInitialValueOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	return ida::parse(parser, result, 5);
+	return ida::parse(parser, result, 4);
 }
 
 void SetInitialValueOp::print(mlir::OpAsmPrinter& printer)
@@ -1011,11 +948,8 @@ mlir::LogicalResult SetInitialValueOp::verify()
 	if (!index().getType().isa<IntegerType>())
 		return emitOpError("Requires variable index to be an integer");
 
-	if (!length().getType().isa<IntegerType>())
-		return emitOpError("Requires variable size to be an integer");
-
-	if (!isNumeric(value()))
-		return emitOpError("Requires initialization value to be a number");
+	if (!array().getType().isa<modelica::ArrayType>())
+		return emitOpError("Requires initialization array to be an array");
 
 	if (!isState().getType().isa<BooleanType>())
 		return emitOpError("Requires variable state to be a boolean");
@@ -1043,102 +977,14 @@ mlir::Value SetInitialValueOp::index()
 	return getOperation()->getOperand(1);
 }
 
-mlir::Value SetInitialValueOp::length()
+mlir::Value SetInitialValueOp::array()
 {
 	return getOperation()->getOperand(2);
-}
-
-mlir::Value SetInitialValueOp::value()
-{
-	return getOperation()->getOperand(3);
 }
 
 mlir::Value SetInitialValueOp::isState()
 {
-	return getOperation()->getOperand(4);
-}
-
-//===----------------------------------------------------------------------===//
-// Ida::SetInitialArrayOp
-//===----------------------------------------------------------------------===//
-
-llvm::ArrayRef<llvm::StringRef> SetInitialArrayOp::getAttributeNames()
-{
-	return {};
-}
-
-void SetInitialArrayOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value length, mlir::Value array, mlir::Value isState)
-{
-	state.addOperands(userData);
-	state.addOperands(index);
-	state.addOperands(length);
-	state.addOperands(array);
-	state.addOperands(isState);
-}
-
-mlir::ParseResult SetInitialArrayOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return ida::parse(parser, result, 5);
-}
-
-void SetInitialArrayOp::print(mlir::OpAsmPrinter& printer)
-{
-	ida::print(printer, getOperationName(), args());
-}
-
-mlir::LogicalResult SetInitialArrayOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!index().getType().isa<IntegerType>())
-		return emitOpError("Requires variable index to be an integer");
-
-	if (!length().getType().isa<IntegerType>())
-		return emitOpError("Requires variable size to be an integer");
-
-	if (!array().getType().isa<modelica::ArrayType>())
-		return emitOpError("Requires initialization array to be an array");
-
-	if (!isState().getType().isa<BooleanType>())
-		return emitOpError("Requires variable state to be a boolean");
-
-	return mlir::success();
-}
-
-void SetInitialArrayOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-mlir::ValueRange SetInitialArrayOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value SetInitialArrayOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value SetInitialArrayOp::index()
-{
-	return getOperation()->getOperand(1);
-}
-
-mlir::Value SetInitialArrayOp::length()
-{
-	return getOperation()->getOperand(2);
-}
-
-mlir::Value SetInitialArrayOp::array()
-{
 	return getOperation()->getOperand(3);
-}
-
-mlir::Value SetInitialArrayOp::isState()
-{
-	return getOperation()->getOperand(4);
 }
 
 //===----------------------------------------------------------------------===//

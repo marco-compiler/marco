@@ -318,7 +318,15 @@ void Equation::normalize()
 	VectorAccess access = AccessToVar::fromExp(getMatchedExp()).getAccess();
 
 	// Apply the transformation to the induction range
-	setInductions(access.map(getInductions()));
+	MultiDimInterval newInductions(getInductions());
+	for (auto& acc : access)
+		if (acc.isOffset())
+			newInductions[acc.getInductionVar()] = {
+				getInductions()[acc.getInductionVar()].min() + acc.getOffset(),
+				getInductions()[acc.getInductionVar()].max() + acc.getOffset()
+			};
+
+	setInductions(newInductions);
 
 	// Create a clone of the equation with an empty body.
 	Equation clonedEquation = clone();

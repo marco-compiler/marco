@@ -57,6 +57,7 @@ IdaSolver::IdaSolver(
 mlir::LogicalResult IdaSolver::init()
 {
 	sunindextype varOffset = 0;
+	sunindextype equationCount = 0;
 
 	model.getOp().init().walk([&](FillOp fillOp) {
 		// Map all vector variables to their initial value.
@@ -169,30 +170,9 @@ mlir::LogicalResult IdaSolver::init()
 	{
 		for (const Equation& equation : bltBlock.getEquations())
 		{
+			sunindextype rowIndex = equationCount++;
+
 			ReferenceMatcher matcher(equation);
-			std::set<std::pair<Variable, VectorAccess>> varSet;
-
-			// Add all different variable accesses to a set.
-			for (ExpressionPath& path : matcher)
-			{
-				Variable var =
-						model.getVariable(path.getExpression().getReferredVectorAccess());
-
-				if (var.isTime())
-					continue;
-
-				VectorAccess acc =
-						AccessToVar::fromExp(path.getExpression()).getAccess();
-
-				if (var.isDerivative())
-					varSet.insert({ model.getVariable(var.getState()), acc });
-				else
-					varSet.insert({ var, acc });
-			}
-
-			// Add to IDA the number of non-zero values of the current equation.
-			sunindextype rowIndex = addRowLength(userData, varSet.size());
-
 			for (ExpressionPath& path : matcher)
 			{
 				Variable var =
@@ -363,11 +343,6 @@ realtype IdaSolver::getVariable(sunindextype index)
 realtype IdaSolver::getDerivative(sunindextype index)
 {
 	return getIdaDerivative(userData, index);
-}
-
-sunindextype IdaSolver::getRowLength(sunindextype index)
-{
-	return getIdaRowLength(userData, index);
 }
 
 IdaSolver::Dimension IdaSolver::getDimension(sunindextype index)

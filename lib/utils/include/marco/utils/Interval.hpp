@@ -105,9 +105,19 @@ namespace marco
 		{
 			return contains({ coordinates... });
 		}
+
+		[[nodiscard]] Interval& at(size_t index)
+		{
+			return intervals[index];
+		}
 		[[nodiscard]] const Interval& at(size_t index) const
 		{
 			return intervals[index];
+		}
+
+		[[nodiscard]] Interval& operator[](size_t index)
+		{
+			return at(index);
 		}
 		[[nodiscard]] const Interval& operator[](size_t index) const
 		{
