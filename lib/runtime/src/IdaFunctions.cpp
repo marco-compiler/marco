@@ -2,12 +2,17 @@
 #include <ida/ida.h>
 #include <marco/runtime/IdaFunctions.h>
 #include <nvector/nvector_serial.h>
-#include <omp.h>
 #include <set>
 #include <sstream>
 #include <sundials/sundials_types.h>
 #include <sunlinsol/sunlinsol_klu.h>
 #include <sunmatrix/sunmatrix_sparse.h>
+
+#ifdef _OPENMP
+#include <omp.h>
+#else
+#define omp_get_max_threads() 1
+#endif
 
 #define exitOnError(success)                                                   \
 	if (!success)                                                                \
@@ -180,7 +185,9 @@ int residualFunction(
 
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
+#ifdef _OPENMP
 #pragma omp parallel for schedule(dynamic, 1) num_threads(data->threads)
+#endif
 	for (size_t eq = 0; eq < data->forEquationsNumber; eq++)
 	{
 		// For every vector equation
@@ -231,7 +238,9 @@ int jacobianMatrix(
 
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
+#ifdef _OPENMP
 #pragma omp parallel for schedule(dynamic, 1) num_threads(data->threads)
+#endif
 	for (size_t eq = 0; eq < data->forEquationsNumber; eq++)
 	{
 		// For every vector equation
