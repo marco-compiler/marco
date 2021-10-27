@@ -38,6 +38,71 @@ IncidenceMatrix::IncidenceMatrix(MultidimensionalRange equationRanges, Multidime
 	assert(variableRanges.rank() <= equationRanges.rank());
 }
 
+bool IncidenceMatrix::operator==(const IncidenceMatrix& other) const
+{
+	if (equationRanges != other.equationRanges)
+		return false;
+
+	if (variableRanges != other.variableRanges)
+		return false;
+
+	llvm::SmallVector<long, 3> indexes(equationRanges.rank() + variableRanges.rank(), 0);
+
+	for (const auto& equationIndexes : equationRanges)
+	{
+		for (const auto& equationIndex : llvm::enumerate(equationIndexes))
+			indexes[equationIndex.index()] = equationIndex.value();
+
+		for (const auto& variableIndexes : variableRanges)
+		{
+			for (const auto& variableIndex : llvm::enumerate(variableIndexes))
+				indexes[equationRanges.rank() + variableIndex.index()] = variableIndex.value();
+
+			if (get(indexes) != other.get(indexes))
+				return false;
+		}
+	}
+
+	return true;
+}
+
+bool IncidenceMatrix::operator!=(const IncidenceMatrix& other) const
+{
+	if (equationRanges == other.equationRanges)
+		return false;
+
+	if (variableRanges == other.variableRanges)
+		return false;
+
+	llvm::SmallVector<long, 3> indexes(equationRanges.rank() + variableRanges.rank(), 0);
+
+	for (const auto& equationIndexes : equationRanges)
+	{
+		for (const auto& equationIndex : llvm::enumerate(equationIndexes))
+			indexes[equationIndex.index()] = equationIndex.value();
+
+		for (const auto& variableIndexes : variableRanges)
+		{
+			for (const auto& variableIndex : llvm::enumerate(variableIndexes))
+				indexes[equationRanges.rank() + variableIndex.index()] = variableIndex.value();
+
+			if (get(indexes) != other.get(indexes))
+				return true;
+		}
+	}
+
+	return false;
+}
+
+IncidenceMatrix& IncidenceMatrix::operator+=(const IncidenceMatrix& rhs)
+{
+	assert(getEquationRanges() == rhs.getEquationRanges() && "Different equation ranges");
+	assert(getVariableRanges() == rhs.getVariableRanges() && "Different variable ranges");
+
+	data += rhs.data;
+	return *this;
+}
+
 const MultidimensionalRange& IncidenceMatrix::getEquationRanges() const
 {
 	return equationRanges;
@@ -87,15 +152,6 @@ void IncidenceMatrix::unset(llvm::ArrayRef<long> indexes)
 void IncidenceMatrix::clear()
 {
 	data.clear();
-}
-
-IncidenceMatrix& IncidenceMatrix::operator+=(const IncidenceMatrix& rhs)
-{
-	assert(getEquationRanges() == rhs.getEquationRanges() && "Different equation ranges");
-	assert(getVariableRanges() == rhs.getVariableRanges() && "Different variable ranges");
-
-	data += rhs.data;
-	return *this;
 }
 
 std::pair<size_t, size_t> IncidenceMatrix::getMatrixIndexes(llvm::ArrayRef<long> indexes) const

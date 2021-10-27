@@ -171,12 +171,13 @@ void LocalMatchingSolutions::getInductionVariablesUsage(
 namespace marco::matching::detail
 {
 	LocalMatchingSolutions solveLocalMatchingProblem(
-			const IncidenceMatrix& u,
+			const MultidimensionalRange& equationRanges,
+			const MultidimensionalRange& variableRanges,
 			llvm::ArrayRef<AccessFunction> accessFunctions)
 	{
 		return LocalMatchingSolutions(
 				std::move(accessFunctions),
-				u.getEquationRanges(),
-				u.getVariableRanges());
+				equationRanges,
+				variableRanges);
 	}
 }

@@ -22,9 +22,7 @@ namespace marco::matching
 			using pointer = ValueType*;
 			using reference = ValueType&;
 
-			LocalMatchingSolutionsIterator(
-					Container& container,
-					size_t index)
+			LocalMatchingSolutionsIterator(Container& container, size_t index)
 					: container(&container),
 						index(std::move(index))
 			{
@@ -113,7 +111,8 @@ namespace marco::matching
 		};
 
 		detail::LocalMatchingSolutions solveLocalMatchingProblem(
-				const IncidenceMatrix& u,
+				const MultidimensionalRange& equationRanges,
+				const MultidimensionalRange& variableRanges,
 				llvm::ArrayRef<AccessFunction> accessFunctions);
 	}
 
@@ -156,7 +155,10 @@ namespace marco::matching
 			const auto& u = edge.getIncidenceMatrix();
 			std::cout << "u\n" << u << "\n\n";
 
-			auto matchOptions = detail::solveLocalMatchingProblem(u, edge.getAccessFunctions());
+			auto matchOptions = detail::solveLocalMatchingProblem(
+					u.getEquationRanges(),
+					u.getVariableRanges(),
+					edge.getAccessFunctions());
 
 			// The simplification steps is executed only in case of a single
 			// matching option. In case of multiple ones, in fact, the choice
@@ -165,7 +167,7 @@ namespace marco::matching
 
 			if (matchOptions.size() == 1)
 			{
-				//graph[edge].addMatch(matchOptions.front());
+				//graph[edge].setMatch(matchOptions[0]);
 
 				if (shouldRemoveOppositeNode)
 				{

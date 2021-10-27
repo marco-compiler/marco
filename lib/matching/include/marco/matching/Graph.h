@@ -203,9 +203,9 @@ namespace marco::matching
 				return incidenceMatrix;
 			}
 
-			void addMatch(IncidenceMatrix match)
+			void setMatch(IncidenceMatrix match)
 			{
-				incidenceMatrix += match;
+				matchMatrix += match;
 			}
 
 			bool isVisible() const

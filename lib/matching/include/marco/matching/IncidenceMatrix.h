@@ -17,6 +17,11 @@ namespace marco::matching::detail
 		public:
 		IncidenceMatrix(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
+		bool operator==(const IncidenceMatrix& other) const;
+		bool operator!=(const IncidenceMatrix& other) const;
+
+		IncidenceMatrix& operator+=(const IncidenceMatrix& rhs);
+
 		const MultidimensionalRange& getEquationRanges() const;
 		const MultidimensionalRange& getVariableRanges() const;
 
@@ -26,8 +31,6 @@ namespace marco::matching::detail
 		void unset(llvm::ArrayRef<long> indexes);
 
 		void clear();
-
-		IncidenceMatrix& operator+=(const IncidenceMatrix& rhs);
 
 		private:
 		std::pair<size_t, size_t> getMatrixIndexes(llvm::ArrayRef<long> indexes) const;

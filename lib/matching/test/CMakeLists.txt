@@ -1,7 +1,8 @@
 set(SOURCES
         src/DataStructuresTest.cpp
         src/GraphTest.cpp
-        src/RealScenarios.cpp)
+        src/RealScenarios.cpp
+        src/SolveLocalMatchingProblemTest.cpp)
 
 marco_add_unittest(MARCOTest MatchingTest ${SOURCES})
 
