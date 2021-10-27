@@ -254,26 +254,6 @@ struct AddToleranceOpLowering : public IdaOpConversion<AddToleranceOp>
 	}
 };
 
-struct AddRowLengthOpLowering : public IdaOpConversion<AddRowLengthOp>
-{
-	using IdaOpConversion<AddRowLengthOp>::IdaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(AddRowLengthOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
-		IntegerType result = IntegerType::get(op.getContext());
-
-		mlir::FuncOp callee = getOrDeclareFunction(
-				rewriter,
-				op->getParentOfType<mlir::ModuleOp>(),
-				getMangledFunctionName("addRowLength", result, op.args()),
-				result,
-				op.args());
-
-		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), result, op.args());
-		return mlir::success();
-	}
-};
-
 struct AddColumnIndexOpLowering : public IdaOpConversion<AddColumnIndexOp>
 {
 	using IdaOpConversion<AddColumnIndexOp>::IdaOpConversion;
@@ -487,33 +467,15 @@ struct SetInitialValueOpLowering : public IdaOpConversion<SetInitialValueOp>
 
 	mlir::LogicalResult matchAndRewrite(SetInitialValueOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
 	{
-		mlir::FuncOp callee = getOrDeclareFunction(
-				rewriter,
-				op->getParentOfType<mlir::ModuleOp>(),
-				getMangledFunctionName("setInitialValue", llvm::None, op.args()),
-				llvm::None,
-				op.args());
-
-		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, op.args());
-		return mlir::success();
-	}
-};
-
-struct SetInitialArrayOpLowering : public IdaOpConversion<SetInitialArrayOp>
-{
-	using IdaOpConversion<SetInitialArrayOp>::IdaOpConversion;
-
-	mlir::LogicalResult matchAndRewrite(SetInitialArrayOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
-	{
 		// Cast sized array into unsized array.
 		auto arrayType = op.array().getType().cast<modelica::ArrayType>();
-		llvm::SmallVector<mlir::Value, 5> args = op.args();
-		args[3] = rewriter.create<modelica::ArrayCastOp>(op.getLoc(), op.array(), arrayType.toUnsized());
+		llvm::SmallVector<mlir::Value, 4> args = op.args();
+		args[2] = rewriter.create<modelica::ArrayCastOp>(op.getLoc(), op.array(), arrayType.toUnsized());
 
 		mlir::FuncOp callee = getOrDeclareFunction(
 				rewriter,
 				op->getParentOfType<mlir::ModuleOp>(),
-				getMangledFunctionName("setInitialArray", llvm::None, args),
+				getMangledFunctionName("setInitialValue", llvm::None, args),
 				llvm::None,
 				mlir::ValueRange(args));
 
@@ -756,7 +718,6 @@ static void populateIdaConversionPatterns(
 
 	// Equation setters.
 	patterns.insert<
-			AddRowLengthOpLowering,
 			AddColumnIndexOpLowering,
 			AddEqDimensionOpLowering,
 			AddResidualOpLowering,
@@ -767,8 +728,7 @@ static void populateIdaConversionPatterns(
 			AddVarOffsetOpLowering,
 			AddVarDimensionOpLowering,
 			AddVarAccessOpLowering,
-			SetInitialValueOpLowering,
-			SetInitialArrayOpLowering>(typeConverter, context);
+			SetInitialValueOpLowering>(typeConverter, context);
 
 	// Getters.
 	patterns.insert<
@@ -853,7 +813,6 @@ class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::Oper
 
 		// Equation setters.
 		target.addIllegalOp<
-				AddRowLengthOp,
 				AddColumnIndexOp,
 				AddEqDimensionOp,
 				AddResidualOp,
@@ -864,8 +823,7 @@ class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::Oper
 				AddVarOffsetOp,
 				AddVarDimensionOp,
 				AddVarAccessOp,
-				SetInitialValueOp,
-				SetInitialArrayOp>();
+				SetInitialValueOp>();
 
 		// Getters.
 		target.addIllegalOp<GetTimeOp, GetVariableOp, GetDerivativeOp>();

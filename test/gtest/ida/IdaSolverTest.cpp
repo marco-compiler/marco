@@ -25,7 +25,6 @@ TEST(IdaSolverTest, SimpleDerivative)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 1);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 1);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 1);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
 	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
 	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 1);
@@ -62,12 +61,10 @@ TEST(IdaSolverTest, DoubleDerivative)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 2);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 2);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 1);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
 	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
 	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 1);
 
-	EXPECT_EQ(idaSolver.getRowLength(1), 1);
 	EXPECT_EQ(idaSolver.getDimension(1).size(), 1);
 	EXPECT_EQ(idaSolver.getDimension(1)[0].first, 0);
 	EXPECT_EQ(idaSolver.getDimension(1)[0].second, 1);
@@ -112,7 +109,6 @@ TEST(IdaSolverTest, SimpleDerWithSubstitution)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 1);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 1);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 1);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
 	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
 	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 1);
@@ -151,8 +147,6 @@ TEST(IdaSolverTest, DerivativeArray)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 10);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 10);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 1);
-	EXPECT_EQ(idaSolver.getRowLength(1), 1);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
 	EXPECT_EQ(idaSolver.getDimension(1).size(), 1);
 
@@ -207,8 +201,6 @@ TEST(IdaSolverTest, MultidimensionalDerivative)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 12);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 12);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 1);
-	EXPECT_EQ(idaSolver.getRowLength(1), 1);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
 	EXPECT_EQ(idaSolver.getDimension(1).size(), 2);
 
@@ -259,8 +251,6 @@ TEST(IdaSolverTest, MultipleArraysWithState)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 10);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 15);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 1);
-	EXPECT_EQ(idaSolver.getRowLength(1), 2);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
 	EXPECT_EQ(idaSolver.getDimension(1).size(), 1);
 
@@ -302,13 +292,11 @@ TEST(IdaSolverTest, AlgebraicLoop)
 
 	for (size_t i : marco::irange(4))
 	{
-		EXPECT_EQ(idaSolver.getRowLength(i), 2);
 		EXPECT_EQ(idaSolver.getDimension(i).size(), 1);
 		EXPECT_EQ(idaSolver.getDimension(i)[0].first, 0);
 		EXPECT_EQ(idaSolver.getDimension(i)[0].second, 1);
 	}
 
-	EXPECT_EQ(idaSolver.getRowLength(4), 3);
 	EXPECT_EQ(idaSolver.getDimension(4).size(), 1);
 	EXPECT_EQ(idaSolver.getDimension(4)[0].first, 0);
 	EXPECT_EQ(idaSolver.getDimension(4)[0].second, 1);
@@ -353,7 +341,6 @@ TEST(IdaSolverTest, AlgebraicLoopSparseEquations)
 
 	for (size_t i : marco::irange(3))
 	{
-		EXPECT_EQ(idaSolver.getRowLength(i), 2);
 		EXPECT_EQ(idaSolver.getDimension(i).size(), 1);
 		EXPECT_EQ(idaSolver.getDimension(i)[0].first, 0);
 		EXPECT_EQ(idaSolver.getDimension(i)[0].second, 1);
@@ -400,10 +387,7 @@ TEST(IdaSolverTest, AlgebraicLoopDenseEquations)
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 18);
 
 	for (size_t i : marco::irange(3))
-	{
-		EXPECT_EQ(idaSolver.getRowLength(i), 3);
 		EXPECT_EQ(idaSolver.getDimension(i).size(), 1);
-	}
 
 	if (failed(idaSolver.run()))
 		FAIL();
@@ -440,7 +424,6 @@ TEST(IdaSolverTest, ImplicitEquation)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 1);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 1);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 1);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
 	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
 	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 1);
@@ -476,7 +459,6 @@ TEST(IdaSolverTest, ImplicitEqKepler)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 2);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 2);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 1);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
 	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
 	EXPECT_EQ(idaSolver.getDimension(0)[0].second, 2);
@@ -516,8 +498,6 @@ TEST(IdaSolverTest, Robertson)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 2);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 4);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 2);
-	EXPECT_EQ(idaSolver.getRowLength(1), 2);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
 	EXPECT_EQ(idaSolver.getDimension(1).size(), 1);
 
@@ -558,7 +538,6 @@ TEST(IdaSolverTest, LoopWithDerivative)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 1);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 1);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 1);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
 
 	if (failed(idaSolver.run()))
@@ -594,8 +573,6 @@ TEST(IdaSolverTest, LoopWithImplicitEquation)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 2);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 4);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 2);
-	EXPECT_EQ(idaSolver.getRowLength(1), 2);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
 	EXPECT_EQ(idaSolver.getDimension(1).size(), 1);
 
@@ -652,13 +629,11 @@ TEST(IdaSolverTest, MultipleBltBlocksAndEquations)
 
 	for (size_t i : marco::irange(3))
 	{
-		EXPECT_EQ(idaSolver.getRowLength(i), 2);
 		EXPECT_EQ(idaSolver.getDimension(i).size(), 1);
 		EXPECT_EQ(idaSolver.getDimension(i)[0].first, 0);
 		EXPECT_EQ(idaSolver.getDimension(i)[0].second, 1);
 	}
 
-	EXPECT_EQ(idaSolver.getRowLength(3), 4);
 	EXPECT_EQ(idaSolver.getDimension(3).size(), 1);
 
 	EXPECT_EQ(idaSolver.getDimension(3)[0].first, 2);
@@ -702,7 +677,6 @@ TEST(IdaSolverTest, EquationWithInduction)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 5);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 5);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 1);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 1);
 
 	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);
@@ -747,7 +721,6 @@ TEST(IdaSolverTest, UnevenJacobianRowLength)
 	EXPECT_EQ(idaSolver.getEquationsNumber(), 12);
 	EXPECT_EQ(idaSolver.getNonZeroValuesNumber(), 23);
 
-	EXPECT_EQ(idaSolver.getRowLength(0), 2);
 	EXPECT_EQ(idaSolver.getDimension(0).size(), 2);
 
 	EXPECT_EQ(idaSolver.getDimension(0)[0].first, 0);

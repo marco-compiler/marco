@@ -28,9 +28,6 @@ RUNTIME_FUNC_DECL(addTolerance, void, PTR(void), double, double)
 // Equation setters
 //===----------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(addRowLength, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(addRowLength, int64_t, PTR(void), int64_t)
-
 RUNTIME_FUNC_DECL(addColumnIndex, void, PTR(void), int32_t, int32_t)
 RUNTIME_FUNC_DECL(addColumnIndex, void, PTR(void), int64_t, int64_t)
 
@@ -42,7 +39,6 @@ RUNTIME_FUNC_DECL(addResidual, void, PTR(void), int64_t, int64_t)
 
 RUNTIME_FUNC_DECL(addJacobian, void, PTR(void), int32_t, int32_t)
 RUNTIME_FUNC_DECL(addJacobian, void, PTR(void), int64_t, int64_t)
-
 
 //===----------------------------------------------------------------------===//
 // Variable setters
@@ -57,15 +53,10 @@ RUNTIME_FUNC_DECL(addVarDimension, void, PTR(void), ARRAY(int64_t))
 RUNTIME_FUNC_DECL(addVarAccess, int32_t, PTR(void), int32_t, ARRAY(int32_t), ARRAY(int32_t))
 RUNTIME_FUNC_DECL(addVarAccess, int64_t, PTR(void), int64_t, ARRAY(int64_t), ARRAY(int64_t))
 
-RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int32_t, int32_t, int32_t, bool)
-RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int32_t, int32_t, float, bool)
-RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int64_t, int64_t, int64_t, bool)
-RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int64_t, int64_t, double, bool)
-
-RUNTIME_FUNC_DECL(setInitialArray, void, PTR(void), int32_t, int32_t, ARRAY(int32_t), bool)
-RUNTIME_FUNC_DECL(setInitialArray, void, PTR(void), int32_t, int32_t, ARRAY(float), bool)
-RUNTIME_FUNC_DECL(setInitialArray, void, PTR(void), int64_t, int64_t, ARRAY(int64_t), bool)
-RUNTIME_FUNC_DECL(setInitialArray, void, PTR(void), int64_t, int64_t, ARRAY(double), bool)
+RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int32_t, ARRAY(int32_t), bool)
+RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int32_t, ARRAY(float), bool)
+RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int64_t, ARRAY(int64_t), bool)
+RUNTIME_FUNC_DECL(setInitialValue, void, PTR(void), int64_t, ARRAY(double), bool)
 
 //===----------------------------------------------------------------------===//
 // Getters
@@ -176,11 +167,12 @@ RUNTIME_FUNC_DECL(lambdaCall, int64_t, PTR(void), int64_t, FUNCTION(double), FUN
 
 extern "C"
 {
+	void setInitialValue(void* userData, int64_t index, int64_t length, double value, bool isState);
+
 	int64_t getNumberOfForEquations(void* userData);
 	int64_t getNumberOfEquations(void* userData);
 	int64_t getNumberOfNonZeroValues(void* userData);
 
-	int64_t getIdaRowLength(void* userData, int64_t index);
 	std::vector<std::pair<size_t, size_t>> getIdaDimension(void* userData, int64_t index);
 
 	int64_t numSteps(void* userData);

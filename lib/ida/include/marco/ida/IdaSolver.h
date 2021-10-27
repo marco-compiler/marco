@@ -74,7 +74,6 @@ namespace marco::codegen::ida
 		[[nodiscard]] realtype getTime();
 		[[nodiscard]] realtype getVariable(sunindextype index);
 		[[nodiscard]] realtype getDerivative(sunindextype index);
-		[[nodiscard]] sunindextype getRowLength(sunindextype index);
 		[[nodiscard]] Dimension getDimension(sunindextype index);
 
 		private:
