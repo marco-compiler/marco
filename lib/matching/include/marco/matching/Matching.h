@@ -74,24 +74,17 @@ namespace marco::matching
 			using iterator = LocalMatchingSolutionsIterator<
 					LocalMatchingSolutions, IncidenceMatrix>;
 
-			using const_iterator = LocalMatchingSolutionsIterator<
-					const LocalMatchingSolutions, const IncidenceMatrix>;
-
 			LocalMatchingSolutions(
 					llvm::ArrayRef<AccessFunction> accessFunctions,
 					MultidimensionalRange equationRanges,
 					MultidimensionalRange variableRanges);
 
 			IncidenceMatrix& operator[](size_t index);
-			const IncidenceMatrix& operator[](size_t index) const;
 
 			size_t size() const;
 
 			iterator begin();
-			const_iterator begin() const;
-
 			iterator end();
-			const_iterator end() const;
 
 			private:
 			void fetchNext();
@@ -117,8 +110,6 @@ namespace marco::matching
 			llvm::SmallVector<size_t, 3> ordering;
 			std::unique_ptr<MultidimensionalRange::iterator> rangeIt;
 			std::unique_ptr<MultidimensionalRange::iterator> rangeEnd;
-
-			std::function<void()> fetchNextFn;
 		};
 
 		detail::LocalMatchingSolutions solveLocalMatchingProblem(
@@ -166,9 +157,6 @@ namespace marco::matching
 			std::cout << "u\n" << u << "\n\n";
 
 			auto matchOptions = detail::solveLocalMatchingProblem(u, edge.getAccessFunctions());
-
-			for (const auto& m : matchOptions)
-				std::cout << "m\n" << m << "\n\n";
 
 			// The simplification steps is executed only in case of a single
 			// matching option. In case of multiple ones, in fact, the choice
