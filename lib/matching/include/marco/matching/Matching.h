@@ -58,7 +58,7 @@ namespace marco::matching
 				return temp;
 			}
 
-			value_type operator*()
+			value_type& operator*()
 			{
 				return (*container)[index];
 			}
@@ -94,17 +94,31 @@ namespace marco::matching
 			const_iterator end() const;
 
 			private:
-			void compute();
+			void fetchNext();
 
 			void getInductionVariablesUsage(
 					llvm::SmallVectorImpl<size_t>& usages,
 					const AccessFunction& accessFunction) const;
 
-			llvm::ArrayRef<AccessFunction> accessFunctions;
+			llvm::SmallVector<AccessFunction, 3> accessFunctions;
 			MultidimensionalRange equationRanges;
 			MultidimensionalRange variableRanges;
-			size_t solutionsCount;
+
+			// Total number of possible match matrices
+			size_t solutionsAmount;
+
+			// List of the computed match matrices
 			llvm::SmallVector<IncidenceMatrix, 3> matrices;
+
+			size_t currentAccessFunction = 0;
+			size_t groupSize;
+			llvm::SmallVector<Range, 3> reorderedRanges;
+			std::unique_ptr<MultidimensionalRange> range;
+			llvm::SmallVector<size_t, 3> ordering;
+			std::unique_ptr<MultidimensionalRange::iterator> rangeIt;
+			std::unique_ptr<MultidimensionalRange::iterator> rangeEnd;
+
+			std::function<void()> fetchNextFn;
 		};
 
 		detail::LocalMatchingSolutions solveLocalMatchingProblem(

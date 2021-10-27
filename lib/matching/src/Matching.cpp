@@ -7,11 +7,13 @@ LocalMatchingSolutions::LocalMatchingSolutions(
 		llvm::ArrayRef<AccessFunction> accessFunctions,
 		MultidimensionalRange equationRanges,
 		MultidimensionalRange variableRanges)
-		: accessFunctions(std::move(accessFunctions)),
+		: accessFunctions(accessFunctions.begin(), accessFunctions.end()),
 			equationRanges(std::move(equationRanges)),
 			variableRanges(std::move(variableRanges))
 {
-	solutionsCount = 0;
+	// TODO: sort the access functions
+
+	solutionsAmount = 0;
 	llvm::SmallVector<size_t, 3> inductionsUsage;
 
 	for (const auto& accessFunction : this->accessFunctions)
@@ -23,27 +25,37 @@ LocalMatchingSolutions::LocalMatchingSolutions(
 			if (usage.value() == 0)
 				count *= this->equationRanges[usage.index()].size();
 
-		solutionsCount += count;
+		solutionsAmount += count;
 	}
 
-	compute();
+	fetchNextFn = [&]() {
+		fetchNext();
+	};
 }
 
 IncidenceMatrix& LocalMatchingSolutions::operator[](size_t index)
 {
 	assert(index < size());
+
+	while (matrices.size() <= index)
+		fetchNextFn();
+
 	return matrices[index];
 }
 
 const IncidenceMatrix& LocalMatchingSolutions::operator[](size_t index) const
 {
 	assert(index < size());
+
+	while (matrices.size() <= index)
+		fetchNextFn();
+
 	return matrices[index];
 }
 
 size_t LocalMatchingSolutions::size() const
 {
-	return solutionsCount;
+	return solutionsAmount;
 }
 
 LocalMatchingSolutions::iterator LocalMatchingSolutions::begin()
@@ -66,18 +78,22 @@ LocalMatchingSolutions::const_iterator LocalMatchingSolutions::end() const
 	return const_iterator(*this, size());
 }
 
-void LocalMatchingSolutions::compute()
+void LocalMatchingSolutions::fetchNext()
 {
-	llvm::SmallVector<size_t, 3> inductionsUsage;
-
-	for (const auto& accessFunction : accessFunctions)
+	if (rangeIt == nullptr || *rangeIt == *rangeEnd)
 	{
-		size_t groupSize = 1;
+		assert(currentAccessFunction < accessFunctions.size() &&
+					 "No more access functions to be processed");
 
-		getInductionVariablesUsage(inductionsUsage, accessFunction);
+		llvm::SmallVector<size_t, 3> inductionsUsage;
+		getInductionVariablesUsage(inductionsUsage, accessFunctions[currentAccessFunction]);
 
-		llvm::SmallVector<Range, 3> reorderedRanges;
-		llvm::SmallVector<size_t, 3> ordering(equationRanges.rank(), 0);
+		groupSize = 1;
+
+		reorderedRanges.clear();
+
+		ordering.clear();
+		ordering.insert(ordering.begin(), equationRanges.rank(), 0);
 
 		for (const auto& usage : llvm::enumerate(inductionsUsage))
 		{
@@ -98,31 +114,33 @@ void LocalMatchingSolutions::compute()
 			}
 		}
 
-		MultidimensionalRange reorderedRange(reorderedRanges);
-		IncidenceMatrix matrix(equationRanges, variableRanges);
-		llvm::SmallVector<long, 3> equationIndexes;
-		llvm::SmallVector<long, 3> indexes;
-		size_t counter = 0;
+		range = std::make_unique<MultidimensionalRange>(reorderedRanges);
+		rangeIt = std::make_unique<MultidimensionalRange::iterator>(range->begin());
+		rangeEnd = std::make_unique<MultidimensionalRange::iterator>(range->end());
+	}
 
-		for (const auto& reorderedIndexes : reorderedRange)
-		{
-			equationIndexes.clear();
+	IncidenceMatrix matrix(equationRanges, variableRanges);
+	llvm::SmallVector<long, 3> equationIndexes;
+	llvm::SmallVector<long, 3> indexes;
+	size_t counter = 0;
 
-			for (size_t i = 0, e = equationRanges.rank(); i < e; ++i)
-				equationIndexes.push_back(reorderedIndexes[ordering[i]]);
+	while (counter++ != groupSize)
+	{
+		const auto& reorderedIndexes = **rangeIt;
+		equationIndexes.clear();
 
-			indexes.clear();
-			indexes.insert(indexes.begin(), equationIndexes.begin(), equationIndexes.end());
-			accessFunction.map(indexes, equationIndexes);
-			matrix.set(indexes);
+		for (size_t i = 0, e = equationRanges.rank(); i < e; ++i)
+			equationIndexes.push_back(reorderedIndexes[ordering[i]]);
 
-			if (++counter == groupSize)
-			{
-				matrices.push_back(matrix);
-				matrix.clear();
-				counter = 0;
-			}
-		}
+		indexes.clear();
+		indexes.insert(indexes.begin(), equationIndexes.begin(), equationIndexes.end());
+		accessFunctions[currentAccessFunction].map(indexes, equationIndexes);
+		matrix.set(indexes);
+
+		if (counter == groupSize)
+			matrices.push_back(std::move(matrix));
+
+		++(*rangeIt);
 	}
 }
 

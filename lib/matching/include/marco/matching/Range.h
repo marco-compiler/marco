@@ -205,7 +205,6 @@ namespace marco::matching
 		llvm::SmallVector<RangeIterator<ValueType>, 3> currentIterators;
 		llvm::SmallVector<RangeIterator<ValueType>, 3> endIterators;
 		llvm::SmallVector<ValueType, 3> indexes;
-		llvm::ArrayRef<Range> ranges;
 	};
 
 	/**
