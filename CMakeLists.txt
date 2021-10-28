@@ -72,6 +72,16 @@ include(HandleLLVMOptions)
 
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 
+# MARCO profiling for compilation and runtime
+if(NOT DEFINED MARCO_PROFILING)
+	set(MARCO_PROFILING OFF)
+endif()
+
+if (${MARCO_PROFILING} STREQUAL ON)
+	add_compile_definitions(MARCO_PROFILING)
+endif()
+
+
 ##############################
 ###       Subfolders       ###
 ##############################

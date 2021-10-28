@@ -456,6 +456,8 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 	static constexpr llvm::StringLiteral printHeaderFunctionName = "printHeader";
 	static constexpr llvm::StringLiteral printFunctionName = "print";
 	static constexpr llvm::StringLiteral deinitFunctionName = "deinit";
+  static constexpr llvm::StringLiteral runtimeInitFunctionName = "runtimeInit";
+  static constexpr llvm::StringLiteral runtimeDeinitFunctionName = "runtimeDeinit";
 
 	public:
 	SimulationOpPattern(mlir::MLIRContext* ctx,
@@ -832,12 +834,21 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 		return getOrCreateGlobalString(loc, builder, "newline", mlir::StringRef("\n\0", 2), module);
 	}
 
-	mlir::LLVM::LLVMFuncOp getOrInsertPrintf(mlir::OpBuilder& rewriter, mlir::ModuleOp module) const
-	{
-		auto *context = module.getContext();
+	mlir::LLVM::LLVMFuncOp getOrInsertFunction(mlir::OpBuilder& builder, mlir::ModuleOp module, llvm::StringRef name, mlir::LLVM::LLVMFunctionType type) const
+  {
+    auto *context = module.getContext();
 
-		if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>("printf"))
-			return foo;
+    if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name))
+      return foo;
+
+    mlir::OpBuilder::InsertionGuard insertGuard(builder);
+    builder.setInsertionPointToStart(module.getBody());
+    return builder.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), name, type);
+  }
+
+	mlir::LLVM::LLVMFuncOp getOrInsertPrintf(mlir::OpBuilder& builder, mlir::ModuleOp module) const
+	{
+    auto *context = module.getContext();
 
 		// Create a function declaration for printf, the signature is:
 		//   * `i32 (i8*, ...)`
@@ -845,10 +856,8 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 		auto llvmI8PtrTy = mlir::LLVM::LLVMPointerType::get(mlir::IntegerType::get(context, 8));
 		auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(llvmI32Ty, llvmI8PtrTy, true);
 
-		// Insert the printf function into the body of the parent module.
-		mlir::PatternRewriter::InsertionGuard insertGuard(rewriter);
-		rewriter.setInsertionPointToStart(module.getBody());
-		return rewriter.create<mlir::LLVM::LLVMFuncOp>(module.getLoc(), "printf", llvmFnType);
+		// Insert the printf function into the body of the parent module
+		return getOrInsertFunction(builder, module, "printf", llvmFnType);
 	}
 
 	void printVariableName(
@@ -1284,7 +1293,8 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 		mlir::OpBuilder::InsertionGuard guard(builder);
 
 		// Create the function inside the parent module
-		builder.setInsertionPointToEnd(op->getParentOfType<mlir::ModuleOp>().getBody());
+    auto module = op->getParentOfType<mlir::ModuleOp>();
+		builder.setInsertionPointToEnd(module.getBody());
 
 		llvm::SmallVector<mlir::Type, 3> argsTypes;
 		llvm::SmallVector<mlir::Type, 3> resultsTypes;
@@ -1298,6 +1308,10 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 
 		auto* entryBlock = function.addEntryBlock();
 		builder.setInsertionPointToStart(entryBlock);
+
+		// Initialize the runtime environment
+		auto runtimeInitFunction = getOrInsertFunction(builder, module, runtimeInitFunctionName, mlir::LLVM::LLVMFunctionType::get(getVoidType(), llvm::None));
+		builder.create<mlir::LLVM::CallOp>(loc, runtimeInitFunction, llvm::None);
 
 		// Initialize the variables
 		mlir::Value data = builder.create<mlir::CallOp>(loc, initFunctionName, getVoidPtrType(), llvm::None).getResult(0);
@@ -1326,6 +1340,10 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 
 		// Deallocate the variables
 		builder.create<mlir::CallOp>(loc, deinitFunctionName, llvm::None, data);
+
+	  // Deinitialize the runtime environment
+    auto runtimeDeinitFunction = getOrInsertFunction(builder, module, runtimeDeinitFunctionName, mlir::LLVM::LLVMFunctionType::get(getVoidType(), llvm::None));
+    builder.create<mlir::LLVM::CallOp>(loc, runtimeDeinitFunction, llvm::None);
 
 		mlir::Value returnValue = builder.create<mlir::ConstantOp>(loc, builder.getI32IntegerAttr(0));
 		builder.create<mlir::ReturnOp>(loc, returnValue);
