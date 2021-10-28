@@ -1377,6 +1377,8 @@ struct ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp>
 
 	mlir::LogicalResult matchAndRewrite(ForEquationOp op, mlir::PatternRewriter& rewriter) const override
 	{
+		auto loc = op->getLoc();
+
 		llvm::SmallVector<mlir::Value, 3> lowerBounds;
 		llvm::SmallVector<mlir::Value, 3> upperBounds;
 		llvm::SmallVector<mlir::Value, 3> steps;
@@ -1394,48 +1396,45 @@ struct ForEquationOpPattern : public mlir::OpRewritePattern<ForEquationOp>
 			steps.push_back(step);
 		}
 
-		mlir::scf::buildLoopNest(
-				rewriter, op->getLoc(), lowerBounds, upperBounds, steps, llvm::None,
-				[&](mlir::OpBuilder& nestedBuilder, mlir::Location loc, mlir::ValueRange position, mlir::ValueRange args) -> std::vector<mlir::Value> {
-					mlir::BlockAndValueMapping mapping;
+		llvm::SmallVector<mlir::Value, 3> inductionVariables;
 
-					for (auto [oldInduction, newInduction] : llvm::zip(op.body()->getArguments(), position))
-						mapping.map(oldInduction, newInduction);
+		for (const auto& [lowerBound, upperBound, step] : llvm::zip(lowerBounds, upperBounds, steps))
+		{
+			auto forOp = rewriter.create<mlir::scf::ForOp>(loc, lowerBound, upperBound, step);
+			inductionVariables.push_back(forOp.getInductionVar());
+			rewriter.setInsertionPointToStart(forOp.getBody());
+		}
 
-					for (auto& sourceOp : op.body()->getOperations())
-					{
-						if (auto sides = mlir::dyn_cast<EquationSidesOp>(sourceOp))
-						{
-							// Create the assignments
-							for (auto [lhs, rhs] : llvm::zip(sides.lhs(), sides.rhs()))
-							{
-								mlir::Value value = mapping.contains(rhs) ? mapping.lookup(rhs) : rhs;
-
-								if (auto loadOp = mlir::dyn_cast<LoadOp>(lhs.getDefiningOp()))
-								{
-									assert(loadOp.indexes().empty());
-									mlir::Value destination = mapping.contains(loadOp.memory()) ? mapping.lookup(loadOp.memory()) : loadOp.memory();
-									rewriter.create<AssignmentOp>(sides.getLoc(), value, destination);
-								}
-								else
-								{
-									mlir::Value destination = mapping.contains(lhs) ? mapping.lookup(lhs) : lhs;
-									rewriter.create<AssignmentOp>(sides->getLoc(), value, destination);
-								}
-							}
-						}
-						else
-						{
-							rewriter.clone(sourceOp, mapping);
-						}
-					}
-
-					return std::vector<mlir::Value>();
-				});
-
+		rewriter.mergeBlockBefore(op.body(), rewriter.getInsertionBlock()->getTerminator(), inductionVariables);
 		rewriter.eraseOp(op);
 		return mlir::success();
 	}
+};
+
+struct EquationSidesOpPattern : public mlir::OpRewritePattern<EquationSidesOp>
+{
+  using mlir::OpRewritePattern<EquationSidesOp>::OpRewritePattern;
+
+  mlir::LogicalResult matchAndRewrite(EquationSidesOp op, mlir::PatternRewriter& rewriter) const override
+  {
+    auto loc = op->getLoc();
+
+    for (auto [lhs, rhs] : llvm::zip(op.lhs(), op.rhs()))
+    {
+      if (auto loadOp = mlir::dyn_cast<LoadOp>(lhs.getDefiningOp()))
+      {
+         assert(loadOp.indexes().empty());
+         rewriter.create<AssignmentOp>(loc, rhs, loadOp.memory());
+      }
+      else
+      {
+        rewriter.create<AssignmentOp>(loc, rhs, lhs);
+      }
+    }
+
+    rewriter.eraseOp(op);
+    return mlir::success();
+  }
 };
 
 /**
@@ -1701,17 +1700,17 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	{
 		mlir::ConversionTarget target(getContext());
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
-		target.addIllegalOp<SimulationOp, EquationOp, ForEquationOp>();
+		target.addIllegalOp<SimulationOp, EquationOp, ForEquationOp, EquationSidesOp>();
 
 		mlir::LowerToLLVMOptions llvmLoweringOptions(&getContext());
 		TypeConverter typeConverter(&getContext(), llvmLoweringOptions, bitWidth);
 
 		mlir::OwningRewritePatternList patterns(&getContext());
 		patterns.insert<SimulationOpPattern>(&getContext(), typeConverter, options, derivativesMap);
-		patterns.insert<EquationOpPattern, ForEquationOpPattern>(&getContext());
+		patterns.insert<EquationOpPattern, ForEquationOpPattern, EquationSidesOpPattern>(&getContext());
 
 		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
-			return status;
+        return status;
 
 		return mlir::success();
 	}
