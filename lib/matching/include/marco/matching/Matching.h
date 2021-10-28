@@ -110,7 +110,7 @@ namespace marco::matching
 			std::unique_ptr<MultidimensionalRange::iterator> rangeEnd;
 		};
 
-		detail::LocalMatchingSolutions solveLocalMatchingProblem(
+		LocalMatchingSolutions solveLocalMatchingProblem(
 				const MultidimensionalRange& equationRanges,
 				const MultidimensionalRange& variableRanges,
 				llvm::ArrayRef<AccessFunction> accessFunctions);
@@ -147,11 +147,13 @@ namespace marco::matching
 			candidates.pop_front();
 
 			auto edgeDescriptor = graph.getFirstOutEdge(v1);
+			Edge& edge = graph.getEdge(edgeDescriptor);
+
 			auto vertices = graph.getEdgeVertices(edgeDescriptor);
 			VertexDescriptor v2 = vertices.first == v1 ? vertices.second : vertices.first;
+
 			bool shouldRemoveOppositeNode = false;
 
-			Edge& edge = graph[edgeDescriptor];
 			const auto& u = edge.getIncidenceMatrix();
 			std::cout << "u\n" << u << "\n\n";
 
@@ -167,7 +169,7 @@ namespace marco::matching
 
 			if (matchOptions.size() == 1)
 			{
-				//graph[edge].setMatch(matchOptions[0]);
+				edge.addMatch(matchOptions[0]);
 
 				if (shouldRemoveOppositeNode)
 				{

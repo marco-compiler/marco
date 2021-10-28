@@ -32,6 +32,9 @@ namespace marco::matching::detail
 
 		void clear();
 
+		IncidenceMatrix flattenEquations() const;
+		IncidenceMatrix flattenVariables() const;
+
 		private:
 		std::pair<size_t, size_t> getMatrixIndexes(llvm::ArrayRef<long> indexes) const;
 

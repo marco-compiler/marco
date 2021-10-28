@@ -154,6 +154,37 @@ void IncidenceMatrix::clear()
 	data.clear();
 }
 
+IncidenceMatrix IncidenceMatrix::flattenEquations() const
+{
+	MultidimensionalRange flattenedEquationRange(Range(0, 1));
+	IncidenceMatrix result(flattenedEquationRange, variableRanges);
+
+	llvm::SmallVector<long, 4> sourceIndexes(equationRanges.rank() + variableRanges.rank(), 0);
+	llvm::SmallVector<long, 4> destinationIndexes(1 + variableRanges.rank(), 0);
+
+	/*
+	for (const auto& equationIndexes : equationRanges)
+	{
+		for (const auto& index : llvm::enumerate())
+
+		for (const auto& variableIndexes : variableRanges)
+		{
+			sourceIndexes.append()
+		}
+	}
+	 */
+
+	return result;
+}
+
+IncidenceMatrix IncidenceMatrix::flattenVariables() const
+{
+	MultidimensionalRange flattenedVariableRange(Range(0, 1));
+	IncidenceMatrix result(equationRanges, flattenedVariableRange);
+
+	return result;
+}
+
 std::pair<size_t, size_t> IncidenceMatrix::getMatrixIndexes(llvm::ArrayRef<long> indexes) const
 {
 	// Determine the sizes of the equation's dimensions

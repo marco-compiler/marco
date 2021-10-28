@@ -1,5 +1,5 @@
-#ifndef MARCO_MATCHING_GRAPH_H
-#define MARCO_MATCHING_GRAPH_H
+#ifndef MARCO_MATCHING_MATCHINGGRAPH_H
+#define MARCO_MATCHING_MATCHINGGRAPH_H
 
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
@@ -19,32 +19,56 @@ namespace marco::matching
 {
 	namespace detail
 	{
-		template<class VariableDescriptor>
+		template<typename V>
+		struct VertexDescriptor
+		{
+			V* data;
+		};
+
+		template<typename V, typename E>
+		class EdgeDescriptor
+		{
+			E* data;
+			VertexDescriptor<V> first;
+			VertexDescriptor<V> second;
+		};
+
+		template<class VariableProperty>
 		class VariableVertex
 		{
 			public:
-			using Id = typename VariableDescriptor::Id;
+			using Id = typename VariableProperty::Id;
 
-			VariableVertex(VariableDescriptor descriptor)
-					: descriptor(std::move(descriptor))
+			VariableVertex(VariableProperty property)
+					: property(std::move(property))
 			{
 				assert(getRank() > 0 && "Scalar variables are not supported");
 			}
 
+			VariableProperty& getProperty()
+			{
+				return property;
+			}
+
+			const VariableProperty& getProperty() const
+			{
+				return property;
+			}
+
 			VariableVertex::Id getId() const
 			{
-				return descriptor.getId();
+				return property.getId();
 			}
 
 			unsigned int getRank() const
 			{
-				return descriptor.getRank();
+				return property.getRank();
 			}
 
 			long getDimensionSize(size_t index) const
 			{
 				assert(index < getRank());
-				return descriptor.getDimensionSize(index);
+				return property.getDimensionSize(index);
 			}
 
 			MultidimensionalRange getRanges() const
@@ -76,28 +100,28 @@ namespace marco::matching
 			}
 
 			private:
-			VariableDescriptor descriptor;
+			VariableProperty property;
 		};
 	}
 
-	template<typename VariableDescriptor>
+	template<typename VariableProperty>
 	class Access
 	{
 		public:
-		Access(VariableDescriptor variable, AccessFunction accessFunction)
+		Access(VariableProperty variable, AccessFunction accessFunction)
 				: variable(std::move(variable)),
 					accessFunction(std::move(accessFunction))
 		{
 		}
 
 		template<typename... T>
-		Access(VariableDescriptor variable, T&&... accesses)
+		Access(VariableProperty variable, T&&... accesses)
 				: variable(std::move(variable)),
 					accessFunction(llvm::ArrayRef<DimensionAccess>({ std::forward<T>(accesses)... }))
 		{
 		}
 
-		VariableDescriptor getVariable() const
+		VariableProperty getVariable() const
 		{
 			return variable;
 		}
@@ -108,37 +132,47 @@ namespace marco::matching
 		}
 
 		private:
-		VariableDescriptor variable;
+		VariableProperty variable;
 		AccessFunction accessFunction;
 	};
 
 	namespace detail
 	{
-		template<class EquationDescriptor, class VariableDescriptor>
+		template<class EquationProperty, class VariableProperty>
 		class EquationVertex
 		{
 			public:
-			using Id = typename EquationDescriptor::Id;
+			using Id = typename EquationProperty::Id;
 
-			EquationVertex(EquationDescriptor descriptor)
-					: descriptor(std::move(descriptor))
+			EquationVertex(EquationProperty property)
+					: property(std::move(property))
 			{
+			}
+
+			EquationProperty& getProperty()
+			{
+				return property;
+			}
+
+			const EquationProperty& getProperty() const
+			{
+				return property;
 			}
 
 			Id getId() const
 			{
-				return descriptor.getId();
+				return property.getId();
 			}
 
 			unsigned int getNumOfIterationVars() const
 			{
-				return descriptor.getNumOfIterationVars();
+				return property.getNumOfIterationVars();
 			}
 
 			Range getIterationRange(size_t index) const
 			{
 				assert(index < getNumOfIterationVars());
-				return descriptor.getIterationRange(index);
+				return property.getIterationRange(index);
 			}
 
 			MultidimensionalRange getIterationRanges() const
@@ -156,13 +190,13 @@ namespace marco::matching
 				return getIterationRanges().flatSize();
 			}
 
-			void getVariableAccesses(llvm::SmallVectorImpl<Access<VariableDescriptor>>& accesses) const
+			void getVariableAccesses(llvm::SmallVectorImpl<Access<VariableProperty>>& accesses) const
 			{
-				descriptor.getVariableAccesses(accesses);
+				property.getVariableAccesses(accesses);
 			}
 
 			private:
-			EquationDescriptor descriptor;
+			EquationProperty property;
 		};
 
 		class Edge
@@ -203,7 +237,7 @@ namespace marco::matching
 				return incidenceMatrix;
 			}
 
-			void setMatch(IncidenceMatrix match)
+			void addMatch(IncidenceMatrix match)
 			{
 				matchMatrix += match;
 			}
@@ -229,13 +263,14 @@ namespace marco::matching
 	}
 
 	template<
-			class VariableDescriptor,
-			class EquationDescriptor>
+			class VariableProperty,
+			class EquationProperty>
 	class MatchingGraph
 	{
 		public:
-		using Variable = detail::VariableVertex<VariableDescriptor>;
-		using Equation = detail::EquationVertex<EquationDescriptor, VariableDescriptor>;
+		using Variable = detail::VariableVertex<VariableProperty>;
+		using Equation = detail::EquationVertex<EquationProperty, VariableProperty>;
+		using Vertex = std::variant<Variable, Equation>;
 		using Edge = detail::Edge;
 
 		private:
@@ -243,8 +278,8 @@ namespace marco::matching
 				boost::setS,        // OutEdgeList = set (no multigraph)
 				boost::listS,       // VertexList  = list (efficient node removal)
 				boost::undirectedS, // Graph is undirected
-				std::variant<Variable, Equation>,
-				detail::Edge>;
+				Vertex,
+				Edge>;
 
 		public:
 		using VertexDescriptor = typename boost::graph_traits<Graph>::vertex_descriptor;
@@ -255,30 +290,33 @@ namespace marco::matching
 		using EdgeIterator = typename boost::graph_traits<Graph>::edge_iterator;
 
 		public:
-		Edge& operator[](EdgeDescriptor edge)
-		{
-			return graph[edge];
-		}
-
-		const Edge& operator[](EdgeDescriptor edge) const
-		{
-			return graph[edge];
-		}
-
 		bool hasVariable(typename Variable::Id id) const
 		{
 			return hasVertex<Variable>(id);
 		}
 
-		Variable getVariable(typename Variable::Id id) const
+		VertexDescriptor getVariableVertex(typename Variable::Id id) const
 		{
-			auto vertex = getVariableVertex(id);
-			return std::get<Variable>(graph[vertex]);
+			auto search = findVertex<Variable>(id);
+			assert(search.first && "Variable not found");
+			return *search.second;
 		}
 
-		void addVariable(VariableDescriptor descriptor)
+		VariableProperty& getVariable(typename Variable::Id id)
 		{
-			Variable variable(descriptor);
+			auto vertex = getVariableVertex(id);
+			return std::get<Variable>(graph[vertex]).getProperty();
+		}
+
+		const VariableProperty& getVariable(typename Variable::Id id) const
+		{
+			auto vertex = getVariableVertex(id);
+			return std::get<Variable>(graph[vertex]).getProperty();
+		}
+
+		void addVariable(VariableProperty property)
+		{
+			Variable variable(std::move(property));
 			assert(!hasVariable(variable.getId()) && "Already existing variable");
 			boost::add_vertex(std::move(variable), graph);
 		}
@@ -288,19 +326,32 @@ namespace marco::matching
 			return hasVertex<Equation>(id);
 		}
 
-		Equation getEquation(typename Equation::Id id) const
+		VertexDescriptor getEquationVertex(typename Equation::Id id) const
 		{
-			auto vertex = getEquationVertex(id);
-			return std::get<Equation>(graph[vertex]);
+			auto search = findVertex<Equation>(id);
+			assert(search.first && "Equation not found");
+			return *search.second;
 		}
 
-		void addEquation(EquationDescriptor descriptor)
+		EquationProperty& getEquation(typename Equation::Id id)
 		{
-			Equation equation(descriptor);
+			auto vertex = getEquationVertex(id);
+			return std::get<Equation>(graph[vertex]).getProperty();
+		}
+
+		const EquationProperty& getEquation(typename Equation::Id id) const
+		{
+			auto vertex = getEquationVertex(id);
+			return std::get<Equation>(graph[vertex]).getProperty();
+		}
+
+		void addEquation(EquationProperty property)
+		{
+			Equation equation(std::move(property));
 			assert(!hasEquation(equation.getId()) && "Already existing equation");
 			auto equationVertex = boost::add_vertex(equation, graph);
 
-			llvm::SmallVector<Access<VariableDescriptor>, 3> accesses;
+			llvm::SmallVector<Access<VariableProperty>, 3> accesses;
 			equation.getVariableAccesses(accesses);
 
 			// The equation may access multiple variables or even multiple indexes
@@ -321,25 +372,9 @@ namespace marco::matching
 			}
 		}
 
-		unsigned int getNumberOfScalarEquations() const
+		size_t getNumberOfScalarVariables() const
 		{
-			unsigned int result = 0;
-
-			for (const auto& v : boost::make_iterator_range(boost::vertices(graph)))
-			{
-				if (auto& vertex = graph[v]; std::holds_alternative<Equation>(vertex))
-				{
-					auto& equation = std::get<Equation>(vertex);
-					result += equation.flatSize();
-				}
-			}
-
-			return result;
-		}
-
-		unsigned int getNumberOfScalarVariables() const
-		{
-			unsigned int result = 0;
+			size_t result = 0;
 
 			for (const auto& v : boost::make_iterator_range(boost::vertices(graph)))
 			{
@@ -353,92 +388,58 @@ namespace marco::matching
 			return result;
 		}
 
+		size_t getNumberOfScalarEquations() const
+		{
+			size_t result = 0;
+
+			for (const auto& v : boost::make_iterator_range(boost::vertices(graph)))
+			{
+				if (auto& vertex = graph[v]; std::holds_alternative<Equation>(vertex))
+				{
+					auto& equation = std::get<Equation>(vertex);
+					result += equation.flatSize();
+				}
+			}
+
+			return result;
+		}
+
 		auto getVertices()
 		{
 			return boost::make_iterator_range(boost::vertices(graph));
 		}
 
-		unsigned int getVertexVisibilityDegree(const VertexDescriptor& vertex) const
+		unsigned int getVertexVisibilityDegree(VertexDescriptor vertex) const
 		{
 			return boost::out_degree(vertex, graph);
 		}
 
-		bool hasEdge(typename EquationDescriptor::Id equationId, typename VariableDescriptor::Id variableId) const
+		bool hasEdge(typename EquationProperty::Id equationId, typename VariableProperty::Id variableId) const
 		{
 			return findEdge<Equation, Variable>(equationId, variableId).first;
 		}
 
-		EdgeDescriptor getFirstOutEdge(const VertexDescriptor& vertex) const
+		Edge& getEdge(EdgeDescriptor edge)
 		{
-			for (const auto& edge : boost::make_iterator_range(boost::out_edges(vertex, graph)))
-				return edge;
+			return graph[edge];
+		}
 
-			assert(false && "Unreachable");
+		const Edge& getEdge(EdgeDescriptor edge) const
+		{
+			return graph[edge];
+		}
+
+		EdgeDescriptor getFirstOutEdge(VertexDescriptor vertex) const
+		{
+			auto edges = boost::out_edges(vertex, graph);
+			assert(edges.first != edges.second && "Vertex doesn't belong to any edge");
+			return *edges.first;
 		}
 
 		std::pair<VertexDescriptor, VertexDescriptor> getEdgeVertices(EdgeDescriptor edge)
 		{
 			return std::make_pair(boost::source(edge, graph), boost::target(edge, graph));
 		}
-
-		/*
-		bool simplify()
-		{
-			// Vertices that are candidate for the first simplification phase.
-			// They are the ones having only one incident edge.
-			std::list<Vertex> candidates;
-
-			for (Vertex& vertex : boost::make_iterator_range(boost::vertices(graph)))
-			{
-				auto incidentEdges = getVertexVisibilityDegree(vertex);
-
-				if (incidentEdges == 0)
-					return false;
-
-				if (incidentEdges == 1)
-					candidates.push_back(vertex);
-			}
-
-			while (!candidates.empty())
-			{
-				Vertex v1 = candidates.front();
-				candidates.pop_front();
-
-				Edge edge = getFirstOutEdge(v1);
-				Vertex v2 = (boost::source(edge, graph) == v1) ? boost::target(edge, graph) : boost::source(edge, graph);
-				bool shouldRemoveOppositeNode = false;
-
-				const auto& u = graph[edge].getIncidenceMatrix();
-				std::cout << "u\n" << u << "\n\n";
-
-				auto matchOptions = solveLocalMatchingProblem(edge);
-
-				for (const auto& m : matchOptions)
-					std::cout << "m\n" << m << "\n\n";
-
-				// The simplification steps is executed only in case of a single
-				// matching option. In case of multiple ones, in fact, the choice
-				// would be arbitrary and may affect the feasibility of the
-				// array-aware matching problem.
-
-				if (matchOptions.size() == 1)
-				{
-					//graph[edge].addMatch(matchOptions.front());
-
-					if (shouldRemoveOppositeNode)
-					{
-
-					}
-					else
-					{
-
-					}
-				}
-			}
-
-			return true;
-		}
-		 */
 
 		private:
 		template<typename T>
@@ -465,20 +466,6 @@ namespace marco::matching
 			return std::make_pair(it != end, it);
 		}
 
-		VertexDescriptor getVariableVertex(typename Variable::Id id) const
-		{
-			auto search = findVertex<Variable>(id);
-			assert(search.first && "Variable not found");
-			return *search.second;
-		}
-
-		VertexDescriptor getEquationVertex(typename Equation::Id id) const
-		{
-			auto search = findVertex<Equation>(id);
-			assert(search.first && "Equation not found");
-			return *search.second;
-		}
-
 		template<typename From, typename To>
 		std::pair<bool, EdgeIterator> findEdge(typename From::Id from, typename To::Id to) const
 		{
@@ -502,4 +489,4 @@ namespace marco::matching
 	};
 }
 
-#endif	// MARCO_MATCHING_GRAPH_H
+#endif	// MARCO_MATCHING_MATCHINGGRAPH_H
