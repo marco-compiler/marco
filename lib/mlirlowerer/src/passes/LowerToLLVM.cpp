@@ -480,12 +480,25 @@ class AllocOpLowering : public AllocLikeOpLowering<AllocOp>
 		mlir::Type indexType = convertType(rewriter.getIndexType());
 
 		// Insert the "malloc" declaration if it is not already present in the module
-		auto mallocFunc = mlir::LLVM::lookupOrCreateMallocFn(op->getParentOfType<mlir::ModuleOp>(), indexType);
+		auto heapAllocFunc = lookupOrCreateHeapAllocFn(rewriter, op->getParentOfType<mlir::ModuleOp>());
 
 		// Allocate the buffer
 		mlir::Type bufferPtrType = mlir::LLVM::LLVMPointerType::get(convertType(op.resultType().getElementType()));
-		auto results = createLLVMCall(rewriter, loc, mallocFunc, sizeBytes, getVoidPtrType());
+		auto results = createLLVMCall(rewriter, loc, heapAllocFunc, sizeBytes, getVoidPtrType());
 		return rewriter.create<mlir::LLVM::BitcastOp>(loc, bufferPtrType, results[0]);
+	}
+
+	mlir::LLVM::LLVMFuncOp lookupOrCreateHeapAllocFn(mlir::OpBuilder& builder, mlir::ModuleOp module) const
+	{
+		std::string name = "_MheapAlloc_pvoid_i64";
+
+		if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name))
+			return foo;
+
+		mlir::PatternRewriter::InsertionGuard insertGuard(builder);
+		builder.setInsertionPointToStart(module.getBody());
+		auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(getVoidPtrType(), builder.getI64Type());
+		return builder.create<mlir::LLVM::LLVMFuncOp>(module->getLoc(), name, llvmFnType);
 	}
 };
 
@@ -500,7 +513,7 @@ class FreeOpLowering: public ModelicaOpConversion<FreeOp>
 		auto typeConverter = this->getTypeConverter();
 
 		// Insert the "free" declaration if it is not already present in the module
-		auto freeFunc = mlir::LLVM::lookupOrCreateFreeFn(op->getParentOfType<mlir::ModuleOp>());
+		auto freeFunc = lookupOrCreateHeapFreeFn(rewriter, op->getParentOfType<mlir::ModuleOp>());
 
 		// Extract the buffer address and call the "free" function
 		ArrayDescriptor descriptor(typeConverter, adaptor.memory());
@@ -509,6 +522,19 @@ class FreeOpLowering: public ModelicaOpConversion<FreeOp>
 		rewriter.replaceOpWithNewOp<mlir::LLVM::CallOp>(op, llvm::None, rewriter.getSymbolRefAttr(freeFunc), casted);
 
 		return mlir::success();
+	}
+
+	mlir::LLVM::LLVMFuncOp lookupOrCreateHeapFreeFn(mlir::OpBuilder& builder, mlir::ModuleOp module) const
+	{
+		std::string name = "_MheapFree_void_pvoid";
+
+		if (auto foo = module.lookupSymbol<mlir::LLVM::LLVMFuncOp>(name))
+			return foo;
+
+		mlir::PatternRewriter::InsertionGuard insertGuard(builder);
+		builder.setInsertionPointToStart(module.getBody());
+		auto llvmFnType = mlir::LLVM::LLVMFunctionType::get(getVoidType(), getVoidPtrType());
+		return builder.create<mlir::LLVM::LLVMFuncOp>(module->getLoc(), name, llvmFnType);
 	}
 };
 

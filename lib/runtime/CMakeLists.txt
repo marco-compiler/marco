@@ -1,5 +1,6 @@
 set(SOURCES
 		src/BuiltInFunctions.cpp
+		src/MemoryManagement.cpp
 		src/OldRuntime.cpp
 		src/UtilityFunctions.cpp)
 
