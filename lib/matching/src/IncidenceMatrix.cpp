@@ -162,17 +162,26 @@ IncidenceMatrix IncidenceMatrix::flattenEquations() const
 	llvm::SmallVector<long, 4> sourceIndexes(equationRanges.rank() + variableRanges.rank(), 0);
 	llvm::SmallVector<long, 4> destinationIndexes(1 + variableRanges.rank(), 0);
 
-	/*
-	for (const auto& equationIndexes : equationRanges)
-	{
-		for (const auto& index : llvm::enumerate())
+  for (const auto& variableIndexes : variableRanges)
+  {
+    for (const auto& index : llvm::enumerate(variableIndexes))
+    {
+      sourceIndexes[equationRanges.rank() + index.index()] = index.value();
+      destinationIndexes[1 + index.index()] = index.value();
+    }
 
-		for (const auto& variableIndexes : variableRanges)
-		{
-			sourceIndexes.append()
-		}
-	}
-	 */
+    for (const auto& equationIndexes : equationRanges)
+    {
+      for (const auto& index : llvm::enumerate(equationIndexes))
+        sourceIndexes[index.index()] = index.value();
+
+      if (get(sourceIndexes))
+      {
+        result.set(destinationIndexes);
+        break;
+      }
+    }
+  }
 
 	return result;
 }
@@ -181,6 +190,30 @@ IncidenceMatrix IncidenceMatrix::flattenVariables() const
 {
 	MultidimensionalRange flattenedVariableRange(Range(0, 1));
 	IncidenceMatrix result(equationRanges, flattenedVariableRange);
+
+  llvm::SmallVector<long, 4> sourceIndexes(equationRanges.rank() + variableRanges.rank(), 0);
+  llvm::SmallVector<long, 4> destinationIndexes(equationRanges.rank() + 1, 0);
+
+  for (const auto& equationIndexes : equationRanges)
+  {
+    for (const auto& index : llvm::enumerate(equationIndexes))
+    {
+      sourceIndexes[index.index()] = index.value();
+      destinationIndexes[index.index()] = index.value();
+    }
+
+    for (const auto& variableIndexes : variableRanges)
+    {
+      for (const auto& index : llvm::enumerate(variableIndexes))
+        sourceIndexes[equationRanges.rank() + index.index()] = index.value();
+
+      if (get(sourceIndexes))
+      {
+        result.set(destinationIndexes);
+        break;
+      }
+    }
+  }
 
 	return result;
 }

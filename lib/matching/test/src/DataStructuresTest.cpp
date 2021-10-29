@@ -125,6 +125,15 @@ TEST(Matching, multidimensionalRangesWithTouchingBorders)
 	EXPECT_FALSE(y.intersects(x));
 }
 
+/**
+ * Try setting to true the 4 vertices of the flattened matrix.
+ *
+ * 			 (0)  (1)  (2)  (3)  (4)  (5)  (6)  (7)  (8)
+ * (4,2)  1    0    0    0    0    0    0    0    1
+ * (4,3)  0    0    0    0    0    0    0    0    0
+ * (5,2)  0    0    0    0    0    0    0    0    0
+ * (5,3)  1    0    0    0    0    0    0    0    1
+ */
 TEST(Matching, incidenceMatrixEdgesSet)
 {
 	MultidimensionalRange eq({
@@ -161,4 +170,119 @@ TEST(Matching, incidenceMatrixEdgesSet)
 			}
 		}
 	}
+}
+
+/**
+ * Try setting to true the 4 vertices of the flattened matrix.
+ *
+ * Input:
+ * 			 (0)  (1)  (2)  (3)  (4)  (5)  (6)  (7)  (8)
+ * (4,2)  0    1    0    0    0    1    1    1    1
+ * (4,3)  0    0    1    0    0    1    0    0    1
+ * (5,2)  0    0    0    1    0    0    1    0    1
+ * (5,3)  0    0    0    0    1    0    0    1    1
+ *
+ * Expected result:
+ * 			 (0)  (1)  (2)  (3)  (4)  (5)  (6)  (7)  (8)
+ * (0)    0    1    1    1    1    1    1    1    1
+ */
+TEST(Matching, incidenceMatrixFlattenEquations)
+{
+  MultidimensionalRange eq({
+    Range(4, 6),
+    Range(2, 4)
+  });
+
+  MultidimensionalRange var(Range(0, 9));
+
+  IncidenceMatrix matrix(eq, var);
+  matrix.set({ 4, 2, 1 });
+  matrix.set({ 4, 3, 2 });
+  matrix.set({ 5, 2, 3 });
+  matrix.set({ 5, 3, 4 });
+  matrix.set({ 4, 2, 5 });
+  matrix.set({ 4, 3, 5 });
+  matrix.set({ 4, 2, 6 });
+  matrix.set({ 5, 2, 6 });
+  matrix.set({ 4, 2, 7 });
+  matrix.set({ 5, 3, 7 });
+  matrix.set({ 4, 2, 8 });
+  matrix.set({ 4, 3, 8 });
+  matrix.set({ 5, 2, 8 });
+  matrix.set({ 5, 3, 8 });
+
+  IncidenceMatrix flattened = matrix.flattenEquations();
+  EXPECT_FALSE(flattened.get({ 0, 0 }));
+  EXPECT_TRUE(flattened.get({ 0, 1 }));
+  EXPECT_TRUE(flattened.get({ 0, 2 }));
+  EXPECT_TRUE(flattened.get({ 0, 3 }));
+  EXPECT_TRUE(flattened.get({ 0, 4 }));
+  EXPECT_TRUE(flattened.get({ 0, 5 }));
+  EXPECT_TRUE(flattened.get({ 0, 6 }));
+  EXPECT_TRUE(flattened.get({ 0, 7 }));
+  EXPECT_TRUE(flattened.get({ 0, 8 }));
+}
+
+/**
+ * Try setting to true the 4 vertices of the flattened matrix.
+ *
+ * Input:
+ * 			 (0)  (1)  (2)  (3)
+ * (4,1)  0    0    0    0
+ * (4,2)  1    0    0    0
+ * (4,3)  0    1    0    0
+ * (5,1)  0    0    1    0
+ * (5,2)  0    0    0    1
+ * (5,3)  1    1    0    0
+ * (6,1)  1    0    1    0
+ * (6,2)  1    0    0    1
+ * (6,3)  1    1    1    1
+ *
+ * Expected result:
+ * 			 (0)
+ * (4,1)  0
+ * (4,2)  1
+ * (4,3)  1
+ * (5,1)  1
+ * (5,2)  1
+ * (5,3)  1
+ * (6,1)  1
+ * (6,2)  1
+ * (6,3)  1
+ */
+TEST(Matching, incidenceMatrixFlattenVariables)
+{
+  MultidimensionalRange eq({
+    Range(4, 7),
+    Range(1, 4)
+  });
+
+  MultidimensionalRange var(Range(0, 4));
+
+  IncidenceMatrix matrix(eq, var);
+  matrix.set({ 4, 2, 0 });
+  matrix.set({ 4, 3, 1 });
+  matrix.set({ 5, 1, 2 });
+  matrix.set({ 5, 2, 3 });
+  matrix.set({ 5, 3, 0 });
+  matrix.set({ 5, 3, 1 });
+  matrix.set({ 6, 1, 0 });
+  matrix.set({ 6, 1, 2 });
+  matrix.set({ 6, 2, 0 });
+  matrix.set({ 6, 2, 3 });
+  matrix.set({ 6, 3, 0 });
+  matrix.set({ 6, 3, 1 });
+  matrix.set({ 6, 3, 2 });
+  matrix.set({ 6, 3, 3 });
+
+  IncidenceMatrix flattened = matrix.flattenVariables();
+  EXPECT_FALSE(flattened.get({ 4, 1, 0 }));
+  EXPECT_TRUE(flattened.get({ 4, 2, 0 }));
+  EXPECT_TRUE(flattened.get({ 4, 3, 0 }));
+  EXPECT_TRUE(flattened.get({ 5, 1, 0 }));
+  EXPECT_TRUE(flattened.get({ 5, 2, 0 }));
+  EXPECT_TRUE(flattened.get({ 5, 3, 0 }));
+  EXPECT_TRUE(flattened.get({ 6, 1, 0 }));
+  EXPECT_TRUE(flattened.get({ 6, 2, 0 }));
+  EXPECT_TRUE(flattened.get({ 6, 3, 0 }));
 }

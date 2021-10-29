@@ -35,7 +35,7 @@ TEST(Matching, testCase1)
 	std::cout << "Equations: " << graph.getNumberOfScalarEquations() << std::endl;
 	std::cout << "Variables: " << graph.getNumberOfScalarVariables() << std::endl;
 
-	simplify(graph);
+	graph.simplify();
 }
 
 TEST(Matching, test1)
@@ -51,7 +51,7 @@ TEST(Matching, test1)
 	eq1.addVariableAccess(Access(x, DimensionAccess::relative(1, -1), DimensionAccess::constant(2)));
 	graph.addEquation(eq1);
 
-	simplify(graph);
+  graph.simplify();
 }
 
 TEST(Matching, test2)
@@ -67,5 +67,5 @@ TEST(Matching, test2)
 	eq1.addVariableAccess(Access(x, DimensionAccess::relative(1, -1), DimensionAccess::relative(1, -1)));
 	graph.addEquation(eq1);
 
-	simplify(graph);
+  graph.simplify();
 }

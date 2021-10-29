@@ -32,7 +32,18 @@ namespace marco::matching::detail
 
 		void clear();
 
+    /**
+     * Flatten all the equation rows into a single one.
+     *
+     * @return matrix with 1 row and n columns, with n equal to the number of variables
+     */
 		IncidenceMatrix flattenEquations() const;
+
+    /**
+     * Flatten all the variable columns into a single one.
+     *
+     * @return matrix with n rows and 1 column, with n equal to the number of equations
+     */
 		IncidenceMatrix flattenVariables() const;
 
 		private:
