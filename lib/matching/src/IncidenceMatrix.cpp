@@ -35,7 +35,6 @@ IncidenceMatrix::IncidenceMatrix(MultidimensionalRange equationRanges, Multidime
 			variableRanges(variableRanges),
 			data(equationRanges.flatSize(), variableRanges.flatSize(), false)
 {
-	assert(variableRanges.rank() <= equationRanges.rank());
 }
 
 bool IncidenceMatrix::operator==(const IncidenceMatrix& other) const
