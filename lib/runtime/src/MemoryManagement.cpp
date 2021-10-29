@@ -40,7 +40,7 @@ class MemoryProfiler : public Profiler
     std::cout << "Time spent in heap memory management: " << time() << " ms\n";
   }
 
-  void alloc(void* address, int64_t bytes)
+  void malloc(void* address, int64_t bytes)
   {
     ++mallocCalls;
 
@@ -107,7 +107,7 @@ inline void* heapAlloc(int64_t sizeInBytes)
 
 #ifdef MARCO_PROFILING
 	profiler().stopTimer();
-	profiler().alloc(result, sizeInBytes);
+	profiler().malloc(result, sizeInBytes);
 #endif
 
 	return result;
