@@ -13,7 +13,7 @@ class Profiler
   llvm::StringRef getName() const;
 
   virtual void reset() = 0;
-  virtual void print() = 0;
+  virtual void print() const = 0;
 
   private:
   std::string name;

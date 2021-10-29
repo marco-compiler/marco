@@ -1,8 +1,8 @@
+#ifdef MARCO_PROFILING
+
 #include <iostream>
 #include <llvm/ADT/SmallVector.h>
 #include <marco/runtime/Profiling.h>
-
-#ifdef MARCO_PROFILING
 
 Profiler::Profiler(llvm::StringRef name) : name(name.str())
 {
@@ -27,7 +27,7 @@ class Statistics
       profiler->reset();
   }
 
-  void print()
+  void print() const
   {
     std::cout << "----------------------------------------------------------------------\n";
     std::cout << "|                         Runtime statistics                         |\n";
