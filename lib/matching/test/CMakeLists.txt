@@ -1,6 +1,7 @@
 set(SOURCES
         src/DataStructuresTest.cpp
         src/GraphTest.cpp
+        src/MatchingGraphTest.cpp
         src/RealScenarios.cpp
         src/SolveLocalMatchingProblemTest.cpp)
 
