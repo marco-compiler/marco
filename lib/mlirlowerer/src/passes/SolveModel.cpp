@@ -2247,17 +2247,16 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		mlir::Value neq = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, equationsNumber));
 		mlir::Value userData = builder.create<AllocUserDataOp>(loc, neq);
 
+		// Add start time, end time and time step.
 		mlir::Value startTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.startTime().getValue()));
 		mlir::Value endTime = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.endTime().getValue()));
 
-		mlir::Value timeStep;
-		if (options.equidistantTimeGrid)
-			timeStep = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.timeStep().getValue()));
-		else
-			timeStep = endTime;
+		double timeStepValue = options.equidistantTimeGrid ? simulationOp.timeStep().getValue() : -1;
+		mlir::Value timeStep = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, timeStepValue));
 
 		builder.create<AddTimeOp>(loc, userData, startTime, endTime, timeStep);
 
+		// Add relative and absolute tolerances.
 		mlir::Value relTol = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.relTol().getValue()));
 		mlir::Value absTol = builder.create<ConstantValueOp>(loc, ida::RealAttribute::get(context, simulationOp.absTol().getValue()));
 		builder.create<AddToleranceOp>(loc, userData, relTol, absTol);

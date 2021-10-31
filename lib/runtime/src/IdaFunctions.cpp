@@ -451,7 +451,7 @@ inline bool idaInit(void* userData, T threads)
 	exitOnError(checkRetval(&retval, "IDASetMaxNumItersIC", 1));
 
 	// Call IDACalcIC to correct the initial values.
-	retval = IDACalcIC(data->idaMemory, IDA_YA_YDP_INIT, data->timeStep);
+	retval = IDACalcIC(data->idaMemory, IDA_YA_YDP_INIT, data->nextStop);
 	exitOnError(checkRetval(&retval, "IDACalcIC", 1));
 
 	return true;
@@ -480,7 +480,7 @@ inline bool idaStep(void* userData)
 			data->derivativesVector,
 			data->equidistantTimeGrid ? IDA_NORMAL : IDA_ONE_STEP);
 
-	if (data->nextStop < data->endTime)
+	if (data->equidistantTimeGrid)
 		data->nextStop += data->timeStep;
 
 	// Check if the solver failed
@@ -534,8 +534,8 @@ inline void addTime(void* userData, T startTime, T endTime, T timeStep)
 	data->endTime = endTime;
 	data->timeStep = timeStep;
 	data->time = startTime;
-	data->nextStop = timeStep;
-	data->equidistantTimeGrid = endTime != timeStep;
+	data->equidistantTimeGrid = timeStep != -1;
+	data->nextStop = data->equidistantTimeGrid ? timeStep : endTime;
 }
 
 RUNTIME_FUNC_DEF(addTime, void, PTR(void), float, float, float)
