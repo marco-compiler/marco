@@ -185,7 +185,7 @@ int main(int argc, char *argv[])
 			*model,
 			startTime,
 			endTime,
-			equidistantTimeGrid ? timeStep : endTime,
+			equidistantTimeGrid ? timeStep : -1,
 			relativeTolerance,
 			absoluteTolerance,
 			solveModelOptions.threads);
