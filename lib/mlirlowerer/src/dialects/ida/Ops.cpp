@@ -2994,3 +2994,45 @@ mlir::StringRef LambdaAddressOfOp::callee()
 {
 	return getOperation()->getAttrOfType<mlir::FlatSymbolRefAttr>("callee").getValue();
 }
+
+//===----------------------------------------------------------------------===//
+// Ida::PrintStatisticsOp
+//===----------------------------------------------------------------------===//
+
+llvm::ArrayRef<llvm::StringRef> PrintStatisticsOp::getAttributeNames()
+{
+	return {};
+}
+
+void PrintStatisticsOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
+{
+	state.addOperands(userData);
+}
+
+mlir::ParseResult PrintStatisticsOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+{
+	return ida::parse(parser, result, 1);
+}
+
+void PrintStatisticsOp::print(mlir::OpAsmPrinter& printer)
+{
+	ida::print(printer, getOperationName(), args());
+}
+
+mlir::LogicalResult PrintStatisticsOp::verify()
+{
+	if (!userData().getType().isa<OpaquePointerType>())
+		return emitOpError("Requires user data to be an opaque pointer");
+
+	return mlir::success();
+}
+
+mlir::ValueRange PrintStatisticsOp::args()
+{
+	return mlir::ValueRange(getOperation()->getOperands());
+}
+
+mlir::Value PrintStatisticsOp::userData()
+{
+	return getOperation()->getOperand(0);
+}

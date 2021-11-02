@@ -18,6 +18,7 @@ namespace marco::codegen
 		Solver solver = ForwardEuler;
         marco::VariableFilter *variableFilter; // Variable Filter is used in solve model pass to filter out variables to be printed
 		bool equidistantTimeGrid = false;
+		bool printStatistics = false;
 		int threads = 0;
 
         static const SolveModelOptions& getDefaultOptions() {

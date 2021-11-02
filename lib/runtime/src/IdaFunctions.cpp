@@ -51,8 +51,8 @@ typedef struct IdaUserData
 	std::vector<VarDimension> variableDimensions;
 
 	// Matrix size
-	size_t forEquationsNumber;
-	sunindextype equationsNumber;
+	size_t vectorEquationsNumber;
+	sunindextype scalarEquationsNumber;
 	sunindextype nonZeroValuesNumber;
 
 	// Jacobian indexes
@@ -187,7 +187,7 @@ int residualFunction(
 #ifdef _OPENMP
 #pragma omp parallel for schedule(dynamic, 1) num_threads(data->threads)
 #endif
-	for (size_t eq = 0; eq < data->forEquationsNumber; eq++)
+	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
 		// For every vector equation
 		size_t residualIndex = data->equationIndexes[eq];
@@ -240,7 +240,7 @@ int jacobianMatrix(
 #ifdef _OPENMP
 #pragma omp parallel for schedule(dynamic, 1) num_threads(data->threads)
 #endif
-	for (size_t eq = 0; eq < data->forEquationsNumber; eq++)
+	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
 		// For every vector equation
 		size_t rowIndex = data->equationIndexes[eq];
@@ -272,7 +272,7 @@ int jacobianMatrix(
 		} while (updateIndexes(indexes, data->equationDimensions[eq]));
 	}
 
-	rowptrs[data->equationsNumber] = data->nonZeroValuesNumber;
+	rowptrs[data->scalarEquationsNumber] = data->nonZeroValuesNumber;
 
 	return 0;
 }
@@ -287,20 +287,20 @@ int jacobianMatrix(
  * matrix.
  */
 template<typename T>
-inline void* allocIdaUserData(T equationsNumber)
+inline void* allocIdaUserData(T scalarEquationsNumber)
 {
 	IdaUserData* data = new IdaUserData;
 
-	data->equationsNumber = equationsNumber;
+	data->scalarEquationsNumber = scalarEquationsNumber;
 
 	// Create and initialize the required N-vectors for the variables.
-	data->variablesVector = N_VNew_Serial(data->equationsNumber);
+	data->variablesVector = N_VNew_Serial(data->scalarEquationsNumber);
 	assert(checkRetval((void*) data->variablesVector, "N_VNew_Serial", 0));
 
-	data->derivativesVector = N_VNew_Serial(data->equationsNumber);
+	data->derivativesVector = N_VNew_Serial(data->scalarEquationsNumber);
 	assert(checkRetval((void*) data->derivativesVector, "N_VNew_Serial", 0));
 
-	data->idVector = N_VNew_Serial(data->equationsNumber);
+	data->idVector = N_VNew_Serial(data->scalarEquationsNumber);
 	assert(checkRetval((void*) data->idVector, "N_VNew_Serial", 0));
 
 	data->variablesValues = N_VGetArrayPointer(data->variablesVector);
@@ -322,15 +322,15 @@ RUNTIME_FUNC_DEF(allocIdaUserData, PTR(void), int64_t)
 sunindextype precomputeJacobianIndexes(IdaUserData* data)
 {
 	sunindextype nnzElements = 0;
-	data->forEquationsNumber = data->equationDimensions.size();
+	data->vectorEquationsNumber = data->equationDimensions.size();
 
-	data->equationIndexes.resize(data->forEquationsNumber + 1);
-	data->columnIndexes.resize(data->forEquationsNumber);
-	data->nnzElements.resize(data->forEquationsNumber);
+	data->equationIndexes.resize(data->vectorEquationsNumber + 1);
+	data->columnIndexes.resize(data->vectorEquationsNumber);
+	data->nnzElements.resize(data->vectorEquationsNumber);
 
 	data->equationIndexes[0] = 0;
 
-	for (size_t eq = 0; eq < data->forEquationsNumber; eq++)
+	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
 		sunindextype equationSize = 1;
 
@@ -383,7 +383,7 @@ inline bool idaInit(void* userData, T threads)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-	if (data->equationsNumber == 0)
+	if (data->scalarEquationsNumber == 0)
 		return true;
 
 	// Compute the total amount of non-zero values in the Jacobian Matrix.
@@ -409,8 +409,8 @@ inline bool idaInit(void* userData, T threads)
 
 	// Create sparse SUNMatrix for use in linear solver.
 	data->sparseMatrix = SUNSparseMatrix(
-			data->equationsNumber,
-			data->equationsNumber,
+			data->scalarEquationsNumber,
+			data->scalarEquationsNumber,
 			data->nonZeroValuesNumber,
 			CSR_MAT);
 	exitOnError(checkRetval((void*) data->sparseMatrix, "SUNSparseMatrix", 0));
@@ -468,7 +468,7 @@ inline bool idaStep(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-	if (data->equationsNumber == 0)
+	if (data->scalarEquationsNumber == 0)
 		return true;
 
 	// Execute one step
@@ -498,7 +498,7 @@ inline bool freeIdaUserData(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
-	if (data->equationsNumber == 0)
+	if (data->scalarEquationsNumber == 0)
 		return true;
 
 	// Free IDA memory
@@ -774,7 +774,7 @@ inline double getIdaTime(void* userData)
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
 	// Return the stop time if the whole system is trivial.
-	if (data->equationsNumber == 0)
+	if (data->scalarEquationsNumber == 0)
 		return data->endTime;
 
 	return data->time;
@@ -787,7 +787,7 @@ template<typename T>
 inline double getIdaVariable(void* userData, T index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	assert(index < data->equationsNumber);
+	assert(index < data->scalarEquationsNumber);
 	return data->variablesValues[index];
 }
 
@@ -798,7 +798,7 @@ template<typename T>
 inline double getIdaDerivative(void* userData, T index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	assert(index < data->equationsNumber);
+	assert(index < data->scalarEquationsNumber);
 	return data->derivativesValues[index];
 }
 
@@ -1828,8 +1828,44 @@ RUNTIME_FUNC_DEF(lambdaCall, int32_t, PTR(void), int32_t, FUNCTION(float), FUNCT
 RUNTIME_FUNC_DEF(lambdaCall, int64_t, PTR(void), int64_t, FUNCTION(double), FUNCTION(double))
 
 //===----------------------------------------------------------------------===//
-// Debugging and Statistics
+// Statistics
 //===----------------------------------------------------------------------===//
+
+/**
+ * Prints statistics about the computation of the system.
+ */
+inline void printStatistics(void* userData)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	if (data->scalarEquationsNumber == 0)
+		return;
+
+	int64_t nst, nre, nje, nni, nli;
+
+	IDAGetNumSteps(data->idaMemory, &nst);
+	IDAGetNumResEvals(data->idaMemory, &nre);
+	IDAGetNumJacEvals(data->idaMemory, &nje);
+	IDAGetNumNonlinSolvIters(data->idaMemory, &nni);
+	IDAGetNumLinIters(data->idaMemory, &nli);
+
+	llvm::errs() << "\nFinal Run Statistics:\n";
+
+	llvm::errs() << "Number of vector equations     = ";
+	llvm::errs() << data->vectorEquationsNumber << "\n";
+	llvm::errs() << "Number of scalar equations     = ";
+	llvm::errs() << data->scalarEquationsNumber << "\n";
+	llvm::errs() << "Number of non-zero values      = ";
+	llvm::errs() << data->nonZeroValuesNumber << "\n";
+
+	llvm::errs() << "Number of steps                = " << nst << "\n";
+	llvm::errs() << "Number of residual evaluations = " << nre << "\n";
+	llvm::errs() << "Number of Jacobian evaluations = " << nje << "\n";
+	llvm::errs() << "Number of nonlinear iterations = " << nni << "\n";
+	llvm::errs() << "Number of linear iterations    = " << nli << "\n";
+}
+
+RUNTIME_FUNC_DEF(printStatistics, void, PTR(void))
 
 void setInitialValue(void* userData, int64_t index, int64_t length, double value, bool isState)
 {
@@ -1849,13 +1885,13 @@ void setInitialValue(void* userData, int64_t index, int64_t length, double value
 int64_t getNumberOfForEquations(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	return data->forEquationsNumber;
+	return data->vectorEquationsNumber;
 }
 
 int64_t getNumberOfEquations(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	return data->equationsNumber;
+	return data->scalarEquationsNumber;
 }
 
 int64_t getNumberOfNonZeroValues(void* userData)
@@ -1867,7 +1903,7 @@ int64_t getNumberOfNonZeroValues(void* userData)
 EqDimension getIdaDimension(void* userData, int64_t index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	assert(index < data->equationsNumber);
+	assert(index < data->scalarEquationsNumber);
 	return data->equationDimensions[index];
 }
 
@@ -1922,7 +1958,7 @@ std::string getIncidenceMatrix(void* userData)
 	result << "\n";
 
 	// For every vector equation
-	for (size_t eq = 0; eq < data->forEquationsNumber; eq++)
+	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
 	{
 		// Initialize the multidimensional interval of the vector equation
 		Indexes indexes;
@@ -1946,14 +1982,14 @@ std::string getIncidenceMatrix(void* userData)
 				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
 			}
 
-			for (sunindextype i = 0; i < data->equationsNumber; i++)
+			for (sunindextype i = 0; i < data->scalarEquationsNumber; i++)
 			{
 				if (columnIndexesSet.find(i) != columnIndexesSet.end())
 					result << "*";
 				else
 					result << " ";
 
-				if (i < data->equationsNumber - 1)
+				if (i < data->scalarEquationsNumber - 1)
 					result << " ";
 			}
 

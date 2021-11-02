@@ -1511,3 +1511,30 @@ namespace marco::codegen::ida
 		mlir::StringRef callee();
 	};
 }
+
+	//===----------------------------------------------------------------------===//
+	// Ida::PrintStatisticsOp
+	//===----------------------------------------------------------------------===//
+
+	class PrintStatisticsOp : public mlir::Op<PrintStatisticsOp,
+																mlir::OpTrait::ZeroRegion,
+																mlir::OpTrait::OneOperand,
+																mlir::OpTrait::ZeroResult>
+	{
+		public:
+		using Op::Op;
+
+		static constexpr llvm::StringLiteral getOperationName()
+		{
+			return "ida.print_stats";
+		}
+
+		static llvm::ArrayRef<llvm::StringRef> getAttributeNames();
+		static void build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData);
+		static mlir::ParseResult parse(mlir::OpAsmParser& parser, mlir::OperationState& result);
+		void print(mlir::OpAsmPrinter& printer);
+		mlir::LogicalResult verify();
+
+		mlir::ValueRange args();
+		mlir::Value userData();
+	};

@@ -162,8 +162,10 @@ RUNTIME_FUNC_DECL(lambdaCall, int32_t, PTR(void), int32_t, FUNCTION(float), FUNC
 RUNTIME_FUNC_DECL(lambdaCall, int64_t, PTR(void), int64_t, FUNCTION(double), FUNCTION(double))
 
 //===----------------------------------------------------------------------===//
-// Debugging and Statistics
+// Statistics
 //===----------------------------------------------------------------------===//
+
+RUNTIME_FUNC_DECL(printStatistics, void, PTR(void))
 
 extern "C"
 {
