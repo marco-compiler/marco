@@ -167,23 +167,4 @@ RUNTIME_FUNC_DECL(lambdaCall, int64_t, PTR(void), int64_t, FUNCTION(double), FUN
 
 RUNTIME_FUNC_DECL(printStatistics, void, PTR(void))
 
-extern "C"
-{
-	void setInitialValue(void* userData, int64_t index, int64_t length, double value, bool isState);
-
-	int64_t getNumberOfForEquations(void* userData);
-	int64_t getNumberOfEquations(void* userData);
-	int64_t getNumberOfNonZeroValues(void* userData);
-
-	std::vector<std::pair<size_t, size_t>> getIdaDimension(void* userData, int64_t index);
-
-	int64_t numSteps(void* userData);
-	int64_t numResEvals(void* userData);
-	int64_t numJacEvals(void* userData);
-	int64_t numNonlinIters(void* userData);
-	int64_t numLinIters(void* userData);
-
-	std::string getIncidenceMatrix(void* userData);
-}
-
 #endif	// MARCO_RUNTIME_IDAFUNCTIONS_H
