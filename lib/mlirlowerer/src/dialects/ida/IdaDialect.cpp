@@ -71,6 +71,9 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 			LambdaTanhOp>();
 	
 	addOperations<LambdaCallOp, LambdaAddressOfOp>();
+
+	// Statistics.
+	addOperations<PrintStatisticsOp>();
 }
 
 mlir::StringRef IdaDialect::getDialectNamespace()

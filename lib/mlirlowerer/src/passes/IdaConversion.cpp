@@ -701,6 +701,24 @@ struct LambdaCallOpLowering : public IdaOpConversion<LambdaCallOp>
 	}
 };
 
+struct PrintStatisticsOpLowering : public IdaOpConversion<PrintStatisticsOp>
+{
+	using IdaOpConversion<PrintStatisticsOp>::IdaOpConversion;
+
+	mlir::LogicalResult matchAndRewrite(PrintStatisticsOp op, llvm::ArrayRef<mlir::Value> operands, mlir::ConversionPatternRewriter& rewriter) const override
+	{
+		mlir::FuncOp callee = getOrDeclareFunction(
+				rewriter,
+				op->getParentOfType<mlir::ModuleOp>(),
+				getMangledFunctionName("printStatistics", llvm::None, op.args()),
+				llvm::None,
+				op.args());
+
+		rewriter.replaceOpWithNewOp<mlir::CallOp>(op, callee.getName(), llvm::None, op.args());
+		return mlir::success();
+	}
+};
+
 static void populateIdaConversionPatterns(
 		mlir::OwningRewritePatternList& patterns,
 		mlir::MLIRContext* context,
@@ -771,6 +789,9 @@ static void populateIdaConversionPatterns(
 			LambdaTanhOpLowering>(typeConverter, context);
 	
 	patterns.insert<LambdaCallOpLowering>(typeConverter, context);
+
+	// Statistics.
+	patterns.insert<PrintStatisticsOpLowering>(typeConverter, context);
 }
 
 class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::OperationPass<mlir::ModuleOp>>
@@ -862,6 +883,9 @@ class IdaConversionPass : public mlir::PassWrapper<IdaConversionPass, mlir::Oper
 				LambdaTanhOp>();
 
 		target.addIllegalOp<LambdaCallOp>();
+
+		// Statistics.
+		target.addIllegalOp<PrintStatisticsOp>();
 
 		target.markUnknownOpDynamicallyLegal([](mlir::Operation* op) { return true; });
 

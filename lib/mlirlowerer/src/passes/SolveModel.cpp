@@ -704,11 +704,15 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 		// Extract the data from the struct
 		mlir::Value structValue = loadDataFromOpaquePtr(builder, function.getArgument(0), varTypes);
 
-		// Free the allocated IDA user data
+		// Print statistics and free the allocated IDA user data
 		if (options.solver == CleverDAE)
 		{
 			mlir::Value userData = extractValue(builder, structValue, varTypes[1], 1);
 			userData = builder.create<LoadOp>(loc, userData);
+
+			if (options.printStatistics)
+				builder.create<PrintStatisticsOp>(loc, userData);
+
 			builder.create<FreeUserDataOp>(loc, userData);
 		}
 
