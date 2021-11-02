@@ -1,6 +1,5 @@
 set(SOURCES
 		TestingUtils.cpp
-		ida/IdaSolverTest.cpp
 		matching/LinSolverTest.cpp
 		matching/MatchingTest.cpp
 		matching/SCCCollapsingTest.cpp
