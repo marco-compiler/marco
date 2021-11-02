@@ -15,6 +15,4 @@ marco_add_unittest(MARCOTest GtestTest ${SOURCES})
 llvm_config(GtestTest core support)
 
 target_link_libraries(GtestTest
-		PRIVATE marco::ida
-		PRIVATE marco::mlirlowerer
-		PRIVATE sundials)
+		PRIVATE marco::mlirlowerer)
