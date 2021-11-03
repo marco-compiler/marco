@@ -1,5 +1,5 @@
 // RUN: marco %s.mo --clever-dae --end-time=10 --rel-tol=1e-10 --abs-tol=1e-10 -o %basename_t.bc
-// RUN: clang++ %basename_t.bc %runtime_lib -o %t
+// RUN: clang++ %basename_t.bc %runtime_lib -Wl,-R%libs/runtime -o %t
 // RUN: %t | FileCheck %s
 
 // x[1:6] = i + sin(time * 100)
