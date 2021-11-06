@@ -387,6 +387,14 @@ namespace marco::matching
       EdgeIterator current;
       EdgeIterator end;
     };
+
+    class AugmentingPath
+    {
+      public:
+
+      private:
+
+    };
   }
 
   template<class VariableProperty, class EquationProperty>
@@ -399,17 +407,15 @@ namespace marco::matching
     using Edge = detail::Edge;
 
     private:
-    using GraphSpec = Graph<Vertex, Edge>;
+    using Graph = base::Graph<Vertex, Edge>;
 
-    using VertexDescriptor = typename GraphSpec::VertexDescriptor;
-    using EdgeDescriptor = typename GraphSpec::EdgeDescriptor;
+    using VertexDescriptor = typename Graph::VertexDescriptor;
+    using EdgeDescriptor = typename Graph::EdgeDescriptor;
 
-    using VertexIterator = typename GraphSpec::VertexIterator;
-    using EdgeIterator = typename GraphSpec::EdgeIterator;
+    using VertexIterator = typename Graph::VertexIterator;
+    using EdgeIterator = typename Graph::EdgeIterator;
 
     public:
-    bool simplify();
-
     bool hasVariable(typename Variable::Id id) const
     {
       return hasVertex<Variable>(id);
@@ -583,18 +589,9 @@ namespace marco::matching
       return *edges.begin();
     }
 
-    bool match()
-    {
-      bool success = false;
-      bool complete = true;
+    bool simplify();
 
-      do {
-        //success = arrayMatchIteration();
-        complete = allNodesMatched();
-      } while(success && !complete);
-
-      return success;
-    }
+    bool match();
 
     private:
     template<typename T>
@@ -676,7 +673,13 @@ namespace marco::matching
       graph[edge].setVisibility(false);
     }
 
-    GraphSpec graph;
+    bool matchIteration();
+
+    void getAugmentingPaths(llvm::SmallVectorImpl<detail::AugmentingPath>& paths) const;
+
+    void applyPath(const detail::AugmentingPath& path);
+
+    Graph graph;
   };
 
   template<typename VariableProperty, typename EquationProperty>
@@ -779,6 +782,49 @@ namespace marco::matching
     }
 
     return true;
+  }
+
+  template<typename VariableProperty, typename EquationProperty>
+  bool MatchingGraph<VariableProperty, EquationProperty>::match()
+  {
+    bool success;
+    bool complete;
+
+    do {
+      success = matchIteration();
+      complete = allNodesMatched();
+    } while(success && !complete);
+
+    return success;
+  }
+
+  template<typename VariableProperty, typename EquationProperty>
+  bool MatchingGraph<VariableProperty, EquationProperty>::matchIteration()
+  {
+    llvm::SmallVector<detail::AugmentingPath, 8> augmentingPaths;
+    getAugmentingPaths(augmentingPaths);
+
+    if (augmentingPaths.empty())
+      return false;
+
+    for (auto& path : augmentingPaths)
+      applyPath(path);
+
+    return true;
+  }
+
+  template<typename VariableProperty, typename EquationProperty>
+  void MatchingGraph<VariableProperty, EquationProperty>::getAugmentingPaths(
+          llvm::SmallVectorImpl<detail::AugmentingPath>& paths) const
+  {
+
+  }
+
+  template<typename VariableProperty, typename EquationProperty>
+  void MatchingGraph<VariableProperty, EquationProperty>::applyPath(
+          const detail::AugmentingPath& path)
+  {
+
   }
 }
 

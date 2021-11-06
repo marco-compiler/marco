@@ -1,11 +1,12 @@
 #ifndef MARCO_MATCHING_GRAPH_H
 #define MARCO_MATCHING_GRAPH_H
 
+#include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/iterator_range.h>
 #include <llvm/ADT/SmallVector.h>
 #include <map>
 
-namespace marco::matching
+namespace marco::matching::base
 {
   namespace detail
   {
@@ -113,8 +114,8 @@ namespace marco::matching
 
     llvm::iterator_range<VertexIterator> getVertices() const
     {
-      VertexIterator begin(*this, 0, vertices.size());
-      VertexIterator end(*this, vertices.size(), vertices.size());
+      VertexIterator begin(vertices.begin());
+      VertexIterator end(vertices.end());
 
       return llvm::iterator_range<VertexIterator>(begin, end);
     }
@@ -134,8 +135,8 @@ namespace marco::matching
     {
       auto verticesDescriptors = getVertices();
 
-      EdgeIterator begin(adj.begin(), adj.end());
-      EdgeIterator end(adj.end(), adj.end());
+      EdgeIterator begin(verticesDescriptors.begin(), verticesDescriptors.end(), adj);
+      EdgeIterator end(verticesDescriptors.end(), verticesDescriptors.end(), adj);
 
       return llvm::iterator_range<EdgeIterator>(begin, end);
     }
@@ -144,8 +145,8 @@ namespace marco::matching
     {
       const auto& incidentEdges = adj.find(vertex)->second;
 
-      IncidentEdgeIterator begin(vertex, incidentEdges.begin(), incidentEdges.end());
-      IncidentEdgeIterator end(vertex, incidentEdges.end(), incidentEdges.end());
+      IncidentEdgeIterator begin(vertex, incidentEdges.begin());
+      IncidentEdgeIterator end(vertex, incidentEdges.end());
 
       return llvm::iterator_range<IncidentEdgeIterator>(begin, end);
     }
@@ -166,48 +167,42 @@ namespace marco::matching
     using pointer = VertexDescriptor*;
     using reference = VertexDescriptor&;
 
-    VertexIterator(const Graph<VertexProperty, EdgeProperty>& graph, size_t current, size_t end)
-            : graph(&graph), current(current), end(end)
-    {
-    }
+    using Iterator = typename decltype(vertices)::const_iterator;
 
-    operator bool() const
+    VertexIterator(Iterator current) : current(current)
     {
-      return current != end;
     }
 
     bool operator==(const VertexIterator& it) const
     {
-      return graph == it.graph && current == it.current && end == it.end;
+      return current == it.current;
     }
 
     bool operator!=(const VertexIterator& it) const
     {
-      return graph != it.graph || current != it.current || end != it.end;
+      return current != it.current;
     }
 
     VertexIterator& operator++()
     {
-      current = std::min(current + 1, end);
+      ++current;
       return *this;
     }
 
     VertexIterator operator++(int)
     {
       auto temp = *this;
-      current = std::min(current + 1, end);
+      ++current;
       return temp;
     }
 
-    value_type operator*()
+    VertexDescriptor operator*() const
     {
-      return value_type(graph->vertices[current]);
+      return VertexDescriptor(*current);
     }
 
     private:
-    const Graph<VertexProperty, EdgeProperty>* graph;
-    size_t current;
-    size_t end;
+    Iterator current;
   };
 
   template<typename VertexProperty, typename EdgeProperty>
@@ -222,24 +217,19 @@ namespace marco::matching
 
     using Iterator = typename IncidentEdgesList::const_iterator;
 
-    IncidentEdgeIterator(VertexDescriptor from, Iterator current, Iterator end)
-            : from(std::move(from)), current(current), end(end)
+    IncidentEdgeIterator(VertexDescriptor from, Iterator current)
+            : from(std::move(from)), current(current)
     {
-    }
-
-    operator bool() const
-    {
-      return current != end;
     }
 
     bool operator==(const IncidentEdgeIterator& it) const
     {
-      return from = it.from && current == it.current && end == it.end;
+      return from = it.from && current == it.current;
     }
 
     bool operator!=(const IncidentEdgeIterator& it) const
     {
-      return from != it.from || current != it.current || end != it.end;
+      return from != it.from || current != it.current;
     }
 
     IncidentEdgeIterator& operator++()
@@ -255,18 +245,17 @@ namespace marco::matching
       return temp;
     }
 
-    value_type operator*()
+    EdgeDescriptor operator*() const
     {
       auto& edge = *current;
       VertexDescriptor to = edge.first;
       auto* property = edge.second;
-      return value_type(from, to, property);
+      return EdgeDescriptor(from, to, property);
     }
 
     private:
     VertexDescriptor from;
     Iterator current;
-    Iterator end;
   };
 
   template<typename VertexProperty, typename EdgeProperty>
@@ -279,33 +268,24 @@ namespace marco::matching
     using pointer = EdgeDescriptor*;
     using reference = EdgeDescriptor&;
 
-    using Iterator = typename AdjacencyList::const_iterator;
-
-    EdgeIterator(Iterator current, Iterator end)
-            : current(std::move(current)), end(std::move(end)), currentEdge(0)
+    EdgeIterator(VertexIterator currentVertexIt, VertexIterator endVertexIt, const AdjacencyList& adj)
+            : currentVertexIt(std::move(currentVertexIt)),
+              endVertexIt(std::move(endVertexIt)),
+              adj(&adj),
+              currentEdge(0)
     {
-      skipEmptyLists();
-    }
-
-    operator bool() const
-    {
-      if (current == end)
-        return false;
-
-      if (current->second.size() == currentEdge)
-        return false;
-
-      return true;
+      if (shouldProceed())
+        fetchNext();
     }
 
     bool operator==(const EdgeIterator& it) const
     {
-      return current == it.current && end == it.end && currentEdge == it.currentEdge;
+      return currentVertexIt == it.currentVertexIt && currentEdge == it.currentEdge;
     }
 
     bool operator!=(const EdgeIterator& it) const
     {
-      return current != it.current || end != it.end || currentEdge != it.currentEdge;
+      return currentVertexIt != it.currentVertexIt || currentEdge != it.currentEdge;
     }
 
     EdgeIterator& operator++()
@@ -321,48 +301,57 @@ namespace marco::matching
       return temp;
     }
 
-    value_type operator*()
+    EdgeDescriptor operator*() const
     {
-      auto from = current->first;
-      auto& edge = current->second[currentEdge];
+      VertexDescriptor from = *currentVertexIt;
+      auto& incidentEdges = adj->find(from)->second;
+      auto& edge = incidentEdges[currentEdge];
       auto to = edge.first;
       auto* ptr = edge.second;
-      return value_type(from, to, ptr);
+      return EdgeDescriptor(from, to, ptr);
     }
 
     private:
+    bool shouldProceed() const
+    {
+      if (currentVertexIt == endVertexIt)
+        return false;
+
+      VertexDescriptor from = *currentVertexIt;
+      auto& incidentEdges = adj->find(from)->second;
+
+      if (currentEdge == incidentEdges.size())
+        return true;
+
+      auto& edge = incidentEdges[currentEdge];
+      return from < edge.first;
+    }
+
     void fetchNext()
     {
-      if (current == end)
+      if (currentVertexIt == endVertexIt)
         return;
 
-      if (currentEdge + 1 == current->second.size())
+      do
       {
-        ++current;
-        currentEdge = 0;
-        skipEmptyLists();
-      }
-      else
-      {
-        ++currentEdge;
-      }
+        VertexDescriptor from = *currentVertexIt;
+        auto& incidentEdges = adj->find(from)->second;
+
+        if (currentEdge == incidentEdges.size())
+        {
+          ++currentVertexIt;
+          currentEdge = 0;
+        }
+        else
+        {
+          ++currentEdge;
+        }
+      } while (shouldProceed());
     }
 
-    void skipEmptyLists()
-    {
-      auto shouldProceed = [&]() -> bool {
-        if (current == end)
-          return false;
-
-        return current->second.empty();
-      };
-
-      while (shouldProceed())
-        ++current;
-    }
-
-    Iterator current;
-    Iterator end;
+    VertexIterator currentVertexIt;
+    VertexIterator endVertexIt;
+    const AdjacencyList* adj;
     size_t currentEdge;
   };
 }

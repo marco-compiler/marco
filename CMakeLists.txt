@@ -1,35 +1,14 @@
 cmake_minimum_required(VERSION 3.9)
 
-##############################
-###        googletest      ###
-##############################
-SET(BUILD_GMOCK ON CACHE INTERNAL "")
-SET(BUILD_GTEST ON CACHE INTERNAL "")
-SET(INSTALL_GMOCK OFF CACHE INTERNAL "")
-SET(INSTALL_GTEST OFF CACHE INTERNAL "")
-SET(gmock_build_tests OFF CACHE INTERNAL "")
-SET(gtest_build_samples OFF CACHE INTERNAL "")
-SET(gtest_build_tests OFF CACHE INTERNAL "")
-SET(gtest_disable_pthreads OFF CACHE INTERNAL "")
-SET(gtest_hide_internal_symbols OFF CACHE INTERNAL "")
-SET(gtest_force_shared_crt OFF CACHE INTERNAL "")
-
-add_subdirectory(googletest)
-
-##############################
-###        Project         ###
-##############################
+######################################################################
+#                              Project                               #
+######################################################################
 project(marco VERSION 1.0 LANGUAGES CXX)
-enable_testing()
-include("CPack")
-include(CTest)
 
-##############################
-###        Globals         ###
-##############################
+# Disable exceptions and RTTI
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
 
 # Set the default build type if none was specified
-
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 	message(STATUS "Setting build type to 'Release' as none was specified")
 	set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
@@ -38,11 +17,15 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 	set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release"  "MinSizeRel" "RelWithDebInfo")
 endif()
 
-# Disable exceptions and RTTI
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-exceptions -fno-rtti")
+######################################################################
+#                              Testing                               #
+######################################################################
+include(CTest)
+add_subdirectory(googletest)
 
-#set_tests_properties(${noArgsTests} PROPERTIES TIMEOUT 10)
-
+######################################################################
+#                            LLVM & MLIR                             #
+######################################################################
 find_package(LLVM REQUIRED CONFIG)
 find_package(MLIR REQUIRED CONFIG)
 
@@ -72,28 +55,36 @@ include(HandleLLVMOptions)
 
 set(CMAKE_INSTALL_RPATH "$ORIGIN/../lib")
 
-# MARCO profiling for compilation and runtime
+######################################################################
+#                              Profiling                             #
+######################################################################
+
+# Set the profiling system to default OFF
 if(NOT DEFINED MARCO_PROFILING)
 	set(MARCO_PROFILING OFF)
 endif()
 
 if (${MARCO_PROFILING} STREQUAL ON)
+	# If the profiling system is enabled, the macro is propagated to the libraries
+	# so that the required code is inserted.
+
 	add_compile_definitions(MARCO_PROFILING)
 endif()
 
+######################################################################
+#                              Subfolders                            #
+######################################################################
 
-##############################
-###       Subfolders       ###
-##############################
 include(marcoMacros.cmake)
 include(extra.cmake)
 add_subdirectory(tool)
 add_subdirectory(lib)
 add_subdirectory(test)
 
-##############################
-###          BOOST         ###
-##############################
+######################################################################
+#                                Boost                               #
+######################################################################
+
 set(Boost_USE_STATIC_LIBS OFF)
 set(Boost_USE_MULTITHREADED ON)
 set(Boost_USE_STATIC_RUNTIME OFF)

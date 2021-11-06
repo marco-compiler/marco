@@ -54,10 +54,8 @@ macro(marco_add_unittest test_suite test_name)
 	add_executable(${test_name} ${ARGN})
 	target_compile_features(${test_name} PUBLIC cxx_std_17)
 
-	target_link_libraries(${test_name} PRIVATE gtest gtest_main)
-	#add_dependencies(${test_suite} ${test_name})
-
 	include(GoogleTest)
+	target_link_libraries(${test_name} PRIVATE gmock gtest_main)
 	gtest_discover_tests(${test_name})
 endmacro()
 
