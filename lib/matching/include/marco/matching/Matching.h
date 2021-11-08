@@ -329,65 +329,6 @@ namespace marco::matching
       bool visible;
     };
 
-    template<typename ValueType, typename EdgeIterator>
-    class VisibleEdgeIterator
-    {
-      public:
-      using iterator_category = std::forward_iterator_tag;
-      using value_type = ValueType;
-      using difference_type = std::ptrdiff_t;
-      using pointer = ValueType*;
-      using reference = ValueType&;
-
-      VisibleEdgeIterator(EdgeIterator current, EdgeIterator end) : current(std::move(current)), end(std::move(end))
-      {
-        fetchNext();
-      }
-
-      operator bool() const
-      {
-        return current != end;
-      }
-
-      bool operator==(const VisibleEdgeIterator& it) const
-      {
-        return current == it.current && end == it.end;
-      }
-
-      bool operator!=(const VisibleEdgeIterator& it) const
-      {
-        return current != it.current || end != it.end;
-      }
-
-      VisibleEdgeIterator& operator++()
-      {
-        fetchNext();
-        return *this;
-      }
-
-      VisibleEdgeIterator operator++(int)
-      {
-        auto temp = *this;
-        fetchNext();
-        return temp;
-      }
-
-      value_type operator*()
-      {
-        return *current;
-      }
-
-      private:
-      void fetchNext()
-      {
-        while (current != end && !current->isVisible())
-          ++current;
-      }
-
-      EdgeIterator current;
-      EdgeIterator end;
-    };
-
     class FrontierElement
     {
       public:
@@ -425,12 +366,11 @@ namespace marco::matching
 
     using VertexIterator = typename Graph::VertexIterator;
     using EdgeIterator = typename Graph::EdgeIterator;
-
-    class FilteredVerticesIterator;
+    using VisibleEdgeIterator = typename Graph::FilteredEdgeIterator;
 
     public:
-    using VariableIterator = FilteredVerticesIterator;
-    using EquationIterator = FilteredVerticesIterator;
+    using VariableIterator = typename Graph::FilteredVertexIterator;
+    using EquationIterator = typename Graph::FilteredVertexIterator;
 
     bool hasVariable(typename Variable::Id id) const
     {
@@ -475,16 +415,11 @@ namespace marco::matching
 
     llvm::iterator_range<VariableIterator> getVariables() const
     {
-      auto filter = [&](VertexDescriptor vertex) -> bool {
-          return isVariable(vertex);
+      auto filter = [&](const Vertex& vertex) -> bool {
+          return std::holds_alternative<Variable>(vertex);
       };
 
-      auto vertices = graph.getVertices();
-
-      VariableIterator begin(vertices.begin(), vertices.end(), filter);
-      VariableIterator end(vertices.end(), vertices.end(), filter);
-
-      return llvm::iterator_range<VariableIterator>(begin, end);
+      return graph.getVertices(filter);
     }
 
     void addVariable(VariableProperty property)
@@ -537,16 +472,11 @@ namespace marco::matching
 
     llvm::iterator_range<EquationIterator> getEquations() const
     {
-      auto filter = [&](VertexDescriptor vertex) -> bool {
-        return isEquation(vertex);
+      auto filter = [&](const Vertex& vertex) -> bool {
+          return std::holds_alternative<Equation>(vertex);
       };
 
-      auto vertices = graph.getVertices();
-
-      EquationIterator begin(vertices.begin(), vertices.end(), filter);
-      EquationIterator end(vertices.end(), vertices.end(), filter);
-
-      return llvm::iterator_range<EquationIterator>(begin, end);
+      return graph.getVertices(filter);
     }
 
     void addEquation(EquationProperty property)
@@ -688,10 +618,13 @@ namespace marco::matching
         auto& source = graph[e.from];
         auto& target = graph[e.to];
 
-        if (!std::holds_alternative<From>(source) || !std::holds_alternative<To>(target))
-          return false;
+        if (std::holds_alternative<From>(source) && std::holds_alternative<To>(target))
+          return std::get<From>(source).getId() == from && std::get<To>(target).getId() == to;
 
-        return std::get<From>(source).getId() == from && std::get<To>(target).getId() == to;
+        if (std::holds_alternative<From>(target) && std::holds_alternative<To>(source))
+          return std::get<From>(target).getId() == from && std::get<To>(source).getId() == to;
+
+        return false;
       });
 
       return std::make_pair(it != edges.end(), it);
@@ -702,14 +635,13 @@ namespace marco::matching
       return graph.getIncidentEdges(vertex);
     }
 
-    auto getVisibleEdges(VertexDescriptor vertex) const
+    llvm::iterator_range<VisibleEdgeIterator> getVisibleEdges(VertexDescriptor vertex) const
     {
-      auto edges = graph.getIncidentEdges(vertex);
+      auto filter = [&](const Edge& edge) -> bool {
+          return edge.isVisible();
+      };
 
-      detail::VisibleEdgeIterator<Edge, EdgeIterator> visibleBegin(edges.begin(), edges.end());
-      detail::VisibleEdgeIterator<Edge, EdgeIterator> visibleEnd(edges.end(), edges.end());
-
-      return llvm::iterator_range(visibleBegin, visibleEnd);
+      return graph.getIncidentEdges(vertex, filter);
     }
 
     void remove(EdgeDescriptor edge)
@@ -724,81 +656,6 @@ namespace marco::matching
     void applyPath(const detail::AugmentingPath& path);
 
     Graph graph;
-  };
-
-  template<class VariableProperty, class EquationProperty>
-  class MatchingGraph<VariableProperty, EquationProperty>::FilteredVerticesIterator
-  {
-    public:
-    using iterator_category = std::forward_iterator_tag;
-    using value_type = VertexDescriptor;
-    using difference_type = std::ptrdiff_t;
-    using pointer = VertexDescriptor*;
-    using reference = VertexDescriptor&;
-
-    FilteredVerticesIterator(
-            VertexIterator currentVertex,
-            VertexIterator endVertex,
-            std::function<bool(VertexDescriptor)> visibilityFn)
-            : currentVertex(std::move(currentVertex)),
-              endVertex(std::move(endVertex)),
-              visibilityFn(std::move(visibilityFn))
-    {
-      if (shouldProceed())
-        fetchNext();
-    }
-
-    bool operator==(const FilteredVerticesIterator& it) const
-    {
-      return currentVertex == it.currentVertex && endVertex == it.endVertex;
-    }
-
-    bool operator!=(const FilteredVerticesIterator& it) const
-    {
-      return currentVertex != it.currentVertex || endVertex != it.endVertex;
-    }
-
-    FilteredVerticesIterator& operator++()
-    {
-      fetchNext();
-      return *this;
-    }
-
-    FilteredVerticesIterator operator++(int)
-    {
-      auto temp = *this;
-      fetchNext();
-      return temp;
-    }
-
-    VertexDescriptor operator*() const
-    {
-      return *currentVertex;
-    }
-
-    private:
-    bool shouldProceed() const
-    {
-      if (currentVertex == endVertex)
-        return false;
-
-      VertexDescriptor descriptor = *currentVertex;
-      return !visibilityFn(descriptor);
-    }
-
-    void fetchNext()
-    {
-      if (currentVertex == endVertex)
-        return;
-
-      do {
-        ++currentVertex;
-      } while (shouldProceed());
-    }
-
-    VertexIterator currentVertex;
-    VertexIterator endVertex;
-    std::function<bool(VertexDescriptor)> visibilityFn;
   };
 
   template<typename VariableProperty, typename EquationProperty>
@@ -942,7 +799,6 @@ namespace marco::matching
     for (auto equationDescriptor : equations)
     {
       auto& equation = getEquation(equationDescriptor);
-
     }
   }
 

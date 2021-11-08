@@ -58,6 +58,79 @@ namespace marco::matching::base
       VertexDescriptor to;
       T* value;
     };
+
+    // TODO: use SFINAE to check that Iterator iterates on values with Descriptor type
+    template<typename Descriptor, typename Iterator>
+    class FilteredDescriptorIterator
+    {
+      public:
+      using iterator_category = std::forward_iterator_tag;
+      using value_type = Descriptor;
+      using difference_type = std::ptrdiff_t;
+      using pointer = Descriptor*;
+      using reference = Descriptor&;
+
+      FilteredDescriptorIterator(Iterator currentIt, Iterator endIt, std::function<bool(Descriptor)> visibilityFn)
+              : currentIt(std::move(currentIt)),
+                endIt(std::move(endIt)),
+                visibilityFn(std::move(visibilityFn))
+      {
+        if (shouldProceed())
+          fetchNext();
+      }
+
+      bool operator==(const FilteredDescriptorIterator& it) const
+      {
+        return currentIt == it.currentIt && endIt == it.endIt;
+      }
+
+      bool operator!=(const FilteredDescriptorIterator& it) const
+      {
+        return currentIt != it.currentIt || endIt != it.endIt;
+      }
+
+      FilteredDescriptorIterator& operator++()
+      {
+        fetchNext();
+        return *this;
+      }
+
+      FilteredDescriptorIterator operator++(int)
+      {
+        auto temp = *this;
+        fetchNext();
+        return temp;
+      }
+
+      Descriptor operator*() const
+      {
+        return *currentIt;
+      }
+
+      private:
+      bool shouldProceed() const
+      {
+        if (currentIt == endIt)
+          return false;
+
+        auto descriptor = *currentIt;
+        return !visibilityFn(descriptor);
+      }
+
+      void fetchNext()
+      {
+        if (currentIt == endIt)
+          return;
+
+        do {
+          ++currentIt;
+        } while (shouldProceed());
+      }
+
+      Iterator currentIt;
+      Iterator endIt;
+      std::function<bool(Descriptor)> visibilityFn;
+    };
   }
 
   template<typename VertexProperty, typename EdgeProperty>
@@ -75,6 +148,10 @@ namespace marco::matching::base
     class VertexIterator;
     class IncidentEdgeIterator;
     class EdgeIterator;
+
+    using FilteredVertexIterator = detail::FilteredDescriptorIterator<VertexDescriptor, VertexIterator>;
+    using FilteredIncidentEdgeIterator = detail::FilteredDescriptorIterator<EdgeDescriptor, IncidentEdgeIterator>;
+    using FilteredEdgeIterator = detail::FilteredDescriptorIterator<EdgeDescriptor, EdgeIterator>;
 
     ~Graph()
     {
@@ -120,6 +197,21 @@ namespace marco::matching::base
       return llvm::iterator_range<VertexIterator>(begin, end);
     }
 
+    llvm::iterator_range<FilteredVertexIterator> getVertices(
+            std::function<bool(const VertexProperty&)> visibilityFn) const
+    {
+      auto filter = [&](const VertexDescriptor& descriptor) -> bool {
+          return visibilityFn((*this)[descriptor]);
+      };
+
+      auto allVertices = getVertices();
+
+      FilteredVertexIterator begin(allVertices.begin(), allVertices.end(), filter);
+      FilteredVertexIterator end(allVertices.end(), allVertices.end(), filter);
+
+      return llvm::iterator_range<FilteredVertexIterator>(begin, end);
+    }
+
     EdgeDescriptor addEdge(VertexDescriptor from, VertexDescriptor to, EdgeProperty property)
     {
       auto* ptr = new EdgeProperty(std::move(property));
@@ -141,6 +233,21 @@ namespace marco::matching::base
       return llvm::iterator_range<EdgeIterator>(begin, end);
     }
 
+    llvm::iterator_range<FilteredEdgeIterator> getEdges(
+            std::function<bool(const EdgeProperty&)> visibilityFn) const
+    {
+      auto filter = [&](const EdgeDescriptor& descriptor) -> bool {
+          return visibilityFn((*this)[descriptor]);
+      };
+
+      auto allEdges = getEdges();
+
+      FilteredEdgeIterator begin(allEdges.begin(), allEdges.end(), filter);
+      FilteredEdgeIterator end(allEdges.end(), allEdges.end(), filter);
+
+      return llvm::iterator_range<FilteredEdgeIterator>(begin, end);
+    }
+
     llvm::iterator_range<IncidentEdgeIterator> getIncidentEdges(VertexDescriptor vertex) const
     {
       const auto& incidentEdges = adj.find(vertex)->second;
@@ -149,6 +256,22 @@ namespace marco::matching::base
       IncidentEdgeIterator end(vertex, incidentEdges.end());
 
       return llvm::iterator_range<IncidentEdgeIterator>(begin, end);
+    }
+
+    llvm::iterator_range<FilteredIncidentEdgeIterator> getIncidentEdges(
+            VertexDescriptor vertex,
+            std::function<bool(const EdgeProperty&)> visibilityFn) const
+    {
+      auto filter = [&](const EdgeDescriptor& descriptor) -> bool {
+          return visibilityFn((*this)[descriptor]);
+      };
+
+      auto allEdges = getIncidentEdges(vertex);
+
+      FilteredIncidentEdgeIterator begin(allEdges.begin(), allEdges.end(), filter);
+      FilteredIncidentEdgeIterator end(allEdges.end(), allEdges.end(), filter);
+
+      return llvm::iterator_range<FilteredIncidentEdgeIterator>(begin, end);
     }
 
     private:
