@@ -35,7 +35,7 @@ TEST(Matching, testCase1)
 	std::cout << "Equations: " << graph.getNumberOfScalarEquations() << std::endl;
 	std::cout << "Variables: " << graph.getNumberOfScalarVariables() << std::endl;
 
-	graph.simplify();
+	graph.match();
 }
 
 TEST(Matching, test1)

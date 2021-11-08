@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <marco/matching/IncidenceMatrix.h>
+#include <vector>
 
 using namespace marco::matching;
 using namespace marco::matching::detail;
@@ -123,6 +125,52 @@ TEST(Matching, multidimensionalRangesWithTouchingBorders)
 
 	EXPECT_FALSE(x.intersects(y));
 	EXPECT_FALSE(y.intersects(x));
+}
+
+TEST(Matching, incidenceMatrixIndexesIterator)
+{
+  MultidimensionalRange eq({
+    Range(4, 6),
+    Range(2, 4)
+  });
+
+  MultidimensionalRange var({
+    Range(0, 2),
+    Range(0, 3)
+  });
+
+  IncidenceMatrix matrix(eq, var);
+
+  llvm::SmallVector<std::vector<long>, 8> expectedList;
+
+  for (auto equationIndexes : eq)
+  {
+    for (auto variableIndexes : var)
+    {
+      std::vector<long> current;
+
+      for (const auto& index : equationIndexes)
+        current.push_back(index);
+
+      for (const auto& index : variableIndexes)
+        current.push_back(index);
+
+      expectedList.push_back(std::move(current));
+    }
+  }
+
+  size_t counter = 0;
+
+  for (auto indexes : matrix.getIndexes())
+  {
+    ASSERT_LT(counter, expectedList.size());
+    auto& expected = expectedList[counter];
+    EXPECT_EQ(indexes.size(), expected.size());
+    EXPECT_THAT(indexes, testing::ContainerEq(expected));
+    ++counter;
+  }
+
+  EXPECT_EQ(counter, eq.flatSize() * var.flatSize());
 }
 
 /**
@@ -285,4 +333,114 @@ TEST(Matching, incidenceMatrixFlattenVariables)
   EXPECT_TRUE(flattened.get({ 6, 1, 0 }));
   EXPECT_TRUE(flattened.get({ 6, 2, 0 }));
   EXPECT_TRUE(flattened.get({ 6, 3, 0 }));
+}
+
+/**
+ * Sum of incidence matrices.
+ *
+ * Input:
+ * 			 (0)  (1)
+ * (4,2)  0    1
+ * (4,3)  1    0
+ * (5,2)  0    1
+ * (5,3)  1    0
+ *
+ * 			 (0)  (1)
+ * (4,2)  1    0
+ * (4,3)  1    0
+ * (5,2)  0    1
+ * (5,3)  0    1
+ *
+ * Expected result:
+ * 			 (0)  (1)
+ * (4,2)  1    1
+ * (4,3)  1    0
+ * (5,2)  0    1
+ * (5,3)  1    1
+ */
+TEST(Matching, incidenceMatrixSum)
+{
+  MultidimensionalRange eq({
+    Range(4, 6),
+    Range(2, 4)
+  });
+
+  MultidimensionalRange var(Range(0, 2));
+
+  IncidenceMatrix matrix1(eq, var);
+  matrix1.set({ 4, 2, 1 });
+  matrix1.set({ 4, 3, 0 });
+  matrix1.set({ 5, 2, 1 });
+  matrix1.set({ 5, 3, 0 });
+
+  IncidenceMatrix matrix2(eq, var);
+  matrix2.set({ 4, 2, 0 });
+  matrix2.set({ 4, 3, 0 });
+  matrix2.set({ 5, 2, 1 });
+  matrix2.set({ 5, 3, 1 });
+
+  IncidenceMatrix result = matrix1 + matrix2;
+  EXPECT_TRUE(result.get({ 4, 2, 0 }));
+  EXPECT_TRUE(result.get({ 4, 2, 1 }));
+  EXPECT_TRUE(result.get({ 4, 3, 0 }));
+  EXPECT_FALSE(result.get({ 4, 3, 1 }));
+  EXPECT_FALSE(result.get({ 5, 2, 0 }));
+  EXPECT_TRUE(result.get({ 5, 2, 1 }));
+  EXPECT_TRUE(result.get({ 5, 3, 0 }));
+  EXPECT_TRUE(result.get({ 5, 3, 1 }));
+}
+
+/**
+ * Difference of incidence matrices.
+ *
+ * Input:
+ * 			 (0)  (1)
+ * (4,2)  0    1
+ * (4,3)  1    0
+ * (5,2)  0    1
+ * (5,3)  1    0
+ *
+ * 			 (0)  (1)
+ * (4,2)  1    0
+ * (4,3)  1    0
+ * (5,2)  0    1
+ * (5,3)  0    1
+ *
+ * Expected result:
+ * 			 (0)  (1)
+ * (4,2)  0    1
+ * (4,3)  0    0
+ * (5,2)  0    0
+ * (5,3)  1    0
+ */
+TEST(Matching, incidenceMatrixDifference)
+{
+  MultidimensionalRange eq({
+    Range(4, 6),
+    Range(2, 4)
+  });
+
+  MultidimensionalRange var(Range(0, 2));
+
+  IncidenceMatrix matrix1(eq, var);
+  matrix1.set({ 4, 2, 1 });
+  matrix1.set({ 4, 3, 0 });
+  matrix1.set({ 5, 2, 1 });
+  matrix1.set({ 5, 3, 0 });
+
+  IncidenceMatrix matrix2(eq, var);
+  matrix2.set({ 4, 2, 0 });
+  matrix2.set({ 4, 3, 0 });
+  matrix2.set({ 5, 2, 1 });
+  matrix2.set({ 5, 3, 1 });
+
+  IncidenceMatrix result = matrix1 - matrix2;
+  EXPECT_FALSE(result.get({ 4, 2, 0 }));
+  EXPECT_TRUE(result.get({ 4, 2, 1 }));
+  EXPECT_FALSE(result.get({ 4, 3, 0 }));
+  EXPECT_FALSE(result.get({ 4, 3, 1 }));
+  EXPECT_FALSE(result.get({ 5, 2, 0 }));
+  EXPECT_FALSE(result.get({ 5, 2, 1 }));
+  EXPECT_TRUE(result.get({ 5, 3, 0 }));
+  EXPECT_FALSE(result.get({ 5, 3, 1 }));
 }

@@ -15,15 +15,55 @@ namespace marco::matching::detail
 	class IncidenceMatrix
 	{
 		public:
+    class IndexesIterator
+    {
+      public:
+      using iterator_category = std::forward_iterator_tag;
+      using value_type = llvm::ArrayRef<long>;
+      using difference_type = std::ptrdiff_t;
+      using pointer = llvm::ArrayRef<long>*;
+      using reference = llvm::ArrayRef<long>&;
+
+      using Iterator = MultidimensionalRange::const_iterator;
+
+      IndexesIterator(
+              const MultidimensionalRange& equationRange,
+              const MultidimensionalRange& variableRange,
+              std::function<MultidimensionalRange::const_iterator(const MultidimensionalRange&)> initFunction);
+
+      bool operator==(const IndexesIterator& it) const;
+      bool operator!=(const IndexesIterator& it) const;
+      IndexesIterator& operator++();
+      IndexesIterator operator++(int);
+      llvm::ArrayRef<long> operator*() const;
+
+      private:
+      void advance();
+
+      size_t eqRank;
+      Iterator eqCurrentIt;
+      Iterator eqEndIt;
+      Iterator varBeginIt;
+      Iterator varCurrentIt;
+      Iterator varEndIt;
+      llvm::SmallVector<long, 4> indexes;
+    };
+
 		IncidenceMatrix(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
 		bool operator==(const IncidenceMatrix& other) const;
 		bool operator!=(const IncidenceMatrix& other) const;
 
 		IncidenceMatrix& operator+=(const IncidenceMatrix& rhs);
+    IncidenceMatrix operator+(const IncidenceMatrix& rhs);
+
+    IncidenceMatrix& operator-=(const IncidenceMatrix& rhs);
+    IncidenceMatrix operator-(const IncidenceMatrix& rhs);
 
 		const MultidimensionalRange& getEquationRanges() const;
 		const MultidimensionalRange& getVariableRanges() const;
+
+    llvm::iterator_range<IndexesIterator> getIndexes() const;
 
 		void apply(AccessFunction accessFunction);
 		bool get(llvm::ArrayRef<long> indexes) const;

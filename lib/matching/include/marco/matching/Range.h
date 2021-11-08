@@ -163,7 +163,7 @@ namespace marco::matching
 			return temp;
 		}
 
-		value_type operator*()
+		value_type operator*() const
 		{
 			return indexes;
 		}

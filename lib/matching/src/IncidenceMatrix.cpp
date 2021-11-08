@@ -30,6 +30,82 @@ static size_t flattenAccess(llvm::ArrayRef<size_t> dimensions, llvm::ArrayRef<si
 	return result;
 }
 
+IncidenceMatrix::IndexesIterator::IndexesIterator(
+        const MultidimensionalRange& equationRange,
+        const MultidimensionalRange& variableRange,
+        std::function<MultidimensionalRange::const_iterator(const MultidimensionalRange&)> initFunction)
+    : eqRank(equationRange.rank()),
+      eqCurrentIt(initFunction(equationRange)),
+      eqEndIt(equationRange.end()),
+      varBeginIt(variableRange.begin()),
+      varCurrentIt(initFunction(variableRange)),
+      varEndIt(variableRange.end()),
+      indexes(equationRange.rank() + variableRange.rank(), 0)
+{
+  if (eqCurrentIt != eqEndIt)
+  {
+    assert(varCurrentIt != varEndIt);
+
+    for (const auto& index : llvm::enumerate(*eqCurrentIt))
+      indexes[index.index()] = index.value();
+
+    for (const auto& index : llvm::enumerate(*varCurrentIt))
+      indexes[eqRank + index.index()] = index.value();
+  }
+}
+
+bool IncidenceMatrix::IndexesIterator::operator==(const IndexesIterator& it) const
+{
+  return eqCurrentIt == it.eqCurrentIt && eqEndIt == it.eqEndIt && varBeginIt == it.varBeginIt && varCurrentIt == it.varCurrentIt && varEndIt == it.varEndIt;
+}
+
+bool IncidenceMatrix::IndexesIterator::operator!=(const IndexesIterator& it) const
+{
+  return eqCurrentIt != it.eqCurrentIt || eqEndIt != it.eqEndIt || varBeginIt != it.varBeginIt || varCurrentIt != it.varCurrentIt || varEndIt != it.varEndIt;
+}
+
+IncidenceMatrix::IndexesIterator& IncidenceMatrix::IndexesIterator::operator++()
+{
+  advance();
+  return *this;
+}
+
+IncidenceMatrix::IndexesIterator IncidenceMatrix::IndexesIterator::operator++(int)
+{
+  auto temp = *this;
+  advance();
+  return temp;
+}
+
+llvm::ArrayRef<long> IncidenceMatrix::IndexesIterator::operator*() const
+{
+  return indexes;
+}
+
+void IncidenceMatrix::IndexesIterator::advance()
+{
+  if (eqCurrentIt == eqEndIt)
+    return;
+
+  ++varCurrentIt;
+
+  if (varCurrentIt == varEndIt)
+  {
+    ++eqCurrentIt;
+
+    if (eqCurrentIt == eqEndIt)
+      return;
+
+    for (const auto& index : llvm::enumerate(*eqCurrentIt))
+      indexes[index.index()] = index.value();
+
+    varCurrentIt = varBeginIt;
+  }
+
+  for (const auto& index : llvm::enumerate(*varCurrentIt))
+    indexes[eqRank + index.index()] = index.value();
+}
+
 IncidenceMatrix::IncidenceMatrix(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
 		: equationRanges(equationRanges),
 			variableRanges(variableRanges),
@@ -98,8 +174,39 @@ IncidenceMatrix& IncidenceMatrix::operator+=(const IncidenceMatrix& rhs)
 	assert(getEquationRanges() == rhs.getEquationRanges() && "Different equation ranges");
 	assert(getVariableRanges() == rhs.getVariableRanges() && "Different variable ranges");
 
-	data += rhs.data;
+  for (const auto& indexes : getIndexes())
+    if (rhs.get(indexes))
+      set(indexes);
+
 	return *this;
+}
+
+IncidenceMatrix IncidenceMatrix::operator+(const IncidenceMatrix& rhs)
+{
+  IncidenceMatrix result = *this;
+  result += rhs;
+  return result;
+}
+
+IncidenceMatrix& IncidenceMatrix::operator-=(const IncidenceMatrix& rhs)
+{
+  assert(getEquationRanges() == rhs.getEquationRanges() && "Different equation ranges");
+  assert(getVariableRanges() == rhs.getVariableRanges() && "Different variable ranges");
+
+  for (const auto& indexes : getIndexes())
+  {
+    if (get(indexes) && rhs.get(indexes))
+      unset(indexes);
+  }
+
+  return *this;
+}
+
+IncidenceMatrix IncidenceMatrix::operator-(const IncidenceMatrix& rhs)
+{
+  IncidenceMatrix result = *this;
+  result -= rhs;
+  return result;
 }
 
 const MultidimensionalRange& IncidenceMatrix::getEquationRanges() const
@@ -110,6 +217,19 @@ const MultidimensionalRange& IncidenceMatrix::getEquationRanges() const
 const MultidimensionalRange& IncidenceMatrix::getVariableRanges() const
 {
 	return variableRanges;
+}
+
+llvm::iterator_range<IncidenceMatrix::IndexesIterator> IncidenceMatrix::getIndexes() const
+{
+  IndexesIterator begin(equationRanges, variableRanges, [](const MultidimensionalRange& range) {
+    return range.begin();
+  });
+
+  IndexesIterator end(equationRanges, variableRanges, [](const MultidimensionalRange& range) {
+      return range.end();
+  });
+
+  return llvm::iterator_range<IncidenceMatrix::IndexesIterator>(begin, end);
 }
 
 void IncidenceMatrix::apply(AccessFunction access)
