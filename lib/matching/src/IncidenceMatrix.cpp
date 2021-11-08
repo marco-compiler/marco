@@ -113,6 +113,24 @@ IncidenceMatrix::IncidenceMatrix(MultidimensionalRange equationRanges, Multidime
 {
 }
 
+IncidenceMatrix IncidenceMatrix::row(MultidimensionalRange variableRanges)
+{
+  MultidimensionalRange equationRanges(Range(0, 1));
+
+  return IncidenceMatrix(
+          std::move(equationRanges),
+          std::move(variableRanges));
+}
+
+IncidenceMatrix IncidenceMatrix::column(MultidimensionalRange equationRanges)
+{
+  MultidimensionalRange variableRanges(Range(0, 1));
+
+  return IncidenceMatrix(
+          std::move(equationRanges),
+          std::move(variableRanges));
+}
+
 bool IncidenceMatrix::operator==(const IncidenceMatrix& other) const
 {
 	if (equationRanges != other.equationRanges)
@@ -169,6 +187,21 @@ bool IncidenceMatrix::operator!=(const IncidenceMatrix& other) const
 	return false;
 }
 
+IncidenceMatrix IncidenceMatrix::operator!() const
+{
+  IncidenceMatrix result = *this;
+
+  for (const auto& indexes : result.getIndexes())
+  {
+    if (result.get(indexes))
+      result.unset(indexes);
+    else
+      result.set(indexes);
+  }
+
+  return result;
+}
+
 IncidenceMatrix& IncidenceMatrix::operator+=(const IncidenceMatrix& rhs)
 {
 	assert(getEquationRanges() == rhs.getEquationRanges() && "Different equation ranges");
@@ -181,7 +214,7 @@ IncidenceMatrix& IncidenceMatrix::operator+=(const IncidenceMatrix& rhs)
 	return *this;
 }
 
-IncidenceMatrix IncidenceMatrix::operator+(const IncidenceMatrix& rhs)
+IncidenceMatrix IncidenceMatrix::operator+(const IncidenceMatrix& rhs) const
 {
   IncidenceMatrix result = *this;
   result += rhs;
@@ -202,7 +235,7 @@ IncidenceMatrix& IncidenceMatrix::operator-=(const IncidenceMatrix& rhs)
   return *this;
 }
 
-IncidenceMatrix IncidenceMatrix::operator-(const IncidenceMatrix& rhs)
+IncidenceMatrix IncidenceMatrix::operator-(const IncidenceMatrix& rhs) const
 {
   IncidenceMatrix result = *this;
   result -= rhs;
@@ -275,8 +308,7 @@ void IncidenceMatrix::clear()
 
 IncidenceMatrix IncidenceMatrix::flattenEquations() const
 {
-	MultidimensionalRange flattenedEquationRange(Range(0, 1));
-	IncidenceMatrix result(flattenedEquationRange, variableRanges);
+  IncidenceMatrix result = row(variableRanges);
 
 	llvm::SmallVector<long, 4> sourceIndexes(equationRanges.rank() + variableRanges.rank(), 0);
 	llvm::SmallVector<long, 4> destinationIndexes(1 + variableRanges.rank(), 0);
@@ -307,8 +339,7 @@ IncidenceMatrix IncidenceMatrix::flattenEquations() const
 
 IncidenceMatrix IncidenceMatrix::flattenVariables() const
 {
-	MultidimensionalRange flattenedVariableRange(Range(0, 1));
-	IncidenceMatrix result(equationRanges, flattenedVariableRange);
+  IncidenceMatrix result = column(equationRanges);
 
   llvm::SmallVector<long, 4> sourceIndexes(equationRanges.rank() + variableRanges.rank(), 0);
   llvm::SmallVector<long, 4> destinationIndexes(equationRanges.rank() + 1, 0);

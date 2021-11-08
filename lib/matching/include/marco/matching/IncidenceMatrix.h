@@ -51,14 +51,19 @@ namespace marco::matching::detail
 
 		IncidenceMatrix(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
+    static IncidenceMatrix row(MultidimensionalRange variableRanges);
+    static IncidenceMatrix column(MultidimensionalRange equationRanges);
+
 		bool operator==(const IncidenceMatrix& other) const;
 		bool operator!=(const IncidenceMatrix& other) const;
 
+    IncidenceMatrix operator!() const;
+
 		IncidenceMatrix& operator+=(const IncidenceMatrix& rhs);
-    IncidenceMatrix operator+(const IncidenceMatrix& rhs);
+    IncidenceMatrix operator+(const IncidenceMatrix& rhs) const;
 
     IncidenceMatrix& operator-=(const IncidenceMatrix& rhs);
-    IncidenceMatrix operator-(const IncidenceMatrix& rhs);
+    IncidenceMatrix operator-(const IncidenceMatrix& rhs) const;
 
 		const MultidimensionalRange& getEquationRanges() const;
 		const MultidimensionalRange& getVariableRanges() const;

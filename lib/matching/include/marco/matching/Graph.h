@@ -200,7 +200,7 @@ namespace marco::matching::base
     llvm::iterator_range<FilteredVertexIterator> getVertices(
             std::function<bool(const VertexProperty&)> visibilityFn) const
     {
-      auto filter = [&](const VertexDescriptor& descriptor) -> bool {
+      auto filter = [=](const VertexDescriptor& descriptor) -> bool {
           return visibilityFn((*this)[descriptor]);
       };
 
@@ -236,7 +236,7 @@ namespace marco::matching::base
     llvm::iterator_range<FilteredEdgeIterator> getEdges(
             std::function<bool(const EdgeProperty&)> visibilityFn) const
     {
-      auto filter = [&](const EdgeDescriptor& descriptor) -> bool {
+      auto filter = [=](const EdgeDescriptor& descriptor) -> bool {
           return visibilityFn((*this)[descriptor]);
       };
 
