@@ -1,18 +1,21 @@
 #ifndef MARCO_MATCHING_LOCALMATCHINGSOLUTIONS_H
 #define MARCO_MATCHING_LOCALMATCHINGSOLUTIONS_H
 
+#include <memory>
+
 #include "AccessFunction.h"
 #include "IncidenceMatrix.h"
 #include "Range.h"
 
-namespace marco::matching
+namespace marco::matching::detail
 {
-  namespace detail
+  class LocalMatchingSolutions
   {
-    class LocalMatchingSolutions;
+    public:
+    class ImplInterface;
 
     template<typename Container, typename ValueType>
-    class LocalMatchingSolutionsIterator
+    class Iterator
     {
       public:
       using iterator_category = std::forward_iterator_tag;
@@ -21,41 +24,36 @@ namespace marco::matching
       using pointer = ValueType*;
       using reference = ValueType&;
 
-      LocalMatchingSolutionsIterator(Container& container, size_t index)
+      Iterator(Container& container, size_t index)
               : container(&container),
                 index(std::move(index))
       {
       }
 
-      operator bool() const
-      {
-        return index != container->size();
-      }
-
-      bool operator==(const LocalMatchingSolutionsIterator& it) const
+      bool operator==(const Iterator& it) const
       {
         return index == it.index && container == it.container;
       }
 
-      bool operator!=(const LocalMatchingSolutionsIterator& it) const
+      bool operator!=(const Iterator& it) const
       {
         return index != it.index || container != it.container;
       }
 
-      LocalMatchingSolutionsIterator& operator++()
+      Iterator& operator++()
       {
         index = std::min(index + 1, container->size());
         return *this;
       }
 
-      LocalMatchingSolutionsIterator operator++(int)
+      Iterator operator++(int)
       {
         auto temp = *this;
         index = std::min(index + 1, container->size());
         return temp;
       }
 
-      value_type& operator*()
+      reference operator*()
       {
         return (*container)[index];
       }
@@ -65,55 +63,34 @@ namespace marco::matching
       size_t index;
     };
 
-    class LocalMatchingSolutions
-    {
-      public:
-      using iterator = LocalMatchingSolutionsIterator<
-              LocalMatchingSolutions, IncidenceMatrix>;
+    using iterator = Iterator<LocalMatchingSolutions, IncidenceMatrix>;
 
-      LocalMatchingSolutions(
-              llvm::ArrayRef<AccessFunction> accessFunctions,
-              MultidimensionalRange equationRanges,
-              MultidimensionalRange variableRanges);
+    LocalMatchingSolutions(
+            llvm::ArrayRef<AccessFunction> accessFunctions,
+            MultidimensionalRange equationRanges,
+            MultidimensionalRange variableRanges);
 
-      IncidenceMatrix& operator[](size_t index);
+    explicit LocalMatchingSolutions(const IncidenceMatrix& matrix);
 
-      size_t size() const;
+    ~LocalMatchingSolutions();
 
-      iterator begin();
-      iterator end();
+    IncidenceMatrix& operator[](size_t index);
 
-      private:
-      void fetchNext();
+    size_t size() const;
 
-      void getInductionVariablesUsage(
-              llvm::SmallVectorImpl<size_t>& usages,
-              const AccessFunction& accessFunction) const;
+    iterator begin();
+    iterator end();
 
-      llvm::SmallVector<AccessFunction, 3> accessFunctions;
-      MultidimensionalRange equationRanges;
-      MultidimensionalRange variableRanges;
+    private:
+    std::unique_ptr<ImplInterface> impl;
+  };
 
-      // Total number of possible match matrices
-      size_t solutionsAmount;
+  LocalMatchingSolutions solveLocalMatchingProblem(
+          const MultidimensionalRange& equationRanges,
+          const MultidimensionalRange& variableRanges,
+          llvm::ArrayRef<AccessFunction> accessFunctions);
 
-      // List of the computed match matrices
-      llvm::SmallVector<IncidenceMatrix, 3> matrices;
-
-      size_t currentAccessFunction = 0;
-      size_t groupSize;
-      llvm::SmallVector<Range, 3> reorderedRanges;
-      std::unique_ptr<MultidimensionalRange> range;
-      llvm::SmallVector<size_t, 3> ordering;
-      std::unique_ptr<MultidimensionalRange::iterator> rangeIt;
-      std::unique_ptr<MultidimensionalRange::iterator> rangeEnd;
-    };
-
-    LocalMatchingSolutions solveLocalMatchingProblem(
-            const MultidimensionalRange& equationRanges,
-            const MultidimensionalRange& variableRanges,
-            llvm::ArrayRef<AccessFunction> accessFunctions);
-  }
+  LocalMatchingSolutions solveLocalMatchingProblem(const IncidenceMatrix& matrix);
 }
 
 #endif	// MARCO_MATCHING_LOCALMATCHINGSOLUTIONS_H

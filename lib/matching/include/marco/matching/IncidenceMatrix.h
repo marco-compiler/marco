@@ -78,6 +78,13 @@ namespace marco::matching::detail
 		void clear();
 
     /**
+     * Check if all the elements are zero.
+     *
+     * @return true if all the elements are zero; false otherwise
+     */
+    bool isEmpty() const;
+
+    /**
      * Flatten all the equation rows into a single one.
      *
      * @return matrix with 1 row and n columns, with n equal to the number of variables
@@ -90,6 +97,26 @@ namespace marco::matching::detail
      * @return matrix with n rows and 1 column, with n equal to the number of equations
      */
 		IncidenceMatrix flattenVariables() const;
+
+    /**
+     * Keep only the equation rows that are specified by the filter.
+     * In other words, set to zero all the rows that are also set to zero
+     * in the vector filter.
+     *
+     * @param filter    equation filter
+     * @return matrix with filtered equations
+     */
+    IncidenceMatrix filterEquations(const IncidenceMatrix& filter) const;
+
+    /**
+     * Keep only the variable columns that are specified by the filter.
+     * In other words, set to zero all the columns that are also set to zero
+     * in the vector filter.
+     *
+     * @param filter    equation filter
+     * @return matrix with filtered equations
+     */
+    IncidenceMatrix filterVariables(const IncidenceMatrix& filter) const;
 
 		private:
 		std::pair<size_t, size_t> getMatrixIndexes(llvm::ArrayRef<long> indexes) const;

@@ -3,7 +3,59 @@
 using namespace marco::matching;
 using namespace marco::matching::detail;
 
-LocalMatchingSolutions::LocalMatchingSolutions(
+namespace marco::matching::detail
+{
+  class LocalMatchingSolutions::ImplInterface
+  {
+    public:
+    virtual IncidenceMatrix& operator[](size_t index) = 0;
+    virtual size_t size() const = 0;
+  };
+}
+
+/**
+ * Compute the local matching solution starting from a given set of variable access functions (VAF).
+ * The computation is done in a lazy way, that is each result is computed only when requested.
+ */
+class VAFSolutions : public LocalMatchingSolutions::ImplInterface
+{
+  public:
+  VAFSolutions(
+          llvm::ArrayRef<AccessFunction> accessFunctions,
+          MultidimensionalRange equationRanges,
+          MultidimensionalRange variableRanges);
+
+  IncidenceMatrix& operator[](size_t index) override;
+
+  size_t size() const override;
+
+  private:
+  void fetchNext();
+
+  void getInductionVariablesUsage(
+          llvm::SmallVectorImpl<size_t>& usages,
+          const AccessFunction& accessFunction) const;
+
+  llvm::SmallVector<AccessFunction, 3> accessFunctions;
+  MultidimensionalRange equationRanges;
+  MultidimensionalRange variableRanges;
+
+  // Total number of possible match matrices
+  size_t solutionsAmount;
+
+  // List of the computed match matrices
+  llvm::SmallVector<IncidenceMatrix, 3> matrices;
+
+  size_t currentAccessFunction = 0;
+  size_t groupSize;
+  llvm::SmallVector<Range, 3> reorderedRanges;
+  std::unique_ptr<MultidimensionalRange> range;
+  llvm::SmallVector<size_t, 3> ordering;
+  std::unique_ptr<MultidimensionalRange::iterator> rangeIt;
+  std::unique_ptr<MultidimensionalRange::iterator> rangeEnd;
+};
+
+VAFSolutions::VAFSolutions(
         llvm::ArrayRef<AccessFunction> accessFunctions,
         MultidimensionalRange equationRanges,
         MultidimensionalRange variableRanges)
@@ -54,7 +106,7 @@ LocalMatchingSolutions::LocalMatchingSolutions(
   }
 }
 
-IncidenceMatrix& LocalMatchingSolutions::operator[](size_t index)
+IncidenceMatrix& VAFSolutions::operator[](size_t index)
 {
   assert(index < size());
 
@@ -64,22 +116,12 @@ IncidenceMatrix& LocalMatchingSolutions::operator[](size_t index)
   return matrices[index];
 }
 
-size_t LocalMatchingSolutions::size() const
+size_t VAFSolutions::size() const
 {
   return solutionsAmount;
 }
 
-LocalMatchingSolutions::iterator LocalMatchingSolutions::begin()
-{
-  return iterator(*this, 0);
-}
-
-LocalMatchingSolutions::iterator LocalMatchingSolutions::end()
-{
-  return iterator(*this, size());
-}
-
-void LocalMatchingSolutions::fetchNext()
+void VAFSolutions::fetchNext()
 {
   if (rangeIt == nullptr || *rangeIt == *rangeEnd)
   {
@@ -96,7 +138,7 @@ void LocalMatchingSolutions::fetchNext()
     ordering.clear();
     ordering.insert(ordering.begin(), equationRanges.rank(), 0);
 
-    // We need to reorder the variables iteration order so that the unused ones
+    // We need to reorder iteration of the variables so that the unused ones
     // are the last ones changing. In fact, the unused variables are the one
     // leading to repetitions among variable usages, and thus lead to a new
     // group for each time they change value.
@@ -123,7 +165,7 @@ void LocalMatchingSolutions::fetchNext()
     // Theoretically, it would be sufficient to store just the iterators of
     // the reordered multidimensional range. Anyway, their implementation may
     // rely on the range existence, and having it allocated on the stack may
-    // lead to dangling pointers. Thus we also store the range inside the
+    // lead to dangling pointers. Thus, we also store the range inside the
     // class.
 
     range = std::make_unique<MultidimensionalRange>(reorderedRanges);
@@ -156,11 +198,10 @@ void LocalMatchingSolutions::fetchNext()
   }
 }
 
-void LocalMatchingSolutions::getInductionVariablesUsage(
+void VAFSolutions::getInductionVariablesUsage(
         llvm::SmallVectorImpl<size_t>& usages,
         const AccessFunction& accessFunction) const
 {
-  usages.clear();
   usages.insert(usages.begin(), equationRanges.rank(), 0);
 
   for (const auto& dimensionAccess : accessFunction)
@@ -168,16 +209,106 @@ void LocalMatchingSolutions::getInductionVariablesUsage(
       ++usages[dimensionAccess.getInductionVariableIndex()];
 }
 
+/**
+ * Compute the local matching solutions starting from an incidence matrix.
+ * Differently from the VAF case, the computation is done in an eager way.
+ */
+class MatrixSolutions : public LocalMatchingSolutions::ImplInterface
+{
+  public:
+  MatrixSolutions(const IncidenceMatrix& matrix);
+
+  IncidenceMatrix& operator[](size_t index) override;
+
+  size_t size() const override;
+
+  private:
+  void compute(const IncidenceMatrix& matrix);
+
+  llvm::SmallVector<IncidenceMatrix, 3> solutions;
+};
+
+MatrixSolutions::MatrixSolutions(const IncidenceMatrix& matrix)
+{
+  compute(matrix);
+}
+
+IncidenceMatrix& MatrixSolutions::operator[](size_t index)
+{
+  return solutions[index];
+}
+
+size_t MatrixSolutions::size() const
+{
+  return solutions.size();
+}
+
+void MatrixSolutions::compute(const IncidenceMatrix& matrix)
+{
+  for (const auto& indexes : matrix.getIndexes())
+  {
+    if (matrix.get(indexes))
+    {
+      IncidenceMatrix solution(matrix.getEquationRanges(), matrix.getVariableRanges());
+      solution.set(indexes);
+      solutions.push_back(std::move(solution));
+    }
+  }
+}
+
+LocalMatchingSolutions::LocalMatchingSolutions(
+        llvm::ArrayRef<AccessFunction> accessFunctions,
+        MultidimensionalRange equationRanges,
+        MultidimensionalRange variableRanges)
+        : impl(std::make_unique<VAFSolutions>(
+                std::move(accessFunctions),
+                std::move(equationRanges),
+                std::move(variableRanges)))
+{
+}
+
+LocalMatchingSolutions::LocalMatchingSolutions(const IncidenceMatrix& matrix)
+        : impl(std::make_unique<MatrixSolutions>(matrix))
+{
+}
+
+LocalMatchingSolutions::~LocalMatchingSolutions() = default;
+
+IncidenceMatrix& LocalMatchingSolutions::operator[](size_t index)
+{
+  return (*impl)[index];
+}
+
+size_t LocalMatchingSolutions::size() const
+{
+  return impl->size();
+}
+
+LocalMatchingSolutions::iterator LocalMatchingSolutions::begin()
+{
+  return iterator(*this, 0);
+}
+
+LocalMatchingSolutions::iterator LocalMatchingSolutions::end()
+{
+  return iterator(*this, size());
+}
+
 namespace marco::matching::detail
 {
-    LocalMatchingSolutions solveLocalMatchingProblem(
-            const MultidimensionalRange& equationRanges,
-            const MultidimensionalRange& variableRanges,
-            llvm::ArrayRef<AccessFunction> accessFunctions)
-    {
-      return LocalMatchingSolutions(
-              std::move(accessFunctions),
-              equationRanges,
-              variableRanges);
-    }
+  LocalMatchingSolutions solveLocalMatchingProblem(
+          const MultidimensionalRange& equationRanges,
+          const MultidimensionalRange& variableRanges,
+          llvm::ArrayRef<AccessFunction> accessFunctions)
+  {
+    return LocalMatchingSolutions(
+            std::move(accessFunctions),
+            equationRanges,
+            variableRanges);
+  }
+
+  LocalMatchingSolutions solveLocalMatchingProblem(const IncidenceMatrix& matrix)
+  {
+    return LocalMatchingSolutions(matrix);
+  }
 }

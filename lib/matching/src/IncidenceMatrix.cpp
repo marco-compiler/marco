@@ -1,3 +1,4 @@
+#include <llvm/ADT/STLExtras.h>
 #include <marco/matching/IncidenceMatrix.h>
 #include <numeric>
 
@@ -306,6 +307,13 @@ void IncidenceMatrix::clear()
 	data.clear();
 }
 
+bool IncidenceMatrix::isEmpty() const
+{
+  return llvm::none_of(getIndexes(), [&](const auto& indexes) {
+      return get(indexes);
+  });
+}
+
 IncidenceMatrix IncidenceMatrix::flattenEquations() const
 {
   IncidenceMatrix result = row(variableRanges);
@@ -366,6 +374,64 @@ IncidenceMatrix IncidenceMatrix::flattenVariables() const
   }
 
 	return result;
+}
+
+IncidenceMatrix IncidenceMatrix::filterEquations(const IncidenceMatrix& filter) const
+{
+  assert(filter.getEquationRanges() == equationRanges && "Filter has different equation ranges");
+  assert(filter.getVariableRanges().flatSize() == 1 && "Filter must be a column vector");
+
+  IncidenceMatrix result(equationRanges, variableRanges);
+  llvm::SmallVector<long, 3> indexes(equationRanges.rank() + variableRanges.rank(), 0);
+
+  for (const auto& filterIndexes : filter.getIndexes())
+  {
+    for (size_t i = 0; i < equationRanges.rank(); ++i)
+      indexes[i] = filterIndexes[i];
+
+    if (filter.get(filterIndexes))
+    {
+      for (const auto& variableIndexes : variableRanges)
+      {
+        for (const auto& index : llvm::enumerate(variableIndexes))
+          indexes[equationRanges.rank() + index.index()] = index.value();
+
+        if (get(indexes))
+          result.set(indexes);
+      }
+    }
+  }
+
+  return result;
+}
+
+IncidenceMatrix IncidenceMatrix::filterVariables(const IncidenceMatrix& filter) const
+{
+  assert(filter.getVariableRanges() == variableRanges && "Filter has different variable ranges");
+  assert(filter.getEquationRanges().flatSize() == 1 && "Filter must be a row vector");
+
+  IncidenceMatrix result(equationRanges, variableRanges);
+  llvm::SmallVector<long, 3> indexes(equationRanges.rank() + variableRanges.rank(), 0);
+
+  for (const auto& filterIndexes : filter.getIndexes())
+  {
+    for (size_t i = 0; i < filter.getVariableRanges().rank(); ++i)
+      indexes[equationRanges.rank() + i] = filterIndexes[filter.getEquationRanges().rank() + i];
+
+    if (filter.get(filterIndexes))
+    {
+      for (const auto& equationIndexes : equationRanges)
+      {
+        for (const auto& index : llvm::enumerate(equationIndexes))
+          indexes[index.index()] = index.value();
+
+        if (get(indexes))
+          result.set(indexes);
+      }
+    }
+  }
+
+  return result;
 }
 
 std::pair<size_t, size_t> IncidenceMatrix::getMatrixIndexes(llvm::ArrayRef<long> indexes) const

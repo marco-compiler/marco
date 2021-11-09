@@ -27,7 +27,7 @@ namespace marco::matching
 
       VariableVertex(VariableProperty property)
               : property(std::move(property)),
-                match(MultidimensionalRange(Range(0, 1)), getRanges())
+                match(IncidenceMatrix::row(getRanges()))
       {
         assert(getRank() > 0 && "Scalar variables are not supported");
       }
@@ -173,7 +173,7 @@ namespace marco::matching
 
       EquationVertex(EquationProperty property)
               : property(std::move(property)),
-                match(getIterationRanges(), MultidimensionalRange(Range(0, 1)))
+                match(IncidenceMatrix::column(getIterationRanges()))
       {
       }
 
@@ -315,14 +315,9 @@ namespace marco::matching
         return matchMatrix;
       }
 
-      IncidenceMatrix getUnmatchedEquationsMatrix() const
+      IncidenceMatrix getUnmatchedMatrix() const
       {
-        return !matchMatrix.flattenVariables();
-      }
-
-      IncidenceMatrix getUnmatchedVariablesMatrix() const
-      {
-        return !matchMatrix.flattenEquations();
+        return incidenceMatrix - matchMatrix;
       }
 
       bool isVisible() const
@@ -344,28 +339,28 @@ namespace marco::matching
       bool visible;
     };
 
-    template<typename EquationDescriptor>
+    template<typename VertexDescriptor>
     class FrontierElement
     {
       public:
-      FrontierElement(EquationDescriptor equation, IncidenceMatrix unmatchedEquations)
-              : equation(std::move(equation)),
+      FrontierElement(VertexDescriptor vertex, IncidenceMatrix unmatchedEquations)
+              : vertex(std::move(vertex)),
                 unmatchedEquations(std::move(unmatchedEquations))
       {
       }
 
-      EquationDescriptor getEquation()
+      VertexDescriptor getVertex()
       {
-        return equation;
+        return vertex;
       }
 
-      const IncidenceMatrix& getUnmatchedEquationsMatrix() const
+      const IncidenceMatrix& getUnmatchedEquations() const
       {
         return unmatchedEquations;
       }
 
       private:
-      EquationDescriptor equation;
+      VertexDescriptor vertex;
       IncidenceMatrix unmatchedEquations;
     };
 
@@ -584,7 +579,10 @@ namespace marco::matching
 
     bool hasEdge(typename EquationProperty::Id equationId, typename VariableProperty::Id variableId) const
     {
-      return findEdge<Equation, Variable>(equationId, variableId).first;
+      if (findEdge<Equation, Variable>(equationId, variableId).first)
+        return true;
+
+      return findEdge<Variable, Equation>(variableId, equationId).first;
     }
 
     EdgeDescriptor getFirstOutEdge(VertexDescriptor vertex) const
@@ -829,20 +827,54 @@ namespace marco::matching
     for (auto equationDescriptor : equations)
     {
       auto& equation = getEquation(equationDescriptor);
-      detail::IncidenceMatrix unmatched = detail::IncidenceMatrix::column(equation.getIterationRanges());
+      detail::IncidenceMatrix matchedEquations = detail::IncidenceMatrix::column(equation.getIterationRanges());
 
       for (auto edgeDescriptor : getEdges(equationDescriptor))
       {
         const Edge& edge = graph[edgeDescriptor];
-        unmatched += edge.getUnmatchedEquationsMatrix();
+        matchedEquations += edge.getMatchMatrix().flattenVariables();
       }
 
-      bool shouldAdd = llvm::none_of(unmatched.getIndexes(), [&unmatched](const auto& indexes) {
-        return unmatched.get(indexes);
-      });
+      detail::IncidenceMatrix unmatchedEquations = !matchedEquations;
 
-      if (shouldAdd)
-        frontier.emplace_back(equationDescriptor, unmatched);
+      if (!unmatchedEquations.isEmpty())
+        frontier.emplace_back(equationDescriptor, unmatchedEquations);
+    }
+
+    // Breadth-first search.
+    // Can be replaced with a depth-first-search as long as we check for loops in the residual graph.
+    llvm::SmallVector<FrontierElement, 10> newFrontier;
+
+    while (!frontier.empty() && paths.empty())
+    {
+      for (FrontierElement& frontierElement : frontier)
+      {
+        auto vertexDescriptor = frontierElement.getVertex();
+
+        for (EdgeDescriptor edgeDescriptor : getEdges(vertexDescriptor))
+        {
+          //VertexDescriptor nextNode = edgeDescriptor.to;
+          //Edge& edge = graph[edgeDescriptor];
+
+          if (isEquation(vertexDescriptor))
+          {
+            //Equation& equation = getEquation(vertexDescriptor);
+            //Variable& variable = getVariable(nextNode);
+            //auto unmatchedMatrix = edge.getUnmatchedMatrix();
+            //unmatchedMatrix.filterEquations(frontier.getUnmatchedEquations());
+
+          }
+          else
+          {
+
+          }
+        }
+
+
+      }
+
+      frontier.clear();
+      frontier.swap(newFrontier);
     }
   }
 

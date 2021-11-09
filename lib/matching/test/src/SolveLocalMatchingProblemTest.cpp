@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 #include <marco/matching/Matching.h>
 
 using namespace marco::matching;
@@ -47,9 +48,6 @@ TEST(Matching, solveLocalMatchingProblem_2D_underdimensionedVariable_firstInduct
 	MultidimensionalRange var(Range(0, 3));
 
 	AccessFunction access(DimensionAccess::relative(0, 0));
-	auto matchingSolutions = solveLocalMatchingProblem(eq, var, access);
-
-	EXPECT_EQ(matchingSolutions.size(), 2);
 
 	IncidenceMatrix m0(eq, var);
 	m0.set({0, 1, 0});
@@ -61,8 +59,12 @@ TEST(Matching, solveLocalMatchingProblem_2D_underdimensionedVariable_firstInduct
 	m1.set({1, 2, 1});
 	m1.set({2, 2, 2});
 
-	EXPECT_EQ(matchingSolutions[0], m0);
-	EXPECT_EQ(matchingSolutions[1], m1);
+  std::vector<IncidenceMatrix> solutions;
+
+  for (auto solution : solveLocalMatchingProblem(eq, var, access))
+    solutions.push_back(solution);
+
+  EXPECT_THAT(solutions, testing::UnorderedElementsAre(m0, m1));
 }
 
 /**
@@ -116,9 +118,6 @@ TEST(Matching, solveLocalMatchingProblem_2D_underdimensionedVariable_secondInduc
 	MultidimensionalRange var(Range(0, 3));
 
 	AccessFunction access(DimensionAccess::relative(1, 0));
-	auto matchingSolutions = solveLocalMatchingProblem(eq, var, access);
-
-	EXPECT_EQ(matchingSolutions.size(), 3);
 
 	IncidenceMatrix m0(eq, var);
 	m0.set({0, 1, 1});
@@ -132,9 +131,12 @@ TEST(Matching, solveLocalMatchingProblem_2D_underdimensionedVariable_secondInduc
 	m2.set({2, 1, 1});
 	m2.set({2, 2, 2});
 
-	EXPECT_EQ(matchingSolutions[0], m0);
-	EXPECT_EQ(matchingSolutions[1], m1);
-	EXPECT_EQ(matchingSolutions[2], m2);
+  std::vector<IncidenceMatrix> solutions;
+
+  for (auto solution : solveLocalMatchingProblem(eq, var, access))
+    solutions.push_back(solution);
+
+  EXPECT_THAT(solutions, testing::UnorderedElementsAre(m0, m1, m2));
 }
 
 /**
@@ -179,10 +181,6 @@ TEST(Matching, solveLocalMatchingProblem_2D_allInductionVariablesUsed)
 			DimensionAccess::relative(1, 0),
 	});
 
-	auto matchingSolutions = solveLocalMatchingProblem(eq, var, access);
-
-	EXPECT_EQ(matchingSolutions.size(), 1);
-
 	IncidenceMatrix m0(eq, var);
 	m0.set({0, 1, 0, 1});
 	m0.set({0, 2, 0, 2});
@@ -191,7 +189,12 @@ TEST(Matching, solveLocalMatchingProblem_2D_allInductionVariablesUsed)
 	m0.set({2, 1, 2, 1});
 	m0.set({2, 2, 2, 2});
 
-	EXPECT_EQ(matchingSolutions[0], m0);
+  std::vector<IncidenceMatrix> solutions;
+
+  for (auto solution : solveLocalMatchingProblem(eq, var, access))
+    solutions.push_back(solution);
+
+  EXPECT_THAT(solutions, testing::UnorderedElementsAre(m0));
 }
 
 /**
@@ -236,10 +239,6 @@ TEST(Matching, solveLocalMatchingProblem_2D_invertedInductionVariables)
 			DimensionAccess::relative(0, 0),
 	});
 
-	auto matchingSolutions = solveLocalMatchingProblem(eq, var, access);
-
-	EXPECT_EQ(matchingSolutions.size(), 1);
-
 	IncidenceMatrix m0(eq, var);
 	m0.set({0, 1, 1, 0});
 	m0.set({0, 2, 2, 0});
@@ -248,7 +247,12 @@ TEST(Matching, solveLocalMatchingProblem_2D_invertedInductionVariables)
 	m0.set({2, 1, 1, 2});
 	m0.set({2, 2, 2, 2});
 
-	EXPECT_EQ(matchingSolutions[0], m0);
+  std::vector<IncidenceMatrix> solutions;
+
+  for (auto solution : solveLocalMatchingProblem(eq, var, access))
+    solutions.push_back(solution);
+
+  EXPECT_THAT(solutions, testing::UnorderedElementsAre(m0));
 }
 
 /**
@@ -301,10 +305,6 @@ TEST(Matching, solveLocalMatchingProblem_2D_oneConstantIndex)
 			DimensionAccess::relative(0, 0),
 	});
 
-	auto matchingSolutions = solveLocalMatchingProblem(eq, var, access);
-
-	EXPECT_EQ(matchingSolutions.size(), 2);
-
 	IncidenceMatrix m0(eq, var);
 	m0.set({0, 1, 1, 0});
 	m0.set({1, 1, 1, 1});
@@ -315,8 +315,12 @@ TEST(Matching, solveLocalMatchingProblem_2D_oneConstantIndex)
 	m1.set({1, 2, 1, 1});
 	m1.set({2, 2, 1, 2});
 
-	EXPECT_EQ(matchingSolutions[0], m0);
-	EXPECT_EQ(matchingSolutions[1], m1);
+  std::vector<IncidenceMatrix> solutions;
+
+  for (auto solution : solveLocalMatchingProblem(eq, var, access))
+    solutions.push_back(solution);
+
+  EXPECT_THAT(solutions, testing::UnorderedElementsAre(m0, m1));
 }
 
 /**
@@ -401,10 +405,6 @@ TEST(Matching, solveLocalMatchingProblem_2D_allConstantIndexes)
 			DimensionAccess::constant(2),
 	});
 
-	auto matchingSolutions = solveLocalMatchingProblem(eq, var, access);
-
-	EXPECT_EQ(matchingSolutions.size(), 6);
-
 	IncidenceMatrix m0(eq, var);
 	m0.set({0, 1, 1, 2});
 
@@ -423,12 +423,12 @@ TEST(Matching, solveLocalMatchingProblem_2D_allConstantIndexes)
 	IncidenceMatrix m5(eq, var);
 	m5.set({2, 2, 1, 2});
 
-	EXPECT_EQ(matchingSolutions[0], m0);
-	EXPECT_EQ(matchingSolutions[1], m1);
-	EXPECT_EQ(matchingSolutions[2], m2);
-	EXPECT_EQ(matchingSolutions[3], m3);
-	EXPECT_EQ(matchingSolutions[4], m4);
-	EXPECT_EQ(matchingSolutions[5], m5);
+  std::vector<IncidenceMatrix> solutions;
+
+  for (auto solution : solveLocalMatchingProblem(eq, var, access))
+    solutions.push_back(solution);
+
+  EXPECT_THAT(solutions, testing::UnorderedElementsAre(m0, m1, m2, m3, m4, m5));
 }
 
 /**
@@ -489,10 +489,6 @@ TEST(Matching, solveLocalMatchingProblem_2D_repeatedInductionVariable)
 			DimensionAccess::relative(1, 0),
 	});
 
-	auto matchingSolutions = solveLocalMatchingProblem(eq, var, access);
-
-	EXPECT_EQ(matchingSolutions.size(), 3);
-
 	IncidenceMatrix m0(eq, var);
 	m0.set({0, 1, 1, 1});
 	m0.set({0, 2, 2, 2});
@@ -505,9 +501,12 @@ TEST(Matching, solveLocalMatchingProblem_2D_repeatedInductionVariable)
 	m2.set({2, 1, 1, 1});
 	m2.set({2, 2, 2, 2});
 
-	EXPECT_EQ(matchingSolutions[0], m0);
-	EXPECT_EQ(matchingSolutions[1], m1);
-	EXPECT_EQ(matchingSolutions[2], m2);
+  std::vector<IncidenceMatrix> solutions;
+
+  for (auto solution : solveLocalMatchingProblem(eq, var, access))
+    solutions.push_back(solution);
+
+  EXPECT_THAT(solutions, testing::UnorderedElementsAre(m0, m1, m2));
 }
 
 
@@ -539,10 +538,6 @@ TEST(Matching, solveLocalMatchingProblem_3D_repeatedInductionVariable)
 			DimensionAccess::relative(0, 0),
 	});
 
-	auto matchingSolutions = solveLocalMatchingProblem(eq, var, access);
-
-	EXPECT_EQ(matchingSolutions.size(), 3);
-
 	IncidenceMatrix m0(eq, var);
 	m0.set({0, 1, 1, 1, 1, 0});
 	m0.set({0, 2, 1, 2, 2, 0});
@@ -567,7 +562,10 @@ TEST(Matching, solveLocalMatchingProblem_3D_repeatedInductionVariable)
 	m2.set({2, 1, 3, 1, 1, 2});
 	m2.set({2, 2, 3, 2, 2, 2});
 
-	EXPECT_EQ(matchingSolutions[0], m0);
-	EXPECT_EQ(matchingSolutions[1], m1);
-	EXPECT_EQ(matchingSolutions[2], m2);
+  std::vector<IncidenceMatrix> solutions;
+
+  for (auto solution : solveLocalMatchingProblem(eq, var, access))
+    solutions.push_back(solution);
+
+  EXPECT_THAT(solutions, testing::UnorderedElementsAre(m0, m1, m2));
 }
