@@ -97,12 +97,9 @@ class BufferDeallocationPass : public mlir::PassWrapper<BufferDeallocationPass, 
 	public:
 	void runOnOperation() override
 	{
-		getOperation().walk([](FunctionOp op) {
-			llvm::errs() << "Current op for dealloc: " << op.getName() << "\n";
-			op.dump();
+		getOperation().walk([](mlir::FuncOp op) {
 			BufferDeallocation deallocation(op);
 			deallocation.deallocate();
-			op.dump();
 		});
 	}
 };
