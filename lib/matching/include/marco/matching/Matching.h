@@ -853,15 +853,21 @@ namespace marco::matching
 
         for (EdgeDescriptor edgeDescriptor : getEdges(vertexDescriptor))
         {
-          //VertexDescriptor nextNode = edgeDescriptor.to;
-          //Edge& edge = graph[edgeDescriptor];
+          VertexDescriptor nextNode = edgeDescriptor.to;
+          const Edge& edge = graph[edgeDescriptor];
 
           if (isEquation(vertexDescriptor))
           {
-            //Equation& equation = getEquation(vertexDescriptor);
-            //Variable& variable = getVariable(nextNode);
-            //auto unmatchedMatrix = edge.getUnmatchedMatrix();
-            //unmatchedMatrix.filterEquations(frontier.getUnmatchedEquations());
+            const Equation& equation = getEquation(vertexDescriptor);
+            const Variable& variable = getVariable(nextNode);
+            auto unmatchedMatrix = edge.getUnmatchedMatrix();
+            auto filteredMatrix = unmatchedMatrix.filterEquations(frontierElement.getUnmatchedEquations());
+            auto solutions = detail::solveLocalMatchingProblem(filteredMatrix);
+
+            for (auto solution : solutions)
+            {
+
+            }
 
           }
           else
