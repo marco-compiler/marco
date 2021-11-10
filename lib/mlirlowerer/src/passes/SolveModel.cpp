@@ -221,7 +221,7 @@ struct EquationOpScalarizePattern : public mlir::OpRewritePattern<EquationOp>
 					assert(left == right);
 
 				long size = std::max(left, right);
-				mlir::Value induction = rewriter.create<InductionOp>(location, 1, size);
+				mlir::Value induction = rewriter.create<InductionOp>(location, 0, size - 1);
 				inductions.push_back(induction);
 			}
 
@@ -289,7 +289,7 @@ struct ForEquationOpScalarizePattern : public mlir::OpRewritePattern<ForEquation
 					assert(left == right);
 
 				long size = std::max(left, right);
-				mlir::Value induction = rewriter.create<InductionOp>(location, 1, size);
+				mlir::Value induction = rewriter.create<InductionOp>(location, 0, size - 1);
 				inductions.push_back(induction);
 			}
 
