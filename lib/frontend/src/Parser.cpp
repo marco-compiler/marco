@@ -1460,6 +1460,7 @@ void UnexpectedToken::printMessage(llvm::raw_ostream& os) const
 	os << "unexpected token [";
 	os.changeColor(llvm::raw_ostream::SAVEDCOLOR, true);
 	os << token;
+  os.resetColor();
 	os << "]";
 }
 

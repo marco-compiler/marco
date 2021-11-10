@@ -150,6 +150,11 @@ void SourceRange::printLines(llvm::raw_ostream& os, std::function<void(llvm::raw
 	if (isUnknown)
 		return;
 
+  //os << "startLine: " << startLine << "\n";
+  //os << "endLine: " << endLine << "\n";
+  //os << "startColumn: " << startColumn << "\n";
+  //os << "endColumn: " << endColumn << "\n";
+
 	assert(startLine < endLine || (startLine == endLine && startColumn <= endColumn));
 
 	std::string_view sourceView(source);

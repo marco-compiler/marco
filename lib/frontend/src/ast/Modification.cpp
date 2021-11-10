@@ -68,7 +68,13 @@ namespace marco::frontend
 
 void Modification::print(llvm::raw_ostream& os, size_t indents) const
 {
-	// TODO
+  os.indent(indents) << "modification:\n";
+
+	if (classModification.hasValue())
+    (*classModification)->dump(os, indents + 1);
+
+  if (expression.hasValue())
+    (*expression)->dump(os, indents + 1);
 }
 
 bool Modification::hasClassModification() const
@@ -146,7 +152,10 @@ namespace marco::frontend
 
 void ClassModification::print(llvm::raw_ostream& os, size_t indents) const
 {
-	// TODO
+  os.indent(indents) << "class-modification:\n";
+
+	for (const auto& argument : arguments)
+    argument->dump(os, indents + 1);
 }
 
 ClassModification::iterator ClassModification::begin()
@@ -283,7 +292,18 @@ namespace marco::frontend
 
 void ElementModification::print(llvm::raw_ostream& os, size_t indents) const
 {
-	// TODO
+  os.indent(indents) << "element-modification:\n";
+
+  if (each)
+	  os.indent(indents + 1) << "each: " << each << "\n";
+
+  if (final)
+    os.indent(indents + 1) << "final: " << final << "\n";
+
+  os.indent(indents + 1) << "name: " << name << "\n";
+
+  if (modification.hasValue())
+    (*modification)->dump(os, indents + 1);
 }
 
 bool ElementModification::hasEachProperty() const
@@ -391,5 +411,5 @@ namespace marco::frontend
 
 void ElementRedeclaration::print(llvm::raw_ostream& os, size_t indents) const
 {
-	// TODO
+  // TODO
 }
