@@ -60,6 +60,7 @@ modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {arg
         %9 = modelica.constant #modelica.int<2>
         %10 = modelica.add %8, %9 : (!modelica.int, !modelica.int) -> !modelica.int
         modelica.member_store %0, %10 : !modelica.member<stack, !modelica.int>
+        modelica.yield
     }
     modelica.function_terminator
 }
@@ -144,6 +145,7 @@ modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {arg
         %9 = modelica.constant #modelica.int<2>
         %10 = modelica.add %8, %9 : (!modelica.int, !modelica.int) -> !modelica.int
         modelica.member_store %0, %10 : !modelica.member<stack, !modelica.int>
+        modelica.yield
     }
     modelica.function_terminator
 }
@@ -238,12 +240,15 @@ modelica.function @foo(%arg0 : !modelica.int) -> (!modelica.int) attributes {arg
             %11 = modelica.constant #modelica.int<2>
             %12 = modelica.add %10, %11 : (!modelica.int, !modelica.int) -> !modelica.int
             modelica.member_store %0, %12 : !modelica.member<stack, !modelica.int>
+            modelica.yield
         } step {
             %4 = modelica.load %2[] : !modelica.array<stack, !modelica.int>
             %5 = modelica.constant #modelica.int<1>
             %6 = modelica.add %4, %5 : (!modelica.int, !modelica.int) -> !modelica.int
             modelica.store %2[], %6 : !modelica.array<stack, !modelica.int>
+            modelica.yield
         }
+        modelica.yield
     }
     modelica.function_terminator
 }

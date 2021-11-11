@@ -97,10 +97,16 @@ class BufferDeallocationPass : public mlir::PassWrapper<BufferDeallocationPass, 
 	public:
 	void runOnOperation() override
 	{
+    //llvm::errs() << "--------------- BEFORE DEALLOCATION PASS\n";
+    //mlir::OperationPass<ModuleOp>::getOperation().dump();
+
 		getOperation().walk([](mlir::FuncOp op) {
 			BufferDeallocation deallocation(op);
 			deallocation.deallocate();
 		});
+
+    //llvm::errs() << "--------------- AFTER DEALLOCATION PASS\n";
+    //mlir::OperationPass<ModuleOp>::getOperation().dump();
 	}
 };
 

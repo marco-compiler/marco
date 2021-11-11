@@ -33,6 +33,58 @@ static mlir::Value readValue(mlir::OpBuilder& builder, mlir::Value operand)
 	return operand;
 }
 
+static void populateAllocationEffects(
+        mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects,
+        mlir::Value value,
+        bool isManuallyDeallocated = false)
+{
+  if (auto arrayType = value.getType().dyn_cast<ArrayType>())
+  {
+    auto allocationScope = arrayType.getAllocationScope();
+    assert(allocationScope == BufferAllocationScope::stack || allocationScope == BufferAllocationScope::heap);
+
+    if (allocationScope == BufferAllocationScope::stack)
+    {
+      // Stack-allocated arrays are automatically deallocated when the
+      // surrounding function ends.
+
+      effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::AutomaticAllocationScopeResource::get());
+    }
+    else if (allocationScope == BufferAllocationScope::heap)
+    {
+      // We need to check if there exists a clone operation with forwarding
+      // enabled and whose result is manually deallocated. If that is the
+      // case, then also the original buffer must not be deallocated, or a
+      // double free would happen.
+
+      bool isForwardedAsManuallyDeallocated = llvm::any_of(value.getUsers(), [](const auto& op) -> bool {
+         if (auto cloneOp = mlir::dyn_cast<ArrayCloneOp>(op))
+           return cloneOp.canSourceBeForwarded() && !cloneOp.shouldBeFreed();
+
+         return false;
+      });
+
+      if (!isManuallyDeallocated && !isForwardedAsManuallyDeallocated)
+      {
+        // Mark the value as heap-allocated so that the deallocation pass can
+        // place the deallocation instruction.
+
+        effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
+      }
+      else
+      {
+        // If the buffer is marked as manually deallocated, then we need to
+        // set the operation to have a generic side effect, or the CSE pass
+        // would otherwise consider all the allocations with the same
+        // structure as equal, and thus would replace all the subsequent
+        // buffers with the first allocated one.
+
+        effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+      }
+    }
+  }
+}
+
 static bool isBreakable(mlir::Region& region)
 {
 	bool breakable = false;
@@ -1303,23 +1355,8 @@ void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 	for (size_t i = 0; i < movedResultsCount; ++i)
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), args()[nativeArgsCount + i], mlir::SideEffects::DefaultResource::get());
 
-	for (const auto& [value, type] : llvm::zip(getResults(), getResultTypes()))
-	{
-		// The result arrays, which will be allocated by the callee on the heap,
-		// must be seen as if they were allocated by the function call. This way,
-		// the deallocation pass can free them.
-
-		if (auto arrayType = type.dyn_cast<ArrayType>(); arrayType && arrayType.getAllocationScope() == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
-
-		/*
-		// Records are considered as resources to be freed, because they
-		// potentially have subtypes that need to be freed.
-
-		if (type.isa<StructType>())
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), value, mlir::SideEffects::DefaultResource::get());
-		 */
-	}
+  for (const auto& result : getResults())
+    populateAllocationEffects(effects, result);
 }
 
 mlir::CallInterfaceCallable CallOp::getCallableForCallee() {
@@ -1969,7 +2006,7 @@ mlir::LogicalResult AllocaOp::verify()
 
 void AllocaOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
+  populateAllocationEffects(effects, getResult());
 }
 
 ArrayType AllocaOp::resultType()
@@ -2127,18 +2164,7 @@ mlir::LogicalResult AllocOp::verify()
 
 void AllocOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (shouldBeFreed())
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	else
-	{
-		// If the buffer is marked as manually freed, then we need to set the
-		// operation to have a generic side effect, or the CSE pass would
-		// otherwise consider all the allocs with the same structure as equal,
-		// and thus would replace all the subsequent buffers with the first
-		// allocated one.
-
-		effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
-	}
+  populateAllocationEffects(effects, getResult(), !shouldBeFreed());
 }
 
 ArrayType AllocOp::resultType()
@@ -2876,14 +2902,7 @@ mlir::LogicalResult ArrayCloneOp::verify()
 void ArrayCloneOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), source(), mlir::SideEffects::DefaultResource::get());
-
-	auto scope = resultType().getAllocationScope();
-
-	if (scope == BufferAllocationScope::heap && shouldBeFreed())
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	else if (scope == BufferAllocationScope::stack)
-		effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-
+  populateAllocationEffects(effects, getResult(), !shouldBeFreed());
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
@@ -3566,15 +3585,10 @@ void NotOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	if (operand().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		if (arrayType.getAllocationScope() == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+  populateAllocationEffects(effects, getResult());
 
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::Type NotOp::resultType()
@@ -3666,17 +3680,10 @@ void AndOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::Type AndOp::resultType()
@@ -3773,17 +3780,10 @@ void OrOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<ml
 	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::Type OrOp::resultType()
@@ -4318,17 +4318,10 @@ void NegateOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstanc
 	if (operand().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), operand(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::LogicalResult NegateOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
@@ -4508,17 +4501,10 @@ void AddOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::LogicalResult AddOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
@@ -4717,17 +4703,10 @@ void AddElementWiseOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::Effec
 	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::LogicalResult AddElementWiseOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
@@ -4926,17 +4905,10 @@ void SubOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::LogicalResult SubOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
@@ -5135,17 +5107,10 @@ void SubElementWiseOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::Effec
 	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::LogicalResult SubElementWiseOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
@@ -5344,17 +5309,10 @@ void MulOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::LogicalResult MulOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
@@ -5578,17 +5536,10 @@ void MulElementWiseOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::Effec
 	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::LogicalResult MulElementWiseOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
@@ -5812,17 +5763,10 @@ void DivOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::LogicalResult DivOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
@@ -6049,17 +5993,10 @@ void DivElementWiseOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::Effec
 	if (rhs().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), rhs(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::LogicalResult DivElementWiseOp::invert(mlir::OpBuilder& builder, unsigned int argumentIndex, mlir::ValueRange currentResult)
@@ -6347,17 +6284,10 @@ void PowOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<m
 	if (exponent().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), exponent(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::ValueRange PowOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
@@ -6472,17 +6402,10 @@ void PowElementWiseOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::Effec
 	if (exponent().getType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Read::get(), exponent(), mlir::SideEffects::DefaultResource::get());
 
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-	{
-		auto scope = arrayType.getAllocationScope();
+  populateAllocationEffects(effects, getResult());
 
-		if (scope == BufferAllocationScope::stack)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
-		else if (scope == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
+	if (resultType().isa<ArrayType>())
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-	}
 }
 
 mlir::ValueRange PowElementWiseOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
@@ -8233,11 +8156,11 @@ mlir::LogicalResult SizeOp::verify()
 
 void SizeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
-
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), memory(), mlir::SideEffects::DefaultResource::get());
+  populateAllocationEffects(effects, getResult());
+
+  if (resultType().isa<ArrayType>())
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
 bool SizeOp::hasIndex()
@@ -8309,14 +8232,16 @@ mlir::LogicalResult IdentityOp::verify()
 	if (!size().getType().isa<IntegerType, mlir::IndexType>())
 		return emitOpError("requires the size to be an integer value");
 
+  if (!resultType().isa<ArrayType>())
+    return emitOpError("requires the result to be an array");
+
 	return mlir::success();
 }
 
 void IdentityOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+  populateAllocationEffects(effects, getResult());
+  effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::Type IdentityOp::resultType()
@@ -8381,14 +8306,17 @@ mlir::LogicalResult DiagonalOp::verify()
 	if (auto arrayType = values().getType().cast<ArrayType>(); arrayType.getRank() != 1)
 		return emitOpError("requires the values array to have rank 1");
 
+  if (!resultType().isa<ArrayType>())
+    return emitOpError("requires the result to be an array");
+
 	return mlir::success();
 }
 
 void DiagonalOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+  effects.emplace_back(mlir::MemoryEffects::Read::get(), values(), mlir::SideEffects::DefaultResource::get());
+  populateAllocationEffects(effects, getResult());
+  effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::Type DiagonalOp::resultType()
@@ -8484,9 +8412,8 @@ mlir::LogicalResult ZerosOp::verify()
 
 void ZerosOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+  populateAllocationEffects(effects, getResult());
+  effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::Type ZerosOp::resultType()
@@ -8582,9 +8509,8 @@ mlir::LogicalResult OnesOp::verify()
 
 void OnesOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+  populateAllocationEffects(effects, getResult());
+  effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::Type OnesOp::resultType()
@@ -8674,9 +8600,8 @@ mlir::LogicalResult LinspaceOp::verify()
 
 void LinspaceOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+  populateAllocationEffects(effects, getResult());
+  effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::Type LinspaceOp::resultType()
@@ -9163,9 +9088,10 @@ mlir::LogicalResult TransposeOp::verify()
 
 void TransposeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+  effects.emplace_back(mlir::MemoryEffects::Read::get(), matrix(), mlir::SideEffects::DefaultResource::get());
+  populateAllocationEffects(effects, getResult());
+  assert(getResult().getType().isa<ArrayType>());
+  effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::Type TransposeOp::resultType()
@@ -9257,9 +9183,10 @@ mlir::LogicalResult SymmetricOp::verify()
 
 void SymmetricOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
-	if (auto arrayType = resultType().dyn_cast<ArrayType>())
-		if (arrayType.getAllocationScope() == BufferAllocationScope::heap)
-			effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::DefaultResource::get());
+  effects.emplace_back(mlir::MemoryEffects::Read::get(), matrix(), mlir::SideEffects::DefaultResource::get());
+  populateAllocationEffects(effects, getResult());
+  assert(getResult().getType().isa<ArrayType>());
+  effects.emplace_back(mlir::MemoryEffects::Write::get(), getResult(), mlir::SideEffects::DefaultResource::get());
 }
 
 mlir::Type SymmetricOp::resultType()

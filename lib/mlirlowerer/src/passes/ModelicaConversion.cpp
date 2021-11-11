@@ -393,8 +393,13 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 						// inputs modifications.
 						bool canSourceBeForwarded = !storeOp.value().isa<mlir::BlockArgument>();
 
+            // The deallocation is set as manually handled, because the value
+            // will be deallocated before an eventual new value will be set into
+            // the dynamic array.
+            bool shouldBeDeallocated = false;
+
 						mlir::Value copy = rewriter.create<ArrayCloneOp>(
-								loc, storeOp.value(), arrayType, false, canSourceBeForwarded);
+								loc, storeOp.value(), arrayType, shouldBeDeallocated, canSourceBeForwarded);
 
 						// Free the previously allocated memory. This is only apparently in
 						// contrast with the above statements: unknown-sized arrays pointers

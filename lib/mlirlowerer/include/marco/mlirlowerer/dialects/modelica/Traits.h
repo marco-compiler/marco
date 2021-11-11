@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mlir/Interfaces/SideEffectInterfaces.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 

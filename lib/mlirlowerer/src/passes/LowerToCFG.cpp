@@ -190,6 +190,10 @@ class CFGLowerer
 		inlineRegionBefore(op.thenRegion(), continuation);
 		builder.setInsertionPointToEnd(currentBlock);
 
+    // Erase the yield operation from the "then" block
+    if (auto yieldOp = mlir::dyn_cast<YieldOp>(thenLast->getTerminator()))
+      yieldOp->erase();
+
 		mlir::Value conditionValue = typeConverter->materializeTargetConversion(
 				builder, op.condition().getLoc(), builder.getI1Type(), op.condition());
 
@@ -220,6 +224,10 @@ class CFGLowerer
 			mlir::Block* elseLast = &op.elseRegion().back();
 
 			inlineRegionBefore(op.elseRegion(), continuation);
+
+      // Erase the yield operation from the "else" block
+      if (auto yieldOp = mlir::dyn_cast<YieldOp>(elseLast->getTerminator()))
+        yieldOp->erase();
 
 			builder.create<mlir::CondBranchOp>(
 					op->getLoc(), conditionValue, thenFirst, llvm::None, elseFirst, llvm::None);
@@ -280,6 +288,10 @@ class CFGLowerer
 
 		// Branch back to the "condition" region
 		builder.setInsertionPointToEnd(bodyLast);
+
+    if (auto yieldOp = mlir::dyn_cast<YieldOp>(bodyLast->getTerminator()))
+      yieldOp->erase();
+
 		builder.create<mlir::BranchOp>(op->getLoc(), conditionFirst);
 
 		// Erase the operation

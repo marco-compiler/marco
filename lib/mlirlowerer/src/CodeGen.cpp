@@ -129,7 +129,15 @@ mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, Mo
 		passManager.addNestedPass<FunctionOp>(mlir::createCSEPass());
 
 	passManager.addPass(createFunctionConversionPass());
-	passManager.addPass(createBufferDeallocationPass());
+
+  // The buffer deallocation pass must be placed after the Modelica's
+  // functions and members conversion, so that we can operate on an IR
+  // without hidden allocs and frees.
+  // However the pass must also be placed before the conversion of the
+  // more common Modelica operations (i.e. add, sub, call, etc.), in
+  // order to take into consideration their memory effects.
+  passManager.addPass(createBufferDeallocationPass());
+
 	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions, loweringOptions.getBitWidth()));
 
 	if (loweringOptions.openmp)
@@ -801,12 +809,12 @@ void MLIRLowerer::lower(const IfStatement& statement)
 {
 	// Each conditional blocks creates an If operation, but we need to keep
 	// track of the first one in order to restore the insertion point right
-	// after that when we have finished to lower all the blocks.
+	// after that when we have finished lowering all the blocks.
 	mlir::Operation* firstOp = nullptr;
 
 	size_t blocks = statement.size();
 
-	for (size_t i = 0; i < blocks; i++)
+	for (size_t i = 0; i < blocks; ++i)
 	{
 		llvm::ScopedHashTableScope<mlir::StringRef, Reference> varScope(symbolTable);
 		const auto& conditionalBlock = statement[i];
@@ -816,7 +824,8 @@ void MLIRLowerer::lower(const IfStatement& statement)
 		// "else" block, and thus doesn't need a lowered else block.
 		bool elseBlock = i < blocks - 1;
 
-		auto ifOp = builder.create<IfOp>(loc(statement.getLocation()), *condition, elseBlock);
+    auto location = loc(statement.getLocation());
+		auto ifOp = builder.create<IfOp>(location, *condition, elseBlock);
 
 		if (firstOp == nullptr)
 			firstOp = ifOp;
@@ -827,9 +836,13 @@ void MLIRLowerer::lower(const IfStatement& statement)
 		for (const auto& stmnt : conditionalBlock)
 			lower(*stmnt);
 
+    if (auto& block = ifOp.thenRegion().back(); block.empty() || !block.back().hasTrait<mlir::OpTrait::IsTerminator>())
+      builder.create<YieldOp>(location);
+
 		if (i > 0)
 		{
 			builder.setInsertionPointAfter(ifOp);
+      builder.create<YieldOp>(location);
 		}
 
 		// The next conditional blocks will be placed as new If operations
@@ -878,9 +891,11 @@ void MLIRLowerer::lower(const ForStatement& statement)
 		for (const auto& stmnt : statement)
 			lower(*stmnt);
 
-		if (!builder.getInsertionBlock()->empty())
-			if (auto& op = builder.getInsertionBlock()->back(); !op.hasTrait<mlir::OpTrait::IsTerminator>())
-				builder.create<YieldOp>(location, *symbolTable.lookup(induction->getName()));
+    if (auto& body = forOp.body().back(); body.empty() || !body.back().hasTrait<mlir::OpTrait::IsTerminator>())
+    {
+      builder.setInsertionPointToEnd(&body);
+      builder.create<YieldOp>(location, *symbolTable.lookup(induction->getName()));
+    }
 	}
 
 	{
@@ -924,6 +939,12 @@ void MLIRLowerer::lower(const WhileStatement& statement)
 
 		for (const auto& stmnt : statement)
 			lower(*stmnt);
+
+    if (auto& body = whileOp.body().back(); body.empty() || !body.back().hasTrait<mlir::OpTrait::IsTerminator>())
+    {
+      builder.setInsertionPointToEnd(&body);
+      builder.create<YieldOp>(location);
+    }
 	}
 }
 

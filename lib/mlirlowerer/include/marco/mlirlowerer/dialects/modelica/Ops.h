@@ -1305,7 +1305,6 @@ namespace marco::codegen::modelica
 															 mlir::OpTrait::NRegions<3>::Impl,
 															 mlir::OpTrait::VariadicOperands,
 															 mlir::OpTrait::ZeroResult,
-															 mlir::OpTrait::NoTerminator,
 															 mlir::RegionBranchOpInterface::Trait,
 															 DerivativeInterface::Trait>
 	{
@@ -1352,7 +1351,6 @@ namespace marco::codegen::modelica
 																 mlir::OpTrait::NRegions<2>::Impl,
 																 mlir::OpTrait::ZeroOperands,
 																 mlir::OpTrait::ZeroResult,
-																 mlir::OpTrait::NoTerminator,
 																 mlir::LoopLikeOpInterface::Trait,
 																 mlir::RegionBranchOpInterface::Trait,
 																 DerivativeInterface::Trait>
