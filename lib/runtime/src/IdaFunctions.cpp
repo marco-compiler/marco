@@ -3,7 +3,6 @@
 #include <marco/runtime/IdaFunctions.h>
 #include <nvector/nvector_serial.h>
 #include <set>
-#include <sstream>
 #include <sundials/sundials_types.h>
 #include <sunlinsol/sunlinsol_klu.h>
 #include <sunmatrix/sunmatrix_sparse.h>
@@ -13,6 +12,17 @@
 #else
 #define omp_get_max_threads() 1
 #endif
+
+#define ALGEBRAIC_TOLERANCE 1e-12
+
+#define MAX_NUM_STEPS 1000
+#define MAX_ERR_TEST_FAIL 100
+#define MAX_NONLIN_ITERS 40
+#define MAX_CONV_FAILS 100
+
+#define MAX_NUM_STEPS_IC 50
+#define MAX_NUM_JACS_IC 40
+#define MAX_NUM_ITERS_IC 100
 
 #define exitOnError(success)                                                   \
 	if (!success)                                                                \
@@ -79,9 +89,11 @@ typedef struct IdaUserData
 	N_Vector variablesVector;
 	N_Vector derivativesVector;
 	N_Vector idVector;
-	realtype* variablesValues;
-	realtype* derivativesValues;
+	N_Vector tolerancesVector;
+	realtype* variableValues;
+	realtype* derivativeValues;
 	realtype* idValues;
+	realtype* toleranceValues;
 
 	// IDA classes
 	void* idaMemory;
@@ -147,23 +159,29 @@ static sunindextype computeOffset(
 }
 
 /**
- * Check an IDA function return value in order to find possible failures.
+ * Check if SUNDIALS function returned NULL pointer (no memory allocated).
  */
-static bool checkRetval(void* retval, const char* funcname, int opt)
+static bool checkAllocation(void* retval, const char* funcname)
 {
-	// Check if SUNDIALS function returned NULL pointer (no memory allocated)
-	if (opt == 0 && retval == NULL)
+	if (retval == NULL)
 	{
 		llvm::errs() << "SUNDIALS_ERROR: " << funcname;
 		llvm::errs() << "() failed - returned NULL pointer\n";
 		return false;
 	}
 
-	// Check if SUNDIALS function returned a positive integer value
-	if (opt == 1 && *((int*) retval) < 0)
+	return true;
+}
+
+/**
+ * Check if SUNDIALS function returned a success value (positive integer).
+ */
+static bool checkRetval(int retval, const char* funcname)
+{
+	if (retval < 0)
 	{
 		llvm::errs() << "SUNDIALS_ERROR: " << funcname;
-		llvm::errs() << "() failed  with return value = " << *(int*) retval << "\n";
+		llvm::errs() << "() failed  with return value = " << retval << "\n";
 		return false;
 	}
 
@@ -295,17 +313,21 @@ inline void* allocIdaUserData(T scalarEquationsNumber)
 
 	// Create and initialize the required N-vectors for the variables.
 	data->variablesVector = N_VNew_Serial(data->scalarEquationsNumber);
-	assert(checkRetval((void*) data->variablesVector, "N_VNew_Serial", 0));
+	assert(checkAllocation((void*) data->variablesVector, "N_VNew_Serial"));
 
 	data->derivativesVector = N_VNew_Serial(data->scalarEquationsNumber);
-	assert(checkRetval((void*) data->derivativesVector, "N_VNew_Serial", 0));
+	assert(checkAllocation((void*) data->derivativesVector, "N_VNew_Serial"));
 
 	data->idVector = N_VNew_Serial(data->scalarEquationsNumber);
-	assert(checkRetval((void*) data->idVector, "N_VNew_Serial", 0));
+	assert(checkAllocation((void*) data->idVector, "N_VNew_Serial"));
 
-	data->variablesValues = N_VGetArrayPointer(data->variablesVector);
-	data->derivativesValues = N_VGetArrayPointer(data->derivativesVector);
+	data->tolerancesVector = N_VNew_Serial(data->scalarEquationsNumber);
+	assert(checkAllocation((void*) data->tolerancesVector, "N_VNew_Serial"));
+
+	data->variableValues = N_VGetArrayPointer(data->variablesVector);
+	data->derivativeValues = N_VGetArrayPointer(data->derivativesVector);
 	data->idValues = N_VGetArrayPointer(data->idVector);
+	data->toleranceValues = N_VGetArrayPointer(data->tolerancesVector);
 
 	return static_cast<void*>(data);
 }
@@ -392,7 +414,7 @@ inline bool idaInit(void* userData, T threads)
 
 	// Create and initialize IDA memory.
 	data->idaMemory = IDACreate();
-	exitOnError(checkRetval((void*) data->idaMemory, "IDACreate", 0));
+	exitOnError(checkAllocation((void*) data->idaMemory, "IDACreate"));
 
 	int retval = IDAInit(
 			data->idaMemory,
@@ -400,12 +422,12 @@ inline bool idaInit(void* userData, T threads)
 			data->startTime,
 			data->variablesVector,
 			data->derivativesVector);
-	exitOnError(checkRetval(&retval, "IDAInit", 1));
+	exitOnError(checkRetval(retval, "IDAInit"));
 
-	// Call IDASStolerances to set tolerances.
-	retval = IDASStolerances(
-			data->idaMemory, data->relativeTolerance, data->absoluteTolerance);
-	exitOnError(checkRetval(&retval, "IDASStolerances", 1));
+	// Call IDASVtolerances to set tolerances.
+	retval = IDASVtolerances(data->idaMemory, data->relativeTolerance, data->tolerancesVector);
+	exitOnError(checkRetval(retval, "IDASVtolerances"));
+	N_VDestroy(data->tolerancesVector);
 
 	// Create sparse SUNMatrix for use in linear solver.
 	data->sparseMatrix = SUNSparseMatrix(
@@ -413,46 +435,54 @@ inline bool idaInit(void* userData, T threads)
 			data->scalarEquationsNumber,
 			data->nonZeroValuesNumber,
 			CSR_MAT);
-	exitOnError(checkRetval((void*) data->sparseMatrix, "SUNSparseMatrix", 0));
+	exitOnError(checkAllocation((void*) data->sparseMatrix, "SUNSparseMatrix"));
 
 	// Create and attach a KLU SUNLinearSolver object.
 	data->linearSolver = SUNLinSol_KLU(data->variablesVector, data->sparseMatrix);
-	exitOnError(checkRetval((void*) data->linearSolver, "SUNLinSol_KLU", 0));
+	exitOnError(checkAllocation((void*) data->linearSolver, "SUNLinSol_KLU"));
 
-	retval = IDASetLinearSolver(
-			data->idaMemory, data->linearSolver, data->sparseMatrix);
-	exitOnError(checkRetval(&retval, "IDASetLinearSolver", 1));
+	retval = IDASetLinearSolver(data->idaMemory, data->linearSolver, data->sparseMatrix);
+	exitOnError(checkRetval(retval, "IDASetLinearSolver"));
 
 	// Set the user-supplied Jacobian routine.
 	retval = IDASetJacFn(data->idaMemory, jacobianMatrix);
-	exitOnError(checkRetval(&retval, "IDASetJacFn", 1));
+	exitOnError(checkRetval(retval, "IDASetJacFn"));
 
 	// Add the remaining optional paramters.
 	retval = IDASetUserData(data->idaMemory, (void*) data);
-	exitOnError(checkRetval(&retval, "IDASetUserData", 1));
+	exitOnError(checkRetval(retval, "IDASetUserData"));
 
 	retval = IDASetId(data->idaMemory, data->idVector);
-	exitOnError(checkRetval(&retval, "IDASetId", 1));
+	exitOnError(checkRetval(retval, "IDASetId"));
 
 	retval = IDASetStopTime(data->idaMemory, data->endTime);
-	exitOnError(checkRetval(&retval, "IDASetStopTime", 1));
+	exitOnError(checkRetval(retval, "IDASetStopTime"));
 
 	// Increase the maximum number of steps taken by IDA before failing.
-	retval = IDASetMaxNumSteps(data->idaMemory, 1000);
-	exitOnError(checkRetval(&retval, "IDASetMaxNumSteps", 1));
+	retval = IDASetMaxNumSteps(data->idaMemory, MAX_NUM_STEPS);
+	exitOnError(checkRetval(retval, "IDASetMaxNumSteps"));
 
-	retval = IDASetMaxNumStepsIC(data->idaMemory, 50);
-	exitOnError(checkRetval(&retval, "IDASetMaxNumStepsIC", 1));
+	retval = IDASetMaxErrTestFails(data->idaMemory, MAX_ERR_TEST_FAIL);
+	exitOnError(checkRetval(retval, "IDASetMaxErrTestFails"));
 
-	retval = IDASetMaxNumJacsIC(data->idaMemory, 40);
-	exitOnError(checkRetval(&retval, "IDASetMaxNumJacsIC", 1));
+	retval = IDASetMaxNonlinIters(data->idaMemory, MAX_NONLIN_ITERS);
+	exitOnError(checkRetval(retval, "IDASetMaxNonlinIters"));
 
-	retval = IDASetMaxNumItersIC(data->idaMemory, 100);
-	exitOnError(checkRetval(&retval, "IDASetMaxNumItersIC", 1));
+	retval = IDASetMaxConvFails(data->idaMemory, MAX_CONV_FAILS);
+	exitOnError(checkRetval(retval, "IDASetMaxConvFails"));
+
+	retval = IDASetMaxNumStepsIC(data->idaMemory, MAX_NUM_STEPS_IC);
+	exitOnError(checkRetval(retval, "IDASetMaxNumStepsIC"));
+
+	retval = IDASetMaxNumJacsIC(data->idaMemory, MAX_NUM_JACS_IC);
+	exitOnError(checkRetval(retval, "IDASetMaxNumJacsIC"));
+
+	retval = IDASetMaxNumItersIC(data->idaMemory, MAX_NUM_ITERS_IC);
+	exitOnError(checkRetval(retval, "IDASetMaxNumItersIC"));
 
 	// Call IDACalcIC to correct the initial values.
 	retval = IDACalcIC(data->idaMemory, IDA_YA_YDP_INIT, data->nextStop);
-	exitOnError(checkRetval(&retval, "IDACalcIC", 1));
+	exitOnError(checkRetval(retval, "IDACalcIC"));
 
 	return true;
 }
@@ -484,7 +514,7 @@ inline bool idaStep(void* userData)
 		data->nextStop += data->timeStep;
 
 	// Check if the solver failed
-	exitOnError(checkRetval(&retval, "IDASolve", 1));
+	exitOnError(checkRetval(retval, "IDASolve"));
 
 	return true;
 }
@@ -505,7 +535,7 @@ inline bool freeIdaUserData(void* userData)
 	IDAFree(&data->idaMemory);
 
 	int retval = SUNLinSolFree(data->linearSolver);
-	exitOnError(checkRetval(&retval, "SUNLinSolFree", 1));
+	exitOnError(checkRetval(retval, "SUNLinSolFree"));
 
 	SUNMatDestroy(data->sparseMatrix);
 	N_VDestroy(data->variablesVector);
@@ -743,6 +773,9 @@ inline void setInitialValue(
 
 	U* arrayData = array.getData();
 	realtype idValue = isState ? 1.0 : 0.0;
+	realtype absTol = isState 
+			? data->absoluteTolerance
+			: std::min(ALGEBRAIC_TOLERANCE, data->absoluteTolerance);
 
 	Indexes indexes;
 	for (size_t dim = 0; dim < dimensions.size(); dim++)
@@ -751,12 +784,13 @@ inline void setInitialValue(
 	do
 	{
 		if (array.hasData(indexes))
-			data->variablesValues[offset] = *arrayData++;
+			data->variableValues[offset] = *arrayData++;
 		else
-			data->variablesValues[offset] = 0;
+			data->variableValues[offset] = 0;
 
-		data->derivativesValues[offset] = 0.0;
-		data->idValues[offset++] = idValue;
+		data->derivativeValues[offset] = 0.0;
+		data->idValues[offset] = idValue;
+		data->toleranceValues[offset++] = absTol;
 	} while (updateIndexes(indexes, dimensions));
 }
 
@@ -788,7 +822,7 @@ inline double getIdaVariable(void* userData, T index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	assert(index < data->scalarEquationsNumber);
-	return data->variablesValues[index];
+	return data->variableValues[index];
 }
 
 RUNTIME_FUNC_DEF(getIdaVariable, float, PTR(void), int32_t)
@@ -799,7 +833,7 @@ inline double getIdaDerivative(void* userData, T index)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 	assert(index < data->scalarEquationsNumber);
-	return data->derivativesValues[index];
+	return data->derivativeValues[index];
 }
 
 RUNTIME_FUNC_DEF(getIdaDerivative, float, PTR(void), int32_t)
