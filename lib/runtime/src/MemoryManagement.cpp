@@ -21,7 +21,7 @@ class MemoryProfiler : public Profiler
     freeCalls = 0;
     totalHeapMemory = 0;
     currentHeapMemory = 0;
-    maxHeapMemory = 0;
+    peakHeapMemory = 0;
     accumulatedTime = std::chrono::duration_values<std::chrono::nanoseconds>::zero();
   }
 
@@ -36,7 +36,7 @@ class MemoryProfiler : public Profiler
       std::cout << "[Warning] Possible double 'free' detected\n";
 
     std::cout << "Total amount of heap allocated memory: " << totalHeapMemory << " bytes\n";
-    std::cout << "Maximum amount of heap allocated memory at the same time: " << maxHeapMemory << " bytes\n";
+    std::cout << "Peak of heap memory usage: " << peakHeapMemory << " bytes\n";
     std::cout << "Time spent in heap memory management: " << time() << " ms\n";
   }
 
@@ -48,8 +48,8 @@ class MemoryProfiler : public Profiler
     currentHeapMemory += bytes;
     sizes[address] = bytes;
 
-    if (currentHeapMemory > maxHeapMemory)
-      maxHeapMemory = currentHeapMemory;
+    if (currentHeapMemory > peakHeapMemory)
+      peakHeapMemory = currentHeapMemory;
   }
 
   void free(void* address)
@@ -83,7 +83,7 @@ class MemoryProfiler : public Profiler
   size_t freeCalls;
   int64_t totalHeapMemory;
   int64_t currentHeapMemory;
-  int64_t maxHeapMemory;
+  int64_t peakHeapMemory;
   std::map<void*, int64_t> sizes;
   std::chrono::steady_clock::time_point start;
   std::chrono::nanoseconds accumulatedTime;
