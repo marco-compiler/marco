@@ -369,7 +369,7 @@ struct MemberAllocOpLowering : public mlir::OpRewritePattern<MemberCreateOp>
 				// We need to allocate a fake buffer in order to allow the first
 				// free operation to operate on a valid memory area.
 
-				ArrayType::Shape shape(arrayType.getRank(), 1);
+				ArrayType::Shape shape(arrayType.getRank(), 0);
 				mlir::Value var = rewriter.create<AllocOp>(loc, arrayType.getElementType(), shape, llvm::None, false);
 				var = rewriter.create<ArrayCastOp>(loc, var, arrayType);
 				rewriter.create<StoreOp>(loc, var, stackValue);

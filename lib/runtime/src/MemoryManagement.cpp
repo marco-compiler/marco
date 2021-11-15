@@ -103,7 +103,7 @@ inline void* heapAlloc(int64_t sizeInBytes)
   profiler().startTimer();
 #endif
 
-	void* result = malloc(sizeInBytes);
+	void* result = sizeInBytes == 0 ? nullptr : malloc(sizeInBytes);
 
 #ifdef MARCO_PROFILING
 	profiler().stopTimer();
@@ -122,7 +122,8 @@ inline void heapFree(void* ptr)
   profiler().startTimer();
 #endif
 
-	free(ptr);
+  if (ptr != nullptr)
+	  free(ptr);
 
 #ifdef MARCO_PROFILING
   profiler().stopTimer();
