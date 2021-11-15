@@ -1037,6 +1037,54 @@ llvm::Error ConstantFolder::foldSubscriptionOp(Expression& expression)
 		if (auto error = run<Expression>(**it); error)
 			return error;
 
+	auto new_args = operation->getArguments();
+
+	//substitutes the subscription with the constant value, if possible
+	if(new_args.size() == 2 && new_args[0]->isa<ReferenceAccess>() && new_args[1]->isa<Constant>()){
+		auto* reference = new_args[0]->get<ReferenceAccess>();
+		auto* index = new_args[1]->get<Constant>();
+
+		if(index->isa<BuiltInType::Integer>()){
+			int int_index = index->as<BuiltInType::Integer>();
+
+			if(int_index < 0){
+				// negative index : probably an error
+				return llvm::Error::success();
+			}
+
+			if (symbolTable.count(reference->getName()) == 0)
+			{
+				// Built-in variables (such as time) or functions are not in the symbol
+				// table.
+				return llvm::Error::success();
+			}
+
+			const auto& symbol = symbolTable.lookup(reference->getName());
+
+			if (!symbol.isa<Member>())
+				return llvm::Error::success();
+
+			// Try to fold references of known variables that have a initializer
+			const auto* member = symbol.get<Member>();
+
+			if (!member->hasInitializer())
+				return llvm::Error::success();
+
+			auto* initializer = member->getInitializer();
+
+			if (initializer->isa<Array>() && member->isParameter()){
+				auto* array = initializer->get<Array>();
+
+				if(int_index < array->size()){
+					//if all conditions are met, substitute the subscription with the constant value
+					expression = *(*array)[int_index];
+				}
+				return llvm::Error::success();
+			}
+		}
+
+	}
+
 	return llvm::Error::success();
 }
 
