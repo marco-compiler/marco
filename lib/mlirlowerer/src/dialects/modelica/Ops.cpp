@@ -1351,11 +1351,13 @@ void CallOp::print(mlir::OpAsmPrinter& printer)
 
 void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
+  /*
 	// The callee may have no arguments and no results, but still have side
 	// effects (i.e. an external function writing elsewhere). Thus we need to
 	// consider the call itself as if it is has side effects and prevent the
 	// CSE pass to erase it.
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
+   */
 
 	// Declare the side effects on the array arguments.
 	unsigned int movedResultsCount = movedResults();

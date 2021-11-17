@@ -869,7 +869,6 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
     mlir::BlockAndValueMapping mapping;
 
     auto originalVars = eq->getParentOfType<SimulationOp>().body().getArguments();
-    //auto originalVars = vars;
     assert(originalVars.size() == function.getNumArguments());
 
     for (const auto& [oldVar, newVar] : llvm::zip(originalVars, function.getArguments()))
@@ -903,7 +902,64 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 
     function.eraseArguments(argsToBeRemoved);
 
+    // Move loop invariants. This is needed because we scalarize the array
+    // assignments, and thus arrays may be allocated way more times than
+    // needed. Once the new matching & scheduling process will be complete,
+    // this will hopefully not be required anymore.
+
+    function.walk([&](mlir::LoopLikeOpInterface loopLike) {
+      moveLoopInvariantCode(loopLike);
+    });
+
     return function;
+  }
+
+  // To be removed once the new matching & scheduling process is finished
+  void moveLoopInvariantCode(mlir::LoopLikeOpInterface looplike) const
+  {
+    auto& loopBody = looplike.getLoopBody();
+
+    // We use two collections here as we need to preserve the order for insertion
+    // and this is easiest.
+    llvm::SmallPtrSet<mlir::Operation*, 8> willBeMovedSet;
+    llvm::SmallVector<mlir::Operation*, 8> opsToMove;
+
+    // Helper to check whether an operation is loop invariant wrt. SSA properties.
+    auto isDefinedOutsideOfBody = [&](mlir::Value value) {
+        auto definingOp = value.getDefiningOp();
+        return (definingOp && !!willBeMovedSet.count(definingOp)) ||
+               looplike.isDefinedOutsideOfLoop(value);
+    };
+
+    // Do not use walk here, as we do not want to go into nested regions and hoist
+    // operations from there. These regions might have semantics unknown to this
+    // rewriting. If the nested regions are loops, they will have been processed.
+    for (auto &block : loopBody) {
+      for (auto &op : block.without_terminator()) {
+        if (canBeHoisted(&op, isDefinedOutsideOfBody)) {
+          opsToMove.push_back(&op);
+          willBeMovedSet.insert(&op);
+        }
+      }
+    }
+
+    looplike.moveOutOfLoop(opsToMove);
+  }
+
+  // To be removed once the new matching & scheduling process is finished
+  static bool canBeHoisted(mlir::Operation* op, std::function<bool(mlir::Value)> definedOutside)
+  {
+    if (!llvm::all_of(op->getOperands(), definedOutside))
+      return false;
+
+    for (auto &region : op->getRegions()) {
+      for (auto &block : region) {
+        for (auto &innerOp : block.without_terminator())
+          if (!canBeHoisted(&innerOp, definedOutside))
+            return false;
+      }
+    }
+    return true;
   }
 
 	void printSeparator(mlir::OpBuilder& builder, mlir::Value separator) const
@@ -1637,9 +1693,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				return signalPassFailure();
 		});
 
-    //if (auto status = hoistLoopInvariants(); failed(status))
-    //  return signalPassFailure();
-
 		// The model has been solved and we can now proceed to create the update
 		// functions and, if requested, the main simulation loop.
 		if (auto status = createSimulationFunctions(derivatives); failed(status))
@@ -1832,44 +1885,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 	{
 		assert(false && "To be implemented");
 	}
-
-  mlir::LogicalResult hoistLoopInvariants()
-  {
-    /*
-    getOperation()->walk([](ForEquationOp forEquation) {
-      mlir::Block* body = forEquation.body();
-
-      // TODO: eager iteration
-      for (auto& op : body->getOperations())
-      {
-        if (auto& arg : op.getOperands())
-        {
-          if (arg isdependentonloop)
-            skip;
-
-          for (auto result : op.getResults())
-          {
-            bool isWrittenInto = llvm::any_of(result.getUsers(), [](const auto& user) {
-                if (auto memInterface = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(user))
-                {
-                  llvm::SmallVector<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>, 3> effects;
-
-                  if (exists write effect on result)
-                    return true;
-
-                  return false;
-                }
-
-                return false;
-            })
-          }
-        }
-      }
-    });
-     */
-
-    return mlir::success();
-  }
 
 	mlir::LogicalResult createSimulationFunctions(mlir::BlockAndValueMapping& derivativesMap)
 	{
