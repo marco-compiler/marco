@@ -31,43 +31,6 @@ namespace marco::codegen
 		}
 	};
 
-	struct ModelicaLoweringOptions
-	{
-		bool x64 = true;
-		SolveModelOptions solveModelOptions = SolveModelOptions::getDefaultOptions();
-		FunctionsVectorizationOptions functionsVectorizationOptions = FunctionsVectorizationOptions::getDefaultOptions();
-		bool inlining = true;
-		bool resultBuffersToArgs = true;
-		bool cse = true;
-		bool openmp = false;
-		ModelicaConversionOptions conversionOptions = ModelicaConversionOptions::getDefaultOptions();
-		ModelicaToLLVMConversionOptions llvmOptions = ModelicaToLLVMConversionOptions::getDefaultOptions();
-		bool debug = true;
-
-		[[nodiscard]] unsigned int getBitWidth() const
-		{
-			if (x64)
-				return 64;
-
-			return 32;
-		}
-
-		static const ModelicaLoweringOptions& getDefaultOptions()
-		{
-			static ModelicaLoweringOptions options;
-			return options;
-		}
-	};
-
-	struct ModelicaCodegenOptions {
-
-	    static const ModelicaCodegenOptions& getDefaultOptions()
-	    {
-	        static ModelicaCodegenOptions options;
-	        return options;
-	    }
-	};
-
 	class Reference
 	{
 		public:
@@ -100,10 +63,7 @@ namespace marco::codegen
 		template<typename T> using Container = llvm::SmallVector<T, 3>;
 
 		public:
-		explicit MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions(),
-                             ModelicaCodegenOptions codegenOptions = ModelicaCodegenOptions::getDefaultOptions());
-
-		mlir::LogicalResult convertToLLVMDialect(mlir::ModuleOp& module, ModelicaLoweringOptions options = ModelicaLoweringOptions::getDefaultOptions());
+		explicit MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options = ModelicaOptions::getDefaultOptions());
 
 		llvm::Optional<mlir::ModuleOp> run(llvm::ArrayRef<std::unique_ptr<frontend::Class>> classes);
 
@@ -145,7 +105,6 @@ namespace marco::codegen
 		 * this is where the next operations will be introduced.
 		 */
 		modelica::ModelicaBuilder builder;
-
 
 		/**
 		 * The symbol table maps a variable name to a value in the current scope.
@@ -196,7 +155,6 @@ namespace marco::codegen
 		mlir::Location loc(SourceRange location);
 
 		ModelicaOptions options;
-		ModelicaCodegenOptions codegenOptions;
 	};
 
 	template<>

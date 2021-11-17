@@ -121,7 +121,7 @@ struct SimulationOpLoopifyPattern : public mlir::OpRewritePattern<SimulationOp>
 		}
 
 		// Replace operation with a new one
-		auto result = rewriter.create<SimulationOp>(op->getLoc(),op.variableNames(), op.startTime(), op.endTime(), op.timeStep(), op.body().getArgumentTypes());
+		auto result = rewriter.create<SimulationOp>(op->getLoc(), op.variableNames(), op.startTime(), op.endTime(), op.timeStep(), op.body().getArgumentTypes());
 		rewriter.mergeBlocks(&op.init().front(), &result.init().front(), result.init().getArguments());
 		rewriter.mergeBlocks(&op.body().front(), &result.body().front(), result.body().getArguments());
 
@@ -760,7 +760,7 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 		mlir::Value endTime = rewriter.create<ConstantOp>(loc, op.endTime());
 		//endTime = rewriter.create<AddOp>(loc, endTime.getType(), endTime, timeStep);
 
-		mlir::Value condition = rewriter.create<LtOp>(loc, BooleanType::get(op->getContext()), currentTime, endTime);
+		mlir::Value condition = rewriter.create<LteOp>(loc, BooleanType::get(op->getContext()), increasedTime, endTime);
 		condition = getTypeConverter()->materializeTargetConversion(rewriter, condition.getLoc(), rewriter.getI1Type(), condition);
 
 		auto ifOp = rewriter.create<mlir::scf::IfOp>(loc, rewriter.getI1Type(), condition, true);
@@ -770,13 +770,39 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 		// true to continue the simulation.
 		rewriter.setInsertionPointToStart(&ifOp.thenRegion().front());
 
-		mlir::Value trueValue = rewriter.create<mlir::ConstantOp>(
+		auto trueValue = rewriter.create<mlir::ConstantOp>(
 				loc, rewriter.getBoolAttr(true));
 
-		auto terminator = rewriter.create<mlir::scf::YieldOp>(loc, trueValue);
+		rewriter.create<mlir::scf::YieldOp>(loc, trueValue.getResult());
 
-		rewriter.eraseOp(op.body().front().getTerminator());
-		rewriter.mergeBlockBefore(&op.body().front(), terminator, vars);
+    // Copy the body of the simulation
+    mlir::BlockAndValueMapping mapping;
+
+    for (const auto& [oldVar, newVar] : llvm::zip(op.body().getArguments(), vars))
+      mapping.map(oldVar, newVar);
+
+    // We need to keep track of the amount of equations processed, so that
+    // we can give a unique name to each function generated.
+    llvm::SmallVector<mlir::Value, 3> usedVars;
+    size_t equationCounter = 0;
+
+    rewriter.setInsertionPoint(trueValue);
+
+    for (auto& bodyOp : op.body().front().without_terminator())
+    {
+      if (auto equation = mlir::dyn_cast<ForEquationOp>(bodyOp))
+      {
+        usedVars.clear();
+
+        mlir::FuncOp equationFunction = convertForEquation(rewriter, equation, equationCounter, vars, usedVars);
+        rewriter.create<mlir::CallOp>(equation->getLoc(), equationFunction, usedVars);
+        ++equationCounter;
+      }
+      else
+      {
+        rewriter.clone(bodyOp, mapping);
+      }
+    }
 
 		// Otherwise, return false to stop the simulation
 		mlir::OpBuilder::InsertionGuard g(rewriter);
@@ -789,6 +815,96 @@ struct SimulationOpPattern : public mlir::ConvertOpToLLVMPattern<SimulationOp>
 
 		return mlir::success();
 	}
+
+  mlir::FuncOp convertForEquation(
+          mlir::ConversionPatternRewriter& rewriter,
+          ForEquationOp eq, size_t counter,
+          mlir::ValueRange vars,
+          llvm::SmallVectorImpl<mlir::Value>& usedVars) const
+  {
+    mlir::OpBuilder::InsertionGuard guard(rewriter);
+    mlir::Location loc = eq->getLoc();
+
+    auto module = eq->getParentOfType<mlir::ModuleOp>();
+    rewriter.setInsertionPointToEnd(module.getBody());
+
+    auto functionType = rewriter.getFunctionType(vars.getTypes(), llvm::None);
+    auto name = "eq" + std::to_string(counter);
+
+    auto function = rewriter.create<mlir::FuncOp>(loc, name, functionType);
+
+    auto* entryBlock = function.addEntryBlock();
+    rewriter.setInsertionPointToStart(entryBlock);
+
+    // Create the loops
+    llvm::SmallVector<mlir::Value, 3> lowerBounds;
+    llvm::SmallVector<mlir::Value, 3> upperBounds;
+    llvm::SmallVector<mlir::Value, 3> steps;
+
+    for (auto induction : eq.inductionsDefinitions())
+    {
+      auto inductionOp = mlir::cast<InductionOp>(induction.getDefiningOp());
+
+      mlir::Value start = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(inductionOp.start()));
+      mlir::Value end = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(inductionOp.end() + 1));
+      mlir::Value step = rewriter.create<ConstantOp>(induction.getLoc(), rewriter.getIndexAttr(1));
+
+      lowerBounds.push_back(start);
+      upperBounds.push_back(end);
+      steps.push_back(step);
+    }
+
+    llvm::SmallVector<mlir::Value, 3> inductions;
+
+    for (const auto& [lowerBound, upperBound, step] : llvm::zip(lowerBounds, upperBounds, steps))
+    {
+      auto forOp = rewriter.create<mlir::scf::ForOp>(loc, lowerBound, upperBound, step);
+      inductions.push_back(forOp.getInductionVar());
+      rewriter.setInsertionPointToStart(forOp.getBody());
+    }
+
+    // Before moving the equation body, we need to map the old variables of
+    // the SimulationOp to the new ones living in the dedicated function.
+    // The same must be done with the induction variables.
+    mlir::BlockAndValueMapping mapping;
+
+    auto originalVars = eq->getParentOfType<SimulationOp>().body().getArguments();
+    //auto originalVars = vars;
+    assert(originalVars.size() == function.getNumArguments());
+
+    for (const auto& [oldVar, newVar] : llvm::zip(originalVars, function.getArguments()))
+      mapping.map(oldVar, newVar);
+
+    auto originalInductions = eq.body()->getArguments();
+    assert(originalInductions.size() == inductions.size());
+
+    for (const auto& [oldInduction, newInduction] : llvm::zip(originalInductions, inductions))
+      mapping.map(oldInduction, newInduction);
+
+    for (auto& op : eq.body()->getOperations())
+    {
+      rewriter.clone(op, mapping);
+    }
+
+    // Create the return instruction
+    rewriter.setInsertionPointToEnd(&function.body().back());
+    rewriter.create<mlir::ReturnOp>(loc);
+
+    // Remove the arguments that are not used
+    llvm::SmallVector<unsigned int, 3> argsToBeRemoved;
+
+    for (const auto& arg : function.getArguments())
+    {
+      if (arg.getUsers().empty())
+        argsToBeRemoved.push_back(arg.getArgNumber());
+      else
+        usedVars.push_back(vars[arg.getArgNumber()]);
+    }
+
+    function.eraseArguments(argsToBeRemoved);
+
+    return function;
+  }
 
 	void printSeparator(mlir::OpBuilder& builder, mlir::Value separator) const
 	{
@@ -1521,6 +1637,9 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				return signalPassFailure();
 		});
 
+    //if (auto status = hoistLoopInvariants(); failed(status))
+    //  return signalPassFailure();
+
 		// The model has been solved and we can now proceed to create the update
 		// functions and, if requested, the main simulation loop.
 		if (auto status = createSimulationFunctions(derivatives); failed(status))
@@ -1714,6 +1833,44 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		assert(false && "To be implemented");
 	}
 
+  mlir::LogicalResult hoistLoopInvariants()
+  {
+    /*
+    getOperation()->walk([](ForEquationOp forEquation) {
+      mlir::Block* body = forEquation.body();
+
+      // TODO: eager iteration
+      for (auto& op : body->getOperations())
+      {
+        if (auto& arg : op.getOperands())
+        {
+          if (arg isdependentonloop)
+            skip;
+
+          for (auto result : op.getResults())
+          {
+            bool isWrittenInto = llvm::any_of(result.getUsers(), [](const auto& user) {
+                if (auto memInterface = mlir::dyn_cast<mlir::MemoryEffectOpInterface>(user))
+                {
+                  llvm::SmallVector<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>, 3> effects;
+
+                  if (exists write effect on result)
+                    return true;
+
+                  return false;
+                }
+
+                return false;
+            })
+          }
+        }
+      }
+    });
+     */
+
+    return mlir::success();
+  }
+
 	mlir::LogicalResult createSimulationFunctions(mlir::BlockAndValueMapping& derivativesMap)
 	{
 		mlir::ConversionTarget target(getContext());
@@ -1725,7 +1882,7 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 		mlir::OwningRewritePatternList patterns(&getContext());
 		patterns.insert<SimulationOpPattern>(&getContext(), typeConverter, options, derivativesMap);
-		patterns.insert<EquationOpPattern, ForEquationOpPattern, EquationSidesOpPattern>(&getContext());
+		patterns.insert<EquationOpPattern, EquationSidesOpPattern>(&getContext());
 
 		if (auto status = applyPartialConversion(getOperation(), target, std::move(patterns)); failed(status))
         return status;

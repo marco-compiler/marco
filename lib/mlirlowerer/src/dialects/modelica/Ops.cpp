@@ -85,6 +85,22 @@ static void populateAllocationEffects(
   }
 }
 
+static void populateReadEffects(
+        mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects,
+        mlir::Value value)
+{
+  if (value.getType().isa<ArrayType>())
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), value, mlir::SideEffects::DefaultResource::get());
+}
+
+static void populateWriteEffects(
+        mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects,
+        mlir::Value value)
+{
+  if (value.getType().isa<ArrayType>())
+    effects.emplace_back(mlir::MemoryEffects::Write::get(), value, mlir::SideEffects::DefaultResource::get());
+}
+
 static bool isBreakable(mlir::Region& region)
 {
 	bool breakable = false;
@@ -1346,8 +1362,7 @@ void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 	unsigned int nativeArgsCount = args().size() - movedResultsCount;
 
 	for (size_t i = 0; i < nativeArgsCount; ++i)
-		if (args()[i].getType().isa<ArrayType>())
-			effects.emplace_back(mlir::MemoryEffects::Read::get(), args()[i], mlir::SideEffects::DefaultResource::get());
+    effects.emplace_back(mlir::MemoryEffects::Read::get(), args()[i], mlir::SideEffects::DefaultResource::get());
 
 	// Declare the side effects on the static array results that have been
 	// promoted to arguments.
@@ -1356,7 +1371,12 @@ void CallOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<
 		effects.emplace_back(mlir::MemoryEffects::Write::get(), args()[nativeArgsCount + i], mlir::SideEffects::DefaultResource::get());
 
   for (const auto& result : getResults())
+  {
     populateAllocationEffects(effects, result);
+
+    if (result.getType().isa<ArrayType>())
+      effects.emplace_back(mlir::MemoryEffects::Write::get(), result, mlir::SideEffects::DefaultResource::get());
+  }
 }
 
 mlir::CallInterfaceCallable CallOp::getCallableForCallee() {
@@ -4344,7 +4364,7 @@ mlir::LogicalResult NegateOp::invert(mlir::OpBuilder& builder, unsigned int argu
 			use.set(right.getResult());
 
 	replaceAllUsesWith(operand());
-	getOperation()->remove();
+	erase();
 
 	return mlir::success();
 }

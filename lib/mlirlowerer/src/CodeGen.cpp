@@ -1,13 +1,8 @@
 #include <llvm/ADT/SmallVector.h>
-#include <mlir/Conversion/Passes.h>
-#include <mlir/IR/Verifier.h>
-#include <mlir/Pass/PassManager.h>
-#include <mlir/Transforms/Passes.h>
 #include <marco/frontend/AST.h>
-#include <marco/frontend/SymbolTable.hpp>
 #include <marco/mlirlowerer/CodeGen.h>
 #include <marco/mlirlowerer/dialects/modelica/ModelicaDialect.h>
-#include <numeric>
+#include <mlir/IR/Verifier.h>
 
 using namespace marco;
 using namespace frontend;
@@ -99,58 +94,12 @@ Reference Reference::member(mlir::OpBuilder* builder, mlir::Value value)
 			});
 }
 
-MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options, ModelicaCodegenOptions codegenOptions)
+MLIRLowerer::MLIRLowerer(mlir::MLIRContext& context, ModelicaOptions options)
 		: builder(&context),
-			options(options),
-			codegenOptions(codegenOptions)
+			options(options)
 {
 	context.loadDialect<ModelicaDialect>();
 	context.loadDialect<mlir::StandardOpsDialect>();
-}
-
-mlir::LogicalResult MLIRLowerer::convertToLLVMDialect(mlir::ModuleOp& module, ModelicaLoweringOptions loweringOptions)
-{
-	mlir::PassManager passManager(builder.getContext());
-
-	passManager.addPass(createAutomaticDifferentiationPass());
-	passManager.addPass(createSolveModelPass(loweringOptions.solveModelOptions));
-	passManager.addPass(createFunctionsVectorizationPass(loweringOptions.functionsVectorizationOptions));
-	passManager.addPass(createExplicitCastInsertionPass());
-
-	if (loweringOptions.resultBuffersToArgs)
-		passManager.addPass(createResultBuffersToArgsPass());
-
-	if (loweringOptions.inlining)
-		passManager.addPass(mlir::createInlinerPass());
-
-	passManager.addPass(mlir::createCanonicalizerPass());
-
-	if (loweringOptions.cse)
-		passManager.addNestedPass<FunctionOp>(mlir::createCSEPass());
-
-	passManager.addPass(createFunctionConversionPass());
-
-  // The buffer deallocation pass must be placed after the Modelica's
-  // functions and members conversion, so that we can operate on an IR
-  // without hidden allocs and frees.
-  // However the pass must also be placed before the conversion of the
-  // more common Modelica operations (i.e. add, sub, call, etc.), in
-  // order to take into consideration their memory effects.
-  passManager.addPass(createBufferDeallocationPass());
-
-	passManager.addPass(createModelicaConversionPass(loweringOptions.conversionOptions, loweringOptions.getBitWidth()));
-
-	if (loweringOptions.openmp)
-		passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
-
-	passManager.addPass(createLowerToCFGPass(loweringOptions.getBitWidth()));
-	passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertMathToLLVMPass());
-	passManager.addPass(createLLVMLoweringPass(loweringOptions.llvmOptions, loweringOptions.getBitWidth()));
-
-	if (!loweringOptions.debug)
-		passManager.addPass(mlir::createStripDebugInfoPass());
-
-	return passManager.run(module);
 }
 
 mlir::Location MLIRLowerer::loc(SourcePosition location)

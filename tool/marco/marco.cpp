@@ -13,12 +13,14 @@
 #include <marco/frontend/Parser.h>
 #include <marco/frontend/Passes.h>
 #include <marco/mlirlowerer/CodeGen.h>
+#include <marco/mlirlowerer/Passes.h>
 #include <marco/utils/VariableFilter.h>
 #include <mlir/Conversion/Passes.h>
 #include <mlir/Dialect/LLVMIR/LLVMDialect.h>
 #include <mlir/Dialect/StandardOps/IR/Ops.h>
 #include <mlir/Dialect/StandardOps/Transforms/Passes.h>
 #include <mlir/ExecutionEngine/OptUtils.h>
+#include <mlir/IR/BuiltinOps.h>
 #include <mlir/IR/MLIRContext.h>
 #include <mlir/Pass/PassManager.h>
 #include <mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h>
@@ -87,8 +89,39 @@ static cl::opt<double> timeStep("time-step", cl::desc("Time step (in seconds) (d
 
 static llvm::ExitOnError exitOnErr;
 
+struct ModelicaLoweringOptions
+{
+    bool x64 = true;
+    codegen::SolveModelOptions solveModelOptions = codegen::SolveModelOptions::getDefaultOptions();
+    codegen::FunctionsVectorizationOptions functionsVectorizationOptions = codegen::FunctionsVectorizationOptions::getDefaultOptions();
+    bool inlining = true;
+    bool resultBuffersToArgs = true;
+    bool cse = true;
+    bool openmp = false;
+    codegen::ModelicaConversionOptions conversionOptions = codegen::ModelicaConversionOptions::getDefaultOptions();
+    codegen::ModelicaToLLVMConversionOptions llvmOptions = codegen::ModelicaToLLVMConversionOptions::getDefaultOptions();
+    bool debug = true;
+
+    unsigned int getBitWidth() const
+    {
+      if (x64)
+        return 64;
+
+      return 32;
+    }
+
+    static const ModelicaLoweringOptions& getDefaultOptions()
+    {
+      static ModelicaLoweringOptions options;
+      return options;
+    }
+};
+
+static mlir::LogicalResult lower(mlir::ModuleOp& module, ModelicaLoweringOptions options);
+
 int main(int argc, char* argv[])
 {
+  // Setup the command line options
 	llvm::SmallVector<const cl::OptionCategory*> categories;
 	categories.push_back(&modelSolvingOptions);
 	categories.push_back(&codeGenOptions);
@@ -109,6 +142,7 @@ int main(int argc, char* argv[])
 
 	auto variableFilter = exitOnErr(VariableFilter::fromString(filter));
 
+  // Parse the input files
 	llvm::SmallVector<std::unique_ptr<frontend::Class>, 3> classes;
 
 	if (inputFiles.empty())
@@ -169,7 +203,7 @@ int main(int argc, char* argv[])
 	}
 
 	// Convert to LLVM dialect
-	codegen::ModelicaLoweringOptions loweringOptions;
+	ModelicaLoweringOptions loweringOptions;
 	loweringOptions.solveModelOptions.emitMain = emitMain;
 	loweringOptions.solveModelOptions.variableFilter = &variableFilter;
 	loweringOptions.solveModelOptions.matchingMaxIterations = matchingMaxIterations;
@@ -206,7 +240,7 @@ int main(int argc, char* argv[])
 		}
 	}
 
-	if (mlir::failed(lowerer.convertToLLVMDialect(*module, loweringOptions)))
+	if (mlir::failed(lower(*module, loweringOptions)))
 	{
 		llvm::errs() << "Failed to convert module to LLVM\n";
 		return -1;
@@ -256,4 +290,49 @@ int main(int argc, char* argv[])
 
 	llvm::WriteBitcodeToFile(*llvmModule, os);
 	return 0;
+}
+
+mlir::LogicalResult lower(mlir::ModuleOp& module, ModelicaLoweringOptions options)
+{
+  mlir::PassManager passManager(module.getContext());
+
+  passManager.addPass(codegen::createAutomaticDifferentiationPass());
+  passManager.addPass(codegen::createSolveModelPass(options.solveModelOptions));
+  passManager.addPass(codegen::createFunctionsVectorizationPass(options.functionsVectorizationOptions));
+  passManager.addPass(codegen::createExplicitCastInsertionPass());
+
+  if (options.resultBuffersToArgs)
+    passManager.addPass(codegen::createResultBuffersToArgsPass());
+
+  if (options.inlining)
+    passManager.addPass(mlir::createInlinerPass());
+
+  passManager.addPass(mlir::createCanonicalizerPass());
+
+  if (options.cse)
+    passManager.addNestedPass<codegen::modelica::FunctionOp>(mlir::createCSEPass());
+
+  passManager.addPass(codegen::createFunctionConversionPass());
+
+  // The buffer deallocation pass must be placed after the Modelica's
+  // functions and members conversion, so that we can operate on an IR
+  // without hidden allocs and frees.
+  // However the pass must also be placed before the conversion of the
+  // more common Modelica operations (i.e. add, sub, call, etc.), in
+  // order to take into consideration their memory effects.
+  passManager.addPass(codegen::createBufferDeallocationPass());
+
+  passManager.addPass(codegen::createModelicaConversionPass(options.conversionOptions, options.getBitWidth()));
+
+  if (options.openmp)
+    passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertSCFToOpenMPPass());
+
+  passManager.addPass(codegen::createLowerToCFGPass(options.getBitWidth()));
+  passManager.addNestedPass<mlir::FuncOp>(mlir::createConvertMathToLLVMPass());
+  passManager.addPass(codegen::createLLVMLoweringPass(options.llvmOptions, options.getBitWidth()));
+
+  if (!options.debug)
+    passManager.addPass(mlir::createStripDebugInfoPass());
+
+  return passManager.run(module);
 }

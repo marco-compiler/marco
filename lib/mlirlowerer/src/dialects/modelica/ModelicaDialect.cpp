@@ -26,7 +26,7 @@ class ModelicaInlinerInterface : public mlir::DialectInlinerInterface
 
 	bool isLegalToInline(mlir::Operation* op, mlir::Region* dest, bool wouldBeCloned, mlir::BlockAndValueMapping& valueMapping) const final
 	{
-		return true;
+		return false;
 	}
 
 	void handleTerminator(mlir::Operation* op, llvm::ArrayRef<mlir::Value> valuesToReplace) const final {
