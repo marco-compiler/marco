@@ -719,121 +719,83 @@ mlir::Value AddJacobianOp::rightIndex()
 }
 
 //===----------------------------------------------------------------------===//
-// Ida::AddVarOffsetOp
+// Ida::AddVariableOp
 //===----------------------------------------------------------------------===//
 
-llvm::ArrayRef<llvm::StringRef> AddVarOffsetOp::getAttributeNames()
+llvm::ArrayRef<llvm::StringRef> AddVariableOp::getAttributeNames()
 {
 	return {};
 }
 
-void AddVarOffsetOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value dimension)
+void AddVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value array, mlir::Value isState)
 {
 	state.addTypes(IntegerType::get(builder.getContext()));
 	state.addOperands(userData);
-	state.addOperands(dimension);
+	state.addOperands(index);
+	state.addOperands(array);
+	state.addOperands(isState);
 }
 
-mlir::ParseResult AddVarOffsetOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+mlir::ParseResult AddVariableOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	return ida::parse(parser, result, 2);
+	return ida::parse(parser, result, 4);
 }
 
-void AddVarOffsetOp::print(mlir::OpAsmPrinter& printer)
+void AddVariableOp::print(mlir::OpAsmPrinter& printer)
 {
 	ida::print(printer, getOperationName(), args(), resultType());
 }
 
-mlir::LogicalResult AddVarOffsetOp::verify()
+mlir::LogicalResult AddVariableOp::verify()
 {
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
 
-	if (!offset().getType().isa<IntegerType>())
-		return emitOpError("Requires lambda dimension to be an integer");
+	if (!index().getType().isa<IntegerType>())
+		return emitOpError("Requires variable index to be an integer");
+
+	if (!array().getType().isa<modelica::ArrayType>())
+		return emitOpError("Requires initialization array to be an array");
+
+	if (!isState().getType().isa<BooleanType>())
+		return emitOpError("Requires variable state to be a boolean");
 
 	return mlir::success();
 }
 
-void AddVarOffsetOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+void AddVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-IntegerType AddVarOffsetOp::resultType()
+IntegerType AddVariableOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<IntegerType>();
 }
 
-mlir::ValueRange AddVarOffsetOp::args()
+mlir::ValueRange AddVariableOp::args()
 {
 	return mlir::ValueRange(getOperation()->getOperands());
 }
 
-mlir::Value AddVarOffsetOp::userData()
+mlir::Value AddVariableOp::userData()
 {
 	return getOperation()->getOperand(0);
 }
 
-mlir::Value AddVarOffsetOp::offset()
+mlir::Value AddVariableOp::index()
 {
 	return getOperation()->getOperand(1);
 }
 
-//===----------------------------------------------------------------------===//
-// Ida::AddVarDimensionOp
-//===----------------------------------------------------------------------===//
-
-llvm::ArrayRef<llvm::StringRef> AddVarDimensionOp::getAttributeNames()
+mlir::Value AddVariableOp::array()
 {
-	return {};
+	return getOperation()->getOperand(2);
 }
 
-void AddVarDimensionOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value dimensions)
+mlir::Value AddVariableOp::isState()
 {
-	state.addOperands(userData);
-	state.addOperands(dimensions);
-}
-
-mlir::ParseResult AddVarDimensionOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return ida::parse(parser, result, 2);
-}
-
-void AddVarDimensionOp::print(mlir::OpAsmPrinter& printer)
-{
-	ida::print(printer, getOperationName(), args());
-}
-
-mlir::LogicalResult AddVarDimensionOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!dimensions().getType().isa<modelica::ArrayType>())
-		return emitOpError("Requires variable dimensions to be an array of integers");
-
-	return mlir::success();
-}
-
-void AddVarDimensionOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-mlir::ValueRange AddVarDimensionOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value AddVarDimensionOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value AddVarDimensionOp::dimensions()
-{
-	return getOperation()->getOperand(1);
+	return getOperation()->getOperand(3);
 }
 
 //===----------------------------------------------------------------------===//
@@ -909,80 +871,6 @@ mlir::Value AddVarAccessOp::offsets()
 }
 
 mlir::Value AddVarAccessOp::inductions()
-{
-	return getOperation()->getOperand(3);
-}
-
-//===----------------------------------------------------------------------===//
-// Ida::SetInitialValueOp
-//===----------------------------------------------------------------------===//
-
-llvm::ArrayRef<llvm::StringRef> SetInitialValueOp::getAttributeNames()
-{
-	return {};
-}
-
-void SetInitialValueOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value array, mlir::Value isState)
-{
-	state.addOperands(userData);
-	state.addOperands(index);
-	state.addOperands(array);
-	state.addOperands(isState);
-}
-
-mlir::ParseResult SetInitialValueOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
-{
-	return ida::parse(parser, result, 4);
-}
-
-void SetInitialValueOp::print(mlir::OpAsmPrinter& printer)
-{
-	ida::print(printer, getOperationName(), args());
-}
-
-mlir::LogicalResult SetInitialValueOp::verify()
-{
-	if (!userData().getType().isa<OpaquePointerType>())
-		return emitOpError("Requires user data to be an opaque pointer");
-
-	if (!index().getType().isa<IntegerType>())
-		return emitOpError("Requires variable index to be an integer");
-
-	if (!array().getType().isa<modelica::ArrayType>())
-		return emitOpError("Requires initialization array to be an array");
-
-	if (!isState().getType().isa<BooleanType>())
-		return emitOpError("Requires variable state to be a boolean");
-
-	return mlir::success();
-}
-
-void SetInitialValueOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
-{
-	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-mlir::ValueRange SetInitialValueOp::args()
-{
-	return mlir::ValueRange(getOperation()->getOperands());
-}
-
-mlir::Value SetInitialValueOp::userData()
-{
-	return getOperation()->getOperand(0);
-}
-
-mlir::Value SetInitialValueOp::index()
-{
-	return getOperation()->getOperand(1);
-}
-
-mlir::Value SetInitialValueOp::array()
-{
-	return getOperation()->getOperand(2);
-}
-
-mlir::Value SetInitialValueOp::isState()
 {
 	return getOperation()->getOperand(3);
 }

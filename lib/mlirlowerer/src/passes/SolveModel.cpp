@@ -2278,9 +2278,14 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 				// If the variable has not been insterted yet, initialize it.
 				if (variableIndexMap.find(var) == variableIndexMap.end())
 				{
-					// Note the variable offset from the beginning of the variable array.
+					// Initialize variableOffset, variableDimensions, variablesValues, derivativesValues, idValues.
 					mlir::Value varOffsetOp = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, varOffset));
-					mlir::Value varIndex = builder.create<AddVarOffsetOp>(loc, userData, varOffsetOp);
+					mlir::Value isState = builder.create<ConstantValueOp>(loc, ida::BooleanAttribute::get(context, var.isState() || var.isDerivative()));
+
+					// Store the variable index.
+					mlir::Value varIndex = builder.create<AddVariableOp>(
+							loc, userData, varOffsetOp, var.isDerivative() ? var.getState() : var.getReference(), isState);
+
 					variableIndexMap[var] = varIndex;
 					offsetMap[var] = varOffset;
 
@@ -2294,30 +2299,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 						offsetMap[model.getVariable(var.getState())] = varOffset;
 						variableIndexMap[model.getVariable(var.getState())] = varIndex;
 					}
-
-					// Add dimensions of the variable to the ida user data.
-					marco::MultiDimInterval multiDimInterval = var.toMultiDimInterval();
-
-					ArrayType arrayType = ArrayType::get(
-							context, BufferAllocationScope::stack, modelica::IntegerType::get(context), { (long) multiDimInterval.dimensions() });
-					AllocaOp dimensions = builder.create<AllocaOp>(loc, arrayType.getElementType(), arrayType.getShape(), llvm::None, true);
-
-					for (size_t i = 0; i < multiDimInterval.dimensions(); i++)
-					{
-						mlir::Value dimIndex = builder.create<ConstantOp>(loc, builder.getIndexAttr(i));
-						mlir::Value dim = builder.create<ConstantOp>(loc, modelica::IntegerAttribute::get(context, multiDimInterval[i].size()));
-						mlir::Value subscriptionOp = builder.create<SubscriptionOp>(loc, dimensions, dimIndex);
-						builder.create<AssignmentOp>(loc, dim, subscriptionOp);
-					}
-
-					builder.create<AddVarDimensionOp>(loc, userData, dimensions);
-
-					// Initialize variablesValues, derivativesValues, idValues.
-					mlir::Value isState = builder.create<ConstantValueOp>(loc, ida::BooleanAttribute::get(context, var.isState() || var.isDerivative()));
-					if (var.isDerivative())
-						builder.create<SetInitialValueOp>(loc, userData, varIndex, var.getState(), isState);
-					else
-						builder.create<SetInitialValueOp>(loc, userData, varIndex, var.getReference(), isState);
 
 					// Increase the length of the current row.
 					varOffset += var.toMultiDimInterval().size();
