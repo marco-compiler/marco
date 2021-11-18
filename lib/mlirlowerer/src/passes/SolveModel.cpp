@@ -1673,8 +1673,8 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 
 	void getDependentDialects(mlir::DialectRegistry &registry) const override
 	{
-		registry.insert<ModelicaDialect>();
 		registry.insert<IdaDialect>();
+		registry.insert<ModelicaDialect>();
 		registry.insert<mlir::scf::SCFDialect>();
 		registry.insert<mlir::LLVM::LLVMDialect>();
 	}
@@ -2088,16 +2088,6 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		return mlir::success();
 	}
 
-	static int64_t computeNEQ(Model& model)
-	{
-		int64_t result = 0;
-
-		for (BltBlock& bltBlock : model.getBltBlocks())
-			result += bltBlock.equationsCount();
-
-		return result;
-	}
-
 	static std::string getPartialDerFunctionName(llvm::StringRef baseName)
 	{
 		return "pder_" + baseName.str();
@@ -2246,8 +2236,11 @@ class SolveModelPass: public mlir::PassWrapper<SolveModelPass, mlir::OperationPa
 		// IDA INIT
 		//===--------------------------------------------------------------===//
 
-		// Allocate IDA user data.
-		int64_t equationsNumber = computeNEQ(model);
+		// Allocate IDA user data, starting from the number of scalar equations.
+		int64_t equationsNumber = 0;
+		for (BltBlock& bltBlock : model.getBltBlocks())
+			equationsNumber += bltBlock.equationsCount();
+
 		mlir::Value neq = builder.create<ConstantValueOp>(loc, ida::IntegerAttribute::get(context, equationsNumber));
 		mlir::Value userData = builder.create<AllocUserDataOp>(loc, neq);
 
