@@ -15,6 +15,8 @@
 
 #define ALGEBRAIC_TOLERANCE 1e-12
 
+#define PRINT_JACOBIAN false
+
 #define MAX_NUM_STEPS 1000
 #define MAX_ERR_TEST_FAIL 100
 #define MAX_NONLIN_ITERS 40
@@ -1230,9 +1232,14 @@ inline int64_t lambdaPow(void* userData, T baseIndex, T exponentIndex)
 												realtype var) -> realtype {
 		realtype baseValue = base(tt, cj, yy, yp, ind, var);
 		realtype exponentValue = exponent(tt, cj, yy, yp, ind, var);
-		return std::pow(baseValue, exponentValue) *
-					 (derExponent(tt, cj, yy, yp, ind, var) * std::log(baseValue) +
-						exponentValue * derBase(tt, cj, yy, yp, ind, var) / baseValue);
+
+		if (baseValue == 0.0)
+			return baseValue;
+
+		return std::pow(baseValue, exponentValue - 1) *
+					 (exponentValue * derBase(tt, cj, yy, yp, ind, var) +
+						baseValue * std::log(baseValue) *
+								derExponent(tt, cj, yy, yp, ind, var));
 	};
 
 	data->lambdas.push_back({ std::move(first), std::move(second) });
@@ -1866,6 +1873,55 @@ RUNTIME_FUNC_DEF(lambdaCall, int64_t, PTR(void), int64_t, FUNCTION(double), FUNC
 //===----------------------------------------------------------------------===//
 
 /**
+ * Prints the Jacobian incidence matrix of the system.
+ */
+static void printIncidenceMatrix(void* userData)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	llvm::errs() << "\n";
+
+	// For every vector equation
+	for (size_t eq = 0; eq < data->vectorEquationsNumber; eq++)
+	{
+		// Initialize the multidimensional interval of the vector equation
+		Indexes indexes;
+		for (const auto& dim : data->equationDimensions[eq])
+			indexes.push_back(dim.first);
+
+		// For every scalar equation in the vector equation
+		do
+		{
+			llvm::errs() << "│";
+
+			// Compute the column indexes that may be non-zeros.
+			std::set<sunindextype> columnIndexesSet;
+			for (size_t accessIndex : data->accessIndexes[eq])
+			{
+				sunindextype varIndex = data->variableAccesses[accessIndex].first;
+				VarDimension dimensions = data->variableDimensions[varIndex];
+				Access access = data->variableAccesses[accessIndex].second;
+				sunindextype varOffset = computeOffset(indexes, dimensions, access);
+				columnIndexesSet.insert(data->variableOffsets[varIndex] + varOffset);
+			}
+
+			for (sunindextype i = 0; i < data->scalarEquationsNumber; i++)
+			{
+				if (columnIndexesSet.find(i) != columnIndexesSet.end())
+					llvm::errs() << "*";
+				else
+					llvm::errs() << " ";
+
+				if (i < data->scalarEquationsNumber - 1)
+					llvm::errs() << " ";
+			}
+
+			llvm::errs() << "│\n";
+		} while (updateIndexes(indexes, data->equationDimensions[eq]));
+	}
+}
+
+/**
  * Prints statistics about the computation of the system.
  */
 inline void printStatistics(void* userData)
@@ -1874,6 +1930,9 @@ inline void printStatistics(void* userData)
 
 	if (data->scalarEquationsNumber == 0)
 		return;
+
+	if (PRINT_JACOBIAN)
+		printIncidenceMatrix(userData);
 
 	int64_t nst, nre, nje, nni, nli;
 
