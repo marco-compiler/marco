@@ -27,11 +27,7 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 			AddJacobianOp>();
 
 	// Variable setters.
-	addOperations<
-			AddVarOffsetOp,
-			AddVarDimensionOp,
-			AddVarAccessOp,
-			SetInitialValueOp>();
+	addOperations<AddVariableOp, AddVarAccessOp>();
 
 	// Getters.
 	addOperations<GetTimeOp, GetVariableOp, GetDerivativeOp>();

@@ -700,36 +700,61 @@ RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), int64_t, int64_t)
 //===----------------------------------------------------------------------===//
 
 /**
- * Add a new variable given its monodimensional length.
- * Return the variable index.
+ * Add and initialize a new variable given its array.
+ * 
+ * @param userData opaque pointer to the IDA user data.
+ * @param offset offset of the current variable from the beginning of the array.
+ * @param array modelica.alloc operation containing the initial values.
+ * @param isState indicates if the variable is differential or algebraic.
+ * @return index of the added vector variable.
  */
-template<typename T>
-inline int64_t addVarOffset(void* userData, T offset)
+template<typename T, typename U>
+inline int64_t addVariable(
+		void* userData,
+		T offset,
+		UnsizedArrayDescriptor<U> array,
+		bool isState)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
+
+	// Add variable offset.
 	data->variableOffsets.push_back(offset);
+
+	// Add variable dimensions.
+	VarDimension dimensions(array.getDimensions());
+	data->variableDimensions.push_back(dimensions);
+
+	// Compute idValue and absoluteTolerance.
+	U* arrayData = array.getData();
+	realtype idValue = isState ? 1.0 : 0.0;
+	realtype absTol = isState 
+			? data->absoluteTolerance
+			: std::min(ALGEBRAIC_TOLERANCE, data->absoluteTolerance);
+
+	Indexes indexes;
+	for (size_t dim = 0; dim < dimensions.size(); dim++)
+		indexes.push_back(0);
+
+	// Add the initial values of every variable.
+	do
+	{
+		assert(array.hasData(indexes));
+
+		data->variableValues[offset] = *arrayData++;
+		data->derivativeValues[offset] = 0.0;
+
+		data->idValues[offset] = idValue;
+		data->toleranceValues[offset++] = absTol;
+	} while (updateIndexes(indexes, dimensions));
+
+	// Return the vector variable index.
 	return data->variableOffsets.size() - 1;
 }
 
-RUNTIME_FUNC_DEF(addVarOffset, int32_t, PTR(void), int32_t)
-RUNTIME_FUNC_DEF(addVarOffset, int64_t, PTR(void), int64_t)
-
-/**
- * Add a new dimension to the index-th variable of size dim.
- */
-template<typename T>
-inline void addVarDimension(void* userData, UnsizedArrayDescriptor<T> dimensions)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	assert(dimensions.getRank() == 1);
-
-	data->variableDimensions.push_back({});
-	for (T& dim : dimensions)
-		data->variableDimensions.back().push_back(dim);
-}
-
-RUNTIME_FUNC_DEF(addVarDimension, void, PTR(void), ARRAY(int32_t))
-RUNTIME_FUNC_DEF(addVarDimension, void, PTR(void), ARRAY(int64_t))
+RUNTIME_FUNC_DEF(addVariable, int32_t, PTR(void), int32_t, ARRAY(int32_t), bool)
+RUNTIME_FUNC_DEF(addVariable, int32_t, PTR(void), int32_t, ARRAY(float), bool)
+RUNTIME_FUNC_DEF(addVariable, int64_t, PTR(void), int64_t, ARRAY(int64_t), bool)
+RUNTIME_FUNC_DEF(addVariable, int64_t, PTR(void), int64_t, ARRAY(double), bool)
 
 /**
  * Add a variable access to the var-th variable, where ind is the induction
@@ -755,51 +780,6 @@ inline int64_t addVarAccess(
 
 RUNTIME_FUNC_DEF(addVarAccess, int32_t, PTR(void), int32_t, ARRAY(int32_t), ARRAY(int32_t))
 RUNTIME_FUNC_DEF(addVarAccess, int64_t, PTR(void), int64_t, ARRAY(int64_t), ARRAY(int64_t))
-
-/**
- * Set the initial values of the index-th variable given its array, which is
- * represented as a modelica alloc operation. Initialize every other value not
- * included in the array to zero.
- */
-template<typename T, typename U>
-inline void setInitialValue(
-		void* userData,
-		T index,
-		UnsizedArrayDescriptor<U> array,
-		bool isState)
-{
-	IdaUserData* data = static_cast<IdaUserData*>(userData);
-
-	sunindextype offset = data->variableOffsets[index];
-	VarDimension dimensions = data->variableDimensions[index];
-
-	U* arrayData = array.getData();
-	realtype idValue = isState ? 1.0 : 0.0;
-	realtype absTol = isState 
-			? data->absoluteTolerance
-			: std::min(ALGEBRAIC_TOLERANCE, data->absoluteTolerance);
-
-	Indexes indexes;
-	for (size_t dim = 0; dim < dimensions.size(); dim++)
-		indexes.push_back(0);
-
-	do
-	{
-		if (array.hasData(indexes))
-			data->variableValues[offset] = *arrayData++;
-		else
-			data->variableValues[offset] = 0;
-
-		data->derivativeValues[offset] = 0.0;
-		data->idValues[offset] = idValue;
-		data->toleranceValues[offset++] = absTol;
-	} while (updateIndexes(indexes, dimensions));
-}
-
-RUNTIME_FUNC_DEF(setInitialValue, void, PTR(void), int32_t, ARRAY(int32_t), bool)
-RUNTIME_FUNC_DEF(setInitialValue, void, PTR(void), int32_t, ARRAY(float), bool)
-RUNTIME_FUNC_DEF(setInitialValue, void, PTR(void), int64_t, ARRAY(int64_t), bool)
-RUNTIME_FUNC_DEF(setInitialValue, void, PTR(void), int64_t, ARRAY(double), bool)
 
 //===----------------------------------------------------------------------===//
 // Getters
