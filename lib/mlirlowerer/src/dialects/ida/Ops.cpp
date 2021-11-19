@@ -115,31 +115,31 @@ mlir::Type ConstantValueOp::resultType()
 }
 
 //===----------------------------------------------------------------------===//
-// Ida::AllocUserDataOp
+// Ida::AllocDataOp
 //===----------------------------------------------------------------------===//
 
-llvm::ArrayRef<llvm::StringRef> AllocUserDataOp::getAttributeNames()
+llvm::ArrayRef<llvm::StringRef> AllocDataOp::getAttributeNames()
 {
 	return {};
 }
 
-void AllocUserDataOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value equationsNumber)
+void AllocDataOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value equationsNumber)
 {
 	state.addTypes(OpaquePointerType::get(builder.getContext()));
 	state.addOperands(equationsNumber);
 }
 
-mlir::ParseResult AllocUserDataOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+mlir::ParseResult AllocDataOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
 	return ida::parse(parser, result, 1);
 }
 
-void AllocUserDataOp::print(mlir::OpAsmPrinter& printer)
+void AllocDataOp::print(mlir::OpAsmPrinter& printer)
 {
 	ida::print(printer, getOperationName(), args(), resultType());
 }
 
-mlir::LogicalResult AllocUserDataOp::verify()
+mlir::LogicalResult AllocDataOp::verify()
 {
 	if (!equationsNumber().getType().isa<IntegerType>())
 		return emitOpError("Requires number of equations to be an integer");
@@ -147,22 +147,22 @@ mlir::LogicalResult AllocUserDataOp::verify()
 	return mlir::success();
 }
 
-void AllocUserDataOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+void AllocDataOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Allocate::get(), getResult(), mlir::SideEffects::AutomaticAllocationScopeResource::get());
 }
 
-OpaquePointerType AllocUserDataOp::resultType()
+OpaquePointerType AllocDataOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<OpaquePointerType>();
 }
 
-mlir::ValueRange AllocUserDataOp::args()
+mlir::ValueRange AllocDataOp::args()
 {
 	return mlir::ValueRange(getOperation()->getOperands());
 }
 
-mlir::Value AllocUserDataOp::equationsNumber()
+mlir::Value AllocDataOp::equationsNumber()
 {
 	return getOperation()->getOperand(0);
 }
@@ -285,31 +285,31 @@ mlir::Value StepOp::userData()
 }
 
 //===----------------------------------------------------------------------===//
-// Ida::FreeUserDataOp
+// Ida::FreeDataOp
 //===----------------------------------------------------------------------===//
 
-llvm::ArrayRef<llvm::StringRef> FreeUserDataOp::getAttributeNames()
+llvm::ArrayRef<llvm::StringRef> FreeDataOp::getAttributeNames()
 {
 	return {};
 }
 
-void FreeUserDataOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
+void FreeDataOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData)
 {
 	state.addTypes(BooleanType::get(builder.getContext()));
 	state.addOperands(userData);
 }
 
-mlir::ParseResult FreeUserDataOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+mlir::ParseResult FreeDataOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
 	return ida::parse(parser, result, 1);
 }
 
-void FreeUserDataOp::print(mlir::OpAsmPrinter& printer)
+void FreeDataOp::print(mlir::OpAsmPrinter& printer)
 {
 	ida::print(printer, getOperationName(), args(), resultType());
 }
 
-mlir::LogicalResult FreeUserDataOp::verify()
+mlir::LogicalResult FreeDataOp::verify()
 {
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
@@ -317,22 +317,22 @@ mlir::LogicalResult FreeUserDataOp::verify()
 	return mlir::success();
 }
 
-void FreeUserDataOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+void FreeDataOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Free::get(), userData(), mlir::SideEffects::DefaultResource::get());
 }
 
-BooleanType FreeUserDataOp::resultType()
+BooleanType FreeDataOp::resultType()
 {
 	return getOperation()->getResultTypes()[0].cast<BooleanType>();
 }
 
-mlir::ValueRange FreeUserDataOp::args()
+mlir::ValueRange FreeDataOp::args()
 {
 	return mlir::ValueRange(getOperation()->getOperands());
 }
 
-mlir::Value FreeUserDataOp::userData()
+mlir::Value FreeDataOp::userData()
 {
 	return getOperation()->getOperand(0);
 }
@@ -563,8 +563,13 @@ mlir::LogicalResult AddEqDimensionOp::verify()
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
 
-	if (!start().getType().isa<modelica::ArrayType>() || !end().getType().isa<modelica::ArrayType>())
-		return emitOpError("Requires start and end iteration indexes to be arrays of integers");
+	if (!start().getType().isa<modelica::ArrayType>() ||
+			!start().getType().cast<modelica::ArrayType>().getElementType().isa<modelica::IntegerType>())
+		return emitOpError("Requires start iteration indexes to be arrays of integers");
+
+	if (!end().getType().isa<modelica::ArrayType>() ||
+			!end().getType().cast<modelica::ArrayType>().getElementType().isa<modelica::IntegerType>())
+		return emitOpError("Requires end iteration indexes to be arrays of integers");
 
 	return mlir::success();
 }
@@ -729,7 +734,6 @@ llvm::ArrayRef<llvm::StringRef> AddVariableOp::getAttributeNames()
 
 void AddVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value array, mlir::Value isState)
 {
-	state.addTypes(IntegerType::get(builder.getContext()));
 	state.addOperands(userData);
 	state.addOperands(index);
 	state.addOperands(array);
@@ -743,7 +747,7 @@ mlir::ParseResult AddVariableOp::parse(mlir::OpAsmParser& parser, mlir::Operatio
 
 void AddVariableOp::print(mlir::OpAsmPrinter& printer)
 {
-	ida::print(printer, getOperationName(), args(), resultType());
+	ida::print(printer, getOperationName(), args());
 }
 
 mlir::LogicalResult AddVariableOp::verify()
@@ -765,12 +769,8 @@ mlir::LogicalResult AddVariableOp::verify()
 
 void AddVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
+	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
 	effects.emplace_back(mlir::MemoryEffects::Write::get(), userData(), mlir::SideEffects::DefaultResource::get());
-}
-
-IntegerType AddVariableOp::resultType()
-{
-	return getOperation()->getResultTypes()[0].cast<IntegerType>();
 }
 
 mlir::ValueRange AddVariableOp::args()
@@ -834,8 +834,13 @@ mlir::LogicalResult AddVarAccessOp::verify()
 	if (!variable().getType().isa<IntegerType>())
 		return emitOpError("Requires variable index to be an integer");
 
-	if (!offsets().getType().isa<modelica::ArrayType>() || !inductions().getType().isa<modelica::ArrayType>())
-		return emitOpError("Requires variable offsets and inductions to be arrays of integers");
+	if (!offsets().getType().isa<modelica::ArrayType>() ||
+			!offsets().getType().cast<modelica::ArrayType>().getElementType().isa<modelica::IntegerType>())
+		return emitOpError("Requires variable offsets to be arrays of integers");
+
+	if (!inductions().getType().isa<modelica::ArrayType>() ||
+			!inductions().getType().cast<modelica::ArrayType>().getElementType().isa<modelica::IntegerType>())
+		return emitOpError("Requires variable inductions to be arrays of integers");
 
 	return mlir::success();
 }
@@ -929,32 +934,32 @@ mlir::Value GetTimeOp::userData()
 }
 
 //===----------------------------------------------------------------------===//
-// Ida::GetVariableOp
+// Ida::UpdateVariableOp
 //===----------------------------------------------------------------------===//
 
-llvm::ArrayRef<llvm::StringRef> GetVariableOp::getAttributeNames()
+llvm::ArrayRef<llvm::StringRef> UpdateVariableOp::getAttributeNames()
 {
 	return {};
 }
 
-void GetVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index)
+void UpdateVariableOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value array)
 {
-	state.addTypes(modelica::RealType::get(builder.getContext()));
 	state.addOperands(userData);
 	state.addOperands(index);
+	state.addOperands(array);
 }
 
-mlir::ParseResult GetVariableOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+mlir::ParseResult UpdateVariableOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	return ida::parse(parser, result, 2);
+	return ida::parse(parser, result, 3);
 }
 
-void GetVariableOp::print(mlir::OpAsmPrinter& printer)
+void UpdateVariableOp::print(mlir::OpAsmPrinter& printer)
 {
-	ida::print(printer, getOperationName(), args(), resultType());
+	ida::print(printer, getOperationName(), args());
 }
 
-mlir::LogicalResult GetVariableOp::verify()
+mlir::LogicalResult UpdateVariableOp::verify()
 {
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
@@ -962,61 +967,65 @@ mlir::LogicalResult GetVariableOp::verify()
 	if (!index().getType().isa<IntegerType>() && !index().getType().isa<modelica::IntegerType>())
 		return emitOpError("Requires variable index to be an integer");
 
+	if (!array().getType().isa<modelica::ArrayType>())
+		return emitOpError("Requires variable reference to be an array");
+
 	return mlir::success();
 }
 
-void GetVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+void UpdateVariableOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
 }
 
-modelica::RealType GetVariableOp::resultType()
-{
-	return getOperation()->getResultTypes()[0].cast<modelica::RealType>();
-}
-
-mlir::ValueRange GetVariableOp::args()
+mlir::ValueRange UpdateVariableOp::args()
 {
 	return mlir::ValueRange(getOperation()->getOperands());
 }
 
-mlir::Value GetVariableOp::userData()
+mlir::Value UpdateVariableOp::userData()
 {
 	return getOperation()->getOperand(0);
 }
 
-mlir::Value GetVariableOp::index()
+mlir::Value UpdateVariableOp::index()
 {
 	return getOperation()->getOperand(1);
 }
 
+mlir::Value UpdateVariableOp::array()
+{
+	return getOperation()->getOperand(2);
+}
+
 //===----------------------------------------------------------------------===//
-// Ida::GetDerivativeOp
+// Ida::UpdateDerivativeOp
 //===----------------------------------------------------------------------===//
 
-llvm::ArrayRef<llvm::StringRef> GetDerivativeOp::getAttributeNames()
+llvm::ArrayRef<llvm::StringRef> UpdateDerivativeOp::getAttributeNames()
 {
 	return {};
 }
 
-void GetDerivativeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index)
+void UpdateDerivativeOp::build(mlir::OpBuilder& builder, mlir::OperationState& state, mlir::Value userData, mlir::Value index, mlir::Value array)
 {
-	state.addTypes(modelica::RealType::get(builder.getContext()));
 	state.addOperands(userData);
 	state.addOperands(index);
+	state.addOperands(array);
 }
 
-mlir::ParseResult GetDerivativeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
+mlir::ParseResult UpdateDerivativeOp::parse(mlir::OpAsmParser& parser, mlir::OperationState& result)
 {
-	return ida::parse(parser, result, 2);
+	return ida::parse(parser, result, 3);
 }
 
-void GetDerivativeOp::print(mlir::OpAsmPrinter& printer)
+void UpdateDerivativeOp::print(mlir::OpAsmPrinter& printer)
 {
-	ida::print(printer, getOperationName(), args(), resultType());
+	ida::print(printer, getOperationName(), args());
 }
 
-mlir::LogicalResult GetDerivativeOp::verify()
+mlir::LogicalResult UpdateDerivativeOp::verify()
 {
 	if (!userData().getType().isa<OpaquePointerType>())
 		return emitOpError("Requires user data to be an opaque pointer");
@@ -1024,32 +1033,36 @@ mlir::LogicalResult GetDerivativeOp::verify()
 	if (!index().getType().isa<IntegerType>() && !index().getType().isa<modelica::IntegerType>())
 		return emitOpError("Requires variable index to be an integer");
 
+	if (!array().getType().isa<modelica::ArrayType>())
+		return emitOpError("Requires derivatives reference to be an array");
+
 	return mlir::success();
 }
 
-void GetDerivativeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
+void UpdateDerivativeOp::getEffects(mlir::SmallVectorImpl<mlir::SideEffects::EffectInstance<mlir::MemoryEffects::Effect>>& effects)
 {
 	effects.emplace_back(mlir::MemoryEffects::Read::get(), userData(), mlir::SideEffects::DefaultResource::get());
+	effects.emplace_back(mlir::MemoryEffects::Write::get(), mlir::SideEffects::DefaultResource::get());
 }
 
-modelica::RealType GetDerivativeOp::resultType()
-{
-	return getOperation()->getResultTypes()[0].cast<modelica::RealType>();
-}
-
-mlir::ValueRange GetDerivativeOp::args()
+mlir::ValueRange UpdateDerivativeOp::args()
 {
 	return mlir::ValueRange(getOperation()->getOperands());
 }
 
-mlir::Value GetDerivativeOp::userData()
+mlir::Value UpdateDerivativeOp::userData()
 {
 	return getOperation()->getOperand(0);
 }
 
-mlir::Value GetDerivativeOp::index()
+mlir::Value UpdateDerivativeOp::index()
 {
 	return getOperation()->getOperand(1);
+}
+
+mlir::Value UpdateDerivativeOp::array()
+{
+	return getOperation()->getOperand(2);
 }
 
 //===----------------------------------------------------------------------===//
