@@ -107,7 +107,7 @@ mlir::Value Variable::getState()
 	return impl->stateRef;
 }
 
-mlir::Value Variable::getDer()
+mlir::Value Variable::getDerivative()
 {
 	return impl->derivativeRef;
 }

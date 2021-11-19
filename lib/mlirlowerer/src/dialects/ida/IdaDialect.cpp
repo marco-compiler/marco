@@ -12,10 +12,10 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 	// Allocation, initialization, usage and deletion.
 	addOperations<
 			ConstantValueOp,
-			AllocUserDataOp,
+			AllocDataOp,
 			InitOp,
 			StepOp,
-			FreeUserDataOp,
+			FreeDataOp,
 			AddTimeOp,
 			AddToleranceOp>();
 
@@ -30,7 +30,7 @@ IdaDialect::IdaDialect(mlir::MLIRContext* context)
 	addOperations<AddVariableOp, AddVarAccessOp>();
 
 	// Getters.
-	addOperations<GetTimeOp, GetVariableOp, GetDerivativeOp>();
+	addOperations<GetTimeOp, UpdateVariableOp, UpdateDerivativeOp>();
 
 	// Lambda constructions.
 	addOperations<

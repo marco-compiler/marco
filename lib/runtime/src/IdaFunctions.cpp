@@ -307,7 +307,7 @@ int jacobianMatrix(
  * matrix.
  */
 template<typename T>
-inline void* allocIdaUserData(T scalarEquationsNumber)
+inline void* idaAllocData(T scalarEquationsNumber)
 {
 	IdaUserData* data = new IdaUserData;
 
@@ -334,8 +334,8 @@ inline void* allocIdaUserData(T scalarEquationsNumber)
 	return static_cast<void*>(data);
 }
 
-RUNTIME_FUNC_DEF(allocIdaUserData, PTR(void), int32_t)
-RUNTIME_FUNC_DEF(allocIdaUserData, PTR(void), int64_t)
+RUNTIME_FUNC_DEF(idaAllocData, PTR(void), int32_t)
+RUNTIME_FUNC_DEF(idaAllocData, PTR(void), int64_t)
 
 /**
  * Precompute the row and column indexes of all non-zero values in the Jacobian
@@ -526,7 +526,7 @@ RUNTIME_FUNC_DEF(idaStep, bool, PTR(void))
 /**
  * Free all the data allocated by IDA.
  */
-inline bool freeIdaUserData(void* userData)
+inline bool idaFreeData(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
 
@@ -549,7 +549,7 @@ inline bool freeIdaUserData(void* userData)
 	return true;
 }
 
-RUNTIME_FUNC_DEF(freeIdaUserData, bool, PTR(void))
+RUNTIME_FUNC_DEF(idaFreeData, bool, PTR(void))
 
 /**
  * Add the start time, the end time and the step time to the user data. If the
@@ -709,7 +709,7 @@ RUNTIME_FUNC_DEF(addJacobian, void, PTR(void), int64_t, int64_t)
  * @return index of the added vector variable.
  */
 template<typename T, typename U>
-inline int64_t addVariable(
+inline void addVariable(
 		void* userData,
 		T offset,
 		UnsizedArrayDescriptor<U> array,
@@ -746,15 +746,12 @@ inline int64_t addVariable(
 		data->idValues[offset] = idValue;
 		data->toleranceValues[offset++] = absTol;
 	} while (updateIndexes(indexes, dimensions));
-
-	// Return the vector variable index.
-	return data->variableOffsets.size() - 1;
 }
 
-RUNTIME_FUNC_DEF(addVariable, int32_t, PTR(void), int32_t, ARRAY(int32_t), bool)
-RUNTIME_FUNC_DEF(addVariable, int32_t, PTR(void), int32_t, ARRAY(float), bool)
-RUNTIME_FUNC_DEF(addVariable, int64_t, PTR(void), int64_t, ARRAY(int64_t), bool)
-RUNTIME_FUNC_DEF(addVariable, int64_t, PTR(void), int64_t, ARRAY(double), bool)
+RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int32_t, ARRAY(int32_t), bool)
+RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int32_t, ARRAY(float), bool)
+RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int64_t, ARRAY(int64_t), bool)
+RUNTIME_FUNC_DEF(addVariable, void, PTR(void), int64_t, ARRAY(double), bool)
 
 /**
  * Add a variable access to the var-th variable, where ind is the induction
@@ -785,6 +782,9 @@ RUNTIME_FUNC_DEF(addVarAccess, int64_t, PTR(void), int64_t, ARRAY(int64_t), ARRA
 // Getters
 //===----------------------------------------------------------------------===//
 
+/**
+ * Returns the time reached by the solver after the last step. 
+ */
 inline double getIdaTime(void* userData)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
@@ -799,27 +799,79 @@ inline double getIdaTime(void* userData)
 RUNTIME_FUNC_DEF(getIdaTime, float, PTR(void))
 RUNTIME_FUNC_DEF(getIdaTime, double, PTR(void))
 
+/**
+ * Copies the index-th variable values into the main program integer variable.
+ */
 template<typename T>
-inline double getIdaVariable(void* userData, T index)
+inline void updateIdaVariable(void* userData, T index, UnsizedArrayDescriptor<T> array)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	assert(index < data->scalarEquationsNumber);
-	return data->variableValues[index];
+	assert((size_t) index < data->vectorEquationsNumber);
+
+	sunindextype offset = data->variableOffsets[index];
+	realtype* source = &data->variableValues[offset];
+
+	for (size_t i = 0; i < array.getNumElements(); i++)
+		array.getData()[i] = (T) source[i];
 }
 
-RUNTIME_FUNC_DEF(getIdaVariable, float, PTR(void), int32_t)
-RUNTIME_FUNC_DEF(getIdaVariable, double, PTR(void), int64_t)
+RUNTIME_FUNC_DEF(updateIdaVariable, void, PTR(void), int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(updateIdaVariable, void, PTR(void), int64_t, ARRAY(int64_t))
 
-template<typename T>
-inline double getIdaDerivative(void* userData, T index)
+/**
+ * Copies the index-th variable values into the main program float variable.
+ */
+template<typename T, typename U>
+inline void updateIdaVariable(void* userData, T index, UnsizedArrayDescriptor<U> array)
 {
 	IdaUserData* data = static_cast<IdaUserData*>(userData);
-	assert(index < data->scalarEquationsNumber);
-	return data->derivativeValues[index];
+	assert((size_t) index < data->vectorEquationsNumber);
+
+	sunindextype offset = data->variableOffsets[index];
+	realtype* source = &data->variableValues[offset];
+
+	std::memcpy(array.getData(), source, array.getNumElements() * sizeof(U));
 }
 
-RUNTIME_FUNC_DEF(getIdaDerivative, float, PTR(void), int32_t)
-RUNTIME_FUNC_DEF(getIdaDerivative, double, PTR(void), int64_t)
+RUNTIME_FUNC_DEF(updateIdaVariable, void, PTR(void), int32_t, ARRAY(float))
+RUNTIME_FUNC_DEF(updateIdaVariable, void, PTR(void), int64_t, ARRAY(double))
+
+/**
+ * Copies the index-th variable values into the main program integer variable.
+ */
+template<typename T>
+inline void updateIdaDerivative(void* userData, T index, UnsizedArrayDescriptor<T> array)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	assert((size_t) index < data->vectorEquationsNumber);
+
+	sunindextype offset = data->variableOffsets[index];
+	realtype* source = &data->derivativeValues[offset];
+
+	for (size_t i = 0; i < array.getNumElements(); i++)
+		array.getData()[i] = (T) source[i];
+}
+
+RUNTIME_FUNC_DEF(updateIdaDerivative, void, PTR(void), int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DEF(updateIdaDerivative, void, PTR(void), int64_t, ARRAY(int64_t))
+
+/**
+ * Copies the index-th variable values into the main program float variable.
+ */
+template<typename T, typename U>
+inline void updateIdaDerivative(void* userData, T index, UnsizedArrayDescriptor<U> array)
+{
+	IdaUserData* data = static_cast<IdaUserData*>(userData);
+	assert((size_t) index < data->vectorEquationsNumber);
+
+	sunindextype offset = data->variableOffsets[index];
+	realtype* source = &data->derivativeValues[offset];
+
+	std::memcpy(array.getData(), source, array.getNumElements() * sizeof(U));
+}
+
+RUNTIME_FUNC_DEF(updateIdaDerivative, void, PTR(void), int32_t, ARRAY(float))
+RUNTIME_FUNC_DEF(updateIdaDerivative, void, PTR(void), int64_t, ARRAY(double))
 
 //===----------------------------------------------------------------------===//
 // Lambda constructions

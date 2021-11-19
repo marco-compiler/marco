@@ -8,15 +8,15 @@
 // Allocation, initialization, usage and deletion
 //===----------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(allocIdaUserData, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(allocIdaUserData, PTR(void), int64_t)
+RUNTIME_FUNC_DECL(idaAllocData, PTR(void), int32_t)
+RUNTIME_FUNC_DECL(idaAllocData, PTR(void), int64_t)
 
 RUNTIME_FUNC_DECL(idaInit, bool, PTR(void), int32_t)
 RUNTIME_FUNC_DECL(idaInit, bool, PTR(void), int64_t)
 
 RUNTIME_FUNC_DECL(idaStep, bool, PTR(void))
 
-RUNTIME_FUNC_DECL(freeIdaUserData, bool, PTR(void))
+RUNTIME_FUNC_DECL(idaFreeData, bool, PTR(void))
 
 RUNTIME_FUNC_DECL(addTime, void, PTR(void), float, float, float)
 RUNTIME_FUNC_DECL(addTime, void, PTR(void), double, double, double)
@@ -44,10 +44,10 @@ RUNTIME_FUNC_DECL(addJacobian, void, PTR(void), int64_t, int64_t)
 // Variable setters
 //===----------------------------------------------------------------------===//
 
-RUNTIME_FUNC_DECL(addVariable, int32_t, PTR(void), int32_t, ARRAY(int32_t), bool)
-RUNTIME_FUNC_DECL(addVariable, int32_t, PTR(void), int32_t, ARRAY(float), bool)
-RUNTIME_FUNC_DECL(addVariable, int64_t, PTR(void), int64_t, ARRAY(int64_t), bool)
-RUNTIME_FUNC_DECL(addVariable, int64_t, PTR(void), int64_t, ARRAY(double), bool)
+RUNTIME_FUNC_DECL(addVariable, void, PTR(void), int32_t, ARRAY(int32_t), bool)
+RUNTIME_FUNC_DECL(addVariable, void, PTR(void), int32_t, ARRAY(float), bool)
+RUNTIME_FUNC_DECL(addVariable, void, PTR(void), int64_t, ARRAY(int64_t), bool)
+RUNTIME_FUNC_DECL(addVariable, void, PTR(void), int64_t, ARRAY(double), bool)
 
 RUNTIME_FUNC_DECL(addVarAccess, int32_t, PTR(void), int32_t, ARRAY(int32_t), ARRAY(int32_t))
 RUNTIME_FUNC_DECL(addVarAccess, int64_t, PTR(void), int64_t, ARRAY(int64_t), ARRAY(int64_t))
@@ -59,11 +59,15 @@ RUNTIME_FUNC_DECL(addVarAccess, int64_t, PTR(void), int64_t, ARRAY(int64_t), ARR
 RUNTIME_FUNC_DECL(getIdaTime, float, PTR(void))
 RUNTIME_FUNC_DECL(getIdaTime, double, PTR(void))
 
-RUNTIME_FUNC_DECL(getIdaVariable, float, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(getIdaVariable, double, PTR(void), int64_t)
+RUNTIME_FUNC_DECL(updateIdaVariable, void, PTR(void), int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DECL(updateIdaVariable, void, PTR(void), int64_t, ARRAY(int64_t))
+RUNTIME_FUNC_DECL(updateIdaVariable, void, PTR(void), int32_t, ARRAY(float))
+RUNTIME_FUNC_DECL(updateIdaVariable, void, PTR(void), int64_t, ARRAY(double))
 
-RUNTIME_FUNC_DECL(getIdaDerivative, float, PTR(void), int32_t)
-RUNTIME_FUNC_DECL(getIdaDerivative, double, PTR(void), int64_t)
+RUNTIME_FUNC_DECL(updateIdaDerivative, void, PTR(void), int32_t, ARRAY(int32_t))
+RUNTIME_FUNC_DECL(updateIdaDerivative, void, PTR(void), int64_t, ARRAY(int64_t))
+RUNTIME_FUNC_DECL(updateIdaDerivative, void, PTR(void), int32_t, ARRAY(float))
+RUNTIME_FUNC_DECL(updateIdaDerivative, void, PTR(void), int64_t, ARRAY(double))
 
 //===----------------------------------------------------------------------===//
 // Lambda constructions
