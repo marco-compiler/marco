@@ -42,6 +42,8 @@ namespace marco::ast
 		[[nodiscard]] Type& getType();
 		[[nodiscard]] const Type& getType() const;
 
+		void setType(Type new_type);
+
 		[[nodiscard]] bool hasInitializer() const;
 		[[nodiscard]] Expression* getInitializer();
 		[[nodiscard]] const Expression* getInitializer() const;
