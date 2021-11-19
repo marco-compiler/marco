@@ -119,7 +119,10 @@ namespace marco::ast
 		[[nodiscard]] bool hasAnnotation() const;
 		[[nodiscard]] Annotation* getAnnotation();
 		[[nodiscard]] const Annotation* getAnnotation() const;
-
+		
+		[[nodiscard]] bool shouldBeInlined() const;
+		[[nodiscard]] bool isRecordConstructor() const;
+		
 		[[nodiscard]] FunctionType getType() const;
 
 		private:

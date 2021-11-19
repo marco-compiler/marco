@@ -354,6 +354,18 @@ const Annotation* StandardFunction::getAnnotation() const
 	return annotation.getValue().get();
 }
 
+bool StandardFunction::shouldBeInlined() const
+{
+	return hasAnnotation() ? getAnnotation()->getInlineProperty() : false;
+}
+bool StandardFunction::isRecordConstructor() const
+{
+	//TODO improve?
+	auto str = getName().str();
+	return str.find(".constructor.") != std::string::npos ||
+		   str.find(".'constructor'.") != std::string::npos;
+}
+
 FunctionType StandardFunction::getType() const
 {
 	llvm::SmallVector<Type, 3> argsTypes;
