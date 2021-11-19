@@ -5,6 +5,7 @@
 #include <numeric>
 #include <queue>
 #include <stack>
+#include <sstream>
 
 using namespace marco;
 using namespace marco::ast;
@@ -894,7 +895,8 @@ llvm::Error TypeChecker::run<StandardFunction>(Class& cls)
 		// arguments or default values, i.e., they may not be assigned values in
 		// the body of the function."
 
-		if (member->isInput() && member->hasInitializer())
+		//with the exception of constructors
+		if (member->isInput() && member->hasInitializer() && !function->isRecordConstructor())
 			return llvm::make_error<AssignmentToInputMember>(
 					member->getInitializer()->getLocation(),
 					function->getName());
@@ -1514,16 +1516,47 @@ llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression)
 			return llvm::Error::success();
 		}
 
-		return llvm::make_error<NotFound>(reference->getLocation(), name);
+		//handle records member lookup chain:  record.member.members_member
+		//we need to split the identifer in the single parts and check/iterate them
+
+		Member *member = nullptr;
+		if (name.find('.') != std::string::npos)
+		{
+			std::stringstream ss (name.str());
+			std::string item;
+			
+			getline (ss, item, '.');
+			if(symbolTable.count(item)) {
+				auto symbol = symbolTable.lookup(item);
+				member = symbol.dyn_get<Member>();
+
+				while(member && getline (ss, item, '.')){
+					auto t = member->getType();
+
+					if(t.isa<Record*>()){
+						member = (*t.get<Record*>())[item];
+					}
+				}
+
+			}
+		}
+
+		if(!member)return llvm::make_error<NotFound>(reference->getLocation(), name);
+		
+		//the type of the reference is the type of the last accessed member  
+		expression.setType(member->getType());
+		return llvm::Error::success();
 	}
 
 	auto symbol = symbolTable.lookup(name);
 
 	auto symbolType = [](Symbol& symbol) -> Type {
-		if (auto* cls = symbol.dyn_get<Class>(); cls != nullptr && cls->isa<StandardFunction>())
+		auto* cls = symbol.dyn_get<Class>();
+
+		if ( cls && cls->isa<StandardFunction>())
 			return cls->get<StandardFunction>()->getType().packResults();
 
-		if (auto* cls = symbol.dyn_get<Class>(); cls != nullptr && cls->isa<PartialDerFunction>())
+		if ( cls && cls->isa<PartialDerFunction>())
 		{
 			auto types = cls->get<PartialDerFunction>()->getResultsTypes();
 
@@ -1533,6 +1566,9 @@ llvm::Error TypeChecker::run<ReferenceAccess>(Expression& expression)
 			return Type(PackedType(types));
 		}
 
+		if ( cls && cls->isa<Record>())
+			return Type(cls->get<Record>());
+		
 		if (symbol.isa<Member>())
 			return symbol.get<Member>()->getType();
 
@@ -1567,7 +1603,24 @@ llvm::Error TypeChecker::run<Tuple>(Expression& expression)
 
 llvm::Error TypeChecker::run(Member& member)
 {
-	for (auto& dimension : member.getType().getDimensions())
+	auto &type = member.getType();
+
+	//trasform the UserDefinedTypes to a reference to the record definition
+	if(type.isa<UserDefinedType>()){
+		auto t = type.get<UserDefinedType>();
+		auto name = t.getName();
+
+		auto symbol = symbolTable.lookup(name);
+
+		if (symbol.isa<Class>() && symbol.get<Class>()->isa<Record>())
+			member.setType(symbol.get<Class>()->get<Record>());
+		else
+			return llvm::make_error<BadSemantic>(
+					member.getLocation(),
+					("invalid type '"+ name + "' used for member declaration").str());
+	}
+
+	for (auto& dimension : type.getDimensions())
 		if (dimension.hasExpression())
 			if (auto error = run<Expression>(*dimension.getExpression()); error)
 				return error;
