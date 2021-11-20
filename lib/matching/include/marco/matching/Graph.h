@@ -262,7 +262,7 @@ namespace marco::matching::base
             VertexDescriptor vertex,
             std::function<bool(const EdgeProperty&)> visibilityFn) const
     {
-      auto filter = [&](const EdgeDescriptor& descriptor) -> bool {
+      auto filter = [=](const EdgeDescriptor& descriptor) -> bool {
           return visibilityFn((*this)[descriptor]);
       };
 
@@ -347,7 +347,7 @@ namespace marco::matching::base
 
     bool operator==(const IncidentEdgeIterator& it) const
     {
-      return from = it.from && current == it.current;
+      return from == it.from && current == it.current;
     }
 
     bool operator!=(const IncidentEdgeIterator& it) const

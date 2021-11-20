@@ -2,6 +2,7 @@
 #include <marco/matching/Matching.h>
 
 #include "Common.h"
+#include "TestCases.h"
 
 using namespace marco::matching;
 using namespace marco::matching::detail;
@@ -53,4 +54,94 @@ TEST(Matching, addEquation)
 
   ASSERT_TRUE(graph.hasEquation("eq1"));
   ASSERT_TRUE(graph.hasEdge("eq1", "x"));
+}
+
+TEST(Matching, testCase1_EquationsVariablesCount)
+{
+  auto graph = testCase1();
+
+  size_t amount = 3;
+  EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
+  EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
+}
+
+TEST(Matching, testCase2_EquationsVariablesCount)
+{
+  auto graph = testCase2();
+
+  size_t amount = 4;
+  EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
+  EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
+}
+
+TEST(Matching, testCase3_EquationsVariablesCount)
+{
+  auto graph = testCase3();
+
+  size_t amount = 19;
+  EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
+  EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
+}
+
+TEST(Matching, testCase4_EquationsVariablesCount)
+{
+  auto graph = testCase4();
+
+  size_t amount = 13;
+  EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
+  EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
+}
+
+TEST(Matching, testCase5_EquationsVariablesCount)
+{
+  auto graph = testCase5();
+
+  size_t amount = 14;
+  EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
+  EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
+}
+
+TEST(Matching, testCase6_EquationsVariablesCount)
+{
+  auto graph = testCase6();
+
+  size_t amount = 9;
+  EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
+  EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
+}
+
+TEST(Matching, testCase7_EquationsVariablesCount)
+{
+  auto graph = testCase7();
+
+  size_t amount = 4;
+  EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
+  EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
+}
+
+TEST(Matching, testCase8_EquationsVariablesCount)
+{
+  auto graph = testCase8();
+
+  size_t amount = 12;
+  EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
+  EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
+}
+
+TEST(Matching, testCase9_EquationsVariablesCount)
+{
+  auto graph = testCase9();
+
+  size_t amount = 10;
+  EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
+  EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
+}
+
+TEST(Matching, testCase10_EquationsVariablesCount)
+{
+  auto graph = testCase10();
+
+  size_t amount = 4;
+  EXPECT_EQ(graph.getNumberOfScalarEquations(), amount);
+  EXPECT_EQ(graph.getNumberOfScalarVariables(), amount);
 }

@@ -4,6 +4,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/iterator_range.h>
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/Support/raw_ostream.h>
 #include <map>
 #include <memory>
 #include <type_traits>
@@ -30,6 +31,24 @@ namespace marco::matching
                 match(IncidenceMatrix::row(getRanges()))
       {
         assert(getRank() > 0 && "Scalar variables are not supported");
+      }
+
+      void dump() const
+      {
+        dump(llvm::outs());
+      }
+
+      void dump(llvm::raw_ostream& os) const
+      {
+        os << "Variable\n";
+        os << " |-- ID: " << getId() << "\n";
+        os << " |-- Rank: " << getRank() << "\n";
+        os << " |-- Dimensions: ";
+
+        for (size_t i = 0; i < getRank(); ++i)
+          os << "[" << getDimensionSize(i) << "]";
+
+        os << "\n";
       }
 
       VariableProperty& getProperty()
@@ -94,6 +113,11 @@ namespace marco::matching
       const IncidenceMatrix& getMatchMatrix() const
       {
         return match;
+      }
+
+      IncidenceMatrix getUnmatchedVector() const
+      {
+        return !match;
       }
 
       bool allComponentsMatched() const
@@ -175,6 +199,23 @@ namespace marco::matching
               : property(std::move(property)),
                 match(IncidenceMatrix::column(getIterationRanges()))
       {
+      }
+
+      void dump() const
+      {
+        dump(llvm::outs());
+      }
+
+      void dump(llvm::raw_ostream& os) const
+      {
+        os << "Equation\n";
+        os << " |-- ID: " << getId() << "\n";
+        os << " |-- Iteration ranges: ";
+
+        for (size_t i = 0; i < getNumOfIterationVars(); ++i)
+          os << getIterationRange(i);
+
+        os << "\n";
       }
 
       EquationProperty& getProperty()
@@ -279,6 +320,17 @@ namespace marco::matching
       {
       }
 
+      void dump() const
+      {
+        dump(llvm::outs());
+      }
+
+      void dump(llvm::raw_ostream& os) const
+      {
+        os << "Incidence matrix:\n" << incidenceMatrix << "\n";
+        os << "Match matrix:\n" << matchMatrix;
+      }
+
       unsigned int getNumberOfEquations() const
       {
         return equations;
@@ -343,7 +395,32 @@ namespace marco::matching
     class FrontierElement
     {
       public:
-      FrontierElement(VertexDescriptor vertex, IncidenceMatrix unmatchedEquations)
+      FrontierElement(VertexDescriptor vertex, IncidenceMatrix unmatchedVector)
+              : vertex(std::move(vertex)),
+                unmatchedVector(std::move(unmatchedVector))
+      {
+      }
+
+      VertexDescriptor getVertex()
+      {
+        return vertex;
+      }
+
+      const IncidenceMatrix& getUnmatchedVector() const
+      {
+        return unmatchedVector;
+      }
+
+      private:
+      VertexDescriptor vertex;
+      IncidenceMatrix unmatchedVector;
+    };
+
+    template<typename VertexDescriptor>
+    class AugmentingPath
+    {
+      public:
+      AugmentingPath(VertexDescriptor vertex, IncidenceMatrix unmatchedEquations)
               : vertex(std::move(vertex)),
                 unmatchedEquations(std::move(unmatchedEquations))
       {
@@ -362,14 +439,6 @@ namespace marco::matching
       private:
       VertexDescriptor vertex;
       IncidenceMatrix unmatchedEquations;
-    };
-
-    class AugmentingPath
-    {
-      public:
-
-      private:
-
     };
   }
 
@@ -390,13 +459,17 @@ namespace marco::matching
 
     using VertexIterator = typename Graph::VertexIterator;
     using EdgeIterator = typename Graph::EdgeIterator;
-    using VisibleEdgeIterator = typename Graph::FilteredEdgeIterator;
+    using VisibleIncidentEdgeIterator = typename Graph::FilteredIncidentEdgeIterator;
 
     using FrontierElement = detail::FrontierElement<VertexDescriptor>;
+    using AugmentingPath = detail::AugmentingPath<VertexDescriptor>;
 
     public:
     using VariableIterator = typename Graph::FilteredVertexIterator;
     using EquationIterator = typename Graph::FilteredVertexIterator;
+
+    void dump() const;
+    void dump(llvm::raw_ostream& os) const;
 
     bool hasVariable(typename Variable::Id id) const
     {
@@ -585,9 +658,9 @@ namespace marco::matching
       return findEdge<Variable, Equation>(variableId, equationId).first;
     }
 
-    EdgeDescriptor getFirstOutEdge(VertexDescriptor vertex) const
+    EdgeDescriptor getFirstOutVisibleEdge(VertexDescriptor vertex) const
     {
-      auto edges = graph.getIncidentEdges(vertex);
+      auto edges = getVisibleEdges(vertex);
       assert(edges.begin() != edges.end() && "Vertex doesn't belong to any edge");
       return *edges.begin();
     }
@@ -624,9 +697,8 @@ namespace marco::matching
     {
       size_t result = 0;
 
-      for (auto edge : getEdges(vertex))
-        if (graph[edge].isVisible())
-          ++result;
+      for (auto edge : getVisibleEdges(vertex))
+        ++result;
 
       return result;
     }
@@ -661,7 +733,7 @@ namespace marco::matching
       return graph.getIncidentEdges(vertex);
     }
 
-    llvm::iterator_range<VisibleEdgeIterator> getVisibleEdges(VertexDescriptor vertex) const
+    llvm::iterator_range<VisibleIncidentEdgeIterator> getVisibleEdges(VertexDescriptor vertex) const
     {
       auto filter = [&](const Edge& edge) -> bool {
           return edge.isVisible();
@@ -677,12 +749,48 @@ namespace marco::matching
 
     bool matchIteration();
 
-    void getAugmentingPaths(llvm::SmallVectorImpl<detail::AugmentingPath>& paths) const;
+    void getAugmentingPaths(llvm::SmallVectorImpl<AugmentingPath>& paths) const;
 
-    void applyPath(const detail::AugmentingPath& path);
+    void applyPath(const AugmentingPath& path);
 
     Graph graph;
   };
+
+  template<typename VariableProperty, typename EquationProperty>
+  void MatchingGraph<VariableProperty, EquationProperty>::dump() const
+  {
+    dump(llvm::outs());
+  }
+
+  template<typename VariableProperty, typename EquationProperty>
+  void MatchingGraph<VariableProperty, EquationProperty>::dump(llvm::raw_ostream& os) const
+  {
+    os << "********** Matching graph **********\n";
+
+    for (auto descriptor : graph.getVertices())
+    {
+      std::visit([&](const auto& vertex) {
+        vertex.dump(os);
+      }, graph[descriptor]);
+
+      os << "\n";
+    }
+
+    for (auto descriptor : graph.getEdges())
+    {
+      const auto& from = std::visit([](const auto& vertex) {
+        return vertex.getId();
+      }, graph[descriptor.from]);
+
+      const auto& to = std::visit([](const auto& vertex) {
+          return vertex.getId();
+      }, graph[descriptor.to]);
+
+      os << "Edge from " << from << " to " << to << "\n";
+      graph[descriptor].dump(os);
+      os << "\n";
+    }
+  }
 
   template<typename VariableProperty, typename EquationProperty>
   bool MatchingGraph<VariableProperty, EquationProperty>::simplify()
@@ -691,7 +799,7 @@ namespace marco::matching
     // They are the ones having only one incident edge.
     std::list<VertexDescriptor> candidates;
 
-    for (auto vertex : graph.getVertices())
+    for (VertexDescriptor vertex : graph.getVertices())
     {
       auto incidentEdges = getVertexVisibilityDegree(vertex);
 
@@ -707,7 +815,7 @@ namespace marco::matching
       VertexDescriptor v1 = candidates.front();
       candidates.pop_front();
 
-      auto edgeDescriptor = getFirstOutEdge(v1);
+      auto edgeDescriptor = getFirstOutVisibleEdge(v1);
       Edge& edge = graph[edgeDescriptor];
 
       VertexDescriptor v2 = edgeDescriptor.from == v1 ? edgeDescriptor.to : edgeDescriptor.from;
@@ -803,7 +911,7 @@ namespace marco::matching
   template<typename VariableProperty, typename EquationProperty>
   bool MatchingGraph<VariableProperty, EquationProperty>::matchIteration()
   {
-    llvm::SmallVector<detail::AugmentingPath, 8> augmentingPaths;
+    llvm::SmallVector<AugmentingPath, 8> augmentingPaths;
     getAugmentingPaths(augmentingPaths);
 
     if (augmentingPaths.empty())
@@ -818,7 +926,7 @@ namespace marco::matching
 
   template<typename VariableProperty, typename EquationProperty>
   void MatchingGraph<VariableProperty, EquationProperty>::getAugmentingPaths(
-          llvm::SmallVectorImpl<detail::AugmentingPath>& paths) const
+          llvm::SmallVectorImpl<AugmentingPath>& paths) const
   {
     // Calculation of the initial frontier
     llvm::SmallVector<FrontierElement, 10> frontier;
@@ -853,30 +961,41 @@ namespace marco::matching
 
         for (EdgeDescriptor edgeDescriptor : getEdges(vertexDescriptor))
         {
+          assert(edgeDescriptor.from == vertexDescriptor);
           VertexDescriptor nextNode = edgeDescriptor.to;
           const Edge& edge = graph[edgeDescriptor];
 
           if (isEquation(vertexDescriptor))
           {
+            assert(isVariable(nextNode));
             const Equation& equation = getEquation(vertexDescriptor);
             const Variable& variable = getVariable(nextNode);
             auto unmatchedMatrix = edge.getUnmatchedMatrix();
-            auto filteredMatrix = unmatchedMatrix.filterEquations(frontierElement.getUnmatchedEquations());
-            auto solutions = detail::solveLocalMatchingProblem(filteredMatrix);
+            auto filteredMatrix = unmatchedMatrix.filterEquations(frontierElement.getUnmatchedVector());
+            detail::LocalMatchingSolutions solutions = detail::solveLocalMatchingProblem(filteredMatrix);
 
             for (auto solution : solutions)
             {
+              Variable var = getVariable(edgeDescriptor.to);
+              auto unmatchedScalarVariables = var.getUnmatchedVector();
+              auto matched = solution.filterVariables(unmatchedScalarVariables);
 
+              if (!matched.isEmpty())
+                paths.emplace_back(nextNode, matched.flattenEquations());
+              else
+                newFrontier.emplace_back(nextNode, solution.flattenEquations());
             }
-
           }
           else
           {
+            assert(isEquation(nextNode));
+            auto filteredMatrix = edge.getMatchMatrix().filterVariables(frontierElement.getUnmatchedVector());
+            detail::LocalMatchingSolutions solutions = detail::solveLocalMatchingProblem(filteredMatrix);
 
+            for (auto solution : solutions)
+              newFrontier.emplace_back(nextNode, solution.flattenVariables());
           }
         }
-
-
       }
 
       frontier.clear();
@@ -886,7 +1005,7 @@ namespace marco::matching
 
   template<typename VariableProperty, typename EquationProperty>
   void MatchingGraph<VariableProperty, EquationProperty>::applyPath(
-          const detail::AugmentingPath& path)
+          const AugmentingPath& path)
   {
 
   }

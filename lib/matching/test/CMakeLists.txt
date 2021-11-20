@@ -3,8 +3,9 @@ set(SOURCES
         src/IncidenceMatrixTest.cpp
         src/MatchingGraphTest.cpp
         src/RangeTest.cpp
-        src/RealScenarios.cpp
-        src/SolveLocalMatchingProblemTest.cpp)
+        src/SimplifyTest.cpp
+        src/SolveLocalMatchingProblemTest.cpp
+        src/TestCases.cpp)
 
 marco_add_unittest(MARCOTest MatchingTest ${SOURCES})
 
