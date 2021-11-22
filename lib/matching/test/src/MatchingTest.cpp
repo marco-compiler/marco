@@ -25,9 +25,9 @@ TEST(Matching, testCase2_matching)
 TEST(Matching, testCase3_matching)
 {
   auto graph = testCase3();
-  ASSERT_TRUE(graph.match());
-
+  bool result = graph.match();
   graph.dump();
+  ASSERT_TRUE(result);
 }
 
 TEST(Matching, testCase4_matching)
@@ -73,9 +73,9 @@ TEST(Matching, testCase8_matching)
 TEST(Matching, testCase9_matching)
 {
   auto graph = testCase9();
-  ASSERT_TRUE(graph.match());
-
+  bool result = graph.match();
   graph.dump();
+  ASSERT_TRUE(result);
 }
 
 TEST(Matching, testCase10_matching)

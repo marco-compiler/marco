@@ -21,15 +21,41 @@ namespace marco::matching
 {
   namespace detail
   {
+    class Matchable
+    {
+      public:
+      Matchable(IncidenceMatrix initialMatch);
+
+      const IncidenceMatrix& getMatched() const;
+      IncidenceMatrix getUnmatched() const;
+      bool allComponentsMatched() const;
+      void addMatch(IncidenceMatrix newMatch);
+      void removeMatch(IncidenceMatrix removedMatch);
+
+      private:
+      // Keep track of the scalar equations that have been matched
+      // for a faster lookup.
+      IncidenceMatrix match;
+    };
+
+    /**
+     * Graph node representing a variable.
+     *
+     * Requires the underlying variable property to define the Id type and
+     * implement the following methods:
+     *  - Id getId() const : get the ID of the variable
+     *  - size_t getRank() : get the number of dimensions
+     *  - long getDimensionSize(size_t index) : get the size of a dimension
+     */
     template<class VariableProperty>
-    class VariableVertex
+    class VariableVertex : public Matchable
     {
       public:
       using Id = typename VariableProperty::Id;
 
       VariableVertex(VariableProperty property)
-              : property(std::move(property)),
-                match(IncidenceMatrix::row(getRanges())),
+              : Matchable(IncidenceMatrix::row(getRanges(property))),
+                property(property),
                 visible(true)
       {
         assert(getRank() > 0 && "Scalar variables are not supported");
@@ -52,7 +78,7 @@ namespace marco::matching
 
         os << "\n";
         os << " |-- Match matrix:\n";
-        os << match;
+        os << getMatched();
       }
 
       VariableProperty& getProperty()
@@ -70,29 +96,20 @@ namespace marco::matching
         return property.getId();
       }
 
+      // TODO: change unsigned int to size_t
       unsigned int getRank() const
       {
-        return property.getRank();
+        return getRank(property);
       }
 
       long getDimensionSize(size_t index) const
       {
-        assert(index < getRank());
-        return property.getDimensionSize(index);
+        return getDimensionSize(property, index);
       }
 
       MultidimensionalRange getRanges() const
       {
-        llvm::SmallVector<Range, 3> ranges;
-
-        for (size_t i = 0; i < getRank(); ++i)
-        {
-          long size = getDimensionSize(i);
-          assert(size > 0);
-          ranges.emplace_back(0, size);
-        }
-
-        return MultidimensionalRange(ranges);
+        return getRanges(property);
       }
 
       unsigned int flatSize() const
@@ -109,49 +126,6 @@ namespace marco::matching
         return result;
       }
 
-      IncidenceMatrix& getMatchMatrix()
-      {
-        return match;
-      }
-
-      const IncidenceMatrix& getMatchMatrix() const
-      {
-        return match;
-      }
-
-      IncidenceMatrix getUnmatchedVector() const
-      {
-        return !match;
-      }
-
-      bool allComponentsMatched() const
-      {
-        auto& variableRanges = match.getVariableRanges();
-
-        llvm::SmallVector<long> indexes(1 + variableRanges.rank(), 0);
-
-        for (const auto& variableIndexes : match.getVariableRanges())
-        {
-          for (const auto& index : llvm::enumerate(variableIndexes))
-            indexes[1 + index.index()] = index.value();
-
-          if (!match.get(indexes))
-            return false;
-        }
-
-        return true;
-      }
-
-      void addMatch(IncidenceMatrix newMatch)
-      {
-        match += newMatch;
-      }
-
-      void removeMatch(IncidenceMatrix removedMatch)
-      {
-        match -= removedMatch;
-      }
-
       bool isVisible() const
       {
         return visible;
@@ -163,8 +137,36 @@ namespace marco::matching
       }
 
       private:
+      static unsigned int getRank(const VariableProperty& p)
+      {
+        return p.getRank();
+      }
+
+      static long getDimensionSize(const VariableProperty& p, size_t index)
+      {
+        assert(index < getRank(p));
+        return p.getDimensionSize(index);
+      }
+
+      static MultidimensionalRange getRanges(const VariableProperty& p)
+      {
+        llvm::SmallVector<Range, 3> ranges;
+
+        for (size_t i = 0, e = getRank(p); i < e; ++i)
+        {
+          long size = getDimensionSize(p, i);
+          assert(size > 0);
+          ranges.emplace_back(0, size);
+        }
+
+        return MultidimensionalRange(ranges);
+      }
+
+      // Custom equation property
       VariableProperty property;
-      IncidenceMatrix match;
+
+      // Whether the node is visible or has been erased
+      // TODO: move to graph
       bool visible;
     };
   }
@@ -203,15 +205,27 @@ namespace marco::matching
 
   namespace detail
   {
+    /**
+     * Graph node representing an equation.
+     *
+     * Requires the underlying equation property to define the Id type and
+     * implement the following methods:
+     *  - Id getId() const : get the ID of the equation
+     *  - size_t getNumOfIterationVars() : get the number of induction variables
+     *  - Range getIterationRange(size_t inductionVarIndex) : get the range of
+     *    an iteration variable.
+     *  - void getVariableAccesses(llvm::SmallVectorImpl<Access>& accesses) : get
+     *    the variable accesses done by this equation.
+     */
     template<class EquationProperty, class VariableProperty>
-    class EquationVertex
+    class EquationVertex : public Matchable
     {
       public:
       using Id = typename EquationProperty::Id;
 
       EquationVertex(EquationProperty property)
-              : property(std::move(property)),
-                match(IncidenceMatrix::column(getIterationRanges())),
+              : Matchable(IncidenceMatrix::column(getIterationRanges(property))),
+                property(property),
                 visible(true)
       {
       }
@@ -232,7 +246,7 @@ namespace marco::matching
 
         os << "\n";
         os << " |-- Match matrix:\n";
-        os << match;
+        os << getMatched();
       }
 
       EquationProperty& getProperty()
@@ -250,25 +264,20 @@ namespace marco::matching
         return property.getId();
       }
 
+      // TODO: replace unsigned int with size_t
       unsigned int getNumOfIterationVars() const
       {
-        return property.getNumOfIterationVars();
+        return getNumOfIterationVars(property);
       }
 
       Range getIterationRange(size_t index) const
       {
-        assert(index < getNumOfIterationVars());
-        return property.getIterationRange(index);
+        return getIterationRange(property, index);
       }
 
       MultidimensionalRange getIterationRanges() const
       {
-        llvm::SmallVector<Range, 3> ranges;
-
-        for (unsigned int i = 0, e = getNumOfIterationVars(); i < e; ++i)
-          ranges.push_back(getIterationRange(i));
-
-        return MultidimensionalRange(ranges);
+        return getIterationRanges(property);
       }
 
       unsigned int flatSize() const
@@ -278,45 +287,7 @@ namespace marco::matching
 
       void getVariableAccesses(llvm::SmallVectorImpl<Access<VariableProperty>>& accesses) const
       {
-        property.getVariableAccesses(accesses);
-      }
-
-      IncidenceMatrix& getMatchMatrix()
-      {
-        return match;
-      }
-
-      const IncidenceMatrix& getMatchMatrix() const
-      {
-        return match;
-      }
-
-      bool allComponentsMatched() const
-      {
-        auto& equationRanges = match.getEquationRanges();
-
-        llvm::SmallVector<long> indexes(equationRanges.rank() + 1, 0);
-
-        for (const auto& equationIndexes : equationRanges)
-        {
-          for (const auto& index : llvm::enumerate(equationIndexes))
-            indexes[index.index()] = index.value();
-
-          if (!match.get(indexes))
-            return false;
-        }
-
-        return true;
-      }
-
-      void addMatch(IncidenceMatrix newMatch)
-      {
-        match += newMatch;
-      }
-
-      void removeMatch(IncidenceMatrix removedMatch)
-      {
-        match -= removedMatch;
+        getVariableAccesses(property, accesses);
       }
 
       bool isVisible() const
@@ -330,8 +301,39 @@ namespace marco::matching
       }
 
       private:
+      static unsigned int getNumOfIterationVars(const EquationProperty& p)
+      {
+        return p.getNumOfIterationVars();
+      }
+
+      static Range getIterationRange(const EquationProperty& p, size_t index)
+      {
+        assert(index < getNumOfIterationVars(p));
+        return p.getIterationRange(index);
+      }
+
+      static MultidimensionalRange getIterationRanges(const EquationProperty& p)
+      {
+        llvm::SmallVector<Range, 3> ranges;
+
+        for (unsigned int i = 0, e = getNumOfIterationVars(p); i < e; ++i)
+          ranges.push_back(getIterationRange(p, i));
+
+        return MultidimensionalRange(ranges);
+      }
+
+      static void getVariableAccesses(
+              const EquationProperty& p,
+              llvm::SmallVectorImpl<Access<VariableProperty>>& accesses)
+      {
+        p.getVariableAccesses(accesses);
+      }
+
+      // Custom equation property
       EquationProperty property;
-      IncidenceMatrix match;
+
+      // Whether the node is visible or has been erased
+      // TODO: move to graph
       bool visible;
     };
 
@@ -421,31 +423,6 @@ namespace marco::matching
       IncidenceMatrix incidenceMatrix;
       IncidenceMatrix matchMatrix;
       bool visible;
-    };
-
-    template<typename VertexDescriptor>
-    class FrontierElement
-    {
-      public:
-      FrontierElement(VertexDescriptor vertex, IncidenceMatrix unmatchedVector)
-              : vertex(std::move(vertex)),
-                unmatchedVector(std::move(unmatchedVector))
-      {
-      }
-
-      VertexDescriptor getVertex()
-      {
-        return vertex;
-      }
-
-      const IncidenceMatrix& getUnmatchedVector() const
-      {
-        return unmatchedVector;
-      }
-
-      private:
-      VertexDescriptor vertex;
-      IncidenceMatrix unmatchedVector;
     };
 
     template<typename VertexDescriptor, typename EdgeDescriptor>
@@ -574,7 +551,6 @@ namespace marco::matching
     using EdgeIterator = typename Graph::EdgeIterator;
     using VisibleIncidentEdgeIterator = typename Graph::FilteredIncidentEdgeIterator;
 
-    using FrontierElement = detail::FrontierElement<VertexDescriptor>;
     using AugmentingPath = detail::AugmentingPath<VertexDescriptor, EdgeDescriptor>;
 
     public:
@@ -954,8 +930,8 @@ namespace marco::matching
         Variable& variable = isVariable(v1) ? getVariable(v1) : getVariable(v2);
         Equation& equation = isEquation(v1) ? getEquation(v1) : getEquation(v2);
 
-        variable.getMatchMatrix() += matchOptions[0].flattenEquations();
-        equation.getMatchMatrix() += matchOptions[0].flattenVariables();
+        variable.addMatch(matchOptions[0].flattenEquations());
+        equation.addMatch(matchOptions[0].flattenVariables());
 
         auto allComponentsMatchedVisitor = [](const auto& vertex) -> bool {
             return vertex.allComponentsMatched();
@@ -1143,19 +1119,17 @@ namespace marco::matching {
 
     for (auto equationDescriptor : equations)
     {
-      auto& equation = getEquation(equationDescriptor);
-      detail::IncidenceMatrix matchedEquations = detail::IncidenceMatrix::column(equation.getIterationRanges());
+      const Equation& equation = getEquation(equationDescriptor);
 
-      for (auto edgeDescriptor : getEdges(equationDescriptor))
-      {
-        const Edge& edge = graph[edgeDescriptor];
-        matchedEquations += edge.getMatchMatrix().flattenVariables();
-      }
+      if (auto unmatchedEquations = equation.getUnmatched(); !unmatchedEquations.isEmpty())
+        frontier.emplace_back(equationDescriptor, std::move(unmatchedEquations));
+    }
 
-      detail::IncidenceMatrix unmatchedEquations = !matchedEquations;
-
-      if (!unmatchedEquations.isEmpty())
-        frontier.emplace_back(equationDescriptor, unmatchedEquations);
+    for (const auto& step : frontier)
+    {
+      llvm::errs() << "STEP\n";
+      llvm::errs() << "node:\n";
+      visit([&](const auto& obj) { obj.dump(llvm::errs()); }, graph[step.getNode()]);
     }
 
     // Breadth-first search
@@ -1186,7 +1160,7 @@ namespace marco::matching {
             for (auto solution : solutions)
             {
               Variable var = getVariable(edgeDescriptor.to);
-              auto unmatchedScalarVariables = var.getUnmatchedVector();
+              auto unmatchedScalarVariables = var.getUnmatched();
               auto matched = solution.filterVariables(unmatchedScalarVariables);
 
               if (!matched.isEmpty())
