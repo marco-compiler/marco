@@ -2,6 +2,7 @@ set(SOURCES
         src/GraphTest.cpp
         src/IncidenceMatrixTest.cpp
         src/MatchingGraphTest.cpp
+        src/MatchingTest.cpp
         src/RangeTest.cpp
         src/SimplifyTest.cpp
         src/SolveLocalMatchingProblemTest.cpp

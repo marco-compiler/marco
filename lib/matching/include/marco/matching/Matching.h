@@ -3,6 +3,7 @@
 
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/iterator_range.h>
+#include <llvm/ADT/Optional.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
 #include <map>
@@ -28,7 +29,8 @@ namespace marco::matching
 
       VariableVertex(VariableProperty property)
               : property(std::move(property)),
-                match(IncidenceMatrix::row(getRanges()))
+                match(IncidenceMatrix::row(getRanges())),
+                visible(true)
       {
         assert(getRank() > 0 && "Scalar variables are not supported");
       }
@@ -49,6 +51,8 @@ namespace marco::matching
           os << "[" << getDimensionSize(i) << "]";
 
         os << "\n";
+        os << " |-- Match matrix:\n";
+        os << match;
       }
 
       VariableProperty& getProperty()
@@ -138,6 +142,16 @@ namespace marco::matching
         return true;
       }
 
+      void addMatch(IncidenceMatrix newMatch)
+      {
+        match += newMatch;
+      }
+
+      void removeMatch(IncidenceMatrix removedMatch)
+      {
+        match -= removedMatch;
+      }
+
       bool isVisible() const
       {
         return visible;
@@ -197,7 +211,8 @@ namespace marco::matching
 
       EquationVertex(EquationProperty property)
               : property(std::move(property)),
-                match(IncidenceMatrix::column(getIterationRanges()))
+                match(IncidenceMatrix::column(getIterationRanges())),
+                visible(true)
       {
       }
 
@@ -216,6 +231,8 @@ namespace marco::matching
           os << getIterationRange(i);
 
         os << "\n";
+        os << " |-- Match matrix:\n";
+        os << match;
       }
 
       EquationProperty& getProperty()
@@ -292,6 +309,16 @@ namespace marco::matching
         return true;
       }
 
+      void addMatch(IncidenceMatrix newMatch)
+      {
+        match += newMatch;
+      }
+
+      void removeMatch(IncidenceMatrix removedMatch)
+      {
+        match -= removedMatch;
+      }
+
       bool isVisible() const
       {
         return visible;
@@ -362,6 +389,11 @@ namespace marco::matching
         matchMatrix += match;
       }
 
+      void removeMatch(IncidenceMatrix match)
+      {
+        matchMatrix -= match;
+      }
+
       const IncidenceMatrix& getMatchMatrix() const
       {
         return matchMatrix;
@@ -416,30 +448,111 @@ namespace marco::matching
       IncidenceMatrix unmatchedVector;
     };
 
-    template<typename VertexDescriptor>
+    template<typename VertexDescriptor, typename EdgeDescriptor>
     class AugmentingPath
     {
       public:
-      AugmentingPath(VertexDescriptor vertex, IncidenceMatrix unmatchedEquations)
-              : vertex(std::move(vertex)),
-                unmatchedEquations(std::move(unmatchedEquations))
+      class Node
+      {
+        public:
+        Node(VertexDescriptor from, EdgeDescriptor edge, IncidenceMatrix delta)
+              : from(std::move(from)), edge(std::move(edge)), delta(std::move(delta))
+        {
+        }
+
+        VertexDescriptor getFrom() const
+        {
+          return from;
+        }
+
+        EdgeDescriptor getEdge() const
+        {
+          return edge;
+        }
+
+        const IncidenceMatrix& getDelta() const
+        {
+          return delta;
+        }
+
+        private:
+        VertexDescriptor from;
+        EdgeDescriptor edge;
+        IncidenceMatrix delta;
+      };
+
+      using iterator = typename llvm::SmallVector<Node, 3>::iterator;
+      using const_iterator = typename llvm::SmallVector<Node, 3>::const_iterator;
+
+      AugmentingPath(llvm::ArrayRef<Node> nodes)
+              : nodes(nodes.begin(), nodes.end())
       {
       }
 
-      VertexDescriptor getVertex()
+      const Node& operator[](size_t index) const
       {
-        return vertex;
+        assert(index < nodes.size());
+        return nodes[index];
       }
 
-      const IncidenceMatrix& getUnmatchedEquations() const
+      iterator begin()
       {
-        return unmatchedEquations;
+        return nodes.begin();
+      }
+
+      const_iterator begin() const
+      {
+        return nodes.begin();
+      }
+
+      iterator end()
+      {
+        return nodes.end();
+      }
+
+      const_iterator end() const
+      {
+        return nodes.end();
       }
 
       private:
-      VertexDescriptor vertex;
-      IncidenceMatrix unmatchedEquations;
+      llvm::SmallVector<Node, 3> nodes;
     };
+
+    /*
+    template<typename VariableId, typename EquationId>
+    class MatchingSolution
+    {
+      public:
+      MatchingSolution(
+              VariableId variable,
+              EquationId equation,
+              const detail::IncidenceMatrix* matchMatrix)
+              : variable(std::move(variable)), equation(std::move(equation)), matchMatrix(matchMatrix)
+      {
+      }
+
+      const VariableId& getVariable() const
+      {
+        return variable;
+      }
+
+      const EquationId& getEquation() const
+      {
+        return equation;
+      }
+
+      const detail::IncidenceMatrix* getMatchMatrix() const
+      {
+        return matchMatrix;
+      }
+
+      private:
+      VariableId variable;
+      EquationId equation;
+      const detail::IncidenceMatrix* matchMatrix;
+    };
+     */
   }
 
   template<class VariableProperty, class EquationProperty>
@@ -462,11 +575,13 @@ namespace marco::matching
     using VisibleIncidentEdgeIterator = typename Graph::FilteredIncidentEdgeIterator;
 
     using FrontierElement = detail::FrontierElement<VertexDescriptor>;
-    using AugmentingPath = detail::AugmentingPath<VertexDescriptor>;
+    using AugmentingPath = detail::AugmentingPath<VertexDescriptor, EdgeDescriptor>;
 
     public:
     using VariableIterator = typename Graph::FilteredVertexIterator;
     using EquationIterator = typename Graph::FilteredVertexIterator;
+
+    //using MatchingSolution = detail::MatchingSolution<typename Variable::Id, typename Equation::Id>;
 
     void dump() const;
     void dump(llvm::raw_ostream& os) const;
@@ -905,6 +1020,9 @@ namespace marco::matching
       complete = allNodesMatched();
     } while(success && !complete);
 
+    //llvm::errs() << "--------------- FINAL -----------\n";
+    //dump();
+
     return success;
   }
 
@@ -920,16 +1038,107 @@ namespace marco::matching
     for (auto& path : augmentingPaths)
       applyPath(path);
 
-    return false;
-    // return true; // commented for testing
+    return true;
   }
 
+  namespace detail
+  {
+    template<typename VertexDescriptor, typename EdgeDescriptor>
+    class BFSStep
+    {
+      public:
+      BFSStep(VertexDescriptor node, IncidenceMatrix cur)
+            : previous(nullptr),
+              node(std::move(node)),
+              cur(std::move(cur)),
+              edge(llvm::None),
+              match(llvm::None)
+      {
+      }
+
+      BFSStep(BFSStep previous, EdgeDescriptor edge, VertexDescriptor node, IncidenceMatrix cur, IncidenceMatrix match)
+            : previous(std::make_unique<BFSStep>(std::move(previous))),
+              node(std::move(node)),
+              cur(std::move(cur)),
+              edge(std::move(edge)),
+              match(std::move(match))
+      {
+      }
+
+      BFSStep(const BFSStep& other)
+            : previous(other.hasPrevious() ? std::make_unique<BFSStep>(*other.previous) : nullptr),
+              node(other.node),
+              cur(other.cur),
+              edge(other.edge),
+              match(other.match)
+      {
+      }
+
+      BFSStep(BFSStep&& other) = default;
+
+      ~BFSStep() = default;
+
+      friend void swap(BFSStep& first, BFSStep& second)
+      {
+        using std::swap;
+
+        swap(first.previous, second.previous);
+        swap(first.node, second.node);
+        swap(first.cur, second.cur);
+      }
+
+      bool hasPrevious() const
+      {
+        return previous.get() != nullptr;
+      }
+
+      const BFSStep& getPrevious() const
+      {
+        return *previous;
+      }
+
+      VertexDescriptor getNode() const
+      {
+        return node;
+      }
+
+      const IncidenceMatrix& curSet() const
+      {
+        return cur;
+      }
+
+      EdgeDescriptor getEdge() const
+      {
+        assert(edge.hasValue());
+        return *edge;
+      }
+
+      const IncidenceMatrix& mapSet() const
+      {
+        assert(match.hasValue());
+        return *match;
+      }
+
+      private:
+      std::unique_ptr<BFSStep> previous;
+      VertexDescriptor node;
+      IncidenceMatrix cur;
+      llvm::Optional<EdgeDescriptor> edge;
+      llvm::Optional<IncidenceMatrix> match;
+    };
+  }
+}
+
+namespace marco::matching {
   template<typename VariableProperty, typename EquationProperty>
   void MatchingGraph<VariableProperty, EquationProperty>::getAugmentingPaths(
           llvm::SmallVectorImpl<AugmentingPath>& paths) const
   {
+    using BFSStep = detail::BFSStep<VertexDescriptor, EdgeDescriptor>;
+
+    std::vector<BFSStep> frontier;
+
     // Calculation of the initial frontier
-    llvm::SmallVector<FrontierElement, 10> frontier;
     auto equations = getEquations();
 
     for (auto equationDescriptor : equations)
@@ -949,15 +1158,15 @@ namespace marco::matching
         frontier.emplace_back(equationDescriptor, unmatchedEquations);
     }
 
-    // Breadth-first search.
-    // Can be replaced with a depth-first-search as long as we check for loops in the residual graph.
-    llvm::SmallVector<FrontierElement, 10> newFrontier;
+    // Breadth-first search
+    std::vector<BFSStep> newFrontier;
+    llvm::SmallVector<BFSStep, 10> foundPaths;
 
-    while (!frontier.empty() && paths.empty())
+    while (!frontier.empty() && foundPaths.empty())
     {
-      for (FrontierElement& frontierElement : frontier)
+      for (BFSStep& step : frontier)
       {
-        auto vertexDescriptor = frontierElement.getVertex();
+        auto vertexDescriptor = step.getNode();
 
         for (EdgeDescriptor edgeDescriptor : getEdges(vertexDescriptor))
         {
@@ -971,7 +1180,7 @@ namespace marco::matching
             const Equation& equation = getEquation(vertexDescriptor);
             const Variable& variable = getVariable(nextNode);
             auto unmatchedMatrix = edge.getUnmatchedMatrix();
-            auto filteredMatrix = unmatchedMatrix.filterEquations(frontierElement.getUnmatchedVector());
+            auto filteredMatrix = unmatchedMatrix.filterEquations(step.curSet());
             detail::LocalMatchingSolutions solutions = detail::solveLocalMatchingProblem(filteredMatrix);
 
             for (auto solution : solutions)
@@ -981,19 +1190,23 @@ namespace marco::matching
               auto matched = solution.filterVariables(unmatchedScalarVariables);
 
               if (!matched.isEmpty())
-                paths.emplace_back(nextNode, matched.flattenEquations());
+              {
+                foundPaths.emplace_back(step, edgeDescriptor, nextNode, matched.flattenEquations(), matched);
+              }
               else
-                newFrontier.emplace_back(nextNode, solution.flattenEquations());
+              {
+                newFrontier.emplace_back(step, edgeDescriptor, nextNode, solution.flattenEquations(), solution);
+              }
             }
           }
           else
           {
             assert(isEquation(nextNode));
-            auto filteredMatrix = edge.getMatchMatrix().filterVariables(frontierElement.getUnmatchedVector());
+            auto filteredMatrix = edge.getMatchMatrix().filterVariables(step.curSet());
             detail::LocalMatchingSolutions solutions = detail::solveLocalMatchingProblem(filteredMatrix);
 
             for (auto solution : solutions)
-              newFrontier.emplace_back(nextNode, solution.flattenVariables());
+              newFrontier.emplace_back(BFSStep(step, edgeDescriptor, nextNode, solution.flattenVariables(), solution));
           }
         }
       }
@@ -1001,13 +1214,118 @@ namespace marco::matching
       frontier.clear();
       frontier.swap(newFrontier);
     }
+
+    std::map<VertexDescriptor, detail::IncidenceMatrix> touchedNodeIndices;
+
+    for (BFSStep& pathEnd : foundPaths)
+    {
+      std::map<VertexDescriptor, detail::IncidenceMatrix> myTouchedNodeIndices;
+      const BFSStep* curStep = &pathEnd;
+      std::vector<typename AugmentingPath::Node> nodes;
+      bool validPath = true;
+
+      while (curStep && validPath)
+      {
+        if (curStep->hasPrevious())
+        {
+          if (nodes.empty())
+          {
+            nodes.emplace_back(curStep->getPrevious().getNode(), curStep->getEdge(), curStep->mapSet());
+          }
+          else
+          {
+            auto prevMap = nodes[0].getDelta();
+
+            if (isVariable(curStep->getNode()))
+            {
+              auto map = curStep->mapSet().filterVariables(prevMap.flattenEquations());
+              nodes.emplace(nodes.begin(), curStep->getPrevious().getNode(), curStep->getEdge(), map);
+            }
+            else
+            {
+              auto map = curStep->mapSet().filterEquations(prevMap.flattenVariables());
+              nodes.emplace(nodes.begin(), curStep->getPrevious().getNode(), curStep->getEdge(), map);
+            }
+          }
+        }
+
+        const auto& touchedIndexes = curStep->curSet();
+
+        if (auto it = touchedNodeIndices.find(curStep->getNode()); it != touchedNodeIndices.end())
+        {
+          auto& alreadyTouchedIndices = it->second;
+
+          if (!touchedIndexes.isDisjoint(alreadyTouchedIndices))
+          {
+            validPath = false;
+          }
+          else
+          {
+            if (auto it2 = myTouchedNodeIndices.find(curStep->getNode()); it2 != myTouchedNodeIndices.end())
+            {
+              it2->second += touchedIndexes;
+            }
+            else
+            {
+              myTouchedNodeIndices.emplace(curStep->getNode(), alreadyTouchedIndices + touchedIndexes);
+            }
+          }
+        }
+        else
+        {
+          if (auto it2 = myTouchedNodeIndices.find(curStep->getNode()); it2 != myTouchedNodeIndices.end())
+          {
+            it2->second += touchedIndexes;
+          }
+          else
+          {
+            myTouchedNodeIndices.emplace(curStep->getNode(), touchedIndexes);
+          }
+        }
+
+        curStep = &curStep->getPrevious();
+      }
+
+      if (validPath)
+      {
+        paths.emplace_back(nodes);
+
+        for (auto it : myTouchedNodeIndices)
+          touchedNodeIndices.insert(it);
+      }
+    }
   }
 
   template<typename VariableProperty, typename EquationProperty>
   void MatchingGraph<VariableProperty, EquationProperty>::applyPath(
           const AugmentingPath& path)
   {
+    for (auto& node : path)
+    {
+      auto& edge = graph[node.getEdge()];
 
+      VertexDescriptor from = node.getEdge().from;
+      VertexDescriptor to = node.getEdge().to;
+
+      auto& delta = node.getDelta();
+
+      if (isVariable(node.getFrom()))
+      {
+        //llvm::errs() << "Cancel match\n" << delta << "\n";
+        edge.removeMatch(delta);
+        getVariable(from).removeMatch(delta.flattenEquations());
+        getEquation(to).removeMatch(delta.flattenVariables());
+      }
+      else
+      {
+        //llvm::errs() << "Apply match\n" << delta << "\n";
+        edge.addMatch(delta);
+        getEquation(from).addMatch(delta.flattenVariables());
+        getVariable(to).addMatch(delta.flattenEquations());
+      }
+    }
+
+    //dump(llvm::errs());
   }
 }
 

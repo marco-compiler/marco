@@ -51,6 +51,8 @@ namespace marco::matching::detail
 
 		IncidenceMatrix(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges);
 
+    void dump() const;
+
     static IncidenceMatrix row(MultidimensionalRange variableRanges);
     static IncidenceMatrix column(MultidimensionalRange equationRanges);
 
@@ -117,6 +119,8 @@ namespace marco::matching::detail
      * @return matrix with filtered equations
      */
     IncidenceMatrix filterVariables(const IncidenceMatrix& filter) const;
+
+    bool isDisjoint(const IncidenceMatrix& other) const;
 
 		private:
 		std::pair<size_t, size_t> getMatrixIndexes(llvm::ArrayRef<long> indexes) const;

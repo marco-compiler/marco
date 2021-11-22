@@ -114,6 +114,11 @@ IncidenceMatrix::IncidenceMatrix(MultidimensionalRange equationRanges, Multidime
 {
 }
 
+void IncidenceMatrix::dump() const
+{
+  llvm::outs() << *this;
+}
+
 IncidenceMatrix IncidenceMatrix::row(MultidimensionalRange variableRanges)
 {
   MultidimensionalRange equationRanges(Range(0, 1));
@@ -432,6 +437,16 @@ IncidenceMatrix IncidenceMatrix::filterVariables(const IncidenceMatrix& filter) 
   }
 
   return result;
+}
+
+bool IncidenceMatrix::isDisjoint(const IncidenceMatrix& other) const
+{
+  assert(equationRanges == other.equationRanges);
+  assert(variableRanges == other.variableRanges);
+
+  return llvm::none_of(getIndexes(), [&](auto indexes) {
+    return get(indexes) && other.get(indexes);
+  });
 }
 
 std::pair<size_t, size_t> IncidenceMatrix::getMatrixIndexes(llvm::ArrayRef<long> indexes) const
