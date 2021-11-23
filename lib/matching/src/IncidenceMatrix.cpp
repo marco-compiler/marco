@@ -116,7 +116,7 @@ IncidenceMatrix::IncidenceMatrix(MultidimensionalRange equationRanges, Multidime
 
 void IncidenceMatrix::dump() const
 {
-  llvm::outs() << *this;
+  llvm::errs() << *this;
 }
 
 IncidenceMatrix IncidenceMatrix::row(MultidimensionalRange variableRanges)
