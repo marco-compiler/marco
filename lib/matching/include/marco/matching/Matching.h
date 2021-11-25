@@ -10,6 +10,7 @@
 #include <map>
 #include <marco/utils/TreeOStream.h>
 #include <memory>
+#include <numeric>
 #include <type_traits>
 #include <variant>
 
@@ -362,11 +363,17 @@ namespace marco::matching
       bool visible;
     };
 
+    template<typename Variable, typename Equation>
     class Edge
     {
       public:
-      Edge(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
-              : incidenceMatrix(equationRanges, variableRanges),
+      Edge(typename Equation::Id equation,
+           typename Variable::Id variable,
+           MultidimensionalRange equationRanges,
+           MultidimensionalRange variableRanges)
+              : equation(std::move(equation)),
+                variable(std::move(variable)),
+                incidenceMatrix(equationRanges, variableRanges),
                 matchMatrix(equationRanges, variableRanges),
                 visible(true)
       {
@@ -383,19 +390,8 @@ namespace marco::matching
 
         TreeOStream os(stream);
         os << "Edge\n";
-
-        /*
-        const auto& from = std::visit([](const auto& vertex) {
-            return vertex.getId();
-        }, graph[descriptor.from]);
-
-        const auto& to = std::visit([](const auto& vertex) {
-            return vertex.getId();
-        }, graph[descriptor.to]);
-         */
-
-        //os << tree_property << "From: " << from;
-
+        os << tree_property << "Equation: " << equation << "\n";
+        os << tree_property << "Variable: " << variable << "\n";
         os << tree_property << "Incidence matrix:\n" << incidenceMatrix << "\n";
         os << tree_property << "Match matrix:\n" << getMatched();
 
@@ -449,6 +445,12 @@ namespace marco::matching
       }
 
       private:
+      // Equation's ID. Just for debugging purpose
+      typename Equation::Id equation;
+
+      // Variable's ID. Just for debugging purpose
+      typename Variable::Id variable;
+
       llvm::SmallVector<AccessFunction, 3> accessFunctions;
       IncidenceMatrix incidenceMatrix;
       IncidenceMatrix matchMatrix;
@@ -593,7 +595,7 @@ namespace marco::matching
     using Variable = detail::VariableVertex<VariableProperty>;
     using Equation = detail::EquationVertex<EquationProperty, VariableProperty>;
     using Vertex = std::variant<Variable, Equation>;
-    using Edge = detail::Edge;
+    using Edge = detail::Edge<Variable, Equation>;
 
     private:
     using Graph = base::Graph<Vertex, Edge>;
@@ -645,21 +647,23 @@ namespace marco::matching
       return std::get<Variable>(graph[vertex]).getProperty();
     }
 
-    Variable& getVariable(VertexDescriptor vertex)
+    Variable& getVariable(VertexDescriptor descriptor)
     {
-      assert(isVariable(vertex));
-      return std::get<Variable>(graph[vertex]);
+      auto& vertex = graph[descriptor];
+      assert(std::holds_alternative<Variable>(vertex));
+      return std::get<Variable>(vertex);
     }
 
-    const Variable& getVariable(VertexDescriptor vertex) const
+    const Variable& getVariable(VertexDescriptor descriptor) const
     {
-      assert(isVariable(vertex));
-      return std::get<Variable>(graph[vertex]);
+      auto& vertex = graph[descriptor];
+      assert(std::holds_alternative<Variable>(vertex));
+      return std::get<Variable>(vertex);
     }
 
     llvm::iterator_range<VariableIterator> getVariables() const
     {
-      auto filter = [&](const Vertex& vertex) -> bool {
+      auto filter = [](const Vertex& vertex) -> bool {
           return std::holds_alternative<Variable>(vertex);
       };
 
@@ -702,21 +706,23 @@ namespace marco::matching
       return std::get<Equation>(graph[vertex]).getProperty();
     }
 
-    Equation& getEquation(VertexDescriptor vertex)
+    Equation& getEquation(VertexDescriptor descriptor)
     {
-      assert(isEquation(vertex));
-      return std::get<Equation>(graph[vertex]);
+      auto& vertex = graph[descriptor];
+      assert(std::holds_alternative<Equation>(vertex));
+      return std::get<Equation>(vertex);
     }
 
-    const Equation& getEquation(VertexDescriptor vertex) const
+    const Equation& getEquation(VertexDescriptor descriptor) const
     {
-      assert(isEquation(vertex));
-      return std::get<Equation>(graph[vertex]);
+      auto& vertex = graph[descriptor];
+      assert(std::holds_alternative<Equation>(vertex));
+      return std::get<Equation>(vertex);
     }
 
     llvm::iterator_range<EquationIterator> getEquations() const
     {
-      auto filter = [&](const Vertex& vertex) -> bool {
+      auto filter = [](const Vertex& vertex) -> bool {
           return std::holds_alternative<Equation>(vertex);
       };
 
@@ -725,9 +731,12 @@ namespace marco::matching
 
     void addEquation(EquationProperty property)
     {
-      Equation equation(std::move(property));
-      assert(!hasEquation(equation.getId()) && "Already existing equation");
-      auto equationVertex = graph.addVertex(equation);
+      Equation eq(std::move(property));
+      assert(!hasEquation(eq.getId()) && "Already existing equation");
+
+      // Insert the equation into the graph and get a reference to the new vertex
+      auto equationDescriptor = graph.addVertex(std::move(eq));
+      Equation& equation = getEquation(equationDescriptor);
 
       llvm::SmallVector<Access<VariableProperty>, 3> accesses;
       equation.getVariableAccesses(accesses);
@@ -738,48 +747,43 @@ namespace marco::matching
 
       for (const auto& access : accesses)
       {
-        auto variableVertex = getVariableVertex(access.getVariable().getId());
-        unsigned int numberOfEquations = equation.getIterationRanges().flatSize();
-        auto& variable = std::get<Variable>(graph[variableVertex]);
-        unsigned int numberOfVariables = variable.flatSize();
+        auto variableDescriptor = getVariableVertex(access.getVariable().getId());
+        Variable& variable = getVariable(variableDescriptor);
 
-        Edge edge(equation.getIterationRanges(), variable.getRanges());
-        auto edgeDescriptor = graph.addEdge(equationVertex, variableVertex, edge);
-
+        Edge edge(equation.getId(), variable.getId(), equation.getIterationRanges(), variable.getRanges());
+        auto edgeDescriptor = graph.addEdge(equationDescriptor, variableDescriptor, edge);
         graph[edgeDescriptor].addAccessFunction(access.getAccessFunction());
       }
     }
 
+    /**
+     * Get the total amount of scalar variables inside the graph.
+     *
+     * @return number of scalar variables
+     */
     size_t getNumberOfScalarVariables() const
     {
-      size_t result = 0;
+      auto vars = getVariables();
 
-      for (const auto& v : graph.getVertices())
-      {
-        if (auto& vertex = graph[v]; std::holds_alternative<Variable>(vertex))
-        {
-          auto& variable = std::get<Variable>(vertex);
-          result += variable.flatSize();
-        }
-      }
-
-      return result;
+      return std::accumulate(vars.begin(), vars.end(), 0, [&](size_t sum, const auto& desc) {
+        return sum + getVariable(desc).flatSize();
+      });
     }
 
+    /**
+     * Get the total amount of scalar equations inside the graph.
+     * With "scalar equations" we mean the ones generated by unrolling
+     * the loops defining them.
+     *
+     * @return number of scalar equations
+     */
     size_t getNumberOfScalarEquations() const
     {
-      size_t result = 0;
+      auto eqs = getEquations();
 
-      for (const auto& v : graph.getVertices())
-      {
-        if (auto& vertex = graph[v]; std::holds_alternative<Equation>(vertex))
-        {
-          auto& equation = std::get<Equation>(vertex);
-          result += equation.flatSize();
-        }
-      }
-
-      return result;
+      return std::accumulate(eqs.begin(), eqs.end(), 0, [&](size_t sum, const auto& desc) {
+          return sum + getEquation(desc).flatSize();
+      });
     }
 
     bool allNodesMatched() const
