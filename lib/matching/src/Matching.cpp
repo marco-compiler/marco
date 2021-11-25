@@ -24,12 +24,12 @@ bool Matchable::allComponentsMatched() const
   });
 }
 
-void Matchable::addMatch(IncidenceMatrix newMatch)
+void Matchable::addMatch(const IncidenceMatrix& newMatch)
 {
   match += newMatch;
 }
 
-void Matchable::removeMatch(IncidenceMatrix removedMatch)
+void Matchable::removeMatch(const IncidenceMatrix& removedMatch)
 {
   match -= removedMatch;
 }

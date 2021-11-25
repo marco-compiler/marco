@@ -1,5 +1,6 @@
 set(SOURCES
         src/AccessFunction.cpp
+        src/Dumpable.cpp
         src/Graph.cpp
         src/IncidenceMatrix.cpp
         src/LocalMatchingSolutions.cpp
