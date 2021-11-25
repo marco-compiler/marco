@@ -1,4 +1,5 @@
 set(SOURCES
+        src/Common.cpp
         src/GraphTest.cpp
         src/IncidenceMatrixTest.cpp
         src/MatchingGraphTest.cpp

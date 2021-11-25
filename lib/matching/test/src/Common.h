@@ -2,7 +2,13 @@
 #define MARCO_MATCHING_TEST_COMMON_H
 
 #include <llvm/ADT/StringRef.h>
-#include <marco/matching/Range.h>
+#include <marco/matching/Matching.h>
+
+namespace llvm
+{
+    std::ostream& operator<<(
+            std::ostream& stream, const llvm::StringRef& str);
+}
 
 namespace marco::matching
 {

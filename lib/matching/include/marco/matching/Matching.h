@@ -1,12 +1,14 @@
 #ifndef MARCO_MATCHING_MATCHING_H
 #define MARCO_MATCHING_MATCHING_H
 
+#include <iostream>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/ADT/iterator_range.h>
 #include <llvm/ADT/Optional.h>
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/raw_ostream.h>
 #include <map>
+#include <marco/utils/TreeOStream.h>
 #include <memory>
 #include <type_traits>
 #include <variant>
@@ -16,6 +18,10 @@
 #include "IncidenceMatrix.h"
 #include "LocalMatchingSolutions.h"
 #include "Range.h"
+
+#include <iostream>
+#include <iomanip>
+#include <sstream>
 
 namespace marco::matching
 {
@@ -74,22 +80,26 @@ namespace marco::matching
 
       void dump() const
       {
-        dump(llvm::outs());
+        dump(std::clog);
       }
 
-      void dump(llvm::raw_ostream& os) const
+      void dump(std::ostream& stream) const
       {
+        using namespace marco::utils;
+
+        TreeOStream os(stream);
         os << "Variable\n";
-        os << " |-- ID: " << getId() << "\n";
-        os << " |-- Rank: " << getRank() << "\n";
-        os << " |-- Dimensions: ";
+        os << tree_property << "ID: " << getId() << "\n";
+        os << tree_property << "Rank: " << getRank() << "\n";
+        os << tree_property << "Dimensions: ";
 
         for (size_t i = 0; i < getRank(); ++i)
           os << "[" << getDimensionSize(i) << "]";
 
         os << "\n";
-        os << " |-- Match matrix:\n";
-        os << getMatched();
+        os << tree_property << "Match matrix:\n" << getMatched();
+
+        stream << std::endl;
       }
 
       VariableProperty& getProperty()
@@ -243,21 +253,25 @@ namespace marco::matching
 
       void dump() const
       {
-        dump(llvm::outs());
+        dump(std::clog);
       }
 
-      void dump(llvm::raw_ostream& os) const
+      void dump(std::ostream& stream) const
       {
+        using namespace marco::utils;
+
+        TreeOStream os(stream);
         os << "Equation\n";
-        os << " |-- ID: " << getId() << "\n";
-        os << " |-- Iteration ranges: ";
+        os << tree_property << "ID: " << getId() << "\n";
+        os << tree_property << "Iteration ranges: ";
 
         for (size_t i = 0; i < getNumOfIterationVars(); ++i)
           os << getIterationRange(i);
 
         os << "\n";
-        os << " |-- Match matrix:\n";
-        os << getMatched();
+        os << tree_property << "Match matrix:\n" << getMatched();
+
+        stream << std::endl;
       }
 
       EquationProperty& getProperty()
@@ -352,9 +366,7 @@ namespace marco::matching
     {
       public:
       Edge(MultidimensionalRange equationRanges, MultidimensionalRange variableRanges)
-              : equations(equationRanges.flatSize()),
-                variables(variableRanges.flatSize()),
-                incidenceMatrix(equationRanges, variableRanges),
+              : incidenceMatrix(equationRanges, variableRanges),
                 matchMatrix(equationRanges, variableRanges),
                 visible(true)
       {
@@ -362,23 +374,32 @@ namespace marco::matching
 
       void dump() const
       {
-        dump(llvm::outs());
+        dump(std::clog);
       }
 
-      void dump(llvm::raw_ostream& os) const
+      void dump(std::ostream& stream) const
       {
-        os << "Incidence matrix:\n" << incidenceMatrix << "\n";
-        os << "Match matrix:\n" << matchMatrix;
-      }
+        using namespace marco::utils;
 
-      unsigned int getNumberOfEquations() const
-      {
-        return equations;
-      }
+        TreeOStream os(stream);
+        os << "Edge\n";
 
-      unsigned int getNumberOfVariables() const
-      {
-        return variables;
+        /*
+        const auto& from = std::visit([](const auto& vertex) {
+            return vertex.getId();
+        }, graph[descriptor.from]);
+
+        const auto& to = std::visit([](const auto& vertex) {
+            return vertex.getId();
+        }, graph[descriptor.to]);
+         */
+
+        //os << tree_property << "From: " << from;
+
+        os << tree_property << "Incidence matrix:\n" << incidenceMatrix << "\n";
+        os << tree_property << "Match matrix:\n" << getMatched();
+
+        stream << std::endl;
       }
 
       llvm::ArrayRef<AccessFunction> getAccessFunctions() const
@@ -407,12 +428,12 @@ namespace marco::matching
         matchMatrix -= match;
       }
 
-      const IncidenceMatrix& getMatchMatrix() const
+      const IncidenceMatrix& getMatched() const
       {
         return matchMatrix;
       }
 
-      IncidenceMatrix getUnmatchedMatrix() const
+      IncidenceMatrix getUnmatched() const
       {
         return incidenceMatrix - matchMatrix;
       }
@@ -428,8 +449,6 @@ namespace marco::matching
       }
 
       private:
-      unsigned int equations;
-      unsigned int variables;
       llvm::SmallVector<AccessFunction, 3> accessFunctions;
       IncidenceMatrix incidenceMatrix;
       IncidenceMatrix matchMatrix;
@@ -448,12 +467,12 @@ namespace marco::matching
         {
         }
 
-        VertexDescriptor getFrom() const
+        const VertexDescriptor& getFrom() const
         {
           return from;
         }
 
-        EdgeDescriptor getEdge() const
+        const EdgeDescriptor& getEdge() const
         {
           return edge;
         }
@@ -479,6 +498,26 @@ namespace marco::matching
       AugmentingPath(llvm::ArrayRef<Flow> flows)
               : flows(flows.begin(), flows.end())
       {
+      }
+
+      void dump(llvm::raw_ostream& os) const
+      {
+        os << "Augmenting path\n";
+
+        auto idVisitor = [](const auto& obj) { return obj.getId(); };
+
+        for (const auto& node : flows)
+        {
+          os << "--- NODE\n";
+          /*
+          os << "from " << std::visit(idVisitor, graph[node.getFrom()]) << "\n";
+          os << "edge (" << std::visit(idVisitor, graph[node.getEdge().from]) << "," <<
+             std::visit(idVisitor, graph[node.getEdge().to]) << ")\n";
+             */
+          os << "delta\n";
+          node.getDelta().dump();
+          os << "\n";
+        }
       }
 
       const Flow& operator[](size_t index) const
@@ -575,7 +614,7 @@ namespace marco::matching
     //using MatchingSolution = detail::MatchingSolution<typename Variable::Id, typename Equation::Id>;
 
     void dump() const;
-    void dump(llvm::raw_ostream& os) const;
+    void dump(std::ostream& os) const;
 
     bool hasVariable(typename Variable::Id id) const
     {
@@ -865,36 +904,29 @@ namespace marco::matching
   template<typename VariableProperty, typename EquationProperty>
   void MatchingGraph<VariableProperty, EquationProperty>::dump() const
   {
-    dump(llvm::outs());
+    dump(std::clog);
   }
 
   template<typename VariableProperty, typename EquationProperty>
-  void MatchingGraph<VariableProperty, EquationProperty>::dump(llvm::raw_ostream& os) const
+  void MatchingGraph<VariableProperty, EquationProperty>::dump(std::ostream& stream) const
   {
-    os << "********** Matching graph **********\n";
+    using namespace marco::utils;
+
+    TreeOStream os(stream);
+    os << "Matching graph\n";
 
     for (auto descriptor : graph.getVertices())
     {
       std::visit([&](const auto& vertex) {
+        os << tree_property;
         vertex.dump(os);
       }, graph[descriptor]);
-
-      os << "\n";
     }
 
     for (auto descriptor : graph.getEdges())
     {
-      const auto& from = std::visit([](const auto& vertex) {
-        return vertex.getId();
-      }, graph[descriptor.from]);
-
-      const auto& to = std::visit([](const auto& vertex) {
-          return vertex.getId();
-      }, graph[descriptor.to]);
-
-      os << "Edge from " << from << " to " << to << "\n";
+      os << tree_property;
       graph[descriptor].dump(os);
-      os << "\n";
     }
   }
 
@@ -1023,28 +1055,8 @@ namespace marco::matching
     if (augmentingPaths.empty())
       return false;
 
-    /*
-    llvm::errs() << "---------------------------- AUGMENTING PATHS\n";
-
-    for (const auto& path : augmentingPaths)
-    {
-      auto& os = llvm::errs();
-      os << "---------AUGMENTING PATH\n";
-
-      auto idVisitor = [](const auto& obj) { return obj.getId(); };
-
-      for (const auto& node : path)
-      {
-        os << "--- NODE\n";
-        os << "from " << std::visit(idVisitor, graph[node.getFrom()]) << "\n";
-        os << "edge (" << std::visit(idVisitor, graph[node.getEdge().from]) << "," <<
-           std::visit(idVisitor, graph[node.getEdge().to]) << ")\n";
-        os << "delta\n";
-        node.getDelta().dump();
-        os << "\n";
-      }
-    }
-     */
+    //for (const auto& augmentingPath : augmentingPaths)
+    //  augmentingPath.dump();
 
     for (auto& path : augmentingPaths)
       applyPath(path);
@@ -1255,7 +1267,7 @@ namespace marco::matching {
             assert(isVariable(nextNode));
             const Equation& equation = getEquation(vertexDescriptor);
             const Variable& variable = getVariable(nextNode);
-            auto unmatchedMatrix = edge.getUnmatchedMatrix();
+            auto unmatchedMatrix = edge.getUnmatched();
             auto filteredMatrix = unmatchedMatrix.filterEquations(step.curSet());
             detail::LocalMatchingSolutions solutions = detail::solveLocalMatchingProblem(filteredMatrix);
 
@@ -1278,7 +1290,7 @@ namespace marco::matching {
           else
           {
             assert(isEquation(nextNode));
-            auto filteredMatrix = edge.getMatchMatrix().filterVariables(step.curSet());
+            auto filteredMatrix = edge.getMatched().filterVariables(step.curSet());
             detail::LocalMatchingSolutions solutions = detail::solveLocalMatchingProblem(filteredMatrix);
 
             for (auto solution : solutions)
@@ -1403,8 +1415,22 @@ namespace marco::matching {
   template<typename VariableProperty, typename EquationProperty>
   void MatchingGraph<VariableProperty, EquationProperty>::applyPath(const AugmentingPath& path)
   {
+    // In order to preserve consistency of the match information among
+    // edges and nodes, we need to separately track the modifications
+    // created by the augmenting path on the vertices and apply all the
+    // removals before the additions.
+    // Consider in fact the example path [eq1 -> x -> eq2]: the first
+    // move would add some match information to eq1 and x, while the
+    // subsequent x -> eq2 would remove some from x. However, being the
+    // match matrices made of booleans, the components of x that are
+    // matched by eq1 would result as unmatched. If we instead first
+    // apply the removals, the new matches are not wrongly erased anymore.
+
     std::map<VertexDescriptor, detail::IncidenceMatrix> removedMatches;
     std::map<VertexDescriptor, detail::IncidenceMatrix> newMatches;
+
+    // Update the match matrices on the edges and store the information
+    // about the vertices to be updated later.
 
     for (auto& flow : path)
     {
@@ -1420,17 +1446,21 @@ namespace marco::matching {
 
       if (isVariable(from))
       {
+        // Backward node
         insertOrAdd(removedMatches, from, deltaVariables);
         insertOrAdd(removedMatches, to, deltaEquations);
         edge.removeMatch(delta);
       }
       else
       {
+        // Forward node
         insertOrAdd(newMatches, from, deltaEquations);
         insertOrAdd(newMatches, to, deltaVariables);
         edge.addMatch(delta);
       }
     }
+
+    // Update the match information stored on the vertices
 
     for (const auto& match : removedMatches)
     {

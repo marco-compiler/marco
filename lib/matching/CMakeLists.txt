@@ -13,6 +13,7 @@ marco_add_library(matching SHARED ${SOURCES})
 marco_link_llvm_libs(matching USE_SHARED core support)
 
 target_link_libraries(matching
-        PUBLIC boost)
+        PUBLIC boost
+        PUBLIC marco::utils)
 
 add_subdirectory(test)
