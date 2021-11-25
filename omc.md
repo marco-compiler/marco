@@ -13,6 +13,7 @@ Full set of compiler flags
 ```
 -f -d=nonfScalarize,arrayConnect,combineSubscripts,printRecordTypes --newBackend --showStructuralAnnotations
 ```
+These flags should be set in [run-marco.sh](https://github.com/modelica-polimi/marco/blob/5bac719666ea7e050463ef584b74be520ee7e955/run-marco.sh#L99), around line 99.
 
 Explanations
 -----------
