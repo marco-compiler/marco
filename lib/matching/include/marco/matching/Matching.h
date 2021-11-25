@@ -6,12 +6,10 @@
 #include <llvm/ADT/iterator_range.h>
 #include <llvm/ADT/Optional.h>
 #include <llvm/ADT/SmallVector.h>
-#include <llvm/Support/raw_ostream.h>
 #include <map>
 #include <marco/utils/TreeOStream.h>
 #include <memory>
 #include <numeric>
-#include <type_traits>
 #include <variant>
 
 #include "AccessFunction.h"
@@ -19,10 +17,6 @@
 #include "IncidenceMatrix.h"
 #include "LocalMatchingSolutions.h"
 #include "Range.h"
-
-#include <iostream>
-#include <iomanip>
-#include <sstream>
 
 namespace marco::matching
 {
@@ -118,8 +112,7 @@ namespace marco::matching
         return property.getId();
       }
 
-      // TODO: change unsigned int to size_t
-      unsigned int getRank() const
+      size_t getRank() const
       {
         return getRank(property);
       }
@@ -159,7 +152,7 @@ namespace marco::matching
       }
 
       private:
-      static unsigned int getRank(const VariableProperty& p)
+      static size_t getRank(const VariableProperty& p)
       {
         return p.getRank();
       }
@@ -290,8 +283,7 @@ namespace marco::matching
         return property.getId();
       }
 
-      // TODO: replace unsigned int with size_t
-      unsigned int getNumOfIterationVars() const
+      size_t getNumOfIterationVars() const
       {
         return getNumOfIterationVars(property);
       }
@@ -327,7 +319,7 @@ namespace marco::matching
       }
 
       private:
-      static unsigned int getNumOfIterationVars(const EquationProperty& p)
+      static size_t getNumOfIterationVars(const EquationProperty& p)
       {
         return p.getNumOfIterationVars();
       }
@@ -454,103 +446,13 @@ namespace marco::matching
       llvm::SmallVector<AccessFunction, 3> accessFunctions;
       IncidenceMatrix incidenceMatrix;
       IncidenceMatrix matchMatrix;
+
+      // TODO: move to graph
       bool visible;
     };
 
-    template<typename VertexDescriptor, typename EdgeDescriptor>
-    class AugmentingPath
-    {
-      public:
-      class Flow
-      {
-        public:
-        Flow(VertexDescriptor from, EdgeDescriptor edge, IncidenceMatrix delta)
-              : from(std::move(from)), edge(std::move(edge)), delta(std::move(delta))
-        {
-        }
+    // TODO remove template<typename VertexDescriptor, typename EdgeDescriptor>
 
-        const VertexDescriptor& getFrom() const
-        {
-          return from;
-        }
-
-        const EdgeDescriptor& getEdge() const
-        {
-          return edge;
-        }
-
-        const IncidenceMatrix& getDelta() const
-        {
-          return delta;
-        }
-
-        private:
-        VertexDescriptor from;
-        EdgeDescriptor edge;
-        IncidenceMatrix delta;
-      };
-
-      private:
-      template<typename T> using Container = llvm::SmallVector<T, 2>;
-
-      public:
-      using iterator = typename Container<Flow>::iterator;
-      using const_iterator = typename Container<Flow>::const_iterator;
-
-      AugmentingPath(llvm::ArrayRef<Flow> flows)
-              : flows(flows.begin(), flows.end())
-      {
-      }
-
-      void dump(llvm::raw_ostream& os) const
-      {
-        os << "Augmenting path\n";
-
-        auto idVisitor = [](const auto& obj) { return obj.getId(); };
-
-        for (const auto& node : flows)
-        {
-          os << "--- NODE\n";
-          /*
-          os << "from " << std::visit(idVisitor, graph[node.getFrom()]) << "\n";
-          os << "edge (" << std::visit(idVisitor, graph[node.getEdge().from]) << "," <<
-             std::visit(idVisitor, graph[node.getEdge().to]) << ")\n";
-             */
-          os << "delta\n";
-          node.getDelta().dump();
-          os << "\n";
-        }
-      }
-
-      const Flow& operator[](size_t index) const
-      {
-        assert(index < flows.size());
-        return flows[index];
-      }
-
-      iterator begin()
-      {
-        return flows.begin();
-      }
-
-      const_iterator begin() const
-      {
-        return flows.begin();
-      }
-
-      iterator end()
-      {
-        return flows.end();
-      }
-
-      const_iterator end() const
-      {
-        return flows.end();
-      }
-
-      private:
-      Container<Flow> flows;
-    };
 
     /*
     template<typename VariableId, typename EquationId>
@@ -607,7 +509,7 @@ namespace marco::matching
     using EdgeIterator = typename Graph::EdgeIterator;
     using VisibleIncidentEdgeIterator = typename Graph::FilteredIncidentEdgeIterator;
 
-    using AugmentingPath = detail::AugmentingPath<VertexDescriptor, EdgeDescriptor>;
+    class AugmentingPath;
 
     public:
     using VariableIterator = typename Graph::FilteredVertexIterator;
@@ -906,6 +808,111 @@ namespace marco::matching
   };
 
   template<typename VariableProperty, typename EquationProperty>
+  class MatchingGraph<VariableProperty, EquationProperty>::AugmentingPath
+  {
+    public:
+    struct Flow
+    {
+      Flow(VertexDescriptor from, EdgeDescriptor edge, detail::IncidenceMatrix delta, const Graph& graph)
+              : from(std::move(from)),
+                edge(std::move(edge)),
+                delta(std::move(delta)),
+                graph(&graph)
+      {
+        assert(this->from == this->edge.from || this->from == this->edge.to);
+      }
+
+      void dump() const
+      {
+        dump(std::clog);
+      }
+
+      void dump(std::ostream& stream) const
+      {
+        using namespace marco::utils;
+
+        TreeOStream os(stream);
+        os << "Flow\n";
+
+        auto idVisitor = [](const auto& obj) { return obj.getId(); };
+
+        os << tree_property << "Source: " << std::visit(idVisitor, (*graph)[from]) << "\n";
+        os << tree_property << "Edge: ";
+        os << std::visit(idVisitor, (*graph)[edge.from]) << " - " << std::visit(idVisitor, (*graph)[edge.from]) << "\n";
+        os << tree_property << "Delta:\n" << delta;
+      }
+
+      const Graph* graph;
+
+      // TODO: make const
+      VertexDescriptor from;
+      EdgeDescriptor edge;
+      detail::IncidenceMatrix delta;
+    };
+
+    private:
+    template<typename T> using Container = llvm::SmallVector<T, 3>;
+
+    public:
+    using iterator = typename Container<Flow>::iterator;
+    using const_iterator = typename Container<Flow>::const_iterator;
+
+    AugmentingPath(llvm::ArrayRef<Flow> flows)
+            : flows(flows.begin(), flows.end())
+    {
+    }
+
+    void dump() const
+    {
+      dump(std::clog);
+    }
+
+    void dump(std::ostream& stream) const
+    {
+      using namespace marco::utils;
+
+      TreeOStream os(stream);
+      os << "Augmenting path\n";
+
+      for (const auto& flow : flows)
+      {
+        os << tree_property;
+        flow.dump(os);
+        os << "\n";
+      }
+    }
+
+    const Flow& operator[](size_t index) const
+    {
+      assert(index < flows.size());
+      return flows[index];
+    }
+
+    iterator begin()
+    {
+      return flows.begin();
+    }
+
+    const_iterator begin() const
+    {
+      return flows.begin();
+    }
+
+    iterator end()
+    {
+      return flows.end();
+    }
+
+    const_iterator end() const
+    {
+      return flows.end();
+    }
+
+    private:
+    Container<Flow> flows;
+  };
+
+  template<typename VariableProperty, typename EquationProperty>
   void MatchingGraph<VariableProperty, EquationProperty>::dump() const
   {
     dump(std::clog);
@@ -1059,8 +1066,8 @@ namespace marco::matching
     if (augmentingPaths.empty())
       return false;
 
-    //for (const auto& augmentingPath : augmentingPaths)
-    //  augmentingPath.dump();
+    for (const auto& augmentingPath : augmentingPaths)
+      augmentingPath.dump();
 
     for (auto& path : augmentingPaths)
       applyPath(path);
@@ -1370,7 +1377,7 @@ namespace marco::matching {
         {
           if (!flows.empty())
           {
-            auto prevMap = flows[0].getDelta();
+            auto prevMap = flows[0].delta;
 
             if (isVariable(curStep->getNode()))
               map = curStep->mapSet().filterVariables(prevMap.flattenEquations());
@@ -1378,7 +1385,7 @@ namespace marco::matching {
               map = curStep->mapSet().filterEquations(prevMap.flattenVariables());
           }
 
-          flows.emplace(flows.begin(), curStep->getPrevious().getNode(), curStep->getEdge(), map);
+          flows.emplace(flows.begin(), curStep->getPrevious().getNode(), curStep->getEdge(), map, graph);
         }
 
         auto touchedIndexes = isVariable(curStep->getNode()) ? map.flattenEquations() : map.flattenVariables();
@@ -1438,29 +1445,27 @@ namespace marco::matching {
 
     for (auto& flow : path)
     {
-      assert(flow.getFrom() == flow.getEdge().from || flow.getFrom() == flow.getEdge().to);
-      auto& edge = graph[flow.getEdge()];
+      auto& edge = graph[flow.edge];
 
-      VertexDescriptor from = flow.getFrom();
-      VertexDescriptor to = flow.getEdge().from == from ? flow.getEdge().to : flow.getEdge().from;
+      VertexDescriptor from = flow.from;
+      VertexDescriptor to = flow.edge.from == from ? flow.edge.to : flow.edge.from;
 
-      auto& delta = flow.getDelta();
-      auto deltaEquations = delta.flattenVariables();
-      auto deltaVariables = delta.flattenEquations();
+      auto deltaEquations = flow.delta.flattenVariables();
+      auto deltaVariables = flow.delta.flattenEquations();
 
       if (isVariable(from))
       {
         // Backward node
         insertOrAdd(removedMatches, from, deltaVariables);
         insertOrAdd(removedMatches, to, deltaEquations);
-        edge.removeMatch(delta);
+        edge.removeMatch(flow.delta);
       }
       else
       {
         // Forward node
         insertOrAdd(newMatches, from, deltaEquations);
         insertOrAdd(newMatches, to, deltaVariables);
-        edge.addMatch(delta);
+        edge.addMatch(flow.delta);
       }
     }
 
