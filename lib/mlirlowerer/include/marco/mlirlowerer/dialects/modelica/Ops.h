@@ -2546,6 +2546,7 @@ namespace marco::codegen::modelica
 															 mlir::OpTrait::OneOperand,
 															 mlir::OpTrait::OneResult,
 															 VectorizableOpInterface::Trait,
+															 DerivativeInterface::Trait,
 															 FoldableOpInterface::Trait>
 	{
 		public:
@@ -2565,6 +2566,10 @@ namespace marco::codegen::modelica
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		void foldConstants(mlir::OpBuilder& builder);
 
@@ -2590,6 +2595,7 @@ namespace marco::codegen::modelica
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
 																VectorizableOpInterface::Trait,
+																DerivativeInterface::Trait,
 																FoldableOpInterface::Trait>
 	{
 		public:
@@ -2609,6 +2615,10 @@ namespace marco::codegen::modelica
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		void foldConstants(mlir::OpBuilder& builder);
 
@@ -2634,6 +2644,7 @@ namespace marco::codegen::modelica
 																mlir::OpTrait::OneOperand,
 																mlir::OpTrait::OneResult,
 																VectorizableOpInterface::Trait,
+																DerivativeInterface::Trait,
 																FoldableOpInterface::Trait>
 	{
 		public:
@@ -2653,6 +2664,10 @@ namespace marco::codegen::modelica
 		mlir::ValueRange getArgs();
 		unsigned int getArgExpectedRank(unsigned int argIndex);
 		mlir::ValueRange scalarize(mlir::OpBuilder& builder, mlir::ValueRange indexes);
+
+		mlir::ValueRange derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives);
+		void getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived);
+		void getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions);
 
 		void foldConstants(mlir::OpBuilder& builder);
 

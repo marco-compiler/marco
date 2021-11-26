@@ -6817,6 +6817,29 @@ mlir::ValueRange AbsOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange ind
 	return op->getResults();
 }
 
+mlir::ValueRange AbsOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	// D[abs(x)] = x' * sign(x)
+
+	mlir::Location loc = getLoc();
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Type type = convertToRealType(resultType());
+
+	mlir::Value sign = builder.create<SignOp>(loc, type, operand());
+	auto derivedOp = builder.create<MulElementWiseOp>(loc, type, derivedOperand, sign);
+	return derivedOp->getResults();
+}
+
+void AbsOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+
+}
+
+void AbsOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
+}
+
 void AbsOp::foldConstants(mlir::OpBuilder& builder)
 {
 	if (!isOperandFoldable(operand()))
@@ -6912,6 +6935,24 @@ mlir::ValueRange SignOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 	auto op = builder.create<SignOp>(getLoc(), newResultType, newOperand);
 	return op->getResults();
+}
+
+mlir::ValueRange SignOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	// D[sign(x)] = 0
+
+	auto derivedOp = builder.create<ConstantOp>(getLoc(), RealAttribute::get(getContext(), 0));
+	return derivedOp->getResults();
+}
+
+void SignOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+
+}
+
+void SignOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 void SignOp::foldConstants(mlir::OpBuilder& builder)
@@ -7010,6 +7051,32 @@ mlir::ValueRange SqrtOp::scalarize(mlir::OpBuilder& builder, mlir::ValueRange in
 
 	auto op = builder.create<SqrtOp>(getLoc(), newResultType, newOperand);
 	return op->getResults();
+}
+
+mlir::ValueRange SqrtOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMapping& derivatives)
+{
+	// D[sqrt(x)] = x' / sqrt(x) / 2
+
+	mlir::Location loc = getLoc();
+	mlir::Value derivedOperand = derivatives.lookup(operand());
+	mlir::Type type = convertToRealType(resultType());
+
+	mlir::Value sqrt = builder.create<SqrtOp>(loc, type, operand());
+	mlir::Value numerator = builder.create<DivElementWiseOp>(loc, type, derivedOperand, sqrt);
+	mlir::Value two = builder.create<ConstantOp>(loc, RealAttribute::get(getContext(), 2));
+	auto derivedOp = builder.create<DivElementWiseOp>(loc, type, numerator, two);
+
+	return derivedOp->getResults();
+}
+
+void SqrtOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+	toBeDerived.push_back(operand());
+}
+
+void SqrtOp::getDerivableRegions(llvm::SmallVectorImpl<mlir::Region*>& regions)
+{
+
 }
 
 void SqrtOp::foldConstants(mlir::OpBuilder& builder)
