@@ -815,36 +815,46 @@ namespace marco::matching
   class MatchingGraph<VariableProperty, EquationProperty>::Frontier : public detail::Dumpable
   {
     private:
-    template<typename T> using Container = llvm::SmallVector<T, 10>;
+    template<typename T> using Container = std::vector<T>;
 
     public:
-    class BFSStep
+    class BFSStep : public Dumpable
     {
-    public:
-      BFSStep(VertexDescriptor node, IncidenceMatrix cur)
-              : previous(nullptr),
+      public:
+      BFSStep(const Graph& graph,
+              VertexDescriptor node,
+              IncidenceMatrix candidates)
+              : graph(&graph),
+                previous(nullptr),
                 node(std::move(node)),
-                cur(std::move(cur)),
+                candidates(std::move(candidates)),
                 edge(llvm::None),
-                match(llvm::None)
+                mappedFlow(llvm::None)
       {
       }
 
-      BFSStep(BFSStep previous, EdgeDescriptor edge, VertexDescriptor node, IncidenceMatrix cur, IncidenceMatrix match)
-              : previous(std::make_unique<BFSStep>(std::move(previous))),
+      BFSStep(const Graph& graph,
+              BFSStep previous,
+              EdgeDescriptor edge,
+              VertexDescriptor node,
+              IncidenceMatrix candidates,
+              IncidenceMatrix mappedFlow)
+              : graph(&graph),
+                previous(std::make_unique<BFSStep>(std::move(previous))),
                 node(std::move(node)),
-                cur(std::move(cur)),
+                candidates(std::move(candidates)),
                 edge(std::move(edge)),
-                match(std::move(match))
+                mappedFlow(std::move(mappedFlow))
       {
       }
 
       BFSStep(const BFSStep& other)
-              : previous(other.hasPrevious() ? std::make_unique<BFSStep>(*other.previous) : nullptr),
+              : graph(other.graph),
+                previous(other.hasPrevious() ? std::make_unique<BFSStep>(*other.previous) : nullptr),
                 node(other.node),
-                cur(other.cur),
+                candidates(other.candidates),
                 edge(other.edge),
-                match(other.match)
+                mappedFlow(other.mappedFlow)
       {
       }
 
@@ -861,6 +871,36 @@ namespace marco::matching
         swap(first.cur, second.cur);
       }
 
+      using Dumpable::dump;
+
+      void dump(std::ostream& stream) const override
+      {
+        using namespace marco::utils;
+
+        TreeOStream os(stream);
+        os << "BFS step\n";
+
+        auto idVisitor = [](const auto& vertex) { return vertex.getId(); };
+
+        os << tree_property << "Node: " << std::visit(idVisitor, (*graph)[getNode()]) << "\n";
+        os << tree_property << "Candidates:\n" << getCandidates();
+
+        if (hasPrevious())
+        {
+          os << "\n";
+          os << tree_property << "Edge: "
+             << std::visit(idVisitor, (*graph)[getEdge().from])
+             << " - "
+             << std::visit(idVisitor, (*graph)[getEdge().to])
+             << "\n";
+
+          os << tree_property << "Mapped flow:\n" << getMappedFlow() << "\n";
+
+          os << tree_property << "Previous:\n";
+          getPrevious().dump(os);
+        }
+      }
+
       bool hasPrevious() const
       {
         return previous.get() != nullptr;
@@ -871,38 +911,58 @@ namespace marco::matching
         return *previous;
       }
 
-      VertexDescriptor getNode() const
+      const VertexDescriptor& getNode() const
       {
         return node;
       }
 
-      const IncidenceMatrix& curSet() const
+      const IncidenceMatrix& getCandidates() const
       {
-        return cur;
+        return candidates;
       }
 
-      EdgeDescriptor getEdge() const
+      const EdgeDescriptor& getEdge() const
       {
         assert(edge.hasValue());
         return *edge;
       }
 
-      const IncidenceMatrix& mapSet() const
+      const IncidenceMatrix& getMappedFlow() const
       {
-        assert(match.hasValue());
-        return *match;
+        assert(mappedFlow.hasValue());
+        return *mappedFlow;
       }
 
       private:
+      // Stored for debugging purpose
+      const Graph* graph;
+
       std::unique_ptr<BFSStep> previous;
       VertexDescriptor node;
-      IncidenceMatrix cur;
+      IncidenceMatrix candidates;
       llvm::Optional<EdgeDescriptor> edge;
-      llvm::Optional<IncidenceMatrix> match;
+      llvm::Optional<IncidenceMatrix> mappedFlow;
     };
 
     using iterator = typename Container<BFSStep>::iterator;
     using const_iterator = typename Container<BFSStep>::const_iterator;
+
+    using Dumpable::dump;
+
+    void dump(std::ostream& stream) const override
+    {
+      using namespace marco::utils;
+
+      TreeOStream os(stream);
+      os << "Frontier\n";
+
+      for (const auto& step : steps)
+      {
+        os << tree_property;
+        step.dump(os);
+        os << "\n";
+      }
+    }
 
     BFSStep& operator[](size_t index)
     {
@@ -916,8 +976,13 @@ namespace marco::matching
       return steps[index];
     }
 
+    bool empty() const
+    {
+      return steps.empty();
+    }
+
     template<typename... Args>
-    void add(Args&&... args)
+    void emplace(Args&&... args)
     {
       steps.emplace_back(args...);
     }
@@ -925,6 +990,21 @@ namespace marco::matching
     void clear()
     {
       steps.clear();
+    }
+
+    void swap(Frontier& other)
+    {
+      steps.swap(other.steps);
+    }
+
+    const_iterator begin() const
+    {
+      return steps.begin();
+    }
+
+    const_iterator end() const
+    {
+      return steps.end();
     }
 
     private:
@@ -937,7 +1017,7 @@ namespace marco::matching
     public:
     struct Flow : public detail::Dumpable
     {
-      Flow(VertexDescriptor source, EdgeDescriptor edge, const detail::IncidenceMatrix& delta, const Graph& graph)
+      Flow(VertexDescriptor source, EdgeDescriptor edge, const IncidenceMatrix& delta, const Graph& graph)
               : source(std::move(source)),
                 edge(std::move(edge)),
                 delta(std::move(delta)),
@@ -963,22 +1043,22 @@ namespace marco::matching
         os << tree_property << "Delta:\n" << delta;
       }
 
-      VertexDescriptor source;
-      EdgeDescriptor edge;
-      detail::IncidenceMatrix delta;
+      const VertexDescriptor source;
+      const EdgeDescriptor edge;
+      const IncidenceMatrix delta;
 
-      // Stored for debug purpose
+      // Stored for debugging purpose
       const Graph* graph;
     };
 
     private:
-    template<typename T> using Container = llvm::SmallVector<T, 3>;
+    template<typename T> using Container = std::vector<T>;
 
     public:
-    using iterator = typename Container<Flow>::iterator;
     using const_iterator = typename Container<Flow>::const_iterator;
 
-    AugmentingPath(llvm::ArrayRef<Flow> flows)
+    template<typename Flows>
+    AugmentingPath(const Flows& flows)
             : flows(flows.begin(), flows.end())
     {
     }
@@ -1006,19 +1086,9 @@ namespace marco::matching
       return flows[index];
     }
 
-    iterator begin()
-    {
-      return flows.begin();
-    }
-
     const_iterator begin() const
     {
       return flows.begin();
-    }
-
-    iterator end()
-    {
-      return flows.end();
     }
 
     const_iterator end() const
@@ -1201,7 +1271,7 @@ namespace marco::matching
   namespace detail
   {
     template<typename T>
-    void insertOrAdd(std::map<T, detail::IncidenceMatrix>& map, T key, detail::IncidenceMatrix value)
+    void insertOrAdd(std::map<T, IncidenceMatrix>& map, T key, IncidenceMatrix value)
     {
       if (auto it = map.find(key); it != map.end())
         it->second += value;
@@ -1216,7 +1286,7 @@ namespace marco::matching
   {
     using BFSStep = typename Frontier::BFSStep;
 
-    std::vector<BFSStep> frontier;
+    Frontier frontier;
 
     // Calculation of the initial frontier
     auto equations = getEquations();
@@ -1226,44 +1296,16 @@ namespace marco::matching
       const Equation& equation = getEquation(equationDescriptor);
 
       if (auto unmatchedEquations = equation.getUnmatched(); !unmatchedEquations.isEmpty())
-        frontier.emplace_back(equationDescriptor, std::move(unmatchedEquations));
+        frontier.emplace(graph, equationDescriptor, std::move(unmatchedEquations));
     }
 
     // Breadth-first search
-    std::vector<BFSStep> newFrontier;
+    Frontier newFrontier;
     llvm::SmallVector<BFSStep, 10> foundPaths;
 
     while (!frontier.empty() && foundPaths.empty())
     {
-      /*
-      llvm::errs() << "----------------------- FRONTIER\n";
-      for (const auto& step : frontier)
-      {
-        auto& os = llvm::errs();
-        os << "--------- STEP\n";
-
-        auto idVisitor = [](const auto& obj) { return obj.getId(); };
-
-        os << "node: " << std::visit(idVisitor, graph[step.getNode()]) << "\n";
-
-        if (step.hasPrevious())
-        {
-          os << "from " << std::visit(idVisitor, graph[step.getEdge().from]);
-          os << " to " << std::visit(idVisitor, graph[step.getEdge().to]) << "\n";
-        }
-
-        os << "curSet\n";
-        step.curSet().dump();
-
-        if (step.hasPrevious())
-        {
-          os << "mapSet\n";
-          step.mapSet().dump();
-        }
-      }
-      */
-
-      for (BFSStep& step : frontier)
+      for (const BFSStep& step : frontier)
       {
         auto vertexDescriptor = step.getNode();
 
@@ -1279,7 +1321,7 @@ namespace marco::matching
             const Equation& equation = getEquation(vertexDescriptor);
             const Variable& variable = getVariable(nextNode);
             auto unmatchedMatrix = edge.getUnmatched();
-            auto filteredMatrix = unmatchedMatrix.filterEquations(step.curSet());
+            auto filteredMatrix = unmatchedMatrix.filterEquations(step.getCandidates());
             detail::LocalMatchingSolutions solutions = detail::solveLocalMatchingProblem(filteredMatrix);
 
             for (auto solution : solutions)
@@ -1289,86 +1331,47 @@ namespace marco::matching
               auto matched = solution.filterVariables(unmatchedScalarVariables);
 
               if (!matched.isEmpty())
-              {
-                foundPaths.emplace_back(step, edgeDescriptor, nextNode, matched.flattenEquations(), matched);
-              }
+                foundPaths.emplace_back(graph, step, edgeDescriptor, nextNode, matched.flattenEquations(), matched);
               else
-              {
-                newFrontier.emplace_back(step, edgeDescriptor, nextNode, solution.flattenEquations(), solution);
-              }
+                newFrontier.emplace(graph, step, edgeDescriptor, nextNode, solution.flattenEquations(), solution);
             }
           }
           else
           {
             assert(isEquation(nextNode));
-            auto filteredMatrix = edge.getMatched().filterVariables(step.curSet());
+            auto filteredMatrix = edge.getMatched().filterVariables(step.getCandidates());
             detail::LocalMatchingSolutions solutions = detail::solveLocalMatchingProblem(filteredMatrix);
 
             for (auto solution : solutions)
-              newFrontier.emplace_back(BFSStep(step, edgeDescriptor, nextNode, solution.flattenVariables(), solution));
+              newFrontier.emplace(graph, step, edgeDescriptor, nextNode, solution.flattenVariables(), solution);
           }
         }
       }
 
+      // Set the new frontier for the next iteration
       frontier.clear();
       frontier.swap(newFrontier);
     }
 
-    /*
-    llvm::errs() << "----------------------- FOUND PATHS\n";
-    for (const auto& pathEnd : foundPaths)
-    {
-      auto& os = llvm::errs();
-      os << "--------- PATH\n";
-
-      const BFSStep* step = &pathEnd;
-
-      while (step)
-      {
-        os << "--------- NODE\n";
-        auto idVisitor = [](const auto& obj) { return obj.getId(); };
-
-        os << "node: " << std::visit(idVisitor, graph[step->getNode()]) << "\n";
-
-        if (step->hasPrevious())
-        {
-          os << "from " << std::visit(idVisitor, graph[step->getEdge().from]);
-          os << " to " << std::visit(idVisitor, graph[step->getEdge().to]) << "\n";
-        }
-
-        os << "curSet\n";
-        step->curSet().dump();
-
-        if (step->hasPrevious())
-        {
-          os << "mapSet\n";
-          step->mapSet().dump();
-        }
-
-        step = &step->getPrevious();
-      }
-    }
-     */
-
     // For each traversed node, keep track of the indexes that have already
     // been traversed by some augmenting path. A new candidate path can be
     // accepted only if it does not traverse any of them.
-    std::map<VertexDescriptor, detail::IncidenceMatrix> visited;
+    std::map<VertexDescriptor, IncidenceMatrix> visited;
 
     for (BFSStep& pathEnd : foundPaths)
     {
       // All the candidate paths consist in at least two nodes by construction
       assert(pathEnd.hasPrevious());
 
-      std::vector<typename AugmentingPath::Flow> flows;
+      std::list<typename AugmentingPath::Flow> flows;
 
       // The path's validity is unknown, so we must avoid polluting the
       // list of visited scalar nodes. If the path will be marked as valid,
       // then the new visits will be merged with the already found ones.
-      std::map<VertexDescriptor, detail::IncidenceMatrix> newVisits;
+      std::map<VertexDescriptor, IncidenceMatrix> newVisits;
 
       const BFSStep* curStep = &pathEnd;
-      detail::IncidenceMatrix map = curStep->mapSet();
+      IncidenceMatrix map = curStep->getMappedFlow();
       bool validPath = true;
 
       while (curStep && validPath)
@@ -1377,12 +1380,13 @@ namespace marco::matching
         {
           if (!flows.empty())
           {
-            auto prevMap = flows[0].delta;
+            // Restrict the flow
+            const auto& prevMap = flows.front().delta;
 
             if (isVariable(curStep->getNode()))
-              map = curStep->mapSet().filterVariables(prevMap.flattenEquations());
+              map = curStep->getMappedFlow().filterVariables(prevMap.flattenEquations());
             else
-              map = curStep->mapSet().filterEquations(prevMap.flattenVariables());
+              map = curStep->getMappedFlow().filterEquations(prevMap.flattenVariables());
           }
 
           flows.emplace(flows.begin(), curStep->getPrevious().getNode(), curStep->getEdge(), map, graph);
@@ -1396,7 +1400,7 @@ namespace marco::matching
 
           if (!touchedIndexes.isDisjoint(alreadyTouchedIndices))
           {
-            // The current path intersects another one, so we need to discard it.
+            // The current path intersects another one, so we need to discard it
             validPath = false;
           }
           else
@@ -1415,7 +1419,7 @@ namespace marco::matching
 
       if (validPath)
       {
-        paths.emplace_back(flows);
+        paths.emplace_back(std::move(flows));
 
         for (auto& p : newVisits)
           visited.insert_or_assign(p.first, p.second);
@@ -1437,8 +1441,8 @@ namespace marco::matching
     // matched by eq1 would result as unmatched. If we instead first
     // apply the removals, the new matches are not wrongly erased anymore.
 
-    std::map<VertexDescriptor, detail::IncidenceMatrix> removedMatches;
-    std::map<VertexDescriptor, detail::IncidenceMatrix> newMatches;
+    std::map<VertexDescriptor, IncidenceMatrix> removedMatches;
+    std::map<VertexDescriptor, IncidenceMatrix> newMatches;
 
     // Update the match matrices on the edges and store the information
     // about the vertices to be updated later.
