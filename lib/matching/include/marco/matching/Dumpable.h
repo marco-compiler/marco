@@ -8,6 +8,8 @@ namespace marco::matching::detail
   class Dumpable
   {
     public:
+    virtual ~Dumpable();
+
     void dump() const;
 
     virtual void dump(std::ostream& os) const = 0;

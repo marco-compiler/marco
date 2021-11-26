@@ -76,7 +76,7 @@ namespace marco::matching
 
       using Dumpable::dump;
 
-      void dump(std::ostream& stream) const
+      void dump(std::ostream& stream) const override
       {
         using namespace marco::utils;
 
@@ -245,7 +245,7 @@ namespace marco::matching
 
       using Dumpable::dump;
 
-      void dump(std::ostream& stream) const
+      void dump(std::ostream& stream) const override
       {
         using namespace marco::utils;
 
@@ -368,7 +368,7 @@ namespace marco::matching
 
       using Dumpable::dump;
 
-      void dump(std::ostream& stream) const
+      void dump(std::ostream& stream) const override
       {
         using namespace marco::utils;
 
@@ -479,7 +479,7 @@ namespace marco::matching
      */
   }
 
-  template<class VariableProperty, class EquationProperty>
+  template<typename VariableProperty, typename EquationProperty>
   class MatchingGraph : public detail::Dumpable
   {
     public:
@@ -707,8 +707,20 @@ namespace marco::matching
       return *edges.begin();
     }
 
+    /**
+     * Apply the simplification algorithm in order to perform all
+     * the obligatory matches, that is the variables and equations
+     * having only one incident edge.
+     *
+     * @return true if the simplification algorithm didn't find any inconsistency
+     */
     bool simplify();
 
+    /**
+     * Apply the matching algorithm.
+     *
+     * @return true if the matching algorithm managed to fully match all the nodes
+     */
     bool match();
 
     private:
@@ -925,13 +937,13 @@ namespace marco::matching
     public:
     struct Flow : public detail::Dumpable
     {
-      Flow(VertexDescriptor from, EdgeDescriptor edge, detail::IncidenceMatrix delta, const Graph& graph)
-              : from(std::move(from)),
+      Flow(VertexDescriptor source, EdgeDescriptor edge, const detail::IncidenceMatrix& delta, const Graph& graph)
+              : source(std::move(source)),
                 edge(std::move(edge)),
                 delta(std::move(delta)),
                 graph(&graph)
       {
-        assert(this->from == this->edge.from || this->from == this->edge.to);
+        assert(this->source == this->edge.from || this->source == this->edge.to);
       }
 
       using Dumpable::dump;
@@ -945,14 +957,13 @@ namespace marco::matching
 
         auto idVisitor = [](const auto& obj) { return obj.getId(); };
 
-        os << tree_property << "Source: " << std::visit(idVisitor, (*graph)[from]) << "\n";
+        os << tree_property << "Source: " << std::visit(idVisitor, (*graph)[source]) << "\n";
         os << tree_property << "Edge: ";
-        os << std::visit(idVisitor, (*graph)[edge.from]) << " - " << std::visit(idVisitor, (*graph)[edge.from]) << "\n";
+        os << std::visit(idVisitor, (*graph)[edge.from]) << " - " << std::visit(idVisitor, (*graph)[edge.to]) << "\n";
         os << tree_property << "Delta:\n" << delta;
       }
 
-      // TODO: make const
-      VertexDescriptor from;
+      VertexDescriptor source;
       EdgeDescriptor edge;
       detail::IncidenceMatrix delta;
 
@@ -1049,6 +1060,7 @@ namespace marco::matching
     // They are the ones having only one incident edge.
     std::list<VertexDescriptor> candidates;
 
+    // Determine the initial set of vertices with exactly one incident edge
     for (VertexDescriptor vertex : graph.getVertices())
     {
       auto incidentEdges = getVertexVisibilityDegree(vertex);
@@ -1060,6 +1072,7 @@ namespace marco::matching
         candidates.push_back(vertex);
     }
 
+    // Iterate on the candidate vertices and apply the simplification algorithm
     while (!candidates.empty())
     {
       VertexDescriptor v1 = candidates.front();
@@ -1101,20 +1114,29 @@ namespace marco::matching
 
         bool shouldRemoveOppositeNode = std::visit(allComponentsMatchedVisitor, graph[v2]);
 
-        // Hide the edge
+        // Remove the edge and the current candidate vertex
         remove(edgeDescriptor);
-
-        // Hide the v1 vertex
         remove(v1);
 
         if (shouldRemoveOppositeNode)
         {
+          // When a node is removed, then also its incident edges are
+          // removed. This can lead to new obliged matches, like in the
+          // following example:
+          //        |-- v3 ----
+          // v1 -- v2         |
+          //        |-- v4 -- v5
+          // v1 is the current candidate and thus is removed.
+          // v2 is removed because fully matched.
+          // v3 and v4 become new candidates for the simplification pass.
+
           for (auto e : graph.getIncidentEdges(v2))
           {
             remove(e);
 
             VertexDescriptor v = e.from == v2 ? e.to : e.from;
 
+            // TODO: remove visibility filter once the visibility is moved to the base graph
             auto isOtherVertexVisibleFn = [](const auto& obj) -> bool {
                 return obj.isVisible();
             };
@@ -1126,7 +1148,7 @@ namespace marco::matching
               candidates.push_back(v);
           }
 
-          // Hide the v2 vertex and remove it from the candidates
+          // Remove the v2 vertex and remove it from the candidates
           remove(v2);
 
           candidates.remove_if([&](auto v) {
@@ -1135,6 +1157,9 @@ namespace marco::matching
         }
         else
         {
+          // When an edge is removed but one its vertices survives, we must
+          // check if the remaining vertex has an obliged match.
+
           if (getVertexVisibilityDegree(v2) == 1)
             candidates.push_back(v2);
         }
@@ -1184,9 +1209,7 @@ namespace marco::matching
         map.emplace(key, std::move(value));
     }
   }
-}
 
-namespace marco::matching {
   template<typename VariableProperty, typename EquationProperty>
   void MatchingGraph<VariableProperty, EquationProperty>::getAugmentingPaths(
           llvm::SmallVectorImpl<AugmentingPath>& paths) const
@@ -1424,7 +1447,7 @@ namespace marco::matching {
     {
       auto& edge = graph[flow.edge];
 
-      VertexDescriptor from = flow.from;
+      VertexDescriptor from = flow.source;
       VertexDescriptor to = flow.edge.from == from ? flow.edge.to : flow.edge.from;
 
       auto deltaEquations = flow.delta.flattenVariables();
