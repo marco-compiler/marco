@@ -77,6 +77,16 @@ namespace marco::matching::detail
 		void set(llvm::ArrayRef<long> indexes);
 		void unset(llvm::ArrayRef<long> indexes);
 
+    /**
+     * Get the number of set elements.
+     *
+     * @return number of positions set to 1.
+     */
+    size_t size() const;
+
+    /**
+     * Remove all the set indexes.
+     */
 		void clear();
 
     /**

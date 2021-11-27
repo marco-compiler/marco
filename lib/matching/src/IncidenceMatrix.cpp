@@ -307,6 +307,13 @@ void IncidenceMatrix::unset(llvm::ArrayRef<long> indexes)
 	data(matrixIndexes.first, matrixIndexes.second) = false;
 }
 
+size_t IncidenceMatrix::size() const
+{
+  return llvm::count_if(getIndexes(), [&](const auto& indexes) {
+    return get(indexes);
+  });
+}
+
 void IncidenceMatrix::clear()
 {
 	data.clear();
