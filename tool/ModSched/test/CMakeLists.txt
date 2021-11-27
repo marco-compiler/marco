@@ -12,4 +12,4 @@ macro(addSchedTest sourceModel)
 
 endmacro(addSchedTest)
 
-addSchedTest(ArrayTest)
+# addSchedTest(ArrayTest)

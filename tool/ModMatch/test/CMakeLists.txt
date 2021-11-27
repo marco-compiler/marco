@@ -29,11 +29,11 @@ macro(addMatchingTest sourceModel expectedMatchedEqs maxIterations)
 
 endmacro(addMatchingTest)
 
-addMatchingTest(SimpleVector 10 1)
-addMatchingTest(TwoEquationSimpleVector 10 2)
-addMatchingTest(OverlappedEquationSimpleVector 7 5)
-addMatchingTest(AdvectionReaction 10 5)
-addMatchingTest(HarmonicOscillator 8 5)
-addMatchingTest(TransmissionLineEquations 7 5)
+# addMatchingTest(SimpleVector 10 1)
+# addMatchingTest(TwoEquationSimpleVector 10 2)
+# addMatchingTest(OverlappedEquationSimpleVector 7 5)
+# addMatchingTest(AdvectionReaction 10 5)
+# addMatchingTest(HarmonicOscillator 8 5)
+# addMatchingTest(TransmissionLineEquations 7 5)
 #addMatchingTest(SimpleAdvection 8 10)
 
