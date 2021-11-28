@@ -1,6 +1,5 @@
 #pragma once
 
-#include <mlir/Interfaces/SideEffectInterfaces.h>
 #include <mlir/IR/OpDefinition.h>
 #include <mlir/IR/BlockAndValueMapping.h>
 
@@ -954,7 +953,7 @@ namespace marco::codegen::modelica
 
 	namespace detail
 	{
-		struct FoldableOpInterfaceTraits
+		struct FoldableOpTraits
 		{
 			struct Concept
 			{
@@ -997,10 +996,10 @@ namespace marco::codegen::modelica
 		};
 	}
 
-	class FoldableOpInterface : public mlir::OpInterface<FoldableOpInterface, detail::FoldableOpInterfaceTraits>
+	class FoldableOpInterface : public mlir::OpInterface<FoldableOpInterface, detail::FoldableOpTraits>
 	{
 		public:
-		using OpInterface<FoldableOpInterface, detail::FoldableOpInterfaceTraits>::OpInterface;
+		using OpInterface<FoldableOpInterface, detail::FoldableOpTraits>::OpInterface;
 
 		void foldConstants(mlir::OpBuilder& builder)
 		{
