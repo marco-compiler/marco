@@ -15,6 +15,13 @@ namespace marco::codegen::ida
 		IntegerType getIntegerType();
 		RealType getRealType();
 
+		OpaquePointerType getOpaquePointerType();
+		IntegerPointerType getIntegerPointerType();
+		RealPointerType getRealPointerType();
+
+		mlir::Type getResidualFunctionType();
+		mlir::Type getJacobianFunctionType();
+
 		BooleanAttribute getBooleanAttribute(bool value);
 		IntegerAttribute getIntegerAttribute(long value);
 		RealAttribute getRealAttribute(double value);

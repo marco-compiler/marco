@@ -25,6 +25,16 @@ OpaquePointerType OpaquePointerType::get(mlir::MLIRContext* context)
 	return Base::get(context);
 }
 
+IntegerPointerType IntegerPointerType::get(mlir::MLIRContext* context)
+{
+	return Base::get(context);
+}
+
+RealPointerType RealPointerType::get(mlir::MLIRContext* context)
+{
+	return Base::get(context);
+}
+
 namespace marco::codegen::ida
 {
 	mlir::Type parseIdaType(mlir::DialectAsmParser& parser)
@@ -41,6 +51,12 @@ namespace marco::codegen::ida
 			return RealType::get(builder.getContext());
 
 		if (mlir::succeeded(parser.parseOptionalKeyword("opaque_ptr")))
+			return OpaquePointerType::get(builder.getContext());
+
+		if (mlir::succeeded(parser.parseOptionalKeyword("int_ptr")))
+			return OpaquePointerType::get(builder.getContext());
+
+		if (mlir::succeeded(parser.parseOptionalKeyword("real_ptr")))
 			return OpaquePointerType::get(builder.getContext());
 
 		parser.emitError(parser.getCurrentLocation()) << "unknown type";
@@ -71,6 +87,18 @@ namespace marco::codegen::ida
 		if (type.isa<OpaquePointerType>())
 		{
 			os << "opaque_ptr";
+			return;
+		}
+
+		if (type.isa<IntegerPointerType>())
+		{
+			os << "int_ptr";
+			return;
+		}
+
+		if (type.isa<RealPointerType>())
+		{
+			os << "real_ptr";
 			return;
 		}
 

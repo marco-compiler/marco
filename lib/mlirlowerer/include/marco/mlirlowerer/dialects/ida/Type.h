@@ -37,6 +37,22 @@ namespace marco::codegen::ida
 		static OpaquePointerType get(mlir::MLIRContext* context);
 	};
 
+	class IntegerPointerType : public mlir::Type::TypeBase<IntegerPointerType, mlir::Type, mlir::TypeStorage>
+	{
+		public:
+		using Base::Base;
+
+		static IntegerPointerType get(mlir::MLIRContext* context);
+	};
+
+	class RealPointerType : public mlir::Type::TypeBase<RealPointerType, mlir::Type, mlir::TypeStorage>
+	{
+		public:
+		using Base::Base;
+
+		static RealPointerType get(mlir::MLIRContext* context);
+	};
+
 	mlir::Type parseIdaType(mlir::DialectAsmParser& parser);
 	void printIdaType(mlir::Type type, mlir::DialectAsmPrinter& printer);
 }

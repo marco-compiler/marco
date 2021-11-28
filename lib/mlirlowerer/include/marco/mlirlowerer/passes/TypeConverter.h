@@ -18,10 +18,14 @@ namespace marco::codegen {
 		mlir::Type convertBooleanType(mlir::Type type);
 		mlir::Type convertIntegerType(mlir::Type type);
 		mlir::Type convertRealType(mlir::Type type);
+		mlir::Type convertOpaquePointerType(mlir::Type type);
+
 		mlir::Type convertArrayType(modelica::ArrayType type);
 		mlir::Type convertUnsizedArrayType(modelica::UnsizedArrayType type);
-		mlir::Type convertOpaquePointerType(mlir::Type type);
 		mlir::Type convertStructType(modelica::StructType type);
+
+		mlir::Type convertIntegerPointerType(ida::IntegerPointerType type);
+		mlir::Type convertRealPointerType(ida::RealPointerType type);
 
 		llvm::SmallVector<mlir::Type, 3> getArrayDescriptorFields(modelica::ArrayType type);
 		llvm::SmallVector<mlir::Type, 3> getUnsizedArrayDescriptorFields(modelica::UnsizedArrayType type);
