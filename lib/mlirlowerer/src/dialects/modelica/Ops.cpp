@@ -1563,6 +1563,15 @@ mlir::ValueRange CallOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 		"CallOp differentiation with multiple arguments or multiple return values is not supported yet");
 
 	std::string pderName = getPartialDerFunctionName(callee());
+	CallOp pderCall = builder.create<CallOp>(getLoc(), pderName, resultTypes(), args(), movedResults());
+
+	MulOp mulOp = builder.create<MulOp>(getLoc(), resultTypes()[0], derivatives.lookup(args()[0]), pderCall.getResult(0));
+	return mulOp->getResults();
+}
+
+void CallOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
+{
+	std::string pderName = getPartialDerFunctionName(callee());
 	mlir::ModuleOp moduleOp = getOperation()->getParentOfType<mlir::ModuleOp>();
 
 	// Create the partial derivative function if it does not exist already.
@@ -1574,20 +1583,12 @@ mlir::ValueRange CallOp::derive(mlir::OpBuilder& builder, mlir::BlockAndValueMap
 		assert(base.argsNames().size() == 1 && base.resultsNames().size() == 1 &&
 			"CallOp differentiation with multiple arguments or multiple return values is not supported yet");
 
-		mlir::OpBuilder::InsertionGuard guard(builder);
+		mlir::OpBuilder builder(moduleOp.getContext());
 		builder.setInsertionPointAfter(base);
 		mlir::Attribute independentVariable = base.argsNames()[0];
 		builder.create<DerFunctionOp>(base.getLoc(), pderName, base.getName(), independentVariable);
 	}
 
-	CallOp pderCall = builder.create<CallOp>(getLoc(), pderName, resultTypes(), args(), movedResults());
-
-	MulOp mulOp = builder.create<MulOp>(getLoc(), resultTypes()[0], derivatives.lookup(args()[0]), pderCall.getResult(0));
-	return mulOp->getResults();
-}
-
-void CallOp::getOperandsToBeDerived(llvm::SmallVectorImpl<mlir::Value>& toBeDerived)
-{
 	for (mlir::Value arg : args())
 		toBeDerived.push_back(arg);
 }

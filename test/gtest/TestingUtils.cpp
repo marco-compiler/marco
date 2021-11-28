@@ -29,8 +29,6 @@ void makeModel(
 	if (frontendPassManager.run(classes))
 		FAIL();
 
-	marco::codegen::modelica::ModelicaBuilder builder(&context);
-
 	marco::codegen::MLIRLowerer lowerer(context);
 	auto moduleOp = lowerer.run(classes);
 	if (!moduleOp)
@@ -62,8 +60,6 @@ void makeSolvedModel(
 
 	if (frontendPassManager.run(classes))
 		FAIL();
-
-	marco::codegen::modelica::ModelicaBuilder builder(&context);
 
 	marco::codegen::MLIRLowerer lowerer(context);
 	auto moduleOp = lowerer.run(classes);
